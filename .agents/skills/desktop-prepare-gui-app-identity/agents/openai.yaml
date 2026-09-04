@@ -1,0 +1,4 @@
+interface:
+  display_name: "准备 GUI 应用身份"
+  short_description: "稳定预览三款未经预处理的原始 Logo，选定后再生成正式图标"
+  default_prompt: "使用 $desktop-prepare-gui-app-identity 在 GUI 初始化时按固定顺序展示 3 个未经验证或标准化的 Logo 候选，等待我选择后只处理所选项并生成平台图标；首次真实开发再补齐应用元数据、固定动态标题和分发身份。"

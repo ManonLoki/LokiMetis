@@ -1,0 +1,4 @@
+interface:
+  display_name: "规划变更"
+  short_description: "仅在明确协调需要时创建最小持久 Todo，日常开发不自动调用"
+  default_prompt: "使用 $desktop-plan-change，为这个明确需要持久协调的任务准备最小 Todo；业务 Todo 先落 core 与 core 测试，再规划 GUI adapter 映射。"

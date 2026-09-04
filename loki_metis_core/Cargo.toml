@@ -1,0 +1,13 @@
+[package]
+name = "loki_metis_core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "新初始化项目的中性脚手架状态核心"
+
+[lib]
+name = "loki_metis_core"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tokio.workspace = true

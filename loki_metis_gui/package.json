@@ -1,0 +1,52 @@
+{
+  "name": "loki_metis_gui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@12.2.1",
+  "engines": {
+    "node": "^24.15.0 || >=26.0.0",
+    "pnpm": ">=11.24.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint . --max-warnings 0 && node --require ./tests/register-node-path.cjs ../.agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs --root .",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"tests/**/*.{ts,tsx}\" \"*.{json,html,ts,mjs}\" \"!src/routeTree.gen.ts\"",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@mantine/core": "^9.6.0",
+    "@mantine/hooks": "^9.6.0",
+    "@tabler/icons-react": "^3.46.0",
+    "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-router": "^1.170.32",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "i18next": "^26.4.0",
+    "jotai": "^2.20.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-i18next": "^17.0.12"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
+    "@tanstack/router-plugin": "^1.168.35",
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.9.1",
+    "jsdom": "^30.0.1",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 开机自启"
+  short_description: "接入官方开机自启插件、OS 权威状态开关、失败回滚与恢复验证"
+  default_prompt: "使用 $desktop-add-gui-autostart，为已批准的 GUI 增加默认关闭、由 OS 状态驱动且失败可回滚的开机自启设置。"

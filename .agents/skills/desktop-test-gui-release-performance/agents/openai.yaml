@@ -1,0 +1,4 @@
+interface:
+  display_name: "测试 GUI 发布性能"
+  short_description: "对当次已启用的原生 Release GUI 探针执行启动、交互与资源门禁"
+  default_prompt: "当本次 GUI 发布已选择启用性能指标或存在产品/渠道硬要求时，使用 $desktop-test-gui-release-performance 测量并判定打包前 Release 探针的性能。"

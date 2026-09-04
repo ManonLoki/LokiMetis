@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "scope": "shared-product-family-brand",
+  "publicBasePath": "/brand-support",
+  "brand": {
+    "displayNameZhCN": "守城工作室&飞鹰工作室",
+    "displayNameEnUS": "Shoucheng & Feiying Studio"
+  },
+  "contacts": {
+    "support": {
+      "channel": "QQ",
+      "value": "2222980"
+    }
+  },
+  "sponsor": {
+    "background": "sponsor/bg.jpg",
+    "tiers": [
+      {
+        "id": "refreshment",
+        "price": 19,
+        "currencyCode": "CNY",
+        "image": "sponsor/img1.png",
+        "nameKey": "sponsor.tier1_name",
+        "imageAltKey": "sponsor.tier1_image_alt",
+        "benefits": [
+          { "mainKey": "sponsor.tier1_b1" },
+          {
+            "mainKey": "sponsor.tier1_b2_main",
+            "noteKey": "sponsor.tier1_b2_note"
+          },
+          {
+            "mainKey": "sponsor.tier1_b3_main",
+            "noteKey": "sponsor.tier1_b3_note"
+          },
+          {
+            "mainKey": "sponsor.tier1_b4_main",
+            "noteKey": "sponsor.tier1_b4_note"
+          }
+        ]
+      },
+      {
+        "id": "meal",
+        "price": 199,
+        "currencyCode": "CNY",
+        "image": "sponsor/img2.png",
+        "nameKey": "sponsor.tier2_name",
+        "imageAltKey": "sponsor.tier2_image_alt",
+        "benefits": [
+          { "mainKey": "sponsor.tier2_b1" },
+          {
+            "mainKey": "sponsor.tier2_b2_main",
+            "noteKey": "sponsor.tier2_b2_note"
+          },
+          {
+            "mainKey": "sponsor.tier2_b3_main",
+            "noteKey": "sponsor.tier2_b3_note"
+          }
+        ]
+      },
+      {
+        "id": "growth",
+        "price": 1999,
+        "currencyCode": "CNY",
+        "image": "sponsor/img3.png",
+        "nameKey": "sponsor.tier3_name",
+        "imageAltKey": "sponsor.tier3_image_alt",
+        "benefits": [
+          { "mainKey": "sponsor.tier3_b1" },
+          {
+            "mainKey": "sponsor.tier3_b2_main",
+            "noteKey": "sponsor.tier3_b2_note"
+          }
+        ]
+      }
+    ],
+    "payments": [
+      {
+        "id": "wechat-pay",
+        "image": "sponsor/pay1.png",
+        "altKey": "sponsor.payment_wechat_alt"
+      },
+      {
+        "id": "alipay",
+        "image": "sponsor/pay2.png",
+        "altKey": "sponsor.payment_alipay_alt"
+      }
+    ]
+  },
+  "optionalAssets": [
+    "sponsor/arrow.png",
+    "sponsor/icon1.png",
+    "sponsor/icon2.png",
+    "sponsor/icon3.png",
+    "sponsor/icon4.png",
+    "sponsor/select.png"
+  ]
+}

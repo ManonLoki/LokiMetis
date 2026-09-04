@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 单实例"
+  short_description: "接入官方 single-instance 并恢复既有主窗口"
+  default_prompt: "使用 $desktop-add-gui-single-instance，为已批准的 GUI 增加官方单实例插件，并让第二次启动只恢复既有主窗口后退出。"

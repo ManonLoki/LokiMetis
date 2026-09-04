@@ -1,0 +1,4 @@
+interface:
+  display_name: "准备 GUI 支持界面"
+  short_description: "按八项 GUI 配置建立标题、侧栏、固定设置与条件赞助页"
+  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，按八项 GUI 配置建立仅含应用名和版本的标题、侧栏、固定设置页、i18n、三态主题及条件赞助页；本地更新日志固定从设置页读取候选资源，不建立 About 或任何远程数据管线。"

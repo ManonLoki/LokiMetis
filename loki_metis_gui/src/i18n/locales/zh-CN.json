@@ -1,0 +1,84 @@
+{
+  "identity": {
+    "application_name": "LokiMetis",
+    "localized_name": "诡秘神谕"
+  },
+  "navigation": {
+    "home": "首页",
+    "settings": "设置"
+  },
+  "sidebar": {
+    "application_navigation": "应用导航",
+    "logo_alt": "{{applicationName}} 应用标识",
+    "version": "版本 {{version}}"
+  },
+  "home": {
+    "eyebrow": "中性桌面基线",
+    "title": "产品定义待完成",
+    "description": "桌面应用基础已经就绪。此处暂不预设业务能力，待产品目标、边界与成功标准明确后再开始实现。",
+    "status_label": "当前状态",
+    "status_ready": "GUI 初始化完成",
+    "definition_label": "产品定义",
+    "definition_required": "需要补充",
+    "next_step_title": "下一步",
+    "next_step_description": "定义产品用途、首个核心工作流和可验证的成功标准。",
+    "workspace_title": "工作区",
+    "workspace_description": "产品功能将在确认范围后从这里开始生长。"
+  },
+  "settings": {
+    "title": "设置",
+    "description": "管理本机界面偏好与已启用的系统能力。",
+    "application_title": "应用信息",
+    "application_description": "应用名称和版本来自当前安装包。",
+    "localized_name": "中文名",
+    "version": "版本",
+    "language_title": "界面语言",
+    "language_description": "已保存的选择优先于系统语言，并同步更新原生菜单。",
+    "language_zh_cn": "中文",
+    "language_en_us": "English",
+    "language_error_title": "语言未更改",
+    "language_error": "无法同步原生界面语言。请确认应用状态后重试。",
+    "theme_title": "外观主题",
+    "theme_description": "选择浅色、深色或跟随系统；偏好仅保存在本机。",
+    "theme_light": "浅色",
+    "theme_dark": "深色",
+    "theme_system": "跟随系统",
+    "release_notes_title": "更新日志",
+    "release_notes_description": "查看正式候选中随应用打包的本地发布说明。",
+    "release_notes_action": "查看更新日志",
+    "system_notification_title": "系统通知",
+    "system_notification_description": "只有在这里明确开启后，应用才可发送原生通知。",
+    "system_notification_error": "无法更新通知设置。开关已回滚为可读取的实际状态；请检查系统通知权限后重试。",
+    "system_notification_unknown": "通知权限或本地偏好当前都无法确认。请在系统允许后重新读取。",
+    "autostart_title": "开机自启",
+    "autostart_description": "登录系统后正常显示并启动应用；实际状态以操作系统登录项为准。",
+    "autostart_error": "无法更新开机自启。开关已回滚为可读取的实际状态；请检查系统登录项后重试。",
+    "autostart_unknown": "当前无法读取操作系统登录项，请稍后重新读取。",
+    "capability_loading": "正在读取实际状态…",
+    "capability_pending": "正在更新系统设置…",
+    "capability_error_title": "设置未更改",
+    "capability_unknown_title": "当前状态未知",
+    "capability_retry": "重新读取实际状态"
+  },
+  "release_notes": {
+    "dialog_title": "更新日志",
+    "entry_title": "{{date}} · {{version}}",
+    "feature_optimizations": "功能优化",
+    "bug_fixes": "问题修复",
+    "loading": "正在读取候选内更新日志",
+    "load_failed_title": "无法读取更新日志",
+    "load_failed": "首次正式发布前不会生成发布说明。若这已是正式候选，请重新安装完整候选或重试。",
+    "retry": "重试",
+    "none": "无"
+  },
+  "errors": {
+    "metadata_title": "无法读取应用信息",
+    "metadata_description": "请重新启动应用；若问题仍然存在，请检查安装是否完整。",
+    "retry": "重试",
+    "not_found_title": "页面不存在",
+    "not_found_description": "此地址不属于当前应用。",
+    "back_home": "返回首页",
+    "unexpected_title": "页面暂时不可用",
+    "unexpected_description": "请返回首页后重试。"
+  }
+}

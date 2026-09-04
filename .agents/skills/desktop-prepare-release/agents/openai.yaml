@@ -1,0 +1,4 @@
+interface:
+  display_name: "准备发布"
+  short_description: "复核并本地提交源码与双语发布日志，再从 clean HEAD 构建候选"
+  default_prompt: "使用 $desktop-prepare-release 复核已完成范围；明确发布时无需二次审批，先本地提交源码，再生成并提交 zh-CN/en-US 发布日志，最后只从 clean HEAD 构建候选。"

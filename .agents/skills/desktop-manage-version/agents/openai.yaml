@@ -1,0 +1,4 @@
+interface:
+  display_name: "下游产品版本门禁"
+  short_description: "自动管理功能、缺陷与正式发布周期的下游语义化版本门禁"
+  default_prompt: "使用 $desktop-manage-version 为下游产品判断、应用或校验本次版本变化。"

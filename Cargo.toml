@@ -1,0 +1,32 @@
+[workspace]
+members = ["loki_metis_core", "loki_metis_gui/src-tauri"]
+resolver = "3"
+
+[workspace.metadata.agent-first-harness]
+target-platforms = ["windows", "macos", "linux"]
+interfaces = ["gui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[workspace.dependencies]
+loki_metis_core = { path = "loki_metis_core" }
+mac-usernotifications = "0.3.1"
+rust-i18n = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-build = "2"
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-deep-link = "2.4.10"
+tauri-plugin-dialog = "2.7.3"
+tauri-plugin-notification = "2.4.0"
+tauri-plugin-os = "2.3.2"
+tauri-plugin-single-instance = { version = "2.4.4", features = ["deep-link"] }
+tauri-plugin-window-state = "2.4.1"
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "macros", "rt", "sync"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -1,0 +1,84 @@
+{
+  "identity": {
+    "application_name": "LokiMetis",
+    "localized_name": "诡秘神谕"
+  },
+  "navigation": {
+    "home": "Home",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "application_navigation": "Application navigation",
+    "logo_alt": "{{applicationName}} application mark",
+    "version": "Version {{version}}"
+  },
+  "home": {
+    "eyebrow": "Neutral desktop foundation",
+    "title": "Product definition required",
+    "description": "The desktop application foundation is ready. No business capabilities are assumed until the product goal, scope, and success criteria are defined.",
+    "status_label": "Current status",
+    "status_ready": "GUI initialization complete",
+    "definition_label": "Product definition",
+    "definition_required": "Required",
+    "next_step_title": "Next step",
+    "next_step_description": "Define the product purpose, first core workflow, and verifiable success criteria.",
+    "workspace_title": "Workspace",
+    "workspace_description": "Product capabilities will begin here after the scope is confirmed."
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Manage local interface preferences and enabled system capabilities.",
+    "application_title": "Application information",
+    "application_description": "The application name and version come from the current package.",
+    "localized_name": "Chinese name",
+    "version": "Version",
+    "language_title": "Interface language",
+    "language_description": "A saved choice takes priority over the system language and updates native menus.",
+    "language_zh_cn": "中文",
+    "language_en_us": "English",
+    "language_error_title": "Language not changed",
+    "language_error": "The native interface language could not be synchronized. Check the app state and try again.",
+    "theme_title": "Appearance",
+    "theme_description": "Choose light, dark, or follow system. The preference is stored only on this device.",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "Follow system",
+    "release_notes_title": "Release notes",
+    "release_notes_description": "View the local release notes bundled with a formal candidate.",
+    "release_notes_action": "View release notes",
+    "system_notification_title": "System notifications",
+    "system_notification_description": "The app may send native notifications only after you explicitly enable them here.",
+    "system_notification_error": "The notification setting could not be updated. The switch was restored to the readable system state. Check system notification permission and try again.",
+    "system_notification_unknown": "Notification permission and the local preference are both unavailable. Reload after the system becomes reachable.",
+    "autostart_title": "Start at login",
+    "autostart_description": "Launch and show the app normally after sign-in. The operating system login item is authoritative.",
+    "autostart_error": "The login item could not be updated. The switch was restored to the readable system state. Check system login items and try again.",
+    "autostart_unknown": "The operating system login item cannot be read right now. Reload it later.",
+    "capability_loading": "Reading the actual state…",
+    "capability_pending": "Updating the system setting…",
+    "capability_error_title": "Setting not changed",
+    "capability_unknown_title": "Current state unknown",
+    "capability_retry": "Reload actual state"
+  },
+  "release_notes": {
+    "dialog_title": "Release notes",
+    "entry_title": "{{date}} · {{version}}",
+    "feature_optimizations": "Feature improvements",
+    "bug_fixes": "Bug fixes",
+    "loading": "Reading release notes bundled with this candidate",
+    "load_failed_title": "Release notes unavailable",
+    "load_failed": "Release notes are not generated before the first formal release. If this is a formal candidate, reinstall the complete candidate or retry.",
+    "retry": "Retry",
+    "none": "None"
+  },
+  "errors": {
+    "metadata_title": "Application information unavailable",
+    "metadata_description": "Restart the app. If the problem continues, verify that the installation is complete.",
+    "retry": "Retry",
+    "not_found_title": "Page not found",
+    "not_found_description": "This address is not part of the current application.",
+    "back_home": "Back to Home",
+    "unexpected_title": "Page temporarily unavailable",
+    "unexpected_description": "Return home and try again."
+  }
+}

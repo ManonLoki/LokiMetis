@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 系统托盘"
+  short_description: "接入 tray-icon、双语菜单与关闭隐藏生命周期"
+  default_prompt: "使用 $desktop-add-gui-system-tray，为已批准的 GUI 增加 tray-icon、双语 show_window/quit 菜单和关闭隐藏生命周期。"

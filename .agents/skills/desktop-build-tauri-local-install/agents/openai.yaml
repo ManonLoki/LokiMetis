@@ -1,0 +1,4 @@
+interface:
+  display_name: "构建 Windows 本地安装试包"
+  short_description: "原生构建非发布、未签名的 Windows x64 NSIS 本地试包"
+  default_prompt: "使用 $desktop-build-tauri-local-install 在 Windows 原生宿主构建本地安装试包；不提交、不生成发布日志、不写 release/，也不询问 E2E 或性能选择。"

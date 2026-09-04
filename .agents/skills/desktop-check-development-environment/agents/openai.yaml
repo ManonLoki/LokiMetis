@@ -1,0 +1,4 @@
+interface:
+  display_name: "检查开发环境"
+  short_description: "检查 GUI 固定全量工具链，并按失败证据补齐受管开发环境"
+  default_prompt: "仅在 GUI 项目初始化，或真实测试/构建命令已因受管环境问题失败后，使用 $desktop-check-development-environment 检查并补齐 Git、Rust、Node.js 与 pnpm；返回结构化门禁结果，且不得例行预检。"

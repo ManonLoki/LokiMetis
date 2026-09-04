@@ -1,0 +1,4 @@
+interface:
+  display_name: "定义产品"
+  short_description: "只在终端下游定义产品；Harness 模板源拒绝业务需求"
+  default_prompt: "使用 $desktop-define-product；先确认当前根是已实例化的终端下游而不是 Harness 模板源，再把新产品或真实范围变化整理成边界明确的 MVP 规格。"

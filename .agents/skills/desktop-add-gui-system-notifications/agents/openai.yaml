@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 系统通知"
+  short_description: "接入原生通知权限、设置开关与可回收投递 worker"
+  default_prompt: "使用 $desktop-add-gui-system-notifications，为已批准的 GUI 增加默认关闭、Rust-only 且跨平台可验证的系统通知能力。"

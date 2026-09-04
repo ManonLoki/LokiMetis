@@ -1,0 +1,4 @@
+interface:
+  display_name: "重命名项目身份"
+  short_description: "在配置、代码路径、文档、Skills 和许可证中安全改中英文名称"
+  default_prompt: "使用 $desktop-rename-project-identity，在配置、Skills、文档和两种语言的许可证中安全重命名此项目的中英文身份。"

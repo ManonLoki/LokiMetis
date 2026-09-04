@@ -1,0 +1,4 @@
+interface:
+  display_name: "实施变更"
+  short_description: "实施范围清楚的直接请求或活动计划，并运行与变更风险相称的验证"
+  default_prompt: "使用 $desktop-implement-change 实施这个请求或计划；强制业务逻辑 core-first，GUI adapter 只做 IPC 与宿主映射，并运行相称验证。"

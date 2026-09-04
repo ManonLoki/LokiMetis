@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 适配器"
+  short_description: "按八项配置与三项固定宿主基线增加桌面能力和侧栏的 GUI"
+  default_prompt: "使用 $desktop-add-gui-adapter，建立调用共享 core 的 Tauri/React 薄适配器，消费八项 GUI profile，固定接入系统语言、window-state、dialog 和设置页本地更新日志，并按选择接入桌面能力、赞助页和精简/详细侧栏；不建立 About 或额外远程数据管线。"

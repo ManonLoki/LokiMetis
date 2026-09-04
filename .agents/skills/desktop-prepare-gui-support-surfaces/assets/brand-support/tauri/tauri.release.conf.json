@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "../../release-notes.json": "release-notes.json"
+    }
+  }
+}
