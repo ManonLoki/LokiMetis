@@ -97,13 +97,9 @@ pub fn pet_overlay_view_from_drafts(
     )))
 }
 
-/// 打开浮窗时要应用的已保存位置；必须传入窗口实际物理 `outer_size`，不能把逻辑默认宽高当物理像素。
-pub fn pet_overlay_position_for_open(
-    stored: Option<PetOverlayPosition>,
-    overlay_size: (u32, u32),
-    work_areas: &[PetOverlayWorkArea],
-) -> Option<PetOverlayPosition> {
-    resolve_pet_overlay_position(stored, overlay_size, work_areas)
+/// 该窗口标签是否属于桌宠悬浮窗。
+pub fn is_pet_overlay_label(window_label: &str) -> bool {
+    window_label == pet_overlay_window_description().label
 }
 
 /// 把 pet 窗口的 Moved 事件转成待持久化快照；其它窗口或无效尺寸忽略。
@@ -112,7 +108,7 @@ pub fn pet_overlay_move_snapshot(
     event_position: Option<PetOverlayPosition>,
     outer_size: (u32, u32),
 ) -> Option<(PetOverlayPosition, (u32, u32))> {
-    if window_label != pet_overlay_window_description().label {
+    if !is_pet_overlay_label(window_label) {
         return None;
     }
     let position = event_position?;
@@ -120,11 +116,6 @@ pub fn pet_overlay_move_snapshot(
         return None;
     }
     Some((position, outer_size))
-}
-
-/// 只有防抖代数仍是最新一次 Moved 时才真正写入。
-pub fn is_current_pet_overlay_move_generation(scheduled: u64, current: u64) -> bool {
-    scheduled == current
 }
 
 /// 从宿主显示器读取工作区，供位置规范化使用。
@@ -168,7 +159,7 @@ fn apply_saved_pet_overlay_position(app: &AppHandle, window: &WebviewWindow) {
         .ok()
         .and_then(|settings| settings.pet_overlay_position);
     let work_areas = pet_overlay_work_areas(app);
-    if let Some(position) = pet_overlay_position_for_open(stored, overlay_size, &work_areas) {
+    if let Some(position) = resolve_pet_overlay_position(stored, overlay_size, &work_areas) {
         let _ = window.set_position(PhysicalPosition::new(position.x, position.y));
     }
 }
@@ -211,19 +202,6 @@ pub fn show_or_create_pet_overlay(app: &AppHandle) -> Result<PetOverlayWindowDes
     Ok(description)
 }
 
-/// 从宿主读回当前浮窗物理位置。
-pub fn read_pet_overlay_position(app: &AppHandle) -> Result<PetOverlayPosition, String> {
-    let description = pet_overlay_window_description();
-    let window = app
-        .get_webview_window(description.label)
-        .ok_or_else(|| "pet overlay window is not open".to_owned())?;
-    let position = window.outer_position().map_err(|error| error.to_string())?;
-    Ok(PetOverlayPosition {
-        x: position.x,
-        y: position.y,
-    })
-}
-
 /// 把宿主读回的物理位置与实际 outer_size 交给 core 规范化后写入本机设置。
 pub fn persist_pet_overlay_position(
     config_dir: &Path,
@@ -232,31 +210,35 @@ pub fn persist_pet_overlay_position(
     work_areas: &[PetOverlayWorkArea],
 ) -> Result<Option<PetOverlayPosition>, HookError> {
     let mut settings = load_monitor_settings(config_dir)?;
-    let resolved = pet_overlay_position_for_open(Some(position), overlay_size, work_areas);
+    let resolved = resolve_pet_overlay_position(Some(position), overlay_size, work_areas);
     settings.pet_overlay_position = resolved;
     super::settings::save_monitor_settings(config_dir, &settings)?;
     Ok(resolved)
 }
 
 /// 原生 `WindowEvent::Moved` 入口：按实际物理尺寸规范化后防抖写入。
+/// 非桌宠窗口在读取 `outer_size` 前就返回，拖动主窗口不会产生额外的窗管往返。
 pub fn schedule_pet_overlay_position_persist<R: Runtime>(
-    app: &AppHandle<R>,
-    position: PetOverlayPosition,
-    outer_size: (u32, u32),
+    window: &tauri::Window<R>,
+    event_position: PetOverlayPosition,
 ) {
+    if !is_pet_overlay_label(window.label()) {
+        return;
+    }
+    let outer_size = window
+        .outer_size()
+        .map(|size| (size.width, size.height))
+        .unwrap_or((0, 0));
     let Some((position, outer_size)) =
-        pet_overlay_move_snapshot(pet_overlay_window_description().label, Some(position), outer_size)
+        pet_overlay_move_snapshot(window.label(), Some(event_position), outer_size)
     else {
         return;
     };
     let generation = PET_OVERLAY_MOVE_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
-    let app = app.clone();
+    let app = window.app_handle().clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_millis(200)).await;
-        if !is_current_pet_overlay_move_generation(
-            generation,
-            PET_OVERLAY_MOVE_GENERATION.load(Ordering::Relaxed),
-        ) {
+        if generation != PET_OVERLAY_MOVE_GENERATION.load(Ordering::Relaxed) {
             return;
         }
         let Ok(config_dir) = app.path().app_config_dir() else {
@@ -385,7 +367,7 @@ mod tests {
             height: 1080,
         }];
         assert_eq!(
-            pet_overlay_position_for_open(Some(stored), (360, 360), &work_areas),
+            resolve_pet_overlay_position(Some(stored), (360, 360), &work_areas),
             Some(stored)
         );
     }
@@ -403,11 +385,11 @@ mod tests {
             height: 1080,
         }];
         assert_eq!(
-            pet_overlay_position_for_open(Some(stored), (360, 360), &work_areas),
+            resolve_pet_overlay_position(Some(stored), (360, 360), &work_areas),
             None
         );
         assert_eq!(
-            pet_overlay_position_for_open(None, (360, 360), &work_areas),
+            resolve_pet_overlay_position(None, (360, 360), &work_areas),
             None
         );
     }
@@ -432,7 +414,7 @@ mod tests {
         assert_eq!(saved, Some(PetOverlayPosition { x: 424, y: 210 }));
         let loaded = super::super::load_monitor_settings(config).expect("load");
         assert_eq!(
-            pet_overlay_position_for_open(loaded.pet_overlay_position, (360, 360), &work_areas),
+            resolve_pet_overlay_position(loaded.pet_overlay_position, (360, 360), &work_areas),
             Some(PetOverlayPosition { x: 424, y: 210 })
         );
     }
@@ -452,8 +434,6 @@ mod tests {
         let saved = persist_pet_overlay_position(root.path(), position, snapshot.unwrap().1, &work_areas)
             .expect("persist");
         assert_eq!(saved, Some(position));
-        assert!(is_current_pet_overlay_move_generation(3, 3));
-        assert!(!is_current_pet_overlay_move_generation(2, 3));
     }
 
     #[test]
@@ -477,11 +457,11 @@ mod tests {
             height: 1080,
         }];
         assert_eq!(
-            pet_overlay_position_for_open(Some(stored), (720, 720), &work_areas),
+            resolve_pet_overlay_position(Some(stored), (720, 720), &work_areas),
             Some(stored)
         );
         assert_eq!(
-            pet_overlay_position_for_open(Some(stored), (360, 360), &work_areas),
+            resolve_pet_overlay_position(Some(stored), (360, 360), &work_areas),
             None
         );
     }

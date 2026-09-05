@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use loki_metis_core::{
     AiProfileDraft, AiProfileDraftSet, AiTool, HookConfigLocation, HookConfigWriteResult, HookError,
-    MonitorImageGallery, PetOverlayPosition,
+    MonitorImageGallery,
 };
 use tauri::{AppHandle, Manager, State};
 
@@ -14,10 +14,8 @@ use super::{
     PetOverlayWindowDescription, close_pet_overlay_window, delete_monitor_image,
     list_hook_config_locations, list_monitor_image_gallery, load_monitor_settings,
     load_profile_drafts, monitor_capabilities, overlay_image_bytes, pet_overlay_view_from_drafts,
-    persist_pet_overlay_position, pet_overlay_window_description, pet_overlay_window_is_open,
-    pet_overlay_work_areas, read_pet_overlay_position, save_monitor_image, save_monitor_settings,
-    save_profile_draft,
-    show_or_create_pet_overlay, start_pet_overlay_dragging, write_hook_config,
+    pet_overlay_window_is_open, save_monitor_image, save_profile_draft, show_or_create_pet_overlay,
+    start_pet_overlay_dragging, update_monitor_settings, write_hook_config,
 };
 
 fn config_dir(app: &AppHandle) -> Result<PathBuf, HookError> {
@@ -50,11 +48,9 @@ pub fn save_monitor_enabled_tools(
     app: AppHandle,
     tools: Vec<AiTool>,
 ) -> Result<MonitorSettings, HookError> {
-    let dir = config_dir(&app)?;
-    let mut settings = load_monitor_settings(&dir)?;
-    settings.enabled_ai_tools = tools;
-    save_monitor_settings(&dir, &settings)?;
-    load_monitor_settings(&dir)
+    update_monitor_settings(&config_dir(&app)?, |settings| {
+        settings.enabled_ai_tools = tools;
+    })
 }
 
 /// 保存某工具的自定义 Hook 目录。
@@ -64,11 +60,9 @@ pub fn save_hook_config_directory(
     tool: AiTool,
     directory: String,
 ) -> Result<MonitorSettings, HookError> {
-    let dir = config_dir(&app)?;
-    let mut settings = load_monitor_settings(&dir)?;
-    settings.hook_directories.set(tool, directory);
-    save_monitor_settings(&dir, &settings)?;
-    load_monitor_settings(&dir)
+    update_monitor_settings(&config_dir(&app)?, |settings| {
+        settings.hook_directories.set(tool, directory);
+    })
 }
 
 /// 列出四项 Agent 的 Hook 配置定位。
@@ -166,11 +160,9 @@ pub fn save_pet_close_control_visible(
     app: AppHandle,
     visible: bool,
 ) -> Result<MonitorSettings, HookError> {
-    let dir = config_dir(&app)?;
-    let mut settings = load_monitor_settings(&dir)?;
-    settings.pet_close_control_visible = visible;
-    save_monitor_settings(&dir, &settings)?;
-    load_monitor_settings(&dir)
+    update_monitor_settings(&config_dir(&app)?, |settings| {
+        settings.pet_close_control_visible = visible;
+    })
 }
 
 /// 查询桌宠悬浮窗当前是否打开。
@@ -195,27 +187,4 @@ pub fn close_pet_overlay(app: AppHandle) -> Result<PetOverlayWindowDescription, 
 #[tauri::command]
 pub fn start_pet_overlay_drag(app: AppHandle) -> Result<(), String> {
     start_pet_overlay_dragging(&app)
-}
-
-/// 从宿主读回当前浮窗位置。
-#[tauri::command]
-pub fn get_pet_overlay_position(app: AppHandle) -> Result<PetOverlayPosition, String> {
-    read_pet_overlay_position(&app)
-}
-
-/// 保存浮窗位置；必须用窗口实际物理 outer_size，不能把逻辑默认宽高当物理像素。
-#[tauri::command]
-pub fn save_pet_overlay_position(
-    app: AppHandle,
-    position: PetOverlayPosition,
-) -> Result<MonitorSettings, HookError> {
-    let dir = config_dir(&app)?;
-    let overlay_size = app
-        .get_webview_window(pet_overlay_window_description().label)
-        .and_then(|window| window.outer_size().ok())
-        .map(|size| (size.width, size.height))
-        .filter(|size| size.0 > 0 && size.1 > 0)
-        .ok_or_else(|| HookError::new("error.monitor.settingsWriteFailed"))?;
-    persist_pet_overlay_position(&dir, position, overlay_size, &pet_overlay_work_areas(&app))?;
-    load_monitor_settings(&dir)
 }

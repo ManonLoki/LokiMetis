@@ -90,13 +90,3 @@ pub(crate) fn current_epoch_ms() -> i64 {
 #[cfg(test)]
 mod tests;
 
-/// 校验模型标签安全可展示后返回去除首尾空白的副本，否则返回 `None`。
-/// Claude 与 Grok 解析器共用同一条规则，集中一份避免两侧各自漂移。
-fn safe_model_label(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    (!trimmed.is_empty()
-        && trimmed.len() <= 128
-        && !trimmed.contains(['/', '\\'])
-        && !trimmed.chars().any(char::is_control))
-    .then(|| trimmed.to_owned())
-}

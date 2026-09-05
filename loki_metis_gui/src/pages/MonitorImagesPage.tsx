@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 
 import {
   deleteMonitorImage,
+  fileBytes,
   getMonitorCapabilities,
   imageUploadAcceptValue,
   listMonitorImages,
@@ -26,11 +27,6 @@ import {
   type MonitorImagePreview,
 } from "../api/monitor";
 import { useImageCategoryFilter } from "./useImageCategoryFilter";
-
-/** 把选中的本地文件读成 IPC 字节数组。 */
-async function fileBytes(file: File): Promise<number[]> {
-  return Array.from(new Uint8Array(await file.arrayBuffer()));
-}
 
 /** 图片管理：展示本机图库，支持筛选、批量上传与删除。 */
 export function MonitorImagesPage() {

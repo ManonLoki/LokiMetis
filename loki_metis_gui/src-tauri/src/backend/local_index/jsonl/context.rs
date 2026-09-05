@@ -1,5 +1,7 @@
 //! 管理 rollout 事件分类、所有权边界和安全展示上下文。
 
+use loki_metis_core::safe_technical_label;
+
 use super::{
     JsonlParseContext, OWNED_START_TOLERANCE_MS, RolloutOwnershipState, RolloutPayload, TokenUsage,
     safe_path_basename, safe_thread_title, stable_id,
@@ -115,10 +117,10 @@ pub(super) fn update_dynamic_context(context: &mut JsonlParseContext, payload: &
         context.thread_label = Some(nickname);
     }
     if let Some(model) = payload.model.as_deref() {
-        context.model = safe_label(model);
+        context.model = safe_technical_label(model);
     }
     if let Some(reasoning_effort) = payload.reasoning_effort.as_deref() {
-        context.reasoning_effort = safe_label(reasoning_effort);
+        context.reasoning_effort = safe_technical_label(reasoning_effort);
     }
 }
 
@@ -148,15 +150,3 @@ pub(super) fn update_thread_title(context: &mut JsonlParseContext, payload: &Rol
     }
 }
 
-/// 仅允许短小技术标签进入索引，拒绝路径分隔符、正文空白与异常长字符串。
-fn safe_label(value: &str) -> Option<String> {
-    if value.is_empty()
-        || value.len() > 128
-        || !value
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || "._-".contains(character))
-    {
-        return None;
-    }
-    Some(value.to_owned())
-}

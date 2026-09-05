@@ -86,14 +86,13 @@ pub use monitor_gallery::{
 };
 pub use monitor_profile::{
     DEFAULT_PROFILE_SLOT, MAX_PROFILE_SLOT, MIN_PROFILE_SLOT, AiProfileDraft, AiProfileDraftSet,
-    HookContent, MonitorCapabilityRange, clamp_profile_slot, default_profile_drafts,
-    merge_profile_drafts, profile_slot_range, validate_profile_draft, visible_profile_drafts,
+    HookContent, MonitorCapabilityRange, clamp_profile_slot, merge_profile_drafts,
+    profile_slot_range, validate_profile_draft,
 };
 pub use pet_overlay::{
-    DEFAULT_PET_CLOSE_CONTROL_VISIBLE, PET_OVERLAY_WINDOW_SPEC, PetOverlayImageRef, PetOverlaySlot,
-    PetOverlayToolBehavior, PetOverlayView, PetOverlayWindowSpec, normalize_pet_close_control_visible,
-    pet_overlay_tool_from_label, pet_overlay_window_spec, project_pet_overlay_from_drafts,
-    project_pet_overlay_slots,
+    DEFAULT_PET_CLOSE_CONTROL_VISIBLE, PET_OVERLAY_WINDOW_SPEC, PetOverlaySlot,
+    PetOverlayToolBehavior, PetOverlayView, PetOverlayWindowSpec, pet_overlay_window_spec,
+    project_pet_overlay_from_drafts,
 };
 pub use pet_overlay_position::{
     PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,
@@ -137,7 +136,8 @@ pub use policy::{
     is_safe_usage_filter_id, list_scan_source_clients, list_workbuddy_scan_sources,
     local_index_scan_policy, local_index_scan_policy_with_retention, merge_coverage_reports,
     normalize_source_root_alias, retain_ingestable_calls, safe_root_label, safe_short_value,
-    safe_technical_label, scan_start_access_error_message, source_file_needs_visit,
+    safe_model_label, safe_technical_label, scan_start_access_error_message,
+    source_file_needs_visit,
     source_root_add_outcome, source_root_alias_from_path, source_root_mutation_feedback,
     source_root_primary_outcome, source_root_remove_outcome, source_root_rename_outcome,
     source_root_set_enabled_outcome, source_root_toggle_enabled_outcome, validate_source_root_id,

@@ -17,7 +17,7 @@ import { MonitorImagesPage } from "../src/pages/MonitorImagesPage";
 import { MonitorManagementPage } from "../src/pages/MonitorManagementPage";
 import { MonitorSettingsPage } from "../src/pages/MonitorSettingsPage";
 import { MonitorWorkbenchPage } from "../src/pages/MonitorWorkbenchPage";
-import { TestProviders } from "./testUtils";
+import { monitorCapabilitiesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -114,20 +114,14 @@ describe("monitor header tabs", () => {
         };
       }
       if (command === "get_monitor_capabilities") {
-        return {
+        return monitorCapabilitiesFixture({
           aiTools: [
             { tool: "claudeCode", name: "Claude Code" },
             { tool: "codex", name: "Codex" },
             { tool: "grok", name: "Grok Build" },
             { tool: "workBuddy", name: "WorkBuddy" },
           ],
-          hookBehaviors: ["idle", "running", "asking", "error"],
-          profileSlot: { default: 1, min: 1, max: 6 },
-          imageUploadAccept: {
-            mimeTypes: ["image/jpeg", "image/png", "image/gif"],
-            extensions: [".jpg", ".jpeg", ".png", ".gif"],
-          },
-        };
+        });
       }
       if (command === "get_monitor_settings") {
         return {
@@ -210,17 +204,15 @@ describe("monitor header tabs", () => {
   test("hooks_settings_tab_enables_agents_and_writes_local_hook_config", async () => {
     invokeMock.mockImplementation(async (command: string, payload?: { tools?: string[]; tool?: string }) => {
       if (command === "get_monitor_capabilities") {
-        return {
+        return monitorCapabilitiesFixture({
           aiTools: [
             { tool: "codex", name: "Codex" },
             { tool: "claudeCode", name: "Claude Code" },
             { tool: "grok", name: "Grok Build" },
             { tool: "workBuddy", name: "WorkBuddy" },
           ],
-          hookBehaviors: ["idle", "running", "asking", "error"],
-          profileSlot: { default: 1, min: 1, max: 6 },
           imageUploadAccept: { mimeTypes: ["image/png"], extensions: [".png"] },
-        };
+        });
       }
       if (command === "get_monitor_settings") {
         return {
@@ -294,17 +286,15 @@ describe("monitor header tabs", () => {
         };
       }
       if (command === "get_monitor_capabilities") {
-        return {
+        return monitorCapabilitiesFixture({
           aiTools: [
             { tool: "codex", name: "Codex" },
             { tool: "claudeCode", name: "Claude Code" },
             { tool: "grok", name: "Grok Build" },
             { tool: "workBuddy", name: "WorkBuddy" },
           ],
-          hookBehaviors: ["idle", "running", "asking", "error"],
-          profileSlot: { default: 1, min: 1, max: 6 },
           imageUploadAccept: { mimeTypes: ["image/png"], extensions: [".png"] },
-        };
+        });
       }
       if (command === "get_monitor_settings") {
         return {

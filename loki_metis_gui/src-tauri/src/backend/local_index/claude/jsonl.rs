@@ -4,13 +4,12 @@ use std::io::Read;
 
 use loki_metis_core::{
     Confidence, SourceClientKind, SourceProvenance, TokenUsage, UsageCall,
-    claude_project_display_label, safe_technical_label,
+    claude_project_display_label, safe_model_label, safe_technical_label,
 };
 use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::super::discovery::stable_id;
-use super::super::safe_model_label;
 use super::super::{CancellationToken, LocalError};
 
 /// Claude transcript 独立解析语义版本；必须等于 core 读写 generation。

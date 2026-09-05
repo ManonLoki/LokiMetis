@@ -450,6 +450,17 @@ pub fn safe_technical_label(value: &str) -> Option<String> {
     Some(value.to_owned())
 }
 
+/// 校验模型标签安全可展示后返回去除首尾空白的副本，否则返回 `None`。
+/// 各适配器共用同一条规则，集中一份避免两侧各自漂移。
+pub fn safe_model_label(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()
+        && trimmed.len() <= 128
+        && !trimmed.contains(['/', '\\'])
+        && !trimmed.chars().any(char::is_control))
+    .then(|| trimmed.to_owned())
+}
+
 /// 在展示路径中允许直接透传的数据根别名。
 pub fn safe_root_label(value: &str) -> Option<String> {
     let value = value.trim();

@@ -5,13 +5,12 @@ use std::io::Read;
 
 use loki_metis_core::{
     Confidence, SourceClientKind, SourceProvenance, TokenUsage, UsageCall,
-    grok_project_display_label,
+    grok_project_display_label, safe_model_label,
 };
 use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::super::discovery::stable_id;
-use super::super::safe_model_label;
 use super::super::{CancellationToken, LocalError};
 
 /// Grok 会话用量独立解析语义版本；必须等于 core 读写 generation。

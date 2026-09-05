@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { MonitorImagesPage } from "../src/pages/MonitorImagesPage";
-import { TestProviders } from "./testUtils";
+import { monitorCapabilitiesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -47,15 +47,7 @@ describe("monitor images page", () => {
     const empty = { images: [], counts: { jpeg: 0, png: 0, gif: 0 } };
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_monitor_capabilities") {
-        return {
-          aiTools: [],
-          hookBehaviors: ["idle", "running", "asking", "error"],
-          profileSlot: { default: 1, min: 1, max: 6 },
-          imageUploadAccept: {
-            mimeTypes: ["image/jpeg", "image/png", "image/gif"],
-            extensions: [".jpg", ".jpeg", ".png", ".gif"],
-          },
-        };
+        return monitorCapabilitiesFixture({ aiTools: [] });
       }
       if (command === "list_monitor_images_cmd") return empty;
       if (command === "save_monitor_image_cmd") return mixedGallery();
@@ -88,15 +80,7 @@ describe("monitor images page", () => {
   test("gallery_snapshot_shows_filters_preview_cards_and_local_delete", async () => {
     invokeMock.mockImplementation(async (command: string, payload?: { id?: string }) => {
       if (command === "get_monitor_capabilities") {
-        return {
-          aiTools: [],
-          hookBehaviors: ["idle", "running", "asking", "error"],
-          profileSlot: { default: 1, min: 1, max: 6 },
-          imageUploadAccept: {
-            mimeTypes: ["image/jpeg", "image/png", "image/gif"],
-            extensions: [".jpg", ".jpeg", ".png", ".gif"],
-          },
-        };
+        return monitorCapabilitiesFixture({ aiTools: [] });
       }
       if (command === "list_monitor_images_cmd") return mixedGallery();
       if (command === "delete_monitor_image_cmd") {

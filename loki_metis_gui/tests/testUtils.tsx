@@ -3,6 +3,7 @@ import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 
+import type { MonitorCapabilities } from "../src/api/monitor";
 import { AppThemeProvider } from "../src/components/AppThemeProvider";
 import { appI18n } from "../src/i18n";
 
@@ -21,4 +22,25 @@ export function TestProviders({ children }: { children: ReactNode }): ReactEleme
       </JotaiProvider>
     </I18nextProvider>
   );
+}
+
+/** get_monitor_capabilities 的共享夹具；用例只覆写自己关心的字段。 */
+export function monitorCapabilitiesFixture(
+  overrides: Partial<MonitorCapabilities> = {},
+): MonitorCapabilities {
+  return {
+    aiTools: [
+      { tool: "codex", name: "Codex" },
+      { tool: "claudeCode", name: "Claude Code" },
+      { tool: "grok", name: "Grok Build" },
+      { tool: "workBuddy", name: "WorkBuddy" },
+    ],
+    hookBehaviors: ["idle", "running", "asking", "error"],
+    profileSlot: { default: 1, min: 1, max: 6 },
+    imageUploadAccept: {
+      mimeTypes: ["image/jpeg", "image/png", "image/gif"],
+      extensions: [".jpg", ".jpeg", ".png", ".gif"],
+    },
+    ...overrides,
+  };
 }

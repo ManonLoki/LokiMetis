@@ -52,11 +52,6 @@ fn save_index(app_data_dir: &Path, records: &[MonitorImageRecord]) -> Result<(),
         .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))
 }
 
-/// 列出本机监控图片索引。
-pub fn list_monitor_images(app_data_dir: &Path) -> Result<Vec<MonitorImageRecord>, HookError> {
-    load_index(app_data_dir)
-}
-
 /// 当前图库中的稳定 ID，供草稿校验引用。
 pub fn monitor_image_ids(app_data_dir: &Path) -> Result<std::collections::HashSet<String>, HookError> {
     Ok(load_index(app_data_dir)?
@@ -77,15 +72,16 @@ pub fn read_monitor_image(app_data_dir: &Path, id: &str) -> Result<Vec<u8>, Hook
 
 /// 列出带预览、格式与计数的本机图库快照。
 pub fn list_monitor_image_gallery(app_data_dir: &Path) -> Result<MonitorImageGallery, HookError> {
-    let records = load_index(app_data_dir)?;
-    let mut previews = Vec::with_capacity(records.len());
-    for record in records {
-        let bytes = std::fs::read(images_dir(app_data_dir).join(&record.stored_name))
-            .map_err(|error| {
+    let dir = images_dir(app_data_dir);
+    let previews = load_index(app_data_dir)?
+        .into_iter()
+        .map(|record| {
+            let bytes = std::fs::read(dir.join(&record.stored_name)).map_err(|error| {
                 HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string())
             })?;
-        previews.push(preview_from_bytes(record.id, record.filename, &bytes)?);
-    }
+            preview_from_bytes(record.id, record.filename, &bytes)
+        })
+        .collect::<Result<Vec<_>, HookError>>()?;
     Ok(assemble_image_gallery(previews))
 }
 

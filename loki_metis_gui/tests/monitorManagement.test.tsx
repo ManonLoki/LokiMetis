@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { MonitorManagementPage } from "../src/pages/MonitorManagementPage";
-import { TestProviders } from "./testUtils";
+import { monitorCapabilitiesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -37,24 +37,6 @@ function galleryWithPng() {
   };
 }
 
-/** 监控静态能力。 */
-function capabilities() {
-  return {
-    aiTools: [
-      { tool: "codex", name: "Codex" },
-      { tool: "claudeCode", name: "Claude Code" },
-      { tool: "grok", name: "Grok Build" },
-      { tool: "workBuddy", name: "WorkBuddy" },
-    ],
-    hookBehaviors: ["idle", "running", "asking", "error"],
-    profileSlot: { default: 1, min: 1, max: 6 },
-    imageUploadAccept: {
-      mimeTypes: ["image/jpeg", "image/png", "image/gif"],
-      extensions: [".jpg", ".jpeg", ".png", ".gif"],
-    },
-  };
-}
-
 describe("monitor management page", () => {
   beforeEach(() => {
     invokeMock.mockReset();
@@ -63,7 +45,7 @@ describe("monitor management page", () => {
   /** 未启用 Agent 时给出明确空态，且无设备门禁文案。 */
   test("shows_empty_state_when_no_agent_is_enabled", async () => {
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_monitor_capabilities") return capabilities();
+      if (command === "get_monitor_capabilities") return monitorCapabilitiesFixture();
       if (command === "get_monitor_settings") {
         return {
           enabledAiTools: [],
@@ -91,7 +73,7 @@ describe("monitor management page", () => {
   /** 已启用 Agent 时出现 Tab、行为卡片、图片选择与保存草稿。 */
   test("renders_agent_tabs_behavior_cards_and_saves_local_draft", async () => {
     invokeMock.mockImplementation(async (command: string, payload?: { profile?: { tool: string } }) => {
-      if (command === "get_monitor_capabilities") return capabilities();
+      if (command === "get_monitor_capabilities") return monitorCapabilitiesFixture();
       if (command === "get_monitor_settings") {
         return {
           enabledAiTools: ["codex", "grok"],
@@ -150,7 +132,7 @@ describe("monitor management page", () => {
   test("does_not_show_empty_state_while_settings_are_pending", async () => {
     let releaseSettings: ((value: unknown) => void) | undefined;
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_monitor_capabilities") return capabilities();
+      if (command === "get_monitor_capabilities") return monitorCapabilitiesFixture();
       if (command === "get_monitor_settings") {
         return await new Promise((resolve) => {
           releaseSettings = resolve;
@@ -181,7 +163,7 @@ describe("monitor management page", () => {
   /** 同名直传绑定新写入的稳定 id，而不是图库里第一张同名旧图。 */
   test("direct_upload_binds_the_newly_saved_image_id_not_the_first_same_filename", async () => {
     invokeMock.mockImplementation(async (command: string, payload?: { profile?: { tool: string } }) => {
-      if (command === "get_monitor_capabilities") return capabilities();
+      if (command === "get_monitor_capabilities") return monitorCapabilitiesFixture();
       if (command === "get_monitor_settings") {
         return {
           enabledAiTools: ["codex"],

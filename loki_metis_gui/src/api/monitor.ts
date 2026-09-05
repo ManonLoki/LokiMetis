@@ -237,16 +237,9 @@ export async function startPetOverlayDrag(): Promise<void> {
   await invoke("start_pet_overlay_drag");
 }
 
-/** 从宿主读回当前浮窗位置。 */
-export async function getPetOverlayPosition(): Promise<PetOverlayPosition> {
-  return invoke("get_pet_overlay_position");
-}
-
-/** 保存浮窗位置；坐标由宿主读回后再交给本机规范化。 */
-export async function savePetOverlayPosition(
-  position: PetOverlayPosition,
-): Promise<MonitorSettings> {
-  return invoke("save_pet_overlay_position", { position });
+/** 把选中的本地文件读成 IPC 字节数组。 */
+export async function fileBytes(file: File): Promise<number[]> {
+  return Array.from(new Uint8Array(await file.arrayBuffer()));
 }
 
 /** 把 Rust 上传策略映射为 file input 的 accept 值。 */

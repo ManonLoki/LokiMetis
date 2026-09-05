@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use loki_metis_core::{
-    AiTool, DEFAULT_PET_CLOSE_CONTROL_VISIBLE, HookConfigDirectories, HookError, PetOverlayPosition,
-    normalize_enabled_ai_tools, normalize_pet_close_control_visible,
+    AiTool, DEFAULT_PET_CLOSE_CONTROL_VISIBLE, HookConfigDirectories, HookError,
+    PetOverlayPosition, normalize_enabled_ai_tools,
 };
 use serde::{Deserialize, Serialize};
 
@@ -59,27 +59,37 @@ pub fn load_monitor_settings(config_dir: &Path) -> Result<MonitorSettings, HookE
     if settings.enabled_ai_tools.is_empty() {
         settings.enabled_ai_tools = AiTool::ALL.to_vec();
     }
-    settings.pet_close_control_visible =
-        normalize_pet_close_control_visible(Some(settings.pet_close_control_visible));
     Ok(settings)
 }
 
-/// 保存监控设置。
-pub fn save_monitor_settings(config_dir: &Path, settings: &MonitorSettings) -> Result<(), HookError> {
+/// 保存监控设置并返回落盘后的规范化结果，调用方无需再读一次。
+pub fn save_monitor_settings(
+    config_dir: &Path,
+    settings: &MonitorSettings,
+) -> Result<MonitorSettings, HookError> {
     std::fs::create_dir_all(config_dir)
         .map_err(|error| HookError::new("error.monitor.settingsWriteFailed").param("detail", error.to_string()))?;
     let normalized = MonitorSettings {
         enabled_ai_tools: normalize_enabled_ai_tools(&settings.enabled_ai_tools),
         hook_directories: settings.hook_directories.clone(),
-        pet_close_control_visible: normalize_pet_close_control_visible(Some(
-            settings.pet_close_control_visible,
-        )),
+        pet_close_control_visible: settings.pet_close_control_visible,
         pet_overlay_position: settings.pet_overlay_position,
     };
     let raw = serde_json::to_string_pretty(&normalized)
         .map_err(|error| HookError::new("error.monitor.settingsWriteFailed").param("detail", error.to_string()))?;
     std::fs::write(settings_path(config_dir), raw)
-        .map_err(|error| HookError::new("error.monitor.settingsWriteFailed").param("detail", error.to_string()))
+        .map_err(|error| HookError::new("error.monitor.settingsWriteFailed").param("detail", error.to_string()))?;
+    Ok(normalized)
+}
+
+/// 读改写单个偏好字段并返回规范化结果；偏好命令共用，避免各自重复 load→save→load。
+pub fn update_monitor_settings(
+    config_dir: &Path,
+    mutate: impl FnOnce(&mut MonitorSettings),
+) -> Result<MonitorSettings, HookError> {
+    let mut settings = load_monitor_settings(config_dir)?;
+    mutate(&mut settings);
+    save_monitor_settings(config_dir, &settings)
 }
 
 #[cfg(test)]

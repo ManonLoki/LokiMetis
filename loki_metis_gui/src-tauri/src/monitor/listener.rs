@@ -74,7 +74,7 @@ pub fn spawn_hook_listener() -> Arc<RwLock<HookRelayStatus>> {
 pub async fn bind_local_hook_relay_listener() -> std::io::Result<TcpListener> {
     match TcpListener::bind(("127.0.0.1", DEFAULT_HOOK_RELAY_PORT)).await {
         Ok(listener) => Ok(listener),
-        Err(error) if is_address_in_use(&error) => {
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
             TcpListener::bind(("127.0.0.1", HOOK_RELAY_EPHEMERAL_PORT)).await
         }
         Err(error) => Err(error),
@@ -91,11 +91,6 @@ fn upsert_last_behavior(
         return;
     }
     behaviors.push(PetOverlayToolBehavior { tool, behavior });
-}
-
-fn is_address_in_use(error: &std::io::Error) -> bool {
-    error.kind() == std::io::ErrorKind::AddrInUse
-        || matches!(error.raw_os_error(), Some(48 | 98 | 10048))
 }
 
 /// 绑定后的实际回环地址，供状态与 relay 投递共用。

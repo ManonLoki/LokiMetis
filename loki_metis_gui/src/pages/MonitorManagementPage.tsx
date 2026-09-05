@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -23,6 +23,7 @@ import {
   listMonitorImages,
   listMonitorProfileDrafts,
   saveMonitorImage,
+  fileBytes,
   saveMonitorProfileDraft,
   type MonitorAiTool,
   type MonitorHookBehavior,
@@ -40,11 +41,6 @@ const behaviorColors: Record<MonitorHookBehavior, string> = {
   asking: "yellow",
   error: "red",
 };
-
-/** 把文件读成 IPC 需要的字节数组。 */
-async function fileBytes(file: File): Promise<number[]> {
-  return Array.from(new Uint8Array(await file.arrayBuffer()));
-}
 
 /** 本机保存按追加写入，图库末项即本次新图。 */
 function newlySavedMonitorImage(gallery: MonitorImageGallery): MonitorImagePreview | undefined {
@@ -66,17 +62,14 @@ export function MonitorManagementPage() {
   });
   const images = useQuery({ queryFn: listMonitorImages, queryKey: ["monitor-images"] });
   const enabledTools = settings.data?.enabledAiTools ?? [];
-  const visibleTools = useMemo(
-    () => (capabilities.data?.aiTools ?? []).filter((item) => enabledTools.includes(item.tool)),
-    [capabilities.data?.aiTools, enabledTools],
+  const visibleTools = (capabilities.data?.aiTools ?? []).filter((item) =>
+    enabledTools.includes(item.tool),
   );
-  const [activeTool, setActiveTool] = useState<MonitorAiTool | null>(null);
+  const [selectedTool, setSelectedTool] = useState<MonitorAiTool | null>(null);
   const [drafts, setDrafts] = useState<Partial<Record<MonitorAiTool, MonitorProfileDraft>>>({});
-  useEffect(() => {
-    if (!visibleTools.some((item) => item.tool === activeTool)) {
-      setActiveTool(visibleTools[0]?.tool ?? null);
-    }
-  }, [activeTool, visibleTools]);
+  const activeTool = visibleTools.some((item) => item.tool === selectedTool)
+    ? selectedTool
+    : (visibleTools[0]?.tool ?? null);
   useEffect(() => {
     if (!profiles.data) return;
     setDrafts(
@@ -187,7 +180,7 @@ export function MonitorManagementPage() {
         onChange={(value) => {
           if (!value) return;
           save.reset();
-          setActiveTool(value as MonitorAiTool);
+          setSelectedTool(value as MonitorAiTool);
         }}
         value={activeTool}
       >

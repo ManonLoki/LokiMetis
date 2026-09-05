@@ -4,17 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AiProfileDraft, AiTool, HookBehavior, ai_tool_name};
 
-/// 一张待投影到桌宠槽位的本机图。
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PetOverlayImageRef {
-    /// 调用方已知的工具；未知时从 [`Self::label`] 推断。
-    pub tool: Option<AiTool>,
-    /// 文件名或其它标签，用于推断工具。
-    pub label: String,
-    /// 本机图库中的稳定键。
-    pub image_key: String,
-}
-
 /// 桌宠宫格中的一个槽位。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PetOverlaySlot {
@@ -74,39 +63,6 @@ pub const PET_OVERLAY_WINDOW_SPEC: PetOverlayWindowSpec = PetOverlayWindowSpec {
 /// 兔耳（悬浮窗圆形关闭控件）默认显示；旧设置文件缺字段时必须回落到显示，不能当成关闭。
 pub const DEFAULT_PET_CLOSE_CONTROL_VISIBLE: bool = true;
 
-/// 把可选持久化值规范为兔耳显示偏好；缺失时使用默认显示。
-pub fn normalize_pet_close_control_visible(stored: Option<bool>) -> bool {
-    stored.unwrap_or(DEFAULT_PET_CLOSE_CONTROL_VISIBLE)
-}
-
-/// 从文件名一类标签推断桌宠槽位工具；未批准工具返回 `None`。
-pub fn pet_overlay_tool_from_label(label: &str) -> Option<AiTool> {
-    let normalized = label.to_ascii_lowercase().replace('_', "-");
-    if normalized.contains("cursor")
-        || normalized.contains("opencode")
-        || normalized.contains("open-code")
-        || normalized.contains("hermes")
-    {
-        return None;
-    }
-    if normalized.contains("workbuddy") || normalized.contains("work-buddy") {
-        return Some(AiTool::WorkBuddy);
-    }
-    if normalized.contains("claude-code")
-        || normalized.contains("claudecode")
-        || normalized.contains("claude")
-    {
-        return Some(AiTool::ClaudeCode);
-    }
-    if normalized.contains("codex") {
-        return Some(AiTool::Codex);
-    }
-    if normalized.contains("grok") {
-        return Some(AiTool::Grok);
-    }
-    None
-}
-
 /// 某工具当前应展示的 Hook 行为。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -156,68 +112,23 @@ fn draft_image_key(draft: &AiProfileDraft, behavior: HookBehavior) -> Option<Str
         .map(str::to_owned)
 }
 
-/// 把本机图库投影为固定四槽宫格；同工具多图时后出现的覆盖先前的。
-pub fn project_pet_overlay_slots(images: &[PetOverlayImageRef]) -> PetOverlayView {
-    let mut keys: [Option<String>; 4] = Default::default();
-    for image in images {
-        let Some(tool) = image.tool.or_else(|| pet_overlay_tool_from_label(&image.label)) else {
-            continue;
-        };
-        let index = tool_slot_index(tool);
-        keys[index] = Some(image.image_key.clone());
-    }
-    PetOverlayView {
-        slots: AiTool::ALL
-            .into_iter()
-            .enumerate()
-            .map(|(index, tool)| {
-                let image_key = keys[index].clone();
-                PetOverlaySlot {
-                    tool,
-                    name: ai_tool_name(tool).to_owned(),
-                    occupied: image_key.is_some(),
-                    image_key,
-                }
-            })
-            .collect(),
-    }
-}
-
 /// 返回已交付的悬浮窗规格。
 pub fn pet_overlay_window_spec() -> PetOverlayWindowSpec {
     PET_OVERLAY_WINDOW_SPEC
-}
-
-fn tool_slot_index(tool: AiTool) -> usize {
-    AiTool::ALL
-        .iter()
-        .position(|item| *item == tool)
-        .expect("AiTool::ALL 必须包含全部已批准工具")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn image(label: &str, key: &str) -> PetOverlayImageRef {
-        PetOverlayImageRef {
-            tool: None,
-            label: label.to_owned(),
-            image_key: key.to_owned(),
-        }
-    }
-
     #[test]
     fn pet_close_control_missing_value_defaults_to_visible() {
         assert!(DEFAULT_PET_CLOSE_CONTROL_VISIBLE);
-        assert!(normalize_pet_close_control_visible(None));
-        assert!(normalize_pet_close_control_visible(Some(true)));
-        assert!(!normalize_pet_close_control_visible(Some(false)));
     }
 
     #[test]
     fn overlay_has_exactly_four_approved_agent_slots() {
-        let view = project_pet_overlay_slots(&[]);
+        let view = project_pet_overlay_from_drafts(&[], &[]);
         let tools: Vec<_> = view.slots.iter().map(|slot| slot.tool).collect();
         assert_eq!(
             tools,
@@ -236,42 +147,6 @@ mod tests {
         let names: String = view.slots.iter().map(|slot| slot.name.clone()).collect();
         assert!(!names.to_ascii_lowercase().contains("cursor"));
         assert!(!names.to_ascii_lowercase().contains("opencode"));
-    }
-
-    #[test]
-    fn occupied_and_empty_slots_follow_local_images() {
-        let view = project_pet_overlay_slots(&[
-            image("codex-avatar.png", "img-codex"),
-            image("cursor.png", "img-cursor"),
-            image("opencode.webp", "img-opencode"),
-            image("claude-code.png", "img-claude"),
-        ]);
-        assert_eq!(view.slots[0].image_key.as_deref(), Some("img-codex"));
-        assert!(view.slots[0].occupied);
-        assert_eq!(view.slots[1].image_key.as_deref(), Some("img-claude"));
-        assert!(view.slots[1].occupied);
-        assert!(!view.slots[2].occupied);
-        assert!(!view.slots[3].occupied);
-        assert!(
-            view.slots
-                .iter()
-                .all(|slot| slot.image_key.as_deref() != Some("img-cursor"))
-        );
-        assert_eq!(pet_overlay_tool_from_label("cursor.png"), None);
-    }
-
-    #[test]
-    fn later_image_for_same_tool_replaces_earlier_key() {
-        let view = project_pet_overlay_slots(&[
-            image("grok-1.png", "first"),
-            image("grok-2.png", "second"),
-        ]);
-        let grok = view
-            .slots
-            .iter()
-            .find(|slot| slot.tool == AiTool::Grok)
-            .expect("grok slot");
-        assert_eq!(grok.image_key.as_deref(), Some("second"));
     }
 
     fn draft_with_images(tool: AiTool, idle: &str, running: &str) -> AiProfileDraft {

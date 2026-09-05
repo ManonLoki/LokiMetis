@@ -19,11 +19,9 @@ function useSlotImageUrl(imageId: string | null): string | undefined {
     enabled: imageId !== null,
     queryFn: () => getMonitorImageBytes(imageId ?? ""),
     queryKey: ["monitor-image-bytes", imageId],
+    select: monitorImageBytesToDataUrl,
   });
-  if (!query.data) {
-    return undefined;
-  }
-  return monitorImageBytesToDataUrl(query.data);
+  return query.data;
 }
 
 /** 桌宠宫格中的单个槽位。 */

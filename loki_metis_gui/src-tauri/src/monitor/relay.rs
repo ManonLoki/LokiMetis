@@ -85,8 +85,8 @@ pub(super) fn load_bound_hook_relay_port() -> u16 {
 }
 
 /// 投递使用的回环套接字地址。
-pub(super) fn hook_relay_connect_addr(port: u16) -> Result<std::net::SocketAddr, ()> {
-    hook_relay_loopback_address(port).parse().map_err(|_| ())
+pub(super) fn hook_relay_connect_addr(port: u16) -> std::net::SocketAddr {
+    std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, port))
 }
 
 /// 把请求头和 JSON 正文编码成一次写出的 HTTP/1.1 缓冲。
@@ -111,7 +111,7 @@ pub(super) fn encode_local_hook_request(
 fn post_local_hook(slug: &str, hook_type: &str, body: &[u8]) -> Result<bool, ()> {
     let port = load_bound_hook_relay_port();
     let mut stream =
-        TcpStream::connect_timeout(&hook_relay_connect_addr(port)?, Duration::from_secs(1))
+        TcpStream::connect_timeout(&hook_relay_connect_addr(port), Duration::from_secs(1))
             .map_err(|_| ())?;
     stream.set_nodelay(true).map_err(|_| ())?;
     stream
@@ -165,8 +165,8 @@ mod tests {
         assert!(!headers.contains(&format!("Host: {}", hook_relay_loopback_address(DEFAULT_HOOK_RELAY_PORT))));
         let previous = super::load_bound_hook_relay_port();
         persist_bound_hook_relay_port(port).expect("persist");
-        let addr = hook_relay_connect_addr(super::load_bound_hook_relay_port()).expect("addr");
-        assert_eq!(addr, hook_relay_connect_addr(port).expect("port addr"));
+        let addr = hook_relay_connect_addr(super::load_bound_hook_relay_port());
+        assert_eq!(addr, hook_relay_connect_addr(port));
         assert_eq!(addr.port(), port);
         persist_bound_hook_relay_port(previous).expect("restore");
     }

@@ -18,17 +18,17 @@ pub const MAX_PROFILE_SLOT: u8 = 6;
 /// 前端控件使用的闭区间能力。
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct MonitorCapabilityRange<T> {
+pub struct MonitorCapabilityRange {
     /// 默认值。
-    pub default: T,
+    pub default: u8,
     /// 最小值。
-    pub min: T,
+    pub min: u8,
     /// 最大值。
-    pub max: T,
+    pub max: u8,
 }
 
 /// 返回展示位取值范围。
-pub fn profile_slot_range() -> MonitorCapabilityRange<u8> {
+pub fn profile_slot_range() -> MonitorCapabilityRange {
     MonitorCapabilityRange {
         default: DEFAULT_PROFILE_SLOT,
         min: MIN_PROFILE_SLOT,
@@ -56,7 +56,7 @@ pub struct HookContent {
 pub struct AiProfileDraft {
     /// 绑定的 Agent。
     pub tool: AiTool,
-    /// 展示位 1–25。
+    /// 展示位，取值范围见 [`profile_slot_range`]。
     pub slot: u8,
     /// 四种行为的配置。
     #[serde(default)]
@@ -97,14 +97,6 @@ pub struct AiProfileDraftSet {
     pub drafts: Vec<AiProfileDraft>,
 }
 
-/// 为全部已批准 Agent 生成默认草稿。
-pub fn default_profile_drafts() -> Vec<AiProfileDraft> {
-    AiTool::ALL
-        .into_iter()
-        .map(AiProfileDraft::default_for)
-        .collect()
-}
-
 /// 把展示位夹紧到当前闭区间。
 pub fn clamp_profile_slot(slot: u8) -> u8 {
     slot.clamp(MIN_PROFILE_SLOT, MAX_PROFILE_SLOT)
@@ -123,18 +115,6 @@ pub fn merge_profile_drafts(saved: Vec<AiProfileDraft>) -> Vec<AiProfileDraft> {
             draft.slot = clamp_profile_slot(draft.slot);
             draft
         })
-        .collect()
-}
-
-/// 只保留当前已启用 Agent 的草稿；未启用时得到空列表。
-pub fn visible_profile_drafts(
-    drafts: &[AiProfileDraft],
-    enabled: &[AiTool],
-) -> Vec<AiProfileDraft> {
-    drafts
-        .iter()
-        .filter(|draft| enabled.contains(&draft.tool))
-        .cloned()
         .collect()
 }
 
@@ -162,12 +142,6 @@ pub fn validate_profile_draft(
             return Err(HookError::new("error.monitor.behaviorDuplicate"));
         }
     }
-    if !HookBehavior::DISPLAY_BEHAVIORS
-        .iter()
-        .all(|behavior| behaviors.contains(behavior))
-    {
-        return Err(HookError::new("error.monitor.behaviorsIncomplete"));
-    }
     Ok(draft)
 }
 
@@ -178,7 +152,6 @@ mod tests {
     use super::{
         AiProfileDraft, DEFAULT_PROFILE_SLOT, MAX_PROFILE_SLOT, MIN_PROFILE_SLOT,
         clamp_profile_slot, merge_profile_drafts, profile_slot_range, validate_profile_draft,
-        visible_profile_drafts,
     };
     use crate::{AiTool, HookBehavior};
 
@@ -243,15 +216,6 @@ mod tests {
         assert_eq!(profile_slot_range().max, 6);
         assert_eq!(clamp_profile_slot(0), MIN_PROFILE_SLOT);
         assert_eq!(clamp_profile_slot(7), MAX_PROFILE_SLOT);
-    }
-
-    #[test]
-    fn no_enabled_tools_yields_empty_visible_drafts() {
-        let drafts = merge_profile_drafts(Vec::new());
-        assert!(visible_profile_drafts(&drafts, &[]).is_empty());
-        let visible = visible_profile_drafts(&drafts, &[AiTool::Codex]);
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].tool, AiTool::Codex);
     }
 
     #[test]
