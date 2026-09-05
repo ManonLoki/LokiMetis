@@ -45,7 +45,7 @@ describe("default application landing", () => {
         return {
           applicationName: "LokiMetis",
           productDefinitionRequired: true,
-          title: "LokiMetis v0.2.0",
+          title: "LokiMetis",
           version: "0.2.0",
         };
       }

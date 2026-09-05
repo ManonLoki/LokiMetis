@@ -3,8 +3,9 @@
 use std::sync::{Arc, RwLock};
 
 use loki_metis_core::{
-    AiTool, DEFAULT_HOOK_RELAY_PORT, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
-    tool_from_slug,
+    AiTool, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
+    MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload, PetOverlayToolBehavior,
+    display_behavior_for_hook_event, hook_relay_loopback_address, tool_from_slug,
 };
 use serde::Serialize;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
@@ -34,6 +35,8 @@ pub struct HookRelayStatus {
     pub failed_count: u64,
     /// 最近一次成功事件。
     pub last_event: Option<HookRelayLastEvent>,
+    /// 各已批准 Agent 最近一次展示行为，供桌宠选图。
+    pub last_behaviors: Vec<PetOverlayToolBehavior>,
     /// 最近一次错误。
     pub last_error: Option<String>,
 }
@@ -42,10 +45,11 @@ impl Default for HookRelayStatus {
     fn default() -> Self {
         Self {
             listening: false,
-            bind_address: format!("127.0.0.1:{DEFAULT_HOOK_RELAY_PORT}"),
+            bind_address: hook_relay_loopback_address(DEFAULT_HOOK_RELAY_PORT),
             received_count: 0,
             failed_count: 0,
             last_event: None,
+            last_behaviors: Vec::new(),
             last_error: None,
         }
     }
@@ -66,14 +70,53 @@ pub fn spawn_hook_listener() -> Arc<RwLock<HookRelayStatus>> {
     status
 }
 
+/// 先绑 10240；占用则改绑操作系统分配的回环空闲端口。
+pub async fn bind_local_hook_relay_listener() -> std::io::Result<TcpListener> {
+    match TcpListener::bind(("127.0.0.1", DEFAULT_HOOK_RELAY_PORT)).await {
+        Ok(listener) => Ok(listener),
+        Err(error) if is_address_in_use(&error) => {
+            TcpListener::bind(("127.0.0.1", HOOK_RELAY_EPHEMERAL_PORT)).await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn upsert_last_behavior(
+    behaviors: &mut Vec<PetOverlayToolBehavior>,
+    tool: AiTool,
+    behavior: HookBehavior,
+) {
+    if let Some(existing) = behaviors.iter_mut().find(|item| item.tool == tool) {
+        existing.behavior = behavior;
+        return;
+    }
+    behaviors.push(PetOverlayToolBehavior { tool, behavior });
+}
+
+fn is_address_in_use(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::AddrInUse
+        || matches!(error.raw_os_error(), Some(48 | 98 | 10048))
+}
+
+/// 绑定后的实际回环地址，供状态与 relay 投递共用。
+pub fn bound_hook_relay_address(listener: &TcpListener) -> std::io::Result<String> {
+    Ok(hook_relay_loopback_address(listener.local_addr()?.port()))
+}
+
 /// 绑定并接受本机 Hook POST。
 async fn run_listener(status: Arc<RwLock<HookRelayStatus>>) -> Result<(), String> {
-    let listener = TcpListener::bind(("127.0.0.1", DEFAULT_HOOK_RELAY_PORT))
+    let listener = bind_local_hook_relay_listener()
         .await
         .map_err(|error| error.to_string())?;
+    let bind_address = bound_hook_relay_address(&listener).map_err(|error| error.to_string())?;
+    let port = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .port();
+    super::relay::persist_bound_hook_relay_port(port).map_err(|error| error.to_string())?;
     if let Ok(mut current) = status.write() {
         current.listening = true;
-        current.bind_address = format!("127.0.0.1:{DEFAULT_HOOK_RELAY_PORT}");
+        current.bind_address = bind_address;
     }
     loop {
         let (mut stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
@@ -84,7 +127,12 @@ async fn run_listener(status: Arc<RwLock<HookRelayStatus>>) -> Result<(), String
             if let Ok(mut current) = status.write() {
                 if outcome.ok {
                     current.received_count += 1;
-                    current.last_event = outcome.event;
+                    current.last_event = outcome.event.clone();
+                    if let Some(event) = outcome.event {
+                        let behavior =
+                            display_behavior_for_hook_event(event.tool, &event.hook_type);
+                        upsert_last_behavior(&mut current.last_behaviors, event.tool, behavior);
+                    }
                     current.last_error = None;
                 } else {
                     current.failed_count += 1;
@@ -235,8 +283,11 @@ async fn write_http_response(
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_connection, parse_hook_request};
-    use loki_metis_core::AiTool;
+    use super::{
+        bind_local_hook_relay_listener, bound_hook_relay_address, handle_connection,
+        parse_hook_request,
+    };
+    use loki_metis_core::{AiTool, DEFAULT_HOOK_RELAY_PORT};
     use std::pin::Pin;
     use std::task::{Context, Poll};
     use tokio::io::{AsyncRead, ReadBuf};
@@ -280,6 +331,26 @@ mod tests {
             }
             Poll::Ready(Ok(()))
         }
+    }
+
+    /// 10240 被占用时，已发布绑定入口改绑其他回环端口且可连接。
+    #[tokio::test]
+    async fn occupies_default_port_then_binds_another_loopback_port() {
+        let _occupied = std::net::TcpListener::bind(("127.0.0.1", DEFAULT_HOOK_RELAY_PORT)).ok();
+        let listener = bind_local_hook_relay_listener()
+            .await
+            .expect("fallback bind");
+        let bind_address = bound_hook_relay_address(&listener).expect("address");
+        let port = listener.local_addr().expect("local").port();
+        assert!(bind_address.starts_with("127.0.0.1:"));
+        assert_eq!(bind_address, format!("127.0.0.1:{port}"));
+        assert_ne!(port, DEFAULT_HOOK_RELAY_PORT);
+        assert_ne!(port, 0);
+        let connected = std::net::TcpStream::connect_timeout(
+            &bind_address.parse().expect("socket"),
+            std::time::Duration::from_secs(1),
+        );
+        assert!(connected.is_ok(), "bound port must accept a local connect");
     }
 
     #[test]

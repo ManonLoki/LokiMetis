@@ -36,7 +36,7 @@ describe("dashboard settings capabilities", () => {
         return {
           applicationName: "LokiMetis",
           productDefinitionRequired: true,
-          title: "LokiMetis v0.1.0",
+          title: "LokiMetis",
           version: "0.1.0",
         };
       }

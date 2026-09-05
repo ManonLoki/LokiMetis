@@ -16,14 +16,17 @@ describe("Tauri API boundary", () => {
     invokeMock.mockResolvedValue({
       applicationName: "LokiMetis",
       productDefinitionRequired: true,
-      title: "LokiMetis v0.1.0",
+      title: "LokiMetis",
       version: "0.1.0",
     });
 
     await expect(getAppMetadata()).resolves.toMatchObject({
       applicationName: "LokiMetis",
       productDefinitionRequired: true,
+      title: "LokiMetis",
+      version: "0.1.0",
     });
+    expect((await getAppMetadata()).title).not.toContain("v0");
     expect(invokeMock).toHaveBeenCalledWith("get_app_metadata");
   });
 

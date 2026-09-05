@@ -213,8 +213,34 @@ pub fn normalize_enabled_ai_tools(selected: &[AiTool]) -> Vec<AiTool> {
         .collect()
 }
 
-/// 本机 Hook 中继监听端口。
+/// 本机 Hook 中继首选监听端口。
 pub const DEFAULT_HOOK_RELAY_PORT: u16 = 10_240;
+
+/// 首选端口占用时，请求操作系统在回环上分配空闲端口。
+pub const HOOK_RELAY_EPHEMERAL_PORT: u16 = 0;
+
+/// 本机 Hook 中继的回环地址。
+pub fn hook_relay_loopback_address(port: u16) -> String {
+    format!("127.0.0.1:{port}")
+}
 
 /// 原生 Hook stdin 最大字节数。
 pub const MAX_NATIVE_HOOK_INPUT_BYTES: usize = 4 * 1024 * 1024;
+
+#[cfg(test)]
+mod tests {
+    use super::{DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, hook_relay_loopback_address};
+
+    #[test]
+    fn loopback_address_uses_the_given_port() {
+        assert_eq!(
+            hook_relay_loopback_address(DEFAULT_HOOK_RELAY_PORT),
+            "127.0.0.1:10240"
+        );
+        assert_eq!(hook_relay_loopback_address(23_456), "127.0.0.1:23456");
+        assert_eq!(
+            hook_relay_loopback_address(HOOK_RELAY_EPHEMERAL_PORT),
+            "127.0.0.1:0"
+        );
+    }
+}

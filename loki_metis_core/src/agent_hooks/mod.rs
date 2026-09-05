@@ -31,9 +31,10 @@ pub use error::HookError;
 pub use generation::{generate_hook_config, generate_wsl_hook_config, merge_hook_config};
 pub use payload::{MinimalHookPayload, PreparedNativeHook, prepare_native_hook};
 pub use types::{
-    AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HookBehavior, HookConfigDirectories,
-    HookConfigLocation, HookConfigPreview, HookConfigWriteResult, HookTransition,
-    HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, normalize_enabled_ai_tools,
+    AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
+    HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
+    HookTransition, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, hook_relay_loopback_address,
+    normalize_enabled_ai_tools,
 };
 
 // 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetis 写入的条目
@@ -388,6 +389,14 @@ pub(crate) fn session_start_revives_tombstone(tool: AiTool) -> bool {
 #[cfg(test)]
 pub(super) fn hook_transition(tool: AiTool, event: &str) -> Option<HookTransition> {
     event_definition(tool, event).map(|definition| definition.kind.transition())
+}
+
+/// 把 Hook 事件名映射为桌宠应展示的行为；未知或释放事件回退 Idle。
+pub fn display_behavior_for_hook_event(tool: AiTool, event: &str) -> HookBehavior {
+    match event_definition(tool, event).map(|definition| definition.kind.transition()) {
+        Some(HookTransition::Display(behavior)) => behavior,
+        Some(HookTransition::Release) | None => HookBehavior::Idle,
+    }
 }
 
 /// 构造 Claude-Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。

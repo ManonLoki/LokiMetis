@@ -34,7 +34,7 @@ Tauri Builder 顺序固定为：
 ## IPC 与状态
 
 - 只有一个 `invoke_handler`，固定包含 `get_app_metadata`、`get_system_locale`、`set_interface_language`、`load_release_notes`，并包含通知与自启各自的窄 get/set 命令。
-- `get_app_metadata` 从打包名称、Cargo 版本和产品定义状态返回类型化元数据，标题固定为 `LokiMetis v{version}`；不得返回联系人或浏览器猜测值。
+- `get_app_metadata` 从打包名称、Cargo 版本和产品定义状态返回类型化元数据，标题固定为 `LokiMetis` 且不带版本号；不得返回联系人或浏览器猜测值。
 - 系统语言由 OS locale 与已保存语言偏好共同解析；设置语言时同步 React i18next、Rust `rust_i18n` 与托盘文案。
 - 通知应用偏好默认关闭并由 Rust 持有；自启默认不注册且始终回读 OS 状态。异步切换失败时界面恢复真实状态并显示可操作错误。
 - 页面会话状态保存在应用根 Jotai store，进程内跨路由保持；TanStack Query 拥有异步数据和缓存。领域状态始终以 core 为权威。

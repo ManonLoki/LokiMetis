@@ -79,6 +79,10 @@ export const dashboardEnUS = {
         label: 'Data sources',
         description: 'View local data directories and scan coverage',
       },
+      dashboardSettings: {
+        label: 'Dashboard settings',
+        description: 'Configure enabled agents, scan interval, and automatic cleanup',
+      },
       leaderboard: {
         label: 'Leaderboard',
         description: 'View aggregate usage rankings from the selected reporting service',

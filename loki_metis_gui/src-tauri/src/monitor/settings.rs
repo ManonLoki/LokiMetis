@@ -2,7 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{AiTool, HookConfigDirectories, HookError, normalize_enabled_ai_tools};
+use loki_metis_core::{
+    AiTool, DEFAULT_PET_CLOSE_CONTROL_VISIBLE, HookConfigDirectories, HookError, PetOverlayPosition,
+    normalize_enabled_ai_tools, normalize_pet_close_control_visible,
+};
 use serde::{Deserialize, Serialize};
 
 /// 监控区持久设置。
@@ -13,6 +16,17 @@ pub struct MonitorSettings {
     pub enabled_ai_tools: Vec<AiTool>,
     /// 自定义 Hook 配置目录。
     pub hook_directories: HookConfigDirectories,
+    /// 是否显示桌宠悬浮窗圆形关闭控件（兔耳）。
+    #[serde(default = "default_pet_close_control_visible")]
+    pub pet_close_control_visible: bool,
+    /// 最近一次合法的桌宠浮窗位置；缺失表示使用默认几何。
+    #[serde(default)]
+    pub pet_overlay_position: Option<PetOverlayPosition>,
+}
+
+/// serde 缺字段时回落到 core 默认显示兔耳。
+fn default_pet_close_control_visible() -> bool {
+    DEFAULT_PET_CLOSE_CONTROL_VISIBLE
 }
 
 impl Default for MonitorSettings {
@@ -20,6 +34,8 @@ impl Default for MonitorSettings {
         Self {
             enabled_ai_tools: AiTool::ALL.to_vec(),
             hook_directories: HookConfigDirectories::default(),
+            pet_close_control_visible: DEFAULT_PET_CLOSE_CONTROL_VISIBLE,
+            pet_overlay_position: None,
         }
     }
 }
@@ -43,6 +59,8 @@ pub fn load_monitor_settings(config_dir: &Path) -> Result<MonitorSettings, HookE
     if settings.enabled_ai_tools.is_empty() {
         settings.enabled_ai_tools = AiTool::ALL.to_vec();
     }
+    settings.pet_close_control_visible =
+        normalize_pet_close_control_visible(Some(settings.pet_close_control_visible));
     Ok(settings)
 }
 
@@ -53,9 +71,71 @@ pub fn save_monitor_settings(config_dir: &Path, settings: &MonitorSettings) -> R
     let normalized = MonitorSettings {
         enabled_ai_tools: normalize_enabled_ai_tools(&settings.enabled_ai_tools),
         hook_directories: settings.hook_directories.clone(),
+        pet_close_control_visible: normalize_pet_close_control_visible(Some(
+            settings.pet_close_control_visible,
+        )),
+        pet_overlay_position: settings.pet_overlay_position,
     };
     let raw = serde_json::to_string_pretty(&normalized)
         .map_err(|error| HookError::new("error.monitor.settingsWriteFailed").param("detail", error.to_string()))?;
     std::fs::write(settings_path(config_dir), raw)
         .map_err(|error| HookError::new("error.monitor.settingsWriteFailed").param("detail", error.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn missing_pet_close_control_visible_defaults_to_shown() {
+        let root = tempdir().expect("temp");
+        let config = root.path();
+        std::fs::write(
+            settings_path(config),
+            r#"{"enabledAiTools":["codex"],"hookDirectories":{"codex":"","claudeCode":"","grok":"","workBuddy":""}}"#,
+        )
+        .expect("write");
+        let settings = load_monitor_settings(config).expect("load");
+        assert!(settings.pet_close_control_visible);
+        assert_eq!(settings.enabled_ai_tools, vec![AiTool::Codex]);
+    }
+
+    #[test]
+    fn saved_pet_close_control_hidden_round_trips() {
+        let root = tempdir().expect("temp");
+        let config = root.path();
+        let mut settings = MonitorSettings::default();
+        settings.pet_close_control_visible = false;
+        save_monitor_settings(config, &settings).expect("save");
+        let loaded = load_monitor_settings(config).expect("load");
+        assert!(!loaded.pet_close_control_visible);
+    }
+
+    #[test]
+    fn missing_pet_overlay_position_stays_unset() {
+        let root = tempdir().expect("temp");
+        let config = root.path();
+        std::fs::write(
+            settings_path(config),
+            r#"{"enabledAiTools":["codex"],"hookDirectories":{"codex":"","claudeCode":"","grok":"","workBuddy":""}}"#,
+        )
+        .expect("write");
+        let settings = load_monitor_settings(config).expect("load");
+        assert_eq!(settings.pet_overlay_position, None);
+    }
+
+    #[test]
+    fn saved_pet_overlay_position_round_trips() {
+        let root = tempdir().expect("temp");
+        let config = root.path();
+        let mut settings = MonitorSettings::default();
+        settings.pet_overlay_position = Some(PetOverlayPosition { x: 240, y: 90 });
+        save_monitor_settings(config, &settings).expect("save");
+        let loaded = load_monitor_settings(config).expect("load");
+        assert_eq!(
+            loaded.pet_overlay_position,
+            Some(PetOverlayPosition { x: 240, y: 90 })
+        );
+    }
 }

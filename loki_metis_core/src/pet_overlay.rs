@@ -1,6 +1,8 @@
 //! 桌宠悬浮窗的四 Agent 宫格投影与窗口规格；不含局域网发现。
 
-use crate::{AiTool, ai_tool_name};
+use serde::{Deserialize, Serialize};
+
+use crate::{AiProfileDraft, AiTool, HookBehavior, ai_tool_name};
 
 /// 一张待投影到桌宠槽位的本机图。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,6 +71,14 @@ pub const PET_OVERLAY_WINDOW_SPEC: PetOverlayWindowSpec = PetOverlayWindowSpec {
     default_height: 360.0,
 };
 
+/// 兔耳（悬浮窗圆形关闭控件）默认显示；旧设置文件缺字段时必须回落到显示，不能当成关闭。
+pub const DEFAULT_PET_CLOSE_CONTROL_VISIBLE: bool = true;
+
+/// 把可选持久化值规范为兔耳显示偏好；缺失时使用默认显示。
+pub fn normalize_pet_close_control_visible(stored: Option<bool>) -> bool {
+    stored.unwrap_or(DEFAULT_PET_CLOSE_CONTROL_VISIBLE)
+}
+
 /// 从文件名一类标签推断桌宠槽位工具；未批准工具返回 `None`。
 pub fn pet_overlay_tool_from_label(label: &str) -> Option<AiTool> {
     let normalized = label.to_ascii_lowercase().replace('_', "-");
@@ -95,6 +105,55 @@ pub fn pet_overlay_tool_from_label(label: &str) -> Option<AiTool> {
         return Some(AiTool::Grok);
     }
     None
+}
+
+/// 某工具当前应展示的 Hook 行为。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PetOverlayToolBehavior {
+    /// 已批准 Agent。
+    pub tool: AiTool,
+    /// 当前展示行为。
+    pub behavior: HookBehavior,
+}
+
+/// 从已保存展示草稿和当前行为投影四槽宫格；无事件时回退 idle。
+pub fn project_pet_overlay_from_drafts(
+    drafts: &[AiProfileDraft],
+    current_behaviors: &[PetOverlayToolBehavior],
+) -> PetOverlayView {
+    PetOverlayView {
+        slots: AiTool::ALL
+            .into_iter()
+            .map(|tool| {
+                let behavior = current_behaviors
+                    .iter()
+                    .find(|item| item.tool == tool)
+                    .map(|item| item.behavior)
+                    .unwrap_or(HookBehavior::Idle);
+                let image_key = drafts
+                    .iter()
+                    .find(|draft| draft.tool == tool)
+                    .and_then(|draft| draft_image_key(draft, behavior));
+                PetOverlaySlot {
+                    tool,
+                    name: ai_tool_name(tool).to_owned(),
+                    occupied: image_key.is_some(),
+                    image_key,
+                }
+            })
+            .collect(),
+    }
+}
+
+fn draft_image_key(draft: &AiProfileDraft, behavior: HookBehavior) -> Option<String> {
+    draft
+        .hooks
+        .iter()
+        .find(|hook| hook.behavior == behavior)
+        .map(|hook| hook.image.trim())
+        .filter(|image| !image.is_empty())
+        .map(str::to_owned)
 }
 
 /// 把本机图库投影为固定四槽宫格；同工具多图时后出现的覆盖先前的。
@@ -146,6 +205,14 @@ mod tests {
             label: label.to_owned(),
             image_key: key.to_owned(),
         }
+    }
+
+    #[test]
+    fn pet_close_control_missing_value_defaults_to_visible() {
+        assert!(DEFAULT_PET_CLOSE_CONTROL_VISIBLE);
+        assert!(normalize_pet_close_control_visible(None));
+        assert!(normalize_pet_close_control_visible(Some(true)));
+        assert!(!normalize_pet_close_control_visible(Some(false)));
     }
 
     #[test]
@@ -205,6 +272,65 @@ mod tests {
             .find(|slot| slot.tool == AiTool::Grok)
             .expect("grok slot");
         assert_eq!(grok.image_key.as_deref(), Some("second"));
+    }
+
+    fn draft_with_images(tool: AiTool, idle: &str, running: &str) -> AiProfileDraft {
+        let mut draft = AiProfileDraft::default_for(tool);
+        for hook in &mut draft.hooks {
+            hook.image = match hook.behavior {
+                HookBehavior::Idle => idle.to_owned(),
+                HookBehavior::Running => running.to_owned(),
+                _ => String::new(),
+            };
+        }
+        draft
+    }
+
+    #[test]
+    fn overlay_slots_use_saved_draft_image_ids_not_filenames() {
+        let drafts = vec![draft_with_images(AiTool::Codex, "img-idle", "img-run")];
+        let view = project_pet_overlay_from_drafts(&drafts, &[]);
+        assert_eq!(view.slots[0].image_key.as_deref(), Some("img-idle"));
+        assert!(view.slots[0].occupied);
+        assert!(!view.slots[1].occupied);
+        assert!(!view.slots[2].occupied);
+        assert!(!view.slots[3].occupied);
+        let unlabeled = project_pet_overlay_from_drafts(
+            &[],
+            &[],
+        );
+        assert!(unlabeled.slots.iter().all(|slot| !slot.occupied));
+        assert!(
+            unlabeled
+                .slots
+                .iter()
+                .all(|slot| slot.image_key.as_deref() != Some("codex.png"))
+        );
+    }
+
+    #[test]
+    fn overlay_uses_running_image_when_latest_hook_is_running() {
+        let drafts = vec![draft_with_images(AiTool::Grok, "img-idle", "img-run")];
+        let view = project_pet_overlay_from_drafts(
+            &drafts,
+            &[PetOverlayToolBehavior {
+                tool: AiTool::Grok,
+                behavior: HookBehavior::Running,
+            }],
+        );
+        let grok = view
+            .slots
+            .iter()
+            .find(|slot| slot.tool == AiTool::Grok)
+            .expect("grok");
+        assert_eq!(grok.image_key.as_deref(), Some("img-run"));
+        let idle_view = project_pet_overlay_from_drafts(&drafts, &[]);
+        let idle_grok = idle_view
+            .slots
+            .iter()
+            .find(|slot| slot.tool == AiTool::Grok)
+            .expect("grok idle");
+        assert_eq!(idle_grok.image_key.as_deref(), Some("img-idle"));
     }
 
     #[test]

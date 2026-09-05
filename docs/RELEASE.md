@@ -26,7 +26,7 @@
 
 ## 用户可见版本与发布说明
 
-- 面向用户的版本统一为一个小写 `v` 前缀；窗口标题、侧栏、设置页、发布说明和产物名都先移除已有 `v`/`V` 再格式化。Cargo、状态文件和 manifest 的机器 `version` 不带前缀。
+- 面向用户的版本统一为一个小写 `v` 前缀；侧栏、设置页、发布说明和产物名都先移除已有 `v`/`V` 再格式化。窗口标题固定为 `LokiMetis`，不带版本号。Cargo、状态文件和 manifest 的机器 `version` 不带前缀。
 - `release-notes.json` 使用 `schemaVersion: 2`；`releases` 最新在前，每项包含 `releaseDate`、带单个 `v` 的 `version`、`featureOptimizations` 与 `bugFixes`。
 - 每个条目必须恰有非空 `zh-CN` 与 `en-US` 翻译且无首尾空白；每版两类各最多 10 条、合计至少一条，只保留最近 5 个正式版本。
 - 发布准备从上次真实发布的 40 位提交到当前 HEAD 语义整理重要变化；首个发布以仓库起点为边界，不直接倾倒提交标题。

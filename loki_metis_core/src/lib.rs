@@ -15,7 +15,10 @@ mod display_label;
 mod display_name;
 mod local_index;
 mod local_view;
+mod monitor_gallery;
+mod monitor_profile;
 mod pet_overlay;
+mod pet_overlay_position;
 mod policy;
 mod private_sqlite;
 mod provider;
@@ -32,11 +35,12 @@ mod usage;
 mod workbuddy_stats;
 
 pub use agent_hooks::{
-    AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HookBehavior, HookConfigDirectories,
-    HookConfigLocation, HookConfigPreview, HookConfigWriteResult, HookError, HookWriteOutcome,
-    MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload, PreparedNativeHook, ai_tool_descriptors,
-    ai_tool_name, generate_hook_config, generate_wsl_hook_config, hook_config_filename,
-    hook_config_has_managed_marker, hook_config_write_result,
+    AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
+    HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
+    HookError, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
+    PreparedNativeHook, ai_tool_descriptors, ai_tool_name, generate_hook_config,
+    generate_wsl_hook_config, hook_config_filename, hook_config_has_managed_marker,
+    display_behavior_for_hook_event, hook_config_write_result, hook_relay_loopback_address,
     managed_hook_marker, merge_hook_config, normalize_enabled_ai_tools, prepare_native_hook,
     tool_from_slug,
 };
@@ -76,10 +80,23 @@ pub use display_name::{
     SAFE_DISPLAY_NAME_MAX_CHARS, claude_project_display_label, grok_project_display_label,
     safe_path_basename, safe_thread_title,
 };
+pub use monitor_gallery::{
+    ImageFormat, ImageUploadAccept, MonitorImageCounts, MonitorImageGallery, MonitorImagePreview,
+    assemble_image_gallery, image_data_url, image_upload_accept, preview_from_bytes,
+};
+pub use monitor_profile::{
+    DEFAULT_PROFILE_SLOT, MAX_PROFILE_SLOT, MIN_PROFILE_SLOT, AiProfileDraft, AiProfileDraftSet,
+    HookContent, MonitorCapabilityRange, clamp_profile_slot, default_profile_drafts,
+    merge_profile_drafts, profile_slot_range, validate_profile_draft, visible_profile_drafts,
+};
 pub use pet_overlay::{
-    PET_OVERLAY_WINDOW_SPEC, PetOverlayImageRef, PetOverlaySlot, PetOverlayView,
-    PetOverlayWindowSpec, pet_overlay_tool_from_label, pet_overlay_window_spec,
+    DEFAULT_PET_CLOSE_CONTROL_VISIBLE, PET_OVERLAY_WINDOW_SPEC, PetOverlayImageRef, PetOverlaySlot,
+    PetOverlayToolBehavior, PetOverlayView, PetOverlayWindowSpec, normalize_pet_close_control_visible,
+    pet_overlay_tool_from_label, pet_overlay_window_spec, project_pet_overlay_from_drafts,
     project_pet_overlay_slots,
+};
+pub use pet_overlay_position::{
+    PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,
 };
 pub use local_index::{
     ClaudeBatchOutcome, DiscoveryMethod, LocalError, LocalErrorKind, LocalIndex, RegisteredRoot,

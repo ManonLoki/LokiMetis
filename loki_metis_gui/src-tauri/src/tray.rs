@@ -6,8 +6,11 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
-use crate::monitor::pet_overlay_window_description;
+use crate::monitor::{
+    pet_overlay_move_snapshot, pet_overlay_window_description, schedule_pet_overlay_position_persist,
+};
 use crate::windowing::restore_main_window;
+use loki_metis_core::PetOverlayPosition;
 
 const SHOW_WINDOW_ID: &str = "show_window";
 const QUIT_ID: &str = "quit";
@@ -95,6 +98,23 @@ fn tray_label_for_locale(key: &str, locale: &str) -> String {
 }
 
 pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &WindowEvent) {
+    if let WindowEvent::Moved(position) = event {
+        let outer_size = window
+            .outer_size()
+            .ok()
+            .map(|size| (size.width, size.height))
+            .unwrap_or((0, 0));
+        if let Some((saved, size)) = pet_overlay_move_snapshot(
+            window.label(),
+            Some(PetOverlayPosition {
+                x: position.x,
+                y: position.y,
+            }),
+            outer_size,
+        ) {
+            schedule_pet_overlay_position_persist(window.app_handle(), saved, size);
+        }
+    }
     if let WindowEvent::CloseRequested { api, .. } = event {
         if window.label() == "main"
             && window.app_handle().try_state::<TrayMenuState>().is_some()

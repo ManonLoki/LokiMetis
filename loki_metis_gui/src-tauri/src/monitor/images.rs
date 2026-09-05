@@ -2,11 +2,13 @@
 
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::HookError;
+use loki_metis_core::{
+    HookError, MonitorImageGallery, assemble_image_gallery, preview_from_bytes,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// 一张本机监控图片的元数据。
+/// 一张本机监控图片的持久化元数据。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorImageRecord {
@@ -50,9 +52,17 @@ fn save_index(app_data_dir: &Path, records: &[MonitorImageRecord]) -> Result<(),
         .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))
 }
 
-/// 列出本机监控图片。
+/// 列出本机监控图片索引。
 pub fn list_monitor_images(app_data_dir: &Path) -> Result<Vec<MonitorImageRecord>, HookError> {
     load_index(app_data_dir)
+}
+
+/// 当前图库中的稳定 ID，供草稿校验引用。
+pub fn monitor_image_ids(app_data_dir: &Path) -> Result<std::collections::HashSet<String>, HookError> {
+    Ok(load_index(app_data_dir)?
+        .into_iter()
+        .map(|record| record.id)
+        .collect())
 }
 
 /// 读取一张本机监控图片的原始字节。
@@ -65,21 +75,29 @@ pub fn read_monitor_image(app_data_dir: &Path, id: &str) -> Result<Vec<u8>, Hook
         .map_err(|error| HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string()))
 }
 
-/// 保存一张本机监控图片。
+/// 列出带预览、格式与计数的本机图库快照。
+pub fn list_monitor_image_gallery(app_data_dir: &Path) -> Result<MonitorImageGallery, HookError> {
+    let records = load_index(app_data_dir)?;
+    let mut previews = Vec::with_capacity(records.len());
+    for record in records {
+        let bytes = std::fs::read(images_dir(app_data_dir).join(&record.stored_name))
+            .map_err(|error| {
+                HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string())
+            })?;
+        previews.push(preview_from_bytes(record.id, record.filename, &bytes)?);
+    }
+    Ok(assemble_image_gallery(previews))
+}
+
+/// 保存一张本机监控图片；非法格式在写入前被拒绝。
 pub fn save_monitor_image(
     app_data_dir: &Path,
     filename: &str,
     bytes: &[u8],
-) -> Result<MonitorImageRecord, HookError> {
-    if bytes.is_empty() {
-        return Err(HookError::new("error.monitor.imageEmpty"));
-    }
+) -> Result<MonitorImageGallery, HookError> {
     let id = Uuid::new_v4().to_string();
-    let extension = Path::new(filename)
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("bin");
-    let stored_name = format!("{id}.{extension}");
+    let preview = preview_from_bytes(&id, filename, bytes)?;
+    let stored_name = format!("{id}.{}", preview.format.extension());
     std::fs::create_dir_all(images_dir(app_data_dir))
         .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))?;
     std::fs::write(images_dir(app_data_dir).join(&stored_name), bytes)
@@ -90,18 +108,22 @@ pub fn save_monitor_image(
         stored_name,
     };
     let mut records = load_index(app_data_dir)?;
-    records.push(record.clone());
+    records.push(record);
     save_index(app_data_dir, &records)?;
-    Ok(record)
+    list_monitor_image_gallery(app_data_dir)
 }
 
-/// 删除一张本机监控图片。
-pub fn delete_monitor_image(app_data_dir: &Path, id: &str) -> Result<(), HookError> {
+/// 删除一张本机监控图片并返回更新后的图库快照。
+pub fn delete_monitor_image(
+    app_data_dir: &Path,
+    id: &str,
+) -> Result<MonitorImageGallery, HookError> {
     let mut records = load_index(app_data_dir)?;
     let Some(index) = records.iter().position(|item| item.id == id) else {
         return Err(HookError::new("error.monitor.imageNotFound"));
     };
     let removed = records.remove(index);
     let _ = std::fs::remove_file(images_dir(app_data_dir).join(removed.stored_name));
-    save_index(app_data_dir, &records)
+    save_index(app_data_dir, &records)?;
+    list_monitor_image_gallery(app_data_dir)
 }

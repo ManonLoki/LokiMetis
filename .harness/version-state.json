@@ -2,7 +2,9 @@
   "applied_bug_ids": [
     "BUG-DEFAULT-LANDING-DASHBOARD",
     "BUG-HOOK-LISTENER-PARTIAL-READ",
-    "BUG-PET-OVERLAY-BLOB-CSP"
+    "BUG-PET-OVERLAY-BLOB-CSP",
+    "BUG-pet-overlay-draft-images",
+    "BUG-pet-overlay-moved-persist-physical"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -47,8 +49,53 @@
       "change_id": "BUG-PET-OVERLAY-BLOB-CSP",
       "kind": "bug-fix",
       "required_version": "0.2.3"
+    },
+    {
+      "change_id": "FEAT-monitor-tabs-align",
+      "kind": "feature",
+      "required_version": "0.2.3"
+    },
+    {
+      "change_id": "FEAT-hook-relay-ephemeral-port",
+      "kind": "feature",
+      "required_version": "0.2.3"
+    },
+    {
+      "change_id": "FEAT-profile-slot-six",
+      "kind": "feature",
+      "required_version": "0.2.3"
+    },
+    {
+      "change_id": "FEAT-dashboard-charts-tab",
+      "kind": "feature",
+      "required_version": "0.2.3"
+    },
+    {
+      "change_id": "FEAT-window-title-without-version",
+      "kind": "feature",
+      "required_version": "0.2.3"
+    },
+    {
+      "change_id": "BUG-pet-overlay-draft-images",
+      "kind": "bug-fix",
+      "required_version": "0.2.4"
+    },
+    {
+      "change_id": "FEAT-monitor-desktop-settings",
+      "kind": "feature",
+      "required_version": "0.2.4"
+    },
+    {
+      "change_id": "FEAT-pet-overlay-drag-position-settings",
+      "kind": "feature",
+      "required_version": "0.2.4"
+    },
+    {
+      "change_id": "BUG-pet-overlay-moved-persist-physical",
+      "kind": "bug-fix",
+      "required_version": "0.2.5"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.3"
+  "target_version": "0.2.5"
 }

@@ -115,6 +115,23 @@ async function renderToolbar(view: UsageViewKind, workbuddyStatsEnabled = false)
   });
 }
 
+/** 断言页面导航与 Agent 切换器在同一行容器内，导航在左、切换器在右。 */
+function expectPageNavAndAgentSwitcherOnTheSameRow() {
+  const nav = screen.getByRole("navigation", { name: "Dashboard pages" });
+  const switcher = screen.getByRole("radiogroup", {
+    name: "Agent client currently being viewed",
+  });
+  const row = screen.getByTestId("dashboard-header-row");
+  expect(row).toContainElement(nav);
+  expect(row).toContainElement(switcher);
+  expect(nav.compareDocumentPosition(switcher) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  expect(nav.parentElement).toBe(row);
+  const progress = document.querySelector(".local-scan-progress");
+  if (progress) {
+    expect(row.contains(progress)).toBe(false);
+  }
+}
+
 /** 用内存路由挂载真实看板布局与配置子页，并保留侧栏设置路由以便对照。 */
 async function renderDashboard(initialPath = "/dashboard") {
   const rootRoute = createRootRoute({
@@ -191,49 +208,72 @@ describe("dashboard header subpages", () => {
     invokeMock.mockRejectedValue(new Error("ipc unavailable"));
   });
 
-  /** 物理 Agent 视图出现概览、用量、数据源，以及页头看板设置入口。 */
+  /** 物理 Agent 视图选项卡顺序为概览、用量、图表、数据源、看板设置。 */
   test("physical_agent_view_shows_overview_usage_and_sources", async () => {
     await renderToolbar("codex");
-    expect(screen.getByRole("link", { name: /Overview:/ })).toBeVisible();
-    expect(screen.getByRole("link", { name: /Usage:/ })).toBeVisible();
+    const overview = screen.getByRole("link", { name: /Overview:/ });
+    const usage = screen.getByRole("link", { name: /Usage:/ });
     const charts = screen.getByRole("link", { name: /Charts:/ });
     const sources = screen.getByRole("link", { name: /Data sources:/ });
+    const settings = screen.getByRole("link", { name: /Dashboard settings:/ });
+    expect(overview).toBeVisible();
+    expect(usage).toBeVisible();
     expect(charts).toBeVisible();
     expect(sources).toBeVisible();
+    expect(settings).toBeVisible();
+    expect(screen.getByText("Dashboard settings")).toBeVisible();
+    expect(overview.compareDocumentPosition(usage) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(screen.getByRole("link", { name: "Dashboard settings" })).toBeVisible();
-    expect(screen.queryByText("Dashboard settings")).not.toBeInTheDocument();
-    expect(screen.queryByText("看板设置")).not.toBeInTheDocument();
+    expect(sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(screen.queryByRole("button", { name: "Dashboard settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Dashboard settings" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Time zone:/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Time standard" })).not.toBeInTheDocument();
     expect(screen.queryByText("Local time")).not.toBeInTheDocument();
     expect(screen.queryByText("UTC time")).not.toBeInTheDocument();
+    expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
-  /** 「全部」出现概览与调用且不出现用量/数据源。 */
+  /** 「全部」出现概览、调用，看板设置紧挨最后一项，且不出现用量/数据源。 */
   test("all_view_shows_overview_and_calls_without_usage_or_sources", async () => {
     await renderToolbar("all");
-    expect(screen.getByRole("link", { name: /Overview:/ })).toBeVisible();
-    expect(screen.getByRole("link", { name: /Calls:/ })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Dashboard settings" })).toBeVisible();
+    const overview = screen.getByRole("link", { name: /Overview:/ });
+    const calls = screen.getByRole("link", { name: /Calls:/ });
+    const settings = screen.getByRole("link", { name: /Dashboard settings:/ });
+    expect(overview).toBeVisible();
+    expect(calls).toBeVisible();
+    expect(settings).toBeVisible();
+    expect(screen.getByText("Dashboard settings")).toBeVisible();
+    expect(calls.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Usage:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Charts:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Data sources:/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dashboard settings" })).not.toBeInTheDocument();
+    expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
-  /** WorkBuddy 开启时出现概览、用量、数据源且不出现调用。 */
+  /** WorkBuddy 开启时出现概览、用量、图表、数据源、看板设置且不出现调用。 */
   test("workbuddy_view_shows_overview_usage_and_sources_without_calls", async () => {
     await renderToolbar("workbuddy", true);
-    expect(screen.getByRole("link", { name: /Overview:/ })).toBeVisible();
-    expect(screen.getByRole("link", { name: /Usage:/ })).toBeVisible();
+    const overview = screen.getByRole("link", { name: /Overview:/ });
+    const usage = screen.getByRole("link", { name: /Usage:/ });
     const charts = screen.getByRole("link", { name: /Charts:/ });
     const sources = screen.getByRole("link", { name: /Data sources:/ });
+    const settings = screen.getByRole("link", { name: /Dashboard settings:/ });
+    expect(overview).toBeVisible();
+    expect(usage).toBeVisible();
     expect(charts).toBeVisible();
     expect(sources).toBeVisible();
+    expect(settings).toBeVisible();
+    expect(screen.getByText("Dashboard settings")).toBeVisible();
+    expect(usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(screen.getByRole("link", { name: "Dashboard settings" })).toBeVisible();
+    expect(sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dashboard settings" })).not.toBeInTheDocument();
+    expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
   /** 真实加载用量、调用与 WorkBuddy 用量页面模块，证明已发布入口可解析。 */
@@ -271,11 +311,11 @@ describe("dashboard header settings surface", () => {
   /** 点击页头看板设置后，页头下方切到配置面且不进入侧栏设置。 */
   test("dashboard_settings_link_replaces_body_without_leaving_dashboard", async () => {
     const router = await renderDashboard();
-    expect(screen.getByRole("link", { name: "Dashboard settings" })).toBeVisible();
+    expect(screen.getByRole("link", { name: /Dashboard settings:/ })).toBeVisible();
     expect(screen.getByText("overview-body")).toBeVisible();
     expect(screen.queryByTestId("dashboard-settings")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("link", { name: "Dashboard settings" }));
+    await userEvent.click(screen.getByRole("link", { name: /Dashboard settings:/ }));
 
     expect(await screen.findByTestId("dashboard-settings")).toBeVisible();
     expect(screen.getByRole("checkbox", { name: "Codex" })).toBeVisible();
@@ -409,5 +449,6 @@ describe("dashboard header settings surface", () => {
     expect(screen.queryByRole("navigation", { name: "Chart pages" })).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard/charts");
     expect(router.state.location.pathname).not.toBe("/settings");
+    expect(screen.queryByText("sidebar-settings")).not.toBeInTheDocument();
   });
 });

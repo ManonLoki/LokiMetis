@@ -43,9 +43,11 @@ use deep_link::install_deep_link;
 use locale::{LocaleState, get_system_locale, resolve_system_locale, set_interface_language};
 use monitor::{
     close_pet_overlay, delete_monitor_image_cmd, get_hook_relay_status, get_monitor_capabilities,
-    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, list_monitor_hook_locations,
-    list_monitor_images_cmd, open_pet_overlay, pet_overlay_window_description,
+    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, is_pet_overlay_open,
+    list_monitor_hook_locations, list_monitor_images_cmd, list_monitor_profile_drafts,
+    get_pet_overlay_position, open_pet_overlay, pet_overlay_window_description,
     save_hook_config_directory, save_monitor_enabled_tools, save_monitor_image_cmd,
+    save_monitor_profile_draft, save_pet_close_control_visible, save_pet_overlay_position,
     spawn_hook_listener, start_pet_overlay_drag, write_monitor_hook_config,
 };
 pub use monitor::run_hook_relay_if_requested;
@@ -74,15 +76,21 @@ struct AppMetadata {
     title: String,
 }
 
+/// 窗口标题只用应用名，不带版本号。
+fn app_window_title(application_name: &str) -> String {
+    application_name.to_owned()
+}
+
 #[tauri::command]
 async fn get_app_metadata() -> AppMetadata {
     let status = loki_metis_core::scaffold_status().await;
     let version = env!("CARGO_PKG_VERSION");
+    let application_name = "LokiMetis";
     AppMetadata {
-        application_name: "LokiMetis",
+        application_name,
         version,
         product_definition_required: status.product_definition_required,
-        title: format!("LokiMetis v{version}"),
+        title: app_window_title(application_name),
     }
 }
 
@@ -180,11 +188,17 @@ pub fn run() {
             list_monitor_images_cmd,
             save_monitor_image_cmd,
             delete_monitor_image_cmd,
+            list_monitor_profile_drafts,
+            save_monitor_profile_draft,
             get_pet_overlay_view,
             get_monitor_image_bytes,
+            is_pet_overlay_open,
+            save_pet_close_control_visible,
             open_pet_overlay,
             close_pet_overlay,
-            start_pet_overlay_drag
+            start_pet_overlay_drag,
+            get_pet_overlay_position,
+            save_pet_overlay_position
         ]);
 
     let app = builder
@@ -229,5 +243,13 @@ mod tests {
         let windows_before = ["main"];
         let windows_after = windows_before;
         assert_eq!(windows_after, ["main"]);
+    }
+
+    #[test]
+    fn window_title_is_application_name_without_version() {
+        let title = super::app_window_title("LokiMetis");
+        assert_eq!(title, "LokiMetis");
+        assert!(!title.contains('v'));
+        assert!(!title.contains(env!("CARGO_PKG_VERSION")));
     }
 }

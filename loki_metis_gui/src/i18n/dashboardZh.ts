@@ -58,6 +58,10 @@ export const dashboardZhCN = {
       charts: { label: '图表', description: '查看 Token 趋势与多维用量分布' },
       calls: { label: '调用', description: '分页浏览完整 Token 构成的本机调用' },
       sources: { label: '数据源', description: '查看本机数据目录与扫描覆盖' },
+      dashboardSettings: {
+        label: '看板设置',
+        description: '配置启用 Agent、扫描间隔与自动清理',
+      },
       leaderboard: {
         label: '排行榜',
         description: '查看所选上报服务的聚合用量排行',

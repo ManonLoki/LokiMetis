@@ -78,9 +78,10 @@
       "pagesAria": "监控页面",
       "itemAria": "{{label}}：{{description}}",
       "workbench": { "label": "工作台", "description": "查看本机 Hook 中继状态" },
-      "management": { "label": "监控管理", "description": "写入四项 Agent 的本机 Hooks" },
+      "management": { "label": "监控管理", "description": "为已启用 Agent 配置展示位与行为图片" },
       "images": { "label": "图片管理", "description": "管理本机监控图片" },
-      "settings": { "label": "设置", "description": "选择要写入 Hooks 的 Agent" }
+      "settings": { "label": "Hooks 设置", "description": "启用要写入 Hooks 的 Agent 并生成本机配置" },
+      "desktop": { "label": "监控设置", "description": "配置桌宠悬浮窗与兔耳关闭控件" }
     },
     "workbench": {
       "title": "本机 Hook 中继",
@@ -94,24 +95,90 @@
       "lastError": "最近错误：{{error}}"
     },
     "management": {
-      "title": "Hooks 管理",
-      "description": "仅为 Codex、Claude Code、Grok 与 WorkBuddy 生成本机 Hook 配置。",
-      "directory": "配置目录",
-      "write": "写入 Hooks",
-      "written": "已写入 {{file}}（{{outcome}}）",
-      "location": "当前文件：{{path}}"
+      "title": "监控管理",
+      "description": "为已启用 Agent 配置展示位与各行为图片、文案。",
+      "noClient": "暂未启用任何 Agent，请先到「Hooks 设置」中勾选需要管理的客户端。",
+      "behaviorDisplay": "行为展示",
+      "behaviorDescription": "为每种行为选择本机图片；显示内容可按需填写。",
+      "configuredCount": "已配置 {{configured}} / {{total}}",
+      "noImages": "暂无可选图片，可在当前图片选择器里直接上传一张图片并继续配置。",
+      "stateDescription": "处于此状态时展示",
+      "content": "内容",
+      "contentPlaceholder": "输入可选的补充内容",
+      "displayConfig": "展示配置",
+      "ready": "所有状态均已配置，可以保存。",
+      "remaining": "还需为 {{count}} 种状态选择图片。",
+      "save": "保存展示配置",
+      "saved": "已保存",
+      "configured": "已配置",
+      "notConfigured": "待选择图片",
+      "optional": "可选"
+    },
+    "behavior": {
+      "idle": "空闲",
+      "running": "运行中",
+      "asking": "询问",
+      "error": "异常"
+    },
+    "slot": {
+      "title": "显示位置",
+      "description": "点击对应格子选择展示位置",
+      "position": "位置 {{slot}}",
+      "groupAria": "选择显示位置",
+      "cellAria": "位置 {{slot}}，第 {{row}} 行第 {{column}} 列"
+    },
+    "picker": {
+      "field": "展示图片",
+      "clear": "清除选择",
+      "clearAria": "清除已选图片",
+      "change": "更换图片",
+      "loading": "正在加载图片",
+      "clickChoose": "点击选择图片",
+      "chooseTitle": "选择展示图片",
+      "closeAria": "关闭图片选择",
+      "selectAria": "选择图片 {{filename}}",
+      "uploadSingle": "直接上传",
+      "uploadSingleAria": "上传一张新图片",
+      "uploading": "上传中…",
+      "uploadedAndSelected": "已上传并自动选中 {{filename}}",
+      "emptyCategory": "该分类暂无图片",
+      "imagesTotal": "共 {{count}} 张图片",
+      "imagesFiltered": "显示 {{visible}} / 共 {{total}} 张",
+      "allCount": "全部 {{count}}"
     },
     "images": {
       "title": "本机图片",
       "description": "图片保存在本机应用数据目录，不转发到局域网设备。",
       "empty": "还没有本机监控图片。",
-      "upload": "添加图片",
-      "delete": "删除"
+      "emptyTitle": "还没有本机图片",
+      "emptyDescription": "可一次选择多张 JPEG、PNG 或 GIF 图片，上传后直接分配给 Agent。",
+      "chooseMultiple": "批量选择图片",
+      "upload": "批量上传",
+      "uploaded": "已成功上传 {{count}} 张图片。",
+      "delete": "删除图片",
+      "refresh": "刷新",
+      "reading": "读取中…",
+      "localLibrary": "本机图库",
+      "emptyCategory": "该分类暂无图片",
+      "imagesTotal": "共 {{count}} 张图片",
+      "imagesFiltered": "显示 {{visible}} / 共 {{total}} 张",
+      "allCount": "全部 {{count}}"
     },
     "settings": {
+      "title": "Hooks 设置",
+      "description": "选择要启用 Hooks 的 Agent，并写入本机 Hook 配置。此处不是应用设置。",
+      "enabled": "启用的 Agent",
+      "directory": "配置目录",
+      "write": "写入 Hooks",
+      "written": "已写入 {{file}}（{{outcome}}）",
+      "location": "当前文件：{{path}}"
+    },
+    "desktop": {
       "title": "监控设置",
-      "description": "选择要启用 Hooks 的 Agent。此处不是应用设置。",
-      "enabled": "启用的 Agent"
+      "description": "打开或关闭桌宠悬浮窗，并选择是否显示兔耳关闭控件。此处不是 Hooks 设置，也不是应用设置。",
+      "petDescription": "打开后显示桌宠悬浮窗；关闭后隐藏，主窗口保持可见。",
+      "earTitle": "兔耳",
+      "earDescription": "打开后在悬浮窗上显示圆形关闭控件；关闭后不显示。"
     },
     "pet": {
       "open": "桌宠悬浮窗",
@@ -119,7 +186,10 @@
       "close": "关闭",
       "closeAria": "关闭桌宠悬浮窗",
       "waiting": "等待图片",
-      "shellAria": "桌宠悬浮窗"
+      "shellAria": "桌宠悬浮窗",
+      "settingsTitle": "桌宠设置",
+      "settingsDescription": "左键拖动浮窗，右键打开此设置。此处不是应用设置。",
+      "settingsClose": "关闭设置"
     },
     "outcome": {
       "unchanged": "配置未变化",
@@ -137,6 +207,15 @@
     "not_found_description": "此地址不属于当前应用。",
     "back_home": "返回首页",
     "unexpected_title": "页面暂时不可用",
-    "unexpected_description": "请返回首页后重试。"
+    "unexpected_description": "请返回首页后重试。",
+    "monitor": {
+      "imageEmpty": "图片内容为空。",
+      "imageUnsupportedType": "不支持的图片类型，请使用 JPEG、PNG 或 GIF。",
+      "imageNotFound": "找不到这张本机图片。",
+      "slotOutOfRange": "展示位置必须介于 {{min}} 与 {{max}} 之间。",
+      "behaviorsIncomplete": "四种行为必须各配置一次。",
+      "behaviorDuplicate": "同一种行为不能重复配置。",
+      "unknownImage": "所选图片不在本机图库中。"
+    }
   }
 }

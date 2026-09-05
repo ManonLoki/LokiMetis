@@ -27,7 +27,7 @@ sidebar_mode = compact
 - Rust 结构：`loki_metis_core` + `loki_metis_gui`
 - 目标平台：Windows、macOS、Linux
 - 初始版本：`0.1.0`；当前版本始终以根 `Cargo.toml` 为准
-- 窗口标题：`LokiMetis v{version}`
+- 窗口标题：`LokiMetis`
 - 产品定义状态：`productDefinitionRequired = true`
 
 ## Logo 选择证据

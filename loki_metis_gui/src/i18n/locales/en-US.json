@@ -78,9 +78,10 @@
       "pagesAria": "Monitor pages",
       "itemAria": "{{label}}: {{description}}",
       "workbench": { "label": "Workbench", "description": "View the local Hook relay status" },
-      "management": { "label": "Monitor management", "description": "Write local Hooks for four agents" },
+      "management": { "label": "Monitor management", "description": "Configure display slots and behavior images for enabled agents" },
       "images": { "label": "Image management", "description": "Manage local monitor images" },
-      "settings": { "label": "Settings", "description": "Choose which agents receive Hooks" }
+      "settings": { "label": "Hooks settings", "description": "Enable agents that receive Hooks and write local configs" },
+      "desktop": { "label": "Monitor settings", "description": "Configure the desktop pet overlay and bunny ear close control" }
     },
     "workbench": {
       "title": "Local Hook relay",
@@ -94,24 +95,90 @@
       "lastError": "Last error: {{error}}"
     },
     "management": {
-      "title": "Hooks management",
-      "description": "Generate local Hook configs only for Codex, Claude Code, Grok, and WorkBuddy.",
-      "directory": "Config directory",
-      "write": "Write Hooks",
-      "written": "Wrote {{file}} ({{outcome}})",
-      "location": "Current file: {{path}}"
+      "title": "Monitor management",
+      "description": "Configure display slots, behavior images, and optional text for enabled agents.",
+      "noClient": "No agent is enabled. Select the clients you want to manage under Hooks settings.",
+      "behaviorDisplay": "Behavior display",
+      "behaviorDescription": "Choose a local image for each behavior; display text is optional.",
+      "configuredCount": "{{configured}} / {{total}} configured",
+      "noImages": "No images are available yet. You can upload one directly from this picker and continue configuring.",
+      "stateDescription": "Shown while the agent is in this state",
+      "content": "Content",
+      "contentPlaceholder": "Enter optional extra content",
+      "displayConfig": "Display configuration",
+      "ready": "All states are configured and ready to save.",
+      "remaining": "Choose images for {{count}} more states.",
+      "save": "Save display configuration",
+      "saved": "Saved",
+      "configured": "Configured",
+      "notConfigured": "Choose an image",
+      "optional": "Optional"
+    },
+    "behavior": {
+      "idle": "Idle",
+      "running": "Running",
+      "asking": "Asking",
+      "error": "Error"
+    },
+    "slot": {
+      "title": "Display position",
+      "description": "Click the matching cell to choose a display position",
+      "position": "Position {{slot}}",
+      "groupAria": "Choose display position",
+      "cellAria": "Position {{slot}}, row {{row}}, column {{column}}"
+    },
+    "picker": {
+      "field": "Display image",
+      "clear": "Clear selection",
+      "clearAria": "Clear selected image",
+      "change": "Change image",
+      "loading": "Loading images",
+      "clickChoose": "Click to choose an image",
+      "chooseTitle": "Choose display image",
+      "closeAria": "Close image picker",
+      "selectAria": "Choose image {{filename}}",
+      "uploadSingle": "Upload directly",
+      "uploadSingleAria": "Upload one new image",
+      "uploading": "Uploading…",
+      "uploadedAndSelected": "Uploaded and automatically selected {{filename}}",
+      "emptyCategory": "No images in this category",
+      "imagesTotal": "{{count}} images",
+      "imagesFiltered": "Showing {{visible}} of {{total}} images",
+      "allCount": "All {{count}}"
     },
     "images": {
       "title": "Local images",
       "description": "Images stay in this app's data directory and are not sent to LAN devices.",
       "empty": "No local monitor images yet.",
-      "upload": "Add image",
-      "delete": "Delete"
+      "emptyTitle": "No local images yet",
+      "emptyDescription": "Select multiple JPEG, PNG, or GIF images at once, then assign them to agents.",
+      "chooseMultiple": "Choose images",
+      "upload": "Upload multiple",
+      "uploaded": "Successfully uploaded {{count}} images.",
+      "delete": "Delete image",
+      "refresh": "Refresh",
+      "reading": "Reading…",
+      "localLibrary": "Local library",
+      "emptyCategory": "No images in this category",
+      "imagesTotal": "{{count}} images",
+      "imagesFiltered": "Showing {{visible}} of {{total}} images",
+      "allCount": "All {{count}}"
     },
     "settings": {
+      "title": "Hooks settings",
+      "description": "Choose which agents should receive Hooks and write the local Hook configs. This is not the app Settings page.",
+      "enabled": "Enabled agents",
+      "directory": "Config directory",
+      "write": "Write Hooks",
+      "written": "Wrote {{file}} ({{outcome}})",
+      "location": "Current file: {{path}}"
+    },
+    "desktop": {
       "title": "Monitor settings",
-      "description": "Choose which agents should receive Hooks. This is not the app Settings page.",
-      "enabled": "Enabled agents"
+      "description": "Open or close the desktop pet overlay and choose whether the bunny ear close control is shown. This is not Hooks settings and not the app Settings page.",
+      "petDescription": "Turn on to show the desktop pet overlay; turn off to hide it. The main window stays visible.",
+      "earTitle": "Bunny ear",
+      "earDescription": "Turn on to show the circular close control on the overlay; turn off to hide it."
     },
     "pet": {
       "open": "Desktop pet overlay",
@@ -119,7 +186,10 @@
       "close": "Close",
       "closeAria": "Close the desktop pet overlay",
       "waiting": "Waiting for image",
-      "shellAria": "Desktop pet overlay"
+      "shellAria": "Desktop pet overlay",
+      "settingsTitle": "Pet overlay settings",
+      "settingsDescription": "Drag with the left button. Right-click opens this settings window. This is not the app Settings page.",
+      "settingsClose": "Close settings"
     },
     "outcome": {
       "unchanged": "No config change",
@@ -137,6 +207,15 @@
     "not_found_description": "This address is not part of the current application.",
     "back_home": "Back to Home",
     "unexpected_title": "Page temporarily unavailable",
-    "unexpected_description": "Return home and try again."
+    "unexpected_description": "Return home and try again.",
+    "monitor": {
+      "imageEmpty": "The image is empty.",
+      "imageUnsupportedType": "This image type is not supported. Use JPEG, PNG, or GIF.",
+      "imageNotFound": "That local image was not found.",
+      "slotOutOfRange": "Display position must be between {{min}} and {{max}}.",
+      "behaviorsIncomplete": "Each of the four behaviors must be configured once.",
+      "behaviorDuplicate": "The same behavior cannot be configured twice.",
+      "unknownImage": "The selected image is not in the local library."
+    }
   }
 }

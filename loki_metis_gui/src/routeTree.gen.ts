@@ -21,6 +21,7 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settin
 import { Route as DashboardSourcesRouteImport } from './routes/dashboard/sources'
 import { Route as DashboardUsageRouteImport } from './routes/dashboard/usage'
 import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
+import { Route as MonitorDesktopRouteImport } from './routes/monitor/desktop'
 import { Route as MonitorImagesRouteImport } from './routes/monitor/images'
 import { Route as MonitorManagementRouteImport } from './routes/monitor/management'
 import { Route as MonitorSettingsRouteImport } from './routes/monitor/settings'
@@ -85,6 +86,11 @@ const MonitorIndexRoute = MonitorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MonitorRoute,
 } as any)
+const MonitorDesktopRoute = MonitorDesktopRouteImport.update({
+  id: '/desktop',
+  path: '/desktop',
+  getParentRoute: () => MonitorRoute,
+} as any)
 const MonitorImagesRoute = MonitorImagesRouteImport.update({
   id: '/images',
   path: '/images',
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/sources': typeof DashboardSourcesRoute
   '/dashboard/usage': typeof DashboardUsageRoute
+  '/monitor/desktop': typeof MonitorDesktopRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
   '/monitor/settings': typeof MonitorSettingsRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/sources': typeof DashboardSourcesRoute
   '/dashboard/usage': typeof DashboardUsageRoute
+  '/monitor/desktop': typeof MonitorDesktopRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
   '/monitor/settings': typeof MonitorSettingsRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/sources': typeof DashboardSourcesRoute
   '/dashboard/usage': typeof DashboardUsageRoute
+  '/monitor/desktop': typeof MonitorDesktopRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
   '/monitor/settings': typeof MonitorSettingsRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/sources'
     | '/dashboard/usage'
+    | '/monitor/desktop'
     | '/monitor/images'
     | '/monitor/management'
     | '/monitor/settings'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/sources'
     | '/dashboard/usage'
+    | '/monitor/desktop'
     | '/monitor/images'
     | '/monitor/management'
     | '/monitor/settings'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/sources'
     | '/dashboard/usage'
+    | '/monitor/desktop'
     | '/monitor/images'
     | '/monitor/management'
     | '/monitor/settings'
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorIndexRouteImport
       parentRoute: typeof MonitorRoute
     }
+    '/monitor/desktop': {
+      id: '/monitor/desktop'
+      path: '/desktop'
+      fullPath: '/monitor/desktop'
+      preLoaderRoute: typeof MonitorDesktopRouteImport
+      parentRoute: typeof MonitorRoute
+    }
     '/monitor/images': {
       id: '/monitor/images'
       path: '/images'
@@ -344,6 +363,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 interface MonitorRouteChildren {
+  MonitorDesktopRoute: typeof MonitorDesktopRoute
   MonitorImagesRoute: typeof MonitorImagesRoute
   MonitorManagementRoute: typeof MonitorManagementRoute
   MonitorSettingsRoute: typeof MonitorSettingsRoute
@@ -351,6 +371,7 @@ interface MonitorRouteChildren {
 }
 
 const MonitorRouteChildren: MonitorRouteChildren = {
+  MonitorDesktopRoute: MonitorDesktopRoute,
   MonitorImagesRoute: MonitorImagesRoute,
   MonitorManagementRoute: MonitorManagementRoute,
   MonitorSettingsRoute: MonitorSettingsRoute,
