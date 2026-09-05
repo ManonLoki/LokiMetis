@@ -5,6 +5,8 @@
   },
   "navigation": {
     "home": "Home",
+    "dashboard": "Dashboard",
+    "monitor": "Monitor",
     "settings": "Settings"
   },
   "sidebar": {
@@ -70,6 +72,62 @@
     "load_failed": "Release notes are not generated before the first formal release. If this is a formal candidate, reinstall the complete candidate or retry.",
     "retry": "Retry",
     "none": "None"
+  },
+  "monitor": {
+    "navigation": {
+      "pagesAria": "Monitor pages",
+      "itemAria": "{{label}}: {{description}}",
+      "workbench": { "label": "Workbench", "description": "View the local Hook relay status" },
+      "management": { "label": "Monitor management", "description": "Write local Hooks for four agents" },
+      "images": { "label": "Image management", "description": "Manage local monitor images" },
+      "settings": { "label": "Settings", "description": "Choose which agents receive Hooks" }
+    },
+    "workbench": {
+      "title": "Local Hook relay",
+      "description": "Listens for AgentHooks events on 127.0.0.1. It does not scan the LAN.",
+      "listening": "Listening on {{address}}",
+      "offline": "Relay is not listening",
+      "received": "Received {{count}}",
+      "failed": "Failed {{count}}",
+      "lastEvent": "Last event: {{tool}} / {{hookType}}",
+      "noEvent": "No Hook events yet",
+      "lastError": "Last error: {{error}}"
+    },
+    "management": {
+      "title": "Hooks management",
+      "description": "Generate local Hook configs only for Codex, Claude Code, Grok, and WorkBuddy.",
+      "directory": "Config directory",
+      "write": "Write Hooks",
+      "written": "Wrote {{file}} ({{outcome}})",
+      "location": "Current file: {{path}}"
+    },
+    "images": {
+      "title": "Local images",
+      "description": "Images stay in this app's data directory and are not sent to LAN devices.",
+      "empty": "No local monitor images yet.",
+      "upload": "Add image",
+      "delete": "Delete"
+    },
+    "settings": {
+      "title": "Monitor settings",
+      "description": "Choose which agents should receive Hooks. This is not the app Settings page.",
+      "enabled": "Enabled agents"
+    },
+    "pet": {
+      "open": "Desktop pet overlay",
+      "openAria": "Open the desktop pet floating overlay",
+      "close": "Close",
+      "closeAria": "Close the desktop pet overlay",
+      "waiting": "Waiting for image",
+      "shellAria": "Desktop pet overlay"
+    },
+    "outcome": {
+      "unchanged": "No config change",
+      "active": "Active",
+      "restartRequired": "Restart or start a new session",
+      "codexReviewRequired": "Review required in Codex",
+      "workBuddyReviewRequired": "Review required in WorkBuddy"
+    }
   },
   "errors": {
     "metadata_title": "Application information unavailable",

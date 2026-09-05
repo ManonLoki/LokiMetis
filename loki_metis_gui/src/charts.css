@@ -1,0 +1,172 @@
+.chart-figure {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.time-series-chart {
+  display: block;
+  width: 100%;
+  min-width: 38rem;
+  height: auto;
+  color: light-dark(#655d54, #c8c2ba);
+}
+
+.chart-grid-line {
+  stroke: light-dark(rgba(103, 81, 60, 0.16), rgba(255, 255, 255, 0.12));
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: currentColor;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-series-line {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.chart-hover-target {
+  cursor: crosshair;
+}
+
+.chart-hover-overlay {
+  pointer-events: none;
+}
+
+.chart-hover-line {
+  stroke: light-dark(rgba(75, 62, 49, 0.5), rgba(255, 255, 255, 0.52));
+  stroke-dasharray: 4 4;
+  stroke-width: 1;
+}
+
+.chart-hover-point {
+  stroke: light-dark(#fff, #1f2023);
+  stroke-width: 2;
+}
+
+.chart-tooltip-panel {
+  fill: light-dark(rgba(255, 255, 255, 0.97), rgba(28, 29, 32, 0.97));
+  stroke: light-dark(rgba(103, 81, 60, 0.24), rgba(255, 255, 255, 0.18));
+  stroke-width: 1;
+}
+
+.chart-tooltip-heading,
+.chart-tooltip-label,
+.chart-tooltip-value {
+  fill: light-dark(#332b24, #f1ede8);
+}
+
+.chart-tooltip-heading,
+.chart-tooltip-value {
+  font-weight: 700;
+}
+
+.chart-tooltip-heading {
+  font-size: 13px;
+}
+
+.chart-tooltip-label,
+.chart-tooltip-value {
+  font-size: 12px;
+}
+
+.chart-tooltip-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-legend {
+  padding: 0.25rem 0.5rem 0;
+}
+
+.chart-legend-swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.distribution-chart-frame {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.distribution-chart {
+  display: block;
+  width: 100%;
+  min-width: 52rem;
+  height: auto;
+  color: light-dark(#655d54, #c8c2ba);
+}
+
+.distribution-grid-line {
+  stroke: light-dark(rgba(103, 81, 60, 0.16), rgba(255, 255, 255, 0.12));
+  stroke-width: 1;
+}
+
+.distribution-axis-label,
+.distribution-category-label,
+.distribution-share-label,
+.distribution-value-label {
+  fill: currentColor;
+}
+
+.distribution-axis-label,
+.distribution-share-label {
+  font-size: 11px;
+}
+
+.distribution-category-label,
+.distribution-value-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.distribution-category-label.remainder,
+.distribution-value-label {
+  font-weight: 700;
+}
+
+.distribution-share-label {
+  opacity: 0.72;
+}
+
+.distribution-value-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.distribution-bar-track {
+  fill: light-dark(rgba(103, 81, 60, 0.09), rgba(255, 255, 255, 0.08));
+}
+
+.distribution-bar {
+  fill: light-dark(#d97706, #fb923c);
+  transition:
+    filter 120ms ease,
+    opacity 120ms ease;
+}
+
+.distribution-bar.remainder {
+  fill: light-dark(#78716c, #a8a29e);
+}
+
+.distribution-chart-row:focus {
+  outline: none;
+}
+
+.distribution-chart-row:hover .distribution-bar,
+.distribution-chart-row:focus .distribution-bar {
+  filter: brightness(1.12);
+}
+
+.distribution-chart-row:focus .distribution-bar-track {
+  stroke: light-dark(rgba(217, 119, 6, 0.72), rgba(251, 146, 60, 0.82));
+  stroke-width: 1.5;
+}
+
+.chart-dimension-control {
+  width: min(100%, 24rem);
+}

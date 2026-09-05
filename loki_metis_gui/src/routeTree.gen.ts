@@ -10,11 +10,39 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as MonitorRouteImport } from './routes/monitor'
+import { Route as PetRouteImport } from './routes/pet'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as DashboardCallsRouteImport } from './routes/dashboard/calls'
+import { Route as DashboardChartsRouteImport } from './routes/dashboard/charts'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardSourcesRouteImport } from './routes/dashboard/sources'
+import { Route as DashboardUsageRouteImport } from './routes/dashboard/usage'
+import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
+import { Route as MonitorImagesRouteImport } from './routes/monitor/images'
+import { Route as MonitorManagementRouteImport } from './routes/monitor/management'
+import { Route as MonitorSettingsRouteImport } from './routes/monitor/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorRoute = MonitorRouteImport.update({
+  id: '/monitor',
+  path: '/monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PetRoute = PetRouteImport.update({
+  id: '/pet',
+  path: '/pet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -22,30 +50,164 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCallsRoute = DashboardCallsRouteImport.update({
+  id: '/calls',
+  path: '/calls',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardChartsRoute = DashboardChartsRouteImport.update({
+  id: '/charts',
+  path: '/charts',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSourcesRoute = DashboardSourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardUsageRoute = DashboardUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const MonitorIndexRoute = MonitorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MonitorRoute,
+} as any)
+const MonitorImagesRoute = MonitorImagesRouteImport.update({
+  id: '/images',
+  path: '/images',
+  getParentRoute: () => MonitorRoute,
+} as any)
+const MonitorManagementRoute = MonitorManagementRouteImport.update({
+  id: '/management',
+  path: '/management',
+  getParentRoute: () => MonitorRoute,
+} as any)
+const MonitorSettingsRoute = MonitorSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => MonitorRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/monitor': typeof MonitorRouteWithChildren
+  '/pet': typeof PetRoute
   '/settings': typeof SettingsRoute
+  '/dashboard/calls': typeof DashboardCallsRoute
+  '/dashboard/charts': typeof DashboardChartsRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/sources': typeof DashboardSourcesRoute
+  '/dashboard/usage': typeof DashboardUsageRoute
+  '/monitor/images': typeof MonitorImagesRoute
+  '/monitor/management': typeof MonitorManagementRoute
+  '/monitor/settings': typeof MonitorSettingsRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/monitor/': typeof MonitorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/pet': typeof PetRoute
   '/settings': typeof SettingsRoute
+  '/dashboard/calls': typeof DashboardCallsRoute
+  '/dashboard/charts': typeof DashboardChartsRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/sources': typeof DashboardSourcesRoute
+  '/dashboard/usage': typeof DashboardUsageRoute
+  '/monitor/images': typeof MonitorImagesRoute
+  '/monitor/management': typeof MonitorManagementRoute
+  '/monitor/settings': typeof MonitorSettingsRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/monitor': typeof MonitorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/monitor': typeof MonitorRouteWithChildren
+  '/pet': typeof PetRoute
   '/settings': typeof SettingsRoute
+  '/dashboard/calls': typeof DashboardCallsRoute
+  '/dashboard/charts': typeof DashboardChartsRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/sources': typeof DashboardSourcesRoute
+  '/dashboard/usage': typeof DashboardUsageRoute
+  '/monitor/images': typeof MonitorImagesRoute
+  '/monitor/management': typeof MonitorManagementRoute
+  '/monitor/settings': typeof MonitorSettingsRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/monitor/': typeof MonitorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/monitor'
+    | '/pet'
+    | '/settings'
+    | '/dashboard/calls'
+    | '/dashboard/charts'
+    | '/dashboard/settings'
+    | '/dashboard/sources'
+    | '/dashboard/usage'
+    | '/monitor/images'
+    | '/monitor/management'
+    | '/monitor/settings'
+    | '/dashboard/'
+    | '/monitor/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings'
-  id: '__root__' | '/' | '/settings'
+  to:
+    | '/'
+    | '/pet'
+    | '/settings'
+    | '/dashboard/calls'
+    | '/dashboard/charts'
+    | '/dashboard/settings'
+    | '/dashboard/sources'
+    | '/dashboard/usage'
+    | '/monitor/images'
+    | '/monitor/management'
+    | '/monitor/settings'
+    | '/dashboard'
+    | '/monitor'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/monitor'
+    | '/pet'
+    | '/settings'
+    | '/dashboard/calls'
+    | '/dashboard/charts'
+    | '/dashboard/settings'
+    | '/dashboard/sources'
+    | '/dashboard/usage'
+    | '/monitor/images'
+    | '/monitor/management'
+    | '/monitor/settings'
+    | '/dashboard/'
+    | '/monitor/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
+  MonitorRoute: typeof MonitorRouteWithChildren
+  PetRoute: typeof PetRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -58,6 +220,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor': {
+      id: '/monitor'
+      path: '/monitor'
+      fullPath: '/monitor'
+      preLoaderRoute: typeof MonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pet': {
+      id: '/pet'
+      path: '/pet'
+      fullPath: '/pet'
+      preLoaderRoute: typeof PetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -65,11 +248,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/calls': {
+      id: '/dashboard/calls'
+      path: '/calls'
+      fullPath: '/dashboard/calls'
+      preLoaderRoute: typeof DashboardCallsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/charts': {
+      id: '/dashboard/charts'
+      path: '/charts'
+      fullPath: '/dashboard/charts'
+      preLoaderRoute: typeof DashboardChartsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/sources': {
+      id: '/dashboard/sources'
+      path: '/sources'
+      fullPath: '/dashboard/sources'
+      preLoaderRoute: typeof DashboardSourcesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/usage': {
+      id: '/dashboard/usage'
+      path: '/usage'
+      fullPath: '/dashboard/usage'
+      preLoaderRoute: typeof DashboardUsageRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/monitor/': {
+      id: '/monitor/'
+      path: '/'
+      fullPath: '/monitor/'
+      preLoaderRoute: typeof MonitorIndexRouteImport
+      parentRoute: typeof MonitorRoute
+    }
+    '/monitor/images': {
+      id: '/monitor/images'
+      path: '/images'
+      fullPath: '/monitor/images'
+      preLoaderRoute: typeof MonitorImagesRouteImport
+      parentRoute: typeof MonitorRoute
+    }
+    '/monitor/management': {
+      id: '/monitor/management'
+      path: '/management'
+      fullPath: '/monitor/management'
+      preLoaderRoute: typeof MonitorManagementRouteImport
+      parentRoute: typeof MonitorRoute
+    }
+    '/monitor/settings': {
+      id: '/monitor/settings'
+      path: '/settings'
+      fullPath: '/monitor/settings'
+      preLoaderRoute: typeof MonitorSettingsRouteImport
+      parentRoute: typeof MonitorRoute
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardCallsRoute: typeof DashboardCallsRoute
+  DashboardChartsRoute: typeof DashboardChartsRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardSourcesRoute: typeof DashboardSourcesRoute
+  DashboardUsageRoute: typeof DashboardUsageRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardCallsRoute: DashboardCallsRoute,
+  DashboardChartsRoute: DashboardChartsRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardSourcesRoute: DashboardSourcesRoute,
+  DashboardUsageRoute: DashboardUsageRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
+interface MonitorRouteChildren {
+  MonitorImagesRoute: typeof MonitorImagesRoute
+  MonitorManagementRoute: typeof MonitorManagementRoute
+  MonitorSettingsRoute: typeof MonitorSettingsRoute
+  MonitorIndexRoute: typeof MonitorIndexRoute
+}
+
+const MonitorRouteChildren: MonitorRouteChildren = {
+  MonitorImagesRoute: MonitorImagesRoute,
+  MonitorManagementRoute: MonitorManagementRoute,
+  MonitorSettingsRoute: MonitorSettingsRoute,
+  MonitorIndexRoute: MonitorIndexRoute,
+}
+
+const MonitorRouteWithChildren =
+  MonitorRoute._addFileChildren(MonitorRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
+  MonitorRoute: MonitorRouteWithChildren,
+  PetRoute: PetRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

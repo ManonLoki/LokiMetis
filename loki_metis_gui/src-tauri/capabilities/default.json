@@ -3,10 +3,12 @@
   "identifier": "default",
   "description": "LokiMetis main-window capability with the fixed native dialog baseline.",
   "windows": [
-    "main"
+    "main",
+    "pet"
   ],
   "permissions": [
     "core:default",
+    "core:event:default",
     "dialog:default"
   ]
 }

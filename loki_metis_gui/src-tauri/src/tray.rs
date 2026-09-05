@@ -6,6 +6,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
+use crate::monitor::pet_overlay_window_description;
 use crate::windowing::restore_main_window;
 
 const SHOW_WINDOW_ID: &str = "show_window";
@@ -94,12 +95,18 @@ fn tray_label_for_locale(key: &str, locale: &str) -> String {
 }
 
 pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &WindowEvent) {
-    if window.label() == "main"
-        && window.app_handle().try_state::<TrayMenuState>().is_some()
-        && let WindowEvent::CloseRequested { api, .. } = event
-    {
-        api.prevent_close();
-        let _ = window.hide();
+    if let WindowEvent::CloseRequested { api, .. } = event {
+        if window.label() == "main"
+            && window.app_handle().try_state::<TrayMenuState>().is_some()
+        {
+            api.prevent_close();
+            let _ = window.hide();
+            return;
+        }
+        if window.label() == pet_overlay_window_description().label {
+            api.prevent_close();
+            let _ = window.hide();
+        }
     }
 }
 

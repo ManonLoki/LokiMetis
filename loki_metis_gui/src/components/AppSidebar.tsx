@@ -1,8 +1,9 @@
 import { Box, Divider, Image, NavLink, ScrollArea, Stack, Text } from "@mantine/core";
-import { IconHome, IconSettings, type TablerIcon } from "@tabler/icons-react";
+import { IconDeviceDesktopAnalytics, IconLayoutDashboard, IconSettings, type TablerIcon } from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
+import { isDashboardLandingPath } from "../default-landing";
 import { formatDisplayVersion } from "../lib/releaseNotes";
 
 export const sidebarMode = "compact";
@@ -24,9 +25,9 @@ export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX =
 
 /** 描述精简侧栏中的单个导航目的地。 */
 interface NavigationItem {
-  id: "home" | "settings";
+  id: "dashboard" | "monitor" | "settings";
   label: string;
-  path: "/" | "/settings";
+  path: "/dashboard" | "/monitor" | "/settings";
   icon: TablerIcon;
 }
 
@@ -36,7 +37,7 @@ export interface AppSidebarProps {
   applicationName: string;
   mode?: "compact";
   version: string;
-  onNavigate: (path: "/" | "/settings") => void;
+  onNavigate: (path: "/dashboard" | "/monitor" | "/settings") => void;
 }
 
 /** 渲染图标在上且标签持续可见的精简导航项。 */
@@ -47,7 +48,7 @@ function AppSidebarNavigationItem({
 }: {
   active: boolean;
   item: NavigationItem;
-  onNavigate: (path: "/" | "/settings") => void;
+  onNavigate: (path: "/dashboard" | "/monitor" | "/settings") => void;
 }): ReactElement {
   const Icon = item.icon;
   return (
@@ -128,11 +129,17 @@ export function AppSidebar({
   onNavigate,
 }: AppSidebarProps): ReactElement {
   const { t } = useTranslation();
-  const home: NavigationItem = {
-    icon: IconHome,
-    id: "home",
-    label: t("navigation.home"),
-    path: "/",
+  const dashboard: NavigationItem = {
+    icon: IconLayoutDashboard,
+    id: "dashboard",
+    label: t("navigation.dashboard"),
+    path: "/dashboard",
+  };
+  const monitor: NavigationItem = {
+    icon: IconDeviceDesktopAnalytics,
+    id: "monitor",
+    label: t("navigation.monitor"),
+    path: "/monitor",
   };
   const settings: NavigationItem = {
     icon: IconSettings,
@@ -176,8 +183,13 @@ export function AppSidebar({
       <Divider my={SECTION_GAP} />
       <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto">
         <AppSidebarNavigationItem
-          active={activePath === "/"}
-          item={home}
+          active={isDashboardLandingPath(activePath)}
+          item={dashboard}
+          onNavigate={onNavigate}
+        />
+        <AppSidebarNavigationItem
+          active={activePath === "/monitor" || activePath.startsWith("/monitor/")}
+          item={monitor}
           onNavigate={onNavigate}
         />
       </ScrollArea>

@@ -57,13 +57,15 @@ const colorSchemeManager = localStorageColorSchemeManager({
 /** 把当前解析后的主题应用到整棵页面。 */
 function ThemeSurface({ children }: { children: ReactNode }): ReactElement {
   const colorScheme = useComputedColorScheme("light");
+  const petOverlay =
+    typeof document !== "undefined" && document.documentElement.classList.contains("pet-window");
   return (
     <Box
       data-color-scheme={colorScheme}
       data-testid="app-theme-surface"
-      mih="100dvh"
+      mih={petOverlay ? "100%" : "100dvh"}
       style={{
-        background: "var(--app-background)",
+        background: petOverlay ? "transparent" : "var(--app-background)",
         color: "var(--app-text)",
       }}
     >

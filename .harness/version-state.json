@@ -1,9 +1,54 @@
 {
-  "applied_bug_ids": [],
+  "applied_bug_ids": [
+    "BUG-DEFAULT-LANDING-DASHBOARD",
+    "BUG-HOOK-LISTENER-PARTIAL-READ",
+    "BUG-PET-OVERLAY-BLOB-CSP"
+  ],
   "cycle_base_version": "0.1.0",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": null,
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "FEAT-DASHBOARD-PORT",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "FEAT-DASHBOARD-KANBAN-SETTINGS",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "FEAT-DASHBOARD-CHARTS-TAB",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "FEAT-MONITOR-AGENT-HOOKS",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "BUG-DEFAULT-LANDING-DASHBOARD",
+      "kind": "bug-fix",
+      "required_version": "0.2.1"
+    },
+    {
+      "change_id": "BUG-HOOK-LISTENER-PARTIAL-READ",
+      "kind": "bug-fix",
+      "required_version": "0.2.2"
+    },
+    {
+      "change_id": "FEAT-MONITOR-PET-OVERLAY",
+      "kind": "feature",
+      "required_version": "0.2.2"
+    },
+    {
+      "change_id": "BUG-PET-OVERLAY-BLOB-CSP",
+      "kind": "bug-fix",
+      "required_version": "0.2.3"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.1.0"
+  "target_version": "0.2.3"
 }

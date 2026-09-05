@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
@@ -20,6 +21,21 @@
         "minHeight": 640,
         "center": true,
         "resizable": true,
+        "fullscreen": false
+      },
+      {
+        "label": "pet",
+        "title": "LokiMetis",
+        "url": "index.html",
+        "width": 360,
+        "height": 360,
+        "visible": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "resizable": false,
         "fullscreen": false
       }
     ],

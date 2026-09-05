@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"LokiMetis main-window capability with the fixed native dialog baseline.","local":true,"windows":["main"],"permissions":["core:default","dialog:default"]}}
+{"default":{"identifier":"default","description":"LokiMetis main-window capability with the fixed native dialog baseline.","local":true,"windows":["main","pet"],"permissions":["core:default","core:event:default","dialog:default"]}}

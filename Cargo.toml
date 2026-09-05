@@ -7,17 +7,42 @@ target-platforms = ["windows", "macos", "linux"]
 interfaces = ["gui"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.3"
 edition = "2024"
 rust-version = "1.95"
 
 [workspace.dependencies]
+anyhow = "1.0.104"
+atomic-write-file = { version = "0.3.0", default-features = false }
+hostname = { version = "0.4.2", default-features = false }
+jiff = "0.2.35"
 loki_metis_core = { path = "loki_metis_core" }
 mac-usernotifications = "0.3.1"
+machine-uid = "0.6.0"
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "NSDate",
+    "NSMetadata",
+    "NSMetadataAttributes",
+    "NSObject",
+    "NSPathUtilities",
+    "NSPredicate",
+    "NSRunLoop",
+    "NSString",
+] }
 rust-i18n = "3"
+same-file = "1.0.6"
+sea-orm = { version = "1.1.20", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "sqlx-sqlite",
+] }
+sea-orm-migration = { version = "1.1.20", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "sqlx-sqlite",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-build = "2"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-deep-link = "2.4.10"
@@ -26,7 +51,29 @@ tauri-plugin-notification = "2.4.0"
 tauri-plugin-os = "2.3.2"
 tauri-plugin-single-instance = { version = "2.4.4", features = ["deep-link"] }
 tauri-plugin-window-state = "2.4.1"
-tokio = { version = "1.53.1", default-features = false, features = ["fs", "macros", "rt", "sync"] }
+tempfile = "3.27.0"
+thiserror = "2.0.19"
+tokio = { version = "1.53.1", default-features = false, features = [
+    "fs",
+    "io-util",
+    "macros",
+    "net",
+    "process",
+    "rt",
+    "rt-multi-thread",
+    "sync",
+    "time",
+] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.24.0", default-features = false, features = ["std", "v4"] }
+whichdisk = { version = "0.5.0", default-features = false, features = ["list"] }
+windows = { version = "0.61.3", default-features = false, features = [
+    "Foundation",
+    "Storage",
+    "Storage_Search",
+    "Storage_Streams",
+] }
+windows-permissions = "0.2.4"
+zeroize = "1.9.0"

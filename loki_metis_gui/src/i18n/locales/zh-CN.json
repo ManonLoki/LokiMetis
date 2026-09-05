@@ -5,6 +5,8 @@
   },
   "navigation": {
     "home": "首页",
+    "dashboard": "看板",
+    "monitor": "监控",
     "settings": "设置"
   },
   "sidebar": {
@@ -70,6 +72,62 @@
     "load_failed": "首次正式发布前不会生成发布说明。若这已是正式候选，请重新安装完整候选或重试。",
     "retry": "重试",
     "none": "无"
+  },
+  "monitor": {
+    "navigation": {
+      "pagesAria": "监控页面",
+      "itemAria": "{{label}}：{{description}}",
+      "workbench": { "label": "工作台", "description": "查看本机 Hook 中继状态" },
+      "management": { "label": "监控管理", "description": "写入四项 Agent 的本机 Hooks" },
+      "images": { "label": "图片管理", "description": "管理本机监控图片" },
+      "settings": { "label": "设置", "description": "选择要写入 Hooks 的 Agent" }
+    },
+    "workbench": {
+      "title": "本机 Hook 中继",
+      "description": "监听 127.0.0.1 上的 AgentHooks 事件，不扫描局域网设备。",
+      "listening": "正在监听 {{address}}",
+      "offline": "中继未监听",
+      "received": "已接收 {{count}}",
+      "failed": "失败 {{count}}",
+      "lastEvent": "最近事件：{{tool}} / {{hookType}}",
+      "noEvent": "尚未收到 Hook 事件",
+      "lastError": "最近错误：{{error}}"
+    },
+    "management": {
+      "title": "Hooks 管理",
+      "description": "仅为 Codex、Claude Code、Grok 与 WorkBuddy 生成本机 Hook 配置。",
+      "directory": "配置目录",
+      "write": "写入 Hooks",
+      "written": "已写入 {{file}}（{{outcome}}）",
+      "location": "当前文件：{{path}}"
+    },
+    "images": {
+      "title": "本机图片",
+      "description": "图片保存在本机应用数据目录，不转发到局域网设备。",
+      "empty": "还没有本机监控图片。",
+      "upload": "添加图片",
+      "delete": "删除"
+    },
+    "settings": {
+      "title": "监控设置",
+      "description": "选择要启用 Hooks 的 Agent。此处不是应用设置。",
+      "enabled": "启用的 Agent"
+    },
+    "pet": {
+      "open": "桌宠悬浮窗",
+      "openAria": "打开桌宠悬浮窗",
+      "close": "关闭",
+      "closeAria": "关闭桌宠悬浮窗",
+      "waiting": "等待图片",
+      "shellAria": "桌宠悬浮窗"
+    },
+    "outcome": {
+      "unchanged": "配置未变化",
+      "active": "已生效",
+      "restartRequired": "需要重启或新建会话",
+      "codexReviewRequired": "需要在 Codex 中审核",
+      "workBuddyReviewRequired": "需要在 WorkBuddy 中审核"
+    }
   },
   "errors": {
     "metadata_title": "无法读取应用信息",

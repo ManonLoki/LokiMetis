@@ -1,6 +1,8 @@
 import i18n, { type i18n as I18nInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import { dashboardEnUS } from "./dashboardEn";
+import { dashboardZhCN } from "./dashboardZh";
 import enUS from "./locales/en-US.json";
 import zhCN from "./locales/zh-CN.json";
 
@@ -12,8 +14,8 @@ export async function initializeI18n(): Promise<void> {
   if (appI18n.isInitialized) return;
   await appI18n.use(initReactI18next).init({
     resources: {
-      "en-US": { translation: enUS },
-      "zh-CN": { translation: zhCN },
+      "en-US": { translation: { ...dashboardEnUS, ...enUS } },
+      "zh-CN": { translation: { ...dashboardZhCN, ...zhCN } },
     },
     fallbackLng: "en-US",
     supportedLngs: ["zh-CN", "en-US"],

@@ -3,11 +3,22 @@ name = "loki_metis_core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "新初始化项目的中性脚手架状态核心"
+description = "LokiMetis 看板领域核心"
 
 [lib]
 name = "loki_metis_core"
 path = "src/lib.rs"
 
-[dev-dependencies]
+[dependencies]
+jiff.workspace = true
+sea-orm.workspace = true
+sea-orm-migration.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

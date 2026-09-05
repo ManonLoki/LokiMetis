@@ -1,10 +1,11 @@
 import { Button, Center, Stack, Text, Title } from "@mantine/core";
-import { createRootRoute, useNavigate } from "@tanstack/react-router";
+import { createRootRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { IconArrowLeft } from "@tabler/icons-react";
-import type { ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppShellFrame } from "../components/AppShell";
+import { isPetOverlayPath } from "../default-landing";
 
 /** 渲染未知路由的可恢复本地错误页。 */
 function NotFoundPage(): ReactElement {
@@ -18,7 +19,7 @@ function NotFoundPage(): ReactElement {
         <Button
           leftSection={<IconArrowLeft aria-hidden="true" size={18} />}
           onClick={() => {
-            void navigate({ to: "/" });
+            void navigate({ replace: true, to: "/dashboard" });
           }}
           variant="light"
         >
@@ -41,7 +42,7 @@ function RouteErrorPage(): ReactElement {
         <Button
           leftSection={<IconArrowLeft aria-hidden="true" size={18} />}
           onClick={() => {
-            void navigate({ to: "/" });
+            void navigate({ replace: true, to: "/dashboard" });
           }}
           variant="light"
         >
@@ -52,8 +53,24 @@ function RouteErrorPage(): ReactElement {
   );
 }
 
+/** 桌宠悬浮窗不挂主壳；其它路由继续使用精简侧栏壳。 */
+function RootLayout(): ReactElement {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const pet = isPetOverlayPath(pathname);
+  useEffect(() => {
+    document.documentElement.classList.toggle("pet-window", pet);
+    return () => {
+      document.documentElement.classList.remove("pet-window");
+    };
+  }, [pet]);
+  if (pet) {
+    return <Outlet />;
+  }
+  return <AppShellFrame />;
+}
+
 export const Route = createRootRoute({
-  component: AppShellFrame,
+  component: RootLayout,
   errorComponent: RouteErrorPage,
   notFoundComponent: NotFoundPage,
 });
