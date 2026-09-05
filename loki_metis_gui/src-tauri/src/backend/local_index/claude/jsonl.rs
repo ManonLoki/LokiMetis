@@ -4,12 +4,13 @@ use std::io::Read;
 
 use loki_metis_core::{
     Confidence, SourceClientKind, SourceProvenance, TokenUsage, UsageCall,
-    claude_project_display_label,
+    claude_project_display_label, safe_technical_label,
 };
 use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::super::discovery::stable_id;
+use super::super::safe_model_label;
 use super::super::{CancellationToken, LocalError};
 
 /// Claude transcript 独立解析语义版本；必须等于 core 读写 generation。
@@ -399,7 +400,7 @@ fn parse_line(
         Some(value) => value,
         None => return LineOutcome::InvalidTimestamp,
     };
-    let reasoning_effort = record.effort.as_deref().and_then(safe_effort_label);
+    let reasoning_effort = record.effort.as_deref().and_then(safe_technical_label);
     let message = match record.message {
         Some(message) => message,
         None => return LineOutcome::MissingUsage,
@@ -463,28 +464,7 @@ fn valid_id(value: &str) -> bool {
     !value.trim().is_empty() && value.len() <= 512 && !value.chars().any(char::is_control)
 }
 
-/// 校验模型名安全可展示后返回去除首尾空白的副本，否则返回 `None`。
-fn safe_model_label(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    (!trimmed.is_empty()
-        && trimmed.len() <= 128
-        && !trimmed.contains(['/', '\\'])
-        && !trimmed.chars().any(char::is_control))
-    .then(|| trimmed.to_owned())
-}
 
-/// 只接受短小技术推理强度标签，拒绝路径、正文空白与异常长字符串。
-fn safe_effort_label(value: &str) -> Option<String> {
-    if value.is_empty()
-        || value.len() > 128
-        || !value
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || "._-".contains(character))
-    {
-        return None;
-    }
-    Some(value.to_owned())
-}
 
 #[cfg(test)]
 mod tests {

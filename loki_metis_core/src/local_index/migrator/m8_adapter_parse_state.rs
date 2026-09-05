@@ -1,6 +1,6 @@
 //! 为来源 checkpoint 增加 adapter 私有、内容无关的解析状态。
 
-use sea_orm::{ConnectionTrait, Statement};
+use super::table_exists;
 use sea_orm_migration::prelude::*;
 
 const UP_SQL: &str = "ALTER TABLE source_files ADD COLUMN adapter_state TEXT;";
@@ -29,16 +29,4 @@ impl MigrationTrait for Migration {
         }
         Ok(())
     }
-}
-
-/// 探测桥接旧 schema 中可能不存在的来源表。
-async fn table_exists(connection: &impl ConnectionTrait, name: &str) -> Result<bool, DbErr> {
-    Ok(connection
-        .query_one(Statement::from_sql_and_values(
-            connection.get_database_backend(),
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
-            [name.into()],
-        ))
-        .await?
-        .is_some())
 }

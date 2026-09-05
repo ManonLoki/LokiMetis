@@ -11,6 +11,7 @@ use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::super::discovery::stable_id;
+use super::super::safe_model_label;
 use super::super::{CancellationToken, LocalError};
 
 /// Grok 会话用量独立解析语义版本；必须等于 core 读写 generation。
@@ -479,12 +480,3 @@ fn to_call(
     })
 }
 
-/// 清理 Grok 模型标签并拒绝路径或控制字符。
-fn safe_model_label(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    (!trimmed.is_empty()
-        && trimmed.len() <= 128
-        && !trimmed.contains(['/', '\\'])
-        && !trimmed.chars().any(char::is_control))
-    .then(|| trimmed.to_owned())
-}

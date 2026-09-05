@@ -172,13 +172,12 @@ pub(super) async fn run_scan<C: ScanClient>(
         None
     };
 
-    let registered_for_merge = all_registered_roots.clone();
     let discovery = tauri::async_runtime::spawn_blocking(move || {
         scan_discovery_for_scan_kind(
             kind,
             known_validation,
             full_discovery,
-            &registered_for_merge,
+            &all_registered_roots,
             |registered, root| {
                 registered_path_matches_candidate(registered.path(), root.path()).unwrap_or(false)
             },

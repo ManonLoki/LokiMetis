@@ -1,6 +1,6 @@
 //! 为 usage_calls 与 source_files 增加受控项目/线程展示标签列。
 
-use sea_orm::{ConnectionTrait, Statement};
+use super::table_exists;
 use sea_orm_migration::prelude::*;
 
 /// 增加可空的项目末段与线程标题列。
@@ -48,18 +48,4 @@ impl MigrationTrait for Migration {
         }
         Ok(())
     }
-}
-
-/// `source_files` 在从旧版 `PRAGMA user_version` schema 桥接而来的库中可能
-/// 缺失（`local_index::tests::migrates_v1_known_values_through_current_schema_without_turning_them_unknown`
-/// 覆盖了这种真实历史 v1 schema）；usage_calls 则由 m1 或桥接逻辑保证始终存在，无需探测。
-async fn table_exists(connection: &impl ConnectionTrait, name: &str) -> Result<bool, DbErr> {
-    let row = connection
-        .query_one(Statement::from_sql_and_values(
-            connection.get_database_backend(),
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
-            [name.into()],
-        ))
-        .await?;
-    Ok(row.is_some())
 }

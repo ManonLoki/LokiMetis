@@ -61,6 +61,8 @@ where
             warning_count,
         });
         index.register_root(root).await?;
+        // 每个数据根只建一次共享路径，目录循环里改为引用计数而非复制整条路径。
+        let root_path = Arc::new(root.path.clone());
         let before_warning_count = warning_count;
         for (area, archived, available, inspection_complete) in [
             (
@@ -119,7 +121,7 @@ where
                     break;
                 }
                 remaining_directories -= 1;
-                let root_path = root.path.clone();
+                let root_path = Arc::clone(&root_path);
                 let cancel = cancellation.clone();
                 let budget = rollout_probe_budget;
                 let window = VisitWindow {

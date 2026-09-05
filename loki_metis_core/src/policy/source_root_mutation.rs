@@ -89,31 +89,17 @@ pub const fn source_root_set_enabled_outcome(
 
 /// 将“更名”分支统一归约为共享语义结果。
 pub const fn source_root_rename_outcome(changed: bool) -> SourceRootMutationOutcome {
-    if changed {
-        SourceRootMutationOutcome {
-            changed: true,
-            kind: SourceRootMutationKind::SourceRootRenamed,
-        }
-    } else {
-        SourceRootMutationOutcome {
-            changed: false,
-            kind: SourceRootMutationKind::SourceRootRenamed,
-        }
+    SourceRootMutationOutcome {
+        changed,
+        kind: SourceRootMutationKind::SourceRootRenamed,
     }
 }
 
 /// 将“移除”分支统一归约为共享语义结果。
 pub const fn source_root_remove_outcome(changed: bool) -> SourceRootMutationOutcome {
-    if changed {
-        SourceRootMutationOutcome {
-            changed: true,
-            kind: SourceRootMutationKind::SourceRootRemoved,
-        }
-    } else {
-        SourceRootMutationOutcome {
-            changed: false,
-            kind: SourceRootMutationKind::SourceRootRemoved,
-        }
+    SourceRootMutationOutcome {
+        changed,
+        kind: SourceRootMutationKind::SourceRootRemoved,
     }
 }
 

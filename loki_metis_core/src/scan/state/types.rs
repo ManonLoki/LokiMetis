@@ -105,8 +105,6 @@ pub struct ScanStatus {
     pub current_scope_code: ScanScopeCode,
     /// 当前阶段计数快照。
     pub scope_progress: ScanScopeProgress,
-    /// 任务是否可接受取消。
-    pub can_cancel: bool,
     /// 已访问文件计数。
     pub files_visited: u64,
     /// 本轮新增调用计数。
@@ -121,6 +119,14 @@ pub struct ScanStatus {
     pub is_cancel_requested: bool,
 }
 
+impl ScanStatus {
+    /// 任务是否可接受取消：只有正在运行且尚未发起取消请求时才成立。
+    /// 由 `state` 与 `is_cancel_requested` 直接推导，避免多处转换手工同步同一事实。
+    pub const fn can_cancel(&self) -> bool {
+        matches!(self.state, ScanLifecycle::Running) && !self.is_cancel_requested
+    }
+}
+
 impl Default for ScanStatus {
     /// 以“尚未开始扫描”为可复用的空闲基线。
     fn default() -> Self {
@@ -132,7 +138,6 @@ impl Default for ScanStatus {
             current_scope_label: scan_scope_registered_roots_label().to_owned(),
             current_scope_code: ScanScopeCode::RegisteredRoots,
             scope_progress: ScanScopeProgress::default(),
-            can_cancel: false,
             files_visited: 0,
             calls_indexed: 0,
             started_at_epoch_ms: None,

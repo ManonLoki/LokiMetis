@@ -64,7 +64,7 @@ pub(super) struct VisitWindow {
 /// 读取并预检一个目录；预算与取消在岛内边界检查。
 pub(super) fn visit_directory(
     directory: PathBuf,
-    root_path: PathBuf,
+    root_path: Arc<PathBuf>,
     mut remaining_entries: u64,
     window: &VisitWindow,
     cancellation: &CancellationToken,
@@ -119,7 +119,7 @@ pub(super) fn visit_directory(
         };
         let path = entry.path();
         let relative_label = is_rollout_jsonl(&path)
-            .then(|| path.strip_prefix(&root_path).ok())
+            .then(|| path.strip_prefix(root_path.as_path()).ok())
             .flatten()
             .map(path_key);
         let metadata = match fs::symlink_metadata(&path) {

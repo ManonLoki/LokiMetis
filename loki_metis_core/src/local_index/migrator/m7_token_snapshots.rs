@@ -3,7 +3,7 @@
 //! 这是 schema 迁移，不是 parser generation：`usage_calls` 仍存 ADR-097 增量 last，
 //! 无法用调用行还原历史 cumulative。旧索引可在下次扫描时回填兼容快照。
 
-use sea_orm::{ConnectionTrait, Statement};
+use super::table_exists;
 use sea_orm_migration::prelude::*;
 
 const UP_SQL: &str = "CREATE TABLE usage_token_snapshots (
@@ -48,16 +48,4 @@ impl MigrationTrait for Migration {
             .await?;
         Ok(())
     }
-}
-
-/// 探测桥接旧 schema 中可能不存在的来源表。
-async fn table_exists(connection: &impl ConnectionTrait, name: &str) -> Result<bool, DbErr> {
-    Ok(connection
-        .query_one(Statement::from_sql_and_values(
-            connection.get_database_backend(),
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
-            [name.into()],
-        ))
-        .await?
-        .is_some())
 }

@@ -1,5 +1,7 @@
 //! 用单一扫描间隔触发器驱动全部本机客户端的周期快速扫描。
 
+use std::collections::BTreeMap;
+
 use loki_metis_core::{
     PeriodicScanTick, SourceClientKind, decide_periodic_scan_tick,
 };
@@ -46,18 +48,18 @@ pub(crate) async fn run_shared_scan_interval_tick(state: &AppRuntimeState) {
         .local_scan
         .get(AgentClientKindDto::Codex.into())
         .is_running();
-    let mut running = [false; 3];
-    for (index, client) in AgentClientKindDto::ALL.into_iter().enumerate() {
-        running[index] =
-            state.scans.get(client.into()).snapshot().await.state == ScanStateDto::Running;
+    let mut running: BTreeMap<SourceClientKind, bool> = BTreeMap::new();
+    for client in AgentClientKindDto::ALL {
+        let kind = SourceClientKind::from(client);
+        running.insert(
+            kind,
+            state.scans.get(kind).snapshot().await.state == ScanStateDto::Running,
+        );
     }
-    let client_running = |client: SourceClientKind| match client {
-        SourceClientKind::Codex => running[0],
-        SourceClientKind::ClaudeCode => running[1],
-        SourceClientKind::GrokBuildCli => running[2],
-        SourceClientKind::WorkBuddy => {
+    let client_running = |client: SourceClientKind| {
+        running.get(&client).copied().unwrap_or_else(|| {
             unreachable!("EnabledAgents 从不产出 WorkBuddy，本闭包不会被它调用")
-        }
+        })
     };
     match decide_periodic_scan_tick(&enabled, client_running, writer_busy) {
         PeriodicScanTick::Skip | PeriodicScanTick::Wait => {}

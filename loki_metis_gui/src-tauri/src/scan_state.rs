@@ -165,6 +165,7 @@ fn to_dto_message_code(state: ScanLifecycle, is_cancel_requested: bool) -> UiMes
 
 /// 把 core 的完整扫描状态映射为 DTO 扫描状态。
 fn to_dto_scan_status(status: CoreScanStatus) -> ScanStatusDto {
+    let can_cancel = status.can_cancel();
     ScanStatusDto {
         scan_id: status.scan_id,
         kind: match status.kind {
@@ -182,7 +183,7 @@ fn to_dto_scan_status(status: CoreScanStatus) -> ScanStatusDto {
             roots_completed: status.scope_progress.roots_completed,
             roots_total: status.scope_progress.roots_total,
         },
-        can_cancel: status.can_cancel,
+        can_cancel,
         files_visited: status.files_visited,
         calls_indexed: status.calls_indexed,
         started_at_epoch_ms: status.started_at_epoch_ms,

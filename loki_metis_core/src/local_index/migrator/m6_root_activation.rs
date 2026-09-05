@@ -1,6 +1,6 @@
 //! 为已登记数据根增加独立的首次索引激活状态。
 
-use sea_orm::{ConnectionTrait, Statement};
+use super::table_exists;
 use sea_orm_migration::prelude::*;
 
 /// 增加根激活状态；升级前已有根保留登记但必须显式重建索引。
@@ -37,16 +37,4 @@ impl MigrationTrait for Migration {
             .await?;
         Ok(())
     }
-}
-
-/// 探测桥接旧 schema 中可能不存在的派生表。
-async fn table_exists(connection: &impl ConnectionTrait, name: &str) -> Result<bool, DbErr> {
-    Ok(connection
-        .query_one(Statement::from_sql_and_values(
-            connection.get_database_backend(),
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
-            [name.into()],
-        ))
-        .await?
-        .is_some())
 }

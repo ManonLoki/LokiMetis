@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { UsageWindow, WorkbuddyWindowDto } from '../api/usage';
 import { TokenTotalDisplay } from '../components/UsageUi';
 import { overviewWindowAtom } from '../state/page-session';
-import { formatCredits, formatTokens } from '../usage-format';
+import { formatBasisPoints, formatCredits, formatTokens } from '../usage-format';
 import { overviewWindowOrder } from './overview-windows';
 import { WorkbuddyQueryGate } from './WorkbuddyGate';
 import {
@@ -81,10 +81,7 @@ function WorkbuddyWindowSummary({
     { label: t('workbuddy.traceTotal'), value: formatTokens(window?.traceTotalCount ?? 0) },
     {
       label: t('workbuddy.traceErrorRate'),
-      value:
-        traceErrorRate === null
-          ? t('common.notApplicable')
-          : `${(traceErrorRate * 100).toFixed(1)}%`,
+      value: formatBasisPoints(traceErrorRate === null ? null : traceErrorRate * 10_000),
     },
     {
       label: t('workbuddy.traceCancelled'),

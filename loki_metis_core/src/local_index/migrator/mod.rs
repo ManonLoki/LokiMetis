@@ -9,6 +9,7 @@ mod m6_root_activation;
 mod m7_token_snapshots;
 mod m8_adapter_parse_state;
 
+use sea_orm::{ConnectionTrait, Statement};
 use sea_orm_migration::prelude::*;
 
 /// 本机索引 schema 的迁移入口，供 [`super::open_database`] 在打开时调用。
@@ -39,4 +40,17 @@ pub(crate) fn migration_names() -> Vec<String> {
         .iter()
         .map(|migration| migration.name().to_owned())
         .collect()
+}
+
+/// 探测 SQLite 库中是否存在指定表。多个迁移在桥接旧版 `PRAGMA user_version`
+/// schema 时都要先确认目标表已经建立，这里集中一份实现供它们共用。
+async fn table_exists(connection: &impl ConnectionTrait, name: &str) -> Result<bool, DbErr> {
+    Ok(connection
+        .query_one(Statement::from_sql_and_values(
+            connection.get_database_backend(),
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [name.into()],
+        ))
+        .await?
+        .is_some())
 }

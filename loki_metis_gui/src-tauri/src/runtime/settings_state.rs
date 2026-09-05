@@ -4,7 +4,7 @@ use crate::dto::{
     IndexLocationCodeDto, InitializationStatusDto, LanguagePreferenceDto, PrivacySettingsDto,
     UsageClientKindDto,
 };
-use crate::privacy_store::save_settings;
+use crate::privacy_store::{LocalPrivacySettings, save_settings};
 #[cfg(test)]
 use loki_metis_core::initial_scan_state_save_failed_message;
 use loki_metis_core::{
@@ -38,55 +38,55 @@ impl AppRuntimeState {
         Ok(())
     }
 
-    // 下面这一组 set_xxx 方法（设备用户名、扫描间隔、
-    // 语言偏好、初始化完成标记……）共享同一套固定流程，是这个文件里
-    // 出现次数最多的模式，理解一个就理解了全部：
-    //   1. 校验输入（必要时用 core 里的 newtype 构造函数）；
-    //   2. 确保设置已从磁盘加载过一次（ensure_privacy_settings_loaded）；
-    //   3. 用 privacy_settings_update 互斥锁防止并发写互相覆盖；
-    //   4. 基于内存里当前设置克隆一份、修改目标字段；
-    //   5. spawn_blocking 落盘，任一环节失败都保留旧的内存状态（不做部分更新）；
-    //   6. 全部成功后才用新值整体替换内存里的 privacy_settings。
+    /// 下面这一组 set_xxx 方法（设备用户名、扫描间隔、语言偏好、初始化完成
+    /// 标记……）共享的固定流程，集中在这里只实现一次：
+    ///   1. 确保设置已从磁盘加载过一次（ensure_privacy_settings_loaded）；
+    ///   2. 用 privacy_settings_update 互斥锁防止并发写互相覆盖；
+    ///   3. 基于内存里当前设置克隆一份，交给 `mutate` 修改目标字段；
+    ///   4. spawn_blocking 落盘，任一环节失败都保留旧的内存状态（不做部分更新）；
+    ///   5. 全部成功后才用新值整体替换内存里的 privacy_settings。
+    ///
+    /// 各调用方只负责自己的输入校验和落盘失败文案。
+    async fn update_privacy_settings(
+        &self,
+        save_failed_message: &str,
+        mutate: impl FnOnce(&mut LocalPrivacySettings),
+    ) -> Result<(), String> {
+        self.ensure_privacy_settings_loaded().await;
+        let _update = self.privacy_settings_update.lock().await;
+        let mut settings = self.privacy_settings.read().await.clone();
+        mutate(&mut settings);
+        let app_data_dir = self.app_data_dir.clone();
+        let settings_to_save = settings.clone();
+        // spawn_blocking：把同步的磁盘文件写入（save_settings 内部是阻塞 I/O）
+        // 丢到 Tokio 专门的阻塞线程池执行，避免占用异步运行时的少量工作线程。
+        tauri::async_runtime::spawn_blocking(move || save_settings(&app_data_dir, &settings_to_save))
+            .await
+            .map_err(|_| save_failed_message.to_owned())?
+            .map_err(|_| save_failed_message.to_owned())?;
+        *self.privacy_settings.write().await = settings;
+        Ok(())
+    }
 
     /// 校验并保存用户提供的设备用户名；留空清除且禁止后续自动回填。
     pub(crate) async fn set_device_username(&self, input: String) -> Result<(), String> {
         let device_username = DeviceUsername::from_setting_input(&input)
             .map_err(|error| device_username_error_message(error).to_owned())?;
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.device_username = device_username;
-        settings.device_username_initialized = true;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(device_username_save_failed_message(), |settings| {
+            settings.device_username = device_username;
+            settings.device_username_initialized = true;
         })
         .await
-        .map_err(|_| device_username_save_failed_message().to_owned())?
-        .map_err(|_| device_username_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 
     /// 保存单一扫描间隔；只改本机周期扫描节奏，不发网。
     pub(crate) async fn set_scan_interval(&self, minutes: u16) -> Result<(), String> {
         let interval = ScanIntervalMinutes::new(minutes)
             .map_err(|_| scan_interval_range_message().to_owned())?;
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.scan_interval = interval;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(scan_interval_save_failed_message(), |settings| {
+            settings.scan_interval = interval;
         })
         .await
-        .map_err(|_| scan_interval_save_failed_message().to_owned())?
-        .map_err(|_| scan_interval_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 
     /// 返回本机周期扫描与远端偏好共用的扫描间隔。
@@ -99,20 +99,10 @@ impl AppRuntimeState {
     pub(crate) async fn set_retention_days(&self, days: u16) -> Result<(), String> {
         let retention_days =
             RetentionDays::new(days).map_err(|_| retention_days_range_message().to_owned())?;
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.retention_days = retention_days;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(retention_days_save_failed_message(), |settings| {
+            settings.retention_days = retention_days;
         })
         .await
-        .map_err(|_| retention_days_save_failed_message().to_owned())?
-        .map_err(|_| retention_days_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 
     /// 返回已保存的派生用量保留天数。
@@ -136,20 +126,10 @@ impl AppRuntimeState {
         &self,
         language_preference: LanguagePreferenceDto,
     ) -> Result<(), String> {
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.language_preference = language_preference;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(language_setting_save_failed_message(), |settings| {
+            settings.language_preference = language_preference;
         })
         .await
-        .map_err(|_| language_setting_save_failed_message().to_owned())?
-        .map_err(|_| language_setting_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 
     /// 看板不接源项目向导；已开启 Agent 即可读取与扫描。
@@ -160,20 +140,10 @@ impl AppRuntimeState {
 
     /// 持久化首次初始化完成或测试重置状态，同时保留其他设置字段。
     pub(crate) async fn set_initialization_completed(&self, completed: bool) -> Result<(), String> {
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.initialization_completed = completed;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(initialization_state_save_failed_message(), |settings| {
+            settings.initialization_completed = completed;
         })
         .await
-        .map_err(|_| initialization_state_save_failed_message().to_owned())?
-        .map_err(|_| initialization_state_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 
     /// 原子认领首次自动快速扫描；持久标记成功后才允许启动磁盘任务。
@@ -282,20 +252,10 @@ impl AppRuntimeState {
 
     /// 保存 WorkBuddy 本地统计开关；关闭时后续读取命令必须拒绝返回统计数据。
     pub(crate) async fn set_workbuddy_stats_enabled(&self, enabled: bool) -> Result<(), String> {
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.workbuddy_stats_enabled = enabled;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(workbuddy_stats_enabled_save_failed_message(), |settings| {
+            settings.workbuddy_stats_enabled = enabled;
         })
         .await
-        .map_err(|_| workbuddy_stats_enabled_save_failed_message().to_owned())?
-        .map_err(|_| workbuddy_stats_enabled_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 
     /// 返回当前已开放的本机 Agent 集合。
@@ -320,20 +280,10 @@ impl AppRuntimeState {
                 .collect::<Vec<_>>(),
         )
         .map_err(enabled_agents_error_message)?;
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.enabled_agents = enabled;
-        let app_data_dir = self.app_data_dir.clone();
-        let settings_to_save = settings.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            save_settings(&app_data_dir, &settings_to_save)
+        self.update_privacy_settings(privacy_settings_save_failed_message(), |settings| {
+            settings.enabled_agents = enabled;
         })
         .await
-        .map_err(|_| privacy_settings_save_failed_message().to_owned())?
-        .map_err(|_| privacy_settings_save_failed_message().to_owned())?;
-        *self.privacy_settings.write().await = settings;
-        Ok(())
     }
 }
 

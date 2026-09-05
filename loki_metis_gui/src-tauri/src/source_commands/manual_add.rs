@@ -235,13 +235,8 @@ async fn register_verified_root(
 ) -> Result<ManualAddSourceRootDto, String> {
     let path =
         found_path.ok_or_else(|| source_root_selected_directory_unreadable_message().to_owned())?;
-    let prefix = if source_client == SourceClientKind::Codex {
-        "root"
-    } else {
-        "claude-root"
-    };
     let candidate = SourceRootCandidate {
-        root_id: stable_id(prefix, &path_key(&path)),
+        root_id: stable_id(source_client.root_id_namespace(), &path_key(&path)),
         alias: source_root_alias_from_path(&path, source_client),
         path,
     };

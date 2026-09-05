@@ -73,7 +73,6 @@ impl ScanCoordinator {
             current_scope_code: scope_code,
             current_scope_label: scope_label,
             scope_progress: ScanScopeProgress::default(),
-            can_cancel: true,
             files_visited: 0,
             calls_indexed: 0,
             started_at_epoch_ms: Some(started_at_epoch_ms),
@@ -129,7 +128,6 @@ impl ScanCoordinator {
             .ok_or(ScanStateError::NoActiveScan)?;
         cancellation.store(true, Ordering::Release);
 
-        inner.status.can_cancel = false;
         inner.status.is_cancel_requested = true;
         inner.status.message = scan_cancelling_status_message().to_owned();
 
@@ -174,7 +172,6 @@ impl ScanCoordinator {
         if state == ScanLifecycle::Completed {
             inner.status.progress_basis_points = 10_000;
         }
-        inner.status.can_cancel = false;
         inner.status.is_cancel_requested = false;
         inner.status.finished_at_epoch_ms = Some(finished_at_epoch_ms);
         inner.status.message = message.to_owned();
@@ -233,7 +230,7 @@ mod tests {
             .expect("cancel request succeeds");
 
         assert!(status.is_cancel_requested);
-        assert!(!status.can_cancel);
+        assert!(!status.can_cancel());
         assert_eq!(status.state, ScanLifecycle::Running);
         assert_eq!(status.scan_id, Some("scan-1".to_owned()));
     }
