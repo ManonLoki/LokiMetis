@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(dmg["applicationFolderPosition"]["y"], 220);
     }
 
-    /// 冷启动先启用 listener，再通过正常显示路径恢复桌宠位置，最后安装状态一致的托盘。
+    /// 冷启动先启用 listener，再通过动态窗口路径创建桌宠，最后安装状态一致的托盘。
     #[test]
     fn cold_start_shows_pet_overlay_after_listener_and_before_tray_installation() {
         let source = include_str!("lib.rs");
@@ -371,37 +371,40 @@ mod tests {
                 && hook_repair < show
                 && show < tray
         );
+    }
 
+    /// 静态配置只预建主窗口；桌宠和设置窗分别由 Rust 在需要时动态创建。
+    #[test]
+    fn auxiliary_pet_windows_are_created_only_by_rust_builders() {
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
-        let pet = config["app"]["windows"]
+        let configured_labels = config["app"]["windows"]
             .as_array()
             .expect("windows")
             .iter()
-            .find(|window| window["label"] == "pet")
-            .expect("pet window");
-        assert_eq!(pet["visible"], false);
-        assert_eq!(pet["width"], 128);
-        assert_eq!(pet["height"], 128);
-        assert_eq!(pet["minWidth"], 64);
-        assert_eq!(pet["minHeight"], 64);
-        assert_eq!(pet["resizable"], true);
-        assert_eq!(pet["visibleOnAllWorkspaces"], true);
+            .map(|window| window["label"].as_str().expect("window label"))
+            .collect::<Vec<_>>();
+        assert_eq!(configured_labels, ["main"]);
 
-        let settings = config["app"]["windows"]
-            .as_array()
-            .expect("windows")
-            .iter()
-            .find(|window| window["label"] == "pet-settings")
-            .expect("pet settings window");
-        assert_eq!(settings["visible"], false);
-        assert_eq!(settings["width"], 320);
-        assert_eq!(settings["height"], 470);
-        assert_eq!(settings["minWidth"], 280);
-        assert_eq!(settings["minHeight"], 440);
-        assert_eq!(settings["resizable"], false);
-        assert_eq!(settings["alwaysOnTop"], true);
-        assert_eq!(settings["skipTaskbar"], true);
+        let source = include_str!("monitor/pet_window.rs");
+        let overlay_builder = source
+            .find("WebviewWindowBuilder::new(\n            app,\n            description.label,")
+            .expect("dynamic pet overlay builder");
+        let overlay_url = source[overlay_builder..]
+            .find("WebviewUrl::App(\"index.html?view=pet\".into())")
+            .expect("dynamic pet overlay URL");
+        let settings_builder = source
+            .find("WebviewWindowBuilder::new(\n            app,\n            PET_SETTINGS_LABEL,")
+            .expect("dynamic pet settings builder");
+        let settings_url = source[settings_builder..]
+            .find("WebviewUrl::App(\"index.html?view=pet-settings\".into())")
+            .expect("dynamic pet settings URL");
+        let settings_build = source[settings_builder..]
+            .find(".build()")
+            .expect("dynamic pet settings build");
+        assert!(overlay_builder < settings_builder);
+        assert!(overlay_builder + overlay_url < settings_builder);
+        assert!(settings_url < settings_build);
     }
 
     /// 保存启用工具必须先持久化设置，再把规范化快照交给自动补写 worker。

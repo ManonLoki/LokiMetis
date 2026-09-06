@@ -8,7 +8,8 @@
     "BUG-PET-DISPLAY-INITIAL-IMAGE",
     "BUG-PET-EAR-DISABLE-OPTION",
     "BUG-HOOK-PARITY-20260906",
-    "BUG-RELEASE-CONFIG-DRIFT-20260907"
+    "BUG-RELEASE-CONFIG-DRIFT-20260907",
+    "BUG-PERFORMANCE-IDLE-WEBVIEW-20260907"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -153,8 +154,13 @@
       "change_id": "BUG-RELEASE-CONFIG-DRIFT-20260907",
       "kind": "bug-fix",
       "required_version": "0.2.9"
+    },
+    {
+      "change_id": "BUG-PERFORMANCE-IDLE-WEBVIEW-20260907",
+      "kind": "bug-fix",
+      "required_version": "0.2.10"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.9"
+  "target_version": "0.2.10"
 }

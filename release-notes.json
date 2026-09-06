@@ -3,7 +3,7 @@
   "releases": [
     {
       "releaseDate": "2026-09-07",
-      "version": "v0.2.9",
+      "version": "v0.2.10",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本地看板及用量洞察。",
@@ -34,6 +34,10 @@
         {
           "zh-CN": "修复应用包版本和 DMG 安装布局与根版本及 GUI Profile 不一致的问题。",
           "en-US": "Fixed app bundle version and DMG installation layout drift from the root version and GUI profile."
+        },
+        {
+          "zh-CN": "修复隐藏桌宠设置窗的额外 WebView 占用，并停止性能采集在空闲时持续逐帧运行。",
+          "en-US": "Removed the hidden pet-settings WebView overhead and stopped performance capture from running continuously while idle."
         }
       ]
     }

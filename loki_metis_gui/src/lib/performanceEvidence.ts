@@ -14,6 +14,7 @@ const MAX_MONOTONIC_TIME_MS = 604_800_000;
 const MAX_WALL_TIME_MS = 10_000_000_000_000;
 const MAX_DURATION_MS = 60_000;
 const MIN_BLOCKING_INTERVAL_MS = 50;
+const INTERACTION_WINDOW_TIMEOUT_MS = 5_000;
 const FINALIZE_BUTTON_TEST_ID = "performance-evidence-finalize";
 const PERFORMANCE_WINDOW_VISIBILITY_EVENT = "loki-metis-performance-window-visibility";
 
@@ -208,13 +209,21 @@ export function startMainPerformanceEvidence(): Promise<void> {
     };
 
     /** 注册可被会话关闭统一取消的单帧回调。 */
-    const requestOwnedFrame = (callback: FrameRequestCallback): void => {
-      if (!acceptingMetrics) return;
+    const requestOwnedFrame = (callback: FrameRequestCallback): number | null => {
+      if (!acceptingMetrics) return null;
       const id = window.requestAnimationFrame((time) => {
         frameIds.delete(id);
         if (acceptingMetrics) callback(time);
       });
       frameIds.add(id);
+      return id;
+    };
+
+    /** 取消指定的会话帧，避免已结束交互留下下一帧唤醒。 */
+    const cancelOwnedFrame = (id: number | null): void => {
+      if (id === null) return;
+      window.cancelAnimationFrame(id);
+      frameIds.delete(id);
     };
 
     let longTaskObserver: PerformanceObserver | null = null;
@@ -260,10 +269,10 @@ export function startMainPerformanceEvidence(): Promise<void> {
       timingSource,
     });
 
-    /** WebKit 缺少 Long Task API 时，以仅测试、仅前台的 rAF 间隔作保守回退。 */
-    let previousVisibleFrameTime: number | null = null;
+    /** WebKit 缺少 Long Task API 时，只在受信任导航交互的有界窗口内采样 rAF。 */
     let nativeWindowVisible = true;
     let removeNativeVisibilityListener: (() => void) | null = null;
+    let stopActiveInteraction: (() => void) | null = null;
     const rendererIsVisible = (): boolean =>
       nativeWindowVisible && document.visibilityState === "visible";
 
@@ -279,24 +288,13 @@ export function startMainPerformanceEvidence(): Promise<void> {
         });
       }
     };
-    const observeFrameGap = (frameTime: number): void => {
-      if (!rendererIsVisible()) {
-        previousVisibleFrameTime = null;
-      } else if (previousVisibleFrameTime !== null) {
-        submitFrameGap(previousVisibleFrameTime, frameTime);
-        previousVisibleFrameTime = frameTime;
-      } else {
-        previousVisibleFrameTime = frameTime;
-      }
-      requestOwnedFrame(observeFrameGap);
-    };
-    const resetFrameGapBaseline = (): void => {
-      previousVisibleFrameTime = null;
+    const stopInteractionForHiddenRenderer = (): void => {
+      if (!rendererIsVisible()) stopActiveInteraction?.();
     };
     const nativeVisibilityRegistration = getCurrentWindow()
       .listen<boolean>(PERFORMANCE_WINDOW_VISIBILITY_EVENT, ({ payload }) => {
         nativeWindowVisible = payload;
-        resetFrameGapBaseline();
+        stopInteractionForHiddenRenderer();
       })
       .then((unlisten) => {
         if (acceptingMetrics) removeNativeVisibilityListener = unlisten;
@@ -305,11 +303,7 @@ export function startMainPerformanceEvidence(): Promise<void> {
       .catch(() => {
         writeFailed = true;
       });
-    if (timingSource === "animation-frame-gap") {
-      previousVisibleFrameTime = performance.now();
-      document.addEventListener("visibilitychange", resetFrameGapBaseline);
-      requestOwnedFrame(observeFrameGap);
-    }
+    document.addEventListener("visibilitychange", stopInteractionForHiddenRenderer);
 
     /** 在主壳已经可见后再等完整双帧，随后报告同一时刻的墙钟和单调时间。 */
     const waitForReady = (): void => {
@@ -336,7 +330,10 @@ export function startMainPerformanceEvidence(): Promise<void> {
     };
     waitForReady();
 
-    /** 只在导航前后路径变化且固定目标页真实可见时记录一次交互。 */
+    /**
+     * 只在可信导航点击后开启有界帧窗口。回退源从点击时间开始逐帧采样，
+     * 目标结果连续两帧可见后立即释放；超时、隐藏或后续点击也会终止。
+     */
     const handleClick = (event: MouseEvent): void => {
       if (!isTrustedPrimaryPerformanceClick(event)) return;
       const target = resolvePerformanceInteractionTarget(event.target);
@@ -345,16 +342,52 @@ export function startMainPerformanceEvidence(): Promise<void> {
       if (result === null || isVisibleTestElement(result)) return;
       const pathBefore = window.location.pathname;
       const eventTimestamp = event.timeStamp;
-      requestOwnedFrame(() => {
-        requestOwnedFrame(() => {
-          if (window.location.pathname === pathBefore || !isVisibleTestElement(result))
-            return;
+      const normalizedStartTime = normalizeEventTimestamp(eventTimestamp);
+      if (!isFiniteInRange(normalizedStartTime, 0, MAX_MONOTONIC_TIME_MS)) return;
+
+      stopActiveInteraction?.();
+      let stopped = false;
+      let frameId: number | null = null;
+      let resultWasVisible = false;
+      let previousFrameTime = normalizedStartTime;
+      let timeoutId: number | null = null;
+
+      const stopInteraction = (): void => {
+        if (stopped) return;
+        stopped = true;
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        cancelOwnedFrame(frameId);
+        frameId = null;
+        if (stopActiveInteraction === stopInteraction) stopActiveInteraction = null;
+      };
+      const observeInteractionFrame = (frameTime: number): void => {
+        frameId = null;
+        if (stopped || !rendererIsVisible()) {
+          stopInteraction();
+          return;
+        }
+        if (timingSource === "animation-frame-gap") {
+          submitFrameGap(previousFrameTime, frameTime);
+          previousFrameTime = frameTime;
+        }
+
+        const resultIsVisible =
+          window.location.pathname !== pathBefore && isVisibleTestElement(result);
+        if (resultIsVisible && resultWasVisible) {
           const durationMs = interactionDuration(eventTimestamp);
           if (durationMs !== null) {
             submit({ durationMs, kind: "interaction", result, target });
           }
-        });
-      });
+          stopInteraction();
+          return;
+        }
+        resultWasVisible = resultIsVisible;
+        frameId = requestOwnedFrame(observeInteractionFrame);
+      };
+
+      stopActiveInteraction = stopInteraction;
+      timeoutId = window.setTimeout(stopInteraction, INTERACTION_WINDOW_TIMEOUT_MS);
+      frameId = requestOwnedFrame(observeInteractionFrame);
     };
     document.addEventListener("click", handleClick, true);
 
@@ -369,7 +402,8 @@ export function startMainPerformanceEvidence(): Promise<void> {
     /** 释放会话拥有的浏览器资源；是否移除结果控件由调用方决定。 */
     const releaseResources = (removeFinalizeButton: boolean): void => {
       document.removeEventListener("click", handleClick, true);
-      document.removeEventListener("visibilitychange", resetFrameGapBaseline);
+      document.removeEventListener("visibilitychange", stopInteractionForHiddenRenderer);
+      stopActiveInteraction?.();
       removeNativeVisibilityListener?.();
       removeNativeVisibilityListener = null;
       longTaskObserver?.disconnect();
@@ -392,13 +426,6 @@ export function startMainPerformanceEvidence(): Promise<void> {
       finishPromise = (async () => {
         if (longTaskObserver !== null)
           submitNativeLongTasks(longTaskObserver.takeRecords());
-        if (
-          timingSource === "animation-frame-gap" &&
-          rendererIsVisible() &&
-          previousVisibleFrameTime !== null
-        ) {
-          submitFrameGap(previousVisibleFrameTime, performance.now());
-        }
         acceptingMetrics = false;
         releaseResources(false);
         await nativeVisibilityRegistration;
