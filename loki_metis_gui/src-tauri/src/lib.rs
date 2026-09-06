@@ -12,6 +12,7 @@ mod locale;
 mod logging;
 mod monitor;
 mod notifications;
+mod performance_evidence;
 mod privacy_store;
 mod release_notes;
 mod runtime;
@@ -56,6 +57,9 @@ use monitor::{
 use notifications::{
     NotificationWorker, get_system_notification_setting, install_notification_worker,
     set_system_notification_enabled,
+};
+use performance_evidence::{
+    PerformanceEvidenceState, get_performance_evidence_status, record_performance_evidence,
 };
 use release_notes::load_release_notes;
 use settings::HostSettingsState;
@@ -117,6 +121,8 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            // 性能证据是显式本机测试通道；先完成临时路径校验再启动其它宿主能力。
+            app.manage(PerformanceEvidenceState::from_environment()?);
             install_logging(app)?;
             let settings_path = app.path().app_config_dir()?.join("host-settings.json");
             let settings_state = HostSettingsState::new(settings_path);
@@ -234,7 +240,9 @@ pub fn run() {
             turn_pet_page,
             focus_first_populated_pet_page,
             resize_pet_step,
-            show_main_window
+            show_main_window,
+            get_performance_evidence_status,
+            record_performance_evidence
         ]);
 
     let app = builder

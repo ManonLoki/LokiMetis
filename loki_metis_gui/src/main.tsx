@@ -11,6 +11,7 @@ import { I18nextProvider } from "react-i18next";
 import { AppThemeProvider } from "./components/AppThemeProvider";
 import { appI18n, initializeI18n } from "./i18n";
 import { readSavedInterfaceLanguage } from "./lib/language";
+import { startMainPerformanceEvidence } from "./lib/performanceEvidence";
 import { router } from "./router";
 import { interfaceLanguageAtom } from "./state/interfaceLanguage";
 
@@ -45,6 +46,7 @@ async function bootstrap(): Promise<void> {
       </I18nextProvider>
     </StrictMode>,
   );
+  void startMainPerformanceEvidence();
 }
 
 void bootstrap();
