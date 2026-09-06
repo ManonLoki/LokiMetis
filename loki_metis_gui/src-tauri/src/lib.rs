@@ -59,7 +59,8 @@ use notifications::{
     set_system_notification_enabled,
 };
 use performance_evidence::{
-    PerformanceEvidenceState, get_performance_evidence_status, record_performance_evidence,
+    PerformanceEvidenceState, finish_performance_evidence, get_performance_evidence_status,
+    record_performance_evidence,
 };
 use release_notes::load_release_notes;
 use settings::HostSettingsState;
@@ -74,6 +75,8 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 
 /// 应用名；窗口标题只用它，不带版本号。
 const APPLICATION_NAME: &str = "LokiMetis";
+/// 只在显式本机性能验收进程中注入，供轻量入口同步判定是否观测。
+const PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT: &str = "Object.defineProperty(window,'__LOKI_METIS_PERFORMANCE_EVIDENCE__',{configurable:false,enumerable:false,value:true,writable:false});";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,7 +101,16 @@ async fn get_app_metadata() -> AppMetadata {
 /// 运行唯一 GUI adapter，并统一拥有完整原生生命周期。
 #[rustfmt::skip]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let performance_evidence_state = PerformanceEvidenceState::from_environment()
+        .expect("failed to initialize local performance evidence");
+    let performance_evidence_enabled = performance_evidence_state.is_enabled();
+    let builder = tauri::Builder::default();
+    let builder = if performance_evidence_enabled {
+        builder.append_invoke_initialization_script(PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT)
+    } else {
+        builder
+    };
+    let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = restore_main_window(app);
         }))
@@ -120,9 +132,9 @@ pub fn run() {
                 tracing::error!(%error, "failed to recover the main window after page load");
             }
         })
-        .setup(|app| {
-            // 性能证据是显式本机测试通道；先完成临时路径校验再启动其它宿主能力。
-            app.manage(PerformanceEvidenceState::from_environment()?);
+        .setup(move |app| {
+            // 性能证据是显式本机测试通道；路径在构建 WebView 之前已失败关闭校验。
+            app.manage(performance_evidence_state);
             install_logging(app)?;
             let settings_path = app.path().app_config_dir()?.join("host-settings.json");
             let settings_state = HostSettingsState::new(settings_path);
@@ -242,7 +254,8 @@ pub fn run() {
             resize_pet_step,
             show_main_window,
             get_performance_evidence_status,
-            record_performance_evidence
+            record_performance_evidence,
+            finish_performance_evidence
         ]);
 
     let app = builder

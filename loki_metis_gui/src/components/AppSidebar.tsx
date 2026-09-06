@@ -62,9 +62,9 @@ function AppSidebarNavigationItem({
       aria-label={item.label}
       component="button"
       data-navigation-layout="icon-above-label"
+      data-testid={`navigation-${item.id}`}
       label={
         <Text
-          data-testid={`navigation-label-${item.id}`}
           lineClamp={2}
           style={{
             display: "block",
@@ -82,7 +82,6 @@ function AppSidebarNavigationItem({
       leftSection={
         <Icon
           aria-hidden="true"
-          data-testid={`navigation-icon-${item.id}`}
           size={APP_SIDEBAR_NAV_ICON_SIZE_PX}
           stroke={APP_SIDEBAR_ICON_STROKE_WIDTH}
         />

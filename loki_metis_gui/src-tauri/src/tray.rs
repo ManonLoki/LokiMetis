@@ -11,6 +11,7 @@ use crate::monitor::{
     handle_pet_overlay_resized, is_pet_settings_label, pet_overlay_window_description,
     pet_overlay_window_is_open, schedule_pet_overlay_position_persist, show_or_create_pet_overlay,
 };
+use crate::performance_evidence::emit_performance_evidence_main_window_visibility;
 use crate::windowing::restore_main_window;
 use loki_metis_core::PetOverlayPosition;
 
@@ -198,7 +199,10 @@ pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &Windo
     if let WindowEvent::CloseRequested { api, .. } = event {
         if window.label() == "main" && window.app_handle().try_state::<TrayMenuState>().is_some() {
             api.prevent_close();
-            let _ = window.hide();
+            let _ = emit_performance_evidence_main_window_visibility(window.app_handle(), false);
+            if window.hide().is_err() {
+                let _ = emit_performance_evidence_main_window_visibility(window.app_handle(), true);
+            }
             return;
         }
         if is_pet_settings_label(window.label()) {

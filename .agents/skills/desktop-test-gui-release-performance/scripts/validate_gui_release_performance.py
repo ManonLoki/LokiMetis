@@ -35,10 +35,49 @@ THRESHOLDS = {
     "navigationInteractionCyclesMinimum": 20,
 }
 
-EVIDENCE_SCHEMA_VERSION = 2
+EVIDENCE_SCHEMA_VERSION = 3
 SOURCE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 WINDOW_STATE_FINGERPRINT_ALGORITHM = "hmac-sha256-ephemeral-key"
+JAVASCRIPT_MAX_SAFE_INTEGER = 9_007_199_254_740_991
+MAX_MONOTONIC_TIME_MS = 604_800_000.0
+MAX_WALL_TIME_MS = 10_000_000_000_000.0
+MAX_MEASURED_DURATION_MS = 60_000.0
+RENDERER_TIMING_SOURCES = frozenset(
+    {
+        "performance-observer",
+        "animation-frame-gap",
+    }
+)
+RENDERER_TRANSCRIPT_SCOPE = "interaction-session"
+PERFORMANCE_INTERACTION_RESULTS = {
+    "navigation-dashboard": "dashboard-page",
+    "navigation-monitor": "monitor-page",
+    "navigation-settings": "settings-page",
+}
+RENDERER_TRANSCRIPT_FIELDS = {
+    "renderer-capabilities": {
+        "kind",
+        "longTaskSupported",
+        "timingSource",
+        "sequence",
+    },
+    "main-window-ready": {
+        "kind",
+        "wallTimeMs",
+        "monotonicTimeMs",
+        "sequence",
+    },
+    "interaction": {"kind", "target", "result", "durationMs", "sequence"},
+    "renderer-blocking-interval": {
+        "kind",
+        "timingSource",
+        "startTimeMs",
+        "durationMs",
+        "sequence",
+    },
+    "session-finalized": {"kind", "sequence", "recordCount"},
+}
 NON_WAIVABLE_EVIDENCE_INTEGRITY_KEYS = frozenset(
     {
         "wholeProcessTree",
@@ -64,6 +103,7 @@ EVIDENCE_ALLOWED_KEYS = frozenset(
         "wholeProcessTree",
         "probeBytesUnmodified",
         "allProcessesRecovered",
+        "rendererTranscriptScope",
         "rendererTimingSource",
         "processSampler",
         "warmupRuns",
@@ -88,6 +128,10 @@ class PerformanceEvidenceError(RuntimeError):
     """表示输入文件或证据输出边界不安全。"""
 
 
+class DuplicateJsonKeyError(ValueError):
+    """表示 JSONL 单条记录重复声明同一个字段。"""
+
+
 def _is_finite_number(value: object) -> bool:
     """只接受有限且不是布尔值的整数或浮点数。"""
     return (
@@ -108,6 +152,244 @@ def _read_json_object(path: Path, label: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise PerformanceEvidenceError(f"{label} root must be a JSON object")
     return value
+
+
+def _json_object_without_duplicate_keys(
+    pairs: list[tuple[str, Any]],
+) -> dict[str, Any]:
+    """拒绝会被普通 JSON 解析静默覆盖的重复字段。"""
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise DuplicateJsonKeyError(f"duplicate key: {key}")
+        value[key] = item
+    return value
+
+
+def _reject_json_constant(value: str) -> None:
+    """拒绝 JSON 标准之外的 NaN 和 Infinity 常量。"""
+    raise ValueError(f"unsupported JSON constant: {value}")
+
+
+def _transcript_number(
+    record: dict[str, Any],
+    key: str,
+    label: str,
+    errors: list[str],
+    *,
+    minimum: float = 0.0,
+    maximum: float | None = None,
+) -> float | None:
+    """读取 transcript 中受限的有限非负数值。"""
+    value = record.get(key)
+    if not _is_finite_number(value):
+        errors.append(f"{label}.{key} must be a finite number")
+        return None
+    number = float(value)
+    if number < minimum:
+        errors.append(f"{label}.{key} must be >= {minimum:g}")
+    if maximum is not None and number > maximum:
+        errors.append(f"{label}.{key} must be <= {maximum:g}")
+    return number
+
+
+def _read_renderer_transcript(path: Path) -> tuple[dict[str, Any], list[str]]:
+    """读取并验证应用生成的隐私安全 JSONL transcript。"""
+    errors: list[str] = []
+    summary: dict[str, Any] = {
+        "file": path.name,
+        "sha256": "",
+        "timingSource": None,
+        "interactions": [],
+        "blockingDurationsMs": [],
+    }
+    if not path.exists() or not path.is_file() or path.is_symlink():
+        errors.append("renderer transcript must be a regular non-symlink file")
+        return summary, errors
+    try:
+        content = path.read_bytes()
+    except OSError:
+        errors.append("renderer transcript cannot be read")
+        return summary, errors
+    summary["sha256"] = hashlib.sha256(content).hexdigest()
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        errors.append("renderer transcript must be valid UTF-8 JSONL")
+        return summary, errors
+
+    lines = text.splitlines()
+    if not lines:
+        errors.append("renderer transcript must contain records")
+        return summary, errors
+
+    records: list[dict[str, Any]] = []
+    for line_number, line in enumerate(lines, start=1):
+        label = f"renderer transcript line {line_number}"
+        if not line.strip():
+            errors.append(f"{label} must not be blank")
+            continue
+        try:
+            value = json.loads(
+                line,
+                object_pairs_hook=_json_object_without_duplicate_keys,
+                parse_constant=_reject_json_constant,
+            )
+        except (DuplicateJsonKeyError, ValueError, json.JSONDecodeError):
+            errors.append(f"{label} must be one valid JSON object")
+            continue
+        if not isinstance(value, dict):
+            errors.append(f"{label} must be a JSON object")
+            continue
+        records.append(value)
+
+    if len(records) != len(lines):
+        return summary, errors
+    if records[0].get("kind") != "renderer-capabilities":
+        errors.append("renderer transcript first record must be renderer-capabilities")
+
+    ready_count = 0
+    final_count = 0
+    timing_source: str | None = None
+    interactions: list[dict[str, Any]] = []
+    blocking_durations: list[float] = []
+    for index, record in enumerate(records, start=1):
+        label = f"renderer transcript record {index}"
+        kind = record.get("kind")
+        allowed_fields = (
+            RENDERER_TRANSCRIPT_FIELDS.get(kind) if isinstance(kind, str) else None
+        )
+        if allowed_fields is None:
+            errors.append(f"{label}.kind is unsupported")
+            continue
+        _reject_unexpected_keys(record, allowed_fields, label, errors)
+        missing_fields = sorted(allowed_fields - set(record))
+        if missing_fields:
+            errors.append(
+                f"{label} is missing required fields: {', '.join(missing_fields)}"
+            )
+
+        sequence = record.get("sequence")
+        if (
+            not isinstance(sequence, int)
+            or isinstance(sequence, bool)
+            or sequence != index
+            or sequence > JAVASCRIPT_MAX_SAFE_INTEGER
+        ):
+            errors.append(f"{label}.sequence must equal {index}")
+
+        if kind == "renderer-capabilities":
+            if index != 1:
+                errors.append(
+                    "renderer-capabilities may appear only as the first record"
+                )
+            source = record.get("timingSource")
+            supported = record.get("longTaskSupported")
+            if source not in RENDERER_TIMING_SOURCES:
+                errors.append(f"{label}.timingSource is unsupported")
+            if not isinstance(supported, bool):
+                errors.append(f"{label}.longTaskSupported must be boolean")
+            elif (supported, source) not in {
+                (True, "performance-observer"),
+                (False, "animation-frame-gap"),
+            }:
+                errors.append(
+                    f"{label}.longTaskSupported does not match timingSource"
+                )
+            if index == 1 and source in RENDERER_TIMING_SOURCES:
+                timing_source = source
+        elif kind == "main-window-ready":
+            ready_count += 1
+            _transcript_number(
+                record,
+                "wallTimeMs",
+                label,
+                errors,
+                maximum=MAX_WALL_TIME_MS,
+            )
+            _transcript_number(
+                record,
+                "monotonicTimeMs",
+                label,
+                errors,
+                maximum=MAX_MONOTONIC_TIME_MS,
+            )
+        elif kind == "interaction":
+            target = record.get("target")
+            result = record.get("result")
+            duration = _transcript_number(
+                record,
+                "durationMs",
+                label,
+                errors,
+                maximum=MAX_MEASURED_DURATION_MS,
+            )
+            if not isinstance(target, str) or (
+                PERFORMANCE_INTERACTION_RESULTS.get(target) != result
+            ):
+                errors.append(f"{label} has an unsupported target/result pair")
+            if (
+                isinstance(sequence, int)
+                and not isinstance(sequence, bool)
+                and isinstance(target, str)
+                and isinstance(result, str)
+                and duration is not None
+            ):
+                interactions.append(
+                    {
+                        "sequence": sequence,
+                        "target": target,
+                        "result": result,
+                        "durationMs": duration,
+                    }
+                )
+        elif kind == "renderer-blocking-interval":
+            source = record.get("timingSource")
+            if source != timing_source:
+                errors.append(f"{label}.timingSource must match renderer-capabilities")
+            _transcript_number(
+                record,
+                "startTimeMs",
+                label,
+                errors,
+                maximum=MAX_MONOTONIC_TIME_MS,
+            )
+            duration = _transcript_number(
+                record,
+                "durationMs",
+                label,
+                errors,
+                minimum=THRESHOLDS["longTaskMsMinimum"],
+                maximum=MAX_MEASURED_DURATION_MS,
+            )
+            if duration is not None:
+                blocking_durations.append(duration)
+        else:
+            final_count += 1
+            if index != len(records):
+                errors.append("session-finalized must be the last transcript record")
+            record_count = record.get("recordCount")
+            if (
+                not isinstance(record_count, int)
+                or isinstance(record_count, bool)
+                or record_count != len(records) - 1
+            ):
+                errors.append(
+                    "session-finalized.recordCount must equal the preceding record count"
+                )
+
+    if ready_count != 1:
+        errors.append("renderer transcript must contain exactly one main-window-ready")
+    if final_count != 1 or records[-1].get("kind") != "session-finalized":
+        errors.append("renderer transcript must end with exactly one session-finalized")
+    final_sequence = records[-1].get("sequence")
+    if final_sequence != len(records):
+        errors.append("session-finalized.sequence must equal the transcript record count")
+
+    summary["timingSource"] = timing_source
+    summary["interactions"] = interactions
+    summary["blockingDurationsMs"] = blocking_durations
+    return summary, errors
 
 
 def _sha256(path: Path) -> str:
@@ -442,46 +724,96 @@ def _probe_name(manifest: dict[str, Any], errors: list[str]) -> str:
 
 def _interaction_durations(
     evidence: dict[str, Any], errors: list[str]
-) -> list[float]:
+) -> tuple[list[float], list[dict[str, Any]]]:
     """提取具有可观察结果的批准交互时延。"""
     raw = evidence.get("interactions")
     if not isinstance(raw, list):
         errors.append("interactions must be an array")
-        return []
+        return [], []
     if len(raw) < THRESHOLDS["interactionSamplesMinimum"]:
         errors.append(
             "interactions must contain at least "
             f"{THRESHOLDS['interactionSamplesMinimum']} samples"
         )
     durations: list[float] = []
+    normalized: list[dict[str, Any]] = []
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
             errors.append(f"interactions[{index}] must be an object")
             continue
-        name = item.get("name")
-        if not isinstance(name, str) or not name.strip():
-            errors.append(f"interactions[{index}].name must be non-empty")
+        label = f"interactions[{index}]"
+        allowed_fields = {
+            "sequence",
+            "target",
+            "result",
+            "durationMs",
+            "observableResult",
+        }
+        _reject_unexpected_keys(item, allowed_fields, label, errors)
+        missing_fields = sorted(allowed_fields - set(item))
+        if missing_fields:
+            errors.append(
+                f"{label} is missing required fields: {', '.join(missing_fields)}"
+            )
+        sequence = item.get("sequence")
+        if (
+            not isinstance(sequence, int)
+            or isinstance(sequence, bool)
+            or sequence < 1
+            or sequence > JAVASCRIPT_MAX_SAFE_INTEGER
+        ):
+            errors.append(f"{label}.sequence must be a positive safe integer")
+        target = item.get("target")
+        result = item.get("result")
+        if (
+            not isinstance(target, str)
+            or PERFORMANCE_INTERACTION_RESULTS.get(target) != result
+        ):
+            errors.append(f"{label} has an unsupported target/result pair")
         if item.get("observableResult") is not True:
-            errors.append(f"interactions[{index}].observableResult must be true")
+            errors.append(f"{label}.observableResult must be true")
         duration = item.get("durationMs")
         if not _is_finite_number(duration) or float(duration) < 0:
-            errors.append(
-                f"interactions[{index}].durationMs must be a finite non-negative number"
-            )
+            errors.append(f"{label}.durationMs must be a finite non-negative number")
             continue
-        durations.append(float(duration))
-    return durations
+        normalized_duration = float(duration)
+        durations.append(normalized_duration)
+        if (
+            isinstance(sequence, int)
+            and not isinstance(sequence, bool)
+            and isinstance(target, str)
+            and isinstance(result, str)
+        ):
+            normalized.append(
+                {
+                    "sequence": sequence,
+                    "target": target,
+                    "result": result,
+                    "durationMs": normalized_duration,
+                }
+            )
+    return durations, normalized
 
 
 def evaluate(
     probe: Path,
     manifest: dict[str, Any],
     evidence: dict[str, Any],
+    renderer_transcript: Path,
     tray_enabled: bool,
     initial_errors: list[str] | None = None,
 ) -> dict[str, Any]:
     """对探针绑定、采样完整性和全部固定阈值作一次确定性判定。"""
     errors = list(initial_errors or [])
+    threshold_failures: list[str] = []
+
+    def add_threshold_failure(message: str) -> None:
+        """只标记允许由用户明确豁免的纯性能阈值超限。"""
+        errors.append(message)
+        threshold_failures.append(message)
+
+    transcript, transcript_errors = _read_renderer_transcript(renderer_transcript)
+    errors.extend(transcript_errors)
     actual_sha = ""
     if not probe.exists() or not probe.is_file() or probe.is_symlink():
         errors.append("performance probe must be a regular non-symlink file")
@@ -562,6 +894,13 @@ def evaluate(
     )
     _expect_equal(evidence, "e2eSelection", e2e_selection, errors, "evidence")
     _expect_equal(evidence, "trayEnabled", tray_enabled, errors, "evidence")
+    _expect_equal(
+        evidence,
+        "rendererTranscriptScope",
+        RENDERER_TRANSCRIPT_SCOPE,
+        errors,
+        "evidence",
+    )
 
     non_waivable_failures: list[str] = []
     for key in (
@@ -575,8 +914,15 @@ def evaluate(
             errors.append(failure)
             if key in NON_WAIVABLE_EVIDENCE_INTEGRITY_KEYS:
                 non_waivable_failures.append(failure)
-    if evidence.get("rendererTimingSource") != "performance-observer":
-        errors.append("rendererTimingSource must be 'performance-observer'")
+    if evidence.get("rendererTimingSource") not in RENDERER_TIMING_SOURCES:
+        errors.append(
+            "rendererTimingSource must be 'performance-observer' or "
+            "'animation-frame-gap'"
+        )
+    elif evidence.get("rendererTimingSource") != transcript["timingSource"]:
+        errors.append(
+            "rendererTimingSource must match renderer transcript capabilities"
+        )
     process_sampler = evidence.get("processSampler")
     if not isinstance(process_sampler, str) or not process_sampler.strip():
         errors.append("processSampler must be non-empty")
@@ -601,29 +947,35 @@ def evaluate(
     if cold_median is not None and cold_median > THRESHOLDS[
         "coldStartMedianMsMaximum"
     ]:
-        errors.append("cold-start median exceeds 2000 ms")
+        add_threshold_failure("cold-start median exceeds 2000 ms")
     if cold_max is not None and cold_max > THRESHOLDS["coldStartMaximumMs"]:
-        errors.append("cold-start maximum exceeds 3000 ms")
+        add_threshold_failure("cold-start maximum exceeds 3000 ms")
 
-    interaction_durations = _interaction_durations(evidence, errors)
+    interaction_durations, evidence_interactions = _interaction_durations(
+        evidence, errors
+    )
+    if evidence_interactions != transcript["interactions"]:
+        errors.append("interactions must exactly match renderer transcript interactions")
     interaction_p95 = _nearest_rank_p95(interaction_durations)
     interaction_max = max(interaction_durations) if interaction_durations else None
     if interaction_p95 is not None and interaction_p95 > THRESHOLDS[
         "interactionP95MsMaximum"
     ]:
-        errors.append("interaction p95 exceeds 100 ms")
+        add_threshold_failure("interaction p95 exceeds 100 ms")
     if interaction_max is not None and interaction_max >= THRESHOLDS[
         "interactionSingleMsExclusiveMaximum"
     ]:
-        errors.append("an interaction is 200 ms or slower")
+        add_threshold_failure("an interaction is 200 ms or slower")
 
     long_tasks = _number_list(evidence, "longTasksMs", errors)
+    if long_tasks != transcript["blockingDurationsMs"]:
+        errors.append("longTasksMs must exactly match renderer transcript blocking intervals")
     for index, duration in enumerate(long_tasks):
         if duration < THRESHOLDS["longTaskMsMinimum"]:
             errors.append(f"longTasksMs[{index}] is shorter than the 50 ms record floor")
     long_task_max = max(long_tasks) if long_tasks else 0.0
     if long_task_max >= THRESHOLDS["longTaskMsExclusiveMaximum"]:
-        errors.append("a Long Task is 200 ms or slower")
+        add_threshold_failure("a Long Task is 200 ms or slower")
 
     idle_seconds = _number(
         evidence,
@@ -641,7 +993,7 @@ def evaluate(
     if idle_cpu_p95 is not None and idle_cpu_p95 > THRESHOLDS[
         "idleCpuP95PercentMaximum"
     ]:
-        errors.append("idle whole-process-tree CPU p95 exceeds 5%")
+        add_threshold_failure("idle whole-process-tree CPU p95 exceeds 5%")
 
     hidden_seconds: float | int | None = None
     hidden_cpu_p95: float | None = None
@@ -662,7 +1014,9 @@ def evaluate(
         if hidden_cpu_p95 is not None and hidden_cpu_p95 > THRESHOLDS[
             "hiddenTrayCpuP95PercentMaximum"
         ]:
-            errors.append("hidden/tray whole-process-tree CPU p95 exceeds 2%")
+            add_threshold_failure(
+                "hidden/tray whole-process-tree CPU p95 exceeds 2%"
+            )
     elif any(
         key in evidence
         for key in (
@@ -684,9 +1038,9 @@ def evaluate(
         integer=True,
     )
     if steady_rss is not None and steady_rss > THRESHOLDS["steadyRssMiBMaximum"]:
-        errors.append("steady whole-process-tree RSS exceeds 300 MiB")
+        add_threshold_failure("steady whole-process-tree RSS exceeds 300 MiB")
     if peak_rss is not None and peak_rss > THRESHOLDS["peakRssMiBMaximum"]:
-        errors.append("peak whole-process-tree RSS exceeds 500 MiB")
+        add_threshold_failure("peak whole-process-tree RSS exceeds 500 MiB")
 
     rss_growth = None
     rss_growth_limit = None
@@ -697,7 +1051,17 @@ def evaluate(
             THRESHOLDS["rssGrowthMiBMinimumAllowance"],
         )
         if rss_growth > rss_growth_limit:
-            errors.append("RSS growth after interaction cycles exceeds the allowed budget")
+            add_threshold_failure(
+                "RSS growth after interaction cycles exceeds the allowed budget"
+            )
+
+    # 只有上面显式登记的纯阈值超限可进入人工豁免；输入、绑定、观测、
+    # 样本和隔离契约的任何其他错误都属于不可豁免完整性失败。
+    threshold_failure_set = set(threshold_failures)
+    non_waivable_failures.extend(
+        failure for failure in errors if failure not in threshold_failure_set
+    )
+    non_waivable_failures = list(dict.fromkeys(non_waivable_failures))
 
     metrics = {
         "warmupRuns": warmup_runs,
@@ -749,6 +1113,11 @@ def evaluate(
             "performanceSelection": performance_selection,
             "e2eSelection": e2e_selection,
         },
+        "rendererTranscript": {
+            "file": transcript["file"],
+            "sha256": transcript["sha256"],
+            "scope": evidence.get("rendererTranscriptScope"),
+        },
         "thresholdProfile": "gui-release-v1",
         "thresholds": THRESHOLDS,
         "metrics": metrics,
@@ -796,6 +1165,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--probe", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--renderer-transcript", type=Path, required=True)
     parser.add_argument(
         "--tray-enabled", choices=("enabled", "disabled"), required=True
     )
@@ -822,6 +1192,7 @@ def main(argv: list[str] | None = None) -> int:
         args.probe,
         manifest,
         evidence,
+        args.renderer_transcript,
         args.tray_enabled == "enabled",
         input_errors,
     )
@@ -829,7 +1200,7 @@ def main(argv: list[str] | None = None) -> int:
         _write_json_atomic(
             args.output,
             result,
-            [args.probe, args.manifest, args.evidence],
+            [args.probe, args.manifest, args.evidence, args.renderer_transcript],
         )
     except (OSError, PerformanceEvidenceError) as exc:
         print(f"performance evidence output failed: {exc}", file=sys.stderr)

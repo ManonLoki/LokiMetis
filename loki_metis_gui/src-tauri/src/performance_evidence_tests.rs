@@ -2,11 +2,28 @@
 
 use super::*;
 
+/// 创建符合生产证据通道私有父目录要求的临时目录。
+fn private_tempdir() -> tempfile::TempDir {
+    let root = tempfile::tempdir().expect("temp root");
+    #[cfg(unix)]
+    fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700))
+        .expect("private temp permissions");
+    root
+}
+
 /// 构造最小合法的 renderer 能力指标。
-fn renderer_metric(sequence: u64) -> PerformanceEvidenceMetric {
+fn renderer_metric() -> PerformanceEvidenceMetric {
     PerformanceEvidenceMetric::RendererCapabilities {
-        sequence,
         long_task_supported: true,
+        timing_source: RendererTimingSource::PerformanceObserver,
+    }
+}
+
+/// 构造最小合法的主窗口就绪指标。
+fn main_window_ready_metric() -> PerformanceEvidenceMetric {
+    PerformanceEvidenceMetric::MainWindowReady {
+        wall_time_ms: 1_800_000_000_000.0,
+        monotonic_time_ms: 128.0,
     }
 }
 
@@ -16,7 +33,7 @@ fn disabled_state_rejects_all_writes() {
     let state = PerformanceEvidenceState::disabled();
     assert!(!state.is_enabled());
     assert_eq!(
-        state.record(renderer_metric(1)),
+        state.record(renderer_metric()),
         Err(PerformanceEvidenceError::Disabled)
     );
 }
@@ -24,33 +41,41 @@ fn disabled_state_rejects_all_writes() {
 /// 合法临时目标只输出固定 JSONL 字段，并持续执行递增序号约束。
 #[test]
 fn valid_temporary_target_writes_privacy_safe_jsonl() {
-    let root = tempfile::tempdir().expect("temp root");
+    let root = private_tempdir();
     let target = root.path().join("performance.jsonl");
     let state = PerformanceEvidenceState::from_path(target.clone(), root.path().to_path_buf())
         .expect("enabled state");
 
-    state.record(renderer_metric(1)).expect("first metric");
-    state
-        .record(PerformanceEvidenceMetric::Interaction {
-            sequence: 2,
-            target: "navigation-label-dashboard".to_string(),
-            duration_ms: 32.5,
-        })
-        .expect("interaction metric");
-    state
-        .record(PerformanceEvidenceMetric::MainWindowReady {
-            sequence: 3,
-            wall_time_ms: 1_800_000_000_000.0,
-            monotonic_time_ms: 128.0,
-        })
-        .expect("ready metric");
-    state
-        .record(PerformanceEvidenceMetric::LongTask {
-            sequence: 4,
-            start_time_ms: 64.0,
-            duration_ms: 75.0,
-        })
-        .expect("long task metric");
+    assert_eq!(state.record(renderer_metric()).expect("first metric"), 1);
+    assert_eq!(
+        state
+            .record(PerformanceEvidenceMetric::Interaction {
+                target: "navigation-dashboard".to_string(),
+                result: "dashboard-page".to_string(),
+                duration_ms: 32.5,
+            })
+            .expect("interaction metric"),
+        2
+    );
+    assert_eq!(
+        state
+            .record(PerformanceEvidenceMetric::MainWindowReady {
+                wall_time_ms: 1_800_000_000_000.0,
+                monotonic_time_ms: 128.0,
+            })
+            .expect("ready metric"),
+        3
+    );
+    assert_eq!(
+        state
+            .record(PerformanceEvidenceMetric::RendererBlockingInterval {
+                timing_source: RendererTimingSource::PerformanceObserver,
+                start_time_ms: 64.0,
+                duration_ms: 75.0,
+            })
+            .expect("blocking metric"),
+        4
+    );
 
     let lines = fs::read_to_string(&target).expect("read evidence");
     let parsed = lines
@@ -61,9 +86,10 @@ fn valid_temporary_target_writes_privacy_safe_jsonl() {
     assert_eq!(parsed[0]["kind"], "renderer-capabilities");
     assert_eq!(parsed[0]["sequence"], 1);
     assert_eq!(parsed[0]["longTaskSupported"], true);
-    assert_eq!(parsed[1]["target"], "navigation-label-dashboard");
+    assert_eq!(parsed[1]["target"], "navigation-dashboard");
+    assert_eq!(parsed[1]["result"], "dashboard-page");
     assert_eq!(parsed[2]["kind"], "main-window-ready");
-    assert_eq!(parsed[3]["kind"], "long-task");
+    assert_eq!(parsed[3]["kind"], "renderer-blocking-interval");
     assert!(!lines.contains(root.path().to_string_lossy().as_ref()));
     #[cfg(unix)]
     assert_eq!(
@@ -81,8 +107,8 @@ fn valid_temporary_target_writes_privacy_safe_jsonl() {
 fn payload_with_unknown_fields_is_rejected_during_deserialization() {
     let payload = serde_json::json!({
         "kind": "interaction",
-        "sequence": 1,
-        "target": "generic",
+        "target": "navigation-dashboard",
+        "result": "dashboard-page",
         "durationMs": 12.0,
         "pageTitle": "must not be accepted"
     });
@@ -104,7 +130,7 @@ fn target_outside_system_temporary_directory_is_rejected() {
 /// 已存在的普通文件不能被复用或覆盖。
 #[test]
 fn existing_target_is_rejected_without_overwrite() {
-    let root = tempfile::tempdir().expect("temp root");
+    let root = private_tempdir();
     let target = root.path().join("performance.jsonl");
     fs::write(&target, "keep").expect("seed target");
     let result = PerformanceEvidenceState::from_path(target.clone(), root.path().to_path_buf());
@@ -118,7 +144,7 @@ fn existing_target_is_rejected_without_overwrite() {
 fn symbolic_link_target_and_parent_are_rejected() {
     use std::os::unix::fs::symlink;
 
-    let root = tempfile::tempdir().expect("temp root");
+    let root = private_tempdir();
     let real_parent = root.path().join("real");
     fs::create_dir(&real_parent).expect("real parent");
     let existing = real_parent.join("existing.jsonl");
@@ -144,22 +170,33 @@ fn symbolic_link_target_and_parent_are_rejected() {
 /// 非有限值、越界耗时和非白名单目标都不能进入证据文件。
 #[test]
 fn invalid_numeric_ranges_and_targets_are_rejected() {
-    let root = tempfile::tempdir().expect("temp root");
+    let root = private_tempdir();
     let target = root.path().join("performance.jsonl");
     let state = PerformanceEvidenceState::from_path(target, root.path().to_path_buf())
         .expect("enabled state");
+    state
+        .record(renderer_metric())
+        .expect("renderer capabilities");
 
     assert_eq!(
         state.record(PerformanceEvidenceMetric::Interaction {
-            sequence: 1,
             target: "private-page-title".to_string(),
+            result: "dashboard-page".to_string(),
             duration_ms: 1.0,
         }),
         Err(PerformanceEvidenceError::InvalidMetric)
     );
     assert_eq!(
-        state.record(PerformanceEvidenceMetric::LongTask {
-            sequence: 1,
+        state.record(PerformanceEvidenceMetric::Interaction {
+            target: "navigation-dashboard".to_string(),
+            result: "settings-page".to_string(),
+            duration_ms: 1.0,
+        }),
+        Err(PerformanceEvidenceError::InvalidMetric)
+    );
+    assert_eq!(
+        state.record(PerformanceEvidenceMetric::RendererBlockingInterval {
+            timing_source: RendererTimingSource::PerformanceObserver,
             start_time_ms: 4.0,
             duration_ms: 49.9,
         }),
@@ -167,7 +204,6 @@ fn invalid_numeric_ranges_and_targets_are_rejected() {
     );
     assert_eq!(
         state.record(PerformanceEvidenceMetric::MainWindowReady {
-            sequence: 1,
             wall_time_ms: f64::NAN,
             monotonic_time_ms: 4.0,
         }),
@@ -175,20 +211,113 @@ fn invalid_numeric_ranges_and_targets_are_rejected() {
     );
 }
 
-/// 成功落盘后拒绝重复或倒退序号，避免并发 IPC 伪造事件顺序。
+/// Rust 统一分配序号，结束握手幂等同步且结束后拒绝新指标。
 #[test]
-fn non_increasing_sequence_is_rejected() {
-    let root = tempfile::tempdir().expect("temp root");
+fn rust_assigns_sequence_and_finalization_is_idempotent() {
+    let root = private_tempdir();
     let target = root.path().join("performance.jsonl");
-    let state = PerformanceEvidenceState::from_path(target, root.path().to_path_buf())
+    let state = PerformanceEvidenceState::from_path(target.clone(), root.path().to_path_buf())
         .expect("enabled state");
-    state.record(renderer_metric(2)).expect("first metric");
+    assert_eq!(state.record(renderer_metric()).expect("first metric"), 1);
     assert_eq!(
-        state.record(renderer_metric(2)),
-        Err(PerformanceEvidenceError::SequenceRejected)
+        state
+            .record(main_window_ready_metric())
+            .expect("ready metric"),
+        2
+    );
+    let first = state.finish().expect("first finalization");
+    let second = state.finish().expect("idempotent finalization");
+    assert_eq!(first, second);
+    assert_eq!(first.final_sequence, 3);
+    assert_eq!(first.record_count, 2);
+    assert_eq!(
+        state.record(renderer_metric()),
+        Err(PerformanceEvidenceError::Finalized)
+    );
+    let lines = fs::read_to_string(target).expect("finalized evidence");
+    assert_eq!(lines.lines().count(), 3);
+    assert!(lines.contains("\"kind\":\"session-finalized\""));
+}
+
+/// renderer capabilities 必须且只能作为首条记录出现。
+#[test]
+fn duplicate_renderer_capabilities_are_rejected() {
+    let root = private_tempdir();
+    let target = root.path().join("performance.jsonl");
+    let state = PerformanceEvidenceState::from_path(target.clone(), root.path().to_path_buf())
+        .expect("enabled state");
+
+    assert_eq!(state.record(renderer_metric()).expect("first metric"), 1);
+    assert_eq!(
+        state.record(renderer_metric()),
+        Err(PerformanceEvidenceError::InvalidMetric)
     );
     assert_eq!(
-        state.record(renderer_metric(1)),
-        Err(PerformanceEvidenceError::SequenceRejected)
+        fs::read_to_string(target)
+            .expect("capabilities evidence")
+            .lines()
+            .count(),
+        1
     );
+}
+
+/// 主窗口就绪记录在同一会话中只能成功落盘一次。
+#[test]
+fn duplicate_main_window_ready_is_rejected() {
+    let root = private_tempdir();
+    let target = root.path().join("performance.jsonl");
+    let state = PerformanceEvidenceState::from_path(target.clone(), root.path().to_path_buf())
+        .expect("enabled state");
+
+    state
+        .record(renderer_metric())
+        .expect("renderer capabilities");
+    assert_eq!(
+        state
+            .record(main_window_ready_metric())
+            .expect("first ready metric"),
+        2
+    );
+    assert_eq!(
+        state.record(main_window_ready_metric()),
+        Err(PerformanceEvidenceError::InvalidMetric)
+    );
+    assert_eq!(
+        fs::read_to_string(target)
+            .expect("ready evidence")
+            .lines()
+            .count(),
+        2
+    );
+}
+
+/// 未确认主窗口就绪时不得写入会话结束记录。
+#[test]
+fn finalization_without_main_window_ready_is_rejected() {
+    let root = private_tempdir();
+    let target = root.path().join("performance.jsonl");
+    let state = PerformanceEvidenceState::from_path(target.clone(), root.path().to_path_buf())
+        .expect("enabled state");
+
+    state
+        .record(renderer_metric())
+        .expect("renderer capabilities");
+    assert_eq!(state.finish(), Err(PerformanceEvidenceError::InvalidMetric));
+    let evidence = fs::read_to_string(target).expect("unfinished evidence");
+    assert_eq!(evidence.lines().count(), 1);
+    assert!(!evidence.contains("session-finalized"));
+}
+
+/// Unix 测试证据父目录必须为私有 0700，避免其他用户替换已校验路径。
+#[cfg(unix)]
+#[test]
+fn permissive_parent_directory_is_rejected() {
+    let root = tempfile::tempdir().expect("temp root");
+    fs::set_permissions(root.path(), fs::Permissions::from_mode(0o755))
+        .expect("set permissive mode");
+    let result = PerformanceEvidenceState::from_path(
+        root.path().join("performance.jsonl"),
+        root.path().to_path_buf(),
+    );
+    assert!(matches!(result, Err(PerformanceEvidenceError::InvalidPath)));
 }

@@ -74,7 +74,7 @@ describe("default application landing", () => {
     });
     expect(await screen.findByTestId("dashboard-page")).toBeVisible();
     expect(screen.queryByTestId("home-page")).not.toBeInTheDocument();
-    expect(await screen.findByTestId("navigation-label-dashboard")).toBeVisible();
+    expect(await screen.findByTestId("navigation-dashboard")).toBeVisible();
   });
 
   /** 冷启动入口路径一律解析为看板，已有业务路径保持不变。 */

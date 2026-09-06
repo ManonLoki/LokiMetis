@@ -1,10 +1,13 @@
 use tauri::{Manager, WebviewWindow};
 
+use crate::performance_evidence::emit_performance_evidence_main_window_visibility;
+
 pub(crate) fn restore_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window("main") else {
         return Ok(());
     };
     window.show()?;
+    let _ = emit_performance_evidence_main_window_visibility(app, true);
     window.unminimize()?;
     window.set_focus()?;
     Ok(())

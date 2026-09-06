@@ -40,7 +40,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "e2eSelection": "disabled",
         }
         self.evidence = {
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "performanceProbeSha256": digest,
             "performanceProbeKind": "tauri-no-bundle-executable",
             "sourceCommit": "a" * 40,
@@ -56,6 +56,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "wholeProcessTree": True,
             "probeBytesUnmodified": True,
             "allProcessesRecovered": True,
+            "rendererTranscriptScope": "interaction-session",
             "rendererTimingSource": "performance-observer",
             "processSampler": "native-process-tree-sampler",
             "warmupRuns": 1,
@@ -89,7 +90,17 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "coldStartVisibleUsableMs": [1000, 2000, 2000, 2000, 3000],
             "interactions": [
                 {
-                    "name": f"approved-interaction-{index}",
+                    "sequence": index + 3,
+                    "target": (
+                        "navigation-dashboard",
+                        "navigation-monitor",
+                        "navigation-settings",
+                    )[index % 3],
+                    "result": (
+                        "dashboard-page",
+                        "monitor-page",
+                        "settings-page",
+                    )[index % 3],
                     "durationMs": 199 if index == 19 else 100,
                     "observableResult": True,
                 }
@@ -112,16 +123,95 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         *,
         manifest: dict[str, object] | None = None,
         evidence: dict[str, object] | None = None,
+        renderer_records: list[dict[str, object]] | None = None,
         tray_enabled: bool = True,
     ) -> dict[str, object]:
         """以深拷贝输入执行判定，避免测试场景相互污染。"""
 
+        selected_evidence = deepcopy(evidence if evidence is not None else self.evidence)
+        transcript_path = self._write_renderer_transcript(
+            "renderer-evaluate.jsonl",
+            renderer_records
+            if renderer_records is not None
+            else self._renderer_records(selected_evidence),
+        )
         return performance.evaluate(
             self.probe,
             deepcopy(manifest if manifest is not None else self.manifest),
-            deepcopy(evidence if evidence is not None else self.evidence),
+            selected_evidence,
+            transcript_path,
             tray_enabled,
         )
+
+    def _renderer_records(
+        self, evidence: dict[str, object]
+    ) -> list[dict[str, object]]:
+        """按 raw evidence 构造应用会生成的合法 transcript 基线。"""
+
+        source = evidence.get("rendererTimingSource")
+        records: list[dict[str, object]] = [
+            {
+                "kind": "renderer-capabilities",
+                "longTaskSupported": source == "performance-observer",
+                "timingSource": source,
+                "sequence": 1,
+            },
+            {
+                "kind": "main-window-ready",
+                "wallTimeMs": 1_800_000_000_000,
+                "monotonicTimeMs": 128,
+                "sequence": 2,
+            },
+        ]
+        raw_interactions = evidence.get("interactions")
+        if isinstance(raw_interactions, list):
+            for item in raw_interactions:
+                if not isinstance(item, dict):
+                    continue
+                records.append(
+                    {
+                        "kind": "interaction",
+                        "target": item.get("target"),
+                        "result": item.get("result"),
+                        "durationMs": item.get("durationMs"),
+                        "sequence": item.get("sequence"),
+                    }
+                )
+        raw_blocking = evidence.get("longTasksMs")
+        if isinstance(raw_blocking, list):
+            for duration in raw_blocking:
+                records.append(
+                    {
+                        "kind": "renderer-blocking-interval",
+                        "timingSource": source,
+                        "startTimeMs": len(records) * 16,
+                        "durationMs": duration,
+                        "sequence": len(records) + 1,
+                    }
+                )
+        records.append(
+            {
+                "kind": "session-finalized",
+                "sequence": len(records) + 1,
+                "recordCount": len(records),
+            }
+        )
+        return records
+
+    def _write_renderer_transcript(
+        self, name: str, records: list[dict[str, object]]
+    ) -> Path:
+        """逐行写入隔离 JSONL transcript，供 helper 读取真实字节。"""
+
+        path = self.root / name
+        path.write_text(
+            "".join(
+                json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
+                for record in records
+            ),
+            encoding="utf-8",
+        )
+        return path
 
     def _write_json(self, name: str, value: dict[str, object]) -> Path:
         """把命令行测试输入写入当前隔离目录。"""
@@ -138,11 +228,18 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         evidence: dict[str, object],
         evidence_name: str,
         output_name: str,
+        renderer_records: list[dict[str, object]] | None = None,
     ) -> tuple[int, dict[str, object]]:
         """写入 manifest/evidence 后调用命令行入口，返回退出码与保存的 JSON。"""
 
         manifest_path = self._write_json("probe.manifest.json", self.manifest)
         evidence_path = self._write_json(evidence_name, evidence)
+        transcript_path = self._write_renderer_transcript(
+            f"{evidence_name}.jsonl",
+            renderer_records
+            if renderer_records is not None
+            else self._renderer_records(evidence),
+        )
         output_path = self.root / output_name
         exit_code = performance.main(
             [
@@ -152,6 +249,8 @@ class GuiReleasePerformanceTests(unittest.TestCase):
                 str(manifest_path),
                 "--evidence",
                 str(evidence_path),
+                "--renderer-transcript",
+                str(transcript_path),
                 "--tray-enabled",
                 "enabled",
                 "--output",
@@ -166,7 +265,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         result = self._evaluate()
 
         self.assertEqual(result["status"], "passed")
-        self.assertEqual(result["schemaVersion"], 2)
+        self.assertEqual(result["schemaVersion"], 3)
         self.assertEqual(result["performanceSelection"], "enabled")
         self.assertTrue(result["windowStateRecoveryVerified"])
         self.assertFalse(result["waiverAllowed"])
@@ -176,6 +275,169 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertEqual(metrics["interactionP95Ms"], 100)
         self.assertEqual(metrics["interactionMaximumMs"], 199)
         self.assertEqual(metrics["rssGrowthLimitMiB"], 32)
+
+    def test_animation_frame_gap_renderer_timing_source_is_valid(self) -> None:
+        """原生 Long Task 不可用时允许可见页面的测试专用帧间隔观测。"""
+
+        evidence = deepcopy(self.evidence)
+        evidence["rendererTimingSource"] = "animation-frame-gap"
+
+        result = self._evaluate(evidence=evidence)
+
+        self.assertEqual(result["status"], "passed")
+        self.assertFalse(result["waiverAllowed"])
+
+    def test_valid_renderer_transcript_is_bound_by_basename_and_sha256(self) -> None:
+        """通过证据只公开 transcript basename 与实际字节摘要。"""
+
+        exit_code, saved = self._run_cli(
+            self.evidence, "raw-transcript.json", "probe.transcript.performance.json"
+        )
+
+        transcript_path = self.root / "raw-transcript.json.jsonl"
+        expected_sha = hashlib.sha256(transcript_path.read_bytes()).hexdigest()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(saved["status"], "passed")
+        self.assertEqual(
+            saved["rendererTranscript"],
+            {
+                "file": transcript_path.name,
+                "sha256": expected_sha,
+                "scope": "interaction-session",
+            },
+        )
+        self.assertNotIn(str(self.root), json.dumps(saved, ensure_ascii=False))
+
+    def test_renderer_transcript_scope_is_required_and_non_waivable(self) -> None:
+        """缺失或错误的单会话范围声明都必须作为完整性失败关闭。"""
+
+        for name, value in (("missing", None), ("wrong", "cold-start-series")):
+            with self.subTest(name=name):
+                evidence = deepcopy(self.evidence)
+                if value is None:
+                    evidence.pop("rendererTranscriptScope")
+                else:
+                    evidence["rendererTranscriptScope"] = value
+
+                exit_code, saved = self._run_cli(
+                    evidence,
+                    f"raw-scope-{name}.json",
+                    f"probe.scope-{name}.performance.json",
+                )
+
+                self.assertEqual(exit_code, 3)
+                self.assertEqual(saved["status"], "failed")
+                self.assertFalse(saved["waiverAllowed"])
+                self.assertTrue(
+                    any(
+                        "rendererTranscriptScope" in failure
+                        for failure in saved["nonWaivableFailures"]
+                    )
+                )
+
+    def test_renderer_transcript_structure_tampering_is_non_waivable(self) -> None:
+        """未知字段、缺少结束记录、断序或错误计数都必须失败关闭。"""
+
+        baseline = self._renderer_records(self.evidence)
+        unknown_field = deepcopy(baseline)
+        unknown_field[1]["pageTitle"] = "must-not-be-accepted"
+        missing_final = deepcopy(baseline[:-1])
+        broken_sequence = deepcopy(baseline)
+        broken_sequence[1]["sequence"] = 9
+        wrong_record_count = deepcopy(baseline)
+        wrong_record_count[-1]["recordCount"] = 0
+        duplicate_ready = deepcopy(baseline)
+        duplicate_ready.insert(2, deepcopy(duplicate_ready[1]))
+        for sequence, record in enumerate(duplicate_ready, start=1):
+            record["sequence"] = sequence
+        duplicate_ready[-1]["recordCount"] = len(duplicate_ready) - 1
+        scenarios = {
+            "unknown-field": unknown_field,
+            "missing-final": missing_final,
+            "broken-sequence": broken_sequence,
+            "wrong-record-count": wrong_record_count,
+            "duplicate-ready": duplicate_ready,
+        }
+
+        for name, records in scenarios.items():
+            with self.subTest(name=name):
+                exit_code, saved = self._run_cli(
+                    self.evidence,
+                    f"raw-{name}.json",
+                    f"probe.{name}.performance.json",
+                    records,
+                )
+
+                self.assertEqual(exit_code, 3)
+                self.assertEqual(saved["status"], "failed")
+                self.assertFalse(saved["waiverAllowed"])
+                self.assertTrue(saved["nonWaivableFailures"])
+
+    def test_renderer_transcript_pair_and_raw_observations_must_match(self) -> None:
+        """非法导航配对及交互或阻塞区间不匹配都属于完整性失败。"""
+
+        baseline = self._renderer_records(self.evidence)
+        illegal_pair = deepcopy(baseline)
+        illegal_pair[2]["result"] = "settings-page"
+        blocking_source_mismatch = deepcopy(baseline)
+        blocking_source_mismatch[-2]["timingSource"] = "animation-frame-gap"
+        timing_source_mismatch = deepcopy(baseline)
+        timing_source_mismatch[0]["longTaskSupported"] = False
+        timing_source_mismatch[0]["timingSource"] = "animation-frame-gap"
+        for record in timing_source_mismatch:
+            if record.get("kind") == "renderer-blocking-interval":
+                record["timingSource"] = "animation-frame-gap"
+
+        mismatched_interaction = deepcopy(self.evidence)
+        mismatched_interaction["interactions"][0]["durationMs"] = 99
+        mismatched_blocking = deepcopy(self.evidence)
+        mismatched_blocking["longTasksMs"] = [50]
+        scenarios = {
+            "illegal-pair": (self.evidence, illegal_pair),
+            "blocking-source": (self.evidence, blocking_source_mismatch),
+            "timing-source": (self.evidence, timing_source_mismatch),
+            "interaction-mismatch": (mismatched_interaction, baseline),
+            "blocking-mismatch": (mismatched_blocking, baseline),
+        }
+
+        for name, (evidence, records) in scenarios.items():
+            with self.subTest(name=name):
+                exit_code, saved = self._run_cli(
+                    evidence,
+                    f"raw-{name}.json",
+                    f"probe.{name}.performance.json",
+                    records,
+                )
+
+                self.assertEqual(exit_code, 3)
+                self.assertFalse(saved["waiverAllowed"])
+                self.assertTrue(saved["nonWaivableFailures"])
+
+    def test_symbolic_link_renderer_transcript_is_rejected(self) -> None:
+        """renderer transcript 符号链接不能作为可信应用证据。"""
+
+        target = self._write_renderer_transcript(
+            "renderer-target.jsonl", self._renderer_records(self.evidence)
+        )
+        link = self.root / "renderer-link.jsonl"
+        try:
+            link.symlink_to(target)
+        except OSError as error:
+            self.skipTest(f"symbolic links unavailable: {error}")
+
+        result = performance.evaluate(
+            self.probe,
+            deepcopy(self.manifest),
+            deepcopy(self.evidence),
+            link,
+            True,
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertFalse(result["waiverAllowed"])
+        self.assertTrue(
+            any("regular non-symlink" in item for item in result["failures"])
+        )
 
     def test_disabled_performance_selection_is_rejected(self) -> None:
         """性能选择关闭时不得调用 helper 或生成看似有效的性能证据。"""
@@ -301,6 +563,30 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertIn("at least 5", failures)
         self.assertIn("idleObservationSeconds must be >= 30", failures)
         self.assertIn("observationAvailable", failures)
+        self.assertFalse(result["waiverAllowed"])
+        self.assertTrue(result["nonWaivableFailures"])
+
+    def test_observation_contract_failures_are_non_waivable(self) -> None:
+        """观测不可用、来源无效或采样器缺失都必须使用不可豁免退出码。"""
+
+        scenarios = {
+            "unavailable": ("observationAvailable", False),
+            "invalid-renderer": ("rendererTimingSource", "unsupported"),
+            "missing-sampler": ("processSampler", ""),
+        }
+        for name, (key, value) in scenarios.items():
+            with self.subTest(name=name):
+                evidence = deepcopy(self.evidence)
+                evidence[key] = value
+
+                exit_code, saved = self._run_cli(
+                    evidence, f"raw-{name}.json", f"probe.{name}.performance.json"
+                )
+
+                self.assertEqual(exit_code, 3)
+                self.assertEqual(saved["status"], "failed")
+                self.assertFalse(saved["waiverAllowed"])
+                self.assertTrue(saved["nonWaivableFailures"])
 
     def test_latency_and_long_task_fail_at_exclusive_limits(self) -> None:
         """单次交互或 Long Task 达到 200 ms 时必须失败。"""
@@ -404,6 +690,8 @@ class GuiReleasePerformanceTests(unittest.TestCase):
                 for failure in missing_result["failures"]
             )
         )
+        self.assertFalse(missing_result["waiverAllowed"])
+        self.assertTrue(missing_result["nonWaivableFailures"])
 
         changed_seed = deepcopy(self.evidence)
         changed_seed["windowStateIsolation"]["preLaunchResets"][2]["observed"] = {
@@ -418,6 +706,8 @@ class GuiReleasePerformanceTests(unittest.TestCase):
                 for failure in changed_result["failures"]
             )
         )
+        self.assertFalse(changed_result["waiverAllowed"])
+        self.assertTrue(changed_result["nonWaivableFailures"])
 
         two_warmups = deepcopy(self.evidence)
         two_warmups["warmupRuns"] = 2
@@ -484,6 +774,8 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertNotIn("private-json", serialized)
         self.assertNotIn('"path"', serialized)
         self.assertNotIn('"bytes"', serialized)
+        self.assertFalse(result["waiverAllowed"])
+        self.assertTrue(result["nonWaivableFailures"])
 
     def test_cli_preserves_failed_observations_and_never_implies_waiver(self) -> None:
         """Helper 非零时仍原子保存失败指标，且不会自行制造用户豁免。"""
@@ -502,6 +794,24 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertTrue(saved["waiverAllowed"])
         self.assertEqual(saved["nonWaivableFailures"], [])
         self.assertNotIn("waiver", saved)
+
+    def test_metric_and_integrity_failure_mix_is_non_waivable(self) -> None:
+        """纯阈值超限一旦混入观测完整性失败就必须使用不可豁免退出码。"""
+
+        evidence = deepcopy(self.evidence)
+        evidence["peakRssMiB"] = 501
+        evidence["observationAvailable"] = False
+
+        exit_code, saved = self._run_cli(
+            evidence, "raw-mixed.json", "probe.mixed.performance.json"
+        )
+
+        self.assertEqual(exit_code, 3)
+        self.assertEqual(saved["status"], "failed")
+        self.assertFalse(saved["waiverAllowed"])
+        non_waivable = "\n".join(saved["nonWaivableFailures"])
+        self.assertIn("observationAvailable", non_waivable)
+        self.assertNotIn("peak whole-process-tree RSS", non_waivable)
 
 
 if __name__ == "__main__":

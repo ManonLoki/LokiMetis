@@ -1,72 +1,87 @@
 /**
  * 为显式本机发布验收采集无隐私浏览器性能指标。
  *
- * 正常启动只查询 Rust 的默认关闭状态；未启用时不会安装 PerformanceObserver、事件监听
- * 或帧回调。启用后的载荷仍由 Rust 重新校验并只写入系统临时目录。
+ * 正常启动只读取 Rust 在 WebView 初始化阶段注入的默认关闭标记；只有
+ * 显式启用的测试进程才安装观测器、帧回调和结束握手控件。所有载荷仍由
+ * Rust 重新校验并写入私有临时文件。
  */
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { isPetWindowPath } from "../default-landing";
 
 const MAX_MONOTONIC_TIME_MS = 604_800_000;
 const MAX_WALL_TIME_MS = 10_000_000_000_000;
 const MAX_DURATION_MS = 60_000;
-const MIN_LONG_TASK_DURATION_MS = 50;
-const GENERIC_TARGET = "generic";
-const ALLOWED_TARGETS = new Set([
-  "image-picker-trigger",
-  "image-picker-upload",
-  "navigation-icon-dashboard",
-  "navigation-icon-monitor",
-  "navigation-icon-settings",
-  "navigation-label-dashboard",
-  "navigation-label-monitor",
-  "navigation-label-settings",
-  "settings-capability-autostart",
-  "settings-capability-system_notification",
-]);
+const MIN_BLOCKING_INTERVAL_MS = 50;
+const FINALIZE_BUTTON_TEST_ID = "performance-evidence-finalize";
+const PERFORMANCE_WINDOW_VISIBILITY_EVENT = "loki-metis-performance-window-visibility";
 
-/** 描述浏览器长任务能力的固定证据载荷。 */
+declare global {
+  /** 声明 Rust 只在显式本机性能验收进程中注入的同步标记。 */
+  interface Window {
+    /** Rust 只在显式本机性能验收进程中注入的只读启用标记。 */
+    readonly __LOKI_METIS_PERFORMANCE_EVIDENCE__?: true;
+  }
+}
+
+const PERFORMANCE_TARGET_RESULTS: ReadonlyMap<string, string> = new Map([
+  ["navigation-dashboard", "dashboard-page"],
+  ["navigation-monitor", "monitor-page"],
+  ["navigation-settings", "settings-page"],
+] as const);
+
+/** 声明当前性能测试实际采用的渲染阻塞计时来源。 */
+export type RendererTimingSource = "animation-frame-gap" | "performance-observer";
+
+/** 描述浏览器原生能力与本次实际使用的渲染阻塞观测源。 */
 interface RendererCapabilitiesMetric {
   kind: "renderer-capabilities";
-  sequence: number;
   longTaskSupported: boolean;
+  timingSource: RendererTimingSource;
 }
 
 /** 描述主壳可见并经过双帧稳定后的就绪时间。 */
 interface MainWindowReadyMetric {
   kind: "main-window-ready";
-  sequence: number;
   wallTimeMs: number;
   monotonicTimeMs: number;
 }
 
-/** 描述真实点击到双帧完成的渲染耗时，不携带页面文案或业务值。 */
+/** 描述真实导航、目标页面可见和双帧完成之间的渲染耗时。 */
 interface InteractionMetric {
   kind: "interaction";
-  sequence: number;
   target: string;
+  result: string;
   durationMs: number;
 }
 
-/** 描述浏览器报告的单个长任务。 */
-interface LongTaskMetric {
-  kind: "long-task";
-  sequence: number;
+/** 描述由声明观测源报告的主线程阻塞区间。 */
+interface RendererBlockingIntervalMetric {
+  kind: "renderer-blocking-interval";
+  timingSource: RendererTimingSource;
   startTimeMs: number;
   durationMs: number;
 }
 
-/** 前端唯一允许提交给本机证据命令的四类载荷。 */
+/** 前端唯一允许提交给本机证据命令的四类载荷；序号只由 Rust 分配。 */
 type PerformanceEvidenceMetric =
-  RendererCapabilitiesMetric | MainWindowReadyMetric | InteractionMetric | LongTaskMetric;
+  | RendererCapabilitiesMetric
+  | MainWindowReadyMetric
+  | InteractionMetric
+  | RendererBlockingIntervalMetric;
 
-/** 写入前使用的无序号载荷；序号只能由本模块生成。 */
-type PendingPerformanceEvidenceMetric =
-  | Omit<RendererCapabilitiesMetric, "sequence">
-  | Omit<MainWindowReadyMetric, "sequence">
-  | Omit<InteractionMetric, "sequence">
-  | Omit<LongTaskMetric, "sequence">;
+/** Rust 完成同步落盘后返回的固定摘要。 */
+export interface PerformanceEvidenceFinalization {
+  finalSequence: number;
+  recordCount: number;
+}
+
+/** 保存当前页面唯一性能测试会话的结束与释放操作。 */
+interface ActivePerformanceSession {
+  finish: () => Promise<PerformanceEvidenceFinalization>;
+  stop: () => void;
+}
 
 /** 判断数值有限且处于闭区间，避免无效浏览器数据触发 IPC。 */
 function isFiniteInRange(value: number, minimum: number, maximum: number): boolean {
@@ -80,14 +95,21 @@ export function normalizeEventTimestamp(eventTimestamp: number): number {
     : eventTimestamp;
 }
 
-/** 只返回固定白名单 data-testid；其余元素统一匿名为 generic。 */
-export function resolvePerformanceInteractionTarget(target: EventTarget | null): string {
-  if (!(target instanceof Element)) return GENERIC_TARGET;
+/** 只返回位于真实导航控件上的固定测试标识，其他点击完全忽略。 */
+export function resolvePerformanceInteractionTarget(
+  target: EventTarget | null,
+): string | null {
+  if (!(target instanceof Element)) return null;
   const taggedElement = target.closest<HTMLElement>("[data-testid]");
   const testId = taggedElement?.getAttribute("data-testid");
-  return testId !== null && testId !== undefined && ALLOWED_TARGETS.has(testId)
+  return testId !== null && testId !== undefined && PERFORMANCE_TARGET_RESULTS.has(testId)
     ? testId
-    : GENERIC_TARGET;
+    : null;
+}
+
+/** 返回某个批准导航动作必须产生的固定页面结果。 */
+export function expectedPerformanceInteractionResult(target: string): string | null {
+  return PERFORMANCE_TARGET_RESULTS.get(target) ?? null;
 }
 
 /** 只允许系统交付的主键点击进入真实交互样本，拒绝脚本合成事件和辅助按键。 */
@@ -97,12 +119,18 @@ export function isTrustedPrimaryPerformanceClick(
   return event.isTrusted && event.button === 0;
 }
 
+/** 确认指定测试标识对应的元素当前真实参与布局。 */
+function isVisibleTestElement(testId: string): boolean {
+  const element = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+  if (element === null || element.hidden || element.getClientRects().length === 0)
+    return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
 /** 确认主壳当前参与布局且没有被 CSS 或 hidden 属性隐藏。 */
 function isMainShellVisible(): boolean {
-  const shell = document.querySelector<HTMLElement>('[data-testid="app-shell"]');
-  if (shell === null || shell.hidden || shell.getClientRects().length === 0) return false;
-  const style = window.getComputedStyle(shell);
-  return style.display !== "none" && style.visibility !== "hidden";
+  return isVisibleTestElement("app-shell");
 }
 
 /** 把事件时间戳到当前高精度时间的差值限制为可接受的点击耗时。 */
@@ -112,142 +140,296 @@ function interactionDuration(eventTimestamp: number): number | null {
   return isFiniteInRange(duration, 0, MAX_DURATION_MS) ? duration : null;
 }
 
-let activeCleanup: (() => void) | null = null;
+let activeSession: ActivePerformanceSession | null = null;
+let activeStartPromise: Promise<void> | null = null;
 let activationGeneration = 0;
 
-/** 停止当前页面拥有的 Observer、点击监听与未完成帧回调。 */
+/** 同步读取 Rust 的初始化标记，正常启动不发起任何 IPC。 */
+export function isMainPerformanceEvidenceEnabled(): boolean {
+  return window.__LOKI_METIS_PERFORMANCE_EVIDENCE__ === true;
+}
+
+/** 在完整路由加载前识别共用 index.html 的两个桌宠原生辅助窗。 */
+export function isPetAuxiliaryPerformanceEntry(
+  location: Pick<Location, "pathname" | "search">,
+): boolean {
+  if (isPetWindowPath(location.pathname)) return true;
+  const view = new URLSearchParams(location.search).get("view");
+  return view === "pet" || view === "pet-settings";
+}
+
+/** 停止当前页面拥有的 Observer、点击监听、测试控件与未完成帧回调。 */
 export function stopMainPerformanceEvidence(): void {
   activationGeneration += 1;
-  activeCleanup?.();
-  activeCleanup = null;
+  activeSession?.stop();
+  activeSession = null;
+}
+
+/** 等待前端队列与 Rust 文件句柄完成最终同步；测试必须在退出前调用。 */
+export async function finishMainPerformanceEvidence(): Promise<PerformanceEvidenceFinalization> {
+  if (activeSession === null) throw new Error("performance-evidence-session-inactive");
+  return activeSession.finish();
 }
 
 /**
- * 仅为主视图启动观测会话；Rust 未显式启用时在状态查询后立即返回。
- * 会话在 pagehide 时自行回收，所有写入按 Promise 链保持严格序号顺序。
+ * 仅为主视图启动观测会话。Rust 未显式启用时同步返回；重复调用幂等。
+ * 启用时由 Rust 统一分配序号，并提供显式结束握手避免退出丢失队尾 IPC。
  */
-export async function startMainPerformanceEvidence(): Promise<void> {
-  stopMainPerformanceEvidence();
-  if (isPetWindowPath(window.location.pathname)) return;
+export function startMainPerformanceEvidence(): Promise<void> {
+  if (
+    !isMainPerformanceEvidenceEnabled() ||
+    isPetAuxiliaryPerformanceEntry(window.location) ||
+    activeSession !== null
+  ) {
+    return Promise.resolve();
+  }
+  if (activeStartPromise !== null) return activeStartPromise;
+
   const requestedGeneration = activationGeneration;
+  const startPromise = (async (): Promise<void> => {
+    if (requestedGeneration !== activationGeneration || activeSession !== null) return;
 
-  let enabled = false;
-  try {
-    enabled = (await invoke<unknown>("get_performance_evidence_status")) === true;
-  } catch {
-    return;
-  }
-  if (!enabled || requestedGeneration !== activationGeneration) return;
+    let acceptingMetrics = true;
+    let writeFailed = false;
+    let writeQueue = Promise.resolve();
+    let finishPromise: Promise<PerformanceEvidenceFinalization> | null = null;
+    const frameIds = new Set<number>();
 
-  let stopped = false;
-  let sequence = 0;
-  let writeQueue = Promise.resolve();
-  const frameIds = new Set<number>();
+    /** 串行交给 Rust 强类型边界；Rust 负责唯一递增序号。 */
+    const submit = (payload: PerformanceEvidenceMetric): void => {
+      if (!acceptingMetrics) return;
+      writeQueue = writeQueue
+        .then(async () => {
+          await invoke("record_performance_evidence", { payload });
+        })
+        .catch(() => {
+          writeFailed = true;
+        });
+    };
 
-  /** 给固定载荷分配递增序号，并串行交给 Rust 强类型边界。 */
-  const submit = (pending: PendingPerformanceEvidenceMetric): void => {
-    if (stopped) return;
-    sequence += 1;
-    const payload = { ...pending, sequence } as PerformanceEvidenceMetric;
-    writeQueue = writeQueue
-      .then(async () => {
-        await invoke("record_performance_evidence", { payload });
-      })
-      .catch(() => undefined);
-  };
-
-  /** 注册可被会话关闭统一取消的单帧回调。 */
-  const requestOwnedFrame = (callback: FrameRequestCallback): void => {
-    const id = window.requestAnimationFrame((time) => {
-      frameIds.delete(id);
-      if (!stopped) callback(time);
-    });
-    frameIds.add(id);
-  };
-
-  let longTaskObserver: PerformanceObserver | null = null;
-  const declaresLongTaskSupport =
-    typeof PerformanceObserver !== "undefined" &&
-    PerformanceObserver.supportedEntryTypes?.includes("longtask") === true;
-  if (declaresLongTaskSupport) {
-    try {
-      longTaskObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          if (
-            !isFiniteInRange(entry.startTime, 0, MAX_MONOTONIC_TIME_MS) ||
-            !isFiniteInRange(entry.duration, MIN_LONG_TASK_DURATION_MS, MAX_DURATION_MS)
-          ) {
-            continue;
-          }
-          submit({
-            durationMs: entry.duration,
-            kind: "long-task",
-            startTimeMs: entry.startTime,
-          });
-        }
+    /** 注册可被会话关闭统一取消的单帧回调。 */
+    const requestOwnedFrame = (callback: FrameRequestCallback): void => {
+      if (!acceptingMetrics) return;
+      const id = window.requestAnimationFrame((time) => {
+        frameIds.delete(id);
+        if (acceptingMetrics) callback(time);
       });
-      longTaskObserver.observe({ buffered: true, type: "longtask" });
-    } catch {
-      longTaskObserver?.disconnect();
-      longTaskObserver = null;
-    }
-  }
-  submit({
-    kind: "renderer-capabilities",
-    longTaskSupported: longTaskObserver !== null,
-  });
+      frameIds.add(id);
+    };
 
-  /** 在主壳已经可见后再等完整双帧，随后报告同一时刻的墙钟和单调时间。 */
-  const waitForReady = (): void => {
-    if (!isMainShellVisible()) {
-      requestOwnedFrame(waitForReady);
-      return;
-    }
-    requestOwnedFrame(() => {
-      requestOwnedFrame(() => {
-        if (!isMainShellVisible()) {
-          waitForReady();
-          return;
-        }
-        const wallTimeMs = Date.now();
-        const monotonicTimeMs = performance.now();
+    let longTaskObserver: PerformanceObserver | null = null;
+    const declaresLongTaskSupport =
+      typeof PerformanceObserver !== "undefined" &&
+      PerformanceObserver.supportedEntryTypes?.includes("longtask") === true;
+
+    /** 把浏览器原生 Long Task 条目转换为固定阻塞区间载荷。 */
+    const submitNativeLongTasks = (entries: readonly PerformanceEntry[]): void => {
+      for (const entry of entries) {
         if (
-          isFiniteInRange(wallTimeMs, 0, MAX_WALL_TIME_MS) &&
-          isFiniteInRange(monotonicTimeMs, 0, MAX_MONOTONIC_TIME_MS)
+          !isFiniteInRange(entry.startTime, 0, MAX_MONOTONIC_TIME_MS) ||
+          !isFiniteInRange(entry.duration, MIN_BLOCKING_INTERVAL_MS, MAX_DURATION_MS)
         ) {
-          submit({ kind: "main-window-ready", monotonicTimeMs, wallTimeMs });
+          continue;
         }
-      });
-    });
-  };
-  waitForReady();
+        submit({
+          durationMs: entry.duration,
+          kind: "renderer-blocking-interval",
+          startTimeMs: entry.startTime,
+          timingSource: "performance-observer",
+        });
+      }
+    };
 
-  /** 真实 click 发生后等待双帧，再记录从事件时间戳起算的完整交互耗时。 */
-  const handleClick = (event: MouseEvent): void => {
-    if (!isTrustedPrimaryPerformanceClick(event)) return;
-    const eventTimestamp = event.timeStamp;
-    const target = resolvePerformanceInteractionTarget(event.target);
-    requestOwnedFrame(() => {
+    if (declaresLongTaskSupport) {
+      try {
+        longTaskObserver = new PerformanceObserver((list) => {
+          submitNativeLongTasks(list.getEntries());
+        });
+        longTaskObserver.observe({ buffered: true, type: "longtask" });
+      } catch {
+        longTaskObserver?.disconnect();
+        longTaskObserver = null;
+      }
+    }
+
+    const timingSource: RendererTimingSource =
+      longTaskObserver === null ? "animation-frame-gap" : "performance-observer";
+    submit({
+      kind: "renderer-capabilities",
+      longTaskSupported: longTaskObserver !== null,
+      timingSource,
+    });
+
+    /** WebKit 缺少 Long Task API 时，以仅测试、仅前台的 rAF 间隔作保守回退。 */
+    let previousVisibleFrameTime: number | null = null;
+    let nativeWindowVisible = true;
+    let removeNativeVisibilityListener: (() => void) | null = null;
+    const rendererIsVisible = (): boolean =>
+      nativeWindowVisible && document.visibilityState === "visible";
+
+    /** 提交一段已确认在前台连续发生的帧间隔。 */
+    const submitFrameGap = (startTimeMs: number, endTimeMs: number): void => {
+      const durationMs = endTimeMs - startTimeMs;
+      if (isFiniteInRange(durationMs, MIN_BLOCKING_INTERVAL_MS, MAX_DURATION_MS)) {
+        submit({
+          durationMs,
+          kind: "renderer-blocking-interval",
+          startTimeMs,
+          timingSource: "animation-frame-gap",
+        });
+      }
+    };
+    const observeFrameGap = (frameTime: number): void => {
+      if (!rendererIsVisible()) {
+        previousVisibleFrameTime = null;
+      } else if (previousVisibleFrameTime !== null) {
+        submitFrameGap(previousVisibleFrameTime, frameTime);
+        previousVisibleFrameTime = frameTime;
+      } else {
+        previousVisibleFrameTime = frameTime;
+      }
+      requestOwnedFrame(observeFrameGap);
+    };
+    const resetFrameGapBaseline = (): void => {
+      previousVisibleFrameTime = null;
+    };
+    const nativeVisibilityRegistration = getCurrentWindow()
+      .listen<boolean>(PERFORMANCE_WINDOW_VISIBILITY_EVENT, ({ payload }) => {
+        nativeWindowVisible = payload;
+        resetFrameGapBaseline();
+      })
+      .then((unlisten) => {
+        if (acceptingMetrics) removeNativeVisibilityListener = unlisten;
+        else unlisten();
+      })
+      .catch(() => {
+        writeFailed = true;
+      });
+    if (timingSource === "animation-frame-gap") {
+      previousVisibleFrameTime = performance.now();
+      document.addEventListener("visibilitychange", resetFrameGapBaseline);
+      requestOwnedFrame(observeFrameGap);
+    }
+
+    /** 在主壳已经可见后再等完整双帧，随后报告同一时刻的墙钟和单调时间。 */
+    const waitForReady = (): void => {
+      if (!isMainShellVisible()) {
+        requestOwnedFrame(waitForReady);
+        return;
+      }
       requestOwnedFrame(() => {
-        const durationMs = interactionDuration(eventTimestamp);
-        if (durationMs !== null) {
-          submit({ durationMs, kind: "interaction", target });
-        }
+        requestOwnedFrame(() => {
+          if (!isMainShellVisible()) {
+            waitForReady();
+            return;
+          }
+          const wallTimeMs = Date.now();
+          const monotonicTimeMs = performance.now();
+          if (
+            isFiniteInRange(wallTimeMs, 0, MAX_WALL_TIME_MS) &&
+            isFiniteInRange(monotonicTimeMs, 0, MAX_MONOTONIC_TIME_MS)
+          ) {
+            submit({ kind: "main-window-ready", monotonicTimeMs, wallTimeMs });
+          }
+        });
       });
-    });
-  };
-  document.addEventListener("click", handleClick, true);
+    };
+    waitForReady();
 
-  /** 回收当前页面持有的全部浏览器观测资源。 */
-  const cleanup = (): void => {
-    if (stopped) return;
-    stopped = true;
-    document.removeEventListener("click", handleClick, true);
-    longTaskObserver?.disconnect();
-    for (const frameId of frameIds) window.cancelAnimationFrame(frameId);
-    frameIds.clear();
-    window.removeEventListener("pagehide", cleanup);
-  };
-  activeCleanup = cleanup;
-  window.addEventListener("pagehide", cleanup, { once: true });
+    /** 只在导航前后路径变化且固定目标页真实可见时记录一次交互。 */
+    const handleClick = (event: MouseEvent): void => {
+      if (!isTrustedPrimaryPerformanceClick(event)) return;
+      const target = resolvePerformanceInteractionTarget(event.target);
+      if (target === null) return;
+      const result = expectedPerformanceInteractionResult(target);
+      if (result === null || isVisibleTestElement(result)) return;
+      const pathBefore = window.location.pathname;
+      const eventTimestamp = event.timeStamp;
+      requestOwnedFrame(() => {
+        requestOwnedFrame(() => {
+          if (window.location.pathname === pathBefore || !isVisibleTestElement(result))
+            return;
+          const durationMs = interactionDuration(eventTimestamp);
+          if (durationMs !== null) {
+            submit({ durationMs, kind: "interaction", result, target });
+          }
+        });
+      });
+    };
+    document.addEventListener("click", handleClick, true);
+
+    const finalizeButton = document.createElement("button");
+    finalizeButton.type = "button";
+    finalizeButton.dataset.testid = FINALIZE_BUTTON_TEST_ID;
+    finalizeButton.textContent = "Finalize performance evidence";
+    finalizeButton.style.cssText =
+      "position:fixed;right:8px;bottom:8px;z-index:2147483647;padding:6px 10px";
+    document.body.append(finalizeButton);
+
+    /** 释放会话拥有的浏览器资源；是否移除结果控件由调用方决定。 */
+    const releaseResources = (removeFinalizeButton: boolean): void => {
+      document.removeEventListener("click", handleClick, true);
+      document.removeEventListener("visibilitychange", resetFrameGapBaseline);
+      removeNativeVisibilityListener?.();
+      removeNativeVisibilityListener = null;
+      longTaskObserver?.disconnect();
+      for (const frameId of frameIds) window.cancelAnimationFrame(frameId);
+      frameIds.clear();
+      window.removeEventListener("pagehide", stopSession);
+      if (removeFinalizeButton) finalizeButton.remove();
+    };
+
+    /** 异常卸载只负责同步释放；未出现 finalized 记录的证据必须失败关闭。 */
+    const stopSession = (): void => {
+      acceptingMetrics = false;
+      releaseResources(true);
+      if (activeSession?.stop === stopSession) activeSession = null;
+    };
+
+    /** 排空 Observer 与 IPC 队列，再让 Rust 同步文件并写入最终确认记录。 */
+    const finishSession = (): Promise<PerformanceEvidenceFinalization> => {
+      if (finishPromise !== null) return finishPromise;
+      finishPromise = (async () => {
+        if (longTaskObserver !== null)
+          submitNativeLongTasks(longTaskObserver.takeRecords());
+        if (
+          timingSource === "animation-frame-gap" &&
+          rendererIsVisible() &&
+          previousVisibleFrameTime !== null
+        ) {
+          submitFrameGap(previousVisibleFrameTime, performance.now());
+        }
+        acceptingMetrics = false;
+        releaseResources(false);
+        await nativeVisibilityRegistration;
+        await writeQueue;
+        if (writeFailed) throw new Error("performance-evidence-write-failed");
+        const finalization = await invoke<PerformanceEvidenceFinalization>(
+          "finish_performance_evidence",
+        );
+        finalizeButton.disabled = true;
+        finalizeButton.dataset.state = "finalized";
+        finalizeButton.textContent = "Performance evidence finalized";
+        return finalization;
+      })().catch((error: unknown) => {
+        finalizeButton.dataset.state = "failed";
+        finalizeButton.textContent = "Performance evidence failed";
+        throw error;
+      });
+      return finishPromise;
+    };
+
+    finalizeButton.addEventListener("click", () => {
+      void finishSession().catch(() => undefined);
+    });
+    activeSession = { finish: finishSession, stop: stopSession };
+    window.addEventListener("pagehide", stopSession, { once: true });
+    await nativeVisibilityRegistration;
+  })();
+
+  const trackedPromise = startPromise.finally(() => {
+    if (activeStartPromise === trackedPromise) activeStartPromise = null;
+  });
+  activeStartPromise = trackedPromise;
+  return trackedPromise;
 }
