@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "releases": [
+    {
+      "releaseDate": "2026-09-07",
+      "version": "v0.2.9",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本地看板及用量洞察。",
+          "en-US": "Added local dashboards and usage insights for Codex, Claude Code, Grok, and WorkBuddy."
+        },
+        {
+          "zh-CN": "新增基于 Hooks 的 AI 监控、状态工作台与本地图片管理。",
+          "en-US": "Added Hook-based AI monitoring, status workbench, and local image management."
+        },
+        {
+          "zh-CN": "新增 12 个纯位置编号的桌宠浮窗，以及拖拽、布局、分页和托盘控制。",
+          "en-US": "Added a 12-position desktop pet overlay with dragging, layouts, paging, and tray controls."
+        },
+        {
+          "zh-CN": "统一看板与监控的 AI 能力目录，仅展示各界面实际支持的类型。",
+          "en-US": "Unified dashboard and monitor AI capabilities so each surface exposes only supported types."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "对齐 AIMonitorDesktop 的 Hook 拦截与会话生命周期，修复部分 AI 消息无法监听的问题。",
+          "en-US": "Aligned Hook interception and session lifecycle with AIMonitorDesktop to capture previously missed AI events."
+        },
+        {
+          "zh-CN": "修复桌宠冷启动占位、位置绑定、托盘显隐和隐藏协议残留问题。",
+          "en-US": "Fixed desktop pet cold-start placeholders, position binding, tray visibility, and hidden-protocol remnants."
+        },
+        {
+          "zh-CN": "修复应用包版本和 DMG 安装布局与根版本及 GUI Profile 不一致的问题。",
+          "en-US": "Fixed app bundle version and DMG installation layout drift from the root version and GUI profile."
+        }
+      ]
+    }
+  ]
+}
