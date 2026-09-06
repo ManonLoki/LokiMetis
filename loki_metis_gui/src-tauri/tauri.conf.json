@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "LokiMetis",
-  "version": "0.1.0",
   "identifier": "com.manonloki.lokimetis",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -75,11 +74,11 @@
         },
         "appPosition": {
           "x": 180,
-          "y": 170
+          "y": 220
         },
         "applicationFolderPosition": {
           "x": 480,
-          "y": 170
+          "y": 220
         }
       }
     }

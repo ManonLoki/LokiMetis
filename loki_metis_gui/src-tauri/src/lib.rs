@@ -294,6 +294,22 @@ mod tests {
         assert!(!super::APPLICATION_NAME.contains(env!("CARGO_PKG_VERSION")));
     }
 
+    /// Tauri 不复制产品版本，并保持发布 DMG 的图标位置与 GUI Profile 一致。
+    #[test]
+    fn tauri_config_uses_cargo_version_and_release_dmg_layout() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
+
+        assert!(config.get("version").is_none());
+        let dmg = &config["bundle"]["macOS"]["dmg"];
+        assert_eq!(dmg["windowSize"]["width"], 660);
+        assert_eq!(dmg["windowSize"]["height"], 400);
+        assert_eq!(dmg["appPosition"]["x"], 180);
+        assert_eq!(dmg["appPosition"]["y"], 220);
+        assert_eq!(dmg["applicationFolderPosition"]["x"], 480);
+        assert_eq!(dmg["applicationFolderPosition"]["y"], 220);
+    }
+
     /// 冷启动先启用 listener，再通过正常显示路径恢复桌宠位置，最后安装状态一致的托盘。
     #[test]
     fn cold_start_shows_pet_overlay_after_listener_and_before_tray_installation() {
