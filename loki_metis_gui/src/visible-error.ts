@@ -23,6 +23,7 @@ const VISIBLE_RUST_ERROR_CODES = new Set([
   "error.hooks.locationNotFound",
   "error.hooks.mergeFailed",
   "error.hooks.renderFailed",
+  "error.hooks.toolUnavailable",
   "error.hooks.writeFailed",
   "error.hooks.wslUnsupportedByWindowsHost",
   "error.hooks.wslWindowsHostOnly",

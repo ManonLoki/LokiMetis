@@ -40,12 +40,15 @@ impl EnabledAgents {
         Ok(enabled)
     }
 
-    /// 旧设置缺少该字段时视为全部关闭，不得回填为全开。
+    /// 旧设置缺少该字段时视为全部关闭；逐项忽略当前看板无法识别的历史标识。
     pub fn from_stored_labels(labels: Option<&[String]>) -> Result<Self, EnabledAgentsError> {
-        match labels {
-            None => Ok(Self::empty()),
-            Some(items) => Self::try_from_labels(items),
+        let mut enabled = Self::empty();
+        for label in labels.into_iter().flatten() {
+            if let Some(client) = parse_single_agent_label(label) {
+                enabled = enabled.with(client, true);
+            }
         }
+        Ok(enabled)
     }
 
     /// 打开或关闭一个已批准 Agent，不改变其余项。
@@ -84,13 +87,9 @@ impl EnabledAgents {
 
     /// 按固定顺序返回已开放 Agent，供页头、周期扫描和 Collect 共用。
     pub fn iter(self) -> impl Iterator<Item = SourceClientKind> {
-        [
-            SourceClientKind::Codex,
-            SourceClientKind::ClaudeCode,
-            SourceClientKind::GrokBuildCli,
-        ]
-        .into_iter()
-        .filter(move |client| self.contains(*client))
+        crate::public_dashboard_clients()
+            .filter(|client| *client != SourceClientKind::WorkBuddy)
+            .filter(move |client| self.contains(*client))
     }
 
     /// 返回已开放 Agent 的稳定线标，供设置文件与 IPC 使用。
@@ -168,8 +167,12 @@ mod tests {
             Ok(EnabledAgents::empty().with(SourceClientKind::ClaudeCode, true))
         );
         assert_eq!(
-            EnabledAgents::from_stored_labels(Some(&["cursor".to_owned()])),
-            Err(EnabledAgentsError::UnknownAgent)
+            EnabledAgents::from_stored_labels(Some(&[
+                "cursor".to_owned(),
+                "futureAgent".to_owned(),
+                "codex".to_owned(),
+            ])),
+            Ok(EnabledAgents::empty().with(SourceClientKind::Codex, true))
         );
     }
 

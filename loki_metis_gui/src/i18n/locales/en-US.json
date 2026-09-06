@@ -251,6 +251,7 @@
       "locationNotFound": "The Hooks configuration location could not be found.",
       "mergeFailed": "The Hooks configuration could not be merged with the existing file.",
       "renderFailed": "The Hooks configuration could not be generated.",
+      "toolUnavailable": "This AI tool is not currently available.",
       "writeFailed": "The Hooks configuration could not be written. Check the selected path and its permissions.",
       "wslUnsupportedByWindowsHost": "This tool's WSL-native plugin is not supported from the Windows host. Choose a Windows client configuration directory.",
       "wslWindowsHostOnly": "WSL configuration paths can only be accessed from the Windows host."

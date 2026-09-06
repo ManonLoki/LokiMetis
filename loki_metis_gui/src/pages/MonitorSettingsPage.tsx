@@ -18,6 +18,10 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  selectAvailableMonitorAiTools,
+  selectEnabledAvailableMonitorTools,
+} from "../ai-capabilities";
+import {
   chooseMonitorHookDirectory,
   getMonitorCapabilities,
   getMonitorSettings,
@@ -137,8 +141,11 @@ export function MonitorSettingsPage() {
       write.reset();
     },
   });
-  const enabled = settings.data?.enabledAiTools ?? [];
-  const tools = capabilities.data?.aiTools ?? [];
+  const tools = selectAvailableMonitorAiTools(capabilities.data?.aiTools ?? []);
+  const enabled = selectEnabledAvailableMonitorTools(
+    settings.data?.enabledAiTools ?? [],
+    tools,
+  );
   const visibleTools = tools.filter((item) => enabled.includes(item.tool));
   const [selectedTool, setSelectedTool] = useState<MonitorAiTool | null>(null);
   const activeTool = visibleTools.some((item) => item.tool === selectedTool)
@@ -175,10 +182,14 @@ export function MonitorSettingsPage() {
                 key={item.tool}
                 label={item.name}
                 onChange={(event) => {
-                  const next = event.currentTarget.checked
-                    ? [...enabled, item.tool]
-                    : enabled.filter((tool) => tool !== item.tool);
-                  save.mutate(next);
+                  const selected = new Set(enabled);
+                  if (event.currentTarget.checked) selected.add(item.tool);
+                  else selected.delete(item.tool);
+                  save.mutate(
+                    tools
+                      .map((tool) => tool.tool)
+                      .filter((tool) => selected.has(tool)),
+                  );
                 }}
               />
             ))}

@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use loki_metis_core::{
     AiProfileDraft, AiProfileDraftSet, AiTool, HookConfigLocation, HookConfigWriteResult,
-    HookError, MonitorImageGallery,
+    HookError, MonitorImageGallery, is_public_monitor_tool, public_monitor_ai_tools,
 };
 use tauri::{AppHandle, Manager, State};
 
@@ -43,22 +43,35 @@ fn ensure_image_is_unused(profiles: &AiProfileDraftSet, image_id: &str) -> Resul
     Ok(())
 }
 
-/// 显式保存启用集合；仅在 JSON 本身损坏时以默认设置为基线修复。
-fn save_enabled_tools_with_invalid_json_recovery(
-    config_dir: &Path,
-    tools: Vec<AiTool>,
-) -> Result<MonitorSettings, HookError> {
-    match update_monitor_settings(config_dir, |settings| {
-        settings.enabled_ai_tools = tools.clone();
-    }) {
-        Ok(settings) => Ok(settings),
-        Err(error) if error.code == "error.monitor.settingsInvalid" => {
-            let mut settings = MonitorSettings::default();
-            settings.enabled_ai_tools = tools;
-            super::settings::save_monitor_settings(config_dir, &settings)
-        }
-        Err(error) => Err(error),
+/// 拒绝通过公开 IPC 操作暂未发布的 Hook 协议，同时不删除其内部配置数据。
+fn ensure_public_monitor_tool(tool: AiTool) -> Result<(), HookError> {
+    if is_public_monitor_tool(tool) {
+        Ok(())
+    } else {
+        Err(HookError::new("error.hooks.toolUnavailable"))
     }
+}
+
+/// 按统一目录重建 IPC 快照，不改写磁盘中的隐藏协议草稿，便于以后恢复。
+fn public_profile_drafts(profiles: AiProfileDraftSet) -> AiProfileDraftSet {
+    AiProfileDraftSet {
+        drafts: public_monitor_ai_tools()
+            .filter_map(|tool| {
+                profiles
+                    .drafts
+                    .iter()
+                    .find(|profile| profile.tool == tool)
+                    .cloned()
+            })
+            .collect(),
+    }
+}
+
+/// 基于完整合法快照保存启用集合；损坏文件不得被默认值静默覆盖。
+fn save_enabled_tools(config_dir: &Path, tools: Vec<AiTool>) -> Result<MonitorSettings, HookError> {
+    update_monitor_settings(config_dir, |settings| {
+        settings.enabled_ai_tools = tools.clone();
+    })
 }
 
 /// 由 Tauri 路径解析器取得跨平台用户主目录，禁止 adapter 自行猜测环境变量。
@@ -68,7 +81,7 @@ fn home_dir(app: &AppHandle) -> Result<PathBuf, HookError> {
     })
 }
 
-/// 返回全部 Agent 的静态监控能力。
+/// 返回统一目录中当前公开的静态监控能力。
 #[tauri::command]
 pub fn get_monitor_capabilities() -> MonitorCapabilities {
     monitor_capabilities()
@@ -89,7 +102,7 @@ pub fn save_monitor_enabled_tools(
     hook_listener: State<'_, HookListenerControl>,
 ) -> Result<MonitorSettings, HookError> {
     let config_dir = config_dir(&app)?;
-    let settings = save_enabled_tools_with_invalid_json_recovery(&config_dir, tools)?;
+    let settings = save_enabled_tools(&config_dir, tools)?;
     hook_writer.request_enabled(settings.clone());
     if hook_listener.replace_enabled_tools(&settings.enabled_ai_tools) {
         emit_pet_window_state_changed(&app);
@@ -105,6 +118,7 @@ pub fn save_hook_config_directory(
     directory: String,
     hook_writer: State<'_, HookConfigWriter>,
 ) -> Result<HookConfigLocation, HookError> {
+    ensure_public_monitor_tool(tool)?;
     let directory = validate_hook_config_directory(&directory)?;
     let home_directory = home_dir(&app)?;
     let settings = update_monitor_settings(&config_dir(&app)?, |settings| {
@@ -118,7 +132,7 @@ pub fn save_hook_config_directory(
     Ok(location)
 }
 
-/// 列出全部 Agent 的 Hook 配置定位。
+/// 列出统一目录中当前公开 Agent 的 Hook 配置定位。
 #[tauri::command]
 pub fn list_monitor_hook_locations(app: AppHandle) -> Result<Vec<HookConfigLocation>, HookError> {
     let settings = load_monitor_settings(&config_dir(&app)?)?;
@@ -131,6 +145,7 @@ pub fn write_monitor_hook_config(
     app: AppHandle,
     tool: AiTool,
 ) -> Result<HookConfigWriteResult, HookError> {
+    ensure_public_monitor_tool(tool)?;
     let settings = load_monitor_settings(&config_dir(&app)?)?;
     let executable = std::env::current_exe().map_err(|error| {
         HookError::new("error.hooks.writeFailed").param("detail", error.to_string())
@@ -183,7 +198,7 @@ pub fn delete_monitor_image_cmd(
 /// 读取本机展示草稿。
 #[tauri::command]
 pub fn list_monitor_profile_drafts(app: AppHandle) -> Result<AiProfileDraftSet, HookError> {
-    load_profile_drafts(&config_dir(&app)?)
+    load_profile_drafts(&config_dir(&app)?).map(public_profile_drafts)
 }
 
 /// 保存一个 Agent 的展示草稿。
@@ -192,6 +207,7 @@ pub fn save_monitor_profile_draft(
     app: AppHandle,
     profile: AiProfileDraft,
 ) -> Result<AiProfileDraft, HookError> {
+    ensure_public_monitor_tool(profile.tool)?;
     let draft = save_profile_draft(&config_dir(&app)?, &data_dir(&app)?, profile)?;
     emit_pet_window_state_changed(&app);
     Ok(draft)
@@ -224,7 +240,10 @@ mod tests {
     use loki_metis_core::{AiProfileDraft, AiProfileDraftSet, AiTool};
     use tempfile::tempdir;
 
-    use super::{ensure_image_is_unused, save_enabled_tools_with_invalid_json_recovery};
+    use super::{
+        ensure_image_is_unused, ensure_public_monitor_tool, public_profile_drafts,
+        save_enabled_tools,
+    };
 
     /// 被任一行为引用的图片必须保留，未引用图片仍可删除。
     #[test]
@@ -240,21 +259,73 @@ mod tests {
         ensure_image_is_unused(&profiles, "other-image").expect("unused image");
     }
 
-    /// 用户操作可以修复损坏 JSON，并只启用用户这次明确选择的集合。
+    /// 损坏 JSON 不能被一次启用操作用默认设置覆盖，避免丢失其它持久偏好。
     #[test]
-    fn enabled_tools_save_repairs_invalid_settings_json() {
+    fn enabled_tools_save_rejects_invalid_settings_json() {
         let root = tempdir().expect("temp");
         std::fs::write(super::super::settings::settings_path(root.path()), b"{")
             .expect("invalid settings");
 
-        let saved = save_enabled_tools_with_invalid_json_recovery(root.path(), vec![AiTool::Grok])
-            .expect("repair");
-        assert_eq!(saved.enabled_ai_tools, vec![AiTool::Grok]);
+        let error = save_enabled_tools(root.path(), vec![AiTool::Grok])
+            .expect_err("invalid settings remain visible");
+        assert_eq!(error.code, "error.monitor.settingsInvalid");
         assert_eq!(
-            super::super::settings::load_monitor_settings(root.path())
-                .expect("reload")
-                .enabled_ai_tools,
-            vec![AiTool::Grok]
+            std::fs::read(super::super::settings::settings_path(root.path()))
+                .expect("invalid file remains untouched"),
+            b"{"
+        );
+    }
+
+    /// 公开命令只接受统一目录五项，隐藏协议不能绕过界面直接修改。
+    #[test]
+    fn public_monitor_commands_reject_hidden_protocols() {
+        for tool in [
+            AiTool::Codex,
+            AiTool::ClaudeCode,
+            AiTool::Cursor,
+            AiTool::Grok,
+            AiTool::WorkBuddy,
+        ] {
+            ensure_public_monitor_tool(tool).expect("public tool");
+        }
+        assert_eq!(
+            ensure_public_monitor_tool(AiTool::OpenCode)
+                .expect_err("hidden tool")
+                .code,
+            "error.hooks.toolUnavailable"
+        );
+    }
+
+    /// 草稿 IPC 仅返回五项公开工具，内部隐藏草稿仍由原始集合持有。
+    #[test]
+    fn profile_ipc_filters_hidden_tools_without_mutating_the_source_set() {
+        let original = AiProfileDraftSet {
+            drafts: vec![
+                AiProfileDraft::default_for(AiTool::OpenCode),
+                AiProfileDraft::default_for(AiTool::WorkBuddy),
+                AiProfileDraft::default_for(AiTool::Cursor),
+                AiProfileDraft::default_for(AiTool::Grok),
+                AiProfileDraft::default_for(AiTool::Codex),
+                AiProfileDraft::default_for(AiTool::ClaudeCode),
+            ],
+        };
+
+        let public = public_profile_drafts(original.clone());
+
+        assert_eq!(original.drafts.len(), 6);
+        assert_eq!(
+            public
+                .drafts
+                .iter()
+                .map(|profile| profile.tool)
+                .collect::<Vec<_>>(),
+            vec![
+                AiTool::Codex,
+                AiTool::ClaudeCode,
+                AiTool::Cursor,
+                AiTool::Grok,
+                AiTool::WorkBuddy,
+            ]
         );
     }
 }

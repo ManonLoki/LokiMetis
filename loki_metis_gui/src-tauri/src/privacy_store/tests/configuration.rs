@@ -58,18 +58,6 @@ fn missing_enabled_agents_field_stays_empty_and_valid_set_round_trips() {
     assert!(payload.contains("\"codex\""));
 }
 
-/// 磁盘里的未知 Agent 标识拒绝加载，不得伪装成已开放。
-#[test]
-fn rejects_unknown_enabled_agent_labels() {
-    let temp = tempdir().expect("isolated app-data is available");
-    fs::write(
-        temp.path().join(SETTINGS_FILE_NAME),
-        br#"{"localOnly":true,"enabledAgents":["cursor"]}"#,
-    )
-    .expect("invalid fixture is written");
-    assert_eq!(load_settings(temp.path()), Err(PrivacyStoreError));
-}
-
 /// 旧版的页面工作状态无论形状是否合法都只被忽略，规范写回后全部移除。
 #[test]
 fn legacy_page_state_is_ignored_and_removed_on_canonical_rewrite() {

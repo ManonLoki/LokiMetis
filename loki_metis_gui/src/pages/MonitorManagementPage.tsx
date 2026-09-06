@@ -17,6 +17,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  selectAvailableMonitorAiTools,
+  selectEnabledAvailableMonitorTools,
+} from "../ai-capabilities";
+import {
   getMonitorCapabilities,
   getMonitorSettings,
   imageUploadAcceptValue,
@@ -67,9 +71,16 @@ export function MonitorManagementPage() {
     queryKey: ["monitor-profile-drafts"],
   });
   const images = useQuery({ queryFn: listMonitorImages, queryKey: ["monitor-images"] });
-  const enabledTools = settings.data?.enabledAiTools ?? [];
-  const visibleTools = (capabilities.data?.aiTools ?? []).filter((item) =>
-    enabledTools.includes(item.tool),
+  const availableTools = selectAvailableMonitorAiTools(capabilities.data?.aiTools ?? []);
+  const enabledTools = selectEnabledAvailableMonitorTools(
+    settings.data?.enabledAiTools ?? [],
+    availableTools,
+  );
+  const availableDraftTools = new Set(
+    (profiles.data?.drafts ?? []).map((profile) => profile.tool),
+  );
+  const visibleTools = availableTools.filter(
+    (item) => enabledTools.includes(item.tool) && availableDraftTools.has(item.tool),
   );
   const [selectedTool, setSelectedTool] = useState<MonitorAiTool | null>(null);
   const [drafts, setDrafts] = useState<Partial<Record<MonitorAiTool, MonitorProfileDraft>>>(

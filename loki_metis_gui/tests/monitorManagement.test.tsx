@@ -10,11 +10,11 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 
-/** 当前用例所需四项 Agent 的空白草稿。 */
+/** 统一公开目录五项 Agent 的空白草稿。 */
 function emptyDrafts() {
   const behaviors = ["idle", "running", "asking", "error"] as const;
   return {
-    drafts: (["codex", "claudeCode", "grok", "workBuddy"] as const).map((tool) => ({
+    drafts: (["codex", "claudeCode", "cursor", "grok", "workBuddy"] as const).map((tool) => ({
       tool,
       slot: 1,
       hooks: behaviors.map((behavior) => ({ behavior, content: "", image: "" })),
@@ -70,6 +70,43 @@ describe("monitor management page", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("list_remote_images");
   });
 
+  /** 管理页只展示能力、启用状态与草稿都能匹配的项，其余历史值直接忽略。 */
+  test("intersects_capabilities_enabled_tools_and_profile_drafts", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture({
+          aiTools: [
+            { tool: "codex", name: "Codex" },
+            { tool: "cursor", name: "Cursor" },
+          ],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return {
+          enabledAiTools: ["codex", "cursor", "openCode"],
+          hookDirectories: {},
+        };
+      }
+      if (command === "list_monitor_profile_drafts") {
+        return { drafts: emptyDrafts().drafts.filter((draft) => draft.tool === "codex") };
+      }
+      if (command === "list_monitor_images_cmd") {
+        return { images: [], counts: { jpeg: 0, png: 0, gif: 0 } };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    render(
+      <TestProviders>
+        <MonitorManagementPage />
+      </TestProviders>,
+    );
+
+    expect(await screen.findByRole("tab", { name: "Codex" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "Cursor" })).not.toBeInTheDocument();
+    expect(screen.queryByText("OpenCode")).not.toBeInTheDocument();
+  });
+
   /** 已启用 Agent 时出现 Tab、行为卡片、图片选择与保存草稿。 */
   test("renders_agent_tabs_behavior_cards_and_saves_local_draft", async () => {
     invokeMock.mockImplementation(async (command, payload) => {
@@ -94,7 +131,7 @@ describe("monitor management page", () => {
       </TestProviders>,
     );
     expect(await screen.findByRole("tab", { name: "Codex" })).toBeVisible();
-    expect(screen.getByRole("tab", { name: "Grok Build" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Grok" })).toBeVisible();
     expect(screen.queryByRole("tab", { name: "Claude Code" })).not.toBeInTheDocument();
     expect(screen.getByText("Idle")).toBeVisible();
     expect(screen.getByText("Running")).toBeVisible();

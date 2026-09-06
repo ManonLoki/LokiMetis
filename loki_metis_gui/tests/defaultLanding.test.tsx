@@ -12,7 +12,7 @@ import {
   resolveDefaultLandingPath,
 } from "../src/default-landing";
 import { routeTree } from "../src/routeTree.gen";
-import { TestProviders } from "./testUtils";
+import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -33,6 +33,7 @@ function privacySettings() {
     indexLocationCode: "codex",
     indexSizeBytes: null,
     lastClearedAtEpochMs: null,
+    availableAiTypes: availableDashboardAiTypesFixture,
     enabledAgents: ["codex", "claudeCode", "grokBuildCli"],
     workbuddyStatsEnabled: false,
   };

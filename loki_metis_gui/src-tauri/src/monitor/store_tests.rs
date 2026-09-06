@@ -102,6 +102,18 @@ fn automatic_repair_only_touches_enabled_tools_and_never_deletes_disabled_config
 }
 
 #[test]
+/// 自动补写边界不能信任内存设置直传值，隐藏协议即使被塞入集合也不得创建配置。
+fn automatic_repair_ignores_direct_hidden_tool_input() {
+    let root = tempdir().expect("temp");
+    let open_code_dir = root.path().join("opencode");
+    let settings = settings_for(AiTool::OpenCode, &open_code_dir);
+
+    repair_enabled_hook_configs(&settings, Path::new("/opt/LokiMetis"), root.path());
+
+    assert!(!open_code_dir.exists());
+}
+
+#[test]
 /// 显式空选择不会产生写入，也不会清理此前配置。
 fn empty_enabled_set_performs_no_write_or_delete() {
     let root = tempdir().expect("temp");
@@ -342,7 +354,26 @@ fn owned_worker_replaces_the_previous_directory_snapshot() {
 fn default_locations_use_the_injected_tauri_home_directory() {
     let root = tempdir().expect("temp");
     let settings = MonitorSettings::default();
-    let cursor = list_hook_config_locations(&settings, root.path())
+    let locations = list_hook_config_locations(&settings, root.path());
+    assert_eq!(
+        locations
+            .iter()
+            .map(|location| location.tool)
+            .collect::<Vec<_>>(),
+        vec![
+            AiTool::Codex,
+            AiTool::ClaudeCode,
+            AiTool::Cursor,
+            AiTool::Grok,
+            AiTool::WorkBuddy,
+        ]
+    );
+    assert!(
+        locations
+            .iter()
+            .all(|location| location.tool != AiTool::OpenCode)
+    );
+    let cursor = locations
         .into_iter()
         .find(|location| location.tool == AiTool::Cursor)
         .expect("cursor location");

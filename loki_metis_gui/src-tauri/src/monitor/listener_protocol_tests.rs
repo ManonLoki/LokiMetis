@@ -350,6 +350,23 @@ fn listener_control(
     (status, control)
 }
 
+/// listener 构造与运行时替换都必须再次执行统一目录门禁，不能信任内部直传集合。
+#[test]
+fn hidden_tool_cannot_be_admitted_by_direct_policy_inputs() {
+    let (_status, initialized) = listener_control(&[AiTool::OpenCode]);
+    assert!(
+        hook_listener_policy(&initialized.policy)
+            .admission(AiTool::OpenCode)
+            .is_none()
+    );
+
+    let (_status, replaced) = listener_control(&[AiTool::Codex]);
+    assert!(!replaced.replace_enabled_tools(&[AiTool::OpenCode]));
+    let policy = hook_listener_policy(&replaced.policy);
+    assert!(policy.admission(AiTool::Codex).is_none());
+    assert!(policy.admission(AiTool::OpenCode).is_none());
+}
+
 /// 禁用工具会立即释放它占用的位置，并使旧代数事件失效。
 #[test]
 fn disabling_tool_releases_pet_state_and_invalidates_queued_generation() {

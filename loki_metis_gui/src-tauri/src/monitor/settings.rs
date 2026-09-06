@@ -131,6 +131,18 @@ where
     deserialize_or_default(deserializer, PetWindowPreferences::default)
 }
 
+/// 逐项解析历史启用列表；未来或已隐藏的字符串不扩大权限，非字符串形状仍视为损坏。
+fn deserialize_enabled_ai_tools<'de, D>(deserializer: D) -> Result<Vec<AiTool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let labels = Vec::<String>::deserialize(deserializer)?;
+    Ok(labels
+        .into_iter()
+        .filter_map(|label| serde_json::from_value(serde_json::Value::String(label)).ok())
+        .collect())
+}
+
 /// 规范化落盘偏好，旧文件或手工编辑的越界值不会进入运行时。
 fn normalize_pet_window_preferences(mut preferences: PetWindowPreferences) -> PetWindowPreferences {
     preferences.focused_slot = preferences.focused_slot.min(11);
@@ -143,7 +155,10 @@ fn normalize_pet_window_preferences(mut preferences: PetWindowPreferences) -> Pe
 #[serde(rename_all = "camelCase")]
 pub struct MonitorSettings {
     /// 已启用的 Agent；显式空集合表示暂不自动补写任何工具。
-    #[serde(default = "default_enabled_ai_tools")]
+    #[serde(
+        default = "default_enabled_ai_tools",
+        deserialize_with = "deserialize_enabled_ai_tools"
+    )]
     pub enabled_ai_tools: Vec<AiTool>,
     /// 自定义 Hook 配置目录。
     #[serde(default)]

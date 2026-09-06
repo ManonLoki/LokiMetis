@@ -2,8 +2,15 @@ import { Group, SegmentedControl, Stack } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import type { AgentClientKind, UsageViewKind } from '../api/usage-types';
-import { visibleUsageClients } from '../state/agent-client';
+import {
+  selectDashboardClientOptions,
+  selectDashboardWorkbuddyOption,
+} from '../ai-capabilities';
+import type {
+  AgentClientKind,
+  AvailableAiTypeDto,
+  UsageViewKind,
+} from '../api/usage-types';
 import { LocalScanProgressBar } from './LocalScanProgressBar';
 
 /** 描述用量区域页头横向菜单中的已批准页面。 */
@@ -53,6 +60,8 @@ const workbuddyDashboardPageItems: UsagePageItem[] = [
 
 /** 定义公共页头的只读视图与横向子页交互。 */
 interface DashboardToolbarProps {
+  /** 后端统一目录中当前可映射到看板的 AI 类型。 */
+  availableAiTypes: AvailableAiTypeDto[];
   /** 用户已开放、会出现在页头的客户端。 */
   enabledAgents: AgentClientKind[];
   /** 页头切换当前只读视图。 */
@@ -92,21 +101,26 @@ function UsagePageLinks({ view }: { view: UsageViewKind }) {
 
 /** 用量区域顶部粘滞页头：已开放 Agent 切换与横向页面菜单。 */
 export function DashboardToolbar({
+  availableAiTypes,
   enabledAgents,
   onViewChange,
   view,
   workbuddyStatsEnabled,
 }: DashboardToolbarProps) {
   const { t } = useTranslation();
-  const switcherData = visibleUsageClients.filter((item) => enabledAgents.includes(item.value));
-  const viewSwitcherData = [
+  const switcherData = selectDashboardClientOptions(availableAiTypes).filter((item) =>
+    enabledAgents.includes(item.value),
+  );
+  const workbuddyOption = selectDashboardWorkbuddyOption(availableAiTypes);
+  const viewSwitcherData: Array<{ label: string; value: UsageViewKind }> = [
     { label: t('shell.clientAll'), value: 'all' },
     ...switcherData,
-    ...(workbuddyStatsEnabled
-      ? [{ label: t('privacy.enabledAgents.workbuddyLabel'), value: 'workbuddy' }]
+    ...(workbuddyStatsEnabled && workbuddyOption
+      ? [{ label: workbuddyOption.name, value: 'workbuddy' as const }]
       : []),
   ];
-  const showSwitcher = switcherData.length > 0 || workbuddyStatsEnabled;
+  const showSwitcher =
+    switcherData.length > 0 || (workbuddyStatsEnabled && workbuddyOption !== null);
   return (
     <Stack
       className="dashboard-toolbar"
@@ -129,15 +143,8 @@ export function DashboardToolbar({
             aria-label={t('shell.clientSelectorAria')}
             data={viewSwitcherData}
             onChange={(value) => {
-              if (
-                value === 'all' ||
-                value === 'codex' ||
-                value === 'claudeCode' ||
-                value === 'grokBuildCli' ||
-                value === 'workbuddy'
-              ) {
-                onViewChange(value);
-              }
+              const selected = viewSwitcherData.find((item) => item.value === value);
+              if (selected) onViewChange(selected.value);
             }}
             size="xs"
             value={view}

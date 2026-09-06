@@ -11,7 +11,11 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { UsageViewKind } from "../src/api/usage-types";
+import type {
+  AgentClientKind,
+  AvailableAiTypeDto,
+  UsageViewKind,
+} from "../src/api/usage-types";
 import { DashboardLayout } from "../src/components/DashboardLayout";
 import { DashboardToolbar } from "../src/components/DashboardToolbar";
 import { CallsPage } from "../src/pages/CallsPage";
@@ -19,7 +23,7 @@ import { ChartsPage } from "../src/pages/ChartsPage";
 import { DashboardSettingsSection } from "../src/pages/DashboardSettingsSection";
 import { UsagePage } from "../src/pages/UsagePage";
 import { WorkbuddyUsage } from "../src/pages/WorkbuddyUsage";
-import { TestProviders } from "./testUtils";
+import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -40,17 +44,24 @@ function privacySettings() {
     indexLocationCode: "codex",
     indexSizeBytes: null,
     lastClearedAtEpochMs: null,
+    availableAiTypes: availableDashboardAiTypesFixture,
     enabledAgents: ["codex", "claudeCode", "grokBuildCli"],
     workbuddyStatsEnabled: true,
   };
 }
 
 /** 用内存路由渲染真实看板页头，供横向子页断言。 */
-async function renderToolbar(view: UsageViewKind, workbuddyStatsEnabled = false) {
+async function renderToolbar(
+  view: UsageViewKind,
+  workbuddyStatsEnabled = false,
+  availableAiTypes: AvailableAiTypeDto[] = availableDashboardAiTypesFixture,
+  enabledAgents: AgentClientKind[] = ["codex", "claudeCode", "grokBuildCli"],
+) {
   const rootRoute = createRootRoute({
     component: () => (
       <DashboardToolbar
-        enabledAgents={["codex", "claudeCode", "grokBuildCli"]}
+        availableAiTypes={availableAiTypes}
+        enabledAgents={enabledAgents}
         onViewChange={vi.fn()}
         view={view}
         workbuddyStatsEnabled={workbuddyStatsEnabled}
@@ -276,6 +287,28 @@ describe("dashboard header subpages", () => {
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
+  /** Agent 切换器仅展示统一目录与用户启用集合都包含的看板映射。 */
+  test("agent_switcher_intersects_available_and_enabled_dashboard_agents", async () => {
+    await renderToolbar(
+      "all",
+      true,
+      [
+        { name: "Claude", value: "claudeCode" },
+        { name: "WorkBuddy", value: "workbuddy" },
+      ],
+      ["codex", "claudeCode", "grokBuildCli"],
+    );
+
+    const switcher = screen.getByRole("radiogroup", {
+      name: "Agent client currently being viewed",
+    });
+    expect(within(switcher).getByText("All")).toBeVisible();
+    expect(within(switcher).getByText("Claude")).toBeVisible();
+    expect(within(switcher).getByText("WorkBuddy")).toBeVisible();
+    expect(within(switcher).queryByText("Codex")).not.toBeInTheDocument();
+    expect(within(switcher).queryByText("Grok")).not.toBeInTheDocument();
+  });
+
   /** 真实加载用量、调用与 WorkBuddy 用量页面模块，证明已发布入口可解析。 */
   test("usage_calls_and_workbuddy_pages_resolve_shipped_modules", async () => {
     invokeMock.mockRejectedValue(new Error("ipc unavailable"));
@@ -324,6 +357,7 @@ describe("dashboard header settings surface", () => {
     expect(within(agentOptions).getByRole("checkbox", { name: "Claude Code" })).toBeVisible();
     expect(within(agentOptions).getByRole("checkbox", { name: "Grok" })).toBeVisible();
     expect(within(agentOptions).getByRole("checkbox", { name: "WorkBuddy" })).toBeVisible();
+    expect(within(agentOptions).queryByRole("checkbox", { name: "Cursor" })).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Codex is selected by default in first-time setup/),
     ).not.toBeInTheDocument();

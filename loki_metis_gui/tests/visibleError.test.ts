@@ -33,6 +33,15 @@ describe("visibleErrorMessage", () => {
     expect(message).not.toContain("permission denied");
   });
 
+  /** 已收紧目录拒绝隐藏工具时，前端显示稳定且不泄露工具细节的说明。 */
+  test("localizes_an_unavailable_hook_tool", async () => {
+    await appI18n.changeLanguage("en-US");
+
+    expect(visibleErrorMessage({ code: "error.hooks.toolUnavailable" })).toBe(
+      "This AI tool is not currently available.",
+    );
+  });
+
   /** 未登记对象与普通运行时错误继续使用固定安全兜底，不泄露原始内容。 */
   test("uses_the_safe_fallback_for_unknown_errors", () => {
     expect(

@@ -3,3 +3,6 @@ tray:
   show_pet_overlay: "Show Pet Overlay"
   hide_pet_overlay: "Hide Pet Overlay"
   quit: "Quit"
+error:
+  hooks:
+    toolUnavailable: "This AI type is not currently available."

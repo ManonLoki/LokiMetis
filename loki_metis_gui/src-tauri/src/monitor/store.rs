@@ -10,6 +10,7 @@ use loki_metis_core::{
     AiTool, HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
     HookError, ai_tool_name, generate_hook_auxiliary_configs, generate_hook_config,
     generate_wsl_hook_config, hook_config_filename, hook_config_write_result, hook_supports_wsl,
+    normalize_enabled_ai_tools, public_monitor_ai_tools,
 };
 
 use super::{settings::MonitorSettings, wsl::WslDirectory};
@@ -236,13 +237,12 @@ fn location_for(
     }
 }
 
-/// 列出全部 Agent 的 Hook 配置定位。
+/// 按统一公开目录列出当前可配置 Agent 的 Hook 定位；隐藏协议仍保留内部实现。
 pub fn list_hook_config_locations(
     settings: &MonitorSettings,
     home_directory: &Path,
 ) -> Vec<HookConfigLocation> {
-    AiTool::ALL
-        .into_iter()
+    public_monitor_ai_tools()
         .map(|tool| location_for(tool, &settings.hook_directories, home_directory))
         .collect()
 }
@@ -374,7 +374,7 @@ fn repair_enabled_hook_configs(
     relay_executable: &Path,
     home_directory: &Path,
 ) {
-    for tool in settings.enabled_ai_tools.iter().copied() {
+    for tool in normalize_enabled_ai_tools(&settings.enabled_ai_tools) {
         if let Err(error) = write_hook_config(settings, tool, relay_executable, home_directory) {
             tracing::warn!(
                 tool = ai_tool_name(tool),

@@ -10,7 +10,8 @@ use std::{
 use loki_metis_core::{
     AiTool, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT, HOOK_RELAY_INSTANCE_HEADER,
     HookEventDecision, HookStateMachine, HookTransition, MAX_NATIVE_HOOK_INPUT_BYTES,
-    MinimalHookPayload, PetOverlayToolState, hook_relay_loopback_address, tool_from_slug,
+    MinimalHookPayload, PetOverlayToolState, hook_relay_loopback_address,
+    normalize_enabled_ai_tools, tool_from_slug,
 };
 use serde::Serialize;
 use tauri::AppHandle;
@@ -55,7 +56,9 @@ struct HookListenerPolicy {
 impl HookListenerPolicy {
     fn new(enabled_tools: &[AiTool]) -> Self {
         Self {
-            enabled_tools: enabled_tools.iter().copied().collect(),
+            enabled_tools: normalize_enabled_ai_tools(enabled_tools)
+                .into_iter()
+                .collect(),
             generations: AiTool::ALL.into_iter().map(|tool| (tool, 0)).collect(),
         }
     }
@@ -82,7 +85,9 @@ pub struct HookListenerControl {
 impl HookListenerControl {
     /// 替换启用集合；任何启停变化都会使该工具的旧排队事件和状态机失效。
     pub fn replace_enabled_tools(&self, enabled_tools: &[AiTool]) -> bool {
-        let next = enabled_tools.iter().copied().collect::<HashSet<_>>();
+        let next = normalize_enabled_ai_tools(enabled_tools)
+            .into_iter()
+            .collect::<HashSet<_>>();
         let removed = {
             let mut policy = write_hook_listener_policy(&self.policy);
             let removed = policy

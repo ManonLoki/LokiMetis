@@ -285,6 +285,26 @@ async fn privacy_settings_exclude_page_session_state() {
     }
 }
 
+/// 隐私 IPC 从统一目录公开看板可映射的四项，并保持既有 wire 值与固定顺序。
+#[tokio::test]
+async fn privacy_settings_publish_the_dashboard_ai_catalog() {
+    let temp = tempdir().expect("isolated app-data is available");
+    let state = AppRuntimeState::new_with_username_candidate(temp.path().to_path_buf(), || None);
+
+    let dto = state.privacy_settings(UsageClientKindDto::Codex).await;
+    let dto_json = serde_json::to_value(dto).expect("privacy settings serialize");
+
+    assert_eq!(
+        dto_json.get("availableAiTypes"),
+        Some(&serde_json::json!([
+            {"name": "Codex", "value": "codex"},
+            {"name": "Claude Code", "value": "claudeCode"},
+            {"name": "Grok", "value": "grokBuildCli"},
+            {"name": "WorkBuddy", "value": "workbuddy"}
+        ]))
+    );
+}
+
 /// 验证语言切换只保存界面偏好，并保留身份、模式、间隔与初始化状态。
 #[tokio::test]
 async fn persists_language_preference_without_business_side_effects() {

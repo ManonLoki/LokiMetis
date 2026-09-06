@@ -1,15 +1,36 @@
-import { Alert, Badge, Checkbox, Group, Paper, SimpleGrid, Stack, Title } from '@mantine/core';
+import {
+  Alert,
+  Badge,
+  Checkbox,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Title,
+} from '@mantine/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { useTranslation } from 'react-i18next';
 
-import { setEnabledAgents, setWorkbuddyStatsEnabled, type AgentClientKind } from '../api/usage';
+import {
+  setEnabledAgents,
+  setWorkbuddyStatsEnabled,
+  type AgentClientKind,
+  type AvailableAiTypeDto,
+} from '../api/usage';
 import { synchronizeGlobalPrivacySettings } from '../api/usage-queries';
-import { agentClientAtom, visibleUsageClients } from '../state/agent-client';
+import {
+  selectDashboardClientOptions,
+  selectDashboardWorkbuddyOption,
+  selectEnabledDashboardClients,
+} from '../ai-capabilities';
+import { agentClientAtom } from '../state/agent-client';
 import { visibleErrorMessage } from '../visible-error';
 
 /** 定义设置页 Agent 多选的当前值、保存状态与错误。 */
 interface EnabledAgentsSettingsProps {
+  /** 后端统一目录中当前可映射到看板的 AI 类型。 */
+  availableAiTypes: AvailableAiTypeDto[];
   /** 当前已开放的本机 Agent。 */
   savedAgents: AgentClientKind[];
   /** 当前是否已显式开放读取 WorkBuddy 本地用量统计。 */
@@ -18,12 +39,16 @@ interface EnabledAgentsSettingsProps {
 
 /** 逐项打开或关闭监控和上报，立即反映到页头选项卡；WorkBuddy 开启后计入全部合计与上报。 */
 export function EnabledAgentsSettings({
+  availableAiTypes,
   savedAgents,
   savedWorkbuddyStatsEnabled,
 }: EnabledAgentsSettingsProps) {
   const { t } = useTranslation();
   const client = useAtomValue(agentClientAtom);
   const queryClient = useQueryClient();
+  const clientOptions = selectDashboardClientOptions(availableAiTypes);
+  const workbuddyOption = selectDashboardWorkbuddyOption(availableAiTypes);
+  const enabledAgents = selectEnabledDashboardClients(savedAgents, availableAiTypes);
   const mutation = useMutation({
     mutationFn: (agents: AgentClientKind[]) => setEnabledAgents(client, agents),
     onSuccess: (settings) => {
@@ -57,28 +82,34 @@ export function EnabledAgentsSettings({
           spacing="xs"
           verticalSpacing="xs"
         >
-          {visibleUsageClients.map((item) => (
+          {clientOptions.map((item) => (
             <Checkbox
-              checked={savedAgents.includes(item.value)}
+              checked={enabledAgents.includes(item.value)}
               disabled={mutation.isPending}
               key={item.value}
               label={item.label}
               onChange={(event) => {
-                const next = event.currentTarget.checked
-                  ? [...savedAgents, item.value]
-                  : savedAgents.filter((agent) => agent !== item.value);
-                mutation.mutate(next);
+                const selected = new Set(enabledAgents);
+                if (event.currentTarget.checked) selected.add(item.value);
+                else selected.delete(item.value);
+                mutation.mutate(
+                  clientOptions
+                    .map((option) => option.value)
+                    .filter((agent) => selected.has(agent)),
+                );
               }}
             />
           ))}
-          <Checkbox
-            checked={savedWorkbuddyStatsEnabled}
-            disabled={workbuddyMutation.isPending}
-            label={t('privacy.enabledAgents.workbuddyLabel')}
-            onChange={(event) => {
-              workbuddyMutation.mutate(event.currentTarget.checked);
-            }}
-          />
+          {workbuddyOption ? (
+            <Checkbox
+              checked={savedWorkbuddyStatsEnabled}
+              disabled={workbuddyMutation.isPending}
+              label={workbuddyOption.name}
+              onChange={(event) => {
+                workbuddyMutation.mutate(event.currentTarget.checked);
+              }}
+            />
+          ) : null}
         </SimpleGrid>
         {mutation.isError || workbuddyMutation.isError ? (
           <Alert color="red" title={t('ui.failureTitle')}>

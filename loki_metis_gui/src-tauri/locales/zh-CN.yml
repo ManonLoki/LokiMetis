@@ -3,3 +3,6 @@ tray:
   show_pet_overlay: "显示桌宠浮窗"
   hide_pet_overlay: "隐藏桌宠浮窗"
   quit: "退出"
+error:
+  hooks:
+    toolUnavailable: "当前暂不开放此 AI 类型。"

@@ -5,6 +5,7 @@
 
 mod agent_hooks;
 mod aggregate;
+mod ai_capabilities;
 mod bounded_minutes;
 mod calls_view;
 mod chart_view;
@@ -52,6 +53,10 @@ pub use aggregate::{
     canonicalize_usage_calls, filter_canonical_usage, partition_canonical_usage_two,
     prefer_metric_within_scope,
 };
+pub use ai_capabilities::{
+    PUBLIC_AI_CAPABILITIES, PublicAiCapability, is_public_monitor_tool, public_ai_capabilities,
+    public_dashboard_clients, public_monitor_ai_tools,
+};
 pub use calls_view::{
     BuildUsageCallRowsError, USAGE_CALL_PAGE_SIZE, UsageAvailableFilters, UsageCallFilters,
     UsageCallItem, UsageCallRow, UsageCallSortDirection, UsageCallSortField, UsageCallsPage,
@@ -73,10 +78,7 @@ pub use combined_view::{
     build_combined_usage_chart_with_standard, combine_agent_usage_snapshots,
     resolve_usage_view_members,
 };
-pub use dashboard_capabilities::{
-    DASHBOARD_CAPABILITY_NAMES, PHYSICAL_SCAN_CLIENTS, dashboard_capability_names,
-    physical_scan_clients,
-};
+pub use dashboard_capabilities::{dashboard_capability_names, physical_scan_clients};
 pub use display_label::DisplayLabelCode;
 pub use display_name::{
     SAFE_DISPLAY_NAME_MAX_CHARS, claude_project_display_label, grok_project_display_label,

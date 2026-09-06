@@ -12,7 +12,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { getHookRelayStatus } from "../api/monitor";
+import { findAvailableMonitorAiTool } from "../ai-capabilities";
+import { getHookRelayStatus, getMonitorCapabilities } from "../api/monitor";
 import { visibleErrorMessage } from "../visible-error";
 
 /** 中继指标块：以稳定的标签和值展示一项本机统计。 */
@@ -37,7 +38,14 @@ export function MonitorWorkbenchPage() {
     queryKey: ["hook-relay-status"],
     refetchInterval: 3000,
   });
+  const capabilities = useQuery({
+    queryFn: getMonitorCapabilities,
+    queryKey: ["monitor-capabilities"],
+  });
   const status = relay.data;
+  const lastEventTool = status?.lastEvent
+    ? findAvailableMonitorAiTool(capabilities.data?.aiTools ?? [], status.lastEvent.tool)
+    : null;
   return (
     <Stack data-testid="monitor-workbench" gap="md">
       {relay.error ? <Alert color="red">{visibleErrorMessage(relay.error)}</Alert> : null}
@@ -66,9 +74,9 @@ export function MonitorWorkbenchPage() {
               value={status?.failedCount ?? 0}
             />
           </SimpleGrid>
-          {status?.lastEvent ? (
+          {status?.lastEvent && lastEventTool ? (
             <Text size="sm">
-              {t("monitor.workbench.lastEventLabel")} <Code>{status.lastEvent.tool}</Code> /{" "}
+              {t("monitor.workbench.lastEventLabel")} <Code>{lastEventTool.name}</Code> /{" "}
               <Code>{status.lastEvent.hookType}</Code>
             </Text>
           ) : (

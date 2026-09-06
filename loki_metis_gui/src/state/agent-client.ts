@@ -14,18 +14,6 @@ export const agentClientAtom = atom<AgentClientKind>('codex');
 /** 当前概览或调用的只读视图；只在当前桌面进程中保留。 */
 export const usageViewAtom = atom<UsageViewKind>('codex');
 
-/** 用户可见切换器只提供三个本机客户端。 */
-export const visibleUsageClients: ReadonlyArray<{ label: string; value: AgentClientKind }> = [
-  { label: 'Codex', value: 'codex' },
-  { label: 'Claude Code', value: 'claudeCode' },
-  { label: 'Grok', value: 'grokBuildCli' },
-];
-
-/** 按页头固定顺序返回所选集合里的第一个 Agent；空集返回 null。 */
-export function firstSelectedAgent(selected: readonly AgentClientKind[]): AgentClientKind | null {
-  return visibleUsageClients.find((item) => selected.includes(item.value))?.value ?? null;
-}
-
 /** 返回不随 locale 变化的客户端产品名称。 */
 export function agentClientLabel(client: AgentClientKind): string {
   const labels: Record<AgentClientKind, string> = {

@@ -245,6 +245,7 @@
       "locationNotFound": "无法定位 Hooks 配置位置。",
       "mergeFailed": "无法把 Hooks 配置与现有文件合并。",
       "renderFailed": "无法生成 Hooks 配置。",
+      "toolUnavailable": "该 AI 工具当前暂不可用。",
       "writeFailed": "无法写入 Hooks 配置，请检查所选路径及其权限。",
       "wslUnsupportedByWindowsHost": "Windows 宿主暂不支持此工具的 WSL 原生插件，请选择 Windows 客户端配置目录。",
       "wslWindowsHostOnly": "只有 Windows 宿主可以访问 WSL 配置路径。"

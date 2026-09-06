@@ -5,6 +5,10 @@ import { useAtom } from "jotai";
 import { useEffect, useMemo, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
+import {
+  selectDashboardWorkbuddyOption,
+  selectEnabledDashboardClients,
+} from "../ai-capabilities";
 import { getPrivacySettings, type UsageViewKind } from "../api/usage";
 import { agentClientAtom, usageViewAtom } from "../state/agent-client";
 import { DashboardToolbar } from "./DashboardToolbar";
@@ -21,23 +25,37 @@ export function DashboardLayout(): ReactElement {
     queryFn: () => getPrivacySettings("codex"),
     queryKey: ["privacy-settings", "codex"],
   });
-  const workbuddyStatsEnabled = privacyQuery.data?.workbuddyStatsEnabled === true;
-  const enabledAgents = useMemo(
-    () => privacyQuery.data?.enabledAgents ?? [],
-    [privacyQuery.data?.enabledAgents],
+  const availableAiTypes = useMemo(
+    () => privacyQuery.data?.availableAiTypes ?? [],
+    [privacyQuery.data?.availableAiTypes],
   );
+  const workbuddyStatsEnabled =
+    selectDashboardWorkbuddyOption(availableAiTypes) !== null &&
+    privacyQuery.data?.workbuddyStatsEnabled === true;
+  const enabledAgents = useMemo(
+    () =>
+      selectEnabledDashboardClients(
+        privacyQuery.data?.enabledAgents ?? [],
+        availableAiTypes,
+      ),
+    [availableAiTypes, privacyQuery.data?.enabledAgents],
+  );
+  const privacySettingsReady = privacyQuery.data !== undefined;
 
   useEffect(() => {
+    if (!privacySettingsReady) return;
     const firstEnabled = enabledAgents[0];
     if (view === "workbuddy") {
-      if (!workbuddyStatsEnabled && firstEnabled !== undefined) {
-        setView(firstEnabled);
+      if (!workbuddyStatsEnabled) {
+        setView(firstEnabled ?? "all");
       }
       return;
     }
     if (firstEnabled === undefined) {
       if (workbuddyStatsEnabled && view !== "all") {
         setView("workbuddy");
+      } else if (!workbuddyStatsEnabled && view !== "all") {
+        setView("all");
       }
       return;
     }
@@ -47,7 +65,15 @@ export function DashboardLayout(): ReactElement {
     if (view !== "all" && !enabledAgents.includes(view)) {
       setView(firstEnabled);
     }
-  }, [client, enabledAgents, setClient, setView, view, workbuddyStatsEnabled]);
+  }, [
+    client,
+    enabledAgents,
+    privacySettingsReady,
+    setClient,
+    setView,
+    view,
+    workbuddyStatsEnabled,
+  ]);
 
   /** 切换物理 Agent、全部或 WorkBuddy 视图；选择只在当前桌面进程内生效。 */
   const handleViewChange = (nextView: UsageViewKind): void => {
@@ -90,6 +116,7 @@ export function DashboardLayout(): ReactElement {
         </Alert>
       ) : null}
       <DashboardToolbar
+        availableAiTypes={availableAiTypes}
         enabledAgents={enabledAgents}
         onViewChange={handleViewChange}
         view={view}

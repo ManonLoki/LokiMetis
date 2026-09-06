@@ -1,25 +1,21 @@
-//! 看板可开关能力的稳定注册表：3 个物理扫描客户端外加 1 个 WorkBuddy 只读统计。
+//! 从统一公开 AI 目录派生看板能力，不另行维护客户端名单。
 
-use crate::SourceClientKind;
+use crate::{SourceClientKind, public_ai_capabilities, public_dashboard_clients};
 
-/// 物理扫描客户端固定集合：Codex、Claude Code、Grok。
-pub const PHYSICAL_SCAN_CLIENTS: [SourceClientKind; 3] = [
-    SourceClientKind::Codex,
-    SourceClientKind::ClaudeCode,
-    SourceClientKind::GrokBuildCli,
-];
-
-/// 用户可开关的看板能力展示名；物理三项外加 WorkBuddy。
-pub const DASHBOARD_CAPABILITY_NAMES: [&str; 4] = ["Codex", "Claude Code", "Grok", "WorkBuddy"];
-
-/// 返回物理扫描客户端切片。
-pub const fn physical_scan_clients() -> &'static [SourceClientKind] {
-    &PHYSICAL_SCAN_CLIENTS
+/// 返回看板支持的物理扫描客户端；WorkBuddy 只提供独立只读统计，不占扫描槽。
+pub fn physical_scan_clients() -> Vec<SourceClientKind> {
+    public_dashboard_clients()
+        .filter(|client| *client != SourceClientKind::WorkBuddy)
+        .collect()
 }
 
-/// 返回已发布的可见能力名称列表，供设置开关与对账测试共用。
-pub const fn dashboard_capability_names() -> &'static [&'static str] {
-    &DASHBOARD_CAPABILITY_NAMES
+/// 返回看板能够映射的公开能力名称，无法映射的类型自动忽略。
+pub fn dashboard_capability_names() -> Vec<&'static str> {
+    public_ai_capabilities()
+        .iter()
+        .filter(|capability| capability.dashboard_client.is_some())
+        .map(|capability| capability.name)
+        .collect()
 }
 
 #[cfg(test)]
@@ -39,7 +35,7 @@ mod tests {
         assert_eq!(physical_scan_clients().len(), 3);
         assert_eq!(
             physical_scan_clients(),
-            &[
+            vec![
                 SourceClientKind::Codex,
                 SourceClientKind::ClaudeCode,
                 SourceClientKind::GrokBuildCli,
@@ -67,8 +63,8 @@ mod tests {
     fn dashboard_capability_set_matches_source_four() {
         let names = dashboard_capability_names();
         assert_eq!(names.len(), 4);
-        assert_eq!(names, &["Codex", "Claude Code", "Grok", "WorkBuddy"]);
-        assert_eq!(PHYSICAL_SCAN_CLIENTS.len(), 3);
+        assert_eq!(names, vec!["Codex", "Claude Code", "Grok", "WorkBuddy"]);
+        assert_eq!(physical_scan_clients().len(), 3);
         assert!(!names.contains(&"Cursor"));
     }
 

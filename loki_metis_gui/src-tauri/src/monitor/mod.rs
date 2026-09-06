@@ -48,15 +48,15 @@ pub use store::{
 };
 
 use loki_metis_core::{
-    AiToolDescriptor, HookBehavior, ImageUploadAccept, MonitorCapabilityRange, ai_tool_descriptors,
-    image_upload_accept, profile_slot_range,
+    AiToolDescriptor, HookBehavior, ImageUploadAccept, MonitorCapabilityRange, image_upload_accept,
+    profile_slot_range, public_ai_capabilities,
 };
 
 /// 监控区静态能力，不含局域网发现。
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorCapabilities {
-    /// 全部 Agent 目录。
+    /// 统一目录中当前公开且可由监控识别的 Agent。
     pub ai_tools: Vec<AiToolDescriptor>,
     /// 四态展示行为。
     pub hook_behaviors: Vec<HookBehavior>,
@@ -69,9 +69,43 @@ pub struct MonitorCapabilities {
 /// 返回监控区静态能力。
 pub fn monitor_capabilities() -> MonitorCapabilities {
     MonitorCapabilities {
-        ai_tools: ai_tool_descriptors(),
+        ai_tools: public_ai_capabilities()
+            .iter()
+            .filter_map(|capability| {
+                capability.monitor_tool.map(|tool| AiToolDescriptor {
+                    tool,
+                    name: capability.name.to_owned(),
+                })
+            })
+            .collect(),
         hook_behaviors: HookBehavior::DISPLAY_BEHAVIORS.to_vec(),
         profile_slot: profile_slot_range(),
         image_upload_accept: image_upload_accept(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use loki_metis_core::AiTool;
+
+    /// 监控 IPC 目录只公开统一目录中可映射的五项，并保持产品顺序与名称。
+    #[test]
+    fn monitor_capabilities_publish_only_the_five_catalog_tools() {
+        let capabilities = monitor_capabilities();
+        assert_eq!(
+            capabilities
+                .ai_tools
+                .iter()
+                .map(|descriptor| (descriptor.tool, descriptor.name.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                (AiTool::Codex, "Codex"),
+                (AiTool::ClaudeCode, "Claude Code"),
+                (AiTool::Cursor, "Cursor"),
+                (AiTool::Grok, "Grok"),
+                (AiTool::WorkBuddy, "WorkBuddy"),
+            ]
+        );
     }
 }

@@ -5,6 +5,7 @@
 // 这样切换语言不需要重新请求后端数据。
 import type {
   AgentClientKind,
+  AvailableAiTypeDto,
   Confidence,
   LocalIndexState,
   LocalUsageAggregateDto,
@@ -499,6 +500,8 @@ export interface PrivacySettingsDto {
   indexSizeBytes: number | null;
   /** 最近一次清空本产品索引的时间。 */
   lastClearedAtEpochMs: number | null;
+  /** 统一 AI 目录中当前能映射到看板的选项；无法映射的类型不进入此数组。 */
+  availableAiTypes: AvailableAiTypeDto[];
   /** 用户显式开放监控和上报的本机 Agent；缺省为空。 */
   enabledAgents: AgentClientKind[];
   /** 用户是否已显式开放读取 WorkBuddy 本地用量统计；缺省关闭。 */

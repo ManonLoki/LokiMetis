@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 
 import type { MonitorCapabilities } from "../src/api/monitor";
+import type { AvailableAiTypeDto } from "../src/api/usage-types";
 import { AppThemeProvider } from "../src/components/AppThemeProvider";
 import { appI18n } from "../src/i18n";
 
@@ -23,6 +24,14 @@ export const allMonitorAiToolsFixture: MonitorCapabilities["aiTools"] = [
   { tool: "geminiCli", name: "Gemini CLI" },
   { tool: "gitHubCopilot", name: "GitHub Copilot" },
   { tool: "grok", name: "Grok" },
+];
+
+/** 统一后端目录投影到看板的四个可映射项；Cursor 因看板不支持而缺席。 */
+export const availableDashboardAiTypesFixture: AvailableAiTypeDto[] = [
+  { name: "Codex", value: "codex" },
+  { name: "Claude Code", value: "claudeCode" },
+  { name: "Grok", value: "grokBuildCli" },
+  { name: "WorkBuddy", value: "workbuddy" },
 ];
 
 /** 为组件测试挂载与生产一致的最小稳定 Provider 集合。 */
@@ -50,7 +59,8 @@ export function monitorCapabilitiesFixture(
     aiTools: [
       { tool: "codex", name: "Codex" },
       { tool: "claudeCode", name: "Claude Code" },
-      { tool: "grok", name: "Grok Build" },
+      { tool: "cursor", name: "Cursor" },
+      { tool: "grok", name: "Grok" },
       { tool: "workBuddy", name: "WorkBuddy" },
     ],
     hookBehaviors: ["idle", "running", "asking", "error"],

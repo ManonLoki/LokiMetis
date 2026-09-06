@@ -1,18 +1,18 @@
 //! 设置与初始化状态的更新、持久化与读取路径。
 
 use crate::dto::{
-    IndexLocationCodeDto, InitializationStatusDto, LanguagePreferenceDto, PrivacySettingsDto,
-    UsageClientKindDto,
+    AvailableAiTypeDto, IndexLocationCodeDto, InitializationStatusDto, LanguagePreferenceDto,
+    PrivacySettingsDto, UsageClientKindDto,
 };
 use crate::privacy_store::{LocalPrivacySettings, save_settings};
 #[cfg(test)]
 use loki_metis_core::initial_scan_state_save_failed_message;
 use loki_metis_core::{
     DeviceUsername, EnabledAgents, RetentionDays, ScanIntervalMinutes, SourceClientKind,
-    device_username_error_message, device_username_save_failed_message,
+    agent_wire_label, device_username_error_message, device_username_save_failed_message,
     enabled_agents_error_message, index_location_claude_code_label, index_location_codex_label,
     initialization_state_save_failed_message, language_setting_save_failed_message,
-    privacy_settings_save_failed_message, retention_days_range_message,
+    privacy_settings_save_failed_message, public_ai_capabilities, retention_days_range_message,
     retention_days_save_failed_message, scan_interval_range_message,
     scan_interval_save_failed_message, workbuddy_stats_enabled_save_failed_message,
 };
@@ -241,6 +241,7 @@ impl AppRuntimeState {
             index_size_bytes,
             last_cleared_at_epoch_ms,
             enabled_agents,
+            available_ai_types: available_dashboard_ai_types(),
             workbuddy_stats_enabled,
             device_time_zone: loki_metis_core::device_time_zone_name(),
         }
@@ -287,6 +288,21 @@ impl AppRuntimeState {
         })
         .await
     }
+}
+
+/// 把统一 Core 目录投影为看板现有 wire 值，Cursor 等不可映射项不会进入 IPC。
+fn available_dashboard_ai_types() -> Vec<AvailableAiTypeDto> {
+    public_ai_capabilities()
+        .iter()
+        .filter_map(|capability| {
+            capability
+                .dashboard_client
+                .map(|client| AvailableAiTypeDto {
+                    name: capability.name.to_owned(),
+                    value: agent_wire_label(client).to_owned(),
+                })
+        })
+        .collect()
 }
 
 /// 把已开放集合映射为 IPC 枚举，保持 Codex / Claude / Grok 固定顺序；

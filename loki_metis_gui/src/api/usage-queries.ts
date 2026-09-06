@@ -93,6 +93,7 @@ export function synchronizeGlobalPrivacySettings(
           scanIntervalMinutes: settings.scanIntervalMinutes,
           retentionDays: settings.retentionDays,
           deviceTimeZone: settings.deviceTimeZone,
+          availableAiTypes: settings.availableAiTypes,
           enabledAgents: settings.enabledAgents,
           workbuddyStatsEnabled: settings.workbuddyStatsEnabled,
         }

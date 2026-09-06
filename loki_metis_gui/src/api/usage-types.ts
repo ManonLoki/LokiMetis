@@ -10,6 +10,17 @@ import type { UiMessageCode } from './usage-types-detail';
 /** 标识当前查看和操作的 Agent 客户端。 */
 export type AgentClientKind = 'codex' | 'claudeCode' | 'grokBuildCli';
 
+/** 统一 AI 目录中可映射到看板的稳定值；WorkBuddy 仍使用独立只读统计开关。 */
+export type AvailableAiTypeValue = AgentClientKind | 'workbuddy';
+
+/** 后端统一 AI 目录投影到看板的可用选项。 */
+export interface AvailableAiTypeDto {
+  /** 不参与逻辑判断的产品展示名。 */
+  name: string;
+  /** 看板物理客户端或 WorkBuddy 独立视图的稳定映射值。 */
+  value: AvailableAiTypeValue;
+}
+
 /** 标识可在用量界面选择的本机客户端。 */
 export type UsageClientKind = AgentClientKind;
 

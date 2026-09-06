@@ -4,6 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use super::{IndexLocationCodeDto, LanguagePreferenceDto, UsageClientKindDto};
 
+/// 看板从统一 AI 目录取得的一个可用选择项。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvailableAiTypeDto {
+    /// 跨区域一致的展示名称。
+    pub name: String,
+    /// 看板现有设置与路由使用的稳定 wire 值。
+    pub value: String,
+}
+
 /// 描述隐私页需要的最小本地设置。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +42,8 @@ pub struct PrivacySettingsDto {
     pub last_cleared_at_epoch_ms: Option<i64>,
     /// 用户显式开放监控和上报的本机 Agent；缺省为空。
     pub enabled_agents: Vec<UsageClientKindDto>,
+    /// 统一目录中当前可由看板识别的 AI 类型；无法映射的类型已被忽略。
+    pub available_ai_types: Vec<AvailableAiTypeDto>,
     /// 用户是否显式开放读取 WorkBuddy 本地用量统计；缺省关闭。
     pub workbuddy_stats_enabled: bool,
     /// 当前设备 IANA 时区，供 Collect 信封使用，不持久化为用户选择。

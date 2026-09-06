@@ -26,11 +26,11 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 
-/** 既有四项展示草稿夹具。 */
+/** 统一公开目录五项展示草稿夹具。 */
 function emptyDrafts() {
   const behaviors = ["idle", "running", "asking", "error"] as const;
   return {
-    drafts: (["codex", "claudeCode", "grok", "workBuddy"] as const).map((tool) => ({
+    drafts: (["codex", "claudeCode", "cursor", "grok", "workBuddy"] as const).map((tool) => ({
       tool,
       slot: 1,
       hooks: behaviors.map((behavior) => ({ behavior, content: "", image: "" })),
@@ -216,12 +216,39 @@ describe("monitor header tabs", () => {
     expect(screen.queryByText(/LAN/i)).not.toBeInTheDocument();
   });
 
-  /** Hooks 设置必须完整呈现与 AIMonitor 对齐的 14 项 Agent。 */
-  test("hooks_settings_render_the_complete_agent_catalog", async () => {
-    invokeMock.mockImplementation(async (command, payload) => {
-      const typedPayload = payload as { tool?: string } | undefined;
+  /** 工作台最近事件无法在当前后端能力目录匹配时不得显示原始工具值。 */
+  test("workbench_ignores_last_event_outside_the_available_catalog", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_monitor_capabilities") {
-        return monitorCapabilitiesFixture({ aiTools: allMonitorAiToolsFixture });
+        return monitorCapabilitiesFixture({
+          aiTools: [{ tool: "codex", name: "Codex" }],
+        });
+      }
+      if (command === "get_hook_relay_status") {
+        return {
+          listening: true,
+          bindAddress: "127.0.0.1:23456",
+          receivedCount: 1,
+          failedCount: 0,
+          lastEvent: { tool: "openCode", hookType: "session.idle" },
+          lastError: null,
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    await renderMonitor();
+
+    expect(await screen.findByText("No Hook events yet")).toBeVisible();
+    expect(screen.queryByText("openCode")).not.toBeInTheDocument();
+  });
+
+  /** Hooks 设置只使用后端公开目录，并在保存时丢弃目录外的历史启用项。 */
+  test("hooks_settings_intersect_capabilities_and_historical_enabled_tools", async () => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      const typedPayload = payload as { tools?: string[] } | undefined;
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture();
       }
       if (command === "get_monitor_settings") {
         return {
@@ -247,14 +274,10 @@ describe("monitor header tabs", () => {
           lastError: null,
         };
       }
-      if (command === "write_monitor_hook_config") {
+      if (command === "save_monitor_enabled_tools") {
         return {
-          tool: typedPayload?.tool ?? "codeBuddy",
-          filename: "hooks.json",
-          outcome: "codeBuddyReviewRequired",
-          configChanged: true,
-          requiresReview: true,
-          restartRequired: true,
+          enabledAiTools: typedPayload?.tools ?? [],
+          hookDirectories: {},
         };
       }
       throw new Error(`unexpected command ${command}`);
@@ -263,19 +286,14 @@ describe("monitor header tabs", () => {
     await renderMonitor("/monitor/settings");
     const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
     const hooksManagement = screen.getByTestId("monitor-hooks-management");
-    expect(within(enabledAgents).getAllByRole("checkbox")).toHaveLength(14);
-    expect(within(hooksManagement).getAllByRole("tab")).toHaveLength(14);
+    expect(within(enabledAgents).getAllByRole("checkbox")).toHaveLength(5);
+    expect(within(hooksManagement).getAllByRole("tab")).toHaveLength(5);
     expect(within(hooksManagement).getByRole("tab", { name: "Cursor" })).toBeVisible();
-    expect(
-      within(hooksManagement).getByRole("tab", { name: "GitHub Copilot" }),
-    ).toBeVisible();
-    await userEvent.click(within(hooksManagement).getByRole("tab", { name: "CodeBuddy" }));
-    await userEvent.click(
-      within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
-    );
-    expect(
-      await within(hooksManagement).findByText(/Review required in CodeBuddy/),
-    ).toBeVisible();
+    expect(within(enabledAgents).queryByText("GitHub Copilot")).not.toBeInTheDocument();
+    await userEvent.click(within(enabledAgents).getByRole("checkbox", { name: "Cursor" }));
+    expect(invokeMock).toHaveBeenCalledWith("save_monitor_enabled_tools", {
+      tools: ["codex", "claudeCode", "grok", "workBuddy"],
+    });
   });
 
   /** Hermes 与 OpenClaw 写入后展示可复制的真实激活命令，且 OpenClaw 保持执行顺序。 */
@@ -376,7 +394,7 @@ describe("monitor header tabs", () => {
       }
       if (command === "get_monitor_settings") {
         return {
-          enabledAiTools: ["codex"],
+          enabledAiTools: ["codex", "openCode"],
           hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
         };
       }
@@ -475,7 +493,7 @@ describe("monitor header tabs", () => {
       within(enabledAgents).getByRole("checkbox", { name: "Grok Build" }),
     );
     expect(invokeMock).toHaveBeenCalledWith("save_monitor_enabled_tools", {
-      tools: expect.arrayContaining(["codex", "grok"]),
+      tools: ["codex", "grok"],
     });
     const grokTab = await within(hooksManagement).findByRole("tab", { name: "Grok Build" });
     await userEvent.click(grokTab);

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { SettingsPage } from "../src/components/SettingsPage";
-import { TestProviders } from "./testUtils";
+import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -24,6 +24,7 @@ function privacySettings() {
     indexLocationCode: "codex",
     indexSizeBytes: null,
     lastClearedAtEpochMs: null,
+    availableAiTypes: availableDashboardAiTypesFixture,
     enabledAgents: [],
     workbuddyStatsEnabled: false,
   };

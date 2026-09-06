@@ -3,8 +3,8 @@
 use std::{collections::HashSet, path::Path};
 
 use loki_metis_core::{
-    AiTool, HookError, PetLayout, PetOverlayPage, PetOverlayToolState,
-    project_pet_overlay_from_drafts, project_pet_overlay_page,
+    AiTool, HookError, PetLayout, PetOverlayPage, PetOverlayToolState, is_public_monitor_tool,
+    project_pet_overlay_from_drafts, project_pet_overlay_page, public_ai_capabilities,
 };
 use serde::Serialize;
 
@@ -63,13 +63,18 @@ pub fn pet_overlay_view_from_drafts(
 ) -> Result<PetOverlayViewDto, HookError> {
     let drafts = load_profile_drafts(config_dir)?;
     let readable_ids = readable_monitor_image_ids(app_data_dir)?;
-    let has_any_image = project_pet_overlay_from_drafts(&drafts.drafts, states)
+    let public_states = states
+        .iter()
+        .filter(|state| is_public_monitor_tool(state.tool))
+        .cloned()
+        .collect::<Vec<_>>();
+    let has_any_image = project_pet_overlay_from_drafts(&drafts.drafts, &public_states)
         .slots
         .iter()
         .filter_map(|slot| slot.tile.as_ref()?.image_key.as_ref())
         .any(|image_id| readable_ids.contains(image_id));
     Ok(to_view_dto(
-        project_pet_overlay_page(&drafts.drafts, states, layout, page_index),
+        project_pet_overlay_page(&drafts.drafts, &public_states, layout, page_index),
         &readable_ids,
         has_any_image,
     ))
@@ -86,13 +91,19 @@ fn to_view_dto(
         .into_iter()
         .map(|slot| PetOverlaySlotDto {
             slot_index: slot.slot_index,
-            tile: slot.tile.map(|tile| PetOverlayTileDto {
-                tool: tile.tool,
-                name: tile.name,
-                content: tile.content,
-                image_id: tile
-                    .image_key
-                    .filter(|image_id| readable_ids.contains(image_id)),
+            tile: slot.tile.and_then(|tile| {
+                let public_name = public_ai_capabilities()
+                    .iter()
+                    .find(|capability| capability.monitor_tool == Some(tile.tool))?
+                    .name;
+                Some(PetOverlayTileDto {
+                    tool: tile.tool,
+                    name: public_name.to_owned(),
+                    content: tile.content,
+                    image_id: tile
+                        .image_key
+                        .filter(|image_id| readable_ids.contains(image_id)),
+                })
             }),
         })
         .collect::<Vec<_>>();
@@ -162,6 +173,97 @@ mod tests {
         assert_eq!(tile.tool, AiTool::Codex);
         assert_eq!(tile.name, "Codex");
         assert_eq!(tile.content, "ready");
+    }
+
+    #[test]
+    fn hidden_protocol_states_never_enter_the_public_overlay_view() {
+        let root = tempdir().expect("temp");
+        let data = root.path().join("data");
+        let config = root.path().join("config");
+        let hidden = loki_metis_core::AiProfileDraft::default_for(AiTool::OpenCode);
+        let visible = loki_metis_core::AiProfileDraft::default_for(AiTool::Codex);
+        super::super::save_profile_draft(&config, &data, hidden).expect("hidden draft");
+        super::super::save_profile_draft(&config, &data, visible).expect("visible draft");
+        let states = [
+            PetOverlayToolState {
+                tool: AiTool::OpenCode,
+                slot_index: 0,
+                behavior: Some(HookBehavior::Idle),
+                revision: 1,
+            },
+            PetOverlayToolState {
+                tool: AiTool::Codex,
+                slot_index: 1,
+                behavior: Some(HookBehavior::Idle),
+                revision: 1,
+            },
+        ];
+
+        let view = pet_overlay_view_from_drafts(&config, &data, &states, PetLayout::Grid, 0)
+            .expect("view");
+
+        assert!(view.slots[0].tile.is_none());
+        assert_eq!(
+            view.slots[1].tile.as_ref().map(|tile| tile.tool),
+            Some(AiTool::Codex)
+        );
+        assert!(
+            view.slots
+                .iter()
+                .filter_map(|slot| slot.tile.as_ref())
+                .all(|tile| is_public_monitor_tool(tile.tool))
+        );
+    }
+
+    #[test]
+    fn grok_tile_uses_the_unified_public_name() {
+        let page = PetOverlayPage {
+            layout: PetLayout::Single,
+            page_index: 0,
+            page_count: 12,
+            page_has_image: false,
+            has_any_image: false,
+            slots: vec![loki_metis_core::PetOverlaySlot {
+                slot_index: 0,
+                tile: Some(loki_metis_core::PetOverlayTile {
+                    tool: AiTool::Grok,
+                    name: "Grok Build".to_owned(),
+                    content: "running".to_owned(),
+                    image_key: None,
+                }),
+            }],
+        };
+
+        let view = to_view_dto(page, &HashSet::new(), false);
+
+        assert_eq!(
+            view.slots[0].tile.as_ref().map(|tile| tile.name.as_str()),
+            Some("Grok")
+        );
+    }
+
+    #[test]
+    fn unmatched_core_tile_is_removed_at_the_public_dto_boundary() {
+        let page = PetOverlayPage {
+            layout: PetLayout::Single,
+            page_index: 0,
+            page_count: 12,
+            page_has_image: false,
+            has_any_image: false,
+            slots: vec![loki_metis_core::PetOverlaySlot {
+                slot_index: 0,
+                tile: Some(loki_metis_core::PetOverlayTile {
+                    tool: AiTool::OpenCode,
+                    name: "OpenCode".to_owned(),
+                    content: "hidden".to_owned(),
+                    image_key: None,
+                }),
+            }],
+        };
+
+        let view = to_view_dto(page, &HashSet::new(), false);
+
+        assert!(view.slots[0].tile.is_none());
     }
 
     #[test]

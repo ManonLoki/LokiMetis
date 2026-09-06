@@ -1,5 +1,47 @@
 use super::*;
 
+/// 已保存启用列表逐项忽略未知值，且不连坐同文件中的合法隐私偏好。
+#[test]
+fn persisted_unknown_agent_labels_are_ignored_individually() {
+    let temp = tempdir().expect("isolated app-data is available");
+    fs::write(
+        temp.path().join(SETTINGS_FILE_NAME),
+        br#"{"localOnly":false,"enabledAgents":["cursor","futureAgent","codex","grokBuildCli"]}"#,
+    )
+    .expect("forward-compatible fixture is written");
+
+    let loaded = load_settings(temp.path()).expect("unknown labels are ignored");
+
+    assert!(!loaded.local_only);
+    assert!(
+        loaded
+            .enabled_agents
+            .contains(loki_metis_core::SourceClientKind::Codex)
+    );
+    assert!(
+        loaded
+            .enabled_agents
+            .contains(loki_metis_core::SourceClientKind::GrokBuildCli)
+    );
+    assert!(
+        !loaded
+            .enabled_agents
+            .contains(loki_metis_core::SourceClientKind::ClaudeCode)
+    );
+
+    fs::write(
+        temp.path().join(SETTINGS_FILE_NAME),
+        br#"{"localOnly":true,"enabledAgents":["cursor","futureAgent"]}"#,
+    )
+    .expect("unknown-only fixture is written");
+    assert!(
+        load_settings(temp.path())
+            .expect("unknown-only list is a safe empty set")
+            .enabled_agents
+            .is_empty()
+    );
+}
+
 /// 验证 Windows 主文件半写时从完整事务恢复，并由启动初始化重新提交主快照。
 #[cfg(windows)]
 #[test]

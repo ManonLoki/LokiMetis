@@ -135,6 +135,7 @@ export function DashboardSettingsSection() {
   return (
     <Stack data-testid="dashboard-settings" gap="xl">
       <EnabledAgentsSettings
+        availableAiTypes={settings.availableAiTypes}
         savedAgents={settings.enabledAgents}
         savedWorkbuddyStatsEnabled={settings.workbuddyStatsEnabled}
       />

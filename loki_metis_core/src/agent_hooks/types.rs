@@ -304,10 +304,9 @@ pub enum HookTransition {
     Release,
 }
 
-/// 按固定顺序规范化已选工具并去重。
+/// 按统一公开目录的监控映射顺序规范化已选工具，隐藏项与重复项均被丢弃。
 pub fn normalize_enabled_ai_tools(selected: &[AiTool]) -> Vec<AiTool> {
-    AiTool::ALL
-        .into_iter()
+    crate::public_monitor_ai_tools()
         .filter(|tool| selected.contains(tool))
         .collect()
 }
@@ -406,7 +405,7 @@ mod tests {
     }
 
     #[test]
-    fn enabled_tools_are_normalized_in_the_complete_fixed_order() {
+    fn enabled_tools_are_normalized_in_the_public_monitor_order() {
         assert_eq!(
             normalize_enabled_ai_tools(&[
                 AiTool::Grok,
@@ -415,12 +414,7 @@ mod tests {
                 AiTool::Cursor,
                 AiTool::OpenClaw,
             ]),
-            vec![
-                AiTool::Codex,
-                AiTool::Cursor,
-                AiTool::OpenClaw,
-                AiTool::Grok,
-            ]
+            vec![AiTool::Codex, AiTool::Cursor, AiTool::Grok]
         );
     }
 }

@@ -53,6 +53,74 @@ fn explicitly_empty_enabled_tools_remain_empty_after_save_and_reload() {
 }
 
 #[test]
+/// 历史隐藏项与未来字符串只从有效启用集合移除，其余监控偏好必须继续可读。
+fn hidden_and_unknown_enabled_tools_are_ignored_without_losing_other_settings() {
+    let root = tempdir().expect("temp");
+    std::fs::write(
+        settings_path(root.path()),
+        r#"{
+            "enabledAiTools":["openCode","futureTool","workBuddy","codex","grok"],
+            "hookDirectories":{"openCode":"/preserved/opencode","codex":"/preserved/codex"},
+            "petOverlayPosition":{"x":41,"y":73},
+            "petWindow":{"layout":"row3","focusedSlot":6,"petSize":80,"alwaysOnTop":false,"locked":true}
+        }"#,
+    )
+    .expect("write");
+
+    let settings = load_monitor_settings(root.path()).expect("load");
+
+    assert_eq!(
+        settings.enabled_ai_tools,
+        vec![AiTool::Codex, AiTool::Grok, AiTool::WorkBuddy]
+    );
+    assert_eq!(
+        settings.hook_directories.get(AiTool::OpenCode),
+        "/preserved/opencode"
+    );
+    assert_eq!(
+        settings.pet_overlay_position,
+        Some(PetOverlayPosition { x: 41, y: 73 })
+    );
+    assert_eq!(settings.pet_window.layout, PetLayout::Row3);
+    assert_eq!(settings.pet_window.focused_slot, 6);
+    assert_eq!(settings.pet_window.pet_size, 80);
+    assert!(!settings.pet_window.always_on_top);
+    assert!(settings.pet_window.locked);
+}
+
+#[test]
+/// 启用列表的容器或元素类型损坏仍拒绝读取，不能被误判为合法空集合。
+fn malformed_enabled_tools_shape_remains_an_error() {
+    for payload in [
+        r#"{"enabledAiTools":"codex"}"#,
+        r#"{"enabledAiTools":["codex",7]}"#,
+    ] {
+        let root = tempdir().expect("temp");
+        std::fs::write(settings_path(root.path()), payload).expect("write");
+        let error = load_monitor_settings(root.path()).expect_err("malformed settings");
+        assert_eq!(error.code, "error.monitor.settingsInvalid");
+    }
+}
+
+#[test]
+/// 保存路径同样按公开目录规范化，调用方不能把隐藏工具重新写入有效集合。
+fn save_filters_hidden_tools_from_the_effective_enabled_set() {
+    let root = tempdir().expect("temp");
+    let mut settings = MonitorSettings::default();
+    settings.enabled_ai_tools = vec![AiTool::OpenCode, AiTool::Cursor, AiTool::CodeBuddy];
+
+    let saved = save_monitor_settings(root.path(), &settings).expect("save");
+
+    assert_eq!(saved.enabled_ai_tools, vec![AiTool::Cursor]);
+    assert_eq!(
+        load_monitor_settings(root.path())
+            .expect("reload")
+            .enabled_ai_tools,
+        vec![AiTool::Cursor]
+    );
+}
+
+#[test]
 /// 旧文件缺失监控字段时使用源程序的三项默认启用集合和空目录覆盖。
 fn missing_enabled_tools_and_directories_use_defaults() {
     let root = tempdir().expect("temp");
