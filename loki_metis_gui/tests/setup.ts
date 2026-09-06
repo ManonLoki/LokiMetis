@@ -50,6 +50,12 @@ Object.defineProperty(window, "matchMedia", {
   writable: true,
 });
 
+Object.defineProperty(window, "scrollTo", {
+  configurable: true,
+  value: vi.fn(),
+  writable: true,
+});
+
 beforeAll(async () => {
   await initializeI18n();
 });

@@ -84,7 +84,7 @@ export const WORKBUDDY_CHART_GROUPS: readonly WorkbuddyChartGroup[] = ['day', 't
 /** 返回当前分组允许的指标；切换分组时必须落到这个集合里。 */
 export function workbuddyChartMetricsForGroup(
   group: WorkbuddyChartGroup,
-): readonly WorkbuddyChartMetric[] {
+): readonly [WorkbuddyChartMetric, ...WorkbuddyChartMetric[]] {
   return group === 'day'
     ? [
         'tokens',
@@ -105,7 +105,7 @@ export function coerceWorkbuddyChartMetric(
   metric: WorkbuddyChartMetric,
 ): WorkbuddyChartMetric {
   const options = workbuddyChartMetricsForGroup(group);
-  return options.includes(metric) ? metric : options[0]!;
+  return options.includes(metric) ? metric : options[0];
 }
 
 /** 日桶上读取图表用量当前指标；Trace 计数不属于日桶。 */

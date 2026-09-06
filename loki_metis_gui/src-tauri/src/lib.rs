@@ -383,7 +383,7 @@ mod tests {
             .expect("next command boundary");
         let command = &source[start..end];
         let persist = command
-            .find("let settings = save_enabled_tools_with_invalid_json_recovery")
+            .find("let settings = save_enabled_tools(&config_dir, tools)")
             .expect("settings persistence");
         let repair = command
             .find("hook_writer.request_enabled(settings.clone())")
@@ -406,7 +406,7 @@ mod tests {
             .find("pub fn save_hook_config_directory(")
             .expect("directory command");
         let end = source[start..]
-            .find("/// 列出全部 Agent")
+            .find("pub fn list_monitor_hook_locations(")
             .map(|offset| start + offset)
             .expect("next command");
         let command = &source[start..end];

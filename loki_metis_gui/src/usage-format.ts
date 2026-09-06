@@ -61,12 +61,21 @@ export function formatCompactTokens(value: number, targetLocale?: SupportedLocal
   }
 
   let selectedIndex = unitIndex;
+  let selectedUnit = units[selectedIndex];
+  if (!selectedUnit) {
+    return formatTokens(value, locale);
+  }
   // 先乘后除，避免 (value/threshold)*100 的 IEEE-754 半入把 1005 收成 1.00K。
-  let rounded = Math.round((value * 100) / units[selectedIndex]!.threshold) / 100;
+  let rounded = Math.round((value * 100) / selectedUnit.threshold) / 100;
   // 四舍五入可能把 999.995K 推到 1000.00K；升一级单位重新取整直到落回 [1, 1000) 或到达最大单位。
   while (Math.abs(rounded) >= 1_000 && selectedIndex > 0) {
     selectedIndex -= 1;
-    rounded = Math.round((value * 100) / units[selectedIndex]!.threshold) / 100;
+    const nextUnit = units[selectedIndex];
+    if (!nextUnit) {
+      break;
+    }
+    selectedUnit = nextUnit;
+    rounded = Math.round((value * 100) / selectedUnit.threshold) / 100;
   }
   const formatter = cachedFormatter(
     compactFormatters,
@@ -77,7 +86,7 @@ export function formatCompactTokens(value: number, targetLocale?: SupportedLocal
         minimumFractionDigits: 2,
       }),
   );
-  return `${formatter.format(rounded)}${units[selectedIndex]!.suffix}`;
+  return `${formatter.format(rounded)}${selectedUnit.suffix}`;
 }
 
 /** 把 Unix 毫秒时间按当前 locale 转换为本机时间，空值明确显示未知。 */

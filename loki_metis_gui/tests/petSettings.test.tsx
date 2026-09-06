@@ -17,6 +17,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
+/** 模拟桌宠设置窗订阅到的 Tauri 事件处理器。 */
 type TestEventHandler = (event: { event: string; id: number; payload: unknown }) => void;
 const eventHandlers = new Map<string, TestEventHandler>();
 const unlistenMock = vi.fn();

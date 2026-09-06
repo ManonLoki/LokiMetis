@@ -67,7 +67,10 @@ function LocalOverviewPage() {
   }
 
   const visibleWindows = selectOverviewWindows(local.windows);
-  if (!visibleWindows) {
+  const selectedUsage =
+    visibleWindows?.find((windowUsage) => windowUsage.window === selectedWindow) ??
+    visibleWindows?.[0];
+  if (!visibleWindows || !selectedUsage) {
     return (
       <FailureState
         error={new Error(t('overview.errors.incompleteWindows'))}
@@ -76,9 +79,6 @@ function LocalOverviewPage() {
       />
     );
   }
-  const selectedUsage =
-    visibleWindows.find((windowUsage) => windowUsage.window === selectedWindow) ??
-    visibleWindows[0]!;
   const implementationMessage = overviewQuery.data.implementationMessageCode
     ? uiMessageLabel(t, overviewQuery.data.implementationMessageCode)
     : i18n.resolvedLanguage === 'zh-CN'
