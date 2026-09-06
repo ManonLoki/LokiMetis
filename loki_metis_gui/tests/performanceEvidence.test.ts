@@ -123,12 +123,12 @@ function capturePerformanceClickHandler(): () => EventListener {
   };
 }
 
-/** 驱动主壳就绪所需三帧，并确认启动帧任务已经排空。 */
-function flushMainReadyFrames(frames: AnimationFrameHarness): void {
+/** 驱动主壳就绪所需三帧，并确认只保留调用方声明的长期帧任务。 */
+function flushMainReadyFrames(frames: AnimationFrameHarness, expectedRemaining = 0): void {
   frames.flush(10);
   frames.flush(20);
   frames.flush(30);
-  expect(frames.size()).toBe(0);
+  expect(frames.size()).toBe(expectedRemaining);
 }
 
 describe("local performance evidence", () => {
@@ -265,8 +265,8 @@ describe("local performance evidence", () => {
     expect(expectedPerformanceInteractionResult("customer-record-secret")).toBeNull();
   });
 
-  /** WebKit 回退只声明能力，主窗口空闲时不能留下常驻逐帧循环。 */
-  test("keeps the animation-frame fallback idle outside navigation interactions", async () => {
+  /** WebKit 回退以单一低分配循环覆盖完整可见会话，并记录非交互期间的帧阻塞。 */
+  test("continuously observes visible frame gaps outside navigation interactions", async () => {
     /** 模拟不声明 longtask entry 的 WebKit PerformanceObserver。 */
     class UnsupportedObserver extends PerformanceObserverHarness {
       static readonly supportedEntryTypes: string[] = [];
@@ -277,7 +277,8 @@ describe("local performance evidence", () => {
 
     await startMainPerformanceEvidence();
     await flushPromises();
-    flushMainReadyFrames(frames);
+    flushMainReadyFrames(frames, 1);
+    frames.flush(100);
     await flushPromises();
 
     const payloads = invokeMock.mock.calls
@@ -288,14 +289,17 @@ describe("local performance evidence", () => {
       longTaskSupported: false,
       timingSource: "animation-frame-gap",
     });
-    expect(
-      payloads.filter((payload) => payload.kind === "renderer-blocking-interval"),
-    ).toEqual([]);
-    expect(frames.size()).toBe(0);
+    expect(payloads).toContainEqual({
+      durationMs: 70,
+      kind: "renderer-blocking-interval",
+      startTimeMs: 30,
+      timingSource: "animation-frame-gap",
+    });
+    expect(frames.size()).toBe(1);
   });
 
-  /** 可信导航点击开启回退帧窗口，并在结果连续两帧可见后记录阻塞且立即释放。 */
-  test("samples frame gaps only during a trusted navigation interaction", async () => {
+  /** 导航计时和会话级帧间隔独立，点击到首帧不能被伪装成帧阻塞。 */
+  test("keeps frame-gap observation independent from a trusted navigation", async () => {
     /** 模拟不声明 longtask entry 的 WebKit PerformanceObserver。 */
     class UnsupportedObserver extends PerformanceObserverHarness {
       static readonly supportedEntryTypes: string[] = [];
@@ -310,7 +314,7 @@ describe("local performance evidence", () => {
 
     await startMainPerformanceEvidence();
     await flushPromises();
-    flushMainReadyFrames(frames);
+    flushMainReadyFrames(frames, 1);
 
     getClickHandler()({
       button: 0,
@@ -318,11 +322,11 @@ describe("local performance evidence", () => {
       target: navigation,
       timeStamp: 40,
     } as unknown as Event);
-    expect(frames.size()).toBe(1);
+    expect(frames.size()).toBe(2);
     window.history.replaceState(null, "", "/monitor");
     appendVisibleTestElement("monitor-page", document.body);
     frames.flush(100);
-    expect(frames.size()).toBe(1);
+    expect(frames.size()).toBe(2);
     frames.flush(120);
     await flushPromises();
 
@@ -330,9 +334,9 @@ describe("local performance evidence", () => {
       .filter(([command]) => command === "record_performance_evidence")
       .map(([, arguments_]) => arguments_.payload);
     expect(payloads).toContainEqual({
-      durationMs: 60,
+      durationMs: 70,
       kind: "renderer-blocking-interval",
-      startTimeMs: 40,
+      startTimeMs: 30,
       timingSource: "animation-frame-gap",
     });
     expect(payloads).toContainEqual(
@@ -342,11 +346,11 @@ describe("local performance evidence", () => {
         target: "navigation-monitor",
       }),
     );
-    expect(frames.size()).toBe(0);
+    expect(frames.size()).toBe(1);
   });
 
-  /** 本机窗口隐藏会终止交互帧窗口，恢复后不会自行重启常驻采样。 */
-  test("stops frame-gap sampling when the native window is hidden", async () => {
+  /** 本机窗口隐藏会停止全部回退帧，恢复后重启且首帧只建立新基线。 */
+  test("pauses continuous frame-gap sampling while the native window is hidden", async () => {
     /** 模拟不声明 longtask entry 的 WebKit PerformanceObserver。 */
     class UnsupportedObserver extends PerformanceObserverHarness {
       static readonly supportedEntryTypes: string[] = [];
@@ -360,18 +364,19 @@ describe("local performance evidence", () => {
     const getClickHandler = capturePerformanceClickHandler();
 
     await startMainPerformanceEvidence();
-    flushMainReadyFrames(frames);
+    flushMainReadyFrames(frames, 1);
     getClickHandler()({
       button: 0,
       isTrusted: true,
       target: navigation,
       timeStamp: 40,
     } as unknown as Event);
-    expect(frames.size()).toBe(1);
+    expect(frames.size()).toBe(2);
     nativeVisibilityHandler?.({ payload: false });
     expect(frames.size()).toBe(0);
     frames.flush(1_000);
     nativeVisibilityHandler?.({ payload: true });
+    expect(frames.size()).toBe(1);
     frames.flush(1_100);
     frames.flush(1_120);
     await flushPromises();
@@ -384,11 +389,11 @@ describe("local performance evidence", () => {
       )
       .map(([, arguments_]) => arguments_.payload);
     expect(blockingPayloads).toEqual([]);
-    expect(frames.size()).toBe(0);
+    expect(frames.size()).toBe(1);
   });
 
-  /** 目标页始终未出现时，有界超时也必须取消下一帧并停止采样。 */
-  test("stops frame-gap sampling when the navigation window times out", async () => {
+  /** 目标页始终未出现时，超时只取消导航计时，不得中断会话级帧观测。 */
+  test("stops only navigation timing when the interaction window times out", async () => {
     /** 模拟不声明 longtask entry 的 WebKit PerformanceObserver。 */
     class UnsupportedObserver extends PerformanceObserverHarness {
       static readonly supportedEntryTypes: string[] = [];
@@ -402,7 +407,7 @@ describe("local performance evidence", () => {
     const getClickHandler = capturePerformanceClickHandler();
 
     await startMainPerformanceEvidence();
-    flushMainReadyFrames(frames);
+    flushMainReadyFrames(frames, 1);
     const timeoutCallbacks: Array<() => void> = [];
     vi.spyOn(window, "setTimeout").mockImplementation((handler) => {
       if (typeof handler !== "function") throw new Error("unexpected string timer");
@@ -417,13 +422,57 @@ describe("local performance evidence", () => {
       target: navigation,
       timeStamp: 40,
     } as unknown as Event);
-    expect(frames.size()).toBe(1);
+    expect(frames.size()).toBe(2);
     const timeoutCallback = timeoutCallbacks[0];
     if (timeoutCallback === undefined)
       throw new Error("interaction timeout was not registered");
     timeoutCallback();
 
-    expect(frames.size()).toBe(0);
+    expect(frames.size()).toBe(1);
+    await expect(finishMainPerformanceEvidence()).rejects.toThrow(
+      "performance-evidence-write-failed",
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith("finish_performance_evidence");
+  });
+
+  /** 后续白名单点击即使目标已可见，也必须先取消上一轮尚未完成的导航。 */
+  test("cancels an unfinished navigation before ignoring the already visible target", async () => {
+    /** 模拟不声明 longtask entry 的 WebKit PerformanceObserver。 */
+    class UnsupportedObserver extends PerformanceObserverHarness {
+      static readonly supportedEntryTypes: string[] = [];
+    }
+    vi.stubGlobal("PerformanceObserver", UnsupportedObserver);
+    invokeMock.mockResolvedValue(undefined);
+    const shell = appendVisibleMainShell();
+    const monitorNavigation = document.createElement("button");
+    monitorNavigation.dataset.testid = "navigation-monitor";
+    const dashboardNavigation = document.createElement("button");
+    dashboardNavigation.dataset.testid = "navigation-dashboard";
+    shell.append(monitorNavigation, dashboardNavigation);
+    appendVisibleTestElement("dashboard-page", document.body);
+    const getClickHandler = capturePerformanceClickHandler();
+
+    await startMainPerformanceEvidence();
+    flushMainReadyFrames(frames, 1);
+    getClickHandler()({
+      button: 0,
+      isTrusted: true,
+      target: monitorNavigation,
+      timeStamp: 40,
+    } as unknown as Event);
+    expect(frames.size()).toBe(2);
+
+    getClickHandler()({
+      button: 0,
+      isTrusted: true,
+      target: dashboardNavigation,
+      timeStamp: 45,
+    } as unknown as Event);
+
+    expect(frames.size()).toBe(1);
+    await expect(finishMainPerformanceEvidence()).rejects.toThrow(
+      "performance-evidence-write-failed",
+    );
   });
 
   /** finalize 会直接释放尚未完成的有界交互，不把退出等待时间冒充阻塞。 */
@@ -445,15 +494,17 @@ describe("local performance evidence", () => {
     const getClickHandler = capturePerformanceClickHandler();
 
     await startMainPerformanceEvidence();
-    flushMainReadyFrames(frames);
+    flushMainReadyFrames(frames, 1);
     getClickHandler()({
       button: 0,
       isTrusted: true,
       target: navigation,
       timeStamp: 40,
     } as unknown as Event);
-    expect(frames.size()).toBe(1);
-    await finishMainPerformanceEvidence();
+    expect(frames.size()).toBe(2);
+    await expect(finishMainPerformanceEvidence()).rejects.toThrow(
+      "performance-evidence-write-failed",
+    );
 
     const payloads = invokeMock.mock.calls
       .filter(([command]) => command === "record_performance_evidence")
@@ -461,6 +512,7 @@ describe("local performance evidence", () => {
     expect(
       payloads.filter((payload) => payload.kind === "renderer-blocking-interval"),
     ).toEqual([]);
+    expect(invokeMock).not.toHaveBeenCalledWith("finish_performance_evidence");
     expect(frames.size()).toBe(0);
   });
 

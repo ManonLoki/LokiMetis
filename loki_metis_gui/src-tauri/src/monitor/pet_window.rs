@@ -313,10 +313,10 @@ pub fn show_pet_settings_window(app: &AppHandle) -> Result<(), String> {
     settings.set_focus().map_err(|error| error.to_string())
 }
 
-/// 隐藏桌宠设置窗，不销毁其 webview。
+/// 关闭并销毁桌宠设置窗；保留旧函数名以兼容既有 IPC 映射。
 pub fn hide_pet_settings_window(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(PET_SETTINGS_LABEL) {
-        window.hide().map_err(|error| error.to_string())?;
+        window.destroy().map_err(|error| error.to_string())?;
     }
     Ok(())
 }
@@ -546,5 +546,29 @@ mod tests {
             96,
         ));
         assert_eq!(settings.pet_window.pet_size, 96);
+    }
+
+    /// 设置窗关闭必须销毁旧 WebView，后续打开仍保留按需创建分支。
+    #[test]
+    fn pet_settings_close_destroys_webview_and_reopen_can_recreate_it() {
+        let source = include_str!("pet_window.rs");
+        let show_start = source
+            .find("pub fn show_pet_settings_window(")
+            .expect("pet settings show function");
+        let close_start = source
+            .find("pub fn hide_pet_settings_window(")
+            .expect("pet settings close function");
+        let show = &source[show_start..close_start];
+        let close_end = source[close_start..]
+            .find("/// 把宿主读回的物理位置")
+            .map(|offset| close_start + offset)
+            .expect("next function boundary");
+        let close = &source[close_start..close_end];
+
+        assert!(show.contains("app.get_webview_window(PET_SETTINGS_LABEL)"));
+        assert!(show.contains("WebviewWindowBuilder::new("));
+        assert!(show.contains(".build()"));
+        assert!(close.contains("window.destroy()"));
+        assert!(!close.contains("window.hide()"));
     }
 }

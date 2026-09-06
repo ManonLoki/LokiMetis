@@ -31,7 +31,7 @@ Tauri Builder 顺序固定为：
 
 每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”和左键恢复，桌宠显隐项按真实可见性切换浮窗且冷启动默认显示，托盘“退出”真正终止应用。
 
-桌宠使用独立的 `pet` WebView 窗口，右键设置使用独立的 `pet-settings` WebView 窗口。两者都不挂主壳；`pet-settings` 关闭请求只隐藏窗口。桌宠布局、分页、缩放、锁定、置顶、位置和尺寸由 Rust 权威状态驱动，React 只发送交互意图并渲染一致快照。12 个展示位置及同位置最近迁移裁决属于 core 规则，不得在 Tauri 或 React 中按 Agent 枚举重新绑定。
+桌宠使用独立的 `pet` WebView 窗口，右键设置按需创建独立的 `pet-settings` WebView 窗口。两者都不挂主壳；`pet-settings` 关闭时销毁，下一次右键再创建，避免隐藏 WebView 常驻。桌宠布局、分页、缩放、锁定、置顶、位置和尺寸由 Rust 权威状态驱动，React 只发送交互意图并渲染一致快照。12 个展示位置及同位置最近迁移裁决属于 core 规则，不得在 Tauri 或 React 中按 Agent 枚举重新绑定。
 
 ## IPC 与状态
 

@@ -36,8 +36,8 @@
           "en-US": "Fixed app bundle version and DMG installation layout drift from the root version and GUI profile."
         },
         {
-          "zh-CN": "修复隐藏桌宠设置窗的额外 WebView 占用，并停止性能采集在空闲时持续逐帧运行。",
-          "en-US": "Removed the hidden pet-settings WebView overhead and stopped performance capture from running continuously while idle."
+          "zh-CN": "修复桌宠设置窗关闭后的 WebView 占用，并让测试专用性能采集在窗口隐藏时停止逐帧运行。",
+          "en-US": "Removed pet-settings WebView overhead after close and stopped test-only performance capture while the window is hidden."
         }
       ]
     }

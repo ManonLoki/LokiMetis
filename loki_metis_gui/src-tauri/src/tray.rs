@@ -206,14 +206,13 @@ pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &Windo
             return;
         }
         if is_pet_settings_label(window.label()) {
-            api.prevent_close();
-            let _ = window.hide();
+            // 设置窗必须让宿主完成默认关闭，Destroyed 事件会从 Manager 移除旧 WebView。
             return;
         }
         if window.label() == pet_overlay_window_description().label {
             api.prevent_close();
             if let Some(settings) = window.app_handle().get_webview_window(PET_SETTINGS_LABEL) {
-                let _ = settings.hide();
+                let _ = settings.destroy();
             }
             if window.hide().is_ok() {
                 let _ = set_pet_overlay_label(window.app_handle(), false);
@@ -299,5 +298,39 @@ mod tests {
             pet_overlay_tray_label_for_locale(true, "en-US"),
             pet_overlay_tray_label_for_locale(true, "zh-CN")
         );
+    }
+
+    /// 原生关闭设置窗必须走默认 close，不能再阻止关闭后仅隐藏。
+    #[test]
+    fn pet_settings_close_request_allows_webview_destruction() {
+        let source = include_str!("tray.rs");
+        let settings_start = source
+            .find("if is_pet_settings_label(window.label())")
+            .expect("pet settings close branch");
+        let overlay_start = source[settings_start..]
+            .find("if window.label() == pet_overlay_window_description().label")
+            .map(|offset| settings_start + offset)
+            .expect("pet overlay close branch");
+        let settings_branch = &source[settings_start..overlay_start];
+
+        assert!(!settings_branch.contains("api.prevent_close()"));
+        assert!(!settings_branch.contains("window.hide()"));
+    }
+
+    /// 隐藏桌宠的托盘路径必须同时销毁设置 WebView，避免后台常驻。
+    #[test]
+    fn pet_overlay_close_request_destroys_settings_webview() {
+        let source = include_str!("tray.rs");
+        let overlay_start = source
+            .find("if window.label() == pet_overlay_window_description().label")
+            .expect("pet overlay close branch");
+        let tests_start = source[overlay_start..]
+            .find("\n}\n\n#[cfg(test)]\nmod tests")
+            .map(|offset| overlay_start + offset)
+            .expect("tests module");
+        let overlay_branch = &source[overlay_start..tests_start];
+
+        assert!(overlay_branch.contains("settings.destroy()"));
+        assert!(!overlay_branch.contains("settings.hide()"));
     }
 }
