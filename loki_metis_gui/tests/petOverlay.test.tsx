@@ -28,13 +28,6 @@ describe("desktop pet overlay page", () => {
       if (command === "get_monitor_image_bytes") {
         return pngMagic;
       }
-      if (command === "get_monitor_settings") {
-        return {
-          enabledAiTools: ["codex"],
-          hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-          petCloseControlVisible: true,
-        };
-      }
       if (command === "close_pet_overlay") {
         return { label: "pet", hideMainWindow: false, stopHookListener: false };
       }
@@ -78,40 +71,17 @@ describe("desktop pet overlay page", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_monitor_image_bytes", { id: "img-1" });
   });
 
-  /** 兔耳打开时圆形关闭控件可点并关闭悬浮窗。 */
-  test("bunny_ear_on_shows_circular_close_control_that_closes_overlay", async () => {
-    render(
-      <TestProviders>
-        <PetOverlayPage />
-      </TestProviders>,
-    );
-    const close = await screen.findByRole("button", { name: "Close the desktop pet overlay" });
-    expect(close).toHaveClass("pet-close");
-    await userEvent.click(close);
-    expect(invokeMock).toHaveBeenCalledWith("close_pet_overlay");
-  });
-
-  /** 兔耳关闭时圆形关闭控件不在文档中。 */
-  test("bunny_ear_off_hides_circular_close_control", async () => {
+  /** 没有任何当前 Hook 行为时四槽保持空白，且不会请求初始图片字节。 */
+  test("no_current_behavior_keeps_all_slots_without_initial_images", async () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_pet_overlay_view") {
         return {
           slots: [
-            { tool: "codex", name: "Codex", occupied: true, imageId: "img-1" },
+            { tool: "codex", name: "Codex", occupied: false, imageId: null },
             { tool: "claudeCode", name: "Claude Code", occupied: false, imageId: null },
             { tool: "grok", name: "Grok Build", occupied: false, imageId: null },
             { tool: "workBuddy", name: "WorkBuddy", occupied: false, imageId: null },
           ],
-        };
-      }
-      if (command === "get_monitor_image_bytes") {
-        return pngMagic;
-      }
-      if (command === "get_monitor_settings") {
-        return {
-          enabledAiTools: ["codex"],
-          hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-          petCloseControlVisible: false,
         };
       }
       throw new Error(`unexpected command ${command}`);
@@ -121,15 +91,33 @@ describe("desktop pet overlay page", () => {
         <PetOverlayPage />
       </TestProviders>,
     );
-    expect(await screen.findByTestId("pet-overlay-page")).toBeVisible();
-    await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("get_monitor_settings");
-    });
-    expect(screen.queryByRole("button", { name: "Close the desktop pet overlay" })).not.toBeInTheDocument();
-    expect(document.querySelector(".pet-close")).toBeNull();
+    expect(await screen.findByText("Codex")).toBeVisible();
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "get_monitor_image_bytes",
+      expect.anything(),
+    );
   });
 
-  /** 浮窗主体左键开始原生拖动；兔耳关闭控件上的左键不拖动。 */
+  /** 圆形关闭控件始终可见可点，且不读取可见性设置。 */
+  test("permanent_close_control_closes_overlay_without_reading_visibility_setting", async () => {
+    render(
+      <TestProviders>
+        <PetOverlayPage />
+      </TestProviders>,
+    );
+    const close = await screen.findByRole("button", {
+      name: "Close the desktop pet overlay",
+    });
+    expect(close).toHaveClass("pet-close");
+    expect(
+      invokeMock.mock.calls.some(([command]) => command === "get_monitor_settings"),
+    ).toBe(false);
+    await userEvent.click(close);
+    expect(invokeMock).toHaveBeenCalledWith("close_pet_overlay");
+  });
+
+  /** 浮窗主体左键开始原生拖动；常驻关闭控件上的左键不拖动。 */
   test("left_button_on_shell_starts_drag_but_close_control_does_not", async () => {
     render(
       <TestProviders>

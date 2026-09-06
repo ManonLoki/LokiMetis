@@ -102,8 +102,13 @@ describe("monitor management page", () => {
     expect(screen.getByText("Display position")).toBeVisible();
     expect(screen.getByRole("button", { name: "Position 1, row 1, column 1" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Position 6, row 1, column 6" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: /Position 7,/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /row 2,/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Position 7, row 2, column 1" })).toBeVisible();
+    const positionTwelve = screen.getByRole("button", { name: "Position 12, row 2, column 6" });
+    expect(positionTwelve).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Position 13,/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /row 3,/ })).not.toBeInTheDocument();
+    await userEvent.click(positionTwelve);
+    expect(screen.getByText("Position 12")).toBeVisible();
     const pickers = screen.getAllByTestId("image-picker-trigger");
     expect(pickers.length).toBeGreaterThan(0);
     await userEvent.click(pickers[0]);
@@ -116,6 +121,7 @@ describe("monitor management page", () => {
         expect.objectContaining({
           profile: expect.objectContaining({
             tool: "codex",
+            slot: 12,
             hooks: expect.arrayContaining([
               expect.objectContaining({ behavior: "idle", image: "img-1" }),
             ]),

@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import {
   closePetOverlay,
   getMonitorImageBytes,
-  getMonitorSettings,
   getPetOverlayView,
   startPetOverlayDrag,
   type PetOverlaySlot,
@@ -53,13 +52,7 @@ export function PetOverlayPage(): ReactElement {
     queryKey: ["pet-overlay-view"],
     refetchInterval: 1000,
   });
-  const settings = useQuery({
-    queryFn: getMonitorSettings,
-    queryKey: ["monitor-settings"],
-    refetchInterval: 1000,
-  });
   const slots = view.data?.slots ?? [];
-  const showCloseControl = settings.data?.petCloseControlVisible ?? true;
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   /** 左键交给原生拖动；位置由宿主 WindowEvent::Moved 记录。关闭按钮与设置面板不拖动。 */
@@ -84,19 +77,17 @@ export function PetOverlayPage(): ReactElement {
       onContextMenu={onContextMenu}
       onMouseDown={onMouseDown}
     >
-      {showCloseControl ? (
-        <button
-          aria-label={t("monitor.pet.closeAria")}
-          className="pet-close"
-          data-pet-control=""
-          onClick={() => {
-            void closePetOverlay();
-          }}
-          type="button"
-        >
-          {t("monitor.pet.close")}
-        </button>
-      ) : null}
+      <button
+        aria-label={t("monitor.pet.closeAria")}
+        className="pet-close"
+        data-pet-control=""
+        onClick={() => {
+          void closePetOverlay();
+        }}
+        type="button"
+      >
+        {t("monitor.pet.close")}
+      </button>
       {settingsOpen ? (
         <section
           aria-label={t("monitor.pet.settingsTitle")}

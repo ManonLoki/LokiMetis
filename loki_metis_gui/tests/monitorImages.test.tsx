@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -97,11 +97,24 @@ describe("monitor images page", () => {
         <MonitorImagesPage />
       </TestProviders>,
     );
-    expect(await screen.findByText("3 images")).toBeVisible();
-    expect(screen.getByRole("radio", { name: "All 3" })).toBeVisible();
-    expect(screen.getByRole("radio", { name: "JPEG 1" })).toBeVisible();
-    expect(screen.getByRole("radio", { name: "PNG 1" })).toBeVisible();
-    expect(screen.getByRole("radio", { name: "GIF 1" })).toBeVisible();
+    const toolbar = await screen.findByTestId("monitor-images-toolbar");
+    expect(await within(toolbar).findByText("3 images")).toBeVisible();
+    const filters = within(toolbar).getByTestId("monitor-images-filters");
+    const actions = within(toolbar).getByTestId("monitor-images-actions");
+    expect(toolbar).toHaveStyle("--group-wrap: nowrap");
+    expect(filters).toHaveStyle("--group-wrap: nowrap");
+    expect(actions).toHaveStyle("margin-left: auto; --group-wrap: nowrap");
+    expect(toolbar.children[0]).toBe(filters);
+    expect(toolbar.children[1]).toBe(actions);
+    expect(
+      within(toolbar).getByRole("radiogroup", { name: "Filter images by format" }),
+    ).toBeVisible();
+    expect(within(toolbar).getByRole("radio", { name: "All 3" })).toBeVisible();
+    expect(within(toolbar).getByRole("radio", { name: "JPEG 1" })).toBeVisible();
+    expect(within(toolbar).getByRole("radio", { name: "PNG 1" })).toBeVisible();
+    expect(within(toolbar).getByRole("radio", { name: "GIF 1" })).toBeVisible();
+    expect(within(toolbar).getByRole("button", { name: "Refresh" })).toBeVisible();
+    expect(within(toolbar).getByRole("button", { name: "Upload multiple" })).toBeVisible();
     expect(screen.getByRole("img", { name: "photo.jpg" })).toHaveAttribute(
       "src",
       "data:image/jpeg;base64,/9j/4AAQ=",
@@ -110,7 +123,7 @@ describe("monitor images page", () => {
     expect(screen.getByText("PNG")).toBeVisible();
     expect(screen.getByText("GIF")).toBeVisible();
     expect(screen.getAllByText("Local library")).toHaveLength(3);
-    await userEvent.click(screen.getByRole("radio", { name: "PNG 1" }));
+    await userEvent.click(within(toolbar).getByRole("radio", { name: "PNG 1" }));
     expect(screen.getByRole("img", { name: "icon.png" })).toBeVisible();
     expect(screen.queryByRole("img", { name: "photo.jpg" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Image actions: icon.png" }));

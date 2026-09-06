@@ -45,7 +45,6 @@ export interface MonitorSettings {
     grok: string;
     workBuddy: string;
   };
-  petCloseControlVisible: boolean;
   petOverlayPosition: PetOverlayPosition | null;
 }
 
@@ -208,23 +207,6 @@ export async function getPetOverlayView(): Promise<PetOverlayView> {
 /** 读取监控图片原始字节。 */
 export async function getMonitorImageBytes(id: string): Promise<number[]> {
   return invoke("get_monitor_image_bytes", { id });
-}
-
-/** 查询桌宠悬浮窗当前是否打开。 */
-export async function isPetOverlayOpen(): Promise<boolean> {
-  return invoke("is_pet_overlay_open");
-}
-
-/** 保存兔耳（圆形关闭控件）显示偏好。 */
-export async function savePetCloseControlVisible(
-  visible: boolean,
-): Promise<MonitorSettings> {
-  return invoke("save_pet_close_control_visible", { visible });
-}
-
-/** 打开桌宠悬浮窗。 */
-export async function openPetOverlay(): Promise<void> {
-  await invoke("open_pet_overlay");
 }
 
 /** 关闭桌宠悬浮窗。 */

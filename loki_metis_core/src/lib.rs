@@ -36,13 +36,13 @@ mod workbuddy_stats;
 
 pub use agent_hooks::{
     AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
-    HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
-    HookError, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
-    PreparedNativeHook, ai_tool_descriptors, ai_tool_name, generate_hook_config,
+    HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult, HookError,
+    HookEventDecision, HookStateMachine, HookTransition, HookWriteOutcome,
+    MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload, PreparedNativeHook, ai_tool_descriptors,
+    ai_tool_name, generate_hook_config,
     generate_wsl_hook_config, hook_config_filename, hook_config_has_managed_marker,
-    display_behavior_for_hook_event, hook_config_write_result, hook_relay_loopback_address,
-    managed_hook_marker, merge_hook_config, normalize_enabled_ai_tools, prepare_native_hook,
-    tool_from_slug,
+    hook_config_write_result, hook_relay_loopback_address, managed_hook_marker, merge_hook_config,
+    normalize_enabled_ai_tools, prepare_native_hook, tool_from_slug,
 };
 pub use aggregate::{
     CanonicalUsageSet, CanonicalizationWarning, CanonicalizationWarningKind, MetricFusionError,
@@ -90,9 +90,8 @@ pub use monitor_profile::{
     profile_slot_range, validate_profile_draft,
 };
 pub use pet_overlay::{
-    DEFAULT_PET_CLOSE_CONTROL_VISIBLE, PET_OVERLAY_WINDOW_SPEC, PetOverlaySlot,
-    PetOverlayToolBehavior, PetOverlayView, PetOverlayWindowSpec, pet_overlay_window_spec,
-    project_pet_overlay_from_drafts,
+    PET_OVERLAY_WINDOW_SPEC, PetOverlaySlot, PetOverlayToolBehavior, PetOverlayView,
+    PetOverlayWindowSpec, pet_overlay_window_spec, project_pet_overlay_from_drafts,
 };
 pub use pet_overlay_position::{
     PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,

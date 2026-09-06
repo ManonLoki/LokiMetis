@@ -92,10 +92,6 @@
       "settings": {
         "label": "Hooks settings",
         "description": "Enable agents that receive Hooks and write local configs"
-      },
-      "desktop": {
-        "label": "Monitor settings",
-        "description": "Configure the desktop pet overlay and bunny ear close control"
       }
     },
     "workbench": {
@@ -172,6 +168,7 @@
       "uploaded": "Successfully uploaded {{count}} images.",
       "delete": "Delete image",
       "refresh": "Refresh",
+      "filterAria": "Filter images by format",
       "reading": "Reading…",
       "actions": "Image actions: {{name}}",
       "localLibrary": "Local library",
@@ -192,16 +189,7 @@
       "write": "Write Hooks",
       "written": "Wrote {{file}} ({{outcome}})"
     },
-    "desktop": {
-      "title": "Monitor settings",
-      "description": "Open or close the desktop pet overlay and choose whether the bunny ear close control is shown. This is not Hooks settings and not the app Settings page.",
-      "petDescription": "Turn on to show the desktop pet overlay; turn off to hide it. The main window stays visible.",
-      "earTitle": "Bunny ear",
-      "earDescription": "Turn on to show the circular close control on the overlay; turn off to hide it."
-    },
     "pet": {
-      "open": "Desktop pet overlay",
-      "openAria": "Open the desktop pet floating overlay",
       "close": "Close",
       "closeAria": "Close the desktop pet overlay",
       "waiting": "Waiting for image",

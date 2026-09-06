@@ -5,6 +5,7 @@
 
 mod error;
 mod payload;
+mod state_machine;
 mod types;
 
 // 引入 Duration，用于表示各工具协议声明的生命周期交接延迟
@@ -30,6 +31,7 @@ use generation::command_has_marker;
 pub use error::HookError;
 pub use generation::{generate_hook_config, generate_wsl_hook_config, merge_hook_config};
 pub use payload::{MinimalHookPayload, PreparedNativeHook, prepare_native_hook};
+pub use state_machine::{HookEventDecision, HookStateMachine};
 pub use types::{
     AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
     HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
@@ -385,20 +387,6 @@ pub(crate) fn session_start_revives_tombstone(tool: AiTool) -> bool {
     protocol(tool).session_start_revives_tombstone()
 }
 
-// 查找某工具某事件名对应的状态迁移动作，供测试直接断言
-#[cfg(test)]
-pub(super) fn hook_transition(tool: AiTool, event: &str) -> Option<HookTransition> {
-    event_definition(tool, event).map(|definition| definition.kind.transition())
-}
-
-/// 把 Hook 事件名映射为桌宠应展示的行为；未知或释放事件回退 Idle。
-pub fn display_behavior_for_hook_event(tool: AiTool, event: &str) -> HookBehavior {
-    match event_definition(tool, event).map(|definition| definition.kind.transition()) {
-        Some(HookTransition::Display(behavior)) => behavior,
-        Some(HookTransition::Release) | None => HookBehavior::Idle,
-    }
-}
-
 /// 构造 Claude-Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。
 pub(super) fn command_group(command: &str, matcher: Option<&str>) -> Value {
     // 构造基础分组：单个 command 类型 handler
@@ -441,12 +429,7 @@ pub(super) fn platform_command(commands: &ManagedCommands) -> &str {
 pub(crate) fn forwards_every_event(tool: AiTool) -> bool {
     // 只有具备稳定会话/工作开始语义并经过状态机适配验证的工具执行抑制；
     // 其他协议按事件到达顺序直通，避免公共状态机误丢上游事件。
-    !matches!(
-        tool,
-        AiTool::Codex
-            | AiTool::ClaudeCode
-            | AiTool::Grok
-    )
+    !matches!(tool, AiTool::Codex | AiTool::ClaudeCode | AiTool::Grok)
 }
 
 // 判断 hooks 配置条目是否携带该工具的 AIMonitor 管理标识。

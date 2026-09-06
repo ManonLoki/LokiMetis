@@ -1,4 +1,4 @@
-import { Alert, Badge, Checkbox, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Checkbox, Group, Paper, SimpleGrid, Stack, Title } from '@mantine/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { useTranslation } from 'react-i18next';
@@ -40,41 +40,46 @@ export function EnabledAgentsSettings({
   });
   return (
     <Paper className="privacy-card" p="lg" radius="lg" withBorder>
-      <Stack gap="md">
-        <div>
-          <Group gap="xs">
-            <Title order={3}>{t('privacy.enabledAgents.title')}</Title>
-            <Badge color="blue" variant="light">
-              {t('privacy.enabledAgents.badge')}
-            </Badge>
-          </Group>
-          <Text c="dimmed" maw={760} size="sm">
-            {t('privacy.enabledAgents.description')}
-          </Text>
-        </div>
-        {visibleUsageClients.map((item) => (
+      <Stack gap="sm">
+        <Group gap="xs">
+          <Title id="dashboard-enabled-agents-title" order={3}>
+            {t('privacy.enabledAgents.title')}
+          </Title>
+          <Badge color="blue" variant="light">
+            {t('privacy.enabledAgents.badge')}
+          </Badge>
+        </Group>
+        <SimpleGrid
+          aria-labelledby="dashboard-enabled-agents-title"
+          cols={{ base: 2, sm: 3, md: 4 }}
+          data-testid="dashboard-enabled-agent-options"
+          role="group"
+          spacing="xs"
+          verticalSpacing="xs"
+        >
+          {visibleUsageClients.map((item) => (
+            <Checkbox
+              checked={savedAgents.includes(item.value)}
+              disabled={mutation.isPending}
+              key={item.value}
+              label={item.label}
+              onChange={(event) => {
+                const next = event.currentTarget.checked
+                  ? [...savedAgents, item.value]
+                  : savedAgents.filter((agent) => agent !== item.value);
+                mutation.mutate(next);
+              }}
+            />
+          ))}
           <Checkbox
-            checked={savedAgents.includes(item.value)}
-            disabled={mutation.isPending}
-            key={item.value}
-            label={item.label}
+            checked={savedWorkbuddyStatsEnabled}
+            disabled={workbuddyMutation.isPending}
+            label={t('privacy.enabledAgents.workbuddyLabel')}
             onChange={(event) => {
-              const next = event.currentTarget.checked
-                ? [...savedAgents, item.value]
-                : savedAgents.filter((agent) => agent !== item.value);
-              mutation.mutate(next);
+              workbuddyMutation.mutate(event.currentTarget.checked);
             }}
           />
-        ))}
-        <Checkbox
-          checked={savedWorkbuddyStatsEnabled}
-          description={t('privacy.enabledAgents.workbuddyDescription')}
-          disabled={workbuddyMutation.isPending}
-          label={t('privacy.enabledAgents.workbuddyLabel')}
-          onChange={(event) => {
-            workbuddyMutation.mutate(event.currentTarget.checked);
-          }}
-        />
+        </SimpleGrid>
         {mutation.isError || workbuddyMutation.isError ? (
           <Alert color="red" title={t('ui.failureTitle')}>
             {visibleErrorMessage(mutation.error ?? workbuddyMutation.error)}

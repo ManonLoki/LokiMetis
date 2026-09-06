@@ -14,8 +14,8 @@ use super::{
     PetOverlayWindowDescription, close_pet_overlay_window, delete_monitor_image,
     list_hook_config_locations, list_monitor_image_gallery, load_monitor_settings,
     load_profile_drafts, monitor_capabilities, overlay_image_bytes, pet_overlay_view_from_drafts,
-    pet_overlay_window_is_open, save_monitor_image, save_profile_draft, show_or_create_pet_overlay,
-    start_pet_overlay_dragging, update_monitor_settings, write_hook_config,
+    save_monitor_image, save_profile_draft, start_pet_overlay_dragging, update_monitor_settings,
+    write_hook_config,
 };
 
 fn config_dir(app: &AppHandle) -> Result<PathBuf, HookError> {
@@ -154,33 +154,14 @@ pub fn get_monitor_image_bytes(app: AppHandle, id: String) -> Result<Vec<u8>, Ho
     overlay_image_bytes(&data_dir(&app)?, &id)
 }
 
-/// 保存兔耳（圆形关闭控件）显示偏好。
-#[tauri::command]
-pub fn save_pet_close_control_visible(
-    app: AppHandle,
-    visible: bool,
-) -> Result<MonitorSettings, HookError> {
-    update_monitor_settings(&config_dir(&app)?, |settings| {
-        settings.pet_close_control_visible = visible;
-    })
-}
-
-/// 查询桌宠悬浮窗当前是否打开。
-#[tauri::command]
-pub fn is_pet_overlay_open(app: AppHandle) -> bool {
-    pet_overlay_window_is_open(&app)
-}
-
-/// 打开桌宠悬浮窗。
-#[tauri::command]
-pub fn open_pet_overlay(app: AppHandle) -> Result<PetOverlayWindowDescription, String> {
-    show_or_create_pet_overlay(&app)
-}
-
 /// 关闭桌宠悬浮窗。
 #[tauri::command]
 pub fn close_pet_overlay(app: AppHandle) -> Result<PetOverlayWindowDescription, String> {
-    close_pet_overlay_window(&app)
+    let description = close_pet_overlay_window(&app)?;
+    if let Err(error) = crate::tray::refresh_pet_overlay_label(&app) {
+        tracing::warn!(%error, "failed to refresh pet overlay tray label after close");
+    }
+    Ok(description)
 }
 
 /// 拖动无边框桌宠悬浮窗。

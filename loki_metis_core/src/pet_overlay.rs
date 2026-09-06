@@ -60,9 +60,6 @@ pub const PET_OVERLAY_WINDOW_SPEC: PetOverlayWindowSpec = PetOverlayWindowSpec {
     default_height: 360.0,
 };
 
-/// 兔耳（悬浮窗圆形关闭控件）默认显示；旧设置文件缺字段时必须回落到显示，不能当成关闭。
-pub const DEFAULT_PET_CLOSE_CONTROL_VISIBLE: bool = true;
-
 /// 某工具当前应展示的 Hook 行为。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,7 +70,7 @@ pub struct PetOverlayToolBehavior {
     pub behavior: HookBehavior,
 }
 
-/// 从已保存展示草稿和当前行为投影四槽宫格；无事件时回退 idle。
+/// 从已保存展示草稿和当前行为投影四槽宫格；无当前行为时保持空槽。
 pub fn project_pet_overlay_from_drafts(
     drafts: &[AiProfileDraft],
     current_behaviors: &[PetOverlayToolBehavior],
@@ -82,15 +79,15 @@ pub fn project_pet_overlay_from_drafts(
         slots: AiTool::ALL
             .into_iter()
             .map(|tool| {
-                let behavior = current_behaviors
+                let image_key = current_behaviors
                     .iter()
                     .find(|item| item.tool == tool)
-                    .map(|item| item.behavior)
-                    .unwrap_or(HookBehavior::Idle);
-                let image_key = drafts
-                    .iter()
-                    .find(|draft| draft.tool == tool)
-                    .and_then(|draft| draft_image_key(draft, behavior));
+                    .and_then(|item| {
+                        drafts
+                            .iter()
+                            .find(|draft| draft.tool == tool)
+                            .and_then(|draft| draft_image_key(draft, item.behavior))
+                    });
                 PetOverlaySlot {
                     tool,
                     name: ai_tool_name(tool).to_owned(),
@@ -120,11 +117,6 @@ pub fn pet_overlay_window_spec() -> PetOverlayWindowSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn pet_close_control_missing_value_defaults_to_visible() {
-        assert!(DEFAULT_PET_CLOSE_CONTROL_VISIBLE);
-    }
 
     #[test]
     fn overlay_has_exactly_four_approved_agent_slots() {
@@ -164,7 +156,13 @@ mod tests {
     #[test]
     fn overlay_slots_use_saved_draft_image_ids_not_filenames() {
         let drafts = vec![draft_with_images(AiTool::Codex, "img-idle", "img-run")];
-        let view = project_pet_overlay_from_drafts(&drafts, &[]);
+        let view = project_pet_overlay_from_drafts(
+            &drafts,
+            &[PetOverlayToolBehavior {
+                tool: AiTool::Codex,
+                behavior: HookBehavior::Idle,
+            }],
+        );
         assert_eq!(view.slots[0].image_key.as_deref(), Some("img-idle"));
         assert!(view.slots[0].occupied);
         assert!(!view.slots[1].occupied);
@@ -184,22 +182,41 @@ mod tests {
     }
 
     #[test]
-    fn overlay_uses_running_image_when_latest_hook_is_running() {
+    fn overlay_without_current_behavior_has_no_initial_image() {
         let drafts = vec![draft_with_images(AiTool::Grok, "img-idle", "img-run")];
-        let view = project_pet_overlay_from_drafts(
+        let view = project_pet_overlay_from_drafts(&drafts, &[]);
+        let grok = view
+            .slots
+            .iter()
+            .find(|slot| slot.tool == AiTool::Grok)
+            .expect("grok");
+        assert!(!grok.occupied);
+        assert_eq!(grok.image_key, None);
+    }
+
+    #[test]
+    fn overlay_uses_configured_image_for_explicit_behavior() {
+        let drafts = vec![draft_with_images(AiTool::Grok, "img-idle", "img-run")];
+        let running_view = project_pet_overlay_from_drafts(
             &drafts,
             &[PetOverlayToolBehavior {
                 tool: AiTool::Grok,
                 behavior: HookBehavior::Running,
             }],
         );
-        let grok = view
+        let running_grok = running_view
             .slots
             .iter()
             .find(|slot| slot.tool == AiTool::Grok)
             .expect("grok");
-        assert_eq!(grok.image_key.as_deref(), Some("img-run"));
-        let idle_view = project_pet_overlay_from_drafts(&drafts, &[]);
+        assert_eq!(running_grok.image_key.as_deref(), Some("img-run"));
+        let idle_view = project_pet_overlay_from_drafts(
+            &drafts,
+            &[PetOverlayToolBehavior {
+                tool: AiTool::Grok,
+                behavior: HookBehavior::Idle,
+            }],
+        );
         let idle_grok = idle_view
             .slots
             .iter()

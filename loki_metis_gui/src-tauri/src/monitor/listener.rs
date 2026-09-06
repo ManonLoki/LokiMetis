@@ -1,15 +1,45 @@
 //! 本机环回 Hook listener：接受四项 Agent 的最小信封并记账。
 
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
+};
 
 use loki_metis_core::{
-    AiTool, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
-    MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload, PetOverlayToolBehavior,
-    display_behavior_for_hook_event, hook_relay_loopback_address, tool_from_slug,
+    AiTool, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior, HookEventDecision,
+    HookStateMachine, HookTransition, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
+    PetOverlayToolBehavior, hook_relay_loopback_address, tool_from_slug,
 };
 use serde::Serialize;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::time::{MissedTickBehavior, interval_at};
+
+/// listener 到状态机 worker 的有界事件队列容量。
+const HOOK_EVENT_QUEUE_CAPACITY: usize = 256;
+/// 孤儿会话回收时间；超时只回落 Idle，不猜测为 SessionEnd。
+const HOOK_SESSION_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+/// 即使没有新事件也执行会话回收的周期。
+const HOOK_SESSION_SWEEP_INTERVAL: Duration = Duration::from_secs(1);
+/// 状态机长期保存的会话 ID 最大字节数。
+const MAX_HOOK_SESSION_ID_BYTES: usize = 512;
+/// 状态机长期保存的轮次 ID 最大字节数。
+const MAX_HOOK_TURN_ID_BYTES: usize = 512;
+/// 状态标量最大字节数。
+const MAX_HOOK_STATUS_BYTES: usize = 64;
+
+/// 通过 HTTP 边界校验后送入生命周期状态机的完整事件。
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct IncomingHookEvent {
+    tool: AiTool,
+    hook_type: String,
+    session_id: Option<String>,
+    turn_id: Option<String>,
+    status: Option<String>,
+}
 
 /// 工作台展示的最近一次 Hook 事件。
 #[derive(Clone, Debug, Serialize)]
@@ -58,9 +88,11 @@ impl Default for HookRelayStatus {
 /// 启动环回 listener，返回可查询的共享状态。
 pub fn spawn_hook_listener() -> Arc<RwLock<HookRelayStatus>> {
     let status = Arc::new(RwLock::new(HookRelayStatus::default()));
+    let (sender, receiver) = mpsc::channel(HOOK_EVENT_QUEUE_CAPACITY);
+    tauri::async_runtime::spawn(run_hook_worker(receiver, Arc::clone(&status)));
     let shared = Arc::clone(&status);
     tauri::async_runtime::spawn(async move {
-        if let Err(error) = run_listener(Arc::clone(&shared)).await {
+        if let Err(error) = run_listener(Arc::clone(&shared), sender).await {
             if let Ok(mut current) = shared.write() {
                 current.listening = false;
                 current.last_error = Some(error);
@@ -93,13 +125,125 @@ fn upsert_last_behavior(
     behaviors.push(PetOverlayToolBehavior { tool, behavior });
 }
 
+/// 把状态机迁移应用到桌宠当前行为；Release 真实清空该工具槽位。
+fn apply_pet_transition(
+    behaviors: &mut Vec<PetOverlayToolBehavior>,
+    tool: AiTool,
+    transition: HookTransition,
+) {
+    match transition {
+        HookTransition::Display(behavior) => upsert_last_behavior(behaviors, tool, behavior),
+        HookTransition::Release => behaviors.retain(|item| item.tool != tool),
+    }
+}
+
+/// 串行推进每个工具的生命周期，避免连接任务调度顺序直接改写桌宠状态。
+async fn run_hook_worker(
+    mut receiver: mpsc::Receiver<IncomingHookEvent>,
+    status: Arc<RwLock<HookRelayStatus>>,
+) {
+    let mut state_machines = HashMap::<AiTool, HookStateMachine>::new();
+    let clock_started_at = Instant::now();
+    let first_sweep = tokio::time::Instant::now() + HOOK_SESSION_SWEEP_INTERVAL;
+    let mut sweep = interval_at(first_sweep, HOOK_SESSION_SWEEP_INTERVAL);
+    sweep.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    loop {
+        tokio::select! {
+            event = receiver.recv() => {
+                let Some(event) = event else {
+                    break;
+                };
+                process_hook_event(
+                    event,
+                    clock_started_at.elapsed(),
+                    &mut state_machines,
+                    &status,
+                );
+            }
+            _ = sweep.tick() => {
+                expire_inactive_hook_sessions(
+                    &mut state_machines,
+                    clock_started_at.elapsed(),
+                    &status,
+                );
+            }
+        }
+    }
+}
+
+/// 推进一条事件并只把 Forward(Display/Release) 应用到桌宠状态。
+fn process_hook_event(
+    event: IncomingHookEvent,
+    observed_at: Duration,
+    state_machines: &mut HashMap<AiTool, HookStateMachine>,
+    status: &Arc<RwLock<HookRelayStatus>>,
+) {
+    let decision = state_machines
+        .entry(event.tool)
+        .or_default()
+        .apply_event_with_status_at(
+            event.tool,
+            &event.hook_type,
+            event.session_id.as_deref(),
+            event.turn_id.as_deref(),
+            event.status.as_deref(),
+            observed_at,
+        );
+    if let Ok(mut current) = status.write() {
+        current.received_count += 1;
+        current.last_event = Some(HookRelayLastEvent {
+            tool: event.tool,
+            hook_type: event.hook_type.clone(),
+        });
+        match decision {
+            HookEventDecision::Forward(transition) => {
+                apply_pet_transition(&mut current.last_behaviors, event.tool, transition);
+                current.last_error = None;
+            }
+            HookEventDecision::Ignore => current.last_error = None,
+            HookEventDecision::Unsupported => {
+                current.failed_count += 1;
+                current.last_error = Some(format!("unsupported hook type: {}", event.hook_type));
+            }
+        }
+    }
+}
+
+/// 定期回收孤儿会话，并应用状态机要求的 Idle 回落。
+fn expire_inactive_hook_sessions(
+    state_machines: &mut HashMap<AiTool, HookStateMachine>,
+    observed_at: Duration,
+    status: &Arc<RwLock<HookRelayStatus>>,
+) {
+    let transitions = state_machines
+        .iter_mut()
+        .filter_map(|(&tool, machine)| {
+            match machine.expire_inactive_sessions(observed_at, HOOK_SESSION_INACTIVITY_TIMEOUT) {
+                HookEventDecision::Forward(transition) => Some((tool, transition)),
+                HookEventDecision::Ignore | HookEventDecision::Unsupported => None,
+            }
+        })
+        .collect::<Vec<_>>();
+    if transitions.is_empty() {
+        return;
+    }
+    if let Ok(mut current) = status.write() {
+        for (tool, transition) in transitions {
+            apply_pet_transition(&mut current.last_behaviors, tool, transition);
+        }
+    }
+}
+
 /// 绑定后的实际回环地址，供状态与 relay 投递共用。
 pub fn bound_hook_relay_address(listener: &TcpListener) -> std::io::Result<String> {
     Ok(hook_relay_loopback_address(listener.local_addr()?.port()))
 }
 
 /// 绑定并接受本机 Hook POST。
-async fn run_listener(status: Arc<RwLock<HookRelayStatus>>) -> Result<(), String> {
+async fn run_listener(
+    status: Arc<RwLock<HookRelayStatus>>,
+    sender: mpsc::Sender<IncomingHookEvent>,
+) -> Result<(), String> {
     let listener = bind_local_hook_relay_listener()
         .await
         .map_err(|error| error.to_string())?;
@@ -116,25 +260,48 @@ async fn run_listener(status: Arc<RwLock<HookRelayStatus>>) -> Result<(), String
     loop {
         let (mut stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
         let status = Arc::clone(&status);
+        let sender = sender.clone();
         tauri::async_runtime::spawn(async move {
             let outcome = handle_connection(&mut stream).await;
-            let _ = write_http_response(&mut stream, outcome.status, outcome.body).await;
-            if let Ok(mut current) = status.write() {
-                if outcome.ok {
-                    current.received_count += 1;
-                    current.last_event = outcome.event.clone();
-                    if let Some(event) = outcome.event {
-                        let behavior =
-                            display_behavior_for_hook_event(event.tool, &event.hook_type);
-                        upsert_last_behavior(&mut current.last_behaviors, event.tool, behavior);
-                    }
-                    current.last_error = None;
-                } else {
-                    current.failed_count += 1;
-                    current.last_error = Some(outcome.body.to_owned());
-                }
-            }
+            let (response_status, response_body) =
+                enqueue_connection_outcome(outcome, &sender, &status);
+            let _ = write_http_response(&mut stream, response_status, response_body).await;
         });
+    }
+}
+
+/// 把解析成功的事件放入有界队列，并为解析或背压失败记账。
+fn enqueue_connection_outcome(
+    outcome: ConnectionOutcome,
+    sender: &mpsc::Sender<IncomingHookEvent>,
+    status: &Arc<RwLock<HookRelayStatus>>,
+) -> (&'static str, &'static str) {
+    if !outcome.ok {
+        record_listener_failure(status, outcome.body);
+        return (outcome.status, outcome.body);
+    }
+    let Some(event) = outcome.event else {
+        record_listener_failure(status, "Invalid payload");
+        return ("400 Bad Request", "Invalid payload");
+    };
+    match sender.try_send(event) {
+        Ok(()) => (outcome.status, outcome.body),
+        Err(TrySendError::Full(_)) => {
+            record_listener_failure(status, "Hook event queue is full");
+            ("503 Service Unavailable", "Service Unavailable")
+        }
+        Err(TrySendError::Closed(_)) => {
+            record_listener_failure(status, "Hook event worker is unavailable");
+            ("503 Service Unavailable", "Service Unavailable")
+        }
+    }
+}
+
+/// 记录 HTTP 边界或队列失败，不伪造任何桌宠展示迁移。
+fn record_listener_failure(status: &Arc<RwLock<HookRelayStatus>>, error: &str) {
+    if let Ok(mut current) = status.write() {
+        current.failed_count += 1;
+        current.last_error = Some(error.to_owned());
     }
 }
 
@@ -142,7 +309,7 @@ pub(crate) struct ConnectionOutcome {
     ok: bool,
     status: &'static str,
     body: &'static str,
-    event: Option<HookRelayLastEvent>,
+    event: Option<IncomingHookEvent>,
 }
 
 const HEADER_BYTE_BUDGET: usize = 8192;
@@ -183,7 +350,9 @@ async fn read_complete_http_request<R: AsyncRead + Unpin>(reader: &mut R) -> Res
 
 /// 定位请求头结束位置（含 `\r\n\r\n`）。
 fn header_end_index(buf: &[u8]) -> Option<usize> {
-    buf.windows(4).position(|window| window == b"\r\n\r\n").map(|index| index + 4)
+    buf.windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .map(|index| index + 4)
 }
 
 /// 从已完整的请求头解析 Content-Length。
@@ -239,20 +408,57 @@ pub(crate) fn parse_hook_request(raw: &[u8]) -> ConnectionOutcome {
         Ok(payload) => payload,
         Err(_) => return fail("400 Bad Request", "Invalid payload"),
     };
-    if let Some(header_type) = header_type
-        && header_type != payload.hook_event_name
-    {
+    let hook_type = payload.hook_event_name.trim();
+    if hook_type.is_empty() || hook_type.len() > 128 {
+        return fail("400 Bad Request", "Invalid hook type");
+    }
+    let Some(header_type) = header_type else {
+        return fail("400 Bad Request", "Missing hook type");
+    };
+    if header_type != hook_type {
         return fail("400 Bad Request", "Header mismatch");
     }
+    let Ok(session_id) =
+        normalize_hook_context_field(payload.session_id, MAX_HOOK_SESSION_ID_BYTES)
+    else {
+        return fail("400 Bad Request", "Invalid session id");
+    };
+    let Ok(turn_id) = normalize_hook_context_field(payload.turn_id, MAX_HOOK_TURN_ID_BYTES) else {
+        return fail("400 Bad Request", "Invalid turn id");
+    };
+    let Ok(status) = normalize_hook_context_field(payload.status, MAX_HOOK_STATUS_BYTES) else {
+        return fail("400 Bad Request", "Invalid status");
+    };
     ConnectionOutcome {
         ok: true,
         status: "202 Accepted",
         body: "Accepted",
-        event: Some(HookRelayLastEvent {
+        event: Some(IncomingHookEvent {
             tool,
-            hook_type: payload.hook_event_name,
+            hook_type: hook_type.to_owned(),
+            session_id,
+            turn_id,
+            status,
         }),
     }
+}
+
+/// 修剪可选上下文字段，空白规整为 None，超限则拒绝。
+fn normalize_hook_context_field(
+    value: Option<String>,
+    max_bytes: usize,
+) -> Result<Option<String>, ()> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if value.len() > max_bytes {
+        return Err(());
+    }
+    Ok(Some(value.to_owned()))
 }
 
 fn fail(status: &'static str, body: &'static str) -> ConnectionOutcome {
@@ -279,12 +485,15 @@ async fn write_http_response(
 #[cfg(test)]
 mod tests {
     use super::{
-        bind_local_hook_relay_listener, bound_hook_relay_address, handle_connection,
-        parse_hook_request,
+        HookRelayStatus, IncomingHookEvent, bind_local_hook_relay_listener,
+        bound_hook_relay_address, handle_connection, parse_hook_request, process_hook_event,
     };
-    use loki_metis_core::{AiTool, DEFAULT_HOOK_RELAY_PORT};
+    use loki_metis_core::{AiTool, DEFAULT_HOOK_RELAY_PORT, HookBehavior, HookStateMachine};
+    use std::collections::HashMap;
     use std::pin::Pin;
+    use std::sync::{Arc, RwLock};
     use std::task::{Context, Poll};
+    use std::time::Duration;
     use tokio::io::{AsyncRead, ReadBuf};
 
     /// 每次 poll_read 只交出一个分片，用来复现 TCP 拆包。
@@ -328,6 +537,21 @@ mod tests {
         }
     }
 
+    /// 构造一条 Codex 生命周期事件，供串行 adapter 回归复用。
+    fn codex_event(
+        hook_type: &str,
+        session_id: Option<&str>,
+        turn_id: Option<&str>,
+    ) -> IncomingHookEvent {
+        IncomingHookEvent {
+            tool: AiTool::Codex,
+            hook_type: hook_type.to_owned(),
+            session_id: session_id.map(str::to_owned),
+            turn_id: turn_id.map(str::to_owned),
+            status: None,
+        }
+    }
+
     /// 10240 被占用时，已发布绑定入口改绑其他回环端口且可连接。
     #[tokio::test]
     async fn occupies_default_port_then_binds_another_loopback_port() {
@@ -357,6 +581,80 @@ mod tests {
         let event = outcome.event.expect("event");
         assert_eq!(event.tool, AiTool::Codex);
         assert_eq!(event.hook_type, "SessionStart");
+    }
+
+    /// HTTP 边界必须保留状态机拦截所需的会话、轮次和状态字段。
+    #[test]
+    fn accepted_post_preserves_trimmed_lifecycle_context() {
+        let raw = b"POST /api/hooks/codex HTTP/1.1\r\nX-LokiMetis-Hook-Type: UserPromptSubmit\r\n\r\n{\"hook_event_name\":\"UserPromptSubmit\",\"session_id\":\" session-1 \",\"turn_id\":\" turn-1 \",\"status\":\" running \"}";
+        let outcome = parse_hook_request(raw);
+        assert!(outcome.ok);
+        let event = outcome.event.expect("event");
+        assert_eq!(event.session_id.as_deref(), Some("session-1"));
+        assert_eq!(event.turn_id.as_deref(), Some("turn-1"));
+        assert_eq!(event.status.as_deref(), Some("running"));
+    }
+
+    /// 缺少可信事件头时不能仅凭正文自报事件类型。
+    #[test]
+    fn post_without_trusted_hook_type_header_is_rejected() {
+        let raw = b"POST /api/hooks/codex HTTP/1.1\r\n\r\n{\"hook_event_name\":\"SessionEnd\"}";
+        let outcome = parse_hook_request(raw);
+        assert!(!outcome.ok);
+        assert_eq!(outcome.status, "400 Bad Request");
+        assert_eq!(outcome.body, "Missing hook type");
+    }
+
+    /// 与 AIMonitor 一致：初始无图，重复或迟到事件不覆盖，最后 SessionEnd 清空槽位。
+    #[test]
+    fn lifecycle_interception_keeps_initial_empty_and_releases_last_session() {
+        let status = Arc::new(RwLock::new(HookRelayStatus::default()));
+        let mut machines = HashMap::<AiTool, HookStateMachine>::new();
+        assert!(status.read().expect("status").last_behaviors.is_empty());
+
+        process_hook_event(
+            codex_event("SessionStart", Some("session-1"), None),
+            Duration::from_secs(1),
+            &mut machines,
+            &status,
+        );
+        assert_eq!(
+            status.read().expect("status").last_behaviors[0].behavior,
+            HookBehavior::Idle
+        );
+        process_hook_event(
+            codex_event("UserPromptSubmit", Some("session-1"), Some("turn-1")),
+            Duration::from_secs(2),
+            &mut machines,
+            &status,
+        );
+        assert_eq!(
+            status.read().expect("status").last_behaviors[0].behavior,
+            HookBehavior::Running
+        );
+        process_hook_event(
+            codex_event("Stop", Some("session-1"), Some("turn-1")),
+            Duration::from_secs(3),
+            &mut machines,
+            &status,
+        );
+        process_hook_event(
+            codex_event("PostToolUse", Some("session-1"), Some("turn-1")),
+            Duration::from_secs(4),
+            &mut machines,
+            &status,
+        );
+        assert_eq!(
+            status.read().expect("status").last_behaviors[0].behavior,
+            HookBehavior::Idle
+        );
+        process_hook_event(
+            codex_event("SessionEnd", Some("session-1"), None),
+            Duration::from_secs(5),
+            &mut machines,
+            &status,
+        );
+        assert!(status.read().expect("status").last_behaviors.is_empty());
     }
 
     #[test]

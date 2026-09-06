@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   Outlet,
@@ -318,10 +318,18 @@ describe("dashboard header settings surface", () => {
     await userEvent.click(screen.getByRole("link", { name: /Dashboard settings:/ }));
 
     expect(await screen.findByTestId("dashboard-settings")).toBeVisible();
-    expect(screen.getByRole("checkbox", { name: "Codex" })).toBeVisible();
-    expect(screen.getByRole("checkbox", { name: "Claude Code" })).toBeVisible();
-    expect(screen.getByRole("checkbox", { name: "Grok" })).toBeVisible();
-    expect(screen.getByRole("checkbox", { name: "WorkBuddy" })).toBeVisible();
+    const agentOptions = screen.getByTestId("dashboard-enabled-agent-options");
+    expect(agentOptions).toHaveAccessibleName("AI agents to monitor and report");
+    expect(within(agentOptions).getByRole("checkbox", { name: "Codex" })).toBeVisible();
+    expect(within(agentOptions).getByRole("checkbox", { name: "Claude Code" })).toBeVisible();
+    expect(within(agentOptions).getByRole("checkbox", { name: "Grok" })).toBeVisible();
+    expect(within(agentOptions).getByRole("checkbox", { name: "WorkBuddy" })).toBeVisible();
+    expect(
+      screen.queryByText(/Codex is selected by default in first-time setup/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/When enabled, this parses top-level and subagent/),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Scan interval")).toBeVisible();
     expect(screen.getByText("Automatic cleanup")).toBeVisible();
     expect(screen.queryByText("Device identity")).not.toBeInTheDocument();

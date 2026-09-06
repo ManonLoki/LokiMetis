@@ -12,8 +12,8 @@ use crate::{AiTool, HookBehavior, HookError};
 pub const DEFAULT_PROFILE_SLOT: u8 = 1;
 /// 展示位闭区间最小值。
 pub const MIN_PROFILE_SLOT: u8 = 1;
-/// 展示位闭区间最大值（单行最多 6 槽）。
-pub const MAX_PROFILE_SLOT: u8 = 6;
+/// 展示位闭区间最大值（最多 12 槽）。
+pub const MAX_PROFILE_SLOT: u8 = 12;
 
 /// 前端控件使用的闭区间能力。
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -208,23 +208,27 @@ mod tests {
     }
 
     #[test]
-    fn merge_clamps_saved_slot_into_the_six_slot_range() {
+    fn merge_clamps_saved_slot_into_the_twelve_slot_range() {
         let mut saved = AiProfileDraft::default_for(AiTool::Codex);
         saved.slot = 25;
         let merged = merge_profile_drafts(vec![saved]);
         assert_eq!(merged[0].slot, MAX_PROFILE_SLOT);
-        assert_eq!(profile_slot_range().max, 6);
+        assert_eq!(profile_slot_range().max, 12);
         assert_eq!(clamp_profile_slot(0), MIN_PROFILE_SLOT);
-        assert_eq!(clamp_profile_slot(7), MAX_PROFILE_SLOT);
+        assert_eq!(clamp_profile_slot(12), MAX_PROFILE_SLOT);
+        assert_eq!(clamp_profile_slot(13), MAX_PROFILE_SLOT);
     }
 
     #[test]
     fn validate_rejects_slot_out_of_range_and_unknown_image() {
         let mut draft = complete_draft(AiTool::Codex);
-        draft.slot = MAX_PROFILE_SLOT + 1;
-        let slot_error =
-            validate_profile_draft(draft.clone(), &known(&["img-0", "img-1", "img-2", "img-3"]))
-                .expect_err("slot");
+        let all_images = known(&["img-0", "img-1", "img-2", "img-3"]);
+
+        draft.slot = MAX_PROFILE_SLOT;
+        validate_profile_draft(draft.clone(), &all_images).expect("slot 12");
+
+        draft.slot = 13;
+        let slot_error = validate_profile_draft(draft.clone(), &all_images).expect_err("slot 13");
         assert_eq!(slot_error.code, "error.monitor.slotOutOfRange");
 
         draft.slot = 2;

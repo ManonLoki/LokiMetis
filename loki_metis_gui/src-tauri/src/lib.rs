@@ -43,12 +43,11 @@ use deep_link::install_deep_link;
 use locale::{LocaleState, get_system_locale, resolve_system_locale, set_interface_language};
 use monitor::{
     close_pet_overlay, delete_monitor_image_cmd, get_hook_relay_status, get_monitor_capabilities,
-    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, is_pet_overlay_open,
+    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view,
     list_monitor_hook_locations, list_monitor_images_cmd, list_monitor_profile_drafts,
-    open_pet_overlay, pet_overlay_window_description, save_hook_config_directory,
-    save_monitor_enabled_tools, save_monitor_image_cmd, save_monitor_profile_draft,
-    save_pet_close_control_visible, spawn_hook_listener, start_pet_overlay_drag,
-    write_monitor_hook_config,
+    pet_overlay_window_description, save_hook_config_directory, save_monitor_enabled_tools,
+    save_monitor_image_cmd, save_monitor_profile_draft, show_or_create_pet_overlay,
+    spawn_hook_listener, start_pet_overlay_drag, write_monitor_hook_config,
 };
 pub use monitor::run_hook_relay_if_requested;
 use logging::install_logging;
@@ -90,7 +89,7 @@ async fn get_app_metadata() -> AppMetadata {
     }
 }
 
-/// Runs the sole GUI adapter and owns its complete native lifecycle.
+/// 运行唯一 GUI adapter，并统一拥有完整原生生命周期。
 #[rustfmt::skip]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -130,6 +129,9 @@ pub fn run() {
             spawn_retention_cleanup(app.handle().clone());
             install_notification_worker(app.handle());
             app.manage(spawn_hook_listener());
+            if let Err(error) = show_or_create_pet_overlay(app.handle()) {
+                tracing::warn!(%error, "failed to show the default pet overlay");
+            }
             install_tray(app)?;
             install_deep_link(app.handle());
             ensure_main_window_is_recoverable(app.handle())?;
@@ -188,9 +190,6 @@ pub fn run() {
             save_monitor_profile_draft,
             get_pet_overlay_view,
             get_monitor_image_bytes,
-            is_pet_overlay_open,
-            save_pet_close_control_visible,
-            open_pet_overlay,
             close_pet_overlay,
             start_pet_overlay_drag
         ]);
@@ -243,5 +242,29 @@ mod tests {
     fn window_title_is_application_name_without_version() {
         assert_eq!(super::APPLICATION_NAME, "LokiMetis");
         assert!(!super::APPLICATION_NAME.contains(env!("CARGO_PKG_VERSION")));
+    }
+
+    /// 冷启动先启用 listener，再通过正常显示路径恢复桌宠位置，最后安装状态一致的托盘。
+    #[test]
+    fn cold_start_shows_pet_overlay_after_listener_and_before_tray_installation() {
+        let source = include_str!("lib.rs");
+        let listener = source
+            .find("app.manage(spawn_hook_listener())")
+            .expect("listener setup");
+        let show = source
+            .find("show_or_create_pet_overlay(app.handle())")
+            .expect("default pet overlay show");
+        let tray = source.find("install_tray(app)?").expect("tray setup");
+        assert!(listener < show && show < tray);
+
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
+        let pet = config["app"]["windows"]
+            .as_array()
+            .expect("windows")
+            .iter()
+            .find(|window| window["label"] == "pet")
+            .expect("pet window");
+        assert_eq!(pet["visible"], false);
     }
 }

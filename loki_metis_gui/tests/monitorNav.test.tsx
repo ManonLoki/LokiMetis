@@ -12,7 +12,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { MonitorLayout } from "../src/components/MonitorLayout";
-import { MonitorDesktopSettingsPage } from "../src/pages/MonitorDesktopSettingsPage";
 import { MonitorImagesPage } from "../src/pages/MonitorImagesPage";
 import { MonitorManagementPage } from "../src/pages/MonitorManagementPage";
 import { MonitorSettingsPage } from "../src/pages/MonitorSettingsPage";
@@ -65,11 +64,6 @@ async function renderMonitor(initialPath = "/monitor") {
     path: "/settings",
     component: MonitorSettingsPage,
   });
-  const desktopSettingsRoute = createRoute({
-    getParentRoute: () => monitorRoute,
-    path: "/desktop",
-    component: MonitorDesktopSettingsPage,
-  });
   const appSettingsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/settings",
@@ -83,7 +77,6 @@ async function renderMonitor(initialPath = "/monitor") {
         managementRoute,
         imagesRoute,
         monitorSettingsRoute,
-        desktopSettingsRoute,
       ]),
       appSettingsRoute,
     ]),
@@ -127,11 +120,7 @@ describe("monitor header tabs", () => {
         return {
           enabledAiTools: ["codex", "claudeCode", "grok", "workBuddy"],
           hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-          petCloseControlVisible: true,
         };
-      }
-      if (command === "is_pet_overlay_open") {
-        return false;
       }
       if (command === "list_monitor_hook_locations") {
         return [
@@ -149,26 +138,29 @@ describe("monitor header tabs", () => {
       if (command === "list_monitor_profile_drafts") {
         return emptyDrafts();
       }
-      if (command === "open_pet_overlay") {
-        return { label: "pet", hideMainWindow: false, stopHookListener: false };
-      }
       throw new Error(`unexpected command ${command}`);
     });
   });
 
-  /** 二级选项卡顺序为工作台、监控管理、图片管理、Hooks 设置、监控设置，且不是应用设置。 */
+  /** 二级选项卡只保留工作台、监控管理、图片管理、Hooks 设置，且不是应用设置。 */
   test("monitor_tabs_follow_workbench_management_images_settings_order", async () => {
     const router = await renderMonitor();
     const workbench = screen.getByRole("link", { name: /Workbench:/ });
     const management = screen.getByRole("link", { name: /Monitor management:/ });
     const images = screen.getByRole("link", { name: /Image management:/ });
     const hooks = screen.getByRole("link", { name: /Hooks settings:/ });
-    const desktop = screen.getByRole("link", { name: /Monitor settings:/ });
     expect(workbench).toBeVisible();
     expect(management).toBeVisible();
     expect(images).toBeVisible();
     expect(hooks).toBeVisible();
-    expect(desktop).toBeVisible();
+    expect(
+      within(screen.getByRole("navigation", { name: "Monitor pages" })).getAllByRole(
+        "link",
+      ),
+    ).toHaveLength(4);
+    expect(
+      screen.queryByRole("link", { name: /Monitor settings:/ }),
+    ).not.toBeInTheDocument();
     expect(
       workbench.compareDocumentPosition(management) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
@@ -177,9 +169,6 @@ describe("monitor header tabs", () => {
     ).not.toBe(0);
     expect(
       images.compareDocumentPosition(hooks) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
-    expect(
-      hooks.compareDocumentPosition(desktop) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /^Settings:/ })).not.toBeInTheDocument();
     await userEvent.click(hooks);
@@ -200,10 +189,6 @@ describe("monitor header tabs", () => {
     expect(
       within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
     ).toBeVisible();
-    await userEvent.click(desktop);
-    expect(router.state.location.pathname).toBe("/monitor/desktop");
-    expect(await screen.findByTestId("monitor-desktop-settings")).toBeVisible();
-    expect(screen.queryByTestId("monitor-settings")).not.toBeInTheDocument();
   });
 
   /** 工作台挂载真实中继查询；监控管理按已启用 Agent 分 Tab，不再以写入 Hooks 为主。 */
@@ -246,7 +231,6 @@ describe("monitor header tabs", () => {
           return {
             enabledAiTools: ["codex"],
             hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-            petCloseControlVisible: true,
           };
         }
         if (command === "list_monitor_hook_locations") {
@@ -263,7 +247,6 @@ describe("monitor header tabs", () => {
           return {
             enabledAiTools: payload?.tools ?? ["codex", "grok"],
             hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-            petCloseControlVisible: true,
           };
         }
         if (command === "write_monitor_hook_config") {
@@ -327,120 +310,5 @@ describe("monitor header tabs", () => {
     expect(codexTab).toHaveAttribute("aria-selected", "true");
     expect(await within(hooksManagement).findByText(/Wrote hooks.json/)).toBeVisible();
     expect(screen.queryByText("app-settings")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("switch", { name: "Desktop pet overlay" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("switch", { name: "Bunny ear" })).not.toBeInTheDocument();
-  });
-
-  /** 监控设置用开关打开/关闭桌宠和兔耳；工具栏不再有打开按钮。 */
-  test("monitor_desktop_settings_switches_pet_overlay_and_bunny_ear", async () => {
-    let petOpen = false;
-    let earVisible = true;
-    invokeMock.mockImplementation(
-      async (command: string, payload?: { visible?: boolean }) => {
-        if (command === "get_hook_relay_status") {
-          return {
-            listening: true,
-            bindAddress: "127.0.0.1:10240",
-            receivedCount: 0,
-            failedCount: 0,
-            lastEvent: null,
-            lastError: null,
-          };
-        }
-        if (command === "get_monitor_capabilities") {
-          return monitorCapabilitiesFixture({
-            aiTools: [
-              { tool: "codex", name: "Codex" },
-              { tool: "claudeCode", name: "Claude Code" },
-              { tool: "grok", name: "Grok Build" },
-              { tool: "workBuddy", name: "WorkBuddy" },
-            ],
-            imageUploadAccept: { mimeTypes: ["image/png"], extensions: [".png"] },
-          });
-        }
-        if (command === "get_monitor_settings") {
-          return {
-            enabledAiTools: ["codex"],
-            hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-            petCloseControlVisible: earVisible,
-          };
-        }
-        if (command === "list_monitor_hook_locations") {
-          return [
-            {
-              tool: "codex",
-              directory: "/tmp/codex",
-              configPath: "/tmp/codex/hooks.json",
-              isCustom: true,
-            },
-          ];
-        }
-        if (command === "is_pet_overlay_open") {
-          return petOpen;
-        }
-        if (command === "open_pet_overlay") {
-          petOpen = true;
-          return { label: "pet", hideMainWindow: false, stopHookListener: false };
-        }
-        if (command === "close_pet_overlay") {
-          petOpen = false;
-          return { label: "pet", hideMainWindow: false, stopHookListener: false };
-        }
-        if (command === "save_pet_close_control_visible") {
-          earVisible = payload?.visible ?? false;
-          return {
-            enabledAiTools: ["codex"],
-            hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-            petCloseControlVisible: earVisible,
-          };
-        }
-        if (command === "write_monitor_hook_config") {
-          return {
-            tool: "codex",
-            filename: "hooks.json",
-            outcome: "active",
-            configChanged: true,
-            requiresReview: false,
-            restartRequired: false,
-          };
-        }
-        throw new Error(`unexpected command ${command}`);
-      },
-    );
-    const router = await renderMonitor();
-    expect(screen.queryByTestId("open-pet-overlay")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("link", { name: /Monitor settings:/ }));
-    expect(router.state.location.pathname).toBe("/monitor/desktop");
-    expect(await screen.findByTestId("monitor-desktop-settings")).toBeVisible();
-    const petSwitch = await screen.findByRole("switch", { name: "Desktop pet overlay" });
-    const earSwitch = screen.getByRole("switch", { name: "Bunny ear" });
-    expect(petSwitch).toBeVisible();
-    expect(earSwitch).toBeVisible();
-    expect(petSwitch).not.toBeChecked();
-    await userEvent.click(petSwitch);
-    expect(invokeMock).toHaveBeenCalledWith("open_pet_overlay");
-    await waitFor(() => {
-      expect(screen.getByRole("switch", { name: "Desktop pet overlay" })).toBeChecked();
-    });
-    await userEvent.click(screen.getByRole("switch", { name: "Desktop pet overlay" }));
-    expect(invokeMock).toHaveBeenCalledWith("close_pet_overlay");
-    expect(earSwitch).toBeChecked();
-    await userEvent.click(earSwitch);
-    expect(invokeMock).toHaveBeenCalledWith("save_pet_close_control_visible", {
-      visible: false,
-    });
-    await userEvent.click(screen.getByRole("link", { name: /Hooks settings:/ }));
-    expect(router.state.location.pathname).toBe("/monitor/settings");
-    expect(await screen.findByRole("checkbox", { name: "Codex" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Write Hooks" })).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Write Hooks" }));
-    expect(invokeMock).toHaveBeenCalledWith("write_monitor_hook_config", { tool: "codex" });
-    expect(
-      screen.queryByRole("switch", { name: "Desktop pet overlay" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("switch", { name: "Bunny ear" })).not.toBeInTheDocument();
-    expect(screen.queryByTestId("open-pet-overlay")).not.toBeInTheDocument();
   });
 });

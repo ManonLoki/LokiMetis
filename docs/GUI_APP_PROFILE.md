@@ -17,6 +17,8 @@ sidebar_mode = compact
 
 七项条件能力与侧栏模式由 ManonLoki 于 2026-09-05 确认。`deep_link = enabled` 与 `single_instance = enabled` 的组合有效；深链接只接受身份派生的精确恢复地址 `app-loki-metis://restore`。系统语言、窗口状态、dialog、设置页中的应用/版本与本地更新日志属于固定基线，不是配置字段。
 
+系统托盘保留 `show_window` 与 `quit` 基线项，并增加 `toggle_pet_overlay` 桌宠显隐动作。桌宠在每次冷启动时默认显示，托盘动作只改变当前会话的真实窗口可见性，不保存显隐偏好。
+
 ## 应用身份
 
 - 中文名：诡秘神谕

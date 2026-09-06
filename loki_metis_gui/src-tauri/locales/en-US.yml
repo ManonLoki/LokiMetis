@@ -1,4 +1,5 @@
 tray:
   show_window: "Show Window"
+  show_pet_overlay: "Show Pet Overlay"
+  hide_pet_overlay: "Hide Pet Overlay"
   quit: "Quit"
-

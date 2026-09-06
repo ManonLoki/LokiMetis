@@ -86,8 +86,7 @@
       "settings": {
         "label": "Hooks 设置",
         "description": "启用要写入 Hooks 的 Agent 并生成本机配置"
-      },
-      "desktop": { "label": "监控设置", "description": "配置桌宠悬浮窗与兔耳关闭控件" }
+      }
     },
     "workbench": {
       "title": "本机 Hook 中继",
@@ -163,6 +162,7 @@
       "uploaded": "已成功上传 {{count}} 张图片。",
       "delete": "删除图片",
       "refresh": "刷新",
+      "filterAria": "按图片格式筛选",
       "reading": "读取中…",
       "actions": "图片操作：{{name}}",
       "localLibrary": "本机图库",
@@ -183,16 +183,7 @@
       "write": "写入 Hooks",
       "written": "已写入 {{file}}（{{outcome}}）"
     },
-    "desktop": {
-      "title": "监控设置",
-      "description": "打开或关闭桌宠悬浮窗，并选择是否显示兔耳关闭控件。此处不是 Hooks 设置，也不是应用设置。",
-      "petDescription": "打开后显示桌宠悬浮窗；关闭后隐藏，主窗口保持可见。",
-      "earTitle": "兔耳",
-      "earDescription": "打开后在悬浮窗上显示圆形关闭控件；关闭后不显示。"
-    },
     "pet": {
-      "open": "桌宠悬浮窗",
-      "openAria": "打开桌宠悬浮窗",
       "close": "关闭",
       "closeAria": "关闭桌宠悬浮窗",
       "waiting": "等待图片",

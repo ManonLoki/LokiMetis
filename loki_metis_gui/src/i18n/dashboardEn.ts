@@ -643,11 +643,7 @@ export const dashboardEnUS = {
     enabledAgents: {
       title: 'AI agents to monitor and report',
       badge: 'Global setting',
-      description:
-        'Codex is selected by default in first-time setup, but only agents confirmed there or enabled here appear in the header and data reporting. Turning one off immediately stops its periodic scan and reporting.',
       workbuddyLabel: 'WorkBuddy',
-      workbuddyDescription:
-        'When enabled, this parses top-level and subagent project JSONL usage events under ~/.workbuddy/projects in read-only mode, while Trace is read only for status and duration diagnostics. JSONL line bytes are read during parsing, but conversation bodies are never retained, displayed, indexed, uploaded, or logged. All totals and data collection include tokens from the same WorkBuddy events.',
     },
     device: {
       title: 'Device identity',

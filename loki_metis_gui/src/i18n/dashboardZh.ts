@@ -597,11 +597,7 @@ export const dashboardZhCN = {
     enabledAgents: {
       title: '监控和上报的 AI Agent',
       badge: '全局设置',
-      description:
-        '首次向导默认勾选 Codex，但只有确认或在这里打开的 Agent 才会出现在页头选项卡并由数据收集上报。关闭后立即停止该 Agent 的周期扫描与上报。',
       workbuddyLabel: 'WorkBuddy',
-      workbuddyDescription:
-        '打开后只读解析本机 ~/.workbuddy/projects 下的顶层与 subagents project JSONL usage 事件，并读取 Trace 作为状态与耗时诊断。解析时会读取 JSONL 行的内容字节，但不会保留、展示、索引、上传或记录会话正文；「全部」合计与数据收集上报会计入同一批 WorkBuddy Token。',
     },
     device: {
       title: '设备身份',
@@ -931,4 +927,3 @@ export const dashboardZhCN = {
     disclaimer_3: '您下载、安装、使用本软件/服务即视为已充分阅读、理解并同意接受本声明的全部内容',
   },
 } as const;
-

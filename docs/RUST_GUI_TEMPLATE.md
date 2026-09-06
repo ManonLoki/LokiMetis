@@ -29,7 +29,7 @@ Tauri Builder 顺序固定为：
 6. `tauri-plugin-notification`，由 Rust-only worker 串行处理；
 7. `tauri-plugin-autostart`，以 OS 注册状态为权威。
 
-每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”和左键恢复，托盘“退出”真正终止应用。
+每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”和左键恢复，桌宠显隐项按真实可见性切换浮窗且冷启动默认显示，托盘“退出”真正终止应用。
 
 ## IPC 与状态
 

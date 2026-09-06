@@ -72,57 +72,16 @@ export function MonitorImagesPage() {
   if (blockingError) return <Alert color="red">{String(blockingError)}</Alert>;
   return (
     <Stack data-testid="monitor-images" gap="md">
-      <Group gap="sm" justify="flex-end">
-        <Button
-          leftSection={<IconRefresh aria-hidden="true" size={17} stroke={1.75} />}
-          loading={images.isFetching}
-          onClick={() => void images.refetch()}
-          variant="default"
-        >
-          {t("monitor.images.refresh")}
-        </Button>
-        <Button
-          leftSection={<IconUpload aria-hidden="true" size={17} stroke={1.75} />}
-          loading={upload.isPending}
-          onClick={() => inputRef.current?.click()}
-        >
-          {t("monitor.images.upload")}
-        </Button>
-        <input
-          accept={uploadAccept}
-          hidden
-          multiple
-          onChange={(event) => {
-            const files = Array.from(event.currentTarget.files ?? []);
-            if (files.length > 0) upload.mutate(files);
-            event.currentTarget.value = "";
-          }}
-          ref={inputRef}
-          type="file"
-        />
-      </Group>
-      {mutationError ? <Alert color="red">{String(mutationError)}</Alert> : null}
-      {upload.isSuccess ? (
-        <Alert color="teal">
-          {t("monitor.images.uploaded", { count: upload.data.count })}
-        </Alert>
-      ) : null}
-      {images.isPending ? (
-        <Center py={80}>
-          <Loader />
-        </Center>
-      ) : imageList.length ? (
-        <>
-          <Group align="center" justify="space-between">
-            <Text c="dimmed" size="sm">
-              {category === "all"
-                ? t("monitor.images.imagesTotal", { count: imageList.length })
-                : t("monitor.images.imagesFiltered", {
-                    visible: filteredImages.length,
-                    total: imageList.length,
-                  })}
-            </Text>
+      <Group
+        align="center"
+        data-testid="monitor-images-toolbar"
+        justify="space-between"
+        wrap="nowrap"
+      >
+        {!images.isPending && imageList.length > 0 ? (
+          <Group data-testid="monitor-images-filters" gap="sm" wrap="nowrap">
             <SegmentedControl
+              aria-label={t("monitor.images.filterAria")}
               data={[
                 {
                   value: "all",
@@ -136,7 +95,58 @@ export function MonitorImagesPage() {
               size="sm"
               value={category}
             />
+            <Text aria-live="polite" c="dimmed" role="status" size="sm">
+              {category === "all"
+                ? t("monitor.images.imagesTotal", { count: imageList.length })
+                : t("monitor.images.imagesFiltered", {
+                    visible: filteredImages.length,
+                    total: imageList.length,
+                  })}
+            </Text>
           </Group>
+        ) : null}
+        <Group data-testid="monitor-images-actions" gap="sm" ml="auto" wrap="nowrap">
+          <Button
+            leftSection={<IconRefresh aria-hidden="true" size={17} stroke={1.75} />}
+            loading={images.isFetching}
+            onClick={() => void images.refetch()}
+            variant="default"
+          >
+            {t("monitor.images.refresh")}
+          </Button>
+          <Button
+            leftSection={<IconUpload aria-hidden="true" size={17} stroke={1.75} />}
+            loading={upload.isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            {t("monitor.images.upload")}
+          </Button>
+          <input
+            accept={uploadAccept}
+            hidden
+            multiple
+            onChange={(event) => {
+              const files = Array.from(event.currentTarget.files ?? []);
+              if (files.length > 0) upload.mutate(files);
+              event.currentTarget.value = "";
+            }}
+            ref={inputRef}
+            type="file"
+          />
+        </Group>
+      </Group>
+      {mutationError ? <Alert color="red">{String(mutationError)}</Alert> : null}
+      {upload.isSuccess ? (
+        <Alert color="teal">
+          {t("monitor.images.uploaded", { count: upload.data.count })}
+        </Alert>
+      ) : null}
+      {images.isPending ? (
+        <Center py={80}>
+          <Loader />
+        </Center>
+      ) : imageList.length ? (
+        <>
           {filteredImages.length ? (
             <SimpleGrid cols={{ base: 1, xs: 2, md: 3, xl: 4 }} spacing="md">
               {filteredImages.map((image) => (

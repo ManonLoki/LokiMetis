@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn pet_overlay_view_maps_saved_drafts_and_rejects_cursor() {
+    fn pet_overlay_view_is_empty_without_behavior_and_maps_explicit_idle() {
         let root = tempdir().expect("temp");
         let data = root.path();
         let config = root.path().join("config");
@@ -339,16 +339,29 @@ mod tests {
             }
         }
         super::super::save_profile_draft(&config, data, draft).expect("draft");
-        let view = pet_overlay_view_from_drafts(&config, &[]).expect("view");
-        assert_eq!(view.slots.len(), 4);
-        assert_eq!(view.slots[0].name, "Codex");
-        assert!(view.slots[0].occupied);
-        assert_eq!(view.slots[0].image_id.as_deref(), Some(image_id.as_str()));
-        assert!(!view.slots[1].occupied);
-        assert_eq!(view.slots[1].name, "Claude Code");
-        assert_eq!(view.slots[2].name, "Grok Build");
-        assert_eq!(view.slots[3].name, "WorkBuddy");
-        let joined = view
+        let initial_view = pet_overlay_view_from_drafts(&config, &[]).expect("initial view");
+        assert_eq!(initial_view.slots.len(), 4);
+        assert_eq!(initial_view.slots[0].name, "Codex");
+        assert!(!initial_view.slots[0].occupied);
+        assert_eq!(initial_view.slots[0].image_id, None);
+        assert!(!initial_view.slots[1].occupied);
+        assert_eq!(initial_view.slots[1].name, "Claude Code");
+        assert_eq!(initial_view.slots[2].name, "Grok Build");
+        assert_eq!(initial_view.slots[3].name, "WorkBuddy");
+        let idle_view = pet_overlay_view_from_drafts(
+            &config,
+            &[PetOverlayToolBehavior {
+                tool: AiTool::Codex,
+                behavior: loki_metis_core::HookBehavior::Idle,
+            }],
+        )
+        .expect("idle view");
+        assert!(idle_view.slots[0].occupied);
+        assert_eq!(
+            idle_view.slots[0].image_id.as_deref(),
+            Some(image_id.as_str())
+        );
+        let joined = initial_view
             .slots
             .iter()
             .map(|slot| slot.name.as_str())

@@ -11,10 +11,9 @@ mod store;
 
 pub use commands::{
     close_pet_overlay, delete_monitor_image_cmd, get_hook_relay_status, get_monitor_capabilities,
-    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, is_pet_overlay_open,
-    list_monitor_hook_locations, list_monitor_images_cmd, list_monitor_profile_drafts,
-    open_pet_overlay, save_hook_config_directory, save_monitor_enabled_tools,
-    save_monitor_image_cmd, save_monitor_profile_draft, save_pet_close_control_visible,
+    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, list_monitor_hook_locations,
+    list_monitor_images_cmd, list_monitor_profile_drafts, save_hook_config_directory,
+    save_monitor_enabled_tools, save_monitor_image_cmd, save_monitor_profile_draft,
     start_pet_overlay_drag, write_monitor_hook_config,
 };
 pub use images::{delete_monitor_image, list_monitor_image_gallery, save_monitor_image};

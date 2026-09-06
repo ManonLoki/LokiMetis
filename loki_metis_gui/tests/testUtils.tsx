@@ -36,7 +36,7 @@ export function monitorCapabilitiesFixture(
       { tool: "workBuddy", name: "WorkBuddy" },
     ],
     hookBehaviors: ["idle", "running", "asking", "error"],
-    profileSlot: { default: 1, min: 1, max: 6 },
+    profileSlot: { default: 1, min: 1, max: 12 },
     imageUploadAccept: {
       mimeTypes: ["image/jpeg", "image/png", "image/gif"],
       extensions: [".jpg", ".jpeg", ".png", ".gif"],

@@ -1,4 +1,5 @@
 tray:
   show_window: "显示窗口"
+  show_pet_overlay: "显示桌宠浮窗"
+  hide_pet_overlay: "隐藏桌宠浮窗"
   quit: "退出"
-

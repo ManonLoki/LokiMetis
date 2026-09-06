@@ -4,7 +4,9 @@
     "BUG-HOOK-LISTENER-PARTIAL-READ",
     "BUG-PET-OVERLAY-BLOB-CSP",
     "BUG-pet-overlay-draft-images",
-    "BUG-pet-overlay-moved-persist-physical"
+    "BUG-pet-overlay-moved-persist-physical",
+    "BUG-PET-DISPLAY-INITIAL-IMAGE",
+    "BUG-PET-EAR-DISABLE-OPTION"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -94,8 +96,38 @@
       "change_id": "BUG-pet-overlay-moved-persist-physical",
       "kind": "bug-fix",
       "required_version": "0.2.5"
+    },
+    {
+      "change_id": "BUG-PET-DISPLAY-INITIAL-IMAGE",
+      "kind": "bug-fix",
+      "required_version": "0.2.6"
+    },
+    {
+      "change_id": "FEAT-PET-OVERLAY-TWELVE-POSITIONS",
+      "kind": "feature",
+      "required_version": "0.2.6"
+    },
+    {
+      "change_id": "FEAT-MONITOR-COMPACT-CONTROL-LAYOUT",
+      "kind": "feature",
+      "required_version": "0.2.6"
+    },
+    {
+      "change_id": "FEAT-DASHBOARD-HORIZONTAL-AGENT-SELECTOR",
+      "kind": "feature",
+      "required_version": "0.2.6"
+    },
+    {
+      "change_id": "BUG-PET-EAR-DISABLE-OPTION",
+      "kind": "bug-fix",
+      "required_version": "0.2.7"
+    },
+    {
+      "change_id": "FEAT-PET-OVERLAY-TRAY-CONTROL",
+      "kind": "feature",
+      "required_version": "0.2.7"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.5"
+  "target_version": "0.2.7"
 }
