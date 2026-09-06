@@ -41,8 +41,13 @@ export const APP_THEME_VARIABLES: CSSVariablesResolver = (theme) => ({
     "--app-muted": "#eef0f6",
     "--app-card-border": "#dfe2eb",
     "--app-card-shadow": "0 16px 42px -38px rgba(15, 23, 42, 0.72)",
+    "--app-control-hover-border": theme.colors.indigo[4],
     "--app-violet-text": theme.colors.indigo[7],
+    "--app-violet-border": theme.colors.indigo[2],
     "--app-control-background": "#ffffff",
+    "--app-endpoint-background": "#fafaff",
+    "--app-endpoint-border": "#e1e3e9",
+    "--app-image-hover-border": "#c8cbd5",
     "--app-selected-border": theme.colors.indigo[6],
     "--app-slot-background": "#ffffff",
     "--app-empty-icon-color": theme.colors.indigo[6],
@@ -59,8 +64,13 @@ export const APP_THEME_VARIABLES: CSSVariablesResolver = (theme) => ({
     "--app-muted": "#1c1e26",
     "--app-card-border": "#2e3039",
     "--app-card-shadow": "0 16px 42px -38px rgba(0, 0, 0, 0.72)",
+    "--app-control-hover-border": theme.colors.indigo[5],
     "--app-violet-text": theme.colors.indigo[3],
+    "--app-violet-border": theme.colors.indigo[7],
     "--app-control-background": "#1b1d24",
+    "--app-endpoint-background": "#26282f",
+    "--app-endpoint-border": "#3b3e48",
+    "--app-image-hover-border": "#515563",
     "--app-selected-border": theme.colors.indigo[5],
     "--app-slot-background": "#16181f",
     "--app-empty-icon-color": theme.colors.indigo[3],
@@ -76,7 +86,8 @@ const colorSchemeManager = localStorageColorSchemeManager({
 function ThemeSurface({ children }: { children: ReactNode }): ReactElement {
   const colorScheme = useComputedColorScheme("light");
   const petOverlay =
-    typeof document !== "undefined" && document.documentElement.classList.contains("pet-window");
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("pet-window");
   return (
     <Box
       data-color-scheme={colorScheme}

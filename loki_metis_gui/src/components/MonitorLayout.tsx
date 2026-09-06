@@ -7,7 +7,7 @@ import { MonitorToolbar } from "./MonitorToolbar";
 /** 装配监控页头与子页出口。 */
 export function MonitorLayout(): ReactElement {
   return (
-    <Stack data-testid="monitor-page" gap="md">
+    <Stack className="monitor-page-shell" data-testid="monitor-page" gap="md">
       <MonitorToolbar />
       <Outlet />
     </Stack>

@@ -77,11 +77,26 @@
     "navigation": {
       "pagesAria": "Monitor pages",
       "itemAria": "{{label}}: {{description}}",
-      "workbench": { "label": "Workbench", "description": "View the local Hook relay status" },
-      "management": { "label": "Monitor management", "description": "Configure display slots and behavior images for enabled agents" },
-      "images": { "label": "Image management", "description": "Manage local monitor images" },
-      "settings": { "label": "Hooks settings", "description": "Enable agents that receive Hooks and write local configs" },
-      "desktop": { "label": "Monitor settings", "description": "Configure the desktop pet overlay and bunny ear close control" }
+      "workbench": {
+        "label": "Workbench",
+        "description": "View the local Hook relay status"
+      },
+      "management": {
+        "label": "Monitor management",
+        "description": "Configure display slots and behavior images for enabled agents"
+      },
+      "images": {
+        "label": "Image management",
+        "description": "Manage local monitor images"
+      },
+      "settings": {
+        "label": "Hooks settings",
+        "description": "Enable agents that receive Hooks and write local configs"
+      },
+      "desktop": {
+        "label": "Monitor settings",
+        "description": "Configure the desktop pet overlay and bunny ear close control"
+      }
     },
     "workbench": {
       "title": "Local Hook relay",
@@ -89,8 +104,11 @@
       "listening": "Listening on {{address}}",
       "offline": "Relay is not listening",
       "received": "Received {{count}}",
+      "receivedLabel": "Received events",
       "failed": "Failed {{count}}",
+      "failedLabel": "Failed events",
       "lastEvent": "Last event: {{tool}} / {{hookType}}",
+      "lastEventLabel": "Last event:",
       "noEvent": "No Hook events yet",
       "lastError": "Last error: {{error}}"
     },
@@ -158,6 +176,7 @@
       "delete": "Delete image",
       "refresh": "Refresh",
       "reading": "Reading…",
+      "actions": "Image actions: {{name}}",
       "localLibrary": "Local library",
       "emptyCategory": "No images in this category",
       "imagesTotal": "{{count}} images",
@@ -168,7 +187,11 @@
       "title": "Hooks settings",
       "description": "Choose which agents should receive Hooks and write the local Hook configs. This is not the app Settings page.",
       "enabled": "Enabled agents",
+      "managementTitle": "Hooks management",
+      "managementDescription": "Review local config locations and write Hooks for each enabled agent.",
+      "chooseAgentFirst": "Enable at least one agent in the card above.",
       "directory": "Config directory",
+      "configFile": "Configuration file",
       "write": "Write Hooks",
       "written": "Wrote {{file}} ({{outcome}})",
       "location": "Current file: {{path}}"

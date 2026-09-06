@@ -113,10 +113,12 @@ describe("monitor images page", () => {
     await userEvent.click(screen.getByRole("radio", { name: "PNG 1" }));
     expect(screen.getByRole("img", { name: "icon.png" })).toBeVisible();
     expect(screen.queryByRole("img", { name: "photo.jpg" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole("button", { name: "···" })[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Image actions: icon.png" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Delete image" }));
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("delete_monitor_image_cmd", { id: "img-png" });
+      expect(invokeMock).toHaveBeenCalledWith("delete_monitor_image_cmd", {
+        id: "img-png",
+      });
     });
     expect(invokeMock).not.toHaveBeenCalledWith("delete_remote_image");
   });

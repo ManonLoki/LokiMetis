@@ -1,5 +1,6 @@
 import {
   Alert,
+  ActionIcon,
   Badge,
   Button,
   Card,
@@ -12,7 +13,13 @@ import {
   Stack,
   Text,
 } from "@mantine/core";
-import { IconPhoto, IconRefresh, IconTrash, IconUpload } from "@tabler/icons-react";
+import {
+  IconDots,
+  IconPhoto,
+  IconRefresh,
+  IconTrash,
+  IconUpload,
+} from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -96,7 +103,9 @@ export function MonitorImagesPage() {
       </Group>
       {mutationError ? <Alert color="red">{String(mutationError)}</Alert> : null}
       {upload.isSuccess ? (
-        <Alert color="teal">{t("monitor.images.uploaded", { count: upload.data.count })}</Alert>
+        <Alert color="teal">
+          {t("monitor.images.uploaded", { count: upload.data.count })}
+        </Alert>
       ) : null}
       {images.isPending ? (
         <Center py={80}>
@@ -115,7 +124,10 @@ export function MonitorImagesPage() {
             </Text>
             <SegmentedControl
               data={[
-                { value: "all", label: t("monitor.images.allCount", { count: imageList.length }) },
+                {
+                  value: "all",
+                  label: t("monitor.images.allCount", { count: imageList.length }),
+                },
                 { value: "jpeg", label: `JPEG ${counts?.jpeg ?? 0}` },
                 { value: "png", label: `PNG ${counts?.png ?? 0}` },
                 { value: "gif", label: `GIF ${counts?.gif ?? 0}` },
@@ -128,7 +140,11 @@ export function MonitorImagesPage() {
           {filteredImages.length ? (
             <SimpleGrid cols={{ base: 1, xs: 2, md: 3, xl: 4 }} spacing="md">
               {filteredImages.map((image) => (
-                <LocalImageCard image={image} key={image.id} onDelete={() => remove.mutate(image.id)} />
+                <LocalImageCard
+                  image={image}
+                  key={image.id}
+                  onDelete={() => remove.mutate(image.id)}
+                />
               ))}
             </SimpleGrid>
           ) : (
@@ -166,7 +182,9 @@ interface LocalImageCardProps {
 /** 预览、格式徽标、尺寸与删除菜单。 */
 function LocalImageCard({ image, onDelete }: LocalImageCardProps) {
   const { t } = useTranslation();
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(
+    null,
+  );
   return (
     <Card className="image-card" padding={0} withBorder>
       <div className="image-preview">
@@ -187,7 +205,9 @@ function LocalImageCard({ image, onDelete }: LocalImageCardProps) {
       <Group justify="space-between" p="sm" wrap="nowrap">
         <div className="min-width-zero">
           <Text fw={600} size="sm" truncate>
-            {dimensions ? `${dimensions.width} × ${dimensions.height}` : t("monitor.images.reading")}
+            {dimensions
+              ? `${dimensions.width} × ${dimensions.height}`
+              : t("monitor.images.reading")}
           </Text>
           <Text c="dimmed" mt={3} size="xs">
             {t("monitor.images.localLibrary")}
@@ -195,9 +215,13 @@ function LocalImageCard({ image, onDelete }: LocalImageCardProps) {
         </div>
         <Menu position="bottom-end" shadow="md">
           <Menu.Target>
-            <Button color="gray" px={10} variant="subtle">
-              ···
-            </Button>
+            <ActionIcon
+              aria-label={t("monitor.images.actions", { name: image.filename })}
+              color="gray"
+              variant="subtle"
+            >
+              <IconDots aria-hidden="true" size={18} stroke={1.75} />
+            </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item

@@ -78,9 +78,15 @@
       "pagesAria": "监控页面",
       "itemAria": "{{label}}：{{description}}",
       "workbench": { "label": "工作台", "description": "查看本机 Hook 中继状态" },
-      "management": { "label": "监控管理", "description": "为已启用 Agent 配置展示位与行为图片" },
+      "management": {
+        "label": "监控管理",
+        "description": "为已启用 Agent 配置展示位与行为图片"
+      },
       "images": { "label": "图片管理", "description": "管理本机监控图片" },
-      "settings": { "label": "Hooks 设置", "description": "启用要写入 Hooks 的 Agent 并生成本机配置" },
+      "settings": {
+        "label": "Hooks 设置",
+        "description": "启用要写入 Hooks 的 Agent 并生成本机配置"
+      },
       "desktop": { "label": "监控设置", "description": "配置桌宠悬浮窗与兔耳关闭控件" }
     },
     "workbench": {
@@ -89,8 +95,11 @@
       "listening": "正在监听 {{address}}",
       "offline": "中继未监听",
       "received": "已接收 {{count}}",
+      "receivedLabel": "已接收事件",
       "failed": "失败 {{count}}",
+      "failedLabel": "失败事件",
       "lastEvent": "最近事件：{{tool}} / {{hookType}}",
+      "lastEventLabel": "最近事件：",
       "noEvent": "尚未收到 Hook 事件",
       "lastError": "最近错误：{{error}}"
     },
@@ -158,6 +167,7 @@
       "delete": "删除图片",
       "refresh": "刷新",
       "reading": "读取中…",
+      "actions": "图片操作：{{name}}",
       "localLibrary": "本机图库",
       "emptyCategory": "该分类暂无图片",
       "imagesTotal": "共 {{count}} 张图片",
@@ -168,7 +178,11 @@
       "title": "Hooks 设置",
       "description": "选择要启用 Hooks 的 Agent，并写入本机 Hook 配置。此处不是应用设置。",
       "enabled": "启用的 Agent",
+      "managementTitle": "Hooks 管理",
+      "managementDescription": "按已启用的 Agent 查看本机配置位置并写入 Hooks。",
+      "chooseAgentFirst": "请先在上方启用至少一个 Agent。",
       "directory": "配置目录",
+      "configFile": "配置文件",
       "write": "写入 Hooks",
       "written": "已写入 {{file}}（{{outcome}}）",
       "location": "当前文件：{{path}}"
