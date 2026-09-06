@@ -161,21 +161,25 @@ pub fn run() {
             );
             app.manage(hook_relay_status);
             app.manage(hook_listener_control);
-            let hook_config_writer = match app.path().home_dir() {
-                Ok(hook_home_directory) => {
-                    let writer = HookConfigWriter::new(hook_home_directory);
-                    match initial_monitor_settings {
-                        Ok(settings) => writer.request_enabled(settings),
-                        Err(error) => tracing::warn!(
-                            code = error.code,
-                            "failed to load settings for automatic hook repair"
-                        ),
+            let hook_config_writer = if performance_evidence_enabled {
+                HookConfigWriter::disabled()
+            } else {
+                match app.path().home_dir() {
+                    Ok(hook_home_directory) => {
+                        let writer = HookConfigWriter::new(hook_home_directory);
+                        match initial_monitor_settings {
+                            Ok(settings) => writer.request_enabled(settings),
+                            Err(error) => tracing::warn!(
+                                code = error.code,
+                                "failed to load settings for automatic hook repair"
+                            ),
+                        }
+                        writer
                     }
-                    writer
-                }
-                Err(error) => {
-                    tracing::warn!(%error, "failed to resolve Tauri home for automatic hooks");
-                    HookConfigWriter::disabled()
+                    Err(error) => {
+                        tracing::warn!(%error, "failed to resolve Tauri home for automatic hooks");
+                        HookConfigWriter::disabled()
+                    }
                 }
             };
             app.manage(hook_config_writer);
@@ -338,6 +342,13 @@ mod tests {
         let listener = source
             .find("let (hook_relay_status, hook_listener_control) = spawn_hook_listener(")
             .expect("listener setup");
+        let performance_guard = source
+            .find("let hook_config_writer = if performance_evidence_enabled {")
+            .expect("performance evidence hook repair guard");
+        let disabled_writer = source[performance_guard..]
+            .find("HookConfigWriter::disabled()")
+            .map(|offset| performance_guard + offset)
+            .expect("disabled hook writer");
         let hook_home = source
             .find("match app.path().home_dir()")
             .expect("Tauri hook home");
@@ -352,7 +363,9 @@ mod tests {
             .expect("default pet overlay show");
         let tray = source.find("install_tray(app)?").expect("tray setup");
         assert!(
-            listener < hook_home
+            listener < performance_guard
+                && performance_guard < disabled_writer
+                && disabled_writer < hook_home
                 && hook_home < hook_writer
                 && hook_writer < hook_repair
                 && hook_repair < show

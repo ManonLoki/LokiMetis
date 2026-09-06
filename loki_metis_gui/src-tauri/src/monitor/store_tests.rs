@@ -243,6 +243,21 @@ fn owned_worker_processes_enabled_request_and_shuts_down() {
 }
 
 #[test]
+/// 禁用占位不得创建 worker，也不得响应后续设置快照，供性能证据进程零 Hook 写入复用。
+fn disabled_writer_ignores_enabled_request_without_creating_config() {
+    let root = tempdir().expect("temp");
+    let config_path = root.path().join(hook_config_filename(AiTool::Codex));
+    let writer = HookConfigWriter::disabled();
+
+    assert!(writer.shared.is_none());
+    assert!(writer.worker.lock().expect("worker state").is_none());
+    writer.request_enabled(settings_for(AiTool::Codex, root.path()));
+    writer.shutdown();
+
+    assert!(!config_path.exists());
+}
+
+#[test]
 /// 外部 writer 在一次校正完全结束后最终覆盖时，低频自愈仍会恢复 marker 并保留外部内容。
 fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
     let root = tempdir().expect("temp");
