@@ -94,11 +94,8 @@
       "description": "监听 127.0.0.1 上的 AgentHooks 事件，不扫描局域网设备。",
       "listening": "正在监听 {{address}}",
       "offline": "中继未监听",
-      "received": "已接收 {{count}}",
       "receivedLabel": "已接收事件",
-      "failed": "失败 {{count}}",
       "failedLabel": "失败事件",
-      "lastEvent": "最近事件：{{tool}} / {{hookType}}",
       "lastEventLabel": "最近事件：",
       "noEvent": "尚未收到 Hook 事件",
       "lastError": "最近错误：{{error}}"
@@ -184,8 +181,7 @@
       "directory": "配置目录",
       "configFile": "配置文件",
       "write": "写入 Hooks",
-      "written": "已写入 {{file}}（{{outcome}}）",
-      "location": "当前文件：{{path}}"
+      "written": "已写入 {{file}}（{{outcome}}）"
     },
     "desktop": {
       "title": "监控设置",

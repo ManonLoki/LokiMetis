@@ -104,7 +104,7 @@ export function MonitorSettingsPage() {
       <Card
         aria-describedby="monitor-hooks-management-description"
         aria-labelledby="monitor-hooks-management-title"
-        className="surface-card settings-card hooks-management-card"
+        className="surface-card settings-card"
         data-testid="monitor-hooks-management"
         p="sm"
         radius="lg"
@@ -127,7 +127,7 @@ export function MonitorSettingsPage() {
             </Alert>
           ) : (
             <Tabs
-              className="ai-tool-tabs"
+              className="ai-tool-tabs ai-tool-tabs-compact"
               keepMounted={false}
               onChange={(value) => {
                 if (value) setSelectedTool(value as MonitorAiTool);

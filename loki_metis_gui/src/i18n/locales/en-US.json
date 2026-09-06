@@ -103,11 +103,8 @@
       "description": "Listens for AgentHooks events on 127.0.0.1. It does not scan the LAN.",
       "listening": "Listening on {{address}}",
       "offline": "Relay is not listening",
-      "received": "Received {{count}}",
       "receivedLabel": "Received events",
-      "failed": "Failed {{count}}",
       "failedLabel": "Failed events",
-      "lastEvent": "Last event: {{tool}} / {{hookType}}",
       "lastEventLabel": "Last event:",
       "noEvent": "No Hook events yet",
       "lastError": "Last error: {{error}}"
@@ -193,8 +190,7 @@
       "directory": "Config directory",
       "configFile": "Configuration file",
       "write": "Write Hooks",
-      "written": "Wrote {{file}} ({{outcome}})",
-      "location": "Current file: {{path}}"
+      "written": "Wrote {{file}} ({{outcome}})"
     },
     "desktop": {
       "title": "Monitor settings",

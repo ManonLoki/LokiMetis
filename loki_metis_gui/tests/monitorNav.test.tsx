@@ -210,8 +210,9 @@ describe("monitor header tabs", () => {
   test("workbench_and_management_use_four_approved_agents_and_relay_query", async () => {
     const router = await renderMonitor();
     expect(await screen.findByText(/Listening on 127.0.0.1:10240/)).toBeVisible();
-    expect(screen.getByText("Received events").closest(".endpoint-preview")).not.toBeNull();
-    expect(screen.getByText("Failed events").closest(".endpoint-preview")).not.toBeNull();
+    expect(screen.getByText("Received events")).toBeVisible();
+    expect(screen.getByText("Failed events")).toBeVisible();
+    expect(screen.getAllByText("0")).toHaveLength(2);
     expect(invokeMock).toHaveBeenCalledWith("get_hook_relay_status");
     await userEvent.click(screen.getByRole("link", { name: /Monitor management:/ }));
     expect(router.state.location.pathname).toBe("/monitor/management");

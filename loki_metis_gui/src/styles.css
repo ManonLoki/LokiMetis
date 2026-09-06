@@ -543,18 +543,6 @@ input {
   line-height: 1.25;
 }
 
-.monitor-page-shell .settings-page .mantine-InputWrapper-description {
-  font-size: var(--mantine-font-size-xs);
-  line-height: 1.25;
-}
-
-.monitor-page-shell .hooks-management-card .mantine-Tabs-tab {
-  min-height: 32px;
-  padding: 6px 10px;
-  font-size: var(--mantine-font-size-sm);
-  line-height: 1.2;
-}
-
 .image-card {
   overflow: hidden;
   border: 1px solid var(--app-card-border);
@@ -579,9 +567,17 @@ input {
   position: relative;
   aspect-ratio: 4 / 3;
   overflow: hidden;
+  --checkerboard-size: 18px;
+}
+
+.image-preview,
+.image-picker-trigger img,
+.image-picker-option img {
   background:
-    linear-gradient(45deg, var(--app-muted) 25%, transparent 25%) 0 0 / 18px 18px,
-    linear-gradient(-45deg, var(--app-muted) 25%, transparent 25%) 0 0 / 18px 18px;
+    linear-gradient(45deg, var(--app-muted) 25%, transparent 25%) 0 0 /
+      var(--checkerboard-size) var(--checkerboard-size),
+    linear-gradient(-45deg, var(--app-muted) 25%, transparent 25%) 0 0 /
+      var(--checkerboard-size) var(--checkerboard-size);
 }
 
 .image-preview img {
@@ -628,6 +624,13 @@ input {
     color 140ms ease,
     background 140ms ease,
     box-shadow 140ms ease;
+}
+
+.ai-tool-tabs.ai-tool-tabs-compact .mantine-Tabs-tab {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: var(--mantine-font-size-sm);
+  line-height: 1.2;
 }
 
 .ai-tool-tabs .mantine-Tabs-tab[data-active] {
@@ -809,9 +812,7 @@ input {
   height: 100%;
   display: block;
   object-fit: contain;
-  background:
-    linear-gradient(45deg, var(--app-muted) 25%, transparent 25%) 0 0 / 16px 16px,
-    linear-gradient(-45deg, var(--app-muted) 25%, transparent 25%) 0 0 / 16px 16px;
+  --checkerboard-size: 16px;
 }
 
 .image-picker-overlay {
@@ -875,9 +876,7 @@ input {
   height: 100%;
   display: block;
   object-fit: contain;
-  background:
-    linear-gradient(45deg, var(--app-muted) 25%, transparent 25%) 0 0 / 12px 12px,
-    linear-gradient(-45deg, var(--app-muted) 25%, transparent 25%) 0 0 / 12px 12px;
+  --checkerboard-size: 12px;
 }
 
 .image-picker-check {
