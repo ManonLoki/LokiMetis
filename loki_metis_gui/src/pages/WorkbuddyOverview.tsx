@@ -1,19 +1,19 @@
-import { Paper, SegmentedControl, SimpleGrid, Stack, Text, Title } from '@mantine/core';
-import { useAtom } from 'jotai';
-import { useTranslation } from 'react-i18next';
+import { Paper, SegmentedControl, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { useAtom } from "jotai";
+import { useTranslation } from "react-i18next";
 
-import type { UsageWindow, WorkbuddyWindowDto } from '../api/usage';
-import { TokenTotalDisplay } from '../components/UsageUi';
-import { overviewWindowAtom } from '../state/page-session';
-import { formatBasisPoints, formatCredits, formatTokens } from '../usage-format';
-import { overviewWindowOrder } from './overview-windows';
-import { WorkbuddyQueryGate } from './WorkbuddyGate';
+import type { UsageWindow, WorkbuddyWindowDto } from "../api/usage";
+import { TokenTotalDisplay } from "../components/UsageUi";
+import { overviewWindowAtom } from "../state/page-session";
+import { formatBasisPoints, formatCredits, formatTokens } from "../usage-format";
+import { overviewWindowOrder } from "./overview-windows";
+import { WorkbuddyQueryGate } from "./WorkbuddyGate";
 import {
   formatMinutes,
   selectWorkbuddyWindow,
   useWorkbuddyStatisticsQuery,
   workbuddyTraceErrorRate,
-} from './WorkbuddyShared';
+} from "./WorkbuddyShared";
 
 /** WorkBuddy 概览：与本机看板共用六个日历窗口，展示 project JSONL 精确用量与 Trace 诊断。 */
 export function WorkbuddyOverview() {
@@ -24,17 +24,20 @@ export function WorkbuddyOverview() {
     return <WorkbuddyQueryGate {...query} />;
   }
 
-  const selected = selectWorkbuddyWindow(query.statisticsQuery.data.windows, selectedWindow);
+  const selected = selectWorkbuddyWindow(
+    query.statisticsQuery.data.windows,
+    selectedWindow,
+  );
   const label = t(`window.${selectedWindow}`);
   return (
     <Stack className="page-stack" data-testid="workbuddy-overview" gap="xl">
       <section aria-labelledby="workbuddy-overview-heading">
         <Stack gap="md">
           <Title id="workbuddy-overview-heading" order={2}>
-            {t('overview.local.title')}
+            {t("overview.local.title")}
           </Title>
           <SegmentedControl
-            aria-label={t('overview.local.windowAria')}
+            aria-label={t("overview.local.windowAria")}
             data={overviewWindowOrder.map((window) => ({
               label: t(`window.${window}`),
               value: window,
@@ -60,69 +63,92 @@ function WorkbuddyWindowSummary({
   const { t } = useTranslation();
   const traceErrorRate = workbuddyTraceErrorRate(window);
   const breakdown = [
-    { label: t('metric.input'), value: formatTokens(window?.inputTokens ?? 0) },
-    { label: t('metric.cachedInput'), value: formatTokens(window?.cachedInputTokens ?? 0) },
-    { label: t('metric.uncachedInput'), value: formatTokens(window?.uncachedInputTokens ?? 0) },
-    { label: t('metric.output'), value: formatTokens(window?.outputTokens ?? 0) },
+    { label: t("metric.input"), value: formatTokens(window?.inputTokens ?? 0) },
+    { label: t("metric.cachedInput"), value: formatTokens(window?.cachedInputTokens ?? 0) },
     {
-      label: t('workbuddy.topLevelRequests'),
+      label: t("metric.uncachedInput"),
+      value: formatTokens(window?.uncachedInputTokens ?? 0),
+    },
+    { label: t("metric.output"), value: formatTokens(window?.outputTokens ?? 0) },
+    {
+      label: t("workbuddy.topLevelRequests"),
       value: formatTokens(window?.topLevelRequestCount ?? 0),
     },
     {
-      label: t('workbuddy.subagentRequests'),
+      label: t("workbuddy.subagentRequests"),
       value: formatTokens(window?.subagentRequestCount ?? 0),
     },
     {
-      label: t('workbuddy.averageDuration'),
-      value: t('workbuddy.minutesValue', {
+      label: t("workbuddy.averageDuration"),
+      value: t("workbuddy.minutesValue", {
         minutes: formatMinutes(window?.averageSessionDurationSeconds ?? 0),
       }),
     },
-    { label: t('workbuddy.traceTotal'), value: formatTokens(window?.traceTotalCount ?? 0) },
+    { label: t("workbuddy.traceTotal"), value: formatTokens(window?.traceTotalCount ?? 0) },
     {
-      label: t('workbuddy.traceErrorRate'),
+      label: t("workbuddy.traceErrorRate"),
       value: formatBasisPoints(traceErrorRate === null ? null : traceErrorRate * 10_000),
     },
     {
-      label: t('workbuddy.traceCancelled'),
+      label: t("workbuddy.traceCancelled"),
       value: formatTokens(window?.traceCancelledCount ?? 0),
     },
     {
-      label: t('workbuddy.traceAverageDuration'),
-      value: t('workbuddy.millisecondsValue', {
+      label: t("workbuddy.traceAverageDuration"),
+      value: t("workbuddy.millisecondsValue", {
         ms: Math.round(window?.traceAverageDurationMs ?? 0),
       }),
     },
   ];
   return (
-    <section aria-label={t('overviewCards.local.sectionAria', { window: label })}>
+    <section aria-label={t("overviewCards.local.sectionAria", { window: label })}>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-          <Paper className="metric-card local-card local-hero-card" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card local-hero-card"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
-              {t('workbuddy.totalSessions')}
+              {t("workbuddy.totalSessions")}
             </Text>
             <Text className="hero-number" fw={800}>
               {formatTokens(window?.sessionCount ?? 0)}
             </Text>
           </Paper>
-          <Paper className="metric-card local-card local-hero-card" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card local-hero-card"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
-              {t('workbuddy.totalRequests')}
+              {t("workbuddy.totalRequests")}
             </Text>
             <Text className="hero-number" fw={800}>
               {formatTokens(window?.requestCount ?? 0)}
             </Text>
           </Paper>
-          <Paper className="metric-card local-card local-hero-card" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card local-hero-card"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
-              {t('overviewCards.local.tokenTotal')}
+              {t("overviewCards.local.tokenTotal")}
             </Text>
             <TokenTotalDisplay className="hero-number" value={window?.tokens ?? 0} />
           </Paper>
-          <Paper className="metric-card local-card local-hero-card" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card local-hero-card"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
-              {t('workbuddy.totalCredits')}
+              {t("workbuddy.totalCredits")}
             </Text>
             <Text className="hero-number" fw={800}>
               {formatCredits(window?.credits ?? null)}
@@ -132,7 +158,7 @@ function WorkbuddyWindowSummary({
 
         <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
           <Stack gap="md">
-            <Title order={3}>{t('workbuddy.breakdownTitle', { window: label })}</Title>
+            <Title order={3}>{t("workbuddy.breakdownTitle", { window: label })}</Title>
             <SimpleGrid cols={{ base: 2, sm: 3 }}>
               {breakdown.map((metric) => (
                 <div className="mini-metric" key={metric.label}>

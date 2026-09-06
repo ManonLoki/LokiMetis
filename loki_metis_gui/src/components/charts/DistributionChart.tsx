@@ -1,6 +1,6 @@
-import { Text } from '@mantine/core';
+import { Text } from "@mantine/core";
 
-import { CHART_WIDTH, axisTickValues } from './chart-geometry';
+import { CHART_WIDTH, axisTickValues } from "./chart-geometry";
 
 /** 分布图中的一条可访问横向条。 */
 export interface DistributionRow {
@@ -42,7 +42,7 @@ const X_STEPS = 4;
 /** 对 SVG 分类轴做稳定截断，完整标签仍保留在 title 与可访问描述中。 */
 function compactLabel(label: string): string {
   const characters = Array.from(label);
-  return characters.length <= 24 ? label : `${characters.slice(0, 23).join('')}…`;
+  return characters.length <= 24 ? label : `${characters.slice(0, 23).join("")}…`;
 }
 
 /** 按确定性后端顺序绘制带横轴、网格和精确值的 SVG 条形图。 */
@@ -79,7 +79,7 @@ export function DistributionChart({
         <desc>
           {rows
             .map((row) => `${row.label}: ${formatValue(row.value)}; ${row.shareLabel}`)
-            .join(' · ')}
+            .join(" · ")}
         </desc>
         {axisTickValues(maximum, X_STEPS).map((value, index) => {
           const ratio = index / X_STEPS;
@@ -96,7 +96,7 @@ export function DistributionChart({
               />
               <text
                 className="distribution-axis-label"
-                textAnchor={index === 0 ? 'start' : index === X_STEPS ? 'end' : 'middle'}
+                textAnchor={index === 0 ? "start" : index === X_STEPS ? "end" : "middle"}
                 x={x}
                 y={height - 15}
               >
@@ -121,8 +121,8 @@ export function DistributionChart({
               <text
                 className={
                   row.remainder
-                    ? 'distribution-category-label remainder'
-                    : 'distribution-category-label'
+                    ? "distribution-category-label remainder"
+                    : "distribution-category-label"
                 }
                 textAnchor="end"
                 x={PLOT_LEFT - 12}
@@ -150,7 +150,9 @@ export function DistributionChart({
               {barWidth === null ? null : (
                 <rect
                   aria-hidden="true"
-                  className={row.remainder ? 'distribution-bar remainder' : 'distribution-bar'}
+                  className={
+                    row.remainder ? "distribution-bar remainder" : "distribution-bar"
+                  }
                   data-distribution-bar={row.id}
                   height={BAR_HEIGHT}
                   rx={BAR_HEIGHT / 2}

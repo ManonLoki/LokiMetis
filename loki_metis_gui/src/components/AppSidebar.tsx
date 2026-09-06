@@ -1,5 +1,10 @@
 import { Box, Divider, Image, NavLink, ScrollArea, Stack, Text } from "@mantine/core";
-import { IconDeviceDesktopAnalytics, IconLayoutDashboard, IconSettings, type TablerIcon } from "@tabler/icons-react";
+import {
+  IconDeviceDesktopAnalytics,
+  IconLayoutDashboard,
+  IconSettings,
+  type TablerIcon,
+} from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 

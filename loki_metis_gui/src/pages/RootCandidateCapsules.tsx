@@ -1,10 +1,10 @@
-import { Badge, Button, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Badge, Button, Group, Paper, Stack, Text, Tooltip } from "@mantine/core";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import type { RootCandidateDto } from '../api/usage';
-import { agentClientLabel } from '../state/agent-client';
-import { visibleErrorMessage } from '../visible-error';
+import type { RootCandidateDto } from "../api/usage";
+import { agentClientLabel } from "../state/agent-client";
+import { visibleErrorMessage } from "../visible-error";
 
 /** 用可独立并发添加的胶囊条目展示实时候选。 */
 export function RootCandidateCapsules({
@@ -48,11 +48,11 @@ export function RootCandidateCapsules({
           <Group gap="xs" wrap="nowrap">
             <Badge
               color={
-                candidate.client === 'codex'
-                  ? 'blue'
-                  : candidate.client === 'grokBuildCli'
-                    ? 'teal'
-                    : 'violet'
+                candidate.client === "codex"
+                  ? "blue"
+                  : candidate.client === "grokBuildCli"
+                    ? "teal"
+                    : "violet"
               }
               variant="light"
             >
@@ -75,7 +75,7 @@ export function RootCandidateCapsules({
               radius="xl"
               size="compact-sm"
             >
-              {t('sources.discovery.add')}
+              {t("sources.discovery.add")}
             </Button>
           </Group>
           {errors[candidate.id] ? (

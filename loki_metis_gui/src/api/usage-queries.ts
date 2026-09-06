@@ -1,14 +1,14 @@
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { useAtomValue } from 'jotai';
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useAtomValue } from "jotai";
 
 import {
   getLocalScanStatus,
   type AgentClientKind,
   type PrivacySettingsDto,
   type ScanStatusDto,
-} from './usage';
-import { agentClientAtom } from '../state/agent-client';
+} from "./usage";
+import { agentClientAtom } from "../state/agent-client";
 
 /** 扫描进行中时的状态轮询间隔：足够快显得实时，又不会打满 Tauri IPC 桥。 */
 export const SCAN_STATUS_POLL_INTERVAL_MS = 1_500;
@@ -21,15 +21,15 @@ export const SCAN_STATUS_POLL_INTERVAL_MS = 1_500;
 
 /** 初始化门禁翻转时必须彻底丢弃的查询前缀；初始化状态本身不在此列表。 */
 const initializationSensitiveQueryPrefixes = [
-  'usage-overview',
-  'usage-statistics',
-  'usage-charts',
-  'usage-calls',
-  'usage-sources',
-  'source-roots',
-  'privacy-settings',
-  'scan-status',
-  'provider-leaderboard',
+  "usage-overview",
+  "usage-statistics",
+  "usage-charts",
+  "usage-calls",
+  "usage-sources",
+  "source-roots",
+  "privacy-settings",
+  "scan-status",
+  "provider-leaderboard",
 ] as const;
 
 /** 取消并移除两个客户端的全部业务缓存，避免重新初始化后首帧复用旧账号或旧主根。 */
@@ -47,19 +47,19 @@ export async function invalidateLocalUsageQueries(
 ): Promise<void> {
   const suffix = client ? [client] : [];
   const invalidations: Promise<unknown>[] = [
-    queryClient.invalidateQueries({ queryKey: ['usage-overview', ...suffix] }),
-    queryClient.invalidateQueries({ queryKey: ['usage-statistics', ...suffix] }),
-    queryClient.invalidateQueries({ queryKey: ['usage-charts', ...suffix] }),
-    queryClient.resetQueries({ queryKey: ['usage-calls', ...suffix] }),
-    queryClient.invalidateQueries({ queryKey: ['usage-sources', ...suffix] }),
-    queryClient.invalidateQueries({ queryKey: ['source-roots', ...suffix] }),
-    queryClient.invalidateQueries({ queryKey: ['privacy-settings', ...suffix] }),
+    queryClient.invalidateQueries({ queryKey: ["usage-overview", ...suffix] }),
+    queryClient.invalidateQueries({ queryKey: ["usage-statistics", ...suffix] }),
+    queryClient.invalidateQueries({ queryKey: ["usage-charts", ...suffix] }),
+    queryClient.resetQueries({ queryKey: ["usage-calls", ...suffix] }),
+    queryClient.invalidateQueries({ queryKey: ["usage-sources", ...suffix] }),
+    queryClient.invalidateQueries({ queryKey: ["source-roots", ...suffix] }),
+    queryClient.invalidateQueries({ queryKey: ["privacy-settings", ...suffix] }),
   ];
   if (client) {
     invalidations.push(
-      queryClient.invalidateQueries({ queryKey: ['usage-overview', 'all'] }),
-      queryClient.invalidateQueries({ queryKey: ['usage-charts', 'all'] }),
-      queryClient.resetQueries({ queryKey: ['usage-calls', 'all'] }),
+      queryClient.invalidateQueries({ queryKey: ["usage-overview", "all"] }),
+      queryClient.invalidateQueries({ queryKey: ["usage-charts", "all"] }),
+      queryClient.resetQueries({ queryKey: ["usage-calls", "all"] }),
     );
   }
   await Promise.all(invalidations);
@@ -81,23 +81,25 @@ export function synchronizeGlobalPrivacySettings(
   queryClient: QueryClient,
   settings: PrivacySettingsDto,
 ): void {
-  queryClient.setQueriesData<PrivacySettingsDto>({ queryKey: ['privacy-settings'] }, (existing) =>
-    existing
-      ? {
-          ...existing,
-          languagePreference: settings.languagePreference,
-          deviceUsername: settings.deviceUsername,
-          deviceName: settings.deviceName,
-          deviceUniqueId: settings.deviceUniqueId,
-          localOnly: settings.localOnly,
-          scanIntervalMinutes: settings.scanIntervalMinutes,
-          retentionDays: settings.retentionDays,
-          deviceTimeZone: settings.deviceTimeZone,
-          availableAiTypes: settings.availableAiTypes,
-          enabledAgents: settings.enabledAgents,
-          workbuddyStatsEnabled: settings.workbuddyStatsEnabled,
-        }
-      : existing,
+  queryClient.setQueriesData<PrivacySettingsDto>(
+    { queryKey: ["privacy-settings"] },
+    (existing) =>
+      existing
+        ? {
+            ...existing,
+            languagePreference: settings.languagePreference,
+            deviceUsername: settings.deviceUsername,
+            deviceName: settings.deviceName,
+            deviceUniqueId: settings.deviceUniqueId,
+            localOnly: settings.localOnly,
+            scanIntervalMinutes: settings.scanIntervalMinutes,
+            retentionDays: settings.retentionDays,
+            deviceTimeZone: settings.deviceTimeZone,
+            availableAiTypes: settings.availableAiTypes,
+            enabledAgents: settings.enabledAgents,
+            workbuddyStatsEnabled: settings.workbuddyStatsEnabled,
+          }
+        : existing,
   );
 }
 
@@ -123,7 +125,7 @@ export function useLocalUsageRefreshObserver(): void {
   const client = useAtomValue(agentClientAtom);
   const localClient = client;
   const queryClient = useQueryClient();
-  const lastScanState = useRef<ScanStatusDto['state'] | null>(null);
+  const lastScanState = useRef<ScanStatusDto["state"] | null>(null);
   const scanSequence = useRef(0);
   const invalidatedTerminal = useRef<string | null>(null);
   // 首次挂载主动读取一次状态，才能观察 Rust setup 在页面渲染前启动的自动快速扫描。
@@ -146,12 +148,12 @@ export function useLocalUsageRefreshObserver(): void {
     lastScanState.current = null;
     invalidatedTerminal.current = null;
     const observeScanState = () => {
-      const scan = queryClient.getQueryData<ScanStatusDto>(['scan-status', localClient]);
+      const scan = queryClient.getQueryData<ScanStatusDto>(["scan-status", localClient]);
       if (!scan) {
         return;
       }
-      if (scan.state === 'running') {
-        if (lastScanState.current !== 'running') {
+      if (scan.state === "running") {
+        if (lastScanState.current !== "running") {
           scanSequence.current += 1;
           invalidatedTerminal.current = null;
         }
@@ -159,7 +161,7 @@ export function useLocalUsageRefreshObserver(): void {
         setMonitoring(true);
         return;
       }
-      if (scan.state === 'idle' || scan.finishedAtEpochMs === null) {
+      if (scan.state === "idle" || scan.finishedAtEpochMs === null) {
         lastScanState.current = scan.state;
         setMonitoring(false);
         return;
@@ -169,11 +171,11 @@ export function useLocalUsageRefreshObserver(): void {
       // 下可能相同或缺失，加上轮次序号和起止时间形成组合身份）。
       const terminalIdentity = [
         scanSequence.current,
-        scan.scanId ?? 'unknown',
-        scan.startedAtEpochMs ?? 'unknown',
+        scan.scanId ?? "unknown",
+        scan.startedAtEpochMs ?? "unknown",
         scan.finishedAtEpochMs,
         scan.state,
-      ].join(':');
+      ].join(":");
       lastScanState.current = scan.state;
       setMonitoring(false);
       if (invalidatedTerminal.current !== terminalIdentity) {
@@ -187,7 +189,7 @@ export function useLocalUsageRefreshObserver(): void {
     // 新数据”时触发 observeScanState 重新判断，等价于把这个观察器变成
     // 一个跨组件、跨路由都持续生效的后台监听器。
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      if (event.query.queryKey[0] !== 'scan-status') {
+      if (event.query.queryKey[0] !== "scan-status") {
         return;
       }
       // queryCache.subscribe() notifies synchronously mid-update; defer to a microtask
@@ -209,11 +211,11 @@ export function useLocalUsageRefreshObserver(): void {
     queryFn: () => {
       return getLocalScanStatus(localClient);
     },
-    queryKey: ['scan-status', client],
+    queryKey: ["scan-status", client],
     // refetchInterval 可以是一个函数：只要扫描仍在运行就按固定间隔轮询，
     // 一旦不在运行返回 false 直接停止自动轮询（而不是持续空转请求）——
     // TanStack Query 会在每次数据更新后重新调用这个函数决定下一次何时轮询。
     refetchInterval: (query) =>
-      query.state.data?.state === 'running' ? SCAN_STATUS_POLL_INTERVAL_MS : false,
+      query.state.data?.state === "running" ? SCAN_STATUS_POLL_INTERVAL_MS : false,
   });
 }

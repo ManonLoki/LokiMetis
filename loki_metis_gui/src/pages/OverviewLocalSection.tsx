@@ -1,10 +1,10 @@
-import { SegmentedControl, Stack, Title } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
+import { SegmentedControl, Stack, Title } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
-import type { LocalRecordsSectionDto, UsageWindow, WindowUsageDto } from '../api/usage';
-import { LocalIndexNotice } from '../components/UsageUi';
-import { LocalWindowSummary } from './OverviewCards';
-import { overviewWindowOrder } from './overview-windows';
+import type { LocalRecordsSectionDto, UsageWindow, WindowUsageDto } from "../api/usage";
+import { LocalIndexNotice } from "../components/UsageUi";
+import { LocalWindowSummary } from "./OverviewCards";
+import { overviewWindowOrder } from "./overview-windows";
 
 /** 定义物理 Agent 本机概览区域的规范事实与加载状态。 */
 interface OverviewLocalSectionProps {
@@ -30,16 +30,16 @@ export function OverviewLocalSection({
       <Stack gap="md">
         <div>
           <Title id="local-heading" order={2}>
-            {t('overview.local.title')}
+            {t("overview.local.title")}
           </Title>
         </div>
 
         <LocalIndexNotice state={local.indexState} />
 
-        {local.indexState === 'notScanned' || local.indexState === 'needsRescan' ? null : (
+        {local.indexState === "notScanned" || local.indexState === "needsRescan" ? null : (
           <>
             <SegmentedControl
-              aria-label={t('overview.local.windowAria')}
+              aria-label={t("overview.local.windowAria")}
               data={overviewWindowOrder.map((window) => ({
                 label: t(`window.${window}`),
                 value: window,

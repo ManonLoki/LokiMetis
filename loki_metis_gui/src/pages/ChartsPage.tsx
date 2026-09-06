@@ -7,11 +7,11 @@ import {
   SimpleGrid,
   Stack,
   Text,
-} from '@mantine/core';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
-import { useTranslation } from 'react-i18next';
+} from "@mantine/core";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useAtom, useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
 import {
   getUsageCharts,
@@ -23,65 +23,71 @@ import {
   type UsageChartTokenMetric,
   type UsageMeasureDto,
   type UsageWindow,
-} from '../api/usage';
-import { DistributionChart, type DistributionRow } from '../components/charts/DistributionChart';
-import { TimeSeriesChart, type TimeSeries } from '../components/charts/TimeSeriesChart';
+} from "../api/usage";
+import {
+  DistributionChart,
+  type DistributionRow,
+} from "../components/charts/DistributionChart";
+import { TimeSeriesChart, type TimeSeries } from "../components/charts/TimeSeriesChart";
 import {
   FailureState,
   LocalIndexNotice,
   LoadingState,
   TokenTotalDisplay,
-} from '../components/UsageUi';
-import { chartMetricLabel, displayLabel } from '../i18n/backend-labels';
-import { usageViewAtom } from '../state/agent-client';
-import { chartPreferencesAtom, timeStandardAtom } from '../state/page-session';
-import { formatBasisPoints, formatCompactTokens, formatTokens } from '../usage-format';
-import { usageWindowOrder } from './overview-windows';
-import { WorkbuddyCharts } from './WorkbuddyCharts';
-import '../charts.css';
+} from "../components/UsageUi";
+import { chartMetricLabel, displayLabel } from "../i18n/backend-labels";
+import { usageViewAtom } from "../state/agent-client";
+import { chartPreferencesAtom, timeStandardAtom } from "../state/page-session";
+import { formatBasisPoints, formatCompactTokens, formatTokens } from "../usage-format";
+import { usageWindowOrder } from "./overview-windows";
+import { WorkbuddyCharts } from "./WorkbuddyCharts";
+import "../charts.css";
 
 const CHART_REFRESH_INTERVAL_MS = 10_000;
 
 const tokenMetricOrder: UsageChartTokenMetric[] = [
-  'totalTokens',
-  'inputTokens',
-  'cachedInputTokens',
-  'cacheWriteInputTokens',
-  'outputTokens',
-  'reasoningOutputTokens',
+  "totalTokens",
+  "inputTokens",
+  "cachedInputTokens",
+  "cacheWriteInputTokens",
+  "outputTokens",
+  "reasoningOutputTokens",
 ];
 
 const tokenMetricColors: Record<UsageChartTokenMetric, string> = {
-  cacheWriteInputTokens: '#8b5cf6',
-  cachedInputTokens: '#0ea5e9',
-  inputTokens: '#f59e0b',
-  outputTokens: '#ef4444',
-  reasoningOutputTokens: '#d946ef',
-  totalTokens: '#2563eb',
+  cacheWriteInputTokens: "#8b5cf6",
+  cachedInputTokens: "#0ea5e9",
+  inputTokens: "#f59e0b",
+  outputTokens: "#ef4444",
+  reasoningOutputTokens: "#d946ef",
+  totalTokens: "#2563eb",
 };
 
 const physicalDimensions: UsageChartDimension[] = [
-  'model',
-  'reasoningEffort',
-  'project',
-  'thread',
-  'root',
+  "model",
+  "reasoningEffort",
+  "project",
+  "thread",
+  "root",
 ];
 
 /** 从图表度量读取所选 Token 指标，并保留未提供状态。 */
-function tokenMetricValue(measure: UsageMeasureDto, metric: UsageChartTokenMetric): number | null {
+function tokenMetricValue(
+  measure: UsageMeasureDto,
+  metric: UsageChartTokenMetric,
+): number | null {
   switch (metric) {
-    case 'totalTokens':
+    case "totalTokens":
       return measure.tokens.totalTokens;
-    case 'inputTokens':
+    case "inputTokens":
       return measure.tokens.inputTokens;
-    case 'cachedInputTokens':
+    case "cachedInputTokens":
       return measure.tokens.cachedInputTokens;
-    case 'cacheWriteInputTokens':
+    case "cacheWriteInputTokens":
       return measure.tokens.cacheWriteInputTokens;
-    case 'outputTokens':
+    case "outputTokens":
       return measure.tokens.outputTokens;
-    case 'reasoningOutputTokens':
+    case "reasoningOutputTokens":
       return measure.tokens.reasoningOutputTokens;
   }
 }
@@ -91,13 +97,13 @@ function distributionValue(
   measure: UsageMeasureDto,
   metric: UsageChartDistributionMetric,
 ): number | null {
-  return metric === 'callCount' ? measure.callCount : tokenMetricValue(measure, metric);
+  return metric === "callCount" ? measure.callCount : tokenMetricValue(measure, metric);
 }
 
 /** 看板图表选项卡：同一页同时展示趋势图与用量分布。 */
 export function ChartsPage() {
   const view = useAtomValue(usageViewAtom);
-  if (view === 'workbuddy') {
+  if (view === "workbuddy") {
     return <WorkbuddyCharts />;
   }
   return <LocalChartsPage />;
@@ -117,9 +123,15 @@ function LocalChartsPage() {
   const chartQuery = useQuery({
     placeholderData: keepPreviousData,
     queryFn: () => getUsageCharts(view, window, dimension, timeStandard),
-    queryKey: ['usage-charts', view, window, dimension, ...timeStandardQueryKey(timeStandard)],
+    queryKey: [
+      "usage-charts",
+      view,
+      window,
+      dimension,
+      ...timeStandardQueryKey(timeStandard),
+    ],
     refetchInterval: (query) =>
-      query.state.fetchStatus === 'fetching' ? false : CHART_REFRESH_INTERVAL_MS,
+      query.state.fetchStatus === "fetching" ? false : CHART_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
   });
   const chartData = chartQuery.data;
@@ -139,7 +151,7 @@ function LocalChartsPage() {
         id: group.id,
         label: displayLabel(t, group.label, group.labelCode, group.disambiguationIndex),
         remainder: group.remainder,
-        shareLabel: t('charts.distribution.totalTokenShare', {
+        shareLabel: t("charts.distribution.totalTokenShare", {
           share: formatBasisPoints(group.totalTokenShareBasisPoints),
         }),
         value: distributionValue(group.measure, filters.distributionMetric),
@@ -148,10 +160,12 @@ function LocalChartsPage() {
   }, [chartData, filters, t]);
 
   if (chartQuery.isPending) {
-    return <LoadingState label={t('charts.loading')} />;
+    return <LoadingState label={t("charts.loading")} />;
   }
   if (chartQuery.isError) {
-    return <FailureState error={chartQuery.error} onRetry={() => void chartQuery.refetch()} />;
+    return (
+      <FailureState error={chartQuery.error} onRetry={() => void chartQuery.refetch()} />
+    );
   }
 
   const chart = chartQuery.data;
@@ -160,24 +174,25 @@ function LocalChartsPage() {
     label: t(`window.${value}`),
     value,
   }));
-  const dimensionValues = view === 'all' ? ['agent', ...physicalDimensions] : physicalDimensions;
+  const dimensionValues =
+    view === "all" ? ["agent", ...physicalDimensions] : physicalDimensions;
   const dimensionOptions = dimensionValues
-    .filter((value) => view !== 'grokBuildCli' || value !== 'reasoningEffort')
+    .filter((value) => view !== "grokBuildCli" || value !== "reasoningEffort")
     .map((value) => ({ label: t(`dimension.${value}`), value }));
   const distributionMetricOptions: UsageChartDistributionMetric[] = [
     ...tokenMetricOrder,
-    'callCount',
+    "callCount",
   ];
 
   return (
     <Stack className="page-stack" data-testid="dashboard-charts" gap="xl">
       <LocalIndexNotice state={chart.indexState} />
 
-      {chart.indexState === 'notScanned' || chart.indexState === 'needsRescan' ? null : (
+      {chart.indexState === "notScanned" || chart.indexState === "needsRescan" ? null : (
         <>
           <Stack gap="sm">
             <SegmentedControl
-              aria-label={t('charts.controls.window')}
+              aria-label={t("charts.controls.window")}
               data={windowOptions}
               onChange={(value) =>
                 updateFilters({
@@ -190,9 +205,11 @@ function LocalChartsPage() {
             <div className="chart-dimension-control">
               <NativeSelect
                 data={dimensionOptions}
-                label={t('charts.controls.dimension')}
+                label={t("charts.controls.dimension")}
                 onChange={(event) =>
-                  updateFilters({ dimension: event.currentTarget.value as UsageChartDimension })
+                  updateFilters({
+                    dimension: event.currentTarget.value as UsageChartDimension,
+                  })
                 }
                 value={filters.dimension}
               />
@@ -245,9 +262,9 @@ function OverviewCharts({
   const labels = buckets.map((bucket) => bucket.label);
   const callSeries: TimeSeries[] = [
     {
-      color: '#16a34a',
-      id: 'callCount',
-      label: chartMetricLabel(t, 'callCount'),
+      color: "#16a34a",
+      id: "callCount",
+      label: chartMetricLabel(t, "callCount"),
       values: buckets.map((bucket) => bucket.measure.callCount),
     },
   ];
@@ -255,10 +272,10 @@ function OverviewCharts({
     <Stack gap="lg">
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         {[
-          { isToken: true, label: chartMetricLabel(t, 'totalTokens'), value: totalTokens },
-          { isToken: true, label: chartMetricLabel(t, 'inputTokens'), value: totalInput },
-          { isToken: true, label: chartMetricLabel(t, 'outputTokens'), value: totalOutput },
-          { isToken: false, label: chartMetricLabel(t, 'callCount'), value: totalCalls },
+          { isToken: true, label: chartMetricLabel(t, "totalTokens"), value: totalTokens },
+          { isToken: true, label: chartMetricLabel(t, "inputTokens"), value: totalInput },
+          { isToken: true, label: chartMetricLabel(t, "outputTokens"), value: totalOutput },
+          { isToken: false, label: chartMetricLabel(t, "callCount"), value: totalCalls },
         ].map(({ label, value, isToken }) => (
           <Paper className="mini-metric" key={label} p="lg" radius="lg" withBorder>
             <Text c="dimmed" size="sm">
@@ -278,13 +295,13 @@ function OverviewCharts({
       <Paper className="chart-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Stack gap={2}>
-            <Text fw={700}>{t('charts.overview.tokensTitle')}</Text>
+            <Text fw={700}>{t("charts.overview.tokensTitle")}</Text>
             <Text c="dimmed" size="sm">
-              {t('charts.overview.tokensDescription')}
+              {t("charts.overview.tokensDescription")}
             </Text>
           </Stack>
           <Checkbox.Group
-            aria-label={t('charts.overview.metricSelectorAria')}
+            aria-label={t("charts.overview.metricSelectorAria")}
             onChange={(values) => {
               if (values.length > 0) onMetricsChange(values as UsageChartTokenMetric[]);
             }}
@@ -302,7 +319,7 @@ function OverviewCharts({
             </Group>
           </Checkbox.Group>
           <TimeSeriesChart
-            ariaLabel={t('charts.overview.tokensChartAria')}
+            ariaLabel={t("charts.overview.tokensChartAria")}
             formatTooltipValue={(value) => formatTokens(value)}
             formatValue={(value) => formatCompactTokens(value)}
             labels={labels}
@@ -313,9 +330,9 @@ function OverviewCharts({
 
       <Paper className="chart-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
-          <Text fw={700}>{t('charts.overview.callsTitle')}</Text>
+          <Text fw={700}>{t("charts.overview.callsTitle")}</Text>
           <TimeSeriesChart
-            ariaLabel={t('charts.overview.callsChartAria')}
+            ariaLabel={t("charts.overview.callsChartAria")}
             formatTooltipValue={(value) => formatTokens(value)}
             formatValue={(value) => formatTokens(value)}
             labels={labels}
@@ -340,21 +357,23 @@ function UsageDistribution({
   rows: DistributionRow[];
 }) {
   const { t } = useTranslation();
-  const isCalls = metric === 'callCount';
+  const isCalls = metric === "callCount";
   const formatAxisValue = (value: number) =>
     isCalls ? formatTokens(value) : formatCompactTokens(value);
   const formatValue = (value: number | null) => {
-    if (value === null) return t('common.notProvided');
-    return isCalls ? formatTokens(value) : `${formatCompactTokens(value)} · ${formatTokens(value)}`;
+    if (value === null) return t("common.notProvided");
+    return isCalls
+      ? formatTokens(value)
+      : `${formatCompactTokens(value)} · ${formatTokens(value)}`;
   };
   return (
     <Paper className="chart-panel" p="lg" radius="lg" withBorder>
       <Stack gap="lg">
         <Group align="end" justify="space-between">
           <Stack gap={2}>
-            <Text fw={700}>{t('charts.distribution.title')}</Text>
+            <Text fw={700}>{t("charts.distribution.title")}</Text>
             <Text c="dimmed" size="sm">
-              {t('charts.distribution.description')}
+              {t("charts.distribution.description")}
             </Text>
           </Stack>
           <NativeSelect
@@ -362,7 +381,7 @@ function UsageDistribution({
               label: chartMetricLabel(t, value),
               value,
             }))}
-            label={t('charts.controls.metric')}
+            label={t("charts.controls.metric")}
             onChange={(event) =>
               onMetricChange(event.currentTarget.value as UsageChartDistributionMetric)
             }
@@ -370,8 +389,8 @@ function UsageDistribution({
           />
         </Group>
         <DistributionChart
-          ariaLabel={t('charts.distribution.barAria')}
-          emptyLabel={t('charts.distribution.empty')}
+          ariaLabel={t("charts.distribution.barAria")}
+          emptyLabel={t("charts.distribution.empty")}
           formatAxisValue={formatAxisValue}
           formatValue={formatValue}
           rows={rows}

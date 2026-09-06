@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 import type {
   AgentClientKind,
@@ -28,9 +28,9 @@ import type {
   WorkbuddySourceStatusDto,
   WorkbuddyStatisticsDto,
   WorkbuddyUsageDetailsDto,
-} from './usage-types';
+} from "./usage-types";
 
-export * from './usage-types';
+export * from "./usage-types";
 
 // 本文件是前端唯一与 Rust backend 通信的边界层：`invoke(命令名, 参数)`
 // 对应 Rust 那边用 `#[tauri::command]` 标记、并在 `tauri::generate_handler!`
@@ -38,35 +38,35 @@ export * from './usage-types';
 
 /** 用稳定 command 名集中前端与 Tauri 的全部交互边界。 */
 export const usageCommands = {
-  overview: 'get_usage_overview',
-  calls: 'get_usage_calls',
-  statistics: 'get_usage_statistics',
-  charts: 'get_usage_charts',
-  sources: 'get_sources',
-  sourceRoots: 'get_source_roots',
-  startRootDiscovery: 'start_root_discovery',
-  rootDiscoveryStatus: 'get_root_discovery_status',
-  rootCandidates: 'list_root_candidates',
-  addRootCandidate: 'add_root_candidate',
-  cancelRootDiscovery: 'cancel_root_discovery',
-  manualAddSourceRoot: 'manual_add_source_root',
-  localScanStatus: 'get_local_scan_status',
-  refreshLocalIndexes: 'refresh_local_indexes',
-  reindexSourceRoot: 'reindex_source_root',
-  privacy: 'get_privacy_settings',
-  setDeviceUsername: 'set_device_username',
-  setScanInterval: 'set_scan_interval',
-  setRetentionDays: 'set_retention_days',
-  setEnabledAgents: 'set_enabled_agents',
-  setWorkbuddyStatsEnabled: 'set_workbuddy_stats_enabled',
-  workbuddyStatistics: 'get_workbuddy_statistics',
-  workbuddyUsageStatistics: 'get_workbuddy_usage_statistics',
-  workbuddySourceStatus: 'get_workbuddy_source_status',
-  clearIndex: 'clear_local_index',
-  setSourceRootEnabled: 'set_source_root_enabled',
-  renameSourceRoot: 'rename_source_root',
-  removeSourceRoot: 'remove_source_root',
-  setPrimarySourceRoot: 'set_primary_source_root',
+  overview: "get_usage_overview",
+  calls: "get_usage_calls",
+  statistics: "get_usage_statistics",
+  charts: "get_usage_charts",
+  sources: "get_sources",
+  sourceRoots: "get_source_roots",
+  startRootDiscovery: "start_root_discovery",
+  rootDiscoveryStatus: "get_root_discovery_status",
+  rootCandidates: "list_root_candidates",
+  addRootCandidate: "add_root_candidate",
+  cancelRootDiscovery: "cancel_root_discovery",
+  manualAddSourceRoot: "manual_add_source_root",
+  localScanStatus: "get_local_scan_status",
+  refreshLocalIndexes: "refresh_local_indexes",
+  reindexSourceRoot: "reindex_source_root",
+  privacy: "get_privacy_settings",
+  setDeviceUsername: "set_device_username",
+  setScanInterval: "set_scan_interval",
+  setRetentionDays: "set_retention_days",
+  setEnabledAgents: "set_enabled_agents",
+  setWorkbuddyStatsEnabled: "set_workbuddy_stats_enabled",
+  workbuddyStatistics: "get_workbuddy_statistics",
+  workbuddyUsageStatistics: "get_workbuddy_usage_statistics",
+  workbuddySourceStatus: "get_workbuddy_source_status",
+  clearIndex: "clear_local_index",
+  setSourceRootEnabled: "set_source_root_enabled",
+  renameSourceRoot: "rename_source_root",
+  removeSourceRoot: "remove_source_root",
+  setPrimarySourceRoot: "set_primary_source_root",
 } as const;
 
 /** 读取概览窗口。 */
@@ -108,7 +108,12 @@ export async function getUsageCharts(
   dimension: UsageChartDimension,
   timeStandard: TimeStandard,
 ): Promise<UsageChartDto> {
-  return invoke<UsageChartDto>(usageCommands.charts, { client, dimension, timeStandard, window });
+  return invoke<UsageChartDto>(usageCommands.charts, {
+    client,
+    dimension,
+    timeStandard,
+    window,
+  });
 }
 
 /** 读取当前客户端的官方能力、数据目录覆盖和扫描状态。 */
@@ -170,7 +175,9 @@ export async function reindexSourceRoot(
 }
 
 /** 读取仅本机模式与本产品索引位置说明。 */
-export async function getPrivacySettings(client: UsageClientKind): Promise<PrivacySettingsDto> {
+export async function getPrivacySettings(
+  client: UsageClientKind,
+): Promise<PrivacySettingsDto> {
   return invoke<PrivacySettingsDto>(usageCommands.privacy, { client });
 }
 
@@ -179,7 +186,10 @@ export async function setDeviceUsername(
   client: UsageClientKind,
   deviceUsername: string,
 ): Promise<PrivacySettingsDto> {
-  return invoke<PrivacySettingsDto>(usageCommands.setDeviceUsername, { client, deviceUsername });
+  return invoke<PrivacySettingsDto>(usageCommands.setDeviceUsername, {
+    client,
+    deviceUsername,
+  });
 }
 
 /** 保存用户显式开放的本机 Agent 集合。 */
@@ -211,14 +221,19 @@ export async function setWorkbuddyStatsEnabled(
   client: UsageClientKind,
   enabled: boolean,
 ): Promise<PrivacySettingsDto> {
-  return invoke<PrivacySettingsDto>(usageCommands.setWorkbuddyStatsEnabled, { client, enabled });
+  return invoke<PrivacySettingsDto>(usageCommands.setWorkbuddyStatsEnabled, {
+    client,
+    enabled,
+  });
 }
 
 /** 读取 WorkBuddy 本地用量统计快照；开关关闭时后端直接拒绝。 */
 export async function getWorkbuddyStatistics(
   timeStandard: TimeStandard,
 ): Promise<WorkbuddyStatisticsDto> {
-  return invoke<WorkbuddyStatisticsDto>(usageCommands.workbuddyStatistics, { timeStandard });
+  return invoke<WorkbuddyStatisticsDto>(usageCommands.workbuddyStatistics, {
+    timeStandard,
+  });
 }
 
 /** 一次读取同一批 WorkBuddy project JSONL 请求统计与实际模型 Token 明细。 */
@@ -240,7 +255,9 @@ export async function getWorkbuddySourceStatus(): Promise<WorkbuddySourceStatusD
 }
 
 /** 仅清空当前客户端的本产品索引，不删除会话、登录状态或原始文件。 */
-export async function clearLocalIndex(client: AgentClientKind): Promise<ClearIndexResultDto> {
+export async function clearLocalIndex(
+  client: AgentClientKind,
+): Promise<ClearIndexResultDto> {
   return invoke<ClearIndexResultDto>(usageCommands.clearIndex, { client });
 }
 
@@ -270,7 +287,11 @@ export async function renameSourceRoot(
   rootId: string,
   alias: string,
 ): Promise<SourceRootMutationDto> {
-  return invoke<SourceRootMutationDto>(usageCommands.renameSourceRoot, { client, rootId, alias });
+  return invoke<SourceRootMutationDto>(usageCommands.renameSourceRoot, {
+    client,
+    rootId,
+    alias,
+  });
 }
 
 /** 按稳定根 ID 移除本产品索引，不修改当前客户端原始文件。 */
@@ -286,8 +307,11 @@ export async function setPrimarySourceRoot(
   client: AgentClientKind,
   rootId: string | null,
 ): Promise<SourceRootMutationDto> {
-  if (client !== 'codex') {
-    throw new Error('只有 Codex 数据目录可设为主数据目录。');
+  if (client !== "codex") {
+    throw new Error("只有 Codex 数据目录可设为主数据目录。");
   }
-  return invoke<SourceRootMutationDto>(usageCommands.setPrimarySourceRoot, { client, rootId });
+  return invoke<SourceRootMutationDto>(usageCommands.setPrimarySourceRoot, {
+    client,
+    rootId,
+  });
 }

@@ -1,4 +1,4 @@
-import type { AgentClientKind, RootCandidateDto } from '../api/usage';
+import type { AgentClientKind, RootCandidateDto } from "../api/usage";
 
 /**
  * 各 Agent 数据源列表只展示本客户端候选；计数与胶囊必须来自同一集合。

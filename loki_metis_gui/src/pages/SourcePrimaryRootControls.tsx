@@ -1,7 +1,7 @@
-import { Badge, Button, Group, Paper, Select, Stack, Title } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
+import { Badge, Button, Group, Paper, Select, Stack, Title } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
-import type { SourceRootDto } from '../api/usage';
+import type { SourceRootDto } from "../api/usage";
 
 /** 保留 Codex 官方上下文所需的唯一主数据根选择。 */
 export function SourcePrimaryRootControls({
@@ -21,9 +21,9 @@ export function SourcePrimaryRootControls({
       <Stack gap="md">
         <div>
           <Group gap="xs">
-            <Title order={3}>{t('sources.primary.title')}</Title>
+            <Title order={3}>{t("sources.primary.title")}</Title>
             <Badge color="red" variant="light">
-              {t('sources.primary.badge')}
+              {t("sources.primary.badge")}
             </Badge>
           </Group>
         </div>
@@ -33,17 +33,21 @@ export function SourcePrimaryRootControls({
             .filter((root) => root.enabled)
             .map((root, _index, enabledRoots) => ({
               label:
-                enabledRoots.filter((candidate) => candidate.alias === root.alias).length > 1
-                  ? t('sources.primary.duplicate', { alias: root.alias, id: root.id.slice(-8) })
+                enabledRoots.filter((candidate) => candidate.alias === root.alias).length >
+                1
+                  ? t("sources.primary.duplicate", {
+                      alias: root.alias,
+                      id: root.id.slice(-8),
+                    })
                   : root.alias,
               value: root.id,
             }))}
           disabled={disabled}
-          label={t('sources.primary.label')}
+          label={t("sources.primary.label")}
           loading={pending}
-          nothingFoundMessage={t('sources.primary.empty')}
+          nothingFoundMessage={t("sources.primary.empty")}
           onChange={onChange}
-          placeholder={t('sources.primary.placeholder')}
+          placeholder={t("sources.primary.placeholder")}
           value={roots.find((root) => root.isPrimary)?.id ?? null}
         />
         <Group justify="flex-end">
@@ -54,7 +58,7 @@ export function SourcePrimaryRootControls({
             size="compact-sm"
             variant="subtle"
           >
-            {t('sources.primary.clear')}
+            {t("sources.primary.clear")}
           </Button>
         </Group>
       </Stack>

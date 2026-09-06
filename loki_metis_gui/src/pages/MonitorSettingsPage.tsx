@@ -186,9 +186,7 @@ export function MonitorSettingsPage() {
                   if (event.currentTarget.checked) selected.add(item.tool);
                   else selected.delete(item.tool);
                   save.mutate(
-                    tools
-                      .map((tool) => tool.tool)
-                      .filter((tool) => selected.has(tool)),
+                    tools.map((tool) => tool.tool).filter((tool) => selected.has(tool)),
                   );
                 }}
               />

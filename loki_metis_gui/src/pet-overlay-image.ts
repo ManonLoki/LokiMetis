@@ -1,6 +1,12 @@
 /** 根据魔数推断图片 MIME，供 data URL 使用。 */
 export function sniffMonitorImageMime(bytes: number[]): string {
-  if (bytes.length >= 4 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) {
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 137 &&
+    bytes[1] === 80 &&
+    bytes[2] === 78 &&
+    bytes[3] === 71
+  ) {
     return "image/png";
   }
   if (bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) {

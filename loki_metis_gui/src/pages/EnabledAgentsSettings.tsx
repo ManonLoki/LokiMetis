@@ -7,25 +7,25 @@ import {
   SimpleGrid,
   Stack,
   Title,
-} from '@mantine/core';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAtomValue } from 'jotai';
-import { useTranslation } from 'react-i18next';
+} from "@mantine/core";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
 import {
   setEnabledAgents,
   setWorkbuddyStatsEnabled,
   type AgentClientKind,
   type AvailableAiTypeDto,
-} from '../api/usage';
-import { synchronizeGlobalPrivacySettings } from '../api/usage-queries';
+} from "../api/usage";
+import { synchronizeGlobalPrivacySettings } from "../api/usage-queries";
 import {
   selectDashboardClientOptions,
   selectDashboardWorkbuddyOption,
   selectEnabledDashboardClients,
-} from '../ai-capabilities';
-import { agentClientAtom } from '../state/agent-client';
-import { visibleErrorMessage } from '../visible-error';
+} from "../ai-capabilities";
+import { agentClientAtom } from "../state/agent-client";
+import { visibleErrorMessage } from "../visible-error";
 
 /** 定义设置页 Agent 多选的当前值、保存状态与错误。 */
 interface EnabledAgentsSettingsProps {
@@ -52,14 +52,14 @@ export function EnabledAgentsSettings({
   const mutation = useMutation({
     mutationFn: (agents: AgentClientKind[]) => setEnabledAgents(client, agents),
     onSuccess: (settings) => {
-      queryClient.setQueryData(['privacy-settings', client], settings);
+      queryClient.setQueryData(["privacy-settings", client], settings);
       synchronizeGlobalPrivacySettings(queryClient, settings);
     },
   });
   const workbuddyMutation = useMutation({
     mutationFn: (enabled: boolean) => setWorkbuddyStatsEnabled(client, enabled),
     onSuccess: (settings) => {
-      queryClient.setQueryData(['privacy-settings', client], settings);
+      queryClient.setQueryData(["privacy-settings", client], settings);
       synchronizeGlobalPrivacySettings(queryClient, settings);
     },
   });
@@ -68,10 +68,10 @@ export function EnabledAgentsSettings({
       <Stack gap="sm">
         <Group gap="xs">
           <Title id="dashboard-enabled-agents-title" order={3}>
-            {t('privacy.enabledAgents.title')}
+            {t("privacy.enabledAgents.title")}
           </Title>
           <Badge color="blue" variant="light">
-            {t('privacy.enabledAgents.badge')}
+            {t("privacy.enabledAgents.badge")}
           </Badge>
         </Group>
         <SimpleGrid
@@ -112,7 +112,7 @@ export function EnabledAgentsSettings({
           ) : null}
         </SimpleGrid>
         {mutation.isError || workbuddyMutation.isError ? (
-          <Alert color="red" title={t('ui.failureTitle')}>
+          <Alert color="red" title={t("ui.failureTitle")}>
             {visibleErrorMessage(mutation.error ?? workbuddyMutation.error)}
           </Alert>
         ) : null}

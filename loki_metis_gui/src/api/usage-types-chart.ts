@@ -4,15 +4,15 @@ import type {
   MetricFactDto,
   UsageViewKind,
   UsageWindow,
-} from './usage-types';
-import type { UsageGroupDto, UsageMeasureDto } from './usage-types-detail';
+} from "./usage-types";
+import type { UsageGroupDto, UsageMeasureDto } from "./usage-types-detail";
 
 /** 图表分布允许选择的固定维度；Agent 只适用于全部视图。 */
 export type UsageChartDimension =
-  'agent' | 'model' | 'reasoningEffort' | 'project' | 'thread' | 'root';
+  "agent" | "model" | "reasoningEffort" | "project" | "thread" | "root";
 
 /** 后端根据窗口固定选择的横轴粒度。 */
-export type UsageChartGranularity = 'hour' | 'day';
+export type UsageChartGranularity = "hour" | "day";
 
 /** 图表横轴上的完整时间桶。 */
 export interface UsageChartBucketDto {
@@ -52,15 +52,15 @@ export interface UsageChartDto {
 
 /** 趋势图中可同时展示的 Token 指标。 */
 export type UsageChartTokenMetric =
-  | 'totalTokens'
-  | 'inputTokens'
-  | 'cachedInputTokens'
-  | 'cacheWriteInputTokens'
-  | 'outputTokens'
-  | 'reasoningOutputTokens';
+  | "totalTokens"
+  | "inputTokens"
+  | "cachedInputTokens"
+  | "cacheWriteInputTokens"
+  | "outputTokens"
+  | "reasoningOutputTokens";
 
 /** 分布图可选择 Token 指标或调用数；调用数不与 Token 共用坐标轴。 */
-export type UsageChartDistributionMetric = UsageChartTokenMetric | 'callCount';
+export type UsageChartDistributionMetric = UsageChartTokenMetric | "callCount";
 
 /** 一个只读视图需要恢复的完整图表展示偏好。 */
 export interface ChartPreferencesDto {

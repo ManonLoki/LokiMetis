@@ -65,7 +65,9 @@ describe("dashboard settings capabilities", () => {
     expect(await screen.findByTestId("settings-page")).toBeVisible();
     expect(screen.getByText("Interface language")).toBeVisible();
     expect(screen.getByText("Appearance")).toBeVisible();
-    expect(await screen.findByRole("switch", { name: "System notifications" })).toBeVisible();
+    expect(
+      await screen.findByRole("switch", { name: "System notifications" }),
+    ).toBeVisible();
     expect(screen.getByRole("switch", { name: "Start at login" })).toBeVisible();
 
     expect(screen.queryByRole("checkbox", { name: "Codex" })).not.toBeInTheDocument();

@@ -1,14 +1,23 @@
-import { Alert, Badge, Button, Group, NumberInput, Paper, Stack, Title } from '@mantine/core';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAtomValue } from 'jotai';
-import { useTranslation } from 'react-i18next';
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  NumberInput,
+  Paper,
+  Stack,
+  Title,
+} from "@mantine/core";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
-import { setRetentionDays } from '../api/usage';
-import { synchronizeGlobalPrivacySettings } from '../api/usage-queries';
-import { parseBoundedMinutes } from '../bounded-minutes';
-import { agentClientAtom } from '../state/agent-client';
-import { useDraftValue } from '../use-draft-value';
-import { visibleErrorMessage } from '../visible-error';
+import { setRetentionDays } from "../api/usage";
+import { synchronizeGlobalPrivacySettings } from "../api/usage-queries";
+import { parseBoundedMinutes } from "../bounded-minutes";
+import { agentClientAtom } from "../state/agent-client";
+import { useDraftValue } from "../use-draft-value";
+import { visibleErrorMessage } from "../visible-error";
 
 /** 定义自动清理天数设置的草稿和值域错误。 */
 interface RetentionDaysSettingsProps {
@@ -41,7 +50,7 @@ export function RetentionDaysSettings({ savedDays }: RetentionDaysSettingsProps)
     onSuccess: (settings, { targetClient }) => {
       const nextDays = settings.retentionDays;
       resetDaysDraft(nextDays, nextDays);
-      queryClient.setQueryData(['privacy-settings', targetClient], settings);
+      queryClient.setQueryData(["privacy-settings", targetClient], settings);
       synchronizeGlobalPrivacySettings(queryClient, settings);
     },
   });
@@ -59,9 +68,9 @@ export function RetentionDaysSettings({ savedDays }: RetentionDaysSettingsProps)
         <Stack gap="md">
           <div>
             <Group gap="xs">
-              <Title order={3}>{t('privacy.retentionDays.title')}</Title>
+              <Title order={3}>{t("privacy.retentionDays.title")}</Title>
               <Badge color="blue" variant="light">
-                {t('privacy.retentionDays.badge')}
+                {t("privacy.retentionDays.badge")}
               </Badge>
             </Group>
           </div>
@@ -69,9 +78,9 @@ export function RetentionDaysSettings({ savedDays }: RetentionDaysSettingsProps)
             allowDecimal={false}
             allowNegative={false}
             clampBehavior="none"
-            description={t('privacy.retentionDays.description')}
-            error={daysValid ? null : t('privacy.retentionDays.error')}
-            label={t('privacy.retentionDays.label')}
+            description={t("privacy.retentionDays.description")}
+            error={daysValid ? null : t("privacy.retentionDays.error")}
+            label={t("privacy.retentionDays.label")}
             max={RETENTION_DAYS_MAX}
             min={RETENTION_DAYS_MIN}
             onChange={(value) => {
@@ -82,18 +91,22 @@ export function RetentionDaysSettings({ savedDays }: RetentionDaysSettingsProps)
           />
           <Group justify="flex-end">
             <Button disabled={!daysChanged} loading={daysMutation.isPending} type="submit">
-              {t('privacy.retentionDays.save')}
+              {t("privacy.retentionDays.save")}
             </Button>
           </Group>
           {daysMutation.isSuccess ? (
-            <Alert aria-live="polite" color="green" title={t('privacy.retentionDays.successTitle')}>
-              {t('privacy.retentionDays.successBody', {
+            <Alert
+              aria-live="polite"
+              color="green"
+              title={t("privacy.retentionDays.successTitle")}
+            >
+              {t("privacy.retentionDays.successBody", {
                 days: daysMutation.data.retentionDays,
               })}
             </Alert>
           ) : null}
           {daysMutation.isError ? (
-            <Alert color="red" title={t('privacy.retentionDays.errorTitle')}>
+            <Alert color="red" title={t("privacy.retentionDays.errorTitle")}>
               {visibleErrorMessage(daysMutation.error)}
             </Alert>
           ) : null}

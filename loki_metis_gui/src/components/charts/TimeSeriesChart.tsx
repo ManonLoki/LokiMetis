@@ -1,8 +1,8 @@
-import { useState, type MouseEvent } from 'react';
+import { useState, type MouseEvent } from "react";
 
-import { Group, Text } from '@mantine/core';
+import { Group, Text } from "@mantine/core";
 
-import { CHART_WIDTH, axisTickValues } from './chart-geometry';
+import { CHART_WIDTH, axisTickValues } from "./chart-geometry";
 
 /** 一条共享纵轴的时间序列。 */
 export interface TimeSeries {
@@ -54,14 +54,14 @@ function yPosition(value: number, maximum: number): number {
 
 /** 为连续可用值生成 SVG 折线路径，并在缺失值处断开。 */
 function linePath(values: Array<number | null>, maximum: number): string {
-  let path = '';
+  let path = "";
   let continuing = false;
   values.forEach((value, index) => {
     if (value === null) {
       continuing = false;
       return;
     }
-    path += `${continuing ? ' L' : ' M'} ${xPosition(index, values.length)} ${yPosition(value, maximum)}`;
+    path += `${continuing ? " L" : " M"} ${xPosition(index, values.length)} ${yPosition(value, maximum)}`;
     continuing = true;
   });
   return path;
@@ -81,7 +81,11 @@ function tickIndices(count: number): number[] {
 }
 
 /** 把鼠标横坐标映射到完整 SVG 绘图区内最近的时间桶。 */
-function nearestBucketIndex(clientX: number, bounds: DOMRect, count: number): number | null {
+function nearestBucketIndex(
+  clientX: number,
+  bounds: DOMRect,
+  count: number,
+): number | null {
   if (count === 0 || bounds.width <= 0) return null;
   if (count === 1) return 0;
   const scale = bounds.width / WIDTH;
@@ -111,17 +115,22 @@ export function TimeSeriesChart({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const maximum = Math.max(
     1,
-    ...series.flatMap((item) => item.values).filter((value): value is number => value !== null),
+    ...series
+      .flatMap((item) => item.values)
+      .filter((value): value is number => value !== null),
   );
   const ticks = tickIndices(labels.length);
-  const activeIndex = hoveredIndex !== null && hoveredIndex < labels.length ? hoveredIndex : null;
+  const activeIndex =
+    hoveredIndex !== null && hoveredIndex < labels.length ? hoveredIndex : null;
   const tooltipHeight = 32 + series.length * TOOLTIP_ROW_HEIGHT;
 
   /** 在整个绘图区内按当前位置选中最近时间桶，不要求命中折线点。 */
   const updateHoveredBucket = (event: MouseEvent<SVGRectElement>) => {
     const svg = event.currentTarget.ownerSVGElement;
     if (!svg) return;
-    setHoveredIndex(nearestBucketIndex(event.clientX, svg.getBoundingClientRect(), labels.length));
+    setHoveredIndex(
+      nearestBucketIndex(event.clientX, svg.getBoundingClientRect(), labels.length),
+    );
   };
 
   return (
@@ -148,7 +157,12 @@ export function TimeSeriesChart({
                   y1={y}
                   y2={y}
                 />
-                <text className="chart-axis-label" textAnchor="end" x={PLOT_LEFT - 10} y={y + 4}>
+                <text
+                  className="chart-axis-label"
+                  textAnchor="end"
+                  x={PLOT_LEFT - 10}
+                  y={y + 4}
+                >
                   {formatValue(Math.round(value))}
                 </text>
               </g>
@@ -158,7 +172,9 @@ export function TimeSeriesChart({
           <text
             className="chart-axis-label"
             key={index}
-            textAnchor={index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}
+            textAnchor={
+              index === 0 ? "start" : index === labels.length - 1 ? "end" : "middle"
+            }
             x={xPosition(index, labels.length)}
             y={HEIGHT - 18}
           >
@@ -238,7 +254,9 @@ export function TimeSeriesChart({
                       x={TOOLTIP_WIDTH - 12}
                       y={rowY}
                     >
-                      {value === null || value === undefined ? '—' : formatTooltipValue(value)}
+                      {value === null || value === undefined
+                        ? "—"
+                        : formatTooltipValue(value)}
                     </text>
                   </g>
                 );

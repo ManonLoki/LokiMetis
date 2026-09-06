@@ -1,16 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import {
-  isDashboardLandingPath,
-  resolveDefaultLandingPath,
-} from "../src/default-landing";
+import { isDashboardLandingPath, resolveDefaultLandingPath } from "../src/default-landing";
 import { routeTree } from "../src/routeTree.gen";
 import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
 

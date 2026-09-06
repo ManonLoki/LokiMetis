@@ -9,7 +9,8 @@ export type ImageCategory = "all" | MonitorImageFormat;
 export function useImageCategoryFilter(images: MonitorImagePreview[]) {
   const [category, setCategory] = useState<ImageCategory>("all");
   const filteredImages = useMemo(
-    () => (category === "all" ? images : images.filter((image) => image.format === category)),
+    () =>
+      category === "all" ? images : images.filter((image) => image.format === category),
     [category, images],
   );
   return { category, setCategory, filteredImages };

@@ -14,11 +14,13 @@ const invokeMock = vi.mocked(invoke);
 function emptyDrafts() {
   const behaviors = ["idle", "running", "asking", "error"] as const;
   return {
-    drafts: (["codex", "claudeCode", "cursor", "grok", "workBuddy"] as const).map((tool) => ({
-      tool,
-      slot: 1,
-      hooks: behaviors.map((behavior) => ({ behavior, content: "", image: "" })),
-    })),
+    drafts: (["codex", "claudeCode", "cursor", "grok", "workBuddy"] as const).map(
+      (tool) => ({
+        tool,
+        slot: 1,
+        hooks: behaviors.map((behavior) => ({ behavior, content: "", image: "" })),
+      }),
+    ),
   };
 }
 

@@ -1,24 +1,28 @@
-import { Stack } from '@mantine/core';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useAtom, useAtomValue } from 'jotai';
-import { useTranslation } from 'react-i18next';
+import { Stack } from "@mantine/core";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useAtom, useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
 import {
   getUsageOverview,
   getUsageStatistics,
   timeStandardQueryKey,
   type AgentClientKind,
-} from '../api/usage';
+} from "../api/usage";
 import {
   FailureState,
   ImplementationState,
   LocalIndexNotice,
   LoadingState,
-} from '../components/UsageUi';
-import { UsageStatistics } from './UsageStatistics';
-import { agentClientAtom, usageViewAtom } from '../state/agent-client';
-import { timeStandardAtom, usageDimensionAtom, usageWindowAtom } from '../state/page-session';
-import { WorkbuddyUsage } from './WorkbuddyUsage';
+} from "../components/UsageUi";
+import { UsageStatistics } from "./UsageStatistics";
+import { agentClientAtom, usageViewAtom } from "../state/agent-client";
+import {
+  timeStandardAtom,
+  usageDimensionAtom,
+  usageWindowAtom,
+} from "../state/page-session";
+import { WorkbuddyUsage } from "./WorkbuddyUsage";
 
 /** 统计快照每次读取完成后等待十秒再刷新，慢请求期间保持单飞。 */
 const STATISTICS_REFRESH_INTERVAL_MS = 10_000;
@@ -27,7 +31,7 @@ const STATISTICS_REFRESH_INTERVAL_MS = 10_000;
 export function UsagePage() {
   const view = useAtomValue(usageViewAtom);
   const client = useAtomValue(agentClientAtom);
-  if (view === 'workbuddy') {
+  if (view === "workbuddy") {
     return <WorkbuddyUsage />;
   }
   return <LocalUsagePage client={client} />;
@@ -42,23 +46,27 @@ function LocalUsagePage({ client }: { client: AgentClientKind }) {
   // reasoningEffort 分组只对实际发出推理强度的客户端有意义。Grok 若读到
   // 不可用的推理强度，只把展示与查询回退为 model，不得改写本客户端已存值，
   // 更不得覆盖 Codex 已保存的维度。
-  const reasoningAvailable = client === 'codex' || client === 'claudeCode';
+  const reasoningAvailable = client === "codex" || client === "claudeCode";
   const effectiveDimension =
-    !reasoningAvailable && selectedDimension === 'reasoningEffort' ? 'model' : selectedDimension;
+    !reasoningAvailable && selectedDimension === "reasoningEffort"
+      ? "model"
+      : selectedDimension;
   const overviewQuery = useQuery({
     queryFn: () => getUsageOverview(client, timeStandard),
-    queryKey: ['usage-overview', client, ...timeStandardQueryKey(timeStandard)],
+    queryKey: ["usage-overview", client, ...timeStandardQueryKey(timeStandard)],
   });
-  const businessReady = overviewQuery.isSuccess && !overviewQuery.data.productDefinitionRequired;
+  const businessReady =
+    overviewQuery.isSuccess && !overviewQuery.data.productDefinitionRequired;
   const statisticsQuery = useQuery({
     enabled: businessReady,
     // 切换统计窗口、分组维度或查看标准时查询键跟着变，没有这个选项会先丢弃已有数据、
     // 把整块面板（含选择器本身）换成通用加载态，看起来像“选不动”；
     // 保留上一次数据当占位符，配合下面已有的 fetching 徽标平滑过渡。
     placeholderData: keepPreviousData,
-    queryFn: () => getUsageStatistics(client, statisticsWindow, effectiveDimension, timeStandard),
+    queryFn: () =>
+      getUsageStatistics(client, statisticsWindow, effectiveDimension, timeStandard),
     queryKey: [
-      'usage-statistics',
+      "usage-statistics",
       client,
       statisticsWindow,
       effectiveDimension,
@@ -69,7 +77,7 @@ function LocalUsagePage({ client }: { client: AgentClientKind }) {
     // 跳过，避免请求排队堆积；等它结束后才重新进入正常的 10 秒倒计时，
     // 这就是“单飞”（single-flight）——任意时刻最多只有一个进行中的请求。
     refetchInterval: (query) =>
-      query.state.fetchStatus === 'fetching' ? false : STATISTICS_REFRESH_INTERVAL_MS,
+      query.state.fetchStatus === "fetching" ? false : STATISTICS_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
   });
 
@@ -78,7 +86,10 @@ function LocalUsagePage({ client }: { client: AgentClientKind }) {
   }
   if (overviewQuery.isError) {
     return (
-      <FailureState error={overviewQuery.error} onRetry={() => void overviewQuery.refetch()} />
+      <FailureState
+        error={overviewQuery.error}
+        onRetry={() => void overviewQuery.refetch()}
+      />
     );
   }
   if (overviewQuery.data.productDefinitionRequired) {
@@ -90,11 +101,14 @@ function LocalUsagePage({ client }: { client: AgentClientKind }) {
     );
   }
   if (statisticsQuery.isPending) {
-    return <LoadingState label={t('statistics.page.loading')} />;
+    return <LoadingState label={t("statistics.page.loading")} />;
   }
   if (statisticsQuery.isError) {
     return (
-      <FailureState error={statisticsQuery.error} onRetry={() => void statisticsQuery.refetch()} />
+      <FailureState
+        error={statisticsQuery.error}
+        onRetry={() => void statisticsQuery.refetch()}
+      />
     );
   }
 

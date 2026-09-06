@@ -12,10 +12,10 @@ import type {
   MetricFactDto,
   TokenUsageDto,
   UsageWindow,
-} from './usage-types';
+} from "./usage-types";
 
 /** 看板页头时间标准模式。 */
-export type TimeStandardMode = 'local' | 'custom';
+export type TimeStandardMode = "local" | "custom";
 
 /** 划分本机查看今日、昨日、本周、上周、本月和上月所用的时间标准。 */
 export interface TimeStandard {
@@ -26,78 +26,78 @@ export interface TimeStandard {
 }
 
 /** 缺省当地时间标准。 */
-export const LOCAL_TIME_STANDARD: TimeStandard = { mode: 'local', customTimeZone: null };
+export const LOCAL_TIME_STANDARD: TimeStandard = { mode: "local", customTimeZone: null };
 
 /** UTC 时间标准；页头「UTC时间」只写入该值。 */
-export const UTC_TIME_STANDARD: TimeStandard = { mode: 'custom', customTimeZone: 'UTC' };
+export const UTC_TIME_STANDARD: TimeStandard = { mode: "custom", customTimeZone: "UTC" };
 
 /** 用量读取身份：当地时间与 UTC 不得复用同一份已渲染快照。 */
 export function timeStandardQueryKey(
   standard: TimeStandard | undefined,
 ): [TimeStandardMode, string | null] {
   const saved = standard ?? LOCAL_TIME_STANDARD;
-  return saved.mode === 'custom' ? ['custom', 'UTC'] : ['local', null];
+  return saved.mode === "custom" ? ["custom", "UTC"] : ["local", null];
 }
 
 /** 后端固定可见消息的稳定代码。 */
 export type UiMessageCode =
-  | 'overviewLocalIndexUnavailable'
-  | 'overviewWorkbuddyUnavailable'
-  | 'scanIdle'
-  | 'scanRunning'
-  | 'scanCancelling'
-  | 'scanCancelled'
-  | 'scanCompleted'
-  | 'scanFailed'
-  | 'sourceAddCancelled'
-  | 'sourceRegistered'
-  | 'sourceAlreadyRegistered'
-  | 'sourceManualDeepSearchStarted'
-  | 'sourceManualDeepSearchEmpty'
-  | 'sourceEnabled'
-  | 'sourceDisabled'
-  | 'sourceRenamed'
-  | 'sourceRemoved'
-  | 'primaryChanged'
-  | 'primaryAlreadySelected'
-  | 'primaryCleared'
-  | 'primaryNotSet'
-  | 'indexCleared';
+  | "overviewLocalIndexUnavailable"
+  | "overviewWorkbuddyUnavailable"
+  | "scanIdle"
+  | "scanRunning"
+  | "scanCancelling"
+  | "scanCancelled"
+  | "scanCompleted"
+  | "scanFailed"
+  | "sourceAddCancelled"
+  | "sourceRegistered"
+  | "sourceAlreadyRegistered"
+  | "sourceManualDeepSearchStarted"
+  | "sourceManualDeepSearchEmpty"
+  | "sourceEnabled"
+  | "sourceDisabled"
+  | "sourceRenamed"
+  | "sourceRemoved"
+  | "primaryChanged"
+  | "primaryAlreadySelected"
+  | "primaryCleared"
+  | "primaryNotSet"
+  | "indexCleared";
 
 /** 固定占位、推理强度与匿名短标签的稳定展示语义。 */
 export type DisplayLabelCode =
-  | 'literal'
-  | 'unknownModel'
-  | 'unknownReasoningEffort'
-  | 'reasoningNone'
-  | 'reasoningMinimal'
-  | 'reasoningLow'
-  | 'reasoningMedium'
-  | 'reasoningHigh'
-  | 'reasoningXHigh'
-  | 'uncategorizedProject'
-  | 'project'
-  | 'unknownThread'
-  | 'thread'
-  | 'unnamedRoot'
-  | 'remainder';
+  | "literal"
+  | "unknownModel"
+  | "unknownReasoningEffort"
+  | "reasoningNone"
+  | "reasoningMinimal"
+  | "reasoningLow"
+  | "reasoningMedium"
+  | "reasoningHigh"
+  | "reasoningXHigh"
+  | "uncategorizedProject"
+  | "project"
+  | "unknownThread"
+  | "thread"
+  | "unnamedRoot"
+  | "remainder";
 
 /** 数据根发现方式的稳定代码。 */
 export type SourceDiscoveryCode =
-  | 'defaultRoot'
-  | 'codexEnvironment'
-  | 'claudeEnvironment'
-  | 'userRegistered'
-  | 'fullDevice'
-  | 'metadataDiscovery';
+  | "defaultRoot"
+  | "codexEnvironment"
+  | "claudeEnvironment"
+  | "userRegistered"
+  | "fullDevice"
+  | "metadataDiscovery";
 
 /** 扫描阶段的稳定代码。 */
 export type ScanScopeCode =
-  | 'registeredRoots'
-  | 'localFixedVolumes'
-  | 'discoveringVolumes'
-  | 'discoveryFinished'
-  | 'indexingRoots';
+  | "registeredRoots"
+  | "localFixedVolumes"
+  | "discoveringVolumes"
+  | "discoveryFinished"
+  | "indexingRoots";
 
 /** 描述调用页可跨页面保存的固定安全筛选项。 */
 export interface UsageCallFiltersDto {
@@ -115,18 +115,18 @@ export interface UsageCallFiltersDto {
 
 /** 后端唯一允许的九种调用排序字段。 */
 export type UsageCallSortField =
-  | 'occurredAt'
-  | 'model'
-  | 'reasoningEffort'
-  | 'inputTokens'
-  | 'cachedInputTokens'
-  | 'uncachedInputTokens'
-  | 'outputTokens'
-  | 'reasoningOutputTokens'
-  | 'totalTokens';
+  | "occurredAt"
+  | "model"
+  | "reasoningEffort"
+  | "inputTokens"
+  | "cachedInputTokens"
+  | "uncachedInputTokens"
+  | "outputTokens"
+  | "reasoningOutputTokens"
+  | "totalTokens";
 
 /** 后端唯一允许的调用排序方向。 */
-export type UsageCallSortDirection = 'asc' | 'desc';
+export type UsageCallSortDirection = "asc" | "desc";
 
 /** 描述一个完整类型化调用查询；页大小由 backend 固定。 */
 export interface UsageCallsQueryDto {
@@ -213,7 +213,7 @@ export interface UsageCallsPageDto {
 }
 
 /** 标识后端唯一允许的本机统计分组维度。 */
-export type UsageDimension = 'model' | 'reasoningEffort' | 'project' | 'thread' | 'root';
+export type UsageDimension = "model" | "reasoningEffort" | "project" | "thread" | "root";
 
 /** 描述可在互斥日期桶或分组之间逐字段安全相加的统计量。 */
 export interface UsageMeasureDto {
@@ -282,7 +282,7 @@ export interface UsageStatisticsDto {
 }
 
 /** 描述一次发现或扫描的覆盖结论。 */
-export type CoverageState = 'complete' | 'partial' | 'cancelled' | 'failed';
+export type CoverageState = "complete" | "partial" | "cancelled" | "failed";
 
 /** 描述数据根发现与读取的覆盖报告。 */
 export interface CoverageReportDto {
@@ -329,24 +329,26 @@ export interface SourceRootDto {
 }
 
 /** 数据根首次索引激活状态。 */
-export type RootActivationState = 'confirmedUnindexed' | 'indexing' | 'ready' | 'validationFailed';
+export type RootActivationState =
+  "confirmedUnindexed" | "indexing" | "ready" | "validationFailed";
 
 /** 数据源发现任务生命周期。 */
 export type RootDiscoveryState =
-  'idle' | 'running' | 'complete' | 'partial' | 'cancelled' | 'failed';
+  "idle" | "running" | "complete" | "partial" | "cancelled" | "failed";
 
 /** 平台元数据策略。 */
-export type RootDiscoveryStrategy = 'windowsSearch' | 'macOsSpotlight' | 'metadataTraversal';
+export type RootDiscoveryStrategy =
+  "windowsSearch" | "macOsSpotlight" | "metadataTraversal";
 
 /** 当前运行平台；界面只展示对应平台的数据源发现说明。 */
-export type RootDiscoveryPlatform = 'windows' | 'macOs' | 'other';
+export type RootDiscoveryPlatform = "windows" | "macOs" | "other";
 
 /** 用户选择的数据源发现范围。 */
-export type RootDiscoveryScope = 'userPriority' | 'fullLocalVolumes' | 'manualSubtree';
+export type RootDiscoveryScope = "userPriority" | "fullLocalVolumes" | "manualSubtree";
 
 /** 手动添加命令的稳定结果类别。 */
 export type ManualAddOutcome =
-  'cancelled' | 'registered' | 'alreadyRegistered' | 'deepSearchStarted';
+  "cancelled" | "registered" | "alreadyRegistered" | "deepSearchStarted";
 
 /** 手动添加结果；路径永不进入响应。 */
 export interface ManualAddSourceRootDto {
@@ -381,7 +383,7 @@ export interface RootCandidateDto {
   client: AgentClientKind;
   absolutePath: string;
   strategy: RootDiscoveryStrategy;
-  evidence: 'codexRollout' | 'claudeTranscript' | 'claudeSubagent' | 'grokSessionUpdates';
+  evidence: "codexRollout" | "claudeTranscript" | "claudeSubagent" | "grokSessionUpdates";
 }
 
 /** 单个候选添加到对应数据源后的结果。 */
@@ -393,7 +395,7 @@ export interface AddRootCandidateDto {
 }
 
 /** 描述全局首次初始化门禁的持久状态。 */
-export type LanguagePreference = 'system' | 'zh-CN' | 'en-US';
+export type LanguagePreference = "system" | "zh-CN" | "en-US";
 
 /** 描述全局首次初始化门禁的持久状态。 */
 export interface InitializationStatusDto {
@@ -414,13 +416,13 @@ export interface SourceRootMutationDto {
 }
 
 /** 标识扫描范围和是否会主动遍历设备。 */
-export type ScanKind = 'quick' | 'fullDevice';
+export type ScanKind = "quick" | "fullDevice";
 
 /** 标识扫描的稳定生命周期。 */
-export type ScanState = 'idle' | 'running' | 'completed' | 'cancelled' | 'failed';
+export type ScanState = "idle" | "running" | "completed" | "cancelled" | "failed";
 
 /** 标识一次近 30 日索引是由哪类已批准用户流程触发。 */
-export type LocalIndexRefreshTrigger = 'initialization' | 'discoveryBatch' | 'directManual';
+export type LocalIndexRefreshTrigger = "initialization" | "discoveryBatch" | "directManual";
 
 /** 扫描阶段的结构化进度参数。 */
 export interface ScanScopeProgressDto {
@@ -495,7 +497,7 @@ export interface PrivacySettingsDto {
   /** 本产品索引的安全位置说明。 */
   indexLocationLabel: string;
   /** 当前客户端索引位置的稳定代码。 */
-  indexLocationCode?: 'codex' | 'claudeCode' | 'grokBuildCli';
+  indexLocationCode?: "codex" | "claudeCode" | "grokBuildCli";
   /** 当前索引体积，后端未知时为空。 */
   indexSizeBytes: number | null;
   /** 最近一次清空本产品索引的时间。 */
@@ -719,15 +721,15 @@ export interface CollectProviderConfigDto {
   /** 可选上报用户别名；存在时替代设备用户名进入该 Provider 的上报载荷，未设置为 `null`。 */
   userAlias: string | null;
   /** 当前进程内最近一次 Health 探测的三态结果；上传成败不改写。 */
-  connectionStatus: 'untested' | 'reachable' | 'unreachable';
+  connectionStatus: "untested" | "reachable" | "unreachable";
 }
 
 /** 描述一条不含身份和完整 payload 的本地尝试审计。 */
 export interface CollectAttemptDto {
   /** 仅用于本地审计列表排序，不进入 REST 上报。 */
   attemptId: number;
-  trigger: 'startup' | 'interval' | 'config_changed' | 'manual';
-  state: 'collecting' | 'collection_failed' | 'sending' | 'sent' | 'send_failed';
+  trigger: "startup" | "interval" | "config_changed" | "manual";
+  state: "collecting" | "collection_failed" | "sending" | "sent" | "send_failed";
   destinationBaseUrl: string;
   startedAtEpochMs: number;
   finishedAtEpochMs: number | null;
@@ -737,16 +739,16 @@ export interface CollectAttemptDto {
   totalTokens: number | null;
   httpStatus: number | null;
   errorKind:
-    | 'configuration'
-    | 'identity_unavailable'
-    | 'no_available_channels'
-    | 'invalid_report'
-    | 'transport'
-    | 'timeout'
-    | 'http_status'
-    | 'service_unhealthy'
-    | 'invalid_response'
-    | 'interrupted'
+    | "configuration"
+    | "identity_unavailable"
+    | "no_available_channels"
+    | "invalid_report"
+    | "transport"
+    | "timeout"
+    | "http_status"
+    | "service_unhealthy"
+    | "invalid_response"
+    | "interrupted"
     | null;
 }
 
@@ -763,7 +765,12 @@ export interface CollectServiceHealthDto {
   healthy: boolean;
   httpStatus: number | null;
   errorKind:
-    'transport' | 'timeout' | 'http_status' | 'service_unhealthy' | 'invalid_response' | null;
+    | "transport"
+    | "timeout"
+    | "http_status"
+    | "service_unhealthy"
+    | "invalid_response"
+    | null;
 }
 
 /** 描述清空本产品索引后的可见结果。 */

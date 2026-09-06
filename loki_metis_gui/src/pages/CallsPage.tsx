@@ -1,9 +1,18 @@
-import { Alert, Button, Group, NativeSelect, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
-import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
-import { useAtom, useAtomValue } from 'jotai';
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
+import {
+  Alert,
+  Button,
+  Group,
+  NativeSelect,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+} from "@mantine/core";
+import { useInfiniteQuery, useQuery, type InfiniteData } from "@tanstack/react-query";
+import { useAtom, useAtomValue } from "jotai";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import {
   getUsageCalls,
@@ -13,24 +22,24 @@ import {
   type UsageCallsPageDto,
   type UsageFilterOptionDto,
   type UsageViewKind,
-} from '../api/usage';
+} from "../api/usage";
 import {
   FailureState,
   ImplementationState,
   LocalIndexNotice,
   LoadingState,
-} from '../components/UsageUi';
+} from "../components/UsageUi";
 import {
   emptyUsageFilters,
   usageFiltersAtom,
   usageSortAtom,
   type UsageCallSort,
-} from '../state/usage-filters';
-import { usageViewAtom } from '../state/agent-client';
-import { timeStandardAtom } from '../state/page-session';
-import { visibleErrorMessage } from '../visible-error';
-import { displayLabel } from '../i18n/backend-labels';
-import { CallsResultsTable } from './CallsResultsTable';
+} from "../state/usage-filters";
+import { usageViewAtom } from "../state/agent-client";
+import { timeStandardAtom } from "../state/page-session";
+import { visibleErrorMessage } from "../visible-error";
+import { displayLabel } from "../i18n/backend-labels";
+import { CallsResultsTable } from "./CallsResultsTable";
 
 /** 把后端选项转换为 NativeSelect 数据，首项始终表示全部。 */
 function filterOptions(
@@ -38,7 +47,7 @@ function filterOptions(
   values: UsageFilterOptionDto[],
 ): { label: string; value: string }[] {
   return [
-    { label: t('calls.filters.all'), value: '' },
+    { label: t("calls.filters.all"), value: "" },
     ...values.map(({ disambiguationIndex, id, label, labelCode }) => ({
       label: displayLabel(t, label, labelCode, disambiguationIndex),
       value: id,
@@ -72,13 +81,16 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
     page: UsageCallsPageDto;
   } | null>(null);
   const retainedForView = retainedFirstPage?.view === view ? retainedFirstPage.page : null;
-  const reasoningAvailable = view !== 'grokBuildCli';
-  const effectiveFilters = reasoningAvailable ? filters : { ...filters, reasoningEffort: null };
+  const reasoningAvailable = view !== "grokBuildCli";
+  const effectiveFilters = reasoningAvailable
+    ? filters
+    : { ...filters, reasoningEffort: null };
   const overviewQuery = useQuery({
     queryFn: () => getUsageOverview(view, timeStandard),
-    queryKey: ['usage-overview', view, ...timeStandardQueryKey(timeStandard)],
+    queryKey: ["usage-overview", view, ...timeStandardQueryKey(timeStandard)],
   });
-  const businessReady = overviewQuery.isSuccess && !overviewQuery.data.productDefinitionRequired;
+  const businessReady =
+    overviewQuery.isSuccess && !overviewQuery.data.productDefinitionRequired;
   // useInfiniteQuery：TanStack Query 专门用于“分页加载、后页追加到前页
   // 后面”场景的 hook（对应后端 calls_view.rs 里游标分页的 GET /calls）。
   // 泛型参数依次是：单页数据类型、错误类型、聚合后的数据结构、queryKey
@@ -116,7 +128,13 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
     // queryKey 包含 filters 和 sort：这两者任一变化，TanStack Query 就会
     // 认为这是一个全新的查询（而不是"追加更多页"），自动从第一页重新开始，
     // 与后端游标里编码的"查询指纹变了就拒绝旧游标"是同一条规则在前端的体现。
-    queryKey: ['usage-calls', view, effectiveFilters, sort, ...timeStandardQueryKey(timeStandard)],
+    queryKey: [
+      "usage-calls",
+      view,
+      effectiveFilters,
+      sort,
+      ...timeStandardQueryKey(timeStandard),
+    ],
   });
   const currentFirstPage = callsQuery.data?.pages[0];
 
@@ -149,7 +167,10 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
   }
   if (overviewQuery.isError) {
     return (
-      <FailureState error={overviewQuery.error} onRetry={() => void overviewQuery.refetch()} />
+      <FailureState
+        error={overviewQuery.error}
+        onRetry={() => void overviewQuery.refetch()}
+      />
     );
   }
   if (overviewQuery.data.productDefinitionRequired) {
@@ -161,10 +182,12 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
     );
   }
   if (callsQuery.isPending && !callsQuery.data && !retainedForView) {
-    return <LoadingState label={t('calls.page.loading')} />;
+    return <LoadingState label={t("calls.page.loading")} />;
   }
   if (callsQuery.isError && !callsQuery.data && !retainedForView) {
-    return <FailureState error={callsQuery.error} onRetry={() => void callsQuery.refetch()} />;
+    return (
+      <FailureState error={callsQuery.error} onRetry={() => void callsQuery.refetch()} />
+    );
   }
 
   const pages = callsQuery.data?.pages ?? [];
@@ -172,15 +195,17 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
   if (!firstPage) {
     return (
       <FailureState
-        error={new Error(t('calls.page.missingFirstPage'))}
-        fallback={t('calls.page.missingFirstPage')}
+        error={new Error(t("calls.page.missingFirstPage"))}
+        fallback={t("calls.page.missingFirstPage")}
         onRetry={() => void callsQuery.refetch()}
       />
     );
   }
   const replacementFailed = callsQuery.isError && !callsQuery.data;
   const items = currentFirstPage ? pages.flatMap((page) => page.items) : [];
-  const totalCount = currentFirstPage ? (pages.at(-1)?.totalCount ?? firstPage.totalCount) : 0;
+  const totalCount = currentFirstPage
+    ? (pages.at(-1)?.totalCount ?? firstPage.totalCount)
+    : 0;
   const options = firstPage.availableFilters;
   const refreshingFirstPage = callsQuery.isPlaceholderData && callsQuery.isFetching;
   const refreshFailed =
@@ -190,15 +215,16 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
     <Stack className="page-stack" gap="xl">
       <LocalIndexNotice state={firstPage.indexState} />
 
-      {firstPage.indexState === 'notScanned' || firstPage.indexState === 'needsRescan' ? null : (
+      {firstPage.indexState === "notScanned" ||
+      firstPage.indexState === "needsRescan" ? null : (
         <>
           <Paper className="filter-panel" p="lg" radius="lg" withBorder>
             <Stack gap="md">
               <Group justify="space-between">
                 <div>
-                  <Text fw={700}>{t('calls.filters.title')}</Text>
+                  <Text fw={700}>{t("calls.filters.title")}</Text>
                   <Text c="dimmed" size="sm">
-                    {t('calls.filters.description')}
+                    {t("calls.filters.description")}
                   </Text>
                 </div>
                 <Button
@@ -208,54 +234,56 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
                   }}
                   variant="subtle"
                 >
-                  {t('calls.filters.clear')}
+                  {t("calls.filters.clear")}
                 </Button>
               </Group>
               <SimpleGrid cols={{ base: 1, sm: 2, xl: 5 }}>
                 <NativeSelect
                   data={filterOptions(t, options.models)}
-                  label={t('dimension.model')}
-                  onChange={(event) => changeFilter('model', event.currentTarget.value)}
-                  value={filters.model || ''}
+                  label={t("dimension.model")}
+                  onChange={(event) => changeFilter("model", event.currentTarget.value)}
+                  value={filters.model || ""}
                 />
                 {reasoningAvailable ? (
                   <NativeSelect
                     data={filterOptions(t, options.reasoningEfforts)}
-                    label={t('dimension.reasoningEffort')}
-                    onChange={(event) => changeFilter('reasoningEffort', event.currentTarget.value)}
-                    value={filters.reasoningEffort || ''}
+                    label={t("dimension.reasoningEffort")}
+                    onChange={(event) =>
+                      changeFilter("reasoningEffort", event.currentTarget.value)
+                    }
+                    value={filters.reasoningEffort || ""}
                   />
                 ) : null}
                 <NativeSelect
                   data={filterOptions(t, options.projects)}
-                  label={t('dimension.project')}
-                  onChange={(event) => changeFilter('project', event.currentTarget.value)}
-                  value={filters.project || ''}
+                  label={t("dimension.project")}
+                  onChange={(event) => changeFilter("project", event.currentTarget.value)}
+                  value={filters.project || ""}
                 />
                 <NativeSelect
                   data={filterOptions(t, options.threads)}
-                  label={t('dimension.thread')}
-                  onChange={(event) => changeFilter('thread', event.currentTarget.value)}
-                  value={filters.thread || ''}
+                  label={t("dimension.thread")}
+                  onChange={(event) => changeFilter("thread", event.currentTarget.value)}
+                  value={filters.thread || ""}
                 />
                 <NativeSelect
                   data={filterOptions(t, options.roots)}
-                  label={t('dimension.root')}
-                  onChange={(event) => changeFilter('root', event.currentTarget.value)}
-                  value={filters.root || ''}
+                  label={t("dimension.root")}
+                  onChange={(event) => changeFilter("root", event.currentTarget.value)}
+                  value={filters.root || ""}
                 />
               </SimpleGrid>
             </Stack>
           </Paper>
 
           {refreshFailed ? (
-            <Alert color="red" title={t('calls.refresh.title')}>
+            <Alert color="red" title={t("calls.refresh.title")}>
               <Group justify="space-between">
                 <Text size="sm">
-                  {visibleErrorMessage(callsQuery.error, t('calls.refresh.retained'))}
+                  {visibleErrorMessage(callsQuery.error, t("calls.refresh.retained"))}
                 </Text>
                 <Button onClick={() => void callsQuery.refetch()} size="xs" variant="light">
-                  {t('calls.refresh.retry')}
+                  {t("calls.refresh.retry")}
                 </Button>
               </Group>
             </Alert>
@@ -276,13 +304,17 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
           />
 
           {callsQuery.isFetchNextPageError ? (
-            <Alert color="red" title={t('calls.nextPage.title')}>
+            <Alert color="red" title={t("calls.nextPage.title")}>
               <Group justify="space-between">
                 <Text size="sm">
-                  {visibleErrorMessage(callsQuery.error, t('calls.nextPage.retained'))}
+                  {visibleErrorMessage(callsQuery.error, t("calls.nextPage.retained"))}
                 </Text>
-                <Button onClick={() => void callsQuery.fetchNextPage()} size="xs" variant="light">
-                  {t('calls.nextPage.retry')}
+                <Button
+                  onClick={() => void callsQuery.fetchNextPage()}
+                  size="xs"
+                  variant="light"
+                >
+                  {t("calls.nextPage.retry")}
                 </Button>
               </Group>
             </Alert>

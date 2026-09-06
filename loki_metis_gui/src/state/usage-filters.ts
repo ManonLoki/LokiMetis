@@ -1,12 +1,12 @@
-import { atom } from 'jotai';
+import { atom } from "jotai";
 
 import type {
   UsageViewKind,
   UsageCallFiltersDto,
   UsageCallSortDirection,
   UsageCallSortField,
-} from '../api/usage';
-import { usageViewAtom } from './agent-client';
+} from "../api/usage";
+import { usageViewAtom } from "./agent-client";
 
 /** 提供不含路径和正文的调用筛选初始值。 */
 export const emptyUsageFilters: UsageCallFiltersDto = {
@@ -29,7 +29,7 @@ interface ClientCallState {
   sort: UsageCallSort;
 }
 
-const defaultSort: UsageCallSort = { direction: 'desc', field: 'occurredAt' };
+const defaultSort: UsageCallSort = { direction: "desc", field: "occurredAt" };
 
 /** 返回互不共享引用的调用页初始状态。 */
 function initialClientState(): ClientCallState {

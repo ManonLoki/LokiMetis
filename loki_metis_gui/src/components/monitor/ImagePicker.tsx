@@ -117,7 +117,9 @@ export function ImagePicker({
                 size="xs"
                 variant="light"
               >
-                {uploading ? t("monitor.picker.uploading") : t("monitor.picker.uploadSingle")}
+                {uploading
+                  ? t("monitor.picker.uploading")
+                  : t("monitor.picker.uploadSingle")}
               </Button>
               <input
                 accept={uploadAccept}
@@ -144,7 +146,10 @@ export function ImagePicker({
           </Group>
           <SegmentedControl
             data={[
-              { value: "all", label: t("monitor.picker.allCount", { count: images.length }) },
+              {
+                value: "all",
+                label: t("monitor.picker.allCount", { count: images.length }),
+              },
               { value: "jpeg", label: `JPEG ${counts?.jpeg ?? 0}` },
               { value: "png", label: `PNG ${counts?.png ?? 0}` },
               { value: "gif", label: `GIF ${counts?.gif ?? 0}` },
@@ -161,7 +166,9 @@ export function ImagePicker({
                 {filteredImages.map((image) => (
                   <Tooltip key={image.id} label={image.filename}>
                     <UnstyledButton
-                      aria-label={t("monitor.picker.selectAria", { filename: image.filename })}
+                      aria-label={t("monitor.picker.selectAria", {
+                        filename: image.filename,
+                      })}
                       aria-selected={image.id === value}
                       className="image-picker-option"
                       data-selected={image.id === value || undefined}

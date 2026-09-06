@@ -1,5 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   addRootCandidate,
@@ -8,10 +8,10 @@ import {
   type AgentClientKind,
   type RootCandidateDto,
   type RootDiscoveryStatusDto,
-} from '../api/usage';
-import { invalidateLocalUsageQueries } from '../api/usage-queries';
-import { ROOT_CANDIDATES_QUERY_KEY } from './useRootCandidateEvents';
-import { selectVisibleDiscoveryCandidates } from './visible-discovery-candidates';
+} from "../api/usage";
+import { invalidateLocalUsageQueries } from "../api/usage-queries";
+import { ROOT_CANDIDATES_QUERY_KEY } from "./useRootCandidateEvents";
+import { selectVisibleDiscoveryCandidates } from "./visible-discovery-candidates";
 
 /** 保存一次有界发现批次的 Agent、候选与游标。 */
 interface DiscoveryBatch {
@@ -41,7 +41,9 @@ export function useDiscoveryBatchIndex({
   const finalizedBatchIdsRef = useRef<Set<number>>(new Set());
   const recoveredTerminalKeysRef = useRef<Set<string>>(new Set());
   const [activeBatch, setActiveBatch] = useState<DiscoveryBatch | null>(null);
-  const [failedCandidateIds, setFailedCandidateIds] = useState<Set<string>>(() => new Set());
+  const [failedCandidateIds, setFailedCandidateIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -116,11 +118,11 @@ export function useDiscoveryBatchIndex({
   /** 页面重新挂载或切换 Agent 时，恢复运行中或尚有候选的终态批次。 */
   useEffect(() => {
     if (!businessReady || activeBatch || !discovery) return;
-    if (discovery.state === 'running') {
+    if (discovery.state === "running") {
       void Promise.resolve().then(() => begin(client));
       return;
     }
-    if (!candidates || discovery.state === 'idle' || discovery.state === 'failed') return;
+    if (!candidates || discovery.state === "idle" || discovery.state === "failed") return;
     if (selectVisibleDiscoveryCandidates(candidates, [client]).length === 0) return;
     const terminalKey = `${client}:${discovery.scope}:${discovery.state}`;
     if (recoveredTerminalKeysRef.current.has(terminalKey)) return;
@@ -130,11 +132,11 @@ export function useDiscoveryBatchIndex({
 
   useEffect(() => {
     if (!activeBatch || !discovery) return;
-    if (discovery.state === 'idle' || discovery.state === 'running') return;
+    if (discovery.state === "idle" || discovery.state === "running") return;
     if (finalizedBatchIdsRef.current.has(activeBatch.id)) return;
     finalizedBatchIdsRef.current.add(activeBatch.id);
 
-    if (discovery.state === 'failed') {
+    if (discovery.state === "failed") {
       void Promise.resolve().then(() => setCurrentBatch(null));
       return;
     }
@@ -152,11 +154,11 @@ export function useDiscoveryBatchIndex({
         ]).map(registerCandidate);
         await Promise.allSettled(registrations);
         if (activeBatchRef.current?.id !== batch.id) return;
-        await refreshLocalIndexes([batch.client], 'discoveryBatch');
+        await refreshLocalIndexes([batch.client], "discoveryBatch");
         await invalidateLocalUsageQueries(queryClient, batch.client);
       })
       .catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause : new Error('batch-index-refresh-failed'));
+        setError(cause instanceof Error ? cause : new Error("batch-index-refresh-failed"));
       })
       .finally(() => {
         if (activeBatchRef.current?.id === batch.id) setCurrentBatch(null);

@@ -7,24 +7,24 @@ import {
   Paper,
   Stack,
   Title,
-} from '@mantine/core';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAtomValue } from 'jotai';
-import { useTranslation } from 'react-i18next';
+} from "@mantine/core";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
-import { getPrivacySettings, setScanInterval } from '../api/usage';
-import { synchronizeGlobalPrivacySettings } from '../api/usage-queries';
+import { getPrivacySettings, setScanInterval } from "../api/usage";
+import { synchronizeGlobalPrivacySettings } from "../api/usage-queries";
 import {
   boundedMinutesNumberInputProps,
   isValidBoundedMinutes,
   parseBoundedMinutes,
-} from '../bounded-minutes';
-import { FailureState, LoadingState } from '../components/UsageUi';
-import { agentClientAtom } from '../state/agent-client';
-import { EnabledAgentsSettings } from './EnabledAgentsSettings';
-import { RetentionDaysSettings } from './RetentionDaysSettings';
-import { useDraftValue } from '../use-draft-value';
-import { visibleErrorMessage } from '../visible-error';
+} from "../bounded-minutes";
+import { FailureState, LoadingState } from "../components/UsageUi";
+import { agentClientAtom } from "../state/agent-client";
+import { EnabledAgentsSettings } from "./EnabledAgentsSettings";
+import { RetentionDaysSettings } from "./RetentionDaysSettings";
+import { useDraftValue } from "../use-draft-value";
+import { visibleErrorMessage } from "../visible-error";
 
 /** 定义统一扫描间隔设置的值域与保存交互。 */
 interface ScanIntervalSettingsProps {
@@ -48,14 +48,19 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
   const intervalChanged = intervalValid && parsedMinutes !== savedMinutes;
 
   const intervalMutation = useMutation({
-    mutationFn: ({ minutes, targetClient }: { minutes: number; targetClient: typeof client }) =>
-      setScanInterval(targetClient, minutes),
+    mutationFn: ({
+      minutes,
+      targetClient,
+    }: {
+      minutes: number;
+      targetClient: typeof client;
+    }) => setScanInterval(targetClient, minutes),
     onSuccess: (settings, { targetClient }) => {
       const nextMinutes = settings.scanIntervalMinutes;
       resetIntervalDraft(nextMinutes, nextMinutes);
-      queryClient.setQueryData(['privacy-settings', targetClient], settings);
+      queryClient.setQueryData(["privacy-settings", targetClient], settings);
       synchronizeGlobalPrivacySettings(queryClient, settings);
-      void queryClient.invalidateQueries({ queryKey: ['scan-status', targetClient] });
+      void queryClient.invalidateQueries({ queryKey: ["scan-status", targetClient] });
     },
   });
 
@@ -72,18 +77,18 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
         <Stack gap="md">
           <div>
             <Group gap="xs">
-              <Title order={3}>{t('privacy.scanInterval.title')}</Title>
+              <Title order={3}>{t("privacy.scanInterval.title")}</Title>
               <Badge color="blue" variant="light">
-                {t('privacy.scanInterval.badge')}
+                {t("privacy.scanInterval.badge")}
               </Badge>
             </Group>
           </div>
 
           <NumberInput
             {...boundedMinutesNumberInputProps}
-            description={t('privacy.scanInterval.description')}
-            error={intervalValid ? null : t('privacy.scanInterval.error')}
-            label={t('privacy.scanInterval.label')}
+            description={t("privacy.scanInterval.description")}
+            error={intervalValid ? null : t("privacy.scanInterval.error")}
+            label={t("privacy.scanInterval.label")}
             onChange={(value) => {
               setIntervalDraft(value);
               intervalMutation.reset();
@@ -92,20 +97,28 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
           />
 
           <Group justify="flex-end">
-            <Button disabled={!intervalChanged} loading={intervalMutation.isPending} type="submit">
-              {t('privacy.scanInterval.save')}
+            <Button
+              disabled={!intervalChanged}
+              loading={intervalMutation.isPending}
+              type="submit"
+            >
+              {t("privacy.scanInterval.save")}
             </Button>
           </Group>
 
           {intervalMutation.isSuccess ? (
-            <Alert aria-live="polite" color="green" title={t('privacy.scanInterval.successTitle')}>
-              {t('privacy.scanInterval.successBody', {
+            <Alert
+              aria-live="polite"
+              color="green"
+              title={t("privacy.scanInterval.successTitle")}
+            >
+              {t("privacy.scanInterval.successBody", {
                 minutes: intervalMutation.data.scanIntervalMinutes,
               })}
             </Alert>
           ) : null}
           {intervalMutation.isError ? (
-            <Alert color="red" title={t('privacy.scanInterval.errorTitle')}>
+            <Alert color="red" title={t("privacy.scanInterval.errorTitle")}>
               {visibleErrorMessage(intervalMutation.error)}
             </Alert>
           ) : null}
@@ -121,13 +134,18 @@ export function DashboardSettingsSection() {
   const client = useAtomValue(agentClientAtom);
   const privacyQuery = useQuery({
     queryFn: () => getPrivacySettings(client),
-    queryKey: ['privacy-settings', client],
+    queryKey: ["privacy-settings", client],
   });
   if (privacyQuery.isPending) {
-    return <LoadingState label={t('privacy.page.loading')} />;
+    return <LoadingState label={t("privacy.page.loading")} />;
   }
   if (privacyQuery.isError) {
-    return <FailureState error={privacyQuery.error} onRetry={() => void privacyQuery.refetch()} />;
+    return (
+      <FailureState
+        error={privacyQuery.error}
+        onRetry={() => void privacyQuery.refetch()}
+      />
+    );
   }
 
   const settings = privacyQuery.data;
@@ -145,7 +163,10 @@ export function DashboardSettingsSection() {
         savedMinutes={settings.scanIntervalMinutes}
       />
 
-      <RetentionDaysSettings key={`retention-days-${client}`} savedDays={settings.retentionDays} />
+      <RetentionDaysSettings
+        key={`retention-days-${client}`}
+        savedDays={settings.retentionDays}
+      />
     </Stack>
   );
 }

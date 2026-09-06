@@ -1,5 +1,5 @@
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
+import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
 /** 标识数据根弹窗当前操作的稳定目标与安全别名。 */
 interface DialogTarget {
@@ -40,23 +40,23 @@ export function SourceRootDialogs({
   return (
     <>
       <Modal
-        aria-label={t('sources.dialog.renameTitle')}
+        aria-label={t("sources.dialog.renameTitle")}
         centered
         onClose={onCloseRename}
         opened={renameTarget !== null}
-        title={t('sources.dialog.renameTitle')}
+        title={t("sources.dialog.renameTitle")}
         transitionProps={{ duration: 0 }}
       >
         <Stack gap="md">
           <TextInput
             autoFocus
-            label={t('sources.dialog.renameLabel')}
+            label={t("sources.dialog.renameLabel")}
             onChange={(event) => onRenameDraftChange(event.currentTarget.value)}
             value={renameDraft}
           />
           <Group justify="flex-end">
             <Button onClick={onCloseRename} variant="subtle">
-              {t('common.cancel')}
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={
@@ -67,36 +67,36 @@ export function SourceRootDialogs({
               loading={renamePending}
               onClick={() => renameTarget && onConfirmRename(renameTarget.id, renameDraft)}
             >
-              {t('sources.table.rename')}
+              {t("sources.table.rename")}
             </Button>
           </Group>
         </Stack>
       </Modal>
       <Modal
-        aria-label={t('sources.dialog.removeTitle')}
+        aria-label={t("sources.dialog.removeTitle")}
         centered
         onClose={onCloseRemove}
         opened={removeTarget !== null}
-        title={t('sources.dialog.removeTitle')}
+        title={t("sources.dialog.removeTitle")}
         transitionProps={{ duration: 0 }}
       >
         <Stack gap="md">
           <Text size="sm">
-            {t('sources.dialog.removeBody', {
-              alias: removeTarget?.alias ?? '',
+            {t("sources.dialog.removeBody", {
+              alias: removeTarget?.alias ?? "",
               client: clientLabel,
             })}
           </Text>
           <Group justify="flex-end">
             <Button onClick={onCloseRemove} variant="subtle">
-              {t('common.cancel')}
+              {t("common.cancel")}
             </Button>
             <Button
               color="red"
               loading={removePending}
               onClick={() => removeTarget && onConfirmRemove(removeTarget.id)}
             >
-              {t('sources.dialog.removeConfirm')}
+              {t("sources.dialog.removeConfirm")}
             </Button>
           </Group>
         </Stack>

@@ -1,12 +1,12 @@
-import { listen } from '@tauri-apps/api/event';
-import type { QueryClient } from '@tanstack/react-query';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { listen } from "@tauri-apps/api/event";
+import type { QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
-import type { RootCandidateDto } from '../api/usage';
+import type { RootCandidateDto } from "../api/usage";
 
-export const ROOT_CANDIDATES_QUERY_KEY = ['root-candidates'] as const;
-export const ROOT_DISCOVERY_CANDIDATE_EVENT = 'root-discovery-candidate';
+export const ROOT_CANDIDATES_QUERY_KEY = ["root-candidates"] as const;
+export const ROOT_DISCOVERY_CANDIDATE_EVENT = "root-discovery-candidate";
 
 /** 将实时候选按临时 ID 合并到查询缓存，重复事件保留首次结果。 */
 export function mergeRootCandidate(

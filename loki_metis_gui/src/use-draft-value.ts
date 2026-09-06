@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 
 /** 保存与业务键绑定的本地草稿，避免切换对象时串值。 */
 interface Draft<Key, Value> {

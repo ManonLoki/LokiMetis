@@ -1,4 +1,4 @@
-import type { UiMessageCode } from './usage-types-detail';
+import type { UiMessageCode } from "./usage-types-detail";
 
 // 本文件是 Rust 后端 `dto.rs`（以及 core 里若干类型）序列化出的 JSON
 // 形状在 TypeScript 侧的镜像：Rust 字段用 `#[serde(rename_all =
@@ -8,10 +8,10 @@ import type { UiMessageCode } from './usage-types-detail';
 // 契约仍然成立（这类改动通常配合测试断言序列化后的 JSON 形状）。
 
 /** 标识当前查看和操作的 Agent 客户端。 */
-export type AgentClientKind = 'codex' | 'claudeCode' | 'grokBuildCli';
+export type AgentClientKind = "codex" | "claudeCode" | "grokBuildCli";
 
 /** 统一 AI 目录中可映射到看板的稳定值；WorkBuddy 仍使用独立只读统计开关。 */
-export type AvailableAiTypeValue = AgentClientKind | 'workbuddy';
+export type AvailableAiTypeValue = AgentClientKind | "workbuddy";
 
 /** 后端统一 AI 目录投影到看板的可用选项。 */
 export interface AvailableAiTypeDto {
@@ -25,27 +25,27 @@ export interface AvailableAiTypeDto {
 export type UsageClientKind = AgentClientKind;
 
 /** 标识概览与调用页可选择的只读视图；`all` 与 `workbuddy` 都不是物理扫描客户端。 */
-export type UsageViewKind = 'all' | AgentClientKind | 'workbuddy';
+export type UsageViewKind = "all" | AgentClientKind | "workbuddy";
 
 /** 标识指标事实来自哪一类本机记录。 */
 export type ProviderKind =
-  | 'rolloutJsonl'
-  | 'claudeTranscriptJsonl'
-  | 'grokSessionJsonl'
-  | 'combinedLocalAgents'
-  | 'workbuddyProjectJsonl';
+  | "rolloutJsonl"
+  | "claudeTranscriptJsonl"
+  | "grokSessionJsonl"
+  | "combinedLocalAgents"
+  | "workbuddyProjectJsonl";
 
 /** 标识指标覆盖的业务范围，前端不得跨范围合并数值。 */
-export type MetricScope = 'deviceObserved' | 'rootObserved' | 'threadObserved';
+export type MetricScope = "deviceObserved" | "rootObserved" | "threadObserved";
 
 /** 描述事实相对刷新策略的时效。 */
-export type Freshness = 'fresh' | 'stale' | 'expired' | 'unknown';
+export type Freshness = "fresh" | "stale" | "expired" | "unknown";
 
 /** 描述已知扫描或 provider 覆盖程度。 */
-export type Completeness = 'complete' | 'partial' | 'unknown';
+export type Completeness = "complete" | "partial" | "unknown";
 
 /** 描述数据是直接事实、受控推算还是疑似冲突。 */
-export type Confidence = 'exact' | 'derived' | 'suspected';
+export type Confidence = "exact" | "derived" | "suspected";
 
 /** 包装带来源、范围和质量元数据的可展示事实。 */
 export interface MetricFactDto<T> {
@@ -111,10 +111,10 @@ export interface LocalUsageAggregateDto {
 
 /** 标识概览与用量中唯一允许的六个日历统计窗口，不提供全量累计口径。 */
 export type UsageWindow =
-  'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
+  "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth";
 
 /** 区分本机索引尚未建立、需要重扫、已扫描空结果与当前可用调用。 */
-export type LocalIndexState = 'notScanned' | 'needsRescan' | 'readyNoCalls' | 'ready';
+export type LocalIndexState = "notScanned" | "needsRescan" | "readyNoCalls" | "ready";
 
 /** 描述一个本机时间窗口的可追溯事实。 */
 export interface WindowUsageDto {
@@ -144,5 +144,5 @@ export interface UsageOverviewDto {
   localRecords: LocalRecordsSectionDto | null;
 }
 
-export * from './usage-types-detail';
-export * from './usage-types-chart';
+export * from "./usage-types-detail";
+export * from "./usage-types-chart";

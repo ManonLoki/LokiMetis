@@ -1,4 +1,4 @@
-import type { SourceRootDto } from './api/usage';
+import type { SourceRootDto } from "./api/usage";
 
 /** 同名数据根追加稳定内部 ID 后缀，避免展示绝对路径仍可区分多个 Codex home。 */
 // 只在检测到列表里存在别名重复的其他根时才追加后缀（`root.id.slice(-8)`

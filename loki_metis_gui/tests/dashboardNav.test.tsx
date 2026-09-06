@@ -135,7 +135,9 @@ function expectPageNavAndAgentSwitcherOnTheSameRow() {
   const row = screen.getByTestId("dashboard-header-row");
   expect(row).toContainElement(nav);
   expect(row).toContainElement(switcher);
-  expect(nav.compareDocumentPosition(switcher) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  expect(nav.compareDocumentPosition(switcher) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(
+    0,
+  );
   expect(nav.parentElement).toBe(row);
   const progress = document.querySelector(".local-scan-progress");
   if (progress) {
@@ -233,15 +235,29 @@ describe("dashboard header subpages", () => {
     expect(sources).toBeVisible();
     expect(settings).toBeVisible();
     expect(screen.getByText("Dashboard settings")).toBeVisible();
-    expect(overview.compareDocumentPosition(usage) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(screen.queryByRole("button", { name: "Dashboard settings" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Dashboard settings" })).not.toBeInTheDocument();
+    expect(
+      overview.compareDocumentPosition(usage) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      screen.queryByRole("button", { name: "Dashboard settings" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Dashboard settings" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Time zone:/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup", { name: "Time standard" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Time standard" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Local time")).not.toBeInTheDocument();
     expect(screen.queryByText("UTC time")).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
@@ -257,11 +273,15 @@ describe("dashboard header subpages", () => {
     expect(calls).toBeVisible();
     expect(settings).toBeVisible();
     expect(screen.getByText("Dashboard settings")).toBeVisible();
-    expect(calls.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      calls.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Usage:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Charts:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Data sources:/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Dashboard settings" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Dashboard settings" }),
+    ).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
@@ -279,11 +299,19 @@ describe("dashboard header subpages", () => {
     expect(sources).toBeVisible();
     expect(settings).toBeVisible();
     expect(screen.getByText("Dashboard settings")).toBeVisible();
-    expect(usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Dashboard settings" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Dashboard settings" }),
+    ).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
@@ -354,10 +382,14 @@ describe("dashboard header settings surface", () => {
     const agentOptions = screen.getByTestId("dashboard-enabled-agent-options");
     expect(agentOptions).toHaveAccessibleName("AI agents to monitor and report");
     expect(within(agentOptions).getByRole("checkbox", { name: "Codex" })).toBeVisible();
-    expect(within(agentOptions).getByRole("checkbox", { name: "Claude Code" })).toBeVisible();
+    expect(
+      within(agentOptions).getByRole("checkbox", { name: "Claude Code" }),
+    ).toBeVisible();
     expect(within(agentOptions).getByRole("checkbox", { name: "Grok" })).toBeVisible();
     expect(within(agentOptions).getByRole("checkbox", { name: "WorkBuddy" })).toBeVisible();
-    expect(within(agentOptions).queryByRole("checkbox", { name: "Cursor" })).not.toBeInTheDocument();
+    expect(
+      within(agentOptions).queryByRole("checkbox", { name: "Cursor" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Codex is selected by default in first-time setup/),
     ).not.toBeInTheDocument();
@@ -488,7 +520,9 @@ describe("dashboard header settings surface", () => {
     expect(screen.getByText("Token trends")).toBeVisible();
     expect(screen.getByText("Call trend")).toBeVisible();
     expect(screen.queryByRole("link", { name: /Charts:/ })).toBeVisible();
-    expect(screen.queryByRole("navigation", { name: "Chart pages" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Chart pages" }),
+    ).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard/charts");
     expect(router.state.location.pathname).not.toBe("/settings");
     expect(screen.queryByText("sidebar-settings")).not.toBeInTheDocument();

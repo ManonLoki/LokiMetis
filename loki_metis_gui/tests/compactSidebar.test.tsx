@@ -36,15 +36,24 @@ describe("compact application sidebar", () => {
     expect(screen.queryByTestId("navigation-label-home")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Home" })).not.toBeInTheDocument();
     expect(screen.getByTestId("navigation-label-dashboard")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("data-active", "true");
-    expect(screen.getByRole("button", { name: "Monitor" })).not.toHaveAttribute("data-active");
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Monitor" })).not.toHaveAttribute(
+      "data-active",
+    );
     expect(screen.getByTestId("navigation-label-monitor")).toBeVisible();
     expect(screen.getByTestId("navigation-label-settings")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Workbench" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("open-pet-overlay")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Desktop pet/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Monitor management" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Image management" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Monitor management" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Image management" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/sponsor/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/about/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/charts/i)).not.toBeInTheDocument();

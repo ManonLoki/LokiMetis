@@ -1,13 +1,13 @@
-import type { UsageWindow, WindowUsageDto } from '../api/usage';
+import type { UsageWindow, WindowUsageDto } from "../api/usage";
 
 /** 固定概览与用量窗口顺序，忽略旧响应中的额外窗口，避免恢复全量累计展示。 */
 export const usageWindowOrder: UsageWindow[] = [
-  'today',
-  'yesterday',
-  'thisWeek',
-  'lastWeek',
-  'thisMonth',
-  'lastMonth',
+  "today",
+  "yesterday",
+  "thisWeek",
+  "lastWeek",
+  "thisMonth",
+  "lastMonth",
 ];
 
 /** 概览筛选与装配共用同一六个窗口顺序。 */

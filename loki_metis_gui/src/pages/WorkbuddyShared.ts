@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useAtomValue } from 'jotai';
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 
 import {
   getPrivacySettings,
@@ -9,21 +9,21 @@ import {
   type WorkbuddyHourlyTrendDto,
   type WorkbuddyWindowDto,
   type UsageWindow,
-} from '../api/usage';
+} from "../api/usage";
 import {
   timeStandardAtom,
   type WorkbuddyChartGroup,
   type WorkbuddyChartMetric,
-} from '../state/page-session';
+} from "../state/page-session";
 
 export type { WorkbuddyChartGroup, WorkbuddyChartMetric };
 
 /** WorkBuddy 统计每十秒读取一次本机数据，与其余看板刷新节奏一致。 */
 export const WORKBUDDY_REFRESH_INTERVAL_MS = 10_000;
-export const SESSIONS_SERIES_COLOR = '#2563eb';
-export const REQUESTS_SERIES_COLOR = '#7c3aed';
-export const TOKENS_SERIES_COLOR = '#16a34a';
-export const CREDITS_SERIES_COLOR = '#f59e0b';
+export const SESSIONS_SERIES_COLOR = "#2563eb";
+export const REQUESTS_SERIES_COLOR = "#7c3aed";
+export const TOKENS_SERIES_COLOR = "#16a34a";
+export const CREDITS_SERIES_COLOR = "#f59e0b";
 
 /** 把 `YYYY-MM-DD` 民用日期压缩为图表横轴使用的 `MM-DD` 短标签。 */
 export function shortDayLabel(date: string): string {
@@ -71,7 +71,9 @@ export function newestWorkbuddyDailyBuckets(
 }
 
 /** 计算窗口 trace 错误率；没有 trace 时保持未提供。 */
-export function workbuddyTraceErrorRate(window: WorkbuddyWindowDto | undefined): number | null {
+export function workbuddyTraceErrorRate(
+  window: WorkbuddyWindowDto | undefined,
+): number | null {
   if (!window || window.traceTotalCount === 0) {
     return null;
   }
@@ -79,24 +81,27 @@ export function workbuddyTraceErrorRate(window: WorkbuddyWindowDto | undefined):
 }
 
 /** 图表用量固定分组选项，顺序与页头下拉一致。 */
-export const WORKBUDDY_CHART_GROUPS: readonly WorkbuddyChartGroup[] = ['day', 'traceStatus'];
+export const WORKBUDDY_CHART_GROUPS: readonly WorkbuddyChartGroup[] = [
+  "day",
+  "traceStatus",
+];
 
 /** 返回当前分组允许的指标；切换分组时必须落到这个集合里。 */
 export function workbuddyChartMetricsForGroup(
   group: WorkbuddyChartGroup,
 ): readonly [WorkbuddyChartMetric, ...WorkbuddyChartMetric[]] {
-  return group === 'day'
+  return group === "day"
     ? [
-        'tokens',
-        'inputTokens',
-        'cachedInputTokens',
-        'uncachedInputTokens',
-        'outputTokens',
-        'requests',
-        'sessions',
-        'credits',
+        "tokens",
+        "inputTokens",
+        "cachedInputTokens",
+        "uncachedInputTokens",
+        "outputTokens",
+        "requests",
+        "sessions",
+        "credits",
       ]
-    : ['traceCount'];
+    : ["traceCount"];
 }
 
 /** 分组变化后若当前指标非法，回退到该分组的第一项。 */
@@ -114,47 +119,50 @@ export function workbuddyDailyMetricValue(
   metric: WorkbuddyChartMetric,
 ): number | null {
   switch (metric) {
-    case 'requests':
+    case "requests":
       return bucket.requestCount;
-    case 'sessions':
+    case "sessions":
       return bucket.sessionCount;
-    case 'credits':
+    case "credits":
       return bucket.credits;
-    case 'inputTokens':
+    case "inputTokens":
       return bucket.inputTokens;
-    case 'cachedInputTokens':
+    case "cachedInputTokens":
       return bucket.cachedInputTokens;
-    case 'uncachedInputTokens':
+    case "uncachedInputTokens":
       return bucket.uncachedInputTokens;
-    case 'outputTokens':
+    case "outputTokens":
       return bucket.outputTokens;
-    case 'tokens':
+    case "tokens":
       return bucket.tokens;
-    case 'traceCount':
+    case "traceCount":
       return 0;
   }
 }
 
 /** 已完成 Trace = 总数减去错误与取消，避免把未提供的分项画成零以外的值。 */
 export function workbuddyCompletedTraceCount(window: WorkbuddyWindowDto): number {
-  return Math.max(0, window.traceTotalCount - window.traceErrorCount - window.traceCancelledCount);
+  return Math.max(
+    0,
+    window.traceTotalCount - window.traceErrorCount - window.traceCancelledCount,
+  );
 }
 
 /** 读取开关与统计快照；关闭时不发起统计 command。 */
 export function useWorkbuddyStatisticsQuery(options?: { keepPrevious?: boolean }) {
   const timeStandard = useAtomValue(timeStandardAtom);
   const privacyQuery = useQuery({
-    queryFn: () => getPrivacySettings('codex'),
-    queryKey: ['privacy-settings', 'codex'],
+    queryFn: () => getPrivacySettings("codex"),
+    queryKey: ["privacy-settings", "codex"],
   });
   const enabled = privacyQuery.data?.workbuddyStatsEnabled === true;
   const statisticsQuery = useQuery({
     enabled,
     placeholderData: options?.keepPrevious ? keepPreviousData : undefined,
     queryFn: () => getWorkbuddyStatistics(timeStandard),
-    queryKey: ['workbuddy-statistics', ...timeStandardQueryKey(timeStandard)],
+    queryKey: ["workbuddy-statistics", ...timeStandardQueryKey(timeStandard)],
     refetchInterval: (query) =>
-      query.state.fetchStatus === 'fetching' ? false : WORKBUDDY_REFRESH_INTERVAL_MS,
+      query.state.fetchStatus === "fetching" ? false : WORKBUDDY_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
   });
   return { enabled, privacyQuery, statisticsQuery };

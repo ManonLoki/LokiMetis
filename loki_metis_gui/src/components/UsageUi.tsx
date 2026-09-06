@@ -11,12 +11,12 @@ import {
   Text,
   Title,
   Tooltip,
-} from '@mantine/core';
-import { Link } from '@tanstack/react-router';
-import { useTranslation } from 'react-i18next';
+} from "@mantine/core";
+import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
-import type { LocalIndexState, MetricFactDto, UiMessageCode } from '../api/usage';
-import { uiMessageLabel } from '../i18n/backend-labels';
+import type { LocalIndexState, MetricFactDto, UiMessageCode } from "../api/usage";
+import { uiMessageLabel } from "../i18n/backend-labels";
 import {
   completenessLabel,
   confidenceLabel,
@@ -24,8 +24,8 @@ import {
   formatTokens,
   freshnessLabel,
   providerLabel,
-} from '../usage-format';
-import { visibleErrorMessage } from '../visible-error';
+} from "../usage-format";
+import { visibleErrorMessage } from "../visible-error";
 
 // 本文件是各业务页面（Overview/Usage/Calls/Sources）共用的一组小型
 // “纯展示”组件（只接收 props 渲染 UI，不发起网络请求、不持有复杂状态），
@@ -73,24 +73,24 @@ function CheckIcon() {
 /** 在任意 Token 表面同时展示两位小数 K/M/B 与千分位精确整数；空值保持未提供。 */
 export function TokenTotalDisplay({
   className,
-  density = 'hero',
+  density = "hero",
   value,
 }: {
   className?: string;
-  density?: 'hero' | 'inline';
+  density?: "hero" | "inline";
   value: number | null;
 }) {
   const { t } = useTranslation();
   if (value === null) {
     return (
       <Text className={className} c="dimmed">
-        {t('common.notProvided')}
+        {t("common.notProvided")}
       </Text>
     );
   }
   const exactValue = formatTokens(value);
   const compactValue = formatCompactTokens(value);
-  if (density === 'inline') {
+  if (density === "inline") {
     return (
       <Stack align="flex-end" className="token-inline" gap={0}>
         <Text className={className} fw={700}>
@@ -109,14 +109,17 @@ export function TokenTotalDisplay({
       </Text>
       <Group gap={4} wrap="nowrap">
         <Text className="exact-token-number" c="dimmed" size="xs">
-          {t('ui.tokenExact', { value: exactValue })}
+          {t("ui.tokenExact", { value: exactValue })}
         </Text>
         <CopyButton timeout={1500} value={exactValue}>
           {({ copied, copy }) => (
-            <Tooltip label={copied ? t('ui.tokenExactCopied') : t('ui.tokenExactCopy')} withArrow>
+            <Tooltip
+              label={copied ? t("ui.tokenExactCopied") : t("ui.tokenExactCopy")}
+              withArrow
+            >
               <ActionIcon
-                aria-label={t('ui.tokenExactCopy')}
-                color={copied ? 'teal' : 'gray'}
+                aria-label={t("ui.tokenExactCopy")}
+                color={copied ? "teal" : "gray"}
                 onClick={copy}
                 size="sm"
                 variant="subtle"
@@ -147,16 +150,16 @@ export function ImplementationState({
   // 避免在英文界面里意外混入一段中文文本。
   const visibleMessage = messageCode
     ? uiMessageLabel(t, messageCode)
-    : i18n.resolvedLanguage === 'zh-CN' && message
+    : i18n.resolvedLanguage === "zh-CN" && message
       ? message
-      : t('ui.implementation.fallback');
+      : t("ui.implementation.fallback");
   return (
     <Paper className="state-panel" radius="lg" withBorder>
       <Stack align="center" gap="sm">
         <Badge color="orange" size="lg" variant="light">
-          {t('ui.implementation.badge')}
+          {t("ui.implementation.badge")}
         </Badge>
-        <Title order={2}>{t('ui.implementation.title')}</Title>
+        <Title order={2}>{t("ui.implementation.title")}</Title>
         <Text c="dimmed" maw={620} ta="center">
           {visibleMessage}
         </Text>
@@ -168,12 +171,12 @@ export function ImplementationState({
 /** 提供页面级异步加载状态并向读屏器播报。 */
 export function LoadingState({ label }: { label?: string }) {
   const { t } = useTranslation();
-  const visibleLabel = label ?? t('ui.loadingDefault');
+  const visibleLabel = label ?? t("ui.loadingDefault");
   return (
     <Paper aria-live="polite" className="state-panel" radius="lg" withBorder>
       <Group justify="center">
         <Loader aria-label={visibleLabel} size="sm" />
-        <Text>{t('ui.loadingVisible', { label: visibleLabel })}</Text>
+        <Text>{t("ui.loadingVisible", { label: visibleLabel })}</Text>
       </Group>
     </Paper>
   );
@@ -192,11 +195,11 @@ export function FailureState({
   const { t } = useTranslation();
   const detail = visibleErrorMessage(error, fallback);
   return (
-    <Alert color="red" title={t('ui.failureTitle')} variant="light">
+    <Alert color="red" title={t("ui.failureTitle")} variant="light">
       <Stack gap="sm">
         <Text size="sm">{detail}</Text>
         <Button onClick={onRetry} variant="light">
-          {t('common.retry')}
+          {t("common.retry")}
         </Button>
       </Stack>
     </Alert>
@@ -206,7 +209,7 @@ export function FailureState({
 /** 根据后端索引四态解释空统计，并只引导用户进入显式扫描页面。 */
 export function LocalIndexNotice({ state }: { state: LocalIndexState }) {
   const { t } = useTranslation();
-  if (state === 'ready') {
+  if (state === "ready") {
     return null;
   }
   const notice = {
@@ -217,7 +220,7 @@ export function LocalIndexNotice({ state }: { state: LocalIndexState }) {
 
   return (
     <Alert
-      color={state === 'readyNoCalls' ? 'blue' : 'orange'}
+      color={state === "readyNoCalls" ? "blue" : "orange"}
       title={notice.title}
       variant="light"
     >
@@ -246,10 +249,10 @@ export function FactMeta<T>({ fact }: { fact: MetricFactDto<T> }) {
       <Badge color="gray" variant="light">
         {freshnessLabel(fact.freshness)}
       </Badge>
-      <Badge color={fact.completeness === 'complete' ? 'green' : 'orange'} variant="light">
+      <Badge color={fact.completeness === "complete" ? "green" : "orange"} variant="light">
         {completenessLabel(fact.completeness)}
       </Badge>
-      <Badge color={fact.confidence === 'exact' ? 'blue' : 'orange'} variant="light">
+      <Badge color={fact.confidence === "exact" ? "blue" : "orange"} variant="light">
         {confidenceLabel(fact.confidence)}
       </Badge>
     </Group>

@@ -6,28 +6,35 @@ import {
   SimpleGrid,
   Stack,
   Text,
-} from '@mantine/core';
-import { useAtom, useAtomValue } from 'jotai';
-import { useTranslation } from 'react-i18next';
+} from "@mantine/core";
+import { useAtom, useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
-import type { UsageWindow, WorkbuddyDailyBucketDto, WorkbuddyWindowDto } from '../api/usage';
-import { DistributionChart, type DistributionRow } from '../components/charts/DistributionChart';
-import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
-import { TokenTotalDisplay } from '../components/UsageUi';
+import type {
+  UsageWindow,
+  WorkbuddyDailyBucketDto,
+  WorkbuddyWindowDto,
+} from "../api/usage";
+import {
+  DistributionChart,
+  type DistributionRow,
+} from "../components/charts/DistributionChart";
+import { TimeSeriesChart } from "../components/charts/TimeSeriesChart";
+import { TokenTotalDisplay } from "../components/UsageUi";
 import {
   chartPreferencesAtom,
   workbuddyChartPreferencesAtom,
   type WorkbuddyChartGroup,
   type WorkbuddyChartMetric,
-} from '../state/page-session';
+} from "../state/page-session";
 import {
   formatBasisPoints,
   formatCompactTokens,
   formatCredits,
   formatTokens,
-} from '../usage-format';
-import { usageWindowOrder } from './overview-windows';
-import { WorkbuddyQueryGate } from './WorkbuddyGate';
+} from "../usage-format";
+import { usageWindowOrder } from "./overview-windows";
+import { WorkbuddyQueryGate } from "./WorkbuddyGate";
 import {
   CREDITS_SERIES_COLOR,
   REQUESTS_SERIES_COLOR,
@@ -43,8 +50,8 @@ import {
   workbuddyChartMetricsForGroup,
   workbuddyCompletedTraceCount,
   workbuddyDailyMetricValue,
-} from './WorkbuddyShared';
-import '../charts.css';
+} from "./WorkbuddyShared";
+import "../charts.css";
 
 /** 看板图表选项卡选中 WorkBuddy：同一页同时展示趋势图与用量分布。 */
 export function WorkbuddyCharts() {
@@ -89,37 +96,46 @@ function WorkbuddyOverviewCharts() {
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('statistics.summary.totalTokens')}
+            {t("statistics.summary.totalTokens")}
           </Text>
           <TokenTotalDisplay className="window-number" value={selected?.tokens ?? 0} />
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('metric.input')}
+            {t("metric.input")}
           </Text>
           <TokenTotalDisplay className="window-number" value={selected?.inputTokens ?? 0} />
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('metric.cachedInput')}
+            {t("metric.cachedInput")}
           </Text>
-          <TokenTotalDisplay className="window-number" value={selected?.cachedInputTokens ?? 0} />
+          <TokenTotalDisplay
+            className="window-number"
+            value={selected?.cachedInputTokens ?? 0}
+          />
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('metric.uncachedInput')}
+            {t("metric.uncachedInput")}
           </Text>
-          <TokenTotalDisplay className="window-number" value={selected?.uncachedInputTokens ?? 0} />
+          <TokenTotalDisplay
+            className="window-number"
+            value={selected?.uncachedInputTokens ?? 0}
+          />
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('metric.output')}
+            {t("metric.output")}
           </Text>
-          <TokenTotalDisplay className="window-number" value={selected?.outputTokens ?? 0} />
+          <TokenTotalDisplay
+            className="window-number"
+            value={selected?.outputTokens ?? 0}
+          />
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('workbuddy.totalRequests')}
+            {t("workbuddy.totalRequests")}
           </Text>
           <Text className="window-number" fw={800}>
             {formatTokens(selected?.requestCount ?? 0)}
@@ -127,7 +143,7 @@ function WorkbuddyOverviewCharts() {
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('workbuddy.summarySessions')}
+            {t("workbuddy.summarySessions")}
           </Text>
           <Text className="window-number" fw={800}>
             {formatTokens(selected?.sessionCount ?? 0)}
@@ -135,7 +151,7 @@ function WorkbuddyOverviewCharts() {
         </Paper>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
           <Text c="dimmed" size="sm">
-            {t('workbuddy.totalCredits')}
+            {t("workbuddy.totalCredits")}
           </Text>
           <Text className="window-number" fw={800}>
             {formatCredits(selected?.credits ?? null)}
@@ -151,7 +167,7 @@ function WorkbuddyOverviewCharts() {
       ) : dailyBuckets.length === 0 ? (
         <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
           <Text c="dimmed" ta="center">
-            {t('workbuddy.noDailyData')}
+            {t("workbuddy.noDailyData")}
           </Text>
         </Paper>
       ) : (
@@ -183,7 +199,7 @@ function WorkbuddyTrendCharts({
   labels,
   points,
 }: {
-  granularity: 'hour' | 'day';
+  granularity: "hour" | "day";
   labels: string[];
   points: WorkbuddyTrendPoint[];
 }) {
@@ -192,13 +208,21 @@ function WorkbuddyTrendCharts({
     return null;
   }
   const sessionsTitle =
-    granularity === 'hour' ? t('workbuddy.hourlySessionsTitle') : t('workbuddy.dailySessionsTitle');
+    granularity === "hour"
+      ? t("workbuddy.hourlySessionsTitle")
+      : t("workbuddy.dailySessionsTitle");
   const requestsTitle =
-    granularity === 'hour' ? t('workbuddy.hourlyRequestsTitle') : t('workbuddy.dailyRequestsTitle');
+    granularity === "hour"
+      ? t("workbuddy.hourlyRequestsTitle")
+      : t("workbuddy.dailyRequestsTitle");
   const tokensTitle =
-    granularity === 'hour' ? t('workbuddy.hourlyTokensTitle') : t('workbuddy.dailyTokensTitle');
+    granularity === "hour"
+      ? t("workbuddy.hourlyTokensTitle")
+      : t("workbuddy.dailyTokensTitle");
   const creditsTitle =
-    granularity === 'hour' ? t('workbuddy.hourlyCreditsTitle') : t('workbuddy.dailyCreditsTitle');
+    granularity === "hour"
+      ? t("workbuddy.hourlyCreditsTitle")
+      : t("workbuddy.dailyCreditsTitle");
   return (
     <>
       <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
@@ -212,8 +236,8 @@ function WorkbuddyTrendCharts({
             series={[
               {
                 color: REQUESTS_SERIES_COLOR,
-                id: 'requests',
-                label: t('workbuddy.totalRequests'),
+                id: "requests",
+                label: t("workbuddy.totalRequests"),
                 values: points.map((point) => point.requestCount),
               },
             ]}
@@ -231,8 +255,8 @@ function WorkbuddyTrendCharts({
             series={[
               {
                 color: SESSIONS_SERIES_COLOR,
-                id: 'sessions',
-                label: t('workbuddy.totalSessions'),
+                id: "sessions",
+                label: t("workbuddy.totalSessions"),
                 values: points.map((point) => point.sessionCount),
               },
             ]}
@@ -250,8 +274,8 @@ function WorkbuddyTrendCharts({
             series={[
               {
                 color: TOKENS_SERIES_COLOR,
-                id: 'tokens',
-                label: t('workbuddy.totalTokens'),
+                id: "tokens",
+                label: t("workbuddy.totalTokens"),
                 values: points.map((point) => point.tokens),
               },
             ]}
@@ -269,8 +293,8 @@ function WorkbuddyTrendCharts({
             series={[
               {
                 color: CREDITS_SERIES_COLOR,
-                id: 'credits',
-                label: t('workbuddy.totalCredits'),
+                id: "credits",
+                label: t("workbuddy.totalCredits"),
                 values: points.map((point) => point.credits),
               },
             ]}
@@ -305,7 +329,7 @@ function WorkbuddyUsageDistribution() {
     group: chartSearch.group,
     metric,
     shareLabel: (value, total) =>
-      t('workbuddy.chartShare', {
+      t("workbuddy.chartShare", {
         share: formatBasisPoints(total <= 0 ? 0 : Math.round((value / total) * 10_000)),
       }),
     t: (key) => t(key),
@@ -325,7 +349,7 @@ function WorkbuddyUsageDistribution() {
         <Group align="end" gap="md">
           <NativeSelect
             data={groupOptions}
-            label={t('charts.controls.dimension')}
+            label={t("charts.controls.dimension")}
             onChange={(event) => {
               const group = event.currentTarget.value as WorkbuddyChartGroup;
               setChartSearch({
@@ -337,7 +361,7 @@ function WorkbuddyUsageDistribution() {
           />
           <NativeSelect
             data={metricOptions}
-            label={t('charts.controls.metric')}
+            label={t("charts.controls.metric")}
             onChange={(event) =>
               setChartSearch({
                 ...chartSearch,
@@ -351,17 +375,19 @@ function WorkbuddyUsageDistribution() {
       <Paper className="chart-panel" p="lg" radius="lg" withBorder>
         <Stack gap="lg">
           <Stack gap={2}>
-            <Text fw={700}>{t('charts.distribution.title')}</Text>
+            <Text fw={700}>{t("charts.distribution.title")}</Text>
             <Text c="dimmed" size="sm">
-              {t('workbuddy.chartDistributionDescription')}
+              {t("workbuddy.chartDistributionDescription")}
             </Text>
           </Stack>
           <DistributionChart
-            ariaLabel={t('charts.distribution.barAria')}
-            emptyLabel={t('charts.distribution.empty')}
+            ariaLabel={t("charts.distribution.barAria")}
+            emptyLabel={t("charts.distribution.empty")}
             formatAxisValue={(value) => formatWorkbuddyChartAxis(metric, value)}
             formatValue={(value) =>
-              value === null ? t('common.notProvided') : formatWorkbuddyChartAxis(metric, value)
+              value === null
+                ? t("common.notProvided")
+                : formatWorkbuddyChartAxis(metric, value)
             }
             rows={rows}
           />
@@ -382,7 +408,7 @@ function WorkbuddyChartWindowControl({
   const { t } = useTranslation();
   return (
     <SegmentedControl
-      aria-label={t('charts.controls.window')}
+      aria-label={t("charts.controls.window")}
       data={usageWindowOrder.map((window) => ({
         label: t(`window.${window}`),
         value: window,
@@ -409,18 +435,22 @@ function buildWorkbuddyDistributionRows({
   t: (key: string) => string;
   window: WorkbuddyWindowDto | undefined;
 }): DistributionRow[] {
-  if (group === 'traceStatus') {
+  if (group === "traceStatus") {
     if (!window || window.traceTotalCount === 0) {
       return [];
     }
     const rows = [
       {
-        id: 'completed',
-        label: t('workbuddy.traceCompleted'),
+        id: "completed",
+        label: t("workbuddy.traceCompleted"),
         value: workbuddyCompletedTraceCount(window),
       },
-      { id: 'error', label: t('workbuddy.traceError'), value: window.traceErrorCount },
-      { id: 'cancelled', label: t('workbuddy.traceCancelled'), value: window.traceCancelledCount },
+      { id: "error", label: t("workbuddy.traceError"), value: window.traceErrorCount },
+      {
+        id: "cancelled",
+        label: t("workbuddy.traceCancelled"),
+        value: window.traceCancelledCount,
+      },
     ];
     const total = window.traceTotalCount;
     return rows.map((row) => ({
@@ -439,7 +469,7 @@ function buildWorkbuddyDistributionRows({
       id: bucket.date,
       label: bucket.date,
       remainder: false,
-      shareLabel: value === null ? t('common.notProvided') : shareLabel(value, total),
+      shareLabel: value === null ? t("common.notProvided") : shareLabel(value, total),
       value,
     };
   });
@@ -447,7 +477,7 @@ function buildWorkbuddyDistributionRows({
 
 /** 按当前指标格式化分布图轴与精确值。 */
 function formatWorkbuddyChartAxis(metric: WorkbuddyChartMetric, value: number): string {
-  if (metric === 'credits') {
+  if (metric === "credits") {
     return formatCredits(value);
   }
   return formatTokens(value);

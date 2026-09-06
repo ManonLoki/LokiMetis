@@ -1,8 +1,8 @@
-import type { Completeness, Confidence, Freshness, ProviderKind } from './api/usage';
-import { appI18n } from './i18n';
+import type { Completeness, Confidence, Freshness, ProviderKind } from "./api/usage";
+import { appI18n } from "./i18n";
 
 /** 看板数字与日期格式化使用的界面语言。 */
-type SupportedLocale = 'zh-CN' | 'en-US';
+type SupportedLocale = "zh-CN" | "en-US";
 
 // `Intl.NumberFormat`/`Intl.DateTimeFormat` 都是浏览器内置的国际化格式化
 // 器，构造它们本身有一定开销（需要加载对应 locale 的格式规则）；
@@ -20,11 +20,15 @@ const calendarDateFormatters = new Map<string, Intl.DateTimeFormat>();
 /** 解析格式化 locale，缺失时使用当前 i18n 语言。 */
 function currentLocale(locale?: SupportedLocale): SupportedLocale {
   if (locale) return locale;
-  return appI18n.resolvedLanguage === 'zh-CN' ? 'zh-CN' : 'en-US';
+  return appI18n.resolvedLanguage === "zh-CN" ? "zh-CN" : "en-US";
 }
 
 /** 按 locale 复用不可变格式化器，避免重复构造。 */
-function cachedFormatter<T>(cache: Map<string, T>, locale: SupportedLocale, create: () => T): T {
+function cachedFormatter<T>(
+  cache: Map<string, T>,
+  locale: SupportedLocale,
+  create: () => T,
+): T {
   const existing = cache.get(locale);
   if (existing) return existing;
   const formatter = create();
@@ -40,19 +44,21 @@ function translated(key: string, locale: SupportedLocale): string {
 /** 把大整数 Token 按当前 locale 格式化为稳定数字展示。 */
 export function formatTokens(value: number | null, targetLocale?: SupportedLocale): string {
   const locale = currentLocale(targetLocale);
-  if (value === null) return translated('common.notProvided', locale);
-  return cachedFormatter(numberFormatters, locale, () => new Intl.NumberFormat(locale)).format(
-    value,
-  );
+  if (value === null) return translated("common.notProvided", locale);
+  return cachedFormatter(
+    numberFormatters,
+    locale,
+    () => new Intl.NumberFormat(locale),
+  ).format(value);
 }
 
 /** 把 Token 按十进制 K/M/B 缩写为固定两位小数；不足 1,000 仍走精确整数。 */
 export function formatCompactTokens(value: number, targetLocale?: SupportedLocale): string {
   const locale = currentLocale(targetLocale);
   const units = [
-    { suffix: 'B', threshold: 1_000_000_000 },
-    { suffix: 'M', threshold: 1_000_000 },
-    { suffix: 'K', threshold: 1_000 },
+    { suffix: "B", threshold: 1_000_000_000 },
+    { suffix: "M", threshold: 1_000_000 },
+    { suffix: "K", threshold: 1_000 },
   ] as const;
   const absoluteValue = Math.abs(value);
   const unitIndex = units.findIndex((unit) => absoluteValue >= unit.threshold);
@@ -90,15 +96,18 @@ export function formatCompactTokens(value: number, targetLocale?: SupportedLocal
 }
 
 /** 把 Unix 毫秒时间按当前 locale 转换为本机时间，空值明确显示未知。 */
-export function formatObservedAt(value: number | null, targetLocale?: SupportedLocale): string {
+export function formatObservedAt(
+  value: number | null,
+  targetLocale?: SupportedLocale,
+): string {
   const locale = currentLocale(targetLocale);
   if (value === null) {
-    return translated('common.noRecordsYet', locale);
+    return translated("common.noRecordsYet", locale);
   }
   return cachedFormatter(
     dateTimeFormatters,
     locale,
-    () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }),
   ).format(value);
 }
 
@@ -112,7 +121,7 @@ export function formatObservedAt(value: number | null, targetLocale?: SupportedL
 export function formatCalendarDate(value: string, targetLocale?: SupportedLocale): string {
   const locale = currentLocale(targetLocale);
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return translated('common.unknown', locale);
+  if (!match) return translated("common.unknown", locale);
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
@@ -122,34 +131,41 @@ export function formatCalendarDate(value: string, targetLocale?: SupportedLocale
     date.getUTCMonth() !== month - 1 ||
     date.getUTCDate() !== day
   ) {
-    return translated('common.unknown', locale);
+    return translated("common.unknown", locale);
   }
   return cachedFormatter(
     calendarDateFormatters,
     locale,
-    () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }),
+    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }),
   ).format(date);
 }
 
 /** 把基点比例格式化为百分比，空值保持“不适用”。 */
-export function formatBasisPoints(value: number | null, targetLocale?: SupportedLocale): string {
+export function formatBasisPoints(
+  value: number | null,
+  targetLocale?: SupportedLocale,
+): string {
   const locale = currentLocale(targetLocale);
-  if (value === null) return translated('common.notApplicable', locale);
+  if (value === null) return translated("common.notApplicable", locale);
   return cachedFormatter(
     percentFormatters,
     locale,
-    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1, style: 'percent' }),
+    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1, style: "percent" }),
   ).format(value / 10_000);
 }
 
 /** 把 WorkBuddy 积分消耗按当前 locale 格式化为固定两位小数；空值保持“未提供”。 */
-export function formatCredits(value: number | null, targetLocale?: SupportedLocale): string {
+export function formatCredits(
+  value: number | null,
+  targetLocale?: SupportedLocale,
+): string {
   const locale = currentLocale(targetLocale);
-  if (value === null) return translated('common.notProvided', locale);
+  if (value === null) return translated("common.notProvided", locale);
   return cachedFormatter(
     creditFormatters,
     locale,
-    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }),
+    () =>
+      new Intl.NumberFormat(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }),
   ).format(value);
 }
 
@@ -157,12 +173,13 @@ export function formatCredits(value: number | null, targetLocale?: SupportedLoca
 export function formatBytes(value: number | null, targetLocale?: SupportedLocale): string {
   const locale = currentLocale(targetLocale);
   if (value === null) {
-    return translated('common.unknown', locale);
+    return translated("common.unknown", locale);
   }
   const decimal = cachedFormatter(
     decimalFormatters,
     locale,
-    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }),
+    () =>
+      new Intl.NumberFormat(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }),
   );
   if (value < 1024) {
     return `${formatTokens(value, locale)} B`;
@@ -174,12 +191,18 @@ export function formatBytes(value: number | null, targetLocale?: SupportedLocale
 }
 
 /** 把稳定 provider 类型映射为不会误导口径的本地化来源名。 */
-export function providerLabel(provider: ProviderKind, targetLocale?: SupportedLocale): string {
+export function providerLabel(
+  provider: ProviderKind,
+  targetLocale?: SupportedLocale,
+): string {
   return translated(`format.provider.${provider}`, currentLocale(targetLocale));
 }
 
 /** 把事实新鲜度映射为本地化状态。 */
-export function freshnessLabel(freshness: Freshness, targetLocale?: SupportedLocale): string {
+export function freshnessLabel(
+  freshness: Freshness,
+  targetLocale?: SupportedLocale,
+): string {
   return translated(`format.freshness.${freshness}`, currentLocale(targetLocale));
 }
 
@@ -192,6 +215,9 @@ export function completenessLabel(
 }
 
 /** 把事实置信度映射为本地化质量提示。 */
-export function confidenceLabel(confidence: Confidence, targetLocale?: SupportedLocale): string {
+export function confidenceLabel(
+  confidence: Confidence,
+  targetLocale?: SupportedLocale,
+): string {
   return translated(`format.confidence.${confidence}`, currentLocale(targetLocale));
 }

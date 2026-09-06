@@ -1,60 +1,60 @@
-import { Group, SegmentedControl, Stack } from '@mantine/core';
-import { Link } from '@tanstack/react-router';
-import { useTranslation } from 'react-i18next';
+import { Group, SegmentedControl, Stack } from "@mantine/core";
+import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import {
   selectDashboardClientOptions,
   selectDashboardWorkbuddyOption,
-} from '../ai-capabilities';
+} from "../ai-capabilities";
 import type {
   AgentClientKind,
   AvailableAiTypeDto,
   UsageViewKind,
-} from '../api/usage-types';
-import { LocalScanProgressBar } from './LocalScanProgressBar';
+} from "../api/usage-types";
+import { LocalScanProgressBar } from "./LocalScanProgressBar";
 
 /** 描述用量区域页头横向菜单中的已批准页面。 */
 interface UsagePageItem {
   /** 页面路由，不承载筛选或敏感信息。 */
   to:
-    | '/dashboard'
-    | '/dashboard/calls'
-    | '/dashboard/usage'
-    | '/dashboard/charts'
-    | '/dashboard/sources'
-    | '/dashboard/settings';
+    | "/dashboard"
+    | "/dashboard/calls"
+    | "/dashboard/usage"
+    | "/dashboard/charts"
+    | "/dashboard/sources"
+    | "/dashboard/settings";
   /** 本地翻译资源中的页面键。 */
-  key: 'overview' | 'calls' | 'statistics' | 'charts' | 'sources' | 'dashboardSettings';
+  key: "overview" | "calls" | "statistics" | "charts" | "sources" | "dashboardSettings";
 }
 
 /** 看板设置始终作为页头最后一项，紧挨数据源或「全部」视图最后一项。 */
 const dashboardSettingsItem: UsagePageItem = {
-  key: 'dashboardSettings',
-  to: '/dashboard/settings',
+  key: "dashboardSettings",
+  to: "/dashboard/settings",
 };
 
 /** 看板横向菜单。 */
 const dashboardPageItems: UsagePageItem[] = [
-  { key: 'overview', to: '/dashboard' },
-  { key: 'statistics', to: '/dashboard/usage' },
-  { key: 'charts', to: '/dashboard/charts' },
-  { key: 'sources', to: '/dashboard/sources' },
+  { key: "overview", to: "/dashboard" },
+  { key: "statistics", to: "/dashboard/usage" },
+  { key: "charts", to: "/dashboard/charts" },
+  { key: "sources", to: "/dashboard/sources" },
   dashboardSettingsItem,
 ];
 
 /** 全部视图只开放可跨 Agent 合并的只读概览与调用页，设置仍出现在最后。 */
 const allDashboardPageItems: UsagePageItem[] = [
-  { key: 'overview', to: '/dashboard' },
-  { key: 'calls', to: '/dashboard/calls' },
+  { key: "overview", to: "/dashboard" },
+  { key: "calls", to: "/dashboard/calls" },
   dashboardSettingsItem,
 ];
 
 /** WorkBuddy 只读视图开放概览、用量与数据源，不提供调用表。 */
 const workbuddyDashboardPageItems: UsagePageItem[] = [
-  { key: 'overview', to: '/dashboard' },
-  { key: 'statistics', to: '/dashboard/usage' },
-  { key: 'charts', to: '/dashboard/charts' },
-  { key: 'sources', to: '/dashboard/sources' },
+  { key: "overview", to: "/dashboard" },
+  { key: "statistics", to: "/dashboard/usage" },
+  { key: "charts", to: "/dashboard/charts" },
+  { key: "sources", to: "/dashboard/sources" },
   dashboardSettingsItem,
 ];
 
@@ -76,9 +76,9 @@ interface DashboardToolbarProps {
 function UsagePageLinks({ view }: { view: UsageViewKind }) {
   const { t } = useTranslation();
   const items =
-    view === 'all'
+    view === "all"
       ? allDashboardPageItems
-      : view === 'workbuddy'
+      : view === "workbuddy"
         ? workbuddyDashboardPageItems
         : dashboardPageItems;
   return items.map((item) => {
@@ -87,8 +87,8 @@ function UsagePageLinks({ view }: { view: UsageViewKind }) {
     return (
       <Link
         activeOptions={{ exact: true }}
-        activeProps={{ 'aria-current': 'page', className: 'navigation-link active' }}
-        aria-label={t('shell.navigation.itemAria', { description, label })}
+        activeProps={{ "aria-current": "page", className: "navigation-link active" }}
+        aria-label={t("shell.navigation.itemAria", { description, label })}
         className="navigation-link"
         key={item.to}
         to={item.to}
@@ -113,10 +113,10 @@ export function DashboardToolbar({
   );
   const workbuddyOption = selectDashboardWorkbuddyOption(availableAiTypes);
   const viewSwitcherData: Array<{ label: string; value: UsageViewKind }> = [
-    { label: t('shell.clientAll'), value: 'all' },
+    { label: t("shell.clientAll"), value: "all" },
     ...switcherData,
     ...(workbuddyStatsEnabled && workbuddyOption
-      ? [{ label: workbuddyOption.name, value: 'workbuddy' as const }]
+      ? [{ label: workbuddyOption.name, value: "workbuddy" as const }]
       : []),
   ];
   const showSwitcher =
@@ -126,7 +126,7 @@ export function DashboardToolbar({
       className="dashboard-toolbar"
       data-dashboard-toolbar=""
       gap={0}
-      style={{ position: 'sticky', top: 0 }}
+      style={{ position: "sticky", top: 0 }}
     >
       <Group
         align="center"
@@ -135,12 +135,12 @@ export function DashboardToolbar({
         justify="space-between"
         wrap="nowrap"
       >
-        <nav aria-label={t('shell.navigation.pagesAria')} className="dashboard-page-nav">
+        <nav aria-label={t("shell.navigation.pagesAria")} className="dashboard-page-nav">
           <UsagePageLinks view={view} />
         </nav>
         {showSwitcher ? (
           <SegmentedControl
-            aria-label={t('shell.clientSelectorAria')}
+            aria-label={t("shell.clientSelectorAria")}
             data={viewSwitcherData}
             onChange={(value) => {
               const selected = viewSwitcherData.find((item) => item.value === value);

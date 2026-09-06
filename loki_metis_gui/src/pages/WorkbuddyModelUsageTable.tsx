@@ -1,9 +1,9 @@
-import { Badge, Group, Paper, Stack, Table, Text } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
+import { Badge, Group, Paper, Stack, Table, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
-import type { WorkbuddyModelUsageWindowDto } from '../api/usage';
-import { TokenTotalDisplay } from '../components/UsageUi';
-import { formatCredits, formatTokens } from '../usage-format';
+import type { WorkbuddyModelUsageWindowDto } from "../api/usage";
+import { TokenTotalDisplay } from "../components/UsageUi";
+import { formatCredits, formatTokens } from "../usage-format";
 
 /** WorkBuddy project JSONL 实际执行模型的逐模型展示属性。 */
 interface WorkbuddyModelUsageTableProps {
@@ -21,7 +21,7 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
 
   return (
     <Paper
-      aria-label={t('workbuddy.modelUsage.title')}
+      aria-label={t("workbuddy.modelUsage.title")}
       className="table-panel"
       data-testid="workbuddy-model-usage"
       radius="lg"
@@ -30,13 +30,13 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
       <Stack gap={0}>
         <Stack gap="xs" p="lg">
           <Group justify="space-between">
-            <Text fw={700}>{t('workbuddy.modelUsage.title')}</Text>
+            <Text fw={700}>{t("workbuddy.modelUsage.title")}</Text>
             <Badge color="violet" variant="light">
-              {t('workbuddy.modelUsage.jsonlScope')}
+              {t("workbuddy.modelUsage.jsonlScope")}
             </Badge>
           </Group>
           <Text c="dimmed" size="sm">
-            {t('workbuddy.modelUsage.description')}
+            {t("workbuddy.modelUsage.description")}
           </Text>
         </Stack>
 
@@ -44,16 +44,16 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
           <Table verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>{t('workbuddy.modelUsage.model')}</Table.Th>
-                <Table.Th ta="right">{t('metric.totalTokens')}</Table.Th>
-                <Table.Th ta="right">{t('metric.input')}</Table.Th>
-                <Table.Th ta="right">{t('metric.cachedInput')}</Table.Th>
-                <Table.Th ta="right">{t('metric.uncachedInput')}</Table.Th>
-                <Table.Th ta="right">{t('metric.output')}</Table.Th>
-                <Table.Th ta="right">{t('workbuddy.modelUsage.requests')}</Table.Th>
-                <Table.Th ta="right">{t('workbuddy.modelUsage.topLevelCalls')}</Table.Th>
-                <Table.Th ta="right">{t('workbuddy.modelUsage.subagentCalls')}</Table.Th>
-                <Table.Th ta="right">{t('workbuddy.totalCredits')}</Table.Th>
+                <Table.Th>{t("workbuddy.modelUsage.model")}</Table.Th>
+                <Table.Th ta="right">{t("metric.totalTokens")}</Table.Th>
+                <Table.Th ta="right">{t("metric.input")}</Table.Th>
+                <Table.Th ta="right">{t("metric.cachedInput")}</Table.Th>
+                <Table.Th ta="right">{t("metric.uncachedInput")}</Table.Th>
+                <Table.Th ta="right">{t("metric.output")}</Table.Th>
+                <Table.Th ta="right">{t("workbuddy.modelUsage.requests")}</Table.Th>
+                <Table.Th ta="right">{t("workbuddy.modelUsage.topLevelCalls")}</Table.Th>
+                <Table.Th ta="right">{t("workbuddy.modelUsage.subagentCalls")}</Table.Th>
+                <Table.Th ta="right">{t("workbuddy.totalCredits")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -61,7 +61,7 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
                 <Table.Tr>
                   <Table.Td colSpan={10}>
                     <Text c="dimmed" py="md" ta="center">
-                      {t('workbuddy.modelUsage.empty')}
+                      {t("workbuddy.modelUsage.empty")}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -69,7 +69,7 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
                 groups.map((group, index) => (
                   <Table.Tr key={group.model ?? `unattributed-${index}`}>
                     <Table.Td fw={700}>
-                      {group.model ?? t('workbuddy.modelUsage.unattributed')}
+                      {group.model ?? t("workbuddy.modelUsage.unattributed")}
                     </Table.Td>
                     <Table.Td ta="right">
                       <TokenTotalDisplay density="inline" value={group.totalTokens} />
@@ -81,7 +81,10 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
                       <TokenTotalDisplay density="inline" value={group.cachedInputTokens} />
                     </Table.Td>
                     <Table.Td ta="right">
-                      <TokenTotalDisplay density="inline" value={group.uncachedInputTokens} />
+                      <TokenTotalDisplay
+                        density="inline"
+                        value={group.uncachedInputTokens}
+                      />
                     </Table.Td>
                     <Table.Td ta="right">
                       <TokenTotalDisplay density="inline" value={group.outputTokens} />

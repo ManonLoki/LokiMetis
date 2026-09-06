@@ -50,7 +50,9 @@ describe("overview local window summary", () => {
       </TestProviders>,
     );
     expect(screen.getByText("Cache and data coverage")).toBeVisible();
-    expect(screen.queryByRole("link", { name: /Browse all calls/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Browse all calls/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/Browse all calls/i)).not.toBeInTheDocument();
   });
 });

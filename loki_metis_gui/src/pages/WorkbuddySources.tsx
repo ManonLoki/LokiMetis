@@ -1,32 +1,32 @@
-import { Alert, Stack } from '@mantine/core';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAtomValue } from 'jotai';
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Alert, Stack } from "@mantine/core";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   getWorkbuddySourceStatus,
   setWorkbuddyStatsEnabled,
   type RootDiscoveryScope,
   type RootDiscoveryStatusDto,
-} from '../api/usage';
-import { synchronizeGlobalPrivacySettings } from '../api/usage-queries';
-import { FailureState, LoadingState } from '../components/UsageUi';
-import { agentClientAtom } from '../state/agent-client';
-import { visibleErrorMessage } from '../visible-error';
-import { SourceDiscoveryPanel } from './SourceDiscoveryPanel';
-import { SourceRootTable } from './SourceRootTable';
+} from "../api/usage";
+import { synchronizeGlobalPrivacySettings } from "../api/usage-queries";
+import { FailureState, LoadingState } from "../components/UsageUi";
+import { agentClientAtom } from "../state/agent-client";
+import { visibleErrorMessage } from "../visible-error";
+import { SourceDiscoveryPanel } from "./SourceDiscoveryPanel";
+import { SourceRootTable } from "./SourceRootTable";
 
 /** WorkBuddy 数据源查询的稳定缓存键；开关切换后据此失效重取。 */
-const WORKBUDDY_SOURCE_STATUS_QUERY_KEY = ['workbuddy-source-status'];
+const WORKBUDDY_SOURCE_STATUS_QUERY_KEY = ["workbuddy-source-status"];
 
 /** 构造 WorkBuddy 发现面板的空闲或刚完成状态；不走三个物理 Agent 的全盘发现。 */
 function workbuddyDiscoveryStatus(
-  state: 'idle' | 'complete',
+  state: "idle" | "complete",
   scope: RootDiscoveryScope,
   installed: boolean,
 ): RootDiscoveryStatusDto {
-  const complete = state === 'complete';
+  const complete = state === "complete";
   return {
     candidatesFound: complete && installed ? 1 : 0,
     directoriesChecked: complete ? 1 : 0,
@@ -34,12 +34,12 @@ function workbuddyDiscoveryStatus(
     fallbackPerformed: false,
     fileNamesChecked: complete ? 1 : 0,
     ioErrors: 0,
-    platform: 'other',
+    platform: "other",
     permissionDenied: 0,
     scope,
     skipped: 0,
     state,
-    strategy: 'metadataTraversal',
+    strategy: "metadataTraversal",
     systemIndexAvailable: false,
     volumesCompleted: complete ? 1 : 0,
     volumesTotal: complete ? 1 : 0,
@@ -53,7 +53,7 @@ export function WorkbuddySources() {
   const client = useAtomValue(agentClientAtom);
   const queryClient = useQueryClient();
   const [discovery, setDiscovery] = useState<RootDiscoveryStatusDto>(() =>
-    workbuddyDiscoveryStatus('idle', 'userPriority', false),
+    workbuddyDiscoveryStatus("idle", "userPriority", false),
   );
   const statusQuery = useQuery({
     queryFn: getWorkbuddySourceStatus,
@@ -62,23 +62,25 @@ export function WorkbuddySources() {
   const toggleMutation = useMutation({
     mutationFn: (enabled: boolean) => setWorkbuddyStatsEnabled(client, enabled),
     onSuccess: async (settings) => {
-      queryClient.setQueryData(['privacy-settings', client], settings);
+      queryClient.setQueryData(["privacy-settings", client], settings);
       synchronizeGlobalPrivacySettings(queryClient, settings);
       await queryClient.invalidateQueries({ queryKey: WORKBUDDY_SOURCE_STATUS_QUERY_KEY });
     },
   });
   const reindexMutation = useMutation({
     mutationFn: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['workbuddy-usage-statistics'] });
-      await queryClient.invalidateQueries({ queryKey: ['workbuddy-statistics'] });
+      await queryClient.invalidateQueries({ queryKey: ["workbuddy-usage-statistics"] });
+      await queryClient.invalidateQueries({ queryKey: ["workbuddy-statistics"] });
     },
   });
 
   if (statusQuery.isPending) {
-    return <LoadingState label={t('workbuddySources.loading')} />;
+    return <LoadingState label={t("workbuddySources.loading")} />;
   }
   if (statusQuery.isError) {
-    return <FailureState error={statusQuery.error} onRetry={() => void statusQuery.refetch()} />;
+    return (
+      <FailureState error={statusQuery.error} onRetry={() => void statusQuery.refetch()} />
+    );
   }
 
   const status = statusQuery.data;
@@ -87,7 +89,7 @@ export function WorkbuddySources() {
   return (
     <Stack className="page-stack" data-testid="workbuddy-sources" gap="xl">
       {toggleMutation.isError ? (
-        <Alert color="red" title={t('ui.failureTitle')}>
+        <Alert color="red" title={t("ui.failureTitle")}>
           {visibleErrorMessage(toggleMutation.error)}
         </Alert>
       ) : null}
@@ -100,7 +102,9 @@ export function WorkbuddySources() {
         onReindex={() => reindexMutation.mutate()}
         onToggleEnabled={(_rootId, nextEnabled) => toggleMutation.mutate(nextEnabled)}
         removePending={false}
-        reindexPendingRootId={reindexMutation.isPending ? (roots[0]?.id ?? 'workbuddy') : null}
+        reindexPendingRootId={
+          reindexMutation.isPending ? (roots[0]?.id ?? "workbuddy") : null
+        }
         renamePending={false}
         roots={roots}
         scanRunning={statusQuery.isFetching}
@@ -119,10 +123,10 @@ export function WorkbuddySources() {
         onCancel={() => undefined}
         onManualAdd={() => undefined}
         onStart={(scope) => {
-          setDiscovery(workbuddyDiscoveryStatus('idle', scope, status.installed));
+          setDiscovery(workbuddyDiscoveryStatus("idle", scope, status.installed));
           void statusQuery.refetch().then((result) => {
             setDiscovery(
-              workbuddyDiscoveryStatus('complete', scope, result.data?.installed === true),
+              workbuddyDiscoveryStatus("complete", scope, result.data?.installed === true),
             );
           });
         }}
