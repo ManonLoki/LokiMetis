@@ -7,13 +7,14 @@ target-platforms = ["windows", "macos", "linux"]
 interfaces = ["gui"]
 
 [workspace.package]
-version = "0.2.7"
+version = "0.2.8"
 edition = "2024"
 rust-version = "1.95"
 
 [workspace.dependencies]
 anyhow = "1.0.104"
 atomic-write-file = { version = "0.3.0", default-features = false }
+encoding_rs = "0.8.35"
 hostname = { version = "0.4.2", default-features = false }
 jiff = "0.2.35"
 loki_metis_core = { path = "loki_metis_core" }
@@ -53,6 +54,7 @@ tauri-plugin-single-instance = { version = "2.4.4", features = ["deep-link"] }
 tauri-plugin-window-state = "2.4.1"
 tempfile = "3.27.0"
 thiserror = "2.0.19"
+toml = "1.1.3"
 tokio = { version = "1.53.1", default-features = false, features = [
     "fs",
     "io-util",

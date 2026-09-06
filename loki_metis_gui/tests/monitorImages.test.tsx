@@ -78,13 +78,14 @@ describe("monitor images page", () => {
 
   /** 对本机图库快照断言筛选控件、预览卡片与删除走本机命令。 */
   test("gallery_snapshot_shows_filters_preview_cards_and_local_delete", async () => {
-    invokeMock.mockImplementation(async (command: string, payload?: { id?: string }) => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      const typedPayload = payload as { id?: string } | undefined;
       if (command === "get_monitor_capabilities") {
         return monitorCapabilitiesFixture({ aiTools: [] });
       }
       if (command === "list_monitor_images_cmd") return mixedGallery();
       if (command === "delete_monitor_image_cmd") {
-        expect(payload?.id).toBe("img-png");
+        expect(typedPayload?.id).toBe("img-png");
         return {
           images: mixedGallery().images.filter((item) => item.id !== "img-png"),
           counts: { jpeg: 1, png: 0, gif: 1 },
@@ -134,5 +135,69 @@ describe("monitor images page", () => {
       });
     });
     expect(invokeMock).not.toHaveBeenCalledWith("delete_remote_image");
+  });
+
+  /** 结构化后端错误只展示本地化安全文案，不泄露路径参数。 */
+  test("structured_backend_error_is_localized_without_sensitive_parameters", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_monitor_capabilities") {
+        throw { code: "error.monitor.imagesReadFailed", params: { path: "/secret" } };
+      }
+      if (command === "list_monitor_images_cmd") return mixedGallery();
+      throw new Error(`unexpected command ${command}`);
+    });
+    render(
+      <TestProviders>
+        <MonitorImagesPage />
+      </TestProviders>,
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveTextContent("[object Object]");
+    expect(alert).not.toHaveTextContent("/secret");
+  });
+
+  /** 批量上传部分成功后即使后续文件失败，也会重新读取已落盘的图库。 */
+  test("partial_batch_upload_failure_refreshes_the_persisted_gallery", async () => {
+    const empty = { images: [], counts: { jpeg: 0, png: 0, gif: 0 } };
+    const persisted = {
+      images: [mixedGallery().images[1]],
+      counts: { jpeg: 0, png: 1, gif: 0 },
+    };
+    let listCount = 0;
+    invokeMock.mockImplementation(async (command, payload) => {
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture({ aiTools: [] });
+      }
+      if (command === "list_monitor_images_cmd") {
+        listCount += 1;
+        return listCount === 1 ? empty : persisted;
+      }
+      if (command === "save_monitor_image_cmd") {
+        const filename = (payload as { filename: string }).filename;
+        if (filename === "first.png") return persisted;
+        throw {
+          code: "error.monitor.imageUnsupportedType",
+          params: { detail: "/private/image-path" },
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+    const { container } = render(
+      <TestProviders>
+        <MonitorImagesPage />
+      </TestProviders>,
+    );
+    await screen.findByText("No local images yet");
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(fileInput, [
+      new File([new Uint8Array([0x89])], "first.png", { type: "image/png" }),
+      new File([new Uint8Array([0x00])], "second.png", { type: "image/png" }),
+    ]);
+
+    expect(await screen.findByRole("img", { name: "icon.png" })).toBeVisible();
+    expect(listCount).toBeGreaterThanOrEqual(2);
+    const alert = screen.getByRole("alert");
+    expect(alert).not.toHaveTextContent("[object Object]");
+    expect(alert).not.toHaveTextContent("/private/image-path");
   });
 });

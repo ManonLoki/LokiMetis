@@ -1,11 +1,16 @@
 import { Button, Center, Stack, Text, Title } from "@mantine/core";
-import { createRootRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { useEffect, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppShellFrame } from "../components/AppShell";
-import { isPetOverlayPath } from "../default-landing";
+import { isPetOverlayPath, isPetSettingsPath, isPetWindowPath } from "../default-landing";
 
 /** 渲染未知路由的可恢复本地错误页。 */
 function NotFoundPage(): ReactElement {
@@ -53,17 +58,21 @@ function RouteErrorPage(): ReactElement {
   );
 }
 
-/** 桌宠悬浮窗不挂主壳；其它路由继续使用精简侧栏壳。 */
+/** 桌宠与桌宠设置窗不挂主壳；其它路由继续使用精简侧栏壳。 */
 function RootLayout(): ReactElement {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const pet = isPetOverlayPath(pathname);
+  const petSettings = isPetSettingsPath(pathname);
+  const petWindow = isPetWindowPath(pathname);
   useEffect(() => {
     document.documentElement.classList.toggle("pet-window", pet);
+    document.documentElement.classList.toggle("pet-settings-window", petSettings);
     return () => {
       document.documentElement.classList.remove("pet-window");
+      document.documentElement.classList.remove("pet-settings-window");
     };
-  }, [pet]);
-  if (pet) {
+  }, [pet, petSettings]);
+  if (petWindow) {
     return <Outlet />;
   }
   return <AppShellFrame />;

@@ -2,9 +2,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{
-    CoverageState, LocalUsageWindow, TimeStandard, UsageDimension,
-};
+use loki_metis_core::{CoverageState, LocalUsageWindow, TimeStandard, UsageDimension};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 

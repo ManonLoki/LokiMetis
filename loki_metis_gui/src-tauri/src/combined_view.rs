@@ -19,9 +19,9 @@ use crate::dto::{
     LocalRecordsSectionDto, UsageCallsPageDto, UsageCallsQueryDto, UsageChartDimensionDto,
     UsageChartDto, UsageWindow,
 };
-use crate::statistics_view::to_core_window;
 use crate::local_view::{local_read_error, map_local_windows, open_recent_usage_snapshot};
 use crate::runtime::AppRuntimeState;
+use crate::statistics_view::to_core_window;
 
 /// 「全部」概览的本机事实，以及可选 WorkBuddy 当次是否读取失败。
 pub(crate) struct CombinedOverviewResult {

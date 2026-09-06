@@ -1,4 +1,4 @@
-//! AgentHooks 领域：四项 Agent 的 Hook 协议、生成/合并与写入结果。
+//! AgentHooks 领域：十四项 AI 工具的 Hook 协议、生成/合并与状态归约。
 //!
 //! 公共流程只依赖 [`HookProtocol`]；事件名、配置 JSON 结构、命令输出约定和
 //! 托管条目布局由各工具的独立实现负责。
@@ -13,9 +13,19 @@ use std::time::Duration;
 
 // 以下每个子模块对应一个受支持的 AI 工具协议实现，模块名与工具 slug 对应
 mod claude_code;
+mod code_buddy;
 mod codex;
+mod cursor;
+mod gemini_cli;
 mod generation;
+mod github_copilot;
 mod grok;
+mod hermes;
+mod kimi_code;
+mod open_claw;
+mod open_code;
+mod qoder;
+mod qwen_code;
 mod work_buddy;
 
 // 仅在测试编译时包含跨工具契约测试模块
@@ -29,14 +39,17 @@ use serde_json::{Map, Value, json};
 use generation::command_has_marker;
 // 对外重新导出配置生成、WSL 配置生成、配置合并三个公开入口
 pub use error::HookError;
-pub use generation::{generate_hook_config, generate_wsl_hook_config, merge_hook_config};
+pub use generation::{
+    generate_hook_config, generate_wsl_hook_config, merge_hook_config, remove_managed_hook_entries,
+};
 pub use payload::{MinimalHookPayload, PreparedNativeHook, prepare_native_hook};
 pub use state_machine::{HookEventDecision, HookStateMachine};
 pub use types::{
-    AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
-    HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
-    HookTransition, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, hook_relay_loopback_address,
-    normalize_enabled_ai_tools,
+    AiTool, AiToolDescriptor, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
+    HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
+    HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigDirectories, HookConfigLocation,
+    HookConfigPreview, HookConfigWriteResult, HookTransition, HookWriteOutcome,
+    MAX_NATIVE_HOOK_INPUT_BYTES, hook_relay_loopback_address, normalize_enabled_ai_tools,
 };
 
 // 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetis 写入的条目
@@ -177,7 +190,7 @@ pub(super) trait HookProtocol: Sync {
         Vec::new()
     }
 
-    /// 合并独立文件。默认只覆盖带当前工具 `AIMonitor` 标识的受管文件；需要与
+    /// 合并独立文件。默认只覆盖带当前工具 `LokiMetis` 标识的受管文件；需要与
     /// 用户内容共存的独立格式可自行覆盖。
     fn merge_standalone(
         &self,
@@ -191,7 +204,7 @@ pub(super) trait HookProtocol: Sync {
             return Err(HookError::new("error.hooks.foreignFileRejected")
                 .param("filename", generated.filename.clone()));
         }
-        // 否则直接用新生成的内容整体替换（默认策略：独立文件整体由 AIMonitor 托管）
+        // 否则直接用新生成的内容整体替换（默认策略：独立文件整体由 LokiMetis 托管）
         Ok(generated.content.clone())
     }
 
@@ -266,8 +279,18 @@ pub(super) fn protocol(tool: AiTool) -> &'static dyn HookProtocol {
     match tool {
         AiTool::Codex => &codex::CODEX,
         AiTool::ClaudeCode => &claude_code::CLAUDE_CODE,
-        AiTool::Grok => &grok::GROK,
+        AiTool::Cursor => &cursor::CURSOR,
+        AiTool::OpenCode => &open_code::OPEN_CODE,
         AiTool::WorkBuddy => &work_buddy::WORK_BUDDY,
+        AiTool::Hermes => &hermes::HERMES,
+        AiTool::OpenClaw => &open_claw::OPEN_CLAW,
+        AiTool::CodeBuddy => &code_buddy::CODE_BUDDY,
+        AiTool::QwenCode => &qwen_code::QWEN_CODE,
+        AiTool::KimiCode => &kimi_code::KIMI_CODE,
+        AiTool::Qoder => &qoder::QODER,
+        AiTool::GeminiCli => &gemini_cli::GEMINI_CLI,
+        AiTool::GitHubCopilot => &github_copilot::GITHUB_COPILOT,
+        AiTool::Grok => &grok::GROK,
     }
 }
 
@@ -341,7 +364,7 @@ pub(super) fn hook_restart_required(tool: AiTool) -> bool {
     protocol(tool).changed_write_outcome().restart_required()
 }
 
-/// 判断配置内容中是否已包含当前工具的 `AIMonitor` 管理标识。
+/// 判断配置内容中是否已包含当前工具的 `LokiMetis` 管理标识。
 pub fn hook_config_has_managed_marker(content: &str, tool: AiTool) -> bool {
     contains_managed_marker(content, tool)
 }
@@ -354,7 +377,7 @@ pub fn tool_from_slug(slug: &str) -> Option<AiTool> {
         .find(|tool| protocol(*tool).slug() == slug)
 }
 
-// 返回该工具需要一并写入的附加受管文件（独立插件的元数据/清单等）
+/// 返回该工具需要一并写入的附加受管文件（独立插件的元数据/清单等）。
 pub fn generate_hook_auxiliary_configs(tool: AiTool) -> Vec<HookConfigPreview> {
     protocol(tool).auxiliary_configs()
 }
@@ -385,6 +408,12 @@ pub(crate) fn release_settle_delay(tool: AiTool) -> Duration {
 // 返回该工具是否允许显式 SessionStart 覆盖同 ID 墓碑
 pub(crate) fn session_start_revives_tombstone(tool: AiTool) -> bool {
     protocol(tool).session_start_revives_tombstone()
+}
+
+/// 查找某工具事件声明的基础状态迁移，供协议契约测试使用。
+#[cfg(test)]
+pub(super) fn hook_transition(tool: AiTool, event: &str) -> Option<HookTransition> {
+    event_definition(tool, event).map(|definition| definition.kind.transition())
 }
 
 /// 构造 Claude-Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。
@@ -429,10 +458,22 @@ pub(super) fn platform_command(commands: &ManagedCommands) -> &str {
 pub(crate) fn forwards_every_event(tool: AiTool) -> bool {
     // 只有具备稳定会话/工作开始语义并经过状态机适配验证的工具执行抑制；
     // 其他协议按事件到达顺序直通，避免公共状态机误丢上游事件。
-    !matches!(tool, AiTool::Codex | AiTool::ClaudeCode | AiTool::Grok)
+    !matches!(
+        tool,
+        AiTool::Codex
+            | AiTool::ClaudeCode
+            | AiTool::Cursor
+            | AiTool::OpenCode
+            | AiTool::QwenCode
+            | AiTool::KimiCode
+            | AiTool::Qoder
+            | AiTool::GeminiCli
+            | AiTool::GitHubCopilot
+            | AiTool::Grok
+    )
 }
 
-// 判断 hooks 配置条目是否携带该工具的 AIMonitor 管理标识。
+// 判断 hooks 配置条目是否携带该工具的 LokiMetis 管理标识。
 fn entry_is_managed<P: HookProtocol + ?Sized>(entry: &Value, protocol: &P) -> bool {
     ["command", "commandWindows"]
         .into_iter()

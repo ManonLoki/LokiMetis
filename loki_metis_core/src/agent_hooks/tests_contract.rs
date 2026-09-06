@@ -1,68 +1,525 @@
-//! 四项 Agent 的目录、写入结果与 slug 契约。
+//! 十四项 AI 工具的目录、协议分发、写入结果与 slug 契约。
+
+use std::time::Duration;
 
 use super::{
-    ai_tool_descriptors, hook_changed_write_outcome, hook_requires_review, hook_restart_required,
-    protocol,
+    ai_tool_descriptors, generate_hook_auxiliary_configs, generate_hook_config,
+    hook_changed_write_outcome, hook_config_write_result, hook_requires_review,
+    hook_restart_required, hook_supports_wsl, protocol, release_settle_delay,
+    session_start_revives_tombstone, tool_from_slug,
 };
 use crate::agent_hooks::{AiTool, HookWriteOutcome};
 
-const TOOL_CONTRACTS: [(AiTool, &str, HookWriteOutcome); 4] = [
-    (AiTool::Codex, "Codex", HookWriteOutcome::CodexReviewRequired),
-    (AiTool::ClaudeCode, "Claude Code", HookWriteOutcome::Active),
-    (AiTool::Grok, "Grok Build", HookWriteOutcome::RestartRequired),
+/// 各 adapter 唯一拥有的目录契约。
+const TOOL_CONTRACTS: [(AiTool, &str, &str, HookWriteOutcome); 14] = [
+    (
+        AiTool::Codex,
+        "Codex",
+        "codex",
+        HookWriteOutcome::CodexReviewRequired,
+    ),
+    (
+        AiTool::ClaudeCode,
+        "Claude Code",
+        "claude-code",
+        HookWriteOutcome::Active,
+    ),
+    (AiTool::Cursor, "Cursor", "cursor", HookWriteOutcome::Active),
+    (
+        AiTool::OpenCode,
+        "OpenCode",
+        "opencode",
+        HookWriteOutcome::Active,
+    ),
     (
         AiTool::WorkBuddy,
         "WorkBuddy",
+        "workbuddy",
         HookWriteOutcome::WorkBuddyReviewRequired,
+    ),
+    (
+        AiTool::Hermes,
+        "Hermes",
+        "hermes",
+        HookWriteOutcome::HermesEnableRequired,
+    ),
+    (
+        AiTool::OpenClaw,
+        "OpenClaw",
+        "openclaw",
+        HookWriteOutcome::OpenClawEnableRequired,
+    ),
+    (
+        AiTool::CodeBuddy,
+        "CodeBuddy",
+        "codebuddy",
+        HookWriteOutcome::CodeBuddyReviewRequired,
+    ),
+    (
+        AiTool::QwenCode,
+        "Qwen Code",
+        "qwen-code",
+        HookWriteOutcome::RestartRequired,
+    ),
+    (
+        AiTool::KimiCode,
+        "Kimi Code",
+        "kimi-code",
+        HookWriteOutcome::RestartRequired,
+    ),
+    (AiTool::Qoder, "Qoder", "qoder", HookWriteOutcome::Active),
+    (
+        AiTool::GeminiCli,
+        "Gemini CLI",
+        "gemini-cli",
+        HookWriteOutcome::RestartRequired,
+    ),
+    (
+        AiTool::GitHubCopilot,
+        "GitHub Copilot CLI",
+        "github-copilot",
+        HookWriteOutcome::RestartRequired,
+    ),
+    (
+        AiTool::Grok,
+        "Grok Build",
+        "grok",
+        HookWriteOutcome::RestartRequired,
     ),
 ];
 
-/// 工具目录与写入结果完全由协议实现驱动，且覆盖全部四项 Agent。
 #[test]
-fn tool_catalog_and_write_outcomes_are_protocol_owned_and_complete() {
+fn tool_catalog_slugs_and_write_outcomes_are_protocol_owned_and_complete() {
     let descriptors = ai_tool_descriptors();
     assert_eq!(descriptors.len(), AiTool::ALL.len());
-    for (expected_tool, expected_name, expected_outcome) in TOOL_CONTRACTS {
+    for (tool, expected_name, slug, expected_outcome) in TOOL_CONTRACTS {
         let descriptor = descriptors
             .iter()
-            .find(|candidate| candidate.tool == expected_tool)
-            .unwrap_or_else(|| panic!("missing catalog entry for {expected_tool:?}"));
+            .find(|candidate| candidate.tool == tool)
+            .unwrap_or_else(|| panic!("missing catalog entry for {tool:?}"));
         assert_eq!(descriptor.name, expected_name);
-        assert_eq!(protocol(expected_tool).tool(), expected_tool);
-        assert_eq!(hook_changed_write_outcome(expected_tool), expected_outcome);
+        assert_eq!(protocol(tool).tool(), tool);
+        assert_eq!(tool_from_slug(slug), Some(tool));
+        assert_eq!(hook_changed_write_outcome(tool), expected_outcome);
         assert_eq!(
-            hook_requires_review(expected_tool),
+            hook_requires_review(tool),
             expected_outcome.requires_review()
         );
         assert_eq!(
-            hook_restart_required(expected_tool),
+            hook_restart_required(tool),
             expected_outcome.restart_required()
+        );
+
+        let changed = hook_config_write_result(tool, "config".to_owned(), true);
+        assert_eq!(changed.outcome, expected_outcome);
+        assert!(changed.config_changed);
+        let unchanged = hook_config_write_result(tool, "config".to_owned(), false);
+        assert_eq!(unchanged.outcome, HookWriteOutcome::Unchanged);
+        assert!(!unchanged.config_changed);
+        assert!(!unchanged.requires_review);
+        assert!(!unchanged.restart_required);
+    }
+}
+
+#[test]
+fn settings_ai_client_catalog_is_sorted_by_display_name_ascending() {
+    let names = ai_tool_descriptors()
+        .into_iter()
+        .map(|descriptor| descriptor.name)
+        .collect::<Vec<_>>();
+    assert_eq!(names.len(), AiTool::ALL.len());
+    assert!(names.windows(2).all(|pair| pair[0] < pair[1]));
+}
+
+#[test]
+fn only_standalone_plugins_are_excluded_from_wsl_command_generation() {
+    for tool in AiTool::ALL {
+        assert_eq!(
+            hook_supports_wsl(tool),
+            !matches!(tool, AiTool::OpenCode | AiTool::Hermes | AiTool::OpenClaw),
+            "{tool:?}"
         );
     }
 }
 
-/// 展示目录按名称升序，且不含未批准工具。
 #[test]
-fn settings_ai_client_catalog_is_sorted_by_display_name_ascending() {
-    let names: Vec<_> = ai_tool_descriptors()
-        .into_iter()
-        .map(|item| item.name)
-        .collect();
-    let mut sorted = names.clone();
-    sorted.sort();
-    assert_eq!(names, sorted);
-    assert!(!names.iter().any(|name| name.contains("Cursor")
-        || name.contains("OpenCode")
-        || name.contains("Hermes")));
+fn auxiliary_files_are_declared_only_by_multi_file_plugins() {
+    assert_eq!(generate_hook_auxiliary_configs(AiTool::Hermes).len(), 1);
+    assert_eq!(generate_hook_auxiliary_configs(AiTool::OpenClaw).len(), 2);
+    for tool in AiTool::ALL {
+        if !matches!(tool, AiTool::Hermes | AiTool::OpenClaw) {
+            assert!(generate_hook_auxiliary_configs(tool).is_empty(), "{tool:?}");
+        }
+    }
 }
 
-/// 未批准 slug 不得解析为四项 Agent。
 #[test]
-fn unapproved_slugs_are_rejected() {
-    assert!(super::tool_from_slug("cursor").is_none());
-    assert!(super::tool_from_slug("opencode").is_none());
-    assert_eq!(super::tool_from_slug("codex"), Some(AiTool::Codex));
-    assert_eq!(super::tool_from_slug("claude-code"), Some(AiTool::ClaudeCode));
-    assert_eq!(super::tool_from_slug("grok"), Some(AiTool::Grok));
-    assert_eq!(super::tool_from_slug("workbuddy"), Some(AiTool::WorkBuddy));
+fn standalone_plugins_use_authenticated_rendezvous_and_never_aimonitor_port() {
+    let executable = std::path::Path::new("/opt/LokiMetis/loki_metis_gui");
+    for tool in [AiTool::OpenCode, AiTool::Hermes, AiTool::OpenClaw] {
+        let preview = generate_hook_config(tool, executable).unwrap();
+        assert!(preview.content.contains("loki-metis-hook-relay.json"));
+        assert!(preview.content.contains("X-LokiMetis-Hook-Instance"));
+        assert!(preview.content.contains("instanceId"));
+        assert!(preview.content.contains("schemaVersion"));
+        assert!(preview.content.contains("Content-Length"));
+        for path_contract in [
+            "HOME",
+            "USERPROFILE",
+            ".cache",
+            "Library",
+            "Caches",
+            "AppData",
+            "Local",
+            "lokimetis",
+        ] {
+            assert!(
+                preview.content.contains(path_contract),
+                "{tool:?}: {path_contract}"
+            );
+        }
+        assert!(!preview.content.contains("tmpdir()"));
+        assert!(!preview.content.contains("gettempdir()"));
+        assert!(!preview.content.contains("XDG_RUNTIME_DIR"));
+        assert!(!preview.content.contains("LOCALAPPDATA"));
+        assert!(!preview.content.contains("range(5)"));
+        assert!(!preview.content.contains("attempt < 5"));
+        assert!(!preview.content.contains("time.sleep"));
+        if tool == AiTool::Hermes {
+            assert!(preview.content.contains("os.path.isabs"));
+            assert!(preview.content.contains("HTTPRedirectHandler"));
+            assert!(preview.content.contains("def redirect_request"));
+            assert!(preview.content.contains("return None"));
+            assert!(preview.content.contains("urllib.request.ProxyHandler({})"));
+            assert!(preview.content.contains("build_opener("));
+            assert!(preview.content.contains("NO_REDIRECT_OPENER.open"));
+            assert!(preview.content.contains("timeout=1"));
+            assert!(!preview.content.contains("urllib.request.urlopen"));
+            assert!(!preview.content.contains("setTimeout"));
+        } else {
+            assert!(preview.content.contains("isAbsolute"));
+            assert!(preview.content.contains("from \"node:http\""));
+            assert!(preview.content.contains("host: \"127.0.0.1\""));
+            assert!(preview.content.contains("agent: false"));
+            assert!(preview.content.contains("let settled = false"));
+            assert!(preview.content.contains("let responseStarted = false"));
+            assert!(preview.content.contains("deadline = setTimeout"));
+            assert!(preview.content.contains("}, 3000)"));
+            assert!(preview.content.contains("clearTimeout(deadline)"));
+            assert!(preview.content.contains("relayRequest.destroy(error)"));
+            assert!(preview.content.contains("relayRequest.once(\"close\""));
+            assert!(preview.content.contains("response.once(\"close\""));
+            assert!(
+                preview
+                    .content
+                    .contains("if (!settled && !responseStarted)")
+            );
+            assert!(
+                preview.content.find("response.once(\"end\"").unwrap()
+                    < preview.content.find("response.resume()").unwrap()
+            );
+            assert!(!preview.content.contains("relayRequest.setTimeout"));
+            assert!(preview.content.contains("status < 200 || status >= 300"));
+            assert!(!preview.content.contains("fetch("));
+            assert!(!preview.content.contains("HTTP_PROXY"));
+            assert!(!preview.content.contains("NODE_USE_ENV_PROXY"));
+        }
+        assert!(!preview.content.contains("127.0.0.1:10240"));
+        assert!(!preview.content.contains("/api/hooks/opencode\""));
+        assert!(!preview.content.contains("/api/hooks/hermes\""));
+        assert!(!preview.content.contains("/api/hooks/openclaw\""));
+    }
+}
+
+#[test]
+fn cursor_alone_declares_release_handoff_and_tombstone_rules() {
+    assert_eq!(
+        release_settle_delay(AiTool::Cursor),
+        Duration::from_millis(250)
+    );
+    assert!(!session_start_revives_tombstone(AiTool::Cursor));
+    for tool in AiTool::ALL {
+        if tool != AiTool::Cursor {
+            assert_eq!(release_settle_delay(tool), Duration::ZERO, "{tool:?}");
+            assert!(session_start_revives_tombstone(tool), "{tool:?}");
+        }
+    }
+}
+
+#[test]
+fn every_adapter_exposes_the_complete_source_event_table() {
+    let contracts: [(AiTool, &[&str]); 14] = [
+        (
+            AiTool::Codex,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PermissionRequest",
+                "Stop",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::ClaudeCode,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PermissionRequest",
+                "Elicitation",
+                "PostToolUseFailure",
+                "Stop",
+                "StopFailure",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "Notification",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::Cursor,
+            &[
+                "workspaceOpen",
+                "sessionStart",
+                "beforeSubmitPrompt",
+                "afterFileEdit",
+                "afterShellExecution",
+                "afterMCPExecution",
+                "beforeShellExecution",
+                "beforeMCPExecution",
+                "preToolUse",
+                "postToolUse",
+                "postToolUseFailure",
+                "subagentStart",
+                "subagentStop",
+                "preCompact",
+                "afterAgentResponse",
+                "afterAgentThought",
+                "stop",
+                "sessionEnd",
+            ],
+        ),
+        (
+            AiTool::OpenCode,
+            &[
+                "session.created",
+                "session.busy",
+                "tool.execute.before",
+                "tool.execute.after",
+                "permission.asked",
+                "question.asked",
+                "session.retry",
+                "session.error",
+                "session.idle",
+                "session.deleted",
+            ],
+        ),
+        (
+            AiTool::WorkBuddy,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "PermissionRequest",
+                "Elicitation",
+                "Stop",
+                "StopFailure",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "Notification",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::Hermes,
+            &[
+                "on_session_start",
+                "pre_llm_call",
+                "pre_tool_call",
+                "post_tool_call",
+                "pre_approval_request",
+                "post_approval_response",
+                "api_request_error",
+                "post_llm_call",
+                "on_session_end",
+                "on_session_finalize",
+                "on_session_reset",
+            ],
+        ),
+        (
+            AiTool::OpenClaw,
+            &[
+                "session_start",
+                "before_agent_run",
+                "before_tool_call",
+                "after_tool_call",
+                "agent_end",
+                "session_end",
+            ],
+        ),
+        (
+            AiTool::CodeBuddy,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "PermissionRequest",
+                "PermissionDenied",
+                "Elicitation",
+                "Stop",
+                "StopFailure",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "Notification",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::QwenCode,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "PermissionRequest",
+                "PermissionDenied",
+                "Stop",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "Notification",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::KimiCode,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "PermissionRequest",
+                "Stop",
+                "StopFailure",
+                "Interrupt",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::Qoder,
+            &[
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "Stop",
+            ],
+        ),
+        (
+            AiTool::GeminiCli,
+            &[
+                "SessionStart",
+                "BeforeAgent",
+                "BeforeModel",
+                "AfterModel",
+                "BeforeToolSelection",
+                "BeforeTool",
+                "AfterTool",
+                "PreCompress",
+                "Notification",
+                "AfterAgent",
+                "SessionEnd",
+            ],
+        ),
+        (
+            AiTool::GitHubCopilot,
+            &[
+                "sessionStart",
+                "userPromptSubmitted",
+                "preToolUse",
+                "postToolUse",
+                "postToolUseFailure",
+                "permissionRequest",
+                "agentStop",
+                "subagentStart",
+                "subagentStop",
+                "preCompact",
+                "errorOccurred",
+                "sessionEnd",
+            ],
+        ),
+        (
+            AiTool::Grok,
+            &[
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "PermissionDenied",
+                "Stop",
+                "StopFailure",
+                "StopCancelled",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+                "SessionEnd",
+            ],
+        ),
+    ];
+    for (tool, expected) in contracts {
+        let actual = protocol(tool)
+            .events()
+            .iter()
+            .map(|event| event.name)
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{tool:?}");
+    }
+}
+
+#[test]
+fn event_matchers_match_the_source_protocols() {
+    let expected = [
+        (AiTool::ClaudeCode, "Notification", "idle_prompt"),
+        (AiTool::WorkBuddy, "Notification", "idle_prompt"),
+        (AiTool::CodeBuddy, "Notification", "idle_prompt"),
+        (AiTool::QwenCode, "Notification", "idle_prompt"),
+        (AiTool::GeminiCli, "Notification", "ToolPermission"),
+    ];
+    for tool in AiTool::ALL {
+        for event in protocol(tool).events() {
+            let matcher = expected
+                .iter()
+                .find(|(expected_tool, expected_event, _)| {
+                    *expected_tool == tool && *expected_event == event.name
+                })
+                .map(|(_, _, matcher)| *matcher);
+            assert_eq!(event.matcher, matcher, "{tool:?} {}", event.name);
+        }
+    }
 }

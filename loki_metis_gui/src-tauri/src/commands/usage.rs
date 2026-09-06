@@ -30,8 +30,7 @@ async fn resolve_view(
 ) -> Result<(i64, TimeStandard, Option<AgentClientKindDto>), String> {
     ensure_business_access(state).await?;
     let observed_at_epoch_ms = now_epoch_ms();
-    let time_standard =
-        time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
+    let time_standard = time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
     Ok((observed_at_epoch_ms, time_standard, client.local_client()))
 }
 
@@ -179,8 +178,7 @@ pub(crate) async fn get_usage_statistics(
     let binding = Arc::clone(&state.agent_clients.get(client.into()).local_analysis);
     let coverage = state.coverages.get(client.into()).read().await.clone();
     let (provider, source_label) = binding.identity();
-    let time_standard =
-        time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
+    let time_standard = time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
     load_usage_statistics_for_parser(
         binding.app_data_dir(),
         &coverage,
@@ -246,5 +244,3 @@ pub(super) async fn get_usage_charts_for_state(
     )
     .await
 }
-
-

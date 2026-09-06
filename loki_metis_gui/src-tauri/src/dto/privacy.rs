@@ -74,12 +74,8 @@ impl From<loki_metis_core::TimeStandard> for TimeStandardDto {
     fn from(value: loki_metis_core::TimeStandard) -> Self {
         Self {
             mode: match value.mode() {
-                loki_metis_core::TimeStandardMode::Local => {
-                    TimeStandardModeDto::Local
-                }
-                loki_metis_core::TimeStandardMode::Custom => {
-                    TimeStandardModeDto::Custom
-                }
+                loki_metis_core::TimeStandardMode::Local => TimeStandardModeDto::Local,
+                loki_metis_core::TimeStandardMode::Custom => TimeStandardModeDto::Custom,
             },
             custom_time_zone: value.custom_time_zone_name().map(str::to_owned),
         }
@@ -98,10 +94,7 @@ impl From<TimeStandardModeDto> for loki_metis_core::TimeStandardMode {
 
 impl TimeStandardDto {
     /// 把 IPC 输入解析成 core 标准；自定义一律写成 UTC。
-    pub fn into_time_standard(
-        self,
-        device_time_zone: &str,
-    ) -> loki_metis_core::TimeStandard {
+    pub fn into_time_standard(self, device_time_zone: &str) -> loki_metis_core::TimeStandard {
         loki_metis_core::TimeStandard::resolve(
             self.mode.into(),
             self.custom_time_zone.as_deref(),

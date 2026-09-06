@@ -25,16 +25,33 @@
       },
       {
         "label": "pet",
-        "title": "LokiMetis",
-        "url": "index.html",
-        "width": 360,
-        "height": 360,
+        "title": "LokiMetis 桌宠",
+        "url": "index.html?view=pet",
+        "width": 128,
+        "height": 128,
+        "minWidth": 64,
+        "minHeight": 64,
         "visible": false,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
+        "visibleOnAllWorkspaces": true,
         "skipTaskbar": true,
         "shadow": false,
+        "resizable": true,
+        "fullscreen": false
+      },
+      {
+        "label": "pet-settings",
+        "title": "LokiMetis 桌宠设置",
+        "url": "index.html?view=pet-settings",
+        "width": 320,
+        "height": 470,
+        "minWidth": 280,
+        "minHeight": 440,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
         "resizable": false,
         "fullscreen": false
       }
@@ -77,4 +94,3 @@
     }
   }
 }
-

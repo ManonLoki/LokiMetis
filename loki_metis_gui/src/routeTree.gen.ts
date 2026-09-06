@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as MonitorRouteImport } from './routes/monitor'
 import { Route as PetRouteImport } from './routes/pet'
+import { Route as PetSettingsRouteImport } from './routes/pet-settings'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardCallsRouteImport } from './routes/dashboard/calls'
@@ -43,6 +44,11 @@ const MonitorRoute = MonitorRouteImport.update({
 const PetRoute = PetRouteImport.update({
   id: '/pet',
   path: '/pet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PetSettingsRoute = PetSettingsRouteImport.update({
+  id: '/pet-settings',
+  path: '/pet-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/monitor': typeof MonitorRouteWithChildren
   '/pet': typeof PetRoute
+  '/pet-settings': typeof PetSettingsRoute
   '/settings': typeof SettingsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/pet': typeof PetRoute
+  '/pet-settings': typeof PetSettingsRoute
   '/settings': typeof SettingsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/monitor': typeof MonitorRouteWithChildren
   '/pet': typeof PetRoute
+  '/pet-settings': typeof PetSettingsRoute
   '/settings': typeof SettingsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/monitor'
     | '/pet'
+    | '/pet-settings'
     | '/settings'
     | '/dashboard/calls'
     | '/dashboard/charts'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/pet'
+    | '/pet-settings'
     | '/settings'
     | '/dashboard/calls'
     | '/dashboard/charts'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/monitor'
     | '/pet'
+    | '/pet-settings'
     | '/settings'
     | '/dashboard/calls'
     | '/dashboard/charts'
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   MonitorRoute: typeof MonitorRouteWithChildren
   PetRoute: typeof PetRoute
+  PetSettingsRoute: typeof PetSettingsRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/pet'
       fullPath: '/pet'
       preLoaderRoute: typeof PetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pet-settings': {
+      id: '/pet-settings'
+      path: '/pet-settings'
+      fullPath: '/pet-settings'
+      preLoaderRoute: typeof PetSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -365,6 +385,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRouteWithChildren,
   MonitorRoute: MonitorRouteWithChildren,
   PetRoute: PetRoute,
+  PetSettingsRoute: PetSettingsRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

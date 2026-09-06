@@ -6,7 +6,8 @@
     "BUG-pet-overlay-draft-images",
     "BUG-pet-overlay-moved-persist-physical",
     "BUG-PET-DISPLAY-INITIAL-IMAGE",
-    "BUG-PET-EAR-DISABLE-OPTION"
+    "BUG-PET-EAR-DISABLE-OPTION",
+    "BUG-HOOK-PARITY-20260906"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -126,8 +127,23 @@
       "change_id": "FEAT-PET-OVERLAY-TRAY-CONTROL",
       "kind": "feature",
       "required_version": "0.2.7"
+    },
+    {
+      "change_id": "FEAT-PET-POSITIONS-SINGLE-ROW",
+      "kind": "feature",
+      "required_version": "0.2.7"
+    },
+    {
+      "change_id": "FEAT-AIMONITOR-PET-OVERLAY-PARITY",
+      "kind": "feature",
+      "required_version": "0.2.7"
+    },
+    {
+      "change_id": "BUG-HOOK-PARITY-20260906",
+      "kind": "bug-fix",
+      "required_version": "0.2.8"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.7"
+  "target_version": "0.2.8"
 }

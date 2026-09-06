@@ -90,9 +90,7 @@ pub(crate) async fn load_usage_statistics_for_parser(
 }
 
 /// 把 core 的统计分页结果映射为 DTO 统计响应。
-pub(crate) fn to_dto_statistics(
-    page: loki_metis_core::UsageStatisticsPage,
-) -> UsageStatisticsDto {
+pub(crate) fn to_dto_statistics(page: loki_metis_core::UsageStatisticsPage) -> UsageStatisticsDto {
     UsageStatisticsDto {
         window: to_dto_window(page.window),
         dimension: page.dimension,
@@ -120,9 +118,7 @@ pub(crate) fn to_dto_statistics(
 }
 
 /// 把 core 的单个统计分组映射为 DTO。
-pub(crate) fn to_dto_group(
-    group: loki_metis_core::UsageGroupDisplay,
-) -> UsageGroupDto {
+pub(crate) fn to_dto_group(group: loki_metis_core::UsageGroupDisplay) -> UsageGroupDto {
     UsageGroupDto {
         id: group.id,
         label: group.label,
@@ -135,9 +131,7 @@ pub(crate) fn to_dto_group(
 }
 
 /// 把 DTO 窗口枚举映射为 core 的本机窗口枚举。
-pub(crate) fn to_core_window(
-    window: UsageWindow,
-) -> loki_metis_core::LocalUsageWindow {
+pub(crate) fn to_core_window(window: UsageWindow) -> loki_metis_core::LocalUsageWindow {
     match window {
         UsageWindow::Today => loki_metis_core::LocalUsageWindow::Today,
         UsageWindow::Yesterday => loki_metis_core::LocalUsageWindow::Yesterday,
@@ -150,9 +144,7 @@ pub(crate) fn to_core_window(
 
 /// 把 core 的本机窗口枚举映射为 DTO 窗口枚举；`local_view`/`statistics_view`
 /// 两个视图适配器共用同一份映射，避免新增窗口变体时要在两处同步改动。
-pub(crate) fn to_dto_window(
-    window: loki_metis_core::LocalUsageWindow,
-) -> UsageWindow {
+pub(crate) fn to_dto_window(window: loki_metis_core::LocalUsageWindow) -> UsageWindow {
     match window {
         loki_metis_core::LocalUsageWindow::Today => UsageWindow::Today,
         loki_metis_core::LocalUsageWindow::Yesterday => UsageWindow::Yesterday,

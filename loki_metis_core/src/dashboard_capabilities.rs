@@ -67,10 +67,7 @@ mod tests {
     fn dashboard_capability_set_matches_source_four() {
         let names = dashboard_capability_names();
         assert_eq!(names.len(), 4);
-        assert_eq!(
-            names,
-            &["Codex", "Claude Code", "Grok", "WorkBuddy"]
-        );
+        assert_eq!(names, &["Codex", "Claude Code", "Grok", "WorkBuddy"]);
         assert_eq!(PHYSICAL_SCAN_CLIENTS.len(), 3);
         assert!(!names.contains(&"Cursor"));
     }

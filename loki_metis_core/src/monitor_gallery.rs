@@ -170,12 +170,15 @@ pub fn preview_from_bytes(
 
 /// 生成 CSP 允许的 data URL。
 pub fn image_data_url(format: ImageFormat, bytes: &[u8]) -> String {
-    format!("data:{};base64,{}", format.mime_type(), encode_base64(bytes))
+    format!(
+        "data:{};base64,{}",
+        format.mime_type(),
+        encode_base64(bytes)
+    )
 }
 
 fn encode_base64(input: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
     for chunk in input.chunks(3) {
         let a = u32::from(chunk[0]);
@@ -200,9 +203,7 @@ fn encode_base64(input: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ImageFormat, assemble_image_gallery, image_upload_accept, preview_from_bytes,
-    };
+    use super::{ImageFormat, assemble_image_gallery, image_upload_accept, preview_from_bytes};
 
     const JPEG: &[u8] = &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
     const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
@@ -247,10 +248,7 @@ mod tests {
     #[test]
     fn upload_accept_lists_only_jpeg_png_gif() {
         let accept = image_upload_accept();
-        assert_eq!(
-            accept.mime_types,
-            ["image/jpeg", "image/png", "image/gif"]
-        );
+        assert_eq!(accept.mime_types, ["image/jpeg", "image/png", "image/gif"]);
         assert_eq!(accept.extensions, [".jpg", ".jpeg", ".png", ".gif"]);
         assert!(!accept.mime_types.iter().any(|item| item.contains("webp")));
         assert!(!accept.extensions.iter().any(|item| item == ".bmp"));

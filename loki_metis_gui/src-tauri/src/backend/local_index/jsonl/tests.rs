@@ -314,10 +314,7 @@ fn marks_cumulative_fallback_as_derived() {
     .expect("fallback fixture is parsed");
 
     assert_eq!(report.warnings.cumulative_fallbacks, 1);
-    assert_eq!(
-        calls[0].confidence,
-        loki_metis_core::Confidence::Derived
-    );
+    assert_eq!(calls[0].confidence, loki_metis_core::Confidence::Derived);
 }
 
 /// 验证真实新增、额度重放与 compact 上下文估算在同一流中只产生两次调用。

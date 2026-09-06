@@ -60,10 +60,12 @@ impl AppRuntimeState {
         let settings_to_save = settings.clone();
         // spawn_blocking：把同步的磁盘文件写入（save_settings 内部是阻塞 I/O）
         // 丢到 Tokio 专门的阻塞线程池执行，避免占用异步运行时的少量工作线程。
-        tauri::async_runtime::spawn_blocking(move || save_settings(&app_data_dir, &settings_to_save))
-            .await
-            .map_err(|_| save_failed_message.to_owned())?
-            .map_err(|_| save_failed_message.to_owned())?;
+        tauri::async_runtime::spawn_blocking(move || {
+            save_settings(&app_data_dir, &settings_to_save)
+        })
+        .await
+        .map_err(|_| save_failed_message.to_owned())?
+        .map_err(|_| save_failed_message.to_owned())?;
         *self.privacy_settings.write().await = settings;
         Ok(())
     }

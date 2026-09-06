@@ -7,8 +7,9 @@ use tauri::{
 };
 
 use crate::monitor::{
-    close_pet_overlay_window, pet_overlay_window_description, pet_overlay_window_is_open,
-    schedule_pet_overlay_position_persist, show_or_create_pet_overlay,
+    PET_SETTINGS_LABEL, close_pet_overlay_window, constrain_pet_overlay_to_current_monitor,
+    handle_pet_overlay_resized, is_pet_settings_label, pet_overlay_window_description,
+    pet_overlay_window_is_open, schedule_pet_overlay_position_persist, show_or_create_pet_overlay,
 };
 use crate::windowing::restore_main_window;
 use loki_metis_core::PetOverlayPosition;
@@ -179,7 +180,7 @@ fn pet_overlay_tray_label_for_locale(is_visible: bool, locale: &str) -> String {
     }
 }
 
-/// 处理主窗口与桌宠窗口的移动、关闭隐藏及托盘状态同步。
+/// 处理主窗口、桌宠和桌宠设置窗的移动、缩放、关闭隐藏及托盘状态同步。
 pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &WindowEvent) {
     if let WindowEvent::Moved(position) = event {
         schedule_pet_overlay_position_persist(
@@ -189,17 +190,27 @@ pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &Windo
                 y: position.y,
             },
         );
+        constrain_pet_overlay_to_current_monitor(window);
+    }
+    if let WindowEvent::Resized(size) = event {
+        handle_pet_overlay_resized(window, *size);
     }
     if let WindowEvent::CloseRequested { api, .. } = event {
-        if window.label() == "main"
-            && window.app_handle().try_state::<TrayMenuState>().is_some()
-        {
+        if window.label() == "main" && window.app_handle().try_state::<TrayMenuState>().is_some() {
+            api.prevent_close();
+            let _ = window.hide();
+            return;
+        }
+        if is_pet_settings_label(window.label()) {
             api.prevent_close();
             let _ = window.hide();
             return;
         }
         if window.label() == pet_overlay_window_description().label {
             api.prevent_close();
+            if let Some(settings) = window.app_handle().get_webview_window(PET_SETTINGS_LABEL) {
+                let _ = settings.hide();
+            }
             if window.hide().is_ok() {
                 let _ = set_pet_overlay_label(window.app_handle(), false);
             }
@@ -238,10 +249,7 @@ mod tests {
     /// 托盘动作始终与桌宠当前真实可见性相反。
     #[test]
     fn tray_pet_overlay_action_toggles_current_visibility() {
-        assert_eq!(
-            pet_overlay_tray_action(false),
-            PetOverlayTrayAction::Show
-        );
+        assert_eq!(pet_overlay_tray_action(false), PetOverlayTrayAction::Show);
         assert_eq!(pet_overlay_tray_action(true), PetOverlayTrayAction::Hide);
     }
 

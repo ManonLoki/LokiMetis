@@ -33,6 +33,7 @@ import {
   saveMonitorImage,
   type MonitorImagePreview,
 } from "../api/monitor";
+import { visibleErrorMessage } from "../visible-error";
 import { useImageCategoryFilter } from "./useImageCategoryFilter";
 
 /** 图片管理：展示本机图库，支持筛选、批量上传与删除。 */
@@ -56,6 +57,7 @@ export function MonitorImagesPage() {
     onSuccess: ({ gallery }) => {
       queryClient.setQueryData(["monitor-images"], gallery);
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["monitor-images"] }),
   });
   const remove = useMutation({
     mutationFn: deleteMonitorImage,
@@ -69,7 +71,7 @@ export function MonitorImagesPage() {
   const counts = images.data?.counts;
   const { category, setCategory, filteredImages } = useImageCategoryFilter(imageList);
   const uploadAccept = imageUploadAcceptValue(capabilities.data?.imageUploadAccept);
-  if (blockingError) return <Alert color="red">{String(blockingError)}</Alert>;
+  if (blockingError) return <Alert color="red">{visibleErrorMessage(blockingError)}</Alert>;
   return (
     <Stack data-testid="monitor-images" gap="md">
       <Group
@@ -135,7 +137,9 @@ export function MonitorImagesPage() {
           />
         </Group>
       </Group>
-      {mutationError ? <Alert color="red">{String(mutationError)}</Alert> : null}
+      {mutationError ? (
+        <Alert color="red">{visibleErrorMessage(mutationError)}</Alert>
+      ) : null}
       {upload.isSuccess ? (
         <Alert color="teal">
           {t("monitor.images.uploaded", { count: upload.data.count })}

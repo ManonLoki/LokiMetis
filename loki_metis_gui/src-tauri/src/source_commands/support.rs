@@ -105,8 +105,7 @@ impl SourceRootCatalog for SourceRootCatalogAdapter {
                         root_id: candidate.root_id.clone(),
                         alias: candidate.alias.clone(),
                         discovery_method: DiscoveryMethod::Registered,
-                        evidence:
-                            loki_metis_core::RootCandidateEvidence::ClaudeTranscript,
+                        evidence: loki_metis_core::RootCandidateEvidence::ClaudeTranscript,
                     };
                     index
                         .register_claude_root_if_new(&root)
@@ -119,8 +118,7 @@ impl SourceRootCatalog for SourceRootCatalogAdapter {
                         root_id: candidate.root_id.clone(),
                         alias: candidate.alias.clone(),
                         discovery_method: DiscoveryMethod::Registered,
-                        evidence:
-                            loki_metis_core::RootCandidateEvidence::GrokSessionUpdates,
+                        evidence: loki_metis_core::RootCandidateEvidence::GrokSessionUpdates,
                     };
                     index
                         .register_grok_root_if_new(&root)

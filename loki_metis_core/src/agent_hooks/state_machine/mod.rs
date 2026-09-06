@@ -11,6 +11,17 @@ mod lifecycle;
 mod session;
 mod turn;
 
+#[cfg(test)]
+mod source_tests;
+#[cfg(test)]
+mod tests_cursor_reentry;
+#[cfg(test)]
+mod tests_cursor_timing;
+#[cfg(test)]
+mod tests_lifecycle;
+#[cfg(test)]
+mod tests_session_resume;
+
 use lifecycle::DEFAULT_SESSION_KEY;
 use session::{HookPhase, HookSessionState, session_eviction_priority};
 
@@ -26,7 +37,7 @@ pub enum HookEventDecision {
 }
 
 /// 单个工具最多保留的会话数，结束墓碑也计入上限。
-const MAX_TRACKED_HOOK_SESSIONS: usize = 256;
+pub(crate) const MAX_TRACKED_HOOK_SESSIONS: usize = 256;
 
 /// 单个 AI 工具的进程内 Hook 生命周期状态。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -35,6 +46,37 @@ pub struct HookStateMachine {
 }
 
 impl HookStateMachine {
+    /// 测试入口：不携带会话和轮次推进一次事件。
+    #[cfg(test)]
+    pub fn apply(&mut self, tool: AiTool, event: &str) -> HookEventDecision {
+        self.apply_event(tool, event, None, None)
+    }
+
+    /// 测试入口：不携带 status 和观察时间推进一次事件。
+    #[cfg(test)]
+    pub fn apply_event(
+        &mut self,
+        tool: AiTool,
+        event: &str,
+        session_id: Option<&str>,
+        turn_id: Option<&str>,
+    ) -> HookEventDecision {
+        self.apply_event_with_status(tool, event, session_id, turn_id, None)
+    }
+
+    /// 测试入口：固定零时刻并携带原生 status 推进一次事件。
+    #[cfg(test)]
+    pub fn apply_event_with_status(
+        &mut self,
+        tool: AiTool,
+        event: &str,
+        session_id: Option<&str>,
+        turn_id: Option<&str>,
+        status: Option<&str>,
+    ) -> HookEventDecision {
+        self.apply_event_with_status_at(tool, event, session_id, turn_id, status, Duration::ZERO)
+    }
+
     /// 使用调用方提供的单调经过时间推进一次 Hook 事件。
     pub fn apply_event_with_status_at(
         &mut self,
@@ -149,6 +191,12 @@ impl HookStateMachine {
                 .any(|session| !session.ended && session.phase == *phase)
         })
         .unwrap_or(HookPhase::Released)
+    }
+
+    /// 返回当前跟踪的会话数量，供容量与幽灵会话回归使用。
+    #[cfg(test)]
+    fn tracked_session_count(&self) -> usize {
+        self.sessions.len()
     }
 }
 

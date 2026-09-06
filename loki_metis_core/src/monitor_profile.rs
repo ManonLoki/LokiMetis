@@ -93,7 +93,7 @@ impl AiProfileDraft {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AiProfileDraftSet {
-    /// 四项 Agent 的草稿，缺项由 [`merge_profile_drafts`] 补齐。
+    /// 全部受支持 Agent 的草稿，缺项由 [`merge_profile_drafts`] 补齐。
     pub drafts: Vec<AiProfileDraft>,
 }
 
@@ -189,21 +189,17 @@ mod tests {
     }
 
     #[test]
-    fn merge_fills_missing_tools_and_drops_unknown_order() {
+    fn merge_fills_every_supported_tool_in_catalog_order() {
         let mut saved = AiProfileDraft::default_for(AiTool::Grok);
         saved.slot = 3;
         let merged = merge_profile_drafts(vec![saved]);
         let tools: Vec<_> = merged.iter().map(|draft| draft.tool).collect();
-        assert_eq!(
-            tools,
-            vec![
-                AiTool::Codex,
-                AiTool::ClaudeCode,
-                AiTool::Grok,
-                AiTool::WorkBuddy
-            ]
-        );
-        assert_eq!(merged[2].slot, 3);
+        assert_eq!(tools, AiTool::ALL);
+        let grok = merged
+            .iter()
+            .find(|draft| draft.tool == AiTool::Grok)
+            .expect("Grok draft");
+        assert_eq!(grok.slot, 3);
         assert_eq!(merged[0].slot, DEFAULT_PROFILE_SLOT);
     }
 

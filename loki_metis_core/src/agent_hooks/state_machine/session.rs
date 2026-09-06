@@ -17,7 +17,7 @@ pub(super) struct HookSessionState {
     pub(super) explicit_turn_started_at: Option<Duration>,
 }
 
-const MAX_RETIRED_TURNS_PER_SESSION: usize = 256;
+pub(super) const MAX_RETIRED_TURNS_PER_SESSION: usize = 256;
 
 impl HookSessionState {
     /// 判断传入轮次是否已明确结束或判旧。

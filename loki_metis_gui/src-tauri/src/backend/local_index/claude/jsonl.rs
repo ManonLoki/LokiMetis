@@ -2,11 +2,11 @@
 
 use std::io::Read;
 
+use jiff::Timestamp;
 use loki_metis_core::{
     Confidence, SourceClientKind, SourceProvenance, TokenUsage, UsageCall,
     claude_project_display_label, safe_model_label, safe_technical_label,
 };
-use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::super::discovery::stable_id;
@@ -462,8 +462,6 @@ fn parse_line(
 fn valid_id(value: &str) -> bool {
     !value.trim().is_empty() && value.len() <= 512 && !value.chars().any(char::is_control)
 }
-
-
 
 #[cfg(test)]
 mod tests {

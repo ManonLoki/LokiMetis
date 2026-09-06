@@ -166,8 +166,7 @@ pub(crate) fn discover_metadata_roots_with_callback(
     } else {
         RootDiscoveryStrategy::MetadataTraversal
     };
-    if coordinator.snapshot().lifecycle
-        != loki_metis_core::RootDiscoveryLifecycle::Running
+    if coordinator.snapshot().lifecycle != loki_metis_core::RootDiscoveryLifecycle::Running
         && !coordinator.start(strategy, current_platform(), discovery_kind, total)
     {
         return MetadataDiscoverySummary::default();
@@ -420,8 +419,7 @@ fn discover_metadata_roots_in_with_callback(
 ) -> MetadataDiscoverySummary {
     let total = u64::try_from(volumes.search_roots.len()).unwrap_or(u64::MAX);
     let excluded_roots = volumes.excluded_roots.clone();
-    if coordinator.snapshot().lifecycle
-        != loki_metis_core::RootDiscoveryLifecycle::Running
+    if coordinator.snapshot().lifecycle != loki_metis_core::RootDiscoveryLifecycle::Running
         && !coordinator.start(
             RootDiscoveryStrategy::MetadataTraversal,
             RootDiscoveryPlatform::Other,
@@ -563,10 +561,7 @@ fn take_fair_jobs(
 fn adaptive_worker_count() -> usize {
     std::thread::available_parallelism()
         .map_or(1, usize::from)
-        .clamp(
-            1,
-            loki_metis_core::LOCAL_DISCOVERY_WORKER_LIMIT,
-        )
+        .clamp(1, loki_metis_core::LOCAL_DISCOVERY_WORKER_LIMIT)
 }
 
 /// 把队列耗尽的卷计入完成数。

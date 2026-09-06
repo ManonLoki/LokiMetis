@@ -188,9 +188,6 @@ mod tests {
     /// 统一复用 core 的每页大小定义，避免前后端出现不同翻页口径。
     #[test]
     fn adapter_respects_core_page_size() {
-        assert_eq!(
-            USAGE_CALL_PAGE_SIZE,
-            loki_metis_core::USAGE_CALL_PAGE_SIZE
-        );
+        assert_eq!(USAGE_CALL_PAGE_SIZE, loki_metis_core::USAGE_CALL_PAGE_SIZE);
     }
 }

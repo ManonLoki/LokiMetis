@@ -1,8 +1,6 @@
 //! 按已保存天数在启动时清理派生用量，不触碰原始会话或数据根。
 
-use loki_metis_core::{
-    LocalIndex, SourceClientKind, source_client_usage_index_path,
-};
+use loki_metis_core::{LocalIndex, SourceClientKind, source_client_usage_index_path};
 use tauri::{AppHandle, Manager};
 
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
@@ -57,8 +55,7 @@ async fn prune_client_derived_usage(
     if !database_path.is_file() {
         return;
     }
-    let client_dir =
-        loki_metis_core::source_client_app_data_dir(app_data_dir, client);
+    let client_dir = loki_metis_core::source_client_app_data_dir(app_data_dir, client);
     let result = async {
         let mut index = LocalIndex::open_in_app_data(&client_dir, client.parser_version()).await?;
         index.prune_usage_before(cutoff_epoch_ms).await
@@ -78,9 +75,7 @@ mod tests {
     use super::*;
     use crate::privacy_store::save_settings;
     use crate::runtime::AppRuntimeState;
-    use loki_metis_core::{
-        RetentionDays, SourceClientKind, source_client_app_data_dir,
-    };
+    use loki_metis_core::{RetentionDays, SourceClientKind, source_client_app_data_dir};
     use sea_orm::{ConnectOptions, ConnectionTrait, Database};
     use tempfile::tempdir;
 

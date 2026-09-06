@@ -3,11 +3,11 @@
 use std::collections::BTreeMap;
 use std::io::Read;
 
+use jiff::Timestamp;
 use loki_metis_core::{
     Confidence, SourceClientKind, SourceProvenance, TokenUsage, UsageCall,
     grok_project_display_label, safe_model_label,
 };
-use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::super::discovery::stable_id;
@@ -478,4 +478,3 @@ fn to_call(
         provenance: vec![provenance.clone()],
     })
 }
-

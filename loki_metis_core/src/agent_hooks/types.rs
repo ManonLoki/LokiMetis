@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// 本产品监控区支持写入 Hooks 的四项 Agent。
+/// LokiMetis 支持接入的全部 AI 工具。
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub enum AiTool {
@@ -10,15 +10,50 @@ pub enum AiTool {
     Codex,
     /// Claude Code CLI。
     ClaudeCode,
-    /// Grok Build CLI。
-    Grok,
+    /// Cursor 编辑器。
+    Cursor,
+    /// OpenCode。
+    OpenCode,
     /// WorkBuddy。
     WorkBuddy,
+    /// Hermes。
+    Hermes,
+    /// OpenClaw。
+    OpenClaw,
+    /// CodeBuddy。
+    CodeBuddy,
+    /// Qwen Code。
+    QwenCode,
+    /// Kimi Code。
+    KimiCode,
+    /// Qoder。
+    Qoder,
+    /// Gemini CLI。
+    GeminiCli,
+    /// GitHub Copilot CLI。
+    GitHubCopilot,
+    /// Grok Build CLI。
+    Grok,
 }
 
 impl AiTool {
     /// 固定顺序的完整目录。
-    pub const ALL: [Self; 4] = [Self::Codex, Self::ClaudeCode, Self::Grok, Self::WorkBuddy];
+    pub const ALL: [Self; 14] = [
+        Self::Codex,
+        Self::ClaudeCode,
+        Self::Cursor,
+        Self::OpenCode,
+        Self::WorkBuddy,
+        Self::Hermes,
+        Self::OpenClaw,
+        Self::CodeBuddy,
+        Self::QwenCode,
+        Self::KimiCode,
+        Self::Qoder,
+        Self::GeminiCli,
+        Self::GitHubCopilot,
+        Self::Grok,
+    ];
 }
 
 /// 前端展示 AI 工具选择项所需的稳定目录条目。
@@ -45,6 +80,12 @@ pub enum HookWriteOutcome {
     CodexReviewRequired,
     /// WorkBuddy 需要审核。
     WorkBuddyReviewRequired,
+    /// CodeBuddy 需要审核。
+    CodeBuddyReviewRequired,
+    /// Hermes 需要手动启用插件。
+    HermesEnableRequired,
+    /// OpenClaw 需要手动启用插件。
+    OpenClawEnableRequired,
 }
 
 impl HookWriteOutcome {
@@ -57,7 +98,11 @@ impl HookWriteOutcome {
     pub const fn requires_review(self) -> bool {
         matches!(
             self,
-            Self::CodexReviewRequired | Self::WorkBuddyReviewRequired
+            Self::CodexReviewRequired
+                | Self::WorkBuddyReviewRequired
+                | Self::CodeBuddyReviewRequired
+                | Self::HermesEnableRequired
+                | Self::OpenClawEnableRequired
         )
     }
 
@@ -65,7 +110,12 @@ impl HookWriteOutcome {
     pub const fn restart_required(self) -> bool {
         matches!(
             self,
-            Self::RestartRequired | Self::CodexReviewRequired | Self::WorkBuddyReviewRequired
+            Self::RestartRequired
+                | Self::CodexReviewRequired
+                | Self::WorkBuddyReviewRequired
+                | Self::CodeBuddyReviewRequired
+                | Self::HermesEnableRequired
+                | Self::OpenClawEnableRequired
         )
     }
 }
@@ -132,12 +182,42 @@ pub struct HookConfigDirectories {
     /// Claude Code 自定义目录。
     #[serde(default)]
     pub claude_code: String,
-    /// Grok 自定义目录。
+    /// Cursor 自定义目录。
     #[serde(default)]
-    pub grok: String,
+    pub cursor: String,
+    /// OpenCode 自定义目录。
+    #[serde(default)]
+    pub open_code: String,
     /// WorkBuddy 自定义目录。
     #[serde(default)]
     pub work_buddy: String,
+    /// Hermes 自定义目录。
+    #[serde(default)]
+    pub hermes: String,
+    /// OpenClaw 自定义目录。
+    #[serde(default)]
+    pub open_claw: String,
+    /// CodeBuddy 自定义目录。
+    #[serde(default)]
+    pub code_buddy: String,
+    /// Qwen Code 自定义目录。
+    #[serde(default)]
+    pub qwen_code: String,
+    /// Kimi Code 自定义目录。
+    #[serde(default)]
+    pub kimi_code: String,
+    /// Qoder 自定义目录。
+    #[serde(default)]
+    pub qoder: String,
+    /// Gemini CLI 自定义目录。
+    #[serde(default)]
+    pub gemini_cli: String,
+    /// GitHub Copilot CLI 自定义目录。
+    #[serde(default)]
+    pub github_copilot: String,
+    /// Grok 自定义目录。
+    #[serde(default)]
+    pub grok: String,
 }
 
 impl HookConfigDirectories {
@@ -146,8 +226,18 @@ impl HookConfigDirectories {
         match tool {
             AiTool::Codex => &self.codex,
             AiTool::ClaudeCode => &self.claude_code,
-            AiTool::Grok => &self.grok,
+            AiTool::Cursor => &self.cursor,
+            AiTool::OpenCode => &self.open_code,
             AiTool::WorkBuddy => &self.work_buddy,
+            AiTool::Hermes => &self.hermes,
+            AiTool::OpenClaw => &self.open_claw,
+            AiTool::CodeBuddy => &self.code_buddy,
+            AiTool::QwenCode => &self.qwen_code,
+            AiTool::KimiCode => &self.kimi_code,
+            AiTool::Qoder => &self.qoder,
+            AiTool::GeminiCli => &self.gemini_cli,
+            AiTool::GitHubCopilot => &self.github_copilot,
+            AiTool::Grok => &self.grok,
         }
     }
 
@@ -156,8 +246,18 @@ impl HookConfigDirectories {
         match tool {
             AiTool::Codex => self.codex = directory,
             AiTool::ClaudeCode => self.claude_code = directory,
-            AiTool::Grok => self.grok = directory,
+            AiTool::Cursor => self.cursor = directory,
+            AiTool::OpenCode => self.open_code = directory,
             AiTool::WorkBuddy => self.work_buddy = directory,
+            AiTool::Hermes => self.hermes = directory,
+            AiTool::OpenClaw => self.open_claw = directory,
+            AiTool::CodeBuddy => self.code_buddy = directory,
+            AiTool::QwenCode => self.qwen_code = directory,
+            AiTool::KimiCode => self.kimi_code = directory,
+            AiTool::Qoder => self.qoder = directory,
+            AiTool::GeminiCli => self.gemini_cli = directory,
+            AiTool::GitHubCopilot => self.github_copilot = directory,
+            AiTool::Grok => self.grok = directory,
         }
     }
 }
@@ -192,8 +292,7 @@ pub enum HookBehavior {
 
 impl HookBehavior {
     /// 固定展示顺序。
-    pub const DISPLAY_BEHAVIORS: [Self; 4] =
-        [Self::Idle, Self::Running, Self::Asking, Self::Error];
+    pub const DISPLAY_BEHAVIORS: [Self; 4] = [Self::Idle, Self::Running, Self::Asking, Self::Error];
 }
 
 /// 状态机迁移动作。
@@ -213,10 +312,19 @@ pub fn normalize_enabled_ai_tools(selected: &[AiTool]) -> Vec<AiTool> {
         .collect()
 }
 
-/// 本机 Hook 中继首选监听端口。
-pub const DEFAULT_HOOK_RELAY_PORT: u16 = 10_240;
+/// Hook relay 活跃实例 rendezvous 文件名。
+pub const HOOK_RELAY_RENDEZVOUS_FILENAME: &str = "loki-metis-hook-relay.json";
 
-/// 首选端口占用时，请求操作系统在回环上分配空闲端口。
+/// Hook relay rendezvous JSON 协议版本。
+pub const HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION: u8 = 1;
+
+/// 请求和响应共同携带的 relay 实例校验头。
+pub const HOOK_RELAY_INSTANCE_HEADER: &str = "X-LokiMetis-Hook-Instance";
+
+/// 请求携带的规范 Hook 事件名头。
+pub const HOOK_EVENT_TYPE_HEADER: &str = "X-LokiMetis-Hook-Type";
+
+/// 请求操作系统在回环上分配空闲端口。
 pub const HOOK_RELAY_EPHEMERAL_PORT: u16 = 0;
 
 /// 本机 Hook 中继的回环地址。
@@ -229,18 +337,90 @@ pub const MAX_NATIVE_HOOK_INPUT_BYTES: usize = 4 * 1024 * 1024;
 
 #[cfg(test)]
 mod tests {
-    use super::{DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, hook_relay_loopback_address};
+    use super::{
+        AiTool, HOOK_RELAY_EPHEMERAL_PORT, HookConfigDirectories, hook_relay_loopback_address,
+        normalize_enabled_ai_tools,
+    };
 
     #[test]
     fn loopback_address_uses_the_given_port() {
-        assert_eq!(
-            hook_relay_loopback_address(DEFAULT_HOOK_RELAY_PORT),
-            "127.0.0.1:10240"
-        );
         assert_eq!(hook_relay_loopback_address(23_456), "127.0.0.1:23456");
         assert_eq!(
             hook_relay_loopback_address(HOOK_RELAY_EPHEMERAL_PORT),
             "127.0.0.1:0"
+        );
+    }
+
+    #[test]
+    fn all_ai_tool_names_match_the_camel_case_contract() {
+        let expected = [
+            "codex",
+            "claudeCode",
+            "cursor",
+            "openCode",
+            "workBuddy",
+            "hermes",
+            "openClaw",
+            "codeBuddy",
+            "qwenCode",
+            "kimiCode",
+            "qoder",
+            "geminiCli",
+            "gitHubCopilot",
+            "grok",
+        ];
+        for (tool, expected_name) in AiTool::ALL.into_iter().zip(expected) {
+            let encoded = serde_json::to_string(&tool).unwrap();
+            assert_eq!(encoded, format!("\"{expected_name}\""));
+            assert_eq!(serde_json::from_str::<AiTool>(&encoded).unwrap(), tool);
+        }
+    }
+
+    #[test]
+    fn hook_directories_cover_every_tool_and_serialize_camel_case() {
+        let mut directories = HookConfigDirectories::default();
+        for (index, tool) in AiTool::ALL.into_iter().enumerate() {
+            let value = format!("/hooks/{index}");
+            directories.set(tool, value.clone());
+            assert_eq!(directories.get(tool), value);
+        }
+        let serialized = serde_json::to_value(directories).unwrap();
+        for key in [
+            "codex",
+            "claudeCode",
+            "cursor",
+            "openCode",
+            "workBuddy",
+            "hermes",
+            "openClaw",
+            "codeBuddy",
+            "qwenCode",
+            "kimiCode",
+            "qoder",
+            "geminiCli",
+            "githubCopilot",
+            "grok",
+        ] {
+            assert!(serialized.get(key).is_some(), "missing {key}");
+        }
+    }
+
+    #[test]
+    fn enabled_tools_are_normalized_in_the_complete_fixed_order() {
+        assert_eq!(
+            normalize_enabled_ai_tools(&[
+                AiTool::Grok,
+                AiTool::Cursor,
+                AiTool::Codex,
+                AiTool::Cursor,
+                AiTool::OpenClaw,
+            ]),
+            vec![
+                AiTool::Codex,
+                AiTool::Cursor,
+                AiTool::OpenClaw,
+                AiTool::Grok,
+            ]
         );
     }
 }

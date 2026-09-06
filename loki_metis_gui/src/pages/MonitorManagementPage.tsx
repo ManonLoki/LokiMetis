@@ -33,6 +33,7 @@ import {
 } from "../api/monitor";
 import { ImagePicker } from "../components/monitor/ImagePicker";
 import { SlotPicker } from "../components/monitor/SlotPicker";
+import { visibleErrorMessage } from "../visible-error";
 
 /** 行为卡片状态色，仅用于展示。 */
 const behaviorColors: Record<MonitorHookBehavior, string> = {
@@ -43,7 +44,9 @@ const behaviorColors: Record<MonitorHookBehavior, string> = {
 };
 
 /** 本机保存按追加写入，图库末项即本次新图。 */
-function newlySavedMonitorImage(gallery: MonitorImageGallery): MonitorImagePreview | undefined {
+function newlySavedMonitorImage(
+  gallery: MonitorImageGallery,
+): MonitorImagePreview | undefined {
   return gallery.images.at(-1);
 }
 
@@ -55,7 +58,10 @@ export function MonitorManagementPage() {
     queryFn: getMonitorCapabilities,
     queryKey: ["monitor-capabilities"],
   });
-  const settings = useQuery({ queryFn: getMonitorSettings, queryKey: ["monitor-settings"] });
+  const settings = useQuery({
+    queryFn: getMonitorSettings,
+    queryKey: ["monitor-settings"],
+  });
   const profiles = useQuery({
     queryFn: listMonitorProfileDrafts,
     queryKey: ["monitor-profile-drafts"],
@@ -66,20 +72,25 @@ export function MonitorManagementPage() {
     enabledTools.includes(item.tool),
   );
   const [selectedTool, setSelectedTool] = useState<MonitorAiTool | null>(null);
-  const [drafts, setDrafts] = useState<Partial<Record<MonitorAiTool, MonitorProfileDraft>>>({});
+  const [drafts, setDrafts] = useState<Partial<Record<MonitorAiTool, MonitorProfileDraft>>>(
+    {},
+  );
   const activeTool = visibleTools.some((item) => item.tool === selectedTool)
     ? selectedTool
     : (visibleTools[0]?.tool ?? null);
   useEffect(() => {
     if (!profiles.data) return;
     setDrafts(
-      Object.fromEntries(profiles.data.drafts.map((profile) => [profile.tool, profile])) as Partial<
-        Record<MonitorAiTool, MonitorProfileDraft>
-      >,
+      Object.fromEntries(
+        profiles.data.drafts.map((profile) => [profile.tool, profile]),
+      ) as Partial<Record<MonitorAiTool, MonitorProfileDraft>>,
     );
   }, [profiles.data]);
   const draft = activeTool ? drafts[activeTool] : undefined;
-  const configuredBehaviorCount = (draft?.hooks ?? []).filter((hook) => hook.image.length > 0).length;
+  const availableImageIds = new Set((images.data?.images ?? []).map((image) => image.id));
+  const configuredBehaviorCount = (draft?.hooks ?? []).filter(
+    (hook) => hook.image.length > 0 && availableImageIds.has(hook.image),
+  ).length;
   const isComplete = draft !== undefined && configuredBehaviorCount === draft.hooks.length;
   const save = useMutation({
     mutationFn: saveMonitorProfileDraft,
@@ -139,11 +150,12 @@ export function MonitorManagementPage() {
       ),
     });
   };
-  const blockingError = profiles.error ?? capabilities.error ?? settings.error ?? images.error;
+  const blockingError =
+    profiles.error ?? capabilities.error ?? settings.error ?? images.error;
   const mutationError = upload.error ?? save.error;
   const availableImages = images.data?.images ?? [];
   const uploadAccept = imageUploadAcceptValue(capabilities.data?.imageUploadAccept);
-  if (blockingError) return <Alert color="red">{String(blockingError)}</Alert>;
+  if (blockingError) return <Alert color="red">{visibleErrorMessage(blockingError)}</Alert>;
   const catalogPending = settings.isPending || capabilities.isPending || profiles.isPending;
   if (catalogPending) {
     return (
@@ -168,7 +180,9 @@ export function MonitorManagementPage() {
   }
   return (
     <Stack data-testid="monitor-management" gap="md">
-      {mutationError ? <Alert color="red">{String(mutationError)}</Alert> : null}
+      {mutationError ? (
+        <Alert color="red">{visibleErrorMessage(mutationError)}</Alert>
+      ) : null}
       {uploadedName ? (
         <Alert color="teal" variant="light">
           {t("monitor.picker.uploadedAndSelected", { filename: uploadedName })}
@@ -264,7 +278,11 @@ export function MonitorManagementPage() {
                             updateHookField(behaviorValue, "image", value);
                           }}
                           onUpload={(file) => {
-                            upload.mutate({ file, tool: tool.tool, behavior: behaviorValue });
+                            upload.mutate({
+                              file,
+                              tool: tool.tool,
+                              behavior: behaviorValue,
+                            });
                           }}
                           uploadAccept={uploadAccept}
                           uploading={
@@ -284,7 +302,11 @@ export function MonitorManagementPage() {
                             </span>
                           }
                           onChange={(event) =>
-                            updateHookField(behaviorValue, "content", event.currentTarget.value)
+                            updateHookField(
+                              behaviorValue,
+                              "content",
+                              event.currentTarget.value,
+                            )
                           }
                           placeholder={t("monitor.management.contentPlaceholder")}
                           rows={2}

@@ -1,8 +1,6 @@
 //! 用量页固定窗口、固定维度且可对账的逐日趋势与 Top-N 分组统计。
 
-use loki_metis_core::{
-    LocalIndexState, LocalUsageAggregate, MetricFact, UsageMeasure,
-};
+use loki_metis_core::{LocalIndexState, LocalUsageAggregate, MetricFact, UsageMeasure};
 use serde::Serialize;
 
 use super::{DisplayLabelCodeDto, UsageDimension, UsageWindow};

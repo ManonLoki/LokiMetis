@@ -14,13 +14,13 @@ use loki_metis_core::CoverageReport;
 
 use super::{DiscoveryMethod, RegisteredRoot};
 
-pub(crate) use loki_metis_core::{path_key, stable_id};
 pub use full_device::discover_full_device_with_progress;
 pub(crate) use inspection::{
     RootInspection, SignatureProbeContext, inspect_root, metadata_is_link_like,
     registered_path_matches_candidate, validate_local_plain_directory,
     walk_ancestors_for_link_component,
 };
+pub(crate) use loki_metis_core::{path_key, stable_id};
 pub use quick::discover_quick;
 
 /// 汇总快速发现所需的显式输入，测试可完全避开真实用户环境。

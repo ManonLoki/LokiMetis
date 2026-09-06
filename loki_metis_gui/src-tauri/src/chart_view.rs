@@ -72,12 +72,8 @@ pub(crate) fn to_dto_chart(page: loki_metis_core::UsageChartPage) -> UsageChartD
         window: to_dto_window(page.window),
         dimension: page.dimension.into(),
         granularity: match page.granularity {
-            loki_metis_core::UsageChartGranularity::Hour => {
-                UsageChartGranularityDto::Hour
-            }
-            loki_metis_core::UsageChartGranularity::Day => {
-                UsageChartGranularityDto::Day
-            }
+            loki_metis_core::UsageChartGranularity::Hour => UsageChartGranularityDto::Hour,
+            loki_metis_core::UsageChartGranularity::Day => UsageChartGranularityDto::Day,
         },
         index_state: page.index_state,
         lower_bound_epoch_ms: page.lower_bound_epoch_ms,

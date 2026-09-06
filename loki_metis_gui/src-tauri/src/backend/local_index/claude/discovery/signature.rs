@@ -4,8 +4,8 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{CoverageState, RootCandidateEvidence};
 use jiff::Timestamp;
+use loki_metis_core::{CoverageState, RootCandidateEvidence};
 use serde::Deserialize;
 
 use super::super::super::discovery::{metadata_is_link_like, walk_ancestors_for_link_component};

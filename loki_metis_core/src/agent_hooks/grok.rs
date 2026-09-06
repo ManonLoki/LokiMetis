@@ -76,11 +76,11 @@ impl HookProtocol for GrokProtocol {
     // application 层把用户选择的 ~/.grok（或 $GROK_HOME）与该相对路径组合成
     // 官方个人 hooks 目录下的独立托管文件。
     fn config_filename(&self) -> &'static str {
-        "hooks/aimonitor.json"
+        "hooks/lokimetis.json"
     }
 
     fn preview_filename(&self) -> &'static str {
-        ".grok/hooks/aimonitor.json"
+        ".grok/hooks/lokimetis.json"
     }
 
     fn events(&self) -> &'static [HookEvent] {

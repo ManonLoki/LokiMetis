@@ -2,9 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{
-    HookError, MonitorImageGallery, assemble_image_gallery, preview_from_bytes,
-};
+use loki_metis_core::{HookError, MonitorImageGallery, assemble_image_gallery, preview_from_bytes};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -36,27 +34,49 @@ fn load_index(app_data_dir: &Path) -> Result<Vec<MonitorImageRecord>, HookError>
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let raw = std::fs::read_to_string(&path)
-        .map_err(|error| HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string()))?;
-    serde_json::from_str(&raw)
-        .map_err(|error| HookError::new("error.monitor.imagesInvalid").param("detail", error.to_string()))
+    let raw = std::fs::read_to_string(&path).map_err(|error| {
+        HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string())
+    })?;
+    serde_json::from_str(&raw).map_err(|error| {
+        HookError::new("error.monitor.imagesInvalid").param("detail", error.to_string())
+    })
 }
 
 /// 保存图片索引。
 fn save_index(app_data_dir: &Path, records: &[MonitorImageRecord]) -> Result<(), HookError> {
-    std::fs::create_dir_all(images_dir(app_data_dir))
-        .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))?;
-    let raw = serde_json::to_string_pretty(records)
-        .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))?;
-    std::fs::write(index_path(app_data_dir), raw)
-        .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))
+    std::fs::create_dir_all(images_dir(app_data_dir)).map_err(|error| {
+        HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string())
+    })?;
+    let raw = serde_json::to_string_pretty(records).map_err(|error| {
+        HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string())
+    })?;
+    std::fs::write(index_path(app_data_dir), raw).map_err(|error| {
+        HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string())
+    })
 }
 
 /// 当前图库中的稳定 ID，供草稿校验引用。
-pub fn monitor_image_ids(app_data_dir: &Path) -> Result<std::collections::HashSet<String>, HookError> {
+pub fn monitor_image_ids(
+    app_data_dir: &Path,
+) -> Result<std::collections::HashSet<String>, HookError> {
     Ok(load_index(app_data_dir)?
         .into_iter()
         .map(|record| record.id)
+        .collect())
+}
+
+/// 返回索引存在且应用数据目录中的文件当前确实可读的图片 ID。
+pub fn readable_monitor_image_ids(
+    app_data_dir: &Path,
+) -> Result<std::collections::HashSet<String>, HookError> {
+    let dir = images_dir(app_data_dir);
+    Ok(load_index(app_data_dir)?
+        .into_iter()
+        .filter_map(|record| {
+            std::fs::File::open(dir.join(&record.stored_name))
+                .ok()
+                .map(|_| record.id)
+        })
         .collect())
 }
 
@@ -66,8 +86,9 @@ pub fn read_monitor_image(app_data_dir: &Path, id: &str) -> Result<Vec<u8>, Hook
     let Some(record) = records.iter().find(|item| item.id == id) else {
         return Err(HookError::new("error.monitor.imageNotFound"));
     };
-    std::fs::read(images_dir(app_data_dir).join(&record.stored_name))
-        .map_err(|error| HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string()))
+    std::fs::read(images_dir(app_data_dir).join(&record.stored_name)).map_err(|error| {
+        HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string())
+    })
 }
 
 /// 列出带预览、格式与计数的本机图库快照。
@@ -94,10 +115,12 @@ pub fn save_monitor_image(
     let id = Uuid::new_v4().to_string();
     let preview = preview_from_bytes(&id, filename, bytes)?;
     let stored_name = format!("{id}.{}", preview.format.extension());
-    std::fs::create_dir_all(images_dir(app_data_dir))
-        .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))?;
-    std::fs::write(images_dir(app_data_dir).join(&stored_name), bytes)
-        .map_err(|error| HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string()))?;
+    std::fs::create_dir_all(images_dir(app_data_dir)).map_err(|error| {
+        HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string())
+    })?;
+    std::fs::write(images_dir(app_data_dir).join(&stored_name), bytes).map_err(|error| {
+        HookError::new("error.monitor.imagesWriteFailed").param("detail", error.to_string())
+    })?;
     let record = MonitorImageRecord {
         id,
         filename: filename.to_owned(),

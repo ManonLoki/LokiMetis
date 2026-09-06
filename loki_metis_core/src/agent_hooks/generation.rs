@@ -26,7 +26,7 @@ pub fn generate_hook_config(
 }
 
 /// 为运行在 WSL 内的客户端生成 POSIX Hook 命令。relay 本身仍是 Windows
-/// AIMonitor.exe，但 executable 已由 application 层通过 wslpath 转换为 Linux 路径。
+/// LokiMetis GUI 可执行文件，但 executable 已由 application 层通过 wslpath 转换为 Linux 路径。
 pub fn generate_wsl_hook_config(
     // 目标 AI 工具类型
     tool: AiTool,
@@ -188,6 +188,66 @@ pub fn merge_hook_config(
     })
 }
 
+/// 从现有公共 JSON Hook 配置中只移除指定工具的 LokiMetis 受管条目。
+///
+/// 没有受管条目时逐字返回原文；清理后仍有用户、其它工具或根级内容时返回
+/// 清理后的 JSON；只有本次确实移除了条目且整个文档仅剩空 `hooks` 时返回 `None`。
+/// 独立插件和 TOML 等自定义合并协议不经过这个 JSON 清理入口。
+pub fn remove_managed_hook_entries(
+    tool: AiTool,
+    existing_content: &str,
+) -> Result<Option<String>, HookError> {
+    let protocol = protocol(tool);
+    if protocol.uses_custom_merge() {
+        return Err(HookError::new("error.hooks.cleanupUnsupported"));
+    }
+    let mut existing = serde_json::from_str::<Value>(existing_content).map_err(|error| {
+        HookError::new("error.hooks.existingConfigInvalid").param("detail", error.to_string())
+    })?;
+    let existing_root = existing
+        .as_object_mut()
+        .ok_or_else(|| HookError::new("error.hooks.existingConfigRootNotObject"))?;
+    let Some(existing_hooks) = existing_root.get_mut("hooks") else {
+        return Ok(Some(existing_content.to_owned()));
+    };
+    let existing_hooks = existing_hooks
+        .as_object_mut()
+        .ok_or_else(|| HookError::new("error.hooks.existingHooksNotObject"))?;
+    let mut changed = false;
+    for event in existing_hooks.keys().cloned().collect::<Vec<_>>() {
+        let should_remove = existing_hooks.get_mut(&event).is_some_and(|entries| {
+            let Some(entries) = entries.as_array_mut() else {
+                return false;
+            };
+            let before = entries.clone();
+            protocol.remove_managed_entries(entries);
+            changed |= *entries != before;
+            entries.is_empty()
+        });
+        if should_remove {
+            existing_hooks.remove(&event);
+        }
+    }
+    if !changed {
+        return Ok(Some(existing_content.to_owned()));
+    }
+    let only_empty_hooks = existing.as_object().is_some_and(|root| {
+        root.len() == 1
+            && root
+                .get("hooks")
+                .and_then(Value::as_object)
+                .is_some_and(Map::is_empty)
+    });
+    if only_empty_hooks {
+        return Ok(None);
+    }
+    serde_json::to_string_pretty(&existing)
+        .map(Some)
+        .map_err(|error| {
+            HookError::new("error.hooks.mergeFailed").param("detail", error.to_string())
+        })
+}
+
 // 为一个事件生成三种平台变体的托管命令字符串（POSIX shell、Windows CMD、
 // 经 PowerShell 转发到 CMD），供各工具的 `handler` 按自身协议组装配置条目。
 fn managed_commands(
@@ -200,7 +260,7 @@ fn managed_commands(
     // 可选的 WSL 侧可执行路径；Some 表示当前是 WSL 场景
     wsl_executable: Option<&str>,
 ) -> ManagedCommands {
-    // 计算该工具的 AIMonitor 管理标识，写入命令末尾的 --managed-by 参数
+    // 计算该工具的 LokiMetis 管理标识，写入命令末尾的 --managed-by 参数
     let marker = managed_hook_marker(protocol.tool());
     // 把路径转换为字符串（有损转换，处理非法 UTF-8 时用替换字符）
     let executable = relay_executable.to_string_lossy().into_owned();
@@ -282,5 +342,7 @@ pub(super) fn command_has_marker(command: &str, marker: &str) -> bool {
 // 合并逻辑、以及第二批新增工具（Qwen/Qoder/Gemini/Copilot 等）
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_kimi;
 #[cfg(test)]
 mod tests_merge;

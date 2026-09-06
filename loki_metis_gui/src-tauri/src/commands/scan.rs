@@ -10,9 +10,7 @@ use loki_metis_core::{
     local_scan_writer_busy_message,
 };
 #[cfg(test)]
-use loki_metis_core::{
-    local_scan_client_failure_message, local_scan_writer_busy_failure_detail,
-};
+use loki_metis_core::{local_scan_client_failure_message, local_scan_writer_busy_failure_detail};
 use tauri::State;
 
 #[cfg(test)]
@@ -268,10 +266,7 @@ async fn refresh_local_indexes_with_origin(
 /// 从已开放 Agent 的当前状态中固定排序选择升级后必须立即重建的索引。
 fn upgrade_reindex_clients(
     enabled: loki_metis_core::EnabledAgents,
-    states: &[(
-        AgentClientKindDto,
-        loki_metis_core::LocalIndexState,
-    )],
+    states: &[(AgentClientKindDto, loki_metis_core::LocalIndexState)],
 ) -> Vec<AgentClientKindDto> {
     AgentClientKindDto::ALL
         .into_iter()

@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { getHookRelayStatus } from "../api/monitor";
+import { visibleErrorMessage } from "../visible-error";
 
 /** 中继指标块：以稳定的标签和值展示一项本机统计。 */
 function RelayMetric({ label, value }: { label: string; value: number }) {
@@ -39,7 +40,7 @@ export function MonitorWorkbenchPage() {
   const status = relay.data;
   return (
     <Stack data-testid="monitor-workbench" gap="md">
-      {relay.error ? <Alert color="red">{String(relay.error)}</Alert> : null}
+      {relay.error ? <Alert color="red">{visibleErrorMessage(relay.error)}</Alert> : null}
       <Card className="surface-card" p="md" radius="lg" withBorder>
         <Stack gap="md">
           <Group align="flex-start" justify="space-between" wrap="wrap">

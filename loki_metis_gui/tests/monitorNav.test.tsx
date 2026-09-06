@@ -16,13 +16,17 @@ import { MonitorImagesPage } from "../src/pages/MonitorImagesPage";
 import { MonitorManagementPage } from "../src/pages/MonitorManagementPage";
 import { MonitorSettingsPage } from "../src/pages/MonitorSettingsPage";
 import { MonitorWorkbenchPage } from "../src/pages/MonitorWorkbenchPage";
-import { monitorCapabilitiesFixture, TestProviders } from "./testUtils";
+import {
+  allMonitorAiToolsFixture,
+  monitorCapabilitiesFixture,
+  TestProviders,
+} from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 
-/** 四项已批准 Agent 的空白展示草稿。 */
+/** 既有四项展示草稿夹具。 */
 function emptyDrafts() {
   const behaviors = ["idle", "running", "asking", "error"] as const;
   return {
@@ -99,7 +103,7 @@ describe("monitor header tabs", () => {
       if (command === "get_hook_relay_status") {
         return {
           listening: true,
-          bindAddress: "127.0.0.1:10240",
+          bindAddress: "127.0.0.1:23456",
           receivedCount: 0,
           failedCount: 0,
           lastEvent: null,
@@ -192,9 +196,9 @@ describe("monitor header tabs", () => {
   });
 
   /** 工作台挂载真实中继查询；监控管理按已启用 Agent 分 Tab，不再以写入 Hooks 为主。 */
-  test("workbench_and_management_use_four_approved_agents_and_relay_query", async () => {
+  test("workbench_and_management_use_enabled_agents_and_relay_query", async () => {
     const router = await renderMonitor();
-    expect(await screen.findByText(/Listening on 127.0.0.1:10240/)).toBeVisible();
+    expect(await screen.findByText(/Listening on 127.0.0.1:23456/)).toBeVisible();
     expect(screen.getByText("Received events")).toBeVisible();
     expect(screen.getByText("Failed events")).toBeVisible();
     expect(screen.getAllByText("0")).toHaveLength(2);
@@ -212,66 +216,217 @@ describe("monitor header tabs", () => {
     expect(screen.queryByText(/LAN/i)).not.toBeInTheDocument();
   });
 
+  /** Hooks 设置必须完整呈现与 AIMonitor 对齐的 14 项 Agent。 */
+  test("hooks_settings_render_the_complete_agent_catalog", async () => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      const typedPayload = payload as { tool?: string } | undefined;
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture({ aiTools: allMonitorAiToolsFixture });
+      }
+      if (command === "get_monitor_settings") {
+        return {
+          enabledAiTools: allMonitorAiToolsFixture.map(({ tool }) => tool),
+          hookDirectories: {},
+        };
+      }
+      if (command === "list_monitor_hook_locations") {
+        return allMonitorAiToolsFixture.map(({ tool }) => ({
+          tool,
+          directory: `/tmp/${tool}`,
+          configPath: `/tmp/${tool}/hooks.json`,
+          isCustom: true,
+        }));
+      }
+      if (command === "get_hook_relay_status") {
+        return {
+          listening: true,
+          bindAddress: "127.0.0.1:23456",
+          receivedCount: 0,
+          failedCount: 0,
+          lastEvent: null,
+          lastError: null,
+        };
+      }
+      if (command === "write_monitor_hook_config") {
+        return {
+          tool: typedPayload?.tool ?? "codeBuddy",
+          filename: "hooks.json",
+          outcome: "codeBuddyReviewRequired",
+          configChanged: true,
+          requiresReview: true,
+          restartRequired: true,
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    await renderMonitor("/monitor/settings");
+    const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
+    const hooksManagement = screen.getByTestId("monitor-hooks-management");
+    expect(within(enabledAgents).getAllByRole("checkbox")).toHaveLength(14);
+    expect(within(hooksManagement).getAllByRole("tab")).toHaveLength(14);
+    expect(within(hooksManagement).getByRole("tab", { name: "Cursor" })).toBeVisible();
+    expect(
+      within(hooksManagement).getByRole("tab", { name: "GitHub Copilot" }),
+    ).toBeVisible();
+    await userEvent.click(within(hooksManagement).getByRole("tab", { name: "CodeBuddy" }));
+    await userEvent.click(
+      within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
+    );
+    expect(
+      await within(hooksManagement).findByText(/Review required in CodeBuddy/),
+    ).toBeVisible();
+  });
+
+  /** Hermes 与 OpenClaw 写入后展示可复制的真实激活命令，且 OpenClaw 保持执行顺序。 */
+  test("hooks_settings_show_copyable_plugin_activation_commands", async () => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      const tool = (payload as { tool?: "hermes" | "openClaw" } | undefined)?.tool;
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture({
+          aiTools: [
+            { tool: "hermes", name: "Hermes" },
+            { tool: "openClaw", name: "OpenClaw" },
+          ],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return { enabledAiTools: ["hermes", "openClaw"], hookDirectories: {} };
+      }
+      if (command === "list_monitor_hook_locations") {
+        return ["hermes", "openClaw"].map((item) => ({
+          tool: item,
+          directory: `/tmp/${item}`,
+          configPath: `/tmp/${item}/hooks.json`,
+          isCustom: true,
+        }));
+      }
+      if (command === "write_monitor_hook_config") {
+        return {
+          tool,
+          filename: "hooks.json",
+          outcome: tool === "hermes" ? "hermesEnableRequired" : "openClawEnableRequired",
+          configChanged: true,
+          requiresReview: true,
+          restartRequired: true,
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    await renderMonitor("/monitor/settings");
+    const hooksManagement = await screen.findByTestId("monitor-hooks-management");
+    await userEvent.click(
+      within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
+    );
+
+    let guidance = await within(hooksManagement).findByTestId("hook-activation-guidance");
+    expect(
+      within(guidance).getByText(
+        "Run the command below, then restart Hermes or start a new session.",
+      ),
+    ).toBeVisible();
+    expect(within(guidance).getByText("hermes plugins enable lokimetis")).toBeVisible();
+    expect(
+      within(guidance).getByRole("button", {
+        name: "Copy command: hermes plugins enable lokimetis",
+      }),
+    ).toBeVisible();
+
+    await userEvent.click(within(hooksManagement).getByRole("tab", { name: "OpenClaw" }));
+    await userEvent.click(
+      within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
+    );
+    guidance = await within(hooksManagement).findByTestId("hook-activation-guidance");
+
+    expect(
+      within(guidance).getByText("Run the following commands in order."),
+    ).toBeVisible();
+    const enable = within(guidance).getByText("openclaw plugins enable lokimetis");
+    const allowAccess = within(guidance).getByText(
+      "openclaw config set plugins.entries.lokimetis.hooks.allowConversationAccess true",
+    );
+    const restart = within(guidance).getByText("openclaw gateway restart");
+    expect(
+      enable.compareDocumentPosition(allowAccess) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      allowAccess.compareDocumentPosition(restart) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      within(guidance).getAllByRole("button", { name: /^Copy command:/ }),
+    ).toHaveLength(3);
+  });
+
   /** Hooks 选项卡可启用 Agent 并写入/定位 Hook 配置。 */
   test("hooks_settings_tab_enables_agents_and_writes_local_hook_config", async () => {
-    invokeMock.mockImplementation(
-      async (command: string, payload?: { tools?: string[]; tool?: string }) => {
-        if (command === "get_monitor_capabilities") {
-          return monitorCapabilitiesFixture({
-            aiTools: [
-              { tool: "codex", name: "Codex" },
-              { tool: "claudeCode", name: "Claude Code" },
-              { tool: "grok", name: "Grok Build" },
-              { tool: "workBuddy", name: "WorkBuddy" },
-            ],
-            imageUploadAccept: { mimeTypes: ["image/png"], extensions: [".png"] },
-          });
-        }
-        if (command === "get_monitor_settings") {
-          return {
-            enabledAiTools: ["codex"],
-            hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-          };
-        }
-        if (command === "list_monitor_hook_locations") {
-          return [
-            {
-              tool: "codex",
-              directory: "/tmp/codex",
-              configPath: "/tmp/codex/hooks.json",
-              isCustom: true,
-            },
-          ];
-        }
-        if (command === "save_monitor_enabled_tools") {
-          return {
-            enabledAiTools: payload?.tools ?? ["codex", "grok"],
-            hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-          };
-        }
-        if (command === "write_monitor_hook_config") {
-          return {
-            tool: payload?.tool ?? "codex",
-            filename: "hooks.json",
-            outcome: "active",
-            configChanged: true,
-            requiresReview: false,
-            restartRequired: false,
-          };
-        }
-        if (command === "get_hook_relay_status") {
-          return {
-            listening: true,
-            bindAddress: "127.0.0.1:10240",
-            receivedCount: 0,
-            failedCount: 0,
-            lastEvent: null,
-            lastError: null,
-          };
-        }
-        throw new Error(`unexpected command ${command}`);
-      },
-    );
+    invokeMock.mockImplementation(async (command, payload) => {
+      const typedPayload = payload as
+        { tools?: string[]; tool?: string; directory?: string } | undefined;
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture({
+          aiTools: [
+            { tool: "codex", name: "Codex" },
+            { tool: "claudeCode", name: "Claude Code" },
+            { tool: "grok", name: "Grok Build" },
+            { tool: "workBuddy", name: "WorkBuddy" },
+          ],
+          imageUploadAccept: { mimeTypes: ["image/png"], extensions: [".png"] },
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return {
+          enabledAiTools: ["codex"],
+          hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
+        };
+      }
+      if (command === "list_monitor_hook_locations") {
+        return [
+          {
+            tool: "codex",
+            directory: "/tmp/codex",
+            configPath: "/tmp/codex/hooks.json",
+            isCustom: true,
+          },
+        ];
+      }
+      if (command === "save_monitor_enabled_tools") {
+        return {
+          enabledAiTools: typedPayload?.tools ?? ["codex", "grok"],
+          hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
+        };
+      }
+      if (command === "save_hook_config_directory") {
+        const directory = typedPayload?.directory || "/Users/test/.codex";
+        return {
+          tool: typedPayload?.tool ?? "codex",
+          directory,
+          configPath: `${directory}/hooks.json`,
+          isCustom: Boolean(typedPayload?.directory),
+        };
+      }
+      if (command === "write_monitor_hook_config") {
+        return {
+          tool: typedPayload?.tool ?? "codex",
+          filename: "hooks.json",
+          outcome: "active",
+          configChanged: true,
+          requiresReview: false,
+          restartRequired: false,
+        };
+      }
+      if (command === "get_hook_relay_status") {
+        return {
+          listening: true,
+          bindAddress: "127.0.0.1:23456",
+          receivedCount: 0,
+          failedCount: 0,
+          lastEvent: null,
+          lastError: null,
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
     const router = await renderMonitor("/monitor/settings");
     expect(router.state.location.pathname).toBe("/monitor/settings");
     const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
@@ -284,12 +439,33 @@ describe("monitor header tabs", () => {
     expect(
       within(hooksManagement).getByRole("textbox", { name: "Configuration file" }),
     ).toHaveValue("/tmp/codex/hooks.json");
-    expect(
-      within(hooksManagement).getByRole("textbox", { name: "Config directory" }),
-    ).toHaveAttribute("readonly");
+    const directoryInput = within(hooksManagement).getByRole("textbox", {
+      name: "Config directory",
+    });
+    expect(directoryInput).not.toHaveAttribute("readonly");
     expect(
       within(hooksManagement).getByRole("textbox", { name: "Configuration file" }),
     ).toHaveAttribute("readonly");
+    await userEvent.clear(directoryInput);
+    await userEvent.type(directoryInput, "/tmp/codex-next");
+    expect(
+      within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
+    ).toBeDisabled();
+    await userEvent.click(
+      within(hooksManagement).getByRole("button", { name: "Save path" }),
+    );
+    expect(invokeMock).toHaveBeenCalledWith("save_hook_config_directory", {
+      tool: "codex",
+      directory: "/tmp/codex-next",
+    });
+    await waitFor(() => {
+      expect(
+        within(hooksManagement).getByRole("textbox", { name: "Configuration file" }),
+      ).toHaveValue("/tmp/codex-next/hooks.json");
+      expect(
+        within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
+      ).toBeEnabled();
+    });
     await userEvent.click(
       within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
     );
@@ -308,7 +484,56 @@ describe("monitor header tabs", () => {
     expect(within(hooksManagement).queryByText(/Wrote hooks.json/)).not.toBeInTheDocument();
     await userEvent.click(codexTab);
     expect(codexTab).toHaveAttribute("aria-selected", "true");
-    expect(await within(hooksManagement).findByText(/Wrote hooks.json/)).toBeVisible();
+    expect(within(hooksManagement).queryByText(/Wrote hooks.json/)).not.toBeInTheDocument();
     expect(screen.queryByText("app-settings")).not.toBeInTheDocument();
+  });
+
+  /** 结构化目录错误显示本地化原因，不能退化成 `[object Object]`。 */
+  test("hooks_settings_localize_structured_directory_errors", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture({
+          aiTools: [{ tool: "codex", name: "Codex" }],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return { enabledAiTools: ["codex"], hookDirectories: { codex: "" } };
+      }
+      if (command === "list_monitor_hook_locations") {
+        return [
+          {
+            tool: "codex",
+            directory: "/tmp/codex",
+            configPath: "/tmp/codex/hooks.json",
+            isCustom: true,
+          },
+        ];
+      }
+      if (command === "save_hook_config_directory") {
+        throw {
+          code: "error.hooks.directoryNotAbsolute",
+          params: { path: "relative/hooks" },
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    await renderMonitor("/monitor/settings");
+    const hooksManagement = await screen.findByTestId("monitor-hooks-management");
+    const directoryInput = within(hooksManagement).getByRole("textbox", {
+      name: "Config directory",
+    });
+    await userEvent.clear(directoryInput);
+    await userEvent.type(directoryInput, "relative/hooks");
+    await userEvent.click(
+      within(hooksManagement).getByRole("button", { name: "Save path" }),
+    );
+
+    expect(
+      await within(hooksManagement).findByText(
+        "The Hooks configuration directory must be an absolute path.",
+      ),
+    ).toBeVisible();
+    expect(within(hooksManagement).queryByText("[object Object]")).not.toBeInTheDocument();
   });
 });

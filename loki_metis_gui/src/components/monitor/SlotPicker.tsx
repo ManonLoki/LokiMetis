@@ -1,8 +1,8 @@
 import { Badge, Group, Text, UnstyledButton } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
-/** 显示位置选择器固定每行六格，超过一行时据此生成可访问行列信息。 */
-const SLOT_GRID_COLUMNS = 6;
+/** 显示位置选择器固定每行十二格，超过一行时据此生成可访问行列信息。 */
+const SLOT_GRID_COLUMNS = 12;
 
 /** 展示位选择器：可选范围完全由 core 能力提供。 */
 interface SlotPickerProps {
@@ -12,7 +12,7 @@ interface SlotPickerProps {
   onChange: (value: number) => void;
 }
 
-/** 按每行六格展示 core 提供的全部可选展示位。 */
+/** 按每行十二格展示 core 提供的全部可选展示位。 */
 export function SlotPicker({ value, min, max, onChange }: SlotPickerProps) {
   const { t } = useTranslation();
   const count = Math.max(0, max - min + 1);

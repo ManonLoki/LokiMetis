@@ -1,8 +1,11 @@
 use std::sync::RwLock;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::{settings::HostSettingsState, tray::refresh_tray_labels};
+
+/// 主窗口切换语言后通知其它 WebView 立即同步 i18next。
+pub(crate) const INTERFACE_LANGUAGE_CHANGED_EVENT: &str = "interface-language-changed";
 
 pub(crate) struct LocaleState {
     saved_language: RwLock<Option<String>>,
@@ -71,6 +74,9 @@ pub async fn set_interface_language(
         .map_err(str::to_string)?;
     state.set_saved_language(normalized.clone());
     rust_i18n::set_locale(&normalized);
+    if let Err(error) = app.emit(INTERFACE_LANGUAGE_CHANGED_EVENT, normalized.clone()) {
+        tracing::warn!(%error, "failed to broadcast interface language change");
+    }
     if let Err(error) = refresh_tray_labels(&app) {
         tracing::warn!(error = %error, "failed to refresh tray labels after locale change");
     }

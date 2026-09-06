@@ -4,10 +4,10 @@ use std::fs::{self, File};
 use std::io::{Read, Take};
 use std::path::Path;
 
+use jiff::Timestamp;
 use loki_metis_core::{
     CoverageReport, CoverageState, WorkbuddyUsageEventRecord, safe_path_basename, stable_id,
 };
-use jiff::Timestamp;
 use serde::Deserialize;
 
 use crate::backend::local_index::{

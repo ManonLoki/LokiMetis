@@ -28,23 +28,23 @@ export function DashboardLayout(): ReactElement {
   );
 
   useEffect(() => {
+    const firstEnabled = enabledAgents[0];
     if (view === "workbuddy") {
-      if (!workbuddyStatsEnabled && enabledAgents.length > 0) {
-        setView(enabledAgents[0]!);
+      if (!workbuddyStatsEnabled && firstEnabled !== undefined) {
+        setView(firstEnabled);
       }
       return;
     }
-    if (enabledAgents.length === 0) {
+    if (firstEnabled === undefined) {
       if (workbuddyStatsEnabled && view !== "all") {
         setView("workbuddy");
       }
       return;
     }
-    const firstEnabled = enabledAgents[0]!;
     if (!enabledAgents.includes(client)) {
       setClient(firstEnabled);
     }
-    if (view !== "all" && view !== "workbuddy" && !enabledAgents.includes(view)) {
+    if (view !== "all" && !enabledAgents.includes(view)) {
       setView(firstEnabled);
     }
   }, [client, enabledAgents, setClient, setView, view, workbuddyStatsEnabled]);
@@ -75,14 +75,19 @@ export function DashboardLayout(): ReactElement {
   }
   if (privacyQuery.isError) {
     return (
-      <FailureState error={privacyQuery.error} onRetry={() => void privacyQuery.refetch()} />
+      <FailureState
+        error={privacyQuery.error}
+        onRetry={() => void privacyQuery.refetch()}
+      />
     );
   }
 
   return (
     <Stack data-testid="dashboard-page" gap="md">
       {enabledAgents.length === 0 && !workbuddyStatsEnabled ? (
-        <Alert title={t("shell.noEnabledAgents.title")}>{t("shell.noEnabledAgents.body")}</Alert>
+        <Alert title={t("shell.noEnabledAgents.title")}>
+          {t("shell.noEnabledAgents.body")}
+        </Alert>
       ) : null}
       <DashboardToolbar
         enabledAgents={enabledAgents}

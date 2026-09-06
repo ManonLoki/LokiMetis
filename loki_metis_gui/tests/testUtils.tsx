@@ -7,6 +7,24 @@ import type { MonitorCapabilities } from "../src/api/monitor";
 import { AppThemeProvider } from "../src/components/AppThemeProvider";
 import { appI18n } from "../src/i18n";
 
+/** 与 Hook 后端协议一致的完整 Agent 目录。 */
+export const allMonitorAiToolsFixture: MonitorCapabilities["aiTools"] = [
+  { tool: "codex", name: "Codex" },
+  { tool: "claudeCode", name: "Claude Code" },
+  { tool: "cursor", name: "Cursor" },
+  { tool: "openCode", name: "OpenCode" },
+  { tool: "workBuddy", name: "WorkBuddy" },
+  { tool: "hermes", name: "Hermes" },
+  { tool: "openClaw", name: "OpenClaw" },
+  { tool: "codeBuddy", name: "CodeBuddy" },
+  { tool: "qwenCode", name: "Qwen Code" },
+  { tool: "kimiCode", name: "Kimi Code" },
+  { tool: "qoder", name: "Qoder" },
+  { tool: "geminiCli", name: "Gemini CLI" },
+  { tool: "gitHubCopilot", name: "GitHub Copilot" },
+  { tool: "grok", name: "Grok" },
+];
+
 /** 为组件测试挂载与生产一致的最小稳定 Provider 集合。 */
 export function TestProviders({ children }: { children: ReactNode }): ReactElement {
   const queryClient = new QueryClient({

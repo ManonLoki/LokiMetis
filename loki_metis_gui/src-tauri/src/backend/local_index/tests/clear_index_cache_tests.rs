@@ -8,9 +8,7 @@ use super::support::{
     create_root, discover_registered, reopen_for_fixture, scan, token_line, write_rollout,
 };
 use crate::backend::local_index::{CancellationToken, LocalIndex, PARSER_VERSION};
-use loki_metis_core::{
-    Completeness, Confidence, Freshness, MetricFact, MetricScope, ProviderKind,
-};
+use loki_metis_core::{Completeness, Confidence, Freshness, MetricFact, MetricScope, ProviderKind};
 
 /// 在隔离 app-data 内按测试固定 parser 版本打开索引。
 fn open_index(app_data_dir: &std::path::Path) -> LocalIndex {

@@ -88,14 +88,23 @@ function ThemeSurface({ children }: { children: ReactNode }): ReactElement {
   const petOverlay =
     typeof document !== "undefined" &&
     document.documentElement.classList.contains("pet-window");
+  const petSettings =
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("pet-settings-window");
+  const petAuxiliaryWindow = petOverlay || petSettings;
   return (
     <Box
       data-color-scheme={colorScheme}
       data-testid="app-theme-surface"
-      mih={petOverlay ? "100%" : "100dvh"}
+      mih={petAuxiliaryWindow ? "100%" : "100dvh"}
       style={{
-        background: petOverlay ? "transparent" : "var(--app-background)",
+        background: petOverlay
+          ? "transparent"
+          : petSettings
+            ? "#11151d"
+            : "var(--app-background)",
         color: "var(--app-text)",
+        height: petAuxiliaryWindow ? "100%" : undefined,
       }}
     >
       {children}

@@ -1,7 +1,26 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
-/** 监控区支持的四项 Agent。 */
-export type MonitorAiTool = "codex" | "claudeCode" | "grok" | "workBuddy";
+/** 与 AIMonitor Hook 目录一致的全部 Agent。 */
+export type MonitorAiTool =
+  | "codex"
+  | "claudeCode"
+  | "cursor"
+  | "openCode"
+  | "workBuddy"
+  | "hermes"
+  | "openClaw"
+  | "codeBuddy"
+  | "qwenCode"
+  | "kimiCode"
+  | "qoder"
+  | "geminiCli"
+  | "gitHubCopilot"
+  | "grok";
+
+/** 配置目录对象沿用 Rust 字段名的 camelCase；Copilot 键与枚举值大小写不同。 */
+export type MonitorHookDirectoryKey =
+  Exclude<MonitorAiTool, "gitHubCopilot"> | "githubCopilot";
 
 /** 工具目录条目。 */
 export interface MonitorAiToolDescriptor {
@@ -39,12 +58,7 @@ export interface PetOverlayPosition {
 /** 监控设置。 */
 export interface MonitorSettings {
   enabledAiTools: MonitorAiTool[];
-  hookDirectories: {
-    codex: string;
-    claudeCode: string;
-    grok: string;
-    workBuddy: string;
-  };
+  hookDirectories: Partial<Record<MonitorHookDirectoryKey, string>>;
   petOverlayPosition: PetOverlayPosition | null;
 }
 
@@ -57,10 +71,21 @@ export interface HookConfigLocation {
 }
 
 /** Hook 写入结果。 */
+export type MonitorHookWriteOutcome =
+  | "unchanged"
+  | "active"
+  | "restartRequired"
+  | "codexReviewRequired"
+  | "workBuddyReviewRequired"
+  | "codeBuddyReviewRequired"
+  | "hermesEnableRequired"
+  | "openClawEnableRequired";
+
+/** Hook 写入结果。 */
 export interface HookConfigWriteResult {
   tool: MonitorAiTool;
   filename: string;
-  outcome: string;
+  outcome: MonitorHookWriteOutcome;
   configChanged: boolean;
   requiresReview: boolean;
   restartRequired: boolean;
@@ -144,6 +169,27 @@ export async function listMonitorHookLocations(): Promise<HookConfigLocation[]> 
   return invoke("list_monitor_hook_locations");
 }
 
+/** 保存某个工具的 Hook 配置目录；空字符串恢复默认目录。 */
+export async function saveMonitorHookDirectory(
+  tool: MonitorAiTool,
+  directory: string,
+): Promise<HookConfigLocation> {
+  return invoke("save_hook_config_directory", { tool, directory });
+}
+
+/** 选择本机或 Windows 可见的 WSL Hook 配置目录。 */
+export async function chooseMonitorHookDirectory(
+  defaultPath: string,
+  title: string,
+): Promise<string | null> {
+  return open({
+    defaultPath,
+    directory: true,
+    multiple: false,
+    title,
+  });
+}
+
 /** 写入指定工具的本机 Hook 配置。 */
 export async function writeMonitorHookConfig(
   tool: MonitorAiTool,
@@ -186,22 +232,47 @@ export async function saveMonitorProfileDraft(
   return invoke("save_monitor_profile_draft", { profile });
 }
 
-/** 桌宠宫格槽位。 */
-export interface PetOverlaySlot {
+/** 桌宠当前页的排列方式。 */
+export type PetLayout = "single" | "row" | "column" | "row3" | "column3" | "grid";
+
+/** 桌宠翻页方向。 */
+export type PetPageDirection = "previous" | "next";
+
+/** 桌宠尺寸调整意图。 */
+export type PetResizeDirection = "grow" | "shrink";
+
+/** 位置中当前实际展示的 Agent 内容。 */
+export interface PetOverlayTile {
   tool: MonitorAiTool;
   name: string;
-  occupied: boolean;
+  content: string;
   imageId: string | null;
 }
 
-/** 桌宠宫格快照。 */
-export interface PetOverlayView {
-  slots: PetOverlaySlot[];
+/** 桌宠当前页的纯位置槽，空位置不预绑定 Agent。 */
+export interface PetOverlaySlot {
+  slotIndex: number;
+  tile: PetOverlayTile | null;
 }
 
-/** 读取桌宠宫格投影。 */
-export async function getPetOverlayView(): Promise<PetOverlayView> {
-  return invoke("get_pet_overlay_view");
+/** 桌宠内容、分页与窗口偏好的一致快照。 */
+export interface PetWindowState {
+  layout: PetLayout;
+  locked: boolean;
+  pageIndex: number;
+  pageCount: number;
+  pageHasImage: boolean;
+  hasAnyImage: boolean;
+  slots: PetOverlaySlot[];
+  petSize: number;
+  sizeMin: number;
+  sizeMax: number;
+  alwaysOnTop: boolean;
+}
+
+/** 读取桌宠内容与窗口偏好投影。 */
+export async function getPetWindowState(): Promise<PetWindowState> {
+  return invoke("get_pet_window_state");
 }
 
 /** 读取监控图片原始字节。 */
@@ -217,6 +288,56 @@ export async function closePetOverlay(): Promise<void> {
 /** 开始拖动桌宠悬浮窗。 */
 export async function startPetOverlayDrag(): Promise<void> {
   await invoke("start_pet_overlay_drag");
+}
+
+/** 在桌宠所在显示器打开独立设置窗。 */
+export async function showPetSettings(): Promise<void> {
+  await invoke("show_pet_settings");
+}
+
+/** 隐藏独立桌宠设置窗。 */
+export async function hidePetSettings(): Promise<void> {
+  await invoke("hide_pet_settings");
+}
+
+/** 切换桌宠当前页排列。 */
+export async function setPetLayout(layout: PetLayout): Promise<void> {
+  await invoke("set_pet_layout", { layout });
+}
+
+/** 设置桌宠单格逻辑像素尺寸。 */
+export async function setPetSize(size: number): Promise<void> {
+  await invoke("set_pet_size", { size });
+}
+
+/** 设置桌宠是否始终置顶。 */
+export async function setPetAlwaysOnTop(enabled: boolean): Promise<void> {
+  await invoke("set_pet_always_on_top", { enabled });
+}
+
+/** 设置桌宠是否锁定位置与大小。 */
+export async function setPetLocked(locked: boolean): Promise<void> {
+  await invoke("set_pet_locked", { locked });
+}
+
+/** 按宿主管理的分页状态切换桌宠页。 */
+export async function turnPetPage(direction: PetPageDirection): Promise<void> {
+  await invoke("turn_pet_page", { direction });
+}
+
+/** 在每次 WebView 挂载时至多一次聚焦首个有图页。 */
+export async function focusFirstPopulatedPetPage(): Promise<void> {
+  await invoke("focus_first_populated_pet_page");
+}
+
+/** 上报单步放大或缩小意图，步长与边界由宿主决定。 */
+export async function resizePetStep(direction: PetResizeDirection): Promise<void> {
+  await invoke("resize_pet_step", { direction });
+}
+
+/** 显示并聚焦主界面。 */
+export async function showMainWindow(): Promise<void> {
+  await invoke("show_main_window");
 }
 
 /** 把选中的本地文件读成 IPC 字节数组。 */

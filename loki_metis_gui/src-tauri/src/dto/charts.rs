@@ -1,8 +1,6 @@
 //! 图表页的固定时间桶、多维分布与一致事实 DTO。
 
-use loki_metis_core::{
-    LocalIndexState, LocalUsageAggregate, MetricFact, UsageMeasure,
-};
+use loki_metis_core::{LocalIndexState, LocalUsageAggregate, MetricFact, UsageMeasure};
 use serde::{Deserialize, Serialize};
 
 use super::{UsageGroupDto, UsageWindow};
@@ -83,9 +81,7 @@ impl From<loki_metis_core::UsageChartDimension> for UsageChartDimensionDto {
         match value {
             loki_metis_core::UsageChartDimension::Agent => Self::Agent,
             loki_metis_core::UsageChartDimension::Model => Self::Model,
-            loki_metis_core::UsageChartDimension::ReasoningEffort => {
-                Self::ReasoningEffort
-            }
+            loki_metis_core::UsageChartDimension::ReasoningEffort => Self::ReasoningEffort,
             loki_metis_core::UsageChartDimension::Project => Self::Project,
             loki_metis_core::UsageChartDimension::Thread => Self::Thread,
             loki_metis_core::UsageChartDimension::Root => Self::Root,
@@ -155,9 +151,7 @@ mod tests {
             UsageChartDimensionDto::ReasoningEffort
         );
         assert_eq!(
-            loki_metis_core::UsageChartDimension::from(
-                UsageChartDimensionDto::Agent
-            ),
+            loki_metis_core::UsageChartDimension::from(UsageChartDimensionDto::Agent),
             loki_metis_core::UsageChartDimension::Agent
         );
         assert!(serde_json::from_str::<UsageChartDimensionDto>("\"cursor\"").is_err());

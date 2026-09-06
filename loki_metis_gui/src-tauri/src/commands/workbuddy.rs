@@ -42,8 +42,7 @@ pub(crate) async fn get_workbuddy_statistics(
     let Some(workbuddy_home) = resolve_workbuddy_home() else {
         return Err(workbuddy_stats_unavailable_message().to_owned());
     };
-    let time_standard =
-        time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
+    let time_standard = time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
     let now_epoch_ms = now_epoch_ms();
 
     read_workbuddy_statistics(&workbuddy_home, now_epoch_ms, time_standard)
@@ -71,8 +70,7 @@ pub(crate) async fn get_workbuddy_usage_statistics(
     let Some(workbuddy_home) = resolve_workbuddy_home() else {
         return Err(workbuddy_stats_unavailable_message().to_owned());
     };
-    let time_standard =
-        time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
+    let time_standard = time_standard.into_time_standard(&loki_metis_core::device_time_zone_name());
     let details = read_workbuddy_usage_details(
         &workbuddy_home,
         to_core_window(window),

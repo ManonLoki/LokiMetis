@@ -35,14 +35,16 @@ mod usage;
 mod workbuddy_stats;
 
 pub use agent_hooks::{
-    AiTool, AiToolDescriptor, DEFAULT_HOOK_RELAY_PORT, HOOK_RELAY_EPHEMERAL_PORT, HookBehavior,
-    HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult, HookError,
-    HookEventDecision, HookStateMachine, HookTransition, HookWriteOutcome,
-    MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload, PreparedNativeHook, ai_tool_descriptors,
-    ai_tool_name, generate_hook_config,
-    generate_wsl_hook_config, hook_config_filename, hook_config_has_managed_marker,
-    hook_config_write_result, hook_relay_loopback_address, managed_hook_marker, merge_hook_config,
-    normalize_enabled_ai_tools, prepare_native_hook, tool_from_slug,
+    AiTool, AiToolDescriptor, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
+    HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
+    HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigDirectories, HookConfigLocation,
+    HookConfigPreview, HookConfigWriteResult, HookError, HookEventDecision, HookStateMachine,
+    HookTransition, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
+    PreparedNativeHook, ai_tool_descriptors, ai_tool_name, generate_hook_auxiliary_configs,
+    generate_hook_config, generate_wsl_hook_config, hook_config_filename,
+    hook_config_has_managed_marker, hook_config_write_result, hook_relay_loopback_address,
+    hook_supports_wsl, managed_hook_marker, merge_hook_config, normalize_enabled_ai_tools,
+    prepare_native_hook, remove_managed_hook_entries, tool_from_slug,
 };
 pub use aggregate::{
     CanonicalUsageSet, CanonicalizationWarning, CanonicalizationWarningKind, MetricFusionError,
@@ -80,22 +82,6 @@ pub use display_name::{
     SAFE_DISPLAY_NAME_MAX_CHARS, claude_project_display_label, grok_project_display_label,
     safe_path_basename, safe_thread_title,
 };
-pub use monitor_gallery::{
-    ImageFormat, ImageUploadAccept, MonitorImageCounts, MonitorImageGallery, MonitorImagePreview,
-    assemble_image_gallery, image_data_url, image_upload_accept, preview_from_bytes,
-};
-pub use monitor_profile::{
-    DEFAULT_PROFILE_SLOT, MAX_PROFILE_SLOT, MIN_PROFILE_SLOT, AiProfileDraft, AiProfileDraftSet,
-    HookContent, MonitorCapabilityRange, clamp_profile_slot, merge_profile_drafts,
-    profile_slot_range, validate_profile_draft,
-};
-pub use pet_overlay::{
-    PET_OVERLAY_WINDOW_SPEC, PetOverlaySlot, PetOverlayToolBehavior, PetOverlayView,
-    PetOverlayWindowSpec, pet_overlay_window_spec, project_pet_overlay_from_drafts,
-};
-pub use pet_overlay_position::{
-    PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,
-};
 pub use local_index::{
     ClaudeBatchOutcome, DiscoveryMethod, LocalError, LocalErrorKind, LocalIndex, RegisteredRoot,
     RootRecord, SourceParseCheckpoint, StoredSourceFile, UsageSnapshot, path_key, stable_id,
@@ -104,6 +90,24 @@ pub use local_view::{
     LocalRecordsSummary, SourceDiscoveryCode, SourceDiscoveryMethod, SourceRootInput,
     SourceRootSummary, WindowUsage, build_empty_local_windows, build_local_windows,
     build_local_windows_with_standard, build_source_roots,
+};
+pub use monitor_gallery::{
+    ImageFormat, ImageUploadAccept, MonitorImageCounts, MonitorImageGallery, MonitorImagePreview,
+    assemble_image_gallery, image_data_url, image_upload_accept, preview_from_bytes,
+};
+pub use monitor_profile::{
+    AiProfileDraft, AiProfileDraftSet, DEFAULT_PROFILE_SLOT, HookContent, MAX_PROFILE_SLOT,
+    MIN_PROFILE_SLOT, MonitorCapabilityRange, clamp_profile_slot, merge_profile_drafts,
+    profile_slot_range, validate_profile_draft,
+};
+pub use pet_overlay::{
+    PET_OVERLAY_SLOT_COUNT, PET_OVERLAY_WINDOW_SPEC, PetLayout, PetOverlayPage, PetOverlaySlot,
+    PetOverlayTile, PetOverlayToolState, PetOverlayView, PetOverlayWindowSpec,
+    apply_pet_overlay_transition, pet_overlay_page_count, pet_overlay_window_spec,
+    project_pet_overlay_from_drafts, project_pet_overlay_page, wrap_pet_overlay_page,
+};
+pub use pet_overlay_position::{
+    PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,
 };
 pub use policy::messages::{
     source_root_alias_invalid_message, source_root_alias_updated_message,
@@ -134,13 +138,13 @@ pub use policy::{
     ensure_single_verified_source_root, extract_single_verified_source_root, initial_coverage,
     is_safe_usage_filter_id, list_scan_source_clients, list_workbuddy_scan_sources,
     local_index_scan_policy, local_index_scan_policy_with_retention, merge_coverage_reports,
-    normalize_source_root_alias, retain_ingestable_calls, safe_root_label, safe_short_value,
-    safe_model_label, safe_technical_label, scan_start_access_error_message,
-    source_file_needs_visit,
-    source_root_add_outcome, source_root_alias_from_path, source_root_mutation_feedback,
-    source_root_primary_outcome, source_root_remove_outcome, source_root_rename_outcome,
-    source_root_set_enabled_outcome, source_root_toggle_enabled_outcome, validate_source_root_id,
-    validate_usage_filter_id, workbuddy_home_from_user_home, workbuddy_scan_source_candidate,
+    normalize_source_root_alias, retain_ingestable_calls, safe_model_label, safe_root_label,
+    safe_short_value, safe_technical_label, scan_start_access_error_message,
+    source_file_needs_visit, source_root_add_outcome, source_root_alias_from_path,
+    source_root_mutation_feedback, source_root_primary_outcome, source_root_remove_outcome,
+    source_root_rename_outcome, source_root_set_enabled_outcome,
+    source_root_toggle_enabled_outcome, validate_source_root_id, validate_usage_filter_id,
+    workbuddy_home_from_user_home, workbuddy_scan_source_candidate,
 };
 pub use provider::{
     Completeness, Confidence, Freshness, MetricFact, MetricScope, ProviderKind,

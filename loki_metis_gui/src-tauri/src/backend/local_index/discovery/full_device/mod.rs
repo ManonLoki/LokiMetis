@@ -29,8 +29,7 @@ use types::{WorkerOutcome, WorkerResult, WorkerTask};
 use worker::execute_worker_task;
 
 /// 生产扫描最多使用两个原生目录 I/O worker，避免抢占 Token 索引 CPU 时间。
-pub(super) const MAX_DISCOVERY_WORKERS: usize =
-    loki_metis_core::LOCAL_DISCOVERY_WORKER_LIMIT;
+pub(super) const MAX_DISCOVERY_WORKERS: usize = loki_metis_core::LOCAL_DISCOVERY_WORKER_LIMIT;
 /// 每轮固定派发八个确定性 ticket，使单 worker 与多 worker 使用同一提交顺序。
 pub(super) const DISCOVERY_ROUND_SIZE: usize = 8;
 /// 单个目录枚举 ticket 最多读取 256 项，限制乱序结果与取消等待的内存边界。

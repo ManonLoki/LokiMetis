@@ -30,7 +30,9 @@ pub(crate) use settings::{
 };
 pub(crate) use source_reindex::reindex_source_root;
 pub(crate) use sources::{get_source_roots, get_sources};
-pub(crate) use usage::{get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics};
+pub(crate) use usage::{
+    get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics,
+};
 pub(crate) use workbuddy::{
     get_workbuddy_source_status, get_workbuddy_statistics, get_workbuddy_usage_statistics,
 };

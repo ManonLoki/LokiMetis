@@ -1,29 +1,38 @@
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createBrowserHistory, createRouter } from "@tanstack/react-router";
 
-import { isPetOverlayPath, resolveDefaultLandingPath } from "./default-landing";
+import {
+  isPetOverlayPath,
+  isPetSettingsPath,
+  isPetWindowPath,
+  resolveDefaultLandingPath,
+} from "./default-landing";
 import { routeTree } from "./routeTree.gen";
 
-/** 桌宠窗口生产入口是 index.html，按原生标签改写到 /pet。 */
-function syncPetOverlayLocation(): void {
+/** 桌宠原生窗口共用 index.html，按标签改写到各自独立路由。 */
+function syncPetWindowLocation(): void {
   try {
-    if (getCurrentWebviewWindow().label !== "pet") {
-      return;
-    }
-    if (!isPetOverlayPath(window.location.pathname)) {
+    const label = getCurrentWebviewWindow().label;
+    if (label === "pet" && !isPetOverlayPath(window.location.pathname)) {
       window.history.replaceState(null, "", "/pet");
+    }
+    if (label === "pet-settings" && !isPetSettingsPath(window.location.pathname)) {
+      window.history.replaceState(null, "", "/pet-settings");
     }
   } catch {
     return;
   }
 }
 
-syncPetOverlayLocation();
+syncPetWindowLocation();
 if (typeof document !== "undefined" && isPetOverlayPath(window.location.pathname)) {
   document.documentElement.classList.add("pet-window");
 }
+if (typeof document !== "undefined" && isPetSettingsPath(window.location.pathname)) {
+  document.documentElement.classList.add("pet-settings-window");
+}
 const history = createBrowserHistory();
-const landingPath = isPetOverlayPath(history.location.pathname)
+const landingPath = isPetWindowPath(history.location.pathname)
   ? history.location.pathname
   : resolveDefaultLandingPath(history.location.pathname);
 if (landingPath !== history.location.pathname) {

@@ -10,7 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 
-/** 四项 Agent 的空白草稿。 */
+/** 当前用例所需四项 Agent 的空白草稿。 */
 function emptyDrafts() {
   const behaviors = ["idle", "running", "asking", "error"] as const;
   return {
@@ -72,7 +72,8 @@ describe("monitor management page", () => {
 
   /** 已启用 Agent 时出现 Tab、行为卡片、图片选择与保存草稿。 */
   test("renders_agent_tabs_behavior_cards_and_saves_local_draft", async () => {
-    invokeMock.mockImplementation(async (command: string, payload?: { profile?: { tool: string } }) => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      const typedPayload = payload as { profile?: { tool: string } } | undefined;
       if (command === "get_monitor_capabilities") return monitorCapabilitiesFixture();
       if (command === "get_monitor_settings") {
         return {
@@ -83,7 +84,7 @@ describe("monitor management page", () => {
       if (command === "list_monitor_profile_drafts") return emptyDrafts();
       if (command === "list_monitor_images_cmd") return galleryWithPng();
       if (command === "save_monitor_profile_draft") {
-        return payload?.profile;
+        return typedPayload?.profile;
       }
       throw new Error(`unexpected command ${command}`);
     });
@@ -100,21 +101,37 @@ describe("monitor management page", () => {
     expect(screen.getByText("Asking")).toBeVisible();
     expect(screen.getByText("Error")).toBeVisible();
     expect(screen.getByText("Display position")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Position 1, row 1, column 1" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Position 6, row 1, column 6" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Position 7, row 2, column 1" })).toBeVisible();
-    const positionTwelve = screen.getByRole("button", { name: "Position 12, row 2, column 6" });
+    expect(
+      screen.getByRole("button", { name: "Position 1, row 1, column 1" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Position 6, row 1, column 6" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Position 7, row 1, column 7" }),
+    ).toBeVisible();
+    const positionTwelve = screen.getByRole("button", {
+      name: "Position 12, row 1, column 12",
+    });
     expect(positionTwelve).toBeVisible();
     expect(screen.queryByRole("button", { name: /Position 13,/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /row 3,/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /row 2,/ })).not.toBeInTheDocument();
     await userEvent.click(positionTwelve);
     expect(screen.getByText("Position 12")).toBeVisible();
     const pickers = screen.getAllByTestId("image-picker-trigger");
     expect(pickers.length).toBeGreaterThan(0);
-    await userEvent.click(pickers[0]);
+    const firstPicker = pickers[0];
+    if (firstPicker === undefined) {
+      throw new Error("expected at least one image picker");
+    }
+    await userEvent.click(firstPicker);
     expect(await screen.findByText("Choose display image")).toBeVisible();
-    await userEvent.click(await screen.findByRole("option", { name: "Choose image idle.png" }));
-    await userEvent.click(screen.getByRole("button", { name: "Save display configuration" }));
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Choose image idle.png" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save display configuration" }),
+    );
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith(
         "save_monitor_profile_draft",
@@ -168,7 +185,8 @@ describe("monitor management page", () => {
 
   /** 同名直传绑定新写入的稳定 id，而不是图库里第一张同名旧图。 */
   test("direct_upload_binds_the_newly_saved_image_id_not_the_first_same_filename", async () => {
-    invokeMock.mockImplementation(async (command: string, payload?: { profile?: { tool: string } }) => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      const typedPayload = payload as { profile?: { tool: string } } | undefined;
       if (command === "get_monitor_capabilities") return monitorCapabilitiesFixture();
       if (command === "get_monitor_settings") {
         return {
@@ -210,7 +228,7 @@ describe("monitor management page", () => {
         };
       }
       if (command === "save_monitor_profile_draft") {
-        return payload?.profile;
+        return typedPayload?.profile;
       }
       throw new Error(`unexpected command ${command}`);
     });
@@ -220,11 +238,19 @@ describe("monitor management page", () => {
       </TestProviders>,
     );
     const pickers = await screen.findAllByTestId("image-picker-trigger");
-    await userEvent.click(pickers[0]);
+    const firstPicker = pickers[0];
+    if (firstPicker === undefined) {
+      throw new Error("expected at least one image picker");
+    }
+    await userEvent.click(firstPicker);
     const fileInput = await screen.findByTestId("image-picker-upload");
-    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])], "idle.png", {
-      type: "image/png",
-    });
+    const file = new File(
+      [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+      "idle.png",
+      {
+        type: "image/png",
+      },
+    );
     await userEvent.upload(fileInput, file);
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith(
@@ -232,7 +258,9 @@ describe("monitor management page", () => {
         expect.objectContaining({ filename: "idle.png" }),
       );
     });
-    await userEvent.click(screen.getByRole("button", { name: "Save display configuration" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save display configuration" }),
+    );
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith(
         "save_monitor_profile_draft",

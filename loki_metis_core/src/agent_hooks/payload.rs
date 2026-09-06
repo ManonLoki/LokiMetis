@@ -1,5 +1,6 @@
 //! 把各 Agent 原生 stdin 归约为 listener 最小信封。
 
+use encoding_rs::{Encoding, UTF_8};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -37,9 +38,8 @@ pub fn prepare_native_hook(
     native_json: &[u8],
     configured_event: &str,
 ) -> Result<PreparedNativeHook, HookError> {
-    let _ = tool;
     let source = parse_native_hook_object(native_json)?;
-    if is_cursor_hosted(&source) {
+    if tool != AiTool::Cursor && is_cursor_hosted(&source) {
         return Ok(PreparedNativeHook::SuppressForeignHost);
     }
     envelope_from_source(&source, configured_event).map(PreparedNativeHook::Deliver)
@@ -76,7 +76,12 @@ fn envelope_from_source(
         hook_event_name: configured_event.to_owned(),
         session_id: string_field(
             source,
-            &["session_id", "sessionId", "conversation_id", "conversationId"],
+            &[
+                "session_id",
+                "sessionId",
+                "conversation_id",
+                "conversationId",
+            ],
         ),
         turn_id: string_field(
             source,
@@ -93,7 +98,7 @@ fn envelope_from_source(
     })
 }
 
-/// Cursor 宿主字段；四项 Agent 遇到非空 cursor_version 时抑制。
+/// Cursor 宿主字段；非 Cursor adapter 遇到非空 cursor_version 时抑制。
 fn is_cursor_hosted(source: &Map<String, Value>) -> bool {
     string_field(source, &["cursor_version"]).is_some()
 }
@@ -110,12 +115,19 @@ fn event_names_match(left: &str, right: &str) -> bool {
     normalize(left) == normalize(right)
 }
 
-/// 去掉 UTF-8 BOM 后按 UTF-8 解码。
+/// 严格解码 UTF-8，或由 BOM 明确声明的 UTF-16LE/BE。
 fn decode_native_json(native_json: &[u8]) -> Result<String, HookError> {
-    let bytes = native_json
-        .strip_prefix(&[0xEF, 0xBB, 0xBF])
-        .unwrap_or(native_json);
-    String::from_utf8(bytes.to_vec()).map_err(|_| HookError::new("error.payload.invalidUtf8"))
+    let (encoding, bom_len) = Encoding::for_bom(native_json).unwrap_or((UTF_8, 0));
+    encoding
+        .decode_without_bom_handling_and_without_replacement(&native_json[bom_len..])
+        .map(std::borrow::Cow::into_owned)
+        .ok_or_else(|| {
+            if encoding == UTF_8 {
+                HookError::new("error.payload.invalidUtf8")
+            } else {
+                HookError::new("error.payload.invalidUtf16")
+            }
+        })
 }
 
 /// 按候选字段名取第一个非空字符串。
@@ -139,3 +151,6 @@ fn scalar_field(source: &Map<String, Value>, name: &str) -> Option<String> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests;

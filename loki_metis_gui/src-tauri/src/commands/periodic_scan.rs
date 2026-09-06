@@ -2,9 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use loki_metis_core::{
-    PeriodicScanTick, SourceClientKind, decide_periodic_scan_tick,
-};
+use loki_metis_core::{PeriodicScanTick, SourceClientKind, decide_periodic_scan_tick};
 use tauri::{AppHandle, Manager};
 
 use crate::dto::{AgentClientKindDto, ScanStateDto};
@@ -57,9 +55,10 @@ pub(crate) async fn run_shared_scan_interval_tick(state: &AppRuntimeState) {
         );
     }
     let client_running = |client: SourceClientKind| {
-        running.get(&client).copied().unwrap_or_else(|| {
-            unreachable!("EnabledAgents 从不产出 WorkBuddy，本闭包不会被它调用")
-        })
+        running
+            .get(&client)
+            .copied()
+            .unwrap_or_else(|| unreachable!("EnabledAgents 从不产出 WorkBuddy，本闭包不会被它调用"))
     };
     match decide_periodic_scan_tick(&enabled, client_running, writer_busy) {
         PeriodicScanTick::Skip | PeriodicScanTick::Wait => {}

@@ -47,10 +47,7 @@ pub fn resolve_pet_overlay_position(
         .then_some(position)
 }
 
-fn rectangles_intersect(
-    window: (i32, i32, u32, u32),
-    work_area: (i32, i32, u32, u32),
-) -> bool {
+fn rectangles_intersect(window: (i32, i32, u32, u32), work_area: (i32, i32, u32, u32)) -> bool {
     let (x, y, width, height) = window;
     let (area_x, area_y, area_width, area_height) = work_area;
     let x = i64::from(x);
@@ -95,7 +92,10 @@ mod tests {
 
     #[test]
     fn offscreen_position_falls_back_to_default() {
-        let stored = PetOverlayPosition { x: 50_000, y: 50_000 };
+        let stored = PetOverlayPosition {
+            x: 50_000,
+            y: 50_000,
+        };
         assert_eq!(
             resolve_pet_overlay_position(Some(stored), (360, 360), &[desktop()]),
             None

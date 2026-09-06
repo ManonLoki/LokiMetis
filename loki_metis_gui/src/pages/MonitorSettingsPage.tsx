@@ -3,6 +3,8 @@ import {
   Button,
   Card,
   Checkbox,
+  Code,
+  CopyButton,
   Group,
   SimpleGrid,
   Stack,
@@ -12,17 +14,72 @@ import {
   Title,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  chooseMonitorHookDirectory,
   getMonitorCapabilities,
   getMonitorSettings,
   listMonitorHookLocations,
   saveMonitorEnabledTools,
+  saveMonitorHookDirectory,
   writeMonitorHookConfig,
+  type HookConfigLocation,
   type MonitorAiTool,
+  type MonitorHookWriteOutcome,
 } from "../api/monitor";
+import { visibleErrorMessage } from "../visible-error";
+
+const activationCommands: Partial<Record<MonitorHookWriteOutcome, readonly string[]>> = {
+  hermesEnableRequired: ["hermes plugins enable lokimetis"],
+  openClawEnableRequired: [
+    "openclaw plugins enable lokimetis",
+    "openclaw config set plugins.entries.lokimetis.hooks.allowConversationAccess true",
+    "openclaw gateway restart",
+  ],
+};
+
+/** 仅为需要额外激活的插件展示紧凑、可复制的命令。 */
+function ActivationGuidance({ outcome }: { outcome: MonitorHookWriteOutcome }) {
+  const { t } = useTranslation();
+  const commands = activationCommands[outcome];
+  if (!commands) return null;
+
+  return (
+    <Alert color="yellow" data-testid="hook-activation-guidance" variant="light">
+      <Stack gap={6}>
+        <Text size="xs">{t(`monitor.settings.activation.${outcome}`)}</Text>
+        {commands.map((command) => (
+          <Group gap="xs" key={command} wrap="nowrap">
+            <Code block style={{ flex: 1, minWidth: 0, overflowX: "auto" }}>
+              {command}
+            </Code>
+            <CopyButton timeout={1500} value={command}>
+              {({ copied, copy }) => (
+                <Button
+                  aria-label={t("monitor.settings.activation.copyCommandAria", {
+                    command,
+                  })}
+                  color={copied ? "teal" : "gray"}
+                  onClick={copy}
+                  size="xs"
+                  variant="subtle"
+                >
+                  {t(
+                    copied
+                      ? "monitor.settings.activation.copied"
+                      : "monitor.settings.activation.copy",
+                  )}
+                </Button>
+              )}
+            </CopyButton>
+          </Group>
+        ))}
+      </Stack>
+    </Alert>
+  );
+}
 
 /** Hooks 设置：启用 Agent、查看配置目录并写入本机 Hooks。 */
 export function MonitorSettingsPage() {
@@ -52,6 +109,34 @@ export function MonitorSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: ["monitor-hook-locations"] });
     },
   });
+  const directoryDraftsInitialized = useRef(false);
+  const [directoryDrafts, setDirectoryDrafts] = useState<
+    Partial<Record<MonitorAiTool, string>>
+  >({});
+  const [selectingDirectory, setSelectingDirectory] = useState<MonitorAiTool | null>(null);
+  const [pickerError, setPickerError] = useState<unknown>(null);
+  useEffect(() => {
+    if (!locations.data || directoryDraftsInitialized.current) return;
+    setDirectoryDrafts(
+      Object.fromEntries(locations.data.map(({ tool, directory }) => [tool, directory])),
+    );
+    directoryDraftsInitialized.current = true;
+  }, [locations.data]);
+  const saveDirectory = useMutation({
+    mutationFn: ({ tool, directory }: { tool: MonitorAiTool; directory: string }) =>
+      saveMonitorHookDirectory(tool, directory),
+    onSuccess: (saved) => {
+      queryClient.setQueryData<HookConfigLocation[]>(
+        ["monitor-hook-locations"],
+        (current = []) => current.map((item) => (item.tool === saved.tool ? saved : item)),
+      );
+      setDirectoryDrafts((current) => ({
+        ...current,
+        [saved.tool]: saved.directory,
+      }));
+      write.reset();
+    },
+  });
   const enabled = settings.data?.enabledAiTools ?? [];
   const tools = capabilities.data?.aiTools ?? [];
   const visibleTools = tools.filter((item) => enabled.includes(item.tool));
@@ -62,7 +147,6 @@ export function MonitorSettingsPage() {
   return (
     <Stack className="settings-page" data-testid="monitor-settings" gap="sm">
       <Card
-        aria-describedby="monitor-hooks-settings-description"
         aria-labelledby="monitor-hooks-settings-title"
         className="surface-card settings-card"
         data-testid="monitor-enabled-agents"
@@ -76,11 +160,12 @@ export function MonitorSettingsPage() {
             <Title id="monitor-hooks-settings-title" order={3}>
               {t("monitor.settings.title")}
             </Title>
-            <Text c="dimmed" id="monitor-hooks-settings-description" mt={2} size="xs">
-              {t("monitor.settings.description")}
-            </Text>
           </div>
-          {save.error ? <Alert color="red">{String(save.error)}</Alert> : null}
+          {settings.error || capabilities.error || save.error ? (
+            <Alert color="red">
+              {visibleErrorMessage(settings.error ?? capabilities.error ?? save.error)}
+            </Alert>
+          ) : null}
           <Text fw={600}>{t("monitor.settings.enabled")}</Text>
           <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="xs" verticalSpacing="xs">
             {tools.map((item) => (
@@ -102,7 +187,6 @@ export function MonitorSettingsPage() {
       </Card>
 
       <Card
-        aria-describedby="monitor-hooks-management-description"
         aria-labelledby="monitor-hooks-management-title"
         className="surface-card settings-card"
         data-testid="monitor-hooks-management"
@@ -116,11 +200,12 @@ export function MonitorSettingsPage() {
             <Title id="monitor-hooks-management-title" order={4}>
               {t("monitor.settings.managementTitle")}
             </Title>
-            <Text c="dimmed" id="monitor-hooks-management-description" mt={2} size="xs">
-              {t("monitor.settings.managementDescription")}
-            </Text>
           </div>
-          {locations.error ? <Alert color="red">{String(locations.error)}</Alert> : null}
+          {locations.error || saveDirectory.error || pickerError ? (
+            <Alert color="red">
+              {visibleErrorMessage(locations.error ?? saveDirectory.error ?? pickerError)}
+            </Alert>
+          ) : null}
           {visibleTools.length === 0 ? (
             <Alert color="blue" variant="light">
               {t("monitor.settings.chooseAgentFirst")}
@@ -130,7 +215,12 @@ export function MonitorSettingsPage() {
               className="ai-tool-tabs ai-tool-tabs-compact"
               keepMounted={false}
               onChange={(value) => {
-                if (value) setSelectedTool(value as MonitorAiTool);
+                if (value) {
+                  setSelectedTool(value as MonitorAiTool);
+                  setPickerError(null);
+                  saveDirectory.reset();
+                  write.reset();
+                }
               }}
               value={activeTool}
             >
@@ -143,15 +233,29 @@ export function MonitorSettingsPage() {
               </Tabs.List>
               {visibleTools.map((item) => {
                 const location = locations.data?.find((entry) => entry.tool === item.tool);
+                const directoryDraft =
+                  directoryDrafts[item.tool] ?? location?.directory ?? "";
+                const pathDirty =
+                  Boolean(location) && directoryDraft.trim() !== location?.directory;
                 const isCurrentWrite = write.variables === item.tool;
                 return (
                   <Tabs.Panel key={item.tool} pt="xs" value={item.tool}>
                     <Stack gap="sm">
                       <TextInput
                         label={t("monitor.settings.directory")}
-                        readOnly
+                        onChange={(event) => {
+                          const directory = event.currentTarget.value;
+                          setDirectoryDrafts((current) => ({
+                            ...current,
+                            [item.tool]: directory,
+                          }));
+                          setPickerError(null);
+                          saveDirectory.reset();
+                          write.reset();
+                        }}
+                        placeholder={t("monitor.settings.directoryPlaceholder")}
                         size="xs"
-                        value={location?.directory ?? ""}
+                        value={directoryDraft}
                       />
                       <TextInput
                         label={t("monitor.settings.configFile")}
@@ -159,8 +263,73 @@ export function MonitorSettingsPage() {
                         size="xs"
                         value={location?.configPath ?? ""}
                       />
-                      <Group justify="flex-end">
+                      <Group justify="space-between" wrap="wrap">
+                        <Group gap="xs" wrap="wrap">
+                          <Button
+                            loading={selectingDirectory === item.tool}
+                            onClick={async () => {
+                              setSelectingDirectory(item.tool);
+                              setPickerError(null);
+                              try {
+                                const selected = await chooseMonitorHookDirectory(
+                                  directoryDraft || location?.directory || "",
+                                  t("monitor.settings.directoryDialogTitle"),
+                                );
+                                if (selected) {
+                                  setDirectoryDrafts((current) => ({
+                                    ...current,
+                                    [item.tool]: selected,
+                                  }));
+                                  saveDirectory.reset();
+                                  write.reset();
+                                }
+                              } catch (error) {
+                                setPickerError(error);
+                              } finally {
+                                setSelectingDirectory(null);
+                              }
+                            }}
+                            size="xs"
+                            variant="default"
+                          >
+                            {t("monitor.settings.chooseDirectory")}
+                          </Button>
+                          <Button
+                            disabled={!directoryDraft.trim() || !pathDirty}
+                            loading={
+                              saveDirectory.isPending &&
+                              saveDirectory.variables?.tool === item.tool &&
+                              saveDirectory.variables.directory !== ""
+                            }
+                            onClick={() =>
+                              saveDirectory.mutate({
+                                tool: item.tool,
+                                directory: directoryDraft,
+                              })
+                            }
+                            size="xs"
+                            variant="default"
+                          >
+                            {t("monitor.settings.saveDirectory")}
+                          </Button>
+                          <Button
+                            disabled={!location?.isCustom}
+                            loading={
+                              saveDirectory.isPending &&
+                              saveDirectory.variables?.tool === item.tool &&
+                              saveDirectory.variables.directory === ""
+                            }
+                            onClick={() =>
+                              saveDirectory.mutate({ tool: item.tool, directory: "" })
+                            }
+                            size="xs"
+                            variant="subtle"
+                          >
+                            {t("monitor.settings.restoreDirectory")}
+                          </Button>
+                        </Group>
                         <Button
+                          disabled={pathDirty || locations.isPending}
                           loading={write.isPending && isCurrentWrite}
                           onClick={() => write.mutate(item.tool)}
                           size="xs"
@@ -169,15 +338,18 @@ export function MonitorSettingsPage() {
                         </Button>
                       </Group>
                       {write.error && isCurrentWrite ? (
-                        <Alert color="red">{String(write.error)}</Alert>
+                        <Alert color="red">{visibleErrorMessage(write.error)}</Alert>
                       ) : null}
                       {write.data?.tool === item.tool ? (
-                        <Alert aria-live="polite" color="green">
-                          {t("monitor.settings.written", {
-                            file: write.data.filename,
-                            outcome: t(`monitor.outcome.${write.data.outcome}`),
-                          })}
-                        </Alert>
+                        <>
+                          <Alert aria-live="polite" color="green">
+                            {t("monitor.settings.written", {
+                              file: write.data.filename,
+                              outcome: t(`monitor.outcome.${write.data.outcome}`),
+                            })}
+                          </Alert>
+                          <ActivationGuidance outcome={write.data.outcome} />
+                        </>
                       ) : null}
                     </Stack>
                   </Tabs.Panel>

@@ -1,32 +1,51 @@
 //! 本机 AgentHooks：配置写入、环回 listener 与图片库。
 
+mod atomic_file;
 mod commands;
+mod hook_config_io;
+mod hook_config_migration;
 mod images;
 mod listener;
+mod listener_state;
+mod pet_commands;
+mod pet_events;
+mod pet_geometry;
+mod pet_view;
 mod pet_window;
 mod profiles;
 mod relay;
 mod settings;
 mod store;
+mod wsl;
 
 pub use commands::{
     close_pet_overlay, delete_monitor_image_cmd, get_hook_relay_status, get_monitor_capabilities,
-    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, list_monitor_hook_locations,
+    get_monitor_image_bytes, get_monitor_settings, list_monitor_hook_locations,
     list_monitor_images_cmd, list_monitor_profile_drafts, save_hook_config_directory,
     save_monitor_enabled_tools, save_monitor_image_cmd, save_monitor_profile_draft,
     start_pet_overlay_drag, write_monitor_hook_config,
 };
 pub use images::{delete_monitor_image, list_monitor_image_gallery, save_monitor_image};
-pub use profiles::{load_profile_drafts, save_profile_draft};
+pub use listener::{HookListenerControl, HookRelayStatus, spawn_hook_listener};
+pub use pet_commands::{
+    focus_first_populated_pet_page, get_pet_overlay_view, get_pet_window_state, hide_pet_settings,
+    resize_pet_step, set_pet_always_on_top, set_pet_layout, set_pet_locked, set_pet_size,
+    show_main_window, show_pet_settings, turn_pet_page,
+};
+pub use pet_events::emit_pet_window_state_changed;
+pub use pet_view::overlay_image_bytes;
 pub use pet_window::{
-    PetOverlayViewDto, PetOverlayWindowDescription, close_pet_overlay_window, overlay_image_bytes,
-    pet_overlay_view_from_drafts, pet_overlay_window_description, pet_overlay_window_is_open,
+    PET_SETTINGS_LABEL, PetOverlayWindowDescription, close_pet_overlay_window,
+    constrain_pet_overlay_to_current_monitor, handle_pet_overlay_resized, is_pet_settings_label,
+    pet_overlay_window_description, pet_overlay_window_is_open,
     schedule_pet_overlay_position_persist, show_or_create_pet_overlay, start_pet_overlay_dragging,
 };
-pub use listener::{HookRelayStatus, spawn_hook_listener};
+pub use profiles::{load_profile_drafts, save_profile_draft};
 pub use relay::run_hook_relay_if_requested;
 pub use settings::{MonitorSettings, load_monitor_settings, update_monitor_settings};
-pub use store::{list_hook_config_locations, write_hook_config};
+pub use store::{
+    HookConfigWriter, list_hook_config_locations, validate_hook_config_directory, write_hook_config,
+};
 
 use loki_metis_core::{
     AiToolDescriptor, HookBehavior, ImageUploadAccept, MonitorCapabilityRange, ai_tool_descriptors,
@@ -37,7 +56,7 @@ use loki_metis_core::{
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorCapabilities {
-    /// 四项 Agent 目录。
+    /// 全部 Agent 目录。
     pub ai_tools: Vec<AiToolDescriptor>,
     /// 四态展示行为。
     pub hook_behaviors: Vec<HookBehavior>,

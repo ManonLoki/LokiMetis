@@ -26,17 +26,11 @@ async fn overview_returns_six_calendar_windows_without_wizard() {
         .await
         .expect("codex can be enabled");
 
-    let overview = get_usage_overview_for_state(
-        &state,
-        UsageViewKindDto::Codex,
-        TimeStandardDto::default(),
-    )
-    .await
-    .expect("overview is readable");
-    let windows = overview
-        .local_records
-        .expect("local records exist")
-        .windows;
+    let overview =
+        get_usage_overview_for_state(&state, UsageViewKindDto::Codex, TimeStandardDto::default())
+            .await
+            .expect("overview is readable");
+    let windows = overview.local_records.expect("local records exist").windows;
     let actual: Vec<UsageWindow> = windows.iter().map(|item| item.window).collect();
     assert_eq!(actual, EXPECTED_OVERVIEW_WINDOWS);
 }

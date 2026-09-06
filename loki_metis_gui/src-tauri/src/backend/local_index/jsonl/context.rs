@@ -149,4 +149,3 @@ pub(super) fn update_thread_title(context: &mut JsonlParseContext, payload: &Rol
         context.thread_label = Some(title);
     }
 }
-
