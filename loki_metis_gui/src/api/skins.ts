@@ -219,7 +219,6 @@ export function skinHostAvailable(): boolean {
 export const skinApi = {
   status: () => invokeSkin<SkinStatus>("skin_status"),
   list: () => invokeSkin<SkinDescriptor[]>("list_skins"),
-  catalogChanged: () => invokeSkin<boolean>("skin_catalog_changed"),
   creationPrompt: () => invokeSkin<SkinCreationPrompt>("skin_creation_prompt"),
   createTheme: (name: string, author: string) =>
     invokeSkin<SkinDescriptor>("create_user_theme", { name, author }),
@@ -243,18 +242,13 @@ export const skinApi = {
     invokeSkin<BatchImportResult>("commit_skin_import", { token, selectedItemIds }),
   cancelImport: (token: string) => invokeSkin<void>("cancel_skin_import", { token }),
   openDirectory: (skin: SkinReference) => invokeSkin<void>("open_skin_directory", { skin }),
-  delete: (skin: SkinReference) => invokeSkin<void>("delete_skin", { skin }),
   deleteMany: (skins: SkinReference[]) =>
     invokeSkin<BatchDeleteResult>("delete_skins", { skins }),
   runtimeStatus: () => invokeSkin<CodexRuntimeStatus>("codex_runtime_status"),
   instances: () => invokeSkin<CodexInstance[]>("list_codex_instances"),
-  probeInstance: (instanceId: string) =>
-    invokeSkin<CodexInstance>("probe_codex_instance", { instanceId }),
   restartInstance: (instanceId: string) =>
     invokeSkin<CodexInstance>("restart_codex_instance", { instanceId }),
   launchCodex: () => invokeSkin<CodexRuntimeStatus>("launch_codex"),
-  forceLaunchCodex: () => invokeSkin<CodexRuntimeStatus>("force_launch_codex"),
-  cancelCodexOperation: () => invokeSkin<boolean>("cancel_codex_operation"),
   install: (
     skin: SkinReference,
     allowAppearanceMismatch = false,

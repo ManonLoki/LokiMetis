@@ -102,25 +102,11 @@ pub async fn is_gui_running() -> Result<bool, AppError> {
 
 /// 执行 Windows Codex 宿主中的 `gui_process_command_lines` 步骤。
 pub async fn gui_process_command_lines() -> Result<Vec<(u32, String)>, AppError> {
-    let traditional_candidates = discover_traditional_executables();
-    let verified = enumerate_gui_processes(&traditional_candidates)?;
-    if verified.is_empty() {
-        return Ok(Vec::new());
-    }
-    let query = tokio::task::spawn_blocking(query_gui_process_command_lines);
-    let rows = tokio::time::timeout(PROCESS_COMMAND_LINE_TIMEOUT, query)
-        .await
-        .map_err(|_| process_inspection_error())?
-        .map_err(|_| process_inspection_error())?
-        .map_err(|_| process_inspection_error())?;
-    let still_verified = verified
+    Ok(gui_processes()
+        .await?
         .into_iter()
-        .filter(|process| {
-            query_process_path(process.pid)
-                .is_some_and(|path| paths_equal_ignore_ascii_case(&path, &process.path))
-        })
-        .collect::<Vec<_>>();
-    Ok(filter_verified_command_lines(&still_verified, rows))
+        .map(|(process, command_line)| (process.pid(), command_line))
+        .collect())
 }
 
 /// 执行 Windows Codex 宿主中的 `gui_processes` 步骤。

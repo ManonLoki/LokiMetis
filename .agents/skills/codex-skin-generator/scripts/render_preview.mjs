@@ -75,13 +75,21 @@ export async function buildPreview(directory, initialSurface = "chat", initialMo
     ? path.join(await themeRuntimeDirectory(), "theme.css")
     : path.join(directory, "dream-skin.css");
   const skinCss = `${await readFile(skinCssPath, "utf8")}\n${themeCss}`.replaceAll("</style", "<\\/style");
-  const assets = pureTheme ? {
-    art: await asset(themeConfig?.background ?? manifest.images?.background),
-  } : {
-    art: dataUrl(await readFile(path.join(directory, "qq2007-sky.png")), "image/png"),
-    profile: dataUrl(await readFile(path.join(directory, "avatar.png")), "image/png"),
-    gallery: dataUrl(await readFile(path.join(directory, "qqshow.jpg")), "image/jpeg"),
-  };
+  let assets;
+  if (pureTheme) {
+    assets = { art: await asset(themeConfig?.background ?? manifest.images?.background) };
+  } else {
+    const [art, profile, gallery] = await Promise.all([
+      readFile(path.join(directory, "qq2007-sky.png")),
+      readFile(path.join(directory, "avatar.png")),
+      readFile(path.join(directory, "qqshow.jpg")),
+    ]);
+    assets = {
+      art: dataUrl(art, "image/png"),
+      profile: dataUrl(profile, "image/png"),
+      gallery: dataUrl(gallery, "image/jpeg"),
+    };
+  }
   const preview = {
     homeTitle: manifest.name,
     homeSubtitle: manifest.description,

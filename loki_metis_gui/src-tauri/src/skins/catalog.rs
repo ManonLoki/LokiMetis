@@ -433,6 +433,16 @@ fn load_descriptor(
 ) -> Result<SkinDescriptor, AppError> {
     let manifest = read_manifest(directory)?;
     validate_manifest(directory, &manifest)?;
+    load_descriptor_from_manifest(directory, id, source, &manifest)
+}
+
+/// 与 `load_descriptor` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
+fn load_descriptor_from_manifest(
+    directory: &Path,
+    id: &str,
+    source: SkinSource,
+    manifest: &SkinManifest,
+) -> Result<SkinDescriptor, AppError> {
     if manifest.id() != id {
         return Err(AppError::new(
             "skin.assets_invalid",
@@ -481,8 +491,11 @@ fn load_skin(
             .and_then(|appearance| appearance.requirements.clone()),
         SkinManifest::Legacy(_) => None,
     };
-    let descriptor = load_descriptor(&directory, &skin.id, skin.source)?;
-    let payload = append_runtime_skin_marker(build_payload(&directory)?, &descriptor)?;
+    let descriptor = load_descriptor_from_manifest(&directory, &skin.id, skin.source, &manifest)?;
+    let payload = append_runtime_skin_marker(
+        build_payload_from_manifest(&directory, &manifest)?,
+        &descriptor,
+    )?;
     Ok(LoadedSkin {
         descriptor,
         payload: Arc::from(payload),

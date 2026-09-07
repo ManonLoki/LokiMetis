@@ -247,20 +247,7 @@ html.codex-dream-skin[data-dream-shell="light"] {
 
     /// 验证换皮迁移中的 `create_zip` 回归场景。
     fn create_zip(archive_path: &Path, fixture: &Path, wrapper: Option<&str>) {
-        let archive_file = std::fs::File::create(archive_path).expect("应创建 ZIP");
-        let mut writer = zip::ZipWriter::new(archive_file);
-        for file_name in LEGACY_REQUIRED_FILES {
-            let path = wrapper
-                .map(|root| format!("{root}/{file_name}"))
-                .unwrap_or_else(|| file_name.to_owned());
-            writer
-                .start_file(path, SimpleFileOptions::default())
-                .expect("应创建 ZIP 条目");
-            writer
-                .write_all(&std::fs::read(fixture.join(file_name)).expect("应读取夹具"))
-                .expect("应写入 ZIP 条目");
-        }
-        writer.finish().expect("应完成 ZIP");
+        create_manifestless_legacy_zip(archive_path, fixture, wrapper, &LEGACY_REQUIRED_FILES);
     }
 
     /// 验证换皮迁移中的 `create_manifestless_legacy_zip` 回归场景。

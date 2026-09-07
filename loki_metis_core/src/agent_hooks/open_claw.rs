@@ -79,39 +79,14 @@ impl HookProtocol for OpenClawProtocol {
         let marker = managed_hook_marker(AiTool::OpenClaw);
         let executable_literal =
             serde_json::Value::String(relay_executable.to_string_lossy().into_owned()).to_string();
+        let forward_through_cli = super::js_cli_relay_forwarder("openclaw", &marker);
         Some(format!(
             r#"// {marker}
 import {{ spawn }} from "node:child_process"
 
 const relayExecutable = {executable_literal}
 
-const forwardThroughCli = (hookEvent, body) => new Promise((resolve, reject) => {{
-  let settled = false
-  let deadline
-  const settle = (error) => {{
-    if (settled) return
-    settled = true
-    if (deadline) clearTimeout(deadline)
-    if (error) reject(error)
-    else resolve()
-  }}
-  const relay = spawn(relayExecutable, [
-    "--loki-metis-hook-relay", "openclaw", hookEvent,
-    "--managed-by", "{marker}",
-  ], {{ stdio: ["pipe", "ignore", "ignore"], windowsHide: true }})
-  relay.once("error", settle)
-  relay.once("exit", (code) => {{
-    if (code === 0) settle()
-    else settle(new Error(`LokiMetis CLI relay exited with code ${{code}}`))
-  }})
-  relay.stdin.once("error", settle)
-  deadline = setTimeout(() => {{
-    const error = new Error("LokiMetis CLI relay deadline exceeded")
-    relay.kill()
-    settle(error)
-  }}, 4000)
-  relay.stdin.end(body, "utf8")
-}})
+{forward_through_cli}
 
 const send = async (hookEvent, event = {{}}, ctx = {{}}) => {{
   const body = JSON.stringify({{
@@ -148,11 +123,6 @@ export default {{
 
     /// OpenClaw 通过扩展独立插件文件接入。
     fn uses_standalone_plugin(&self) -> bool {
-        true
-    }
-
-    /// OpenClaw 插件文件由自身协议整体管理。
-    fn uses_custom_merge(&self) -> bool {
         true
     }
 

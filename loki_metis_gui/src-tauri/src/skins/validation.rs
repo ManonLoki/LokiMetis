@@ -701,11 +701,17 @@ fn is_image_file(file_name: &str) -> bool {
 fn validate_image_signature(path: &Path, file_name: &str) -> Result<(), AppError> {
     let bytes = std::fs::read(path)
         .map_err(|_| AppError::new("skin.assets_invalid", "无法读取纯主题图片。"))?;
-    let valid = match image_mime(file_name)? {
-        "image/png" => bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
-        "image/jpeg" => bytes.starts_with(&[0xff, 0xd8, 0xff]),
-        _ => false,
+    let expected = match image_mime(file_name)? {
+        "image/png" => ImageFormat::Png,
+        "image/jpeg" => ImageFormat::Jpeg,
+        _ => {
+            return Err(AppError::new(
+                "skin.assets_invalid",
+                "纯主题图片内容与声明格式不一致。",
+            ));
+        }
     };
+    let valid = ImageFormat::from_bytes(&bytes) == Some(expected);
     if valid {
         Ok(())
     } else {

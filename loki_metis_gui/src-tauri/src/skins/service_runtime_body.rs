@@ -163,8 +163,8 @@ impl SkinService {
                     load_descriptor(&directory, &reference.id, reference.source).ok()
                 })
             }
-            RecoveredSkinIdentity::LegacyId(id) => {
-                let mut matches = [SkinSource::User, SkinSource::Builtin]
+            RecoveredSkinIdentity::LegacyId(id) => exactly_one(
+                [SkinSource::User, SkinSource::Builtin]
                     .into_iter()
                     .filter_map(|source| {
                         let reference = SkinReference {
@@ -174,12 +174,10 @@ impl SkinService {
                         self.skin_directory(&reference)
                             .ok()
                             .and_then(|directory| load_descriptor(&directory, id, source).ok())
-                    });
-                let selected = matches.next()?;
-                matches.next().is_none().then_some(selected)
-            }
-            RecoveredSkinIdentity::LegacyThemeCss(style_text) => {
-                let mut matches = [
+                    }),
+            ),
+            RecoveredSkinIdentity::LegacyThemeCss(style_text) => exactly_one(
+                [
                     (SkinSource::User, &self.user_root),
                     (SkinSource::Builtin, &self.builtin_root),
                 ]
@@ -208,10 +206,8 @@ impl SkinService {
                             }
                             load_descriptor(&directory, &id, source).ok()
                         })
-                });
-                let selected = matches.next()?;
-                matches.next().is_none().then_some(selected)
-            }
+                }),
+            ),
         }
     }
 

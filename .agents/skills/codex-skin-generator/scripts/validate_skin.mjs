@@ -342,21 +342,30 @@ async function main() {
     const extras = [...actual].filter((name) => !expected.has(name)).sort();
     if (missing.length) report.error(`缺少主题变量引用文件：${missing.join(", ")}`);
     if (extras.length) report.error(`CSS 变量主题包含未声明文件：${extras.join(", ")}`);
-    for (const file of [...new Set(referenced)].filter((name) => actual.has(name))) {
-      await validateImage(path.join(directory, file), /\.png$/i.test(file) ? "png" : "jpeg", report);
-    }
+    await Promise.all(
+      [...new Set(referenced)]
+        .filter((name) => actual.has(name))
+        .map((file) => validateImage(path.join(directory, file), /\.png$/i.test(file) ? "png" : "jpeg", report)),
+    );
   } else {
     const missing = [...LEGACY_REQUIRED_FILES].filter((name) => !actual.has(name)).sort();
     if (missing.length) report.error(`缺少必需文件：${missing.join(", ")}`);
     const extras = [...actual].filter((name) => !LEGACY_REQUIRED_FILES.has(name)).sort();
     if (extras.length) report.warn(`存在非运行必需文件：${extras.join(", ")}`);
     if (!missing.length) {
-    await validateImage(path.join(directory, "qq2007-sky.png"), "png", report);
-    await validateImage(path.join(directory, "avatar.png"), "png", report);
-    await validateImage(path.join(directory, "qqshow.jpg"), "jpeg", report);
-    await validateCss(directory, report);
-    await validateJavaScript(directory, report);
-    try { for (const error of await auditSkin(SKILL_DIR, directory)) report.error(error); } catch (error) { report.error(`无法完成选择器 Map 审计：${error.message}`); }
+    const [, , , , , auditResult] = await Promise.allSettled([
+      validateImage(path.join(directory, "qq2007-sky.png"), "png", report),
+      validateImage(path.join(directory, "avatar.png"), "png", report),
+      validateImage(path.join(directory, "qqshow.jpg"), "jpeg", report),
+      validateCss(directory, report),
+      validateJavaScript(directory, report),
+      auditSkin(SKILL_DIR, directory),
+    ]);
+    if (auditResult.status === "fulfilled") {
+      for (const error of auditResult.value) report.error(error);
+    } else {
+      report.error(`无法完成选择器 Map 审计：${auditResult.reason.message}`);
+    }
     }
   }
   for (const note of report.notes) console.log(note);

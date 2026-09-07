@@ -14,11 +14,17 @@ fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
 }
 
 /// 执行换皮宿主内部的 `build_payload` 步骤。
+#[cfg(test)]
 fn build_payload(directory: &Path) -> Result<String, AppError> {
     let manifest = read_manifest(directory)?;
     validate_manifest(directory, &manifest)?;
+    build_payload_from_manifest(directory, &manifest)
+}
+
+/// 与 `build_payload` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
+fn build_payload_from_manifest(directory: &Path, manifest: &SkinManifest) -> Result<String, AppError> {
     let theme = read_text(&directory.join("theme.json"))?;
-    let (css, theme_css, injector, art, avatar, friends, theme_assets) = match &manifest {
+    let (css, theme_css, injector, art, avatar, friends, theme_assets) = match manifest {
         SkinManifest::Legacy(manifest) => (
             read_text(&directory.join("dream-skin.css"))?,
             String::new(),
@@ -132,7 +138,17 @@ fn image_data_url(path: &Path, mime: &str) -> Result<String, AppError> {
             "皮肤图片资源大小无效。",
         ));
     }
-    Ok(format!("data:{mime};base64,{}", STANDARD.encode(bytes)))
+    let format = match mime {
+        "image/png" => ImageFormat::Png,
+        "image/jpeg" => ImageFormat::Jpeg,
+        _ => {
+            return Err(AppError::new(
+                "skin.assets_invalid",
+                "皮肤预览图片格式不受支持。",
+            ));
+        }
+    };
+    Ok(gallery_image_data_url(format, &bytes))
 }
 
 /// 执行换皮宿主内部的 `json_string` 步骤。

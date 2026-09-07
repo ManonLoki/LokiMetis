@@ -69,6 +69,7 @@ impl HookProtocol for OpenCodeProtocol {
         let marker = managed_hook_marker(AiTool::OpenCode);
         let executable_literal =
             serde_json::Value::String(relay_executable.to_string_lossy().into_owned()).to_string();
+        let forward_through_cli = super::js_cli_relay_forwarder("opencode", &marker);
         Some(format!(
             r#"// {marker}
 import {{ spawn }} from "node:child_process"
@@ -76,33 +77,12 @@ import {{ spawn }} from "node:child_process"
 const failedSessions = new Set()
 const relayExecutable = {executable_literal}
 
-const forwardThroughCli = (hookEvent, body) => new Promise((resolve, reject) => {{
-  let settled = false
-  let deadline
-  const settle = (error) => {{
-    if (settled) return
-    settled = true
-    if (deadline) clearTimeout(deadline)
-    if (error) reject(error)
-    else resolve()
-  }}
-  const relay = spawn(relayExecutable, [
-    "--loki-metis-hook-relay", "opencode", hookEvent,
-    "--managed-by", "{marker}",
-  ], {{ stdio: ["pipe", "ignore", "ignore"], windowsHide: true }})
-  relay.once("error", settle)
-  relay.once("exit", (code) => {{
-    if (code === 0) settle()
-    else settle(new Error(`LokiMetis CLI relay exited with code ${{code}}`))
-  }})
-  relay.stdin.once("error", settle)
-  deadline = setTimeout(() => {{
-    const error = new Error("LokiMetis CLI relay deadline exceeded")
-    relay.kill()
-    settle(error)
-  }}, 4000)
-  relay.stdin.end(body, "utf8")
-}})
+{forward_through_cli}
+
+const supportedEvents = new Set([
+  "session.created", "tool.execute.before", "tool.execute.after",
+  "permission.asked", "question.asked", "session.idle", "session.deleted",
+])
 
 const normalizedEvent = (event) => {{
   const properties = event.properties ?? {{}}
@@ -128,11 +108,7 @@ const normalizedEvent = (event) => {{
   }}
   if (event.type === "session.idle" && sessionID && failedSessions.has(sessionID)) return null
   if (event.type === "session.deleted" && sessionID) failedSessions.delete(sessionID)
-  const supported = new Set([
-    "session.created", "tool.execute.before", "tool.execute.after",
-    "permission.asked", "question.asked", "session.idle", "session.deleted",
-  ])
-  return supported.has(event.type) ? event.type : null
+  return supportedEvents.has(event.type) ? event.type : null
 }}
 
 const send = async (event) => {{
@@ -163,8 +139,4 @@ export const LokiMetisPlugin = async () => ({{
         true
     }
 
-    /// OpenCode 插件文件由自身协议整体管理。
-    fn uses_custom_merge(&self) -> bool {
-        true
-    }
 }

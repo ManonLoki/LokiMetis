@@ -205,30 +205,23 @@ async fn remove_from_browser(browser: &Browser) -> Result<usize, AppError> {
 
 /// 执行换皮宿主内部的 `remove_from_existing_endpoint` 步骤。
 async fn remove_from_existing_endpoint() -> Result<usize, AppError> {
-    let Ok((mut browser, handler_task, _)) = connect_existing_browser().await else {
+    let (_cancel_tx, mut cancel_rx) = watch::channel(false);
+    let Ok((browser, handler_task, _)) = connect_existing_browser(&mut cancel_rx).await else {
         return Ok(0);
     };
-    let cleanup = async {
-        fetch_targets(&mut browser).await?;
-        remove_from_browser(&browser).await
-    };
-    let result = tokio::time::timeout(CDP_CLEANUP_TIMEOUT, cleanup)
-        .await
-        .unwrap_or_else(|_| {
-            Err(cdp_timeout(
-                "skin.cdp_cleanup_timeout",
-                "Codex 皮肤清理超时。",
-            ))
-        });
-    handler_task.abort();
-    result
+    cleanup_via(browser, handler_task).await
 }
 
 /// 执行换皮宿主内部的 `remove_from_endpoint` 步骤。
 async fn remove_from_endpoint(endpoint: CdpEndpoint) -> Result<usize, AppError> {
-    let Ok((mut browser, handler_task)) = connect_browser(endpoint).await else {
+    let Ok((browser, handler_task)) = connect_browser(endpoint).await else {
         return Ok(0);
     };
+    cleanup_via(browser, handler_task).await
+}
+
+/// 执行换皮宿主内部的 `cleanup_via` 步骤。
+async fn cleanup_via(mut browser: Browser, handler_task: JoinHandle<()>) -> Result<usize, AppError> {
     let cleanup = async {
         fetch_targets(&mut browser).await?;
         remove_from_browser(&browser).await

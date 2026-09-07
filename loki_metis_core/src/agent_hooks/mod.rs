@@ -252,8 +252,8 @@ pub(super) trait HookProtocol: Sync {
     /// 是否绕过公共 JSON 合并器。独立插件需显式启用；共享 TOML 等
     /// 非 JSON 配置也可按自身协议启用。
     fn uses_custom_merge(&self) -> bool {
-        // 普通 command Hook 默认使用公共 JSON 合并器
-        false
+        // 默认与是否走独立插件文件保持一致：独立插件天然需要自定义合并
+        self.uses_standalone_plugin()
     }
 
     /// 从一组 hooks 事件条目中过滤掉本工具的受管处理器；一个条目的处理器
@@ -506,4 +506,39 @@ fn contains_command_marker(command: &str, tool: AiTool) -> bool {
 // 把字符串按单引号包裹，内部已有的单引号转义为 POSIX shell 惯用的 `'"'"'` 形式
 pub(super) fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+// 生成通过 LokiMetis CLI relay 转发单次事件的公共 JS Promise 包装片段
+// （`forwardThroughCli`），内建 settle/超时/kill 语义。OpenClaw 与 OpenCode 的
+// 独立插件生成共用此片段，仅 relay 子命令不同。
+pub(super) fn js_cli_relay_forwarder(relay_subcommand: &str, marker: &str) -> String {
+    format!(
+        r#"const forwardThroughCli = (hookEvent, body) => new Promise((resolve, reject) => {{
+  let settled = false
+  let deadline
+  const settle = (error) => {{
+    if (settled) return
+    settled = true
+    if (deadline) clearTimeout(deadline)
+    if (error) reject(error)
+    else resolve()
+  }}
+  const relay = spawn(relayExecutable, [
+    "--loki-metis-hook-relay", "{relay_subcommand}", hookEvent,
+    "--managed-by", "{marker}",
+  ], {{ stdio: ["pipe", "ignore", "ignore"], windowsHide: true }})
+  relay.once("error", settle)
+  relay.once("exit", (code) => {{
+    if (code === 0) settle()
+    else settle(new Error(`LokiMetis CLI relay exited with code ${{code}}`))
+  }})
+  relay.stdin.once("error", settle)
+  deadline = setTimeout(() => {{
+    const error = new Error("LokiMetis CLI relay deadline exceeded")
+    relay.kill()
+    settle(error)
+  }}, 4000)
+  relay.stdin.end(body, "utf8")
+}})"#
+    )
 }

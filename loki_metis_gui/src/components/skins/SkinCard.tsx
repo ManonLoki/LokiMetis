@@ -17,7 +17,7 @@ import {
   IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
-import type { ReactElement } from "react";
+import { memo, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { SkinDescriptor } from "../../api/skins";
@@ -38,7 +38,7 @@ export interface SkinCardProps {
 }
 
 /** 渲染带预览、格式标签、主操作和用户资源菜单的单张皮肤卡。 */
-export function SkinCard({
+function SkinCardImpl({
   active,
   busy,
   selected,
@@ -164,3 +164,5 @@ export function SkinCard({
     </Card>
   );
 }
+
+export const SkinCard = memo(SkinCardImpl);

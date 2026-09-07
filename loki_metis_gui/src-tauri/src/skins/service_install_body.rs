@@ -28,26 +28,20 @@ impl SkinService {
             .map(|instance| instance.id.clone());
         let already_installed = {
             let runtime = self.runtime.lock().await;
-            let is_running =
-                target_key
+            let instance = target_key
+                .as_ref()
+                .and_then(|target| runtime.instances.get(target));
+            let is_running = instance.is_some_and(|instance| {
+                instance.active.as_ref().is_some_and(|active| {
+                    active.source == skin.source && active.id == skin.id
+                }) && instance
+                    .task
                     .as_ref()
-                    .and_then(|target| runtime.instances.get(target))
-                    .is_some_and(|instance| {
-                        instance.active.as_ref().is_some_and(|active| {
-                            active.source == skin.source && active.id == skin.id
-                        }) && instance
-                            .task
-                            .as_ref()
-                            .is_some_and(|task| !task.join.is_finished())
-                    });
+                    .is_some_and(|task| !task.join.is_finished())
+            });
             if is_running {
-                let compatibility = target_key
-                    .as_ref()
-                    .and_then(|target| runtime.instances.get(target))
-                    .and_then(|value| value.compatibility.clone());
-                let endpoint = target_key
-                    .as_ref()
-                    .and_then(|target| runtime.instances.get(target))
+                let compatibility = instance.and_then(|value| value.compatibility.clone());
+                let endpoint = instance
                     .and_then(|instance| instance.task.as_ref())
                     .map(|task| task.endpoint);
                 Some((

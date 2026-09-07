@@ -9,7 +9,7 @@ async fn connect_or_launch(
         let (browser, handler_task) = run_cancellable(cancel, connect_browser(endpoint)).await?;
         return Ok((browser, handler_task, ConnectionSource::Existing, endpoint));
     }
-    match connect_existing_browser_cancellable(cancel).await {
+    match connect_existing_browser(cancel).await {
         Ok((browser, handler_task, endpoint)) => {
             return Ok((browser, handler_task, ConnectionSource::Existing, endpoint));
         }
@@ -20,6 +20,14 @@ async fn connect_or_launch(
         return Err(manual_close_required());
     }
     run_cancellable(cancel, launch_platform_codex()).await?;
+    let (browser, handler_task, endpoint) = poll_until_cdp_ready(cancel).await?;
+    Ok((browser, handler_task, ConnectionSource::Launched, endpoint))
+}
+
+/// 执行换皮宿主内部的 `poll_until_cdp_ready` 步骤。
+async fn poll_until_cdp_ready(
+    cancel: &mut watch::Receiver<bool>,
+) -> Result<(Browser, JoinHandle<()>, CdpEndpoint), AppError> {
     let endpoint = CdpEndpoint::default();
     let deadline = tokio::time::Instant::now() + CODEX_LAUNCH_TIMEOUT;
     while tokio::time::Instant::now() < deadline {
@@ -36,7 +44,7 @@ async fn connect_or_launch(
         };
         match monitor_codex_operation(cancel, connection).await {
             Ok((browser, handler_task)) => {
-                return Ok((browser, handler_task, ConnectionSource::Launched, endpoint));
+                return Ok((browser, handler_task, endpoint));
             }
             Err(error)
                 if matches!(error.code, "skin.operation_cancelled" | "skin.codex_exited") =>
@@ -55,7 +63,8 @@ async fn connect_or_launch(
 
 /// 执行换皮宿主内部的 `codex_runtime_status` 步骤。
 async fn codex_runtime_status() -> Result<CodexRuntimeStatus, AppError> {
-    if let Ok((browser, handler_task, _)) = connect_existing_browser().await {
+    let (_cancel_tx, mut cancel_rx) = watch::channel(false);
+    if let Ok((browser, handler_task, _)) = connect_existing_browser(&mut cancel_rx).await {
         handler_task.abort();
         drop(browser);
         return Ok(CodexRuntimeStatus::new(classify_codex_runtime(true, false)));
@@ -134,39 +143,10 @@ fn force_close_timeout_error() -> AppError {
 async fn wait_for_cdp_ready(
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<CodexRuntimeStatus, AppError> {
-    let endpoint = CdpEndpoint::default();
-    let deadline = tokio::time::Instant::now() + CODEX_LAUNCH_TIMEOUT;
-    while tokio::time::Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        let connection = async {
-            tokio::time::timeout(remaining, connect_browser(endpoint))
-                .await
-                .map_err(|_| {
-                    cdp_timeout(
-                        "skin.cdp_unavailable",
-                        "Codex 未在 15 秒内开放本机调试端口。",
-                    )
-                })?
-        };
-        match monitor_codex_operation(cancel, connection).await {
-            Ok((browser, handler_task)) => {
-                handler_task.abort();
-                drop(browser);
-                return Ok(CodexRuntimeStatus::new(CodexRuntimeState::Ready));
-            }
-            Err(error)
-                if matches!(error.code, "skin.operation_cancelled" | "skin.codex_exited") =>
-            {
-                return Err(error);
-            }
-            Err(_) => {}
-        }
-        cancellable_sleep(cancel, CODEX_PAGE_POLL_INTERVAL).await?;
-    }
-    Err(AppError::new(
-        "skin.cdp_unavailable",
-        "Codex 未在 15 秒内开放本机调试端口。",
-    ))
+    let (browser, handler_task, _) = poll_until_cdp_ready(cancel).await?;
+    handler_task.abort();
+    drop(browser);
+    Ok(CodexRuntimeStatus::new(CodexRuntimeState::Ready))
 }
 
 /// 执行换皮宿主内部的 `manual_close_required` 步骤。
@@ -178,21 +158,7 @@ fn manual_close_required() -> AppError {
 }
 
 /// 执行换皮宿主内部的 `connect_existing_browser` 步骤。
-async fn connect_existing_browser() -> Result<(Browser, JoinHandle<()>, CdpEndpoint), AppError> {
-    let mut last_error = None;
-    for endpoint in cdp_endpoint_candidates().await {
-        match connect_browser(endpoint).await {
-            Ok((browser, handler_task)) => return Ok((browser, handler_task, endpoint)),
-            Err(error) => last_error = Some(error),
-        }
-    }
-    Err(last_error.unwrap_or_else(|| {
-        AppError::new("skin.cdp_unavailable", "没有可用的 Codex 本机调试端点。")
-    }))
-}
-
-/// 执行换皮宿主内部的 `connect_existing_browser_cancellable` 步骤。
-async fn connect_existing_browser_cancellable(
+async fn connect_existing_browser(
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(Browser, JoinHandle<()>, CdpEndpoint), AppError> {
     let candidates = run_cancellable(cancel, async { Ok(cdp_endpoint_candidates().await) }).await?;

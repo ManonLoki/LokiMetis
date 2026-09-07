@@ -12,7 +12,12 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 import {
   IconAlertCircle,
   IconPalette,
@@ -20,7 +25,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -53,6 +58,7 @@ import {
   readRememberedSkin,
   rememberSkin,
 } from "../lib/skin-preference";
+import { resolveTargetInstance } from "../lib/skin-instances";
 import { skinPageSessionAtom } from "../state/skin-page";
 
 /** 把资源描述收敛成原生命令要求的精确引用。 */
@@ -63,6 +69,22 @@ function skinReference(skin: SkinDescriptor): SkinReference {
 /** 比较两个可选皮肤引用是否指向同一份来源资源。 */
 function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
   return left?.id === right.id && left.source === right.source;
+}
+
+/** 以统一的启用/轮询/新鲜度策略订阅一个换皮宿主查询。 */
+function useHostQuery<TData>(
+  hostAvailable: boolean,
+  queryKey: QueryKey,
+  queryFn: () => Promise<TData>,
+  intervalMs: number,
+) {
+  return useQuery({
+    enabled: hostAvailable,
+    queryFn,
+    queryKey,
+    refetchInterval: hostAvailable ? intervalMs : false,
+    staleTime: intervalMs / 2,
+  });
 }
 
 /** 渲染完整的本机 Codex 换皮资源库、目标实例与受控生命周期。 */
@@ -90,67 +112,63 @@ export function SkinPage(): ReactElement {
     readRememberedSkin(),
   );
 
-  const catalog = useQuery({
-    enabled: hostAvailable,
-    queryFn: skinApi.list,
-    queryKey: SKIN_CATALOG_QUERY_KEY,
-    refetchInterval: hostAvailable ? 5_000 : false,
-  });
-  const runtime = useQuery({
-    enabled: hostAvailable,
-    queryFn: skinApi.runtimeStatus,
-    queryKey: CODEX_RUNTIME_QUERY_KEY,
-    refetchInterval: hostAvailable ? 4_000 : false,
-  });
-  const instances = useQuery({
-    enabled: hostAvailable,
-    queryFn: skinApi.instances,
-    queryKey: CODEX_INSTANCES_QUERY_KEY,
-    refetchInterval: hostAvailable ? 4_000 : false,
-  });
-  const status = useQuery({
-    enabled: hostAvailable,
-    queryFn: skinApi.status,
-    queryKey: SKIN_STATUS_QUERY_KEY,
-    refetchInterval: hostAvailable ? 4_000 : false,
-  });
+  const catalog = useHostQuery(hostAvailable, SKIN_CATALOG_QUERY_KEY, skinApi.list, 5_000);
+  const runtime = useHostQuery(
+    hostAvailable,
+    CODEX_RUNTIME_QUERY_KEY,
+    skinApi.runtimeStatus,
+    4_000,
+  );
+  const instances = useHostQuery(
+    hostAvailable,
+    CODEX_INSTANCES_QUERY_KEY,
+    skinApi.instances,
+    4_000,
+  );
+  const status = useHostQuery(hostAvailable, SKIN_STATUS_QUERY_KEY, skinApi.status, 4_000);
 
   const action = useMutation<void, unknown, () => Promise<void>>({
     mutationFn: (operation) => operation(),
   });
 
   /** 统一显示脱敏宿主错误，不暴露文件路径或调试端点。 */
-  const showError = (cause: unknown): void => {
-    setNotice(null);
-    setError(cause instanceof SkinHostError ? cause.message : t("skins.error.unknown"));
-  };
+  const showError = useCallback(
+    (cause: unknown): void => {
+      setNotice(null);
+      setError(cause instanceof SkinHostError ? cause.message : t("skins.error.unknown"));
+    },
+    [t],
+  );
 
   /** 让换皮相关查询在一次真实变更后共同回到宿主权威状态。 */
-  const refresh = async (): Promise<void> => {
+  const refresh = useCallback(async (): Promise<void> => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: SKIN_CATALOG_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: SKIN_STATUS_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: CODEX_RUNTIME_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: CODEX_INSTANCES_QUERY_KEY }),
     ]);
-  };
+  }, [queryClient]);
 
   /** 执行可见操作并收敛错误边界。 */
-  const run = async (operation: () => Promise<void>): Promise<void> => {
-    setError(null);
-    try {
-      await action.mutateAsync(operation);
-    } catch (cause) {
-      showError(cause);
-    }
-  };
+  const run = useCallback(
+    async (operation: () => Promise<void>): Promise<void> => {
+      setError(null);
+      try {
+        await action.mutateAsync(operation);
+      } catch (cause) {
+        showError(cause);
+      }
+    },
+    [action.mutateAsync, showError],
+  );
 
   useEffect(() => {
     const current = instances.data ?? [];
     const selectedStillExists = current.some(
       (item) => item.id === session.selectedInstanceId,
     );
-    const onlyInstance = current.length === 1 ? (current.at(0) ?? null) : null;
+    const onlyInstance = resolveTargetInstance(current, null);
     if (onlyInstance !== null && session.selectedInstanceId !== onlyInstance.id) {
       setSession((value) => ({ ...value, selectedInstanceId: onlyInstance.id }));
     } else if (!selectedStillExists && session.selectedInstanceId !== null) {
@@ -185,9 +203,7 @@ export function SkinPage(): ReactElement {
   }, [hostAvailable]);
 
   const instanceList = instances.data ?? [];
-  const selectedInstance =
-    instanceList.find((item) => item.id === session.selectedInstanceId) ??
-    (instanceList.length === 1 ? (instanceList.at(0) ?? null) : null);
+  const selectedInstance = resolveTargetInstance(instanceList, session.selectedInstanceId);
   const activeSkin =
     selectedInstance?.activeSkin ??
     (status.data?.installed && status.data.skinId && status.data.source
@@ -202,57 +218,72 @@ export function SkinPage(): ReactElement {
       );
     });
   }, [catalog.data, session.search, session.userOnly]);
-  const rememberedDescriptor = (catalog.data ?? []).find(
-    (skin) => remembered !== null && sameSkin(remembered, skinReference(skin)),
+  const rememberedDescriptor = useMemo(
+    () =>
+      (catalog.data ?? []).find(
+        (skin) => remembered !== null && sameSkin(remembered, skinReference(skin)),
+      ),
+    [catalog.data, remembered],
+  );
+  const selectedSkinKeys = useMemo(
+    () => new Set(selectedUserSkins.map((entry) => `${entry.source}:${entry.id}`)),
+    [selectedUserSkins],
   );
 
   /** 在实例明确且无需重启时执行皮肤安装。 */
-  const installOnInstance = async (
-    skin: SkinDescriptor,
-    target: CodexInstance | null,
-    allowMismatch = false,
-  ): Promise<void> => {
-    const result = await skinApi.install(
-      skinReference(skin),
-      allowMismatch,
-      target?.id ?? null,
-    );
-    if (result.type === "needsConfirmation") {
-      setAppearance({ check: result.check, skin });
-      return;
-    }
-    const reference = skinReference(skin);
-    rememberSkin(reference);
-    setRemembered(reference);
-    setSession((value) => ({ ...value, restoreDismissed: false }));
-    setNotice(t("skins.notice.applied", { name: skin.name }));
-    await refresh();
-  };
+  const installOnInstance = useCallback(
+    async (
+      skin: SkinDescriptor,
+      target: CodexInstance | null,
+      allowMismatch = false,
+    ): Promise<void> => {
+      const result = await skinApi.install(
+        skinReference(skin),
+        allowMismatch,
+        target?.id ?? null,
+      );
+      if (result.type === "needsConfirmation") {
+        setAppearance({ check: result.check, skin });
+        return;
+      }
+      const reference = skinReference(skin);
+      rememberSkin(reference);
+      setRemembered(reference);
+      setSession((value) => ({ ...value, restoreDismissed: false }));
+      setNotice(t("skins.notice.applied", { name: skin.name }));
+      await refresh();
+    },
+    [refresh, setSession, t],
+  );
 
   /** 解析唯一目标并在可能影响 Codex 会话时先进入确认弹窗。 */
-  const requestInstall = async (skin: SkinDescriptor): Promise<void> => {
-    let current = instanceList;
-    if (current.length === 0) {
-      await skinApi.launchCodex();
-      current = await skinApi.instances();
-    }
-    const target =
-      current.find((item) => item.id === session.selectedInstanceId) ??
-      (current.length === 1 ? (current.at(0) ?? null) : null);
-    if (target === null)
-      throw new SkinHostError(
-        "skin.codex_instance_selection_required",
-        t("skins.error.choose_instance"),
-      );
-    if (target.state === "runningWithoutCdp") {
-      setRestartSkin(skin);
-      return;
-    }
-    await installOnInstance(skin, target);
-  };
+  const requestInstall = useCallback(
+    async (skin: SkinDescriptor): Promise<void> => {
+      let current = instanceList;
+      if (current.length === 0) {
+        await skinApi.launchCodex();
+        current = await queryClient.fetchQuery({
+          queryFn: skinApi.instances,
+          queryKey: CODEX_INSTANCES_QUERY_KEY,
+        });
+      }
+      const target = resolveTargetInstance(current, session.selectedInstanceId);
+      if (target === null)
+        throw new SkinHostError(
+          "skin.codex_instance_selection_required",
+          t("skins.error.choose_instance"),
+        );
+      if (target.state === "runningWithoutCdp") {
+        setRestartSkin(skin);
+        return;
+      }
+      await installOnInstance(skin, target);
+    },
+    [instanceList, installOnInstance, queryClient, session.selectedInstanceId, t],
+  );
 
   /** 从原生文件选择器预检一个有界 ZIP 批次。 */
-  const prepareImport = async (): Promise<void> => {
+  const prepareImport = useCallback(async (): Promise<void> => {
     setImportProgress(0);
     const batch = await skinApi.prepareImport((progress) => {
       if (progress.type === "started") setImportProgress(0);
@@ -262,7 +293,53 @@ export function SkinPage(): ReactElement {
     if (batch === null) return;
     setImportBatch(batch);
     setImportSelected(batch.items.map((item) => item.itemId));
-  };
+  }, []);
+
+  /** 稳定的资源卡回调集合，避免轮询刷新导致整批卡片重渲染。 */
+  const handleApply = useCallback(
+    (item: SkinDescriptor) => void run(() => requestInstall(item)),
+    [run, requestInstall],
+  );
+  const handleConvert = useCallback((item: SkinDescriptor) => setConvertSkin(item), []);
+  const handleDelete = useCallback(
+    (item: SkinDescriptor) => setDeleteTargets([item]),
+    [],
+  );
+  const handleExport = useCallback(
+    (item: SkinDescriptor) =>
+      void run(async () => {
+        if (await skinApi.exportPackage(skinReference(item)))
+          setNotice(t("skins.notice.exported"));
+      }),
+    [run, t],
+  );
+  const handleOpen = useCallback(
+    (item: SkinDescriptor) => void run(() => skinApi.openDirectory(skinReference(item))),
+    [run],
+  );
+  const handleSelect = useCallback(
+    (item: SkinDescriptor, selected: boolean) =>
+      setSelectedUserSkins((value) =>
+        selected
+          ? [
+              ...value.filter((entry) => !sameSkin(entry, skinReference(item))),
+              skinReference(item),
+            ]
+          : value.filter((entry) => !sameSkin(entry, skinReference(item))),
+      ),
+    [],
+  );
+  const handleStop = useCallback(
+    () =>
+      void run(async () => {
+        await skinApi.uninstall(selectedInstance?.id ?? null);
+        clearRememberedSkin();
+        setRemembered(null);
+        setNotice(t("skins.notice.stopped"));
+        await refresh();
+      }),
+    [refresh, run, selectedInstance, t],
+  );
 
   const runtimeLabel = runtime.data?.state ?? "stopped";
   return (
@@ -357,9 +434,7 @@ export function SkinPage(): ReactElement {
                   onClick={() =>
                     setDeleteTargets(
                       (catalog.data ?? []).filter((skin) =>
-                        selectedUserSkins.some((selected) =>
-                          sameSkin(selected, skinReference(skin)),
-                        ),
+                        selectedSkinKeys.has(`${skin.source}:${skin.id}`),
                       ),
                     )
                   }
@@ -423,38 +498,14 @@ export function SkinPage(): ReactElement {
               active={sameSkin(activeSkin, skinReference(skin))}
               busy={action.isPending}
               key={`${skin.source}:${skin.id}`}
-              onApply={(item) => void run(() => requestInstall(item))}
-              onConvert={(item) => setConvertSkin(item)}
-              onDelete={(item) => setDeleteTargets([item])}
-              onExport={(item) =>
-                void run(async () => {
-                  if (await skinApi.exportPackage(skinReference(item)))
-                    setNotice(t("skins.notice.exported"));
-                })
-              }
-              onOpen={(item) => void run(() => skinApi.openDirectory(skinReference(item)))}
-              onSelect={(item, selected) =>
-                setSelectedUserSkins((value) =>
-                  selected
-                    ? [
-                        ...value.filter((entry) => !sameSkin(entry, skinReference(item))),
-                        skinReference(item),
-                      ]
-                    : value.filter((entry) => !sameSkin(entry, skinReference(item))),
-                )
-              }
-              onStop={() =>
-                void run(async () => {
-                  await skinApi.uninstall(selectedInstance?.id ?? null);
-                  clearRememberedSkin();
-                  setRemembered(null);
-                  setNotice(t("skins.notice.stopped"));
-                  await refresh();
-                })
-              }
-              selected={selectedUserSkins.some((entry) =>
-                sameSkin(entry, skinReference(skin)),
-              )}
+              onApply={handleApply}
+              onConvert={handleConvert}
+              onDelete={handleDelete}
+              onExport={handleExport}
+              onOpen={handleOpen}
+              onSelect={handleSelect}
+              onStop={handleStop}
+              selected={selectedSkinKeys.has(`${skin.source}:${skin.id}`)}
               skin={skin}
             />
           ))}

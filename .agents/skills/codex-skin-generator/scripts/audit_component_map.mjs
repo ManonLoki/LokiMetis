@@ -47,9 +47,13 @@ function runtimeSelectorText(source) {
 }
 
 export async function auditSkin(skillDir, skinDir) {
-  const mapText = await readFile(path.join(skillDir, "references", "component-map.yaml"), "utf8");
-  const css = await readFile(path.join(skinDir, "dream-skin.css"), "utf8");
-  const source = await readFile(path.join(skinDir, "renderer-inject.js"), "utf8");
+  const [mapText, css, source, previewSource, featureReference] = await Promise.all([
+    readFile(path.join(skillDir, "references", "component-map.yaml"), "utf8"),
+    readFile(path.join(skinDir, "dream-skin.css"), "utf8"),
+    readFile(path.join(skinDir, "renderer-inject.js"), "utf8"),
+    readFile(path.join(skillDir, "scripts", "render_preview.mjs"), "utf8"),
+    readFile(path.join(skillDir, "references", "feature-surfaces.md"), "utf8"),
+  ]);
   const selectors = mapSelectors(mapText);
   const registeredAtoms = atoms(selectors.join("\n"));
   const usedAtoms = new Set([...atoms(cssSelectorText(css)), ...atoms(runtimeSelectorText(source))]);
@@ -78,11 +82,9 @@ export async function auditSkin(skillDir, skinDir) {
   for (const surface of [...ROUTE_SURFACES].sort()) {
     if (!routeBlock.includes(`"${surface}"`)) errors.push(`renderer-inject.js 缺少空/错误状态路由兜底：${surface}`);
   }
-  const previewSource = await readFile(path.join(skillDir, "scripts", "render_preview.mjs"), "utf8");
   for (const surface of [...SURFACES].sort()) {
     if (!previewSource.includes(`"${surface}"`) && !previewSource.includes(`'${surface}'`)) errors.push(`render_preview.mjs 缺少页面预览：${surface}`);
   }
-  const featureReference = await readFile(path.join(skillDir, "references", "feature-surfaces.md"), "utf8");
   for (const heading of ["拉取请求", "站点", "已安排", "插件", "设置"]) {
     if (!featureReference.includes(`## ${heading}`)) errors.push(`功能页参考资料缺少独立章节：${heading}`);
   }

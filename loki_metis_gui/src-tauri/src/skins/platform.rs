@@ -29,16 +29,23 @@ async fn try_activate_codex_window(endpoint: CdpEndpoint) {
     }
 }
 
+/// 执行换皮宿主内部的 `exactly_one` 步骤：迭代器恰好只有一个匹配项时返回该项。
+fn exactly_one<T>(mut iter: impl Iterator<Item = T>) -> Option<T> {
+    let first = iter.next()?;
+    iter.next().is_none().then_some(first)
+}
+
 /// 执行换皮宿主内部的 `unique_codex_pid_for_endpoint` 步骤。
 fn unique_codex_pid_for_endpoint(
     instances: &[ResolvedCodexInstance],
     endpoint: CdpEndpoint,
 ) -> Option<u32> {
-    let mut matches = instances
-        .iter()
-        .filter(|instance| instance.debug_port == Some(endpoint.port));
-    let selected = matches.next()?;
-    matches.next().is_none().then_some(selected.process.pid)
+    exactly_one(
+        instances
+            .iter()
+            .filter(|instance| instance.debug_port == Some(endpoint.port)),
+    )
+    .map(|instance| instance.process.pid)
 }
 
 /// 执行换皮宿主内部的 `restarted_instance_for_endpoint` 步骤。
@@ -46,11 +53,11 @@ fn restarted_instance_for_endpoint(
     instances: Vec<CodexInstance>,
     endpoint: CdpEndpoint,
 ) -> Option<CodexInstance> {
-    let mut matches = instances
-        .into_iter()
-        .filter(|instance| instance.debug_port == Some(endpoint.port));
-    let selected = matches.next()?;
-    matches.next().is_none().then_some(selected)
+    exactly_one(
+        instances
+            .into_iter()
+            .filter(|instance| instance.debug_port == Some(endpoint.port)),
+    )
 }
 
 #[cfg(target_os = "windows")]
@@ -217,6 +224,12 @@ fn matching_process_command_lines(output: &str, executable: &Path) -> Vec<(u32, 
 /// 执行换皮宿主内部的 `platform_codex_command_lines` 步骤。
 async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     let executable = discover_codex_executable().await?;
+    codex_command_lines_for(&executable).await
+}
+
+#[cfg(target_os = "macos")]
+/// 执行换皮宿主内部的 `codex_command_lines_for` 步骤。
+async fn codex_command_lines_for(executable: &Path) -> Result<Vec<(u32, String)>, AppError> {
     let output = tokio::process::Command::new("/bin/ps")
         .args(["-axo", "pid=,command="])
         .output()
@@ -235,7 +248,7 @@ async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> 
     }
     Ok(matching_process_command_lines(
         &String::from_utf8_lossy(&output.stdout),
-        &executable,
+        executable,
     ))
 }
 
@@ -243,7 +256,7 @@ async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> 
 /// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
 async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
     let executable = discover_codex_executable().await?;
-    Ok(platform_codex_command_lines()
+    Ok(codex_command_lines_for(&executable)
         .await?
         .into_iter()
         .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
@@ -300,27 +313,16 @@ async fn restart_platform_codex_instance(
 /// 执行换皮宿主内部的 `force_close_platform_codex` 步骤。
 async fn force_close_platform_codex() -> Result<(), AppError> {
     let executable = discover_codex_executable().await?;
-    let output = tokio::process::Command::new("/bin/ps")
-        .args(["-axo", "pid=,command="])
-        .output()
+    let pids = codex_command_lines_for(&executable)
         .await
         .map_err(|_| {
             AppError::new(
                 "skin.codex_force_close_failed",
                 "无法检查当前 Codex/GPT 桌面应用进程。",
             )
-        })?;
-    let executable = executable.to_string_lossy();
-    let pids = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim_start();
-            let split = line.find(char::is_whitespace)?;
-            let (pid, command) = line.split_at(split);
-            let command = command.trim_start();
-            (command == executable || command.starts_with(&format!("{executable} ")))
-                .then(|| pid.to_owned())
-        })
+        })?
+        .into_iter()
+        .map(|(pid, _)| pid.to_string())
         .collect::<Vec<_>>();
     for pid in &pids {
         let status = tokio::process::Command::new("/bin/kill")

@@ -158,11 +158,6 @@ def register(ctx) -> None:
         true
     }
 
-    /// Hermes 插件文件由自身协议整体管理。
-    fn uses_custom_merge(&self) -> bool {
-        true
-    }
-
     /// 返回 Hermes 插件清单。
     fn auxiliary_configs(&self) -> Vec<HookConfigPreview> {
         let marker = managed_hook_marker(AiTool::Hermes);

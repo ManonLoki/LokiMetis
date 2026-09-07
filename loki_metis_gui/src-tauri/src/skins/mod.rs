@@ -25,11 +25,12 @@ use chromiumoxide::{Browser, Page};
 use futures::StreamExt;
 use futures::future::join_all;
 use loki_metis_core::{
-    ColorMode, MAX_SKIN_DELETE_BATCH_ITEMS as MAX_DELETE_BATCH_ITEMS,
+    ColorMode, ImageFormat, MAX_SKIN_DELETE_BATCH_ITEMS as MAX_DELETE_BATCH_ITEMS,
     MAX_SKIN_IMPORT_BATCH_FILES as MAX_IMPORT_BATCH_FILES, MAX_THEME_CSS_BYTES,
     MAX_THEME_IMAGE_BYTES as MAX_IMAGE_BYTES, SkinPackageType, SkinReference, SkinRuleError,
-    SkinSource, normalize_skin_creator_text, validate_supported_color_modes,
-    validate_theme_image_name as validate_core_image_name, validate_theme_metadata,
+    SkinSource, image_data_url as gallery_image_data_url, normalize_skin_creator_text,
+    validate_supported_color_modes, validate_theme_image_name as validate_core_image_name,
+    validate_theme_metadata,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, OnceCell, watch};
