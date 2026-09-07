@@ -78,9 +78,9 @@ async fn chart_command_keeps_fixed_bucket_contract_and_dimension_boundary() {
     );
 }
 
-/// 联合图表在空索引上仍返回完整小时桶，且 provider 明确为联合。
+/// 联合图表在所有已开启 Agent 都未配置数据源时返回明确引导，不伪造零值。
 #[tokio::test]
-async fn combined_chart_keeps_fixed_hour_buckets_for_empty_indexes() {
+async fn combined_chart_requires_one_configured_data_source() {
     let temp = tempdir().expect("isolated app-data is available");
     let state = AppRuntimeState::new(temp.path().to_path_buf());
     state
@@ -88,7 +88,7 @@ async fn combined_chart_keeps_fixed_hour_buckets_for_empty_indexes() {
         .await
         .expect("fixture enables Codex");
 
-    let chart = get_usage_charts_for_state(
+    let error = get_usage_charts_for_state(
         &state,
         UsageViewKindDto::All,
         UsageWindow::Today,
@@ -96,13 +96,6 @@ async fn combined_chart_keeps_fixed_hour_buckets_for_empty_indexes() {
         TimeStandardDto::default(),
     )
     .await
-    .expect("combined chart remains readable");
-    assert_eq!(chart.granularity, UsageChartGranularityDto::Hour);
-    assert_eq!(chart.buckets.len(), 24);
-    assert_eq!(chart.dimension, UsageChartDimensionDto::Agent);
-    assert_eq!(
-        chart.fact.provider,
-        loki_metis_core::ProviderKind::CombinedLocalAgents
-    );
-    assert!(chart.groups.is_empty());
+    .expect_err("an empty member set cannot be presented as confirmed zero usage");
+    assert_eq!(error, "请先为至少一个已开启 AI Agent 配置数据源。");
 }

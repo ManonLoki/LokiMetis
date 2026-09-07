@@ -30,6 +30,9 @@ pub enum UsageViewError {
     /// 请求的具体 Agent 尚未由用户开启。
     #[error("requested usage agent is disabled")]
     AgentDisabled,
+    /// 「全部」中已开启的 Agent 都没有启用的数据源，不能生成联合用量。
+    #[error("all usage view has no configured data sources")]
+    NoConfiguredDataSources,
     /// 同一物理 Agent 被重复装入联合快照。
     #[error("combined usage view contains a duplicate agent")]
     DuplicateAgent,
@@ -91,12 +94,17 @@ pub fn resolve_usage_view_members(
     }
 }
 
-/// 合并多个物理 Agent 的单库一致快照；跨 Agent 调用绝不相互去重。
+/// 合并多个物理 Agent 的单库一致快照；没有启用数据源的 Agent 不参与联合状态，
+/// 跨 Agent 调用绝不相互去重。
 pub fn combine_agent_usage_snapshots(
-    inputs: Vec<AgentUsageSnapshot>,
+    mut inputs: Vec<AgentUsageSnapshot>,
 ) -> Result<CombinedUsageSnapshot, UsageViewError> {
     if inputs.is_empty() {
         return Err(UsageViewError::NoEnabledAgents);
+    }
+    inputs.retain(|input| input.snapshot.roots.iter().any(|root| root.enabled));
+    if inputs.is_empty() {
+        return Err(UsageViewError::NoConfiguredDataSources);
     }
 
     let source_version = combined_source_version(&inputs);

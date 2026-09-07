@@ -11,7 +11,8 @@
     "BUG-RELEASE-CONFIG-DRIFT-20260907",
     "BUG-PERFORMANCE-IDLE-WEBVIEW-20260907",
     "BUG-SCAN-SUMMARY-FULL-MATERIALIZATION",
-    "BUG-HOOKS-CLI-RELAY"
+    "BUG-HOOKS-CLI-RELAY",
+    "BUG-DASHBOARD-ALL-SKIP-UNCONFIGURED-AGENTS"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -176,8 +177,13 @@
       "change_id": "BUG-HOOKS-CLI-RELAY",
       "kind": "bug-fix",
       "required_version": "0.2.12"
+    },
+    {
+      "change_id": "BUG-DASHBOARD-ALL-SKIP-UNCONFIGURED-AGENTS",
+      "kind": "bug-fix",
+      "required_version": "0.2.13"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.12"
+  "target_version": "0.2.13"
 }

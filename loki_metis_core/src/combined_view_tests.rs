@@ -6,9 +6,9 @@ use jiff::tz::TimeZone;
 
 use super::*;
 use crate::{
-    Confidence, LocalUsageWindow, SourceProvenance, TokenUsage, UsageCallFilters,
-    UsageCallSortDirection, UsageCallSortField, canonicalize_usage_calls,
-    empty_token_usage_for_provider,
+    Confidence, DiscoveryMethod, LocalUsageWindow, RootActivationState, RootRecord,
+    SourceProvenance, TokenUsage, UsageCallFilters, UsageCallSortDirection, UsageCallSortField,
+    canonicalize_usage_calls, empty_token_usage_for_provider,
 };
 
 /// 构造完整覆盖，避免质量字段掩盖联合求和断言。
@@ -72,7 +72,17 @@ fn agent_snapshot_with_version(
         UsageSnapshot {
             canonical,
             index_state,
-            roots: Vec::new(),
+            roots: vec![RootRecord {
+                root_id: format!("root-{}", agent_wire_label(client)),
+                alias: format!("{} root", agent_wire_label(client)),
+                enabled: true,
+                activation_state: RootActivationState::Ready,
+                is_primary: false,
+                discovery_method: DiscoveryMethod::Registered,
+                last_coverage: Some(CoverageState::Complete),
+                source_file_count: 1,
+                call_observation_count: 1,
+            }],
         },
         complete_coverage(),
         Some(
@@ -81,6 +91,13 @@ fn agent_snapshot_with_version(
                 .unwrap_or_else(|| provider.parser_source_label(client.parser_version())),
         ),
     )
+}
+
+/// 构造已开启但没有任何可用数据源的 Agent，用于锁定「全部」视图的忽略规则。
+fn unconfigured_agent_snapshot(client: SourceClientKind) -> AgentUsageSnapshot {
+    let mut snapshot = agent_snapshot(client, LocalIndexState::NotScanned, Vec::new());
+    snapshot.snapshot.roots.clear();
+    snapshot
 }
 
 /// 「全部」只解析已开启子集并固定 Agent 顺序，空集合和关闭单项都拒绝。
@@ -268,6 +285,48 @@ fn combines_index_states_conservatively_and_hides_partial_usage() {
     }
 }
 
+/// 未配置数据源的 Agent 不得把其他 Agent 的已索引数据清空或降级为未扫描。
+#[test]
+fn ignores_unconfigured_agents_without_hiding_other_usage() {
+    let observed = 1_777_000_000_000_i64;
+    let combined = combine_agent_usage_snapshots(vec![
+        agent_snapshot(
+            SourceClientKind::Codex,
+            LocalIndexState::Ready,
+            vec![call("configured", observed, 12)],
+        ),
+        unconfigured_agent_snapshot(SourceClientKind::ClaudeCode),
+    ])
+    .expect("configured member keeps the combined view available");
+
+    assert_eq!(combined.index_state, LocalIndexState::Ready);
+    assert_eq!(combined.canonical.calls.len(), 1);
+    assert_eq!(combined.origins.len(), 1);
+}
+
+/// 仍有启用数据源但尚未扫描的 Agent 必须继续阻断部分联合结果，不能被误判为未配置。
+#[test]
+fn keeps_configured_unscanned_agents_in_combined_state() {
+    let observed = 1_777_000_000_000_i64;
+    let combined = combine_agent_usage_snapshots(vec![
+        agent_snapshot(
+            SourceClientKind::Codex,
+            LocalIndexState::Ready,
+            vec![call("configured", observed, 12)],
+        ),
+        agent_snapshot(
+            SourceClientKind::ClaudeCode,
+            LocalIndexState::NotScanned,
+            Vec::new(),
+        ),
+    ])
+    .expect("configured members remain part of the combined view");
+
+    assert_eq!(combined.index_state, LocalIndexState::NotScanned);
+    assert!(combined.canonical.calls.is_empty());
+    assert!(combined.origins.is_empty());
+}
+
 /// 联合调用页必须全局排序分页，并为每行保留具体 Agent、provider 与 parser 版本。
 #[test]
 fn globally_sorts_pages_and_keeps_each_call_origin() {
@@ -384,6 +443,10 @@ fn rejects_empty_and_duplicate_agent_snapshots() {
     assert_eq!(
         combine_agent_usage_snapshots(Vec::new()),
         Err(UsageViewError::NoEnabledAgents)
+    );
+    assert_eq!(
+        combine_agent_usage_snapshots(vec![unconfigured_agent_snapshot(SourceClientKind::Codex,)]),
+        Err(UsageViewError::NoConfiguredDataSources)
     );
     assert_eq!(
         combine_agent_usage_snapshots(vec![

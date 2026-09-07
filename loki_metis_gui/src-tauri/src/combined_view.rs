@@ -74,8 +74,36 @@ pub(crate) async fn load_combined_overview(
     }
     let inputs =
         load_enabled_agent_snapshots(state, observed_at_epoch_ms, time_standard.clone()).await?;
+    let combined = spawn_blocking(move || combine_agent_usage_snapshots(inputs))
+        .await
+        .map_err(|_| local_read_error())?;
+    let combined = match combined {
+        Ok(combined) => combined,
+        Err(UsageViewError::NoConfiguredDataSources) => {
+            if workbuddy_read_failed {
+                return Err(local_read_error());
+            }
+            if workbuddy_source_absent {
+                return Err("未找到 WorkBuddy 本机 project JSONL 用量数据。".to_owned());
+            }
+            let Some(snapshot) = workbuddy else {
+                return Err(usage_view_error_message(
+                    UsageViewError::NoConfiguredDataSources,
+                ));
+            };
+            return Ok(CombinedOverviewResult {
+                local_records: workbuddy_only_records(
+                    &snapshot.windows,
+                    &snapshot.coverage,
+                    observed_at_epoch_ms,
+                    ProviderKind::CombinedLocalAgents,
+                ),
+                workbuddy_read_failed: false,
+            });
+        }
+        Err(error) => return Err(usage_view_error_message(error)),
+    };
     let summary = spawn_blocking(move || {
-        let combined = combine_agent_usage_snapshots(inputs).map_err(|_| ())?;
         let mut summary = build_combined_local_windows_with_standard(
             &combined,
             observed_at_epoch_ms,
@@ -198,12 +226,12 @@ pub(crate) async fn load_combined_calls(
     let inputs = load_enabled_agent_snapshots(state, observed_at_epoch_ms, time_standard).await?;
     let query = to_core_query(query);
     let page = spawn_blocking(move || {
-        let combined = combine_agent_usage_snapshots(inputs).map_err(|_| ())?;
-        build_combined_usage_calls_page(&combined, &query, observed_at_epoch_ms).map_err(|_| ())
+        let combined = combine_agent_usage_snapshots(inputs).map_err(usage_view_error_message)?;
+        build_combined_usage_calls_page(&combined, &query, observed_at_epoch_ms)
+            .map_err(|_| local_read_error())
     })
     .await
-    .map_err(|_| local_read_error())?
-    .map_err(|_| local_read_error())?;
+    .map_err(|_| local_read_error())??;
     Ok(to_dto_page(page))
 }
 
@@ -218,7 +246,7 @@ pub(crate) async fn load_combined_chart(
     let inputs =
         load_enabled_agent_snapshots(state, observed_at_epoch_ms, time_standard.clone()).await?;
     let page = spawn_blocking(move || {
-        let combined = combine_agent_usage_snapshots(inputs).map_err(|_| ())?;
+        let combined = combine_agent_usage_snapshots(inputs).map_err(usage_view_error_message)?;
         build_combined_usage_chart_with_standard(
             &combined,
             to_core_window(window),
@@ -227,11 +255,10 @@ pub(crate) async fn load_combined_chart(
             time_standard,
             &jiff::tz::TimeZone::system(),
         )
-        .map_err(|_| ())
+        .map_err(|_| local_read_error())
     })
     .await
-    .map_err(|_| local_read_error())?
-    .map_err(|_| local_read_error())?;
+    .map_err(|_| local_read_error())??;
     Ok(to_dto_chart(page))
 }
 
@@ -296,6 +323,9 @@ fn usage_view_error_message(error: UsageViewError) -> String {
     match error {
         UsageViewError::NoEnabledAgents => "请先在设置中开启至少一个 AI Agent。".to_owned(),
         UsageViewError::AgentDisabled => "当前 AI Agent 尚未开启。".to_owned(),
+        UsageViewError::NoConfiguredDataSources => {
+            "请先为至少一个已开启 AI Agent 配置数据源。".to_owned()
+        }
         UsageViewError::DuplicateAgent => local_read_error(),
     }
 }
