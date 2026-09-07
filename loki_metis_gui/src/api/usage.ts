@@ -57,8 +57,6 @@ export const usageCommands = {
   setDeviceUsername: "set_device_username",
   setScanInterval: "set_scan_interval",
   setRetentionDays: "set_retention_days",
-  setEnabledAgents: "set_enabled_agents",
-  setWorkbuddyStatsEnabled: "set_workbuddy_stats_enabled",
   workbuddyStatistics: "get_workbuddy_statistics",
   workbuddyUsageStatistics: "get_workbuddy_usage_statistics",
   workbuddySourceStatus: "get_workbuddy_source_status",
@@ -192,14 +190,6 @@ export async function setDeviceUsername(
   });
 }
 
-/** 保存用户显式开放的本机 Agent 集合。 */
-export async function setEnabledAgents(
-  client: UsageClientKind,
-  agents: UsageClientKind[],
-): Promise<PrivacySettingsDto> {
-  return invoke<PrivacySettingsDto>(usageCommands.setEnabledAgents, { client, agents });
-}
-
 /** 保存单一扫描间隔；只改本机周期扫描节奏。 */
 export async function setScanInterval(
   client: UsageClientKind,
@@ -214,17 +204,6 @@ export async function setRetentionDays(
   days: number,
 ): Promise<PrivacySettingsDto> {
   return invoke<PrivacySettingsDto>(usageCommands.setRetentionDays, { client, days });
-}
-
-/** 保存 WorkBuddy 本地统计开关；关闭时后续读取一律被拒绝。 */
-export async function setWorkbuddyStatsEnabled(
-  client: UsageClientKind,
-  enabled: boolean,
-): Promise<PrivacySettingsDto> {
-  return invoke<PrivacySettingsDto>(usageCommands.setWorkbuddyStatsEnabled, {
-    client,
-    enabled,
-  });
 }
 
 /** 读取 WorkBuddy 本地用量统计快照；开关关闭时后端直接拒绝。 */

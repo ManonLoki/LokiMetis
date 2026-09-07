@@ -21,7 +21,6 @@ import {
 } from "../bounded-minutes";
 import { FailureState, LoadingState } from "../components/UsageUi";
 import { agentClientAtom } from "../state/agent-client";
-import { EnabledAgentsSettings } from "./EnabledAgentsSettings";
 import { RetentionDaysSettings } from "./RetentionDaysSettings";
 import { useDraftValue } from "../use-draft-value";
 import { visibleErrorMessage } from "../visible-error";
@@ -128,7 +127,7 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
   );
 }
 
-/** 在公共设置页展示看板 Agent 开关、扫描间隔与自动清理。 */
+/** 在公共设置页展示统一 Agent 选择之外的扫描间隔与自动清理。 */
 export function DashboardSettingsSection() {
   const { t } = useTranslation();
   const client = useAtomValue(agentClientAtom);
@@ -152,12 +151,6 @@ export function DashboardSettingsSection() {
 
   return (
     <Stack data-testid="dashboard-settings" gap="xl">
-      <EnabledAgentsSettings
-        availableAiTypes={settings.availableAiTypes}
-        savedAgents={settings.enabledAgents}
-        savedWorkbuddyStatsEnabled={settings.workbuddyStatsEnabled}
-      />
-
       <ScanIntervalSettings
         key={`scan-interval-${client}`}
         savedMinutes={settings.scanIntervalMinutes}

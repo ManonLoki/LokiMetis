@@ -25,11 +25,11 @@
         CodexRuntimeState, CodexRuntimeStatus, ColorMode, CompatibilityPageReport,
         ConnectionSource, InjectionReport, LegacyManifest, PageProbe, PlatformCodexProcess,
         SkinCompatibilityMode, SkinCompatibilityStatus, SkinImportPreparationEvent,
-        SkinPackageType, SkinReference, SkinService, SkinSource, SkinStatus,
+        SkinHostKind, SkinPackageType, SkinReference, SkinService, SkinSource, SkinStatus,
         ACCOUNT_PROFILE_PROBE_SCRIPT, CODEX_LAUNCH_TIMEOUT, CODEX_PAGE_READY_TIMEOUT,
         EXISTING_CODEX_PAGE_READY_TIMEOUT, HOST_COMPATIBILITY_VERSION, LEGACY_REQUIRED_FILES,
         LEGACY_RUNTIME_FILES, MAX_IMPORT_BATCH_BYTES, MAX_IMPORT_BATCH_FILES, PROBE_SCRIPT,
-        SKIN_VERSION, THEME_RUNTIME_CSS,
+        SKIN_VERSION, THEME_RUNTIME_CSS, WORKBUDDY_PROBE_SCRIPT,
     };
 
     /// 验证换皮迁移中的 `temp_directory` 回归场景。

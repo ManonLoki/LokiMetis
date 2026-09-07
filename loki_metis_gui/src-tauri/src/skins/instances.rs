@@ -13,19 +13,103 @@ async fn resolve_codex_instance(id: &str) -> Result<ResolvedCodexInstance, AppEr
         })
 }
 
-/// 执行换皮宿主内部的 `discover_codex_process_instances` 步骤。
-async fn discover_codex_process_instances() -> Result<Vec<CodexInstance>, AppError> {
-    let mut instances = platform_codex_processes()
+/// 解析指定宿主的实例，并仅在默认端点确实承载该宿主页时关联 WorkBuddy 端口。
+async fn resolved_host_instances(
+    host: SkinHostKind,
+) -> Result<Vec<ResolvedCodexInstance>, AppError> {
+    let mut instances = platform_host_processes(host)
         .await?
         .into_iter()
         .map(resolved_instance)
-        .map(scanned_codex_instance)
+        .collect::<Vec<_>>();
+    if host == SkinHostKind::WorkBuddy
+        && instances.len() == 1
+        && instances[0].debug_port.is_none()
+        && endpoint_matches_host(host, CdpEndpoint::default_for(host)).await
+    {
+        instances[0].debug_port = Some(WORKBUDDY_DEFAULT_CDP_PORT);
+    }
+    Ok(instances)
+}
+
+async fn endpoint_matches_host(host: SkinHostKind, endpoint: CdpEndpoint) -> bool {
+    let Ok((mut browser, task)) = connect_browser(endpoint).await else {
+        return false;
+    };
+    let matches = async {
+        fetch_targets(&mut browser).await?;
+        for page in browser_pages(&browser).await? {
+            if is_host_page(host, &page).await? {
+                return Ok(true);
+            }
+        }
+        Ok::<_, AppError>(false)
+    }
+    .await
+    .unwrap_or(false);
+    task.abort();
+    drop(browser);
+    matches
+}
+
+fn runtime_instance_key(host: SkinHostKind, instance_id: &str) -> String {
+    let prefix = match host {
+        SkinHostKind::Codex => "codex",
+        SkinHostKind::WorkBuddy => "workBuddy",
+    };
+    format!("{prefix}:{instance_id}")
+}
+
+fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
+    key.strip_prefix(match host {
+        SkinHostKind::Codex => "codex:",
+        SkinHostKind::WorkBuddy => "workBuddy:",
+    })
+    .unwrap_or(key)
+}
+
+async fn resolve_host_instance(
+    host: SkinHostKind,
+    id: &str,
+) -> Result<ResolvedCodexInstance, AppError> {
+    resolved_host_instances(host)
+        .await?
+        .into_iter()
+        .find(|instance| instance.id == id)
+        .ok_or_else(|| {
+            AppError::new(
+                "skin.host_instance_changed",
+                format!(
+                    "所选 {} 实例已退出或身份发生变化，请重新选择。",
+                    host.display_name()
+                ),
+            )
+        })
+}
+
+async fn discover_host_process_instances(
+    host: SkinHostKind,
+) -> Result<Vec<CodexInstance>, AppError> {
+    let mut instances = resolved_host_instances(host)
+        .await?
+        .into_iter()
+        .map(|resolved| scanned_host_instance(host, resolved))
         .collect::<Vec<_>>();
     instances.sort_by_key(|instance| std::cmp::Reverse(instance.pid));
     Ok(instances)
 }
 
+fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedCodexInstance) -> CodexInstance {
+    let state = if resolved.debug_port.is_some() {
+        CodexRuntimeState::Ready
+    } else {
+        CodexRuntimeState::RunningWithoutCdp
+    };
+    host_instance_from_resolved(host, resolved, state, None)
+}
+
 /// 执行换皮宿主内部的 `scanned_codex_instance` 步骤。
+#[cfg(test)]
 fn scanned_codex_instance(resolved: ResolvedCodexInstance) -> CodexInstance {
     let state = if resolved.debug_port.is_some() {
         CodexRuntimeState::Ready
@@ -49,6 +133,44 @@ async fn probe_resolved_account_profile(
     let result = async {
         fetch_targets(&mut browser).await?;
         discover_account_profile_until_ready(&browser).await
+    }
+    .await;
+    task.abort();
+    drop(browser);
+    result
+}
+
+/// WorkBuddy 只读取 LokiMetis 自己写入的皮肤标记，不检查账户或会话资料。
+async fn probe_resolved_active_skin(
+    host: SkinHostKind,
+    resolved: &ResolvedCodexInstance,
+) -> Result<Option<RecoveredSkinIdentity>, AppError> {
+    let port = resolved.debug_port.ok_or_else(|| {
+        AppError::new(
+            "skin.cdp_unavailable",
+            format!("所选 {} 实例没有可用的本机调试端口。", host.display_name()),
+        )
+    })?;
+    let (mut browser, task) = connect_browser(CdpEndpoint::new(port)).await?;
+    let result = async {
+        fetch_targets(&mut browser).await?;
+        for page in browser_pages(&browser).await? {
+            if !is_host_page(host, &page).await? {
+                continue;
+            }
+            let value = tokio::time::timeout(
+                CDP_REQUEST_TIMEOUT,
+                page.evaluate_expression(ACTIVE_SKIN_PROBE_SCRIPT),
+            )
+            .await
+            .map_err(|_| AppError::new("skin.cdp_request_timeout", "皮肤状态探测超时。"))?
+            .map_err(cdp_error)?;
+            let probe = value
+                .into_value::<ActiveSkinOnlyProbe>()
+                .map_err(|_| cdp_response_error())?;
+            return Ok(recovered_skin_identity(probe.active_skin));
+        }
+        Ok(None)
     }
     .await;
     task.abort();
@@ -80,6 +202,30 @@ fn codex_instance_from_resolved(
             .as_ref()
             .and_then(|profile| profile.label.clone()),
         avatar_data_url: account_profile.and_then(|profile| profile.avatar_data_url),
+    }
+}
+
+fn host_instance_from_resolved(
+    host: SkinHostKind,
+    resolved: ResolvedCodexInstance,
+    state: CodexRuntimeState,
+    account_profile: Option<AccountProfile>,
+) -> CodexInstance {
+    if host == SkinHostKind::Codex {
+        return codex_instance_from_resolved(resolved, state, account_profile);
+    }
+    let label = format!("{} 进程 {}", host.display_name(), resolved.process.pid);
+    CodexInstance {
+        id: resolved.id,
+        pid: resolved.process.pid,
+        label,
+        profile: resolved.profile,
+        state,
+        debug_port: resolved.debug_port,
+        active_skin_name: None,
+        active_skin: None,
+        account_label: None,
+        avatar_data_url: None,
     }
 }
 
@@ -239,20 +385,26 @@ fn displayed_active_skin_name(active: Option<&SkinDescriptor>) -> Option<String>
     active.map(|skin| skin.name.clone())
 }
 
-/// 执行换皮宿主内部的 `available_debug_port` 步骤。
-fn available_debug_port(instances: &[ResolvedCodexInstance]) -> Result<u16, AppError> {
+fn available_debug_port_for(
+    host: SkinHostKind,
+    instances: &[ResolvedCodexInstance],
+) -> Result<u16, AppError> {
     let used = instances
         .iter()
         .filter_map(|instance| instance.debug_port)
         .collect::<HashSet<_>>();
-    (DEFAULT_CDP_PORT..=DEFAULT_CDP_PORT + 99)
+    let start = CdpEndpoint::default_for(host).port;
+    (start..=start + 99)
         .find(|port| {
             !used.contains(port) && std::net::TcpListener::bind(("127.0.0.1", *port)).is_ok()
         })
         .ok_or_else(|| {
             AppError::new(
                 "skin.cdp_unavailable",
-                "没有可用于重启所选 Codex 实例的本机调试端口。",
+                format!(
+                    "没有可用于重启所选 {} 实例的本机调试端口。",
+                    host.display_name()
+                ),
             )
         })
 }
@@ -273,9 +425,16 @@ fn endpoint_candidates_from_commands(mut commands: Vec<(u32, String)>) -> Vec<Cd
     endpoints
 }
 
-/// 执行换皮宿主内部的 `cdp_endpoint_candidates` 步骤。
-async fn cdp_endpoint_candidates() -> Vec<CdpEndpoint> {
-    endpoint_candidates_from_commands(platform_codex_command_lines().await.unwrap_or_default())
+async fn cdp_endpoint_candidates_for(host: SkinHostKind) -> Vec<CdpEndpoint> {
+    let mut endpoints = endpoint_candidates_from_commands(
+        platform_host_command_lines(host).await.unwrap_or_default(),
+    );
+    let default = CdpEndpoint::default_for(host);
+    endpoints.retain(|endpoint| endpoint.port != DEFAULT_CDP_PORT || host == SkinHostKind::Codex);
+    if !endpoints.iter().any(|endpoint| *endpoint == default) {
+        endpoints.push(default);
+    }
+    endpoints
 }
 
 /// 执行换皮宿主内部的 `operation_cancelled` 步骤。
@@ -286,6 +445,13 @@ fn operation_cancelled() -> AppError {
 /// 执行换皮宿主内部的 `codex_exited` 步骤。
 fn codex_exited() -> AppError {
     AppError::new("skin.codex_exited", "Codex 已在启动或页面搜寻期间退出。")
+}
+
+fn host_exited(host: SkinHostKind) -> AppError {
+    AppError::new(
+        "skin.host_exited",
+        format!("{} 已在启动或页面搜寻期间退出。", host.display_name()),
+    )
 }
 
 /// 执行换皮宿主内部的 `ensure_codex_running` 步骤。
@@ -332,6 +498,55 @@ where
                     ))?
                 }).await?;
                 ensure_codex_running(running)?;
+            }
+        }
+    }
+}
+
+async fn monitor_host_operation<T, F>(
+    host: SkinHostKind,
+    cancel: &mut watch::Receiver<bool>,
+    future: F,
+) -> Result<T, AppError>
+where
+    F: Future<Output = Result<T, AppError>>,
+{
+    if host == SkinHostKind::Codex {
+        return monitor_codex_operation(cancel, future).await;
+    }
+    if *cancel.borrow() {
+        return Err(operation_cancelled());
+    }
+    let mut process_check = tokio::time::interval_at(
+        tokio::time::Instant::now() + CODEX_PROCESS_POLL_INTERVAL,
+        CODEX_PROCESS_POLL_INTERVAL,
+    );
+    process_check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    tokio::pin!(future);
+    loop {
+        tokio::select! {
+            biased;
+            changed = cancel.changed() => {
+                if changed.is_err() || *cancel.borrow() {
+                    return Err(operation_cancelled());
+                }
+            }
+            result = &mut future => return result,
+            _ = process_check.tick() => {
+                let running = run_cancellable(cancel, async {
+                    tokio::time::timeout(
+                        Duration::from_secs(1),
+                        platform_host_is_running(host),
+                    )
+                    .await
+                    .map_err(|_| AppError::new(
+                        "skin.host_process_inspection_failed",
+                        format!("检查 {} 运行状态超时。", host.display_name()),
+                    ))?
+                }).await?;
+                if !running {
+                    return Err(host_exited(host));
+                }
             }
         }
     }

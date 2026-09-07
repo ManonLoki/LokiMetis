@@ -1,4 +1,5 @@
 const DEFAULT_CDP_PORT: u16 = 9341;
+const WORKBUDDY_DEFAULT_CDP_PORT: u16 = 9441;
 const CODEX_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(15);
 const EXISTING_CODEX_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(15);
 const CODEX_PAGE_POLL_INTERVAL: Duration = Duration::from_millis(350);
@@ -76,6 +77,12 @@ const PROBE_SCRIPT: &str = r#"(() => {
   };
 })()"#;
 
+const WORKBUDDY_PROBE_SCRIPT: &str = r#"(() => ({
+  url: location.href,
+  workBuddy: location.protocol === 'file:' && document.title === 'WorkBuddy' &&
+    Boolean(document.querySelector('#root')),
+}))()"#;
+
 const ACCOUNT_PROFILE_PROBE_SCRIPT: &str = r#"(() => {
   const normalize = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   const runtime = window.__CODEX_DREAM_SKIN_STATE__;
@@ -117,6 +124,29 @@ const ACCOUNT_PROFILE_PROBE_SCRIPT: &str = r#"(() => {
       ? label : null,
     avatarDataUrl,
     activeSkin,
+  };
+})()"#;
+
+const ACTIVE_SKIN_PROBE_SCRIPT: &str = r#"(() => {
+  const runtime = window.__CODEX_DREAM_SKIN_STATE__;
+  const marker = runtime?.skin;
+  const styleText = document.getElementById('codex-dream-skin-style')?.textContent || '';
+  return { activeSkin: marker && typeof marker === 'object'
+    ? {
+        version: typeof runtime.version === 'string' ? runtime.version : null,
+        source: marker.source === 'builtin' || marker.source === 'user' ? marker.source : null,
+        id: typeof marker.id === 'string' ? marker.id : null,
+        legacyThemeId: null,
+        legacyStyleText: null,
+      }
+    : {
+        version: typeof runtime?.version === 'string' ? runtime.version : null,
+        source: null,
+        id: null,
+        legacyThemeId: typeof runtime?.themeId === 'string' ? runtime.themeId : null,
+        legacyStyleText: !runtime?.themeId && styleText.length > 0 && styleText.length <= 262144
+          ? styleText : null,
+      }
   };
 })()"#;
 

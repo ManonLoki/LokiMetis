@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
+import type { PrivacySettingsDto, UsageClientKind } from "./usage-types";
+
 /** 与 AIMonitor Hook 目录一致的全部 Agent。 */
 export type MonitorAiTool =
   | "codex"
@@ -26,6 +28,10 @@ export type MonitorHookDirectoryKey =
 export interface MonitorAiToolDescriptor {
   tool: MonitorAiTool;
   name: string;
+  /** 看板支持时使用的稳定客户端值。 */
+  dashboardClient?: "codex" | "claudeCode" | "grokBuildCli" | "workbuddy" | null;
+  /** 换皮支持时使用的稳定宿主值。 */
+  skinHost?: "codex" | "workBuddy" | null;
 }
 
 /** 前端控件使用的闭区间。 */
@@ -60,6 +66,12 @@ export interface MonitorSettings {
   enabledAiTools: MonitorAiTool[];
   hookDirectories: Partial<Record<MonitorHookDirectoryKey, string>>;
   petOverlayPosition: PetOverlayPosition | null;
+}
+
+/** 统一 Agent 选择写入后返回的两个查询快照。 */
+export interface EnabledAiSelectionResult {
+  monitorSettings: MonitorSettings;
+  privacySettings: PrivacySettingsDto;
 }
 
 /** Hook 配置定位。 */
@@ -157,11 +169,12 @@ export async function getMonitorSettings(): Promise<MonitorSettings> {
   return invoke("get_monitor_settings");
 }
 
-/** 保存启用的 Agent。 */
-export async function saveMonitorEnabledTools(
+/** 一次保存所有区域共同使用的 Agent 选择。 */
+export async function saveEnabledAiSelection(
+  client: UsageClientKind,
   tools: MonitorAiTool[],
-): Promise<MonitorSettings> {
-  return invoke("save_monitor_enabled_tools", { tools });
+): Promise<EnabledAiSelectionResult> {
+  return invoke<EnabledAiSelectionResult>("save_enabled_ai_selection", { client, tools });
 }
 
 /** 列出 Hook 配置定位。 */

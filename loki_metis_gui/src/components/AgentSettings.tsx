@@ -4,9 +4,9 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DashboardSettingsSection } from "../pages/DashboardSettingsSection";
-import { MonitorSettingsPage } from "../pages/MonitorSettingsPage";
+import { UnifiedAgentSelectionPanel } from "./UnifiedAgentSelectionPanel";
 
-/** 在公共设置页集中承载看板采集与 Hooks 的全部 Agent 配置。 */
+/** 在公共设置页集中承载统一 Agent 选择与看板采集参数。 */
 export function AgentSettings(): ReactElement {
   const { t } = useTranslation();
 
@@ -26,8 +26,8 @@ export function AgentSettings(): ReactElement {
         </Text>
       </Stack>
 
+      <UnifiedAgentSelectionPanel />
       <DashboardSettingsSection />
-      <MonitorSettingsPage />
     </Stack>
   );
 }

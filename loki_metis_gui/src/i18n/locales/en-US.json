@@ -5,9 +5,9 @@
   },
   "navigation": {
     "home": "Home",
-    "dashboard": "Dashboard",
-    "monitor": "Monitor",
-    "skins": "Skins",
+    "dashboard": "Usage Dashboard",
+    "monitor": "AI Monitor",
+    "skins": "App Skins",
     "settings": "Settings"
   },
   "sidebar": {
@@ -29,11 +29,16 @@
     "workspace_description": "The dashboard is the default landing page, and resources and preferences stay on this device."
   },
   "skins": {
-    "title": "Codex skins",
-    "description": "Manage the local skin library and safely apply a theme to an explicitly selected Codex instance.",
+    "title": "Skins",
+    "description": "Manage the local skin library and safely apply a theme to an explicitly selected instance in the active host tab.",
+    "host": {
+      "tabs": "Skin hosts",
+      "empty_title": "No skin host is enabled",
+      "empty_description": "Enable Codex or WorkBuddy in the unified Agent panel in Settings."
+    },
     "runtime": {
-      "stopped": "Codex is not running",
-      "ready": "Codex is connectable",
+      "stopped": "{{host}} is not running",
+      "ready": "{{host}} is connectable",
       "runningWithoutCdp": "Debug connection required"
     },
     "browser": {
@@ -46,8 +51,8 @@
       "user_only": "User skins only"
     },
     "instance": {
-      "label": "Target Codex instance",
-      "none": "No Codex instance found",
+      "label": "Target {{host}} instance",
+      "none": "No {{host}} instance found",
       "choose": "Choose a target instance"
     },
     "catalog": {
@@ -74,12 +79,12 @@
       "import": "Import",
       "create": "Create theme",
       "refresh": "Refresh",
-      "launch": "Launch Codex"
+      "launch": "Launch {{host}}"
     },
     "dialog": { "cancel": "Cancel", "confirm": "Confirm" },
     "appearance": {
       "title": "Confirm appearance differences",
-      "description": "The current Codex {{mode}} appearance differs from this theme's declaration. Continuing applies only to the selected instance.",
+      "description": "The current host's {{mode}} appearance differs from this theme declaration. Continuing applies only to the selected instance.",
       "unreadable": "Unavailable",
       "continue": "Apply anyway"
     },
@@ -99,7 +104,7 @@
       "copy": "Copy"
     },
     "restart": {
-      "title": "Restart the selected Codex instance?",
+      "title": "Restart the selected host instance?",
       "description": "{{name}} does not expose a local debug connection. Continuing restarts only this instance and may affect unsaved work."
     },
     "convert": {
@@ -117,7 +122,7 @@
       "dismiss": "Not now"
     },
     "notice": {
-      "applied": "Applied {{name}} to the selected Codex instance.",
+      "applied": "Applied {{name}} to the selected host instance.",
       "stopped": "Stopped and cleaned up the skin in the selected instance.",
       "created": "Created user theme {{name}}.",
       "imported": "Imported {{count}} skins.",
@@ -128,7 +133,7 @@
     "error": {
       "title": "Operation not completed",
       "unknown": "The skin operation failed. Refresh the host state and try again.",
-      "choose_instance": "Multiple Codex instances were found. Choose the target explicitly."
+      "choose_instance": "Multiple host instances were found. Choose the target explicitly."
     }
   },
   "settings": {
@@ -140,6 +145,9 @@
     "version": "Version",
     "agent_title": "Agent configuration",
     "agent_description": "Manage dashboard collection, data retention, and local Hooks configuration for every Agent in one place.",
+    "agent_panel_title": "Enabled Agents",
+    "agent_panel_badge": "Global setting",
+    "agent_panel_description": "One selection drives the dashboard, Hooks, desktop pet, and skins; each page shows only the Agents it supports.",
     "language_title": "Interface language",
     "language_description": "A saved choice takes priority over the system language and updates native menus.",
     "language_zh_cn": "中文",
@@ -194,6 +202,10 @@
       "images": {
         "label": "Image management",
         "description": "Manage local monitor images"
+      },
+      "settings": {
+        "label": "Hooks settings",
+        "description": "Locate and write local Hooks configs for globally enabled agents"
       }
     },
     "workbench": {

@@ -25,6 +25,7 @@ export function SourceRootTable({
   scanRunning,
   showPrimary = false,
   allowRenameRemove = true,
+  allowToggle = true,
   togglePending,
 }: {
   roots: SourceRootDto[];
@@ -36,6 +37,7 @@ export function SourceRootTable({
   reindexPendingRootId: string | null;
   showPrimary?: boolean;
   allowRenameRemove?: boolean;
+  allowToggle?: boolean;
   onToggleEnabled: (rootId: string, nextEnabled: boolean) => void;
   onRename: (rootId: string, currentAlias: string) => void;
   onReindex: (rootId: string) => void;
@@ -118,23 +120,25 @@ export function SourceRootTable({
                   <Table.Td>{formatObservedAt(root.lastScanAtEpochMs)}</Table.Td>
                   <Table.Td className="source-actions-column" ta="center">
                     <Group className="source-actions-group" gap="xs" wrap="nowrap">
-                      <Button
-                        aria-label={t("sources.table.toggleAria", {
-                          action: root.enabled
+                      {allowToggle ? (
+                        <Button
+                          aria-label={t("sources.table.toggleAria", {
+                            action: root.enabled
+                              ? t("sources.table.disable")
+                              : t("sources.table.enable"),
+                            alias: displayAlias,
+                          })}
+                          disabled={scanRunning}
+                          loading={togglePending}
+                          onClick={() => onToggleEnabled(root.id, !root.enabled)}
+                          size="compact-sm"
+                          variant="subtle"
+                        >
+                          {root.enabled
                             ? t("sources.table.disable")
-                            : t("sources.table.enable"),
-                          alias: displayAlias,
-                        })}
-                        disabled={scanRunning}
-                        loading={togglePending}
-                        onClick={() => onToggleEnabled(root.id, !root.enabled)}
-                        size="compact-sm"
-                        variant="subtle"
-                      >
-                        {root.enabled
-                          ? t("sources.table.disable")
-                          : t("sources.table.enable")}
-                      </Button>
+                            : t("sources.table.enable")}
+                        </Button>
+                      ) : null}
                       <Button
                         aria-label={t("sources.table.reindexAria", { alias: displayAlias })}
                         disabled={scanRunning || !root.enabled}

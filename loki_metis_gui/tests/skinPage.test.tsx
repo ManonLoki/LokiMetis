@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -31,6 +32,13 @@ describe("skin page", () => {
 
   /** 浏览器预览必须明确禁用宿主能力，同时仍显示可理解的换皮页面。 */
   test("does not access local host outside Tauri", () => {
+    mocks.invoke.mockImplementation((command: string) => {
+      if (command === "get_monitor_capabilities") return Promise.resolve({ aiTools: [] });
+      if (command === "get_monitor_settings") {
+        return Promise.resolve({ enabledAiTools: [], hookDirectories: {} });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
     render(
       <TestProviders>
         <SkinPage />
@@ -42,11 +50,10 @@ describe("skin page", () => {
     expect(screen.getByRole("button", { name: "Create theme" })).toBeDisabled();
   });
 
-  /** 真实宿主契约返回目录后，页面必须完整呈现七套迁移的内置资源和唯一实例。 */
+  /** 统一 Agent 选择同时启用两个换皮宿主时，页面动态呈现两个隔离选项卡。 */
   test("renders the migrated built-in catalog in a Tauri host", async () => {
     mocks.hostAvailable = true;
     const names = [
-      "Aurora Theme",
       "Minecraft",
       "Misty Meadow Dawn",
       "Pastoral Landscape",
@@ -55,10 +62,25 @@ describe("skin page", () => {
       "Woodland Dawn",
     ];
     mocks.invoke.mockImplementation((command: string) => {
+      if (command === "get_monitor_capabilities") {
+        return Promise.resolve({
+          aiTools: [
+            { tool: "codex", name: "Codex", skinHost: "codex" },
+            { tool: "workBuddy", name: "WorkBuddy", skinHost: "workBuddy" },
+            { tool: "cursor", name: "Cursor", skinHost: null },
+          ],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return Promise.resolve({
+          enabledAiTools: ["codex", "workBuddy", "cursor"],
+          hookDirectories: {},
+        });
+      }
       if (command === "list_skins") {
         return Promise.resolve(
           names.map((name, index) => ({
-            author: "LokiMetis",
+            author: "ManonLoki",
             id: `builtin-${index + 1}`,
             name,
             packageType: index === 0 ? "theme" : "legacySkin",
@@ -69,8 +91,9 @@ describe("skin page", () => {
           })),
         );
       }
-      if (command === "codex_runtime_status") return Promise.resolve({ state: "ready" });
-      if (command === "list_codex_instances") {
+      if (command === "skin_host_runtime_status")
+        return Promise.resolve({ state: "ready" });
+      if (command === "list_skin_host_instances") {
         return Promise.resolve([
           {
             accountLabel: null,
@@ -107,9 +130,20 @@ describe("skin page", () => {
       </TestProviders>,
     );
 
-    expect(await screen.findByText("Showing 7 skins")).toBeVisible();
-    expect(screen.getAllByTestId(/^skin-card-/)).toHaveLength(7);
+    expect(await screen.findByText("Showing 6 skins")).toBeVisible();
+    expect(screen.getAllByTestId(/^skin-card-/)).toHaveLength(6);
+    expect(screen.getByRole("tab", { name: "Codex" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "WorkBuddy" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "Cursor" })).not.toBeInTheDocument();
     expect(screen.getByText("Codex is connectable")).toBeVisible();
     expect(screen.getByRole("button", { name: "Create theme" })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("tab", { name: "WorkBuddy" }));
+    expect(mocks.invoke).toHaveBeenCalledWith("skin_host_runtime_status", {
+      host: "workBuddy",
+    });
+    expect(mocks.invoke).toHaveBeenCalledWith("list_skin_host_instances", {
+      host: "workBuddy",
+    });
   });
 });

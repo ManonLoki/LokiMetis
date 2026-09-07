@@ -7,8 +7,8 @@ export const PROVIDER_LEADERBOARD_QUERY_SCOPE = "provider-leaderboard";
 /** 换皮资源库的共享查询键。 */
 export const SKIN_CATALOG_QUERY_KEY = ["skin-catalog"] as const;
 /** 当前皮肤注入状态的共享查询键。 */
-export const SKIN_STATUS_QUERY_KEY = ["skin-status"] as const;
-/** Codex GUI 运行状态的共享查询键。 */
-export const CODEX_RUNTIME_QUERY_KEY = ["codex-runtime"] as const;
-/** 已验证 Codex 实例列表的共享查询键。 */
-export const CODEX_INSTANCES_QUERY_KEY = ["codex-instances"] as const;
+export const skinStatusQueryKey = (host: string) => ["skin-status", host] as const;
+/** 指定换皮宿主 GUI 运行状态的共享查询键。 */
+export const skinRuntimeQueryKey = (host: string) => ["skin-runtime", host] as const;
+/** 指定换皮宿主实例列表的共享查询键。 */
+export const skinInstancesQueryKey = (host: string) => ["skin-instances", host] as const;

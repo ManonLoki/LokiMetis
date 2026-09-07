@@ -420,7 +420,7 @@
     #[test]
     /// 验证换皮迁移中的 `force_close_timeout_uses_stable_error_contract` 回归场景。
     fn force_close_timeout_uses_stable_error_contract() {
-        let error = force_close_timeout_error();
+        let error = force_close_timeout_error(SkinHostKind::Codex);
         assert_eq!(error.code, "skin.codex_force_close_timeout");
         assert!(error.message.contains("15 秒"));
     }

@@ -46,9 +46,15 @@ describe("typed skin host API", () => {
   /** 锁定多实例应用必须携带精确来源、ID 与显式目标。 */
   test("install targets the selected instance", async () => {
     mocks.invoke.mockResolvedValue({ type: "installed", status: {} });
-    await skinApi.install({ id: "minecraft", source: "builtin" }, false, "codex-42");
+    await skinApi.install(
+      "codex",
+      { id: "minecraft", source: "builtin" },
+      false,
+      "codex-42",
+    );
     expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
       allowAppearanceMismatch: false,
+      host: "codex",
       instanceId: "codex-42",
       skin: { id: "minecraft", source: "builtin" },
     });

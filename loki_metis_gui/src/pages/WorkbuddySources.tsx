@@ -1,19 +1,14 @@
-import { Alert, Stack } from "@mantine/core";
+import { Stack } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   getWorkbuddySourceStatus,
-  setWorkbuddyStatsEnabled,
   type RootDiscoveryScope,
   type RootDiscoveryStatusDto,
 } from "../api/usage";
-import { synchronizeGlobalPrivacySettings } from "../api/usage-queries";
 import { FailureState, LoadingState } from "../components/UsageUi";
-import { agentClientAtom } from "../state/agent-client";
-import { visibleErrorMessage } from "../visible-error";
 import { SourceDiscoveryPanel } from "./SourceDiscoveryPanel";
 import { SourceRootTable } from "./SourceRootTable";
 
@@ -50,7 +45,6 @@ function workbuddyDiscoveryStatus(
  * 与发现面板，但只探测固定的 `~/.workbuddy`，不登记产品数据根、不建索引。 */
 export function WorkbuddySources() {
   const { t } = useTranslation();
-  const client = useAtomValue(agentClientAtom);
   const queryClient = useQueryClient();
   const [discovery, setDiscovery] = useState<RootDiscoveryStatusDto>(() =>
     workbuddyDiscoveryStatus("idle", "userPriority", false),
@@ -58,14 +52,6 @@ export function WorkbuddySources() {
   const statusQuery = useQuery({
     queryFn: getWorkbuddySourceStatus,
     queryKey: WORKBUDDY_SOURCE_STATUS_QUERY_KEY,
-  });
-  const toggleMutation = useMutation({
-    mutationFn: (enabled: boolean) => setWorkbuddyStatsEnabled(client, enabled),
-    onSuccess: async (settings) => {
-      queryClient.setQueryData(["privacy-settings", client], settings);
-      synchronizeGlobalPrivacySettings(queryClient, settings);
-      await queryClient.invalidateQueries({ queryKey: WORKBUDDY_SOURCE_STATUS_QUERY_KEY });
-    },
   });
   const reindexMutation = useMutation({
     mutationFn: async () => {
@@ -88,19 +74,14 @@ export function WorkbuddySources() {
 
   return (
     <Stack className="page-stack" data-testid="workbuddy-sources" gap="xl">
-      {toggleMutation.isError ? (
-        <Alert color="red" title={t("ui.failureTitle")}>
-          {visibleErrorMessage(toggleMutation.error)}
-        </Alert>
-      ) : null}
-
       <SourceRootTable
         allowRenameRemove={false}
+        allowToggle={false}
         currentRootId={null}
         onRemove={() => undefined}
         onRename={() => undefined}
         onReindex={() => reindexMutation.mutate()}
-        onToggleEnabled={(_rootId, nextEnabled) => toggleMutation.mutate(nextEnabled)}
+        onToggleEnabled={() => undefined}
         removePending={false}
         reindexPendingRootId={
           reindexMutation.isPending ? (roots[0]?.id ?? "workbuddy") : null
@@ -108,7 +89,7 @@ export function WorkbuddySources() {
         renamePending={false}
         roots={roots}
         scanRunning={statusQuery.isFetching}
-        togglePending={toggleMutation.isPending}
+        togglePending={false}
       />
 
       <SourceDiscoveryPanel
@@ -118,7 +99,7 @@ export function WorkbuddySources() {
         discoveryPending={statusQuery.isFetching}
         manualAddClients={[]}
         manualAddPending={false}
-        mutationBlocked={toggleMutation.isPending}
+        mutationBlocked={false}
         onAdd={async () => undefined}
         onCancel={() => undefined}
         onManualAdd={() => undefined}

@@ -9,6 +9,7 @@ import {
   Progress,
   SimpleGrid,
   Stack,
+  Tabs,
   Text,
   Title,
 } from "@mantine/core";
@@ -37,14 +38,16 @@ import {
   type SkinAppearanceCheck,
   type SkinCreationPrompt,
   type SkinDescriptor,
+  type SkinHostKind,
   type SkinReference,
 } from "../api/skins";
 import {
-  CODEX_INSTANCES_QUERY_KEY,
-  CODEX_RUNTIME_QUERY_KEY,
   SKIN_CATALOG_QUERY_KEY,
-  SKIN_STATUS_QUERY_KEY,
+  skinInstancesQueryKey,
+  skinRuntimeQueryKey,
+  skinStatusQueryKey,
 } from "../api/query-keys";
+import { getMonitorCapabilities, getMonitorSettings } from "../api/monitor";
 import {
   AppearanceDialog,
   CreateThemeDialog,
@@ -87,11 +90,10 @@ function useHostQuery<TData>(
   });
 }
 
-/** 渲染完整的本机 Codex 换皮资源库、目标实例与受控生命周期。 */
+/** 渲染由统一 Agent 选择动态驱动的本机换皮资源库与宿主生命周期。 */
 export function SkinPage(): ReactElement {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const hostAvailable = skinHostAvailable();
   const [session, setSession] = useAtom(skinPageSessionAtom);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,24 +110,68 @@ export function SkinPage(): ReactElement {
   const [convertSkin, setConvertSkin] = useState<SkinDescriptor | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<SkinDescriptor[]>([]);
   const [selectedUserSkins, setSelectedUserSkins] = useState<SkinReference[]>([]);
-  const [remembered, setRemembered] = useState<SkinReference | null>(() =>
-    readRememberedSkin(),
+  const [remembered, setRemembered] = useState<SkinReference | null>(null);
+
+  const capabilities = useQuery({
+    queryFn: getMonitorCapabilities,
+    queryKey: ["monitor-capabilities"],
+  });
+  const settings = useQuery({
+    queryFn: getMonitorSettings,
+    queryKey: ["monitor-settings"],
+  });
+  const enabledTools = useMemo(
+    () => new Set(settings.data?.enabledAiTools ?? []),
+    [settings.data?.enabledAiTools],
   );
+  const hostOptions = useMemo(
+    () =>
+      (capabilities.data?.aiTools ?? []).filter(
+        (item): item is typeof item & { skinHost: SkinHostKind } =>
+          enabledTools.has(item.tool) && item.skinHost != null,
+      ),
+    [capabilities.data?.aiTools, enabledTools],
+  );
+  const activeHost =
+    hostOptions.find((item) => item.skinHost === session.selectedHost)?.skinHost ??
+    hostOptions[0]?.skinHost ??
+    null;
+  const host = activeHost ?? "codex";
+  const hostName =
+    hostOptions.find((item) => item.skinHost === activeHost)?.name ??
+    (host === "workBuddy" ? "WorkBuddy" : "Codex");
+  const hostAvailable = skinHostAvailable() && activeHost !== null;
+  const selectedInstanceId = session.selectedInstanceIds[host] ?? null;
+
+  useEffect(() => {
+    if (activeHost !== null && session.selectedHost !== activeHost) {
+      setSession((value) => ({ ...value, selectedHost: activeHost }));
+    }
+  }, [activeHost, session.selectedHost, setSession]);
+
+  useEffect(() => {
+    setRemembered(activeHost === null ? null : readRememberedSkin(activeHost));
+  }, [activeHost]);
 
   const catalog = useHostQuery(hostAvailable, SKIN_CATALOG_QUERY_KEY, skinApi.list, 5_000);
   const runtime = useHostQuery(
     hostAvailable,
-    CODEX_RUNTIME_QUERY_KEY,
-    skinApi.runtimeStatus,
+    skinRuntimeQueryKey(host),
+    () => skinApi.runtimeStatus(host),
     4_000,
   );
   const instances = useHostQuery(
     hostAvailable,
-    CODEX_INSTANCES_QUERY_KEY,
-    skinApi.instances,
+    skinInstancesQueryKey(host),
+    () => skinApi.instances(host),
     4_000,
   );
-  const status = useHostQuery(hostAvailable, SKIN_STATUS_QUERY_KEY, skinApi.status, 4_000);
+  const status = useHostQuery(
+    hostAvailable,
+    skinStatusQueryKey(host),
+    () => skinApi.status(host),
+    4_000,
+  );
 
   const action = useMutation<void, unknown, () => Promise<void>>({
     mutationFn: (operation) => operation(),
@@ -144,11 +190,11 @@ export function SkinPage(): ReactElement {
   const refresh = useCallback(async (): Promise<void> => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: SKIN_CATALOG_QUERY_KEY }),
-      queryClient.invalidateQueries({ queryKey: SKIN_STATUS_QUERY_KEY }),
-      queryClient.invalidateQueries({ queryKey: CODEX_RUNTIME_QUERY_KEY }),
-      queryClient.invalidateQueries({ queryKey: CODEX_INSTANCES_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: skinStatusQueryKey(host) }),
+      queryClient.invalidateQueries({ queryKey: skinRuntimeQueryKey(host) }),
+      queryClient.invalidateQueries({ queryKey: skinInstancesQueryKey(host) }),
     ]);
-  }, [queryClient]);
+  }, [host, queryClient]);
 
   /** 执行可见操作并收敛错误边界。 */
   const run = useCallback(
@@ -165,16 +211,21 @@ export function SkinPage(): ReactElement {
 
   useEffect(() => {
     const current = instances.data ?? [];
-    const selectedStillExists = current.some(
-      (item) => item.id === session.selectedInstanceId,
-    );
+    const selectedStillExists = current.some((item) => item.id === selectedInstanceId);
     const onlyInstance = resolveTargetInstance(current, null);
-    if (onlyInstance !== null && session.selectedInstanceId !== onlyInstance.id) {
-      setSession((value) => ({ ...value, selectedInstanceId: onlyInstance.id }));
-    } else if (!selectedStillExists && session.selectedInstanceId !== null) {
-      setSession((value) => ({ ...value, selectedInstanceId: null }));
+    if (onlyInstance !== null && selectedInstanceId !== onlyInstance.id) {
+      setSession((value) => ({
+        ...value,
+        selectedInstanceIds: { ...value.selectedInstanceIds, [host]: onlyInstance.id },
+      }));
+    } else if (!selectedStillExists && selectedInstanceId !== null) {
+      setSession((value) => {
+        const selectedInstanceIds = { ...value.selectedInstanceIds };
+        delete selectedInstanceIds[host];
+        return { ...value, selectedInstanceIds };
+      });
     }
-  }, [instances.data, session.selectedInstanceId, setSession]);
+  }, [host, instances.data, selectedInstanceId, setSession]);
 
   useEffect(() => {
     if (!hostAvailable) return;
@@ -203,7 +254,7 @@ export function SkinPage(): ReactElement {
   }, [hostAvailable]);
 
   const instanceList = instances.data ?? [];
-  const selectedInstance = resolveTargetInstance(instanceList, session.selectedInstanceId);
+  const selectedInstance = resolveTargetInstance(instanceList, selectedInstanceId);
   const activeSkin =
     selectedInstance?.activeSkin ??
     (status.data?.installed && status.data.skinId && status.data.source
@@ -238,6 +289,7 @@ export function SkinPage(): ReactElement {
       allowMismatch = false,
     ): Promise<void> => {
       const result = await skinApi.install(
+        host,
         skinReference(skin),
         allowMismatch,
         target?.id ?? null,
@@ -247,13 +299,16 @@ export function SkinPage(): ReactElement {
         return;
       }
       const reference = skinReference(skin);
-      rememberSkin(reference);
+      rememberSkin(host, reference);
       setRemembered(reference);
-      setSession((value) => ({ ...value, restoreDismissed: false }));
+      setSession((value) => ({
+        ...value,
+        restoreDismissedHosts: { ...value.restoreDismissedHosts, [host]: false },
+      }));
       setNotice(t("skins.notice.applied", { name: skin.name }));
       await refresh();
     },
-    [refresh, setSession, t],
+    [host, refresh, setSession, t],
   );
 
   /** 解析唯一目标并在可能影响 Codex 会话时先进入确认弹窗。 */
@@ -261,16 +316,16 @@ export function SkinPage(): ReactElement {
     async (skin: SkinDescriptor): Promise<void> => {
       let current = instanceList;
       if (current.length === 0) {
-        await skinApi.launchCodex();
+        await skinApi.launchHost(host);
         current = await queryClient.fetchQuery({
-          queryFn: skinApi.instances,
-          queryKey: CODEX_INSTANCES_QUERY_KEY,
+          queryFn: () => skinApi.instances(host),
+          queryKey: skinInstancesQueryKey(host),
         });
       }
-      const target = resolveTargetInstance(current, session.selectedInstanceId);
+      const target = resolveTargetInstance(current, selectedInstanceId);
       if (target === null)
         throw new SkinHostError(
-          "skin.codex_instance_selection_required",
+          "skin.host_instance_selection_required",
           t("skins.error.choose_instance"),
         );
       if (target.state === "runningWithoutCdp") {
@@ -279,7 +334,7 @@ export function SkinPage(): ReactElement {
       }
       await installOnInstance(skin, target);
     },
-    [instanceList, installOnInstance, queryClient, session.selectedInstanceId, t],
+    [host, instanceList, installOnInstance, queryClient, selectedInstanceId, t],
   );
 
   /** 从原生文件选择器预检一个有界 ZIP 批次。 */
@@ -301,10 +356,7 @@ export function SkinPage(): ReactElement {
     [run, requestInstall],
   );
   const handleConvert = useCallback((item: SkinDescriptor) => setConvertSkin(item), []);
-  const handleDelete = useCallback(
-    (item: SkinDescriptor) => setDeleteTargets([item]),
-    [],
-  );
+  const handleDelete = useCallback((item: SkinDescriptor) => setDeleteTargets([item]), []);
   const handleExport = useCallback(
     (item: SkinDescriptor) =>
       void run(async () => {
@@ -332,13 +384,13 @@ export function SkinPage(): ReactElement {
   const handleStop = useCallback(
     () =>
       void run(async () => {
-        await skinApi.uninstall(selectedInstance?.id ?? null);
-        clearRememberedSkin();
+        await skinApi.uninstall(host, selectedInstance?.id ?? null);
+        clearRememberedSkin(host);
         setRemembered(null);
         setNotice(t("skins.notice.stopped"));
         await refresh();
       }),
-    [refresh, run, selectedInstance, t],
+    [host, refresh, run, selectedInstance, t],
   );
 
   const runtimeLabel = runtime.data?.state ?? "stopped";
@@ -360,13 +412,42 @@ export function SkinPage(): ReactElement {
           size="lg"
           variant="light"
         >
-          {t(`skins.runtime.${runtimeLabel}`)}
+          {t(`skins.runtime.${runtimeLabel}`, { host: hostName })}
         </Badge>
       </Group>
 
-      {!hostAvailable ? (
+      {hostOptions.length > 0 ? (
+        <Tabs
+          aria-label={t("skins.host.tabs")}
+          onChange={(value) =>
+            setSession((current) => ({
+              ...current,
+              selectedHost: value as SkinHostKind | null,
+            }))
+          }
+          value={activeHost}
+        >
+          <Tabs.List>
+            {hostOptions.map((item) => (
+              <Tabs.Tab key={item.skinHost} value={item.skinHost}>
+                {item.name}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
+      ) : null}
+
+      {!skinHostAvailable() ? (
         <Alert icon={<IconAlertCircle size={18} />} title={t("skins.browser.title")}>
           {t("skins.browser.description")}
+        </Alert>
+      ) : null}
+      {skinHostAvailable() &&
+      !capabilities.isPending &&
+      !settings.isPending &&
+      hostOptions.length === 0 ? (
+        <Alert icon={<IconAlertCircle size={18} />} title={t("skins.host.empty_title")}>
+          {t("skins.host.empty_description")}
         </Alert>
       ) : null}
       {error !== null ? (
@@ -392,6 +473,7 @@ export function SkinPage(): ReactElement {
         <Stack gap="md">
           <SkinToolbar
             busy={action.isPending}
+            hostName={hostName}
             hostAvailable={hostAvailable}
             instances={instanceList}
             onCreate={() => setCreateOpened(true)}
@@ -399,11 +481,16 @@ export function SkinPage(): ReactElement {
             onRefresh={() => void run(refresh)}
             onSearchChange={(search) => setSession((value) => ({ ...value, search }))}
             onSelectedInstanceChange={(selectedInstanceId) =>
-              setSession((value) => ({ ...value, selectedInstanceId }))
+              setSession((value) => {
+                const selectedInstanceIds = { ...value.selectedInstanceIds };
+                if (selectedInstanceId === null) delete selectedInstanceIds[host];
+                else selectedInstanceIds[host] = selectedInstanceId;
+                return { ...value, selectedInstanceIds };
+              })
             }
             onUserOnlyChange={(userOnly) => setSession((value) => ({ ...value, userOnly }))}
             search={session.search}
-            selectedInstanceId={session.selectedInstanceId}
+            selectedInstanceId={selectedInstanceId}
             userOnly={session.userOnly}
           />
           <Group justify="space-between">
@@ -413,18 +500,19 @@ export function SkinPage(): ReactElement {
             <Group gap="xs">
               {runtimeLabel === "stopped" ? (
                 <Button
+                  disabled={!hostAvailable}
                   leftSection={<IconPlayerPlay size={17} />}
                   loading={action.isPending}
                   onClick={() =>
                     void run(async () => {
-                      await skinApi.launchCodex();
+                      await skinApi.launchHost(host);
                       await refresh();
                     })
                   }
                   size="xs"
                   variant="light"
                 >
-                  {t("skins.action.launch")}
+                  {t("skins.action.launch", { host: hostName })}
                 </Button>
               ) : null}
               {selectedUserSkins.length > 0 ? (
@@ -449,7 +537,9 @@ export function SkinPage(): ReactElement {
         </Stack>
       </Paper>
 
-      {rememberedDescriptor && activeSkin === null && !session.restoreDismissed ? (
+      {rememberedDescriptor &&
+      activeSkin === null &&
+      !session.restoreDismissedHosts[host] ? (
         <Alert
           color="violet"
           icon={<IconPalette size={18} />}
@@ -468,7 +558,13 @@ export function SkinPage(): ReactElement {
               </Button>
               <Button
                 onClick={() =>
-                  setSession((value) => ({ ...value, restoreDismissed: true }))
+                  setSession((value) => ({
+                    ...value,
+                    restoreDismissedHosts: {
+                      ...value.restoreDismissedHosts,
+                      [host]: true,
+                    },
+                  }))
                 }
                 size="xs"
                 variant="subtle"
@@ -496,7 +592,7 @@ export function SkinPage(): ReactElement {
           {filteredSkins.map((skin) => (
             <SkinCard
               active={sameSkin(activeSkin, skinReference(skin))}
-              busy={action.isPending}
+              busy={action.isPending || !hostAvailable}
               key={`${skin.source}:${skin.id}`}
               onApply={handleApply}
               onConvert={handleConvert}
@@ -574,7 +670,7 @@ export function SkinPage(): ReactElement {
             if (!restartSkin || !selectedInstance) return;
             const skin = restartSkin;
             setRestartSkin(null);
-            const restarted = await skinApi.restartInstance(selectedInstance.id);
+            const restarted = await skinApi.restartInstance(host, selectedInstance.id);
             await installOnInstance(skin, restarted);
           })
         }

@@ -205,6 +205,7 @@
                         active: Some(descriptor),
                         compatibility: None,
                         task: Some(super::WatchTask {
+                            host: super::SkinHostKind::Codex,
                             cancel,
                             join,
                             handler_abort,
@@ -212,7 +213,9 @@
                         }),
                     },
                 );
-                runtime.last_target = Some("test-instance".into());
+                runtime
+                    .last_targets
+                    .insert(super::SkinHostKind::Codex, "test-instance".into());
             }
             let active_result = service
                 .delete_many(std::slice::from_ref(&second))

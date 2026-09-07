@@ -1,4 +1,4 @@
-//! 迁移 Codex 本机换皮的资源库、宿主连接与有界生命周期。
+//! 维护 Codex 与 WorkBuddy 本机换皮的资源库、宿主连接与有界生命周期。
 //!
 //! 平台无关规则逐步委托 `loki_metis_core`；本模块只持有文件系统、进程和 CDP 适配。
 
@@ -27,10 +27,10 @@ use futures::future::join_all;
 use loki_metis_core::{
     ColorMode, ImageFormat, MAX_SKIN_DELETE_BATCH_ITEMS as MAX_DELETE_BATCH_ITEMS,
     MAX_SKIN_IMPORT_BATCH_FILES as MAX_IMPORT_BATCH_FILES, MAX_THEME_CSS_BYTES,
-    MAX_THEME_IMAGE_BYTES as MAX_IMAGE_BYTES, SkinPackageType, SkinReference, SkinRuleError,
-    SkinSource, image_data_url as gallery_image_data_url, normalize_skin_creator_text,
-    validate_supported_color_modes, validate_theme_image_name as validate_core_image_name,
-    validate_theme_metadata,
+    MAX_THEME_IMAGE_BYTES as MAX_IMAGE_BYTES, SkinHostKind, SkinPackageType, SkinReference,
+    SkinRuleError, SkinSource, image_data_url as gallery_image_data_url,
+    normalize_skin_creator_text, validate_supported_color_modes,
+    validate_theme_image_name as validate_core_image_name, validate_theme_metadata,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, OnceCell, watch};

@@ -1,6 +1,10 @@
-import type { SkinReference } from "../api/skins";
+import type { SkinHostKind, SkinReference } from "../api/skins";
 
-const REMEMBERED_SKIN_KEY = "loki-metis.remembered-skin.v1";
+const REMEMBERED_SKIN_KEY = "loki-metis.remembered-skin.v2";
+
+function rememberedSkinKey(host: SkinHostKind): string {
+  return `${REMEMBERED_SKIN_KEY}.${host}`;
+}
 
 /** 判断未知值是否为可安全恢复的精确皮肤引用。 */
 function isSkinReference(value: unknown): value is SkinReference {
@@ -14,9 +18,9 @@ function isSkinReference(value: unknown): value is SkinReference {
 }
 
 /** 读取仅保存在本机 WebView 配置域中的上次成功皮肤。 */
-export function readRememberedSkin(): SkinReference | null {
+export function readRememberedSkin(host: SkinHostKind): SkinReference | null {
   try {
-    const raw = window.localStorage.getItem(REMEMBERED_SKIN_KEY);
+    const raw = window.localStorage.getItem(rememberedSkinKey(host));
     if (raw === null) return null;
     const parsed: unknown = JSON.parse(raw);
     return isSkinReference(parsed) ? parsed : null;
@@ -26,11 +30,11 @@ export function readRememberedSkin(): SkinReference | null {
 }
 
 /** 仅在原生层确认应用成功后记住精确皮肤身份。 */
-export function rememberSkin(skin: SkinReference): void {
-  window.localStorage.setItem(REMEMBERED_SKIN_KEY, JSON.stringify(skin));
+export function rememberSkin(host: SkinHostKind, skin: SkinReference): void {
+  window.localStorage.setItem(rememberedSkinKey(host), JSON.stringify(skin));
 }
 
 /** 在用户停止皮肤后清除恢复提示来源。 */
-export function clearRememberedSkin(): void {
-  window.localStorage.removeItem(REMEMBERED_SKIN_KEY);
+export function clearRememberedSkin(host: SkinHostKind): void {
+  window.localStorage.removeItem(rememberedSkinKey(host));
 }

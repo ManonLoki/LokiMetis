@@ -12,11 +12,15 @@ use super::{
     SkinDescriptor, SkinImportPreparationEvent, SkinReference, SkinService, SkinStatus,
     ThemeConversionResult, save_export_archive,
 };
+use loki_metis_core::SkinHostKind;
 
 /// 读取当前皮肤注入状态。
 #[tauri::command]
-pub async fn skin_status(service: State<'_, SkinService>) -> Result<SkinStatus, AppError> {
-    Ok(service.status().await)
+pub async fn skin_status(
+    host: SkinHostKind,
+    service: State<'_, SkinService>,
+) -> Result<SkinStatus, AppError> {
+    Ok(service.status(host).await)
 }
 
 /// 列出经过完整校验的内置与用户皮肤。
@@ -231,50 +235,58 @@ pub async fn delete_skins(
 
 /// 读取 Codex 运行与调试连接状态。
 #[tauri::command]
-pub async fn codex_runtime_status(
+pub async fn skin_host_runtime_status(
+    host: SkinHostKind,
     service: State<'_, SkinService>,
 ) -> Result<CodexRuntimeStatus, AppError> {
-    service.codex_runtime_status().await
+    service.host_runtime_status(host).await
 }
 
 /// 快速列出已验证的本机 Codex GUI 实例。
 #[tauri::command]
-pub async fn list_codex_instances(
+pub async fn list_skin_host_instances(
+    host: SkinHostKind,
     service: State<'_, SkinService>,
 ) -> Result<Vec<CodexInstance>, AppError> {
-    service.scanned_codex_instances().await
+    service.scanned_host_instances(host).await
 }
 
 /// 对一个已列出的实例补充有界账户资料和活动皮肤。
 #[tauri::command]
-pub async fn probe_codex_instance(
+pub async fn probe_skin_host_instance(
+    host: SkinHostKind,
     instance_id: String,
     service: State<'_, SkinService>,
 ) -> Result<CodexInstance, AppError> {
-    service.probe_codex_instance(&instance_id).await
+    service.probe_host_instance(host, &instance_id).await
 }
 
 /// 在用户确认后只重启所选且身份未变化的 Codex GUI。
 #[tauri::command]
-pub async fn restart_codex_instance(
+pub async fn restart_skin_host_instance(
+    host: SkinHostKind,
     instance_id: String,
     service: State<'_, SkinService>,
 ) -> Result<CodexInstance, AppError> {
-    service.restart_codex_instance(&instance_id).await
+    service.restart_host_instance(host, &instance_id).await
 }
 
 /// 启动 Codex 并等待受限 CDP 端点就绪。
 #[tauri::command]
-pub async fn launch_codex(service: State<'_, SkinService>) -> Result<CodexRuntimeStatus, AppError> {
-    service.launch_codex().await
+pub async fn launch_skin_host(
+    host: SkinHostKind,
+    service: State<'_, SkinService>,
+) -> Result<CodexRuntimeStatus, AppError> {
+    service.launch_host(host).await
 }
 
 /// 在用户确认后关闭受支持的 Codex GUI，再以调试端口启动。
 #[tauri::command]
-pub async fn force_launch_codex(
+pub async fn force_launch_skin_host(
+    host: SkinHostKind,
     service: State<'_, SkinService>,
 ) -> Result<CodexRuntimeStatus, AppError> {
-    service.force_launch_codex().await
+    service.force_launch_host(host).await
 }
 
 /// 取消当前有 owner 的 Codex 启动或换皮操作。
@@ -286,23 +298,30 @@ pub fn cancel_codex_operation(service: State<'_, SkinService>) -> bool {
 /// 把所选皮肤应用到唯一或显式指定的 Codex 实例。
 #[tauri::command]
 pub async fn install_skin(
+    host: SkinHostKind,
     skin: SkinReference,
     allow_appearance_mismatch: bool,
     instance_id: Option<String>,
     service: State<'_, SkinService>,
 ) -> Result<InstallSkinResult, AppError> {
     service
-        .install(&skin, allow_appearance_mismatch, instance_id.as_deref())
+        .install(
+            host,
+            &skin,
+            allow_appearance_mismatch,
+            instance_id.as_deref(),
+        )
         .await
 }
 
 /// 从唯一或显式指定的 Codex 实例清理换皮注入。
 #[tauri::command]
 pub async fn uninstall_skin(
+    host: SkinHostKind,
     instance_id: Option<String>,
     service: State<'_, SkinService>,
 ) -> Result<SkinStatus, AppError> {
-    service.uninstall(instance_id.as_deref()).await
+    service.uninstall(host, instance_id.as_deref()).await
 }
 
 #[cfg(test)]

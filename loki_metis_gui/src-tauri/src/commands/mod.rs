@@ -25,8 +25,7 @@ pub(crate) use scan::{
     run_periodic_quick_scans,
 };
 pub(crate) use settings::{
-    get_privacy_settings, set_device_username, set_enabled_agents, set_retention_days,
-    set_scan_interval, set_workbuddy_stats_enabled,
+    get_privacy_settings, set_device_username, set_retention_days, set_scan_interval,
 };
 pub(crate) use source_reindex::reindex_source_root;
 pub(crate) use sources::{get_source_roots, get_sources};

@@ -5,26 +5,31 @@
         assert!(PROBE_SCRIPT.contains("['Codex', 'ChatGPT'].includes(document.title)"));
         assert!(PageProbe {
             codex: true,
+            work_buddy: false,
             url: "app://-/index.html".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: true,
+            work_buddy: false,
             url: "https://example.com".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: true,
+            work_buddy: false,
             url: "app://-/index.html?initialRoute=%2Favatar-overlay".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: true,
+            work_buddy: false,
             url: "app://-/avatar-overlay-composition-surface.html".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: false,
+            work_buddy: false,
             url: "app://-/index.html".into(),
         }
         .is_verified_codex());
@@ -71,12 +76,38 @@
             let root = temp_directory("status-operation-lock");
             let service = create_service(&root);
             let _operation = service.operation.lock().await;
-            let status = tokio::time::timeout(Duration::from_millis(50), service.status())
+            let status = tokio::time::timeout(
+                Duration::from_millis(50),
+                service.status(SkinHostKind::Codex),
+            )
                 .await
                 .expect("状态查询不应等待安装或卸载操作锁");
             assert!(!status.installed);
             std::fs::remove_dir_all(root).expect("应清理测试目录");
         });
+    }
+
+    #[test]
+    fn workbuddy_page_probe_rejects_codex_and_remote_pages() {
+        assert!(WORKBUDDY_PROBE_SCRIPT.contains("document.title === 'WorkBuddy'"));
+        assert!(PageProbe {
+            codex: false,
+            work_buddy: true,
+            url: "file:///Applications/WorkBuddy.app/renderer/index.html".into(),
+        }
+        .is_verified_workbuddy());
+        assert!(!PageProbe {
+            codex: true,
+            work_buddy: false,
+            url: "app://-/index.html".into(),
+        }
+        .is_verified_workbuddy());
+        assert!(!PageProbe {
+            codex: false,
+            work_buddy: true,
+            url: "https://example.com".into(),
+        }
+        .is_verified_workbuddy());
     }
 
     #[test]

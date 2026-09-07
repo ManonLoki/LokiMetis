@@ -224,6 +224,12 @@ struct AccountProfileProbe {
     active_skin: Option<ActiveSkinProbe>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ActiveSkinOnlyProbe {
+    active_skin: Option<ActiveSkinProbe>,
+}
+
 #[derive(Debug, Clone)]
 /// 定义换皮宿主 `AccountProfile` 使用的内部数据。
 struct AccountProfile {
@@ -279,6 +285,14 @@ impl CdpEndpoint {
     /// 执行换皮宿主内部的 `new` 步骤。
     fn new(port: u16) -> Self {
         Self { port }
+    }
+
+    /// 返回一个宿主专用且互不冲突的默认回环端口。
+    fn default_for(host: SkinHostKind) -> Self {
+        Self::new(match host {
+            SkinHostKind::Codex => DEFAULT_CDP_PORT,
+            SkinHostKind::WorkBuddy => WORKBUDDY_DEFAULT_CDP_PORT,
+        })
     }
 
     /// 执行换皮宿主内部的 `url` 步骤。

@@ -7,16 +7,18 @@ import { atom } from "jotai";
 export interface SkinPageSession {
   search: string;
   userOnly: boolean;
-  selectedInstanceId: string | null;
-  restoreDismissed: boolean;
+  selectedHost: "codex" | "workBuddy" | null;
+  selectedInstanceIds: Partial<Record<"codex" | "workBuddy", string>>;
+  restoreDismissedHosts: Partial<Record<"codex" | "workBuddy", boolean>>;
 }
 
 /** 全新应用 store 中换皮页使用的确定默认值。 */
 export const initialSkinPageSession: SkinPageSession = {
   search: "",
   userOnly: false,
-  selectedInstanceId: null,
-  restoreDismissed: false,
+  selectedHost: null,
+  selectedInstanceIds: {},
+  restoreDismissedHosts: {},
 };
 
 /** 仅在当前应用进程中保留换皮页工作上下文。 */

@@ -19,6 +19,7 @@ async fn stop_watch_task(task: Option<WatchTask>) -> Result<usize, AppError> {
     let Some(mut task) = task else {
         return Ok(0);
     };
+    let host = task.host;
     let endpoint = task.endpoint;
     let _ = task.cancel.send(true);
     let result = match tokio::time::timeout(WATCH_STOP_TIMEOUT, &mut task.join).await {
@@ -26,19 +27,19 @@ async fn stop_watch_task(task: Option<WatchTask>) -> Result<usize, AppError> {
         Ok(Ok(Err(error))) => {
             tracing::warn!("皮肤后台任务已失败，尝试独立清理，错误码={}", error.code);
             task.handler_abort.abort();
-            remove_from_endpoint(endpoint).await.or(Err(error))
+            remove_from_endpoint(host, endpoint).await.or(Err(error))
         }
         Ok(Err(_)) => {
             task.handler_abort.abort();
             let error = AppError::new("skin.task_failed", "皮肤后台任务未能正常停止。");
-            remove_from_endpoint(endpoint).await.or(Err(error))
+            remove_from_endpoint(host, endpoint).await.or(Err(error))
         }
         Err(_) => {
             tracing::warn!("皮肤后台任务停止超时，执行有界强制清理");
             task.handler_abort.abort();
             task.join.abort();
             let _ = task.join.await;
-            remove_from_endpoint(endpoint).await.map_err(|_| {
+            remove_from_endpoint(host, endpoint).await.map_err(|_| {
                 AppError::new(
                     "skin.task_stop_timeout",
                     "皮肤后台任务停止超时，残留页面清理未完成，请稍后重试。",

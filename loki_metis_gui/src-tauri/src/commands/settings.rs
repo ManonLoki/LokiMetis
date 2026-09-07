@@ -46,25 +46,3 @@ pub(crate) async fn set_retention_days(
     state.set_retention_days(days).await?;
     Ok(state.privacy_settings(client).await)
 }
-
-/// 保存用户显式开放的本机 Agent 集合。
-#[tauri::command]
-pub(crate) async fn set_enabled_agents(
-    state: State<'_, AppRuntimeState>,
-    client: UsageClientKindDto,
-    agents: Vec<UsageClientKindDto>,
-) -> Result<PrivacySettingsDto, String> {
-    state.set_enabled_agents(&agents).await?;
-    Ok(state.privacy_settings(client).await)
-}
-
-/// 保存 WorkBuddy 本地统计开关；关闭时后续统计读取命令必须拒绝返回数据。
-#[tauri::command]
-pub(crate) async fn set_workbuddy_stats_enabled(
-    state: State<'_, AppRuntimeState>,
-    client: UsageClientKindDto,
-    enabled: bool,
-) -> Result<PrivacySettingsDto, String> {
-    state.set_workbuddy_stats_enabled(enabled).await?;
-    Ok(state.privacy_settings(client).await)
-}

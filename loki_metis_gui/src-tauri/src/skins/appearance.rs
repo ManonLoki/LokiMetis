@@ -202,6 +202,7 @@ fn normalize_appearance_value(value: &str) -> String {
 
 /// 执行换皮宿主内部的 `wait_for_initial_injection_inner` 步骤。
 async fn wait_for_initial_injection_inner(
+    host: SkinHostKind,
     mut browser: Browser,
     handler_task: JoinHandle<()>,
     payload: &Arc<str>,
@@ -221,7 +222,7 @@ async fn wait_for_initial_injection_inner(
 
         let scan = async {
             fetch_targets(&mut browser).await?;
-            inject_pages(&browser, payload, skin).await
+            inject_pages(host, &browser, payload, skin).await
         }
         .await;
 

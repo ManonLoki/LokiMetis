@@ -246,7 +246,10 @@ struct AppearanceProbe {
 #[derive(Debug, Deserialize)]
 /// 定义换皮宿主 `PageProbe` 使用的内部数据。
 struct PageProbe {
+    #[serde(default)]
     codex: bool,
+    #[serde(default, rename = "workBuddy")]
+    work_buddy: bool,
     url: String,
 }
 
@@ -265,6 +268,12 @@ impl PageProbe {
     /// 执行换皮宿主内部的 `is_verified_codex` 步骤。
     fn is_verified_codex(&self) -> bool {
         self.codex && self.url == "app://-/index.html"
+    }
+
+
+    /// WorkBuddy 只接受其本机 `file:` 渲染页面与稳定标题、根节点组合。
+    fn is_verified_workbuddy(&self) -> bool {
+        self.work_buddy && self.url.starts_with("file://")
     }
 }
 
@@ -301,6 +310,7 @@ struct AppearancePolicy {
 
 /// 定义换皮宿主 `WatchTask` 使用的内部数据。
 struct WatchTask {
+    host: SkinHostKind,
     cancel: watch::Sender<bool>,
     join: JoinHandle<Result<usize, AppError>>,
     handler_abort: AbortHandle,
@@ -380,7 +390,7 @@ struct InstanceRuntime {
 /// 定义换皮宿主 `RuntimeState` 使用的内部数据。
 struct RuntimeState {
     instances: HashMap<String, InstanceRuntime>,
-    last_target: Option<String>,
+    last_targets: HashMap<SkinHostKind, String>,
 }
 
 /// 定义换皮宿主 `PendingImportItem` 使用的内部数据。

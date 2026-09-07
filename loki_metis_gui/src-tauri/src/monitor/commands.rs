@@ -9,6 +9,9 @@ use loki_metis_core::{
 };
 use tauri::{AppHandle, Manager, State};
 
+use crate::dto::{PrivacySettingsDto, UsageClientKindDto};
+use crate::runtime::AppRuntimeState;
+
 use super::{
     HookConfigWriter, HookListenerControl, HookRelayStatus, MonitorCapabilities, MonitorSettings,
     PetOverlayWindowDescription, close_pet_overlay_window, delete_monitor_image,
@@ -74,6 +77,16 @@ fn save_enabled_tools(config_dir: &Path, tools: Vec<AiTool>) -> Result<MonitorSe
     })
 }
 
+/// 统一 Agent 选择保存后返回两个既有查询需要的权威快照。
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnabledAiSelectionResult {
+    /// Hooks、桌宠与动态能力页使用的监控设置。
+    pub monitor_settings: MonitorSettings,
+    /// 看板查询使用的兼容设置投影。
+    pub privacy_settings: PrivacySettingsDto,
+}
+
 /// 由 Tauri 路径解析器取得跨平台用户主目录，禁止 adapter 自行猜测环境变量。
 fn home_dir(app: &AppHandle) -> Result<PathBuf, HookError> {
     app.path().home_dir().map_err(|error| {
@@ -93,21 +106,42 @@ pub fn get_monitor_settings(app: AppHandle) -> Result<MonitorSettings, HookError
     load_monitor_settings(&config_dir(&app)?)
 }
 
-/// 保存已启用 Agent。
+/// 一次保存全局 Agent 选择，并在任一持久层失败时回滚已写入的一侧。
 #[tauri::command]
-pub fn save_monitor_enabled_tools(
+pub async fn save_enabled_ai_selection(
     app: AppHandle,
+    client: UsageClientKindDto,
     tools: Vec<AiTool>,
+    state: State<'_, AppRuntimeState>,
     hook_writer: State<'_, HookConfigWriter>,
     hook_listener: State<'_, HookListenerControl>,
-) -> Result<MonitorSettings, HookError> {
+) -> Result<EnabledAiSelectionResult, HookError> {
     let config_dir = config_dir(&app)?;
-    let settings = save_enabled_tools(&config_dir, tools)?;
+    let previous_dashboard = state.enabled_ai_tools_from_dashboard().await;
+    state.set_enabled_ai_tools(&tools).await.map_err(|detail| {
+        HookError::new("error.monitor.settingsWriteFailed").param("detail", detail)
+    })?;
+    let settings = match save_enabled_tools(&config_dir, tools) {
+        Ok(settings) => settings,
+        Err(error) => {
+            if state
+                .set_enabled_ai_tools(&previous_dashboard)
+                .await
+                .is_err()
+            {
+                tracing::error!("统一 Agent 选择保存失败后无法回滚看板设置");
+            }
+            return Err(error);
+        }
+    };
     hook_writer.request_enabled(settings.clone());
     if hook_listener.replace_enabled_tools(&settings.enabled_ai_tools) {
         emit_pet_window_state_changed(&app);
     }
-    Ok(settings)
+    Ok(EnabledAiSelectionResult {
+        monitor_settings: settings,
+        privacy_settings: state.privacy_settings(client).await,
+    })
 }
 
 /// 保存某工具的自定义 Hook 目录。

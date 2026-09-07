@@ -65,8 +65,8 @@ async function renderMonitor(initialPath = "/monitor") {
     path: "/images",
     component: MonitorImagesPage,
   });
-  const appSettingsRoute = createRoute({
-    getParentRoute: () => rootRoute,
+  const settingsRoute = createRoute({
+    getParentRoute: () => monitorRoute,
     path: "/settings",
     component: MonitorSettingsPage,
   });
@@ -77,8 +77,8 @@ async function renderMonitor(initialPath = "/monitor") {
         workbenchRoute,
         managementRoute,
         imagesRoute,
+        settingsRoute,
       ]),
-      appSettingsRoute,
     ]),
   });
   await router.load();
@@ -87,13 +87,7 @@ async function renderMonitor(initialPath = "/monitor") {
       <RouterProvider router={router} />
     </TestProviders>,
   );
-  await waitFor(() => {
-    if (initialPath.startsWith("/monitor")) {
-      expect(screen.getByRole("navigation")).toBeVisible();
-    } else {
-      expect(screen.getByTestId("monitor-settings")).toBeVisible();
-    }
-  });
+  await waitFor(() => expect(screen.getByRole("navigation")).toBeVisible());
   return router;
 }
 
@@ -146,23 +140,22 @@ describe("monitor header tabs", () => {
     });
   });
 
-  /** 二级选项卡只保留工作台、监控管理与图片管理，不再复制 Hooks 设置入口。 */
+  /** 二级选项卡依次提供工作台、监控管理、图片管理与 Hooks 设置。 */
   test("monitor_tabs_follow_workbench_management_images_settings_order", async () => {
-    await renderMonitor();
+    const router = await renderMonitor();
     const workbench = screen.getByRole("link", { name: /Workbench:/ });
     const management = screen.getByRole("link", { name: /Monitor management:/ });
     const images = screen.getByRole("link", { name: /Image management:/ });
+    const settings = screen.getByRole("link", { name: /Hooks settings:/ });
     expect(workbench).toBeVisible();
     expect(management).toBeVisible();
     expect(images).toBeVisible();
+    expect(settings).toBeVisible();
     expect(
       within(screen.getByRole("navigation", { name: "Monitor pages" })).getAllByRole(
         "link",
       ),
-    ).toHaveLength(3);
-    expect(
-      screen.queryByRole("link", { name: /Monitor settings:/ }),
-    ).not.toBeInTheDocument();
+    ).toHaveLength(4);
     expect(
       workbench.compareDocumentPosition(management) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
@@ -170,9 +163,12 @@ describe("monitor header tabs", () => {
       management.compareDocumentPosition(images) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
-      screen.queryByRole("link", { name: /Hooks settings:/ }),
-    ).not.toBeInTheDocument();
+      images.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /^Settings:/ })).not.toBeInTheDocument();
+    await userEvent.click(settings);
+    expect(router.state.location.pathname).toBe("/monitor/settings");
+    expect(await screen.findByTestId("monitor-settings")).toBeVisible();
   });
 
   /** 工作台挂载真实中继查询；监控管理按已启用 Agent 分 Tab，不再以写入 Hooks 为主。 */
@@ -223,10 +219,9 @@ describe("monitor header tabs", () => {
     expect(screen.queryByText("openCode")).not.toBeInTheDocument();
   });
 
-  /** Hooks 设置只使用后端公开目录，并在保存时丢弃目录外的历史启用项。 */
+  /** Hooks 设置只投影统一 Agent 选择，不再复制第二套复选面板。 */
   test("hooks_settings_intersect_capabilities_and_historical_enabled_tools", async () => {
-    invokeMock.mockImplementation(async (command, payload) => {
-      const typedPayload = payload as { tools?: string[] } | undefined;
+    invokeMock.mockImplementation(async (command) => {
       if (command === "get_monitor_capabilities") {
         return monitorCapabilitiesFixture();
       }
@@ -254,26 +249,17 @@ describe("monitor header tabs", () => {
           lastError: null,
         };
       }
-      if (command === "save_monitor_enabled_tools") {
-        return {
-          enabledAiTools: typedPayload?.tools ?? [],
-          hookDirectories: {},
-        };
-      }
       throw new Error(`unexpected command ${command}`);
     });
 
-    await renderMonitor("/settings");
-    const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
-    const hooksManagement = screen.getByTestId("monitor-hooks-management");
-    expect(within(enabledAgents).getAllByRole("checkbox")).toHaveLength(5);
+    await renderMonitor("/monitor/settings");
+    const hooksManagement = await screen.findByTestId("monitor-hooks-management");
     expect(within(hooksManagement).getAllByRole("tab")).toHaveLength(5);
     expect(within(hooksManagement).getByRole("tab", { name: "Cursor" })).toBeVisible();
-    expect(within(enabledAgents).queryByText("GitHub Copilot")).not.toBeInTheDocument();
-    await userEvent.click(within(enabledAgents).getByRole("checkbox", { name: "Cursor" }));
-    expect(invokeMock).toHaveBeenCalledWith("save_monitor_enabled_tools", {
-      tools: ["codex", "claudeCode", "grok", "workBuddy"],
-    });
+    expect(screen.queryByTestId("monitor-enabled-agents")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("monitor-settings")).queryByRole("checkbox"),
+    ).not.toBeInTheDocument();
   });
 
   /** Hermes 与 OpenClaw 写入后展示可复制的真实激活命令，且 OpenClaw 保持执行顺序。 */
@@ -312,7 +298,7 @@ describe("monitor header tabs", () => {
       throw new Error(`unexpected command ${command}`);
     });
 
-    await renderMonitor("/settings");
+    await renderMonitor("/monitor/settings");
     const hooksManagement = await screen.findByTestId("monitor-hooks-management");
     await userEvent.click(
       within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
@@ -356,7 +342,7 @@ describe("monitor header tabs", () => {
     ).toHaveLength(3);
   });
 
-  /** Hooks 选项卡可启用 Agent 并写入/定位 Hook 配置。 */
+  /** Hooks 选项卡消费统一 Agent 选择并写入/定位 Hook 配置。 */
   test("hooks_settings_tab_enables_agents_and_writes_local_hook_config", async () => {
     invokeMock.mockImplementation(async (command, payload) => {
       const typedPayload = payload as
@@ -374,7 +360,7 @@ describe("monitor header tabs", () => {
       }
       if (command === "get_monitor_settings") {
         return {
-          enabledAiTools: ["codex", "openCode"],
+          enabledAiTools: ["codex", "grok", "openCode"],
           hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
         };
       }
@@ -387,12 +373,6 @@ describe("monitor header tabs", () => {
             isCustom: true,
           },
         ];
-      }
-      if (command === "save_monitor_enabled_tools") {
-        return {
-          enabledAiTools: typedPayload?.tools ?? ["codex", "grok"],
-          hookDirectories: { codex: "", claudeCode: "", grok: "", workBuddy: "" },
-        };
       }
       if (command === "save_hook_config_directory") {
         const directory = typedPayload?.directory || "/Users/test/.codex";
@@ -425,10 +405,9 @@ describe("monitor header tabs", () => {
       }
       throw new Error(`unexpected command ${command}`);
     });
-    const router = await renderMonitor("/settings");
-    expect(router.state.location.pathname).toBe("/settings");
-    const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
-    const hooksManagement = screen.getByTestId("monitor-hooks-management");
+    const router = await renderMonitor("/monitor/settings");
+    expect(router.state.location.pathname).toBe("/monitor/settings");
+    const hooksManagement = await screen.findByTestId("monitor-hooks-management");
     const codexTab = within(hooksManagement).getByRole("tab", { name: "Codex" });
     expect(codexTab).toHaveAttribute("aria-selected", "true");
     expect(
@@ -469,13 +448,7 @@ describe("monitor header tabs", () => {
     );
     expect(invokeMock).toHaveBeenCalledWith("write_monitor_hook_config", { tool: "codex" });
     expect(await within(hooksManagement).findByText(/Wrote hooks.json/)).toBeVisible();
-    await userEvent.click(
-      within(enabledAgents).getByRole("checkbox", { name: "Grok Build" }),
-    );
-    expect(invokeMock).toHaveBeenCalledWith("save_monitor_enabled_tools", {
-      tools: ["codex", "grok"],
-    });
-    const grokTab = await within(hooksManagement).findByRole("tab", { name: "Grok Build" });
+    const grokTab = within(hooksManagement).getByRole("tab", { name: "Grok Build" });
     await userEvent.click(grokTab);
     expect(grokTab).toHaveAttribute("aria-selected", "true");
     expect(codexTab).toHaveAttribute("aria-selected", "false");
@@ -515,7 +488,7 @@ describe("monitor header tabs", () => {
       throw new Error(`unexpected command ${command}`);
     });
 
-    await renderMonitor("/settings");
+    await renderMonitor("/monitor/settings");
     const hooksManagement = await screen.findByTestId("monitor-hooks-management");
     const directoryInput = within(hooksManagement).getByRole("textbox", {
       name: "Config directory",

@@ -1,10 +1,10 @@
 impl SkinService {
     /// 执行换皮宿主内部的 `status` 步骤。
-    pub async fn status(&self) -> SkinStatus {
+    pub async fn status(&self, host: SkinHostKind) -> SkinStatus {
         let runtime = self.runtime.lock().await;
         runtime
-            .last_target
-            .as_ref()
+            .last_targets
+            .get(&host)
             .and_then(|target| runtime.instances.get(target))
             .filter(|instance| {
                 instance
@@ -14,29 +14,52 @@ impl SkinService {
             })
             .and_then(|instance| instance.active.as_ref().map(|skin| (instance, skin)))
             .map(|(instance, skin)| {
-                let target = runtime.last_target.as_deref().unwrap_or_default();
+                let target = runtime
+                    .last_targets
+                    .get(&host)
+                    .map(|key| runtime_instance_id(host, key))
+                    .unwrap_or_default();
                 SkinStatus::running(skin, 0, instance.compatibility.clone()).for_instance(target)
             })
             .unwrap_or_else(|| SkinStatus::stopped(0))
     }
 
     /// 执行换皮宿主内部的 `scanned_codex_instances` 步骤。
-    pub async fn scanned_codex_instances(&self) -> Result<Vec<CodexInstance>, AppError> {
-        let mut instances = discover_codex_process_instances().await?;
-        self.retain_account_profile_probes(instances.iter().map(|instance| instance.id.as_str()));
+    pub async fn scanned_host_instances(
+        &self,
+        host: SkinHostKind,
+    ) -> Result<Vec<CodexInstance>, AppError> {
+        let mut instances = if host == SkinHostKind::WorkBuddy {
+            let mut items = Vec::new();
+            for resolved in resolved_host_instances(host).await? {
+                items.push(self.cached_host_instance(host, resolved).await?);
+            }
+            items.sort_by_key(|instance| std::cmp::Reverse(instance.pid));
+            items
+        } else {
+            discover_host_process_instances(host).await?
+        };
+        if host == SkinHostKind::Codex {
+            self.retain_account_profile_probes(instances.iter().map(|instance| instance.id.as_str()));
+        }
         self.retain_recovered_instance_runtimes(
+            host,
             instances.iter().map(|instance| instance.id.as_str()),
         )
         .await;
-        self.annotate_codex_instances(&mut instances).await;
+        self.annotate_host_instances(host, &mut instances).await;
         Ok(instances)
     }
 
     /// 执行换皮宿主内部的 `probe_codex_instance` 步骤。
-    pub async fn probe_codex_instance(&self, instance_id: &str) -> Result<CodexInstance, AppError> {
-        let resolved = resolve_codex_instance(instance_id).await?;
-        let mut instances = vec![self.cached_codex_instance(resolved).await?];
-        self.annotate_codex_instances(&mut instances).await;
+    pub async fn probe_host_instance(
+        &self,
+        host: SkinHostKind,
+        instance_id: &str,
+    ) -> Result<CodexInstance, AppError> {
+        let resolved = resolve_host_instance(host, instance_id).await?;
+        let mut instances = vec![self.cached_host_instance(host, resolved).await?];
+        self.annotate_host_instances(host, &mut instances).await;
         instances.pop().ok_or_else(|| {
             AppError::new(
                 "skin.codex_instance_changed",
@@ -73,29 +96,66 @@ impl SkinService {
     /// 执行换皮宿主内部的 `retain_recovered_instance_runtimes` 步骤。
     async fn retain_recovered_instance_runtimes<'a>(
         &self,
+        host: SkinHostKind,
         instance_ids: impl IntoIterator<Item = &'a str>,
     ) {
         let active = instance_ids
             .into_iter()
-            .map(str::to_owned)
+            .map(|id| runtime_instance_key(host, id))
             .collect::<HashSet<_>>();
         let mut runtime = self.runtime.lock().await;
         runtime.instances.retain(|instance_id, instance| {
-            instance.task.is_some() || active.contains(instance_id)
+            let belongs_to_host = instance_id.starts_with(match host {
+                SkinHostKind::Codex => "codex:",
+                SkinHostKind::WorkBuddy => "workBuddy:",
+            });
+            !belongs_to_host || instance.task.is_some() || active.contains(instance_id)
         });
     }
 
     /// 执行换皮宿主内部的 `cached_codex_instance` 步骤。
-    async fn cached_codex_instance(
+    async fn cached_host_instance(
         &self,
+        host: SkinHostKind,
         resolved: ResolvedCodexInstance,
     ) -> Result<CodexInstance, AppError> {
         if resolved.debug_port.is_none() {
-            return Ok(codex_instance_from_resolved(
+            return Ok(host_instance_from_resolved(
+                host,
                 resolved,
                 CodexRuntimeState::RunningWithoutCdp,
                 None,
             ));
+        }
+        if host == SkinHostKind::WorkBuddy {
+            let recovered_skin = probe_resolved_active_skin(host, &resolved)
+                .await
+                .ok()
+                .flatten()
+                .as_ref()
+                .and_then(|identity| self.resolve_recovered_skin(identity));
+            let mut instance = host_instance_from_resolved(
+                host,
+                resolved,
+                CodexRuntimeState::Ready,
+                None,
+            );
+            if let Some(descriptor) = recovered_skin {
+                instance.active_skin_name = Some(descriptor.name.clone());
+                instance.active_skin = Some(SkinReference {
+                    source: descriptor.source,
+                    id: descriptor.id.clone(),
+                });
+                let mut runtime = self.runtime.lock().await;
+                runtime.instances.entry(runtime_instance_key(host, &instance.id)).or_insert(
+                    InstanceRuntime {
+                        active: Some(descriptor),
+                        compatibility: None,
+                        task: None,
+                    },
+                );
+            }
+            return Ok(instance);
         }
         let probe = self.account_profile_probe_cell(&resolved.id)?;
         match probe
@@ -121,7 +181,7 @@ impl SkinService {
                     let mut runtime = self.runtime.lock().await;
                     runtime
                         .instances
-                        .entry(instance.id.clone())
+                        .entry(runtime_instance_key(host, &instance.id))
                         .or_insert(InstanceRuntime {
                             active: Some(descriptor),
                             compatibility: None,
@@ -139,10 +199,14 @@ impl SkinService {
     }
 
     /// 执行换皮宿主内部的 `annotate_codex_instances` 步骤。
-    async fn annotate_codex_instances(&self, instances: &mut [CodexInstance]) {
+    async fn annotate_host_instances(
+        &self,
+        host: SkinHostKind,
+        instances: &mut [CodexInstance],
+    ) {
         let runtime = self.runtime.lock().await;
         for instance in instances {
-            let instance_runtime = runtime.instances.get(&instance.id);
+            let instance_runtime = runtime.instances.get(&runtime_instance_key(host, &instance.id));
             instance.active_skin_name = displayed_active_skin_name(
                 instance_runtime.and_then(|value| value.active.as_ref()),
             );
@@ -211,42 +275,45 @@ impl SkinService {
         }
     }
 
-    /// 执行换皮宿主内部的 `codex_runtime_status` 步骤。
-    pub async fn codex_runtime_status(&self) -> Result<CodexRuntimeStatus, AppError> {
-        codex_runtime_status().await
-    }
-
-    /// 执行换皮宿主内部的 `launch_codex` 步骤。
-    pub async fn launch_codex(&self) -> Result<CodexRuntimeStatus, AppError> {
-        let _operation = self.operation.lock().await;
-        let (_guard, mut cancel) = self.begin_codex_operation()?;
-        launch_and_wait_for_cdp(&mut cancel).await
-    }
-
-    /// 执行换皮宿主内部的 `force_launch_codex` 步骤。
-    pub async fn force_launch_codex(&self) -> Result<CodexRuntimeStatus, AppError> {
-        let _operation = self.operation.lock().await;
-        let (_guard, mut cancel) = self.begin_codex_operation()?;
-        force_launch_and_wait_for_cdp(&mut cancel).await
-    }
-
-    /// 执行换皮宿主内部的 `restart_codex_instance` 步骤。
-    pub async fn restart_codex_instance(
+    /// 返回指定换皮宿主的运行状态。
+    pub async fn host_runtime_status(
         &self,
+        host: SkinHostKind,
+    ) -> Result<CodexRuntimeStatus, AppError> {
+        host_runtime_status(host).await
+    }
+
+    /// 启动指定换皮宿主并等待本机调试通道就绪。
+    pub async fn launch_host(&self, host: SkinHostKind) -> Result<CodexRuntimeStatus, AppError> {
+        let _operation = self.operation.lock().await;
+        let (_guard, mut cancel) = self.begin_codex_operation()?;
+        launch_and_wait_for_cdp(host, &mut cancel).await
+    }
+
+    /// 关闭未开放调试通道的指定宿主后重新启动。
+    pub async fn force_launch_host(
+        &self,
+        host: SkinHostKind,
+    ) -> Result<CodexRuntimeStatus, AppError> {
+        let _operation = self.operation.lock().await;
+        let (_guard, mut cancel) = self.begin_codex_operation()?;
+        force_launch_and_wait_for_cdp(host, &mut cancel).await
+    }
+
+    /// 使用受控调试端口重启指定宿主实例。
+    pub async fn restart_host_instance(
+        &self,
+        host: SkinHostKind,
         instance_id: &str,
     ) -> Result<CodexInstance, AppError> {
         let _operation = self.operation.lock().await;
         let (_guard, mut cancel) = self.begin_codex_operation()?;
-        let selected = resolve_codex_instance(instance_id).await?;
-        let all = platform_codex_processes()
-            .await?
-            .into_iter()
-            .map(resolved_instance)
-            .collect::<Vec<_>>();
-        let port = available_debug_port(&all)?;
+        let selected = resolve_host_instance(host, instance_id).await?;
+        let all = resolved_host_instances(host).await?;
+        let port = available_debug_port_for(host, &all)?;
         run_cancellable(
             &mut cancel,
-            restart_platform_codex_instance(&selected, port),
+            restart_platform_host_instance(host, &selected, port),
         )
         .await?;
         let endpoint = CdpEndpoint::new(port);
@@ -256,7 +323,7 @@ impl SkinService {
                 Ok((browser, task)) => {
                     task.abort();
                     drop(browser);
-                    let instances = self.scanned_codex_instances().await?;
+                    let instances = self.scanned_host_instances(host).await?;
                     if let Some(instance) = restarted_instance_for_endpoint(instances, endpoint) {
                         return Ok(instance);
                     }

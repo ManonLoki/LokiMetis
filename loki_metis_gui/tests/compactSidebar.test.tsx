@@ -36,11 +36,11 @@ describe("compact application sidebar", () => {
     expect(screen.queryByTestId("navigation-label-home")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Home" })).not.toBeInTheDocument();
     expect(screen.getByTestId("navigation-dashboard")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Usage Dashboard" })).toHaveAttribute(
       "data-active",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Monitor" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "AI Monitor" })).not.toHaveAttribute(
       "data-active",
     );
     expect(screen.getByTestId("navigation-monitor")).toBeVisible();
@@ -61,11 +61,11 @@ describe("compact application sidebar", () => {
     expect(screen.queryByText(/leaderboard/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/data collection/i)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    await userEvent.click(screen.getByRole("button", { name: "Usage Dashboard" }));
     expect(onNavigate).toHaveBeenCalledWith("/dashboard");
-    await userEvent.click(screen.getByRole("button", { name: "Monitor" }));
+    await userEvent.click(screen.getByRole("button", { name: "AI Monitor" }));
     expect(onNavigate).toHaveBeenCalledWith("/monitor");
-    await userEvent.click(screen.getByRole("button", { name: "Skins" }));
+    await userEvent.click(screen.getByRole("button", { name: "App Skins" }));
     expect(onNavigate).toHaveBeenCalledWith("/skins");
     expect(onNavigate).not.toHaveBeenCalledWith("/settings");
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));

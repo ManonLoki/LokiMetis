@@ -8,24 +8,27 @@ async fn fetch_targets(browser: &mut Browser) -> Result<(), AppError> {
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `try_activate_codex_window` 步骤。
-async fn try_activate_codex_window(endpoint: CdpEndpoint) {
-    let processes = match platform_codex_processes().await {
+/// 激活与已验证调试端点对应的宿主窗口。
+async fn try_activate_host_window(host: SkinHostKind, endpoint: CdpEndpoint) {
+    let processes = match platform_host_processes(host).await {
         Ok(processes) => processes
             .into_iter()
             .map(resolved_instance)
             .collect::<Vec<_>>(),
         Err(_) => {
-            tracing::warn!("code=skin.codex_window_activation_target_failed");
+            tracing::warn!(?host, "code=skin.host_window_activation_target_failed");
             return;
         }
     };
-    let Some(pid) = unique_codex_pid_for_endpoint(&processes, endpoint) else {
-        tracing::warn!("code=skin.codex_window_activation_target_missing");
+    let Some(pid) = unique_codex_pid_for_endpoint(&processes, endpoint).or_else(|| {
+        (host == SkinHostKind::WorkBuddy && processes.len() == 1)
+            .then(|| processes[0].process.pid)
+    }) else {
+        tracing::warn!(?host, "code=skin.host_window_activation_target_missing");
         return;
     };
     if !activate_platform_codex_window(pid).await {
-        tracing::warn!("code=skin.codex_window_activation_rejected");
+        tracing::warn!(?host, "code=skin.host_window_activation_rejected");
     }
 }
 
@@ -163,6 +166,47 @@ async fn discover_codex_executable() -> Result<PathBuf, AppError> {
 }
 
 #[cfg(target_os = "macos")]
+/// 定位经过 bundle identifier 验证的 WorkBuddy 主程序。
+async fn discover_workbuddy_executable() -> Result<PathBuf, AppError> {
+    let output = tokio::process::Command::new("/usr/bin/mdfind")
+        .arg("kMDItemCFBundleIdentifier == \"com.tencent.workbuddy.mac\"")
+        .output()
+        .await
+        .map_err(|_| AppError::new("skin.workbuddy_not_found", "无法定位 WorkBuddy 应用。"))?;
+    let mut bundles = vec![PathBuf::from("/Applications/WorkBuddy.app")];
+    if let Some(home) = std::env::var_os("HOME") {
+        bundles.push(PathBuf::from(home).join("Applications/WorkBuddy.app"));
+    }
+    bundles.extend(
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(PathBuf::from),
+    );
+    for bundle in bundles {
+        let info = bundle.join("Contents/Info.plist");
+        if !info.is_file() {
+            continue;
+        }
+        if plist_value(&info, "CFBundleIdentifier").await.as_deref()
+            != Some("com.tencent.workbuddy.mac")
+        {
+            continue;
+        }
+        if let Some(name) = plist_value(&info, "CFBundleExecutable").await {
+            let executable = bundle.join("Contents/MacOS").join(name);
+            if executable.is_file() {
+                return Ok(executable);
+            }
+        }
+    }
+    Err(AppError::new(
+        "skin.workbuddy_not_found",
+        "未找到官方 WorkBuddy 应用（com.tencent.workbuddy.mac）。",
+    ))
+}
+
+#[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `plist_value` 步骤。
 async fn plist_value(info: &Path, key: &str) -> Option<String> {
     let output = tokio::process::Command::new("/usr/bin/plutil")
@@ -266,6 +310,115 @@ async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppErro
             command_line,
         })
         .collect())
+}
+
+#[cfg(target_os = "macos")]
+/// 列出经过官方可执行路径验证的 WorkBuddy GUI 主进程。
+async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+    let executable = discover_workbuddy_executable().await?;
+    Ok(codex_command_lines_for(&executable)
+        .await?
+        .into_iter()
+        .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
+        .map(|(pid, command_line)| PlatformCodexProcess {
+            pid,
+            executable: executable.clone(),
+            command_line,
+        })
+        .collect())
+}
+
+#[cfg(target_os = "macos")]
+async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
+    let executable = discover_workbuddy_executable().await?;
+    codex_command_lines_for(&executable).await
+}
+
+#[cfg(target_os = "macos")]
+async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
+    match discover_workbuddy_executable().await {
+        Ok(executable) => Ok(codex_is_running(&executable).await),
+        Err(error) if error.code == "skin.workbuddy_not_found" => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
+#[cfg(target_os = "macos")]
+async fn launch_platform_workbuddy() -> Result<(), AppError> {
+    let executable = discover_workbuddy_executable().await?;
+    if codex_is_running(&executable).await {
+        return Err(manual_close_required_for(SkinHostKind::WorkBuddy));
+    }
+    tokio::process::Command::new(executable)
+        .env(
+            "WORKBUDDY_REMOTE_DEBUGGING_PORT",
+            WORKBUDDY_DEFAULT_CDP_PORT.to_string(),
+        )
+        .spawn()
+        .map_err(|_| AppError::new("skin.workbuddy_launch_failed", "无法启动 WorkBuddy。"))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+async fn force_close_platform_workbuddy() -> Result<(), AppError> {
+    let executable = discover_workbuddy_executable().await?;
+    for (pid, _) in codex_command_lines_for(&executable).await? {
+        let status = tokio::process::Command::new("/bin/kill")
+            .args(["-TERM", &pid.to_string()])
+            .status()
+            .await
+            .map_err(|_| {
+                AppError::new("skin.workbuddy_force_close_failed", "无法关闭 WorkBuddy。")
+            })?;
+        if !status.success() {
+            return Err(AppError::new(
+                "skin.workbuddy_force_close_failed",
+                "无法关闭 WorkBuddy。",
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+async fn restart_platform_workbuddy_instance(
+    selected: &ResolvedCodexInstance,
+    port: u16,
+) -> Result<(), AppError> {
+    let current = resolve_host_instance(SkinHostKind::WorkBuddy, &selected.id).await?;
+    if current.process.executable != selected.process.executable {
+        return Err(AppError::new(
+            "skin.workbuddy_instance_changed",
+            "所选 WorkBuddy 实例身份已变化，请重新选择。",
+        ));
+    }
+    let status = tokio::process::Command::new("/bin/kill")
+        .args(["-TERM", &selected.process.pid.to_string()])
+        .status()
+        .await
+        .map_err(|_| {
+            AppError::new(
+                "skin.workbuddy_force_close_failed",
+                "无法关闭所选 WorkBuddy 实例。",
+            )
+        })?;
+    if !status.success() {
+        return Err(AppError::new(
+            "skin.workbuddy_force_close_failed",
+            "无法关闭所选 WorkBuddy 实例。",
+        ));
+    }
+    tokio::process::Command::new(&selected.process.executable)
+        .args(&selected.arguments)
+        .env("WORKBUDDY_REMOTE_DEBUGGING_PORT", port.to_string())
+        .spawn()
+        .map_err(|_| {
+            AppError::new(
+                "skin.workbuddy_launch_failed",
+                "无法使用原启动参数重新打开所选 WorkBuddy 实例。",
+            )
+        })?;
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -409,6 +562,54 @@ async fn force_close_platform_codex() -> Result<(), AppError> {
     windows_codex::force_close_gui().await.map(|_| ())
 }
 
+#[cfg(target_os = "windows")]
+async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
+    windows_codex::workbuddy_is_gui_running().await
+}
+
+#[cfg(target_os = "windows")]
+async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
+    windows_codex::workbuddy_gui_process_command_lines().await
+}
+
+#[cfg(target_os = "windows")]
+async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+    Ok(windows_codex::workbuddy_gui_processes()
+        .await?
+        .into_iter()
+        .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
+        .map(|(process, command_line)| PlatformCodexProcess {
+            pid: process.pid(),
+            executable: process.path().to_owned(),
+            command_line,
+        })
+        .collect())
+}
+
+#[cfg(target_os = "windows")]
+async fn restart_platform_workbuddy_instance(
+    selected: &ResolvedCodexInstance,
+    port: u16,
+) -> Result<(), AppError> {
+    windows_codex::restart_workbuddy_gui_process(
+        selected.process.pid,
+        &selected.process.executable,
+        &selected.arguments,
+        port,
+    )
+    .await
+}
+
+#[cfg(target_os = "windows")]
+async fn launch_platform_workbuddy() -> Result<(), AppError> {
+    windows_codex::launch_workbuddy().await
+}
+
+#[cfg(target_os = "windows")]
+async fn force_close_platform_workbuddy() -> Result<(), AppError> {
+    windows_codex::force_close_workbuddy_gui().await.map(|_| ())
+}
+
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 执行换皮宿主内部的 `platform_codex_is_running` 步骤。
 async fn platform_codex_is_running() -> Result<bool, AppError> {
@@ -455,4 +656,98 @@ async fn force_close_platform_codex() -> Result<(), AppError> {
         "skin.platform_unsupported",
         "当前版本仅支持在 macOS 或 Windows 上强制启动 Codex 皮肤。",
     ))
+}
+
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
+    Ok(false)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
+    Ok(Vec::new())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+    Ok(Vec::new())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+async fn restart_platform_workbuddy_instance(
+    _selected: &ResolvedCodexInstance,
+    _port: u16,
+) -> Result<(), AppError> {
+    Err(AppError::new(
+        "skin.platform_unsupported",
+        "当前平台不支持重启 WorkBuddy 实例。",
+    ))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+async fn launch_platform_workbuddy() -> Result<(), AppError> {
+    Err(AppError::new(
+        "skin.platform_unsupported",
+        "当前版本仅支持在 macOS 或 Windows 上启动 WorkBuddy 皮肤。",
+    ))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+async fn force_close_platform_workbuddy() -> Result<(), AppError> {
+    Err(AppError::new(
+        "skin.platform_unsupported",
+        "当前版本仅支持在 macOS 或 Windows 上强制启动 WorkBuddy 皮肤。",
+    ))
+}
+
+/// 按宿主类型路由到经过应用身份验证的平台进程适配器。
+async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> {
+    match host {
+        SkinHostKind::Codex => platform_codex_is_running().await,
+        SkinHostKind::WorkBuddy => platform_workbuddy_is_running().await,
+    }
+}
+
+async fn platform_host_command_lines(
+    host: SkinHostKind,
+) -> Result<Vec<(u32, String)>, AppError> {
+    match host {
+        SkinHostKind::Codex => platform_codex_command_lines().await,
+        SkinHostKind::WorkBuddy => platform_workbuddy_command_lines().await,
+    }
+}
+
+async fn platform_host_processes(
+    host: SkinHostKind,
+) -> Result<Vec<PlatformCodexProcess>, AppError> {
+    match host {
+        SkinHostKind::Codex => platform_codex_processes().await,
+        SkinHostKind::WorkBuddy => platform_workbuddy_processes().await,
+    }
+}
+
+async fn restart_platform_host_instance(
+    host: SkinHostKind,
+    selected: &ResolvedCodexInstance,
+    port: u16,
+) -> Result<(), AppError> {
+    match host {
+        SkinHostKind::Codex => restart_platform_codex_instance(selected, port).await,
+        SkinHostKind::WorkBuddy => restart_platform_workbuddy_instance(selected, port).await,
+    }
+}
+
+async fn launch_platform_host(host: SkinHostKind) -> Result<(), AppError> {
+    match host {
+        SkinHostKind::Codex => launch_platform_codex().await,
+        SkinHostKind::WorkBuddy => launch_platform_workbuddy().await,
+    }
+}
+
+async fn force_close_platform_host(host: SkinHostKind) -> Result<(), AppError> {
+    match host {
+        SkinHostKind::Codex => force_close_platform_codex().await,
+        SkinHostKind::WorkBuddy => force_close_platform_workbuddy().await,
+    }
 }

@@ -1,5 +1,6 @@
 /// 执行换皮宿主内部的 `watch_pages` 步骤。
 async fn watch_pages(
+    host: SkinHostKind,
     mut browser: Browser,
     handler_task: JoinHandle<()>,
     payload: Arc<str>,
@@ -22,7 +23,7 @@ async fn watch_pages(
             _ = interval.tick() => {
                 let refresh = async {
                     fetch_targets(&mut browser).await?;
-                    inject_pages(&browser, &payload, &skin).await
+                    inject_pages(host, &browser, &payload, &skin).await
                 };
                 tokio::select! {
                     biased;
@@ -45,7 +46,7 @@ async fn watch_pages(
             }
         }
     }
-    let removed = tokio::time::timeout(CDP_CLEANUP_TIMEOUT, remove_from_browser(&browser))
+    let removed = tokio::time::timeout(CDP_CLEANUP_TIMEOUT, remove_from_browser(host, &browser))
         .await
         .unwrap_or_else(|_| {
             Err(cdp_timeout(
@@ -59,6 +60,7 @@ async fn watch_pages(
 
 /// 执行换皮宿主内部的 `inject_pages` 步骤。
 async fn inject_pages(
+    host: SkinHostKind,
     browser: &Browser,
     payload: &Arc<str>,
     skin: &SkinReference,
@@ -68,10 +70,10 @@ async fn inject_pages(
         let payload = Arc::clone(payload);
         let skin = skin.clone();
         async move {
-            if !is_codex_page(&page).await? {
+            if !is_host_page(host, &page).await? {
                 return Ok((false, false, CompatibilityPageReport::default()));
             }
-            let compatibility = apply_host_compatibility(&page).await;
+            let compatibility = apply_host_compatibility(host, &page).await;
             if has_current_skin(&page, &skin).await? {
                 return Ok((true, false, compatibility));
             }
@@ -110,7 +112,17 @@ async fn inject_pages(
 }
 
 /// 执行换皮宿主内部的 `apply_host_compatibility` 步骤。
-async fn apply_host_compatibility(page: &Page) -> CompatibilityPageReport {
+async fn apply_host_compatibility(
+    host: SkinHostKind,
+    page: &Page,
+) -> CompatibilityPageReport {
+    if host == SkinHostKind::WorkBuddy {
+        return CompatibilityPageReport {
+            version: HOST_COMPATIBILITY_VERSION.into(),
+            applied_rules: Vec::new(),
+            skipped_rules: vec!["workbuddy-host-adapter".into()],
+        };
+    }
     let result = tokio::time::timeout(
         CDP_REQUEST_TIMEOUT,
         page.evaluate_expression(HOST_COMPATIBILITY_SCRIPT),
@@ -135,14 +147,31 @@ async fn apply_host_compatibility(page: &Page) -> CompatibilityPageReport {
 
 /// 执行换皮宿主内部的 `is_codex_page` 步骤。
 async fn is_codex_page(page: &Page) -> Result<bool, AppError> {
-    let result = tokio::time::timeout(CDP_REQUEST_TIMEOUT, page.evaluate_expression(PROBE_SCRIPT))
+    is_host_page(SkinHostKind::Codex, page).await
+}
+
+/// 按宿主选择独立页面探针，防止跨应用注入。
+async fn is_host_page(host: SkinHostKind, page: &Page) -> Result<bool, AppError> {
+    let script = match host {
+        SkinHostKind::Codex => PROBE_SCRIPT,
+        SkinHostKind::WorkBuddy => WORKBUDDY_PROBE_SCRIPT,
+    };
+    let result = tokio::time::timeout(CDP_REQUEST_TIMEOUT, page.evaluate_expression(script))
         .await
-        .map_err(|_| cdp_timeout("skin.cdp_request_timeout", "Codex 页面校验超时。"))?
+        .map_err(|_| {
+            AppError::new(
+                "skin.cdp_request_timeout",
+                format!("{} 页面校验超时。", host.display_name()),
+            )
+        })?
         .map_err(cdp_error)?;
     let probe = result
         .into_value::<PageProbe>()
         .map_err(|_| cdp_response_error())?;
-    Ok(probe.is_verified_codex())
+    Ok(match host {
+        SkinHostKind::Codex => probe.is_verified_codex(),
+        SkinHostKind::WorkBuddy => probe.is_verified_workbuddy(),
+    })
 }
 
 /// 执行换皮宿主内部的 `has_current_skin` 步骤。
@@ -168,10 +197,10 @@ fn current_skin_expression(skin: &SkinReference) -> String {
 }
 
 /// 执行换皮宿主内部的 `remove_from_browser` 步骤。
-async fn remove_from_browser(browser: &Browser) -> Result<usize, AppError> {
+async fn remove_from_browser(host: SkinHostKind, browser: &Browser) -> Result<usize, AppError> {
     let pages = browser_pages(browser).await?;
     let results = join_all(pages.into_iter().map(|page| async move {
-        if !is_codex_page(&page).await? {
+        if !is_host_page(host, &page).await? {
             return Ok(false);
         }
         tokio::time::timeout(CDP_REQUEST_TIMEOUT, page.evaluate_expression(REMOVE_SCRIPT))
@@ -204,27 +233,34 @@ async fn remove_from_browser(browser: &Browser) -> Result<usize, AppError> {
 }
 
 /// 执行换皮宿主内部的 `remove_from_existing_endpoint` 步骤。
-async fn remove_from_existing_endpoint() -> Result<usize, AppError> {
+async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppError> {
     let (_cancel_tx, mut cancel_rx) = watch::channel(false);
-    let Ok((browser, handler_task, _)) = connect_existing_browser(&mut cancel_rx).await else {
+    let Ok((browser, handler_task, _)) = connect_existing_browser(host, &mut cancel_rx).await else {
         return Ok(0);
     };
-    cleanup_via(browser, handler_task).await
+    cleanup_via(host, browser, handler_task).await
 }
 
 /// 执行换皮宿主内部的 `remove_from_endpoint` 步骤。
-async fn remove_from_endpoint(endpoint: CdpEndpoint) -> Result<usize, AppError> {
+async fn remove_from_endpoint(
+    host: SkinHostKind,
+    endpoint: CdpEndpoint,
+) -> Result<usize, AppError> {
     let Ok((browser, handler_task)) = connect_browser(endpoint).await else {
         return Ok(0);
     };
-    cleanup_via(browser, handler_task).await
+    cleanup_via(host, browser, handler_task).await
 }
 
 /// 执行换皮宿主内部的 `cleanup_via` 步骤。
-async fn cleanup_via(mut browser: Browser, handler_task: JoinHandle<()>) -> Result<usize, AppError> {
+async fn cleanup_via(
+    host: SkinHostKind,
+    mut browser: Browser,
+    handler_task: JoinHandle<()>,
+) -> Result<usize, AppError> {
     let cleanup = async {
         fetch_targets(&mut browser).await?;
-        remove_from_browser(&browser).await
+        remove_from_browser(host, &browser).await
     };
     let result = tokio::time::timeout(CDP_CLEANUP_TIMEOUT, cleanup)
         .await

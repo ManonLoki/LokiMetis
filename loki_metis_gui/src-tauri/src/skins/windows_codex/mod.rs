@@ -1,5 +1,12 @@
 //! 在 Windows 上发现、验证、激活和定向重启 Codex GUI 进程。
 
+mod workbuddy;
+
+pub(crate) use workbuddy::{
+    force_close_workbuddy_gui, launch_workbuddy, restart_workbuddy_gui_process,
+    workbuddy_gui_process_command_lines, workbuddy_gui_processes, workbuddy_is_gui_running,
+};
+
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::mem::size_of;

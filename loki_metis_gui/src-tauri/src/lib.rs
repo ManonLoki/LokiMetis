@@ -24,6 +24,7 @@ mod statistics_view;
 mod tray;
 mod windowing;
 
+use loki_metis_core::{HookError, normalize_enabled_ai_tools};
 use serde::Serialize;
 use tauri::Manager;
 use tauri::webview::PageLoadEvent;
@@ -37,8 +38,8 @@ use commands::{
     get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics,
     get_workbuddy_source_status, get_workbuddy_statistics, get_workbuddy_usage_statistics,
     list_root_candidates, refresh_local_indexes, reindex_source_root, set_device_username,
-    set_enabled_agents, set_retention_days, set_scan_interval, set_workbuddy_stats_enabled,
-    spawn_periodic_local_scans, spawn_retention_cleanup, start_root_discovery,
+    set_retention_days, set_scan_interval, spawn_periodic_local_scans, spawn_retention_cleanup,
+    start_root_discovery,
 };
 use deep_link::install_deep_link;
 use locale::{LocaleState, get_system_locale, resolve_system_locale, set_interface_language};
@@ -50,10 +51,11 @@ use monitor::{
     get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, get_pet_window_state,
     hide_pet_settings, list_monitor_hook_locations, list_monitor_images_cmd,
     list_monitor_profile_drafts, load_monitor_settings, pet_overlay_window_description,
-    resize_pet_step, save_hook_config_directory, save_monitor_enabled_tools,
-    save_monitor_image_cmd, save_monitor_profile_draft, set_pet_always_on_top, set_pet_layout,
-    set_pet_locked, set_pet_size, show_main_window, show_or_create_pet_overlay, show_pet_settings,
-    spawn_hook_listener, start_pet_overlay_drag, turn_pet_page, write_monitor_hook_config,
+    resize_pet_step, save_enabled_ai_selection, save_hook_config_directory, save_monitor_image_cmd,
+    save_monitor_profile_draft, set_pet_always_on_top, set_pet_layout, set_pet_locked,
+    set_pet_size, show_main_window, show_or_create_pet_overlay, show_pet_settings,
+    spawn_hook_listener, start_pet_overlay_drag, turn_pet_page, update_monitor_settings,
+    write_monitor_hook_config,
 };
 use notifications::{
     NotificationWorker, get_system_notification_setting, install_notification_worker,
@@ -66,12 +68,12 @@ use performance_evidence::{
 use release_notes::load_release_notes;
 use settings::HostSettingsState;
 use skins::commands::{
-    cancel_codex_operation, cancel_skin_import, codex_runtime_status, commit_skin_import,
-    convert_skin_to_theme, create_user_theme, delete_skin, delete_skins, export_skin_package,
-    force_launch_codex, install_skin, launch_codex, list_codex_instances, list_skins,
-    open_skin_directory, prepare_skin_import, prepare_skin_zip_paths, probe_codex_instance,
-    restart_codex_instance, skin_catalog_changed, skin_creation_prompt, skin_status,
-    uninstall_skin,
+    cancel_codex_operation, cancel_skin_import, commit_skin_import, convert_skin_to_theme,
+    create_user_theme, delete_skin, delete_skins, export_skin_package, force_launch_skin_host,
+    install_skin, launch_skin_host, list_skin_host_instances, list_skins, open_skin_directory,
+    prepare_skin_import, prepare_skin_zip_paths, probe_skin_host_instance,
+    restart_skin_host_instance, skin_catalog_changed, skin_creation_prompt,
+    skin_host_runtime_status, skin_status, uninstall_skin,
 };
 use source_commands::{
     manual_add_source_root, remove_source_root, rename_source_root, set_primary_source_root,
@@ -105,6 +107,36 @@ async fn get_app_metadata() -> AppMetadata {
         product_definition_required: status.product_definition_required,
         title: APPLICATION_NAME.to_owned(),
     }
+}
+
+/// 升级时合并旧看板与 Hooks 选择，并让两份兼容存储在启动监听器前收敛。
+async fn reconcile_initial_enabled_ai_selection(
+    state: &runtime::AppRuntimeState,
+    config_dir: &std::path::Path,
+    previous: monitor::MonitorSettings,
+) -> Result<monitor::MonitorSettings, HookError> {
+    let mut selected = state.enabled_ai_tools_from_dashboard().await;
+    selected.extend(previous.enabled_ai_tools.iter().copied());
+    let selected = normalize_enabled_ai_tools(&selected);
+    let saved = if selected == previous.enabled_ai_tools {
+        previous.clone()
+    } else {
+        update_monitor_settings(config_dir, |settings| {
+            settings.enabled_ai_tools = selected.clone();
+        })?
+    };
+    if let Err(detail) = state.set_enabled_ai_tools(&selected).await {
+        if saved.enabled_ai_tools != previous.enabled_ai_tools
+            && update_monitor_settings(config_dir, |settings| {
+                settings.enabled_ai_tools = previous.enabled_ai_tools.clone();
+            })
+            .is_err()
+        {
+            tracing::error!("统一 Agent 选择启动迁移失败后无法回滚 Hooks 设置");
+        }
+        return Err(HookError::new("error.monitor.settingsWriteFailed").param("detail", detail));
+    }
+    Ok(saved)
 }
 
 /// 运行唯一 GUI adapter，并统一拥有完整原生生命周期。
@@ -163,12 +195,20 @@ pub fn run() {
                 "skin catalog initialized"
             );
             app.manage(skin_service);
-            app.manage(runtime::AppRuntimeState::new(app_data_dir));
+            let runtime_state = runtime::AppRuntimeState::new(app_data_dir);
+            let monitor_config_dir = app.path().app_config_dir()?;
+            let initial_monitor_settings = load_monitor_settings(&monitor_config_dir)
+                .and_then(|settings| tauri::async_runtime::block_on(
+                    reconcile_initial_enabled_ai_selection(
+                        &runtime_state,
+                        &monitor_config_dir,
+                        settings,
+                    ),
+                ));
+            app.manage(runtime_state);
             spawn_periodic_local_scans(app.handle().clone());
             spawn_retention_cleanup(app.handle().clone());
             install_notification_worker(app.handle());
-            let monitor_config_dir = app.path().app_config_dir()?;
-            let initial_monitor_settings = load_monitor_settings(&monitor_config_dir);
             let initial_enabled_tools = initial_monitor_settings
                 .as_ref()
                 .map(|settings| settings.enabled_ai_tools.clone())
@@ -239,8 +279,6 @@ pub fn run() {
             set_device_username,
             set_scan_interval,
             set_retention_days,
-            set_enabled_agents,
-            set_workbuddy_stats_enabled,
             get_workbuddy_statistics,
             get_workbuddy_usage_statistics,
             get_workbuddy_source_status,
@@ -251,7 +289,7 @@ pub fn run() {
             set_primary_source_root,
             get_monitor_capabilities,
             get_monitor_settings,
-            save_monitor_enabled_tools,
+            save_enabled_ai_selection,
             save_hook_config_directory,
             list_monitor_hook_locations,
             write_monitor_hook_config,
@@ -290,12 +328,12 @@ pub fn run() {
             open_skin_directory,
             delete_skin,
             delete_skins,
-            codex_runtime_status,
-            list_codex_instances,
-            probe_codex_instance,
-            restart_codex_instance,
-            launch_codex,
-            force_launch_codex,
+            skin_host_runtime_status,
+            list_skin_host_instances,
+            probe_skin_host_instance,
+            restart_skin_host_instance,
+            launch_skin_host,
+            force_launch_skin_host,
             cancel_codex_operation,
             install_skin,
             uninstall_skin,
@@ -449,21 +487,24 @@ mod tests {
         assert!(settings_url < settings_build);
     }
 
-    /// 保存启用工具必须先持久化设置，再把规范化快照交给自动补写 worker。
+    /// 统一 Agent 选择必须先完成两侧持久化，再更新自动补写与监听快照。
     #[test]
     fn saving_enabled_tools_queues_best_effort_hook_repair_after_persistence() {
         let source = include_str!("monitor/commands.rs");
         let start = source
-            .find("pub fn save_monitor_enabled_tools(")
+            .find("pub async fn save_enabled_ai_selection(")
             .expect("enabled tools command");
         let end = source[start..]
             .find("/// 保存某工具的自定义 Hook 目录。")
             .map(|offset| start + offset)
             .expect("next command boundary");
         let command = &source[start..end];
-        let persist = command
-            .find("let settings = save_enabled_tools(&config_dir, tools)")
-            .expect("settings persistence");
+        let dashboard = command
+            .find("state.set_enabled_ai_tools(&tools).await")
+            .expect("dashboard persistence");
+        let monitor = command
+            .find("let settings = match save_enabled_tools(&config_dir, tools)")
+            .expect("monitor persistence");
         let repair = command
             .find("hook_writer.request_enabled(settings.clone())")
             .expect("automatic repair request");
@@ -471,10 +512,12 @@ mod tests {
             .find("hook_listener.replace_enabled_tools(&settings.enabled_ai_tools)")
             .expect("listener enabled gate update");
         let response = command[listener..]
-            .find("Ok(settings)")
+            .find("Ok(EnabledAiSelectionResult")
             .map(|offset| listener + offset)
             .expect("successful response");
-        assert!(persist < repair && repair < listener && listener < response);
+        assert!(
+            dashboard < monitor && monitor < repair && repair < listener && listener < response
+        );
     }
 
     /// 自定义目录保存成功后必须立即替换自动修复快照，不能继续补写旧目录。

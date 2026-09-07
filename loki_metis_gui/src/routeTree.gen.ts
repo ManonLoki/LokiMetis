@@ -24,6 +24,7 @@ import { Route as DashboardUsageRouteImport } from './routes/dashboard/usage'
 import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
 import { Route as MonitorImagesRouteImport } from './routes/monitor/images'
 import { Route as MonitorManagementRouteImport } from './routes/monitor/management'
+import { Route as MonitorSettingsRouteImport } from './routes/monitor/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +101,11 @@ const MonitorManagementRoute = MonitorManagementRouteImport.update({
   path: '/management',
   getParentRoute: () => MonitorRoute,
 } as any)
+const MonitorSettingsRoute = MonitorSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => MonitorRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/usage': typeof DashboardUsageRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
+  '/monitor/settings': typeof MonitorSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/monitor/': typeof MonitorIndexRoute
 }
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/dashboard/usage': typeof DashboardUsageRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
+  '/monitor/settings': typeof MonitorSettingsRoute
   '/dashboard': typeof DashboardIndexRoute
   '/monitor': typeof MonitorIndexRoute
 }
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/dashboard/usage': typeof DashboardUsageRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
+  '/monitor/settings': typeof MonitorSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/monitor/': typeof MonitorIndexRoute
 }
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/dashboard/usage'
     | '/monitor/images'
     | '/monitor/management'
+    | '/monitor/settings'
     | '/dashboard/'
     | '/monitor/'
   fileRoutesByTo: FileRoutesByTo
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/dashboard/usage'
     | '/monitor/images'
     | '/monitor/management'
+    | '/monitor/settings'
     | '/dashboard'
     | '/monitor'
   id:
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/dashboard/usage'
     | '/monitor/images'
     | '/monitor/management'
+    | '/monitor/settings'
     | '/dashboard/'
     | '/monitor/'
   fileRoutesById: FileRoutesById
@@ -320,6 +332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorManagementRouteImport
       parentRoute: typeof MonitorRoute
     }
+    '/monitor/settings': {
+      id: '/monitor/settings'
+      path: '/settings'
+      fullPath: '/monitor/settings'
+      preLoaderRoute: typeof MonitorSettingsRouteImport
+      parentRoute: typeof MonitorRoute
+    }
   }
 }
 
@@ -346,12 +365,14 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 interface MonitorRouteChildren {
   MonitorImagesRoute: typeof MonitorImagesRoute
   MonitorManagementRoute: typeof MonitorManagementRoute
+  MonitorSettingsRoute: typeof MonitorSettingsRoute
   MonitorIndexRoute: typeof MonitorIndexRoute
 }
 
 const MonitorRouteChildren: MonitorRouteChildren = {
   MonitorImagesRoute: MonitorImagesRoute,
   MonitorManagementRoute: MonitorManagementRoute,
+  MonitorSettingsRoute: MonitorSettingsRoute,
   MonitorIndexRoute: MonitorIndexRoute,
 }
 

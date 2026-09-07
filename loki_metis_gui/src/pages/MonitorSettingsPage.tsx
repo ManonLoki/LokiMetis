@@ -2,11 +2,9 @@ import {
   Alert,
   Button,
   Card,
-  Checkbox,
   Code,
   CopyButton,
   Group,
-  SimpleGrid,
   Stack,
   Tabs,
   Text,
@@ -26,7 +24,6 @@ import {
   getMonitorCapabilities,
   getMonitorSettings,
   listMonitorHookLocations,
-  saveMonitorEnabledTools,
   saveMonitorHookDirectory,
   writeMonitorHookConfig,
   type HookConfigLocation,
@@ -85,7 +82,7 @@ function ActivationGuidance({ outcome }: { outcome: MonitorHookWriteOutcome }) {
   );
 }
 
-/** 公共设置页中的 Hooks 配置：启用 Agent、查看配置目录并写入本机 Hooks。 */
+/** 公共设置页中的 Hooks 配置：消费统一 Agent 选择并管理已启用工具。 */
 export function MonitorSettingsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -100,12 +97,6 @@ export function MonitorSettingsPage() {
   const locations = useQuery({
     queryFn: listMonitorHookLocations,
     queryKey: ["monitor-hook-locations"],
-  });
-  const save = useMutation({
-    mutationFn: (tools: MonitorAiTool[]) => saveMonitorEnabledTools(tools),
-    onSuccess: (next) => {
-      queryClient.setQueryData(["monitor-settings"], next);
-    },
   });
   const write = useMutation({
     mutationFn: (tool: MonitorAiTool) => writeMonitorHookConfig(tool),
@@ -154,48 +145,6 @@ export function MonitorSettingsPage() {
   return (
     <Stack className="settings-page" data-testid="monitor-settings" gap="sm">
       <Card
-        aria-labelledby="monitor-hooks-settings-title"
-        className="surface-card settings-card"
-        data-testid="monitor-enabled-agents"
-        p="sm"
-        radius="lg"
-        role="region"
-        withBorder
-      >
-        <Stack gap="sm">
-          <div>
-            <Title id="monitor-hooks-settings-title" order={3}>
-              {t("monitor.settings.title")}
-            </Title>
-          </div>
-          {settings.error || capabilities.error || save.error ? (
-            <Alert color="red">
-              {visibleErrorMessage(settings.error ?? capabilities.error ?? save.error)}
-            </Alert>
-          ) : null}
-          <Text fw={600}>{t("monitor.settings.enabled")}</Text>
-          <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="xs" verticalSpacing="xs">
-            {tools.map((item) => (
-              <Checkbox
-                checked={enabled.includes(item.tool)}
-                disabled={capabilities.isPending || settings.isPending || save.isPending}
-                key={item.tool}
-                label={item.name}
-                onChange={(event) => {
-                  const selected = new Set(enabled);
-                  if (event.currentTarget.checked) selected.add(item.tool);
-                  else selected.delete(item.tool);
-                  save.mutate(
-                    tools.map((tool) => tool.tool).filter((tool) => selected.has(tool)),
-                  );
-                }}
-              />
-            ))}
-          </SimpleGrid>
-        </Stack>
-      </Card>
-
-      <Card
         aria-labelledby="monitor-hooks-management-title"
         className="surface-card settings-card"
         data-testid="monitor-hooks-management"
@@ -206,13 +155,23 @@ export function MonitorSettingsPage() {
       >
         <Stack gap="sm">
           <div>
-            <Title id="monitor-hooks-management-title" order={4}>
-              {t("monitor.settings.managementTitle")}
+            <Title id="monitor-hooks-management-title" order={3}>
+              {t("monitor.settings.title")}
             </Title>
           </div>
-          {locations.error || saveDirectory.error || pickerError ? (
+          {settings.error ||
+          capabilities.error ||
+          locations.error ||
+          saveDirectory.error ||
+          pickerError ? (
             <Alert color="red">
-              {visibleErrorMessage(locations.error ?? saveDirectory.error ?? pickerError)}
+              {visibleErrorMessage(
+                settings.error ??
+                  capabilities.error ??
+                  locations.error ??
+                  saveDirectory.error ??
+                  pickerError,
+              )}
             </Alert>
           ) : null}
           {visibleTools.length === 0 ? (

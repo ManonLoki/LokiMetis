@@ -1,4 +1,4 @@
-//! 定义 Codex 换皮在宿主、Tauri 与 WebView 之外仍然成立的领域合同。
+//! 定义多宿主换皮在 Tauri、WebView 与操作系统之外仍然成立的领域合同。
 
 use std::collections::HashSet;
 
@@ -21,6 +21,26 @@ pub const MAX_THEME_COMMENT_CHARS: usize = 2000;
 pub const MAX_THEME_CSS_BYTES: u64 = 64 * 1024;
 /// 单个主题图片允许的最大字节数。
 pub const MAX_THEME_IMAGE_BYTES: u64 = 16 * 1024 * 1024;
+
+/// 区分当前产品允许应用本机皮肤的桌面宿主。
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum SkinHostKind {
+    /// OpenAI Codex 桌面应用。
+    Codex,
+    /// 腾讯 WorkBuddy 桌面应用。
+    WorkBuddy,
+}
+
+impl SkinHostKind {
+    /// 返回界面与稳定错误共同使用的宿主名称。
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            Self::Codex => "Codex",
+            Self::WorkBuddy => "WorkBuddy",
+        }
+    }
+}
 
 /// 区分只读内置资源与可管理的用户资源。
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
@@ -271,5 +291,20 @@ mod tests {
             validate_theme_image_name("../background.png"),
             Err(SkinRuleError::InvalidThemeImageName)
         );
+    }
+
+    /// 两个批准宿主必须保持稳定 camelCase wire 值与用户可见名称。
+    #[test]
+    fn skin_hosts_have_stable_wire_values_and_names() {
+        assert_eq!(
+            serde_json::to_string(&SkinHostKind::Codex).unwrap(),
+            "\"codex\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SkinHostKind::WorkBuddy).unwrap(),
+            "\"workBuddy\""
+        );
+        assert_eq!(SkinHostKind::Codex.display_name(), "Codex");
+        assert_eq!(SkinHostKind::WorkBuddy.display_name(), "WorkBuddy");
     }
 }

@@ -8,6 +8,7 @@ import type { CodexInstance } from "../../api/skins";
 /** 描述皮肤资源库工具栏的受控状态。 */
 export interface SkinToolbarProps {
   busy: boolean;
+  hostName: string;
   hostAvailable: boolean;
   instances: CodexInstance[];
   search: string;
@@ -24,6 +25,7 @@ export interface SkinToolbarProps {
 /** 渲染搜索、用户筛选、显式实例选择和资源库操作。 */
 export function SkinToolbar({
   busy,
+  hostName,
   hostAvailable,
   instances,
   search,
@@ -49,7 +51,7 @@ export function SkinToolbar({
           value={search}
         />
         <Select
-          aria-label={t("skins.instance.label")}
+          aria-label={t("skins.instance.label", { host: hostName })}
           clearable={instances.length !== 1}
           data={instances.map((instance) => ({
             label: instance.label,
@@ -59,6 +61,7 @@ export function SkinToolbar({
           onChange={onSelectedInstanceChange}
           placeholder={t(
             instances.length === 0 ? "skins.instance.none" : "skins.instance.choose",
+            { host: hostName },
           )}
           style={{ flex: "1 1 230px" }}
           value={selectedInstanceId}

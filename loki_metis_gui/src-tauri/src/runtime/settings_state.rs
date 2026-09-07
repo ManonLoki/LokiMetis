@@ -5,16 +5,20 @@ use crate::dto::{
     PrivacySettingsDto, UsageClientKindDto,
 };
 use crate::privacy_store::{LocalPrivacySettings, save_settings};
-#[cfg(test)]
-use loki_metis_core::initial_scan_state_save_failed_message;
 use loki_metis_core::{
-    DeviceUsername, EnabledAgents, RetentionDays, ScanIntervalMinutes, SourceClientKind,
-    agent_wire_label, device_username_error_message, device_username_save_failed_message,
-    enabled_agents_error_message, index_location_claude_code_label, index_location_codex_label,
-    initialization_state_save_failed_message, language_setting_save_failed_message,
+    AiTool, DeviceUsername, EnabledAgents, RetentionDays, ScanIntervalMinutes, SourceClientKind,
+    agent_wire_label, dashboard_selection_for_ai_tools, device_username_error_message,
+    device_username_save_failed_message, index_location_claude_code_label,
+    index_location_codex_label, initialization_state_save_failed_message,
+    language_setting_save_failed_message, merge_public_ai_selections, normalize_enabled_ai_tools,
     privacy_settings_save_failed_message, public_ai_capabilities, retention_days_range_message,
     retention_days_save_failed_message, scan_interval_range_message,
-    scan_interval_save_failed_message, workbuddy_stats_enabled_save_failed_message,
+    scan_interval_save_failed_message,
+};
+#[cfg(test)]
+use loki_metis_core::{
+    enabled_agents_error_message, initial_scan_state_save_failed_message,
+    workbuddy_stats_enabled_save_failed_message,
 };
 
 use super::AppRuntimeState;
@@ -254,6 +258,7 @@ impl AppRuntimeState {
     }
 
     /// 保存 WorkBuddy 本地统计开关；关闭时后续读取命令必须拒绝返回统计数据。
+    #[cfg(test)]
     pub(crate) async fn set_workbuddy_stats_enabled(&self, enabled: bool) -> Result<(), String> {
         self.update_privacy_settings(workbuddy_stats_enabled_save_failed_message(), |settings| {
             settings.workbuddy_stats_enabled = enabled;
@@ -268,6 +273,7 @@ impl AppRuntimeState {
     }
 
     /// 保存用户显式开放的本机 Agent 集合；未知标识由 core 拒绝。
+    #[cfg(test)]
     pub(crate) async fn set_enabled_agents(
         &self,
         agents: &[UsageClientKindDto],
@@ -285,6 +291,33 @@ impl AppRuntimeState {
         .map_err(enabled_agents_error_message)?;
         self.update_privacy_settings(privacy_settings_save_failed_message(), |settings| {
             settings.enabled_agents = enabled;
+        })
+        .await
+    }
+
+    /// 返回旧看板字段能表达的统一 Agent 子集，供升级合并与失败回滚使用。
+    pub(crate) async fn enabled_ai_tools_from_dashboard(&self) -> Vec<AiTool> {
+        self.ensure_privacy_settings_loaded().await;
+        let settings = self.privacy_settings.read().await;
+        merge_public_ai_selections(
+            settings.enabled_agents.iter(),
+            settings.workbuddy_stats_enabled,
+            &[],
+        )
+    }
+
+    /// 把统一 Agent 选择一次映射并原子保存到看板与 WorkBuddy 旧字段。
+    pub(crate) async fn set_enabled_ai_tools(&self, tools: &[AiTool]) -> Result<(), String> {
+        let tools = normalize_enabled_ai_tools(tools);
+        let (dashboard_clients, workbuddy_enabled) = dashboard_selection_for_ai_tools(&tools);
+        let enabled_agents = dashboard_clients
+            .into_iter()
+            .fold(EnabledAgents::empty(), |enabled, client| {
+                enabled.with(client, true)
+            });
+        self.update_privacy_settings(privacy_settings_save_failed_message(), |settings| {
+            settings.enabled_agents = enabled_agents;
+            settings.workbuddy_stats_enabled = workbuddy_enabled;
         })
         .await
     }

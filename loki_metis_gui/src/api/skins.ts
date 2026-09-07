@@ -71,6 +71,9 @@ export interface CodexInstance {
   avatarDataUrl: string | null;
 }
 
+/** 由公开 Agent 能力目录暴露的换皮宿主。 */
+export type SkinHostKind = "codex" | "workBuddy";
+
 /** 描述外观确认中一个可读字段差异。 */
 export interface AppearanceDifference {
   field: string;
@@ -217,7 +220,7 @@ export function skinHostAvailable(): boolean {
 
 /** 暴露换皮页面唯一的原生 API 集合。 */
 export const skinApi = {
-  status: () => invokeSkin<SkinStatus>("skin_status"),
+  status: (host: SkinHostKind) => invokeSkin<SkinStatus>("skin_status", { host }),
   list: () => invokeSkin<SkinDescriptor[]>("list_skins"),
   creationPrompt: () => invokeSkin<SkinCreationPrompt>("skin_creation_prompt"),
   createTheme: (name: string, author: string) =>
@@ -244,12 +247,16 @@ export const skinApi = {
   openDirectory: (skin: SkinReference) => invokeSkin<void>("open_skin_directory", { skin }),
   deleteMany: (skins: SkinReference[]) =>
     invokeSkin<BatchDeleteResult>("delete_skins", { skins }),
-  runtimeStatus: () => invokeSkin<CodexRuntimeStatus>("codex_runtime_status"),
-  instances: () => invokeSkin<CodexInstance[]>("list_codex_instances"),
-  restartInstance: (instanceId: string) =>
-    invokeSkin<CodexInstance>("restart_codex_instance", { instanceId }),
-  launchCodex: () => invokeSkin<CodexRuntimeStatus>("launch_codex"),
+  runtimeStatus: (host: SkinHostKind) =>
+    invokeSkin<CodexRuntimeStatus>("skin_host_runtime_status", { host }),
+  instances: (host: SkinHostKind) =>
+    invokeSkin<CodexInstance[]>("list_skin_host_instances", { host }),
+  restartInstance: (host: SkinHostKind, instanceId: string) =>
+    invokeSkin<CodexInstance>("restart_skin_host_instance", { host, instanceId }),
+  launchHost: (host: SkinHostKind) =>
+    invokeSkin<CodexRuntimeStatus>("launch_skin_host", { host }),
   install: (
+    host: SkinHostKind,
     skin: SkinReference,
     allowAppearanceMismatch = false,
     instanceId: string | null = null,
@@ -257,13 +264,13 @@ export const skinApi = {
     invokeSkin<InstallSkinResult>(
       "install_skin",
       instanceId === null
-        ? { skin, allowAppearanceMismatch }
-        : { skin, allowAppearanceMismatch, instanceId },
+        ? { host, skin, allowAppearanceMismatch }
+        : { host, skin, allowAppearanceMismatch, instanceId },
     ),
-  uninstall: (instanceId: string | null = null) =>
+  uninstall: (host: SkinHostKind, instanceId: string | null = null) =>
     invokeSkin<SkinStatus>(
       "uninstall_skin",
-      instanceId === null ? undefined : { instanceId },
+      instanceId === null ? { host } : { host, instanceId },
     ),
   onFileDrop: async (handler: (event: DragDropEvent) => void) => {
     if (!isTauri()) return () => undefined;

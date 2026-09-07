@@ -5,9 +5,9 @@
   },
   "navigation": {
     "home": "首页",
-    "dashboard": "看板",
-    "monitor": "监控",
-    "skins": "换皮",
+    "dashboard": "用量看板",
+    "monitor": "AI监控",
+    "skins": "应用换皮",
     "settings": "设置"
   },
   "sidebar": {
@@ -29,11 +29,16 @@
     "workspace_description": "默认从看板进入，所有资源和偏好均保留在本机。"
   },
   "skins": {
-    "title": "Codex 换皮",
-    "description": "管理本机皮肤资源库，并把主题安全应用到明确选择的 Codex 实例。",
+    "title": "换皮",
+    "description": "管理本机皮肤资源库，并把主题安全应用到当前选项卡中明确选择的宿主实例。",
+    "host": {
+      "tabs": "换皮宿主",
+      "empty_title": "没有已启用的换皮宿主",
+      "empty_description": "请到设置中的统一 Agent 面板启用 Codex 或 WorkBuddy。"
+    },
     "runtime": {
-      "stopped": "Codex 未运行",
-      "ready": "Codex 可连接",
+      "stopped": "{{host}} 未运行",
+      "ready": "{{host}} 可连接",
       "runningWithoutCdp": "需要启用调试连接"
     },
     "browser": {
@@ -46,8 +51,8 @@
       "user_only": "只看用户皮肤"
     },
     "instance": {
-      "label": "目标 Codex 实例",
-      "none": "未发现 Codex 实例",
+      "label": "目标 {{host}} 实例",
+      "none": "未发现 {{host}} 实例",
       "choose": "选择目标实例"
     },
     "catalog": {
@@ -83,7 +88,7 @@
       "import": "导入",
       "create": "创建主题",
       "refresh": "刷新",
-      "launch": "启动 Codex"
+      "launch": "启动 {{host}}"
     },
     "dialog": {
       "cancel": "取消",
@@ -91,7 +96,7 @@
     },
     "appearance": {
       "title": "确认外观差异",
-      "description": "Codex 当前 {{mode}} 外观与主题声明存在差异。确认后仅对所选实例继续应用。",
+      "description": "当前宿主的 {{mode}} 外观与主题声明存在差异。确认后仅对所选实例继续应用。",
       "unreadable": "无法读取",
       "continue": "仍然应用"
     },
@@ -111,7 +116,7 @@
       "copy": "复制"
     },
     "restart": {
-      "title": "重启所选 Codex 实例？",
+      "title": "重启所选宿主实例？",
       "description": "{{name}} 尚未开放本机调试连接。继续将只重启这个实例，未保存内容可能受影响。"
     },
     "convert": {
@@ -129,7 +134,7 @@
       "dismiss": "忽略本次"
     },
     "notice": {
-      "applied": "已把 {{name}} 应用到所选 Codex 实例。",
+      "applied": "已把 {{name}} 应用到所选宿主实例。",
       "stopped": "已停止所选实例中的皮肤并完成清理。",
       "created": "已创建用户主题 {{name}}。",
       "imported": "已导入 {{count}} 个皮肤。",
@@ -140,7 +145,7 @@
     "error": {
       "title": "操作未完成",
       "unknown": "换皮操作失败，请刷新宿主状态后重试。",
-      "choose_instance": "发现多个 Codex 实例，请先明确选择目标。"
+      "choose_instance": "发现多个宿主实例，请先明确选择目标。"
     }
   },
   "settings": {
@@ -152,6 +157,9 @@
     "version": "版本",
     "agent_title": "Agent 配置",
     "agent_description": "集中管理看板采集、数据保留以及各 Agent 的本机 Hooks 配置。",
+    "agent_panel_title": "启用的 Agent",
+    "agent_panel_badge": "全局设置",
+    "agent_panel_description": "一次选择同步用于看板、Hooks、桌宠和换皮；各页面只显示自身支持的 Agent。",
     "language_title": "界面语言",
     "language_description": "已保存的选择优先于系统语言，并同步更新原生菜单。",
     "language_zh_cn": "中文",
@@ -200,7 +208,11 @@
         "label": "监控管理",
         "description": "为已启用 Agent 配置展示位与行为图片"
       },
-      "images": { "label": "图片管理", "description": "管理本机监控图片" }
+      "images": { "label": "图片管理", "description": "管理本机监控图片" },
+      "settings": {
+        "label": "Hooks 设置",
+        "description": "为统一启用的 Agent 定位并写入本机 Hooks 配置"
+      }
     },
     "workbench": {
       "title": "本机 Hook 中继",

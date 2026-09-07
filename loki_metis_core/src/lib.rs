@@ -55,7 +55,8 @@ pub use aggregate::{
     prefer_metric_within_scope,
 };
 pub use ai_capabilities::{
-    PUBLIC_AI_CAPABILITIES, PublicAiCapability, is_public_monitor_tool, public_ai_capabilities,
+    PUBLIC_AI_CAPABILITIES, PublicAiCapability, dashboard_selection_for_ai_tools,
+    is_public_monitor_tool, merge_public_ai_selections, public_ai_capabilities,
     public_dashboard_clients, public_monitor_ai_tools,
 };
 pub use calls_view::{
@@ -76,8 +77,8 @@ pub use client_ports::{
 pub use codex_skin::{
     ColorMode, MAX_SKIN_CREATOR_TEXT_CHARS, MAX_SKIN_DELETE_BATCH_ITEMS, MAX_SKIN_ID_BYTES,
     MAX_SKIN_IMPORT_BATCH_FILES, MAX_THEME_COMMENT_CHARS, MAX_THEME_CSS_BYTES,
-    MAX_THEME_DESCRIPTION_CHARS, MAX_THEME_IMAGE_BYTES, SkinPackageType, SkinReference,
-    SkinRuleError, SkinSource, is_valid_skin_id, normalize_skin_creator_text,
+    MAX_THEME_DESCRIPTION_CHARS, MAX_THEME_IMAGE_BYTES, SkinHostKind, SkinPackageType,
+    SkinReference, SkinRuleError, SkinSource, is_valid_skin_id, normalize_skin_creator_text,
     validate_skin_delete_batch, validate_skin_import_batch_size, validate_skin_reference,
     validate_supported_color_modes, validate_theme_image_name, validate_theme_metadata,
 };
