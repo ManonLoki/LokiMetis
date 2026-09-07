@@ -1,6 +1,7 @@
 mod agent_client;
 mod autostart;
 mod backend;
+mod bundled_resources;
 mod calls_view;
 mod chart_view;
 mod combined_view;
@@ -185,10 +186,11 @@ pub fn run() {
             app.manage(settings_state);
             app.manage(LocaleState::new(Some(initial_language)));
             let app_data_dir = app.path().app_data_dir()?;
-            let skin_service = skins::SkinService::new(
-                app.path().resource_dir()?.join("builtin-skins"),
-                app_data_dir.join("skins"),
-            );
+            let builtin_skins = bundled_resources::resolve_bundled_resource(
+                app,
+                "builtin-skins",
+            )?;
+            let skin_service = skins::SkinService::new(builtin_skins, app_data_dir.join("skins"));
             skin_service.initialize()?;
             tracing::info!(
                 skin_count = skin_service.list_skins()?.len(),
@@ -413,6 +415,35 @@ mod tests {
         assert_eq!(dmg["appPosition"]["y"], 220);
         assert_eq!(dmg["applicationFolderPosition"]["x"], 480);
         assert_eq!(dmg["applicationFolderPosition"]["y"], 220);
+    }
+
+    /// 内置皮肤、运行时样式与生成 Skill 必须通过 Tauri Resource 映射稳定打包。
+    #[test]
+    fn tauri_config_bundles_runtime_resources_at_stable_paths() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
+        let resources = config["bundle"]["resources"]
+            .as_object()
+            .expect("resource map");
+
+        assert_eq!(
+            resources
+                .get("../resources/builtin-skins/minecraft/")
+                .and_then(serde_json::Value::as_str),
+            Some("builtin-skins/minecraft/")
+        );
+        assert_eq!(
+            resources
+                .get("../resources/theme-runtime/")
+                .and_then(serde_json::Value::as_str),
+            Some("theme-runtime/")
+        );
+        assert_eq!(
+            resources
+                .get("../../.agents/skills/codex-skin-generator/")
+                .and_then(serde_json::Value::as_str),
+            Some("codex-skin-generator/")
+        );
     }
 
     /// 冷启动先启用 listener，再通过动态窗口路径创建桌宠，最后安装状态一致的托盘。

@@ -3,8 +3,10 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Manager, State, ipc::Channel};
+use tauri::{AppHandle, State, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
+
+use crate::bundled_resources::resolve_bundled_resource;
 
 use super::{
     AppError, BatchDeleteResult, BatchImportResult, CodexInstance, CodexRuntimeStatus,
@@ -41,13 +43,13 @@ pub fn skin_creation_prompt(
     app: AppHandle,
     service: State<'_, SkinService>,
 ) -> Result<SkinCreationPrompt, AppError> {
-    let resource_root = app.path().resource_dir().map_err(|_| {
+    let skill_root = resolve_bundled_resource(&app, "codex-skin-generator").map_err(|_| {
         AppError::new(
             "skin.prompt_unavailable",
             "暂时无法定位 LokiMetis 安装资源，请重新启动应用后再试。",
         )
     })?;
-    service.skin_creation_prompt(&resource_root.join("codex-skin-generator"))
+    service.skin_creation_prompt(&skill_root)
 }
 
 /// 打开原生 ZIP 多选框并流式执行导入预检。
