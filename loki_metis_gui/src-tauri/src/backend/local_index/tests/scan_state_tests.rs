@@ -1,12 +1,12 @@
 use std::fs;
 
-use loki_metis_core::{
-    Confidence, CoverageReport, CoverageState, LocalIndexState, SourceClientKind,
-};
+use loki_metis_core::{Confidence, CoverageReport, CoverageState, LocalIndexState};
 use tauri::async_runtime::block_on;
 use tempfile::TempDir;
 
-use super::support::{create_root, discover_registered, scan, token_line, write_rollout};
+use super::support::{
+    codex_aggregate, create_root, discover_registered, scan, token_line, write_rollout,
+};
 use crate::backend::local_index::{
     CancellationToken, LocalIndex, PARSER_VERSION, RegisterDiscoveredRoot,
 };
@@ -133,7 +133,7 @@ fn indexes_rollout_in_nested_calendar_directories() {
     let snapshot = block_on(index.usage_snapshot()).expect("nested snapshot loads");
 
     assert_eq!(summary.files_scanned, 1);
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(snapshot.index_state, LocalIndexState::Ready);
     assert_eq!(snapshot.canonical.calls[0].usage.input_tokens, 42);
 }
@@ -165,14 +165,15 @@ fn deduplicates_multiple_roots_and_active_archived_copies() {
     let mut index = open_index(app_temp.path());
 
     let first = scan(&mut index, &roots, &CancellationToken::new());
+    let aggregate = codex_aggregate(&mut index);
     let canonical = block_on(index.canonical_calls()).expect("canonical calls load");
     let snapshot = block_on(index.usage_snapshot()).expect("consistent snapshot loads");
 
-    assert_eq!(first.aggregate.call_count, 1);
-    assert_eq!(first.aggregate.duplicate_source_count, 2);
-    assert_eq!(first.aggregate.cross_root_duplicate_source_count, 1);
-    assert_eq!(first.aggregate.root_count, 2);
-    assert_eq!(first.aggregate.source_count, 3);
+    assert_eq!(first.call_count, 1);
+    assert_eq!(aggregate.duplicate_source_count, 2);
+    assert_eq!(aggregate.cross_root_duplicate_source_count, 1);
+    assert_eq!(aggregate.root_count, 2);
+    assert_eq!(aggregate.source_count, 3);
     assert_eq!(canonical.calls[0].provenance.len(), 3);
     assert_eq!(canonical.calls[0].usage.input_tokens, 100);
     assert_eq!(canonical.calls[0].confidence, Confidence::Exact);

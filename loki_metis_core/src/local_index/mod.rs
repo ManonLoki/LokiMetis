@@ -29,7 +29,7 @@ pub use checkpoint::{SourceParseCheckpoint, StoredSourceFile};
 pub use error::{LocalError, LocalErrorKind};
 pub use id_codec::{path_key, stable_id};
 pub use snapshot::UsageSnapshot;
-pub use source_registry::{DiscoveryMethod, RegisteredRoot, RootRecord};
+pub use source_registry::{DiscoveryMethod, RegisteredRoot, RootRecord, RootUsageSummaryRecord};
 
 use crate::client_ports::USAGE_INDEX_FILE_NAME;
 use crate::private_sqlite::{PrivateSqliteError, open_private_sqlite};
@@ -126,5 +126,7 @@ fn map_private_sqlite_error(error: PrivateSqliteError) -> LocalError {
     }
 }
 
+#[cfg(test)]
+mod lightweight_summary_tests;
 #[cfg(test)]
 mod tests;

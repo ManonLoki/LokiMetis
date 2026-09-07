@@ -339,9 +339,7 @@ where
             warning_count,
         )
         .await?;
-    let aggregate = index
-        .aggregate_for_provider(loki_metis_core::ProviderKind::RolloutJsonl)
-        .await?;
+    let call_count = index.canonical_call_count().await?;
     Ok(ScanSummary {
         scan_id,
         coverage,
@@ -349,6 +347,6 @@ where
         unchanged_files,
         rebuilt_files,
         calls_added,
-        aggregate,
+        call_count,
     })
 }

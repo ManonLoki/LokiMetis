@@ -253,7 +253,7 @@ pub(super) async fn run_scan<C: ScanClient>(
     .await?;
     Ok(LocalScanOutput {
         files_scanned: summary.files_scanned,
-        call_count: summary.aggregate.call_count,
+        call_count: summary.call_count,
         coverage: merged_coverage,
         roots,
     })
@@ -394,7 +394,7 @@ pub(super) async fn run_reindex<C: ScanClient>(
     .await?;
     Ok(LocalScanOutput {
         files_scanned: summary.files_scanned,
-        call_count: summary.aggregate.call_count,
+        call_count: summary.call_count,
         coverage: merged_coverage,
         roots,
     })

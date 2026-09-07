@@ -6,8 +6,8 @@ mod traversal;
 use std::sync::{Arc, Mutex};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
+use loki_metis_core::CoverageReport;
 pub use loki_metis_core::ScanCancellation;
-use loki_metis_core::{CoverageReport, LocalUsageAggregate};
 
 use super::{DEFAULT_MAX_JSONL_LINE_BYTES, LocalError, LocalErrorKind};
 
@@ -97,7 +97,7 @@ pub struct ScanProgress {
     pub warning_count: u64,
 }
 
-/// 汇总一次扫描、覆盖与最终 canonical 本机聚合。
+/// 汇总一次扫描、覆盖与最终 canonical 调用计数。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanSummary {
     /// 当前扫描运行 ID。
@@ -112,8 +112,8 @@ pub struct ScanSummary {
     pub rebuilt_files: u64,
     /// 本次首次写入来源 generation 的调用数量。
     pub calls_added: u64,
-    /// 当前全部来源 canonical 去重后的聚合。
-    pub aggregate: LocalUsageAggregate,
+    /// 当前全部启用来源按逻辑调用 ID 去重后的数量。
+    pub call_count: u64,
 }
 
 /// 在一个进程内保证同时最多只有一个本机索引 writer。

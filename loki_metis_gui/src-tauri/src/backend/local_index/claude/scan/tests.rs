@@ -4,7 +4,7 @@ use std::io::Write;
 use tauri::async_runtime::block_on;
 use tempfile::tempdir;
 
-use loki_metis_core::SourceClientKind;
+use loki_metis_core::{LocalUsageAggregate, ProviderKind, SourceClientKind};
 
 use super::*;
 use crate::backend::local_index::claude::discovery::{
@@ -27,6 +27,12 @@ fn claude_writer_generation_matches_core_reader() {
 /// 在隔离 app-data 内按指定 parser 版本打开索引。
 fn open_index(app_data_dir: &std::path::Path, parser_version: u32) -> LocalIndex {
     block_on(LocalIndex::open_in_app_data(app_data_dir, parser_version)).expect("index opens")
+}
+
+/// 显式读取 Claude provider 的完整聚合，轻量扫描摘要只承载调用数。
+fn claude_aggregate(index: &mut LocalIndex) -> LocalUsageAggregate {
+    block_on(index.aggregate_for_provider(ProviderKind::ClaudeTranscriptJsonl))
+        .expect("Claude provider aggregate loads")
 }
 
 // 本文件是 root_lifecycle/incremental_scan 等 Codex 测试组针对 Claude
@@ -65,11 +71,12 @@ fn scan_is_incremental_and_rejects_appended_usage_regression() {
         |progress| first_progress.push(progress),
     ))
     .expect("first scan succeeds");
+    let first_aggregate = claude_aggregate(&mut index);
     assert_eq!(first.files_scanned, 1);
     assert_eq!(first.calls_added, 1, "first summary: {first:?}");
-    assert_eq!(first.aggregate.call_count, 1);
-    assert_eq!(first.aggregate.tokens.input_tokens, 60);
-    assert_eq!(first.aggregate.tokens.output_tokens, 1);
+    assert_eq!(first.call_count, 1);
+    assert_eq!(first_aggregate.tokens.input_tokens, 60);
+    assert_eq!(first_aggregate.tokens.output_tokens, 1);
     assert!(
         first_progress
             .iter()
@@ -97,8 +104,9 @@ fn scan_is_incremental_and_rejects_appended_usage_regression() {
         |_| {},
     ))
     .expect("append scan succeeds");
+    let appended_aggregate = claude_aggregate(&mut index);
     assert_eq!(appended.calls_added, 0);
-    assert_eq!(appended.aggregate.tokens.output_tokens, 3);
+    assert_eq!(appended_aggregate.tokens.output_tokens, 3);
 
     write_observation(&transcript, "msg-a", 9, 20, 31, 4, true);
     let raw_input_regressed = block_on(scan_claude_discovered_roots(
@@ -109,8 +117,9 @@ fn scan_is_incremental_and_rejects_appended_usage_regression() {
         |_| {},
     ))
     .expect("raw input regression scan finishes with warning");
+    let raw_input_regressed_aggregate = claude_aggregate(&mut index);
     assert!(raw_input_regressed.coverage.warning_count >= 1);
-    assert_eq!(raw_input_regressed.aggregate.tokens.output_tokens, 3);
+    assert_eq!(raw_input_regressed_aggregate.tokens.output_tokens, 3);
 
     write_observation(&transcript, "msg-a", 10, 20, 30, 2, true);
     let regressed = block_on(scan_claude_discovered_roots(
@@ -121,8 +130,9 @@ fn scan_is_incremental_and_rejects_appended_usage_regression() {
         |_| {},
     ))
     .expect("regression scan finishes with warning");
+    let regressed_aggregate = claude_aggregate(&mut index);
     assert!(regressed.coverage.warning_count >= 1);
-    assert_eq!(regressed.aggregate.tokens.output_tokens, 3);
+    assert_eq!(regressed_aggregate.tokens.output_tokens, 3);
 }
 
 /// 验证替换整份 transcript 会重建 generation，且不保留旧的调用记录。
@@ -153,10 +163,11 @@ fn replacement_rebuilds_generation_without_retaining_old_calls() {
         |_| {},
     ))
     .expect("replacement scan succeeds");
+    let aggregate = claude_aggregate(&mut index);
     assert_eq!(rebuilt.rebuilt_files, 1);
-    assert_eq!(rebuilt.aggregate.call_count, 1);
-    assert_eq!(rebuilt.aggregate.tokens.input_tokens, 10);
-    assert_eq!(rebuilt.aggregate.tokens.output_tokens, 2);
+    assert_eq!(rebuilt.call_count, 1);
+    assert_eq!(aggregate.tokens.input_tokens, 10);
+    assert_eq!(aggregate.tokens.output_tokens, 2);
 }
 
 /// 已索引 transcript 在扫描窗口外被追加时必须重新解析，追加的调用不得因窗口而丢失；
@@ -199,10 +210,11 @@ fn appended_transcript_outside_the_scan_window_is_still_indexed() {
         |_| {},
     ))
     .expect("windowed scan succeeds");
+    let aggregate = claude_aggregate(&mut index);
     assert_eq!(appended.files_scanned, 1, "changed source must be re-read");
     assert_eq!(appended.calls_added, 1);
-    assert_eq!(appended.aggregate.call_count, 2);
-    assert_eq!(appended.aggregate.tokens.output_tokens, 3);
+    assert_eq!(appended.call_count, 2);
+    assert_eq!(aggregate.tokens.output_tokens, 3);
 
     let settled = block_on(scan_claude_discovered_roots(
         &mut index,
@@ -216,10 +228,7 @@ fn appended_transcript_outside_the_scan_window_is_still_indexed() {
         settled.files_scanned, 0,
         "unchanged source outside the window stays closed"
     );
-    assert_eq!(
-        settled.aggregate.call_count, 2,
-        "retained source keeps its calls"
-    );
+    assert_eq!(settled.call_count, 2, "retained source keeps its calls");
 }
 
 /// 摄入下界只丢弃保留窗口之外的调用；解析后的来源仍保持就绪。
@@ -293,7 +302,7 @@ fn claude_scan_cannot_write_into_the_codex_database() {
 
     assert_ne!(PARSER_VERSION, CLAUDE_PARSER_VERSION);
     assert_ne!(codex_database_path, claude_database_path);
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(
         block_on(codex_index.aggregate())
             .expect("Codex aggregate reloads")
@@ -348,11 +357,12 @@ fn main_session_and_each_official_subagent_are_distinct_threads() {
         |_| {},
     ))
     .expect("three approved transcripts scan");
+    let aggregate = claude_aggregate(&mut index);
 
     assert_eq!(summary.files_scanned, 3);
-    assert_eq!(summary.aggregate.call_count, 3);
-    assert_eq!(summary.aggregate.thread_count, 3);
-    assert_eq!(summary.aggregate.tokens.input_tokens, 6);
+    assert_eq!(summary.call_count, 3);
+    assert_eq!(aggregate.thread_count, 3);
+    assert_eq!(aggregate.tokens.input_tokens, 6);
 }
 
 /// 验证 subagent 枚举未完整完成时，保留上一次已就绪的 generation。
@@ -377,7 +387,7 @@ fn incomplete_subagent_enumeration_preserves_the_previous_ready_generation() {
         |_| {},
     ))
     .expect("initial complete scan succeeds");
-    assert_eq!(first.aggregate.call_count, 2);
+    assert_eq!(first.call_count, 2);
 
     let partial = block_on(scan_claude_discovered_roots(
         &mut index,
@@ -392,7 +402,7 @@ fn incomplete_subagent_enumeration_preserves_the_previous_ready_generation() {
     .expect("bounded rescan remains usable");
 
     assert_eq!(partial.coverage.state, CoverageState::Partial);
-    assert_eq!(partial.aggregate.call_count, 2);
+    assert_eq!(partial.call_count, 2);
     assert_eq!(
         block_on(index.aggregate())
             .expect("old subagent remains")

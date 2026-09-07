@@ -86,12 +86,13 @@ pub use display_name::{
 };
 pub use local_index::{
     ClaudeBatchOutcome, DiscoveryMethod, LocalError, LocalErrorKind, LocalIndex, RegisteredRoot,
-    RootRecord, SourceParseCheckpoint, StoredSourceFile, UsageSnapshot, path_key, stable_id,
+    RootRecord, RootUsageSummaryRecord, SourceParseCheckpoint, StoredSourceFile, UsageSnapshot,
+    path_key, stable_id,
 };
 pub use local_view::{
     LocalRecordsSummary, SourceDiscoveryCode, SourceDiscoveryMethod, SourceRootInput,
-    SourceRootSummary, WindowUsage, build_empty_local_windows, build_local_windows,
-    build_local_windows_with_standard, build_source_roots,
+    SourceRootSummary, WindowUsage, build_empty_local_windows, build_indexed_source_roots,
+    build_local_windows, build_local_windows_with_standard, build_source_roots,
 };
 pub use monitor_gallery::{
     ImageFormat, ImageUploadAccept, MonitorImageCounts, MonitorImageGallery, MonitorImagePreview,

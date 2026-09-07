@@ -2,13 +2,13 @@
 
 use std::path::Path;
 
-use crate::backend::local_index::{LocalIndex, RootRecord};
+use crate::backend::local_index::LocalIndex;
 #[cfg(test)]
 use loki_metis_core::LocalIndexState;
 use loki_metis_core::{
-    CoverageReport, ProviderKind, SourceClientKind, SourceDiscoveryCode, SourceDiscoveryMethod,
-    SourceRootInput, SourceRootSummary, TimeStandard, UsageSnapshot, WindowBoundaries,
-    build_empty_local_windows, build_local_windows_with_standard, build_source_roots,
+    CoverageReport, ProviderKind, SourceClientKind, SourceDiscoveryCode, SourceRootSummary,
+    TimeStandard, UsageSnapshot, WindowBoundaries, build_empty_local_windows,
+    build_indexed_source_roots, build_local_windows_with_standard,
     local_storage_read_error_message,
 };
 use tauri::async_runtime::spawn_blocking;
@@ -16,19 +16,6 @@ use tauri::async_runtime::spawn_blocking;
 #[cfg(test)]
 use crate::dto::UsageWindow;
 use crate::dto::{LocalRecordsSectionDto, SourceDiscoveryCodeDto, SourceRootDto, WindowUsageDto};
-
-/// 按客户端专属 parser generation 打开索引并读取一次只读快照。
-/// `calls_view`/`local_view`/`statistics_view` 三个视图适配器共用这一步
-/// “打开 -> 读快照 -> 丢弃连接”的固定前奏，只在读到快照之后的映射逻辑上分叉。
-pub(crate) async fn open_usage_snapshot(
-    app_data_dir: &Path,
-    parser_version: u32,
-) -> Result<UsageSnapshot, String> {
-    let mut index = LocalIndex::open_in_app_data(app_data_dir, parser_version)
-        .await
-        .map_err(|_| local_read_error())?;
-    index.usage_snapshot().await.map_err(|_| local_read_error())
-}
 
 /// 只从 SQLite 装载近 30 个所选标准自然日，避免视图读取全历史后再过滤。
 pub(crate) async fn open_recent_usage_snapshot(
@@ -146,18 +133,14 @@ pub(crate) async fn load_source_root_summaries_for_parser(
     parser_version: u32,
     environment_label: &'static str,
 ) -> Result<Vec<SourceRootSummary>, String> {
-    let snapshot = open_usage_snapshot(app_data_dir, parser_version).await?;
-    let source_inputs = snapshot
-        .roots
-        .iter()
-        .map(to_source_root_input)
-        .collect::<Vec<_>>();
-
-    Ok(build_source_roots(
-        &source_inputs,
-        &snapshot.canonical,
-        environment_label,
-    ))
+    let index = LocalIndex::open_in_app_data(app_data_dir, parser_version)
+        .await
+        .map_err(|_| local_read_error())?;
+    let roots = index
+        .root_usage_summary_records()
+        .await
+        .map_err(|_| local_read_error())?;
+    Ok(build_indexed_source_roots(&roots, environment_label))
 }
 
 /// 为指定客户端构造无扫描四窗口兜底零值。
@@ -190,43 +173,6 @@ pub(crate) fn empty_local_windows_for_parser(
     );
 
     map_local_windows(summary)
-}
-
-/// 把本机索引的 `RootRecord` 映射为 core 侧构造来源摘要所需的输入。
-fn to_source_root_input(record: &RootRecord) -> SourceRootInput {
-    SourceRootInput {
-        id: record.root_id.clone(),
-        alias: record.alias.clone(),
-        enabled: record.enabled,
-        activation_state: record.activation_state,
-        is_primary: record.is_primary,
-        discovery_method: to_source_discovery_method(record.discovery_method),
-        source_file_count: record.source_file_count,
-        call_observation_count: record.call_observation_count,
-    }
-}
-
-/// 把本机索引的发现方式枚举映射为 core 的语义发现方式类型。
-fn to_source_discovery_method(
-    method: crate::backend::local_index::DiscoveryMethod,
-) -> SourceDiscoveryMethod {
-    match method {
-        crate::backend::local_index::DiscoveryMethod::DefaultHome => {
-            SourceDiscoveryMethod::DefaultHome
-        }
-        crate::backend::local_index::DiscoveryMethod::Environment => {
-            SourceDiscoveryMethod::Environment
-        }
-        crate::backend::local_index::DiscoveryMethod::Registered => {
-            SourceDiscoveryMethod::Registered
-        }
-        crate::backend::local_index::DiscoveryMethod::FullDevice => {
-            SourceDiscoveryMethod::FullDevice
-        }
-        crate::backend::local_index::DiscoveryMethod::MetadataDiscovery => {
-            SourceDiscoveryMethod::MetadataDiscovery
-        }
-    }
 }
 
 /// 批量把来源根摘要映射为 DTO 列表。

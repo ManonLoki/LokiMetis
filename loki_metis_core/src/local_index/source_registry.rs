@@ -120,6 +120,15 @@ pub struct RootRecord {
     pub call_observation_count: u64,
 }
 
+/// 来源根记录与其有界 SQL canonical 计数；只供根摘要路径使用。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RootUsageSummaryRecord {
+    /// 不含绝对访问路径的来源根 registry 记录。
+    pub root: RootRecord,
+    /// 当前启用根内按逻辑调用 ID 去重后的调用数量。
+    pub canonical_call_count: u64,
+}
+
 /// 把 core 覆盖状态转换为数据库稳定标签。
 pub(crate) const fn coverage_state_label(state: CoverageState) -> &'static str {
     match state {

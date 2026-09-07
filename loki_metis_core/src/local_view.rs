@@ -275,6 +275,40 @@ pub fn build_source_roots(
     environment_label: &'static str,
 ) -> Vec<SourceRootSummary> {
     let call_counts_by_root = call_counts_by_root(canonical);
+    build_source_roots_with_counts(records, &call_counts_by_root, environment_label)
+}
+
+/// 直接使用本机索引的有界 SQL 计数组装来源根摘要，不装载 canonical 调用实体。
+pub fn build_indexed_source_roots(
+    records: &[crate::local_index::RootUsageSummaryRecord],
+    environment_label: &'static str,
+) -> Vec<SourceRootSummary> {
+    let inputs = records
+        .iter()
+        .map(|record| SourceRootInput {
+            id: record.root.root_id.clone(),
+            alias: record.root.alias.clone(),
+            enabled: record.root.enabled,
+            activation_state: record.root.activation_state,
+            is_primary: record.root.is_primary,
+            discovery_method: indexed_discovery_method(record.root.discovery_method),
+            source_file_count: record.root.source_file_count,
+            call_observation_count: record.root.call_observation_count,
+        })
+        .collect::<Vec<_>>();
+    let call_counts_by_root = records
+        .iter()
+        .map(|record| (record.root.root_id.as_str(), record.canonical_call_count))
+        .collect::<std::collections::HashMap<_, _>>();
+    build_source_roots_with_counts(&inputs, &call_counts_by_root, environment_label)
+}
+
+/// 使用已计算的按根 canonical 计数组装展示摘要。
+fn build_source_roots_with_counts(
+    records: &[SourceRootInput],
+    call_counts_by_root: &std::collections::HashMap<&str, u64>,
+    environment_label: &'static str,
+) -> Vec<SourceRootSummary> {
     records
         .iter()
         .map(|record| {
@@ -306,6 +340,21 @@ pub fn build_source_roots(
             }
         })
         .collect()
+}
+
+/// 把索引 registry 的发现方式映射为来源摘要使用的稳定业务枚举。
+const fn indexed_discovery_method(
+    method: crate::local_index::DiscoveryMethod,
+) -> SourceDiscoveryMethod {
+    match method {
+        crate::local_index::DiscoveryMethod::DefaultHome => SourceDiscoveryMethod::DefaultHome,
+        crate::local_index::DiscoveryMethod::Environment => SourceDiscoveryMethod::Environment,
+        crate::local_index::DiscoveryMethod::Registered => SourceDiscoveryMethod::Registered,
+        crate::local_index::DiscoveryMethod::FullDevice => SourceDiscoveryMethod::FullDevice,
+        crate::local_index::DiscoveryMethod::MetadataDiscovery => {
+            SourceDiscoveryMethod::MetadataDiscovery
+        }
+    }
 }
 
 /// 单遍扫描规范集合，按数据根 id 统计调用数，避免每个数据根各扫一遍全量调用。

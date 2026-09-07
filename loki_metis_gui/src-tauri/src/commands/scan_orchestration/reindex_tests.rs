@@ -77,7 +77,7 @@ async fn reindex_targets_one_root_and_preserves_other_generations() {
     )
     .await
     .expect("initial scan succeeds");
-    assert_eq!(initial.aggregate.call_count, 2);
+    assert_eq!(initial.call_count, 2);
     let target_generation = index
         .stored_source_file(&target_source_id)
         .await

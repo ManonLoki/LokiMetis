@@ -8,7 +8,6 @@ use std::sync::OnceLock;
 use loki_metis_core::{
     CoverageReport, CoverageState, DiscoveryMethod, ProviderKind, RootActivationState,
     ScanCancellation, ScanKind, SourceClientKind, SourceParseCheckpoint, empty_coverage,
-    empty_local_usage_aggregate_for_provider,
 };
 
 use super::client::ScanClient;
@@ -244,9 +243,7 @@ impl ScanClient for InvalidClaudeCandidateTestClient {
             unchanged_files: 0,
             rebuilt_files: 0,
             calls_added: 0,
-            aggregate: empty_local_usage_aggregate_for_provider(
-                ProviderKind::ClaudeTranscriptJsonl,
-            ),
+            call_count: 0,
         })
     }
 }

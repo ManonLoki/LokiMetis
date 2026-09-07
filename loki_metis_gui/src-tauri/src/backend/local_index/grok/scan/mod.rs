@@ -182,9 +182,7 @@ where
             counters.warning_count,
         )
         .await?;
-    let aggregate = index
-        .aggregate_for_provider(loki_metis_core::ProviderKind::GrokSessionJsonl)
-        .await?;
+    let call_count = index.canonical_call_count().await?;
     Ok(ScanSummary {
         scan_id,
         coverage,
@@ -192,7 +190,7 @@ where
         unchanged_files: counters.unchanged_files,
         rebuilt_files: counters.rebuilt_files,
         calls_added: counters.calls_added,
-        aggregate,
+        call_count,
     })
 }
 

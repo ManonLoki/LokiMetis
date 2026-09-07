@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection};
 use tauri::async_runtime::block_on;
 
+use loki_metis_core::{LocalUsageAggregate, ProviderKind};
+
 use crate::backend::local_index::{
     CancellationToken, DiscoveredRoot, DiscoveryInputs, LocalIndex, RegisteredRoot, ScanConfig,
     ScanMode, ScanSummary, discover_quick, scan_discovered_roots,
@@ -171,4 +173,10 @@ pub(super) fn scan(
         |_| {},
     ))
     .expect("synthetic roots are scanned")
+}
+
+/// 显式读取 Codex provider 的完整聚合，避免把大对象挂在轻量扫描结果上。
+pub(super) fn codex_aggregate(index: &mut LocalIndex) -> LocalUsageAggregate {
+    block_on(index.aggregate_for_provider(ProviderKind::RolloutJsonl))
+        .expect("Codex provider aggregate loads")
 }

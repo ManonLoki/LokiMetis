@@ -85,6 +85,19 @@ impl LocalIndex {
         load_canonical_calls(&self.connection, self.parser_version).await
     }
 
+    /// 返回当前启用根中按逻辑调用 ID 去重后的调用数量，不装载调用实体或快照。
+    pub async fn canonical_call_count(&self) -> Result<u64, LocalError> {
+        super::snapshot::load_canonical_call_count(&self.connection, self.parser_version).await
+    }
+
+    /// 返回根摘要所需 registry 记录与按根 canonical 计数，不装载调用实体或快照。
+    pub async fn root_usage_summary_records(
+        &self,
+    ) -> Result<Vec<super::RootUsageSummaryRecord>, LocalError> {
+        super::snapshot::load_root_usage_summary_records(&self.connection, self.parser_version)
+            .await
+    }
+
     /// 返回当前缓存的规范化 provider 快照数量；供 adapter 诊断与测试观察
     /// 主根切换、停用等操作是否正确使旧快照失效。
     pub async fn provider_snapshot_count(&self) -> Result<u64, LocalError> {

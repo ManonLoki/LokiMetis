@@ -2,8 +2,8 @@
 
 use loki_metis_core::{
     LocalIndex, ProviderKind, RetentionDays, ScanCancellation, ScanKind, ScanStartOrigin,
-    SourceClientKind, TimeStandard, empty_coverage, empty_local_usage_aggregate_for_provider,
-    retention_cutoff_epoch_ms, source_client_app_data_dir,
+    SourceClientKind, TimeStandard, empty_coverage, retention_cutoff_epoch_ms,
+    source_client_app_data_dir,
 };
 use sea_orm::{ConnectOptions, ConnectionTrait, Database};
 use tempfile::tempdir;
@@ -173,7 +173,7 @@ impl ScanClient for PruneOnlyClaudeClient {
     where
         F: FnMut(ScanProgress) + Send,
     {
-        Ok(empty_scan_summary(ProviderKind::ClaudeTranscriptJsonl))
+        Ok(empty_scan_summary())
     }
 }
 
@@ -243,7 +243,7 @@ impl ScanClient for PruneOnlyGrokClient {
     where
         F: FnMut(ScanProgress) + Send,
     {
-        Ok(empty_scan_summary(ProviderKind::GrokSessionJsonl))
+        Ok(empty_scan_summary())
     }
 }
 
@@ -274,7 +274,7 @@ fn empty_grok_discovery() -> GrokDiscoveryResult {
 }
 
 /// 空增量扫描摘要。
-fn empty_scan_summary(provider: ProviderKind) -> ScanSummary {
+fn empty_scan_summary() -> ScanSummary {
     ScanSummary {
         scan_id: "prune-only".to_owned(),
         coverage: empty_coverage(),
@@ -282,7 +282,7 @@ fn empty_scan_summary(provider: ProviderKind) -> ScanSummary {
         unchanged_files: 0,
         rebuilt_files: 0,
         calls_added: 0,
-        aggregate: empty_local_usage_aggregate_for_provider(provider),
+        call_count: 0,
     }
 }
 

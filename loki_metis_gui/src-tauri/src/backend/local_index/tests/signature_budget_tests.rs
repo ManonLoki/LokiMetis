@@ -49,7 +49,7 @@ fn indexes_only_signature_matched_rollout_files_inside_a_valid_root() {
     let sources = block_on(index.list_sources()).expect("source roots load");
     let root_record = &sources[0];
 
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(root_record.source_file_count, 1);
     assert_eq!(root_record.call_observation_count, 1);
     assert_eq!(summary.coverage.state, CoverageState::Partial);
@@ -80,9 +80,7 @@ fn confirmed_rejected_rollout_removes_only_its_derived_records() {
     let roots = discover_registered(std::slice::from_ref(&root_path));
     let mut index = open_index(app_temp.path());
     assert_eq!(
-        scan(&mut index, &roots, &CancellationToken::new())
-            .aggregate
-            .call_count,
+        scan(&mut index, &roots, &CancellationToken::new()).call_count,
         2
     );
 
@@ -94,7 +92,7 @@ fn confirmed_rejected_rollout_removes_only_its_derived_records() {
     let sources = block_on(index.list_sources()).expect("source roots load");
     let root_record = &sources[0];
 
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(root_record.source_file_count, 1);
     assert_eq!(root_record.call_observation_count, 1);
     assert_eq!(
@@ -139,7 +137,7 @@ fn signature_budget_exhaustion_preserves_existing_index_records() {
     assert_eq!(summary.coverage.state, CoverageState::Partial);
     assert_eq!(summary.coverage.roots_scanned, 0);
     assert_eq!(summary.files_scanned, 0);
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(
         block_on(index.list_sources()).expect("source roots load")[0].source_file_count,
         1
@@ -185,7 +183,7 @@ fn incomplete_signature_line_preserves_existing_root_and_source() {
     let sources = block_on(index.list_sources()).expect("source roots load");
     let root_record = &sources[0];
     assert_eq!(summary.coverage.state, CoverageState::Partial);
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(root_record.source_file_count, 1);
     assert_eq!(root_record.call_observation_count, 1);
     assert_eq!(

@@ -75,7 +75,7 @@ pub use volume_roots::{LocalVolumeRoots, enumerate_local_volume_roots};
 // `crate::backend::local_index::{LocalIndex, LocalError, ...}` 这条既有
 // 路径引用，不需要为了这次迁移改写一大批 `use` 声明。
 pub use loki_metis_core::{
-    DiscoveryMethod, LocalError, LocalErrorKind, LocalIndex, RegisteredRoot, RootRecord,
+    DiscoveryMethod, LocalError, LocalErrorKind, LocalIndex, RegisteredRoot,
 };
 
 /// scan_runs 记录的开始/结束时间戳；由 Codex 与 Claude 扫描共用。

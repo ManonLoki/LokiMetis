@@ -7,7 +7,8 @@ use tauri::async_runtime::block_on;
 use tempfile::TempDir;
 
 use super::support::{
-    append_rollout, create_root, discover_registered, scan, token_snapshot_line, write_rollout,
+    append_rollout, codex_aggregate, create_root, discover_registered, scan, token_snapshot_line,
+    write_rollout,
 };
 use crate::backend::local_index::jsonl::{
     DEFAULT_MAX_JSONL_LINE_BYTES, JsonlParseContext, parse_jsonl_stream,
@@ -234,9 +235,10 @@ fn index_last_copying_total_reopen_matches_latest_and_excludes_old_generation() 
         "production reads must use the same generation the JSONL writer stores"
     );
     let first = scan(&mut index, &roots, &CancellationToken::new());
+    let first_aggregate = codex_aggregate(&mut index);
     let latest = latest_non_estimate_total(&initial);
-    assert_eq!(first.aggregate.call_count, initial.len() as u64);
-    assert_eq!(first.aggregate.tokens.total_tokens, latest);
+    assert_eq!(first.call_count, initial.len() as u64);
+    assert_eq!(first_aggregate.tokens.total_tokens, latest);
 
     drop(index);
     append_rollout(
@@ -259,6 +261,7 @@ fn index_last_copying_total_reopen_matches_latest_and_excludes_old_generation() 
     );
     let mut reopened = open_index(app_temp.path());
     let appended = scan(&mut reopened, &roots, &CancellationToken::new());
+    let appended_aggregate = codex_aggregate(&mut reopened);
     let appended_latest = latest_non_estimate_total(&[token_snapshot_line(
         "2026-08-17T01:06:00Z",
         30,
@@ -273,10 +276,10 @@ fn index_last_copying_total_reopen_matches_latest_and_excludes_old_generation() 
 
     assert_eq!(appended.calls_added, 1);
     assert_eq!(
-        appended.aggregate.call_count,
+        appended.call_count,
         (initial.len() as u64).saturating_add(1)
     );
-    assert_eq!(appended.aggregate.tokens.total_tokens, appended_latest);
+    assert_eq!(appended_aggregate.tokens.total_tokens, appended_latest);
 
     let database_path = reopened.database_path().to_path_buf();
     {

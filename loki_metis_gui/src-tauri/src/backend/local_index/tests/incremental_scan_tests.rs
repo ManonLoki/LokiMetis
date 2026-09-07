@@ -8,8 +8,8 @@ use tauri::async_runtime::block_on;
 use tempfile::TempDir;
 
 use super::support::{
-    append_rollout, create_root, cumulative_line, discover_registered, scan, session_line,
-    token_line, token_snapshot_line, write_rollout,
+    append_rollout, codex_aggregate, create_root, cumulative_line, discover_registered, scan,
+    session_line, token_line, token_snapshot_line, write_rollout,
 };
 use crate::backend::local_index::{
     CancellationToken, LocalIndex, PARSER_VERSION, ScanConfig, ScanMode, scan_discovered_roots,
@@ -46,13 +46,14 @@ fn skips_unchanged_files_and_indexes_only_appended_call() {
         &token_line("2026-07-30T10:02:00Z", "call-b", 20, 5),
     );
     let appended = scan(&mut index, &roots, &CancellationToken::new());
+    let aggregate = codex_aggregate(&mut index);
 
     assert_eq!(first.calls_added, 1);
     assert_eq!(unchanged.calls_added, 0);
     assert_eq!(unchanged.unchanged_files, 1);
     assert_eq!(appended.calls_added, 1);
-    assert_eq!(appended.aggregate.call_count, 2);
-    assert_eq!(appended.aggregate.tokens.input_tokens, 30);
+    assert_eq!(appended.call_count, 2);
+    assert_eq!(aggregate.tokens.input_tokens, 30);
 }
 
 /// 验证显式强制重建会为未变化来源生成新 generation，且 canonical 聚合不重复。
@@ -84,13 +85,14 @@ fn force_rebuild_reindexes_unchanged_file_without_duplicate_calls() {
         |_| {},
     ))
     .expect("forced rebuild succeeds");
+    let aggregate = codex_aggregate(&mut index);
 
-    assert_eq!(first.aggregate.call_count, 1);
+    assert_eq!(first.call_count, 1);
     assert_eq!(rebuilt.unchanged_files, 0);
     assert_eq!(rebuilt.rebuilt_files, 1);
-    assert_eq!(rebuilt.aggregate.call_count, 1);
-    assert_eq!(rebuilt.aggregate.tokens.input_tokens, 10);
-    assert_eq!(rebuilt.aggregate.tokens.output_tokens, 10);
+    assert_eq!(rebuilt.call_count, 1);
+    assert_eq!(aggregate.tokens.input_tokens, 10);
+    assert_eq!(aggregate.tokens.output_tokens, 10);
 }
 
 /// 验证强制重建在解析取消时丢弃未完成 generation，并继续提供旧 canonical 结果。
@@ -108,7 +110,7 @@ fn cancelled_force_rebuild_preserves_the_previous_ready_generation() {
     let roots = discover_registered(&[root_path]);
     let mut index = open_index(app_temp.path());
     let initial = scan(&mut index, &roots, &CancellationToken::new());
-    assert_eq!(initial.aggregate.call_count, 1);
+    assert_eq!(initial.call_count, 1);
 
     let canonical_rollout = roots[0].path.join("sessions/rollout-force-cancel.jsonl");
     let mut budget = RolloutProbeBudget::new(1, u64::MAX);
@@ -176,10 +178,11 @@ fn restores_cumulative_checkpoint_across_incremental_scans() {
     );
     let mut reopened = open_index(app_temp.path());
     let appended = scan(&mut reopened, &roots, &CancellationToken::new());
+    let aggregate = codex_aggregate(&mut reopened);
 
     assert_eq!(appended.calls_added, 1);
-    assert_eq!(appended.aggregate.call_count, 2);
-    assert_eq!(appended.aggregate.tokens.total_tokens, 132);
+    assert_eq!(appended.call_count, 2);
+    assert_eq!(aggregate.tokens.total_tokens, 132);
 }
 
 /// 验证连续累计回退只保留会话最新值，出现单次事实后移除累计占位。
@@ -205,19 +208,21 @@ fn keeps_only_latest_cumulative_fallback_and_prefers_exact_calls() {
     let mut index = open_index(app_temp.path());
 
     let cumulative = scan(&mut index, &roots, &CancellationToken::new());
-    assert_eq!(cumulative.aggregate.call_count, 1);
-    assert_eq!(cumulative.aggregate.tokens.input_tokens, 20);
-    assert_eq!(cumulative.aggregate.confidence, Confidence::Derived);
+    let cumulative_aggregate = codex_aggregate(&mut index);
+    assert_eq!(cumulative.call_count, 1);
+    assert_eq!(cumulative_aggregate.tokens.input_tokens, 20);
+    assert_eq!(cumulative_aggregate.confidence, Confidence::Derived);
 
     append_rollout(
         &rollout,
         &token_line("2026-07-30T10:03:00Z", "exact-a", 7, 1),
     );
     let exact = scan(&mut index, &roots, &CancellationToken::new());
+    let exact_aggregate = codex_aggregate(&mut index);
 
-    assert_eq!(exact.aggregate.call_count, 1);
-    assert_eq!(exact.aggregate.tokens.input_tokens, 7);
-    assert_eq!(exact.aggregate.confidence, Confidence::Exact);
+    assert_eq!(exact.call_count, 1);
+    assert_eq!(exact_aggregate.tokens.input_tokens, 7);
+    assert_eq!(exact_aggregate.confidence, Confidence::Exact);
 }
 
 /// 验证半行 checkpoint 不保存正文，并在后续补齐换行后只索引一次。
@@ -240,9 +245,9 @@ fn resumes_trailing_partial_line_from_complete_offset() {
     append_rollout(&rollout, &second[split..]);
     let second_scan = scan(&mut index, &roots, &CancellationToken::new());
 
-    assert_eq!(first.aggregate.call_count, 1);
+    assert_eq!(first.call_count, 1);
     assert_eq!(second_scan.calls_added, 1);
-    assert_eq!(second_scan.aggregate.call_count, 2);
+    assert_eq!(second_scan.call_count, 2);
 }
 
 /// 验证损坏和超大行只降低覆盖质量，合法调用仍能进入索引。
@@ -277,7 +282,7 @@ fn counts_corrupt_and_oversized_lines_without_crashing() {
     ))
     .expect("quality fixture is scanned");
 
-    assert_eq!(summary.aggregate.call_count, 1);
+    assert_eq!(summary.call_count, 1);
     assert_eq!(summary.coverage.state, CoverageState::Partial);
     assert!(summary.coverage.warning_count >= 3);
     assert!(
@@ -306,7 +311,7 @@ fn rebuilds_replaced_file_without_retaining_old_generation() {
     let roots = discover_registered(&[root_path]);
     let mut index = open_index(app_temp.path());
     let initial = scan(&mut index, &roots, &CancellationToken::new());
-    assert_eq!(initial.aggregate.call_count, 2);
+    assert_eq!(initial.call_count, 2);
 
     write_rollout(
         &rollout,
@@ -314,10 +319,11 @@ fn rebuilds_replaced_file_without_retaining_old_generation() {
         &[token_line("2026-07-30T11:00:00Z", "new-a", 7, 1)],
     );
     let replaced = scan(&mut index, &roots, &CancellationToken::new());
+    let aggregate = codex_aggregate(&mut index);
 
     assert_eq!(replaced.rebuilt_files, 1);
-    assert_eq!(replaced.aggregate.call_count, 1);
-    assert_eq!(replaced.aggregate.tokens.input_tokens, 7);
+    assert_eq!(replaced.call_count, 1);
+    assert_eq!(aggregate.tokens.input_tokens, 7);
 }
 
 /// 验证预取消扫描不读取 fixture，并把覆盖与 scan_runs 状态标为取消。
@@ -340,5 +346,5 @@ fn scan_honors_preexisting_cancellation() {
 
     assert_eq!(summary.coverage.state, CoverageState::Cancelled);
     assert_eq!(summary.files_scanned, 0);
-    assert_eq!(summary.aggregate.call_count, 0);
+    assert_eq!(summary.call_count, 0);
 }

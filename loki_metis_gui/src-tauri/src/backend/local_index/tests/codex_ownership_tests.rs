@@ -7,7 +7,8 @@ use tauri::async_runtime::block_on;
 use tempfile::TempDir;
 
 use super::support::{
-    append_rollout, create_root, discover_registered, scan, token_line, write_rollout,
+    append_rollout, codex_aggregate, create_root, discover_registered, scan, token_line,
+    write_rollout,
 };
 use crate::backend::local_index::{CancellationToken, LocalIndex};
 
@@ -74,8 +75,9 @@ fn sqlite_index_excludes_fork_prefix_and_restores_owned_checkpoint() {
     let mut index = open_index(app_temp.path());
 
     let first = scan(&mut index, &roots, &CancellationToken::new());
-    assert_eq!(first.aggregate.call_count, 2);
-    assert_eq!(first.aggregate.tokens.total_tokens, 130);
+    let first_aggregate = codex_aggregate(&mut index);
+    assert_eq!(first.call_count, 2);
+    assert_eq!(first_aggregate.tokens.total_tokens, 130);
     assert_eq!(first.calls_added, 2);
     let mut first_totals = block_on(index.canonical_calls())
         .expect("current calls load")
@@ -90,9 +92,10 @@ fn sqlite_index_excludes_fork_prefix_and_restores_owned_checkpoint() {
     append_rollout(&fork_path, fork_append());
     let mut reopened = open_index(app_temp.path());
     let second = scan(&mut reopened, &roots, &CancellationToken::new());
+    let second_aggregate = codex_aggregate(&mut reopened);
     assert_eq!(second.calls_added, 1);
-    assert_eq!(second.aggregate.call_count, 3);
-    assert_eq!(second.aggregate.tokens.total_tokens, 140);
+    assert_eq!(second.call_count, 3);
+    assert_eq!(second_aggregate.tokens.total_tokens, 140);
     let persisted = block_on(reopened.aggregate_for_provider(ProviderKind::RolloutJsonl))
         .expect("persisted provider aggregate loads");
     assert_eq!(persisted.call_count, 3);
@@ -114,7 +117,7 @@ fn unchanged_unresolved_fork_remains_partial() {
     let mut index = open_index(app_temp.path());
 
     let first = scan(&mut index, &roots, &CancellationToken::new());
-    assert_eq!(first.aggregate.call_count, 0);
+    assert_eq!(first.call_count, 0);
     assert_eq!(first.coverage.warning_count, 1);
     assert_eq!(
         first.coverage.state,
@@ -123,7 +126,7 @@ fn unchanged_unresolved_fork_remains_partial() {
 
     let unchanged = scan(&mut index, &roots, &CancellationToken::new());
     assert_eq!(unchanged.unchanged_files, 1);
-    assert_eq!(unchanged.aggregate.call_count, 0);
+    assert_eq!(unchanged.call_count, 0);
     assert_eq!(unchanged.coverage.warning_count, 1);
     assert_eq!(
         unchanged.coverage.state,

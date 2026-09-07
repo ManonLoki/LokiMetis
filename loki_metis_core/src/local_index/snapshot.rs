@@ -8,7 +8,9 @@ use crate::{
 };
 
 use super::call_store::{from_sql_u64, row_to_usage_call};
-use super::source_registry::{DiscoveryMethod, RootRecord, coverage_state_from_label};
+use super::source_registry::{
+    DiscoveryMethod, RootRecord, RootUsageSummaryRecord, coverage_state_from_label,
+};
 use super::{LocalError, LocalErrorKind};
 
 /// 为会话快照查询构造带绑定值的 SQLite 语句。
@@ -173,43 +175,227 @@ pub(crate) async fn load_root_records<C: ConnectionTrait>(
                        AND f.parser_version = ?1
                        AND f.generation = u.generation)
              FROM source_roots r
-             ORDER BY alias, root_id",
+             ORDER BY r.alias, r.root_id",
             vec![i64::from(parser_version).into()],
         ))
         .await?;
-    let mut roots = Vec::with_capacity(rows.len());
-    for row in rows {
-        let root_id: String = row.try_get_by_index(0)?;
-        let alias: String = row.try_get_by_index(1)?;
-        let enabled: bool = row.try_get_by_index(2)?;
-        let is_primary: bool = row.try_get_by_index(3)?;
-        let method_label: String = row.try_get_by_index(4)?;
-        let activation_label: String = row.try_get_by_index(5)?;
-        let coverage_label: Option<String> = row.try_get_by_index(6)?;
-        let source_file_count: i64 = row.try_get_by_index(7)?;
-        let call_observation_count: i64 = row.try_get_by_index(8)?;
-        let discovery_method = DiscoveryMethod::from_label(&method_label).ok_or_else(|| {
-            LocalError::new(LocalErrorKind::Database, "root discovery method is invalid")
+    rows.iter().map(root_record_from_row).collect()
+}
+
+/// 只为来源根摘要读取 registry 与按根 canonical 计数，避免完整快照重复聚合。
+pub(crate) async fn load_root_usage_summary_records<C: ConnectionTrait>(
+    connection: &C,
+    parser_version: u32,
+) -> Result<Vec<RootUsageSummaryRecord>, LocalError> {
+    validate_current_usage_integrity(connection, parser_version).await?;
+    let rows = connection
+        .query_all(statement(
+            "WITH current_sources AS (
+               SELECT source_id, root_id, generation
+               FROM source_files
+               WHERE ready = 1 AND parser_version = ?1
+             ),
+             source_totals AS (
+               SELECT root_id, COUNT(*) AS source_file_count
+               FROM current_sources
+               GROUP BY root_id
+             ),
+             usage_totals AS (
+               SELECT f.root_id,
+                      COUNT(*) AS call_observation_count,
+                      COUNT(DISTINCT u.logical_call_id) AS canonical_call_count
+               FROM current_sources f
+               JOIN usage_calls u ON u.source_id = f.source_id
+                                 AND u.generation = f.generation
+               GROUP BY f.root_id
+             )
+             SELECT r.root_id, r.alias, r.enabled, r.is_primary, r.discovery_method,
+                    r.activation_state, r.last_coverage_state,
+                    COALESCE(s.source_file_count, 0),
+                    COALESCE(u.call_observation_count, 0),
+                    CASE WHEN r.enabled = 1
+                         THEN COALESCE(u.canonical_call_count, 0)
+                         ELSE 0 END
+             FROM source_roots r
+             LEFT JOIN source_totals s ON s.root_id = r.root_id
+             LEFT JOIN usage_totals u ON u.root_id = r.root_id
+             ORDER BY r.alias, r.root_id",
+            vec![i64::from(parser_version).into()],
+        ))
+        .await?;
+    rows.iter()
+        .map(|row| {
+            Ok(RootUsageSummaryRecord {
+                root: root_record_from_row(row)?,
+                canonical_call_count: from_sql_u64(row.try_get_by_index(9)?)?,
+            })
+        })
+        .collect()
+}
+
+/// 解码两种根查询共享的 registry 与观察计数字段。
+fn root_record_from_row(row: &sea_orm::QueryResult) -> Result<RootRecord, LocalError> {
+    let method_label: String = row.try_get_by_index(4)?;
+    let activation_label: String = row.try_get_by_index(5)?;
+    let coverage_label: Option<String> = row.try_get_by_index(6)?;
+    let discovery_method = DiscoveryMethod::from_label(&method_label).ok_or_else(|| {
+        LocalError::new(LocalErrorKind::Database, "root discovery method is invalid")
+    })?;
+    let last_coverage = coverage_label
+        .as_deref()
+        .and_then(coverage_state_from_label);
+    Ok(RootRecord {
+        root_id: row.try_get_by_index(0)?,
+        alias: row.try_get_by_index(1)?,
+        enabled: row.try_get_by_index(2)?,
+        activation_state: crate::RootActivationState::from_label(&activation_label).ok_or_else(
+            || LocalError::new(LocalErrorKind::Database, "root activation state is invalid"),
+        )?,
+        is_primary: row.try_get_by_index(3)?,
+        discovery_method,
+        last_coverage,
+        source_file_count: from_sql_u64(row.try_get_by_index(7)?)?,
+        call_observation_count: from_sql_u64(row.try_get_by_index(8)?)?,
+    })
+}
+
+/// 只用 SQLite 去重计数读取当前启用根的 canonical 调用数，不解码调用或快照。
+pub(super) async fn load_canonical_call_count<C: ConnectionTrait>(
+    connection: &C,
+    parser_version: u32,
+) -> Result<u64, LocalError> {
+    validate_current_usage_integrity(connection, parser_version).await?;
+    let row = connection
+        .query_one(statement(
+            "SELECT COUNT(DISTINCT u.logical_call_id)
+             FROM usage_calls u
+             JOIN source_files f ON f.source_id = u.source_id
+             JOIN source_roots r ON r.root_id = f.root_id
+             WHERE f.ready = 1 AND f.parser_version = ?1
+               AND r.enabled = 1
+               AND f.generation = u.generation",
+            vec![i64::from(parser_version).into()],
+        ))
+        .await?
+        .ok_or_else(|| {
+            LocalError::new(
+                LocalErrorKind::Database,
+                "canonical call count is unreadable",
+            )
         })?;
-        let last_coverage = coverage_label
-            .as_deref()
-            .and_then(coverage_state_from_label);
-        roots.push(RootRecord {
-            root_id,
-            alias,
-            enabled,
-            activation_state: crate::RootActivationState::from_label(&activation_label)
-                .ok_or_else(|| {
-                    LocalError::new(LocalErrorKind::Database, "root activation state is invalid")
-                })?,
-            is_primary,
-            discovery_method,
-            last_coverage,
-            source_file_count: from_sql_u64(source_file_count)?,
-            call_observation_count: from_sql_u64(call_observation_count)?,
-        });
+    from_sql_u64(row.try_get_by_index(0)?)
+}
+
+/// 用有界聚合与 EXISTS 查询保持已覆盖持久化不变量的 fail-closed 边界，
+/// 不把调用或快照实体化。
+async fn validate_current_usage_integrity<C: ConnectionTrait>(
+    connection: &C,
+    parser_version: u32,
+) -> Result<(), LocalError> {
+    let row = connection
+        .query_one(statement(
+            "SELECT
+               (SELECT COALESCE(MAX(
+                  CASE
+                    WHEN (
+                      typeof(u.logical_call_id) <> 'text'
+                      OR typeof(u.occurred_at_epoch_ms) <> 'integer'
+                      OR (u.model IS NOT NULL AND typeof(u.model) <> 'text')
+                      OR (u.reasoning_effort IS NOT NULL
+                          AND typeof(u.reasoning_effort) <> 'text')
+                      OR (u.project_key IS NOT NULL AND typeof(u.project_key) <> 'text')
+                      OR typeof(u.thread_key) <> 'text'
+                      OR (u.project_label IS NOT NULL
+                          AND typeof(u.project_label) <> 'text')
+                      OR (u.thread_label IS NOT NULL
+                          AND typeof(u.thread_label) <> 'text')
+                      OR typeof(u.input_tokens) <> 'integer' OR u.input_tokens < 0
+                      OR typeof(u.cached_input_tokens) <> 'integer'
+                         OR u.cached_input_tokens < 0
+                      OR (u.cache_write_input_tokens IS NOT NULL
+                          AND (typeof(u.cache_write_input_tokens) <> 'integer'
+                               OR u.cache_write_input_tokens < 0))
+                      OR typeof(u.output_tokens) <> 'integer' OR u.output_tokens < 0
+                      OR typeof(u.reasoning_output_tokens) <> 'integer'
+                         OR u.reasoning_output_tokens < 0
+                      OR typeof(u.total_tokens) <> 'integer' OR u.total_tokens < 0
+                      OR typeof(u.total_is_derived) <> 'integer'
+                      OR typeof(u.confidence) <> 'text'
+                         OR u.confidence NOT IN ('exact', 'derived', 'suspected')
+                      OR typeof(u.cached_input_available) <> 'integer'
+                      OR typeof(u.reasoning_output_available) <> 'integer'
+                      OR (u.adapter_consistency_key IS NOT NULL
+                          AND typeof(u.adapter_consistency_key) <> 'text')
+                      OR typeof(f.source_id) <> 'text'
+                      OR typeof(f.root_id) <> 'text'
+                      OR typeof(f.relative_label) <> 'text'
+                      OR typeof(f.archived) <> 'integer'
+                    ) THEN 2
+                    WHEN (
+                      (u.cached_input_available <> 0
+                       AND u.cached_input_tokens > u.input_tokens)
+                      OR (u.reasoning_output_available <> 0
+                          AND u.reasoning_output_tokens > u.output_tokens)
+                      OR (u.total_is_derived = 0
+                          AND (u.total_tokens < u.input_tokens
+                               OR u.total_tokens - u.input_tokens < u.output_tokens))
+                    ) THEN 1
+                    ELSE 0
+                  END
+                ), 0)
+                FROM usage_calls u
+                JOIN source_files f ON f.source_id = u.source_id
+                JOIN source_roots r ON r.root_id = f.root_id
+                WHERE f.ready = 1 AND f.parser_version = ?1
+                  AND r.enabled = 1 AND f.generation = u.generation),
+               EXISTS(
+                 SELECT 1 FROM usage_token_snapshots s
+                 JOIN source_files f ON f.source_id = s.source_id
+                 JOIN source_roots r ON r.root_id = f.root_id
+                 WHERE f.ready = 1 AND f.parser_version = ?1
+                   AND r.enabled = 1 AND f.generation = s.generation
+                   AND (
+                     typeof(s.thread_key) <> 'text'
+                     OR typeof(s.occurred_at_epoch_ms) <> 'integer'
+                     OR typeof(s.total_tokens) <> 'integer' OR s.total_tokens < 0
+                     OR typeof(s.logical_call_id) <> 'text'
+                     OR (s.model IS NOT NULL AND typeof(s.model) <> 'text')
+                     OR (s.reasoning_effort IS NOT NULL
+                         AND typeof(s.reasoning_effort) <> 'text')
+                     OR (s.project_key IS NOT NULL AND typeof(s.project_key) <> 'text')
+                     OR typeof(f.source_id) <> 'text'
+                     OR typeof(f.root_id) <> 'text'
+                     OR typeof(f.relative_label) <> 'text'
+                     OR typeof(f.archived) <> 'integer'
+                   )
+               )",
+            vec![i64::from(parser_version).into()],
+        ))
+        .await?
+        .ok_or_else(|| {
+            LocalError::new(LocalErrorKind::Database, "usage integrity is unreadable")
+        })?;
+    let call_integrity_kind: i64 = row.try_get_by_index(0)?;
+    let malformed_snapshot: bool = row.try_get_by_index(1)?;
+    if call_integrity_kind == 2 || malformed_snapshot {
+        return Err(LocalError::new(
+            LocalErrorKind::Database,
+            "stored usage row is invalid",
+        ));
     }
-    Ok(roots)
+    if call_integrity_kind == 1 {
+        return Err(LocalError::new(
+            LocalErrorKind::InvalidUsage,
+            "local token usage is invalid",
+        ));
+    }
+    if call_integrity_kind != 0 {
+        return Err(LocalError::new(
+            LocalErrorKind::Database,
+            "usage integrity result is invalid",
+        ));
+    }
+    Ok(())
 }
 
 /// 从指定数据库快照读取当前 generation 调用并由 core 执行 canonical 去重。

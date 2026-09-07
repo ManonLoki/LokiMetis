@@ -181,7 +181,7 @@ async fn force_rebuild_keeps_completed_turns_visible_through_core_parser_version
         .usage_snapshot()
         .await
         .expect("snapshot");
-    assert_eq!(rebuilt.aggregate.call_count, 1);
+    assert_eq!(rebuilt.call_count, 1);
     assert_eq!(snapshot.index_state, LocalIndexState::Ready);
     assert_eq!(snapshot.canonical.calls.len(), 1);
     assert_eq!(
@@ -303,7 +303,7 @@ async fn appended_grok_updates_outside_the_scan_window_are_still_indexed() {
     )
     .await
     .expect("first scan completes");
-    assert_eq!(first.aggregate.call_count, 3);
+    assert_eq!(first.call_count, 3);
 
     let mut body = fs::read_to_string(&updates).expect("read fixture");
     body.push_str(APPENDED_GROK_TURN);
@@ -331,7 +331,7 @@ async fn appended_grok_updates_outside_the_scan_window_are_still_indexed() {
     .expect("windowed scan completes");
     assert_eq!(appended.files_scanned, 1, "changed source must be re-read");
     assert_eq!(appended.calls_added, 1);
-    assert_eq!(appended.aggregate.call_count, 4);
+    assert_eq!(appended.call_count, 4);
 
     let settled = scan_grok_discovered_roots(
         &mut index,
@@ -346,10 +346,7 @@ async fn appended_grok_updates_outside_the_scan_window_are_still_indexed() {
         settled.files_scanned, 0,
         "unchanged source outside the window stays closed"
     );
-    assert_eq!(
-        settled.aggregate.call_count, 4,
-        "retained source keeps its calls"
-    );
+    assert_eq!(settled.call_count, 4, "retained source keeps its calls");
 }
 
 /// 从当前 Grok 索引读取当天窗口的调用数与 Token 合计。
