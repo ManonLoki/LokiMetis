@@ -29,17 +29,10 @@
     "workspace_description": "默认从看板进入，所有资源和偏好均保留在本机。"
   },
   "skins": {
-    "title": "换皮",
-    "description": "管理本机皮肤资源库，并把主题安全应用到当前选项卡中明确选择的宿主实例。",
     "host": {
       "tabs": "换皮宿主",
       "empty_title": "没有已启用的换皮宿主",
       "empty_description": "请到设置中的统一 Agent 面板启用 Codex 或 WorkBuddy。"
-    },
-    "runtime": {
-      "stopped": "{{host}} 未运行",
-      "ready": "{{host}} 可连接",
-      "runningWithoutCdp": "需要启用调试连接"
     },
     "browser": {
       "title": "需要桌面宿主",
@@ -50,13 +43,7 @@
       "placeholder": "按名称、作者或 ID 搜索",
       "user_only": "只看用户皮肤"
     },
-    "instance": {
-      "label": "目标 {{host}} 实例",
-      "none": "未发现 {{host}} 实例",
-      "choose": "选择目标实例"
-    },
     "catalog": {
-      "count": "显示 {{count}} 个皮肤",
       "empty": "没有符合当前筛选的皮肤。"
     },
     "source": {
@@ -145,41 +132,30 @@
     "error": {
       "title": "操作未完成",
       "unknown": "换皮操作失败，请刷新宿主状态后重试。",
-      "choose_instance": "发现多个宿主实例，请先明确选择目标。"
+      "choose_instance": "发现多个宿主实例；请先关闭多余实例，仅保留一个后刷新重试。"
     }
   },
   "settings": {
-    "title": "设置",
-    "description": "统一管理 Agent 配置、本机界面偏好与已启用的系统能力。",
     "application_title": "应用信息",
     "application_description": "应用名称和版本来自当前安装包。",
     "localized_name": "中文名",
     "version": "版本",
-    "agent_title": "Agent 配置",
-    "agent_description": "集中管理看板采集、数据保留以及各 Agent 的本机 Hooks 配置。",
     "agent_panel_title": "启用的 Agent",
     "agent_panel_badge": "全局设置",
-    "agent_panel_description": "一次选择同步用于看板、Hooks、桌宠和换皮；各页面只显示自身支持的 Agent。",
     "language_title": "界面语言",
-    "language_description": "已保存的选择优先于系统语言，并同步更新原生菜单。",
     "language_zh_cn": "中文",
     "language_en_us": "English",
     "language_error_title": "语言未更改",
     "language_error": "无法同步原生界面语言。请确认应用状态后重试。",
     "theme_title": "外观主题",
-    "theme_description": "选择浅色、深色或跟随系统；偏好仅保存在本机。",
     "theme_light": "浅色",
     "theme_dark": "深色",
     "theme_system": "跟随系统",
-    "release_notes_title": "更新日志",
-    "release_notes_description": "查看正式候选中随应用打包的本地发布说明。",
     "release_notes_action": "查看更新日志",
     "system_notification_title": "系统通知",
-    "system_notification_description": "只有在这里明确开启后，应用才可发送原生通知。",
     "system_notification_error": "无法更新通知设置。开关已回滚为可读取的实际状态；请检查系统通知权限后重试。",
     "system_notification_unknown": "通知权限或本地偏好当前都无法确认。请在系统允许后重新读取。",
     "autostart_title": "开机自启",
-    "autostart_description": "登录系统后正常显示并启动应用；实际状态以操作系统登录项为准。",
     "autostart_error": "无法更新开机自启。开关已回滚为可读取的实际状态；请检查系统登录项后重试。",
     "autostart_unknown": "当前无法读取操作系统登录项，请稍后重新读取。",
     "capability_loading": "正在读取实际状态…",

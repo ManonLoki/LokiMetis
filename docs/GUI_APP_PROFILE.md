@@ -1,6 +1,6 @@
 # LokiMetis GUI 应用资料
 
-本文件是 GUI 初始化选择、应用身份和适用 UI 标准的唯一持久事实来源。产品目标、业务范围和成功标准已由 `docs/product_spec/20260907_product_spec.md` 批准；本文件继续只维护 GUI 身份和宿主选择。
+本文件是 GUI 初始化选择、应用身份和适用 UI 标准的唯一持久事实来源。产品目标、业务范围和成功标准已由 `docs/product_spec/20260908_product_spec.md` 批准；本文件继续只维护 GUI 身份和宿主选择。
 
 ## 初始化配置
 
@@ -60,6 +60,6 @@ sidebar_mode = compact
 - 侧栏标准：`tauri-gui-sidebar-compact-80-v1`
 - 当前无经批准的像素或信息架构偏离。
 - 赞助页、赞助媒体、全局快捷键依赖、配置、命令、状态、文案和运行时接线必须缺席。
-- `/about` 与 `/test` 路由必须缺席；固定 `/settings` 提供应用、版本、本地更新日志、语言、主题、通知、自启、唯一 Agent 复选面板、扫描间隔与自动清理。监控区通过 `/monitor/settings` 提供 Hooks 目录与写入操作，但不得复制 Agent 启用复选；看板内容页不提供设置子路由。一级业务入口名称固定为「用量看板」/「Usage Dashboard」、「AI监控」/「AI Monitor」、「应用换皮」/「App Skins」。
+- `/about` 与 `/test` 路由必须缺席；固定 `/settings` 提供应用、版本、本地更新日志、语言、主题、通知、自启与唯一 Agent 复选面板。用量看板的物理 Agent 与 WorkBuddy 视图在「数据源」后提供 `/dashboard/settings` 「设置」子页，只展示全局扫描间隔与自动清理；「全部」视图不显示。监控区通过 `/monitor/settings` 提供 Hooks 目录与写入操作，但不得复制 Agent 启用复选。一级业务入口名称固定为「用量看板」/「Usage Dashboard」、「AI监控」/「AI Monitor」、「应用换皮」/「App Skins」。
 
 后续产品目标、范围、约束或成功标准变化必须使用 `$desktop-define-product` 更新最新 Product Spec。身份或 UI 标准变化必须经项目负责人确认后更新本文件；形成长期取舍或硬规则例外时同时记录 ADR。

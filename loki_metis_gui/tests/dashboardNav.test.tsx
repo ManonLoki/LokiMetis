@@ -21,6 +21,7 @@ import { DashboardToolbar } from "../src/components/DashboardToolbar";
 import { CallsPage } from "../src/pages/CallsPage";
 import { ChartsPage } from "../src/pages/ChartsPage";
 import { UsagePage } from "../src/pages/UsagePage";
+import { UsageSettingsPage } from "../src/pages/UsageSettingsPage";
 import { WorkbuddyUsage } from "../src/pages/WorkbuddyUsage";
 import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
 
@@ -87,6 +88,11 @@ async function renderToolbar(
     path: "/dashboard/sources",
     component: () => null,
   });
+  const settingsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/dashboard/settings",
+    component: () => null,
+  });
   const callsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/dashboard/calls",
@@ -104,6 +110,7 @@ async function renderToolbar(
       dashboardRoute,
       usageRoute,
       sourcesRoute,
+      settingsRoute,
       callsRoute,
       chartsRoute,
     ]),
@@ -163,6 +170,11 @@ async function renderDashboard(initialPath = "/dashboard") {
     path: "/sources",
     component: () => null,
   });
+  const settingsRoute = createRoute({
+    getParentRoute: () => dashboardRoute,
+    path: "/settings",
+    component: UsageSettingsPage,
+  });
   const callsRoute = createRoute({
     getParentRoute: () => dashboardRoute,
     path: "/calls",
@@ -185,6 +197,7 @@ async function renderDashboard(initialPath = "/dashboard") {
         dashboardIndexRoute,
         usageRoute,
         sourcesRoute,
+        settingsRoute,
         callsRoute,
         chartsRoute,
       ]),
@@ -208,17 +221,19 @@ describe("dashboard header subpages", () => {
     invokeMock.mockRejectedValue(new Error("ipc unavailable"));
   });
 
-  /** 物理 Agent 视图选项卡只保留概览、用量、图表和数据源。 */
-  test("physical_agent_view_shows_overview_usage_and_sources", async () => {
+  /** 物理 Agent 视图在数据源后紧接用量设置。 */
+  test("physical_agent_view_shows_settings_after_sources", async () => {
     await renderToolbar("codex");
     const overview = screen.getByRole("link", { name: /Overview:/ });
     const usage = screen.getByRole("link", { name: /Usage:/ });
     const charts = screen.getByRole("link", { name: /Charts:/ });
     const sources = screen.getByRole("link", { name: /Data sources:/ });
+    const settings = screen.getByRole("link", { name: /Settings:/ });
     expect(overview).toBeVisible();
     expect(usage).toBeVisible();
     expect(charts).toBeVisible();
     expect(sources).toBeVisible();
+    expect(settings).toBeVisible();
     expect(
       overview.compareDocumentPosition(usage) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
@@ -229,8 +244,8 @@ describe("dashboard header subpages", () => {
       charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
-      screen.queryByRole("link", { name: /Dashboard settings:/ }),
-    ).not.toBeInTheDocument();
+      sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Time zone:/i)).not.toBeInTheDocument();
     expect(
@@ -251,33 +266,33 @@ describe("dashboard header subpages", () => {
     expect(screen.queryByRole("link", { name: /Usage:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Charts:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Data sources:/ })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Dashboard settings:/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Settings:/ })).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
-  /** WorkBuddy 开启时出现概览、用量、图表和数据源，且不出现调用或设置。 */
-  test("workbuddy_view_shows_overview_usage_and_sources_without_calls", async () => {
+  /** WorkBuddy 开启时同样在数据源后显示设置，且不出现调用。 */
+  test("workbuddy_view_shows_settings_after_sources_without_calls", async () => {
     await renderToolbar("workbuddy", true);
     const overview = screen.getByRole("link", { name: /Overview:/ });
     const usage = screen.getByRole("link", { name: /Usage:/ });
     const charts = screen.getByRole("link", { name: /Charts:/ });
     const sources = screen.getByRole("link", { name: /Data sources:/ });
+    const settings = screen.getByRole("link", { name: /Settings:/ });
     expect(overview).toBeVisible();
     expect(usage).toBeVisible();
     expect(charts).toBeVisible();
     expect(sources).toBeVisible();
+    expect(settings).toBeVisible();
     expect(
       usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
       charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
-    expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /Dashboard settings:/ }),
-    ).not.toBeInTheDocument();
+      sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
@@ -454,5 +469,32 @@ describe("dashboard content surface", () => {
     expect(router.state.location.pathname).toBe("/dashboard/charts");
     expect(router.state.location.pathname).not.toBe("/settings");
     expect(screen.queryByText("sidebar-settings")).not.toBeInTheDocument();
+  });
+
+  /** 设置选项卡打开看板子路由，只展示扫描间隔与自动清理。 */
+  test("settings_tab_opens_usage_settings_in_dashboard", async () => {
+    const router = await renderDashboard();
+
+    await userEvent.click(screen.getByRole("link", { name: /Settings:/ }));
+
+    const settings = await screen.findByTestId("dashboard-settings");
+    expect(within(settings).getByRole("heading", { name: "Usage settings" })).toBeVisible();
+    expect(within(settings).getByText("Scan interval")).toBeVisible();
+    expect(within(settings).getByText("Automatic cleanup")).toBeVisible();
+    expect(router.state.location.pathname).toBe("/dashboard/settings");
+    expect(screen.queryByText("sidebar-settings")).not.toBeInTheDocument();
+  });
+
+  /** 从用量设置切换到「全部」时回到概览，不暴露不适用子页。 */
+  test("switching_to_all_leaves_usage_settings", async () => {
+    const router = await renderDashboard("/dashboard/settings");
+    expect(await screen.findByTestId("dashboard-settings")).toBeVisible();
+
+    await userEvent.click(screen.getByText("All"));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/dashboard");
+    });
+    expect(screen.queryByTestId("dashboard-settings")).not.toBeInTheDocument();
   });
 });

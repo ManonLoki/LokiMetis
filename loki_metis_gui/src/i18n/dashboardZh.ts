@@ -1,4 +1,6 @@
 /** 看板界面中文资源；用户数据和技术标签不进入该表。 */
+import { dashboardUsageSettingsZhCN } from "./dashboardUsageSettings";
+
 export const dashboardZhCN = {
   app: {
     brand: "诡秘神谕",
@@ -57,6 +59,7 @@ export const dashboardZhCN = {
       charts: { label: "图表", description: "查看 Token 趋势与多维用量分布" },
       calls: { label: "调用", description: "分页浏览完整 Token 构成的本机调用" },
       sources: { label: "数据源", description: "查看本机数据目录与扫描覆盖" },
+      settings: { label: "设置", description: "管理扫描间隔与自动清理" },
       leaderboard: {
         label: "排行榜",
         description: "查看所选上报服务的聚合用量排行",
@@ -571,13 +574,7 @@ export const dashboardZhCN = {
     },
   },
   privacy: {
-    page: {
-      title: "隐私与设置",
-      codexDescription: "管理 Codex 本机索引与清理范围；本产品不保存会话正文。",
-      claudeDescription:
-        "掌握 Claude Code 本机 transcript 索引与清理范围；本产品不保存会话正文。",
-      loading: "正在读取隐私设置",
-    },
+    page: dashboardUsageSettingsZhCN.page,
     language: {
       title: "界面语言",
       badge: "全局设置",
@@ -661,30 +658,8 @@ export const dashboardZhCN = {
       actionErrorTitle: "数据上报操作未完成",
     },
 
-    retentionDays: {
-      title: "自动清理",
-      badge: "默认 90 天",
-      label: "自动清理多少天前的数据",
-      description:
-        "允许 1 至 3650 的整数天，默认 90 天。只删除本产品派生用量中更早的调用和累计快照，不删除 Agent 原始文件、数据根或来源记录。保存后在下次打开应用时后台清理。",
-      error: "自动清理天数必须是 1 至 3650 天。",
-      save: "保存自动清理天数",
-      successTitle: "自动清理天数已保存",
-      successBody: "已保存 {{days}} 天；下次打开应用时后台清理更早的派生用量。",
-      errorTitle: "无法保存自动清理天数",
-    },
-    scanInterval: {
-      title: "扫描间隔",
-      badge: "默认 5 分钟",
-      label: "扫描间隔（分钟）",
-      description:
-        "允许 1 至 1440 的整数分钟，默认 5 分钟。本机周期快速扫描使用这一间隔；保存只改节奏。",
-      error: "扫描间隔必须是 1 至 1440 分钟。",
-      save: "保存扫描间隔",
-      successTitle: "扫描间隔已保存",
-      successBody: "已保存 {{minutes}} 分钟扫描间隔；各客户端共用同一触发器。",
-      errorTitle: "无法保存扫描间隔",
-    },
+    retentionDays: dashboardUsageSettingsZhCN.retentionDays,
+    scanInterval: dashboardUsageSettingsZhCN.scanInterval,
   },
   workbuddy: {
     title: "WorkBuddy 本地用量统计",

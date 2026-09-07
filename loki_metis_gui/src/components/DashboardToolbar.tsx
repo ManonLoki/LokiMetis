@@ -21,9 +21,10 @@ interface UsagePageItem {
     | "/dashboard/calls"
     | "/dashboard/usage"
     | "/dashboard/charts"
-    | "/dashboard/sources";
+    | "/dashboard/sources"
+    | "/dashboard/settings";
   /** 本地翻译资源中的页面键。 */
-  key: "overview" | "calls" | "statistics" | "charts" | "sources";
+  key: "overview" | "calls" | "statistics" | "charts" | "sources" | "settings";
 }
 
 /** 看板横向菜单。 */
@@ -32,6 +33,7 @@ const dashboardPageItems: UsagePageItem[] = [
   { key: "statistics", to: "/dashboard/usage" },
   { key: "charts", to: "/dashboard/charts" },
   { key: "sources", to: "/dashboard/sources" },
+  { key: "settings", to: "/dashboard/settings" },
 ];
 
 /** 全部视图只开放可跨 Agent 合并的只读概览与调用页。 */
@@ -46,6 +48,7 @@ const workbuddyDashboardPageItems: UsagePageItem[] = [
   { key: "statistics", to: "/dashboard/usage" },
   { key: "charts", to: "/dashboard/charts" },
   { key: "sources", to: "/dashboard/sources" },
+  { key: "settings", to: "/dashboard/settings" },
 ];
 
 /** 定义公共页头的只读视图与横向子页交互。 */

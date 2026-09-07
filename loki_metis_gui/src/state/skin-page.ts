@@ -3,12 +3,11 @@
  */
 import { atom } from "jotai";
 
-/** 描述换皮页当前进程内的筛选和目标选择。 */
+/** 描述换皮页当前进程内的筛选和宿主选择。 */
 export interface SkinPageSession {
   search: string;
   userOnly: boolean;
   selectedHost: "codex" | "workBuddy" | null;
-  selectedInstanceIds: Partial<Record<"codex" | "workBuddy", string>>;
   restoreDismissedHosts: Partial<Record<"codex" | "workBuddy", boolean>>;
 }
 
@@ -17,7 +16,6 @@ export const initialSkinPageSession: SkinPageSession = {
   search: "",
   userOnly: false,
   selectedHost: null,
-  selectedInstanceIds: {},
   restoreDismissedHosts: {},
 };
 

@@ -7,7 +7,6 @@ import {
   Paper,
   SimpleGrid,
   Stack,
-  Text,
   Title,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -74,11 +73,7 @@ export function UnifiedAgentSelectionPanel(): ReactElement {
             {t("settings.agent_panel_badge")}
           </Badge>
         </Group>
-        <Text c="dimmed" id="settings-enabled-agent-panel-description" size="sm">
-          {t("settings.agent_panel_description")}
-        </Text>
         <SimpleGrid
-          aria-describedby="settings-enabled-agent-panel-description"
           aria-labelledby="settings-enabled-agent-panel-title"
           cols={{ base: 2, sm: 3, md: 5 }}
           role="group"

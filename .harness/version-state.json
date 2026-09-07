@@ -208,6 +208,46 @@
       "change_id": "BUG-STARTUP-RESOURCE-UNKNOWN-PATH",
       "kind": "bug-fix",
       "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-DASHBOARD-SOURCE-SETTINGS-TAB",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-SKIN-PAGE-HEADER-REMOVAL",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-SKIN-TOOLBAR-SIMPLIFICATION",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-SETTINGS-PAGE-HEADER-REMOVAL",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-AGENT-SETTINGS-HEADER-REMOVAL",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-RELEASE-NOTES-ACTION-IN-APP-INFO",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-SETTINGS-HELP-SUBTITLES-REMOVAL",
+      "kind": "feature",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "FEAT-SETTINGS-PREFERENCE-SUBTITLES-REMOVAL",
+      "kind": "feature",
+      "required_version": "0.2.14"
     }
   ],
   "schema_version": 1,

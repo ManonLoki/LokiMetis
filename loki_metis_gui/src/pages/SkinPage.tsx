@@ -1,6 +1,5 @@
 import {
   Alert,
-  Badge,
   Button,
   Center,
   Group,
@@ -11,7 +10,6 @@ import {
   Stack,
   Tabs,
   Text,
-  Title,
 } from "@mantine/core";
 import {
   useMutation,
@@ -61,7 +59,7 @@ import {
   readRememberedSkin,
   rememberSkin,
 } from "../lib/skin-preference";
-import { resolveTargetInstance } from "../lib/skin-instances";
+import { resolveSoleTargetInstance } from "../lib/skin-instances";
 import { skinPageSessionAtom } from "../state/skin-page";
 
 /** 把资源描述收敛成原生命令要求的精确引用。 */
@@ -141,7 +139,6 @@ export function SkinPage(): ReactElement {
     hostOptions.find((item) => item.skinHost === activeHost)?.name ??
     (host === "workBuddy" ? "WorkBuddy" : "Codex");
   const hostAvailable = skinHostAvailable() && activeHost !== null;
-  const selectedInstanceId = session.selectedInstanceIds[host] ?? null;
 
   useEffect(() => {
     if (activeHost !== null && session.selectedHost !== activeHost) {
@@ -210,24 +207,6 @@ export function SkinPage(): ReactElement {
   );
 
   useEffect(() => {
-    const current = instances.data ?? [];
-    const selectedStillExists = current.some((item) => item.id === selectedInstanceId);
-    const onlyInstance = resolveTargetInstance(current, null);
-    if (onlyInstance !== null && selectedInstanceId !== onlyInstance.id) {
-      setSession((value) => ({
-        ...value,
-        selectedInstanceIds: { ...value.selectedInstanceIds, [host]: onlyInstance.id },
-      }));
-    } else if (!selectedStillExists && selectedInstanceId !== null) {
-      setSession((value) => {
-        const selectedInstanceIds = { ...value.selectedInstanceIds };
-        delete selectedInstanceIds[host];
-        return { ...value, selectedInstanceIds };
-      });
-    }
-  }, [host, instances.data, selectedInstanceId, setSession]);
-
-  useEffect(() => {
     if (!hostAvailable) return;
     let unlisten: (() => void) | undefined;
     void skinApi
@@ -254,7 +233,7 @@ export function SkinPage(): ReactElement {
   }, [hostAvailable]);
 
   const instanceList = instances.data ?? [];
-  const selectedInstance = resolveTargetInstance(instanceList, selectedInstanceId);
+  const selectedInstance = resolveSoleTargetInstance(instanceList);
   const activeSkin =
     selectedInstance?.activeSkin ??
     (status.data?.installed && status.data.skinId && status.data.source
@@ -322,7 +301,7 @@ export function SkinPage(): ReactElement {
           queryKey: skinInstancesQueryKey(host),
         });
       }
-      const target = resolveTargetInstance(current, selectedInstanceId);
+      const target = resolveSoleTargetInstance(current);
       if (target === null)
         throw new SkinHostError(
           "skin.host_instance_selection_required",
@@ -334,7 +313,7 @@ export function SkinPage(): ReactElement {
       }
       await installOnInstance(skin, target);
     },
-    [host, instanceList, installOnInstance, queryClient, selectedInstanceId, t],
+    [host, instanceList, installOnInstance, queryClient, t],
   );
 
   /** 从原生文件选择器预检一个有界 ZIP 批次。 */
@@ -396,26 +375,6 @@ export function SkinPage(): ReactElement {
   const runtimeLabel = runtime.data?.state ?? "stopped";
   return (
     <Stack data-testid="skin-page" gap="lg">
-      <Group align="flex-start" justify="space-between">
-        <Stack gap={4}>
-          <Title order={1}>{t("skins.title")}</Title>
-          <Text c="dimmed">{t("skins.description")}</Text>
-        </Stack>
-        <Badge
-          color={
-            runtimeLabel === "ready"
-              ? "teal"
-              : runtimeLabel === "runningWithoutCdp"
-                ? "yellow"
-                : "gray"
-          }
-          size="lg"
-          variant="light"
-        >
-          {t(`skins.runtime.${runtimeLabel}`, { host: hostName })}
-        </Badge>
-      </Group>
-
       {hostOptions.length > 0 ? (
         <Tabs
           aria-label={t("skins.host.tabs")}
@@ -473,31 +432,17 @@ export function SkinPage(): ReactElement {
         <Stack gap="md">
           <SkinToolbar
             busy={action.isPending}
-            hostName={hostName}
             hostAvailable={hostAvailable}
-            instances={instanceList}
             onCreate={() => setCreateOpened(true)}
             onImport={() => void run(prepareImport)}
             onRefresh={() => void run(refresh)}
             onSearchChange={(search) => setSession((value) => ({ ...value, search }))}
-            onSelectedInstanceChange={(selectedInstanceId) =>
-              setSession((value) => {
-                const selectedInstanceIds = { ...value.selectedInstanceIds };
-                if (selectedInstanceId === null) delete selectedInstanceIds[host];
-                else selectedInstanceIds[host] = selectedInstanceId;
-                return { ...value, selectedInstanceIds };
-              })
-            }
             onUserOnlyChange={(userOnly) => setSession((value) => ({ ...value, userOnly }))}
             search={session.search}
-            selectedInstanceId={selectedInstanceId}
             userOnly={session.userOnly}
           />
-          <Group justify="space-between">
-            <Text c="dimmed" size="sm">
-              {t("skins.catalog.count", { count: filteredSkins.length })}
-            </Text>
-            <Group gap="xs">
+          {runtimeLabel === "stopped" || selectedUserSkins.length > 0 ? (
+            <Group gap="xs" justify="flex-end">
               {runtimeLabel === "stopped" ? (
                 <Button
                   disabled={!hostAvailable}
@@ -533,7 +478,7 @@ export function SkinPage(): ReactElement {
                 </Button>
               ) : null}
             </Group>
-          </Group>
+          ) : null}
         </Stack>
       </Paper>
 

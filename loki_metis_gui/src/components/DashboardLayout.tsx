@@ -75,6 +75,12 @@ export function DashboardLayout(): ReactElement {
     workbuddyStatsEnabled,
   ]);
 
+  useEffect(() => {
+    if (privacySettingsReady && view === "all" && pathname === "/dashboard/settings") {
+      void navigate({ to: "/dashboard" });
+    }
+  }, [navigate, pathname, privacySettingsReady, view]);
+
   /** 切换物理 Agent、全部或 WorkBuddy 视图；选择只在当前桌面进程内生效。 */
   const handleViewChange = (nextView: UsageViewKind): void => {
     setView(nextView);
@@ -82,7 +88,8 @@ export function DashboardLayout(): ReactElement {
       nextView === "all" &&
       (pathname === "/dashboard/usage" ||
         pathname === "/dashboard/charts" ||
-        pathname === "/dashboard/sources")
+        pathname === "/dashboard/sources" ||
+        pathname === "/dashboard/settings")
     ) {
       void navigate({ to: "/dashboard" });
       return;

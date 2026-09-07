@@ -37,7 +37,6 @@ export function HostCapabilitySwitch({
   const [displayed, setDisplayed] = useState<boolean | undefined>(setting.data);
   const [updateFailed, setUpdateFailed] = useState(false);
   const titleId = `capability-${id}-title`;
-  const descriptionId = `capability-${id}-description`;
 
   useEffect(() => {
     if (setting.data !== undefined) setDisplayed(setting.data);
@@ -66,17 +65,11 @@ export function HostCapabilitySwitch({
   return (
     <Paper data-testid={`settings-capability-${id}`} p="lg" radius="lg" withBorder>
       <Stack gap="sm">
-        <Group align="flex-start" justify="space-between" wrap="nowrap">
-          <Stack gap={4} style={{ flex: 1 }}>
-            <Text fw={600} id={titleId}>
-              {t(`settings.${id}_title`)}
-            </Text>
-            <Text c="dimmed" id={descriptionId} lh={1.55} size="sm">
-              {t(`settings.${id}_description`)}
-            </Text>
-          </Stack>
+        <Group align="center" justify="space-between" wrap="nowrap">
+          <Text fw={600} id={titleId}>
+            {t(`settings.${id}_title`)}
+          </Text>
           <Switch
-            aria-describedby={descriptionId}
             aria-labelledby={titleId}
             checked={displayed ?? false}
             data-authoritative-state={

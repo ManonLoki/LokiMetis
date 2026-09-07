@@ -29,17 +29,10 @@
     "workspace_description": "The dashboard is the default landing page, and resources and preferences stay on this device."
   },
   "skins": {
-    "title": "Skins",
-    "description": "Manage the local skin library and safely apply a theme to an explicitly selected instance in the active host tab.",
     "host": {
       "tabs": "Skin hosts",
       "empty_title": "No skin host is enabled",
       "empty_description": "Enable Codex or WorkBuddy in the unified Agent panel in Settings."
-    },
-    "runtime": {
-      "stopped": "{{host}} is not running",
-      "ready": "{{host}} is connectable",
-      "runningWithoutCdp": "Debug connection required"
     },
     "browser": {
       "title": "Desktop host required",
@@ -50,13 +43,7 @@
       "placeholder": "Search by name, author, or ID",
       "user_only": "User skins only"
     },
-    "instance": {
-      "label": "Target {{host}} instance",
-      "none": "No {{host}} instance found",
-      "choose": "Choose a target instance"
-    },
     "catalog": {
-      "count": "Showing {{count}} skins",
       "empty": "No skins match the current filters."
     },
     "source": { "builtin": "Built in", "user": "User" },
@@ -133,41 +120,30 @@
     "error": {
       "title": "Operation not completed",
       "unknown": "The skin operation failed. Refresh the host state and try again.",
-      "choose_instance": "Multiple host instances were found. Choose the target explicitly."
+      "choose_instance": "Multiple host instances were found. Close the extras, leave one running, then refresh and try again."
     }
   },
   "settings": {
-    "title": "Settings",
-    "description": "Manage Agent configuration, local interface preferences, and enabled system capabilities in one place.",
     "application_title": "Application information",
     "application_description": "The application name and version come from the current package.",
     "localized_name": "Chinese name",
     "version": "Version",
-    "agent_title": "Agent configuration",
-    "agent_description": "Manage dashboard collection, data retention, and local Hooks configuration for every Agent in one place.",
     "agent_panel_title": "Enabled Agents",
     "agent_panel_badge": "Global setting",
-    "agent_panel_description": "One selection drives the dashboard, Hooks, desktop pet, and skins; each page shows only the Agents it supports.",
     "language_title": "Interface language",
-    "language_description": "A saved choice takes priority over the system language and updates native menus.",
     "language_zh_cn": "中文",
     "language_en_us": "English",
     "language_error_title": "Language not changed",
     "language_error": "The native interface language could not be synchronized. Check the app state and try again.",
     "theme_title": "Appearance",
-    "theme_description": "Choose light, dark, or follow system. The preference is stored only on this device.",
     "theme_light": "Light",
     "theme_dark": "Dark",
     "theme_system": "Follow system",
-    "release_notes_title": "Release notes",
-    "release_notes_description": "View the local release notes bundled with a formal candidate.",
     "release_notes_action": "View release notes",
     "system_notification_title": "System notifications",
-    "system_notification_description": "The app may send native notifications only after you explicitly enable them here.",
     "system_notification_error": "The notification setting could not be updated. The switch was restored to the readable system state. Check system notification permission and try again.",
     "system_notification_unknown": "Notification permission and the local preference are both unavailable. Reload after the system becomes reachable.",
     "autostart_title": "Start at login",
-    "autostart_description": "Launch and show the app normally after sign-in. The operating system login item is authoritative.",
     "autostart_error": "The login item could not be updated. The switch was restored to the readable system state. Check system login items and try again.",
     "autostart_unknown": "The operating system login item cannot be read right now. Reload it later.",
     "capability_loading": "Reading the actual state…",

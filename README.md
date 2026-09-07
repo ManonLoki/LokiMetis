@@ -1,6 +1,6 @@
 # 诡秘神谕 · LokiMetis
 
-LokiMetis 是一个面向 Windows、macOS 与 Linux 的 Tauri 2 GUI-only 本机 AI 工作台，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并逐步整合 Codex 本机外观管理。当前批准范围与成功标准见 `docs/product_spec/20260907_product_spec.md`。
+LokiMetis 是一个面向 Windows、macOS 与 Linux 的 Tauri 2 GUI-only 本机 AI 工作台，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合 Codex 与 WorkBuddy 本机外观管理。当前批准范围与成功标准见 `docs/product_spec/20260908_product_spec.md`。
 
 ## 当前状态
 

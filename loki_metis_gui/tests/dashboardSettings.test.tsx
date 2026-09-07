@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { SettingsPage } from "../src/components/SettingsPage";
+import { UsageSettingsPage } from "../src/pages/UsageSettingsPage";
 import {
   availableDashboardAiTypesFixture,
   monitorCapabilitiesFixture,
@@ -84,8 +85,8 @@ describe("dashboard settings capabilities", () => {
     });
   });
 
-  /** 公共设置保留统一 Agent 面板与看板参数，不再嵌入 Hooks 配置。 */
-  test("settings_page_centralizes_agent_configuration_and_keeps_host_controls", async () => {
+  /** 公共设置只保留统一 Agent 面板与宿主控件，不再嵌入用量参数。 */
+  test("settings_page_keeps_agent_configuration_and_host_controls", async () => {
     render(
       <TestProviders>
         <SettingsPage />
@@ -93,27 +94,73 @@ describe("dashboard settings capabilities", () => {
     );
 
     expect(await screen.findByTestId("settings-page")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Settings" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Manage Agent configuration, local interface preferences, and enabled system capabilities in one place.",
+      ),
+    ).not.toBeInTheDocument();
+    const applicationSection = screen.getByTestId("settings-application-section");
+    expect(
+      within(applicationSection).getByRole("button", { name: "View release notes" }),
+    ).toBeVisible();
+    expect(screen.queryByTestId("settings-release-notes-section")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("View the local release notes bundled with a formal candidate."),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Interface language")).toBeVisible();
     expect(screen.getByText("Appearance")).toBeVisible();
+    expect(
+      screen.queryByText(
+        "A saved choice takes priority over the system language and updates native menus.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Choose light, dark, or follow system. The preference is stored only on this device.",
+      ),
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByRole("switch", { name: "System notifications" }),
     ).toBeVisible();
     expect(screen.getByRole("switch", { name: "Start at login" })).toBeVisible();
+    expect(
+      screen.queryByText(
+        "The app may send native notifications only after you explicitly enable them here.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Launch and show the app normally after sign-in. The operating system login item is authoritative.",
+      ),
+    ).not.toBeInTheDocument();
 
     const agentSettings = screen.getByTestId("settings-agent-settings");
-    const dashboardSettings =
-      await within(agentSettings).findByTestId("dashboard-settings");
     const agentPanel = await within(agentSettings).findByTestId(
       "settings-enabled-agent-panel",
     );
-    expect(within(agentSettings).getByText("Agent configuration")).toBeVisible();
+    expect(
+      within(agentSettings).queryByRole("heading", { name: "Agent configuration" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(agentSettings).queryByText(
+        "Choose the Agents shared by the dashboard, monitor, desktop pet, and app skins.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      within(agentPanel).queryByText(
+        "One selection drives the dashboard, Hooks, desktop pet, and skins; each page shows only the Agents it supports.",
+      ),
+    ).not.toBeInTheDocument();
     expect(within(agentPanel).getAllByRole("checkbox")).toHaveLength(5);
     for (const name of ["Codex", "Claude Code", "Cursor", "Grok", "WorkBuddy"]) {
       expect(within(agentPanel).getByRole("checkbox", { name })).toBeVisible();
     }
-    expect(within(dashboardSettings).getByText("Scan interval")).toBeVisible();
-    expect(within(dashboardSettings).getByText("Automatic cleanup")).toBeVisible();
-    expect(within(dashboardSettings).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(agentSettings).queryByText("Scan interval")).not.toBeInTheDocument();
+    expect(within(agentSettings).queryByText("Automatic cleanup")).not.toBeInTheDocument();
+    expect(
+      within(agentSettings).queryByTestId("dashboard-settings"),
+    ).not.toBeInTheDocument();
     expect(within(agentSettings).queryByTestId("monitor-settings")).not.toBeInTheDocument();
     await userEvent.click(within(agentPanel).getByRole("checkbox", { name: "Cursor" }));
     expect(invokeMock).toHaveBeenCalledWith("save_enabled_ai_selection", {
@@ -121,5 +168,32 @@ describe("dashboard settings capabilities", () => {
       tools: ["codex", "cursor"],
     });
     expect(screen.queryByText("Device identity")).not.toBeInTheDocument();
+  });
+
+  /** 用量看板设置页独立承载扫描间隔与自动清理。 */
+  test("dashboard_settings_owns_scan_interval_and_cleanup", async () => {
+    render(
+      <TestProviders>
+        <UsageSettingsPage />
+      </TestProviders>,
+    );
+
+    const dashboardSettings = await screen.findByTestId("dashboard-settings");
+    expect(
+      within(dashboardSettings).getByRole("heading", { name: "Usage settings" }),
+    ).toBeVisible();
+    expect(within(dashboardSettings).getByText("Scan interval")).toBeVisible();
+    expect(within(dashboardSettings).getByText("Automatic cleanup")).toBeVisible();
+    expect(
+      within(dashboardSettings).queryByText(
+        "Enter an integer from 1 to 1,440 minutes; default 5. Local periodic quick scans use this interval. Saving only changes the cadence.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dashboardSettings).queryByText(
+        "Enter an integer from 1 to 3,650 days; default 90. Only derived calls and cumulative snapshots older than this window are removed. Agent source files, data roots, and source checkpoints are kept. Saving does not clean immediately; cleanup runs in the background the next time the app opens.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(within(dashboardSettings).queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });

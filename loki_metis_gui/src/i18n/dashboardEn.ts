@@ -1,4 +1,6 @@
 /** 看板界面英文资源，键结构与中文资源对齐。 */
+import { dashboardUsageSettingsEnUS } from "./dashboardUsageSettings";
+
 export const dashboardEnUS = {
   app: {
     brand: "LokiMetis",
@@ -77,6 +79,10 @@ export const dashboardEnUS = {
       sources: {
         label: "Data sources",
         description: "View local data directories and scan coverage",
+      },
+      settings: {
+        label: "Settings",
+        description: "Manage scan cadence and automatic cleanup",
       },
       leaderboard: {
         label: "Leaderboard",
@@ -613,14 +619,7 @@ export const dashboardEnUS = {
     },
   },
   privacy: {
-    page: {
-      title: "Privacy & settings",
-      codexDescription:
-        "Manage the Codex local index and deletion scope. This app does not save conversation content.",
-      claudeDescription:
-        "Control the local Claude Code transcript index and deletion scope. Conversation content is not saved.",
-      loading: "Loading privacy settings",
-    },
+    page: dashboardUsageSettingsEnUS.page,
     language: {
       title: "Display language",
       badge: "Global setting",
@@ -710,32 +709,8 @@ export const dashboardEnUS = {
       actionErrorTitle: "Data-reporting action did not complete",
     },
 
-    retentionDays: {
-      title: "Automatic cleanup",
-      badge: "Default: 90 days",
-      label: "Delete derived usage older than (days)",
-      description:
-        "Enter an integer from 1 to 3,650 days; default 90. Only derived calls and cumulative snapshots older than this window are removed. Agent source files, data roots, and source checkpoints are kept. Saving does not clean immediately; cleanup runs in the background the next time the app opens.",
-      error: "Automatic cleanup must be from 1 to 3,650 days.",
-      save: "Save cleanup window",
-      successTitle: "Cleanup window saved",
-      successBody:
-        "{{days}} days were saved. The next launch will clean older derived usage in the background.",
-      errorTitle: "Unable to save the cleanup window",
-    },
-    scanInterval: {
-      title: "Scan interval",
-      badge: "Default: 5 minutes",
-      label: "Scan interval (minutes)",
-      description:
-        "Enter an integer from 1 to 1,440 minutes; default 5. Local periodic quick scans use this interval. Saving only changes the cadence.",
-      error: "The scan interval must be from 1 to 1,440 minutes.",
-      save: "Save scan interval",
-      successTitle: "Scan interval saved",
-      successBody:
-        "The {{minutes}}-minute scan interval was saved. All clients share this trigger.",
-      errorTitle: "Unable to save the scan interval",
-    },
+    retentionDays: dashboardUsageSettingsEnUS.retentionDays,
+    scanInterval: dashboardUsageSettingsEnUS.scanInterval,
   },
   workbuddy: {
     title: "WorkBuddy local usage statistics",

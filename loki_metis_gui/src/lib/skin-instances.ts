@@ -1,12 +1,8 @@
 import type { CodexInstance } from "../api/skins";
 
-/** 解析目标 Codex 实例：优先命中已选中项，否则在唯一实例时回退到它。 */
-export function resolveTargetInstance(
+/** 只在宿主恰有一个实例时返回目标，避免无选择控件时静默命中其他进程。 */
+export function resolveSoleTargetInstance(
   instances: CodexInstance[],
-  selectedId: string | null,
 ): CodexInstance | null {
-  return (
-    instances.find((item) => item.id === selectedId) ??
-    (instances.length === 1 ? (instances.at(0) ?? null) : null)
-  );
+  return instances.length === 1 ? (instances.at(0) ?? null) : null;
 }

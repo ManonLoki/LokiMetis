@@ -100,23 +100,31 @@ export function SettingsPage({
 
   return (
     <Stack data-testid="settings-page" gap="lg">
-      <Stack gap={4}>
-        <Title order={1}>{t("settings.title")}</Title>
-        <Text c="dimmed">{t("settings.description")}</Text>
-      </Stack>
-
       <Paper
         className="surface-card"
-        data-testid="settings-release-notes-section"
+        data-testid="settings-application-section"
         p="xl"
         radius="lg"
         withBorder
       >
-        <Stack gap="md">
-          <Group justify="space-between" wrap="wrap">
+        <Group align="flex-start" justify="space-between" wrap="wrap">
+          <Stack gap="md" maw={620}>
             <Title order={2} size="h3">
               {t("settings.application_title")}
             </Title>
+            <Stack gap={2}>
+              <Text fw={650} size="lg">
+                {metadata.data?.applicationName ?? t("identity.application_name")}
+              </Text>
+              <Text c="dimmed" size="sm">
+                {t("settings.localized_name")}: {t("identity.localized_name")}
+              </Text>
+            </Stack>
+            <Text c="dimmed" size="sm">
+              {t("settings.application_description")}
+            </Text>
+          </Stack>
+          <Stack align="flex-end" gap="md">
             {metadata.data === undefined ? (
               <Skeleton h={28} radius="xl" w={92} />
             ) : (
@@ -124,19 +132,15 @@ export function SettingsPage({
                 {t("settings.version")} {formatDisplayVersion(metadata.data.version)}
               </Badge>
             )}
-          </Group>
-          <Stack gap={2}>
-            <Text fw={650} size="lg">
-              {metadata.data?.applicationName ?? t("identity.application_name")}
-            </Text>
-            <Text c="dimmed" size="sm">
-              {t("settings.localized_name")}: {t("identity.localized_name")}
-            </Text>
+            <Button
+              leftSection={<IconHistory aria-hidden="true" size={18} />}
+              onClick={requestReleaseNotes}
+              variant="light"
+            >
+              {t("settings.release_notes_action")}
+            </Button>
           </Stack>
-          <Text c="dimmed" size="sm">
-            {t("settings.application_description")}
-          </Text>
-        </Stack>
+        </Group>
       </Paper>
 
       <AgentSettings />
@@ -147,9 +151,6 @@ export function SettingsPage({
             <Title order={2} size="h3">
               {t("settings.language_title")}
             </Title>
-            <Text c="dimmed" size="sm">
-              {t("settings.language_description")}
-            </Text>
             <SegmentedControl
               aria-label={t("settings.language_title")}
               data={[
@@ -181,9 +182,6 @@ export function SettingsPage({
             <Title order={2} size="h3">
               {t("settings.theme_title")}
             </Title>
-            <Text c="dimmed" size="sm">
-              {t("settings.theme_description")}
-            </Text>
             <SegmentedControl
               aria-label={t("settings.theme_title")}
               data={[
@@ -214,26 +212,6 @@ export function SettingsPage({
           setEnabled={setAutostartEnabled}
         />
       </SimpleGrid>
-
-      <Paper className="surface-card" p="xl" radius="lg" withBorder>
-        <Group align="center" justify="space-between" wrap="wrap">
-          <Stack gap={4} maw={620}>
-            <Title order={2} size="h3">
-              {t("settings.release_notes_title")}
-            </Title>
-            <Text c="dimmed" size="sm">
-              {t("settings.release_notes_description")}
-            </Text>
-          </Stack>
-          <Button
-            leftSection={<IconHistory aria-hidden="true" size={18} />}
-            onClick={requestReleaseNotes}
-            variant="light"
-          >
-            {t("settings.release_notes_action")}
-          </Button>
-        </Group>
-      </Paper>
 
       <ReleaseNotesDialogTemplate
         language={releaseNotesLanguage}

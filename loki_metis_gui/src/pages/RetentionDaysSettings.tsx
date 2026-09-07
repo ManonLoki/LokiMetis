@@ -78,7 +78,6 @@ export function RetentionDaysSettings({ savedDays }: RetentionDaysSettingsProps)
             allowDecimal={false}
             allowNegative={false}
             clampBehavior="none"
-            description={t("privacy.retentionDays.description")}
             error={daysValid ? null : t("privacy.retentionDays.error")}
             label={t("privacy.retentionDays.label")}
             max={RETENTION_DAYS_MAX}

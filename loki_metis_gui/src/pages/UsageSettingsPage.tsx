@@ -6,6 +6,7 @@ import {
   NumberInput,
   Paper,
   Stack,
+  Text,
   Title,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -85,7 +86,6 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
 
           <NumberInput
             {...boundedMinutesNumberInputProps}
-            description={t("privacy.scanInterval.description")}
             error={intervalValid ? null : t("privacy.scanInterval.error")}
             label={t("privacy.scanInterval.label")}
             onChange={(value) => {
@@ -127,8 +127,8 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
   );
 }
 
-/** 在公共设置页展示统一 Agent 选择之外的扫描间隔与自动清理。 */
-export function DashboardSettingsSection() {
+/** 在用量看板设置页展示全局扫描间隔与自动清理。 */
+export function UsageSettingsPage() {
   const { t } = useTranslation();
   const client = useAtomValue(agentClientAtom);
   const privacyQuery = useQuery({
@@ -151,6 +151,11 @@ export function DashboardSettingsSection() {
 
   return (
     <Stack data-testid="dashboard-settings" gap="xl">
+      <Stack gap={4}>
+        <Title order={1}>{t("privacy.page.title")}</Title>
+        <Text c="dimmed">{t("privacy.page.description")}</Text>
+      </Stack>
+
       <ScanIntervalSettings
         key={`scan-interval-${client}`}
         savedMinutes={settings.scanIntervalMinutes}

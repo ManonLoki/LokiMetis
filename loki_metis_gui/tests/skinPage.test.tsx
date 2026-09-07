@@ -92,7 +92,7 @@ describe("skin page", () => {
         );
       }
       if (command === "skin_host_runtime_status")
-        return Promise.resolve({ state: "ready" });
+        return Promise.resolve({ state: "runningWithoutCdp" });
       if (command === "list_skin_host_instances") {
         return Promise.resolve([
           {
@@ -130,12 +130,19 @@ describe("skin page", () => {
       </TestProviders>,
     );
 
-    expect(await screen.findByText("Showing 6 skins")).toBeVisible();
-    expect(screen.getAllByTestId(/^skin-card-/)).toHaveLength(6);
+    expect(await screen.findAllByTestId(/^skin-card-/)).toHaveLength(6);
     expect(screen.getByRole("tab", { name: "Codex" })).toBeVisible();
     expect(screen.getByRole("tab", { name: "WorkBuddy" })).toBeVisible();
     expect(screen.queryByRole("tab", { name: "Cursor" })).not.toBeInTheDocument();
-    expect(screen.getByText("Codex is connectable")).toBeVisible();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByText("Showing 6 skins")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Skins" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Manage the local skin library and safely apply a theme to an explicitly selected instance in the active host tab.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Debug connection required")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create theme" })).toBeEnabled();
 
     await userEvent.click(screen.getByRole("tab", { name: "WorkBuddy" }));

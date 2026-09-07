@@ -1,41 +1,31 @@
-import { Button, Group, Select, Switch, TextInput } from "@mantine/core";
+import { Button, Group, Switch, TextInput } from "@mantine/core";
 import { IconPlus, IconRefresh, IconSearch, IconUpload } from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { CodexInstance } from "../../api/skins";
-
 /** 描述皮肤资源库工具栏的受控状态。 */
 export interface SkinToolbarProps {
   busy: boolean;
-  hostName: string;
   hostAvailable: boolean;
-  instances: CodexInstance[];
   search: string;
-  selectedInstanceId: string | null;
   userOnly: boolean;
   onCreate: () => void;
   onImport: () => void;
   onRefresh: () => void;
   onSearchChange: (value: string) => void;
-  onSelectedInstanceChange: (value: string | null) => void;
   onUserOnlyChange: (value: boolean) => void;
 }
 
-/** 渲染搜索、用户筛选、显式实例选择和资源库操作。 */
+/** 渲染搜索、用户筛选和资源库操作；宿主目标只按唯一实例自动解析。 */
 export function SkinToolbar({
   busy,
-  hostName,
   hostAvailable,
-  instances,
   search,
-  selectedInstanceId,
   userOnly,
   onCreate,
   onImport,
   onRefresh,
   onSearchChange,
-  onSelectedInstanceChange,
   onUserOnlyChange,
 }: SkinToolbarProps): ReactElement {
   const { t } = useTranslation();
@@ -49,22 +39,6 @@ export function SkinToolbar({
           placeholder={t("skins.search.placeholder")}
           style={{ flex: "1 1 220px" }}
           value={search}
-        />
-        <Select
-          aria-label={t("skins.instance.label", { host: hostName })}
-          clearable={instances.length !== 1}
-          data={instances.map((instance) => ({
-            label: instance.label,
-            value: instance.id,
-          }))}
-          disabled={!hostAvailable || instances.length === 0}
-          onChange={onSelectedInstanceChange}
-          placeholder={t(
-            instances.length === 0 ? "skins.instance.none" : "skins.instance.choose",
-            { host: hostName },
-          )}
-          style={{ flex: "1 1 230px" }}
-          value={selectedInstanceId}
         />
         <Switch
           checked={userOnly}
