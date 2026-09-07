@@ -128,7 +128,7 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
   );
 }
 
-/** 在看板配置面展示 Agent 开关、扫描间隔与自动清理。 */
+/** 在公共设置页展示看板 Agent 开关、扫描间隔与自动清理。 */
 export function DashboardSettingsSection() {
   const { t } = useTranslation();
   const client = useAtomValue(agentClientAtom);

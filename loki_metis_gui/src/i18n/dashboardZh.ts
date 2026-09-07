@@ -28,14 +28,13 @@ export const dashboardZhCN = {
       grokBuildCli: "Grok 本机会话 · 独立统计",
     },
     clientSelectorAria: "当前查看的 Agent 客户端",
-    dashboardSettings: "看板设置",
     localScanProgress: {
       title: "{{client}} 正在统计本机数据",
       aria: "{{client}} 本机统计进度",
     },
     noEnabledAgents: {
       title: "尚未开放任何 AI Agent",
-      body: "请在看板设置中打开需要监控和上报的 Agent。未开放的不会出现在页头，也不会加入数据上报。",
+      body: "请在公共设置的 Agent 配置中打开需要监控和上报的 Agent。未开放的不会出现在页头，也不会加入数据上报。",
     },
     navigation: {
       aria: "主导航",
@@ -58,10 +57,6 @@ export const dashboardZhCN = {
       charts: { label: "图表", description: "查看 Token 趋势与多维用量分布" },
       calls: { label: "调用", description: "分页浏览完整 Token 构成的本机调用" },
       sources: { label: "数据源", description: "查看本机数据目录与扫描覆盖" },
-      dashboardSettings: {
-        label: "看板设置",
-        description: "配置启用 Agent、扫描间隔与自动清理",
-      },
       leaderboard: {
         label: "排行榜",
         description: "查看所选上报服务的聚合用量排行",

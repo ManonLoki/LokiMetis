@@ -28,14 +28,13 @@ export const dashboardEnUS = {
       grokBuildCli: "Local Grok sessions · Separate statistics",
     },
     clientSelectorAria: "Agent client currently being viewed",
-    dashboardSettings: "Dashboard settings",
     localScanProgress: {
       title: "{{client}} is computing local statistics",
       aria: "{{client}} local statistics progress",
     },
     noEnabledAgents: {
       title: "No AI agents are enabled",
-      body: "Turn on the agents you want to monitor and report in Dashboard settings. Disabled agents stay off the header and out of data reporting.",
+      body: "Turn on the agents you want to monitor and report under Agent configuration in Settings. Disabled agents stay off the header and out of data reporting.",
     },
     navigation: {
       aria: "Main navigation",
@@ -78,10 +77,6 @@ export const dashboardEnUS = {
       sources: {
         label: "Data sources",
         description: "View local data directories and scan coverage",
-      },
-      dashboardSettings: {
-        label: "Dashboard settings",
-        description: "Configure enabled agents, scan interval, and automatic cleanup",
       },
       leaderboard: {
         label: "Leaderboard",

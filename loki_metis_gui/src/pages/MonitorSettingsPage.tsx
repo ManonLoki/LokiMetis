@@ -85,7 +85,7 @@ function ActivationGuidance({ outcome }: { outcome: MonitorHookWriteOutcome }) {
   );
 }
 
-/** Hooks 设置：启用 Agent、查看配置目录并写入本机 Hooks。 */
+/** 公共设置页中的 Hooks 配置：启用 Agent、查看配置目录并写入本机 Hooks。 */
 export function MonitorSettingsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();

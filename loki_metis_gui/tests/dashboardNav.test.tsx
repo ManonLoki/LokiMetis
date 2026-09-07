@@ -20,7 +20,6 @@ import { DashboardLayout } from "../src/components/DashboardLayout";
 import { DashboardToolbar } from "../src/components/DashboardToolbar";
 import { CallsPage } from "../src/pages/CallsPage";
 import { ChartsPage } from "../src/pages/ChartsPage";
-import { DashboardSettingsSection } from "../src/pages/DashboardSettingsSection";
 import { UsagePage } from "../src/pages/UsagePage";
 import { WorkbuddyUsage } from "../src/pages/WorkbuddyUsage";
 import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
@@ -93,11 +92,6 @@ async function renderToolbar(
     path: "/dashboard/calls",
     component: () => null,
   });
-  const dashboardSettingsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/dashboard/settings",
-    component: () => null,
-  });
   const chartsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/dashboard/charts",
@@ -111,7 +105,6 @@ async function renderToolbar(
       usageRoute,
       sourcesRoute,
       callsRoute,
-      dashboardSettingsRoute,
       chartsRoute,
     ]),
   });
@@ -145,7 +138,7 @@ function expectPageNavAndAgentSwitcherOnTheSameRow() {
   }
 }
 
-/** 用内存路由挂载真实看板布局与配置子页，并保留侧栏设置路由以便对照。 */
+/** 用内存路由挂载真实看板布局，并保留侧栏公共设置路由以便对照。 */
 async function renderDashboard(initialPath = "/dashboard") {
   const rootRoute = createRootRoute({
     component: () => <Outlet />,
@@ -159,11 +152,6 @@ async function renderDashboard(initialPath = "/dashboard") {
     getParentRoute: () => dashboardRoute,
     path: "/",
     component: () => <div>overview-body</div>,
-  });
-  const dashboardSettingsRoute = createRoute({
-    getParentRoute: () => dashboardRoute,
-    path: "/settings",
-    component: DashboardSettingsSection,
   });
   const usageRoute = createRoute({
     getParentRoute: () => dashboardRoute,
@@ -195,7 +183,6 @@ async function renderDashboard(initialPath = "/dashboard") {
     routeTree: rootRoute.addChildren([
       dashboardRoute.addChildren([
         dashboardIndexRoute,
-        dashboardSettingsRoute,
         usageRoute,
         sourcesRoute,
         callsRoute,
@@ -221,20 +208,17 @@ describe("dashboard header subpages", () => {
     invokeMock.mockRejectedValue(new Error("ipc unavailable"));
   });
 
-  /** 物理 Agent 视图选项卡顺序为概览、用量、图表、数据源、看板设置。 */
+  /** 物理 Agent 视图选项卡只保留概览、用量、图表和数据源。 */
   test("physical_agent_view_shows_overview_usage_and_sources", async () => {
     await renderToolbar("codex");
     const overview = screen.getByRole("link", { name: /Overview:/ });
     const usage = screen.getByRole("link", { name: /Usage:/ });
     const charts = screen.getByRole("link", { name: /Charts:/ });
     const sources = screen.getByRole("link", { name: /Data sources:/ });
-    const settings = screen.getByRole("link", { name: /Dashboard settings:/ });
     expect(overview).toBeVisible();
     expect(usage).toBeVisible();
     expect(charts).toBeVisible();
     expect(sources).toBeVisible();
-    expect(settings).toBeVisible();
-    expect(screen.getByText("Dashboard settings")).toBeVisible();
     expect(
       overview.compareDocumentPosition(usage) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
@@ -245,13 +229,7 @@ describe("dashboard header subpages", () => {
       charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
-      sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
-    expect(
-      screen.queryByRole("button", { name: "Dashboard settings" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Dashboard settings" }),
+      screen.queryByRole("link", { name: /Dashboard settings:/ }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Time zone:/i)).not.toBeInTheDocument();
@@ -263,54 +241,42 @@ describe("dashboard header subpages", () => {
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
-  /** 「全部」出现概览、调用，看板设置紧挨最后一项，且不出现用量/数据源。 */
+  /** 「全部」只出现概览、调用，且不出现用量、数据源或设置。 */
   test("all_view_shows_overview_and_calls_without_usage_or_sources", async () => {
     await renderToolbar("all");
     const overview = screen.getByRole("link", { name: /Overview:/ });
     const calls = screen.getByRole("link", { name: /Calls:/ });
-    const settings = screen.getByRole("link", { name: /Dashboard settings:/ });
     expect(overview).toBeVisible();
     expect(calls).toBeVisible();
-    expect(settings).toBeVisible();
-    expect(screen.getByText("Dashboard settings")).toBeVisible();
-    expect(
-      calls.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Usage:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Charts:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Data sources:/ })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Dashboard settings" }),
+      screen.queryByRole("link", { name: /Dashboard settings:/ }),
     ).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
 
-  /** WorkBuddy 开启时出现概览、用量、图表、数据源、看板设置且不出现调用。 */
+  /** WorkBuddy 开启时出现概览、用量、图表和数据源，且不出现调用或设置。 */
   test("workbuddy_view_shows_overview_usage_and_sources_without_calls", async () => {
     await renderToolbar("workbuddy", true);
     const overview = screen.getByRole("link", { name: /Overview:/ });
     const usage = screen.getByRole("link", { name: /Usage:/ });
     const charts = screen.getByRole("link", { name: /Charts:/ });
     const sources = screen.getByRole("link", { name: /Data sources:/ });
-    const settings = screen.getByRole("link", { name: /Dashboard settings:/ });
     expect(overview).toBeVisible();
     expect(usage).toBeVisible();
     expect(charts).toBeVisible();
     expect(sources).toBeVisible();
-    expect(settings).toBeVisible();
-    expect(screen.getByText("Dashboard settings")).toBeVisible();
     expect(
       usage.compareDocumentPosition(charts) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
       charts.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
-    expect(
-      sources.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
     expect(screen.queryByRole("link", { name: /Calls:/ })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Dashboard settings" }),
+      screen.queryByRole("link", { name: /Dashboard settings:/ }),
     ).not.toBeInTheDocument();
     expectPageNavAndAgentSwitcherOnTheSameRow();
   });
@@ -356,7 +322,7 @@ describe("dashboard header subpages", () => {
   });
 });
 
-describe("dashboard header settings surface", () => {
+describe("dashboard content surface", () => {
   beforeEach(() => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_privacy_settings") {
@@ -367,44 +333,6 @@ describe("dashboard header settings surface", () => {
       }
       throw new Error(`unexpected command ${command}`);
     });
-  });
-
-  /** 点击页头看板设置后，页头下方切到配置面且不进入侧栏设置。 */
-  test("dashboard_settings_link_replaces_body_without_leaving_dashboard", async () => {
-    const router = await renderDashboard();
-    expect(screen.getByRole("link", { name: /Dashboard settings:/ })).toBeVisible();
-    expect(screen.getByText("overview-body")).toBeVisible();
-    expect(screen.queryByTestId("dashboard-settings")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("link", { name: /Dashboard settings:/ }));
-
-    expect(await screen.findByTestId("dashboard-settings")).toBeVisible();
-    const agentOptions = screen.getByTestId("dashboard-enabled-agent-options");
-    expect(agentOptions).toHaveAccessibleName("AI agents to monitor and report");
-    expect(within(agentOptions).getByRole("checkbox", { name: "Codex" })).toBeVisible();
-    expect(
-      within(agentOptions).getByRole("checkbox", { name: "Claude Code" }),
-    ).toBeVisible();
-    expect(within(agentOptions).getByRole("checkbox", { name: "Grok" })).toBeVisible();
-    expect(within(agentOptions).getByRole("checkbox", { name: "WorkBuddy" })).toBeVisible();
-    expect(
-      within(agentOptions).queryByRole("checkbox", { name: "Cursor" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/Codex is selected by default in first-time setup/),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/When enabled, this parses top-level and subagent/),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("Scan interval")).toBeVisible();
-    expect(screen.getByText("Automatic cleanup")).toBeVisible();
-    expect(screen.queryByText("Device identity")).not.toBeInTheDocument();
-    expect(screen.queryByText("Device username")).not.toBeInTheDocument();
-    expect(screen.queryByText("Device name")).not.toBeInTheDocument();
-    expect(screen.queryByText("Unique device ID")).not.toBeInTheDocument();
-    expect(screen.queryByText("sidebar-settings")).not.toBeInTheDocument();
-    expect(screen.getByRole("navigation")).toBeVisible();
-    expect(router.state.location.pathname).toBe("/dashboard/settings");
   });
 
   /** 点击图表选项卡后，同一页同时出现趋势图与用量分布，且仍在看板路由下。 */

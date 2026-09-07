@@ -65,15 +65,10 @@ async function renderMonitor(initialPath = "/monitor") {
     path: "/images",
     component: MonitorImagesPage,
   });
-  const monitorSettingsRoute = createRoute({
-    getParentRoute: () => monitorRoute,
-    path: "/settings",
-    component: MonitorSettingsPage,
-  });
   const appSettingsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/settings",
-    component: () => <div>app-settings</div>,
+    component: MonitorSettingsPage,
   });
   const router = createRouter({
     history: createMemoryHistory({ initialEntries: [initialPath] }),
@@ -82,7 +77,6 @@ async function renderMonitor(initialPath = "/monitor") {
         workbenchRoute,
         managementRoute,
         imagesRoute,
-        monitorSettingsRoute,
       ]),
       appSettingsRoute,
     ]),
@@ -94,7 +88,11 @@ async function renderMonitor(initialPath = "/monitor") {
     </TestProviders>,
   );
   await waitFor(() => {
-    expect(screen.getByRole("navigation")).toBeVisible();
+    if (initialPath.startsWith("/monitor")) {
+      expect(screen.getByRole("navigation")).toBeVisible();
+    } else {
+      expect(screen.getByTestId("monitor-settings")).toBeVisible();
+    }
   });
   return router;
 }
@@ -148,22 +146,20 @@ describe("monitor header tabs", () => {
     });
   });
 
-  /** 二级选项卡只保留工作台、监控管理、图片管理、Hooks 设置，且不是应用设置。 */
+  /** 二级选项卡只保留工作台、监控管理与图片管理，不再复制 Hooks 设置入口。 */
   test("monitor_tabs_follow_workbench_management_images_settings_order", async () => {
-    const router = await renderMonitor();
+    await renderMonitor();
     const workbench = screen.getByRole("link", { name: /Workbench:/ });
     const management = screen.getByRole("link", { name: /Monitor management:/ });
     const images = screen.getByRole("link", { name: /Image management:/ });
-    const hooks = screen.getByRole("link", { name: /Hooks settings:/ });
     expect(workbench).toBeVisible();
     expect(management).toBeVisible();
     expect(images).toBeVisible();
-    expect(hooks).toBeVisible();
     expect(
       within(screen.getByRole("navigation", { name: "Monitor pages" })).getAllByRole(
         "link",
       ),
-    ).toHaveLength(4);
+    ).toHaveLength(3);
     expect(
       screen.queryByRole("link", { name: /Monitor settings:/ }),
     ).not.toBeInTheDocument();
@@ -174,27 +170,9 @@ describe("monitor header tabs", () => {
       management.compareDocumentPosition(images) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
-      images.compareDocumentPosition(hooks) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
+      screen.queryByRole("link", { name: /Hooks settings:/ }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Settings:/ })).not.toBeInTheDocument();
-    await userEvent.click(hooks);
-    expect(router.state.location.pathname).toBe("/monitor/settings");
-    expect(router.state.location.pathname).not.toBe("/settings");
-    expect(await screen.findByTestId("monitor-settings")).toBeVisible();
-    expect(screen.queryByText("app-settings")).not.toBeInTheDocument();
-    const enabledAgents = screen.getByTestId("monitor-enabled-agents");
-    const hooksManagement = screen.getByTestId("monitor-hooks-management");
-    expect(
-      within(enabledAgents).getByRole("heading", { name: "Hooks settings" }),
-    ).toBeVisible();
-    expect(within(enabledAgents).getByRole("checkbox", { name: "Codex" })).toBeVisible();
-    expect(
-      within(hooksManagement).getByRole("heading", { name: "Hooks management" }),
-    ).toBeVisible();
-    expect(within(hooksManagement).getByRole("tab", { name: "Codex" })).toBeVisible();
-    expect(
-      within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
-    ).toBeVisible();
   });
 
   /** 工作台挂载真实中继查询；监控管理按已启用 Agent 分 Tab，不再以写入 Hooks 为主。 */
@@ -285,7 +263,7 @@ describe("monitor header tabs", () => {
       throw new Error(`unexpected command ${command}`);
     });
 
-    await renderMonitor("/monitor/settings");
+    await renderMonitor("/settings");
     const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
     const hooksManagement = screen.getByTestId("monitor-hooks-management");
     expect(within(enabledAgents).getAllByRole("checkbox")).toHaveLength(5);
@@ -334,7 +312,7 @@ describe("monitor header tabs", () => {
       throw new Error(`unexpected command ${command}`);
     });
 
-    await renderMonitor("/monitor/settings");
+    await renderMonitor("/settings");
     const hooksManagement = await screen.findByTestId("monitor-hooks-management");
     await userEvent.click(
       within(hooksManagement).getByRole("button", { name: "Write Hooks" }),
@@ -447,8 +425,8 @@ describe("monitor header tabs", () => {
       }
       throw new Error(`unexpected command ${command}`);
     });
-    const router = await renderMonitor("/monitor/settings");
-    expect(router.state.location.pathname).toBe("/monitor/settings");
+    const router = await renderMonitor("/settings");
+    expect(router.state.location.pathname).toBe("/settings");
     const enabledAgents = await screen.findByTestId("monitor-enabled-agents");
     const hooksManagement = screen.getByTestId("monitor-hooks-management");
     const codexTab = within(hooksManagement).getByRole("tab", { name: "Codex" });
@@ -505,7 +483,6 @@ describe("monitor header tabs", () => {
     await userEvent.click(codexTab);
     expect(codexTab).toHaveAttribute("aria-selected", "true");
     expect(within(hooksManagement).queryByText(/Wrote hooks.json/)).not.toBeInTheDocument();
-    expect(screen.queryByText("app-settings")).not.toBeInTheDocument();
   });
 
   /** 结构化目录错误显示本地化原因，不能退化成 `[object Object]`。 */
@@ -538,7 +515,7 @@ describe("monitor header tabs", () => {
       throw new Error(`unexpected command ${command}`);
     });
 
-    await renderMonitor("/monitor/settings");
+    await renderMonitor("/settings");
     const hooksManagement = await screen.findByTestId("monitor-hooks-management");
     const directoryInput = within(hooksManagement).getByRole("textbox", {
       name: "Config directory",

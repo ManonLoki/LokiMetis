@@ -34,6 +34,7 @@ import {
   type ReleaseNotesDocument,
 } from "../lib/releaseNotes";
 import { interfaceLanguageAtom } from "../state/interfaceLanguage";
+import { AgentSettings } from "./AgentSettings";
 import type { AppColorScheme } from "./AppThemeProvider";
 import { syncShellInterfaceLanguage } from "./AppShell";
 import { HostCapabilitySwitch } from "./HostCapabilitySwitch";
@@ -54,7 +55,7 @@ function isAppColorScheme(value: string): value is AppColorScheme {
   return value === "light" || value === "dark" || value === "auto";
 }
 
-/** 渲染应用信息、本地偏好、更新日志及已启用宿主能力。 */
+/** 渲染应用信息、Agent 配置、本地偏好、更新日志及已启用宿主能力。 */
 export function SettingsPage({
   releaseNotesLoader = loadBundledReleaseNotes,
 }: SettingsPageProps = {}): ReactElement {
@@ -137,6 +138,8 @@ export function SettingsPage({
           </Text>
         </Stack>
       </Paper>
+
+      <AgentSettings />
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
         <Paper className="surface-card" p="xl" radius="lg" withBorder>

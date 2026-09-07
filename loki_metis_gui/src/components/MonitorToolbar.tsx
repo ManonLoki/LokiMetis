@@ -7,10 +7,9 @@ const monitorPageItems = [
   { key: "workbench", to: "/monitor" },
   { key: "management", to: "/monitor/management" },
   { key: "images", to: "/monitor/images" },
-  { key: "settings", to: "/monitor/settings" },
 ] as const;
 
-/** 监控区粘滞页头：工作台、监控管理、图片管理、Hooks 设置。 */
+/** 监控区粘滞页头：工作台、监控管理与图片管理。 */
 export function MonitorToolbar() {
   const { t } = useTranslation();
   return (

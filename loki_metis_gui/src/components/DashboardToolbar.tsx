@@ -21,17 +21,10 @@ interface UsagePageItem {
     | "/dashboard/calls"
     | "/dashboard/usage"
     | "/dashboard/charts"
-    | "/dashboard/sources"
-    | "/dashboard/settings";
+    | "/dashboard/sources";
   /** 本地翻译资源中的页面键。 */
-  key: "overview" | "calls" | "statistics" | "charts" | "sources" | "dashboardSettings";
+  key: "overview" | "calls" | "statistics" | "charts" | "sources";
 }
-
-/** 看板设置始终作为页头最后一项，紧挨数据源或「全部」视图最后一项。 */
-const dashboardSettingsItem: UsagePageItem = {
-  key: "dashboardSettings",
-  to: "/dashboard/settings",
-};
 
 /** 看板横向菜单。 */
 const dashboardPageItems: UsagePageItem[] = [
@@ -39,14 +32,12 @@ const dashboardPageItems: UsagePageItem[] = [
   { key: "statistics", to: "/dashboard/usage" },
   { key: "charts", to: "/dashboard/charts" },
   { key: "sources", to: "/dashboard/sources" },
-  dashboardSettingsItem,
 ];
 
-/** 全部视图只开放可跨 Agent 合并的只读概览与调用页，设置仍出现在最后。 */
+/** 全部视图只开放可跨 Agent 合并的只读概览与调用页。 */
 const allDashboardPageItems: UsagePageItem[] = [
   { key: "overview", to: "/dashboard" },
   { key: "calls", to: "/dashboard/calls" },
-  dashboardSettingsItem,
 ];
 
 /** WorkBuddy 只读视图开放概览、用量与数据源，不提供调用表。 */
@@ -55,7 +46,6 @@ const workbuddyDashboardPageItems: UsagePageItem[] = [
   { key: "statistics", to: "/dashboard/usage" },
   { key: "charts", to: "/dashboard/charts" },
   { key: "sources", to: "/dashboard/sources" },
-  dashboardSettingsItem,
 ];
 
 /** 定义公共页头的只读视图与横向子页交互。 */

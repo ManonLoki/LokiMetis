@@ -145,11 +145,13 @@
   },
   "settings": {
     "title": "设置",
-    "description": "管理本机界面偏好与已启用的系统能力。",
+    "description": "统一管理 Agent 配置、本机界面偏好与已启用的系统能力。",
     "application_title": "应用信息",
     "application_description": "应用名称和版本来自当前安装包。",
     "localized_name": "中文名",
     "version": "版本",
+    "agent_title": "Agent 配置",
+    "agent_description": "集中管理看板采集、数据保留以及各 Agent 的本机 Hooks 配置。",
     "language_title": "界面语言",
     "language_description": "已保存的选择优先于系统语言，并同步更新原生菜单。",
     "language_zh_cn": "中文",
@@ -198,11 +200,7 @@
         "label": "监控管理",
         "description": "为已启用 Agent 配置展示位与行为图片"
       },
-      "images": { "label": "图片管理", "description": "管理本机监控图片" },
-      "settings": {
-        "label": "Hooks 设置",
-        "description": "启用要写入 Hooks 的 Agent 并生成本机配置"
-      }
+      "images": { "label": "图片管理", "description": "管理本机监控图片" }
     },
     "workbench": {
       "title": "本机 Hook 中继",
@@ -218,7 +216,7 @@
     "management": {
       "title": "监控管理",
       "description": "为已启用 Agent 配置展示位与各行为图片、文案。",
-      "noClient": "暂未启用任何 Agent，请先到「Hooks 设置」中勾选需要管理的客户端。",
+      "noClient": "暂未启用任何 Agent，请先到公共设置的「Agent 配置」中勾选需要管理的客户端。",
       "behaviorDisplay": "行为展示",
       "behaviorDescription": "为每种行为选择本机图片；显示内容可按需填写。",
       "configuredCount": "已配置 {{configured}} / {{total}}",
@@ -289,7 +287,7 @@
     },
     "settings": {
       "title": "Hooks 设置",
-      "description": "选择要启用 Hooks 的 Agent，并写入本机 Hook 配置。此处不是应用设置。",
+      "description": "在公共设置中选择要启用 Hooks 的 Agent，并写入本机 Hook 配置。",
       "enabled": "启用的 Agent",
       "managementTitle": "Hooks 管理",
       "managementDescription": "按已启用的 Agent 查看本机配置位置并写入 Hooks。",

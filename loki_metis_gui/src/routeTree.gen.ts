@@ -19,13 +19,11 @@ import { Route as SkinsRouteImport } from './routes/skins'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardCallsRouteImport } from './routes/dashboard/calls'
 import { Route as DashboardChartsRouteImport } from './routes/dashboard/charts'
-import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as DashboardSourcesRouteImport } from './routes/dashboard/sources'
 import { Route as DashboardUsageRouteImport } from './routes/dashboard/usage'
 import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
 import { Route as MonitorImagesRouteImport } from './routes/monitor/images'
 import { Route as MonitorManagementRouteImport } from './routes/monitor/management'
-import { Route as MonitorSettingsRouteImport } from './routes/monitor/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -77,11 +75,6 @@ const DashboardChartsRoute = DashboardChartsRouteImport.update({
   path: '/charts',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => DashboardRoute,
-} as any)
 const DashboardSourcesRoute = DashboardSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
@@ -107,11 +100,6 @@ const MonitorManagementRoute = MonitorManagementRouteImport.update({
   path: '/management',
   getParentRoute: () => MonitorRoute,
 } as any)
-const MonitorSettingsRoute = MonitorSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => MonitorRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -123,12 +111,10 @@ export interface FileRoutesByFullPath {
   '/skins': typeof SkinsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
-  '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/sources': typeof DashboardSourcesRoute
   '/dashboard/usage': typeof DashboardUsageRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
-  '/monitor/settings': typeof MonitorSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/monitor/': typeof MonitorIndexRoute
 }
@@ -140,12 +126,10 @@ export interface FileRoutesByTo {
   '/skins': typeof SkinsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
-  '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/sources': typeof DashboardSourcesRoute
   '/dashboard/usage': typeof DashboardUsageRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
-  '/monitor/settings': typeof MonitorSettingsRoute
   '/dashboard': typeof DashboardIndexRoute
   '/monitor': typeof MonitorIndexRoute
 }
@@ -160,12 +144,10 @@ export interface FileRoutesById {
   '/skins': typeof SkinsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
-  '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/sources': typeof DashboardSourcesRoute
   '/dashboard/usage': typeof DashboardUsageRoute
   '/monitor/images': typeof MonitorImagesRoute
   '/monitor/management': typeof MonitorManagementRoute
-  '/monitor/settings': typeof MonitorSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/monitor/': typeof MonitorIndexRoute
 }
@@ -181,12 +163,10 @@ export interface FileRouteTypes {
     | '/skins'
     | '/dashboard/calls'
     | '/dashboard/charts'
-    | '/dashboard/settings'
     | '/dashboard/sources'
     | '/dashboard/usage'
     | '/monitor/images'
     | '/monitor/management'
-    | '/monitor/settings'
     | '/dashboard/'
     | '/monitor/'
   fileRoutesByTo: FileRoutesByTo
@@ -198,12 +178,10 @@ export interface FileRouteTypes {
     | '/skins'
     | '/dashboard/calls'
     | '/dashboard/charts'
-    | '/dashboard/settings'
     | '/dashboard/sources'
     | '/dashboard/usage'
     | '/monitor/images'
     | '/monitor/management'
-    | '/monitor/settings'
     | '/dashboard'
     | '/monitor'
   id:
@@ -217,12 +195,10 @@ export interface FileRouteTypes {
     | '/skins'
     | '/dashboard/calls'
     | '/dashboard/charts'
-    | '/dashboard/settings'
     | '/dashboard/sources'
     | '/dashboard/usage'
     | '/monitor/images'
     | '/monitor/management'
-    | '/monitor/settings'
     | '/dashboard/'
     | '/monitor/'
   fileRoutesById: FileRoutesById
@@ -309,13 +285,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardChartsRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/settings': {
-      id: '/dashboard/settings'
-      path: '/settings'
-      fullPath: '/dashboard/settings'
-      preLoaderRoute: typeof DashboardSettingsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/dashboard/sources': {
       id: '/dashboard/sources'
       path: '/sources'
@@ -351,20 +320,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorManagementRouteImport
       parentRoute: typeof MonitorRoute
     }
-    '/monitor/settings': {
-      id: '/monitor/settings'
-      path: '/settings'
-      fullPath: '/monitor/settings'
-      preLoaderRoute: typeof MonitorSettingsRouteImport
-      parentRoute: typeof MonitorRoute
-    }
   }
 }
 
 interface DashboardRouteChildren {
   DashboardCallsRoute: typeof DashboardCallsRoute
   DashboardChartsRoute: typeof DashboardChartsRoute
-  DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSourcesRoute: typeof DashboardSourcesRoute
   DashboardUsageRoute: typeof DashboardUsageRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
@@ -373,7 +334,6 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardCallsRoute: DashboardCallsRoute,
   DashboardChartsRoute: DashboardChartsRoute,
-  DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSourcesRoute: DashboardSourcesRoute,
   DashboardUsageRoute: DashboardUsageRoute,
   DashboardIndexRoute: DashboardIndexRoute,
@@ -386,14 +346,12 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 interface MonitorRouteChildren {
   MonitorImagesRoute: typeof MonitorImagesRoute
   MonitorManagementRoute: typeof MonitorManagementRoute
-  MonitorSettingsRoute: typeof MonitorSettingsRoute
   MonitorIndexRoute: typeof MonitorIndexRoute
 }
 
 const MonitorRouteChildren: MonitorRouteChildren = {
   MonitorImagesRoute: MonitorImagesRoute,
   MonitorManagementRoute: MonitorManagementRoute,
-  MonitorSettingsRoute: MonitorSettingsRoute,
   MonitorIndexRoute: MonitorIndexRoute,
 }
 

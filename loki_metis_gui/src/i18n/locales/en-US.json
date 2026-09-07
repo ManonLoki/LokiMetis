@@ -133,11 +133,13 @@
   },
   "settings": {
     "title": "Settings",
-    "description": "Manage local interface preferences and enabled system capabilities.",
+    "description": "Manage Agent configuration, local interface preferences, and enabled system capabilities in one place.",
     "application_title": "Application information",
     "application_description": "The application name and version come from the current package.",
     "localized_name": "Chinese name",
     "version": "Version",
+    "agent_title": "Agent configuration",
+    "agent_description": "Manage dashboard collection, data retention, and local Hooks configuration for every Agent in one place.",
     "language_title": "Interface language",
     "language_description": "A saved choice takes priority over the system language and updates native menus.",
     "language_zh_cn": "中文",
@@ -192,10 +194,6 @@
       "images": {
         "label": "Image management",
         "description": "Manage local monitor images"
-      },
-      "settings": {
-        "label": "Hooks settings",
-        "description": "Enable agents that receive Hooks and write local configs"
       }
     },
     "workbench": {
@@ -212,7 +210,7 @@
     "management": {
       "title": "Monitor management",
       "description": "Configure display slots, behavior images, and optional text for enabled agents.",
-      "noClient": "No agent is enabled. Select the clients you want to manage under Hooks settings.",
+      "noClient": "No agent is enabled. Select the clients you want to manage under Agent configuration in Settings.",
       "behaviorDisplay": "Behavior display",
       "behaviorDescription": "Choose a local image for each behavior; display text is optional.",
       "configuredCount": "{{configured}} / {{total}} configured",
@@ -283,7 +281,7 @@
     },
     "settings": {
       "title": "Hooks settings",
-      "description": "Choose which agents should receive Hooks and write the local Hook configs. This is not the app Settings page.",
+      "description": "Choose which agents should receive Hooks and write their local configurations from the shared Settings page.",
       "enabled": "Enabled agents",
       "managementTitle": "Hooks management",
       "managementDescription": "Review local config locations and write Hooks for each enabled agent.",
