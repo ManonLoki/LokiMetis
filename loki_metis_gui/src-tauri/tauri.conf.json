@@ -31,7 +31,6 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../resources/builtin-skins/aurora-theme/": "builtin-skins/aurora-theme/",
       "../resources/builtin-skins/minecraft/": "builtin-skins/minecraft/",
       "../resources/builtin-skins/misty-meadow-dawn/": "builtin-skins/misty-meadow-dawn/",
       "../resources/builtin-skins/pastoral-landscape/": "builtin-skins/pastoral-landscape/",

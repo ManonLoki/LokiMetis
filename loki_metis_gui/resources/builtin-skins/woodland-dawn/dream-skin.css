@@ -58,7 +58,7 @@ html.codex-dream-skin main {
     var(--dream-skin-art) !important;
   background-position: center, center, center !important;
   background-size: cover, cover, cover !important;
-  background-attachment: fixed, fixed, fixed !important;
+  background-attachment: scroll, scroll, scroll !important;
   background-repeat: no-repeat !important;
   color: var(--skin-text) !important;
 }
@@ -315,7 +315,7 @@ html.codex-dream-skin[data-dream-surface="settings"] #root {
     var(--dream-skin-art) !important;
   background-position: center !important;
   background-size: cover !important;
-  background-attachment: fixed !important;
+  background-attachment: scroll !important;
   background-repeat: no-repeat !important;
   color: var(--skin-text) !important;
 }

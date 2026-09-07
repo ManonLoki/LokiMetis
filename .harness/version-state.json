@@ -182,6 +182,11 @@
       "change_id": "BUG-DASHBOARD-ALL-SKIP-UNCONFIGURED-AGENTS",
       "kind": "bug-fix",
       "required_version": "0.2.13"
+    },
+    {
+      "change_id": "FEAT-SKIN-CATALOG-MANONLOKI-AUTHORSHIP",
+      "kind": "feature",
+      "required_version": "0.2.13"
     }
   ],
   "schema_version": 1,

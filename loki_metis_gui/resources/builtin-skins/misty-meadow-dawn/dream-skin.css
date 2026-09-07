@@ -54,7 +54,7 @@ html.codex-dream-skin main {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--skin-bg) 18%, transparent) 0%, color-mix(in srgb, var(--skin-bg) 38%, transparent) 68%, color-mix(in srgb, var(--skin-bg) 62%, transparent) 100%),
     linear-gradient(90deg, color-mix(in srgb, var(--skin-bg) 58%, transparent) 0%, color-mix(in srgb, var(--skin-bg) 24%, transparent) 52%, color-mix(in srgb, var(--skin-bg) 42%, transparent) 100%),
-    var(--dream-skin-art) 62% center / cover fixed no-repeat !important;
+    var(--dream-skin-art) 62% center / cover scroll no-repeat !important;
   color: var(--skin-text) !important;
 }
 
@@ -322,7 +322,7 @@ html.codex-dream-skin[data-dream-surface="settings"] [data-settings-panel-slug] 
 html.codex-dream-skin[data-dream-surface="settings"] #root {
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--skin-bg) 82%, transparent), color-mix(in srgb, var(--skin-bg) 56%, transparent)),
-    var(--dream-skin-art) 62% center / cover fixed no-repeat !important;
+    var(--dream-skin-art) 62% center / cover scroll no-repeat !important;
   color: var(--skin-text) !important;
 }
 

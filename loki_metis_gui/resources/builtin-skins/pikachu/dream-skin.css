@@ -59,7 +59,7 @@ html.codex-dream-skin .app-shell-left-panel [aria-current="page"] {
 html.codex-dream-skin main {
   background:
     linear-gradient(90deg, var(--skin-overlay-start) 0%, var(--skin-overlay-start) 34%, var(--skin-overlay-end) 100%),
-    var(--dream-skin-art) 58% center / cover fixed no-repeat !important;
+    var(--dream-skin-art) 58% center / cover scroll no-repeat !important;
   color: var(--skin-text) !important;
 }
 
@@ -310,7 +310,7 @@ html.codex-dream-skin[data-dream-surface="plugins"] .bg-token-main-surface-prima
 html.codex-dream-skin[data-dream-surface="settings"] #root {
   background:
     linear-gradient(90deg, var(--skin-overlay-start), var(--skin-overlay-end)),
-    var(--dream-skin-art) 58% center / cover fixed no-repeat !important;
+    var(--dream-skin-art) 58% center / cover scroll no-repeat !important;
   color: var(--skin-text) !important;
 }
 
@@ -413,7 +413,7 @@ html.codex-dream-skin :where(button, a, input, textarea, [role="button"]):focus-
   html.codex-dream-skin main {
     background:
       linear-gradient(180deg, var(--skin-overlay-start) 0%, var(--skin-overlay-end) 100%),
-      var(--dream-skin-art) center / cover fixed no-repeat !important;
+      var(--dream-skin-art) center / cover scroll no-repeat !important;
   }
 
   #codex-dream-skin-chrome .skin-photo-panel { display: none !important; }

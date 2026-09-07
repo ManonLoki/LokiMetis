@@ -340,6 +340,7 @@
                     .expect("内置皮肤目录名应为 UTF-8");
                 let descriptor = load_descriptor(&entry.path(), &id, SkinSource::Builtin)
                     .expect("内置皮肤应通过原生资源校验");
+                assert_eq!(descriptor.author, "ManonLoki", "内置皮肤 {id} 应统一作者署名");
                 assert_eq!(
                     descriptor.supported_color_modes,
                     vec![ColorMode::Light, ColorMode::Dark],
@@ -352,7 +353,6 @@
         assert_eq!(
             ids,
             [
-                "aurora-theme",
                 "minecraft",
                 "misty-meadow-dawn",
                 "pastoral-landscape",

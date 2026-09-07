@@ -55,7 +55,7 @@ html.codex-dream-skin main {
       color-mix(in srgb, var(--skin-bg) 76%, transparent) 36%,
       color-mix(in srgb, var(--skin-bg) 62%, transparent) 68%,
       color-mix(in srgb, var(--skin-bg) 78%, transparent) 100%),
-    var(--dream-skin-art) center / cover fixed no-repeat !important;
+    var(--dream-skin-art) center / cover scroll no-repeat !important;
   color: var(--skin-text) !important;
 }
 
