@@ -10,6 +10,7 @@ mod dto;
 mod local_view;
 mod locale;
 mod logging;
+mod memory;
 mod monitor;
 mod notifications;
 mod performance_evidence;
