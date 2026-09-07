@@ -3,7 +3,7 @@
   "releases": [
     {
       "releaseDate": "2026-09-07",
-      "version": "v0.2.12",
+      "version": "v0.2.11",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本地看板及用量洞察。",
@@ -42,10 +42,6 @@
         {
           "zh-CN": "修复本机扫描结束时重复装载完整调用与快照造成的内存峰值，改用有界 SQL 去重统计并保留损坏索引校验。",
           "en-US": "Fixed scan-end memory spikes from repeatedly loading all calls and snapshots by using bounded SQL deduplication while retaining corrupt-index validation."
-        },
-        {
-          "zh-CN": "修复 macOS 扫描完成后分配器仍保留大量空闲堆页造成的常驻内存虚高。",
-          "en-US": "Fixed inflated macOS resident memory after scans by returning released heap pages at scan boundaries."
         }
       ]
     }

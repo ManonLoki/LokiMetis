@@ -60,7 +60,6 @@ pub(super) async fn run_scan<C: ScanClient>(
     cancellation: ScanCancellation,
     mut on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
 ) -> Result<LocalScanOutput, String> {
-    let _memory_pressure_relief = crate::memory::ScanMemoryPressureReliefGuard::new();
     let mut index = LocalIndex::open_in_app_data(&app_data_dir, C::parser_version())
         .await
         .map_err(C::map_local_error)?;
@@ -245,8 +244,6 @@ pub(super) async fn run_scan<C: ScanClient>(
             .await
             .map_err(C::map_local_error)?;
     }
-    let files_scanned = summary.files_scanned;
-    let call_count = summary.call_count;
     drop(index);
     let roots = load_source_root_summaries_for_parser(
         &app_data_dir,
@@ -255,8 +252,8 @@ pub(super) async fn run_scan<C: ScanClient>(
     )
     .await?;
     Ok(LocalScanOutput {
-        files_scanned,
-        call_count,
+        files_scanned: summary.files_scanned,
+        call_count: summary.call_count,
         coverage: merged_coverage,
         roots,
     })
@@ -272,7 +269,6 @@ pub(super) async fn run_reindex<C: ScanClient>(
     cancellation: ScanCancellation,
     mut on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
 ) -> Result<LocalScanOutput, String> {
-    let _memory_pressure_relief = crate::memory::ScanMemoryPressureReliefGuard::new();
     let mut index = LocalIndex::open_in_app_data(&app_data_dir, C::parser_version())
         .await
         .map_err(C::map_local_error)?;
@@ -389,8 +385,6 @@ pub(super) async fn run_reindex<C: ScanClient>(
     .await
     .map_err(C::map_local_error)?;
     let merged_coverage = merge_coverage_reports(discovery_coverage, &summary.coverage);
-    let files_scanned = summary.files_scanned;
-    let call_count = summary.call_count;
     drop(index);
     let roots = load_source_root_summaries_for_parser(
         &app_data_dir,
@@ -399,8 +393,8 @@ pub(super) async fn run_reindex<C: ScanClient>(
     )
     .await?;
     Ok(LocalScanOutput {
-        files_scanned,
-        call_count,
+        files_scanned: summary.files_scanned,
+        call_count: summary.call_count,
         coverage: merged_coverage,
         roots,
     })
