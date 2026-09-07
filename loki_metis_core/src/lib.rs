@@ -10,6 +10,7 @@ mod bounded_minutes;
 mod calls_view;
 mod chart_view;
 mod client_ports;
+mod codex_skin;
 mod combined_view;
 mod dashboard_capabilities;
 mod display_label;
@@ -71,6 +72,14 @@ pub use client_ports::{
     AgentClientRegistry, LocalScanFuture, LocalScanOutput, LocalScanProgress, LocalUsageScanner,
     ScanCancellation, USAGE_INDEX_FILE_NAME, source_client_app_data_dir,
     source_client_usage_index_path,
+};
+pub use codex_skin::{
+    ColorMode, MAX_SKIN_CREATOR_TEXT_CHARS, MAX_SKIN_DELETE_BATCH_ITEMS, MAX_SKIN_ID_BYTES,
+    MAX_SKIN_IMPORT_BATCH_FILES, MAX_THEME_COMMENT_CHARS, MAX_THEME_CSS_BYTES,
+    MAX_THEME_DESCRIPTION_CHARS, MAX_THEME_IMAGE_BYTES, SkinPackageType, SkinReference,
+    SkinRuleError, SkinSource, is_valid_skin_id, normalize_skin_creator_text,
+    validate_skin_delete_batch, validate_skin_import_batch_size, validate_skin_reference,
+    validate_supported_color_modes, validate_theme_image_name, validate_theme_metadata,
 };
 pub use combined_view::{
     AgentUsageSnapshot, CombinedUsageSnapshot, UsageViewError, UsageViewKind,
@@ -249,22 +258,22 @@ pub use workbuddy_stats::{
     workbuddy_combined_usage_unavailable_message,
 };
 
-/// 表示工程骨架是否就绪，以及是否仍需补充产品定义。
+/// 表示共享核心是否就绪，以及是否仍需补充产品定义。
 #[derive(Debug, PartialEq, Eq)]
 pub struct ScaffoldStatus {
-    /// 标识项目的中性共享核心已经完成结构初始化。
+    /// 标识项目的共享核心已经完成结构初始化。
     pub initialized: bool,
-    /// 标识产品目的、核心输入输出和成功标准尚待明确。
+    /// 标识产品目的、核心输入输出和成功标准是否尚待明确。
     pub product_definition_required: bool,
 }
 
-/// 查询不带任何业务假设或外部副作用的中性脚手架状态。
+/// 查询不产生外部副作用的产品初始化状态。
 ///
 /// 该异步 API 供 GUI 薄适配器复用，但不绑定 Tokio 类型、序列化格式或界面状态。
 pub async fn scaffold_status() -> ScaffoldStatus {
     ScaffoldStatus {
         initialized: true,
-        product_definition_required: true,
+        product_definition_required: false,
     }
 }
 
@@ -272,14 +281,14 @@ pub async fn scaffold_status() -> ScaffoldStatus {
 mod tests {
     use super::*;
 
-    /// 验证中性 core 只报告结构已经初始化，同时明确要求后续产品定义。
+    /// 验证批准 Product Spec 后 core 报告产品定义已经完成。
     #[tokio::test]
-    async fn reports_that_product_definition_is_required() {
+    async fn reports_that_product_definition_is_complete() {
         assert_eq!(
             scaffold_status().await,
             ScaffoldStatus {
                 initialized: true,
-                product_definition_required: true,
+                product_definition_required: false,
             }
         );
     }

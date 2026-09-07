@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "id": "silver-core-voyage",
+  "name": "银心远航",
+  "description": "以深蓝星海与暖金银心为主视觉的沉浸式 Codex 工作台皮肤，采用半透明玻璃面板与冷蓝高亮，在保证长时间阅读与编码清晰度的同时保留宇宙纵深感。",
+  "author": "manonloki",
+  "image": "qq2007-sky.png",
+  "friendCards": {
+    "profileImage": "avatar.png",
+    "listImage": "qqshow.jpg"
+  },
+  "previewContent": {
+    "navNewTask": "新任务",
+    "navPullRequests": "拉取请求",
+    "navSites": "站点",
+    "navAutomations": "已安排",
+    "navPlugins": "插件",
+    "navProjects": "项目",
+    "navSettings": "设置",
+    "homeTitle": "向星海启程",
+    "homeSubtitle": "以深蓝星海与暖金银心为主视觉的沉浸式 Codex 工作台皮肤，采用半透明玻璃面板与冷蓝高亮，在保证长时间阅读与编码清晰度的同时保留宇宙纵深感。",
+    "suggestionOne": "勘测项目星图",
+    "suggestionTwo": "规划下一次跃迁",
+    "projectName": "银河工作区",
+    "userMessage": "请帮我梳理这个项目的航线与关键节点。",
+    "assistantMessage": "我会先扫描代码星图，再标出可执行的跃迁路径。",
+    "composerPlaceholder": "向 Codex 发送航行指令",
+    "pullRequestsTitle": "拉取请求",
+    "sitesTitle": "站点",
+    "automationsTitle": "已安排",
+    "pluginsTitle": "插件",
+    "settingsTitle": "设置",
+    "emptyStateTitle": "星图暂时空白",
+    "emptyStateAction": "重新扫描"
+  },
+  "colors": {
+    "dark": {
+      "background": "#07101f",
+      "panel": "#101c31",
+      "panelAlt": "#192b49",
+      "accent": "#8ccbff",
+      "accentAlt": "#f3c38f",
+      "text": "#f4f7ff",
+      "muted": "#b4c2d9",
+      "line": "#42658d"
+    },
+    "light": {
+      "background": "#eaf1fa",
+      "panel": "#f8fbff",
+      "panelAlt": "#dce8f6",
+      "accent": "#155d8f",
+      "accentAlt": "#92501d",
+      "text": "#111b2b",
+      "muted": "#4f6076",
+      "line": "#8aa6c5"
+    }
+  },
+  "extensions": {
+    "photoPanels": [
+      {
+        "id": "profile",
+        "enabled": false,
+        "assetSlot": "profile",
+        "title": "",
+        "caption": "",
+        "anchor": "left-top",
+        "offset": {
+          "x": 24,
+          "y": 48
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      },
+      {
+        "id": "gallery",
+        "enabled": false,
+        "assetSlot": "gallery",
+        "title": "",
+        "caption": "",
+        "anchor": "left-bottom",
+        "offset": {
+          "x": 24,
+          "y": 24
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      }
+    ]
+  }
+}

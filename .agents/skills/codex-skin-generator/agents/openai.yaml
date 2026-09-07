@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex 皮肤生成器"
+  short_description: "从意图与设计图生成全页面、可验证的 Codex 皮肤"
+  default_prompt: "使用 $codex-skin-generator 根据我的意图和设计图创建全页面 Codex 皮肤，并逐项验证拉取请求、站点、已安排、插件与设置。"

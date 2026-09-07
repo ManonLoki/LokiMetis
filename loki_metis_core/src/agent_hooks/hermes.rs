@@ -1,9 +1,10 @@
 //! Hermes observer 插件协议。
 
+use std::path::Path;
+
 use super::{
-    AiTool, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
-    HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigPreview, HookEvent,
-    HookEventKind, HookProtocol, HookWriteOutcome, managed_hook_marker,
+    AiTool, HookBehavior, HookConfigPreview, HookEvent, HookEventKind, HookProtocol,
+    HookWriteOutcome, managed_hook_marker,
 };
 
 /// Hermes 协议单例。
@@ -78,77 +79,22 @@ impl HookProtocol for HermesProtocol {
         HookWriteOutcome::HermesEnableRequired
     }
 
-    /// 生成读取当前 LokiMetis relay rendezvous 的 Hermes 插件。
-    fn standalone_config(&self) -> Option<String> {
+    /// 生成只通过 LokiMetis CLI relay 转发事件的 Hermes 插件。
+    fn standalone_config(&self, relay_executable: &Path) -> Option<String> {
         let marker = managed_hook_marker(AiTool::Hermes);
+        let executable_literal =
+            serde_json::Value::String(relay_executable.to_string_lossy().into_owned()).to_string();
         Some(format!(
             r#"# {marker}
-"""Relay Hermes observer lifecycle events to the local LokiMetis app."""
+"""Relay Hermes observer lifecycle events through the LokiMetis CLI."""
 
 from __future__ import annotations
 
 import json
-import os
-import sys
-import urllib.request
-import uuid
+import subprocess
 
 
-def _absolute_env(name: str):
-    value = os.environ.get(name)
-    if not value or not os.path.isabs(value):
-        return None
-    normalized = os.path.normpath(value)
-    return value if os.path.dirname(normalized) != normalized else None
-
-
-def _rendezvous_path():
-    if sys.platform.startswith("linux"):
-        home = _absolute_env("HOME")
-        if home:
-            return os.path.join(home, ".cache", "lokimetis", "{HOOK_RELAY_RENDEZVOUS_FILENAME}")
-        raise RuntimeError("LokiMetis relay requires absolute HOME")
-    if sys.platform == "darwin":
-        home = _absolute_env("HOME")
-        if home:
-            return os.path.join(home, "Library", "Caches", "lokimetis", "{HOOK_RELAY_RENDEZVOUS_FILENAME}")
-        raise RuntimeError("LokiMetis relay requires absolute HOME")
-    if sys.platform == "win32":
-        user_profile = _absolute_env("USERPROFILE")
-        if user_profile:
-            return os.path.join(user_profile, "AppData", "Local", "lokimetis", "{HOOK_RELAY_RENDEZVOUS_FILENAME}")
-        raise RuntimeError("LokiMetis relay requires absolute USERPROFILE")
-    raise RuntimeError("unsupported LokiMetis relay platform")
-
-
-class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-NO_REDIRECT_OPENER = urllib.request.build_opener(
-    urllib.request.ProxyHandler({{}}),
-    _NoRedirectHandler(),
-)
-
-
-def _relay_target():
-    with open(_rendezvous_path(), "r", encoding="utf-8") as source:
-        target = json.load(source)
-    port = target.get("port")
-    instance_id = target.get("instanceId")
-    parsed_instance_id = uuid.UUID(instance_id) if isinstance(instance_id, str) else None
-    if (
-        target.get("schemaVersion") != {HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION}
-        or not isinstance(port, int)
-        or isinstance(port, bool)
-        or not 1 <= port <= 65535
-        or not isinstance(instance_id, str)
-        or parsed_instance_id.version != 4
-        or str(parsed_instance_id) != instance_id
-    ):
-        raise ValueError("invalid LokiMetis relay rendezvous")
-    return port, instance_id
+RELAY_EXECUTABLE = {executable_literal}
 
 
 def _send(hook_event: str, **kwargs) -> None:
@@ -162,28 +108,26 @@ def _send(hook_event: str, **kwargs) -> None:
         "session_id": session_id,
         "turn_id": turn_id,
         "status": str(status) if status is not None else None,
-    }}).encode("utf-8")
+    }})
     try:
-        port, instance_id = _relay_target()
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{{port}}/api/hooks/{{instance_id}}/hermes",
-            data=payload,
-            headers={{
-                "Content-Type": "application/json; charset=utf-8",
-                "Content-Length": str(len(payload)),
-                "{HOOK_EVENT_TYPE_HEADER}": hook_event,
-                "{HOOK_RELAY_INSTANCE_HEADER}": instance_id,
-            }},
-            method="POST",
+        subprocess.run(
+            [
+                RELAY_EXECUTABLE,
+                "--loki-metis-hook-relay",
+                "hermes",
+                hook_event,
+                "--managed-by",
+                "{marker}",
+            ],
+            input=payload,
+            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=4,
+            check=False,
         )
-        with NO_REDIRECT_OPENER.open(request, timeout=1) as response:
-            if not 200 <= response.status < 300:
-                raise RuntimeError("LokiMetis relay rejected the Hook")
-            if response.getheader("{HOOK_RELAY_INSTANCE_HEADER}") != instance_id:
-                raise RuntimeError("LokiMetis relay identity mismatch")
-            response.read()
     except Exception:
-        # LokiMetis 未运行或正在重绑时保持单次短超时的 fail-open。
+        # LokiMetis CLI 不可用时保持单次短超时的 fail-open。
         pass
 
 
@@ -207,6 +151,16 @@ def register(ctx) -> None:
         )
 "#
         ))
+    }
+
+    /// Hermes 通过 observer 独立插件文件接入。
+    fn uses_standalone_plugin(&self) -> bool {
+        true
+    }
+
+    /// Hermes 插件文件由自身协议整体管理。
+    fn uses_custom_merge(&self) -> bool {
+        true
     }
 
     /// 返回 Hermes 插件清单。

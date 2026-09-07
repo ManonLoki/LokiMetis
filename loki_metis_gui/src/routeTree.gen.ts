@@ -15,6 +15,7 @@ import { Route as MonitorRouteImport } from './routes/monitor'
 import { Route as PetRouteImport } from './routes/pet'
 import { Route as PetSettingsRouteImport } from './routes/pet-settings'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SkinsRouteImport } from './routes/skins'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardCallsRouteImport } from './routes/dashboard/calls'
 import { Route as DashboardChartsRouteImport } from './routes/dashboard/charts'
@@ -54,6 +55,11 @@ const PetSettingsRoute = PetSettingsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SkinsRoute = SkinsRouteImport.update({
+  id: '/skins',
+  path: '/skins',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/pet': typeof PetRoute
   '/pet-settings': typeof PetSettingsRoute
   '/settings': typeof SettingsRoute
+  '/skins': typeof SkinsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/pet': typeof PetRoute
   '/pet-settings': typeof PetSettingsRoute
   '/settings': typeof SettingsRoute
+  '/skins': typeof SkinsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/pet': typeof PetRoute
   '/pet-settings': typeof PetSettingsRoute
   '/settings': typeof SettingsRoute
+  '/skins': typeof SkinsRoute
   '/dashboard/calls': typeof DashboardCallsRoute
   '/dashboard/charts': typeof DashboardChartsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/pet'
     | '/pet-settings'
     | '/settings'
+    | '/skins'
     | '/dashboard/calls'
     | '/dashboard/charts'
     | '/dashboard/settings'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/pet'
     | '/pet-settings'
     | '/settings'
+    | '/skins'
     | '/dashboard/calls'
     | '/dashboard/charts'
     | '/dashboard/settings'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/pet'
     | '/pet-settings'
     | '/settings'
+    | '/skins'
     | '/dashboard/calls'
     | '/dashboard/charts'
     | '/dashboard/settings'
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   PetRoute: typeof PetRoute
   PetSettingsRoute: typeof PetSettingsRoute
   SettingsRoute: typeof SettingsRoute
+  SkinsRoute: typeof SkinsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -266,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/skins': {
+      id: '/skins'
+      path: '/skins'
+      fullPath: '/skins'
+      preLoaderRoute: typeof SkinsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -387,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   PetRoute: PetRoute,
   PetSettingsRoute: PetSettingsRoute,
   SettingsRoute: SettingsRoute,
+  SkinsRoute: SkinsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

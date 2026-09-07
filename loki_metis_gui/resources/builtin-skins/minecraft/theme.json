@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "id": "minecraft",
+  "name": "我的世界",
+  "description": "这是一个我的世界的皮肤",
+  "author": "Manonloki",
+  "image": "qq2007-sky.png",
+  "friendCards": {
+    "profileImage": "avatar.png",
+    "listImage": "qqshow.jpg"
+  },
+  "previewContent": {
+    "navNewTask": "新任务",
+    "navPullRequests": "拉取请求",
+    "navSites": "站点",
+    "navAutomations": "已安排",
+    "navPlugins": "插件",
+    "navProjects": "项目",
+    "navSettings": "设置",
+    "homeTitle": "今天想建造什么？",
+    "homeSubtitle": "这是一个我的世界的皮肤",
+    "suggestionOne": "探索项目矿洞",
+    "suggestionTwo": "合成一个新功能",
+    "projectName": "方块工坊",
+    "userMessage": "请帮我探索这个项目，并找到最值得先建造的功能。",
+    "assistantMessage": "我会先绘制项目地图，再像整理物品栏一样梳理关键路径。",
+    "composerPlaceholder": "输入你的下一项建造任务",
+    "pullRequestsTitle": "拉取请求",
+    "sitesTitle": "站点",
+    "automationsTitle": "已安排",
+    "pluginsTitle": "插件",
+    "settingsTitle": "设置",
+    "emptyStateTitle": "这里还是一片空地",
+    "emptyStateAction": "重新探索"
+  },
+  "colors": {
+    "dark": {
+      "background": "#14260f",
+      "panel": "#1f3517",
+      "panelAlt": "#315522",
+      "accent": "#f6c62e",
+      "accentAlt": "#61baf0",
+      "text": "#fff8d8",
+      "muted": "#c6d5ae",
+      "line": "#7b8e36"
+    },
+    "light": {
+      "background": "#eaf5c5",
+      "panel": "#fffbe8",
+      "panelAlt": "#e3eca6",
+      "accent": "#9a5b00",
+      "accentAlt": "#176a9a",
+      "text": "#1c2a16",
+      "muted": "#4b6041",
+      "line": "#82954a"
+    }
+  },
+  "extensions": {
+    "photoPanels": [
+      {
+        "id": "profile",
+        "enabled": false,
+        "assetSlot": "profile",
+        "title": "",
+        "caption": "",
+        "anchor": "left-top",
+        "offset": {
+          "x": 24,
+          "y": 48
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      },
+      {
+        "id": "gallery",
+        "enabled": false,
+        "assetSlot": "gallery",
+        "title": "",
+        "caption": "",
+        "anchor": "left-bottom",
+        "offset": {
+          "x": 24,
+          "y": 24
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      }
+    ]
+  }
+}

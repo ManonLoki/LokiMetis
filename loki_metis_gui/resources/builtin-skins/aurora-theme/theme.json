@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 3,
+  "type": "theme",
+  "id": "aurora-theme",
+  "name": "极光静界",
+  "description": "以深蓝夜空、青绿极光与清晰高对比界面构成的纯主题示例。",
+  "author": "毕方 CodeX 皮肤工坊",
+  "appearance": {
+    "supportedColorModes": ["light", "dark"]
+  }
+}

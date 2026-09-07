@@ -1,6 +1,6 @@
 # 诡秘神谕 · LokiMetis
 
-LokiMetis 是一个面向 Windows、macOS 与 Linux 的 Tauri 2 GUI-only 桌面项目。仓库当前只提供可运行的中性工程基线；产品目的、业务功能、数据边界和成功标准尚未定义，不应把脚手架页面当作已完成产品。
+LokiMetis 是一个面向 Windows、macOS 与 Linux 的 Tauri 2 GUI-only 本机 AI 工作台，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并逐步整合 Codex 本机外观管理。当前批准范围与成功标准见 `docs/product_spec/20260907_product_spec.md`。
 
 ## 当前状态
 
@@ -12,7 +12,7 @@ LokiMetis 是一个面向 Windows、macOS 与 Linux 的 Tauri 2 GUI-only 桌面�
 - 目标平台：Windows、macOS、Linux
 - 产品定义：待完成
 
-首次产品开发先使用 `$desktop-define-product` 明确产品意图、MVP 边界、约束和成功标准；在此之前，只允许维护中性工程能力与已确认的 GUI 基线。
+产品目标、范围、约束或成功标准变化时，使用 `$desktop-define-product` 更新最新 Product Spec；日常实现仍遵守 core-first、最小权限与本次相关测试边界。
 
 ## 目录
 
@@ -53,4 +53,3 @@ Core-first 是硬规则：不依赖 Tauri、WebView 或操作系统才能成立�
 ## 许可
 
 本项目使用仓库根目录的企业专有商业许可证：[`LICENSE.zh-CN.md`](LICENSE.zh-CN.md) 与 [`LICENSE.en.md`](LICENSE.en.md)。分发时还必须遵守第三方依赖许可证并提供适用的 NOTICE。
-

@@ -1,0 +1,10 @@
+html.codex-dream-skin[data-dream-shell="light"] {
+  --skin-bg: #E7F4F5;
+  --skin-panel: #F8FCFC;
+  --skin-panel-alt: #D9ECEE;
+  --skin-accent: #087B65;
+  --skin-accent-alt: #176DB0;
+  --skin-text: #102A34;
+  --skin-muted: #4C6871;
+  --skin-line: #91ADB4;
+}

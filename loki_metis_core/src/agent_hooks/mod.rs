@@ -8,8 +8,8 @@ mod payload;
 mod state_machine;
 mod types;
 
-// 引入 Duration，用于表示各工具协议声明的生命周期交接延迟
-use std::time::Duration;
+// 引入 Path 与 Duration，分别用于生成 CLI relay 插件和声明生命周期交接延迟
+use std::{path::Path, time::Duration};
 
 // 以下每个子模块对应一个受支持的 AI 工具协议实现，模块名与工具 slug 对应
 mod claude_code;
@@ -177,10 +177,15 @@ pub(super) trait HookProtocol: Sync {
     fn events(&self) -> &'static [HookEvent];
 
     /// 返回独立配置文件内容时，公共 JSON hooks 生成/合并流程会被跳过。
-    /// 用于 `OpenCode` 这类以自动发现插件文件作为公开扩展入口的工具。
-    fn standalone_config(&self) -> Option<String> {
+    /// 插件只获得 LokiMetis CLI 可执行路径，不得自行访问 listener 端口。
+    fn standalone_config(&self, _relay_executable: &Path) -> Option<String> {
         // 默认没有独立配置文件，走公共 JSON 生成流程
         None
+    }
+
+    /// 是否以独立插件文件接入；与 TOML 等自定义合并协议明确区分。
+    fn uses_standalone_plugin(&self) -> bool {
+        false
     }
 
     /// 返回与主配置文件一同写入的受管文件。所有文件都会先完成冲突校验，
@@ -244,11 +249,11 @@ pub(super) trait HookProtocol: Sync {
         })
     }
 
-    /// 是否绕过公共 JSON 合并器。独立插件默认需要自定义合并；共享 TOML 等
-    /// 非 JSON 配置也可显式启用，同时仍保留 command Hook 的 WSL 能力。
+    /// 是否绕过公共 JSON 合并器。独立插件需显式启用；共享 TOML 等
+    /// 非 JSON 配置也可按自身协议启用。
     fn uses_custom_merge(&self) -> bool {
-        // 默认与是否存在独立配置文件保持一致
-        self.standalone_config().is_some()
+        // 普通 command Hook 默认使用公共 JSON 合并器
+        false
     }
 
     /// 从一组 hooks 事件条目中过滤掉本工具的受管处理器；一个条目的处理器
@@ -299,11 +304,10 @@ pub fn hook_config_filename(tool: AiTool) -> &'static str {
     protocol(tool).config_filename()
 }
 
-/// WSL 内目前只托管 command Hook。原生插件直接从 Linux 进程访问 listener，
-/// 其 Windows/WSL 网络边界与 command relay 不同，不能复用本分支。
+/// WSL 内目前只托管 command Hook；原生插件的安装与可执行文件定位不能复用本分支。
 pub fn hook_supports_wsl(tool: AiTool) -> bool {
-    // 只有非独立配置（即走公共 command Hook 路线）的工具才支持 WSL
-    protocol(tool).standalone_config().is_none()
+    // 只有非独立插件（包括自定义 TOML command Hook）才支持 WSL
+    !protocol(tool).uses_standalone_plugin()
 }
 
 /// 返回该工具的展示名称。

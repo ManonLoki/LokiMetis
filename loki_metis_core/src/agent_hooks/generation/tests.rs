@@ -36,10 +36,10 @@ fn every_generated_hook_contract_uses_canonical_slugs_events_and_markers() {
                 event.name
             );
         }
-        if protocol.standalone_config().is_some() {
-            assert!(preview.content.contains("loki-metis-hook-relay.json"));
-            assert!(preview.content.contains("X-LokiMetis-Hook-Type"));
-            assert!(preview.content.contains("X-LokiMetis-Hook-Instance"));
+        assert!(preview.content.contains("--loki-metis-hook-relay"));
+        assert!(preview.content.contains("--managed-by"));
+        if protocol.uses_standalone_plugin() {
+            assert!(preview.content.contains("/opt/LokiMetis/loki_metis_gui"));
             assert!(preview.content.contains("hook_event_name"));
             assert!(preview.content.contains("session_id"));
             assert!(preview.content.contains("status"));
@@ -49,10 +49,8 @@ fn every_generated_hook_contract_uses_canonical_slugs_events_and_markers() {
                     .all(|file| file.content.contains(&marker))
             );
         } else {
-            assert!(preview.content.contains("--loki-metis-hook-relay"));
             #[cfg(any(target_os = "macos", target_os = "linux"))]
             assert!(preview.content.contains(&format!("'{slug}'")));
-            assert!(preview.content.contains("--managed-by"));
         }
     }
 }
@@ -167,7 +165,10 @@ fn standalone_plugin_files_are_branded_complete_and_idempotent() {
         let preview = generate_test_hook_config(tool).unwrap();
         assert_eq!(preview.filename, filename);
         assert!(preview.content.contains("LokiMetis:tool="));
-        assert!(preview.content.contains("loki-metis-hook-relay.json"));
+        assert!(preview.content.contains("--loki-metis-hook-relay"));
+        assert!(!preview.content.contains("loki-metis-hook-relay.json"));
+        assert!(!preview.content.contains("127.0.0.1"));
+        assert!(!preview.content.contains("/api/hooks/"));
         assert_eq!(generate_hook_auxiliary_configs(tool).len(), auxiliary_count);
         let merged = merge_hook_config(None, &preview, tool).unwrap();
         assert_eq!(merged.content, preview.content);

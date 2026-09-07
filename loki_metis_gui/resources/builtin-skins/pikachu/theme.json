@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "id": "pikachu",
+  "name": "Pikachu",
+  "description": "以电气黄、脸颊红与暖棕色构成的 Pikachu 全页面 Codex 皮肤",
+  "author": "Manonloki",
+  "image": "qq2007-sky.png",
+  "friendCards": {
+    "profileImage": "avatar.png",
+    "listImage": "qqshow.jpg"
+  },
+  "previewContent": {
+    "navNewTask": "新任务",
+    "navPullRequests": "拉取请求",
+    "navSites": "站点",
+    "navAutomations": "已安排",
+    "navPlugins": "插件",
+    "navProjects": "项目",
+    "navSettings": "设置",
+    "homeTitle": "今天想和 Pikachu 完成什么？",
+    "homeSubtitle": "让每一次构建都充满电气灵感",
+    "suggestionOne": "快速分析项目结构",
+    "suggestionTwo": "为灵感充电",
+    "projectName": "Pikachu 工作区",
+    "userMessage": "请帮我梳理这个项目的关键路径。",
+    "assistantMessage": "收到，我会先检查结构，再整理清晰的下一步。",
+    "composerPlaceholder": "向 Codex 描述任务",
+    "pullRequestsTitle": "拉取请求",
+    "sitesTitle": "站点",
+    "automationsTitle": "已安排",
+    "pluginsTitle": "插件",
+    "settingsTitle": "设置",
+    "emptyStateTitle": "这里暂时很安静",
+    "emptyStateAction": "重新检查"
+  },
+  "colors": {
+    "dark": {
+      "background": "#1f1210",
+      "panel": "#2e1a18",
+      "panelAlt": "#4a2722",
+      "accent": "#ffd91a",
+      "accentAlt": "#f05a47",
+      "text": "#fff8dc",
+      "muted": "#d7c395",
+      "line": "#8b6032"
+    },
+    "light": {
+      "background": "#f9d908",
+      "panel": "#fffbea",
+      "panelAlt": "#ffe36a",
+      "accent": "#c92f2a",
+      "accentAlt": "#4a1719",
+      "text": "#241a12",
+      "muted": "#66583f",
+      "line": "#7a5624"
+    }
+  },
+  "extensions": {
+    "photoPanels": [
+      {
+        "id": "profile",
+        "enabled": false,
+        "assetSlot": "profile",
+        "title": "",
+        "caption": "",
+        "anchor": "left-top",
+        "offset": {
+          "x": 24,
+          "y": 48
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      },
+      {
+        "id": "gallery",
+        "enabled": false,
+        "assetSlot": "gallery",
+        "title": "",
+        "caption": "",
+        "anchor": "left-bottom",
+        "offset": {
+          "x": 24,
+          "y": 24
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      }
+    ]
+  }
+}

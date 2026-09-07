@@ -1,6 +1,6 @@
 # LokiMetis Rust Core 与 Tauri GUI 基线
 
-本文件描述当前终端项目的 Rust/Tauri 技术基线。产品业务尚未定义；这里的中性页面、命令和宿主能力只证明工程结构，不代表产品范围或发布就绪。
+本文件描述当前终端项目的 Rust/Tauri 技术基线。产品业务范围由最新 Approved Product Spec 定义；这里的页面、命令和宿主能力本身不代表发布就绪。
 
 ## 固定架构
 

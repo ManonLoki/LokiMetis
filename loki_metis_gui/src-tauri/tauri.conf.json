@@ -30,6 +30,17 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../resources/builtin-skins/aurora-theme/": "builtin-skins/aurora-theme/",
+      "../resources/builtin-skins/minecraft/": "builtin-skins/minecraft/",
+      "../resources/builtin-skins/misty-meadow-dawn/": "builtin-skins/misty-meadow-dawn/",
+      "../resources/builtin-skins/pastoral-landscape/": "builtin-skins/pastoral-landscape/",
+      "../resources/builtin-skins/pikachu/": "builtin-skins/pikachu/",
+      "../resources/builtin-skins/silver-core-voyage/": "builtin-skins/silver-core-voyage/",
+      "../resources/builtin-skins/woodland-dawn/": "builtin-skins/woodland-dawn/",
+      "../resources/theme-runtime/": "theme-runtime/",
+      "../../.agents/skills/codex-skin-generator/": "codex-skin-generator/"
+    },
     "icon": [
       "icons/32x32.png"
     ],

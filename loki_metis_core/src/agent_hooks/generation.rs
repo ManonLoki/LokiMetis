@@ -51,7 +51,7 @@ fn generate_hook_config_with_executable(
     // 按工具类型取出对应的协议实现
     let protocol = protocol(tool);
     // 若该工具声明了独立配置文件内容，直接使用它，跳过逐事件生成流程
-    if let Some(content) = protocol.standalone_config() {
+    if let Some(content) = protocol.standalone_config(relay_executable) {
         return Ok(HookConfigPreview {
             // 独立配置文件的预览路径由协议自身给出
             filename: protocol.preview_filename().to_owned(),

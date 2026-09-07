@@ -2,6 +2,7 @@ import { Box, Divider, Image, NavLink, ScrollArea, Stack, Text } from "@mantine/
 import {
   IconDeviceDesktopAnalytics,
   IconLayoutDashboard,
+  IconPalette,
   IconSettings,
   type TablerIcon,
 } from "@tabler/icons-react";
@@ -30,9 +31,9 @@ export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX =
 
 /** 描述精简侧栏中的单个导航目的地。 */
 interface NavigationItem {
-  id: "dashboard" | "monitor" | "settings";
+  id: "dashboard" | "monitor" | "skins" | "settings";
   label: string;
-  path: "/dashboard" | "/monitor" | "/settings";
+  path: "/dashboard" | "/monitor" | "/skins" | "/settings";
   icon: TablerIcon;
 }
 
@@ -42,7 +43,7 @@ export interface AppSidebarProps {
   applicationName: string;
   mode?: "compact";
   version: string;
-  onNavigate: (path: "/dashboard" | "/monitor" | "/settings") => void;
+  onNavigate: (path: "/dashboard" | "/monitor" | "/skins" | "/settings") => void;
 }
 
 /** 渲染图标在上且标签持续可见的精简导航项。 */
@@ -53,7 +54,7 @@ function AppSidebarNavigationItem({
 }: {
   active: boolean;
   item: NavigationItem;
-  onNavigate: (path: "/dashboard" | "/monitor" | "/settings") => void;
+  onNavigate: (path: "/dashboard" | "/monitor" | "/skins" | "/settings") => void;
 }): ReactElement {
   const Icon = item.icon;
   return (
@@ -145,6 +146,12 @@ export function AppSidebar({
     label: t("navigation.monitor"),
     path: "/monitor",
   };
+  const skins: NavigationItem = {
+    icon: IconPalette,
+    id: "skins",
+    label: t("navigation.skins"),
+    path: "/skins",
+  };
   const settings: NavigationItem = {
     icon: IconSettings,
     id: "settings",
@@ -194,6 +201,11 @@ export function AppSidebar({
         <AppSidebarNavigationItem
           active={activePath === "/monitor" || activePath.startsWith("/monitor/")}
           item={monitor}
+          onNavigate={onNavigate}
+        />
+        <AppSidebarNavigationItem
+          active={activePath === "/skins"}
+          item={skins}
           onNavigate={onNavigate}
         />
       </ScrollArea>

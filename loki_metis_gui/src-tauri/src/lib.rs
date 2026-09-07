@@ -18,6 +18,7 @@ mod release_notes;
 mod runtime;
 mod scan_state;
 mod settings;
+mod skins;
 mod source_commands;
 mod statistics_view;
 mod tray;
@@ -64,6 +65,14 @@ use performance_evidence::{
 };
 use release_notes::load_release_notes;
 use settings::HostSettingsState;
+use skins::commands::{
+    cancel_codex_operation, cancel_skin_import, codex_runtime_status, commit_skin_import,
+    convert_skin_to_theme, create_user_theme, delete_skin, delete_skins, export_skin_package,
+    force_launch_codex, install_skin, launch_codex, list_codex_instances, list_skins,
+    open_skin_directory, prepare_skin_import, prepare_skin_zip_paths, probe_codex_instance,
+    restart_codex_instance, skin_catalog_changed, skin_creation_prompt, skin_status,
+    uninstall_skin,
+};
 use source_commands::{
     manual_add_source_root, remove_source_root, rename_source_root, set_primary_source_root,
     set_source_root_enabled,
@@ -144,6 +153,16 @@ pub fn run() {
             app.manage(settings_state);
             app.manage(LocaleState::new(Some(initial_language)));
             let app_data_dir = app.path().app_data_dir()?;
+            let skin_service = skins::SkinService::new(
+                app.path().resource_dir()?.join("builtin-skins"),
+                app_data_dir.join("skins"),
+            );
+            skin_service.initialize()?;
+            tracing::info!(
+                skin_count = skin_service.list_skins()?.len(),
+                "skin catalog initialized"
+            );
+            app.manage(skin_service);
             app.manage(runtime::AppRuntimeState::new(app_data_dir));
             spawn_periodic_local_scans(app.handle().clone());
             spawn_retention_cleanup(app.handle().clone());
@@ -257,6 +276,29 @@ pub fn run() {
             focus_first_populated_pet_page,
             resize_pet_step,
             show_main_window,
+            skin_status,
+            list_skins,
+            skin_catalog_changed,
+            skin_creation_prompt,
+            create_user_theme,
+            convert_skin_to_theme,
+            export_skin_package,
+            prepare_skin_import,
+            prepare_skin_zip_paths,
+            commit_skin_import,
+            cancel_skin_import,
+            open_skin_directory,
+            delete_skin,
+            delete_skins,
+            codex_runtime_status,
+            list_codex_instances,
+            probe_codex_instance,
+            restart_codex_instance,
+            launch_codex,
+            force_launch_codex,
+            cancel_codex_operation,
+            install_skin,
+            uninstall_skin,
             get_performance_evidence_status,
             record_performance_evidence,
             finish_performance_evidence

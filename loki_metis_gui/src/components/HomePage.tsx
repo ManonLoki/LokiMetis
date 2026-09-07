@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 
 import { appMetadataQuery } from "../lib/queries";
 
-/** 渲染不虚构业务能力的产品定义等待页。 */
+/** 渲染已定义本机 AI 工作台的轻量欢迎页。 */
 export function HomePage(): ReactElement {
   const { t } = useTranslation();
   const metadata = useQuery(appMetadataQuery);

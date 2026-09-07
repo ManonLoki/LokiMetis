@@ -2,7 +2,7 @@
 
 ## 项目使命
 
-本仓库是诡秘神谕（LokiMetis）的唯一终端项目根目录，维护 `loki_metis_core + loki_metis_gui` 的 GUI-only 桌面应用，不再用于创建其他项目。当前仅有中性工程基线；产品目的、MVP、业务范围和成功标准尚未定义。
+本仓库是诡秘神谕（LokiMetis）的唯一终端项目根目录，维护 `loki_metis_core + loki_metis_gui` 的 GUI-only 本机 AI 工作台，不再用于创建其他项目。当前产品目的、MVP、业务范围和成功标准以最新 Approved Product Spec 为准。
 
 ## 启动门禁
 
@@ -50,7 +50,7 @@
 
 | 事实 | 唯一来源 |
 |---|---|
-| 产品目标、范围和成功标准 | `$desktop-define-product` 创建的最新 Product Spec；当前尚不存在 |
+| 产品目标、范围和成功标准 | `$desktop-define-product` 创建的最新 Approved Product Spec |
 | Agent 能力与候选建议默认值 | `docs/AGENT_POLICY.md` |
 | 文件、注释、文档、测试与例外 | `docs/ENGINEERING_RULES.md` |
 | Rust core、Tauri GUI 与运行时 | `docs/RUST_GUI_TEMPLATE.md` |

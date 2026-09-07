@@ -7,6 +7,7 @@
     "home": "首页",
     "dashboard": "看板",
     "monitor": "监控",
+    "skins": "换皮",
     "settings": "设置"
   },
   "sidebar": {
@@ -15,17 +16,132 @@
     "version": "版本 {{version}}"
   },
   "home": {
-    "eyebrow": "中性桌面基线",
-    "title": "产品定义待完成",
-    "description": "桌面应用基础已经就绪。此处暂不预设业务能力，待产品目标、边界与成功标准明确后再开始实现。",
+    "eyebrow": "本机 AI 工作台",
+    "title": "掌握用量、监控与 Codex 外观",
+    "description": "LokiMetis 在本机聚合 AI Agent 用量，管理 Hooks 监控，并为明确选择的 Codex 实例提供可恢复的换皮能力。",
     "status_label": "当前状态",
     "status_ready": "GUI 初始化完成",
-    "definition_label": "产品定义",
+    "definition_label": "Codex 换皮",
     "definition_required": "需要补充",
     "next_step_title": "下一步",
-    "next_step_description": "定义产品用途、首个核心工作流和可验证的成功标准。",
+    "next_step_description": "从侧边栏进入换皮资源库，浏览内置主题或管理自己的皮肤。",
     "workspace_title": "工作区",
-    "workspace_description": "产品功能将在确认范围后从这里开始生长。"
+    "workspace_description": "默认从看板进入，所有资源和偏好均保留在本机。"
+  },
+  "skins": {
+    "title": "Codex 换皮",
+    "description": "管理本机皮肤资源库，并把主题安全应用到明确选择的 Codex 实例。",
+    "runtime": {
+      "stopped": "Codex 未运行",
+      "ready": "Codex 可连接",
+      "runningWithoutCdp": "需要启用调试连接"
+    },
+    "browser": {
+      "title": "需要桌面宿主",
+      "description": "浏览器预览不会读取本机资源、进程或调试端口；请在 LokiMetis 桌面应用中使用换皮功能。"
+    },
+    "search": {
+      "label": "搜索皮肤",
+      "placeholder": "按名称、作者或 ID 搜索",
+      "user_only": "只看用户皮肤"
+    },
+    "instance": {
+      "label": "目标 Codex 实例",
+      "none": "未发现 Codex 实例",
+      "choose": "选择目标实例"
+    },
+    "catalog": {
+      "count": "显示 {{count}} 个皮肤",
+      "empty": "没有符合当前筛选的皮肤。"
+    },
+    "source": {
+      "builtin": "内置",
+      "user": "用户"
+    },
+    "package": {
+      "theme": "纯主题",
+      "legacySkin": "兼容皮肤"
+    },
+    "mode": {
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "card": {
+      "preview_alt": "{{name}} 皮肤预览",
+      "by": "作者 {{author}}",
+      "select": "选择 {{name}}",
+      "actions": "{{name}} 的资源操作"
+    },
+    "action": {
+      "apply": "应用",
+      "stop": "停止",
+      "open": "打开目录",
+      "export": "导出 ZIP",
+      "convert": "转换为纯主题",
+      "delete": "删除",
+      "delete_selected": "删除所选（{{count}}）",
+      "import": "导入",
+      "create": "创建主题",
+      "refresh": "刷新",
+      "launch": "启动 Codex"
+    },
+    "dialog": {
+      "cancel": "取消",
+      "confirm": "确认"
+    },
+    "appearance": {
+      "title": "确认外观差异",
+      "description": "Codex 当前 {{mode}} 外观与主题声明存在差异。确认后仅对所选实例继续应用。",
+      "unreadable": "无法读取",
+      "continue": "仍然应用"
+    },
+    "import": {
+      "title": "确认导入皮肤",
+      "summary": "已从 {{total}} 个压缩包中安全预检出 {{ready}} 个可导入项目。",
+      "commit": "导入所选（{{count}}）"
+    },
+    "create": {
+      "title": "创建用户主题",
+      "description": "可快速建立可编辑的本机纯主题，或复制带真实资源路径的提示词交给 Codex 完成设计。",
+      "name": "主题名称",
+      "author": "作者",
+      "scaffold": "创建脚手架",
+      "codex_prompt": "生成 Codex 提示词",
+      "prompt_title": "动态生成提示词",
+      "copy": "复制"
+    },
+    "restart": {
+      "title": "重启所选 Codex 实例？",
+      "description": "{{name}} 尚未开放本机调试连接。继续将只重启这个实例，未保存内容可能受影响。"
+    },
+    "convert": {
+      "title": "有损转换为纯主题？",
+      "description": "{{name}} 的脚本、自由选择器与扩展组件不会进入纯主题；将根据可迁移配色创建新的用户资源，原皮肤保持不变。"
+    },
+    "delete": {
+      "title": "删除用户皮肤？",
+      "description": "将永久删除所选的 {{count}} 个用户皮肤目录；内置皮肤不会受影响。"
+    },
+    "restore": {
+      "title": "恢复上次使用的皮肤",
+      "description": "上次成功应用的是 {{name}}，当前所选实例未检测到活动皮肤。",
+      "action": "恢复",
+      "dismiss": "忽略本次"
+    },
+    "notice": {
+      "applied": "已把 {{name}} 应用到所选 Codex 实例。",
+      "stopped": "已停止所选实例中的皮肤并完成清理。",
+      "created": "已创建用户主题 {{name}}。",
+      "imported": "已导入 {{count}} 个皮肤。",
+      "exported": "皮肤 ZIP 已保存到所选位置。",
+      "converted": "已创建纯主题 {{name}}。",
+      "deleted": "已删除 {{count}} 个用户皮肤。"
+    },
+    "error": {
+      "title": "操作未完成",
+      "unknown": "换皮操作失败，请刷新宿主状态后重试。",
+      "choose_instance": "发现多个 Codex 实例，请先明确选择目标。"
+    }
   },
   "settings": {
     "title": "设置",

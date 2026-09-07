@@ -1,0 +1,542 @@
+schema_version: 2
+purpose: "Codex 组件语义、页面探测、选择器归属与样式映射的唯一参考源"
+
+observed_host:
+  product: "Codex desktop"
+  macos_bundle: "com.openai.codex"
+  version: "26.803.10989.0"
+  observed_on: "2026-08-13"
+  evidence: "当前安装版 app.asar 前端模块静态分析确认主表面稳定属性；既有 CDP 证据继续覆盖其他锚点，不等同于全部页面真实注入通过"
+
+stability:
+  A: "HTML 语义、ARIA、role、固定 id、data-testid、data-feature 或 data-slot；优先"
+  B: "稳定路由、具名组件 class 或具名业务 class；A 级无法覆盖空状态时使用"
+  C: "文本、placeholder、组合条件或 group class；集中到探测层"
+  D: "深层结构、nth-child 或构建工具 class；仅局部增强"
+
+surface_order:
+  - home
+  - chat
+  - pull-requests
+  - sites
+  - automations
+  - plugins
+  - settings
+  - other
+
+components:
+  - component_id: codex.document-root
+    kind: codex-native
+    meaning: "Codex 主文档与宿主页验证"
+    selectors:
+      - selector: "#root"
+        maps_to: app_mount
+        stability: A
+      - selector: "body"
+        maps_to: document_body
+        stability: A
+      - selector: "app://-/index.html"
+        maps_to: primary_page_url
+        stability: A
+        usage: host-validation-only
+      - selector: "initialRoute"
+        maps_to: renderer_initial_route_query
+        stability: A
+        usage: route-detection-only
+        note: "页面导航可能重建渲染目标；每次导航后重新发现 CDP target"
+
+  - component_id: codex.app-shell
+    kind: codex-native
+    meaning: "侧栏之外的主应用内容外壳"
+    selectors:
+      - selector: "main.main-surface"
+        maps_to: component_root
+        stability: B
+        fallback: "main"
+      - selector: "#root main"
+        maps_to: legacy_class_compatibility_candidate
+        stability: B
+        usage: host-compatibility-only
+        note: "仅在 data-app-shell-main-surface 不存在且候选唯一时作为旧版回退；多个候选必须跳过"
+      - selector: "main[data-app-shell-main-surface]"
+        maps_to: legacy_class_compatibility_candidate
+        stability: A
+        usage: host-compatibility-only
+        note: "新版宿主主表面锚点；仅在候选唯一时由宿主补充 main-surface"
+      - selector: "[role='main']"
+        maps_to: active_surface
+        stability: A
+        note: "允许多个；仅用于通用表面样式，不单独推断页面类型"
+      - selector: "[role='separator']"
+        maps_to: split_divider
+        stability: A
+      - selector: "hr"
+        maps_to: semantic_divider
+        stability: A
+      - selector: "[aria-busy='true']"
+        maps_to: loading_region
+        stability: A
+
+  - component_id: codex.sidebar
+    kind: codex-native
+    meaning: "项目、任务和导航所在左侧栏"
+    selectors:
+      - selector: ".app-shell-left-panel"
+        maps_to: component_root
+        stability: B
+        note: "普通应用页为 aside，设置页为 div；不要限定元素类型"
+      - selector: ".app-shell-left-panel nav"
+        maps_to: navigation
+        stability: A
+      - selector: "[aria-current='page']"
+        maps_to: active_item
+        stability: A
+      - selector: "[role='listitem'] [role='button']"
+        maps_to: clickable_row
+        stability: A
+      - selector: "[data-sidebar-project-kind]"
+        maps_to: project_row
+        stability: A
+      - selector: ".group\\/folder-row"
+        maps_to: project_folder_row
+        stability: C
+        fallback: "[data-sidebar-project-kind]"
+      - selector: ".group\\/nav-section-title"
+        maps_to: section_heading
+        stability: C
+        fallback: "nav [role='heading']"
+
+  - component_id: codex.header
+    kind: codex-native
+    meaning: "Windows 应用菜单与主内容顶部栏"
+    selectors:
+      - selector: "#root :has(> [role='menubar'])"
+        maps_to: application_menu_bar
+        stability: C
+        note: "当前顶部栏父容器没有稳定属性；只在后代关系中存在唯一直接 menubar 时使用，失配则保留原生背景"
+      - selector: "[role='menubar']"
+        maps_to: application_menu
+        stability: A
+      - selector: "[id^='application-menu-trigger-']"
+        maps_to: application_menu_item
+        stability: A
+      - selector: "[data-app-shell-sidebar-trigger]"
+        maps_to: application_menu_sidebar_control
+        stability: A
+      - selector: "main.main-surface > header.app-header-tint"
+        maps_to: component_root
+        stability: B
+        fallback: "main.main-surface > header"
+      - selector: "main > header[data-app-shell-application-menu-bar]"
+        maps_to: legacy_class_compatibility_candidate
+        stability: A
+        usage: host-compatibility-only
+        note: "仅在候选唯一时由宿主补充 app-header-tint"
+      - selector: "[data-testid='app-shell-header-context-menu-surface']"
+        maps_to: localized_surface_label_probe
+        stability: C
+        usage: text-detection-only
+        fallback_behavior: "页面独有属性和 initialRoute 均不可用时，用中英文标题精确匹配；未命中则降级 other"
+
+  - component_id: codex.navigation-primitives
+    kind: codex-native
+    meaning: "功能页共享的列表、标签页、菜单和选择状态"
+    selectors:
+      - selector: "[role='list']"
+        maps_to: list
+        stability: A
+      - selector: "[role='listitem']"
+        maps_to: list_item
+        stability: A
+      - selector: "[role='tablist']"
+        maps_to: tab_list
+        stability: A
+      - selector: "[role='tab']"
+        maps_to: tab
+        stability: A
+      - selector: "[role='tabpanel']"
+        maps_to: tab_panel
+        stability: A
+      - selector: "[aria-selected='true']"
+        maps_to: selected_item
+        stability: A
+      - selector: "[aria-checked]"
+        maps_to: checked_semantic_state
+        stability: A
+      - selector: "[aria-current='page']"
+        maps_to: current_item
+        stability: A
+      - selector: "[data-state='open']"
+        maps_to: open_item
+        stability: A
+      - selector: "[data-state='checked']"
+        maps_to: checked_item
+        stability: A
+      - selector: "[role='option']"
+        maps_to: option
+        stability: A
+      - selector: "[role='menuitem']"
+        maps_to: menu_item
+        stability: A
+      - selector: "[role='menuitemradio']"
+        maps_to: radio_menu_item
+        stability: A
+
+  - component_id: codex.form-primitives
+    kind: codex-native
+    meaning: "功能页共享的输入、选择与开关控件"
+    selectors:
+      - selector: "button"
+        maps_to: button
+        stability: A
+      - selector: "a[href]"
+        maps_to: link
+        stability: A
+      - selector: "[role='button']"
+        maps_to: button_role
+        stability: A
+      - selector: "input:not([type='hidden'])"
+        maps_to: input
+        stability: A
+      - selector: "textarea"
+        maps_to: textarea
+        stability: A
+      - selector: "select"
+        maps_to: select
+        stability: A
+      - selector: "[contenteditable='true']"
+        maps_to: editable_content
+        stability: A
+      - selector: "[role='checkbox']"
+        maps_to: checkbox
+        stability: A
+      - selector: "[role='radio']"
+        maps_to: radio
+        stability: A
+      - selector: "[role='switch']"
+        maps_to: switch
+        stability: A
+      - selector: "[aria-invalid='true']"
+        maps_to: invalid_control
+        stability: A
+      - selector: "[disabled], [aria-disabled='true']"
+        maps_to: disabled_control
+        stability: A
+
+  - component_id: codex.content-primitives
+    kind: codex-native
+    meaning: "功能页共享的表格、代码、引用和内容块"
+    selectors:
+      - selector: "table"
+        maps_to: table
+        stability: A
+      - selector: "th"
+        maps_to: table_header
+        stability: A
+      - selector: "td"
+        maps_to: table_cell
+        stability: A
+      - selector: "pre"
+        maps_to: code_block
+        stability: A
+      - selector: "code"
+        maps_to: inline_code
+        stability: A
+      - selector: "blockquote"
+        maps_to: quotation
+        stability: A
+
+  - component_id: codex.home
+    kind: codex-native
+    meaning: "新任务首页"
+    surface: home
+    selectors:
+      - selector: "[data-testid='home-icon']"
+        maps_to: page_marker
+        stability: A
+        resolution: "closest('[role=main]')"
+      - selector: "[data-feature='game-source']"
+        maps_to: hero_prompt
+        stability: A
+      - selector: ".group\\/home-suggestions"
+        maps_to: suggestion_group
+        stability: C
+        fallback: "[data-feature='game-source'] + [role='list']"
+      - selector: ".group\\/project-selector > button"
+        maps_to: project_selector
+        stability: C
+        fallback: "[data-feature='game-source'] button[aria-haspopup]"
+
+  - component_id: codex.composer
+    kind: codex-native
+    meaning: "消息输入编辑器"
+    selectors:
+      - selector: ".composer-surface-chrome"
+        maps_to: component_root
+        stability: B
+      - selector: "[data-codex-composer]"
+        maps_to: compatibility_probe
+        stability: A
+        usage: host-compatibility-only
+        resolution: "closest('[data-composer-surface-variant]')"
+      - selector: "[data-composer-surface-variant]"
+        maps_to: legacy_class_compatibility_candidate
+        stability: A
+        usage: host-compatibility-only
+        note: "只有全部编辑器探针解析到唯一表面时才补充 composer-surface-chrome"
+      - selector: ".ProseMirror[contenteditable='true']"
+        maps_to: editable_content
+        stability: A
+
+  - component_id: codex.thread
+    kind: codex-native
+    meaning: "会话消息与滚动区域"
+    surface: chat
+    selectors:
+      - selector: ".thread-scroll-container"
+        maps_to: scroller
+        stability: B
+      - selector: "[data-virtualized-turn-content]"
+        maps_to: virtualized_turn
+        stability: A
+      - selector: "[data-message-author-role]"
+        maps_to: message
+        stability: A
+      - selector: "article"
+        maps_to: content_block
+        stability: A
+        scope: ".thread-scroll-container"
+
+  - component_id: codex.pull-requests
+    kind: codex-native
+    meaning: "拉取请求列表、详情分栏与代码审查"
+    surface: pull-requests
+    selectors:
+      - selector: "#pull-request-inbox-search"
+        maps_to: page_marker
+        stability: A
+      - selector: "[id$='-pull-request-summary-tab']"
+        maps_to: summary_tab
+        stability: A
+      - selector: "[id$='-pull-request-code-tab']"
+        maps_to: code_tab
+        stability: A
+      - selector: "[id$='-pull-request-activity-tab']"
+        maps_to: activity_tab
+        stability: A
+      - selector: "[id$='-pull-request-summary-panel'], [id$='-pull-request-code-panel'], [id$='-pull-request-activity-panel']"
+        maps_to: detail_panel
+        stability: A
+      - selector: "/pull-requests"
+        maps_to: empty_state_route_fallback
+        stability: B
+        usage: route-detection-only
+        fallback_behavior: "只设置 skin-state，不直接作为 CSS 选择器"
+
+  - component_id: codex.sites
+    kind: codex-native
+    meaning: "站点列表、空状态、筛选与站点设置"
+    surface: sites
+    selectors:
+      - selector: "#appgen-site-search"
+        maps_to: page_marker_and_search
+        stability: A
+      - selector: "[data-testid='library-file-thumbnail']"
+        maps_to: library_thumbnail
+        stability: A
+      - selector: "/sites"
+        maps_to: page_route_and_empty_state_fallback
+        stability: B
+        usage: route-detection-only
+        fallback_behavior: "只设置 skin-state，不直接作为 CSS 选择器"
+
+  - component_id: codex.automations
+    kind: codex-native
+    meaning: "已安排任务列表、历史、详情与编辑表单"
+    surface: automations
+    selectors:
+      - selector: "#automation-detail-panel-title"
+        maps_to: detail_title
+        stability: A
+      - selector: "[aria-labelledby='automation-detail-panel-title']"
+        maps_to: detail_panel
+        stability: A
+      - selector: ".automation-row"
+        maps_to: automation_row
+        stability: B
+        fallback: "[role='list'] > [role='listitem']"
+      - selector: "/automations"
+        maps_to: page_route_and_empty_state_fallback
+        stability: B
+        usage: route-detection-only
+        fallback_behavior: "只设置 skin-state，不直接作为 CSS 选择器"
+
+  - component_id: codex.plugins
+    kind: codex-native
+    meaning: "插件浏览、搜索、分区、管理与详情"
+    surface: plugins
+    selectors:
+      - selector: "#plugins-page-search"
+        maps_to: browse_search
+        stability: A
+      - selector: ".bg-token-main-surface-primary"
+        maps_to: browse_search_sticky_backdrop
+        stability: C
+        scope: "html[data-dream-surface='plugins'] :has(#plugins-page-search)"
+        fallback_behavior: "组合锚点失效时保留 Codex 原生搜索背景，不影响交互"
+      - selector: "#plugins-page-manage-search"
+        maps_to: manage_search
+        stability: A
+      - selector: "[id^='plugins-search-']"
+        maps_to: section_search
+        stability: A
+        note: "这是可覆盖整段内容的分区锚点，不是插件卡片；不得直接施加背景、圆角或阴影"
+      - selector: "[id^='plugins-marketplace-']"
+        maps_to: marketplace_section
+        stability: A
+        note: "这是市场分区锚点，不是插件卡片；卡片样式应限定到分区内的列表项"
+      - selector: "/skills/plugins"
+        maps_to: page_route_and_empty_state_fallback
+        stability: B
+        usage: route-detection-only
+        fallback_behavior: "同时兼容 /skills 与 /skills/manage/plugins 路由族"
+
+  - component_id: codex.settings
+    kind: codex-native
+    meaning: "设置导航、表单、分组与对话框"
+    surface: settings
+    selectors:
+      - selector: "[data-settings-panel-slug]"
+        maps_to: section_navigation_item
+        stability: A
+      - selector: "input[role='searchbox']"
+        maps_to: settings_search
+        stability: A
+        scope: "html[data-dream-surface='settings']"
+      - selector: "[data-app-shell-focus-area='main']"
+        maps_to: settings_main_focus_area
+        stability: A
+        note: "设置页没有 main 元素；统一主题只在 settings 页面状态下覆盖其当前双层内容表面"
+      - selector: "section .border-default:has([role='switch'])"
+        maps_to: settings_switch_group
+        stability: C
+        fallback_behavior: "具名边界容器或开关语义失效时保留 Codex 原生分组背景，不扩大到普通 div"
+      - selector: "/settings"
+        maps_to: page_route_fallback
+        stability: B
+        usage: route-detection-only
+        fallback_behavior: "空状态或导航尚未渲染时只设置 skin-state"
+
+  - component_id: codex.feedback
+    kind: codex-native
+    meaning: "通知、状态和 Portal 浮层反馈"
+    selectors:
+      - selector: "[data-sonner-toast]"
+        maps_to: toast
+        stability: A
+      - selector: "[data-radix-toast-viewport] > li"
+        maps_to: toast
+        stability: A
+      - selector: "[role='alert']"
+        maps_to: alert
+        stability: A
+      - selector: "[role='status']"
+        maps_to: status
+        stability: A
+      - selector: "[role='dialog']"
+        maps_to: dialog
+        stability: A
+      - selector: "[role='menu']"
+        maps_to: menu
+        stability: A
+      - selector: "[role='listbox']"
+        maps_to: listbox
+        stability: A
+      - selector: "[role='tooltip']"
+        maps_to: tooltip
+        stability: A
+
+  - component_id: skin.surface-state
+    kind: skin-state
+    meaning: "注入脚本对当前 Codex 页面类型的分类"
+    selectors:
+      - selector: "html[data-dream-shell]"
+        maps_to: color_scheme_state
+        stability: internal
+      - selector: "html[data-dream-surface='home']"
+        maps_to: home_state
+        stability: internal
+      - selector: "html[data-dream-surface='chat']"
+        maps_to: chat_state
+        stability: internal
+      - selector: "html[data-dream-surface='pull-requests']"
+        maps_to: pull_requests_state
+        stability: internal
+      - selector: "html[data-dream-surface='sites']"
+        maps_to: sites_state
+        stability: internal
+      - selector: "html[data-dream-surface='automations']"
+        maps_to: automations_state
+        stability: internal
+      - selector: "html[data-dream-surface='plugins']"
+        maps_to: plugins_state
+        stability: internal
+      - selector: "html[data-dream-surface='settings']"
+        maps_to: settings_state
+        stability: internal
+      - selector: "html[data-dream-surface='other']"
+        maps_to: fallback_state
+        stability: internal
+
+  - component_id: skin.lifecycle
+    kind: skin-state
+    meaning: "LokiMetis兼容的注入与卸载公共接口"
+    selectors:
+      - selector: "html.codex-dream-skin"
+        maps_to: enabled_root
+        stability: internal
+      - selector: "#codex-dream-skin-style"
+        maps_to: unique_style_node
+        stability: internal
+      - selector: "#codex-dream-skin-chrome"
+        maps_to: extension_root
+        stability: internal
+      - selector: "window.__CODEX_DREAM_SKIN_STATE__"
+        maps_to: cleanup_state
+        stability: internal
+
+  - component_id: extension.photo-panel
+    kind: skin-extension
+    meaning: "旧六文件兼容皮肤可创建的最多两个照片浮窗；纯主题统一运行时不创建此扩展，Codex 也没有原生对应组件"
+    selectors:
+      - selector: "#codex-dream-skin-chrome .skin-photo-panel"
+        maps_to: component_root
+        stability: internal
+      - selector: "#codex-dream-skin-chrome[data-surface]"
+        maps_to: current_surface
+        stability: internal
+      - selector: "[data-panel-id]"
+        maps_to: panel_identity
+        stability: internal
+      - selector: "[data-anchor]"
+        maps_to: anchor_position
+        stability: internal
+      - selector: "[data-fit]"
+        maps_to: image_fit
+        stability: internal
+      - selector: "[data-visible-on]"
+        maps_to: surface_visibility
+        stability: internal
+      - selector: "[hidden]"
+        maps_to: responsive_visibility
+        stability: internal
+    config_reference: "photo-panels.md"
+
+selector_rules:
+  - "任何宿主 CSS 选择器或 JavaScript 探测器必须归属于 kind=codex-native 的 component_id"
+  - "优先级固定为 A 级属性/语义选择器、B 级路由或具名 class、C 级组合条件、D 级结构选择器"
+  - "路由只用于属性标记无法覆盖的空白或错误页；CSS 必须消费 skin-state，不得直接依赖 URL"
+  - "组合探测产生的状态必须归属于 kind=skin-state"
+  - "自建 DOM 必须归属于 kind=skin-extension，不得声称为 Codex 原生组件"
+  - "新增 C/D 级选择器必须提供 fallback 或无害失效说明"
+  - "首页、会话、拉取请求、站点、已安排、插件、设置与 other 必须全部出现在页面矩阵和预览控制中"

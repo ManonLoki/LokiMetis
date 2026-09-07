@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "id": "misty-meadow-dawn",
+  "name": "雾野晨光",
+  "description": "取意于晨雾漫过青翠丘陵与静谧松林，以清透玻璃表面、柔和自然色和克制层级营造专注、宁静的 Codex 工作空间。",
+  "author": "manonloki",
+  "image": "qq2007-sky.png",
+  "friendCards": {
+    "profileImage": "avatar.png",
+    "listImage": "qqshow.jpg"
+  },
+  "previewContent": {
+    "navNewTask": "新任务",
+    "navPullRequests": "拉取请求",
+    "navSites": "站点",
+    "navAutomations": "已安排",
+    "navPlugins": "插件",
+    "navProjects": "项目",
+    "navSettings": "设置",
+    "homeTitle": "晨雾散开，从一件事开始",
+    "homeSubtitle": "取意于晨雾漫过青翠丘陵与静谧松林，以清透玻璃表面、柔和自然色和克制层级营造专注、宁静的 Codex 工作空间。",
+    "suggestionOne": "梳理项目关键路径",
+    "suggestionTwo": "完成今天的核心功能",
+    "projectName": "雾野工作台",
+    "userMessage": "请帮我从晨间计划中找出最重要的一项。",
+    "assistantMessage": "我会先厘清目标与依赖，再给出一条安静、清晰的执行路径。",
+    "composerPlaceholder": "向 Codex 描述任务",
+    "pullRequestsTitle": "拉取请求",
+    "sitesTitle": "站点",
+    "automationsTitle": "已安排",
+    "pluginsTitle": "插件",
+    "settingsTitle": "设置",
+    "emptyStateTitle": "暂无内容",
+    "emptyStateAction": "重新检查"
+  },
+  "colors": {
+    "dark": {
+      "background": "#15211d",
+      "panel": "#1e2c27",
+      "panelAlt": "#2a3a32",
+      "accent": "#a6d36d",
+      "accentAlt": "#8fc0d5",
+      "text": "#f4f7f2",
+      "muted": "#b9c7be",
+      "line": "#6c8175"
+    },
+    "light": {
+      "background": "#e3ecea",
+      "panel": "#f6f8f3",
+      "panelAlt": "#dde8d4",
+      "accent": "#386a24",
+      "accentAlt": "#356982",
+      "text": "#1c2a23",
+      "muted": "#506459",
+      "line": "#80978b"
+    }
+  },
+  "extensions": {
+    "photoPanels": [
+      {
+        "id": "profile",
+        "enabled": false,
+        "assetSlot": "profile",
+        "title": "",
+        "caption": "",
+        "anchor": "left-top",
+        "offset": {
+          "x": 24,
+          "y": 48
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      },
+      {
+        "id": "gallery",
+        "enabled": false,
+        "assetSlot": "gallery",
+        "title": "",
+        "caption": "",
+        "anchor": "left-bottom",
+        "offset": {
+          "x": 24,
+          "y": 24
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      }
+    ]
+  }
+}

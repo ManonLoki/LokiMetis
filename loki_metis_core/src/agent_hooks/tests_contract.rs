@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::{
     ai_tool_descriptors, generate_hook_auxiliary_configs, generate_hook_config,
     hook_changed_write_outcome, hook_config_write_result, hook_requires_review,
-    hook_restart_required, hook_supports_wsl, protocol, release_settle_delay,
+    hook_restart_required, hook_supports_wsl, managed_hook_marker, protocol, release_settle_delay,
     session_start_revives_tombstone, tool_from_slug,
 };
 use crate::agent_hooks::{AiTool, HookWriteOutcome};
@@ -154,80 +154,46 @@ fn auxiliary_files_are_declared_only_by_multi_file_plugins() {
 }
 
 #[test]
-fn standalone_plugins_use_authenticated_rendezvous_and_never_aimonitor_port() {
+fn standalone_plugins_forward_only_through_the_cli_relay() {
     let executable = std::path::Path::new("/opt/LokiMetis/loki_metis_gui");
     for tool in [AiTool::OpenCode, AiTool::Hermes, AiTool::OpenClaw] {
         let preview = generate_hook_config(tool, executable).unwrap();
-        assert!(preview.content.contains("loki-metis-hook-relay.json"));
-        assert!(preview.content.contains("X-LokiMetis-Hook-Instance"));
-        assert!(preview.content.contains("instanceId"));
-        assert!(preview.content.contains("schemaVersion"));
-        assert!(preview.content.contains("Content-Length"));
-        for path_contract in [
-            "HOME",
-            "USERPROFILE",
-            ".cache",
-            "Library",
-            "Caches",
-            "AppData",
-            "Local",
-            "lokimetis",
-        ] {
-            assert!(
-                preview.content.contains(path_contract),
-                "{tool:?}: {path_contract}"
-            );
-        }
-        assert!(!preview.content.contains("tmpdir()"));
-        assert!(!preview.content.contains("gettempdir()"));
-        assert!(!preview.content.contains("XDG_RUNTIME_DIR"));
-        assert!(!preview.content.contains("LOCALAPPDATA"));
-        assert!(!preview.content.contains("range(5)"));
-        assert!(!preview.content.contains("attempt < 5"));
-        assert!(!preview.content.contains("time.sleep"));
+        assert!(preview.content.contains("/opt/LokiMetis/loki_metis_gui"));
+        assert!(preview.content.contains("--loki-metis-hook-relay"));
+        assert!(preview.content.contains("--managed-by"));
+        assert!(preview.content.contains(&managed_hook_marker(tool)));
+        assert!(preview.content.contains("hook_event_name"));
+        assert!(preview.content.contains("session_id"));
+        assert!(preview.content.contains("status"));
+        assert!(!preview.content.contains("loki-metis-hook-relay.json"));
+        assert!(!preview.content.contains("127.0.0.1"));
+        assert!(!preview.content.contains("/api/hooks/"));
+        assert!(!preview.content.contains("node:http"));
+        assert!(!preview.content.contains("urllib.request"));
         if tool == AiTool::Hermes {
-            assert!(preview.content.contains("os.path.isabs"));
-            assert!(preview.content.contains("HTTPRedirectHandler"));
-            assert!(preview.content.contains("def redirect_request"));
-            assert!(preview.content.contains("return None"));
-            assert!(preview.content.contains("urllib.request.ProxyHandler({})"));
-            assert!(preview.content.contains("build_opener("));
-            assert!(preview.content.contains("NO_REDIRECT_OPENER.open"));
-            assert!(preview.content.contains("timeout=1"));
-            assert!(!preview.content.contains("urllib.request.urlopen"));
-            assert!(!preview.content.contains("setTimeout"));
+            assert!(preview.content.contains("import subprocess"));
+            assert!(preview.content.contains("subprocess.run("));
+            assert!(preview.content.contains("input=payload"));
+            assert!(preview.content.contains("text=True"));
+            assert!(preview.content.contains("timeout=4"));
+            assert!(!preview.content.contains("shell=True"));
         } else {
-            assert!(preview.content.contains("isAbsolute"));
-            assert!(preview.content.contains("from \"node:http\""));
-            assert!(preview.content.contains("host: \"127.0.0.1\""));
-            assert!(preview.content.contains("agent: false"));
-            assert!(preview.content.contains("let settled = false"));
-            assert!(preview.content.contains("let responseStarted = false"));
-            assert!(preview.content.contains("deadline = setTimeout"));
-            assert!(preview.content.contains("}, 3000)"));
-            assert!(preview.content.contains("clearTimeout(deadline)"));
-            assert!(preview.content.contains("relayRequest.destroy(error)"));
-            assert!(preview.content.contains("relayRequest.once(\"close\""));
-            assert!(preview.content.contains("response.once(\"close\""));
+            assert!(preview.content.contains("from \"node:child_process\""));
+            assert!(preview.content.contains("spawn(relayExecutable"));
             assert!(
                 preview
                     .content
-                    .contains("if (!settled && !responseStarted)")
+                    .contains("stdio: [\"pipe\", \"ignore\", \"ignore\"]")
             );
-            assert!(
-                preview.content.find("response.once(\"end\"").unwrap()
-                    < preview.content.find("response.resume()").unwrap()
-            );
-            assert!(!preview.content.contains("relayRequest.setTimeout"));
-            assert!(preview.content.contains("status < 200 || status >= 300"));
-            assert!(!preview.content.contains("fetch("));
-            assert!(!preview.content.contains("HTTP_PROXY"));
-            assert!(!preview.content.contains("NODE_USE_ENV_PROXY"));
+            assert!(preview.content.contains("windowsHide: true"));
+            assert!(preview.content.contains("let settled = false"));
+            assert!(preview.content.contains("deadline = setTimeout"));
+            assert!(preview.content.contains("}, 4000)"));
+            assert!(preview.content.contains("clearTimeout(deadline)"));
+            assert!(preview.content.contains("relay.kill()"));
+            assert!(preview.content.contains("relay.stdin.end(body, \"utf8\")"));
+            assert!(!preview.content.contains("shell: true"));
         }
-        assert!(!preview.content.contains("127.0.0.1:10240"));
-        assert!(!preview.content.contains("/api/hooks/opencode\""));
-        assert!(!preview.content.contains("/api/hooks/hermes\""));
-        assert!(!preview.content.contains("/api/hooks/openclaw\""));
     }
 }
 

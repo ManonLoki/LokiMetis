@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "id": "pastoral-landscape",
+  "name": "田园风光",
+  "description": "以青翠山谷、宁静湖泊和层叠云海为灵感，营造清新、沉静且适合长时间工作的 Codex 界面。",
+  "author": "manonloki",
+  "image": "qq2007-sky.png",
+  "friendCards": {
+    "profileImage": "avatar.png",
+    "listImage": "qqshow.jpg"
+  },
+  "previewContent": {
+    "navNewTask": "新任务",
+    "navPullRequests": "拉取请求",
+    "navSites": "站点",
+    "navAutomations": "已安排",
+    "navPlugins": "插件",
+    "navProjects": "项目",
+    "navSettings": "设置",
+    "homeTitle": "在山风里，今天想完成什么？",
+    "homeSubtitle": "以青翠山谷、宁静湖泊和层叠云海为灵感，营造清新、沉静且适合长时间工作的 Codex 界面。",
+    "suggestionOne": "梳理项目的溪流与支脉",
+    "suggestionTwo": "让一个新想法落地成代码",
+    "projectName": "溪谷工作台",
+    "userMessage": "请帮我沿着这条需求，梳理项目的关键路径。",
+    "assistantMessage": "我会先观察全貌，再像顺着河谷一样逐段定位关键代码。",
+    "composerPlaceholder": "写下今天想完成的事情",
+    "pullRequestsTitle": "拉取请求",
+    "sitesTitle": "站点",
+    "automationsTitle": "已安排",
+    "pluginsTitle": "插件",
+    "settingsTitle": "设置",
+    "emptyStateTitle": "暂无内容",
+    "emptyStateAction": "重新检查"
+  },
+  "colors": {
+    "dark": {
+      "background": "#0e1d16",
+      "panel": "#173024",
+      "panelAlt": "#214530",
+      "accent": "#a8d948",
+      "accentAlt": "#6fa5b5",
+      "text": "#f4f7e8",
+      "muted": "#bccdb6",
+      "line": "#55745f"
+    },
+    "light": {
+      "background": "#e7ead7",
+      "panel": "#f8faef",
+      "panelAlt": "#dde7cc",
+      "accent": "#2f6a25",
+      "accentAlt": "#3c7084",
+      "text": "#183021",
+      "muted": "#526855",
+      "line": "#92a789"
+    }
+  },
+  "extensions": {
+    "photoPanels": [
+      {
+        "id": "profile",
+        "enabled": false,
+        "assetSlot": "profile",
+        "title": "",
+        "caption": "",
+        "anchor": "left-top",
+        "offset": {
+          "x": 24,
+          "y": 48
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      },
+      {
+        "id": "gallery",
+        "enabled": false,
+        "assetSlot": "gallery",
+        "title": "",
+        "caption": "",
+        "anchor": "left-bottom",
+        "offset": {
+          "x": 24,
+          "y": 24
+        },
+        "size": {
+          "width": 304,
+          "height": 360
+        },
+        "fit": "contain",
+        "visibleOn": [
+          "chat"
+        ],
+        "minViewportWidth": 1450
+      }
+    ]
+  }
+}

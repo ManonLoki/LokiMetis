@@ -44,6 +44,7 @@ describe("compact application sidebar", () => {
       "data-active",
     );
     expect(screen.getByTestId("navigation-monitor")).toBeVisible();
+    expect(screen.getByTestId("navigation-skins")).toBeVisible();
     expect(screen.getByTestId("navigation-settings")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Workbench" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("open-pet-overlay")).not.toBeInTheDocument();
@@ -64,6 +65,8 @@ describe("compact application sidebar", () => {
     expect(onNavigate).toHaveBeenCalledWith("/dashboard");
     await userEvent.click(screen.getByRole("button", { name: "Monitor" }));
     expect(onNavigate).toHaveBeenCalledWith("/monitor");
+    await userEvent.click(screen.getByRole("button", { name: "Skins" }));
+    expect(onNavigate).toHaveBeenCalledWith("/skins");
     expect(onNavigate).not.toHaveBeenCalledWith("/settings");
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(onNavigate).toHaveBeenCalledWith("/settings");
