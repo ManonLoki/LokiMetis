@@ -68,6 +68,29 @@ pub(crate) async fn load_usage_snapshot_since(
     })
 }
 
+/// 只读取当前生产视图真正消费的 canonical 调用、索引状态与根记录。
+///
+/// 历史 cumulative token 快照仅用于兼容旧索引，不参与当前概览、统计、
+/// 图表或调用列表聚合；GUI 视图不得为这些未消费记录支付完整实体化成本。
+pub(crate) async fn load_usage_view_snapshot_since(
+    connection: &sea_orm::DatabaseConnection,
+    parser_version: u32,
+    cutoff_epoch_ms: i64,
+) -> Result<UsageSnapshot, LocalError> {
+    let transaction = connection.begin().await?;
+    let canonical =
+        load_canonical_usage_calls_since(&transaction, parser_version, cutoff_epoch_ms).await?;
+    let index_state =
+        load_local_index_state(&transaction, canonical.calls.len(), parser_version).await?;
+    let roots = load_root_records(&transaction, parser_version).await?;
+    transaction.commit().await?;
+    Ok(UsageSnapshot {
+        canonical,
+        index_state,
+        roots,
+    })
+}
+
 /// 从当前数据库快照推导索引四态，旧 parser 来源优先暴露为需要重扫。
 pub(super) async fn load_local_index_state<C: ConnectionTrait>(
     connection: &C,
@@ -412,6 +435,38 @@ pub(crate) async fn load_canonical_calls_since<C: ConnectionTrait>(
     parser_version: u32,
     cutoff_epoch_ms: i64,
 ) -> Result<CanonicalUsageSet, LocalError> {
+    let canonical =
+        load_canonical_usage_calls_since(connection, parser_version, cutoff_epoch_ms).await?;
+    let snapshot_rows = connection
+        .query_all(statement(
+            "SELECT s.thread_key, s.occurred_at_epoch_ms, s.total_tokens, s.logical_call_id,
+                    s.model, s.reasoning_effort, s.project_key,
+                    f.source_id, f.root_id, f.relative_label, f.archived
+             FROM usage_token_snapshots s
+             JOIN source_files f ON f.source_id = s.source_id
+             JOIN source_roots r ON r.root_id = f.root_id
+             WHERE f.ready = 1 AND f.parser_version = ?1
+               AND r.enabled = 1
+               AND f.generation = s.generation
+               AND s.occurred_at_epoch_ms >= ?2
+             ORDER BY s.occurred_at_epoch_ms, s.logical_call_id, s.thread_key",
+            vec![i64::from(parser_version).into(), cutoff_epoch_ms.into()],
+        ))
+        .await?;
+    let mut snapshots = Vec::with_capacity(snapshot_rows.len());
+    for row in &snapshot_rows {
+        snapshots.push(row_to_session_snapshot(row)?);
+    }
+    drop(snapshot_rows);
+    Ok(attach_session_snapshots(canonical, snapshots))
+}
+
+/// 从指定时间下界只读取并规范化调用，不实体化兼容性会话快照。
+async fn load_canonical_usage_calls_since<C: ConnectionTrait>(
+    connection: &C,
+    parser_version: u32,
+    cutoff_epoch_ms: i64,
+) -> Result<CanonicalUsageSet, LocalError> {
     let rows = connection
         .query_all(statement(
             "SELECT u.logical_call_id, u.occurred_at_epoch_ms, u.model,
@@ -438,30 +493,8 @@ pub(crate) async fn load_canonical_calls_since<C: ConnectionTrait>(
     for row in &rows {
         calls.push(row_to_usage_call(row)?);
     }
-    let snapshot_rows = connection
-        .query_all(statement(
-            "SELECT s.thread_key, s.occurred_at_epoch_ms, s.total_tokens, s.logical_call_id,
-                    s.model, s.reasoning_effort, s.project_key,
-                    f.source_id, f.root_id, f.relative_label, f.archived
-             FROM usage_token_snapshots s
-             JOIN source_files f ON f.source_id = s.source_id
-             JOIN source_roots r ON r.root_id = f.root_id
-             WHERE f.ready = 1 AND f.parser_version = ?1
-               AND r.enabled = 1
-               AND f.generation = s.generation
-               AND s.occurred_at_epoch_ms >= ?2
-             ORDER BY s.occurred_at_epoch_ms, s.logical_call_id, s.thread_key",
-            vec![i64::from(parser_version).into(), cutoff_epoch_ms.into()],
-        ))
-        .await?;
-    let mut snapshots = Vec::with_capacity(snapshot_rows.len());
-    for row in &snapshot_rows {
-        snapshots.push(row_to_session_snapshot(row)?);
-    }
-    Ok(attach_session_snapshots(
-        canonicalize_usage_calls(calls),
-        snapshots,
-    ))
+    drop(rows);
+    Ok(canonicalize_usage_calls(calls))
 }
 
 /// 将数据库行严格解码为会话 Token 快照，拒绝越界或损坏数值。

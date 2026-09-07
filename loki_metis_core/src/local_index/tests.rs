@@ -430,6 +430,16 @@ async fn bounds_snapshot_reads_and_prunes_derived_history_without_losing_sources
         .expect("bounded snapshot loads");
     assert_eq!(bounded.canonical.calls.len(), 1);
     assert_eq!(bounded.canonical.calls[0].logical_call_id, "recent");
+    assert_eq!(bounded.canonical.snapshots.len(), 1);
+    assert_eq!(bounded.canonical.snapshots[0].logical_call_id, "recent");
+    let view = index
+        .usage_view_snapshot_since(100)
+        .await
+        .expect("view snapshot loads");
+    assert_eq!(view.canonical.calls, bounded.canonical.calls);
+    assert!(view.canonical.snapshots.is_empty());
+    assert_eq!(view.index_state, bounded.index_state);
+    assert_eq!(view.roots, bounded.roots);
     index
         .prune_usage_before(100)
         .await

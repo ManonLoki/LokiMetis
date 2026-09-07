@@ -34,7 +34,7 @@ pub(crate) async fn open_recent_usage_snapshot(
     )
     .thirty_days;
     index
-        .usage_snapshot_since(cutoff)
+        .usage_view_snapshot_since(cutoff)
         .await
         .map_err(|_| local_read_error())
 }

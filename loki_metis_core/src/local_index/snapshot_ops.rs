@@ -11,6 +11,7 @@ use super::call_store::{from_sql_u64, to_sql_u64};
 use super::id_codec::stable_id;
 use super::snapshot::{
     UsageSnapshot, load_canonical_calls, load_usage_snapshot, load_usage_snapshot_since,
+    load_usage_view_snapshot_since,
 };
 use super::{LocalError, LocalErrorKind, LocalIndex};
 
@@ -122,6 +123,15 @@ impl LocalIndex {
         cutoff_epoch_ms: i64,
     ) -> Result<UsageSnapshot, LocalError> {
         load_usage_snapshot_since(&self.connection, self.parser_version, cutoff_epoch_ms).await
+    }
+
+    /// 返回当前 GUI 视图所需边界后的 canonical 调用、索引状态与根记录，
+    /// 不实体化不参与生产聚合的历史 cumulative token 快照。
+    pub async fn usage_view_snapshot_since(
+        &mut self,
+        cutoff_epoch_ms: i64,
+    ) -> Result<UsageSnapshot, LocalError> {
+        load_usage_view_snapshot_since(&self.connection, self.parser_version, cutoff_epoch_ms).await
     }
 
     /// 返回全部 canonical 本机调用的聚合。
