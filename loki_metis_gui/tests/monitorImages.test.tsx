@@ -78,6 +78,7 @@ describe("monitor images page", () => {
 
   /** 对本机图库快照断言筛选控件、预览卡片与删除走本机命令。 */
   test("gallery_snapshot_shows_filters_preview_cards_and_local_delete", async () => {
+    const user = userEvent.setup();
     invokeMock.mockImplementation(async (command, payload) => {
       const typedPayload = payload as { id?: string } | undefined;
       if (command === "get_monitor_capabilities") {
@@ -124,11 +125,14 @@ describe("monitor images page", () => {
     expect(screen.getByText("PNG")).toBeVisible();
     expect(screen.getByText("GIF")).toBeVisible();
     expect(screen.getAllByText("Local library")).toHaveLength(3);
-    await userEvent.click(within(toolbar).getByRole("radio", { name: "PNG 1" }));
+    await user.click(within(toolbar).getByRole("radio", { name: "PNG 1" }));
     expect(screen.getByRole("img", { name: "icon.png" })).toBeVisible();
     expect(screen.queryByRole("img", { name: "photo.jpg" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Image actions: icon.png" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete image" }));
+    const imageActions = screen.getByRole("button", { name: "Image actions: icon.png" });
+    expect(imageActions).toHaveAttribute("aria-haspopup", "menu");
+    await user.click(imageActions);
+    expect(imageActions).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("menuitem", { name: "Delete image" }));
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("delete_monitor_image_cmd", {
         id: "img-png",

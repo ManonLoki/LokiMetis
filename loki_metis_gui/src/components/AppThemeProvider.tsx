@@ -112,13 +112,20 @@ function ThemeSurface({ children }: { children: ReactNode }): ReactElement {
   );
 }
 
-/** 挂载应用唯一 Mantine Provider，并默认跟随系统主题。 */
-export function AppThemeProvider({ children }: { children: ReactNode }): ReactElement {
+/** 挂载应用唯一 Mantine Provider，并允许测试宿主显式关闭动画与 Portal。 */
+export function AppThemeProvider({
+  children,
+  environment = "default",
+}: {
+  children: ReactNode;
+  environment?: "default" | "test";
+}): ReactElement {
   return (
     <MantineProvider
       colorSchemeManager={colorSchemeManager}
       cssVariablesResolver={APP_THEME_VARIABLES}
       defaultColorScheme="auto"
+      env={environment}
       theme={APP_THEME}
     >
       <ThemeSurface>{children}</ThemeSurface>

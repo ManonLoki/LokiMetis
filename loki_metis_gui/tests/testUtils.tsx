@@ -44,7 +44,7 @@ export function TestProviders({ children }: { children: ReactNode }): ReactEleme
     <I18nextProvider i18n={appI18n}>
       <JotaiProvider store={store}>
         <QueryClientProvider client={queryClient}>
-          <AppThemeProvider>{children}</AppThemeProvider>
+          <AppThemeProvider environment="test">{children}</AppThemeProvider>
         </QueryClientProvider>
       </JotaiProvider>
     </I18nextProvider>
