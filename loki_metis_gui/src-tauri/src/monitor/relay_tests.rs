@@ -176,18 +176,19 @@ fn trickle_response_cannot_extend_the_wall_clock_deadline() {
 /// Linux 始终使用 HOME cache；桌面进程与 Hook 是否看见 XDG 都不得分叉。
 #[test]
 fn linux_rendezvous_path_is_canonical_regardless_of_xdg_visibility() {
-    let runtime = Path::new("/run/user/1000");
-    let home = Path::new("/home/alice");
+    let root = tempdir().expect("temp");
+    let runtime = root.path().join("run").join("user").join("1000");
+    let home = root.path().join("home").join("alice");
     let expected = home
         .join(".cache")
         .join("lokimetis")
         .join(HOOK_RELAY_RENDEZVOUS_FILENAME);
-    for xdg_runtime_dir in [Some(runtime), None] {
+    for xdg_runtime_dir in [Some(runtime.as_path()), None] {
         assert_eq!(
             select_hook_relay_rendezvous_path(
                 HookRelayHostPlatform::Linux,
                 xdg_runtime_dir,
-                Some(home),
+                Some(home.as_path()),
                 None,
                 None,
             )
@@ -199,7 +200,7 @@ fn linux_rendezvous_path_is_canonical_regardless_of_xdg_visibility() {
         select_hook_relay_rendezvous_path(
             HookRelayHostPlatform::Linux,
             Some(Path::new("relative/runtime")),
-            Some(home),
+            Some(home.as_path()),
             None,
             None,
         )
@@ -211,12 +212,13 @@ fn linux_rendezvous_path_is_canonical_regardless_of_xdg_visibility() {
 /// macOS 与 Windows 都使用单一稳定的用户缓存根。
 #[test]
 fn desktop_rendezvous_paths_use_stable_user_cache_roots() {
-    let home = Path::new("/Users/alice");
+    let root = tempdir().expect("temp");
+    let home = root.path().join("Users").join("alice");
     assert_eq!(
         select_hook_relay_rendezvous_path(
             HookRelayHostPlatform::Macos,
             None,
-            Some(home),
+            Some(home.as_path()),
             None,
             None,
         )
@@ -227,21 +229,21 @@ fn desktop_rendezvous_paths_use_stable_user_cache_roots() {
             .join(HOOK_RELAY_RENDEZVOUS_FILENAME)
     );
 
-    let local_app_data = Path::new("/windows/local-app-data");
-    let user_profile = Path::new("/windows/users/alice");
+    let local_app_data = root.path().join("windows").join("local-app-data");
+    let user_profile = root.path().join("windows").join("users").join("alice");
     let expected = user_profile
         .join("AppData")
         .join("Local")
         .join("lokimetis")
         .join(HOOK_RELAY_RENDEZVOUS_FILENAME);
-    for local_app_data in [Some(local_app_data), None] {
+    for local_app_data in [Some(local_app_data.as_path()), None] {
         assert_eq!(
             select_hook_relay_rendezvous_path(
                 HookRelayHostPlatform::Windows,
                 None,
                 None,
                 local_app_data,
-                Some(user_profile),
+                Some(user_profile.as_path()),
             )
             .unwrap(),
             expected

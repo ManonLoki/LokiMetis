@@ -393,12 +393,12 @@ fn default_locations_use_the_injected_tauri_home_directory() {
         .find(|location| location.tool == AiTool::Cursor)
         .expect("cursor location");
     assert_eq!(
-        cursor.directory,
-        root.path().join(".cursor").to_string_lossy()
+        PathBuf::from(&cursor.directory),
+        root.path().join(".cursor")
     );
     assert_eq!(
-        cursor.config_path,
-        root.path().join(".cursor/hooks.json").to_string_lossy()
+        PathBuf::from(&cursor.config_path),
+        root.path().join(".cursor").join("hooks.json")
     );
 }
 

@@ -16,7 +16,8 @@
     "BUG-STARTUP-RESOURCE-UNKNOWN-PATH",
     "BUG-WINDOWS-WMI-WINDOWS-CORE-SKEW",
     "BUG-RELEASE-NOTES-REACT-QUERY-CONTEXT",
-    "BUG-NSIS-APP-ICON-IDENTITY"
+    "BUG-NSIS-APP-ICON-IDENTITY",
+    "BUG-WINDOWS-GUI-TEST-COMCTL6-MANIFEST"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -301,8 +302,13 @@
       "change_id": "BUG-NSIS-APP-ICON-IDENTITY",
       "kind": "bug-fix",
       "required_version": "0.2.17"
+    },
+    {
+      "change_id": "BUG-WINDOWS-GUI-TEST-COMCTL6-MANIFEST",
+      "kind": "bug-fix",
+      "required_version": "0.2.18"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.17"
+  "target_version": "0.2.18"
 }

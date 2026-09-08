@@ -24,6 +24,8 @@ mod source_commands;
 mod statistics_view;
 mod tray;
 mod windowing;
+#[cfg(test)]
+mod windows_manifest_tests;
 
 use loki_metis_core::{HookError, normalize_enabled_ai_tools};
 use serde::Serialize;
@@ -582,24 +584,32 @@ mod tests {
         assert_eq!(configured_labels, ["main"]);
 
         let source = include_str!("monitor/pet_window.rs");
-        let overlay_builder = source
-            .find("WebviewWindowBuilder::new(\n            app,\n            description.label,")
-            .expect("dynamic pet overlay builder");
-        let overlay_url = source[overlay_builder..]
-            .find("WebviewUrl::App(\"index.html?view=pet\".into())")
-            .expect("dynamic pet overlay URL");
-        let settings_builder = source
-            .find("WebviewWindowBuilder::new(\n            app,\n            PET_SETTINGS_LABEL,")
-            .expect("dynamic pet settings builder");
-        let settings_url = source[settings_builder..]
-            .find("WebviewUrl::App(\"index.html?view=pet-settings\".into())")
-            .expect("dynamic pet settings URL");
-        let settings_build = source[settings_builder..]
-            .find(".build()")
-            .expect("dynamic pet settings build");
-        assert!(overlay_builder < settings_builder);
-        assert!(overlay_builder + overlay_url < settings_builder);
-        assert!(settings_url < settings_build);
+        let overlay_start = source
+            .find("pub fn show_or_create_pet_overlay(")
+            .expect("pet overlay factory");
+        let settings_start = source
+            .find("pub fn show_pet_settings_window(")
+            .expect("pet settings factory");
+        let settings_end = source
+            .find("pub fn hide_pet_settings_window(")
+            .expect("next pet settings function");
+        let overlay_factory = &source[overlay_start..settings_start];
+        let settings_factory = &source[settings_start..settings_end];
+        let compact_overlay_factory = overlay_factory.split_whitespace().collect::<String>();
+        let compact_settings_factory = settings_factory.split_whitespace().collect::<String>();
+
+        assert!(
+            compact_overlay_factory.contains("WebviewWindowBuilder::new(app,description.label,")
+        );
+        assert!(overlay_factory.contains("WebviewUrl::App(\"index.html?view=pet\".into())"));
+        assert!(compact_overlay_factory.contains(".build()"));
+        assert!(
+            compact_settings_factory.contains("WebviewWindowBuilder::new(app,PET_SETTINGS_LABEL,")
+        );
+        assert!(
+            settings_factory.contains("WebviewUrl::App(\"index.html?view=pet-settings\".into())")
+        );
+        assert!(compact_settings_factory.contains(".build()"));
     }
 
     /// 统一 Agent 选择必须先完成两侧持久化，再更新自动补写与监听快照。

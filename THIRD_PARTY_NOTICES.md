@@ -1,15 +1,15 @@
 # LokiMetis Third-Party Notices
 
-This notice covers third-party dependencies resolved for LokiMetis v0.2.16.
+This notice covers third-party dependencies resolved for LokiMetis v0.2.18.
 Copyright and license rights remain with their respective authors and projects.
 The declared license expression and source link below identify the governing terms for each package.
 
 锁定输入 / Locked inputs:
 
-- `Cargo.lock` SHA-256: `ddfe3ce36f42e0f657f81f73fd668f7f2aa4e25a7ec32af58ea28ca140f79712`
-- `loki_metis_gui/pnpm-lock.yaml` SHA-256: `bca1a16b29858e30919bc79e4369ef0ed9c7b17b223dd737e1bef150b59f49d1`
+- `Cargo.lock` SHA-256: `b944b6a60888c598ab6535b2290dd137cf4822330669860a603d7e143ee93ddd`
+- `loki_metis_gui/pnpm-lock.yaml` SHA-256: `64a77b9138d884a992b0273d8ef00c8afcc05524a0bf96a3445f8a2ec8db0a7a`
 
-## Rust dependencies (626)
+## Rust dependencies (630)
 
 | Package | Version | Declared license | Source |
 |---|---:|---|---|
@@ -231,6 +231,8 @@ The declared license expression and source link below identify the governing ter
 | infer | 0.19.0 | MIT | https://github.com/bojand/infer |
 | inherent | 1.0.14 | MIT OR Apache-2.0 | https://github.com/dtolnay/inherent |
 | ipnet | 2.12.1 | MIT OR Apache-2.0 | https://github.com/krisprice/ipnet |
+| is-docker | 0.2.0 | MIT | https://github.com/TheLarkInn/is-docker |
+| is-wsl | 0.4.0 | MIT | https://github.com/TheLarkInn/is-wsl |
 | itertools | 0.11.0 | MIT OR Apache-2.0 | https://github.com/rust-itertools/itertools |
 | itoa | 1.0.18 | MIT OR Apache-2.0 | https://github.com/dtolnay/itoa |
 | javascriptcore-rs | 1.1.2 | MIT | https://github.com/tauri-apps/javascriptcore-rs |
@@ -302,6 +304,7 @@ The declared license expression and source link below identify the governing ter
 | objc2-user-notifications | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | objc2-web-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | https://github.com/madsmtm/objc2 |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 | https://github.com/matklad/once_cell |
+| open | 5.4.3 | MIT | https://github.com/Byron/open-rs |
 | option-ext | 0.2.0 | MPL-2.0 | https://github.com/soc/option-ext.git |
 | ordered-float | 4.6.0 | MIT | https://github.com/reem/rust-ordered-float |
 | ordered-multimap | 0.7.3 | MIT | https://github.com/sgodwincs/ordered-multimap-rs |
@@ -453,6 +456,7 @@ The declared license expression and source link below identify the governing ter
 | tauri-plugin-dialog | 2.7.3 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-plugin-fs | 2.5.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-plugin-notification | 2.4.0 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
+| tauri-plugin-opener | 2.5.5 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-plugin-os | 2.3.2 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-plugin-single-instance | 2.4.4 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
 | tauri-plugin-window-state | 2.4.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/plugins-workspace |
@@ -640,7 +644,7 @@ The declared license expression and source link below identify the governing ter
 | zvariant_derive | 5.15.0 | MIT | https://github.com/z-galaxy/zbus/ |
 | zvariant_utils | 4.2.0 | MIT | https://github.com/z-galaxy/zbus/ |
 
-## Frontend runtime dependencies (44)
+## Frontend runtime dependencies (45)
 
 | Package | Version | Declared license | Source |
 |---|---:|---|---|
@@ -663,6 +667,7 @@ The declared license expression and source link below identify the governing ter
 | @tanstack/store | 0.9.3 | MIT | https://tanstack.com/store |
 | @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri#readme |
 | @tauri-apps/plugin-dialog | 2.7.3 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
+| @tauri-apps/plugin-opener | 2.5.5 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace#readme |
 | clsx | 2.1.1 | MIT | https://github.com/lukeed/clsx#readme |
 | cookie-es | 3.1.1 | MIT | https://github.com/unjs/cookie-es#readme |
 | detect-node-es | 1.1.0 | MIT | https://github.com/thekashey/detect-node |

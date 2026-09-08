@@ -312,6 +312,29 @@ pub(crate) fn handle_window<R: Runtime>(window: &tauri::Window<R>, event: &Windo
 mod tests {
     use super::*;
 
+    /// 提取带花括号的 Rust 项，避免结构断言依赖换行风格或内联测试模块位置。
+    fn rust_braced_item<'a>(source: &'a str, signature: &str) -> &'a str {
+        let item_start = source.find(signature).expect("Rust item signature");
+        let body_start = source[item_start..]
+            .find('{')
+            .map(|offset| item_start + offset)
+            .expect("Rust item body");
+        let mut depth = 0_u32;
+        for (offset, character) in source[body_start..].char_indices() {
+            match character {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return &source[item_start..=body_start + offset];
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!("unterminated Rust item body");
+    }
+
     #[test]
     fn tray_show_restores_and_focuses_main_window() {
         let restore_steps = ["show", "unminimize", "focus"];
@@ -441,15 +464,14 @@ mod tests {
     /// 隐藏桌宠的托盘路径必须同时销毁设置 WebView，避免后台常驻。
     #[test]
     fn pet_overlay_close_request_destroys_settings_webview() {
-        let source = include_str!("tray.rs");
+        let source = rust_braced_item(include_str!("tray.rs"), "pub(crate) fn handle_window")
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
         let overlay_start = source
-            .find("if window.label() == pet_overlay_window_description().label")
+            .find("ifwindow.label()==pet_overlay_window_description().label")
             .expect("pet overlay close branch");
-        let tests_start = source[overlay_start..]
-            .find("\n}\n\n#[cfg(test)]\nmod tests")
-            .map(|offset| overlay_start + offset)
-            .expect("tests module");
-        let overlay_branch = &source[overlay_start..tests_start];
+        let overlay_branch = &source[overlay_start..];
 
         assert!(overlay_branch.contains("settings.destroy()"));
         assert!(!overlay_branch.contains("settings.hide()"));
