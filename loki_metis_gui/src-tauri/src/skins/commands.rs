@@ -282,7 +282,13 @@ pub async fn launch_skin_host(
     service.launch_host(host).await
 }
 
-/// 在用户确认后关闭受支持的 Codex GUI，再以调试端口启动。
+/// 告知前端当前原生宿主是否允许 Windows WorkBuddy 全量进程恢复。
+#[tauri::command]
+pub fn supports_windows_workbuddy_recovery() -> bool {
+    cfg!(target_os = "windows")
+}
+
+/// 用户确认后强制恢复宿主；Windows WorkBuddy 会在需要时收敛全部受验证旧进程。
 #[tauri::command]
 pub async fn force_launch_skin_host(
     host: SkinHostKind,
@@ -304,6 +310,7 @@ pub async fn install_skin(
     skin: SkinReference,
     allow_appearance_mismatch: bool,
     instance_id: Option<String>,
+    allow_workbuddy_recovery: Option<bool>,
     service: State<'_, SkinService>,
 ) -> Result<InstallSkinResult, AppError> {
     service
@@ -312,6 +319,7 @@ pub async fn install_skin(
             &skin,
             allow_appearance_mismatch,
             instance_id.as_deref(),
+            allow_workbuddy_recovery.unwrap_or(false),
         )
         .await
 }

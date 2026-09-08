@@ -17,7 +17,8 @@
     "BUG-WINDOWS-WMI-WINDOWS-CORE-SKEW",
     "BUG-RELEASE-NOTES-REACT-QUERY-CONTEXT",
     "BUG-NSIS-APP-ICON-IDENTITY",
-    "BUG-WINDOWS-GUI-TEST-COMCTL6-MANIFEST"
+    "BUG-WINDOWS-GUI-TEST-COMCTL6-MANIFEST",
+    "BUG-WINDOWS-WORKBUDDY-SKIN-INJECTION"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -307,8 +308,18 @@
       "change_id": "BUG-WINDOWS-GUI-TEST-COMCTL6-MANIFEST",
       "kind": "bug-fix",
       "required_version": "0.2.18"
+    },
+    {
+      "change_id": "FEAT-WORKBUDDY-CDP-RECOVERY",
+      "kind": "feature",
+      "required_version": "0.2.18"
+    },
+    {
+      "change_id": "BUG-WINDOWS-WORKBUDDY-SKIN-INJECTION",
+      "kind": "bug-fix",
+      "required_version": "0.2.19"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.18"
+  "target_version": "0.2.19"
 }

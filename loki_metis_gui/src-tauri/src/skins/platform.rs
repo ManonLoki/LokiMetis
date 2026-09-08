@@ -344,7 +344,7 @@ async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
 }
 
 #[cfg(target_os = "macos")]
-async fn launch_platform_workbuddy() -> Result<(), AppError> {
+async fn launch_platform_workbuddy(port: u16) -> Result<(), AppError> {
     let executable = discover_workbuddy_executable().await?;
     if codex_is_running(&executable).await {
         return Err(manual_close_required_for(SkinHostKind::WorkBuddy));
@@ -352,7 +352,7 @@ async fn launch_platform_workbuddy() -> Result<(), AppError> {
     tokio::process::Command::new(executable)
         .env(
             "WORKBUDDY_REMOTE_DEBUGGING_PORT",
-            WORKBUDDY_DEFAULT_CDP_PORT.to_string(),
+            port.to_string(),
         )
         .spawn()
         .map_err(|_| AppError::new("skin.workbuddy_launch_failed", "无法启动 WorkBuddy。"))?;
@@ -577,7 +577,6 @@ async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, App
     Ok(windows_codex::workbuddy_gui_processes()
         .await?
         .into_iter()
-        .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
         .map(|(process, command_line)| PlatformCodexProcess {
             pid: process.pid(),
             executable: process.path().to_owned(),
@@ -601,8 +600,8 @@ async fn restart_platform_workbuddy_instance(
 }
 
 #[cfg(target_os = "windows")]
-async fn launch_platform_workbuddy() -> Result<(), AppError> {
-    windows_codex::launch_workbuddy().await
+async fn launch_platform_workbuddy(port: u16) -> Result<(), AppError> {
+    windows_codex::launch_workbuddy(port).await
 }
 
 #[cfg(target_os = "windows")]
@@ -686,7 +685,7 @@ async fn restart_platform_workbuddy_instance(
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-async fn launch_platform_workbuddy() -> Result<(), AppError> {
+async fn launch_platform_workbuddy(_port: u16) -> Result<(), AppError> {
     Err(AppError::new(
         "skin.platform_unsupported",
         "当前版本仅支持在 macOS 或 Windows 上启动 WorkBuddy 皮肤。",
@@ -738,10 +737,35 @@ async fn restart_platform_host_instance(
     }
 }
 
-async fn launch_platform_host(host: SkinHostKind) -> Result<(), AppError> {
+async fn launch_platform_host(host: SkinHostKind, port: u16) -> Result<(), AppError> {
     match host {
         SkinHostKind::Codex => launch_platform_codex().await,
-        SkinHostKind::WorkBuddy => launch_platform_workbuddy().await,
+        SkinHostKind::WorkBuddy => launch_platform_workbuddy(port).await,
+    }
+}
+
+/// Windows 上把 CDP listener owner 绑定到唯一官方 WorkBuddy 树；其它平台保留页面验证。
+async fn platform_workbuddy_endpoint_owned_by_root(
+    port: u16,
+    root_pid: u32,
+) -> Result<bool, AppError> {
+    #[cfg(target_os = "windows")]
+    {
+        return tokio::task::spawn_blocking(move || {
+            windows_codex::workbuddy_endpoint_owned_by_root(port, root_pid)
+        })
+        .await
+        .map_err(|_| {
+            AppError::new(
+                "skin.workbuddy_cdp_owner_inspection_failed",
+                "无法验证 WorkBuddy 调试端口所属进程，未应用皮肤。",
+            )
+        })?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (port, root_pid);
+        Ok(true)
     }
 }
 

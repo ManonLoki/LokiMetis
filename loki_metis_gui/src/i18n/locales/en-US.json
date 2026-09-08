@@ -90,7 +90,9 @@
     },
     "restart": {
       "title": "Restart the selected host instance?",
-      "description": "{{name}} does not expose a local debug connection. Continuing restarts only this instance and may affect unsaved work."
+      "description": "{{name}} does not expose a local debug connection. Continuing restarts only this instance and may affect unsaved work.",
+      "workbuddy_title": "Restart WorkBuddy with a debug port?",
+      "workbuddy_description": "Continuing first rechecks the local debug connection. If it is still unavailable or multiple old instances remain, LokiMetis closes every running WorkBuddy process under a verified official install path, so unsaved work may be lost. After the old process trees fully exit, one new instance starts with a local debug port."
     },
     "convert": {
       "title": "Convert to a theme with data loss?",

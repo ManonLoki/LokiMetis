@@ -13,40 +13,61 @@ async fn resolve_codex_instance(id: &str) -> Result<ResolvedCodexInstance, AppEr
         })
 }
 
-/// 解析指定宿主的实例，并仅在默认端点确实承载该宿主页时关联 WorkBuddy 端口。
+/// 解析指定宿主的实例，并只把经过页面验证的 WorkBuddy 端点关联到唯一进程树根。
 async fn resolved_host_instances(
     host: SkinHostKind,
+) -> Result<Vec<ResolvedCodexInstance>, AppError> {
+    resolved_host_instances_with_preferred(host, None).await
+}
+
+/// 使用服务刚验证过的端点作为首选候选，避免动态端口因命令行读取降级而短暂丢失。
+async fn resolved_host_instances_with_preferred(
+    host: SkinHostKind,
+    preferred_endpoint: Option<CdpEndpoint>,
 ) -> Result<Vec<ResolvedCodexInstance>, AppError> {
     let mut instances = platform_host_processes(host)
         .await?
         .into_iter()
-        .map(resolved_instance)
+        .map(|process| resolved_instance_for_host(host, process))
         .collect::<Vec<_>>();
-    if host == SkinHostKind::WorkBuddy
-        && instances.len() == 1
-        && instances[0].debug_port.is_none()
-        && endpoint_matches_host(host, CdpEndpoint::default_for(host)).await
-    {
-        instances[0].debug_port = Some(WORKBUDDY_DEFAULT_CDP_PORT);
+    if host == SkinHostKind::WorkBuddy && instances.len() == 1 {
+        instances[0].debug_port = None;
+        let root_pid = instances[0].process.pid;
+        for endpoint in cdp_endpoint_candidates_for(host, preferred_endpoint).await {
+            if endpoint_matches_host(host, endpoint, Some(root_pid)).await? {
+                instances[0].debug_port = Some(endpoint.port);
+                break;
+            }
+        }
     }
     Ok(instances)
 }
 
-async fn endpoint_matches_host(host: SkinHostKind, endpoint: CdpEndpoint) -> bool {
+async fn endpoint_matches_host(
+    host: SkinHostKind,
+    endpoint: CdpEndpoint,
+    expected_root_pid: Option<u32>,
+) -> Result<bool, AppError> {
     let Ok((mut browser, task)) = connect_browser(endpoint).await else {
-        return false;
+        return Ok(false);
     };
     let matches = async {
         fetch_targets(&mut browser).await?;
         for page in browser_pages(&browser).await? {
             if is_host_page(host, &page).await? {
+                if host == SkinHostKind::WorkBuddy {
+                    let Some(root_pid) = expected_root_pid else {
+                        return Ok(false);
+                    };
+                    return platform_workbuddy_endpoint_owned_by_root(endpoint.port, root_pid).await;
+                }
                 return Ok(true);
             }
         }
         Ok::<_, AppError>(false)
     }
     .await
-    .unwrap_or(false);
+    ;
     task.abort();
     drop(browser);
     matches
@@ -58,6 +79,14 @@ fn runtime_instance_key(host: SkinHostKind, instance_id: &str) -> String {
         SkinHostKind::WorkBuddy => "workBuddy",
     };
     format!("{prefix}:{instance_id}")
+}
+
+/// 判断运行态键是否属于指定宿主，避免 PID 变化后遗留的旧实例状态跨宿主泄漏。
+fn runtime_instance_belongs_to_host(host: SkinHostKind, key: &str) -> bool {
+    key.starts_with(match host {
+        SkinHostKind::Codex => "codex:",
+        SkinHostKind::WorkBuddy => "workBuddy:",
+    })
 }
 
 fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
@@ -72,7 +101,16 @@ async fn resolve_host_instance(
     host: SkinHostKind,
     id: &str,
 ) -> Result<ResolvedCodexInstance, AppError> {
-    resolved_host_instances(host)
+    resolve_host_instance_with_preferred(host, id, None).await
+}
+
+/// 解析实例时优先复核服务在同一生命周期内保存的已验证端点。
+async fn resolve_host_instance_with_preferred(
+    host: SkinHostKind,
+    id: &str,
+    preferred_endpoint: Option<CdpEndpoint>,
+) -> Result<ResolvedCodexInstance, AppError> {
+    resolved_host_instances_with_preferred(host, preferred_endpoint)
         .await?
         .into_iter()
         .find(|instance| instance.id == id)
@@ -389,6 +427,14 @@ fn available_debug_port_for(
     host: SkinHostKind,
     instances: &[ResolvedCodexInstance],
 ) -> Result<u16, AppError> {
+    available_debug_port_for_excluding(host, instances, &[])
+}
+
+fn available_debug_port_for_excluding(
+    host: SkinHostKind,
+    instances: &[ResolvedCodexInstance],
+    excluded_ports: &[u16],
+) -> Result<u16, AppError> {
     let used = instances
         .iter()
         .filter_map(|instance| instance.debug_port)
@@ -396,7 +442,9 @@ fn available_debug_port_for(
     let start = CdpEndpoint::default_for(host).port;
     (start..=start + 99)
         .find(|port| {
-            !used.contains(port) && std::net::TcpListener::bind(("127.0.0.1", *port)).is_ok()
+            !used.contains(port)
+                && !excluded_ports.contains(port)
+                && std::net::TcpListener::bind(("127.0.0.1", *port)).is_ok()
         })
         .ok_or_else(|| {
             AppError::new(
@@ -410,29 +458,53 @@ fn available_debug_port_for(
 }
 
 /// 执行换皮宿主内部的 `endpoint_candidates_from_commands` 步骤。
-fn endpoint_candidates_from_commands(mut commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
-    commands.sort_by_key(|command| std::cmp::Reverse(command.0));
-    let mut ports = HashSet::new();
-    let mut endpoints = commands
-        .into_iter()
-        .filter_map(|(_, command)| debug_port_from_command_line(&command))
-        .filter(|port| ports.insert(*port))
-        .map(CdpEndpoint::new)
-        .collect::<Vec<_>>();
-    if ports.insert(DEFAULT_CDP_PORT) {
+fn endpoint_candidates_from_commands(commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
+    let mut endpoints = explicit_endpoint_candidates_from_commands(commands);
+    if !endpoints.iter().any(|endpoint| *endpoint == CdpEndpoint::default()) {
         endpoints.push(CdpEndpoint::default());
     }
     endpoints
 }
 
-async fn cdp_endpoint_candidates_for(host: SkinHostKind) -> Vec<CdpEndpoint> {
-    let mut endpoints = endpoint_candidates_from_commands(
+/// 只提取命令行真实声明的端口，不混入任何宿主默认回退。
+fn explicit_endpoint_candidates_from_commands(
+    mut commands: Vec<(u32, String)>,
+) -> Vec<CdpEndpoint> {
+    commands.sort_by_key(|command| std::cmp::Reverse(command.0));
+    let mut ports = HashSet::new();
+    commands
+        .into_iter()
+        .filter_map(|(_, command)| debug_port_from_command_line(&command))
+        .filter(|port| ports.insert(*port))
+        .map(CdpEndpoint::new)
+        .collect()
+}
+
+async fn cdp_endpoint_candidates_for(
+    host: SkinHostKind,
+    preferred_endpoint: Option<CdpEndpoint>,
+) -> Vec<CdpEndpoint> {
+    host_endpoint_candidates_from_commands(
+        host,
         platform_host_command_lines(host).await.unwrap_or_default(),
-    );
+        preferred_endpoint,
+    )
+}
+
+/// 在通用命令行端口候选上替换宿主默认值，保留 WorkBuddy renderer 的动态端口。
+fn host_endpoint_candidates_from_commands(
+    host: SkinHostKind,
+    commands: Vec<(u32, String)>,
+    preferred_endpoint: Option<CdpEndpoint>,
+) -> Vec<CdpEndpoint> {
+    let mut endpoints = explicit_endpoint_candidates_from_commands(commands);
     let default = CdpEndpoint::default_for(host);
-    endpoints.retain(|endpoint| endpoint.port != DEFAULT_CDP_PORT || host == SkinHostKind::Codex);
     if !endpoints.iter().any(|endpoint| *endpoint == default) {
         endpoints.push(default);
+    }
+    if let Some(preferred) = preferred_endpoint {
+        endpoints.retain(|endpoint| *endpoint != preferred);
+        endpoints.insert(0, preferred);
     }
     endpoints
 }
@@ -445,13 +517,6 @@ fn operation_cancelled() -> AppError {
 /// 执行换皮宿主内部的 `codex_exited` 步骤。
 fn codex_exited() -> AppError {
     AppError::new("skin.codex_exited", "Codex 已在启动或页面搜寻期间退出。")
-}
-
-fn host_exited(host: SkinHostKind) -> AppError {
-    AppError::new(
-        "skin.host_exited",
-        format!("{} 已在启动或页面搜寻期间退出。", host.display_name()),
-    )
 }
 
 /// 执行换皮宿主内部的 `ensure_codex_running` 步骤。
@@ -514,42 +579,7 @@ where
     if host == SkinHostKind::Codex {
         return monitor_codex_operation(cancel, future).await;
     }
-    if *cancel.borrow() {
-        return Err(operation_cancelled());
-    }
-    let mut process_check = tokio::time::interval_at(
-        tokio::time::Instant::now() + CODEX_PROCESS_POLL_INTERVAL,
-        CODEX_PROCESS_POLL_INTERVAL,
-    );
-    process_check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-    tokio::pin!(future);
-    loop {
-        tokio::select! {
-            biased;
-            changed = cancel.changed() => {
-                if changed.is_err() || *cancel.borrow() {
-                    return Err(operation_cancelled());
-                }
-            }
-            result = &mut future => return result,
-            _ = process_check.tick() => {
-                let running = run_cancellable(cancel, async {
-                    tokio::time::timeout(
-                        Duration::from_secs(1),
-                        platform_host_is_running(host),
-                    )
-                    .await
-                    .map_err(|_| AppError::new(
-                        "skin.host_process_inspection_failed",
-                        format!("检查 {} 运行状态超时。", host.display_name()),
-                    ))?
-                }).await?;
-                if !running {
-                    return Err(host_exited(host));
-                }
-            }
-        }
-    }
+    run_cancellable(cancel, future).await
 }
 
 /// 执行换皮宿主内部的 `run_cancellable` 步骤。

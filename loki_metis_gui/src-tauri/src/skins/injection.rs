@@ -5,8 +5,12 @@ async fn watch_pages(
     handler_task: JoinHandle<()>,
     payload: Arc<str>,
     skin: SkinReference,
+    initial_transaction: Option<(String, BTreeSet<String>)>,
     mut cancel: watch::Receiver<bool>,
 ) -> Result<usize, AppError> {
+    if let Some((transaction_id, transaction_targets)) = initial_transaction {
+        commit_marked_injection_pages(&mut browser, &transaction_id, &transaction_targets).await;
+    }
     let mut interval = tokio::time::interval_at(
         tokio::time::Instant::now() + SKIN_WATCH_INTERVAL,
         SKIN_WATCH_INTERVAL,
@@ -23,7 +27,7 @@ async fn watch_pages(
             _ = interval.tick() => {
                 let refresh = async {
                     fetch_targets(&mut browser).await?;
-                    inject_pages(host, &browser, &payload, &skin).await
+                    inject_pages(host, &browser, &payload, &skin, None).await
                 };
                 tokio::select! {
                     biased;
@@ -64,19 +68,26 @@ async fn inject_pages(
     browser: &Browser,
     payload: &Arc<str>,
     skin: &SkinReference,
+    transaction: Option<&InjectionTransaction>,
 ) -> Result<InjectionReport, AppError> {
     let pages = browser_pages(browser).await?;
     let results = join_all(pages.into_iter().map(|page| {
         let payload = Arc::clone(payload);
         let skin = skin.clone();
+        let transaction = transaction.cloned();
         async move {
             if !is_host_page(host, &page).await? {
                 return Ok((false, false, CompatibilityPageReport::default()));
             }
-            let compatibility = apply_host_compatibility(host, &page).await;
             if has_current_skin(&page, &skin).await? {
+                let compatibility = apply_host_compatibility(host, &page).await;
                 return Ok((true, false, compatibility));
             }
+            if let Some(transaction) = transaction.as_ref() {
+                transaction.track(page.target_id().as_ref().to_owned());
+                mark_injection_transaction(&page, transaction.id()).await?;
+            }
+            let compatibility = apply_host_compatibility(host, &page).await;
             tokio::time::timeout(
                 CDP_REQUEST_TIMEOUT,
                 page.evaluate_expression(payload.to_string()),
@@ -101,6 +112,9 @@ async fn inject_pages(
             Err(_) => report.failed_pages += 1,
         }
     }
+    if let Some(transaction) = transaction {
+        report.transaction_targets = transaction.tracked_targets();
+    }
     if report.failed_pages > 0 {
         tracing::warn!(
             "皮肤页面处理部分失败，已验证页面数={}，失败页面数={}",
@@ -111,21 +125,186 @@ async fn inject_pages(
     Ok(report)
 }
 
+async fn mark_injection_transaction(page: &Page, transaction_id: &str) -> Result<(), AppError> {
+    let transaction_id = encode_injection_transaction_id(transaction_id)?;
+    let expression = format!(
+        "(() => {{ window.__LOKI_METIS_SKIN_TRANSACTION__ = {transaction_id}; return true; }})()"
+    );
+    tokio::time::timeout(CDP_REQUEST_TIMEOUT, page.evaluate_expression(expression))
+        .await
+        .map_err(|_| cdp_timeout("skin.cdp_request_timeout", "皮肤注入事务标记超时。"))?
+        .map_err(cdp_error)?;
+    Ok(())
+}
+
+fn encode_injection_transaction_id(transaction_id: &str) -> Result<String, AppError> {
+    serde_json::to_string(transaction_id)
+        .map_err(|_| AppError::new("skin.assets_invalid", "无法编码皮肤注入事务标记。"))
+}
+
+fn rollback_injection_transaction_expression(
+    transaction_id: &str,
+) -> Result<Arc<str>, AppError> {
+    let transaction_id = encode_injection_transaction_id(transaction_id)?;
+    Ok(Arc::<str>::from(format!(
+        "(() => {{
+          if (window.__LOKI_METIS_SKIN_TRANSACTION__ !== {transaction_id}) return null;
+          const removed = {REMOVE_SCRIPT};
+          if (removed === true) delete window.__LOKI_METIS_SKIN_TRANSACTION__;
+          return removed === true;
+        }})()"
+    )))
+}
+
+fn commit_injection_transaction_expression(
+    transaction_id: &str,
+) -> Result<Arc<str>, AppError> {
+    let transaction_id = encode_injection_transaction_id(transaction_id)?;
+    Ok(Arc::<str>::from(format!(
+        "(() => {{
+          if (window.__LOKI_METIS_SKIN_TRANSACTION__ !== {transaction_id}) return false;
+          delete window.__LOKI_METIS_SKIN_TRANSACTION__;
+          return true;
+        }})()"
+    )))
+}
+
+/// 严格回滚本次安装实际标记过的页面，绝不清理由其它安装产生的皮肤状态。
+async fn rollback_marked_injection_pages(
+    browser: &mut Browser,
+    transaction_id: &str,
+    transaction_targets: &BTreeSet<String>,
+) -> Result<usize, AppError> {
+    if transaction_targets.is_empty() {
+        return Ok(0);
+    }
+    fetch_targets(browser).await?;
+    let expression = rollback_injection_transaction_expression(transaction_id)?;
+    let pages = browser_pages(browser)
+        .await?
+        .into_iter()
+        .filter(|page| transaction_targets.contains(page.target_id().as_ref()))
+        .collect::<Vec<_>>();
+    let results = join_all(pages.into_iter().map(|page| {
+        let expression = Arc::clone(&expression);
+        async move {
+            let value = tokio::time::timeout(
+                CDP_REQUEST_TIMEOUT,
+                page.evaluate_expression(expression.to_string()),
+            )
+            .await
+            .map_err(|_| {
+                cdp_timeout(
+                    "skin.cdp_request_timeout",
+                    "皮肤注入事务回滚超时。",
+                )
+            })?
+            .map_err(cdp_error)?;
+            value
+                .into_value::<Option<bool>>()
+                .map_err(|_| cdp_response_error())
+        }
+    }))
+    .await;
+    let mut matched = 0;
+    let mut failed = 0;
+    for result in results {
+        match result {
+            Ok(Some(true)) => matched += 1,
+            Ok(None) => {}
+            Ok(Some(false)) | Err(_) => failed += 1,
+        }
+    }
+    if failed > 0 {
+        return Err(AppError::new(
+            "skin.injection_rollback_failed",
+            "无法确认已清理本次临时皮肤注入，请刷新或重启宿主。",
+        ));
+    }
+    Ok(matched)
+}
+
+/// 成功安装后的 marker 仅用于收尾；清理失败不能把已由 watcher 接管的皮肤反转成失败。
+async fn commit_marked_injection_pages(
+    browser: &mut Browser,
+    transaction_id: &str,
+    transaction_targets: &BTreeSet<String>,
+) {
+    if transaction_targets.is_empty() {
+        return;
+    }
+    let expression = match commit_injection_transaction_expression(transaction_id) {
+        Ok(expression) => expression,
+        Err(_) => {
+            tracing::warn!("code=skin.injection_marker_cleanup_failed");
+            return;
+        }
+    };
+    if let Err(error) = fetch_targets(browser).await {
+        tracing::warn!(
+            "皮肤注入事务 marker 清理失败，错误码={}",
+            error.code
+        );
+        return;
+    }
+    let pages = match browser_pages(browser).await {
+        Ok(pages) => pages,
+        Err(error) => {
+            tracing::warn!(
+                "皮肤注入事务 marker 清理失败，错误码={}",
+                error.code
+            );
+            return;
+        }
+    };
+    let results = join_all(
+        pages
+            .into_iter()
+            .filter(|page| transaction_targets.contains(page.target_id().as_ref()))
+            .map(|page| {
+                let expression = Arc::clone(&expression);
+                async move {
+                    tokio::time::timeout(
+                        CDP_REQUEST_TIMEOUT,
+                        page.evaluate_expression(expression.to_string()),
+                    )
+                    .await
+                }
+            }),
+    )
+    .await;
+    let failed = results
+        .iter()
+        .filter(|result| !matches!(result, Ok(Ok(_))))
+        .count();
+    if failed > 0 {
+        tracing::warn!("皮肤注入事务 marker 部分清理失败，失败页面数={failed}");
+    }
+}
+
+fn rollback_error(original: &AppError, rollback: AppError) -> AppError {
+    AppError::with_details(
+        "skin.injection_rollback_failed",
+        "皮肤应用失败，且无法确认已清理本次临时注入；请刷新或重启宿主后重试。",
+        vec![
+            format!("original_code={}", original.code),
+            format!("rollback_code={}", rollback.code),
+        ],
+    )
+}
+
 /// 执行换皮宿主内部的 `apply_host_compatibility` 步骤。
 async fn apply_host_compatibility(
     host: SkinHostKind,
     page: &Page,
 ) -> CompatibilityPageReport {
-    if host == SkinHostKind::WorkBuddy {
-        return CompatibilityPageReport {
-            version: HOST_COMPATIBILITY_VERSION.into(),
-            applied_rules: Vec::new(),
-            skipped_rules: vec!["workbuddy-host-adapter".into()],
-        };
-    }
+    let script = match host {
+        SkinHostKind::Codex => HOST_COMPATIBILITY_SCRIPT,
+        SkinHostKind::WorkBuddy => WORKBUDDY_HOST_COMPATIBILITY_SCRIPT,
+    };
     let result = tokio::time::timeout(
         CDP_REQUEST_TIMEOUT,
-        page.evaluate_expression(HOST_COMPATIBILITY_SCRIPT),
+        page.evaluate_expression(script),
     )
     .await;
     let parsed = match result {
@@ -135,7 +314,7 @@ async fn apply_host_compatibility(
     match parsed {
         Some(report) if report.version == HOST_COMPATIBILITY_VERSION => report,
         _ => {
-            tracing::warn!("Codex 宿主兼容规则执行失败，规则=adapter-runtime");
+            tracing::warn!(?host, "宿主兼容规则执行失败，规则=adapter-runtime");
             CompatibilityPageReport {
                 version: HOST_COMPATIBILITY_VERSION.into(),
                 applied_rules: Vec::new(),
@@ -203,11 +382,21 @@ async fn remove_from_browser(host: SkinHostKind, browser: &Browser) -> Result<us
         if !is_host_page(host, &page).await? {
             return Ok(false);
         }
-        tokio::time::timeout(CDP_REQUEST_TIMEOUT, page.evaluate_expression(REMOVE_SCRIPT))
+        let value = tokio::time::timeout(
+            CDP_REQUEST_TIMEOUT,
+            page.evaluate_expression(REMOVE_SCRIPT),
+        )
             .await
             .map_err(|_| cdp_timeout("skin.cdp_request_timeout", "Codex 皮肤页面清理超时。"))?
             .map_err(cdp_error)?;
-        Ok::<_, AppError>(true)
+        value
+            .into_value::<bool>()
+            .map_err(|_| cdp_response_error())
+            .and_then(|removed| {
+                removed.then_some(true).ok_or_else(|| {
+                    AppError::new("skin.cdp_cleanup_failed", "宿主皮肤清理脚本未完成。")
+                })
+            })
     }))
     .await;
     let mut removed = 0;
@@ -222,10 +411,18 @@ async fn remove_from_browser(host: SkinHostKind, browser: &Browser) -> Result<us
     if failed > 0 {
         tracing::warn!("皮肤页面清理部分失败，已清理页面数={removed}，失败页面数={failed}");
     }
-    if removed == 0 && failed > 0 {
-        Err(AppError::new(
+    finish_cleanup_report(removed, failed)
+}
+
+fn finish_cleanup_report(removed: usize, failed: usize) -> Result<usize, AppError> {
+    if failed > 0 {
+        Err(AppError::with_details(
             "skin.cdp_cleanup_failed",
-            "未能完成 Codex 皮肤页面清理，请稍后重试。",
+            "未能完成全部宿主皮肤页面清理，请稍后重试。",
+            vec![
+                format!("removed_pages={removed}"),
+                format!("failed_pages={failed}"),
+            ],
         ))
     } else {
         Ok(removed)
@@ -235,8 +432,11 @@ async fn remove_from_browser(host: SkinHostKind, browser: &Browser) -> Result<us
 /// 执行换皮宿主内部的 `remove_from_existing_endpoint` 步骤。
 async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppError> {
     let (_cancel_tx, mut cancel_rx) = watch::channel(false);
-    let Ok((browser, handler_task, _)) = connect_existing_browser(host, &mut cancel_rx).await else {
-        return Ok(0);
+    let connection = connect_existing_browser(host, &mut cancel_rx).await;
+    let (browser, handler_task) = match connection {
+        Ok((browser, handler_task, _)) => (browser, handler_task),
+        Err(_error) if matches!(platform_host_is_running(host).await, Ok(false)) => return Ok(0),
+        Err(error) => return Err(error),
     };
     cleanup_via(host, browser, handler_task).await
 }
@@ -246,9 +446,27 @@ async fn remove_from_endpoint(
     host: SkinHostKind,
     endpoint: CdpEndpoint,
 ) -> Result<usize, AppError> {
-    let Ok((browser, handler_task)) = connect_browser(endpoint).await else {
-        return Ok(0);
+    let connection = connect_browser(endpoint).await;
+    let (mut browser, handler_task) = match connection {
+        Ok(connection) => connection,
+        Err(_error) if matches!(platform_host_is_running(host).await, Ok(false)) => return Ok(0),
+        Err(error) => return Err(error),
     };
+    let verified = browser_matches_host(host, &mut browser, endpoint).await;
+    match verified {
+        Ok(true) => {}
+        Ok(false) => {
+            handler_task.abort();
+            return Err(AppError::new(
+                "skin.cdp_rejected",
+                format!("调试端点不是 {} 的可信主页面。", host.display_name()),
+            ));
+        }
+        Err(error) => {
+            handler_task.abort();
+            return Err(error);
+        }
+    }
     cleanup_via(host, browser, handler_task).await
 }
 

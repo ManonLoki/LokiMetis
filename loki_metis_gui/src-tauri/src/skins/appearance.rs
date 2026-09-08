@@ -203,36 +203,30 @@ fn normalize_appearance_value(value: &str) -> String {
 /// 执行换皮宿主内部的 `wait_for_initial_injection_inner` 步骤。
 async fn wait_for_initial_injection_inner(
     host: SkinHostKind,
-    mut browser: Browser,
-    handler_task: JoinHandle<()>,
+    browser: &mut Browser,
+    handler_task: &mut HandlerTaskGuard,
     payload: &Arc<str>,
     skin: &SkinReference,
     page_ready_timeout: Duration,
     endpoint: CdpEndpoint,
-) -> Result<(Browser, JoinHandle<()>, InjectionReport), AppError> {
+    transaction: &InjectionTransaction,
+) -> Result<InjectionReport, AppError> {
     let deadline = tokio::time::Instant::now() + page_ready_timeout;
     let mut last_session_error = None;
-    let mut handler_task = HandlerTaskGuard::new(handler_task);
 
     loop {
         if tokio::time::Instant::now() >= deadline {
-            handler_task.abort();
-            return Err(last_session_error.unwrap_or_else(codex_page_not_found));
+            return Err(last_session_error.unwrap_or_else(|| host_page_not_found(host)));
         }
 
         let scan = async {
-            fetch_targets(&mut browser).await?;
-            inject_pages(host, &browser, payload, skin).await
+            fetch_targets(browser).await?;
+            inject_pages(host, browser, payload, skin, Some(transaction)).await
         }
         .await;
 
         let reconnect = match scan {
-            Ok(report) if report.verified_pages > 0 => {
-                let handler_task = handler_task.take().ok_or_else(|| {
-                    AppError::new("skin.cdp_failed", "Codex 调试会话已意外结束。")
-                })?;
-                return Ok((browser, handler_task, report));
-            }
+            Ok(report) if report.verified_pages > 0 => return Ok(report),
             Ok(report) if should_reconnect_initial_session(&report) => {
                 last_session_error = Some(AppError::new(
                     "skin.cdp_failed",
@@ -257,15 +251,14 @@ async fn wait_for_initial_injection_inner(
         }
 
         tracing::warn!("首次皮肤页面扫描未能验证主页面，重建调试会话");
-        handler_task.abort();
         loop {
             if tokio::time::Instant::now() >= deadline {
-                return Err(last_session_error.unwrap_or_else(codex_page_not_found));
+                return Err(last_session_error.unwrap_or_else(|| host_page_not_found(host)));
             }
             match connect_browser(endpoint).await {
                 Ok((next_browser, next_handler_task)) => {
-                    browser = next_browser;
                     handler_task.replace(next_handler_task);
+                    *browser = next_browser;
                     break;
                 }
                 Err(error) => {
@@ -282,10 +275,16 @@ fn should_reconnect_initial_session(report: &InjectionReport) -> bool {
     report.verified_pages == 0 && report.failed_pages > 0
 }
 
-/// 执行换皮宿主内部的 `codex_page_not_found` 步骤。
-fn codex_page_not_found() -> AppError {
-    AppError::new(
-        "skin.codex_page_not_found",
-        "Codex 已启动，但主页面仍未准备就绪，请稍后重试；若持续失败再重启 Codex。",
-    )
+/// 返回与宿主一致的页面就绪失败，避免 WorkBuddy 错误沿用 Codex 文案。
+fn host_page_not_found(host: SkinHostKind) -> AppError {
+    match host {
+        SkinHostKind::Codex => AppError::new(
+            "skin.codex_page_not_found",
+            "Codex 已启动，但主页面仍未准备就绪，请稍后重试；若持续失败再重启 Codex。",
+        ),
+        SkinHostKind::WorkBuddy => AppError::new(
+            "skin.workbuddy_page_not_found",
+            "WorkBuddy 已启动，但可验证主页面仍未准备就绪。",
+        ),
+    }
 }

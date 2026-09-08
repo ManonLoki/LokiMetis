@@ -17,8 +17,10 @@ const SKIN_WATCH_INTERVAL: Duration = Duration::from_secs(5);
 const CDP_CLEANUP_TIMEOUT: Duration = Duration::from_secs(10);
 const WATCH_STOP_TIMEOUT: Duration = Duration::from_secs(12);
 const SKIN_VERSION: &str = "1.7.0";
-const HOST_COMPATIBILITY_VERSION: &str = "4";
+const HOST_COMPATIBILITY_VERSION: &str = "5";
 const HOST_COMPATIBILITY_SCRIPT: &str = include_str!("../../../resources/skin-host-compat.js");
+const WORKBUDDY_HOST_COMPATIBILITY_SCRIPT: &str =
+    include_str!("../../../resources/workbuddy-skin-host-compat.js");
 const THEME_RUNTIME_CSS: &str = include_str!("../../../resources/theme-runtime/theme.css");
 const THEME_RUNTIME_SCRIPT: &str = include_str!("../../../resources/theme-runtime/renderer-inject.js");
 const THEME_TEMPLATE_MANIFEST: &str = include_str!("../../../resources/theme-template/theme.json");
@@ -77,11 +79,17 @@ const PROBE_SCRIPT: &str = r#"(() => {
   };
 })()"#;
 
-const WORKBUDDY_PROBE_SCRIPT: &str = r#"(() => ({
-  url: location.href,
-  workBuddy: location.protocol === 'file:' && document.title === 'WorkBuddy' &&
-    Boolean(document.querySelector('#root')),
-}))()"#;
+const WORKBUDDY_PROBE_SCRIPT: &str = r#"(() => {
+  const body = document.body;
+  return {
+    url: location.href,
+    workBuddy: location.protocol === 'file:' && document.title === 'WorkBuddy' &&
+      Boolean(document.querySelector('#root')) &&
+      body?.dataset.applicationName === 'workbuddy' &&
+      body?.dataset.electronDesktop === 'true' &&
+      body?.dataset.productName === 'WorkBuddy',
+  };
+})()"#;
 
 const ACCOUNT_PROFILE_PROBE_SCRIPT: &str = r#"(() => {
   const normalize = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -222,22 +230,26 @@ const APPEARANCE_MODE_SCRIPT: &str = r#"(() => {
 
 const REMOVE_SCRIPT: &str = r#"(() => {
   window.__CODEX_DREAM_SKIN_DISABLED__ = true;
+  let cleaned = true;
   const state = window.__CODEX_DREAM_SKIN_STATE__;
   if (state?.cleanup) {
-    try { state.cleanup(); } catch {}
+    try { state.cleanup(); } catch { cleaned = false; }
   } else {
-    document.documentElement?.classList.remove('codex-dream-skin');
-    document.documentElement?.style.removeProperty('--dream-skin-art');
-    document.documentElement?.style.removeProperty('--skin-background-image');
-    document.documentElement?.style.removeProperty('--dream-skin-avatar');
-    document.documentElement?.style.removeProperty('--dream-skin-friends');
-    document.getElementById('codex-dream-skin-style')?.remove();
-    document.getElementById('codex-dream-skin-chrome')?.remove();
-    delete window.__CODEX_DREAM_SKIN_STATE__;
+    try {
+      document.documentElement?.classList.remove('codex-dream-skin');
+      document.documentElement?.style.removeProperty('--dream-skin-art');
+      document.documentElement?.style.removeProperty('--skin-background-image');
+      document.documentElement?.style.removeProperty('--dream-skin-avatar');
+      document.documentElement?.style.removeProperty('--dream-skin-friends');
+      document.getElementById('codex-dream-skin-style')?.remove();
+      document.getElementById('codex-dream-skin-chrome')?.remove();
+      delete window.__CODEX_DREAM_SKIN_STATE__;
+    } catch { cleaned = false; }
   }
   const compatibility = window.__BIFANG_CODEX_SKIN_COMPAT__;
   if (compatibility?.cleanup) {
-    try { compatibility.cleanup(); } catch {}
+    try { compatibility.cleanup(); } catch { cleaned = false; }
   }
-  return true;
+  if (cleaned) delete window.__LOKI_METIS_SKIN_TRANSACTION__;
+  return cleaned;
 })()"#;

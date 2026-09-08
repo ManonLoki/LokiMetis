@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -160,5 +160,374 @@ describe("skin page", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("list_skin_host_instances", {
       host: "workBuddy",
     });
+  });
+
+  /** WorkBuddy 没有唯一安全目标时，必须先确认，再由一次安装命令完成全量恢复。 */
+  test("confirms atomic close-all recovery for unsafe workbuddy roots", async () => {
+    mocks.hostAvailable = true;
+    let recovered = false;
+    mocks.invoke.mockImplementation(
+      (
+        command: string,
+        args?: {
+          allowAppearanceMismatch?: boolean;
+          allowWorkBuddyRecovery?: boolean;
+          host?: string;
+        },
+      ) => {
+        if (command === "get_monitor_capabilities") {
+          return Promise.resolve({
+            aiTools: [
+              { tool: "codex", name: "Codex", skinHost: "codex" },
+              { tool: "workBuddy", name: "WorkBuddy", skinHost: "workBuddy" },
+            ],
+          });
+        }
+        if (command === "get_monitor_settings") {
+          return Promise.resolve({
+            enabledAiTools: ["codex", "workBuddy"],
+            hookDirectories: {},
+          });
+        }
+        if (command === "list_skins") {
+          return Promise.resolve([
+            {
+              author: "ManonLoki",
+              id: "minecraft",
+              name: "Minecraft",
+              packageType: "theme",
+              previewDataUrl: "",
+              source: "builtin",
+              supportedColorModes: ["light", "dark"],
+              version: "1.0.0",
+            },
+          ]);
+        }
+        if (command === "skin_status") {
+          return Promise.resolve({
+            affectedPages: 0,
+            compatibility: null,
+            installed: false,
+            packageType: null,
+            skinId: null,
+            skinName: null,
+            source: null,
+            version: "1",
+          });
+        }
+        if (command === "supports_windows_workbuddy_recovery") {
+          return Promise.resolve(true);
+        }
+        if (command === "list_skin_host_instances") {
+          if (args?.host === "codex") {
+            return Promise.resolve([
+              {
+                accountLabel: null,
+                activeSkin: null,
+                activeSkinName: null,
+                avatarDataUrl: null,
+                debugPort: 9341,
+                id: "codex-1",
+                label: "Codex",
+                pid: 10,
+                profile: null,
+                state: "ready",
+              },
+            ]);
+          }
+          const workBuddyInstance = (id: string, pid: number, ready = recovered) => ({
+            accountLabel: null,
+            activeSkin: null,
+            activeSkinName: null,
+            avatarDataUrl: null,
+            debugPort: ready ? 9441 : null,
+            id,
+            label: "WorkBuddy",
+            pid,
+            profile: null,
+            state: ready ? "ready" : "runningWithoutCdp",
+          });
+          return Promise.resolve(
+            recovered
+              ? [workBuddyInstance("workbuddy-new", 30)]
+              : [
+                  workBuddyInstance("workbuddy-old", 20, false),
+                  workBuddyInstance("workbuddy-other", 21, true),
+                ],
+          );
+        }
+        if (command === "install_skin") {
+          if (args?.allowWorkBuddyRecovery) recovered = true;
+          if (!recovered) {
+            return Promise.reject({
+              code: "skin.workbuddy_recovery_required",
+              details: [],
+              message: "WorkBuddy debug connection is unavailable.",
+            });
+          }
+          if (args?.allowAppearanceMismatch) {
+            return Promise.resolve({ type: "installed", status: {} });
+          }
+          return Promise.resolve({
+            type: "needsConfirmation",
+            check: {
+              differences: [
+                {
+                  currentValue: "dark",
+                  expectedValue: "light",
+                  field: "colorMode",
+                  label: "Color mode",
+                },
+              ],
+              effectiveMode: "dark",
+              supportedColorModes: ["light"],
+              unreadable: [],
+            },
+          });
+        }
+        return Promise.reject(new Error(`unexpected command: ${command}`));
+      },
+    );
+
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    await screen.findByTestId("skin-card-minecraft");
+    await userEvent.click(screen.getByRole("tab", { name: "WorkBuddy" }));
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("list_skin_host_instances", {
+        host: "workBuddy",
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(await screen.findByText("Restart WorkBuddy with a debug port?")).toBeVisible();
+    expect(
+      screen.getByText(
+        /closes every running WorkBuddy process under a verified official install path/i,
+      ),
+    ).toBeVisible();
+    expect(mocks.invoke).not.toHaveBeenCalledWith("force_launch_skin_host", {
+      host: "workBuddy",
+    });
+    expect(mocks.invoke).toHaveBeenCalledWith(
+      "supports_windows_workbuddy_recovery",
+      undefined,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
+        allowAppearanceMismatch: false,
+        allowWorkBuddyRecovery: true,
+        host: "workBuddy",
+        skin: { id: "minecraft", source: "builtin" },
+      }),
+    );
+    expect(mocks.invoke).not.toHaveBeenCalledWith("force_launch_skin_host", {
+      host: "workBuddy",
+    });
+    expect(await screen.findByText("Confirm appearance differences")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply anyway" }));
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
+        allowAppearanceMismatch: true,
+        allowWorkBuddyRecovery: true,
+        host: "workBuddy",
+        skin: { id: "minecraft", source: "builtin" },
+      }),
+    );
+  });
+
+  /** 非 Windows 平台必须保留原来的所选实例重启，不能调用 close-all 恢复。 */
+  test("keeps selected-instance workbuddy restart outside windows", async () => {
+    mocks.hostAvailable = true;
+    let restarted = false;
+    const instance = (ready: boolean) => ({
+      accountLabel: null,
+      activeSkin: null,
+      activeSkinName: null,
+      avatarDataUrl: null,
+      debugPort: ready ? 9441 : null,
+      id: "workbuddy-1",
+      label: "WorkBuddy process 20",
+      pid: 20,
+      profile: null,
+      state: ready ? "ready" : "runningWithoutCdp",
+    });
+    mocks.invoke.mockImplementation((command: string) => {
+      if (command === "get_monitor_capabilities") {
+        return Promise.resolve({
+          aiTools: [{ tool: "workBuddy", name: "WorkBuddy", skinHost: "workBuddy" }],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return Promise.resolve({ enabledAiTools: ["workBuddy"], hookDirectories: {} });
+      }
+      if (command === "list_skins") {
+        return Promise.resolve([
+          {
+            author: "ManonLoki",
+            id: "minecraft",
+            name: "Minecraft",
+            packageType: "theme",
+            previewDataUrl: "",
+            source: "builtin",
+            supportedColorModes: ["light", "dark"],
+            version: "1.0.0",
+          },
+        ]);
+      }
+      if (command === "skin_status") {
+        return Promise.resolve({
+          affectedPages: 0,
+          compatibility: null,
+          installed: false,
+          packageType: null,
+          skinId: null,
+          skinName: null,
+          source: null,
+          version: "1",
+        });
+      }
+      if (command === "list_skin_host_instances") {
+        return Promise.resolve([instance(restarted)]);
+      }
+      if (command === "supports_windows_workbuddy_recovery") return Promise.resolve(false);
+      if (command === "restart_skin_host_instance") {
+        restarted = true;
+        return Promise.resolve(instance(true));
+      }
+      if (command === "install_skin") {
+        return restarted
+          ? Promise.resolve({ type: "installed", status: {} })
+          : Promise.reject({
+              code: "skin.workbuddy_recovery_required",
+              details: [],
+              message: "WorkBuddy debug connection is unavailable.",
+            });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    expect(await screen.findByText("Restart the selected host instance?")).toBeVisible();
+    expect(
+      screen.queryByText("Restart WorkBuddy with a debug port?"),
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("restart_skin_host_instance", {
+        host: "workBuddy",
+        instanceId: "workbuddy-1",
+      }),
+    );
+    expect(mocks.invoke).not.toHaveBeenCalledWith(
+      "force_launch_skin_host",
+      expect.anything(),
+    );
+  });
+
+  /** WorkBuddy 恢复分支不能改变 Codex 原有的单实例重启确认。 */
+  test("keeps selected-instance restart confirmation for codex", async () => {
+    mocks.hostAvailable = true;
+    let restarted = false;
+    const instance = (ready: boolean) => ({
+      accountLabel: null,
+      activeSkin: null,
+      activeSkinName: null,
+      avatarDataUrl: null,
+      debugPort: ready ? 9222 : null,
+      id: "codex-1",
+      label: "Codex process 10",
+      pid: 10,
+      profile: null,
+      state: ready ? "ready" : "runningWithoutCdp",
+    });
+    mocks.invoke.mockImplementation((command: string) => {
+      if (command === "get_monitor_capabilities") {
+        return Promise.resolve({
+          aiTools: [{ tool: "codex", name: "Codex", skinHost: "codex" }],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return Promise.resolve({ enabledAiTools: ["codex"], hookDirectories: {} });
+      }
+      if (command === "list_skins") {
+        return Promise.resolve([
+          {
+            author: "ManonLoki",
+            id: "minecraft",
+            name: "Minecraft",
+            packageType: "theme",
+            previewDataUrl: "",
+            source: "builtin",
+            supportedColorModes: ["light", "dark"],
+            version: "1.0.0",
+          },
+        ]);
+      }
+      if (command === "skin_status") {
+        return Promise.resolve({
+          affectedPages: 0,
+          compatibility: null,
+          installed: false,
+          packageType: null,
+          skinId: null,
+          skinName: null,
+          source: null,
+          version: "1",
+        });
+      }
+      if (command === "list_skin_host_instances") {
+        return Promise.resolve([instance(restarted)]);
+      }
+      if (command === "restart_skin_host_instance") {
+        restarted = true;
+        return Promise.resolve(instance(true));
+      }
+      if (command === "install_skin") {
+        return restarted
+          ? Promise.resolve({ type: "installed", status: {} })
+          : Promise.reject(new Error("install must wait for restart confirmation"));
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    expect(await screen.findByText("Restart the selected host instance?")).toBeVisible();
+    expect(mocks.invoke).not.toHaveBeenCalledWith(
+      "supports_windows_workbuddy_recovery",
+      expect.anything(),
+    );
+    expect(mocks.invoke).not.toHaveBeenCalledWith("install_skin", expect.anything());
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("restart_skin_host_instance", {
+        host: "codex",
+        instanceId: "codex-1",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("install_skin", expect.anything()),
+    );
   });
 });

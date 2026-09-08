@@ -328,7 +328,7 @@
                 "version": "1.7.0",
                 "affectedPages": 2,
                 "compatibility": {
-                    "version": "4",
+                    "version": "5",
                     "mode": "adapted",
                     "appliedRules": ["legacy-main-surface"],
                     "skippedRules": []

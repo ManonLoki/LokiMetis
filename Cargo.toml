@@ -7,7 +7,7 @@ target-platforms = ["windows", "macos", "linux"]
 interfaces = ["gui"]
 
 [workspace.package]
-version = "0.2.18"
+version = "0.2.19"
 edition = "2024"
 rust-version = "1.95"
 
@@ -79,6 +79,8 @@ windows = { version = "0.61.3", default-features = false, features = [
     "Storage_Search",
     "Storage_Streams",
     "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
     "Win32_System_Com",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_Registry",

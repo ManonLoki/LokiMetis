@@ -7,7 +7,10 @@ pub struct SkinService {
     import_preparation: StdMutex<Option<ActiveImportPreparation>>,
     next_codex_operation_id: AtomicU64,
     codex_operation: StdMutex<Option<CodexOperation>>,
+    codex_runtime_generation: AtomicU64,
+    workbuddy_runtime_generation: AtomicU64,
     account_profile_probes: StdMutex<HashMap<String, Arc<OnceCell<Option<AccountProfile>>>>>,
+    verified_endpoint_hints: StdMutex<HashMap<SkinHostKind, CdpEndpoint>>,
     operation: Mutex<()>,
     runtime: Mutex<RuntimeState>,
 }

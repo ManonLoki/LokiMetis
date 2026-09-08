@@ -75,7 +75,7 @@ use skins::commands::{
     install_skin, launch_skin_host, list_skin_host_instances, list_skins, open_skin_directory,
     prepare_skin_import, prepare_skin_zip_paths, probe_skin_host_instance,
     restart_skin_host_instance, skin_catalog_changed, skin_creation_prompt,
-    skin_host_runtime_status, skin_status, uninstall_skin,
+    skin_host_runtime_status, skin_status, supports_windows_workbuddy_recovery, uninstall_skin,
 };
 use source_commands::{
     manual_add_source_root, remove_source_root, rename_source_root, set_primary_source_root,
@@ -336,6 +336,7 @@ pub fn run() {
             probe_skin_host_instance,
             restart_skin_host_instance,
             launch_skin_host,
+            supports_windows_workbuddy_recovery,
             force_launch_skin_host,
             cancel_codex_operation,
             install_skin,

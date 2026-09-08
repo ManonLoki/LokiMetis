@@ -9,7 +9,10 @@ impl SkinService {
             import_preparation: StdMutex::new(None),
             next_codex_operation_id: AtomicU64::new(1),
             codex_operation: StdMutex::new(None),
+            codex_runtime_generation: AtomicU64::new(0),
+            workbuddy_runtime_generation: AtomicU64::new(0),
             account_profile_probes: StdMutex::new(HashMap::new()),
+            verified_endpoint_hints: StdMutex::new(HashMap::new()),
             operation: Mutex::new(()),
             runtime: Mutex::new(RuntimeState::default()),
         }

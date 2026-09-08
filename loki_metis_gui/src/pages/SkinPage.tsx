@@ -17,11 +17,7 @@ import {
   useQueryClient,
   type QueryKey,
 } from "@tanstack/react-query";
-import {
-  IconAlertCircle,
-  IconPalette,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconAlertCircle, IconPalette, IconTrash } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
@@ -57,7 +53,10 @@ import {
   readRememberedSkin,
   rememberSkin,
 } from "../lib/skin-preference";
-import { resolveSoleTargetInstance } from "../lib/skin-instances";
+import {
+  needsWorkBuddyCdpRecovery,
+  resolveSoleTargetInstance,
+} from "../lib/skin-instances";
 import { skinPageSessionAtom } from "../state/skin-page";
 
 /** 把资源描述收敛成原生命令要求的精确引用。 */
@@ -68,6 +67,21 @@ function skinReference(skin: SkinDescriptor): SkinReference {
 /** 比较两个可选皮肤引用是否指向同一份来源资源。 */
 function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
   return left?.id === right.id && left.source === right.source;
+}
+
+interface PendingHostRestart {
+  host: SkinHostKind;
+  instanceId: string | null;
+  instanceLabel: string;
+  mode: "restartSelected" | "recoverWindowsWorkBuddy";
+  skin: SkinDescriptor;
+}
+
+/** 识别后端在最后一刻发现 WorkBuddy 仍运行但无可用 CDP 的稳定恢复请求。 */
+function isWorkBuddyRecoveryRequired(cause: unknown): cause is SkinHostError {
+  return (
+    cause instanceof SkinHostError && cause.code === "skin.workbuddy_recovery_required"
+  );
 }
 
 /** 以统一的启用/轮询/新鲜度策略订阅一个换皮宿主查询。 */
@@ -101,8 +115,10 @@ export function SkinPage(): ReactElement {
   const [appearance, setAppearance] = useState<{
     skin: SkinDescriptor;
     check: SkinAppearanceCheck;
+    target: CodexInstance | null;
+    allowWorkBuddyRecovery: boolean;
   } | null>(null);
-  const [restartSkin, setRestartSkin] = useState<SkinDescriptor | null>(null);
+  const [restartRequest, setRestartRequest] = useState<PendingHostRestart | null>(null);
   const [convertSkin, setConvertSkin] = useState<SkinDescriptor | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<SkinDescriptor[]>([]);
   const [selectedUserSkins, setSelectedUserSkins] = useState<SkinReference[]>([]);
@@ -253,15 +269,22 @@ export function SkinPage(): ReactElement {
       skin: SkinDescriptor,
       target: CodexInstance | null,
       allowMismatch = false,
+      allowWorkBuddyRecovery = false,
     ): Promise<void> => {
       const result = await skinApi.install(
         host,
         skinReference(skin),
         allowMismatch,
         target?.id ?? null,
+        allowWorkBuddyRecovery,
       );
       if (result.type === "needsConfirmation") {
-        setAppearance({ check: result.check, skin });
+        setAppearance({
+          allowWorkBuddyRecovery,
+          check: result.check,
+          skin,
+          target,
+        });
         return;
       }
       const reference = skinReference(skin);
@@ -277,30 +300,78 @@ export function SkinPage(): ReactElement {
     [host, refresh, setSession, t],
   );
 
-  /** 解析唯一目标并在可能影响 Codex 会话时先进入确认弹窗。 */
-  const requestInstall = useCallback(
-    async (skin: SkinDescriptor): Promise<void> => {
-      let current = instanceList;
-      if (current.length === 0) {
-        await skinApi.launchHost(host);
-        current = await queryClient.fetchQuery({
-          queryFn: () => skinApi.instances(host),
-          queryKey: skinInstancesQueryKey(host),
-        });
-      }
-      const target = resolveSoleTargetInstance(current);
-      if (target === null)
+  /** 按原生平台能力选择 Windows 全量恢复或既有单实例重启确认。 */
+  const requestRestartConfirmation = useCallback(
+    async (skin: SkinDescriptor, target: CodexInstance | null): Promise<void> => {
+      const windowsWorkBuddyRecovery =
+        host === "workBuddy" && (await skinApi.supportsWindowsWorkBuddyRecovery());
+      if (!windowsWorkBuddyRecovery && target === null) {
         throw new SkinHostError(
           "skin.host_instance_selection_required",
           t("skins.error.choose_instance"),
         );
-      if (target.state === "runningWithoutCdp") {
-        setRestartSkin(skin);
-        return;
       }
-      await installOnInstance(skin, target);
+      setRestartRequest({
+        host,
+        instanceId: target?.id ?? null,
+        instanceLabel: target?.label ?? "",
+        mode: windowsWorkBuddyRecovery ? "recoverWindowsWorkBuddy" : "restartSelected",
+        skin,
+      });
     },
-    [host, instanceList, installOnInstance, queryClient, t],
+    [host, t],
+  );
+
+  /** 解析唯一目标并在可能影响 Codex 会话时先进入确认弹窗。 */
+  const requestInstall = useCallback(
+    async (skin: SkinDescriptor): Promise<void> => {
+      try {
+        let current = instanceList;
+        if (current.length === 0) {
+          await skinApi.launchHost(host);
+          current = await queryClient.fetchQuery({
+            queryFn: () => skinApi.instances(host),
+            queryKey: skinInstancesQueryKey(host),
+          });
+        }
+        const target = resolveSoleTargetInstance(current);
+        if (target === null) {
+          if (host === "workBuddy" && needsWorkBuddyCdpRecovery(current)) {
+            await requestRestartConfirmation(skin, null);
+            return;
+          }
+          throw new SkinHostError(
+            "skin.host_instance_selection_required",
+            t("skins.error.choose_instance"),
+          );
+        }
+        if (target.state === "runningWithoutCdp" && host !== "workBuddy") {
+          await requestRestartConfirmation(skin, target);
+          return;
+        }
+        await installOnInstance(skin, target);
+      } catch (cause) {
+        if (host !== "workBuddy" || !isWorkBuddyRecoveryRequired(cause)) throw cause;
+        const refreshed = await queryClient.fetchQuery({
+          queryFn: () => skinApi.instances(host),
+          queryKey: skinInstancesQueryKey(host),
+          staleTime: 0,
+        });
+        const target = resolveSoleTargetInstance(refreshed);
+        if (
+          target === null &&
+          refreshed.length > 1 &&
+          !needsWorkBuddyCdpRecovery(refreshed)
+        ) {
+          throw new SkinHostError(
+            "skin.host_instance_selection_required",
+            t("skins.error.choose_instance"),
+          );
+        }
+        await requestRestartConfirmation(skin, target);
+      }
+    },
+    [host, instanceList, installOnInstance, queryClient, requestRestartConfirmation, t],
   );
 
   /** 从原生文件选择器预检一个有界 ZIP 批次。 */
@@ -565,28 +636,48 @@ export function SkinPage(): ReactElement {
             if (!appearance) return;
             const pending = appearance;
             setAppearance(null);
-            await installOnInstance(pending.skin, selectedInstance, true);
+            await installOnInstance(
+              pending.skin,
+              pending.target,
+              true,
+              pending.allowWorkBuddyRecovery,
+            );
           })
         }
         pending={action.isPending}
       />
       <SkinConfirmDialog
-        description={t("skins.restart.description", {
-          name: selectedInstance?.label ?? "",
-        })}
-        onCancel={() => setRestartSkin(null)}
+        description={t(
+          restartRequest?.mode === "recoverWindowsWorkBuddy"
+            ? "skins.restart.workbuddy_description"
+            : "skins.restart.description",
+          { name: restartRequest?.instanceLabel ?? "" },
+        )}
+        onCancel={() => setRestartRequest(null)}
         onConfirm={() =>
           void run(async () => {
-            if (!restartSkin || !selectedInstance) return;
-            const skin = restartSkin;
-            setRestartSkin(null);
-            const restarted = await skinApi.restartInstance(host, selectedInstance.id);
-            await installOnInstance(skin, restarted);
+            if (!restartRequest) return;
+            const pending = restartRequest;
+            setRestartRequest(null);
+            if (pending.mode === "recoverWindowsWorkBuddy") {
+              await installOnInstance(pending.skin, null, false, true);
+              return;
+            }
+            if (!pending.instanceId) return;
+            const restarted = await skinApi.restartInstance(
+              pending.host,
+              pending.instanceId,
+            );
+            await installOnInstance(pending.skin, restarted);
           })
         }
-        opened={restartSkin !== null}
+        opened={restartRequest !== null}
         pending={action.isPending}
-        title={t("skins.restart.title")}
+        title={t(
+          restartRequest?.mode === "recoverWindowsWorkBuddy"
+            ? "skins.restart.workbuddy_title"
+            : "skins.restart.title",
+        )}
       />
       <SkinConfirmDialog
         description={t("skins.convert.description", { name: convertSkin?.name ?? "" })}

@@ -4,7 +4,8 @@ mod workbuddy;
 
 pub(crate) use workbuddy::{
     force_close_workbuddy_gui, launch_workbuddy, restart_workbuddy_gui_process,
-    workbuddy_gui_process_command_lines, workbuddy_gui_processes, workbuddy_is_gui_running,
+    workbuddy_endpoint_owned_by_root, workbuddy_gui_process_command_lines, workbuddy_gui_processes,
+    workbuddy_is_gui_running,
 };
 
 use std::collections::HashSet;
@@ -516,8 +517,9 @@ fn is_verified_gui_process_path(path: &Path, traditional_candidates: &[PathBuf])
 
 /// 执行 Windows Codex 宿主中的 `paths_equal_ignore_ascii_case` 步骤。
 fn paths_equal_ignore_ascii_case(left: &Path, right: &Path) -> bool {
-    left.to_string_lossy()
-        .eq_ignore_ascii_case(&right.to_string_lossy())
+    let left = left.to_string_lossy().replace('/', "\\");
+    let right = right.to_string_lossy().replace('/', "\\");
+    left.eq_ignore_ascii_case(&right)
 }
 
 /// 执行 Windows Codex 宿主中的 `is_store_gui_path` 步骤。

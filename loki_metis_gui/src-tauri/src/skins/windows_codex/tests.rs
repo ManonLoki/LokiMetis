@@ -101,6 +101,19 @@
     }
 
     #[test]
+    /// 验证 Windows 候选路径混用分隔符时仍能识别同一个官方可执行文件。
+    fn mixed_windows_separators_identify_same_verified_executable() {
+        assert!(super::paths_equal_ignore_ascii_case(
+            Path::new(r"C:\Users\test\AppData\Local\Programs\WorkBuddy\WorkBuddy.exe"),
+            Path::new(r"c:\users\test\appdata\local\Programs/WorkBuddy/WorkBuddy.exe"),
+        ));
+        assert!(!super::paths_equal_ignore_ascii_case(
+            Path::new(r"C:\Users\test\AppData\Local\Programs\WorkBuddy\WorkBuddy.exe"),
+            Path::new(r"C:\Temp\WorkBuddy.exe"),
+        ));
+    }
+
+    #[test]
     /// 验证换皮迁移中的 `wmi_command_lines_require_a_matching_verified_pid` 回归场景。
     fn wmi_command_lines_require_a_matching_verified_pid() {
         let verified = vec![GuiProcess {

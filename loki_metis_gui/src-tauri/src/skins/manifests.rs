@@ -339,8 +339,12 @@ impl HandlerTaskGuard {
         self.0 = Some(task);
     }
 
-    /// 执行换皮宿主内部的 `take` 步骤。
+    /// 只移交仍存活的 handler；已结束任务不能被登记为运行中的 watcher。
     fn take(&mut self) -> Option<JoinHandle<()>> {
+        if self.0.as_ref().is_some_and(JoinHandle::is_finished) {
+            self.0.take();
+            return None;
+        }
         self.0.take()
     }
 }
@@ -376,6 +380,18 @@ impl Drop for CodexOperationGuard<'_> {
         {
             *active = None;
         }
+    }
+}
+
+/// 在宿主变更期间把运行代次保持为奇数，结束（包括错误返回）后恢复为新的偶数代次。
+struct HostRuntimeMutationGuard<'a> {
+    generation: &'a AtomicU64,
+}
+
+impl Drop for HostRuntimeMutationGuard<'_> {
+    /// 结束宿主变更并使所有变更前或变更中的异步探针失效。
+    fn drop(&mut self) {
+        self.generation.fetch_add(1, Ordering::AcqRel);
     }
 }
 
@@ -453,8 +469,44 @@ struct InjectionReport {
     verified_pages: usize,
     injected_pages: usize,
     failed_pages: usize,
+    transaction_targets: BTreeSet<String>,
     compatibility_applied_rules: BTreeSet<String>,
     compatibility_skipped_rules: BTreeSet<String>,
+}
+
+#[derive(Clone)]
+/// 保存一次初始注入的随机所有权标记与已登记页面；外层取消 future 后仍可回滚。
+struct InjectionTransaction {
+    id: Arc<str>,
+    targets: Arc<StdMutex<BTreeSet<String>>>,
+}
+
+impl InjectionTransaction {
+    fn new(id: &str) -> Self {
+        Self {
+            id: Arc::from(id),
+            targets: Arc::new(StdMutex::new(BTreeSet::new())),
+        }
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// 必须在写 DOM marker 前登记；锁中毒时保留集合并继续完成补偿路径。
+    fn track(&self, target_id: String) {
+        self.targets
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(target_id);
+    }
+
+    fn tracked_targets(&self) -> BTreeSet<String> {
+        self.targets
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
 }
 
 impl InjectionReport {

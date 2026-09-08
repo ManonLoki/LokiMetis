@@ -60,6 +60,33 @@ describe("typed skin host API", () => {
     });
   });
 
+  /** 锁定 WorkBuddy 风险确认后的恢复与安装由同一命令完成，不接受前端 PID 或路径。 */
+  test("confirmed workbuddy recovery is atomic with installation", async () => {
+    mocks.invoke.mockResolvedValueOnce(true).mockResolvedValueOnce({
+      type: "installed",
+      status: {},
+    });
+    await expect(skinApi.supportsWindowsWorkBuddyRecovery()).resolves.toBe(true);
+    await skinApi.install(
+      "workBuddy",
+      { id: "minecraft", source: "builtin" },
+      false,
+      null,
+      true,
+    );
+    expect(mocks.invoke).toHaveBeenNthCalledWith(
+      1,
+      "supports_windows_workbuddy_recovery",
+      undefined,
+    );
+    expect(mocks.invoke).toHaveBeenNthCalledWith(2, "install_skin", {
+      allowAppearanceMismatch: false,
+      allowWorkBuddyRecovery: true,
+      host: "workBuddy",
+      skin: { id: "minecraft", source: "builtin" },
+    });
+  });
+
   /** 验证导入预检进度只通过类型化 Channel 回传。 */
   test("import preflight streams bounded progress", async () => {
     const onProgress = vi.fn();

@@ -1,5 +1,5 @@
 schema_version: 2
-purpose: "Codex 组件语义、页面探测、选择器归属与样式映射的唯一参考源"
+purpose: "Codex 与 WorkBuddy 组件语义、页面探测、选择器归属与样式映射的唯一参考源"
 
 observed_host:
   product: "Codex desktop"
@@ -7,6 +7,12 @@ observed_host:
   version: "26.803.10989.0"
   observed_on: "2026-08-13"
   evidence: "当前安装版 app.asar 前端模块静态分析确认主表面稳定属性；既有 CDP 证据继续覆盖其他锚点，不等同于全部页面真实注入通过"
+
+observed_workbuddy_host:
+  product: "WorkBuddy desktop"
+  version: "5.3.5"
+  observed_on: "2026-09-08"
+  evidence: "Windows 官方安装包静态分析与回环 CDP 只读结构探测确认宿主标记、布局表面和输入区派生锚点；不包含用户会话内容"
 
 stability:
   A: "HTML 语义、ARIA、role、固定 id、data-testid、data-feature 或 data-slot；优先"
@@ -25,6 +31,177 @@ surface_order:
   - other
 
 components:
+  - component_id: workbuddy.document-root
+    kind: workbuddy-native
+    meaning: "WorkBuddy 主文档与宿主页验证"
+    selectors:
+      - selector: "#root"
+        maps_to: app_mount
+        stability: A
+      - selector: "body[data-application-name='workbuddy'][data-electron-desktop='true'][data-product-name='WorkBuddy']"
+        maps_to: verified_host_body
+        stability: A
+        usage: host-validation-only
+
+  - component_id: workbuddy.shell
+    kind: workbuddy-native
+    meaning: "WorkBuddy 全屏应用外壳与宿主自有背景映射"
+    selectors:
+      - selector: ".teams-container"
+        maps_to: component_root
+        stability: B
+
+  - component_id: workbuddy.sidebar
+    kind: workbuddy-native
+    meaning: "WorkBuddy 会话侧栏及其不透明列表表面"
+    selectors:
+      - selector: "[data-view-id='sidebar']"
+        maps_to: sidebar_view
+        stability: A
+      - selector: ".conversation-sidebar"
+        maps_to: sidebar_frame
+        stability: B
+      - selector: ".conversation-list"
+        maps_to: sidebar_surface
+        stability: B
+
+  - component_id: workbuddy.main
+    kind: workbuddy-native
+    meaning: "WorkBuddy 主内容视图与首页、会话内容层"
+    selectors:
+      - selector: "[data-view-id='main-content']"
+        maps_to: main_view
+        stability: A
+      - selector: ".teams-main-content"
+        maps_to: main_frame
+        stability: B
+      - selector: ".main-content"
+        maps_to: main_surface
+        stability: B
+      - selector: ".wb-home-page"
+        maps_to: home_content
+        stability: B
+      - selector: ".chat-container"
+        maps_to: conversation_content
+        stability: B
+      - selector: ".wb-cb-chat"
+        maps_to: cross_surface_chat_root
+        stability: B
+
+  - component_id: workbuddy.header
+    kind: workbuddy-native
+    meaning: "WorkBuddy 原生菜单栏与窗口控制区"
+    selectors:
+      - selector: "#workbuddy-menubar-container"
+        maps_to: application_menu_bar
+        stability: A
+      - selector: "#workbuddy-window-controls-container"
+        maps_to: window_controls
+        stability: A
+      - selector: "[role='menubar']"
+        maps_to: application_menu
+        stability: A
+
+  - component_id: workbuddy.composer
+    kind: workbuddy-native
+    meaning: "从 WorkBuddy 跨页面聊天根内的稳定工具栏与语义编辑器派生的唯一输入表面"
+    selectors:
+      - selector: ".wb-home-composer"
+        maps_to: home_composer_layout
+        stability: B
+        usage: home-layout-only
+        note: "仅包裹首页快捷项与输入槽，不是 ChatInput 样式目标"
+      - selector: ".wb-home-composer__input-slot"
+        maps_to: home_composer_input_slot
+        stability: B
+        usage: home-layout-only
+        note: "仅首页存在并提供渐变与 CB 变量默认值；实际目标仍由 section 内语义探针派生"
+      - selector: "[data-cb-chat-input-toolbar-selector='true']"
+        maps_to: composer_toolbar_seed
+        stability: A
+        resolution: "closest('section')"
+      - selector: "[data-cb-chat-input-toolbar-right='true']"
+        maps_to: composer_toolbar_confirmation
+        stability: A
+      - selector: "[role='textbox'][contenteditable='true']"
+        maps_to: composer_editor_confirmation
+        stability: A
+
+  - component_id: workbuddy.detail
+    kind: workbuddy-native
+    meaning: "WorkBuddy 详情与次级侧栏表面"
+    selectors:
+      - selector: ".detail-panel-container"
+        maps_to: detail_panel
+        stability: B
+      - selector: ".sidebar-next"
+        maps_to: secondary_sidebar
+        stability: B
+
+  - component_id: workbuddy.compatibility-aliases
+    kind: skin-state
+    meaning: "LokiMetis 宿主适配器添加到 WorkBuddy 原生节点的可撤销样式别名"
+    selectors:
+      - selector: ".loki-metis-workbuddy-shell"
+        maps_to: shell_host_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-sidebar-frame"
+        maps_to: transparent_sidebar_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-sidebar-surface"
+        maps_to: sidebar_panel_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-main-frame"
+        maps_to: transparent_main_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-main-surface"
+        maps_to: main_surface_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-content"
+        maps_to: transparent_content_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-header"
+        maps_to: header_host_alias
+        stability: internal
+        usage: host-compatibility-owned
+      - selector: ".loki-metis-workbuddy-composer"
+        maps_to: composer_host_alias
+        stability: internal
+        usage: host-compatibility-owned
+        note: "仅在同一 section 中存在两类工具栏标记和唯一语义编辑器时添加；候选迁移或歧义时撤销旧别名，歧义以 skipped 报告"
+      - selector: ".loki-metis-workbuddy-detail-surface"
+        maps_to: detail_panel_alias
+        stability: internal
+        usage: host-compatibility-owned
+    token_mappings:
+      - target: "--cb-content-background"
+        maps_from: "transparent；外层别名背景使用 --skin-panel 与 --skin-composer-opacity"
+      - target: "--cb-content-border-color"
+        maps_from: "--skin-line"
+      - target: "--cb-main-area-background"
+        maps_from: "transparent；继承外层别名的纯主题背景"
+      - target: "--cb-main-area-border-color"
+        maps_from: "--skin-line"
+      - target: "--cb-main-area-box-shadow"
+        maps_from: "none；外层别名阴影使用 --skin-bg 与 --skin-shadow-opacity"
+
+  - component_id: workbuddy.compatibility-lifecycle
+    kind: skin-state
+    meaning: "WorkBuddy 宿主适配器的版本、样式与对称清理状态"
+    selectors:
+      - selector: "html[data-loki-metis-workbuddy-skin-compat]"
+        maps_to: compatibility_version
+        stability: internal
+      - selector: "#loki-metis-workbuddy-skin-compat-style"
+        maps_to: compatibility_style
+        stability: internal
+
   - component_id: codex.document-root
     kind: codex-native
     meaning: "Codex 主文档与宿主页验证"
@@ -533,7 +710,7 @@ components:
     config_reference: "photo-panels.md"
 
 selector_rules:
-  - "任何宿主 CSS 选择器或 JavaScript 探测器必须归属于 kind=codex-native 的 component_id"
+  - "任何原生宿主 CSS 选择器或 JavaScript 探测器必须归属于对应宿主的 kind=codex-native 或 kind=workbuddy-native component_id；适配器自有别名、版本和样式节点必须归属于 kind=skin-state"
   - "优先级固定为 A 级属性/语义选择器、B 级路由或具名 class、C 级组合条件、D 级结构选择器"
   - "路由只用于属性标记无法覆盖的空白或错误页；CSS 必须消费 skin-state，不得直接依赖 URL"
   - "组合探测产生的状态必须归属于 kind=skin-state"

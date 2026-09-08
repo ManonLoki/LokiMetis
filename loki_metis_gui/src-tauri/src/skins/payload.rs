@@ -306,11 +306,50 @@ fn stable_instance_id(process: &PlatformCodexProcess) -> String {
     format!("codex-{}-{hash:016x}", process.pid)
 }
 
+/// WorkBuddy 的命令行来自可降级的 WMI 探针，实例身份只依赖 PID 与已验证路径。
+fn stable_workbuddy_instance_id(process: &PlatformCodexProcess) -> String {
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in process
+        .executable
+        .to_string_lossy()
+        .replace('/', "\\")
+        .bytes()
+    {
+        hash ^= u64::from(byte.to_ascii_lowercase());
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("workbuddy-{}-{hash:016x}", process.pid)
+}
+
 /// 执行换皮宿主内部的 `resolved_instance` 步骤。
 fn resolved_instance(process: PlatformCodexProcess) -> ResolvedCodexInstance {
+    let id = stable_instance_id(&process);
+    resolved_instance_with_id(process, id)
+}
+
+/// 按宿主选择稳定身份来源；命令行仍只用于端口、配置和安全重启参数。
+fn resolved_instance_for_host(
+    host: SkinHostKind,
+    process: PlatformCodexProcess,
+) -> ResolvedCodexInstance {
+    let id = match host {
+        SkinHostKind::Codex => stable_instance_id(&process),
+        SkinHostKind::WorkBuddy if cfg!(target_os = "windows") => {
+            stable_workbuddy_instance_id(&process)
+        }
+        SkinHostKind::WorkBuddy => stable_instance_id(&process),
+    };
+    resolved_instance_with_id(process, id)
+}
+
+/// 使用已经确定的稳定 ID 解析实例其余运行信息。
+fn resolved_instance_with_id(
+    process: PlatformCodexProcess,
+    id: String,
+) -> ResolvedCodexInstance {
     let arguments = reusable_process_arguments(&process.command_line);
     ResolvedCodexInstance {
-        id: stable_instance_id(&process),
+        id,
         debug_port: debug_port_from_command_line(&process.command_line),
         profile: user_data_profile(&arguments),
         process,

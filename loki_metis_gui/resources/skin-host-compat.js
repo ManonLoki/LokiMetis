@@ -2,7 +2,7 @@
   "use strict";
 
   const STATE_KEY = "__BIFANG_CODEX_SKIN_COMPAT__";
-  const VERSION = "4";
+  const VERSION = "5";
   const VERSION_ATTRIBUTE = "data-bifang-codex-skin-compat";
   const DEBOUNCE_MILLISECONDS = 160;
   const COMPATIBILITY_SELECTOR = [

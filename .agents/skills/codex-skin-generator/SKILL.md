@@ -27,7 +27,7 @@ description: 创建、改造或静态验证 LokiMetis 可管理的 Codex 桌面�
 ## 实现流程
 
 1. 默认生成 `schemaVersion: 3` 浅色与深色双模式纯主题：`theme.json` 保存严格元数据与颜色模式声明，`theme.css` 保存基础白名单变量和共享本地图片引用，`theme.light.css`、`theme.dark.css` 按声明模式提供增量变量。双模式先自动建立两套完整可用、语义一致且不是简单反色的配色；不要要求用户先给出两套色值。模式 CSS 支持高级的独立背景图片引用，但默认生成器继续共用基础背景且不主动提示；只有用户明确要求不同模式使用不同图片时才采用。用户明确选择单模式时只声明并生成对应模式。宿主选择器、普通属性和 JavaScript 仍由LokiMetis统一运行时负责。仅在用户明确要求旧六文件格式时，才按 `component-map.yaml` 维护包内选择器和脚本。
-2. 区分三类对象：`codex-native` 是原生 Codex DOM，`skin-state` 是注入脚本添加到原生节点的状态，`skin-extension` 是皮肤自行创建的 DOM。
+2. 区分四类对象：`codex-native` 是原生 Codex DOM，`workbuddy-native` 是原生 WorkBuddy DOM，`skin-state` 是宿主适配器或注入脚本添加到原生节点的可撤销状态，`skin-extension` 是皮肤自行创建的 DOM。
 3. 按固定顺序选择锚点：A 级 `data-*`、ARIA、`role`、固定 id 与 HTML 属性；B 级稳定路由或具名 class；C/D 级组合、文本或结构。只有属性标记无法覆盖空/错误状态时才用路由，C/D 级只用于局部增强并记录降级行为。
 4. 使用自有 class 或 `data-*` 表达组合状态；CSS 消费状态，不重复复杂 DOM 探测。
 5. 保持注入幂等与卸载对称：样式根、扩展根、观察器、监听器、计时器、Blob URL、临时 class 和属性都必须可清理。

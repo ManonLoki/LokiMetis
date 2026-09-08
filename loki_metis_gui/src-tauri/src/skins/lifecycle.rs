@@ -50,6 +50,20 @@ async fn stop_watch_task(task: Option<WatchTask>) -> Result<usize, AppError> {
     result
 }
 
+/// 停止一组已经从运行态摘除的监视任务；即使其中一个清理失败，也继续回收其余任务。
+async fn stop_watch_tasks(tasks: Vec<WatchTask>) -> Result<usize, AppError> {
+    let mut affected_pages = 0_usize;
+    let mut first_error = None;
+    for task in tasks {
+        match stop_watch_task(Some(task)).await {
+            Ok(affected) => affected_pages = affected_pages.saturating_add(affected),
+            Err(error) if first_error.is_none() => first_error = Some(error),
+            Err(_) => {}
+        }
+    }
+    first_error.map_or(Ok(affected_pages), Err)
+}
+
 /// 执行换皮宿主内部的 `prompt_unavailable` 步骤。
 fn prompt_unavailable(message: impl Into<String>) -> AppError {
     AppError::new("skin.prompt_unavailable", message)

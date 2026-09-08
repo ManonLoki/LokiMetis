@@ -164,7 +164,7 @@ LokiMetis构建载荷时会对 `renderer-inject.js` 做字面替换。旧六文�
 
 LokiMetis宿主从皮肤载荷 `1.2.0` 起可在注入前运行独立版本的兼容适配器。适配器不是皮肤包的一部分，不会改写六文件目录或 ZIP；旧皮肤仍可继续使用原有 class 选择器。
 
-- 兼容状态为 `window.__BIFANG_CODEX_SKIN_COMPAT__`，当前适配器版本为 `4`；主表面优先使用唯一 `main[data-app-shell-main-surface]`，并保留唯一 `#root main` 的旧版回退，三条兼容规则及其规则标识保持不变。适配器会释放已经脱离文档的自有别名节点，并忽略不包含兼容锚点的普通内容变化。
+- 兼容状态为 `window.__BIFANG_CODEX_SKIN_COMPAT__`，当前适配器版本为 `5`。Codex 主表面优先使用唯一 `main[data-app-shell-main-surface]`，并保留唯一 `#root main` 的旧版回退，三条既有兼容规则及其规则标识保持不变。WorkBuddy 使用独立宿主适配器：只接受已验证的 WorkBuddy body 标记，把外壳、侧栏、主区、标题栏、详情区映射到自有别名，并从聊天根内的稳定工具栏标记与唯一语义编辑器派生 composer；不把 WorkBuddy 伪装成 Codex DOM。两类适配器都会释放已经脱离文档的自有别名节点，并忽略不包含兼容锚点的普通内容变化。
 - 适配器只在稳定候选唯一时补充 `main-surface`、`app-header-tint` 与 `composer-surface-chrome`。
 - 原生已有的旧 class 归宿主所有；清理只删除适配器自己添加的 class。
 - 宿主可能在首次水合时重写稳定候选的 `class`；适配器会防抖恢复自有别名，皮肤不应自行增加全局 DOM 监听来补救该时序。

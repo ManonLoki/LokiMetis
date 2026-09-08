@@ -90,6 +90,9 @@
     #[test]
     fn workbuddy_page_probe_rejects_codex_and_remote_pages() {
         assert!(WORKBUDDY_PROBE_SCRIPT.contains("document.title === 'WorkBuddy'"));
+        assert!(WORKBUDDY_PROBE_SCRIPT.contains("body?.dataset.applicationName === 'workbuddy'"));
+        assert!(WORKBUDDY_PROBE_SCRIPT.contains("body?.dataset.electronDesktop === 'true'"));
+        assert!(WORKBUDDY_PROBE_SCRIPT.contains("body?.dataset.productName === 'WorkBuddy'"));
         assert!(PageProbe {
             codex: false,
             work_buddy: true,
@@ -108,6 +111,87 @@
             url: "https://example.com".into(),
         }
         .is_verified_workbuddy());
+    }
+
+    #[test]
+    /// 注入事务必须精确匹配 nonce，并只在清理脚本成功后放弃回滚所有权。
+    fn injection_transaction_scripts_preserve_exact_rollback_ownership() {
+        let rollback = rollback_injection_transaction_expression("tx-\"quoted\"")
+            .expect("事务表达式应可编码")
+            .to_string();
+        assert!(rollback.contains(
+            "window.__LOKI_METIS_SKIN_TRANSACTION__ !== \"tx-\\\"quoted\\\"\""
+        ));
+        assert!(rollback.contains("return null"));
+        assert!(rollback.contains("const removed = (() =>"));
+        assert!(rollback.contains(
+            "if (removed === true) delete window.__LOKI_METIS_SKIN_TRANSACTION__"
+        ));
+        assert!(rollback.contains("return removed === true"));
+
+        let commit = commit_injection_transaction_expression("tx-1")
+            .expect("提交表达式应可编码")
+            .to_string();
+        assert!(commit.contains(
+            "window.__LOKI_METIS_SKIN_TRANSACTION__ !== \"tx-1\""
+        ));
+        assert!(commit.contains("delete window.__LOKI_METIS_SKIN_TRANSACTION__"));
+    }
+
+    #[test]
+    /// 页面任务被取消并丢弃后，外层事务仍必须持有副作用发生前登记的 target。
+    fn injection_transaction_tracker_survives_page_future_drop() {
+        let transaction = InjectionTransaction::new("tx-1");
+        let page_future_owner = transaction.clone();
+        page_future_owner.track("target-a".into());
+        drop(page_future_owner);
+        assert_eq!(
+            transaction.tracked_targets(),
+            std::collections::BTreeSet::from(["target-a".to_owned()])
+        );
+    }
+
+    #[test]
+    /// 已结束的 CDP handler 不得移交给 watcher 并把安装误报为运行中。
+    fn handler_task_guard_rejects_finished_task() {
+        tauri::async_runtime::block_on(async {
+            let task = tokio::spawn(async {});
+            while !task.is_finished() {
+                tokio::task::yield_now().await;
+            }
+            let mut guard = HandlerTaskGuard::new(task);
+            assert!(guard.take().is_none());
+        });
+    }
+
+    #[test]
+    /// 任一宿主页清理失败都必须触发端点兜底，不能被其它页面的成功掩盖。
+    fn partial_page_cleanup_is_an_error() {
+        assert_eq!(finish_cleanup_report(2, 0).expect("全量成功"), 2);
+        let error = finish_cleanup_report(1, 1).expect_err("部分失败必须上抛");
+        assert_eq!(error.code, "skin.cdp_cleanup_failed");
+        assert_eq!(error.details, ["removed_pages=1", "failed_pages=1"]);
+    }
+
+    #[test]
+    /// 验证 WorkBuddy 专属适配器受宿主标记约束，并具备独立样式与对称清理接口。
+    fn workbuddy_compatibility_adapter_has_bounded_lifecycle() {
+        assert!(HOST_COMPATIBILITY_SCRIPT.contains("const VERSION = \"5\""));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("const VERSION = \"5\""));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("data-application-name"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("data-electron-desktop"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("data-product-name"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains(".teams-container"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains(".conversation-list"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains(".main-content"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains(".wb-cb-chat"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("data-cb-chat-input-toolbar-selector"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("loki-metis-workbuddy-skin-compat-style"));
+        assert!(WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("cleanup"));
+        assert!(!WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("fetch("));
+        assert!(!WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("XMLHttpRequest"));
+        assert!(!WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("_editable_"));
+        assert!(!WORKBUDDY_HOST_COMPATIBILITY_SCRIPT.contains("class*="));
     }
 
     #[test]
@@ -202,6 +286,137 @@
             )]),
             vec![CdpEndpoint::default()]
         );
+    }
+
+    #[test]
+    /// 验证 WorkBuddy renderer 的自定义端口优先于 9441 宿主默认回退。
+    fn workbuddy_endpoint_candidates_keep_renderer_port_and_host_default() {
+        assert_eq!(
+            host_endpoint_candidates_from_commands(
+                SkinHostKind::WorkBuddy,
+                vec![(
+                    51,
+                    "WorkBuddy.exe --type=renderer --remote-debugging-port=9442".into(),
+                )],
+                None,
+            ),
+            vec![CdpEndpoint::new(9442), CdpEndpoint::new(9441)]
+        );
+    }
+
+    #[test]
+    /// WorkBuddy 显式声明 9341 时必须保留它，不能误当成 Codex 自动回退删除。
+    fn workbuddy_endpoint_candidates_preserve_explicit_codex_default_port() {
+        assert_eq!(
+            host_endpoint_candidates_from_commands(
+                SkinHostKind::WorkBuddy,
+                vec![(
+                    52,
+                    "WorkBuddy.exe --type=renderer --remote-debugging-port=9341".into(),
+                )],
+                None,
+            ),
+            vec![CdpEndpoint::new(9341), CdpEndpoint::new(9441)]
+        );
+    }
+
+    #[test]
+    /// 验证 WMI 命令行不可用时，刚验证过的动态端点仍能跨恢复后的首次重扫保留。
+    fn workbuddy_endpoint_candidates_prefer_verified_runtime_hint_without_wmi() {
+        assert_eq!(
+            host_endpoint_candidates_from_commands(
+                SkinHostKind::WorkBuddy,
+                Vec::new(),
+                Some(CdpEndpoint::new(9442)),
+            ),
+            vec![CdpEndpoint::new(9442), CdpEndpoint::new(9441)]
+        );
+    }
+
+    #[test]
+    /// WMI 命令行从可用降级为空时，同一 WorkBuddy 根的实例 ID 必须保持不变。
+    fn workbuddy_instance_id_does_not_depend_on_command_line() {
+        let process = |command_line: &str| PlatformCodexProcess {
+            pid: 77,
+            executable: PathBuf::from(
+                r"C:\Users\test\AppData\Local\Programs\WorkBuddy\WorkBuddy.exe",
+            ),
+            command_line: command_line.into(),
+        };
+        let with_wmi = resolved_instance_for_host(
+            SkinHostKind::WorkBuddy,
+            process("WorkBuddy.exe --remote-debugging-port=9442"),
+        );
+        let without_wmi =
+            resolved_instance_for_host(SkinHostKind::WorkBuddy, process(""));
+        assert_eq!(with_wmi.id, without_wmi.id);
+        assert_eq!(with_wmi.debug_port, Some(9442));
+        assert_eq!(without_wmi.debug_port, None);
+    }
+
+    #[test]
+    /// 已验证 CDP 只在 WorkBuddy 恰有一个可信树根时复用，零根和多根都须恢复。
+    fn ready_workbuddy_runtime_is_reused_only_for_a_single_root() {
+        assert!(ready_runtime_can_be_reused(SkinHostKind::Codex, 3));
+        assert!(!ready_runtime_can_be_reused(SkinHostKind::WorkBuddy, 0));
+        assert!(ready_runtime_can_be_reused(SkinHostKind::WorkBuddy, 1));
+        assert!(!ready_runtime_can_be_reused(SkinHostKind::WorkBuddy, 2));
+    }
+
+    #[test]
+    /// WorkBuddy 存活时的 CDP 页面故障应进入确认恢复，取消与非连接错误不得被改写。
+    fn workbuddy_connection_failures_use_recovery_contract() {
+        assert!(should_request_workbuddy_recovery(
+            SkinHostKind::WorkBuddy,
+            "skin.cdp_request_timeout",
+            true,
+        ));
+        assert!(should_request_workbuddy_recovery(
+            SkinHostKind::WorkBuddy,
+            "skin.workbuddy_page_not_found",
+            true,
+        ));
+        assert!(!should_request_workbuddy_recovery(
+            SkinHostKind::WorkBuddy,
+            "skin.cdp_request_timeout",
+            false,
+        ));
+        assert!(!should_request_workbuddy_recovery(
+            SkinHostKind::Codex,
+            "skin.cdp_request_timeout",
+            true,
+        ));
+        assert!(!should_request_workbuddy_recovery(
+            SkinHostKind::WorkBuddy,
+            "skin.workbuddy_process_inspection_failed",
+            true,
+        ));
+    }
+
+    #[test]
+    /// WorkBuddy 从根 A 交接到根 B 时，即使复用了同一端点，也不能把注入状态登记到旧 ID。
+    fn workbuddy_binding_rejects_single_root_pid_handoff() {
+        let process = |pid| PlatformCodexProcess {
+            pid,
+            executable: PathBuf::from(
+                r"C:\Users\test\AppData\Local\Programs\WorkBuddy\WorkBuddy.exe",
+            ),
+            command_line: "WorkBuddy.exe --remote-debugging-port=9442".into(),
+        };
+        let endpoint = CdpEndpoint::new(9442);
+        let root_a = resolved_instance_for_host(SkinHostKind::WorkBuddy, process(70));
+        let root_b = resolved_instance_for_host(SkinHostKind::WorkBuddy, process(71));
+
+        let bound = unique_workbuddy_target_for_endpoint(&[root_a.clone()], endpoint)
+            .expect("唯一根应绑定到已验证端点");
+        assert!(workbuddy_target_binding_matches(
+            &root_a, &bound, endpoint
+        ));
+        assert!(!workbuddy_target_binding_matches(
+            &root_a, &root_b, endpoint
+        ));
+        assert!(unique_workbuddy_target_for_endpoint(&[], endpoint).is_none());
+        assert!(unique_workbuddy_target_for_endpoint(&[root_a, root_b], endpoint).is_none());
     }
 
     #[test]

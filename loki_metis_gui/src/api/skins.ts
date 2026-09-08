@@ -253,18 +253,22 @@ export const skinApi = {
     invokeSkin<CodexInstance>("restart_skin_host_instance", { host, instanceId }),
   launchHost: (host: SkinHostKind) =>
     invokeSkin<CodexRuntimeStatus>("launch_skin_host", { host }),
+  supportsWindowsWorkBuddyRecovery: () =>
+    invokeSkin<boolean>("supports_windows_workbuddy_recovery"),
   install: (
     host: SkinHostKind,
     skin: SkinReference,
     allowAppearanceMismatch = false,
     instanceId: string | null = null,
+    allowWorkBuddyRecovery = false,
   ) =>
-    invokeSkin<InstallSkinResult>(
-      "install_skin",
-      instanceId === null
-        ? { host, skin, allowAppearanceMismatch }
-        : { host, skin, allowAppearanceMismatch, instanceId },
-    ),
+    invokeSkin<InstallSkinResult>("install_skin", {
+      host,
+      skin,
+      allowAppearanceMismatch,
+      ...(instanceId === null ? {} : { instanceId }),
+      ...(allowWorkBuddyRecovery ? { allowWorkBuddyRecovery: true } : {}),
+    }),
   uninstall: (host: SkinHostKind, instanceId: string | null = null) =>
     invokeSkin<SkinStatus>(
       "uninstall_skin",
