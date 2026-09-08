@@ -46,11 +46,7 @@ export const dashboardEnUS = {
       dashboardDescription: "View local usage and data sources",
       chartsSection: "Charts",
       chartsDescription: "View overview trends and multidimensional usage charts",
-      sponsorSection: "Sponsor",
-      sponsorDescription: "View sponsor tiers and payment instructions",
       settingsSection: "Settings",
-      aboutSection: "About",
-      aboutDescription: "View the app version, check for updates, and author information",
       itemAria: "{{label}}: {{description}}",
       overview: {
         label: "Overview",
@@ -901,93 +897,5 @@ export const dashboardEnUS = {
       grokBuildCli:
         "This app’s data directory / clients / grok-build-cli / usage-index.sqlite3",
     },
-  },
-  updater: {
-    new_version_available: "New version available",
-    new_version_question: "A new version is available. Update now?",
-    update_now: "Update Now",
-    later: "Later",
-    check_update: "Check for Updates",
-  },
-  sponsor: {
-    title: "Freely Maintained by Shoucheng & Feiying Studio",
-    subtitle_no_service: "No real-time support / unlimited Q&A / remote troubleshooting",
-    subtitle_thanks: ", thank you for understanding 🙏",
-    capabilities_label: "Tech Stack:",
-    capability_browser: "Browser",
-    capability_proxy: "Network Proxy",
-    capability_cloud: "Cloud Services",
-    capability_rpa: "RPA Automation",
-    pc_focus: "Focused on PC",
-    pc_platform: "(Windows/MacOS/Linux)",
-    pc_growing:
-      ", multi-language development, AI business implementation and more are continuously growing.",
-    scan_to_sponsor: "Scan to Sponsor",
-    currency_unit: "CNY",
-    tier1_name: "A Cup of Milk Tea",
-    tier2_name: "A Good Meal",
-    tier3_name: "Big Spender",
-    payment_instructions:
-      "After payment, add QQ 2222980 with screenshot proof to join the group.",
-    sponsor_message:
-      "Sponsoring is a way to support the author and team. We will do our best to be worthy of your support.",
-    tier1_b1: "Early access and private version download rights",
-    tier1_b2_main: "QQ Message Support",
-    tier1_b2_note: "Does not include Q&A/troubleshooting commitments",
-    tier1_b3_main: "Join QQ Group (Note: Group is muted)",
-    tier1_b3_note:
-      "Version releases, video releases, business case releases (if any)\nOther valuable content.",
-    tier1_b4_main: "1 Text Session (1 question)",
-    tier1_b4_note:
-      "Async reply, suggested within 10 min / ≤800 chars\nSuitable for: usage ideas, process advice, direction guidance\nNo remote troubleshooting, no guaranteed resolution",
-    tier2_b1: "Includes all of the above",
-    tier2_b2_main: "Priority scheduling for feature requests",
-    tier2_b2_note: "Note: Not a guaranteed development",
-    tier2_b3_main: "1 Voice Session 30 min (by appointment)",
-    tier2_b3_note:
-      "Suitable for: business process review, tool strategy, plan review\nExcludes custom development/long-term follow-up",
-    tier3_b1: "Includes all of the above",
-    tier3_b2_main: "1 In-Person Meeting 2 hours",
-    tier3_b2_note:
-      "Very limited slots, by appointment\nOnly in same city or arranged cities; travel/food not included\nAuthor may accept or decline based on availability",
-  },
-  about: {
-    app_name: "Bifang AI Usage Dashboard",
-    app_tagline: "View local Codex, Claude Code, and Grok usage, kept separate by client",
-    version: "Version",
-    loading: "Loading…",
-    check_update: "Check for Updates",
-    release_notes: "Release Notes",
-    release_notes_title: "Release Notes",
-    release_notes_loading: "Loading bundled release notes…",
-    release_notes_unavailable:
-      "This development build does not include formal release notes yet.",
-    release_notes_empty: "No formal release notes are available.",
-    release_notes_entry: "-----------Release Notes {{date}} {{version}}----------",
-    release_notes_features: "Feature optimizations",
-    release_notes_fixes: "Bug fixes",
-    release_notes_none: "None",
-    go_sponsor: "Sponsor",
-    contact_author_title: "Contact the author",
-    support_thanks: "Thank you for your support and feedback",
-    studio: "Shoucheng Studio",
-    qq_label: "QQ {{qq}}",
-    features_section_label: "Core features",
-    feature_title_1: "Local usage",
-    feature_1:
-      "Reads only local Codex rollouts, Claude Code transcripts, and Grok sessions. Clients are never merged.",
-    feature_title_2: "Fixed windows",
-    feature_2:
-      "Overview and statistics use Today, Yesterday, This week, Last week, This month, and Last month, grouped by model, project, and more.",
-    feature_title_3: "Optional reporting",
-    feature_3:
-      "Aggregate snapshots are sent only after you save a collection target. An empty list makes no network requests.",
-    disclaimer_title: "Disclaimer",
-    disclaimer_1:
-      "This software/service is for learning, research, and lawful use only. Any activity that violates the laws of the People’s Republic of China is strictly prohibited.",
-    disclaimer_2:
-      "Users are solely responsible for all actions taken while using this software/service and their consequences. The developers and operators bear no legal liability.",
-    disclaimer_3:
-      "Downloading, installing, or using this software/service means you have read, understood, and accepted this disclaimer in full.",
   },
 };
