@@ -3,6 +3,34 @@
   "releases": [
     {
       "releaseDate": "2026-09-08",
+      "version": "v0.2.18",
+      "featureOptimizations": [
+        {
+          "zh-CN": "优化 Windows 安装器与 macOS Finder 的双语应用显示名、托盘菜单和“应用换肤”界面，并移除冗余的宿主启动与“只看用户皮肤”控件。",
+          "en-US": "Refined bilingual app display names for the Windows installer and macOS Finder, tray menu wording, and the App Skins interface, while removing redundant host-launch and user-only controls."
+        },
+        {
+          "zh-CN": "在 macOS 与兼容 Linux 托盘中显示全部已启用来源的当天 Token 总量，并随扫描、配置变化和跨日刷新。",
+          "en-US": "Added daily total token usage across all enabled sources to the macOS and compatible Linux tray, refreshed after scans, configuration changes, and day rollover."
+        },
+        {
+          "zh-CN": "在设置中新增固定 GitHub 仓库入口，以及微信支付和支付宝赞助二维码。",
+          "en-US": "Added a fixed GitHub repository link plus WeChat Pay and Alipay sponsorship QR codes to Settings."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Windows 安装器、卸载器、快捷方式与已安装应用可能使用错误图标的问题。",
+          "en-US": "Fixed the Windows installer, uninstaller, shortcuts, and installed-app surfaces potentially using the wrong icon."
+        },
+        {
+          "zh-CN": "修复 Windows 可执行文件缺少 Common Controls v6 清单时原生对话框入口点加载失败的问题。",
+          "en-US": "Fixed native-dialog entry-point load failures caused by a missing Common Controls v6 manifest in Windows executables."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-08",
       "version": "v0.2.16",
       "featureOptimizations": [
         {
