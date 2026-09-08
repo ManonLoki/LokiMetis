@@ -38,7 +38,10 @@
       "../resources/builtin-skins/silver-core-voyage/": "builtin-skins/silver-core-voyage/",
       "../resources/builtin-skins/woodland-dawn/": "builtin-skins/woodland-dawn/",
       "../resources/theme-runtime/": "theme-runtime/",
-      "../../.agents/skills/codex-skin-generator/": "codex-skin-generator/"
+      "../../.agents/skills/codex-skin-generator/": "codex-skin-generator/",
+      "../../LICENSE.en.md": "licenses/LICENSE.en.md",
+      "../../LICENSE.zh-CN.md": "licenses/LICENSE.zh-CN.md",
+      "../../THIRD_PARTY_NOTICES.md": "licenses/THIRD_PARTY_NOTICES.md"
     },
     "icon": [
       "icons/32x32.png"
