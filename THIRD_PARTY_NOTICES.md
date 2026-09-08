@@ -1,15 +1,15 @@
 # LokiMetis Third-Party Notices
 
-This notice covers third-party dependencies resolved for LokiMetis v0.2.14.
+This notice covers third-party dependencies resolved for LokiMetis v0.2.15.
 Copyright and license rights remain with their respective authors and projects.
 The declared license expression and source link below identify the governing terms for each package.
 
 锁定输入 / Locked inputs:
 
-- `Cargo.lock` SHA-256: `2cfaba8e3c9564da10fcac59d5f4cbe055e21f39528a5e363bd17e3dd1554d5d`
+- `Cargo.lock` SHA-256: `2a639bc997efbb03c20b1b3c9b4b6cbddb7eb2ffc778bcc4cabc5c90f779a193`
 - `loki_metis_gui/pnpm-lock.yaml` SHA-256: `bca1a16b29858e30919bc79e4369ef0ed9c7b17b223dd737e1bef150b59f49d1`
 
-## Rust dependencies (627)
+## Rust dependencies (626)
 
 | Package | Version | Declared license | Source |
 |---|---:|---|---|
@@ -560,7 +560,6 @@ The declared license expression and source link below identify the governing ter
 | windows | 0.61.3 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-collections | 0.2.0 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-core | 0.61.2 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
-| windows-core | 0.62.2 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-future | 0.2.1 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-implement | 0.60.2 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |
 | windows-interface | 0.59.3 | MIT OR Apache-2.0 | https://github.com/microsoft/windows-rs |

@@ -220,7 +220,7 @@ fn discover_executables() -> Vec<PathBuf> {
     {
         candidates.push(PathBuf::from(root).join("WorkBuddy/WorkBuddy.exe"));
     }
-    let mut discovered = Vec::new();
+    let mut discovered: Vec<PathBuf> = Vec::new();
     for candidate in candidates {
         if candidate.is_file()
             && !discovered
