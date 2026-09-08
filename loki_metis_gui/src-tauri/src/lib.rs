@@ -208,7 +208,6 @@ pub fn run() {
                     ),
                 ));
             app.manage(runtime_state);
-            spawn_periodic_local_scans(app.handle().clone());
             spawn_retention_cleanup(app.handle().clone());
             install_notification_worker(app.handle());
             let initial_enabled_tools = initial_monitor_settings
@@ -248,6 +247,7 @@ pub fn run() {
                 tracing::warn!(%error, "failed to show the default pet overlay");
             }
             install_tray(app)?;
+            spawn_periodic_local_scans(app.handle().clone());
             install_deep_link(app.handle());
             ensure_main_window_is_recoverable(app.handle())?;
             Ok(())
@@ -430,7 +430,10 @@ mod tests {
 
         let nsis = &config["bundle"]["windows"]["nsis"];
         assert_eq!(nsis["template"], "windows/nsis/installer.nsi");
-        assert_eq!(nsis["languages"], serde_json::json!(["English", "SimpChinese"]));
+        assert_eq!(
+            nsis["languages"],
+            serde_json::json!(["English", "SimpChinese"])
+        );
         assert_eq!(nsis["displayLanguageSelector"], true);
         assert_eq!(
             nsis["customLanguageFiles"]["SimpChinese"],

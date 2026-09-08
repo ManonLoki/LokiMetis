@@ -29,7 +29,7 @@ Tauri Builder 顺序固定为：
 6. `tauri-plugin-notification`，由 Rust-only worker 串行处理；
 7. `tauri-plugin-autostart`，以 OS 注册状态为权威。
 
-每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”/“Show Window”和左键恢复，浮窗显隐项按真实可见性切换为“显示浮窗”/“Show Floating Window”或“隐藏浮窗”/“Hide Floating Window”且冷启动默认显示，托盘“退出程序”/“Exit Program”真正终止应用。
+每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”/“Show Window”和左键恢复，浮窗显隐项按真实可见性切换为“显示浮窗”/“Show Floating Window”或“隐藏浮窗”/“Hide Floating Window”且冷启动默认显示，托盘“退出程序”/“Exit Program”真正终止应用。托盘安装后与既有扫描/来源/Agent 变更路径复用 core 联合窗口聚合刷新当天 Token 总数，并在 adapter 展示层按十进制 `K`/`M`/`B`、两位小数和逗号千分位格式化；无当天记录或联合读取失败时清空标题，不新增独立轮询或统计存储。Tauri 原生标题在 Windows 不受支持，Windows 保持仅图标降级。
 
 桌宠使用独立的 `pet` WebView 窗口，右键设置按需创建独立的 `pet-settings` WebView 窗口。两者都不挂主壳；`pet-settings` 关闭时销毁，下一次右键再创建，避免隐藏 WebView 常驻。桌宠布局、分页、缩放、锁定、置顶、位置和尺寸由 Rust 权威状态驱动，React 只发送交互意图并渲染一致快照。12 个展示位置及同位置最近迁移裁决属于 core 规则，不得在 Tauri 或 React 中按 Agent 枚举重新绑定。
 

@@ -432,6 +432,26 @@ pub fn local_day_start_epoch_ms(date: Date) -> Option<i64> {
     day_start_epoch_ms(date, &TimeStandard::Local, &TimeZone::system())
 }
 
+/// 返回观测时刻之后下一设备当地自然日的首个可表示瞬间。
+pub fn next_local_day_start_epoch_ms(observed_at_epoch_ms: i64) -> Option<i64> {
+    next_day_start_epoch_ms(
+        observed_at_epoch_ms,
+        &TimeStandard::Local,
+        &TimeZone::system(),
+    )
+}
+
+/// 按所选时间标准返回观测时刻之后下一民用日的首个可表示瞬间。
+pub fn next_day_start_epoch_ms(
+    observed_at_epoch_ms: i64,
+    standard: &TimeStandard,
+    device_tz: &TimeZone,
+) -> Option<i64> {
+    let today = civil_date_for_timestamp(observed_at_epoch_ms, standard, device_tz)?;
+    let tomorrow = today.checked_add(1.days()).ok()?;
+    day_start_epoch_ms(tomorrow, standard, device_tz)
+}
+
 /// 返回给定民用日在所选标准下的首个可表示瞬间。
 pub fn day_start_epoch_ms(
     date: Date,

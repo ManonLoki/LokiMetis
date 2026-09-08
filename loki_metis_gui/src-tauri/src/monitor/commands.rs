@@ -11,6 +11,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::dto::{PrivacySettingsDto, UsageClientKindDto};
 use crate::runtime::AppRuntimeState;
+use crate::tray::refresh_tray_daily_token_title;
 
 use super::{
     HookConfigWriter, HookListenerControl, HookRelayStatus, MonitorCapabilities, MonitorSettings,
@@ -138,6 +139,7 @@ pub async fn save_enabled_ai_selection(
     if hook_listener.replace_enabled_tools(&settings.enabled_ai_tools) {
         emit_pet_window_state_changed(&app);
     }
+    refresh_tray_daily_token_title(&app).await;
     Ok(EnabledAiSelectionResult {
         monitor_settings: settings,
         privacy_settings: state.privacy_settings(client).await,

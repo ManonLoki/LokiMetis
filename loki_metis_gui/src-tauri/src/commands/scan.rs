@@ -11,7 +11,7 @@ use loki_metis_core::{
 };
 #[cfg(test)]
 use loki_metis_core::{local_scan_client_failure_message, local_scan_writer_busy_failure_detail};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[cfg(test)]
 use crate::commands::scan_orchestration::spawn_scan_task;
@@ -21,6 +21,7 @@ use crate::dto::{
     ScanStateDto, ScanStatusDto, UiMessageCodeDto,
 };
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
+use crate::tray::refresh_tray_daily_token_title;
 
 use super::access::ensure_scan_start_access_by_policy;
 use super::ensure_business_access;
@@ -122,6 +123,7 @@ pub(crate) async fn start_scan_for_client(
             roots_state: Arc::clone(state.roots.get(client.into())),
         },
         local_permit,
+        None,
     );
     Ok(scan_state.snapshot().await)
 }
@@ -327,11 +329,14 @@ pub(crate) async fn refresh_indexes_requiring_upgrade(state: &AppRuntimeState) {
 /// 初始化或发现批次收敛后，统一刷新固定客户端集合的近 30 日本机索引。
 #[tauri::command]
 pub(crate) async fn refresh_local_indexes(
+    app: AppHandle,
     state: State<'_, AppRuntimeState>,
     clients: Vec<AgentClientKindDto>,
     trigger: LocalIndexRefreshTriggerDto,
 ) -> Result<Vec<ScanStatusDto>, String> {
-    refresh_local_indexes_for_state(&state, &clients, trigger).await
+    let statuses = refresh_local_indexes_for_state(&state, &clients, trigger).await?;
+    refresh_tray_daily_token_title(&app).await;
+    Ok(statuses)
 }
 
 /// 周期性调度入口：在一个共享 writer 许可内按给定顺序依次执行各客户端的
@@ -411,6 +416,7 @@ async fn execute_periodic_quick_scan(
 /// 清空当前客户端的本产品派生索引，保留数据根登记与原始客户端文件。
 #[tauri::command]
 pub(crate) async fn clear_local_index(
+    app: AppHandle,
     state: State<'_, AppRuntimeState>,
     client: AgentClientKindDto,
 ) -> Result<ClearIndexResultDto, String> {
@@ -436,6 +442,8 @@ pub(crate) async fn clear_local_index(
 
     state.mark_index_cleared(client).await;
     *state.coverages.get(client.into()).write().await = empty_coverage();
+    drop(_account_context_guard);
+    refresh_tray_daily_token_title(&app).await;
     Ok(ClearIndexResultDto {
         cleared: true,
         message: clear_local_index_success_message(client.display_name()),

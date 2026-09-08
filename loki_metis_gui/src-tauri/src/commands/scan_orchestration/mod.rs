@@ -31,6 +31,7 @@ use crate::backend::local_index::{DiscoveryResult, RegisteredRoot};
 use crate::dto::{AgentClientKindDto, ScanKindDto, ScanScopeCodeDto};
 use crate::local_view::to_source_root_dto;
 use crate::runtime::now_epoch_ms;
+use crate::tray::refresh_tray_daily_token_title;
 use client::CodexClient;
 use progress::publish_scan_progress;
 #[cfg(test)]
@@ -65,11 +66,22 @@ pub(crate) struct ScanTask {
     pub roots_state: Arc<tokio::sync::RwLock<Vec<crate::dto::SourceRootDto>>>,
 }
 
-/// 把已取得的 writer 许可持有到后台任务结束，并异步执行扫描。
-pub(crate) fn spawn_scan_task(task: ScanTask, permit: crate::backend::local_index::ScanPermit) {
+/// 把已取得的 writer 许可持有到后台扫描结束；释放 writer 后再按需刷新托盘。
+pub(crate) fn spawn_scan_task(
+    task: ScanTask,
+    permit: crate::backend::local_index::ScanPermit,
+    app_handle: Option<tauri::AppHandle>,
+) {
     tauri::async_runtime::spawn(async move {
-        let _permit = permit;
-        let _ = execute_scan_task(task).await;
+        let outcome = {
+            let _permit = permit;
+            execute_scan_task(task).await
+        };
+        if outcome.is_ok()
+            && let Some(app_handle) = app_handle
+        {
+            refresh_tray_daily_token_title(&app_handle).await;
+        }
     });
 }
 

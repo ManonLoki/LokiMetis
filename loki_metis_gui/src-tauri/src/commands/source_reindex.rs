@@ -6,7 +6,7 @@ use loki_metis_core::{
     ScanStartOrigin, local_scan_in_progress_error_message,
     source_root_operations_blocked_by_scan_message,
 };
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use super::access::ensure_scan_start_access_by_policy;
 use super::ensure_business_access;
@@ -20,6 +20,7 @@ async fn reindex_source_root_for_state(
     state: &AppRuntimeState,
     client: AgentClientKindDto,
     root_id: &str,
+    app_handle: Option<AppHandle>,
 ) -> Result<ScanStatusDto, String> {
     ensure_business_access(state).await?;
     ensure_scan_start_access_by_policy(state, ScanStartOrigin::ExplicitUser, ScanKindDto::Quick)
@@ -55,6 +56,7 @@ async fn reindex_source_root_for_state(
             roots_state: Arc::clone(state.roots.get(client.into())),
         },
         permit,
+        app_handle,
     );
     Ok(scan_state.snapshot().await)
 }
@@ -62,11 +64,12 @@ async fn reindex_source_root_for_state(
 /// IPC 入口：前端只提交客户端与稳定根 ID。
 #[tauri::command]
 pub(crate) async fn reindex_source_root(
+    app: AppHandle,
     state: State<'_, AppRuntimeState>,
     client: AgentClientKindDto,
     root_id: String,
 ) -> Result<ScanStatusDto, String> {
-    reindex_source_root_for_state(&state, client, &root_id).await
+    reindex_source_root_for_state(&state, client, &root_id, Some(app)).await
 }
 
 #[cfg(test)]
@@ -88,6 +91,7 @@ mod tests {
                 &state,
                 AgentClientKindDto::Codex,
                 "/private/not-a-root-id",
+                None,
             )
             .await,
             Err(loki_metis_core::source_root_id_invalid_message().to_owned())

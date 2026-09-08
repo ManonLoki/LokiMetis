@@ -242,8 +242,8 @@ pub use timeline::{
     filter_canonical_usage_for_local_window, filter_canonical_usage_for_window,
     first_representable_in_date, first_representable_local_instant, inclusive_calendar_range,
     local_date_for_timestamp, local_dates_for_day_count, local_dates_for_window,
-    local_day_start_epoch_ms, occurred_on_dates, occurred_on_local_dates,
-    retention_cutoff_epoch_ms,
+    local_day_start_epoch_ms, next_day_start_epoch_ms, next_local_day_start_epoch_ms,
+    occurred_on_dates, occurred_on_local_dates, retention_cutoff_epoch_ms,
 };
 pub use usage::{
     IncrementalTokenUsageDecision, SelectedTokenUsage, TokenUsage, TokenUsageError,

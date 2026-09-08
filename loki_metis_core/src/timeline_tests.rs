@@ -477,3 +477,26 @@ fn today_includes_civil_end_after_observation_and_utc_uses_utc_midnight() {
         zoned_civil_ms(2026, 7, 21, 0, 0, 0, &TimeZone::UTC)
     );
 }
+
+/// 下一自然日起点必须按民用日推进，不能把“明天”简化为固定增加 24 小时。
+#[test]
+fn next_day_start_respects_the_selected_time_zone() {
+    let device_tz = TimeZone::fixed(jiff::tz::offset(8));
+    let observed = zoned_civil_ms(2026, 8, 19, 15, 0, 0, &device_tz);
+
+    assert_eq!(
+        next_day_start_epoch_ms(observed, &TimeStandard::Local, &device_tz),
+        Some(zoned_civil_ms(2026, 8, 20, 0, 0, 0, &device_tz))
+    );
+    assert_eq!(
+        next_day_start_epoch_ms(observed, &TimeStandard::utc(), &device_tz),
+        Some(zoned_civil_ms(2026, 8, 20, 0, 0, 0, &TimeZone::UTC))
+    );
+
+    let new_york = TimeZone::get("America/New_York").expect("IANA fixture exists");
+    let dst_observed = zoned_civil_ms(2026, 3, 8, 0, 0, 0, &new_york);
+    let dst_next_day = next_day_start_epoch_ms(dst_observed, &TimeStandard::Local, &new_york)
+        .expect("next civil day starts");
+    assert_eq!(dst_next_day, zoned_civil_ms(2026, 3, 9, 0, 0, 0, &new_york));
+    assert_eq!(dst_next_day - dst_observed, 23 * 60 * 60 * 1_000);
+}

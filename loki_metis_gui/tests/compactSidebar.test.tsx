@@ -10,6 +10,7 @@ import {
   COMPACT_PADDING,
   AppSidebar,
 } from "../src/components/AppSidebar";
+import { appI18n } from "../src/i18n";
 import { TestProviders } from "./testUtils";
 
 describe("compact application sidebar", () => {
@@ -70,5 +71,27 @@ describe("compact application sidebar", () => {
     expect(onNavigate).not.toHaveBeenCalledWith("/settings");
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(onNavigate).toHaveBeenCalledWith("/settings");
+  });
+
+  /** 中文侧栏使用已批准的“应用换肤”，同时保持原有路由和点击所有权。 */
+  test("uses the approved Chinese skin navigation label", async () => {
+    await appI18n.changeLanguage("zh-CN");
+    const onNavigate = vi.fn();
+    render(
+      <TestProviders>
+        <AppSidebar
+          activePath="/skins"
+          applicationName="LokiMetis"
+          onNavigate={onNavigate}
+          version="0.2.16"
+        />
+      </TestProviders>,
+    );
+
+    const skinsNavigation = screen.getByRole("button", { name: "应用换肤" });
+    expect(skinsNavigation).toHaveAttribute("data-active", "true");
+    expect(screen.queryByRole("button", { name: "应用换皮" })).not.toBeInTheDocument();
+    await userEvent.click(skinsNavigation);
+    expect(onNavigate).toHaveBeenCalledWith("/skins");
   });
 });

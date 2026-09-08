@@ -275,6 +275,16 @@
       "change_id": "FEAT-TRAY-MENU-LABEL-REFINEMENT",
       "kind": "feature",
       "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-SKIN-NAVIGATION-LABEL-RENAME",
+      "kind": "feature",
+      "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-TRAY-DAILY-TOKEN-TOTAL",
+      "kind": "feature",
+      "required_version": "0.2.16"
     }
   ],
   "schema_version": 1,

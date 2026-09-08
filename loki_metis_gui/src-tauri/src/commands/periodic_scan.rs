@@ -1,12 +1,16 @@
 //! 用单一扫描间隔触发器驱动全部本机客户端的周期快速扫描。
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
-use loki_metis_core::{PeriodicScanTick, SourceClientKind, decide_periodic_scan_tick};
+use loki_metis_core::{
+    PeriodicScanTick, SourceClientKind, decide_periodic_scan_tick, next_local_day_start_epoch_ms,
+};
 use tauri::{AppHandle, Manager};
 
 use crate::dto::{AgentClientKindDto, ScanStateDto};
-use crate::runtime::AppRuntimeState;
+use crate::runtime::{AppRuntimeState, now_epoch_ms};
+use crate::tray::refresh_tray_daily_token_title;
 
 use super::{refresh_indexes_requiring_upgrade, run_periodic_quick_scans};
 
@@ -22,6 +26,7 @@ pub(crate) fn spawn_periodic_local_scans(app_handle: AppHandle) {
 
 /// 按当前扫描间隔循环触发一轮共享节拍。
 async fn run_shared_scan_interval_loop(app_handle: AppHandle) {
+    refresh_tray_daily_token_title(&app_handle).await;
     {
         let state = app_handle.state::<AppRuntimeState>();
         refresh_indexes_requiring_upgrade(state.inner()).await;
@@ -31,12 +36,35 @@ async fn run_shared_scan_interval_loop(app_handle: AppHandle) {
             let state = app_handle.state::<AppRuntimeState>();
             run_shared_scan_interval_tick(state.inner()).await;
         }
+        refresh_tray_daily_token_title(&app_handle).await;
         let interval = {
             let state = app_handle.state::<AppRuntimeState>();
             state.inner().scan_interval().await.duration()
         };
-        tokio::time::sleep(interval).await;
+        wait_for_scan_deadline(&app_handle, interval).await;
     }
+}
+
+/// 在不新增第二条后台循环的前提下等待下一次扫描，并在跨当地日期时先清空旧日标题。
+async fn wait_for_scan_deadline(app_handle: &AppHandle, interval: Duration) {
+    let deadline = tokio::time::Instant::now() + interval;
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        let until_day_change = duration_until_next_local_day(now_epoch_ms()).unwrap_or(remaining);
+        if until_day_change >= remaining {
+            tokio::time::sleep(remaining).await;
+            return;
+        }
+        tokio::time::sleep(until_day_change).await;
+        refresh_tray_daily_token_title(app_handle).await;
+    }
+}
+
+/// 把 core 给出的下一当地自然日起点转换为单调时钟等待时长。
+fn duration_until_next_local_day(observed_at_epoch_ms: i64) -> Option<Duration> {
+    let next_day = next_local_day_start_epoch_ms(observed_at_epoch_ms)?;
+    let milliseconds = next_day.checked_sub(observed_at_epoch_ms)?;
+    u64::try_from(milliseconds).ok().map(Duration::from_millis)
 }
 
 /// 一次间隔触发：共享 writer 空闲时按固定顺序依次扫描全部空闲客户端；忙碌则本拍放弃。

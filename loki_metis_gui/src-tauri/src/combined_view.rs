@@ -128,6 +128,29 @@ pub(crate) async fn load_combined_overview(
     })
 }
 
+/// 读取设备当地当天的完整联合 Token 总数；无调用时返回空，任一已启用来源失败时拒绝少算。
+pub(crate) async fn load_combined_today_token_total(
+    state: &AppRuntimeState,
+    observed_at_epoch_ms: i64,
+) -> Result<Option<u64>, String> {
+    let result = load_combined_overview(state, observed_at_epoch_ms, TimeStandard::Local).await?;
+    if result.workbuddy_read_failed {
+        return Err(local_read_error());
+    }
+    Ok(today_token_total(&result.local_records))
+}
+
+/// 从联合概览投影托盘所需的当天总量；调用数区分“真实零值记录”与“没有任何数据”。
+fn today_token_total(records: &LocalRecordsSectionDto) -> Option<u64> {
+    records
+        .windows
+        .iter()
+        .find(|window| window.window == UsageWindow::Today)
+        .and_then(|window| {
+            (window.fact.value.call_count > 0).then_some(window.fact.value.tokens.total_tokens)
+        })
+}
+
 /// 读取 WorkBuddy project JSONL；仅独立概览按需附加 Trace 诊断。
 /// 未安装时省略，读取失败不得静默少算。
 async fn maybe_workbuddy_snapshot(
@@ -368,5 +391,27 @@ mod tests {
             workbuddy_snapshot_outcome(Err(crate::backend::workbuddy::WorkbuddyReadError::Read)),
             WorkbuddySnapshotOutcome::ReadFailed
         ));
+    }
+
+    /// 托盘只把当天真实存在的调用投影为 Token 总数，空窗口必须保持无标题。
+    #[test]
+    fn today_token_total_distinguishes_records_from_empty_window() {
+        let summary = loki_metis_core::build_empty_local_windows(
+            &loki_metis_core::empty_coverage(),
+            1,
+            ProviderKind::CombinedLocalAgents,
+            None,
+        );
+        let mut records = map_local_windows(summary);
+        assert_eq!(today_token_total(&records), None);
+
+        let today = records
+            .windows
+            .iter_mut()
+            .find(|window| window.window == UsageWindow::Today)
+            .expect("today window");
+        today.fact.value.call_count = 1;
+        today.fact.value.tokens.total_tokens = 42;
+        assert_eq!(today_token_total(&records), Some(42));
     }
 }

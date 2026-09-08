@@ -17,7 +17,7 @@ use loki_metis_core::{
     source_root_rename, source_root_set_enabled, source_root_set_primary,
     source_root_store_error_message, validate_source_root_id,
 };
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::commands::ensure_business_access;
 use crate::dto::{AgentClientKindDto, SourceRootMutationDto};
@@ -27,6 +27,7 @@ use crate::source_commands::support::{
     parser_version_for_client, refresh_source_roots_snapshot, source_root_catalog_error_message,
     to_source_client_kind,
 };
+use crate::tray::refresh_tray_daily_token_title;
 
 /// 校验单根重新索引请求，并只把稳定根 ID 交给扫描 adapter。
 pub(crate) async fn validated_source_root_reindex_request(
@@ -52,6 +53,7 @@ pub(crate) async fn validated_source_root_reindex_request(
 /// 启用或停用已登记数据根；前端不得传入文件系统路径。
 #[tauri::command]
 pub(crate) async fn set_source_root_enabled(
+    app: AppHandle,
     state: State<'_, AppRuntimeState>,
     client: AgentClientKindDto,
     root_id: String,
@@ -79,6 +81,7 @@ pub(crate) async fn set_source_root_enabled(
         })?;
     drop(account_context_guard);
     refresh_source_roots_snapshot(&state, client).await;
+    refresh_tray_daily_token_title(&app).await;
     Ok(build_source_root_mutation_response(client, mutation))
 }
 
@@ -111,6 +114,7 @@ pub(crate) async fn rename_source_root(
 /// 移除数据根及其本产品派生索引，不删除或修改根中的客户端原始文件。
 #[tauri::command]
 pub(crate) async fn remove_source_root(
+    app: AppHandle,
     state: State<'_, AppRuntimeState>,
     client: AgentClientKindDto,
     root_id: String,
@@ -134,6 +138,7 @@ pub(crate) async fn remove_source_root(
         })?;
     drop(account_context_guard);
     refresh_source_roots_snapshot(&state, client).await;
+    refresh_tray_daily_token_title(&app).await;
     Ok(build_source_root_mutation_response(client, mutation))
 }
 
