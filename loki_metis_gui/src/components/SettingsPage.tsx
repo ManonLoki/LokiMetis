@@ -67,7 +67,7 @@ export function SettingsPage({
   const releaseNotesRequest = useQuery({
     enabled: false,
     queryKey: ["release-notes"],
-    queryFn: releaseNotesLoader,
+    queryFn: () => releaseNotesLoader(),
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   });

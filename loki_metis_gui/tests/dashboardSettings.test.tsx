@@ -170,6 +170,37 @@ describe("dashboard settings capabilities", () => {
     expect(screen.queryByText("Device identity")).not.toBeInTheDocument();
   });
 
+  /** React Query 不得把查询上下文误传成更新日志 IPC 调用器。 */
+  test("settings_page_calls_the_release_notes_loader_without_query_context", async () => {
+    const releaseNotesLoader = vi.fn().mockResolvedValue({
+      releases: [
+        {
+          bugFixes: [],
+          featureOptimizations: [
+            { "en-US": "Release smoke coverage", "zh-CN": "发布烟雾验收" },
+          ],
+          releaseDate: "2026-09-08",
+          version: "v0.2.15",
+        },
+      ],
+      schemaVersion: 2,
+    });
+    render(
+      <TestProviders>
+        <SettingsPage releaseNotesLoader={releaseNotesLoader} />
+      </TestProviders>,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "View release notes" }),
+    );
+
+    expect(releaseNotesLoader).toHaveBeenCalledWith();
+    expect(
+      await screen.findByRole("heading", { name: "2026-09-08 · v0.2.15" }),
+    ).toBeInTheDocument();
+  });
+
   /** 用量看板设置页独立承载扫描间隔与自动清理。 */
   test("dashboard_settings_owns_scan_interval_and_cleanup", async () => {
     render(
