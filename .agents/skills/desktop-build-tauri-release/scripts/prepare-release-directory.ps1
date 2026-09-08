@@ -30,8 +30,10 @@ function Remove-TreeWithoutFollowingReparsePoint {
 }
 
 $canonicalRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
-$gitTop = (& git -C $canonicalRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
+$gitTopOutput = @(& git -C $canonicalRoot rev-parse --show-toplevel 2>$null)
+$gitTopExitCode = $LASTEXITCODE
+$gitTop = $gitTopOutput | Select-Object -First 1
+if ($gitTopExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
     throw "release 准备失败：项目根目录不在 Git 仓库中"
 }
 $canonicalGitTop = (Resolve-Path -LiteralPath $gitTop.Trim()).Path
@@ -48,8 +50,10 @@ if (Test-Path -LiteralPath $releasePath) {
         throw "release 准备失败：release 是重解析点"
     }
 }
-$sourceCommit = (& git -C $canonicalRoot rev-parse --verify 'HEAD^{commit}' 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceCommit)) {
+$sourceCommitOutput = @(& git -C $canonicalRoot rev-parse --verify 'HEAD^{commit}' 2>$null)
+$sourceCommitExitCode = $LASTEXITCODE
+$sourceCommit = $sourceCommitOutput | Select-Object -First 1
+if ($sourceCommitExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($sourceCommit)) {
     throw "release 准备失败：HEAD 不能解析为源码提交"
 }
 $sourceCommit = $sourceCommit.Trim()
@@ -88,8 +92,10 @@ try {
     }
 
     Remove-TreeWithoutFollowingReparsePoint -LiteralPath $stagingParent
-    $finalCommit = (& git -C $canonicalRoot rev-parse --verify 'HEAD^{commit}' 2>$null | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($finalCommit)) {
+    $finalCommitOutput = @(& git -C $canonicalRoot rev-parse --verify 'HEAD^{commit}' 2>$null)
+    $finalCommitExitCode = $LASTEXITCODE
+    $finalCommit = $finalCommitOutput | Select-Object -First 1
+    if ($finalCommitExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($finalCommit)) {
         throw "release 准备失败：清理后无法复核 HEAD"
     }
     $finalStatus = @(& git -C $canonicalRoot status --porcelain=v1 --untracked-files=all)
