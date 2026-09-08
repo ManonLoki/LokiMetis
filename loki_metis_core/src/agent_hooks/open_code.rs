@@ -138,5 +138,4 @@ export const LokiMetisPlugin = async () => ({{
     fn uses_standalone_plugin(&self) -> bool {
         true
     }
-
 }
