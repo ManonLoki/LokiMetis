@@ -55,7 +55,7 @@ sidebar_mode = compact
 - 平台图标目录：`loki_metis_gui/src-tauri/icons/`
 - 最终母版 SHA-256：`82108611d590c195bb633261d1454f2d81461e656f81c88231b47685ec427d62`
 
-母版与前端副本必须逐字节一致；平台图标只由项目本地 Tauri `icon` 命令从该母版生成。bundle 必须完整引用 32px、128px、256px、ICNS 与 ICO 平台图标；Windows 主程序、NSIS 安装器与卸载器固定使用 `icons/icon.ico`，托盘继续从同一母版生成的 `icons/32x32.png` 读取。
+母版与前端副本必须逐字节一致；平台图标只由项目本地 Tauri `icon` 命令从该母版生成。bundle 必须完整引用 `icons/32x32.png`、`icons/128x128.png`、`icons/128x128@2x.png`、`icons/icon.icns` 与 `icons/icon.ico`；NSIS 安装器与卸载器固定使用 `icons/icon.ico`。托盘由 `default_window_icon()` 派生，因此 Windows 用 `icons/icon.ico`、macOS 与 Linux 用 `icons/32x32.png`，两者同源于该母版。
 
 ## UI 标准
 

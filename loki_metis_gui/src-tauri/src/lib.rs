@@ -402,24 +402,14 @@ mod tests {
         assert!(!super::APPLICATION_NAME.contains(env!("CARGO_PKG_VERSION")));
     }
 
-    /// Tauri 不复制产品版本，并锁定本地化名称、DMG 布局与同源平台图标。
+    /// Tauri 不复制产品版本，并保持发布 DMG 的图标位置与 GUI Profile 一致。
     #[test]
-    fn tauri_config_uses_cargo_version_localized_names_and_current_icons() {
+    fn tauri_config_uses_cargo_version_and_localized_bundle_names() {
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
 
         assert!(config.get("version").is_none());
         assert_eq!(config["productName"], "LokiMetis");
-        assert_eq!(
-            config["bundle"]["icon"],
-            serde_json::json!([
-                "icons/32x32.png",
-                "icons/128x128.png",
-                "icons/128x128@2x.png",
-                "icons/icon.icns",
-                "icons/icon.ico"
-            ])
-        );
         let dmg = &config["bundle"]["macOS"]["dmg"];
         assert_eq!(dmg["windowSize"]["width"], 660);
         assert_eq!(dmg["windowSize"]["height"], 400);
@@ -441,8 +431,6 @@ mod tests {
 
         let nsis = &config["bundle"]["windows"]["nsis"];
         assert_eq!(nsis["template"], "windows/nsis/installer.nsi");
-        assert_eq!(nsis["installerIcon"], "icons/icon.ico");
-        assert_eq!(nsis["uninstallerIcon"], "icons/icon.ico");
         assert_eq!(
             nsis["languages"],
             serde_json::json!(["English", "SimpChinese"])
@@ -452,6 +440,41 @@ mod tests {
             nsis["customLanguageFiles"]["SimpChinese"],
             "windows/nsis/languages/SimpChinese.nsh"
         );
+    }
+
+    /// bundle 必须引用磁盘上真实存在的完整平台图标集；NSIS 图标没有默认回落，必须显式指定。
+    #[test]
+    fn tauri_config_references_existing_platform_icons() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
+
+        let icons: Vec<&str> = config["bundle"]["icon"]
+            .as_array()
+            .expect("bundle icons")
+            .iter()
+            .map(|icon| icon.as_str().expect("icon path"))
+            .collect();
+
+        // Windows 主程序、托盘与 MSI 取列表里的第一个 .ico，macOS `.app` 取 .icns；
+        // 缺任何一个都会让 Tauri 回落到默认图标或直接打包失败。
+        assert!(icons.iter().any(|icon| icon.ends_with(".ico")));
+        assert!(icons.iter().any(|icon| icon.ends_with(".icns")));
+        // macOS/Linux 的 default_window_icon 取第一个 .png，托盘由它派生。
+        assert_eq!(
+            icons.iter().find(|icon| icon.ends_with(".png")),
+            Some(&"icons/32x32.png")
+        );
+
+        let nsis = &config["bundle"]["windows"]["nsis"];
+        let installer_icon = nsis["installerIcon"].as_str().expect("installer icon");
+        let uninstaller_icon = nsis["uninstallerIcon"].as_str().expect("uninstaller icon");
+        assert!(installer_icon.ends_with(".ico"));
+        assert!(uninstaller_icon.ends_with(".ico"));
+
+        let icon_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for icon in icons.into_iter().chain([installer_icon, uninstaller_icon]) {
+            assert!(icon_dir.join(icon).is_file(), "缺少平台图标 {icon}");
+        }
     }
 
     /// 平台本地化资源必须只改变用户可见名称，稳定安装身份与物理包名继续使用 LokiMetis。
