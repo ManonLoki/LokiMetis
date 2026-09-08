@@ -47,6 +47,11 @@
       "icons/32x32.png"
     ],
     "macOS": {
+      "infoPlist": "Info.plist",
+      "files": {
+        "Resources/en.lproj/InfoPlist.strings": "macos/en.lproj/InfoPlist.strings",
+        "Resources/zh-Hans.lproj/InfoPlist.strings": "macos/zh-Hans.lproj/InfoPlist.strings"
+      },
       "dmg": {
         "background": "dmg/background.png",
         "windowSize": {
@@ -61,6 +66,20 @@
           "x": 480,
           "y": 220
         }
+      }
+    },
+    "windows": {
+      "nsis": {
+        "template": "windows/nsis/installer.nsi",
+        "languages": [
+          "English",
+          "SimpChinese"
+        ],
+        "customLanguageFiles": {
+          "English": "windows/nsis/languages/English.nsh",
+          "SimpChinese": "windows/nsis/languages/SimpChinese.nsh"
+        },
+        "displayLanguageSelector": true
       }
     }
   },

@@ -20,7 +20,6 @@ import {
 import {
   IconAlertCircle,
   IconPalette,
-  IconPlayerPlay,
   IconTrash,
 } from "@tabler/icons-react";
 import { useAtom } from "jotai";
@@ -42,7 +41,6 @@ import {
 import {
   SKIN_CATALOG_QUERY_KEY,
   skinInstancesQueryKey,
-  skinRuntimeQueryKey,
   skinStatusQueryKey,
 } from "../api/query-keys";
 import { getMonitorCapabilities, getMonitorSettings } from "../api/monitor";
@@ -135,9 +133,6 @@ export function SkinPage(): ReactElement {
     hostOptions[0]?.skinHost ??
     null;
   const host = activeHost ?? "codex";
-  const hostName =
-    hostOptions.find((item) => item.skinHost === activeHost)?.name ??
-    (host === "workBuddy" ? "WorkBuddy" : "Codex");
   const hostAvailable = skinHostAvailable() && activeHost !== null;
 
   useEffect(() => {
@@ -151,12 +146,6 @@ export function SkinPage(): ReactElement {
   }, [activeHost]);
 
   const catalog = useHostQuery(hostAvailable, SKIN_CATALOG_QUERY_KEY, skinApi.list, 5_000);
-  const runtime = useHostQuery(
-    hostAvailable,
-    skinRuntimeQueryKey(host),
-    () => skinApi.runtimeStatus(host),
-    4_000,
-  );
   const instances = useHostQuery(
     hostAvailable,
     skinInstancesQueryKey(host),
@@ -188,7 +177,6 @@ export function SkinPage(): ReactElement {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: SKIN_CATALOG_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: skinStatusQueryKey(host) }),
-      queryClient.invalidateQueries({ queryKey: skinRuntimeQueryKey(host) }),
       queryClient.invalidateQueries({ queryKey: skinInstancesQueryKey(host) }),
     ]);
   }, [host, queryClient]);
@@ -242,12 +230,11 @@ export function SkinPage(): ReactElement {
   const filteredSkins = useMemo(() => {
     const term = session.search.trim().toLocaleLowerCase();
     return (catalog.data ?? []).filter((skin) => {
-      if (session.userOnly && skin.source !== "user") return false;
       return (
         !term || `${skin.name} ${skin.author} ${skin.id}`.toLocaleLowerCase().includes(term)
       );
     });
-  }, [catalog.data, session.search, session.userOnly]);
+  }, [catalog.data, session.search]);
   const rememberedDescriptor = useMemo(
     () =>
       (catalog.data ?? []).find(
@@ -372,7 +359,6 @@ export function SkinPage(): ReactElement {
     [host, refresh, run, selectedInstance, t],
   );
 
-  const runtimeLabel = runtime.data?.state ?? "stopped";
   return (
     <Stack data-testid="skin-page" gap="lg">
       {hostOptions.length > 0 ? (
@@ -437,46 +423,25 @@ export function SkinPage(): ReactElement {
             onImport={() => void run(prepareImport)}
             onRefresh={() => void run(refresh)}
             onSearchChange={(search) => setSession((value) => ({ ...value, search }))}
-            onUserOnlyChange={(userOnly) => setSession((value) => ({ ...value, userOnly }))}
             search={session.search}
-            userOnly={session.userOnly}
           />
-          {runtimeLabel === "stopped" || selectedUserSkins.length > 0 ? (
+          {selectedUserSkins.length > 0 ? (
             <Group gap="xs" justify="flex-end">
-              {runtimeLabel === "stopped" ? (
-                <Button
-                  disabled={!hostAvailable}
-                  leftSection={<IconPlayerPlay size={17} />}
-                  loading={action.isPending}
-                  onClick={() =>
-                    void run(async () => {
-                      await skinApi.launchHost(host);
-                      await refresh();
-                    })
-                  }
-                  size="xs"
-                  variant="light"
-                >
-                  {t("skins.action.launch", { host: hostName })}
-                </Button>
-              ) : null}
-              {selectedUserSkins.length > 0 ? (
-                <Button
-                  color="red"
-                  leftSection={<IconTrash size={17} />}
-                  onClick={() =>
-                    setDeleteTargets(
-                      (catalog.data ?? []).filter((skin) =>
-                        selectedSkinKeys.has(`${skin.source}:${skin.id}`),
-                      ),
-                    )
-                  }
-                  size="xs"
-                  variant="light"
-                >
-                  {t("skins.action.delete_selected", { count: selectedUserSkins.length })}
-                </Button>
-              ) : null}
+              <Button
+                color="red"
+                leftSection={<IconTrash size={17} />}
+                onClick={() =>
+                  setDeleteTargets(
+                    (catalog.data ?? []).filter((skin) =>
+                      selectedSkinKeys.has(`${skin.source}:${skin.id}`),
+                    ),
+                  )
+                }
+                size="xs"
+                variant="light"
+              >
+                {t("skins.action.delete_selected", { count: selectedUserSkins.length })}
+              </Button>
             </Group>
           ) : null}
         </Stack>

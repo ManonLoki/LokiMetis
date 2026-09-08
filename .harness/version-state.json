@@ -260,6 +260,21 @@
       "change_id": "BUG-RELEASE-NOTES-REACT-QUERY-CONTEXT",
       "kind": "bug-fix",
       "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-LOCALIZED-PACKAGE-DISPLAY-NAME",
+      "kind": "feature",
+      "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-SKIN-LAUNCH-AND-USER-ONLY-REMOVAL",
+      "kind": "feature",
+      "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-TRAY-MENU-LABEL-REFINEMENT",
+      "kind": "feature",
+      "required_version": "0.2.16"
     }
   ],
   "schema_version": 1,

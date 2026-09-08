@@ -247,8 +247,6 @@ export const skinApi = {
   openDirectory: (skin: SkinReference) => invokeSkin<void>("open_skin_directory", { skin }),
   deleteMany: (skins: SkinReference[]) =>
     invokeSkin<BatchDeleteResult>("delete_skins", { skins }),
-  runtimeStatus: (host: SkinHostKind) =>
-    invokeSkin<CodexRuntimeStatus>("skin_host_runtime_status", { host }),
   instances: (host: SkinHostKind) =>
     invokeSkin<CodexInstance[]>("list_skin_host_instances", { host }),
   restartInstance: (host: SkinHostKind, instanceId: string) =>

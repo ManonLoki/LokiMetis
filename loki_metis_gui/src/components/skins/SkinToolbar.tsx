@@ -1,4 +1,4 @@
-import { Button, Group, Switch, TextInput } from "@mantine/core";
+import { Button, Group, TextInput } from "@mantine/core";
 import { IconPlus, IconRefresh, IconSearch, IconUpload } from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,25 +8,21 @@ export interface SkinToolbarProps {
   busy: boolean;
   hostAvailable: boolean;
   search: string;
-  userOnly: boolean;
   onCreate: () => void;
   onImport: () => void;
   onRefresh: () => void;
   onSearchChange: (value: string) => void;
-  onUserOnlyChange: (value: boolean) => void;
 }
 
-/** 渲染搜索、用户筛选和资源库操作；宿主目标只按唯一实例自动解析。 */
+/** 渲染搜索和资源库操作；宿主目标只按唯一实例自动解析。 */
 export function SkinToolbar({
   busy,
   hostAvailable,
   search,
-  userOnly,
   onCreate,
   onImport,
   onRefresh,
   onSearchChange,
-  onUserOnlyChange,
 }: SkinToolbarProps): ReactElement {
   const { t } = useTranslation();
   return (
@@ -39,11 +35,6 @@ export function SkinToolbar({
           placeholder={t("skins.search.placeholder")}
           style={{ flex: "1 1 220px" }}
           value={search}
-        />
-        <Switch
-          checked={userOnly}
-          label={t("skins.search.user_only")}
-          onChange={(event) => onUserOnlyChange(event.currentTarget.checked)}
         />
       </Group>
       <Group gap="xs">

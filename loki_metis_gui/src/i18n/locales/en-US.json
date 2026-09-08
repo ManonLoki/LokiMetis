@@ -40,8 +40,7 @@
     },
     "search": {
       "label": "Search skins",
-      "placeholder": "Search by name, author, or ID",
-      "user_only": "User skins only"
+      "placeholder": "Search by name, author, or ID"
     },
     "catalog": {
       "empty": "No skins match the current filters."
@@ -65,8 +64,7 @@
       "delete_selected": "Delete selected ({{count}})",
       "import": "Import",
       "create": "Create theme",
-      "refresh": "Refresh",
-      "launch": "Launch {{host}}"
+      "refresh": "Refresh"
     },
     "dialog": { "cancel": "Cancel", "confirm": "Confirm" },
     "appearance": {

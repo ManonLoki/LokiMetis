@@ -403,11 +403,12 @@ mod tests {
 
     /// Tauri 不复制产品版本，并保持发布 DMG 的图标位置与 GUI Profile 一致。
     #[test]
-    fn tauri_config_uses_cargo_version_and_release_dmg_layout() {
+    fn tauri_config_uses_cargo_version_and_localized_bundle_names() {
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
 
         assert!(config.get("version").is_none());
+        assert_eq!(config["productName"], "LokiMetis");
         let dmg = &config["bundle"]["macOS"]["dmg"];
         assert_eq!(dmg["windowSize"]["width"], 660);
         assert_eq!(dmg["windowSize"]["height"], 400);
@@ -415,6 +416,50 @@ mod tests {
         assert_eq!(dmg["appPosition"]["y"], 220);
         assert_eq!(dmg["applicationFolderPosition"]["x"], 480);
         assert_eq!(dmg["applicationFolderPosition"]["y"], 220);
+
+        let macos = &config["bundle"]["macOS"];
+        assert_eq!(macos["infoPlist"], "Info.plist");
+        assert_eq!(
+            macos["files"]["Resources/en.lproj/InfoPlist.strings"],
+            "macos/en.lproj/InfoPlist.strings"
+        );
+        assert_eq!(
+            macos["files"]["Resources/zh-Hans.lproj/InfoPlist.strings"],
+            "macos/zh-Hans.lproj/InfoPlist.strings"
+        );
+
+        let nsis = &config["bundle"]["windows"]["nsis"];
+        assert_eq!(nsis["template"], "windows/nsis/installer.nsi");
+        assert_eq!(nsis["languages"], serde_json::json!(["English", "SimpChinese"]));
+        assert_eq!(nsis["displayLanguageSelector"], true);
+        assert_eq!(
+            nsis["customLanguageFiles"]["SimpChinese"],
+            "windows/nsis/languages/SimpChinese.nsh"
+        );
+    }
+
+    /// 平台本地化资源必须只改变用户可见名称，稳定安装身份与物理包名继续使用 LokiMetis。
+    #[test]
+    fn platform_bundle_name_resources_cover_english_and_simplified_chinese() {
+        let info_plist = include_str!("../Info.plist");
+        let macos_english = include_str!("../macos/en.lproj/InfoPlist.strings");
+        let macos_chinese = include_str!("../macos/zh-Hans.lproj/InfoPlist.strings");
+        let nsis_template = include_str!("../windows/nsis/installer.nsi");
+        let nsis_english = include_str!("../windows/nsis/languages/English.nsh");
+        let nsis_chinese = include_str!("../windows/nsis/languages/SimpChinese.nsh");
+
+        assert!(info_plist.contains("LSHasLocalizedDisplayName"));
+        assert!(info_plist.contains("zh-Hans"));
+        assert!(macos_english.contains("\"CFBundleDisplayName\" = \"LokiMetis\";"));
+        assert!(macos_chinese.contains("\"CFBundleDisplayName\" = \"诡秘神谕\";"));
+        assert!(nsis_template.contains("Name \"$(productDisplayName)\""));
+        assert!(nsis_template.contains("DisplayName\" \"$(productDisplayName)\""));
+        assert!(!nsis_template.contains("\\${PRODUCTNAME}.lnk"));
+        assert!(nsis_template.contains("Call RelocalizeExistingStartMenuShortcut"));
+        assert!(nsis_template.contains("Call RelocalizeExistingDesktopShortcut"));
+        assert!(nsis_template.contains("$OtherDisplayName.lnk"));
+        assert!(nsis_english.contains("productDisplayName ${LANG_ENGLISH} \"LokiMetis\""));
+        assert!(nsis_chinese.contains("productDisplayName ${LANG_SIMPCHINESE} \"诡秘神谕\""));
     }
 
     /// 内置皮肤、运行时样式与生成 Skill 必须通过 Tauri Resource 映射稳定打包。

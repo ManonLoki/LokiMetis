@@ -29,7 +29,7 @@ Tauri Builder 顺序固定为：
 6. `tauri-plugin-notification`，由 Rust-only worker 串行处理；
 7. `tauri-plugin-autostart`，以 OS 注册状态为权威。
 
-每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”和左键恢复，桌宠显隐项按真实可见性切换浮窗且冷启动默认显示，托盘“退出”真正终止应用。
+每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”/“Show Window”和左键恢复，浮窗显隐项按真实可见性切换为“显示浮窗”/“Show Floating Window”或“隐藏浮窗”/“Hide Floating Window”且冷启动默认显示，托盘“退出程序”/“Exit Program”真正终止应用。
 
 桌宠使用独立的 `pet` WebView 窗口，右键设置按需创建独立的 `pet-settings` WebView 窗口。两者都不挂主壳；`pet-settings` 关闭时销毁，下一次右键再创建，避免隐藏 WebView 常驻。桌宠布局、分页、缩放、锁定、置顶、位置和尺寸由 Rust 权威状态驱动，React 只发送交互意图并渲染一致快照。12 个展示位置及同位置最近迁移裁决属于 core 规则，不得在 Tauri 或 React 中按 Agent 枚举重新绑定。
 
@@ -52,6 +52,7 @@ Tauri Builder 顺序固定为：
 ## 应用身份
 
 - 应用显示名为 LokiMetis，中文名为诡秘神谕；bundle identifier 与 deep-link scheme 必须由项目身份一致派生。
+- Windows NSIS 同时提供 English 与简体中文并显示语言选择器；用户可见安装名称与快捷方式随所选语言变化，稳定安装身份仍为 LokiMetis。macOS 通过 `InfoPlist.strings` 按系统首选语言本地化 Finder 显示名；物理安装包、DMG 与 `.app` 名保持 LokiMetis。
 - 母版位于 `loki_metis_gui/src-tauri/icons/app-icon-master.png`，前端副本位于 `loki_metis_gui/public/app-identity/logo.png`，两者逐字节一致。
 - 平台图标由项目本地 Tauri `icon` 命令从母版生成。托盘与 bundle 引用普通文件 `src-tauri/icons/32x32.png`，它必须是可见的 32×32、8-bit RGBA、非交错 PNG。
 - macOS DMG 背景是独立的 660×400 打包资产，不得与运行时窗口状态或应用 Logo 混用。

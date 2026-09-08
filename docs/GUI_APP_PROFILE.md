@@ -17,7 +17,7 @@ sidebar_mode = compact
 
 七项条件能力与侧栏模式由 ManonLoki 于 2026-09-05 确认。`deep_link = enabled` 与 `single_instance = enabled` 的组合有效；深链接只接受身份派生的精确恢复地址 `app-loki-metis://restore`。系统语言、窗口状态、dialog、设置页中的应用/版本与本地更新日志属于固定基线，不是配置字段。
 
-系统托盘保留 `show_window` 与 `quit` 基线项，并增加 `toggle_pet_overlay` 桌宠显隐动作。桌宠在每次冷启动时默认显示，托盘动作只改变当前会话的真实窗口可见性，不保存显隐偏好。
+系统托盘保留 `show_window` 与 `quit` 基线项，并增加 `toggle_pet_overlay` 桌宠显隐动作。当前中文菜单依次显示“显示窗口”、“显示浮窗”或“隐藏浮窗”、“退出程序”，英文对应为 “Show Window”、“Show Floating Window” 或 “Hide Floating Window”、“Exit Program”。桌宠在每次冷启动时默认显示，托盘动作只改变当前会话的真实窗口可见性，不保存显隐偏好。
 
 ## 桌宠浮窗基线
 
@@ -39,6 +39,7 @@ sidebar_mode = compact
 - 目标平台：Windows、macOS、Linux
 - 初始版本：`0.1.0`；当前版本始终以根 `Cargo.toml` 为准
 - 窗口标题：`LokiMetis`
+- 安装后名称：Windows 的安装器标题、开始菜单/桌面快捷方式与“已安装的应用”名称按安装器中明确选择的 English/简体中文显示为 `LokiMetis`/`诡秘神谕`；macOS Finder 中的应用显示名按系统首选语言显示为 `LokiMetis`/`诡秘神谕`。可追踪的安装包、DMG、`.app` 物理文件名与稳定安装目录/注册表身份继续使用 `LokiMetis`，不随目标机器语言改变。
 - 产品定义状态：`productDefinitionRequired = false`
 
 ## Logo 选择证据

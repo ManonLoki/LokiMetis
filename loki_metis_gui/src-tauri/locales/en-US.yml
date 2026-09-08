@@ -1,8 +1,8 @@
 tray:
   show_window: "Show Window"
-  show_pet_overlay: "Show Pet Overlay"
-  hide_pet_overlay: "Hide Pet Overlay"
-  quit: "Quit"
+  show_pet_overlay: "Show Floating Window"
+  hide_pet_overlay: "Hide Floating Window"
+  quit: "Exit Program"
 error:
   hooks:
     toolUnavailable: "This AI type is not currently available."

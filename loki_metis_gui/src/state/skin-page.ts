@@ -3,10 +3,9 @@
  */
 import { atom } from "jotai";
 
-/** 描述换皮页当前进程内的筛选和宿主选择。 */
+/** 描述换皮页当前进程内的搜索和宿主选择。 */
 export interface SkinPageSession {
   search: string;
-  userOnly: boolean;
   selectedHost: "codex" | "workBuddy" | null;
   restoreDismissedHosts: Partial<Record<"codex" | "workBuddy", boolean>>;
 }
@@ -14,7 +13,6 @@ export interface SkinPageSession {
 /** 全新应用 store 中换皮页使用的确定默认值。 */
 export const initialSkinPageSession: SkinPageSession = {
   search: "",
-  userOnly: false,
   selectedHost: null,
   restoreDismissedHosts: {},
 };

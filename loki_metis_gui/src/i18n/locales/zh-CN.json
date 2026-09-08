@@ -40,8 +40,7 @@
     },
     "search": {
       "label": "搜索皮肤",
-      "placeholder": "按名称、作者或 ID 搜索",
-      "user_only": "只看用户皮肤"
+      "placeholder": "按名称、作者或 ID 搜索"
     },
     "catalog": {
       "empty": "没有符合当前筛选的皮肤。"
@@ -74,8 +73,7 @@
       "delete_selected": "删除所选（{{count}}）",
       "import": "导入",
       "create": "创建主题",
-      "refresh": "刷新",
-      "launch": "启动 {{host}}"
+      "refresh": "刷新"
     },
     "dialog": {
       "cancel": "取消",

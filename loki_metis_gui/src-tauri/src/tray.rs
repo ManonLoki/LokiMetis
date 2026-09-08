@@ -270,13 +270,22 @@ mod tests {
         assert_eq!(tray_label_for_locale("show_window", "zh-CN"), "显示窗口");
         assert_eq!(
             pet_overlay_tray_label_for_locale(false, "zh-CN"),
-            "显示桌宠浮窗"
+            "显示浮窗"
+        );
+        assert_eq!(
+            pet_overlay_tray_label_for_locale(true, "zh-CN"),
+            "隐藏浮窗"
+        );
+        assert_eq!(
+            pet_overlay_tray_label_for_locale(false, "en-US"),
+            "Show Floating Window"
         );
         assert_eq!(
             pet_overlay_tray_label_for_locale(true, "en-US"),
-            "Hide Pet Overlay"
+            "Hide Floating Window"
         );
-        assert_eq!(tray_label_for_locale("quit", "en-US"), "Quit");
+        assert_eq!(tray_label_for_locale("quit", "zh-CN"), "退出程序");
+        assert_eq!(tray_label_for_locale("quit", "en-US"), "Exit Program");
     }
 
     #[test]
@@ -285,7 +294,7 @@ mod tests {
         assert_eq!(fallback_label, "Show Window");
         assert_eq!(
             pet_overlay_tray_label_for_locale(false, "fr-FR"),
-            "Show Pet Overlay"
+            "Show Floating Window"
         );
     }
 

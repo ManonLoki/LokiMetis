@@ -50,7 +50,7 @@ describe("skin page", () => {
     expect(screen.getByRole("button", { name: "Create theme" })).toBeDisabled();
   });
 
-  /** 统一 Agent 选择同时启用两个换皮宿主时，页面动态呈现两个隔离选项卡。 */
+  /** 两个换皮宿主共用精简工具栏，均不暴露显式启动或用户专属筛选。 */
   test("renders the migrated built-in catalog in a Tauri host", async () => {
     mocks.hostAvailable = true;
     const names = [
@@ -92,7 +92,7 @@ describe("skin page", () => {
         );
       }
       if (command === "skin_host_runtime_status")
-        return Promise.resolve({ state: "runningWithoutCdp" });
+        return Promise.resolve({ state: "stopped" });
       if (command === "list_skin_host_instances") {
         return Promise.resolve([
           {
@@ -138,6 +138,10 @@ describe("skin page", () => {
     expect(screen.queryByText("Showing 6 skins")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Skins" })).not.toBeInTheDocument();
     expect(
+      screen.queryByRole("switch", { name: "User skins only" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Launch Codex" })).not.toBeInTheDocument();
+    expect(
       screen.queryByText(
         "Manage the local skin library and safely apply a theme to an explicitly selected instance in the active host tab.",
       ),
@@ -146,9 +150,13 @@ describe("skin page", () => {
     expect(screen.getByRole("button", { name: "Create theme" })).toBeEnabled();
 
     await userEvent.click(screen.getByRole("tab", { name: "WorkBuddy" }));
-    expect(mocks.invoke).toHaveBeenCalledWith("skin_host_runtime_status", {
-      host: "workBuddy",
-    });
+    expect(
+      screen.queryByRole("button", { name: "Launch WorkBuddy" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.invoke).not.toHaveBeenCalledWith(
+      "skin_host_runtime_status",
+      expect.anything(),
+    );
     expect(mocks.invoke).toHaveBeenCalledWith("list_skin_host_instances", {
       host: "workBuddy",
     });
