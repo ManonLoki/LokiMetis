@@ -3,7 +3,7 @@
   "releases": [
     {
       "releaseDate": "2026-09-08",
-      "version": "v0.2.14",
+      "version": "v0.2.15",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
@@ -58,6 +58,10 @@
         {
           "zh-CN": "修复应用包版本、发布资源与 DMG 安装布局偏离根版本和 GUI 规范的问题。",
           "en-US": "Fixed app bundle version, release resource, and DMG layout drift from the root version and GUI contract."
+        },
+        {
+          "zh-CN": "修复 Windows 构建中 WMI 绑定版本冲突和 WorkBuddy 可执行文件发现类型推断失败。",
+          "en-US": "Fixed Windows build failures caused by conflicting WMI bindings and WorkBuddy executable-discovery type inference."
         }
       ]
     }
