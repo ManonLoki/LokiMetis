@@ -8,14 +8,16 @@
 system_tray = enabled
 system_notification = enabled
 autostart = enabled
-sponsor_page = disabled
+sponsor_page = enabled
 single_instance = enabled
 deep_link = enabled
 global_shortcut = disabled
 sidebar_mode = compact
 ```
 
-七项条件能力与侧栏模式由 ManonLoki 于 2026-09-05 确认。`deep_link = enabled` 与 `single_instance = enabled` 的组合有效；深链接只接受身份派生的精确恢复地址 `app-loki-metis://restore`。系统语言、窗口状态、dialog、设置页中的应用/版本与本地更新日志属于固定基线，不是配置字段。
+七项条件能力与侧栏模式最初由 ManonLoki 于 2026-09-05 确认；ManonLoki 于 2026-09-08 明确启用赞助支持，并要求赞助内容放入设置页。`deep_link = enabled` 与 `single_instance = enabled` 的组合有效；深链接只接受身份派生的精确恢复地址 `app-loki-metis://restore`。系统语言、窗口状态、dialog、设置页中的应用/版本与本地更新日志属于固定基线，不是配置字段。
+
+当前赞助支持采用产品专属布局：不建立 `/sponsor` 路由或侧栏入口，而是在 `/settings` 底部展示用户明确提供的微信与支付宝收款码。两张图片逐字节打包到 `/brand-support/sponsor/`，不解析、不优化、不重绘、不触发支付，也不引入赞助档位或联系人。应用信息面板另提供带 GitHub 图标的固定仓库入口，只能通过系统默认浏览器打开 `https://github.com/ManonLoki/LokiMetis`。
 
 系统托盘保留 `show_window` 与 `quit` 基线项，并增加 `toggle_pet_overlay` 桌宠显隐动作。当前中文菜单依次显示“显示窗口”、“显示浮窗”或“隐藏浮窗”、“退出程序”，英文对应为 “Show Window”、“Show Floating Window” 或 “Hide Floating Window”、“Exit Program”。桌宠在每次冷启动时默认显示，托盘动作只改变当前会话的真实窗口可见性，不保存显隐偏好。托盘标题复用“全部”视图的设备当地当天联合 Token 总量：有用量记录时按十进制 `K`/`M`/`B` 固定两位小数展示，整数部分使用逗号千分位，不足 `1,000` 显示原整数；无记录或联合读取失败时不显示。macOS 原生可见，Linux 允许随桌面实现降级，Windows 只显示图标。
 
@@ -60,7 +62,7 @@ sidebar_mode = compact
 - 通用标准：`tauri-gui-common-v1`
 - 侧栏标准：`tauri-gui-sidebar-compact-80-v1`
 - 当前无经批准的像素或信息架构偏离。
-- 赞助页、赞助媒体、全局快捷键依赖、配置、命令、状态、文案和运行时接线必须缺席。
-- `/about` 与 `/test` 路由必须缺席；固定 `/settings` 提供应用、版本、本地更新日志、语言、主题、通知、自启与唯一 Agent 复选面板。用量看板的物理 Agent 与 WorkBuddy 视图在「数据源」后提供 `/dashboard/settings` 「设置」子页，只展示全局扫描间隔与自动清理；「全部」视图不显示。监控区通过 `/monitor/settings` 提供 Hooks 目录与写入操作，但不得复制 Agent 启用复选。一级业务入口名称固定为「用量看板」/「Usage Dashboard」、「AI监控」/「AI Monitor」、「应用换肤」/「App Skins」。
+- 全局快捷键依赖、配置、命令、状态、文案和运行时接线必须缺席。赞助能力仅保留设置页双收款码和对应本地媒体，不复制共享模板的赞助档位、背景、联系人或其它媒体。
+- `/about`、独立 `/sponsor` 与 `/test` 路由必须缺席；固定 `/settings` 提供应用、版本、本地更新日志、固定 GitHub 仓库入口、语言、主题、通知、自启、唯一 Agent 复选面板与底部赞助支持区。用量看板的物理 Agent 与 WorkBuddy 视图在「数据源」后提供 `/dashboard/settings` 「设置」子页，只展示全局扫描间隔与自动清理；「全部」视图不显示。监控区通过 `/monitor/settings` 提供 Hooks 目录与写入操作，但不得复制 Agent 启用复选。一级业务入口名称固定为「用量看板」/「Usage Dashboard」、「AI监控」/「AI Monitor」、「应用换肤」/「App Skins」。
 
 后续产品目标、范围、约束或成功标准变化必须使用 `$desktop-define-product` 更新最新 Product Spec。身份或 UI 标准变化必须经项目负责人确认后更新本文件；形成长期取舍或硬规则例外时同时记录 ADR。

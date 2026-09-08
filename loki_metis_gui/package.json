@@ -25,6 +25,7 @@
     "@tanstack/react-router": "^1.170.32",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/plugin-opener": "^2.5.5",
     "i18next": "^26.4.0",
     "jotai": "^2.20.3",
     "react": "^19.2.8",

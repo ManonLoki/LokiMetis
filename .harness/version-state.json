@@ -285,6 +285,16 @@
       "change_id": "FEAT-TRAY-DAILY-TOKEN-TOTAL",
       "kind": "feature",
       "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-SETTINGS-GITHUB-REPOSITORY-LINK",
+      "kind": "feature",
+      "required_version": "0.2.16"
+    },
+    {
+      "change_id": "FEAT-SETTINGS-SPONSOR-PAYMENT-CODES",
+      "kind": "feature",
+      "required_version": "0.2.16"
     }
   ],
   "schema_version": 1,

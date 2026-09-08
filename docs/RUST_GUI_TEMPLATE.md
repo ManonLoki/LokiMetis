@@ -17,7 +17,7 @@
 
 ## 当前 GUI 能力
 
-唯一配置见 `docs/GUI_APP_PROFILE.md`。当前启用系统托盘、系统通知、开机自启、单实例和受限深链接，侧栏为 compact；赞助页与全局快捷键禁用且必须零残留。
+唯一配置见 `docs/GUI_APP_PROFILE.md`。当前启用系统托盘、系统通知、开机自启、设置页赞助支持、单实例和受限深链接，侧栏为 compact；独立赞助路由与全局快捷键禁用。
 
 Tauri Builder 顺序固定为：
 
@@ -26,8 +26,9 @@ Tauri Builder 顺序固定为：
 3. `tauri-plugin-os`，仅由 Rust 读取系统 locale；
 4. `tauri-plugin-window-state`，只保存/恢复尺寸、位置和最大化；
 5. `tauri-plugin-dialog`，WebView capability 精确为 `dialog:default`；
-6. `tauri-plugin-notification`，由 Rust-only worker 串行处理；
-7. `tauri-plugin-autostart`，以 OS 注册状态为权威。
+6. `tauri-plugin-opener`，只允许系统浏览器打开固定 GitHub 仓库地址；
+7. `tauri-plugin-notification`，由 Rust-only worker 串行处理；
+8. `tauri-plugin-autostart`，以 OS 注册状态为权威。
 
 每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”/“Show Window”和左键恢复，浮窗显隐项按真实可见性切换为“显示浮窗”/“Show Floating Window”或“隐藏浮窗”/“Hide Floating Window”且冷启动默认显示，托盘“退出程序”/“Exit Program”真正终止应用。托盘安装后与既有扫描/来源/Agent 变更路径复用 core 联合窗口聚合刷新当天 Token 总数，并在 adapter 展示层按十进制 `K`/`M`/`B`、两位小数和逗号千分位格式化；无当天记录或联合读取失败时清空标题，不新增独立轮询或统计存储。Tauri 原生标题在 Windows 不受支持，Windows 保持仅图标降级。
 
@@ -45,8 +46,8 @@ Tauri Builder 顺序固定为：
 
 - 首次窗口 1440×900，最小 960×640，居中；持久状态无效或不再与当前显示器工作区相交时回退该基线。
 - 使用 `tauri-gui-sidebar-compact-80-v1`：侧栏宽 80px、内容内边距 6px、Logo 36px、图标 22px、名称全宽居中，不提供折叠动作。
-- 固定 `/settings` 展示应用、版本、本地更新日志、语言、浅色/深色/跟随系统主题、通知开关、自启开关与唯一 Agent 复选面板。用量看板的物理 Agent 与 WorkBuddy 视图在「数据源」后显示 `/dashboard/settings` 「设置」，只承载全局扫描间隔与自动清理；「全部」视图不显示该子页。Hooks 目录与写入表单位于 `/monitor/settings` 并只消费统一选择。
-- `/about`、`/sponsor`、`/test` 必须缺席；设置与侧栏不显示联系人、隐私、统计、遥测或应用更新入口。
+- 固定 `/settings` 展示应用、版本、本地更新日志、固定 GitHub 仓库入口、语言、浅色/深色/跟随系统主题、通知开关、自启开关、唯一 Agent 复选面板与底部双收款码赞助区。用量看板的物理 Agent 与 WorkBuddy 视图在「数据源」后显示 `/dashboard/settings` 「设置」，只承载全局扫描间隔与自动清理；「全部」视图不显示该子页。Hooks 目录与写入表单位于 `/monitor/settings` 并只消费统一选择。
+- `/about`、独立 `/sponsor`、`/test` 必须缺席；设置与侧栏不显示联系人、隐私、统计、遥测或应用更新入口。收款码只从本地 bundle 展示，GitHub opener capability 只允许精确仓库 URL。
 - 所有可见文案提供 `zh-CN` 与 `en-US`；系统不支持的语言回退英文。交互控件必须有可访问名称、焦点和键盘路径。
 
 ## 应用身份

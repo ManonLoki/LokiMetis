@@ -30,7 +30,7 @@ Core-first 是硬规则：不依赖 Tauri、WebView 或操作系统才能成立�
 
 ## GUI 基线
 
-当前固定启用系统托盘、系统通知、开机自启、单实例与受限深链接；深链接仅接受 `app-loki-metis://restore`。侧栏使用不可折叠的 80px 紧凑模式。赞助页与全局快捷键未启用，运行时不得保留对应依赖、路由、资源或状态。
+当前固定启用系统托盘、系统通知、开机自启、设置页赞助支持、单实例与受限深链接；深链接仅接受 `app-loki-metis://restore`。侧栏使用不可折叠的 80px 紧凑模式。赞助内容位于设置页底部，不增加独立侧栏入口或 `/sponsor` 路由；全局快捷键未启用。
 
 所有 GUI 固定提供中英文界面、浅色/深色/跟随系统主题、窗口状态恢复、受限 dialog，以及包含应用、版本和本地更新日志的设置页。详细事实见 [`docs/GUI_APP_PROFILE.md`](docs/GUI_APP_PROFILE.md) 与 [`docs/RUST_GUI_TEMPLATE.md`](docs/RUST_GUI_TEMPLATE.md)。
 
@@ -53,3 +53,11 @@ Core-first 是硬规则：不依赖 Tauri、WebView 或操作系统才能成立�
 ## 许可
 
 本项目使用仓库根目录的企业专有商业许可证：[`LICENSE.zh-CN.md`](LICENSE.zh-CN.md) 与 [`LICENSE.en.md`](LICENSE.en.md)。分发时还必须遵守第三方依赖许可证并提供适用的 NOTICE。
+
+## 赞助
+
+如果 LokiMetis 对你有帮助，可以使用微信支付或支付宝扫码赞助。收款码仅作为静态图片展示，不会触发自动支付。
+
+| 微信支付 | 支付宝 |
+|---|---|
+| <img src="loki_metis_gui/public/brand-support/sponsor/wechat-pay.png" alt="LokiMetis 微信支付赞助收款码" width="300"> | <img src="loki_metis_gui/public/brand-support/sponsor/alipay.jpg" alt="LokiMetis 支付宝赞助收款码" width="300"> |

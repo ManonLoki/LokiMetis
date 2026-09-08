@@ -23,9 +23,9 @@
 
 - `docs/GUI_APP_PROFILE.md` 必须有且只有一个 `gui-initialization-config` 代码块，依次包含 `system_tray`、`system_notification`、`autostart`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`。当前值不得静默推断或修改。
 - 当前启用托盘、系统通知、自启、单实例与深链接。单实例回调只恢复已有主窗口；深链接只精确接受 `app-loki-metis://restore`，在冷启动和热启动时均先验证再恢复，不承载业务参数。
-- 当前赞助页与全局快捷键禁用。对应依赖、feature、配置、命令、ACL、路由、状态、i18n、媒体、生命周期接线和专属测试必须缺席。
+- 当前赞助支持启用并按已批准产品差异嵌入 `/settings` 底部，只打包用户明确提供的微信与支付宝收款码；不建立独立 `/sponsor` 路由或侧栏入口。全局快捷键禁用，其依赖、feature、配置、命令、ACL、状态、i18n 与生命周期接线必须缺席。
 - system-locale、window-state 和 dialog 是所有 GUI 的固定基线。系统语言只取官方 OS locale；窗口状态只恢复 `SIZE | POSITION | MAXIMIZED`；dialog 只向主窗口开放精确 `dialog:default`，不得附带文件系统授权。
-- Tauri Builder 的相对顺序固定为 single-instance、deep-link、os、window-state、dialog、notification、autostart，每项恰好一次。托盘从 `.setup(...)` 与 `.on_window_event(...)` 接线，不是插件。
+- Tauri Builder 的相对顺序固定为 single-instance、deep-link、os、window-state、dialog、opener、notification、autostart，每项恰好一次。opener 只向主窗口开放 `https://github.com/ManonLoki/LokiMetis`；托盘从 `.setup(...)` 与 `.on_window_event(...)` 接线，不是插件。
 - 中央 Builder 只有一个合并后的 `invoke_handler`。固定命令为 `get_app_metadata`、`get_system_locale`、`set_interface_language`、`load_release_notes`；通知与自启的窄状态命令按当前 profile 加入。不得公开通用 OS、窗口、文件系统或通知 JavaScript API。
 - 通知由 Rust-only 串行 worker 拥有，应用偏好默认关闭，权限/发送失败可见且不伪造成功；关闭时回收 worker。自启以 OS 注册状态为权威，初始不注册，设置切换失败时恢复真实状态。
 - 托盘使用 `show_window` 与 `quit` 两个稳定菜单 ID，文案由 `rust_i18n` 随界面语言更新；左键与显示项恢复并聚焦主窗口，窗口关闭只隐藏，退出项才终止应用。
@@ -35,8 +35,8 @@
 
 - 窗口标题固定为 `LokiMetis`，不带版本号。设置页等用户可见版本在展示边界先移除已有 `v`/`V`，再添加且只添加一个小写 `v`。机器版本不带前缀。
 - 首次启动或持久状态缺失、损坏、越界时，主窗口回退为 1440×900、最小 960×640 并居中；只恢复仍与当前显示器工作区相交的尺寸、位置和最大化状态。
-- 固定 `/settings` 页面展示应用、版本、本地更新日志、语言和浅色/深色/跟随系统主题、已启用的通知和自启 Switch，并集中承载唯一 Agent 复选面板。用量看板在「数据源」后保留 `/dashboard/settings` 「设置」子路由，只承载全局扫描间隔与自动清理，在「全部」视图不显示。Hooks 目录与写入表单只位于 `/monitor/settings` 且消费统一选择，不得复制 Agent 复选；`/about`、`/sponsor`、`/test` 和相应导航/资源必须缺席。
-- 所有可见文案进入 `zh-CN`/`en-US` i18n。设置、标题、应用元数据与侧栏不得包含联系人、隐私/统计/遥测或应用更新控件。
+- 固定 `/settings` 页面展示应用、版本、本地更新日志、唯一 GitHub 仓库入口、语言和浅色/深色/跟随系统主题、已启用的通知和自启 Switch、唯一 Agent 复选面板，以及底部双收款码赞助区。用量看板在「数据源」后保留 `/dashboard/settings` 「设置」子路由，只承载全局扫描间隔与自动清理，在「全部」视图不显示。Hooks 目录与写入表单只位于 `/monitor/settings` 且消费统一选择，不得复制 Agent 复选；`/about`、独立 `/sponsor`、`/test` 和相应导航必须缺席。
+- 所有可见文案进入 `zh-CN`/`en-US` i18n。标题、应用元数据与侧栏不得包含联系人；设置页不得包含联系人、隐私/统计/遥测或应用更新控件。收款码只做本地静态展示，不解析、不重编码且不触发支付。
 - UI 先按 `docs/design_standards/README.md` 精确匹配。当前侧栏使用 `tauri-gui-sidebar-compact-80-v1`：80px 宽、6px 内容内边距、36px Logo、22px 图标、全宽居中名称，不可折叠。
 - GUI 操作必须绑定在真正拥有动作的语义元素上。按钮、链接、Switch、Checkbox 和菜单项不得由父级 Card、行、单元格或 `div` 代理；标题和说明用稳定 ID 与 `aria-labelledby`/`aria-describedby` 关联。
 - 页面工作上下文若需跨路由保持，由应用根 Jotai store 中稳定的页面 atom 持有，仅存活于当前进程。不得写入 localStorage、sessionStorage、IndexedDB、Tauri Store、配置文件、数据库或 URL；语言与主题等批准的设备偏好不受此限制。

@@ -33,7 +33,7 @@
 - `superpowers: disabled` 时不得调用或遵循任何 `superpowers:*` Skill。
 - Core-first 是硬规则：平台无关业务类型、规则、值域、用例、状态转换、持久化策略与稳定错误属于 `loki_metis_core`；Tauri/React 只承担展示、IPC 映射和宿主机制。
 - 接口固定为 GUI。不得新增 CLI、TUI、MCP adapter，也不得接入应用 updater、联网检查、强制更新、更新制品、产品统计或远程遥测。
-- GUI 必须与 `docs/GUI_APP_PROFILE.md` 一致：托盘、通知、自启、单实例和受限深链接启用；赞助页与全局快捷键禁用；侧栏固定为 compact。禁用能力必须零依赖、零配置、零命令、零路由、零状态和零运行时资源。
+- GUI 必须与 `docs/GUI_APP_PROFILE.md` 一致：托盘、通知、自启、赞助支持、单实例和受限深链接启用；赞助内容按产品差异嵌入设置页，独立赞助路由与全局快捷键禁用；侧栏固定为 compact。禁用能力必须零依赖、零配置、零命令、零路由、零状态和零运行时资源。
 - 日常开发直接实施，只运行本次需要的相关非空单元/回归测试。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、E2E、Verification 或人工复核。
 - 已初始化项目的版本只由 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期与缺陷去重状态。
 - 对产物声称“完成”“可用”或“已验证”必须有真实可观察结果；mock、stub、源码片段、中性页面或开发预览不能冒充候选验收。

@@ -1,9 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { SettingsPage } from "../src/components/SettingsPage";
+import { appI18n } from "../src/i18n";
 import { UsageSettingsPage } from "../src/pages/UsageSettingsPage";
 import {
   availableDashboardAiTypesFixture,
@@ -12,8 +14,10 @@ import {
 } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
+const openUrlMock = vi.mocked(openUrl);
 
 /** 构造设置页看板配置 IPC 快照。 */
 function privacySettings() {
@@ -38,6 +42,7 @@ function privacySettings() {
 
 describe("dashboard settings capabilities", () => {
   beforeEach(() => {
+    openUrlMock.mockResolvedValue();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_app_metadata") {
         return {
@@ -85,7 +90,7 @@ describe("dashboard settings capabilities", () => {
     });
   });
 
-  /** 公共设置只保留统一 Agent 面板与宿主控件，不再嵌入用量参数。 */
+  /** 公共设置集中展示全局控件、仓库与赞助信息，不再嵌入用量参数。 */
   test("settings_page_keeps_agent_configuration_and_host_controls", async () => {
     render(
       <TestProviders>
@@ -104,6 +109,12 @@ describe("dashboard settings capabilities", () => {
     expect(
       within(applicationSection).getByRole("button", { name: "View release notes" }),
     ).toBeVisible();
+    const repositoryButton = within(applicationSection).getByRole("button", {
+      name: "GitHub repository",
+    });
+    expect(repositoryButton).toBeVisible();
+    await userEvent.click(repositoryButton);
+    expect(openUrlMock).toHaveBeenCalledWith("https://github.com/ManonLoki/LokiMetis");
     expect(screen.queryByTestId("settings-release-notes-section")).not.toBeInTheDocument();
     expect(
       screen.queryByText("View the local release notes bundled with a formal candidate."),
@@ -124,6 +135,20 @@ describe("dashboard settings capabilities", () => {
       await screen.findByRole("switch", { name: "System notifications" }),
     ).toBeVisible();
     expect(screen.getByRole("switch", { name: "Start at login" })).toBeVisible();
+    const sponsorSection = screen.getByTestId("settings-sponsor-section");
+    expect(
+      within(sponsorSection).getByRole("heading", { name: "Sponsor LokiMetis" }),
+    ).toBeVisible();
+    expect(
+      within(sponsorSection).getByRole("img", {
+        name: "LokiMetis WeChat Pay sponsorship payment code",
+      }),
+    ).toHaveAttribute("src", "/brand-support/sponsor/wechat-pay.png");
+    expect(
+      within(sponsorSection).getByRole("img", {
+        name: "LokiMetis Alipay sponsorship payment code",
+      }),
+    ).toHaveAttribute("src", "/brand-support/sponsor/alipay.jpg");
     expect(
       screen.queryByText(
         "The app may send native notifications only after you explicitly enable them here.",
@@ -168,6 +193,46 @@ describe("dashboard settings capabilities", () => {
       tools: ["codex", "cursor"],
     });
     expect(screen.queryByText("Device identity")).not.toBeInTheDocument();
+  });
+
+  /** 仓库打开失败必须留在设置页并提供可见反馈。 */
+  test("settings_page_reports_repository_open_failure", async () => {
+    openUrlMock.mockRejectedValueOnce(new Error("browser unavailable"));
+    render(
+      <TestProviders>
+        <SettingsPage />
+      </TestProviders>,
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "GitHub repository" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The system browser could not open the project repository. Try again later.",
+    );
+  });
+
+  /** 中文设置页提供与英文一致的仓库入口和双收款码语义。 */
+  test("settings_page_localizes_repository_and_sponsor_controls", async () => {
+    await appI18n.changeLanguage("zh-CN");
+    render(
+      <TestProviders>
+        <SettingsPage />
+      </TestProviders>,
+    );
+
+    expect(await screen.findByRole("button", { name: "GitHub 仓库" })).toBeVisible();
+    const sponsorSection = screen.getByTestId("settings-sponsor-section");
+    expect(within(sponsorSection).getByRole("heading", { name: "赞助支持" })).toBeVisible();
+    expect(
+      within(sponsorSection).getByRole("img", {
+        name: "LokiMetis 微信支付赞助收款码",
+      }),
+    ).toBeVisible();
+    expect(
+      within(sponsorSection).getByRole("img", {
+        name: "LokiMetis 支付宝赞助收款码",
+      }),
+    ).toBeVisible();
   });
 
   /** React Query 不得把查询上下文误传成更新日志 IPC 调用器。 */

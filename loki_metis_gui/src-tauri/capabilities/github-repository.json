@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "github-repository",
+  "description": "Allow only the main window to open the approved LokiMetis GitHub repository.",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/ManonLoki/LokiMetis"
+        }
+      ]
+    }
+  ]
+}

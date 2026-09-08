@@ -13,7 +13,8 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { IconAlertCircle, IconHistory } from "@tabler/icons-react";
+import { IconAlertCircle, IconBrandGithub, IconHistory } from "@tabler/icons-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAtom } from "jotai";
 import { useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,6 +40,10 @@ import type { AppColorScheme } from "./AppThemeProvider";
 import { syncShellInterfaceLanguage } from "./AppShell";
 import { HostCapabilitySwitch } from "./HostCapabilitySwitch";
 import { ReleaseNotesDialogTemplate, type ReleaseNotesStatus } from "./ReleaseNotesDialog";
+import { SponsorPaymentPanel } from "./SponsorPaymentPanel";
+
+/** 应用信息面板唯一允许交给系统浏览器打开的外部地址。 */
+const GITHUB_REPOSITORY_URL = "https://github.com/ManonLoki/LokiMetis";
 
 /** 描述设置页可替换的本地更新日志加载边界。 */
 export interface SettingsPageProps {
@@ -64,6 +69,7 @@ export function SettingsPage({
   const [language, setLanguage] = useAtom(interfaceLanguageAtom);
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [releaseNotesOpened, setReleaseNotesOpened] = useState(false);
+  const [repositoryOpenFailed, setRepositoryOpenFailed] = useState(false);
   const releaseNotesRequest = useQuery({
     enabled: false,
     queryKey: ["release-notes"],
@@ -84,6 +90,16 @@ export function SettingsPage({
   const requestReleaseNotes = (): void => {
     setReleaseNotesOpened(true);
     if (releaseNotesRequest.data === undefined) void releaseNotesRequest.refetch();
+  };
+
+  /** 仅把已批准的固定仓库地址交给系统默认浏览器，并在失败时留在当前页。 */
+  const openGitHubRepository = async (): Promise<void> => {
+    setRepositoryOpenFailed(false);
+    try {
+      await openUrl(GITHUB_REPOSITORY_URL);
+    } catch {
+      setRepositoryOpenFailed(true);
+    }
   };
 
   const languageUpdate = useMutation({
@@ -139,8 +155,25 @@ export function SettingsPage({
             >
               {t("settings.release_notes_action")}
             </Button>
+            <Button
+              leftSection={<IconBrandGithub aria-hidden="true" size={18} />}
+              onClick={() => void openGitHubRepository()}
+              variant="subtle"
+            >
+              {t("settings.github_repository_action")}
+            </Button>
           </Stack>
         </Group>
+        {repositoryOpenFailed ? (
+          <Alert
+            icon={<IconAlertCircle aria-hidden="true" size={18} />}
+            mt="lg"
+            role="alert"
+            title={t("settings.github_repository_error_title")}
+          >
+            {t("settings.github_repository_error")}
+          </Alert>
+        ) : null}
       </Paper>
 
       <AgentSettings />
@@ -212,6 +245,8 @@ export function SettingsPage({
           setEnabled={setAutostartEnabled}
         />
       </SimpleGrid>
+
+      <SponsorPaymentPanel />
 
       <ReleaseNotesDialogTemplate
         language={releaseNotesLanguage}
