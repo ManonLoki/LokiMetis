@@ -10,6 +10,9 @@ fn windows_test_targets_embed_common_controls_v6_manifest() {
     assert!(build_script.contains("cargo:rustc-link-arg=/MANIFEST:EMBED"));
     assert!(build_script.contains("cargo:rustc-link-arg=/MANIFESTINPUT:"));
     assert!(build_script.contains("WindowsAttributes::new_without_app_manifest()"));
+    assert!(manifest.contains("name=\"com.manonloki.lokimetis\""));
+    assert!(manifest.contains("version=\"1.0.0.0\""));
+    assert!(manifest.contains("processorArchitecture=\"amd64\""));
     assert!(manifest.contains("Microsoft.Windows.Common-Controls"));
     assert!(manifest.contains("version=\"6.0.0.0\""));
 }
