@@ -1,18 +1,8 @@
 //! 运行时设置读写与校验路径共用文案。
 
-/// 仅本机偏好切换失败。
-pub const fn provider_mode_switch_failed_message() -> &'static str {
-    "无法保存仅本机偏好；本机记录未受影响。"
-}
-
-/// 设备名、语言、初始化等持久化失败后的统一提示。
+/// 语言、初始化等持久化失败后的统一提示。
 pub const fn privacy_settings_save_failed_message() -> &'static str {
-    "无法保存隐私设置；当前会话仍保持所选模式。"
-}
-
-/// 设备用户名保存失败后的统一提示。
-pub const fn device_username_save_failed_message() -> &'static str {
-    "无法保存设备用户名；原设置保持不变。"
+    "无法保存隐私设置；原设置保持不变。"
 }
 
 /// 扫描间隔保存失败后的统一提示。
@@ -108,16 +98,8 @@ mod tests {
     /// 验证设置校验与持久化错误暴露稳定用户文案。
     fn exposes_settings_messages() {
         assert_eq!(
-            provider_mode_switch_failed_message(),
-            "无法保存仅本机偏好；本机记录未受影响。"
-        );
-        assert_eq!(
             privacy_settings_save_failed_message(),
-            "无法保存隐私设置；当前会话仍保持所选模式。"
-        );
-        assert_eq!(
-            device_username_save_failed_message(),
-            "无法保存设备用户名；原设置保持不变。"
+            "无法保存隐私设置；原设置保持不变。"
         );
         assert_eq!(
             scan_interval_save_failed_message(),

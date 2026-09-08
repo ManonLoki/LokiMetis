@@ -11,7 +11,7 @@ pub enum TimeStandardMode {
     Custom,
 }
 
-/// 划分自然日所用的时间标准；Collect 上报不读取该值。
+/// 划分本机统计自然日所用的时间标准。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum TimeStandard {
     /// 按设备当前时区的民用日划分。

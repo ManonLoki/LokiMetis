@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isDashboardLandingPath, resolveDefaultLandingPath } from "../src/default-landing";
 import { routeTree } from "../src/routeTree.gen";
+import type { PrivacySettingsDto } from "../src/api/usage-types";
 import { availableDashboardAiTypesFixture, TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -12,16 +13,11 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
 
 /** 根路径默认落地到看板所需的最小 IPC 快照。 */
-function privacySettings() {
+function privacySettings(): PrivacySettingsDto {
   return {
     languagePreference: "system",
-    localOnly: true,
-    deviceUsername: null,
-    deviceName: "test-host",
-    deviceUniqueId: "11111111-2222-4333-8444-555555555555",
     scanIntervalMinutes: 5,
     retentionDays: 90,
-    deviceTimeZone: "UTC",
     indexLocationLabel: "Codex index",
     indexLocationCode: "codex",
     indexSizeBytes: null,

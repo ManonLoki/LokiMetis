@@ -6,10 +6,10 @@ The declared license expression and source link below identify the governing ter
 
 锁定输入 / Locked inputs:
 
-- `Cargo.lock` SHA-256: `b944b6a60888c598ab6535b2290dd137cf4822330669860a603d7e143ee93ddd`
+- `Cargo.lock` SHA-256: `6a54a2a3cbfbc4857bc248854606766795d602204f7d23dcd5792c34ec5f5845`
 - `loki_metis_gui/pnpm-lock.yaml` SHA-256: `64a77b9138d884a992b0273d8ef00c8afcc05524a0bf96a3445f8a2ec8db0a7a`
 
-## Rust dependencies (630)
+## Rust dependencies (628)
 
 | Package | Version | Declared license | Source |
 |---|---:|---|---|
@@ -204,7 +204,6 @@ The declared license expression and source link below identify the governing ter
 | heck | 0.5.0 | MIT OR Apache-2.0 | https://github.com/withoutboats/heck |
 | hermit-abi | 0.5.2 | MIT OR Apache-2.0 | https://github.com/hermit-os/hermit-rs |
 | hex | 0.4.3 | MIT OR Apache-2.0 | https://github.com/KokaKiwi/rust-hex |
-| hostname | 0.4.2 | MIT | https://github.com/djc/hostname |
 | html5ever | 0.38.0 | MIT OR Apache-2.0 | https://github.com/servo/html5ever |
 | http | 1.5.0 | MIT OR Apache-2.0 | https://github.com/hyperium/http |
 | http-body | 1.1.0 | MIT | https://github.com/hyperium/http-body |
@@ -264,7 +263,6 @@ The declared license expression and source link below identify the governing ter
 | log | 0.4.34 | MIT OR Apache-2.0 | https://github.com/rust-lang/log |
 | mac-notification-sys | 0.6.15 | MIT/Apache-2.0 | https://github.com/h4llow3En/mac-notification-sys |
 | mac-usernotifications | 0.3.1 | MIT OR Apache-2.0 | https://github.com/hoodie/mac-usernotifications |
-| machine-uid | 0.6.0 | MIT | https://github.com/Hanaasagi/machine-uid |
 | markup5ever | 0.38.0 | MIT OR Apache-2.0 | https://github.com/servo/html5ever |
 | matchers | 0.2.0 | MIT | https://github.com/hawkw/matchers |
 | memchr | 2.8.3 | Unlicense OR MIT | https://github.com/BurntSushi/memchr |

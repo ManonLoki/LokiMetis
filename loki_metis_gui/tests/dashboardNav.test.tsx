@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import type {
   AgentClientKind,
   AvailableAiTypeDto,
+  PrivacySettingsDto,
   UsageViewKind,
 } from "../src/api/usage-types";
 import { DashboardLayout } from "../src/components/DashboardLayout";
@@ -29,17 +30,12 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 
-/** 构造看板配置 IPC 快照，含设备字段但配置面不得展示它们。 */
-function privacySettings() {
+/** 构造看板配置 IPC 快照。 */
+function privacySettings(): PrivacySettingsDto {
   return {
     languagePreference: "system",
-    localOnly: true,
-    deviceUsername: "alice",
-    deviceName: "test-host",
-    deviceUniqueId: "11111111-2222-4333-8444-555555555555",
     scanIntervalMinutes: 5,
     retentionDays: 90,
-    deviceTimeZone: "UTC",
     indexLocationLabel: "Codex index",
     indexLocationCode: "codex",
     indexSizeBytes: null,

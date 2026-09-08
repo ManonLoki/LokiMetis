@@ -1,6 +1,6 @@
 use super::*;
 
-/// 已保存启用列表逐项忽略未知值，且不连坐同文件中的合法隐私偏好。
+/// 已保存启用列表逐项忽略未知值，且不连坐同文件中的合法本机偏好。
 #[test]
 fn persisted_unknown_agent_labels_are_ignored_individually() {
     let temp = tempdir().expect("isolated app-data is available");
@@ -12,7 +12,6 @@ fn persisted_unknown_agent_labels_are_ignored_individually() {
 
     let loaded = load_settings(temp.path()).expect("unknown labels are ignored");
 
-    assert!(!loaded.local_only);
     assert!(
         loaded
             .enabled_agents
@@ -42,24 +41,70 @@ fn persisted_unknown_agent_labels_are_ignored_individually() {
     );
 }
 
+/// 退休能力字段只作为一次性墓碑读取；本机设置保留且规范写回不再携带这些字段。
+#[test]
+fn removes_obsolete_capability_fields_without_losing_local_settings() {
+    let temp = tempdir().expect("isolated app-data is available");
+    fs::write(
+        temp.path().join(SETTINGS_FILE_NAME),
+        br#"{"languagePreference":"en-US","scanIntervalMinutes":12,"retentionDays":30,"initializationCompleted":true,"initialScanAttempted":true,"enabledAgents":["codex"],"workbuddyStatsEnabled":true,"localOnly":false,"deviceUsername":{"invalid":"retired"},"deviceUsernameInitialized":"retired","deviceName":["retired"],"deviceUniqueId":false,"remoteRefreshIntervalMinutes":{"invalid":"retired"},"collectProviders":"retired","collectProviderEnabled":{"invalid":"retired"},"collectProviderBaseUrl":["retired"],"collectProviderIntervalMinutes":false,"leaderboardWindow":"retired","leaderboardProviderId":{"invalid":"retired"}}"#,
+    )
+    .expect("legacy fixture is written");
+
+    let loaded = initialize_settings(temp.path()).expect("retired fields are removed");
+    assert_eq!(loaded.language_preference, LanguagePreferenceDto::EnUs);
+    assert_eq!(loaded.scan_interval.get(), 12);
+    assert_eq!(loaded.retention_days.get(), 30);
+    assert!(loaded.initialization_completed);
+    assert!(loaded.initial_scan_attempted);
+    assert!(
+        loaded
+            .enabled_agents
+            .contains(loki_metis_core::SourceClientKind::Codex)
+    );
+    assert!(loaded.workbuddy_stats_enabled);
+
+    let normalized = fs::read(temp.path().join(SETTINGS_FILE_NAME))
+        .expect("normalized settings remain readable");
+    let normalized: serde_json::Value =
+        serde_json::from_slice(&normalized).expect("normalized settings are JSON");
+    let normalized = normalized
+        .as_object()
+        .expect("normalized settings remain an object");
+    for field in OBSOLETE_SETTINGS_FIELDS {
+        assert!(
+            !normalized.contains_key(*field),
+            "retired field remained: {field}"
+        );
+    }
+}
+
+/// 真正未知的顶层字段继续被拒绝，墓碑兼容不能变成任意配置吞噬器。
+#[test]
+fn rejects_unrecognized_settings_fields() {
+    let temp = tempdir().expect("isolated app-data is available");
+    fs::write(
+        temp.path().join(SETTINGS_FILE_NAME),
+        br#"{"scanIntervalMinutes":5,"unexpectedCapability":{"enabled":true}}"#,
+    )
+    .expect("unknown-field fixture is written");
+
+    assert_eq!(load_settings(temp.path()), Err(PrivacyStoreError));
+}
+
 /// 验证 Windows 主文件半写时从完整事务恢复，并由启动初始化重新提交主快照。
 #[cfg(windows)]
 #[test]
 fn recovers_truncated_windows_settings_from_transaction() {
     let temp = tempdir().expect("isolated app-data is available");
-    let settings = sample_settings(true, None, true, true, true);
+    let settings = sample_settings(true, true);
     save_settings(temp.path(), &settings).expect("baseline settings are stored");
     let settings_path = temp.path().join(SETTINGS_FILE_NAME);
     let transaction_path = temp.path().join(SETTINGS_TRANSACTION_FILE_NAME);
     fs::copy(&settings_path, &transaction_path).expect("complete transaction is preserved");
     fs::write(&settings_path, b"{\"localOnly\":").expect("primary is truncated");
 
-    let recovered = initialize_settings(
-        temp.path(),
-        || panic!("transaction recovery must not reinitialize username"),
-        || Some("fixture-host".to_owned()),
-    )
-    .expect("transaction recovers the settings");
+    let recovered = initialize_settings(temp.path()).expect("transaction recovers the settings");
 
     assert_eq!(recovered, settings);
     assert_eq!(load_settings(temp.path()), Ok(settings));
@@ -71,11 +116,11 @@ fn recovers_truncated_windows_settings_from_transaction() {
 #[test]
 fn valid_windows_settings_win_over_stale_transaction() {
     let temp = tempdir().expect("isolated app-data is available");
-    let stale = sample_settings(true, None, true, false, false);
+    let stale = sample_settings(false, false);
     save_settings(temp.path(), &stale).expect("stale fixture is stored");
     let stale_payload =
         fs::read(temp.path().join(SETTINGS_FILE_NAME)).expect("stale payload remains readable");
-    let current = sample_settings(false, None, true, true, true);
+    let current = sample_settings(true, true);
     save_settings(temp.path(), &current).expect("current settings are stored");
     fs::write(
         temp.path().join(SETTINGS_TRANSACTION_FILE_NAME),
@@ -115,7 +160,7 @@ fn rejects_invalid_windows_transaction_without_valid_primary() {
 )]
 fn windows_commit_failure_retains_recovery_transaction() {
     let temp = tempdir().expect("isolated app-data is available");
-    let baseline = sample_settings(false, None, true, false, false);
+    let baseline = sample_settings(false, false);
     save_settings(temp.path(), &baseline).expect("baseline settings are stored");
     let settings_path = temp.path().join(SETTINGS_FILE_NAME);
     let mut permissions = fs::metadata(&settings_path)
@@ -123,7 +168,7 @@ fn windows_commit_failure_retains_recovery_transaction() {
         .permissions();
     permissions.set_readonly(true);
     fs::set_permissions(&settings_path, permissions).expect("primary is made read-only");
-    let replacement = sample_settings(true, None, true, true, true);
+    let replacement = sample_settings(true, true);
 
     assert_eq!(
         save_settings(temp.path(), &replacement),
@@ -137,10 +182,7 @@ fn windows_commit_failure_retains_recovery_transaction() {
     permissions.set_readonly(false);
     fs::set_permissions(&settings_path, permissions).expect("fixture permissions are restored");
 
-    let retry_username = DeviceUsername::from_setting_input("retry")
-        .expect("retry fixture is valid")
-        .expect("retry fixture is non-empty");
-    let retry = sample_settings(false, Some(retry_username), true, true, false);
+    let retry = sample_settings(true, false);
     save_settings(temp.path(), &retry).expect("retry replaces the recovery transaction");
     assert_eq!(load_settings(temp.path()), Ok(retry));
     assert!(!temp.path().join(SETTINGS_TRANSACTION_FILE_NAME).exists());
@@ -151,7 +193,7 @@ fn windows_commit_failure_retains_recovery_transaction() {
 #[test]
 fn abandoned_atomic_write_preserves_previous_snapshot() {
     let temp = tempdir().expect("isolated app-data is available");
-    let settings = sample_settings(false, None, true, true, true);
+    let settings = sample_settings(true, true);
     save_settings(temp.path(), &settings).expect("baseline settings are stored");
     let settings_path = temp.path().join(SETTINGS_FILE_NAME);
 
@@ -180,13 +222,13 @@ fn atomic_update_restores_private_unix_permissions() {
     use std::os::unix::fs::PermissionsExt;
 
     let temp = tempdir().expect("isolated app-data is available");
-    let mut settings = sample_settings(false, None, true, true, false);
+    let mut settings = sample_settings(true, false);
     save_settings(temp.path(), &settings).expect("baseline settings are stored");
     let settings_path = temp.path().join(SETTINGS_FILE_NAME);
     fs::set_permissions(&settings_path, fs::Permissions::from_mode(0o644))
         .expect("fixture permissions are broadened");
 
-    settings.local_only = true;
+    settings.initial_scan_attempted = true;
     save_settings(temp.path(), &settings).expect("settings update is atomically committed");
 
     let mode = fs::metadata(&settings_path)
@@ -210,7 +252,7 @@ fn rejects_symlink_settings_target_without_touching_destination() {
     let settings_path = temp.path().join(SETTINGS_FILE_NAME);
     symlink(&sentinel, &settings_path).expect("settings symlink fixture is created");
 
-    let settings = sample_settings(false, None, true, true, true);
+    let settings = sample_settings(true, true);
     assert_eq!(
         save_settings(temp.path(), &settings),
         Err(PrivacyStoreError)

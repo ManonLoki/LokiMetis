@@ -480,20 +480,10 @@ export interface SourcesDto {
 export interface PrivacySettingsDto {
   /** 当前持久语言偏好。 */
   languagePreference: LanguagePreference;
-  /** 兼容字段：只保存仅本机偏好，不改变当前只读本机记录的行为。 */
-  localOnly: boolean;
-  /** 首次从系统会话候选初始化且可由用户修改或清除的标签；不是唯一身份。 */
-  deviceUsername: string | null;
-  /** 只读 OS 主机名快照；不可由用户修改。 */
-  deviceName: string | null;
-  /** 首次启动生成并持久化的只读设备唯一 ID；不可由用户修改。 */
-  deviceUniqueId: string | null;
-  /** 本机周期扫描与保留远端偏好共用的扫描间隔分钟数。 */
+  /** 本机周期扫描的间隔分钟数。 */
   scanIntervalMinutes: number;
   /** 派生用量自动清理天数；缺省 90。 */
   retentionDays: number;
-  /** 当前设备 IANA 时区，供 Collect 信封使用，不作为页头选择。 */
-  deviceTimeZone: string;
   /** 本产品索引的安全位置说明。 */
   indexLocationLabel: string;
   /** 当前客户端索引位置的稳定代码。 */
@@ -504,7 +494,7 @@ export interface PrivacySettingsDto {
   lastClearedAtEpochMs: number | null;
   /** 统一 AI 目录中当前能映射到看板的选项；无法映射的类型不进入此数组。 */
   availableAiTypes: AvailableAiTypeDto[];
-  /** 用户显式开放监控和上报的本机 Agent；缺省为空。 */
+  /** 用户显式启用本机扫描、统计与监控的 Agent；缺省为空。 */
   enabledAgents: AgentClientKind[];
   /** 用户是否已显式开放读取 WorkBuddy 本地用量统计；缺省关闭。 */
   workbuddyStatsEnabled: boolean;
@@ -708,69 +698,6 @@ export interface WorkbuddySourceStatusDto {
   alias: string | null;
   /** 与物理 Agent 数据源表同形的已发现默认根；未发现为空。 */
   roots: SourceRootDto[];
-}
-
-/** 描述单个独立数据上报 Provider 的稳定身份、目标、周期与三态结果。 */
-export interface CollectProviderConfigDto {
-  /** 本地稳定 UUID；不进入远端 payload。 */
-  id: string;
-  /** 规范化且在集合中唯一的 BaseURL。 */
-  baseUrl: string;
-  /** 该 Provider 的周期发送间隔分钟数。 */
-  intervalMinutes: number;
-  /** 可选上报用户别名；存在时替代设备用户名进入该 Provider 的上报载荷，未设置为 `null`。 */
-  userAlias: string | null;
-  /** 当前进程内最近一次 Health 探测的三态结果；上传成败不改写。 */
-  connectionStatus: "untested" | "reachable" | "unreachable";
-}
-
-/** 描述一条不含身份和完整 payload 的本地尝试审计。 */
-export interface CollectAttemptDto {
-  /** 仅用于本地审计列表排序，不进入 REST 上报。 */
-  attemptId: number;
-  trigger: "startup" | "interval" | "config_changed" | "manual";
-  state: "collecting" | "collection_failed" | "sending" | "sent" | "send_failed";
-  destinationBaseUrl: string;
-  startedAtEpochMs: number;
-  finishedAtEpochMs: number | null;
-  dayCount: number | null;
-  channelCount: number | null;
-  unavailableChannelCount: number | null;
-  totalTokens: number | null;
-  httpStatus: number | null;
-  errorKind:
-    | "configuration"
-    | "identity_unavailable"
-    | "no_available_channels"
-    | "invalid_report"
-    | "transport"
-    | "timeout"
-    | "http_status"
-    | "service_unhealthy"
-    | "invalid_response"
-    | "interrupted"
-    | null;
-}
-
-/** 描述全部 Provider 配置和最近二十条全局安全审计。 */
-export interface CollectProviderStatusDto {
-  providers: CollectProviderConfigDto[];
-  lastSuccessAtEpochMs: number | null;
-  recentAttempts: CollectAttemptDto[];
-}
-
-/** 描述用户显式执行的一次服务健康检测。 */
-export interface CollectServiceHealthDto {
-  checkedAtEpochMs: number;
-  healthy: boolean;
-  httpStatus: number | null;
-  errorKind:
-    | "transport"
-    | "timeout"
-    | "http_status"
-    | "service_unhealthy"
-    | "invalid_response"
-    | null;
 }
 
 /** 描述清空本产品索引后的可见结果。 */

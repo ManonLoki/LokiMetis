@@ -18,11 +18,9 @@ base64 = "0.22.1"
 chromiumoxide = "0.9.1"
 encoding_rs = "0.8.35"
 futures = "0.3.34"
-hostname = { version = "0.4.2", default-features = false }
 jiff = "0.2.35"
 loki_metis_core = { path = "loki_metis_core" }
 mac-usernotifications = "0.3.1"
-machine-uid = "0.6.0"
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "std",
     "NSDate",

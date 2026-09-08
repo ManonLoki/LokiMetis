@@ -251,10 +251,6 @@ input {
   overflow: auto;
 }
 
-.app-main.leaderboard-main {
-  overflow: hidden;
-}
-
 .page-stack {
   width: min(calc(100% - 1rem), 2400px);
   padding-top: 0;

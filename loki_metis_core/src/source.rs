@@ -148,7 +148,7 @@ pub struct UsageCall {
 /// Codex 会话级 cumulative Token 兼容快照：每个 `token_count` 事件一条。
 ///
 /// ADR-104 后生产总量只累计 rollout 自有区段的 canonical 调用；本结构继续保留
-/// 历史诊断与索引兼容性，不得覆盖窗口、日桶、分组、调用或 Collect 总量。
+/// 历史诊断与索引兼容性，不得覆盖窗口、日桶、分组、调用或派生总量。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionTokenSnapshot {
     /// 稳定线程键（`stable_id("thread", session_id)`），不是 jsonl 文件名。

@@ -2,7 +2,7 @@
 
 /// 生成一个校验范围为 `[min, max]` 分钟的独立 newtype，含 `new`/`get`/`duration`、
 /// `Default` 与配套错误类型。每次调用生成的类型互不兼容，即使范围相同也无法混用，
-/// 避免调用方把不同业务域（如扫描间隔与 CollectProvider 上报间隔）的分钟数意外传混。
+/// 避免调用方把不同业务域的分钟数意外传混。
 macro_rules! bounded_minutes_newtype {
     (
         $(#[$type_doc:meta])+

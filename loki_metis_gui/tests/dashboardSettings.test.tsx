@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { SettingsPage } from "../src/components/SettingsPage";
 import { appI18n } from "../src/i18n";
 import { UsageSettingsPage } from "../src/pages/UsageSettingsPage";
+import type { PrivacySettingsDto } from "../src/api/usage-types";
 import {
   availableDashboardAiTypesFixture,
   monitorCapabilitiesFixture,
@@ -20,16 +21,11 @@ const invokeMock = vi.mocked(invoke);
 const openUrlMock = vi.mocked(openUrl);
 
 /** 构造设置页看板配置 IPC 快照。 */
-function privacySettings() {
+function privacySettings(): PrivacySettingsDto {
   return {
     languagePreference: "system",
-    localOnly: true,
-    deviceUsername: null,
-    deviceName: "test-host",
-    deviceUniqueId: "11111111-2222-4333-8444-555555555555",
     scanIntervalMinutes: 5,
     retentionDays: 90,
-    deviceTimeZone: "UTC",
     indexLocationLabel: "Codex index",
     indexLocationCode: "codex",
     indexSizeBytes: null,
@@ -193,6 +189,7 @@ describe("dashboard settings capabilities", () => {
       tools: ["codex", "cursor"],
     });
     expect(screen.queryByText("Device identity")).not.toBeInTheDocument();
+    expect(screen.queryByText("Data reporting")).not.toBeInTheDocument();
   });
 
   /** 仓库打开失败必须留在设置页并提供可见反馈。 */

@@ -265,7 +265,7 @@ impl SourceClientKind {
     /// 返回客户端当前 parser generation（用于跨 CLI/MCP 复用一致的解析边界）。
     ///
     /// 这是读写唯一来源：GUI JSONL writer 的 generation 常量必须等于本值，
-    /// 概览/统计/调用/Collect 打开索引也必须用本值。writer 单独加一代而
+    /// 概览、统计、调用与派生聚合打开索引也必须用本值。writer 单独加一代而
     /// 此处未加，会导致重建后调用已入库、读取仍按旧代当成空索引。
     pub const fn parser_version(self) -> u32 {
         match self {

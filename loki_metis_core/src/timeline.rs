@@ -9,7 +9,7 @@ use jiff::tz::{AmbiguousOffset, TimeZone};
 use jiff::{Timestamp, ToSpan};
 use serde::{Deserialize, Serialize};
 
-/// 标识看板、图表、用量统计与排行榜共用的日历窗口。
+/// 标识看板、图表与用量统计共用的日历窗口。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LocalUsageWindow {
@@ -232,7 +232,7 @@ fn monday_of_week(today: Date) -> Result<Date, TimelineError> {
 /// 从观测时刻生成「当天及其往前连续 `day_count - 1` 个本地日」的日期序列。
 ///
 /// 成员资格只看民用日期：`day_count = 1` 仅为观测日，`2` 为当天加前一日。
-/// 扫描回补、保留窗口和 Collect 手动近 30 日仍用连续自然日，不对应界面日历窗口。
+/// 扫描回补、保留窗口和手动近 30 日统计仍用连续自然日，不对应界面日历窗口。
 /// 日期从最旧到最新排列。
 pub fn local_dates_for_day_count(
     day_count: u16,
@@ -391,7 +391,7 @@ pub fn filter_canonical_usage_for_dates(
     })
 }
 
-/// 按单个本地日期筛选 canonical 调用，供日桶与 Collect 逐日快照共用。
+/// 按单个本地日期筛选 canonical 调用，供日桶与逐日统计快照共用。
 pub fn filter_canonical_usage_for_local_date(
     canonical: &CanonicalUsageSet,
     date: Date,

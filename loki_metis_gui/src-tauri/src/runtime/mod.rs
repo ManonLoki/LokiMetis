@@ -1,6 +1,5 @@
 //! 装配本机扫描协调与 app-data 索引位置的 Tauri 共享状态。
 
-use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -18,12 +17,10 @@ mod settings_state;
 use crate::dto::{AgentClientKindDto, SourceRootDto};
 #[cfg(test)]
 use crate::privacy_store::load_settings;
-use crate::privacy_store::{
-    LocalPrivacySettings, load_or_initialize_settings, read_stable_device_unique_id,
-};
+use crate::privacy_store::{LocalPrivacySettings, load_or_initialize_settings};
 use crate::scan_state::ScanCoordinator;
 
-/// 保存 GUI 生命周期内唯一的 provider、扫描 writer 与隐私设置状态。
+/// 保存 GUI 生命周期内唯一的扫描 writer 与本地设置状态。
 // 这是整个应用的“全局单例状态”，通过 `app.manage()` 注册进 Tauri，
 // 所有 command 函数都以 `tauri::State<AppRuntimeState>` 形式共享同一份实例。
 // 字段大量使用 tokio::sync::{Mutex, RwLock}（异步锁，不同于 std::sync 的同步锁，
@@ -43,15 +40,11 @@ pub(crate) struct AppRuntimeState {
     pub(crate) root_discovery: Arc<RootDiscoveryCoordinator>,
     /// 本产品 app-data 目录；从不指向任一 `CODEX_HOME`。
     pub(crate) app_data_dir: PathBuf,
-    /// 当前完整本地设置快照；用户名仅允许首次从当前系统会话候选初始化。
+    /// 当前完整本地设置快照。
     privacy_settings: RwLock<LocalPrivacySettings>,
-    /// 惰性取得当前系统会话用户名候选；测试使用合成函数避免读取真实宿主。
-    username_candidate: fn() -> Option<String>,
-    /// 惰性取得 OS 主机名；测试使用合成函数避免读取真实宿主。
-    hostname_candidate: fn() -> Option<String>,
-    /// 串行化首次设置读取，避免概览与来源页并发启动 provider。
+    /// 串行化首次设置读取，避免概览与来源页并发读写设置文件。
     privacy_settings_loaded: Mutex<bool>,
-    /// 串行化 provider 模式与完整设置文件的更新，防止两个字段互相覆盖。
+    /// 串行化完整设置文件的更新，防止两个字段互相覆盖。
     privacy_settings_update: Mutex<()>,
     /// 最近一次扫描覆盖结论。
     pub(crate) coverages: AgentClientRegistry<Arc<RwLock<CoverageReport>>>,
@@ -62,32 +55,8 @@ pub(crate) struct AppRuntimeState {
 }
 
 impl AppRuntimeState {
-    /// 使用 Tauri app-data 下的显式索引文件构造共享状态，不立即触发网络或扫描。
+    /// 使用 Tauri app-data 下的显式索引文件构造共享状态，不立即触发扫描。
     pub(crate) fn new(app_data_dir: PathBuf) -> Self {
-        Self::new_with_identity_candidates(
-            app_data_dir,
-            os_session_username_candidate,
-            os_hostname_candidate,
-        )
-    }
-
-    /// 使用显式用户名候选源构造状态，测试主机名固定为合成值。
-    #[cfg(test)]
-    fn new_with_username_candidate(
-        app_data_dir: PathBuf,
-        username_candidate: fn() -> Option<String>,
-    ) -> Self {
-        Self::new_with_identity_candidates(app_data_dir, username_candidate, || {
-            Some("test-host".to_owned())
-        })
-    }
-
-    /// 使用显式用户名与主机名候选源构造状态，保持首次读取惰性且便于隔离测试。
-    fn new_with_identity_candidates(
-        app_data_dir: PathBuf,
-        username_candidate: fn() -> Option<String>,
-        hostname_candidate: fn() -> Option<String>,
-    ) -> Self {
         let codex_app_data = source_client_app_data_dir(&app_data_dir, SourceClientKind::Codex);
         let claude_app_data =
             source_client_app_data_dir(&app_data_dir, SourceClientKind::ClaudeCode);
@@ -115,8 +84,6 @@ impl AppRuntimeState {
             root_discovery: Arc::new(RootDiscoveryCoordinator::default()),
             app_data_dir,
             privacy_settings: RwLock::new(LocalPrivacySettings::default()),
-            username_candidate,
-            hostname_candidate,
             privacy_settings_loaded: Mutex::new(false),
             privacy_settings_update: Mutex::new(()),
             coverages: AgentClientRegistry::new(
@@ -153,10 +120,10 @@ impl AppRuntimeState {
             .await = Some(now_epoch_ms());
     }
 
-    /// 看板不接入出站 Provider；退出路径只回收本机扫描状态。
+    /// 退出路径只回收本机扫描状态。
     pub(crate) async fn shutdown_application(&self) {}
 
-    /// 首次读取设置时完成一次性会话用户名初始化；损坏或 I/O 失败时保守回退。
+    /// 首次读取设置时完成旧字段清理；损坏或 I/O 失败时保守回退。
     // “惰性初始化 + 加锁去重”模式：privacy_settings_loaded 是一个
     // Mutex<bool> 标记位，第一次调用时才真正从磁盘读取设置文件，
     // 之后的调用发现标记已是 true 就立刻返回，避免每次 command 都重复 I/O；
@@ -167,16 +134,9 @@ impl AppRuntimeState {
             return;
         }
         let app_data_dir = self.app_data_dir.clone();
-        let username_candidate = self.username_candidate;
-        let hostname_candidate = self.hostname_candidate;
         let settings = tauri::async_runtime::spawn_blocking(move || {
-            load_or_initialize_settings(
-                &app_data_dir,
-                username_candidate,
-                hostname_candidate,
-                read_stable_device_unique_id,
-            )
-            .unwrap_or_else(|_| LocalPrivacySettings::safe_fallback())
+            load_or_initialize_settings(&app_data_dir)
+                .unwrap_or_else(|_| LocalPrivacySettings::safe_fallback())
         })
         .await
         .unwrap_or_else(|_| LocalPrivacySettings::safe_fallback());
@@ -189,38 +149,6 @@ impl AppRuntimeState {
         let local_analysis = Arc::clone(&self.agent_clients.get(client.into()).local_analysis);
         local_analysis.index_size_bytes().await
     }
-}
-
-/// 只接受平台指定环境字段中的 Unicode 用户名候选，其他字节保持未设置。
-fn unicode_username_candidate(candidate: Option<OsString>) -> Option<String> {
-    candidate.and_then(|value| value.into_string().ok())
-}
-
-/// 在 Unix 上只读取当前进程继承的会话用户名候选，不执行外部命令。
-#[cfg(unix)]
-fn os_session_username_candidate() -> Option<String> {
-    unicode_username_candidate(std::env::var_os("USER"))
-}
-
-/// 在 Windows 上只读取当前进程继承的会话用户名候选，不执行外部命令。
-#[cfg(windows)]
-fn os_session_username_candidate() -> Option<String> {
-    unicode_username_candidate(std::env::var_os("USERNAME"))
-}
-
-/// 其他未验证平台没有受批准的系统会话用户名来源。
-#[cfg(not(any(unix, windows)))]
-fn os_session_username_candidate() -> Option<String> {
-    None
-}
-
-/// 读取当前 OS 主机名；失败或空白时表示设备名不可用，不执行外部命令。
-fn os_hostname_candidate() -> Option<String> {
-    hostname::get()
-        .ok()
-        .and_then(|value| value.into_string().ok())
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }
 
 /// 按事实自身观测时间计算持久快照有效期，缓存命中不得滑动续期旧事实。

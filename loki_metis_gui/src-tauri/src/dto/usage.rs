@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::UiMessageCodeDto;
 
-/// 标识概览中的本机时间窗口；排行榜页面复用同一枚举提交同一口径的六个日历窗口。
+/// 标识概览与统计页面共用的本机时间窗口，保持六个日历窗口口径一致。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum UsageWindow {
@@ -47,7 +47,7 @@ pub struct LocalRecordsSectionDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageOverviewDto {
-    /// 真实 provider 未完成装配时继续保持实施门禁。
+    /// 真实业务尚未完成装配时继续保持实施门禁。
     pub product_definition_required: bool,
     /// 实施门禁启用时展示的真实阶段说明。
     pub implementation_message: Option<String>,

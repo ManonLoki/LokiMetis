@@ -1,4 +1,4 @@
-//! 用户显式开放的本机 Agent 集合；缺省为空，关闭项不得扫描或上报。
+//! 用户显式开放的本机 Agent 集合；缺省为空，关闭项不得扫描或统计。
 
 use crate::SourceClientKind;
 
@@ -9,7 +9,7 @@ pub enum EnabledAgentsError {
     UnknownAgent,
 }
 
-/// 用户已开放监控和上报的本机 Agent 集合；默认全关。
+/// 用户已开放监控与本机统计的 Agent 集合；默认全关。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EnabledAgents {
     /// 是否开放 Codex。
@@ -85,7 +85,7 @@ impl EnabledAgents {
         !self.codex && !self.claude_code && !self.grok_build_cli
     }
 
-    /// 按固定顺序返回已开放 Agent，供页头、周期扫描和 Collect 共用。
+    /// 按固定顺序返回已开放 Agent，供页头与周期扫描共用。
     pub fn iter(self) -> impl Iterator<Item = SourceClientKind> {
         crate::public_dashboard_clients()
             .filter(|client| *client != SourceClientKind::WorkBuddy)

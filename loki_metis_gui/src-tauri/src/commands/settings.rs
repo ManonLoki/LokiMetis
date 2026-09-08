@@ -5,23 +5,12 @@ use tauri::State;
 use crate::dto::{PrivacySettingsDto, UsageClientKindDto};
 use crate::runtime::AppRuntimeState;
 
-/// 读取设备身份、扫描间隔、清理天数与已开放 Agent。
+/// 读取扫描间隔、清理天数与已开放 Agent。
 #[tauri::command]
 pub(crate) async fn get_privacy_settings(
     state: State<'_, AppRuntimeState>,
     client: UsageClientKindDto,
 ) -> Result<PrivacySettingsDto, String> {
-    Ok(state.privacy_settings(client).await)
-}
-
-/// 保存或清除设备用户名；系统会话候选只在首次设置加载时初始化一次。
-#[tauri::command]
-pub(crate) async fn set_device_username(
-    state: State<'_, AppRuntimeState>,
-    client: UsageClientKindDto,
-    device_username: String,
-) -> Result<PrivacySettingsDto, String> {
-    state.set_device_username(device_username).await?;
     Ok(state.privacy_settings(client).await)
 }
 

@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::Confidence;
 
-/// 定义用户可见与上报 `total_tokens` 的 provider 级聚合口径。
+/// 定义用户可见 `total_tokens` 的 provider 级聚合口径。
 ///
 /// ADR-121 后三个本机 provider 都必须保留上游单次总量；
 /// 保留该类型是为了让调用页游标与聚合依然显式绑定口径。

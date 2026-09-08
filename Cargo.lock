@@ -1912,17 +1912,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "hostname"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "617aaa3557aef3810a6369d0a99fac8a080891b68bd9f9812a1eeda0c0730cbd"
-dependencies = [
- "cfg-if",
- "libc",
- "windows-link 0.2.1",
-]
-
-[[package]]
 name = "html5ever"
 version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2538,7 +2527,6 @@ dependencies = [
  "tokio",
  "toml 1.1.5+spec-1.1.0",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2550,11 +2538,9 @@ dependencies = [
  "base64 0.22.1",
  "chromiumoxide",
  "futures",
- "hostname",
  "jiff",
  "loki_metis_core",
  "mac-usernotifications",
- "machine-uid",
  "objc2-foundation",
  "rust-i18n",
  "same-file",
@@ -2616,17 +2602,6 @@ dependencies = [
  "objc2-foundation",
  "objc2-user-notifications",
  "thiserror 2.0.20",
-]
-
-[[package]]
-name = "machine-uid"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe0d6336d341b10ae80e099b8f3c59f34bf8aef66ef25e83aa98bf2955c0ae7"
-dependencies = [
- "libc",
- "windows-registry 0.6.1",
- "windows-sys 0.61.2",
 ]
 
 [[package]]

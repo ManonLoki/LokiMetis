@@ -1,7 +1,7 @@
 //! ADR-104：生产聚合只累计归属段内 canonical 调用的原始总量。
 //!
 //! 兼容 cumulative 快照仍可挂到集合上，但不得覆盖窗口、日桶、分组、
-//! 调用表或 Collect 口径。578,438,961 只作为禁止回退的历史对照。
+//! 调用表或派生聚合口径。578,438,961 只作为禁止回退的历史对照。
 
 use crate::{
     CanonicalUsageSet, Confidence, CoverageReport, CoverageState, IncrementalTokenUsageDecision,

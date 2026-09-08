@@ -21,10 +21,8 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 chromiumoxide = { workspace = true }
 futures = { workspace = true }
-hostname = { workspace = true }
 jiff = { workspace = true }
 loki_metis_core = { workspace = true }
-machine-uid = { workspace = true }
 rust-i18n = { workspace = true }
 same-file = { workspace = true }
 sea-orm = { workspace = true }

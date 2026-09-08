@@ -29,7 +29,6 @@ const initializationSensitiveQueryPrefixes = [
   "source-roots",
   "privacy-settings",
   "scan-status",
-  "provider-leaderboard",
 ] as const;
 
 /** 取消并移除两个客户端的全部业务缓存，避免重新初始化后首帧复用旧账号或旧主根。 */
@@ -66,15 +65,15 @@ export async function invalidateLocalUsageQueries(
 }
 
 /** 将 runtime 全局设置同步进所有客户端缓存，同时保留各自独立索引元数据。 */
-// PrivacySettingsDto 里的字段其实混合了两种作用域：像语言偏好、设备用户名、
-// 刷新间隔、已开放 Agent、WorkBuddy 开关这些是“全局唯一一份”的设置（不区分
+// PrivacySettingsDto 里的字段其实混合了两种作用域：像语言偏好、刷新间隔、
+// 已启用 Agent、WorkBuddy 开关这些是“全局唯一一份”的设置（不区分
 // Codex/Claude），但索引位置、索引大小这些字段是“每个客户端各自独立”的。缓存却是按
 // ['privacy-settings', client] 分客户端存的，所以改一次全局设置后，
 // 必须把变化同步广播进两个客户端各自的缓存条目里。
 // `setQueriesData`（复数）能一次性匹配前缀命中的全部 query（这里是
 // 两个客户端各一条），对每条都跑同一个更新函数——只覆盖全局字段，
 // 用展开运算符 `...existing` 保留每条缓存里客户端专属的字段不被覆盖。
-// Privacy 页（语言/设备身份/扫描间隔）与数据源页（数据读取模式）都会
+// Privacy 页（语言/扫描间隔）与数据源页（数据读取模式）都会
 // 写入这些全局字段，因此这个广播助手在两个页面间共享，而不是各自
 // 复制一份。
 export function synchronizeGlobalPrivacySettings(
@@ -88,13 +87,8 @@ export function synchronizeGlobalPrivacySettings(
         ? {
             ...existing,
             languagePreference: settings.languagePreference,
-            deviceUsername: settings.deviceUsername,
-            deviceName: settings.deviceName,
-            deviceUniqueId: settings.deviceUniqueId,
-            localOnly: settings.localOnly,
             scanIntervalMinutes: settings.scanIntervalMinutes,
             retentionDays: settings.retentionDays,
-            deviceTimeZone: settings.deviceTimeZone,
             availableAiTypes: settings.availableAiTypes,
             enabledAgents: settings.enabledAgents,
             workbuddyStatsEnabled: settings.workbuddyStatsEnabled,

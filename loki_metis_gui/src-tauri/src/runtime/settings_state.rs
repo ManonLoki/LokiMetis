@@ -6,14 +6,12 @@ use crate::dto::{
 };
 use crate::privacy_store::{LocalPrivacySettings, save_settings};
 use loki_metis_core::{
-    AiTool, DeviceUsername, EnabledAgents, RetentionDays, ScanIntervalMinutes, SourceClientKind,
-    agent_wire_label, dashboard_selection_for_ai_tools, device_username_error_message,
-    device_username_save_failed_message, index_location_claude_code_label,
-    index_location_codex_label, initialization_state_save_failed_message,
-    language_setting_save_failed_message, merge_public_ai_selections, normalize_enabled_ai_tools,
-    privacy_settings_save_failed_message, public_ai_capabilities, retention_days_range_message,
-    retention_days_save_failed_message, scan_interval_range_message,
-    scan_interval_save_failed_message,
+    AiTool, EnabledAgents, RetentionDays, ScanIntervalMinutes, SourceClientKind, agent_wire_label,
+    dashboard_selection_for_ai_tools, index_location_claude_code_label, index_location_codex_label,
+    initialization_state_save_failed_message, language_setting_save_failed_message,
+    merge_public_ai_selections, normalize_enabled_ai_tools, privacy_settings_save_failed_message,
+    public_ai_capabilities, retention_days_range_message, retention_days_save_failed_message,
+    scan_interval_range_message, scan_interval_save_failed_message,
 };
 #[cfg(test)]
 use loki_metis_core::{
@@ -24,26 +22,7 @@ use loki_metis_core::{
 use super::AppRuntimeState;
 
 impl AppRuntimeState {
-    /// 保存仅本机偏好；该字段只作兼容持久化，不再启动任何官方读取。
-    pub(crate) async fn set_local_only(&self, local_only: bool) -> Result<(), String> {
-        self.ensure_privacy_settings_loaded().await;
-        let _update = self.privacy_settings_update.lock().await;
-        let mut settings = self.privacy_settings.read().await.clone();
-        settings.local_only = local_only;
-        *self.privacy_settings.write().await = settings.clone();
-        let app_data_dir = self.app_data_dir.clone();
-        // spawn_blocking：把同步的磁盘文件写入（save_settings 内部是阻塞 I/O）
-        // 丢到 Tokio 专门的阻塞线程池执行，避免占用异步运行时的少量工作线程，
-        // 这是 Rust async 生态处理“不得不用的同步操作”的标准写法。
-        tauri::async_runtime::spawn_blocking(move || save_settings(&app_data_dir, &settings))
-            .await
-            .map_err(|_| privacy_settings_save_failed_message().to_owned())?
-            .map_err(|_| privacy_settings_save_failed_message().to_owned())?;
-        Ok(())
-    }
-
-    /// 下面这一组 set_xxx 方法（设备用户名、扫描间隔、语言偏好、初始化完成
-    /// 标记……）共享的固定流程，集中在这里只实现一次：
+    /// 下面这一组 set_xxx 方法（扫描间隔、语言偏好、初始化完成标记等）共享的固定流程：
     ///   1. 确保设置已从磁盘加载过一次（ensure_privacy_settings_loaded）；
     ///   2. 用 privacy_settings_update 互斥锁防止并发写互相覆盖；
     ///   3. 基于内存里当前设置克隆一份，交给 `mutate` 修改目标字段；
@@ -74,17 +53,6 @@ impl AppRuntimeState {
         Ok(())
     }
 
-    /// 校验并保存用户提供的设备用户名；留空清除且禁止后续自动回填。
-    pub(crate) async fn set_device_username(&self, input: String) -> Result<(), String> {
-        let device_username = DeviceUsername::from_setting_input(&input)
-            .map_err(|error| device_username_error_message(error).to_owned())?;
-        self.update_privacy_settings(device_username_save_failed_message(), |settings| {
-            settings.device_username = device_username;
-            settings.device_username_initialized = true;
-        })
-        .await
-    }
-
     /// 保存单一扫描间隔；只改本机周期扫描节奏，不发网。
     pub(crate) async fn set_scan_interval(&self, minutes: u16) -> Result<(), String> {
         let interval = ScanIntervalMinutes::new(minutes)
@@ -95,7 +63,7 @@ impl AppRuntimeState {
         .await
     }
 
-    /// 返回本机周期扫描与远端偏好共用的扫描间隔。
+    /// 返回本机周期扫描使用的扫描间隔。
     pub(crate) async fn scan_interval(&self) -> ScanIntervalMinutes {
         self.ensure_privacy_settings_loaded().await;
         self.privacy_settings.read().await.scan_interval
@@ -127,7 +95,7 @@ impl AppRuntimeState {
         }
     }
 
-    /// 持久化界面语言偏好；不刷新查询、不启动 provider，也不触发扫描或索引。
+    /// 持久化界面语言偏好；不刷新查询，也不触发扫描或索引。
     pub(crate) async fn set_language_preference(
         &self,
         language_preference: LanguagePreferenceDto,
@@ -184,10 +152,6 @@ impl AppRuntimeState {
         self.ensure_privacy_settings_loaded().await;
         let (
             language_preference,
-            local_only,
-            device_username,
-            device_name,
-            device_unique_id,
             scan_interval_minutes,
             retention_days,
             enabled_agents,
@@ -196,19 +160,6 @@ impl AppRuntimeState {
             let settings = self.privacy_settings.read().await;
             (
                 settings.language_preference,
-                settings.local_only,
-                settings
-                    .device_username
-                    .as_ref()
-                    .map(|username| username.as_str().to_owned()),
-                settings
-                    .device_name
-                    .as_ref()
-                    .map(|name| name.as_str().to_owned()),
-                settings
-                    .device_unique_id
-                    .as_ref()
-                    .map(|id| id.as_str().to_owned()),
                 settings.scan_interval.get(),
                 settings.retention_days.get(),
                 to_dto_enabled_agents(settings.enabled_agents),
@@ -224,10 +175,6 @@ impl AppRuntimeState {
             .await;
         PrivacySettingsDto {
             language_preference,
-            local_only,
-            device_username,
-            device_name,
-            device_unique_id,
             scan_interval_minutes,
             retention_days,
             index_location_label: match client {
@@ -247,7 +194,6 @@ impl AppRuntimeState {
             enabled_agents,
             available_ai_types: available_dashboard_ai_types(),
             workbuddy_stats_enabled,
-            device_time_zone: loki_metis_core::device_time_zone_name(),
         }
     }
 

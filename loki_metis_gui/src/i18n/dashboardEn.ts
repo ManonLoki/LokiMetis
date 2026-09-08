@@ -36,7 +36,7 @@ export const dashboardEnUS = {
     },
     noEnabledAgents: {
       title: "No AI agents are enabled",
-      body: "Turn on the agents you want to monitor and report under Agent configuration in Settings. Disabled agents stay off the header and out of data reporting.",
+      body: "Enable the agents you want to use under Agent configuration in Settings. Disabled agents stay out of the header and all local scanning, statistics, and monitoring.",
     },
     navigation: {
       aria: "Main navigation",
@@ -80,16 +80,6 @@ export const dashboardEnUS = {
         label: "Settings",
         description: "Manage scan cadence and automatic cleanup",
       },
-      leaderboard: {
-        label: "Leaderboard",
-        description: "View aggregate usage rankings from the selected reporting service",
-        disabledAria: "Leaderboard: no data collection service is configured",
-        disabledDescription: "Save at least one data collection service to enable it",
-      },
-      collect: {
-        label: "Data collection",
-        description: "Configure background aggregate delivery",
-      },
       workbuddy: {
         label: "WorkBuddy",
         description:
@@ -97,7 +87,7 @@ export const dashboardEnUS = {
       },
       privacy: {
         label: "Privacy & settings",
-        description: "Manage network access and this app’s local index",
+        description: "Manage language, scan cadence, and this app’s local index",
       },
     },
   },
@@ -144,145 +134,6 @@ export const dashboardEnUS = {
       returnOverview: "Return to Overview",
     },
   },
-  initialization: {
-    header: {
-      title: "Set up Bifang AI Usage Dashboard",
-    },
-    common: {
-      previous: "Previous",
-      next: "Next",
-      skipAndContinue: "Skip and continue",
-      noRootsRequired: "You can continue without a data directory or without scanning.",
-    },
-    roots: {
-      emptyTitle: "No data directories are registered",
-      emptyBody:
-        "Run data source discovery and add candidates. Added roots enter scheduled background Token statistics. You can continue without a root.",
-      enabled: "Enabled",
-      disabled: "Disabled",
-      primaryBadge: "Primary data directory",
-      meta: "{{discovery}} · {{count}} indexed files · ID {{id}}",
-      primaryCurrent: "Current primary directory",
-      primarySet: "Set as primary",
-      primarySelected: "“{{alias}}” is now the Codex primary data directory.",
-      primaryInherited: "If none is selected, no Codex primary data directory is fixed.",
-      primaryClear: "Clear primary directory selection",
-    },
-    sources: {
-      stepLabel: "Discover data sources",
-      stepDescription: "Scan Codex, Claude Code, and Grok together",
-      title: "Discover and add data sources",
-      description:
-        "One scan shows Codex, Claude Code, and Grok candidates together. Added sources enter the background Token statistics cycle.",
-      addedCount: "{{count}} added",
-      emptyClient: "No {{client}} data source has been added yet.",
-      discoveryErrorTitle: "Unable to read discovery status",
-      rootErrorTitle: "Unable to read added data sources",
-      updatedTitle: "Codex data source updated",
-    },
-    username: {
-      stepLabel: "Device username",
-      stepDescription: "Edit or clear",
-      title: "Set the device username",
-      description:
-        "This display label can be duplicated, edited, or cleared. It is not a unique user or device identity and is sent only after you explicitly save a data-reporting destination.",
-      loading: "Loading local settings…",
-      loadErrorTitle: "Unable to load local settings",
-      retryLoad: "Retry loading local settings",
-      inputLabel: "Device username",
-      inputDescription:
-        "Up to 64 characters. Leave it blank to clear the label. {{count}}/64 characters used.",
-      tooLong: "The device username cannot exceed 64 characters.",
-      placeholder: "For example: My work device",
-      saveErrorTitle: "Unable to save the device username",
-      saveAndContinue: "Save and continue",
-    },
-    agents: {
-      title: "Choose which AI agents to monitor and report",
-      description:
-        "Codex is selected by default in first-time setup. You can select several agents or clear them all. Only the agents you confirm appear in the header and in data reporting.",
-      noneSelected: "You can leave them all off and enable them later in Settings.",
-    },
-    scanStep: {
-      stepLabel: "Scan and index",
-      stepDescription: "Automatic quick scan of selected agents",
-      title: "Scanning the selected AI agents",
-      description:
-        "A quick scan starts automatically for the agents you selected. Hits are added to the index when the scan finishes. Agents you did not select are not scanned or indexed.",
-      progressTitle: "Quick scan",
-      starting: "Starting the quick scan…",
-      phase: {
-        discovering: "Discovering",
-        registering: "Adding to the index",
-        indexing: "Indexing the last 30 days",
-        completing: "Opening the dashboard",
-        failed: "Did not finish",
-      },
-      failedTitle: "Scan did not finish",
-      failedBody: "Discovery or indexing failed. Retry without opening the dashboard.",
-      retry: "Retry scan",
-    },
-    codex: {
-      stepLabel: "Codex",
-      stepDescription: "Scan and primary directory",
-      title: "Scan for Codex data sources",
-      description:
-        "Data source discovery creates candidates from directory and rollout file names only. Added roots enter scheduled background statistics. This app does not read auth.json.",
-      loading: "Loading Codex data directories…",
-      updateErrorTitle: "Unable to update Codex data sources",
-      retryLoad: "Retry loading Codex data directories",
-      updatedTitle: "Codex data sources updated",
-    },
-    claude: {
-      stepLabel: "Claude Code",
-      stepDescription: "Scan local transcripts",
-      title: "Scan for Claude Code data sources",
-      description:
-        "Data source discovery creates candidates from projects transcript file-name structure only. Added roots enter scheduled background statistics. This app does not start claude, read credentials, or access the network.",
-      loading: "Loading Claude Code data directories…",
-      updateErrorTitle: "Unable to update Claude Code data sources",
-      retryLoad: "Retry loading Claude Code data directories",
-      updatedTitle: "Claude Code data sources updated",
-    },
-    scan: {
-      regionLabel: "{{client}} index update",
-      title: "Build or update index",
-      description:
-        "Reads only confirmed roots explicitly selected by the user. Discovery never opens JSONL.",
-      coverageNote:
-        "Permission denials, I/O errors, and policy skips are reported as partial coverage.",
-      quick: "Update index",
-      full: "Discover data directories",
-      cancel: "Cancel scan",
-      loading: "Loading scan status…",
-      loadErrorTitle: "Unable to load scan status",
-      retryLoad: "Retry loading scan status",
-      operationErrorTitle: "Scan operation did not complete",
-      currentScope: "Current scope: {{scope}}",
-      filesVisited: "Files visited: {{count}}",
-      callsIndexed: "Calls indexed: {{count}}",
-    },
-    confirm: {
-      stepLabel: "Review",
-      stepDescription: "Review and open the dashboard",
-      title: "Review initialization settings",
-      deviceUsername: "Device username: {{username}}",
-      usernameNotSet: "Not set",
-      codexRoots: "Codex data directories: {{count}}",
-      codexPrimary: "Codex primary data directory: {{alias}}",
-      inheritedContext: "Current process context",
-      claudeRoots: "Claude Code data directories: {{count}}",
-      grokRoots: "Grok data directories: {{count}}",
-      enabledAgents: "Monitoring and reporting enabled for: {{agents}}",
-      enabledNone: "No AI agents are enabled yet",
-      automaticTitle: "Automatic activity starts only after completion",
-      automaticBody:
-        "After initialization completes, added data sources are read automatically by the next background cycle to produce Token statistics.",
-      errorTitle: "Unable to complete initialization",
-      backToEdit: "Back to edit",
-      complete: "Complete initialization",
-    },
-  },
   window: {
     billingPeriod: "Current billing period",
     today: "Today",
@@ -292,7 +143,6 @@ export const dashboardEnUS = {
     thisMonth: "This month",
     lastMonth: "Last month",
   },
-  leaderboard: {},
   dimension: {
     group: "Group",
     agent: "AI agent",
@@ -637,74 +487,6 @@ export const dashboardEnUS = {
         "The operating-system login item cannot be read right now. The switch stays disabled to prevent an incorrect change.",
       retry: "Read actual state again",
     },
-    enabledAgents: {
-      title: "AI agents to monitor and report",
-      badge: "Global setting",
-      workbuddyLabel: "WorkBuddy",
-    },
-    device: {
-      title: "Device identity",
-      badge: "Local setting",
-      description:
-        "The username can be customized or cleared. The device name comes from the operating-system hostname, and a local UUID is generated and persisted on first launch. All three stay in this app’s settings file and enter a report payload only after you explicitly save a data-reporting destination.",
-      usernameLabel: "Device username",
-      usernameDescription:
-        "Up to 64 characters. Save a blank value to clear the existing username. {{count}}/64 characters used.",
-      usernameTooLong: "The device username cannot exceed 64 characters.",
-      usernamePlaceholder: "For example: Example user",
-      deviceNameLabel: "Device name",
-      deviceNameDescription:
-        "Operating-system hostname, shown only in this local settings snapshot. Read-only.",
-      uniqueIdLabel: "Unique device ID",
-      uniqueIdDescription:
-        "UUID generated on first launch and persisted in this app’s settings file. Read-only.",
-      save: "Save device username",
-      clear: "Clear device username",
-      successTitle: "Device username saved",
-      currentLabel: "Current local label: {{value}}",
-      cleared: "Device username cleared.",
-      errorTitle: "Unable to save the device username",
-    },
-    collect: {
-      title: "Data reporting",
-      add: "Add provider",
-      addTitle: "Add data-reporting provider",
-      addSave: "Add provider",
-      cancel: "Cancel",
-      delete: "Delete",
-      empty:
-        "No data-reporting providers have been added. No custom service is contacted until you add one.",
-      statusUntested: "Not checked",
-      statusReachable: "Connected",
-      statusUnreachable: "Unavailable",
-      statusAria: "Provider status: {{status}}",
-      baseUrlLabel: "Server address",
-      baseUrlDescription:
-        "Enter the server address, for example https://example.com/; its health URL is https://example.com/api/health. Saving only validates local format and uniqueness: it does not read audit state, check the service, or read or report tokens. HTTP and HTTPS are supported; HTTP sends device identity and aggregate tokens in plaintext. Credentials, query strings, and fragments are rejected.",
-      baseUrlRequired: "Enter a server address.",
-      intervalLabel: "Delivery interval (minutes)",
-      intervalDescription:
-        "Enter an integer from 1 to 1,440 minutes; default 1. Failures do not schedule extra retries.",
-      intervalError: "The delivery interval must be from 1 to 1,440 minutes.",
-      userAliasLabel: "Reported username alias",
-      userAliasPlaceholder: "Leave blank to use the device username",
-      save: "Save configuration",
-      sendNow: "Upload local data now",
-      checkHealth: "Check service",
-      savedTitle: "Provider saved",
-      savedScheduled:
-        "The configuration was saved and scheduled automatically. Saving did not access the network; the first automatic attempt will occur after the full {{minutes}}-minute interval.",
-      unsavedActionsHint:
-        "You have unsaved changes. Save the configuration first; service checks and local-data uploads only use saved settings.",
-      healthHealthyTitle: "Service healthy",
-      healthHealthyBody: "The REST health check passed (HTTP {{status}}).",
-      healthUnhealthyTitle: "Service unavailable",
-      healthUnhealthyBody:
-        "The health check failed (HTTP {{status}}, {{error}}). No tokens were read or reported.",
-      statusErrorTitle: "Unable to read data-reporting status",
-      actionErrorTitle: "Data-reporting action did not complete",
-    },
-
     retentionDays: dashboardUsageSettingsEnUS.retentionDays,
     scanInterval: dashboardUsageSettingsEnUS.scanInterval,
   },

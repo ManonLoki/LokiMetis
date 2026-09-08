@@ -292,9 +292,9 @@ mod tests {
         }
     }
 
-    /// 验证本机周期扫描与远端偏好读取的是同一个扫描间隔。
+    /// 验证本机周期扫描与设置快照读取的是同一个扫描间隔。
     #[tokio::test]
-    async fn local_and_remote_preference_share_the_same_scan_interval() {
+    async fn local_scheduler_and_settings_share_the_same_scan_interval() {
         let temp = tempdir().expect("isolated app-data is available");
         let state = AppRuntimeState::new(temp.path().to_path_buf());
         state

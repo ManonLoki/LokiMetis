@@ -117,7 +117,7 @@ pub(crate) async fn read_workbuddy_statistics(
     ))
 }
 
-/// 只读取 project JSONL 用量，不触碰与 Collect/模型表无关的 Trace 目录。
+/// 只读取 project JSONL 用量，不触碰与本机用量统计无关的 Trace 目录。
 pub(crate) async fn read_workbuddy_usage_snapshot(
     workbuddy_home: &Path,
     now_epoch_ms: i64,

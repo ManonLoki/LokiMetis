@@ -54,7 +54,6 @@ export const usageCommands = {
   refreshLocalIndexes: "refresh_local_indexes",
   reindexSourceRoot: "reindex_source_root",
   privacy: "get_privacy_settings",
-  setDeviceUsername: "set_device_username",
   setScanInterval: "set_scan_interval",
   setRetentionDays: "set_retention_days",
   workbuddyStatistics: "get_workbuddy_statistics",
@@ -172,22 +171,11 @@ export async function reindexSourceRoot(
   return invoke<ScanStatusDto>(usageCommands.reindexSourceRoot, { client, rootId });
 }
 
-/** 读取仅本机模式与本产品索引位置说明。 */
+/** 读取本机扫描设置与本产品索引位置说明。 */
 export async function getPrivacySettings(
   client: UsageClientKind,
 ): Promise<PrivacySettingsDto> {
   return invoke<PrivacySettingsDto>(usageCommands.privacy, { client });
-}
-
-/** 保存或清除设备用户名；空字符串由后端解释为清除且不再自动回填。 */
-export async function setDeviceUsername(
-  client: UsageClientKind,
-  deviceUsername: string,
-): Promise<PrivacySettingsDto> {
-  return invoke<PrivacySettingsDto>(usageCommands.setDeviceUsername, {
-    client,
-    deviceUsername,
-  });
 }
 
 /** 保存单一扫描间隔；只改本机周期扫描节奏。 */

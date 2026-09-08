@@ -15,7 +15,7 @@ use crate::backend::local_index::{
     CLAUDE_PARSER_VERSION, PARSER_VERSION, RegisteredRoot, ScanMode,
 };
 
-/// writer 写入的 generation 必须等于 core 打开索引、概览和 Collect 使用的值。
+/// writer 写入的 generation 必须等于 core 打开索引、概览和派生聚合使用的值。
 #[test]
 fn claude_writer_generation_matches_core_reader() {
     assert_eq!(

@@ -40,9 +40,8 @@ use commands::{
     get_privacy_settings, get_root_discovery_status, get_source_roots, get_sources,
     get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics,
     get_workbuddy_source_status, get_workbuddy_statistics, get_workbuddy_usage_statistics,
-    list_root_candidates, refresh_local_indexes, reindex_source_root, set_device_username,
-    set_retention_days, set_scan_interval, spawn_periodic_local_scans, spawn_retention_cleanup,
-    start_root_discovery,
+    list_root_candidates, refresh_local_indexes, reindex_source_root, set_retention_days,
+    set_scan_interval, spawn_periodic_local_scans, spawn_retention_cleanup, start_root_discovery,
 };
 use deep_link::install_deep_link;
 use locale::{LocaleState, get_system_locale, resolve_system_locale, set_interface_language};
@@ -281,7 +280,6 @@ pub fn run() {
             refresh_local_indexes,
             reindex_source_root,
             get_privacy_settings,
-            set_device_username,
             set_scan_interval,
             set_retention_days,
             get_workbuddy_statistics,
