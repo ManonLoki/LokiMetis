@@ -3,7 +3,7 @@
   "releases": [
     {
       "releaseDate": "2026-09-08",
-      "version": "v0.2.15",
+      "version": "v0.2.16",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
@@ -62,6 +62,10 @@
         {
           "zh-CN": "修复 Windows 构建中 WMI 绑定版本冲突和 WorkBuddy 可执行文件发现类型推断失败。",
           "en-US": "Fixed Windows build failures caused by conflicting WMI bindings and WorkBuddy executable-discovery type inference."
+        },
+        {
+          "zh-CN": "修复设置页把查询上下文误当作更新日志调用器，导致候选内更新日志无法打开。",
+          "en-US": "Fixed Settings treating query context as the release-notes invoker, which prevented bundled candidate notes from opening."
         }
       ]
     }
