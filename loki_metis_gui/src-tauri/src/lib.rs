@@ -402,14 +402,24 @@ mod tests {
         assert!(!super::APPLICATION_NAME.contains(env!("CARGO_PKG_VERSION")));
     }
 
-    /// Tauri 不复制产品版本，并保持发布 DMG 的图标位置与 GUI Profile 一致。
+    /// Tauri 不复制产品版本，并锁定本地化名称、DMG 布局与同源平台图标。
     #[test]
-    fn tauri_config_uses_cargo_version_and_localized_bundle_names() {
+    fn tauri_config_uses_cargo_version_localized_names_and_current_icons() {
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
 
         assert!(config.get("version").is_none());
         assert_eq!(config["productName"], "LokiMetis");
+        assert_eq!(
+            config["bundle"]["icon"],
+            serde_json::json!([
+                "icons/32x32.png",
+                "icons/128x128.png",
+                "icons/128x128@2x.png",
+                "icons/icon.icns",
+                "icons/icon.ico"
+            ])
+        );
         let dmg = &config["bundle"]["macOS"]["dmg"];
         assert_eq!(dmg["windowSize"]["width"], 660);
         assert_eq!(dmg["windowSize"]["height"], 400);
@@ -431,6 +441,8 @@ mod tests {
 
         let nsis = &config["bundle"]["windows"]["nsis"];
         assert_eq!(nsis["template"], "windows/nsis/installer.nsi");
+        assert_eq!(nsis["installerIcon"], "icons/icon.ico");
+        assert_eq!(nsis["uninstallerIcon"], "icons/icon.ico");
         assert_eq!(
             nsis["languages"],
             serde_json::json!(["English", "SimpChinese"])

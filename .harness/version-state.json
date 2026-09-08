@@ -15,7 +15,8 @@
     "BUG-DASHBOARD-ALL-SKIP-UNCONFIGURED-AGENTS",
     "BUG-STARTUP-RESOURCE-UNKNOWN-PATH",
     "BUG-WINDOWS-WMI-WINDOWS-CORE-SKEW",
-    "BUG-RELEASE-NOTES-REACT-QUERY-CONTEXT"
+    "BUG-RELEASE-NOTES-REACT-QUERY-CONTEXT",
+    "BUG-NSIS-APP-ICON-IDENTITY"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -295,8 +296,13 @@
       "change_id": "FEAT-SETTINGS-SPONSOR-PAYMENT-CODES",
       "kind": "feature",
       "required_version": "0.2.16"
+    },
+    {
+      "change_id": "BUG-NSIS-APP-ICON-IDENTITY",
+      "kind": "bug-fix",
+      "required_version": "0.2.17"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.16"
+  "target_version": "0.2.17"
 }

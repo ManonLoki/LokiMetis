@@ -55,7 +55,7 @@ Tauri Builder 顺序固定为：
 - 应用显示名为 LokiMetis，中文名为诡秘神谕；bundle identifier 与 deep-link scheme 必须由项目身份一致派生。
 - Windows NSIS 同时提供 English 与简体中文并显示语言选择器；用户可见安装名称与快捷方式随所选语言变化，稳定安装身份仍为 LokiMetis。macOS 通过 `InfoPlist.strings` 按系统首选语言本地化 Finder 显示名；物理安装包、DMG 与 `.app` 名保持 LokiMetis。
 - 母版位于 `loki_metis_gui/src-tauri/icons/app-icon-master.png`，前端副本位于 `loki_metis_gui/public/app-identity/logo.png`，两者逐字节一致。
-- 平台图标由项目本地 Tauri `icon` 命令从母版生成。托盘与 bundle 引用普通文件 `src-tauri/icons/32x32.png`，它必须是可见的 32×32、8-bit RGBA、非交错 PNG。
+- 平台图标由项目本地 Tauri `icon` 命令从母版生成。bundle 完整引用 32px、128px、256px、ICNS 与 ICO；Windows 主程序、NSIS 安装器和卸载器使用 `src-tauri/icons/icon.ico`。托盘使用同源普通文件 `src-tauri/icons/32x32.png`，它必须是可见的 32×32、8-bit RGBA、非交错 PNG。
 - macOS DMG 背景是独立的 660×400 打包资产，不得与运行时窗口状态或应用 Logo 混用。
 
 ## 本地发布说明
