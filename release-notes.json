@@ -2,36 +2,8 @@
   "schemaVersion": 2,
   "releases": [
     {
-      "releaseDate": "2026-09-08",
-      "version": "v0.2.18",
-      "featureOptimizations": [
-        {
-          "zh-CN": "优化 Windows 安装器与 macOS Finder 的双语应用显示名、托盘菜单和“应用换肤”界面，并移除冗余的宿主启动与“只看用户皮肤”控件。",
-          "en-US": "Refined bilingual app display names for the Windows installer and macOS Finder, tray menu wording, and the App Skins interface, while removing redundant host-launch and user-only controls."
-        },
-        {
-          "zh-CN": "在 macOS 与兼容 Linux 托盘中显示全部已启用来源的当天 Token 总量，并随扫描、配置变化和跨日刷新。",
-          "en-US": "Added daily total token usage across all enabled sources to the macOS and compatible Linux tray, refreshed after scans, configuration changes, and day rollover."
-        },
-        {
-          "zh-CN": "在设置中新增固定 GitHub 仓库入口，以及微信支付和支付宝赞助二维码。",
-          "en-US": "Added a fixed GitHub repository link plus WeChat Pay and Alipay sponsorship QR codes to Settings."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 Windows 安装器、卸载器、快捷方式与已安装应用可能使用错误图标的问题。",
-          "en-US": "Fixed the Windows installer, uninstaller, shortcuts, and installed-app surfaces potentially using the wrong icon."
-        },
-        {
-          "zh-CN": "修复 Windows 可执行文件缺少 Common Controls v6 清单时原生对话框入口点加载失败的问题。",
-          "en-US": "Fixed native-dialog entry-point load failures caused by a missing Common Controls v6 manifest in Windows executables."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-08",
-      "version": "v0.2.16",
+      "releaseDate": "2026-09-09",
+      "version": "v0.2.19",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
@@ -46,20 +18,32 @@
           "en-US": "Added a 12-position desktop pet overlay with dragging, layouts, paging, scaling, and tray controls."
         },
         {
-          "zh-CN": "新增 Codex 与 WorkBuddy 本机换皮，内置六套主题并支持安全导入、导出、创建和恢复。",
+          "zh-CN": "新增 Codex 与 WorkBuddy 本机换肤，内置六套主题并支持安全导入、导出、创建和恢复。",
           "en-US": "Added local Codex and WorkBuddy skins with six built-in themes plus safe import, export, creation, and restore flows."
         },
         {
-          "zh-CN": "统一 Agent 启用面板，让看板、Hooks、桌宠与换皮只展示各自真实支持的类型。",
-          "en-US": "Unified Agent enablement so dashboards, Hooks, desktop pets, and skins expose only the types they actually support."
+          "zh-CN": "为 Windows WorkBuddy 换肤增加受控 CDP 恢复：经用户确认后关闭官方路径下经过验证的旧进程树，并启动唯一的本机调试实例。",
+          "en-US": "Added controlled CDP recovery for Windows WorkBuddy skins: after user confirmation, verified old process trees under official paths are closed and a single local-debugging instance is started."
         },
         {
-          "zh-CN": "将扫描间隔与自动清理归入用量看板设置，并精简公共设置和换皮工具栏。",
-          "en-US": "Moved scan interval and automatic cleanup into Usage Dashboard settings and simplified the shared settings and skin toolbar."
+          "zh-CN": "统一 Agent 启用面板，让用量看板、Hooks、桌宠与换肤只展示各自真实支持的类型。",
+          "en-US": "Unified Agent enablement so usage dashboards, Hooks, desktop pets, and skins expose only the types they actually support."
         },
         {
-          "zh-CN": "在应用信息中加入可离线打开的双语本地更新日志。",
-          "en-US": "Added bilingual local release notes that can be opened offline from application information."
+          "zh-CN": "重组用量看板、AI 监控与应用换肤的设置和导航，精简换肤工具栏，并在应用信息中提供可离线打开的双语更新日志。",
+          "en-US": "Reorganized settings and navigation for Usage Dashboard, AI Monitor, and App Skins, simplified the skins toolbar, and added offline bilingual release notes to app information."
+        },
+        {
+          "zh-CN": "为 Windows 安装器与 macOS Finder 提供中英文应用显示名，并统一托盘菜单和应用换肤界面的本地化文案。",
+          "en-US": "Added localized English and Chinese app display names for the Windows installer and macOS Finder, and aligned tray-menu and App Skins wording."
+        },
+        {
+          "zh-CN": "在 macOS 与兼容 Linux 托盘中显示全部已启用来源的当天 Token 总量，并随扫描、配置变化和跨日刷新。",
+          "en-US": "Added daily total token usage across all enabled sources to the macOS and compatible Linux tray, refreshed after scans, configuration changes, and day rollover."
+        },
+        {
+          "zh-CN": "在设置中新增固定 GitHub 仓库入口，以及微信支付和支付宝赞助二维码。",
+          "en-US": "Added a fixed GitHub repository link plus WeChat Pay and Alipay sponsorship QR codes to Settings."
         }
       ],
       "bugFixes": [
@@ -94,6 +78,14 @@
         {
           "zh-CN": "修复设置页把查询上下文误当作更新日志调用器，导致候选内更新日志无法打开。",
           "en-US": "Fixed Settings treating query context as the release-notes invoker, which prevented bundled candidate notes from opening."
+        },
+        {
+          "zh-CN": "修复 Windows 安装器、卸载器、快捷方式与已安装应用可能使用错误图标，以及缺少 Common Controls v6 清单导致原生对话框加载失败的问题。",
+          "en-US": "Fixed incorrect icons across the Windows installer, uninstaller, shortcuts, and installed-app surfaces, plus native-dialog load failures caused by a missing Common Controls v6 manifest."
+        },
+        {
+          "zh-CN": "修复 Windows WorkBuddy 报告皮肤注入成功但换肤几乎不可见的问题，并确保停用时清理专属样式、别名、观察器和版本标记。",
+          "en-US": "Fixed Windows WorkBuddy reporting successful skin injection while the skin remained largely invisible, and ensured deactivation removes its dedicated styles, aliases, observer, and version marker."
         }
       ]
     }
