@@ -108,6 +108,7 @@ impl SkinService {
         &self,
         token: &str,
         selected_item_ids: &[String],
+        allow_third_party_code: bool,
     ) -> Result<BatchImportResult, AppError> {
         validate_import_token(token)?;
         if selected_item_ids.is_empty() || selected_item_ids.len() > MAX_IMPORT_BATCH_FILES {
@@ -146,6 +147,16 @@ impl SkinService {
                     "skin.import_selection_invalid",
                     "导入选择包含已失效的项目，请重新选择 ZIP。",
                 ));
+            }
+            for item in pending
+                .items
+                .iter()
+                .filter(|item| selected.contains(&item.item_id))
+            {
+                validate_code_execution_consent(
+                    item.candidate.package_type,
+                    allow_third_party_code,
+                )?;
             }
         }
         let pending = self.take_pending_import(token)?;
@@ -265,7 +276,7 @@ impl SkinService {
             .and_then(|pending| pending.items.first())
             .map(|item| item.item_id.clone())
             .ok_or_else(import_state_error)?;
-        let result = self.commit_import_batch(token, &[item_id]).await?;
+        let result = self.commit_import_batch(token, &[item_id], true).await?;
         result.installed.into_iter().next().ok_or_else(|| {
             let failure = result.failed.into_iter().next();
             AppError::with_details(

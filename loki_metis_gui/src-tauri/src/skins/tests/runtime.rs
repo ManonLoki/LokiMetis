@@ -113,7 +113,7 @@
             source: SkinSource::User,
             id: "first-skin".into(),
         };
-        let loaded = load_skin(&root.join("builtin"), &root.join("user"), &reference)
+        let loaded = load_skin(&root.join("builtin"), &root.join("user"), &reference, true)
             .expect("应构建带运行标记的皮肤载荷");
         assert!(loaded.payload.contains("window.__CODEX_DREAM_SKIN_STATE__"));
         assert!(loaded.payload.contains("state.skin"));
@@ -127,6 +127,44 @@
         assert!(expression.contains("skin?.id === \"first-skin\""));
         assert!(!expression.contains("themeId"));
         std::fs::remove_dir_all(root).expect("应清理测试目录");
+    }
+
+    #[test]
+    /// 未确认第三方代码时应用流程必须在宿主探测、注入和运行态持久化之前失败。
+    fn legacy_install_without_consent_stops_before_host_side_effects() {
+        tauri::async_runtime::block_on(async {
+            let root = temp_directory("legacy-install-consent");
+            let directory = root.join("user/legacy-script");
+            create_fixture(&directory, "legacy-script");
+            let service = create_service(&root);
+            let reference = SkinReference {
+                source: SkinSource::User,
+                id: "legacy-script".into(),
+            };
+            let script_before = std::fs::read(directory.join("renderer-inject.js"))
+                .expect("应读取兼容皮肤脚本");
+
+            let error = service
+                .install(
+                    SkinHostKind::Codex,
+                    &reference,
+                    false,
+                    None,
+                    false,
+                    false,
+                )
+                .await
+                .expect_err("未确认信任时不得接触宿主");
+            assert_eq!(error.code, "skin.third_party_code_consent_required");
+            assert!(service.runtime.lock().await.instances.is_empty());
+            assert_eq!(
+                std::fs::read(directory.join("renderer-inject.js"))
+                    .expect("拒绝后原始脚本应保持不变"),
+                script_before
+            );
+
+            std::fs::remove_dir_all(root).expect("应清理测试目录");
+        });
     }
 
     #[test]

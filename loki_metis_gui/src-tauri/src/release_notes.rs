@@ -11,6 +11,7 @@ const MAX_RELEASE_NOTES_BYTES: u64 = 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+/// 表示随应用打包的版本化更新日志文档。
 pub(crate) struct ReleaseNotesDocument {
     schema_version: u8,
     releases: Vec<ReleaseNoteEntry>,
@@ -18,6 +19,7 @@ pub(crate) struct ReleaseNotesDocument {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+/// 保存单个版本的日期及双语功能与修复条目。
 struct ReleaseNoteEntry {
     release_date: String,
     version: String,
@@ -27,6 +29,7 @@ struct ReleaseNoteEntry {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
+/// 保存一条更新说明的简体中文与英文文本。
 struct LocalizedReleaseNoteItem {
     #[serde(rename = "zh-CN")]
     zh_cn: String,
@@ -36,13 +39,14 @@ struct LocalizedReleaseNoteItem {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
+/// 区分更新日志资源不可用、过大或格式无效的失败类型。
 pub(crate) enum ReleaseNotesLoadError {
     Unavailable,
     TooLarge,
     Invalid,
 }
 
-/// Reads only the fixed bundle resource; callers cannot provide a filesystem path.
+/// 只读取固定的随包资源，不允许调用方提供任意文件系统路径。
 #[tauri::command]
 pub async fn load_release_notes(
     app: tauri::AppHandle,
@@ -69,6 +73,7 @@ pub async fn load_release_notes(
     parse_release_notes(&bytes)
 }
 
+/// 解析并验证更新日志资源字节。
 fn parse_release_notes(bytes: &[u8]) -> Result<ReleaseNotesDocument, ReleaseNotesLoadError> {
     let document: ReleaseNotesDocument =
         serde_json::from_slice(bytes).map_err(|_| ReleaseNotesLoadError::Invalid)?;
@@ -76,6 +81,7 @@ fn parse_release_notes(bytes: &[u8]) -> Result<ReleaseNotesDocument, ReleaseNote
     Ok(document)
 }
 
+/// 验证文档版本、条目上限、日期顺序和双语内容唯一性。
 fn validate_release_notes(document: &ReleaseNotesDocument) -> Result<(), ReleaseNotesLoadError> {
     if document.schema_version != RELEASE_NOTES_SCHEMA_VERSION
         || document.releases.is_empty()
@@ -105,10 +111,12 @@ fn validate_release_notes(document: &ReleaseNotesDocument) -> Result<(), Release
     Ok(())
 }
 
+/// 判断文本非空、无首尾空白且未在同一语言集合中重复。
 fn is_clean_unique_text<'a>(text: &'a str, seen: &mut HashSet<&'a str>) -> bool {
     !text.is_empty() && text.trim() == text && seen.insert(text)
 }
 
+/// 检查每条双语说明在各自语言中均非空且唯一。
 fn has_unique_non_empty_items(items: &[LocalizedReleaseNoteItem]) -> bool {
     let mut unique_zh_cn = HashSet::new();
     let mut unique_en_us = HashSet::new();
@@ -118,6 +126,7 @@ fn has_unique_non_empty_items(items: &[LocalizedReleaseNoteItem]) -> bool {
     })
 }
 
+/// 验证供界面展示的 `vMAJOR.MINOR.PATCH` 版本格式与数值范围。
 fn is_valid_display_version(version: &str) -> bool {
     let Some(machine_version) = version.strip_prefix('v') else {
         return false;
@@ -134,6 +143,7 @@ fn is_valid_display_version(version: &str) -> bool {
         })
 }
 
+/// 验证公历日期采用有效的 `YYYY-MM-DD` 格式。
 fn is_valid_release_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     if bytes.len() != 10
@@ -172,6 +182,7 @@ fn is_valid_release_date(value: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// 有效的双语更新日志资源应完成解析。
     #[test]
     fn parses_valid_release_notes_resource() {
         let document = parse_release_notes(
@@ -181,6 +192,7 @@ mod tests {
         assert_eq!(document.releases[0].version, "v0.1.0");
     }
 
+    /// 未知字段、非法版本、重复条目或缺少翻译的资源应被拒绝。
     #[test]
     fn rejects_invalid_release_notes_resource() {
         for invalid in [
@@ -196,6 +208,7 @@ mod tests {
         }
     }
 
+    /// 无效日期或按时间升序排列的发布记录应被拒绝。
     #[test]
     fn rejects_invalid_or_out_of_order_release_dates() {
         assert!(!is_valid_release_date("2026-02-29"));

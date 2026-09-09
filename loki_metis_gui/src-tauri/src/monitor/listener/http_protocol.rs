@@ -17,6 +17,8 @@ const MAX_HOOK_STATUS_BYTES: usize = 64;
 const HEADER_BYTE_BUDGET: usize = 8192;
 const MAX_HOOK_HTTP_REQUEST_BYTES: usize = MAX_NATIVE_HOOK_INPUT_BYTES + HEADER_BYTE_BUDGET;
 
+/// 保存一次最小 HTTP Hook 请求的认证、响应与可选事件结果。
+/// 保存单个 Hook HTTP 请求的认证、响应与可选事件结果。
 pub(crate) struct ConnectionOutcome {
     pub(super) ok: bool,
     pub(super) authenticated: bool,
@@ -197,6 +199,8 @@ fn normalize_hook_context_field(
     Ok(Some(value.to_owned()))
 }
 
+/// 创建不携带实例身份的未认证失败响应。
+/// 构造未通过身份认证的固定失败响应。
 pub(super) fn fail(status: &'static str, body: &'static str) -> ConnectionOutcome {
     ConnectionOutcome {
         ok: false,
@@ -233,6 +237,8 @@ pub(super) fn encode_http_response(
     )
 }
 
+/// 把编码后的最小 HTTP 响应完整写入本机连接。
+/// 把完整 HTTP/1.1 响应写入本机连接。
 pub(super) async fn write_http_response(
     stream: &mut tokio::net::TcpStream,
     status: &str,

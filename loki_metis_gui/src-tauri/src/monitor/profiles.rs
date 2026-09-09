@@ -113,6 +113,7 @@ mod tests {
     };
     use tempfile::tempdir;
 
+    /// 依次保存不同工具档案时应保留两次更新。
     #[test]
     fn saving_distinct_profiles_keeps_both_updates() {
         let root = tempdir().expect("temp");

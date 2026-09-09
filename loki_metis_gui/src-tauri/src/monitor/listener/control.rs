@@ -18,6 +18,7 @@ pub(super) struct HookListenerPolicy {
 }
 
 impl HookListenerPolicy {
+    /// 使用规范化后的启用工具集合和零代数创建监听策略。
     pub(super) fn new(enabled_tools: &[AiTool]) -> Self {
         Self {
             enabled_tools: normalize_enabled_ai_tools(enabled_tools)

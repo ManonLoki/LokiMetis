@@ -1,5 +1,10 @@
-use loki_metis_core::LocalScanProgress;
-use loki_metis_core::ScanKind;
+use std::sync::Arc;
+
+use loki_metis_core::{LocalScanProgress, ScanCancellation, ScanKind};
+
+use super::publish_scan_progress;
+use crate::dto::{ScanKindDto, ScanStateDto};
+use crate::scan_state::ScanCoordinator;
 
 /// 验证全设备发现先占用前四分之一进度，随后索引阶段保持单调推进。
 #[test]
@@ -32,4 +37,59 @@ fn full_device_progress_reports_discovery_before_indexing() {
     assert_eq!(indexing.files_visited, 4);
     assert_eq!(indexing.calls_indexed, 7);
     assert_eq!(indexing.current_root_id.as_deref(), Some("root-progress"));
+}
+
+/// 验证发布在回调返回前有序生效，且旧 scan_id 不能污染下一轮扫描。
+#[tokio::test]
+async fn published_progress_is_immediate_ordered_and_scan_scoped() {
+    let coordinator = Arc::new(ScanCoordinator::default());
+    let first = coordinator
+        .start(ScanKindDto::Quick, 1, ScanCancellation::new())
+        .await
+        .expect("first scan starts");
+
+    for (files_scanned, calls_added) in [(1, 2), (2, 3)] {
+        publish_scan_progress(
+            &coordinator,
+            &first.scan_id,
+            LocalScanProgress::Indexing {
+                kind: ScanKind::Quick,
+                current_root_id: Some("root-progress".to_owned()),
+                roots_completed: 0,
+                roots_total: 1,
+                files_scanned,
+                calls_added,
+            },
+        );
+    }
+    let first_status = coordinator.snapshot().await;
+    assert_eq!(first_status.files_visited, 2);
+    assert_eq!(first_status.calls_indexed, 3);
+
+    assert!(coordinator.finish_completed(&first.scan_id, 2).await);
+    let second = coordinator
+        .start(ScanKindDto::FullDevice, 1, ScanCancellation::new())
+        .await
+        .expect("replacement scan starts");
+    publish_scan_progress(
+        &coordinator,
+        &first.scan_id,
+        LocalScanProgress::Indexing {
+            kind: ScanKind::Quick,
+            current_root_id: Some("stale-root".to_owned()),
+            roots_completed: 1,
+            roots_total: 1,
+            files_scanned: 99,
+            calls_added: 99,
+        },
+    );
+
+    let second_status = coordinator.snapshot().await;
+    assert_eq!(
+        second_status.scan_id.as_deref(),
+        Some(second.scan_id.as_str())
+    );
+    assert_eq!(second_status.state, ScanStateDto::Running);
+    assert_eq!(second_status.files_visited, 0);
+    assert_eq!(second_status.calls_indexed, 0);
 }

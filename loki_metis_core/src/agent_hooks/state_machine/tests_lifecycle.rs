@@ -11,6 +11,7 @@ use crate::agent_hooks::{AiTool, HookBehavior};
 
 // 测试：孤立的完成事件被忽略，且不会留下幽灵会话
 #[test]
+/// 验证孤立完成事件被忽略且不会留下幽灵会话。
 fn orphan_completion_is_ignored_without_leaving_a_ghost_session() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -49,6 +50,7 @@ fn orphan_completion_is_ignored_without_leaving_a_ghost_session() {
 
 // 测试：已结束的墓碑拒绝迟到事件，但显式 SessionStart 可以恢复会话
 #[test]
+/// 验证已结束墓碑拒绝迟到事件，但显式会话开始可以恢复。
 fn ended_tombstone_rejects_late_events_but_explicit_session_start_can_resume() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -121,6 +123,7 @@ fn ended_tombstone_rejects_late_events_but_explicit_session_start_can_resume() {
 
 // 测试：未知会话的结束事件只释放一次，且不会覆盖其他存活会话
 #[test]
+/// 验证未知会话结束只释放一次且不覆盖其他活跃会话。
 fn unknown_session_end_releases_once_without_overriding_other_live_sessions() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -182,6 +185,7 @@ fn unknown_session_end_releases_once_without_overriding_other_live_sessions() {
 
 // 测试：批量过期会话时，多个变化会被合并为一次最终的聚合转场
 #[test]
+/// 验证批量过期会话只产生一次最终聚合迁移。
 fn expiring_sessions_batches_changes_into_one_final_aggregate_transition() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -240,6 +244,7 @@ fn expiring_sessions_batches_changes_into_one_final_aggregate_transition() {
 
 // 测试：最后一个活跃会话过期时应回落为 Idle 展示，而不是直接释放槽位
 #[test]
+/// 验证最后一个活跃会话过期时回到空闲而不额外释放展示位。
 fn expiring_last_active_session_falls_back_to_idle_without_releasing_slot() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -266,6 +271,7 @@ fn expiring_last_active_session_falls_back_to_idle_without_releasing_slot() {
 // 测试：第二阶段接入的多个工具（Qwen/Qoder/Gemini/Copilot）符合预期的
 // 事件映射，且最新轮次会覆盖旧轮次的进度判断
 #[test]
+/// 验证第二批工具使用各自事件映射且最新轮次优先。
 fn phase2_tools_use_expected_mapping_and_latest_turn_wins() {
     // --- Qwen Code 工具的行为验证 ---
     let mut qwen = HookStateMachine::default();
@@ -393,6 +399,7 @@ fn phase2_tools_use_expected_mapping_and_latest_turn_wins() {
 
 // Grok Build 走会话/轮次 latest-wins：start → progress → stop / session-end。
 #[test]
+/// 验证 Grok 会话轮次覆盖开始、进度、停止和会话结束。
 fn grok_session_turn_machine_covers_start_progress_stop_and_session_end() {
     let mut grok = HookStateMachine::default();
     assert_eq!(
@@ -438,6 +445,7 @@ fn grok_session_turn_machine_covers_start_progress_stop_and_session_end() {
 
 // 测试：会话追踪数量保持在上限内，并遵循既定的淘汰优先级
 #[test]
+/// 验证会话跟踪保持有界并按预定优先级淘汰。
 fn session_tracking_stays_bounded_and_uses_eviction_priority() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();

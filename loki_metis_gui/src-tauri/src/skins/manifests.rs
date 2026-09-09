@@ -482,6 +482,7 @@ struct InjectionTransaction {
 }
 
 impl InjectionTransaction {
+    /// 创建尚未登记页面的注入事务，并保存不可变所有权标记。
     fn new(id: &str) -> Self {
         Self {
             id: Arc::from(id),
@@ -489,6 +490,7 @@ impl InjectionTransaction {
         }
     }
 
+    /// 返回用于页面 DOM marker 的本次事务标识。
     fn id(&self) -> &str {
         &self.id
     }
@@ -501,6 +503,7 @@ impl InjectionTransaction {
             .insert(target_id);
     }
 
+    /// 取得已登记页面的快照，供提交或补偿阶段稳定遍历。
     fn tracked_targets(&self) -> BTreeSet<String> {
         self.targets
             .lock()

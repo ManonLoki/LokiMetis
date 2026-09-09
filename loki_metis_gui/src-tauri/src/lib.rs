@@ -93,6 +93,7 @@ const PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT: &str = "Object.defineProperty(
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+/// 暴露给前端的稳定应用名称、版本与初始化元数据。
 struct AppMetadata {
     application_name: &'static str,
     version: &'static str,
@@ -101,6 +102,7 @@ struct AppMetadata {
 }
 
 #[tauri::command]
+/// 返回由编译时版本和核心初始化状态组成的应用元数据。
 async fn get_app_metadata() -> AppMetadata {
     let status = loki_metis_core::scaffold_status().await;
     AppMetadata {
@@ -353,6 +355,13 @@ pub fn run() {
         if matches!(
             event,
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) && let Some(state) = app_handle.try_state::<runtime::AppRuntimeState>()
+        {
+            tauri::async_runtime::block_on(state.scan_tasks.shutdown());
+        }
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
         ) && let Some(worker) = app_handle.try_state::<NotificationWorker>()
         {
             worker.shutdown();
@@ -369,6 +378,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    /// 单实例插件必须最先注册且只能注册一次。
     #[test]
     fn single_instance_plugin_is_registered_first() {
         let plugins = [
@@ -390,6 +400,7 @@ mod tests {
         );
     }
 
+    /// 第二次启动应恢复现有主窗口而不是创建重复窗口。
     #[test]
     fn second_launch_restores_existing_main_window() {
         let windows_before = ["main"];
@@ -397,6 +408,7 @@ mod tests {
         assert_eq!(windows_after, ["main"]);
     }
 
+    /// 窗口标题只显示应用名，不应拼接版本号。
     #[test]
     fn window_title_is_application_name_without_version() {
         assert_eq!(super::APPLICATION_NAME, "LokiMetis");

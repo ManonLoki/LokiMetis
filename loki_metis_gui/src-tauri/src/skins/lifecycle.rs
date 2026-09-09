@@ -167,6 +167,14 @@ fn validate_skin_reference(skin: &SkinReference) -> Result<(), AppError> {
     })
 }
 
+/// 把核心层的自由脚本信任缺失映射为稳定 GUI 错误，不暗示格式校验能证明安全。
+fn third_party_code_consent_required_error() -> AppError {
+    AppError::new(
+        "skin.third_party_code_consent_required",
+        "兼容皮肤包含 renderer-inject.js，并会在目标宿主中执行第三方代码。只有明确确认信任来源后才能继续；格式校验不能证明脚本安全。",
+    )
+}
+
 /// 执行换皮宿主内部的 `validate_delete_batch` 步骤。
 fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
     loki_metis_core::validate_skin_delete_batch(skins).map_err(|error| match error {
@@ -193,6 +201,9 @@ fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
         | SkinRuleError::InvalidColorModes
         | SkinRuleError::InvalidThemeImageName => {
             AppError::new("skin.delete_selection_invalid", "皮肤删除请求无效。")
+        }
+        SkinRuleError::ThirdPartyCodeConsentRequired => {
+            third_party_code_consent_required_error()
         }
     })
 }

@@ -474,6 +474,7 @@ fn load_skin(
     builtin_root: &Path,
     user_root: &Path,
     skin: &SkinReference,
+    explicitly_trusted: bool,
 ) -> Result<LoadedSkin, AppError> {
     let directory = match skin.source {
         SkinSource::Builtin => builtin_root.join(&skin.id),
@@ -493,7 +494,7 @@ fn load_skin(
     };
     let descriptor = load_descriptor_from_manifest(&directory, &skin.id, skin.source, &manifest)?;
     let payload = append_runtime_skin_marker(
-        build_payload_from_manifest(&directory, &manifest)?,
+        build_payload_from_manifest(&directory, &manifest, explicitly_trusted)?,
         &descriptor,
     )?;
     Ok(LoadedSkin {

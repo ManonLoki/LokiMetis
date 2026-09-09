@@ -10,6 +10,7 @@ use crate::agent_hooks::{AiTool, HookBehavior};
 
 // 测试用例：验证依赖 status 字段区分状态的协议（Hermes/OpenClaw）能正确映射到原生状态
 #[test]
+/// 验证依赖原生 status 的协议能映射成功、失败与中断状态。
 fn status_driven_protocols_map_native_states() {
     // 构造一台全新的 Hermes 状态机
     let mut hermes = HookStateMachine::default();
@@ -55,6 +56,7 @@ fn status_driven_protocols_map_native_states() {
 
 // 测试用例：验证不在“抑制重复事件”白名单内的工具，会持续转发相同的受支持事件
 #[test]
+/// 验证抑制白名单外的工具会逐次转发重复的受支持事件。
 fn tools_outside_suppression_allowlist_forward_repeated_supported_events() {
     // 遍历一组“每事件必转发”类型工具及其对应的触发事件
     for (tool, event) in [
@@ -83,6 +85,7 @@ fn tools_outside_suppression_allowlist_forward_repeated_supported_events() {
 
 // 测试用例：验证 Codex 状态机覆盖“开始-中断-迟到完成-退出”整条链路
 #[test]
+/// 验证 Codex 状态机覆盖打开、中断、迟到完成和退出的完整序列。
 fn codex_state_machine_covers_open_interrupt_late_completion_and_exit() {
     // 构造一台全新的状态机（无会话/轮次标识，走简化测试接口）
     let mut machine = HookStateMachine::default();
@@ -121,6 +124,7 @@ fn codex_state_machine_covers_open_interrupt_late_completion_and_exit() {
 
 // 测试用例：验证只有真正的“工作开始”事件才能让状态机从已停止状态恢复运行
 #[test]
+/// 验证停止后的状态机只会由真实工作开始事件恢复。
 fn state_machine_only_resumes_after_a_real_work_start() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();
@@ -154,6 +158,7 @@ fn state_machine_only_resumes_after_a_real_work_start() {
 
 // 测试用例：验证重复的会话开始事件不会让一个已经在活跃运行的会话状态倒退
 #[test]
+/// 验证重复会话开始不会把活跃会话回退为空闲态。
 fn duplicate_session_start_does_not_regress_an_active_session() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();
@@ -198,6 +203,7 @@ fn duplicate_session_start_does_not_regress_an_active_session() {
 
 // 测试用例：验证 Cursor 的 stop 事件通过 status 字段区分“失败”与“正常完成”
 #[test]
+/// 验证 Cursor 停止事件依据 status 区分失败与正常完成。
 fn cursor_stop_status_distinguishes_failure_from_completion() {
     // 构造第一台状态机，用于验证失败场景
     let mut machine = HookStateMachine::default();
@@ -248,6 +254,7 @@ fn cursor_stop_status_distinguishes_failure_from_completion() {
 
 // 测试用例：验证 Cursor 的真实会话事件会取代之前建立的工作区占位会话
 #[test]
+/// 验证 Cursor 真实会话会替换先前的工作区占位会话。
 fn cursor_real_session_replaces_workspace_placeholder() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();
@@ -271,6 +278,7 @@ fn cursor_real_session_replaces_workspace_placeholder() {
 
 // 测试用例：验证多个并发会话的状态被正确聚合，且互不干扰（无串扰）
 #[test]
+/// 验证多会话聚合彼此隔离且不会发生状态串扰。
 fn state_machine_aggregates_multiple_sessions_without_cross_talk() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();
@@ -314,6 +322,7 @@ fn state_machine_aggregates_multiple_sessions_without_cross_talk() {
 
 // 测试用例：验证来自旧轮次的迟到事件会被拒绝，只有当前轮次的事件才生效
 #[test]
+/// 验证状态机拒绝来自旧轮次的迟到事件。
 fn state_machine_rejects_events_from_an_older_turn() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();
@@ -341,6 +350,7 @@ fn state_machine_rejects_events_from_an_older_turn() {
 
 // 测试用例：验证 Codex 的“Goal 模式”下，无需再次提交用户提示即可用新轮次恢复运行
 #[test]
+/// 验证 Codex 目标模式可由新轮次进度恢复而无需再次用户提示。
 fn codex_goal_mode_resumes_with_a_new_turn_without_another_user_prompt() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();
@@ -409,6 +419,7 @@ fn codex_goal_mode_resumes_with_a_new_turn_without_another_user_prompt() {
 
 // 测试用例：验证查询当前展示状态不会重放“释放”动作（避免误清理新建立的展示）
 #[test]
+/// 验证当前展示查询只暴露状态，不会重放先前的释放动作。
 fn current_display_transition_exposes_state_without_replaying_release() {
     // 构造一台全新的状态机
     let mut machine = HookStateMachine::default();

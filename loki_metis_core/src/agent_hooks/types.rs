@@ -342,6 +342,7 @@ mod tests {
     };
 
     #[test]
+    /// 验证 Hook relay 回环地址准确包含给定端口。
     fn loopback_address_uses_the_given_port() {
         assert_eq!(hook_relay_loopback_address(23_456), "127.0.0.1:23456");
         assert_eq!(
@@ -351,6 +352,7 @@ mod tests {
     }
 
     #[test]
+    /// 验证所有 AI 工具序列化名称遵循 camelCase 公共契约。
     fn all_ai_tool_names_match_the_camel_case_contract() {
         let expected = [
             "codex",
@@ -376,6 +378,7 @@ mod tests {
     }
 
     #[test]
+    /// 验证 Hook 目录覆盖全部工具并以 camelCase 字段序列化。
     fn hook_directories_cover_every_tool_and_serialize_camel_case() {
         let mut directories = HookConfigDirectories::default();
         for (index, tool) in AiTool::ALL.into_iter().enumerate() {
@@ -405,6 +408,7 @@ mod tests {
     }
 
     #[test]
+    /// 验证启用工具按监控界面的公共顺序去重归一化。
     fn enabled_tools_are_normalized_in_the_public_monitor_order() {
         assert_eq!(
             normalize_enabled_ai_tools(&[

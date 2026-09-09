@@ -6,6 +6,8 @@ pub(crate) mod commands;
 mod error;
 #[cfg(target_os = "macos")]
 mod macos_codex;
+#[cfg(target_os = "macos")]
+mod macos_process;
 #[cfg(target_os = "windows")]
 mod windows_codex;
 
@@ -56,7 +58,7 @@ include!("payload.rs");
 include!("instances.rs");
 include!("cdp_connect.rs");
 include!("appearance.rs");
-include!("platform.rs");
+include!("platform/mod.rs");
 include!("injection.rs");
 
 #[cfg(test)]

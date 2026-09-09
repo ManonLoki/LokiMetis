@@ -11,7 +11,7 @@ use crate::agent_hooks::{AiTool, HookBehavior, HookWriteOutcome};
 // Grok Build 协议的单例静态实例，供注册表引用
 pub(super) static GROK: GrokProtocol = GrokProtocol;
 
-// Grok Build 协议的空结构体（无状态，仅承载 trait 实现）
+/// Grok Build 的无状态 Hook 协议适配器。
 pub(super) struct GrokProtocol;
 
 // 官方个人 hooks 使用 PascalCase 事件名与 Claude 风格 command group。
@@ -61,37 +61,44 @@ const EVENTS: &[HookEvent] = &[
 ];
 
 impl HookProtocol for GrokProtocol {
+    /// 返回 Grok Build 的统一工具标识。
     fn tool(&self) -> AiTool {
         AiTool::Grok
     }
 
+    /// 返回用于界面展示的 Grok Build 名称。
     fn name(&self) -> &'static str {
         "Grok Build"
     }
 
+    /// 返回用于路径和配置标识的稳定短名。
     fn slug(&self) -> &'static str {
         "grok"
     }
 
-    // application 层把用户选择的 ~/.grok（或 $GROK_HOME）与该相对路径组合成
-    // 官方个人 hooks 目录下的独立托管文件。
+    /// 返回官方个人 hooks 目录内的独立托管配置相对路径。
+    ///
+    /// application 层会将其与用户选择的 `~/.grok` 或 `$GROK_HOME` 组合。
     fn config_filename(&self) -> &'static str {
         "hooks/lokimetis.json"
     }
 
+    /// 返回面向用户展示的 Grok Hook 配置相对路径。
     fn preview_filename(&self) -> &'static str {
         ".grok/hooks/lokimetis.json"
     }
 
+    /// 返回 Grok Build 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
     }
 
+    /// 按当前平台命令和可选 matcher 构造事件处理配置。
     fn handler(&self, event: &HookEvent, commands: &ManagedCommands) -> Value {
         command_group(platform_command(commands), event.matcher)
     }
 
-    // 个人 hooks 热加载需 /hooks 重载或新会话；写入后按重启/新建会话处理。
+    /// 标记个人 hooks 写入后需要 `/hooks` 重载或新建会话。
     fn changed_write_outcome(&self) -> HookWriteOutcome {
         HookWriteOutcome::RestartRequired
     }

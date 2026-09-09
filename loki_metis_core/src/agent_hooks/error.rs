@@ -32,6 +32,7 @@ impl HookError {
 }
 
 impl std::fmt::Display for HookError {
+    /// 将稳定错误码与可选细节格式化为面向调用方的错误文本。
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.code)?;
         if !self.params.is_empty() {

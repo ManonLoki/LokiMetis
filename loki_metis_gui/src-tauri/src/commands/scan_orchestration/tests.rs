@@ -119,6 +119,35 @@ fn local_scan_errors_keep_sanitized_stable_categories() {
     }
 }
 
+/// 已在入口取消的 worker 不得打开 SQLite，因此不会触发 schema adopt 或迁移写入。
+#[tokio::test]
+async fn cancelled_worker_has_no_database_side_effect_before_returning() {
+    let temp = tempfile::tempdir().expect("isolated app-data is available");
+    let cancellation = ScanCancellation::new();
+    cancellation.cancel();
+
+    let error = run::run_scan::<CodexClient>(
+        temp.path().to_path_buf(),
+        temp.path().to_path_buf(),
+        None,
+        ScanKind::Quick,
+        ScanStartOrigin::ExplicitUser,
+        cancellation,
+        Box::new(|_| {}),
+    )
+    .await
+    .expect_err("cancelled worker returns before opening the index");
+
+    assert_eq!(error, loki_metis_core::scan_cancelled_status_message());
+    assert!(
+        !loki_metis_core::source_client_usage_index_path(
+            temp.path(),
+            loki_metis_core::SourceClientKind::Codex,
+        )
+        .exists()
+    );
+}
+
 /// 验证合并覆盖时不会用少量已发现根覆盖卷级主动搜索范围。
 #[test]
 fn combined_coverage_preserves_larger_discovery_scope() {

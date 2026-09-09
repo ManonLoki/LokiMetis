@@ -134,6 +134,7 @@ mod tests {
     use loki_metis_core::HookBehavior;
     use tempfile::tempdir;
 
+    /// 空页面应保留无身份信息的固定位置占位。
     #[test]
     fn current_page_contains_identity_free_empty_positions() {
         let root = tempdir().expect("temp");
@@ -145,6 +146,7 @@ mod tests {
         assert!(view.slots.iter().all(|slot| slot.tile.is_none()));
     }
 
+    /// 已配置工具应按事件位置与最新修订投影到当前页面。
     #[test]
     fn configured_agent_is_projected_by_event_position_and_revision() {
         let root = tempdir().expect("temp");
@@ -175,6 +177,7 @@ mod tests {
         assert_eq!(tile.content, "ready");
     }
 
+    /// 尚未公开的协议状态不得进入桌宠公开读模型。
     #[test]
     fn hidden_protocol_states_never_enter_the_public_overlay_view() {
         let root = tempdir().expect("temp");
@@ -215,6 +218,7 @@ mod tests {
         );
     }
 
+    /// Grok 图块应使用统一的公开展示名称。
     #[test]
     fn grok_tile_uses_the_unified_public_name() {
         let page = PetOverlayPage {
@@ -242,6 +246,7 @@ mod tests {
         );
     }
 
+    /// 未匹配公开目录的核心图块应在 DTO 边界被移除。
     #[test]
     fn unmatched_core_tile_is_removed_at_the_public_dto_boundary() {
         let page = PetOverlayPage {
@@ -266,6 +271,7 @@ mod tests {
         assert!(view.slots[0].tile.is_none());
     }
 
+    /// 索引中缺失的图片文件不得暴露为可渲染资源。
     #[test]
     fn missing_indexed_file_is_not_exposed_as_a_renderable_image() {
         let root = tempdir().expect("temp");

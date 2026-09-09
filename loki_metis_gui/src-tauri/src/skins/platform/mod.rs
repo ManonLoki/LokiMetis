@@ -329,12 +329,14 @@ async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, App
 }
 
 #[cfg(target_os = "macos")]
+/// 读取 macOS 官方 WorkBuddy 主程序对应的进程命令行。
 async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     let executable = discover_workbuddy_executable().await?;
     codex_command_lines_for(&executable).await
 }
 
 #[cfg(target_os = "macos")]
+/// 判断 macOS 官方 WorkBuddy 是否运行，未安装按未运行处理。
 async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
     match discover_workbuddy_executable().await {
         Ok(executable) => Ok(codex_is_running(&executable).await),
@@ -344,6 +346,7 @@ async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
 }
 
 #[cfg(target_os = "macos")]
+/// 在 macOS 上启动官方 WorkBuddy，并通过环境变量绑定本机调试端口。
 async fn launch_platform_workbuddy(port: u16) -> Result<(), AppError> {
     let executable = discover_workbuddy_executable().await?;
     if codex_is_running(&executable).await {
@@ -360,6 +363,7 @@ async fn launch_platform_workbuddy(port: u16) -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "macos")]
+/// 仅向路径验证通过的 macOS WorkBuddy 进程发送终止信号。
 async fn force_close_platform_workbuddy() -> Result<(), AppError> {
     let executable = discover_workbuddy_executable().await?;
     for (pid, _) in codex_command_lines_for(&executable).await? {
@@ -381,6 +385,7 @@ async fn force_close_platform_workbuddy() -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "macos")]
+/// 复核 macOS WorkBuddy 实例身份后按原参数和新端口重启。
 async fn restart_platform_workbuddy_instance(
     selected: &ResolvedCodexInstance,
     port: u16,
@@ -563,16 +568,19 @@ async fn force_close_platform_codex() -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "windows")]
+/// 委托 Windows 适配器判断官方 WorkBuddy GUI 是否运行。
 async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
     windows_codex::workbuddy_is_gui_running().await
 }
 
 #[cfg(target_os = "windows")]
+/// 委托 Windows 适配器读取可信 WorkBuddy GUI 命令行。
 async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     windows_codex::workbuddy_gui_process_command_lines().await
 }
 
 #[cfg(target_os = "windows")]
+/// 将 Windows 可信 WorkBuddy 进程转换为统一的平台进程结构。
 async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
     Ok(windows_codex::workbuddy_gui_processes()
         .await?
@@ -586,6 +594,7 @@ async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, App
 }
 
 #[cfg(target_os = "windows")]
+/// 委托 Windows 适配器复核并重启指定 WorkBuddy 实例。
 async fn restart_platform_workbuddy_instance(
     selected: &ResolvedCodexInstance,
     port: u16,
@@ -600,11 +609,13 @@ async fn restart_platform_workbuddy_instance(
 }
 
 #[cfg(target_os = "windows")]
+/// 委托 Windows 适配器以指定调试端口启动 WorkBuddy。
 async fn launch_platform_workbuddy(port: u16) -> Result<(), AppError> {
     windows_codex::launch_workbuddy(port).await
 }
 
 #[cfg(target_os = "windows")]
+/// 委托 Windows 适配器关闭全部可信 WorkBuddy GUI 进程。
 async fn force_close_platform_workbuddy() -> Result<(), AppError> {
     windows_codex::force_close_workbuddy_gui().await.map(|_| ())
 }
@@ -659,21 +670,25 @@ async fn force_close_platform_codex() -> Result<(), AppError> {
 
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// 未支持平台始终报告 WorkBuddy 未运行。
 async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
     Ok(false)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// 未支持平台不提供 WorkBuddy 进程命令行。
 async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     Ok(Vec::new())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// 未支持平台不提供 WorkBuddy 进程实例。
 async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
     Ok(Vec::new())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// 未支持平台拒绝重启 WorkBuddy 实例。
 async fn restart_platform_workbuddy_instance(
     _selected: &ResolvedCodexInstance,
     _port: u16,
@@ -685,6 +700,7 @@ async fn restart_platform_workbuddy_instance(
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// 未支持平台拒绝启动 WorkBuddy。
 async fn launch_platform_workbuddy(_port: u16) -> Result<(), AppError> {
     Err(AppError::new(
         "skin.platform_unsupported",
@@ -693,6 +709,7 @@ async fn launch_platform_workbuddy(_port: u16) -> Result<(), AppError> {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// 未支持平台拒绝强制关闭 WorkBuddy。
 async fn force_close_platform_workbuddy() -> Result<(), AppError> {
     Err(AppError::new(
         "skin.platform_unsupported",
@@ -700,78 +717,4 @@ async fn force_close_platform_workbuddy() -> Result<(), AppError> {
     ))
 }
 
-/// 按宿主类型路由到经过应用身份验证的平台进程适配器。
-async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> {
-    match host {
-        SkinHostKind::Codex => platform_codex_is_running().await,
-        SkinHostKind::WorkBuddy => platform_workbuddy_is_running().await,
-    }
-}
-
-async fn platform_host_command_lines(
-    host: SkinHostKind,
-) -> Result<Vec<(u32, String)>, AppError> {
-    match host {
-        SkinHostKind::Codex => platform_codex_command_lines().await,
-        SkinHostKind::WorkBuddy => platform_workbuddy_command_lines().await,
-    }
-}
-
-async fn platform_host_processes(
-    host: SkinHostKind,
-) -> Result<Vec<PlatformCodexProcess>, AppError> {
-    match host {
-        SkinHostKind::Codex => platform_codex_processes().await,
-        SkinHostKind::WorkBuddy => platform_workbuddy_processes().await,
-    }
-}
-
-async fn restart_platform_host_instance(
-    host: SkinHostKind,
-    selected: &ResolvedCodexInstance,
-    port: u16,
-) -> Result<(), AppError> {
-    match host {
-        SkinHostKind::Codex => restart_platform_codex_instance(selected, port).await,
-        SkinHostKind::WorkBuddy => restart_platform_workbuddy_instance(selected, port).await,
-    }
-}
-
-async fn launch_platform_host(host: SkinHostKind, port: u16) -> Result<(), AppError> {
-    match host {
-        SkinHostKind::Codex => launch_platform_codex().await,
-        SkinHostKind::WorkBuddy => launch_platform_workbuddy(port).await,
-    }
-}
-
-/// Windows 上把 CDP listener owner 绑定到唯一官方 WorkBuddy 树；其它平台保留页面验证。
-async fn platform_workbuddy_endpoint_owned_by_root(
-    port: u16,
-    root_pid: u32,
-) -> Result<bool, AppError> {
-    #[cfg(target_os = "windows")]
-    {
-        return tokio::task::spawn_blocking(move || {
-            windows_codex::workbuddy_endpoint_owned_by_root(port, root_pid)
-        })
-        .await
-        .map_err(|_| {
-            AppError::new(
-                "skin.workbuddy_cdp_owner_inspection_failed",
-                "无法验证 WorkBuddy 调试端口所属进程，未应用皮肤。",
-            )
-        })?;
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = (port, root_pid);
-        Ok(true)
-    }
-}
-
-async fn force_close_platform_host(host: SkinHostKind) -> Result<(), AppError> {
-    match host {
-        SkinHostKind::Codex => force_close_platform_codex().await,
-        SkinHostKind::WorkBuddy => force_close_platform_workbuddy().await,
-    }
-}
+include!("host.rs");

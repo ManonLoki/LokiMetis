@@ -485,6 +485,7 @@ mod tests {
     use super::*;
     use loki_metis_core::PET_OVERLAY_WINDOW_SPEC;
 
+    /// 桌宠原生窗口描述应符合 AI Monitor 宿主契约。
     #[test]
     fn pet_overlay_window_description_matches_aimonitor_host_contract() {
         let description = pet_overlay_window_description();
@@ -504,6 +505,7 @@ mod tests {
         assert_eq!(description.resizable, PET_OVERLAY_WINDOW_SPEC.resizable);
     }
 
+    /// 移动事件应过滤非桌宠窗口与零尺寸快照。
     #[test]
     fn moved_event_filters_non_pet_and_zero_sized_windows() {
         let position = PetOverlayPosition { x: 80, y: 80 };

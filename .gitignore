@@ -4,6 +4,7 @@
 /node_modules/
 /loki_metis_gui/node_modules/
 /loki_metis_gui/dist/
+/loki_metis_gui/src-tauri/gen/schemas/
 .DS_Store
 *.log
 __pycache__/

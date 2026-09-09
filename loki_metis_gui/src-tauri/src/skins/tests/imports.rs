@@ -21,6 +21,45 @@
     }
 
     #[test]
+    /// 未确认第三方代码时不得把兼容皮肤移入用户资源库，批次仍可取消并完整清理。
+    fn legacy_import_without_consent_has_no_persistent_side_effect() {
+        tauri::async_runtime::block_on(async {
+            let root = temp_directory("legacy-import-consent");
+            let fixture = root.join("fixture");
+            create_fixture(&fixture, "legacy-script");
+            let archive = root.join("legacy-script.zip");
+            create_zip(&archive, &fixture, None);
+            let service = create_service(&root);
+            let prepared = service
+                .prepare_test_import_batch(&archive)
+                .expect("兼容皮肤应进入待审核暂存批次");
+            let selected = vec![prepared.items[0].item_id.clone()];
+
+            let error = service
+                .commit_import_batch(&prepared.token, &selected, false)
+                .await
+                .expect_err("未确认信任时不得提交兼容皮肤");
+            assert_eq!(error.code, "skin.third_party_code_consent_required");
+            assert!(!root.join("user/legacy-script").exists());
+            assert!(service
+                .pending_import
+                .lock()
+                .expect("应读取待审核批次")
+                .as_ref()
+                .is_some_and(|pending| pending.token == prepared.token));
+
+            service
+                .cancel_import(&prepared.token)
+                .expect("取消应清理未受信任的暂存批次");
+            assert!(std::fs::read_dir(root.join("user"))
+                .expect("应读取用户资源目录")
+                .next()
+                .is_none());
+            std::fs::remove_dir_all(root).expect("应清理测试目录");
+        });
+    }
+
+    #[test]
     /// 验证换皮迁移中的 `batch_total_size_accepts_the_boundary_and_rejects_one_more_byte` 回归场景。
     fn batch_total_size_accepts_the_boundary_and_rejects_one_more_byte() {
         assert_eq!(

@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use loki_metis_core::{
-    PeriodicScanTick, SourceClientKind, decide_periodic_scan_tick, next_local_day_start_epoch_ms,
+    PeriodicScanTick, ScanCancellation, SourceClientKind, decide_periodic_scan_tick,
+    next_local_day_start_epoch_ms,
 };
 use tauri::{AppHandle, Manager};
 
@@ -12,6 +13,7 @@ use crate::dto::{AgentClientKindDto, ScanStateDto};
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
 use crate::tray::refresh_tray_daily_token_title;
 
+use super::scan_orchestration::ScanTaskShutdown;
 use super::{refresh_indexes_requiring_upgrade, run_periodic_quick_scans};
 
 /// 在 GUI 生命周期内启动一条共享节拍循环，到点后一次覆盖全部已开放客户端。
@@ -19,43 +21,77 @@ use super::{refresh_indexes_requiring_upgrade, run_periodic_quick_scans};
 // 扫描间隔，到点后在同一个 writer 许可内按 Codex / Claude Code / Grok 顺序
 // 串行执行各自的当天快速索引，所以每个客户端的刷新周期就是用户设置的间隔。
 pub(crate) fn spawn_periodic_local_scans(app_handle: AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        run_shared_scan_interval_loop(app_handle).await;
-    });
+    let cancellation = ScanCancellation::new();
+    let loop_app_handle = app_handle.clone();
+    let state = app_handle.state::<AppRuntimeState>();
+    if let Err(error) = state
+        .scan_tasks
+        .spawn(cancellation, move |shutdown| async move {
+            run_shared_scan_interval_loop(loop_app_handle, shutdown).await;
+        })
+    {
+        tracing::warn!(error, "periodic local scan owner rejected startup");
+    }
 }
 
 /// 按当前扫描间隔循环触发一轮共享节拍。
-async fn run_shared_scan_interval_loop(app_handle: AppHandle) {
+async fn run_shared_scan_interval_loop(app_handle: AppHandle, mut shutdown: ScanTaskShutdown) {
+    if shutdown.is_cancelled() {
+        return;
+    }
     refresh_tray_daily_token_title(&app_handle).await;
+    if shutdown.is_cancelled() {
+        return;
+    }
     {
         let state = app_handle.state::<AppRuntimeState>();
         refresh_indexes_requiring_upgrade(state.inner()).await;
+    }
+    if shutdown.is_cancelled() {
+        return;
     }
     loop {
         {
             let state = app_handle.state::<AppRuntimeState>();
             run_shared_scan_interval_tick(state.inner()).await;
         }
+        if shutdown.is_cancelled() {
+            return;
+        }
         refresh_tray_daily_token_title(&app_handle).await;
         let interval = {
             let state = app_handle.state::<AppRuntimeState>();
             state.inner().scan_interval().await.duration()
         };
-        wait_for_scan_deadline(&app_handle, interval).await;
+        if !wait_for_scan_deadline(&app_handle, interval, &mut shutdown).await {
+            return;
+        }
     }
 }
 
 /// 在不新增第二条后台循环的前提下等待下一次扫描，并在跨当地日期时先清空旧日标题。
-async fn wait_for_scan_deadline(app_handle: &AppHandle, interval: Duration) {
+async fn wait_for_scan_deadline(
+    app_handle: &AppHandle,
+    interval: Duration,
+    shutdown: &mut ScanTaskShutdown,
+) -> bool {
     let deadline = tokio::time::Instant::now() + interval;
     loop {
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
         let until_day_change = duration_until_next_local_day(now_epoch_ms()).unwrap_or(remaining);
         if until_day_change >= remaining {
-            tokio::time::sleep(remaining).await;
-            return;
+            return tokio::select! {
+                _ = tokio::time::sleep(remaining) => true,
+                _ = shutdown.cancelled() => false,
+            };
         }
-        tokio::time::sleep(until_day_change).await;
+        let elapsed = tokio::select! {
+            _ = tokio::time::sleep(until_day_change) => true,
+            _ = shutdown.cancelled() => false,
+        };
+        if !elapsed {
+            return false;
+        }
         refresh_tray_daily_token_title(app_handle).await;
     }
 }
@@ -163,7 +199,7 @@ mod tests {
         let coordinator: &Arc<ScanCoordinator> =
             state.scans.get(AgentClientKindDto::ClaudeCode.into());
         coordinator
-            .start(ScanKindDto::Quick, 1)
+            .start(ScanKindDto::Quick, 1, ScanCancellation::new())
             .await
             .expect("fixture starts a running scan");
 

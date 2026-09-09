@@ -70,6 +70,47 @@
     }
 
     #[test]
+    /// 重连候选只有通过宿主页与进程归属复核后才能替换当前会话。
+    fn reconnected_session_is_adopted_only_after_full_host_validation() {
+        assert!(matches!(
+            reconnect_validation_decision(SkinHostKind::WorkBuddy, Ok(true)),
+            ReconnectValidationDecision::Accept
+        ));
+
+        let ReconnectValidationDecision::Retry(error) =
+            reconnect_validation_decision(SkinHostKind::WorkBuddy, Ok(false))
+        else {
+            panic!("未通过宿主校验的候选必须关闭并重试");
+        };
+        assert_eq!(error.code, "skin.cdp_rejected");
+
+        let ReconnectValidationDecision::Retry(error) = reconnect_validation_decision(
+            SkinHostKind::WorkBuddy,
+            Err(AppError::new("skin.cdp_failed", "测试错误")),
+        ) else {
+            panic!("普通连接故障应关闭候选并允许有界重试");
+        };
+        assert_eq!(error.code, "skin.cdp_failed");
+    }
+
+    #[test]
+    /// WorkBuddy 归属检查不可判定时必须失败关闭，不能继续采用或降级重试。
+    fn reconnected_workbuddy_session_fails_closed_on_ownership_inspection_error() {
+        for code in [
+            "skin.workbuddy_cdp_owner_inspection_failed",
+            "skin.workbuddy_process_inspection_failed",
+        ] {
+            let ReconnectValidationDecision::Reject(error) = reconnect_validation_decision(
+                SkinHostKind::WorkBuddy,
+                Err(AppError::new(code, "测试错误")),
+            ) else {
+                panic!("归属检查故障必须立即拒绝重连候选");
+            };
+            assert_eq!(error.code, code);
+        }
+    }
+
+    #[test]
     /// 验证换皮迁移中的 `status_does_not_wait_for_mutating_operation_lock` 回归场景。
     fn status_does_not_wait_for_mutating_operation_lock() {
         tauri::async_runtime::block_on(async {
@@ -88,6 +129,7 @@
     }
 
     #[test]
+    /// WorkBuddy 页面探针只接受本机官方页面标记，并拒绝 Codex 或远端页面。
     fn workbuddy_page_probe_rejects_codex_and_remote_pages() {
         assert!(WORKBUDDY_PROBE_SCRIPT.contains("document.title === 'WorkBuddy'"));
         assert!(WORKBUDDY_PROBE_SCRIPT.contains("body?.dataset.applicationName === 'workbuddy'"));
@@ -352,6 +394,22 @@
         assert_eq!(with_wmi.id, without_wmi.id);
         assert_eq!(with_wmi.debug_port, Some(9442));
         assert_eq!(without_wmi.debug_port, None);
+    }
+
+    #[test]
+    /// 多实例时只选取用户指定的 WorkBuddy 根 PID，不得改用当前其它实例。
+    fn selected_workbuddy_root_binding_rejects_replacement_instance() {
+        let process = |pid| PlatformCodexProcess {
+            pid,
+            executable: PathBuf::from("/Applications/WorkBuddy.app/Contents/MacOS/WorkBuddy"),
+            command_line: format!("WorkBuddy --remote-debugging-port={}", 9400 + pid),
+        };
+        let processes = vec![process(41), process(42)];
+
+        assert_eq!(trusted_workbuddy_root_pid(&processes, Some(42)), Some(42));
+        assert_eq!(trusted_workbuddy_root_pid(&processes, Some(43)), None);
+        assert_eq!(trusted_workbuddy_root_pid(&processes, None), None);
+        assert_eq!(trusted_workbuddy_root_pid(&[process(41)], None), Some(41));
     }
 
     #[test]

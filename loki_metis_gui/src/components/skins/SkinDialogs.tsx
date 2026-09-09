@@ -103,13 +103,64 @@ export function AppearanceDialog({
   );
 }
 
+/** 描述应用兼容皮肤前一次性的第三方代码信任确认。 */
+export interface ThirdPartyCodeDialogProps {
+  hostName: string;
+  opened: boolean;
+  pending: boolean;
+  skinName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+/** 明确说明兼容脚本会被执行；结构校验不被表述为脚本安全证明。 */
+export function ThirdPartyCodeDialog({
+  hostName,
+  opened,
+  pending,
+  skinName,
+  onCancel,
+  onConfirm,
+}: ThirdPartyCodeDialogProps): ReactElement {
+  const { t } = useTranslation();
+  const [trusted, setTrusted] = useState(false);
+  useEffect(() => {
+    setTrusted(false);
+  }, [opened, skinName]);
+  return (
+    <Modal onClose={onCancel} opened={opened} title={t("skins.code_trust.apply_title")}>
+      <Stack>
+        <Alert color="red" icon={<IconAlertTriangle size={18} />}>
+          {t("skins.code_trust.apply_description", { host: hostName, name: skinName })}
+        </Alert>
+        <Text c="dimmed" size="sm">
+          {t("skins.code_trust.not_safety_proof")}
+        </Text>
+        <Checkbox
+          checked={trusted}
+          label={t("skins.code_trust.apply_acknowledgement")}
+          onChange={(event) => setTrusted(event.currentTarget.checked)}
+        />
+        <Group justify="flex-end">
+          <Button disabled={pending} onClick={onCancel} variant="default">
+            {t("skins.dialog.cancel")}
+          </Button>
+          <Button color="red" disabled={!trusted} loading={pending} onClick={onConfirm}>
+            {t("skins.code_trust.continue")}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
 /** 描述导入预检弹窗的批次和选中项。 */
 export interface ImportDialogProps {
   batch: PreparedSkinImportBatch | null;
   pending: boolean;
   selected: string[];
   onCancel: () => void;
-  onCommit: () => void;
+  onCommit: (allowThirdPartyCode: boolean) => void;
   onSelectedChange: (selected: string[]) => void;
 }
 
@@ -123,6 +174,16 @@ export function ImportDialog({
   onSelectedChange,
 }: ImportDialogProps): ReactElement {
   const { t } = useTranslation();
+  const selectedLegacyItems =
+    batch?.items.filter(
+      (item) => selected.includes(item.itemId) && item.skin.packageType === "legacySkin",
+    ) ?? [];
+  const selectedLegacyKey = selectedLegacyItems.map((item) => item.itemId).join("\u0000");
+  const [thirdPartyCodeTrusted, setThirdPartyCodeTrusted] = useState(false);
+  useEffect(() => {
+    setThirdPartyCodeTrusted(false);
+  }, [batch?.token, selectedLegacyKey]);
+  const trustRequired = selectedLegacyItems.length > 0;
   return (
     <Modal
       onClose={onCancel}
@@ -137,6 +198,27 @@ export function ImportDialog({
             total: batch?.totalFiles ?? 0,
           })}
         </Text>
+        {trustRequired ? (
+          <Alert
+            color="red"
+            icon={<IconAlertTriangle size={18} />}
+            title={t("skins.code_trust.import_title")}
+          >
+            <Stack gap="xs">
+              <Text size="sm">
+                {t("skins.code_trust.import_description", {
+                  count: selectedLegacyItems.length,
+                })}
+              </Text>
+              <Text size="sm">{t("skins.code_trust.not_safety_proof")}</Text>
+              <Checkbox
+                checked={thirdPartyCodeTrusted}
+                label={t("skins.code_trust.import_acknowledgement")}
+                onChange={(event) => setThirdPartyCodeTrusted(event.currentTarget.checked)}
+              />
+            </Stack>
+          </Alert>
+        ) : null}
         <ScrollArea.Autosize mah={320}>
           <Stack gap="xs">
             {batch?.items.map((item) => (
@@ -169,7 +251,11 @@ export function ImportDialog({
           <Button disabled={pending} onClick={onCancel} variant="default">
             {t("skins.dialog.cancel")}
           </Button>
-          <Button disabled={selected.length === 0} loading={pending} onClick={onCommit}>
+          <Button
+            disabled={selected.length === 0 || (trustRequired && !thirdPartyCodeTrusted)}
+            loading={pending}
+            onClick={() => onCommit(trustRequired && thirdPartyCodeTrusted)}
+          >
             {t("skins.import.commit", { count: selected.length })}
           </Button>
         </Group>

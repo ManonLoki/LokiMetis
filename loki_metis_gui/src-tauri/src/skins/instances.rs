@@ -43,6 +43,7 @@ async fn resolved_host_instances_with_preferred(
     Ok(instances)
 }
 
+/// 验证端点确属目标宿主；WorkBuddy 还必须属于预期根进程树。
 async fn endpoint_matches_host(
     host: SkinHostKind,
     endpoint: CdpEndpoint,
@@ -73,6 +74,7 @@ async fn endpoint_matches_host(
     matches
 }
 
+/// 为运行态实例加宿主命名空间，防止不同宿主的相同实例 ID 冲突。
 fn runtime_instance_key(host: SkinHostKind, instance_id: &str) -> String {
     let prefix = match host {
         SkinHostKind::Codex => "codex",
@@ -89,6 +91,7 @@ fn runtime_instance_belongs_to_host(host: SkinHostKind, key: &str) -> bool {
     })
 }
 
+/// 从宿主命名空间键中恢复原始实例 ID，并兼容旧的无前缀键。
 fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
     key.strip_prefix(match host {
         SkinHostKind::Codex => "codex:",
@@ -97,6 +100,7 @@ fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
     .unwrap_or(key)
 }
 
+/// 重新发现并按稳定 ID 解析目标宿主实例，拒绝已退出或身份变化的实例。
 async fn resolve_host_instance(
     host: SkinHostKind,
     id: &str,
@@ -125,6 +129,7 @@ async fn resolve_host_instance_with_preferred(
         })
 }
 
+/// 扫描宿主主进程并生成按 PID 从新到旧排列的前端实例快照。
 async fn discover_host_process_instances(
     host: SkinHostKind,
 ) -> Result<Vec<CodexInstance>, AppError> {
@@ -137,6 +142,7 @@ async fn discover_host_process_instances(
     Ok(instances)
 }
 
+/// 把已解析宿主进程映射为扫描快照，并由调试端口决定运行状态。
 fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedCodexInstance) -> CodexInstance {
     let state = if resolved.debug_port.is_some() {
         CodexRuntimeState::Ready
@@ -243,6 +249,7 @@ fn codex_instance_from_resolved(
     }
 }
 
+/// 将已验证进程映射为宿主实例，同时保留 Codex 专属账户信息边界。
 fn host_instance_from_resolved(
     host: SkinHostKind,
     resolved: ResolvedCodexInstance,
@@ -423,6 +430,7 @@ fn displayed_active_skin_name(active: Option<&SkinDescriptor>) -> Option<String>
     active.map(|skin| skin.name.clone())
 }
 
+/// 从宿主默认端口区间选择未被已知实例占用的本机监听端口。
 fn available_debug_port_for(
     host: SkinHostKind,
     instances: &[ResolvedCodexInstance],
@@ -430,6 +438,7 @@ fn available_debug_port_for(
     available_debug_port_for_excluding(host, instances, &[])
 }
 
+/// 选择端口时同时排除已占用端口和本轮已失败端口。
 fn available_debug_port_for_excluding(
     host: SkinHostKind,
     instances: &[ResolvedCodexInstance],
@@ -481,6 +490,7 @@ fn explicit_endpoint_candidates_from_commands(
         .collect()
 }
 
+/// 合并宿主命令行、已验证首选值与默认值，形成有序 CDP 候选。
 async fn cdp_endpoint_candidates_for(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
@@ -569,6 +579,7 @@ where
     }
 }
 
+/// Codex 操作额外监视宿主退出，WorkBuddy 操作仅响应统一取消信号。
 async fn monitor_host_operation<T, F>(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,

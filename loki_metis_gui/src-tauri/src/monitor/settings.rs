@@ -47,6 +47,7 @@ pub struct PetWindowPreferences {
 }
 
 impl Default for PetWindowPreferences {
+    /// 返回 2×2、64 像素、置顶且未锁定的桌宠默认偏好。
     fn default() -> Self {
         Self {
             layout: PetLayout::Grid,
@@ -172,6 +173,7 @@ pub struct MonitorSettings {
 }
 
 impl Default for MonitorSettings {
+    /// 返回首次启动使用的工具集合与桌宠偏好。
     fn default() -> Self {
         Self {
             enabled_ai_tools: default_enabled_ai_tools(),

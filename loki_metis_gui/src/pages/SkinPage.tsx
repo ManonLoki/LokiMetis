@@ -45,6 +45,7 @@ import {
   CreateThemeDialog,
   ImportDialog,
   SkinConfirmDialog,
+  ThirdPartyCodeDialog,
 } from "../components/skins/SkinDialogs";
 import { SkinCard } from "../components/skins/SkinCard";
 import { SkinToolbar } from "../components/skins/SkinToolbar";
@@ -71,6 +72,7 @@ function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
 
 /** 待用户确认的宿主重启请求：记录目标宿主、实例与本次要应用的皮肤。 */
 interface PendingHostRestart {
+  allowThirdPartyCode: boolean;
   host: SkinHostKind;
   instanceId: string | null;
   instanceLabel: string;
@@ -114,11 +116,15 @@ export function SkinPage(): ReactElement {
   const [importSelected, setImportSelected] = useState<string[]>([]);
   const [importProgress, setImportProgress] = useState<number | null>(null);
   const [appearance, setAppearance] = useState<{
+    allowThirdPartyCode: boolean;
     skin: SkinDescriptor;
     check: SkinAppearanceCheck;
     target: CodexInstance | null;
     allowWorkBuddyRecovery: boolean;
   } | null>(null);
+  const [thirdPartyCodeRequest, setThirdPartyCodeRequest] = useState<SkinDescriptor | null>(
+    null,
+  );
   const [restartRequest, setRestartRequest] = useState<PendingHostRestart | null>(null);
   const [convertSkin, setConvertSkin] = useState<SkinDescriptor | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<SkinDescriptor[]>([]);
@@ -269,6 +275,7 @@ export function SkinPage(): ReactElement {
     async (
       skin: SkinDescriptor,
       target: CodexInstance | null,
+      allowThirdPartyCode: boolean,
       allowMismatch = false,
       allowWorkBuddyRecovery = false,
     ): Promise<void> => {
@@ -278,9 +285,11 @@ export function SkinPage(): ReactElement {
         allowMismatch,
         target?.id ?? null,
         allowWorkBuddyRecovery,
+        allowThirdPartyCode,
       );
       if (result.type === "needsConfirmation") {
         setAppearance({
+          allowThirdPartyCode,
           allowWorkBuddyRecovery,
           check: result.check,
           skin,
@@ -303,7 +312,11 @@ export function SkinPage(): ReactElement {
 
   /** 按原生平台能力选择 Windows 全量恢复或既有单实例重启确认。 */
   const requestRestartConfirmation = useCallback(
-    async (skin: SkinDescriptor, target: CodexInstance | null): Promise<void> => {
+    async (
+      skin: SkinDescriptor,
+      target: CodexInstance | null,
+      allowThirdPartyCode: boolean,
+    ): Promise<void> => {
       const windowsWorkBuddyRecovery =
         host === "workBuddy" && (await skinApi.supportsWindowsWorkBuddyRecovery());
       if (!windowsWorkBuddyRecovery && target === null) {
@@ -313,6 +326,7 @@ export function SkinPage(): ReactElement {
         );
       }
       setRestartRequest({
+        allowThirdPartyCode,
         host,
         instanceId: target?.id ?? null,
         instanceLabel: target?.label ?? "",
@@ -325,7 +339,7 @@ export function SkinPage(): ReactElement {
 
   /** 解析唯一目标并在可能影响 Codex 会话时先进入确认弹窗。 */
   const requestInstall = useCallback(
-    async (skin: SkinDescriptor): Promise<void> => {
+    async (skin: SkinDescriptor, allowThirdPartyCode: boolean): Promise<void> => {
       try {
         let current = instanceList;
         if (current.length === 0) {
@@ -338,7 +352,7 @@ export function SkinPage(): ReactElement {
         const target = resolveSoleTargetInstance(current);
         if (target === null) {
           if (host === "workBuddy" && needsWorkBuddyCdpRecovery(current)) {
-            await requestRestartConfirmation(skin, null);
+            await requestRestartConfirmation(skin, null, allowThirdPartyCode);
             return;
           }
           throw new SkinHostError(
@@ -347,10 +361,10 @@ export function SkinPage(): ReactElement {
           );
         }
         if (target.state === "runningWithoutCdp" && host !== "workBuddy") {
-          await requestRestartConfirmation(skin, target);
+          await requestRestartConfirmation(skin, target, allowThirdPartyCode);
           return;
         }
-        await installOnInstance(skin, target);
+        await installOnInstance(skin, target, allowThirdPartyCode);
       } catch (cause) {
         if (host !== "workBuddy" || !isWorkBuddyRecoveryRequired(cause)) throw cause;
         const refreshed = await queryClient.fetchQuery({
@@ -369,7 +383,7 @@ export function SkinPage(): ReactElement {
             t("skins.error.choose_instance"),
           );
         }
-        await requestRestartConfirmation(skin, target);
+        await requestRestartConfirmation(skin, target, allowThirdPartyCode);
       }
     },
     [host, instanceList, installOnInstance, queryClient, requestRestartConfirmation, t],
@@ -390,7 +404,13 @@ export function SkinPage(): ReactElement {
 
   /** 稳定的资源卡回调集合，避免轮询刷新导致整批卡片重渲染。 */
   const handleApply = useCallback(
-    (item: SkinDescriptor) => void run(() => requestInstall(item)),
+    (item: SkinDescriptor) => {
+      if (item.packageType === "legacySkin") {
+        setThirdPartyCodeRequest(item);
+        return;
+      }
+      void run(() => requestInstall(item, false));
+    },
     [run, requestInstall],
   );
   const handleConvert = useCallback((item: SkinDescriptor) => setConvertSkin(item), []);
@@ -532,10 +552,7 @@ export function SkinPage(): ReactElement {
               {t("skins.restore.description", { name: rememberedDescriptor.name })}
             </Text>
             <Group gap="xs">
-              <Button
-                onClick={() => void run(() => requestInstall(rememberedDescriptor))}
-                size="xs"
-              >
+              <Button onClick={() => handleApply(rememberedDescriptor)} size="xs">
                 {t("skins.restore.action")}
               </Button>
               <Button
@@ -616,10 +633,14 @@ export function SkinPage(): ReactElement {
             setImportBatch(null);
           })
         }
-        onCommit={() =>
+        onCommit={(allowThirdPartyCode) =>
           void run(async () => {
             if (!importBatch) return;
-            const result = await skinApi.commitImport(importBatch.token, importSelected);
+            const result = await skinApi.commitImport(
+              importBatch.token,
+              importSelected,
+              allowThirdPartyCode,
+            );
             setImportBatch(null);
             setNotice(t("skins.notice.imported", { count: result.installed.length }));
             await refresh();
@@ -628,6 +649,24 @@ export function SkinPage(): ReactElement {
         onSelectedChange={setImportSelected}
         pending={action.isPending}
         selected={importSelected}
+      />
+      <ThirdPartyCodeDialog
+        hostName={
+          hostOptions.find((item) => item.skinHost === host)?.name ??
+          (host === "workBuddy" ? "WorkBuddy" : "Codex")
+        }
+        onCancel={() => setThirdPartyCodeRequest(null)}
+        onConfirm={() =>
+          void run(async () => {
+            if (!thirdPartyCodeRequest) return;
+            const pending = thirdPartyCodeRequest;
+            setThirdPartyCodeRequest(null);
+            await requestInstall(pending, true);
+          })
+        }
+        opened={thirdPartyCodeRequest !== null}
+        pending={action.isPending}
+        skinName={thirdPartyCodeRequest?.name ?? ""}
       />
       <AppearanceDialog
         check={appearance?.check ?? null}
@@ -640,6 +679,7 @@ export function SkinPage(): ReactElement {
             await installOnInstance(
               pending.skin,
               pending.target,
+              pending.allowThirdPartyCode,
               true,
               pending.allowWorkBuddyRecovery,
             );
@@ -661,7 +701,13 @@ export function SkinPage(): ReactElement {
             const pending = restartRequest;
             setRestartRequest(null);
             if (pending.mode === "recoverWindowsWorkBuddy") {
-              await installOnInstance(pending.skin, null, false, true);
+              await installOnInstance(
+                pending.skin,
+                null,
+                pending.allowThirdPartyCode,
+                false,
+                true,
+              );
               return;
             }
             if (!pending.instanceId) return;
@@ -669,7 +715,7 @@ export function SkinPage(): ReactElement {
               pending.host,
               pending.instanceId,
             );
-            await installOnInstance(pending.skin, restarted);
+            await installOnInstance(pending.skin, restarted, pending.allowThirdPartyCode);
           })
         }
         opened={restartRequest !== null}

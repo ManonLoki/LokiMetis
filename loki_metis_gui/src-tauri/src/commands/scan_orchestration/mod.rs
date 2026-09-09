@@ -7,9 +7,11 @@ mod client;
 mod progress;
 mod run;
 mod support;
+mod task_owner;
 
-use std::sync::Arc;
+use std::{panic::AssertUnwindSafe, sync::Arc};
 
+use futures::FutureExt;
 #[cfg(all(test, unix))]
 use loki_metis_core::SourceClientKind;
 use loki_metis_core::{
@@ -38,6 +40,7 @@ use progress::publish_scan_progress;
 pub(crate) use support::{
     full_device_options_from_local_volume_roots, local_scan_error_message_from_local,
 };
+pub(crate) use task_owner::{ScanTaskOwner, ScanTaskShutdown};
 
 /// 已经取得全局 writer 的本机扫描或单根重建任务。
 pub(crate) enum ScanTaskOperation {
@@ -57,6 +60,8 @@ pub(crate) enum ScanTaskOperation {
 
 /// 在 Tauri runtime 中启动异步扫描任务；结束后回写轻量状态。
 pub(crate) struct ScanTask {
+    /// 由可见状态协调器分配、后续每次写入都必须携带的会话 ID。
+    pub scan_id: String,
     pub client: AgentClientKindDto,
     pub scanner: Arc<dyn LocalUsageScanner>,
     pub operation: ScanTaskOperation,
@@ -66,28 +71,107 @@ pub(crate) struct ScanTask {
     pub roots_state: Arc<tokio::sync::RwLock<Vec<crate::dto::SourceRootDto>>>,
 }
 
+/// 确保 owner 在截止时间后中止 future 时，可见状态仍会按原会话 ID 收敛。
+struct SpawnedScanFinalizer {
+    scan_id: String,
+    client: AgentClientKindDto,
+    cancellation: ScanCancellation,
+    scan: Arc<crate::scan_state::ScanCoordinator>,
+    armed: bool,
+}
+
+impl SpawnedScanFinalizer {
+    /// 正常、错误或已捕获 panic 已同步写入终态后解除兜底。
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for SpawnedScanFinalizer {
+    /// abort 无法继续 poll 原 future，另起极短任务按原 scan_id 写入取消/失败终态。
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        let scan_id = self.scan_id.clone();
+        let client = self.client;
+        let cancellation = self.cancellation.clone();
+        let scan = Arc::clone(&self.scan);
+        tauri::async_runtime::spawn(async move {
+            if cancellation.is_cancelled() {
+                scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
+            } else {
+                scan.finish_failed(
+                    &scan_id,
+                    now_epoch_ms(),
+                    &local_scan_client_failure_message(
+                        client.display_name(),
+                        &support::local_scan_task_error_message(),
+                    ),
+                )
+                .await;
+            }
+        });
+    }
+}
+
 /// 把已取得的 writer 许可持有到后台扫描结束；释放 writer 后再按需刷新托盘。
 pub(crate) fn spawn_scan_task(
+    owner: &ScanTaskOwner,
     task: ScanTask,
     permit: crate::backend::local_index::ScanPermit,
     app_handle: Option<tauri::AppHandle>,
-) {
-    tauri::async_runtime::spawn(async move {
-        let outcome = {
-            let _permit = permit;
-            execute_scan_task(task).await
+) -> Result<(), &'static str> {
+    let cancellation = task.cancellation.clone();
+    let finalizer = SpawnedScanFinalizer {
+        scan_id: task.scan_id.clone(),
+        client: task.client,
+        cancellation: cancellation.clone(),
+        scan: Arc::clone(&task.scan),
+        armed: true,
+    };
+    owner.spawn(cancellation, move |shutdown| async move {
+        let _permit = permit;
+        let mut finalizer = finalizer;
+        let outcome = AssertUnwindSafe(execute_scan_task(task))
+            .catch_unwind()
+            .await;
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(_) => {
+                tracing::error!(
+                    client = finalizer.client.display_name(),
+                    scan_id = %finalizer.scan_id,
+                    "local scan task panicked"
+                );
+                finalizer
+                    .scan
+                    .finish_failed(
+                        &finalizer.scan_id,
+                        now_epoch_ms(),
+                        &local_scan_client_failure_message(
+                            finalizer.client.display_name(),
+                            &support::local_scan_task_error_message(),
+                        ),
+                    )
+                    .await;
+                Err(support::local_scan_task_error_message())
+            }
         };
+        finalizer.disarm();
         if outcome.is_ok()
+            && !shutdown.is_cancelled()
             && let Some(app_handle) = app_handle
         {
             refresh_tray_daily_token_title(&app_handle).await;
         }
-    });
+    })
 }
 
 /// 执行一项已经取得全局 writer 的扫描，并把成功、取消或失败写回状态。
 pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
     let ScanTask {
+        scan_id,
         client,
         scanner,
         operation,
@@ -96,7 +180,13 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
         coverage_state,
         roots_state,
     } = task;
+    if cancellation.is_cancelled() {
+        scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
+        return Ok(());
+    }
     let scan_for_progress = Arc::clone(&scan);
+    let scan_id_for_progress = scan_id.clone();
+    let cancellation_for_outcome = cancellation.clone();
     let result = match operation {
         ScanTaskOperation::Scan { kind, origin } => {
             scanner
@@ -105,7 +195,7 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
                     origin,
                     cancellation,
                     Box::new(move |progress| {
-                        publish_scan_progress(&scan_for_progress, progress);
+                        publish_scan_progress(&scan_for_progress, &scan_id_for_progress, progress);
                     }),
                 )
                 .await
@@ -116,7 +206,7 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
                     request,
                     cancellation,
                     Box::new(move |progress| {
-                        publish_scan_progress(&scan_for_progress, progress);
+                        publish_scan_progress(&scan_for_progress, &scan_id_for_progress, progress);
                     }),
                 )
                 .await
@@ -132,31 +222,44 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
                 coverage_state = ?output.coverage.state,
                 "local scan finished"
             );
-            scan.update_progress(
+            let progress_accepted = scan.update_progress(
+                &scan_id,
                 output.files_scanned,
                 output.call_count,
                 10_000,
                 ScanScopeCodeDto::IndexingRoots,
                 None,
                 scan_progress_finished_message().to_owned(),
-            )
-            .await;
+            );
+            if !progress_accepted {
+                tracing::warn!(
+                    client = client.display_name(),
+                    scan_id,
+                    "ignored stale local scan completion"
+                );
+                return Ok(());
+            }
             *coverage_state.write().await = output.coverage.clone();
             *roots_state.write().await = output.roots.into_iter().map(to_source_root_dto).collect();
             if output.coverage.state == CoverageState::Cancelled {
-                scan.finish_cancelled(now_epoch_ms()).await;
+                scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
             } else {
-                scan.finish_completed(now_epoch_ms()).await;
+                scan.finish_completed(&scan_id, now_epoch_ms()).await;
             }
             Ok(())
         }
         Err(error) => {
+            if cancellation_for_outcome.is_cancelled() {
+                scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
+                return Ok(());
+            }
             tracing::warn!(
                 client = client.display_name(),
                 %error,
                 "local scan failed"
             );
             scan.finish_failed(
+                &scan_id,
                 now_epoch_ms(),
                 &local_scan_client_failure_message(client.display_name(), &error),
             )
@@ -303,5 +406,7 @@ mod current_scan_tests;
 mod reindex_tests;
 #[cfg(test)]
 mod retention_scan_tests;
+#[cfg(test)]
+mod task_lifecycle_tests;
 #[cfg(test)]
 mod tests;

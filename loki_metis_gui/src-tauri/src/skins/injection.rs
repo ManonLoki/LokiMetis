@@ -125,6 +125,7 @@ async fn inject_pages(
     Ok(report)
 }
 
+/// 在写入皮肤资源前给页面登记本次事务标记，供失败补偿精确回滚。
 async fn mark_injection_transaction(page: &Page, transaction_id: &str) -> Result<(), AppError> {
     let transaction_id = encode_injection_transaction_id(transaction_id)?;
     let expression = format!(
@@ -137,11 +138,13 @@ async fn mark_injection_transaction(page: &Page, transaction_id: &str) -> Result
     Ok(())
 }
 
+/// 将事务 ID 编码为安全的 JavaScript 字符串字面量。
 fn encode_injection_transaction_id(transaction_id: &str) -> Result<String, AppError> {
     serde_json::to_string(transaction_id)
         .map_err(|_| AppError::new("skin.assets_invalid", "无法编码皮肤注入事务标记。"))
 }
 
+/// 生成只清理当前事务所拥有页面状态的回滚表达式。
 fn rollback_injection_transaction_expression(
     transaction_id: &str,
 ) -> Result<Arc<str>, AppError> {
@@ -156,6 +159,7 @@ fn rollback_injection_transaction_expression(
     )))
 }
 
+/// 生成只移除当前事务标记而保留已应用皮肤的提交表达式。
 fn commit_injection_transaction_expression(
     transaction_id: &str,
 ) -> Result<Arc<str>, AppError> {
@@ -282,6 +286,7 @@ async fn commit_marked_injection_pages(
     }
 }
 
+/// 合并原始失败与补偿失败代码，返回可操作且不泄露载荷的稳定错误。
 fn rollback_error(original: &AppError, rollback: AppError) -> AppError {
     AppError::with_details(
         "skin.injection_rollback_failed",
@@ -414,6 +419,7 @@ async fn remove_from_browser(host: SkinHostKind, browser: &Browser) -> Result<us
     finish_cleanup_report(removed, failed)
 }
 
+/// 汇总跨页面清理结果；任一页面失败都拒绝伪报完整成功。
 fn finish_cleanup_report(removed: usize, failed: usize) -> Result<usize, AppError> {
     if failed > 0 {
         Err(AppError::with_details(

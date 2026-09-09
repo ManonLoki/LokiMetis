@@ -18,7 +18,10 @@
     "BUG-RELEASE-NOTES-REACT-QUERY-CONTEXT",
     "BUG-NSIS-APP-ICON-IDENTITY",
     "BUG-WINDOWS-GUI-TEST-COMCTL6-MANIFEST",
-    "BUG-WINDOWS-WORKBUDDY-SKIN-INJECTION"
+    "BUG-WINDOWS-WORKBUDDY-SKIN-INJECTION",
+    "BUG-SCAN-TASK-LIFECYCLE-ISOLATION",
+    "BUG-LEGACY-SKIN-SCRIPT-CONSENT",
+    "BUG-MACOS-CDP-PROCESS-OWNERSHIP"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -318,8 +321,23 @@
       "change_id": "BUG-WINDOWS-WORKBUDDY-SKIN-INJECTION",
       "kind": "bug-fix",
       "required_version": "0.2.19"
+    },
+    {
+      "change_id": "BUG-SCAN-TASK-LIFECYCLE-ISOLATION",
+      "kind": "bug-fix",
+      "required_version": "0.2.20"
+    },
+    {
+      "change_id": "BUG-LEGACY-SKIN-SCRIPT-CONSENT",
+      "kind": "bug-fix",
+      "required_version": "0.2.21"
+    },
+    {
+      "change_id": "BUG-MACOS-CDP-PROCESS-OWNERSHIP",
+      "kind": "bug-fix",
+      "required_version": "0.2.22"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.19"
+  "target_version": "0.2.22"
 }

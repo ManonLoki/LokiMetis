@@ -105,6 +105,7 @@ fn is_cursor_hosted(source: &Map<String, Value>) -> bool {
 
 /// 忽略大小写与分隔符比较事件名。
 fn event_names_match(left: &str, right: &str) -> bool {
+    /// 移除分隔符并转为小写，得到用于协议比较的事件名。
     fn normalize(value: &str) -> String {
         value
             .chars()

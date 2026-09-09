@@ -128,8 +128,17 @@ pub struct ScanCoordinator {
 struct CoordinatorInner {
     /// 公平串行化显式批次与周期任务的唯一 writer 名额。
     slot: Arc<Semaphore>,
+    /// 与关闭门禁一起线性化当前扫描登记，避免 shutdown 漏掉刚取得名额的任务。
+    state: Mutex<CoordinatorState>,
+}
+
+/// 必须在同一同步锁内读取和更新的扫描登记与不可逆关闭状态。
+#[derive(Debug, Default)]
+struct CoordinatorState {
     /// 当前扫描的取消令牌；空闲时为空。
-    current: Mutex<Option<CancellationToken>>,
+    current: Option<CancellationToken>,
+    /// 关闭一旦开始即永久为 true，之后不得再登记扫描。
+    shutting_down: bool,
 }
 
 impl Default for CoordinatorInner {
@@ -137,7 +146,7 @@ impl Default for CoordinatorInner {
     fn default() -> Self {
         Self {
             slot: Arc::new(Semaphore::new(1)),
-            current: Mutex::new(None),
+            state: Mutex::new(CoordinatorState::default()),
         }
     }
 }
@@ -166,7 +175,7 @@ impl ScanCoordinator {
             .map_err(|_| {
                 LocalError::new(LocalErrorKind::ScanBusy, "a local scan is already running")
             })?;
-        Ok(self.activate(slot))
+        self.activate(slot)
     }
 
     /// 异步等待唯一 writer，供一次显式批次可靠地排在当前任务之后而不忙轮询。
@@ -177,35 +186,41 @@ impl ScanCoordinator {
             .map_err(|_| {
                 LocalError::new(LocalErrorKind::ScanBusy, "local scan coordinator is closed")
             })?;
-        Ok(self.activate(slot))
+        self.activate(slot)
     }
 
-    /// 在已取得 writer 名额后安装本轮取消令牌并构造 RAII 许可。
-    fn activate(&self, slot: OwnedSemaphorePermit) -> ScanPermit {
+    /// 在已取得 writer 名额后原子检查关闭门禁、安装取消令牌并构造 RAII 许可。
+    fn activate(&self, slot: OwnedSemaphorePermit) -> Result<ScanPermit, LocalError> {
         let cancellation = CancellationToken::new();
-        let mut current = self
+        let mut state = self
             .inner
-            .current
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *current = Some(cancellation.clone());
-        drop(current);
-        ScanPermit {
+        if state.shutting_down {
+            return Err(LocalError::new(
+                LocalErrorKind::ScanBusy,
+                "local scan coordinator is closed",
+            ));
+        }
+        state.current = Some(cancellation.clone());
+        drop(state);
+        Ok(ScanPermit {
             inner: Arc::clone(&self.inner),
             cancellation,
             _slot: slot,
-        }
+        })
     }
 
     /// 请求当前活动扫描取消；没有活动扫描时返回 false。
     #[cfg(test)]
     pub fn cancel_active(&self) -> bool {
-        let current = self
+        let state = self
             .inner
-            .current
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(cancellation) = current.as_ref() {
+        if let Some(cancellation) = state.current.as_ref() {
             cancellation.cancel();
             true
         } else {
@@ -217,6 +232,20 @@ impl ScanCoordinator {
     pub fn is_running(&self) -> bool {
         self.inner.slot.available_permits() == 0
     }
+
+    /// 关闭 writer 入口并请求当前扫描取消；等待中的显式批次会立即失败。
+    pub fn shutdown(&self) {
+        let mut state = self
+            .inner
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.shutting_down = true;
+        self.inner.slot.close();
+        if let Some(cancellation) = state.current.as_ref() {
+            cancellation.cancel();
+        }
+    }
 }
 
 impl ScanPermit {
@@ -227,14 +256,15 @@ impl ScanPermit {
 }
 
 impl Drop for ScanPermit {
-    /// 释放 writer 并清除取消句柄，避免扫描结束后误取消下一次任务。
+    /// 先取消仍可能运行的阻塞岛，再释放 writer 并清除当前句柄。
     fn drop(&mut self) {
-        let mut current = self
+        self.cancellation.cancel();
+        let mut state = self
             .inner
-            .current
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *current = None;
+        state.current = None;
     }
 }
 
@@ -247,6 +277,7 @@ mod tests {
     fn coordinator_enforces_single_writer_and_cancels_active_scan() {
         let coordinator = ScanCoordinator::default();
         let permit = coordinator.try_start().expect("first writer is accepted");
+        let cancellation = permit.cancellation_token();
 
         assert_eq!(
             coordinator
@@ -256,9 +287,22 @@ mod tests {
             LocalErrorKind::ScanBusy
         );
         assert!(coordinator.cancel_active());
-        assert!(permit.cancellation_token().is_cancelled());
+        assert!(cancellation.is_cancelled());
         drop(permit);
         assert!(!coordinator.is_running());
+    }
+
+    /// 验证许可释放会取消仍持有其令牌的工作，并让正常协调器重新可用。
+    #[test]
+    fn dropping_permit_cancels_worker_token_and_releases_slot() {
+        let coordinator = ScanCoordinator::default();
+        let permit = coordinator.try_start().expect("writer starts");
+        let cancellation = permit.cancellation_token();
+
+        drop(permit);
+
+        assert!(cancellation.is_cancelled());
+        assert!(coordinator.try_start().is_ok());
     }
 
     /// 验证显式批次会异步等待已有 writer 释放，而不是返回 busy 或忙轮询。
@@ -280,5 +324,44 @@ mod tests {
         assert!(coordinator.is_running());
         drop(next);
         assert!(!coordinator.is_running());
+    }
+
+    /// 验证关闭会取消当前任务、唤醒等待者，并永久拒绝新的 writer。
+    #[tokio::test]
+    async fn shutdown_cancels_active_writer_and_closes_waiters() {
+        let coordinator = ScanCoordinator::default();
+        let permit = coordinator.try_start().expect("writer starts");
+        let cancellation = permit.cancellation_token();
+        let waiting_coordinator = coordinator.clone();
+        let waiter = tokio::spawn(async move { waiting_coordinator.start_when_available().await });
+        tokio::task::yield_now().await;
+
+        coordinator.shutdown();
+
+        assert!(cancellation.is_cancelled());
+        assert!(waiter.await.expect("waiter joins").is_err());
+        drop(permit);
+        assert!(coordinator.try_start().is_err());
+    }
+
+    /// 验证关闭在线性化上先于 token 登记时，已取得的槽位也不能漏登记并继续扫描。
+    #[test]
+    fn acquired_slot_cannot_activate_after_shutdown_wins_registration_race() {
+        let coordinator = ScanCoordinator::default();
+        let slot = Arc::clone(&coordinator.inner.slot)
+            .try_acquire_owned()
+            .expect("writer slot is acquired before registration");
+
+        coordinator.shutdown();
+
+        assert_eq!(
+            coordinator
+                .activate(slot)
+                .expect_err("shutdown rejects the delayed registration")
+                .kind(),
+            LocalErrorKind::ScanBusy
+        );
+        assert!(!coordinator.cancel_active());
+        assert!(coordinator.try_start().is_err());
     }
 }

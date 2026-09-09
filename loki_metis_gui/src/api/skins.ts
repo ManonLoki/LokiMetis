@@ -241,8 +241,12 @@ export const skinApi = {
       paths,
       onProgress: progressChannel(onProgress),
     }),
-  commitImport: (token: string, selectedItemIds: string[]) =>
-    invokeSkin<BatchImportResult>("commit_skin_import", { token, selectedItemIds }),
+  commitImport: (token: string, selectedItemIds: string[], allowThirdPartyCode: boolean) =>
+    invokeSkin<BatchImportResult>("commit_skin_import", {
+      token,
+      selectedItemIds,
+      allowThirdPartyCode,
+    }),
   cancelImport: (token: string) => invokeSkin<void>("cancel_skin_import", { token }),
   openDirectory: (skin: SkinReference) => invokeSkin<void>("open_skin_directory", { skin }),
   deleteMany: (skins: SkinReference[]) =>
@@ -258,16 +262,18 @@ export const skinApi = {
   install: (
     host: SkinHostKind,
     skin: SkinReference,
-    allowAppearanceMismatch = false,
-    instanceId: string | null = null,
-    allowWorkBuddyRecovery = false,
+    allowAppearanceMismatch: boolean,
+    instanceId: string | null,
+    allowWorkBuddyRecovery: boolean,
+    allowThirdPartyCode: boolean,
   ) =>
     invokeSkin<InstallSkinResult>("install_skin", {
       host,
       skin,
       allowAppearanceMismatch,
       ...(instanceId === null ? {} : { instanceId }),
-      ...(allowWorkBuddyRecovery ? { allowWorkBuddyRecovery: true } : {}),
+      allowWorkBuddyRecovery,
+      allowThirdPartyCode,
     }),
   uninstall: (host: SkinHostKind, instanceId: string | null = null) =>
     invokeSkin<SkinStatus>(

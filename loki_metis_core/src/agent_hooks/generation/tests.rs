@@ -130,6 +130,7 @@ fn every_wsl_command_hook_uses_its_posix_executable_and_config_path() {
 }
 
 #[test]
+/// 验证 Cursor 预览使用其原生事件名与扁平命令结构。
 fn cursor_preview_uses_cursor_event_names_and_flat_shape() {
     let preview = generate_test_hook_config(AiTool::Cursor).unwrap();
     assert_eq!(preview.filename, ".cursor/hooks.json");
@@ -151,6 +152,7 @@ fn cursor_preview_uses_cursor_event_names_and_flat_shape() {
 }
 
 #[test]
+/// 验证独立插件文件具有完整品牌标识并可重复合并。
 fn standalone_plugin_files_are_branded_complete_and_idempotent() {
     let cases = [
         (AiTool::OpenCode, ".config/opencode/plugins/lokimetis.js", 0),
@@ -179,6 +181,7 @@ fn standalone_plugin_files_are_branded_complete_and_idempotent() {
 }
 
 #[test]
+/// 验证命令型适配器输出各自原生结构并声明正确写入结果。
 fn command_hook_adapters_use_their_native_shapes_and_outcomes() {
     let cases = [
         (AiTool::CodeBuddy, ".codebuddy/settings.json", true),

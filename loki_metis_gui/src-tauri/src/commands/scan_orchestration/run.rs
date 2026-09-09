@@ -13,9 +13,9 @@ use loki_metis_core::{
     CoverageState, DiscoveredRootIdentity, LocalScanOutput, LocalScanProgress,
     RegisteredRootIdentity, ScanCancellation, ScanDiscoveryResult, ScanKind, ScanStartOrigin,
     SourceRootReindexRequest, confirmed_invalid_roots_to_remove,
-    discovery_roots_for_active_registration, merge_coverage_reports, scan_discovery_for_scan_kind,
-    source_root_not_found_message, source_root_reindex_requires_enabled_message,
-    source_root_reindex_validation_failed_message,
+    discovery_roots_for_active_registration, merge_coverage_reports, scan_cancelled_status_message,
+    scan_discovery_for_scan_kind, source_root_not_found_message,
+    source_root_reindex_requires_enabled_message, source_root_reindex_validation_failed_message,
 };
 
 use crate::backend::local_index::{
@@ -26,6 +26,15 @@ use crate::runtime::now_epoch_ms;
 
 use super::client::ScanClient;
 use super::support::local_scan_task_error_message;
+
+/// 在每个可能写入本产品索引的边界前合作取消，避免 shutdown 后继续产生数据库副作用。
+fn ensure_scan_active(cancellation: &ScanCancellation) -> Result<(), String> {
+    if cancellation.is_cancelled() {
+        Err(scan_cancelled_status_message().to_owned())
+    } else {
+        Ok(())
+    }
+}
 
 /// 从产品 app-data 根读取已保存天数，按设备当地民用日得到派生用量保留下界。
 pub(super) fn scan_retention_policy(
@@ -60,6 +69,7 @@ pub(super) async fn run_scan<C: ScanClient>(
     cancellation: ScanCancellation,
     mut on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
 ) -> Result<LocalScanOutput, String> {
+    ensure_scan_active(&cancellation)?;
     let mut index = LocalIndex::open_in_app_data(&app_data_dir, C::parser_version())
         .await
         .map_err(C::map_local_error)?;
@@ -74,10 +84,12 @@ pub(super) async fn run_scan<C: ScanClient>(
         has_current_usage,
         started_at_epoch_ms,
     );
+    ensure_scan_active(&cancellation)?;
     index
         .prune_usage_before(scan_policy.retention_since_epoch_ms)
         .await
         .map_err(C::map_local_error)?;
+    ensure_scan_active(&cancellation)?;
     let mut background_index_root_ids = index
         .claim_background_index_roots()
         .await
@@ -120,6 +132,7 @@ pub(super) async fn run_scan<C: ScanClient>(
         known_sym,
         known_net,
     ) = known_validation.into_parts();
+    ensure_scan_active(&cancellation)?;
     let removable_invalid_root_ids = confirmed_invalid_roots_to_remove(
         &known_confirmed_invalid_root_ids,
         &background_index_root_ids,
@@ -129,6 +142,7 @@ pub(super) async fn run_scan<C: ScanClient>(
             Some(gate) => Some(gate.lock().await),
             None => None,
         };
+        ensure_scan_active(&cancellation)?;
         index
             .remove_roots(&removable_invalid_root_ids)
             .await
@@ -187,12 +201,15 @@ pub(super) async fn run_scan<C: ScanClient>(
     .map_err(|_| local_scan_task_error_message())?;
     let (discovery_roots, _, _, discovery_coverage, _, _, _) = discovery.into_parts();
 
+    ensure_scan_active(&cancellation)?;
     {
         let _account_context_guard = match &account_context_gate {
             Some(gate) => Some(gate.lock().await),
             None => None,
         };
+        ensure_scan_active(&cancellation)?;
         for root in &discovery_roots {
+            ensure_scan_active(&cancellation)?;
             C::register_root(&mut index, root)
                 .await
                 .map_err(C::map_local_error)?;
@@ -219,6 +236,7 @@ pub(super) async fn run_scan<C: ScanClient>(
         started_at_epoch_ms: Some(started_at_epoch_ms),
         ..ScanConfig::default()
     };
+    ensure_scan_active(&cancellation)?;
     let summary = C::scan_discovered_roots(
         &mut index,
         &roots_to_scan,
@@ -239,6 +257,7 @@ pub(super) async fn run_scan<C: ScanClient>(
     .map_err(C::map_local_error)?;
     let merged_coverage = merge_coverage_reports(discovery_coverage, &summary.coverage);
     if merged_coverage.state != CoverageState::Cancelled {
+        ensure_scan_active(&cancellation)?;
         index
             .finish_background_index_roots(&background_index_root_ids)
             .await
@@ -269,6 +288,7 @@ pub(super) async fn run_reindex<C: ScanClient>(
     cancellation: ScanCancellation,
     mut on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
 ) -> Result<LocalScanOutput, String> {
+    ensure_scan_active(&cancellation)?;
     let mut index = LocalIndex::open_in_app_data(&app_data_dir, C::parser_version())
         .await
         .map_err(C::map_local_error)?;
@@ -344,6 +364,7 @@ pub(super) async fn run_reindex<C: ScanClient>(
             Some(gate) => Some(gate.lock().await),
             None => None,
         };
+        ensure_scan_active(&cancellation)?;
         C::register_root(&mut index, &roots_to_scan[0])
             .await
             .map_err(C::map_local_error)?;
@@ -359,6 +380,7 @@ pub(super) async fn run_reindex<C: ScanClient>(
         has_current_usage,
         started_at_epoch_ms,
     );
+    ensure_scan_active(&cancellation)?;
     let summary = C::scan_discovered_roots(
         &mut index,
         &roots_to_scan,

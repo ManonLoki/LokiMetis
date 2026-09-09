@@ -98,6 +98,11 @@ function SkinCardImpl({
           <Badge color={skin.source === "builtin" ? "blue" : "teal"} variant="dot">
             {t(`skins.source.${skin.source}`)}
           </Badge>
+          {skin.packageType === "legacySkin" ? (
+            <Badge color="red" variant="light">
+              {t("skins.card.third_party_code")}
+            </Badge>
+          ) : null}
           {skin.supportedColorModes.map((mode) => (
             <Badge key={mode} variant="outline">
               {t(`skins.mode.${mode}`)}

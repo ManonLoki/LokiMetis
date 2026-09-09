@@ -89,6 +89,7 @@ const TOOL_CONTRACTS: [(AiTool, &str, &str, HookWriteOutcome); 14] = [
 ];
 
 #[test]
+/// 验证工具目录、slug 与写入结果完整且由各协议唯一声明。
 fn tool_catalog_slugs_and_write_outcomes_are_protocol_owned_and_complete() {
     let descriptors = ai_tool_descriptors();
     assert_eq!(descriptors.len(), AiTool::ALL.len());
@@ -122,6 +123,7 @@ fn tool_catalog_slugs_and_write_outcomes_are_protocol_owned_and_complete() {
 }
 
 #[test]
+/// 验证设置页 AI 客户端目录按展示名称升序排列。
 fn settings_ai_client_catalog_is_sorted_by_display_name_ascending() {
     let names = ai_tool_descriptors()
         .into_iter()
@@ -132,6 +134,7 @@ fn settings_ai_client_catalog_is_sorted_by_display_name_ascending() {
 }
 
 #[test]
+/// 验证只有独立插件协议会被排除在 WSL 命令生成之外。
 fn only_standalone_plugins_are_excluded_from_wsl_command_generation() {
     for tool in AiTool::ALL {
         assert_eq!(
@@ -143,6 +146,7 @@ fn only_standalone_plugins_are_excluded_from_wsl_command_generation() {
 }
 
 #[test]
+/// 验证附加文件仅由确实包含多文件的独立插件声明。
 fn auxiliary_files_are_declared_only_by_multi_file_plugins() {
     assert_eq!(generate_hook_auxiliary_configs(AiTool::Hermes).len(), 1);
     assert_eq!(generate_hook_auxiliary_configs(AiTool::OpenClaw).len(), 2);
@@ -154,6 +158,7 @@ fn auxiliary_files_are_declared_only_by_multi_file_plugins() {
 }
 
 #[test]
+/// 验证独立插件只通过受管 CLI relay 转发事件。
 fn standalone_plugins_forward_only_through_the_cli_relay() {
     let executable = std::path::Path::new("/opt/LokiMetis/loki_metis_gui");
     for tool in [AiTool::OpenCode, AiTool::Hermes, AiTool::OpenClaw] {
@@ -198,6 +203,7 @@ fn standalone_plugins_forward_only_through_the_cli_relay() {
 }
 
 #[test]
+/// 验证仅 Cursor 声明延迟释放与墓碑复活限制。
 fn cursor_alone_declares_release_handoff_and_tombstone_rules() {
     assert_eq!(
         release_settle_delay(AiTool::Cursor),
@@ -213,6 +219,7 @@ fn cursor_alone_declares_release_handoff_and_tombstone_rules() {
 }
 
 #[test]
+/// 验证每个工具适配器暴露完整且精确的原生事件表。
 fn every_adapter_exposes_the_complete_source_event_table() {
     let contracts: [(AiTool, &[&str]); 14] = [
         (
@@ -469,6 +476,7 @@ fn every_adapter_exposes_the_complete_source_event_table() {
 }
 
 #[test]
+/// 验证带 matcher 的事件与各上游协议子类型契约一致。
 fn event_matchers_match_the_source_protocols() {
     let expected = [
         (AiTool::ClaudeCode, "Notification", "idle_prompt"),

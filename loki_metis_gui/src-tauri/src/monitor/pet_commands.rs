@@ -366,6 +366,7 @@ fn state_from_view(
 mod tests {
     use super::*;
 
+    /// 当前聚焦位置应映射到对应布局页码。
     #[test]
     fn focused_slot_maps_to_layout_page() {
         assert_eq!(current_page(PetLayout::Grid, 0), 0);
@@ -374,6 +375,7 @@ mod tests {
         assert_eq!(current_page(PetLayout::Row3, 11), 3);
     }
 
+    /// 翻页与缩放方向应保持前端约定的序列化值。
     #[test]
     fn command_directions_follow_frontend_wire_values() {
         assert_eq!(

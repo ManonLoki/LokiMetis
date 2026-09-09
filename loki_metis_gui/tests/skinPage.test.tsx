@@ -322,6 +322,7 @@ describe("skin page", () => {
     await waitFor(() =>
       expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
         allowAppearanceMismatch: false,
+        allowThirdPartyCode: false,
         allowWorkBuddyRecovery: true,
         host: "workBuddy",
         skin: { id: "minecraft", source: "builtin" },
@@ -336,6 +337,7 @@ describe("skin page", () => {
     await waitFor(() =>
       expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
         allowAppearanceMismatch: true,
+        allowThirdPartyCode: false,
         allowWorkBuddyRecovery: true,
         host: "workBuddy",
         skin: { id: "minecraft", source: "builtin" },
@@ -528,6 +530,115 @@ describe("skin page", () => {
     );
     await waitFor(() =>
       expect(mocks.invoke).toHaveBeenCalledWith("install_skin", expect.anything()),
+    );
+  });
+
+  /** 兼容皮肤必须在任何启动、重启或安装调用前取得一次性显式信任，取消保持零副作用。 */
+  test("gates compatible skin application before every host side effect", async () => {
+    mocks.hostAvailable = true;
+    mocks.invoke.mockImplementation((command: string) => {
+      if (command === "get_monitor_capabilities") {
+        return Promise.resolve({
+          aiTools: [{ tool: "codex", name: "Codex", skinHost: "codex" }],
+        });
+      }
+      if (command === "get_monitor_settings") {
+        return Promise.resolve({ enabledAiTools: ["codex"], hookDirectories: {} });
+      }
+      if (command === "list_skins") {
+        return Promise.resolve([
+          {
+            author: "External author",
+            id: "retro-script",
+            name: "Retro Script",
+            packageType: "legacySkin",
+            previewDataUrl: "",
+            source: "user",
+            supportedColorModes: ["light"],
+            version: "1.0.0",
+          },
+        ]);
+      }
+      if (command === "list_skin_host_instances") {
+        return Promise.resolve([
+          {
+            accountLabel: null,
+            activeSkin: null,
+            activeSkinName: null,
+            avatarDataUrl: null,
+            debugPort: 9341,
+            id: "codex-1",
+            label: "Codex",
+            pid: 42,
+            profile: null,
+            state: "ready",
+          },
+        ]);
+      }
+      if (command === "skin_status") {
+        return Promise.resolve({
+          affectedPages: 0,
+          compatibility: null,
+          installed: false,
+          packageType: null,
+          skinId: null,
+          skinName: null,
+          source: null,
+          version: "1",
+        });
+      }
+      if (command === "install_skin") {
+        return Promise.resolve({ type: "installed", status: {} });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    expect(await screen.findByText("Runs third-party code")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(await screen.findByText("Trust and execute third-party code?")).toBeVisible();
+    expect(
+      screen.getByText(/will execute this third-party code inside Codex/i),
+    ).toBeVisible();
+    expect(screen.getByText(/do not review or prove the script is safe/i)).toBeVisible();
+    expect(mocks.invoke).not.toHaveBeenCalledWith("install_skin", expect.anything());
+    expect(mocks.invoke).not.toHaveBeenCalledWith("launch_skin_host", expect.anything());
+    expect(mocks.invoke).not.toHaveBeenCalledWith(
+      "restart_skin_host_instance",
+      expect.anything(),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.queryByText("Trust and execute third-party code?"),
+    ).not.toBeInTheDocument();
+    expect(mocks.invoke).not.toHaveBeenCalledWith("install_skin", expect.anything());
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    const continueButton = await screen.findByRole("button", {
+      name: "Trust and continue",
+    });
+    expect(continueButton).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("checkbox", {
+        name: /I understand this will execute third-party code/i,
+      }),
+    );
+    await userEvent.click(continueButton);
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
+        allowAppearanceMismatch: false,
+        allowThirdPartyCode: true,
+        allowWorkBuddyRecovery: false,
+        host: "codex",
+        instanceId: "codex-1",
+        skin: { id: "retro-script", source: "user" },
+      }),
     );
   });
 });

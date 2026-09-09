@@ -10,7 +10,7 @@ use crate::agent_hooks::{AiTool, HookBehavior, HookWriteOutcome};
 // Codex 协议的单例静态实例，供注册表引用
 pub(super) static CODEX: CodexProtocol = CodexProtocol;
 
-// Codex 协议的空结构体（无状态，仅承载 trait 实现）
+/// Codex 的无状态 Hook 协议适配器。
 pub(super) struct CodexProtocol;
 
 // Codex 支持的公开 Hook 事件列表及其归一化事件类型
@@ -62,32 +62,32 @@ const EVENTS: &[HookEvent] = &[
 
 // 为 Codex 实现 HookProtocol trait
 impl HookProtocol for CodexProtocol {
-    // 该协议对应的 AI 工具标识
+    /// 返回 Codex 的统一工具标识。
     fn tool(&self) -> AiTool {
         AiTool::Codex
     }
-    // 展示用的工具名称
+    /// 返回用于界面展示的 Codex 名称。
     fn name(&self) -> &'static str {
         "Codex"
     }
-    // 用于路径/标识拼接的短标识符
+    /// 返回用于路径和配置标识的稳定短名。
     fn slug(&self) -> &'static str {
         "codex"
     }
-    // 配置文件名
+    /// 返回 Codex 配置根下的 Hook 配置文件名。
     fn config_filename(&self) -> &'static str {
         "hooks.json"
     }
-    // 预览展示用的相对路径
+    /// 返回面向用户展示的 Hook 配置相对路径。
     fn preview_filename(&self) -> &'static str {
         ".codex/hooks.json"
     }
-    // 返回该协议支持的全部事件列表
+    /// 返回 Codex 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
     }
 
-    // 构造该事件对应的 Hook 配置条目
+    /// 构造 Codex 所需的 command Hook 数组，并为会话结束设置超时。
     fn handler(&self, event: &HookEvent, commands: &ManagedCommands) -> Value {
         // 仅在 Windows 平台下编译：优先按平台选择命令，
         // 但若并非运行在 WSL 中，则改用专门的 PowerShell 宿主命令
@@ -113,7 +113,7 @@ impl HookProtocol for CodexProtocol {
         json!([{ "hooks": [command] }])
     }
 
-    // Codex 需要运行 /hooks 审核，并重启 App 或新建任务加载新规则。
+    /// 标记 Codex 写入后仍需通过 `/hooks` 审核并重新加载规则。
     fn changed_write_outcome(&self) -> HookWriteOutcome {
         HookWriteOutcome::CodexReviewRequired
     }

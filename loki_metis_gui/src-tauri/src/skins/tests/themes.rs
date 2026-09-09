@@ -33,7 +33,8 @@
         let descriptor = load_descriptor(&directory, "theme-css-example", SkinSource::User)
             .expect("CSS 变量主题应通过严格校验");
         assert_eq!(descriptor.package_type, SkinPackageType::Theme);
-        let payload = build_payload(&directory).expect("CSS 变量主题应构建统一载荷");
+        let payload =
+            build_payload(&directory, false).expect("CSS 变量主题应构建统一载荷");
         let runtime_index = payload
             .find("--skin-radius: 12px")
             .expect("应包含运行时默认值");
@@ -50,6 +51,22 @@
         assert!(THEME_RUNTIME_CSS.contains("section div.border-default:has([role=\"switch\"])"));
         assert!(THEME_RUNTIME_CSS.contains("[role=\"switch\"] > span:first-child > span"));
         assert!(!payload.contains("__DREAM_SKIN_"));
+        std::fs::remove_dir_all(root).expect("应清理测试目录");
+    }
+
+    #[test]
+    /// 兼容皮肤载荷在读取并拼接自由脚本前必须取得本次操作的显式信任。
+    fn legacy_payload_requires_explicit_third_party_code_consent() {
+        let root = temp_directory("legacy-payload-consent");
+        let directory = root.join("legacy-script");
+        create_fixture(&directory, "legacy-script");
+
+        let error = build_payload(&directory, false)
+            .expect_err("未确认信任时不得构建兼容皮肤脚本载荷");
+        assert_eq!(error.code, "skin.third_party_code_consent_required");
+        assert!(error.message.contains("renderer-inject.js"));
+        assert!(error.message.contains("不能证明脚本安全"));
+
         std::fs::remove_dir_all(root).expect("应清理测试目录");
     }
 
@@ -71,7 +88,8 @@
             descriptor.supported_color_modes,
             vec![ColorMode::Light, ColorMode::Dark]
         );
-        let payload = build_payload(&mode_directory).expect("模式覆盖应加入运行时载荷");
+        let payload =
+            build_payload(&mode_directory, false).expect("模式覆盖应加入运行时载荷");
         assert!(payload.contains("--skin-accent: #78F0C6"));
         assert!(payload.contains("data:image/png;base64,"));
         assert!(payload.contains("data:image/jpeg;base64,"));
@@ -462,7 +480,11 @@
                 .expect("批次应通过预检");
 
             let result = service
-                .commit_import_batch(&prepared.token, &[prepared.items[1].item_id.clone()])
+                .commit_import_batch(
+                    &prepared.token,
+                    &[prepared.items[1].item_id.clone()],
+                    true,
+                )
                 .await
                 .expect("选中项应成功提交");
             assert_eq!(result.installed.len(), 1);
@@ -471,7 +493,11 @@
             assert!(root.join("user/second-skin/theme.json").is_file());
             assert_eq!(
                 service
-                    .commit_import_batch(&prepared.token, &[prepared.items[0].item_id.clone()])
+                    .commit_import_batch(
+                        &prepared.token,
+                        &[prepared.items[0].item_id.clone()],
+                        true,
+                    )
                     .await
                     .expect_err("完成后的批次令牌必须失效")
                     .code,
@@ -507,7 +533,7 @@
                 .collect::<Vec<_>>();
 
             let result = service
-                .commit_import_batch(&prepared.token, &selected)
+                .commit_import_batch(&prepared.token, &selected, true)
                 .await
                 .expect("单项冲突不应回滚整个批次");
             assert_eq!(result.installed.len(), 1);

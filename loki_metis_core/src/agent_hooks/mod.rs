@@ -55,7 +55,7 @@ pub use types::{
 // 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetis 写入的条目
 pub(super) const MANAGED_HOOK_PREFIX: &str = "LokiMetis";
 
-// 描述一个 Hook 事件在状态机语义上归属的“种类”，决定它触发什么样的状态迁移
+/// 描述 Hook 事件的状态机语义种类，并决定其基础迁移。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum HookEventKind {
     // 工作区/项目打开，尚未进入具体会话
@@ -83,7 +83,7 @@ pub(super) enum HookEventKind {
 }
 
 impl HookEventKind {
-    // 把事件种类映射为具体的状态迁移动作（展示某个行为态，或释放展示位）
+    /// 将事件种类映射为展示行为或展示位释放动作。
     pub(super) const fn transition(self) -> HookTransition {
         match self {
             // 会话结束：释放该会话占用的展示位
@@ -106,8 +106,7 @@ impl HookEventKind {
     }
 }
 
-// 描述协议声明的一个具体 Hook 事件：事件名、可选的 matcher（子类型过滤器）、
-// 以及该事件对应的状态机语义种类
+/// 描述协议声明的事件名、可选子类型 matcher 与状态机语义。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct HookEvent {
     // 事件在该工具原生配置中的名称（如 "SessionStart"）
@@ -119,7 +118,7 @@ pub(super) struct HookEvent {
 }
 
 impl HookEvent {
-    // 构造一个不带 matcher 的普通事件
+    /// 构造不带子类型 matcher 的普通事件定义。
     pub const fn new(name: &'static str, kind: HookEventKind) -> Self {
         Self {
             name,
@@ -129,7 +128,7 @@ impl HookEvent {
         }
     }
 
-    // 构造一个带 matcher 的事件，用于需要按子类型区分状态的场景
+    /// 构造带 matcher 的事件，用于区分同名事件的子类型。
     pub const fn with_matcher(
         name: &'static str,
         matcher: &'static str,
@@ -144,7 +143,7 @@ impl HookEvent {
     }
 }
 
-// 一个事件在三种目标平台/场景下对应的托管命令字符串集合
+/// 保存同一事件在 POSIX、WSL 与 Windows 宿主下的托管命令变体。
 pub(super) struct ManagedCommands {
     // POSIX shell（macOS/Linux，以及 WSL）使用的命令
     pub posix: String,
@@ -163,17 +162,17 @@ pub(super) struct ManagedCommands {
 
 /// 单个工具必须实现的完整 Hook 协议契约。
 pub(super) trait HookProtocol: Sync {
-    // 返回该协议对应的工具枚举值
+    /// 返回协议对应的统一工具标识。
     fn tool(&self) -> AiTool;
-    // 返回该工具面向用户展示的名称
+    /// 返回工具面向用户展示的名称。
     fn name(&self) -> &'static str;
-    // 返回该工具在 Hook 请求路径中使用的 slug 标识
+    /// 返回工具在 Hook 请求和管理标识中使用的稳定短名。
     fn slug(&self) -> &'static str;
-    // 返回该工具主配置文件相对于其配置根目录的文件名
+    /// 返回主配置文件相对于工具配置根目录的文件名。
     fn config_filename(&self) -> &'static str;
-    // 返回用于预览展示的完整相对路径（含配置根目录前缀）
+    /// 返回包含配置根前缀的预览相对路径。
     fn preview_filename(&self) -> &'static str;
-    // 返回该工具声明的全部 Hook 事件列表
+    /// 返回该工具声明的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent];
 
     /// 返回独立配置文件内容时，公共 JSON hooks 生成/合并流程会被跳过。
@@ -213,7 +212,9 @@ pub(super) trait HookProtocol: Sync {
         Ok(generated.content.clone())
     }
 
-    // 默认直接返回事件本身声明的种类，不做基于状态值的二次判定
+    /// 将原生事件与可选状态映射为状态机事件种类。
+    ///
+    /// 默认沿用事件表中的静态种类，不依据状态值二次判定。
     fn event_kind(&self, event: &HookEvent, _status: Option<&str>) -> HookEventKind {
         event.kind
     }
@@ -235,7 +236,7 @@ pub(super) trait HookProtocol: Sync {
         Value::Null
     }
 
-    // 默认配置根结构为 `{ "hooks": { ...每个事件对应一个条目... } }`
+    /// 将逐事件 handler 包装为默认的 JSON `hooks` 根对象。
     fn config_root(&self, hooks: Map<String, Value>) -> Value {
         json!({ "hooks": Value::Object(hooks) })
     }
@@ -279,7 +280,7 @@ pub(super) trait HookProtocol: Sync {
     }
 }
 
-// 按 AI 工具类型分发到对应的静态协议实现，是本模块内所有分发函数的唯一入口。
+/// 按工具类型返回唯一的静态协议实现。
 pub(super) fn protocol(tool: AiTool) -> &'static dyn HookProtocol {
     match tool {
         AiTool::Codex => &codex::CODEX,
@@ -381,7 +382,7 @@ pub fn generate_hook_auxiliary_configs(tool: AiTool) -> Vec<HookConfigPreview> {
     protocol(tool).auxiliary_configs()
 }
 
-// 按事件名在该工具声明的事件表中查找对应的事件定义
+/// 按原生事件名查找指定工具的协议事件定义。
 pub(super) fn event_definition(tool: AiTool, event: &str) -> Option<HookEvent> {
     protocol(tool)
         .events()
@@ -391,7 +392,7 @@ pub(super) fn event_definition(tool: AiTool, event: &str) -> Option<HookEvent> {
         .find(|candidate| candidate.name == event)
 }
 
-// 结合可选的状态值，解析出事件名对应的状态机语义种类
+/// 结合协议事件与可选原生状态解析状态机事件种类。
 pub(super) fn event_kind(tool: AiTool, event: &str, status: Option<&str>) -> Option<HookEventKind> {
     // 先取出协议实现，后续同时用于查找事件定义和调用 event_kind
     let protocol = protocol(tool);
@@ -399,12 +400,12 @@ pub(super) fn event_kind(tool: AiTool, event: &str, status: Option<&str>) -> Opt
     event_definition(tool, event).map(|definition| protocol.event_kind(&definition, status))
 }
 
-// 返回该工具协议声明的生命周期交接缓冲时长
+/// 返回工具协议声明的生命周期交接缓冲时长。
 pub(crate) fn release_settle_delay(tool: AiTool) -> Duration {
     protocol(tool).release_settle_delay()
 }
 
-// 返回该工具是否允许显式 SessionStart 覆盖同 ID 墓碑
+/// 返回工具是否允许显式会话开始覆盖同 ID 墓碑。
 pub(crate) fn session_start_revives_tombstone(tool: AiTool) -> bool {
     protocol(tool).session_start_revives_tombstone()
 }
@@ -432,7 +433,7 @@ pub(super) fn command_group(command: &str, matcher: Option<&str>) -> Value {
     Value::Array(vec![group])
 }
 
-// 按编译目标平台选取应写入配置的命令变体（Windows 用 PowerShell 包装，POSIX 直接执行）。
+/// 按 WSL 状态与编译目标选择应写入配置的命令变体。
 pub(super) fn platform_command(commands: &ManagedCommands) -> &str {
     if commands.is_wsl {
         // WSL 场景始终使用 POSIX 命令，忽略实际编译目标平台
@@ -453,7 +454,7 @@ pub(super) fn platform_command(commands: &ManagedCommands) -> &str {
     compile_error!("LokiMetis Hook command generation only supports Windows, macOS, and Linux");
 }
 
-// 判断该工具是否需要把每个上游事件都原样转发（不做状态机抑制/合并）
+/// 判断工具是否应绕过状态机抑制并原样转发每个上游事件。
 pub(crate) fn forwards_every_event(tool: AiTool) -> bool {
     // 只有具备稳定会话/工作开始语义并经过状态机适配验证的工具执行抑制；
     // 其他协议按事件到达顺序直通，避免公共状态机误丢上游事件。
@@ -472,7 +473,7 @@ pub(crate) fn forwards_every_event(tool: AiTool) -> bool {
     )
 }
 
-// 判断 hooks 配置条目是否携带该工具的 LokiMetis 管理标识。
+/// 判断单个 Hook 配置条目是否携带指定工具的管理标识。
 fn entry_is_managed<P: HookProtocol + ?Sized>(entry: &Value, protocol: &P) -> bool {
     ["command", "commandWindows"]
         .into_iter()
@@ -488,24 +489,24 @@ pub fn managed_hook_marker(tool: AiTool) -> String {
     format!("{MANAGED_HOOK_PREFIX}:tool={}", protocol(tool).slug())
 }
 
-// 判断配置文件整体内容中是否包含该工具的管理标识（用于独立文件冲突校验）
+/// 判断配置文件内容是否包含指定工具的管理标识。
 fn contains_managed_marker(content: &str, tool: AiTool) -> bool {
     content.contains(&managed_hook_marker(tool))
 }
 
-// 判断单条命令字符串中是否包含该工具的管理标识（兼容各平台转义形式）
+/// 判断单条命令是否包含指定工具的管理标识，并兼容现役平台转义。
 fn contains_command_marker(command: &str, tool: AiTool) -> bool {
     command_has_marker(command, &managed_hook_marker(tool))
 }
 
-// 把字符串按单引号包裹，内部已有的单引号转义为 POSIX shell 惯用的 `'"'"'` 形式
+/// 按 POSIX shell 单引号规则安全包裹一个参数。
 pub(super) fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
-// 生成通过 LokiMetis CLI relay 转发单次事件的公共 JS Promise 包装片段
-// （`forwardThroughCli`），内建 settle/超时/kill 语义。OpenClaw 与 OpenCode 的
-// 独立插件生成共用此片段，仅 relay 子命令不同。
+/// 生成通过 CLI relay 转发单次事件的公共 JavaScript Promise 片段。
+///
+/// 片段内建单次 settle、超时和进程回收语义，由 OpenClaw 与 OpenCode 共用。
 pub(super) fn js_cli_relay_forwarder(relay_subcommand: &str, marker: &str) -> String {
     format!(
         r#"const forwardThroughCli = (hookEvent, body) => new Promise((resolve, reject) => {{

@@ -2,6 +2,7 @@ use tauri::{Manager, WebviewWindow};
 
 use crate::performance_evidence::emit_performance_evidence_main_window_visibility;
 
+/// 显示、取消最小化并聚焦主窗口。
 pub(crate) fn restore_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window("main") else {
         return Ok(());
@@ -13,6 +14,7 @@ pub(crate) fn restore_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// 修复过小或完全位于屏幕外的已保存主窗口几何状态。
 pub(crate) fn ensure_main_window_is_recoverable(app: &tauri::AppHandle) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window("main") else {
         return Ok(());
@@ -32,6 +34,7 @@ pub(crate) fn ensure_main_window_is_recoverable(app: &tauri::AppHandle) -> tauri
     Ok(())
 }
 
+/// 返回所有可用显示器的物理坐标矩形。
 fn monitor_rectangles(window: &WebviewWindow) -> tauri::Result<Vec<(i32, i32, u32, u32)>> {
     Ok(window
         .available_monitors()?
@@ -48,6 +51,7 @@ fn monitor_rectangles(window: &WebviewWindow) -> tauri::Result<Vec<(i32, i32, u3
 }
 
 #[rustfmt::skip]
+/// 判断保存的窗口尺寸满足下限且与至少一个显示器相交。
 pub(crate) fn saved_window_geometry_is_recoverable(
     window: (i32, i32, u32, u32),
     monitors: &[(i32, i32, u32, u32)],
@@ -59,6 +63,7 @@ pub(crate) fn saved_window_geometry_is_recoverable(
     width >= 960 && height >= 640 && intersects_monitor
 }
 
+/// 判断窗口矩形与显示器矩形是否存在正面积交集。
 fn rectangle_intersects_monitor(
     window: (i32, i32, u32, u32),
     monitor: (i32, i32, u32, u32),
@@ -80,6 +85,7 @@ mod tests {
     use super::*;
     use tauri_plugin_window_state::StateFlags;
 
+    /// 窗口状态插件应恢复尺寸、位置与最大化状态。
     #[test]
     fn window_state_restores_size_position_and_maximized() {
         let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
@@ -88,12 +94,14 @@ mod tests {
         assert!(flags.contains(StateFlags::MAXIMIZED));
     }
 
+    /// 窗口状态插件不得恢复上次保存的可见性。
     #[test]
     fn window_state_ignores_saved_visibility() {
         let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
         assert!(!flags.contains(StateFlags::VISIBLE));
     }
 
+    /// 过小或完全离屏的保存状态必须触发安全回退。
     #[test]
     fn window_state_falls_back_for_invalid_or_offscreen_state() {
         let monitors = [(0, 0, 1920, 1080)];
@@ -107,6 +115,7 @@ mod tests {
         ));
     }
 
+    /// 首次启动的默认窗口几何应保持可恢复。
     #[test]
     fn window_state_preserves_first_launch_defaults() {
         let monitors = [(0, 0, 1920, 1080)];

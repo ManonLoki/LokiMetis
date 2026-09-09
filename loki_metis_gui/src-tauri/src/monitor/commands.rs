@@ -22,12 +22,14 @@ use super::{
     validate_hook_config_directory, write_hook_config,
 };
 
+/// 解析应用配置目录，并把宿主错误映射为稳定设置读取错误。
 fn config_dir(app: &AppHandle) -> Result<PathBuf, HookError> {
     app.path().app_config_dir().map_err(|error| {
         HookError::new("error.monitor.settingsReadFailed").param("detail", error.to_string())
     })
 }
 
+/// 解析应用数据目录，并把宿主错误映射为稳定图片读取错误。
 fn data_dir(app: &AppHandle) -> Result<PathBuf, HookError> {
     app.path().app_data_dir().map_err(|error| {
         HookError::new("error.monitor.imagesReadFailed").param("detail", error.to_string())

@@ -366,6 +366,7 @@ mod tests {
         }
     }
 
+    /// 验证空投影仍保留十二个无身份、无内容的固定位置。
     #[test]
     fn empty_projection_has_twelve_identity_free_positions() {
         let view = project_pet_overlay_from_drafts(&[], &[]);
@@ -380,6 +381,7 @@ mod tests {
         assert!(view.slots.iter().all(|slot| slot.tile.is_none()));
     }
 
+    /// 验证配置中的第九槽会映射到从零计数的第八索引。
     #[test]
     fn configured_slot_nine_maps_to_zero_based_position_eight() {
         let drafts = [draft_with_content(
@@ -400,6 +402,7 @@ mod tests {
         assert_eq!(tile.image_key.as_deref(), Some("img-running"));
     }
 
+    /// 验证仅有草稿图片而没有迁移事件时不会产生初始展示块。
     #[test]
     fn draft_images_do_not_create_an_initial_tile_without_an_event() {
         let drafts = [draft_with_content(
@@ -412,6 +415,7 @@ mod tests {
         assert!(view.slots.iter().all(|slot| slot.tile.is_none()));
     }
 
+    /// 验证多个 Agent 共用位置时由全局版本最新的迁移获胜。
     #[test]
     fn greatest_global_revision_wins_a_shared_position() {
         let drafts = [
@@ -431,6 +435,7 @@ mod tests {
         );
     }
 
+    /// 验证最新释放墓碑会清空共用位置，而不会恢复更旧状态。
     #[test]
     fn newest_release_clears_a_shared_position_instead_of_revealing_older_state() {
         let drafts = [
@@ -447,6 +452,7 @@ mod tests {
         assert_eq!(view.slots[1].tile, None);
     }
 
+    /// 验证修改草稿槽位不会追溯移动已经发生的展示状态。
     #[test]
     fn profile_change_does_not_move_an_existing_display_state() {
         let drafts = [draft_with_content(
@@ -466,6 +472,7 @@ mod tests {
         assert_eq!(view.slots[8].tile, None);
     }
 
+    /// 验证旧位置的释放墓碑不会清除同一工具更新的新位置。
     #[test]
     fn old_release_tombstone_does_not_clear_the_tools_new_position() {
         let drafts = [draft_with_content(
@@ -488,6 +495,7 @@ mod tests {
         );
     }
 
+    /// 验证工具迁移位置时以同一事件版本释放旧位置并占用新位置。
     #[test]
     fn moving_a_tool_releases_its_previous_position_at_the_same_event_revision() {
         let drafts = [draft_with_content(
@@ -531,6 +539,7 @@ mod tests {
         );
     }
 
+    /// 验证释放事件会清空该工具仍拥有的全部展示位置。
     #[test]
     fn release_clears_every_position_still_owned_by_the_tool() {
         let mut states = vec![
@@ -552,6 +561,7 @@ mod tests {
         assert!(states.iter().all(|state| state.revision == revision));
     }
 
+    /// 验证释放某工具时不会清除已由另一工具接管的位置。
     #[test]
     fn release_does_not_clear_a_position_now_owned_by_another_tool() {
         let mut states = Vec::new();
@@ -596,6 +606,7 @@ mod tests {
         }));
     }
 
+    /// 验证每种布局的行列、容量和十二位置分页数量保持一致。
     #[test]
     fn layouts_report_expected_dimensions_capacity_and_page_count() {
         let cases = [
@@ -613,6 +624,7 @@ mod tests {
         }
     }
 
+    /// 验证分页保留绝对位置编号，并按正负步数循环页码。
     #[test]
     fn page_projection_uses_absolute_positions_and_wraps() {
         let page = project_pet_overlay_page(&[], &[], PetLayout::Grid, 4);
@@ -631,6 +643,7 @@ mod tests {
         assert_eq!(wrap_pet_overlay_page(PetLayout::Grid, 2, isize::MAX), 0);
     }
 
+    /// 验证浮窗规格保持透明、无边框、可缩放的默认网格基线。
     #[test]
     fn window_spec_matches_resizable_grid_baseline() {
         let spec = pet_overlay_window_spec();

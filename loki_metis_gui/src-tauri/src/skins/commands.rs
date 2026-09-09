@@ -195,10 +195,15 @@ pub async fn prepare_skin_zip_paths(
 pub async fn commit_skin_import(
     token: String,
     selected_item_ids: Vec<String>,
+    allow_third_party_code: Option<bool>,
     service: State<'_, SkinService>,
 ) -> Result<BatchImportResult, AppError> {
     service
-        .commit_import_batch(&token, &selected_item_ids)
+        .commit_import_batch(
+            &token,
+            &selected_item_ids,
+            allow_third_party_code.unwrap_or(false),
+        )
         .await
 }
 
@@ -311,6 +316,7 @@ pub async fn install_skin(
     allow_appearance_mismatch: bool,
     instance_id: Option<String>,
     allow_workbuddy_recovery: Option<bool>,
+    allow_third_party_code: Option<bool>,
     service: State<'_, SkinService>,
 ) -> Result<InstallSkinResult, AppError> {
     service
@@ -320,6 +326,7 @@ pub async fn install_skin(
             allow_appearance_mismatch,
             instance_id.as_deref(),
             allow_workbuddy_recovery.unwrap_or(false),
+            allow_third_party_code.unwrap_or(false),
         )
         .await
 }

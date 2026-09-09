@@ -78,8 +78,9 @@ pub use codex_skin::{
     MAX_SKIN_IMPORT_BATCH_FILES, MAX_THEME_COMMENT_CHARS, MAX_THEME_CSS_BYTES,
     MAX_THEME_DESCRIPTION_CHARS, MAX_THEME_IMAGE_BYTES, SkinHostKind, SkinPackageType,
     SkinReference, SkinRuleError, SkinSource, is_valid_skin_id, normalize_skin_creator_text,
-    validate_skin_delete_batch, validate_skin_import_batch_size, validate_skin_reference,
-    validate_supported_color_modes, validate_theme_image_name, validate_theme_metadata,
+    validate_skin_code_execution_consent, validate_skin_delete_batch,
+    validate_skin_import_batch_size, validate_skin_reference, validate_supported_color_modes,
+    validate_theme_image_name, validate_theme_metadata,
 };
 pub use combined_view::{
     AgentUsageSnapshot, CombinedUsageSnapshot, UsageViewError, UsageViewKind,

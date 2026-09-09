@@ -7,6 +7,7 @@ use crate::agent_hooks::{AiTool, HookBehavior};
 
 // 测试：会话恢复后仍保留旧的轮次历史（不会因恢复而重置退休记录）
 #[test]
+/// 验证恢复既有会话时会保留旧轮次历史。
 fn resumed_session_keeps_old_turn_history() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -50,6 +51,7 @@ fn resumed_session_keeps_old_turn_history() {
 
 // 测试：Codex 的 Goal 模式进度事件可以在“超越”前一个 stop 之后继续恢复
 #[test]
+/// 验证 Codex 目标进度越过上一停止事件后可以恢复运行。
 fn codex_goal_progress_can_resume_after_overtaking_the_previous_stop() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();

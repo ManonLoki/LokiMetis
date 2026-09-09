@@ -3,10 +3,12 @@ fn replaces_all_host_runtimes(host: SkinHostKind) -> bool {
     cfg!(target_os = "windows") && host == SkinHostKind::WorkBuddy
 }
 
+/// 构造恢复期间实例或端点漂移的稳定错误，阻止继续提交皮肤。
 fn workbuddy_recovery_unstable(message: impl Into<String>) -> AppError {
     AppError::new("skin.workbuddy_recovery_unstable", message)
 }
 
+/// 将用户已授权恢复后再次出现的确认请求改写为不可继续的漂移错误。
 fn authorized_workbuddy_error(error: AppError) -> AppError {
     if error.code == "skin.workbuddy_recovery_required" {
         workbuddy_recovery_unstable(
@@ -37,6 +39,7 @@ fn workbuddy_target_binding_matches(
     expected.id == current.id && current.debug_port == Some(endpoint.port)
 }
 
+/// 重新发现并验证 Windows WorkBuddy 的唯一目标仍绑定指定端点。
 async fn current_windows_workbuddy_target(
     endpoint: CdpEndpoint,
 ) -> Result<ResolvedCodexInstance, AppError> {
@@ -188,6 +191,7 @@ impl SkinService {
         allow_appearance_mismatch: bool,
         instance_id: Option<&str>,
         allow_workbuddy_recovery: bool,
+        allow_third_party_code: bool,
     ) -> Result<InstallSkinResult, AppError> {
         validate_skin_reference(skin)?;
         if allow_workbuddy_recovery && !replaces_all_host_runtimes(host) {
@@ -196,7 +200,12 @@ impl SkinService {
                 "关闭全部 WorkBuddy 的恢复流程仅在 Windows 上可用。",
             ));
         }
-        let loaded = load_skin(&self.builtin_root, &self.user_root, skin)?;
+        let loaded = load_skin(
+            &self.builtin_root,
+            &self.user_root,
+            skin,
+            allow_third_party_code,
+        )?;
         let _operation = self.operation.lock().await;
         let _runtime_mutation = self.begin_host_runtime_mutation(host);
         let (_guard, mut cancel) = self.begin_codex_operation()?;
@@ -407,6 +416,9 @@ impl SkinService {
                 }));
             }
         }
+        let expected_workbuddy_root_pid = (host == SkinHostKind::WorkBuddy)
+            .then(|| selected_instance.as_ref().map(|instance| instance.process.pid))
+            .flatten();
 
         let previous_tasks = {
             let mut runtime = self.runtime.lock().await;
@@ -426,6 +438,7 @@ impl SkinService {
             skin,
             connection_source.page_ready_timeout(),
             endpoint,
+            expected_workbuddy_root_pid,
             &transaction_id,
             &mut cancel,
         )
@@ -450,6 +463,7 @@ impl SkinService {
                 &mut browser,
                 &mut handler_task,
                 endpoint,
+                expected_workbuddy_root_pid,
                 &transaction_id,
                 &report.transaction_targets,
             )
@@ -480,6 +494,7 @@ impl SkinService {
                     &mut browser,
                     &mut handler_task,
                     endpoint,
+                    expected_workbuddy_root_pid,
                     &transaction_id,
                     &report.transaction_targets,
                 )
@@ -500,6 +515,7 @@ impl SkinService {
                 &mut browser,
                 &mut handler_task,
                 endpoint,
+                expected_workbuddy_root_pid,
                 &transaction_id,
                 &report.transaction_targets,
             )
@@ -519,6 +535,7 @@ impl SkinService {
                 &mut browser,
                 &mut handler_task,
                 endpoint,
+                expected_workbuddy_root_pid,
                 &transaction_id,
                 &report.transaction_targets,
             )

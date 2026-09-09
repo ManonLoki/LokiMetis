@@ -1,3 +1,12 @@
+/// 在读取自由注入脚本或持久化兼容皮肤前校验本次操作的显式信任确认。
+fn validate_code_execution_consent(
+    package_type: SkinPackageType,
+    explicitly_trusted: bool,
+) -> Result<(), AppError> {
+    loki_metis_core::validate_skin_code_execution_consent(package_type, explicitly_trusted)
+        .map_err(|_| third_party_code_consent_required_error())
+}
+
 /// 执行换皮宿主内部的 `open_in_file_manager` 步骤。
 fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
     #[cfg(target_os = "macos")]
@@ -15,14 +24,19 @@ fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
 
 /// 执行换皮宿主内部的 `build_payload` 步骤。
 #[cfg(test)]
-fn build_payload(directory: &Path) -> Result<String, AppError> {
+fn build_payload(directory: &Path, explicitly_trusted: bool) -> Result<String, AppError> {
     let manifest = read_manifest(directory)?;
     validate_manifest(directory, &manifest)?;
-    build_payload_from_manifest(directory, &manifest)
+    build_payload_from_manifest(directory, &manifest, explicitly_trusted)
 }
 
 /// 与 `build_payload` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
-fn build_payload_from_manifest(directory: &Path, manifest: &SkinManifest) -> Result<String, AppError> {
+fn build_payload_from_manifest(
+    directory: &Path,
+    manifest: &SkinManifest,
+    explicitly_trusted: bool,
+) -> Result<String, AppError> {
+    validate_code_execution_consent(manifest.package_type(), explicitly_trusted)?;
     let theme = read_text(&directory.join("theme.json"))?;
     let (css, theme_css, injector, art, avatar, friends, theme_assets) = match manifest {
         SkinManifest::Legacy(manifest) => (
@@ -306,7 +320,7 @@ fn stable_instance_id(process: &PlatformCodexProcess) -> String {
     format!("codex-{}-{hash:016x}", process.pid)
 }
 
-/// WorkBuddy 的命令行来自可降级的 WMI 探针，实例身份只依赖 PID 与已验证路径。
+/// WorkBuddy 的命令行可能在跨平台探测中降级，实例身份只依赖 PID 与已验证路径。
 fn stable_workbuddy_instance_id(process: &PlatformCodexProcess) -> String {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in process
@@ -334,10 +348,7 @@ fn resolved_instance_for_host(
 ) -> ResolvedCodexInstance {
     let id = match host {
         SkinHostKind::Codex => stable_instance_id(&process),
-        SkinHostKind::WorkBuddy if cfg!(target_os = "windows") => {
-            stable_workbuddy_instance_id(&process)
-        }
-        SkinHostKind::WorkBuddy => stable_instance_id(&process),
+        SkinHostKind::WorkBuddy => stable_workbuddy_instance_id(&process),
     };
     resolved_instance_with_id(process, id)
 }

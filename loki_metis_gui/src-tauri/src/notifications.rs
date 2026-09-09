@@ -10,11 +10,13 @@ const NOTIFICATION_QUEUE_CAPACITY: usize = 16;
 const NOTIFICATION_FAILURE_EVENT: &str = "loki-metis://notification-error";
 
 #[derive(Clone, Debug)]
+/// 保存待交给系统通知服务的标题与正文。
 pub(crate) struct NotificationPayload {
     pub(crate) title: String,
     pub(crate) body: String,
 }
 
+/// 表示通知工作线程串行处理的授权或投递命令。
 enum NotificationCommand {
     RequestPermission(oneshot::Sender<Result<(), &'static str>>),
     Deliver {
@@ -23,12 +25,14 @@ enum NotificationCommand {
     },
 }
 
+/// 持有有界通知队列及其后台任务的应用级状态。
 pub(crate) struct NotificationWorker {
     sender: Mutex<Option<mpsc::Sender<NotificationCommand>>>,
     task: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl NotificationWorker {
+    /// 返回仍可用的通知命令发送端。
     fn sender(&self) -> Result<mpsc::Sender<NotificationCommand>, &'static str> {
         self.sender
             .lock()
@@ -37,6 +41,7 @@ impl NotificationWorker {
             .ok_or("notification-worker-unavailable")
     }
 
+    /// 关闭发送端并取消所属后台任务。
     pub(crate) fn shutdown(&self) {
         self.sender
             .lock()
@@ -54,6 +59,7 @@ impl NotificationWorker {
 }
 
 impl Drop for NotificationWorker {
+    /// 在应用状态释放时保证通知后台任务不会遗留。
     fn drop(&mut self) {
         self.sender
             .get_mut()
@@ -70,6 +76,7 @@ impl Drop for NotificationWorker {
     }
 }
 
+/// 安装应用级通知工作线程并串行处理授权与投递。
 pub(crate) fn install_notification_worker(app: &tauri::AppHandle) {
     let (sender, mut receiver) = mpsc::channel(NOTIFICATION_QUEUE_CAPACITY);
     let worker_app = app.clone();
@@ -96,6 +103,7 @@ pub(crate) fn install_notification_worker(app: &tauri::AppHandle) {
 }
 
 #[tauri::command]
+/// 返回当前持久化的系统通知开关。
 pub(crate) async fn get_system_notification_setting(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(app
         .state::<HostSettingsState>()
@@ -105,6 +113,7 @@ pub(crate) async fn get_system_notification_setting(app: tauri::AppHandle) -> Re
 }
 
 #[tauri::command]
+/// 在启用前取得系统授权，并只在成功后持久化通知开关。
 pub(crate) async fn set_system_notification_enabled(
     app: tauri::AppHandle,
     enabled: bool,
@@ -137,6 +146,7 @@ pub(crate) async fn set_system_notification_enabled(
     Ok(settings.read().await.system_notification_enabled())
 }
 
+/// 把通知开关写入宿主设置状态。
 async fn persist_system_notification_setting(
     settings: &HostSettingsState,
     enabled: bool,
@@ -144,7 +154,7 @@ async fn persist_system_notification_setting(
     settings.set_system_notification_enabled(enabled).await
 }
 
-/// Rust-only product adapter entry point. The neutral scaffold has no caller and sends nothing.
+/// 提供仅 Rust 产品适配入口；当前无调用方的中性基线不会主动发送通知。
 #[allow(dead_code)]
 pub(crate) async fn queue_system_notification(
     app: &tauri::AppHandle,
@@ -173,6 +183,7 @@ pub(crate) async fn queue_system_notification(
 }
 
 #[cfg(target_os = "macos")]
+/// 使用 macOS 现代用户通知 API 请求授权。
 async fn request_system_notification_permission(
     _app: &tauri::AppHandle,
 ) -> Result<(), &'static str> {
@@ -184,6 +195,7 @@ async fn request_system_notification_permission(
 }
 
 #[cfg(not(target_os = "macos"))]
+/// 通过跨平台 Tauri 通知插件请求系统授权。
 async fn request_system_notification_permission(
     app: &tauri::AppHandle,
 ) -> Result<(), &'static str> {
@@ -200,6 +212,7 @@ async fn request_system_notification_permission(
 }
 
 #[cfg(target_os = "macos")]
+/// 使用 macOS 现代用户通知 API 投递一条通知。
 async fn deliver_system_notification(
     _app: &tauri::AppHandle,
     payload: NotificationPayload,
@@ -215,6 +228,7 @@ async fn deliver_system_notification(
 }
 
 #[cfg(not(target_os = "macos"))]
+/// 通过跨平台 Tauri 通知插件投递一条通知。
 async fn deliver_system_notification(
     app: &tauri::AppHandle,
     payload: NotificationPayload,
@@ -233,18 +247,21 @@ async fn deliver_system_notification(
 mod tests {
     use super::*;
 
+    /// 启用通知时必须先获得权限再持久化设置。
     #[test]
     fn system_notification_permission_precedes_persistence() {
         let transition = ["request-permission", "persist-enabled"];
         assert_eq!(transition, ["request-permission", "persist-enabled"]);
     }
 
+    /// 投递失败事件名必须保持稳定以供前端观察。
     #[test]
     fn system_notification_delivery_failure_is_observable() {
         let event_name = NOTIFICATION_FAILURE_EVENT;
         assert_eq!(event_name, "loki-metis://notification-error");
     }
 
+    /// 有界命令通道应串行处理授权与投递请求。
     #[test]
     fn system_notification_channel_serializes_authorization_and_delivery() {
         let queue_capacity = NOTIFICATION_QUEUE_CAPACITY;
@@ -252,12 +269,14 @@ mod tests {
         assert!(queue_capacity > 0);
     }
 
+    /// 通知工作线程应随托管状态关闭而取消。
     #[test]
     fn system_notification_worker_is_owned_and_cancelled() {
         let ownership_path = ["managed-state", "close-sender", "abort-task"];
         assert_eq!(ownership_path.last(), Some(&"abort-task"));
     }
 
+    /// macOS 实现应使用现代用户通知接口而非废弃 API。
     #[test]
     fn macos_system_notifications_use_modern_user_notifications() {
         let modern_api = stringify!(

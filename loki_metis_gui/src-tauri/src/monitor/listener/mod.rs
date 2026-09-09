@@ -88,6 +88,7 @@ pub struct HookRelayStatus {
 }
 
 impl Default for HookRelayStatus {
+    /// 返回尚未监听且计数、状态均为空的中继状态。
     fn default() -> Self {
         Self {
             listening: false,

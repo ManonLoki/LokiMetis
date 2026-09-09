@@ -209,6 +209,7 @@ async fn wait_for_initial_injection_inner(
     skin: &SkinReference,
     page_ready_timeout: Duration,
     endpoint: CdpEndpoint,
+    expected_workbuddy_root_pid: Option<u32>,
     transaction: &InjectionTransaction,
 ) -> Result<InjectionReport, AppError> {
     let deadline = tokio::time::Instant::now() + page_ready_timeout;
@@ -256,10 +257,32 @@ async fn wait_for_initial_injection_inner(
                 return Err(last_session_error.unwrap_or_else(|| host_page_not_found(host)));
             }
             match connect_browser(endpoint).await {
-                Ok((next_browser, next_handler_task)) => {
-                    handler_task.replace(next_handler_task);
-                    *browser = next_browser;
-                    break;
+                Ok((mut next_browser, next_handler_task)) => {
+                    let verification = browser_matches_host_for_root(
+                        host,
+                        &mut next_browser,
+                        endpoint,
+                        expected_workbuddy_root_pid,
+                    )
+                    .await;
+                    match reconnect_validation_decision(host, verification) {
+                        ReconnectValidationDecision::Accept => {
+                            handler_task.replace(next_handler_task);
+                            *browser = next_browser;
+                            break;
+                        }
+                        ReconnectValidationDecision::Retry(error) => {
+                            next_handler_task.abort();
+                            drop(next_browser);
+                            last_session_error = Some(error);
+                            tokio::time::sleep(CODEX_PAGE_POLL_INTERVAL).await;
+                        }
+                        ReconnectValidationDecision::Reject(error) => {
+                            next_handler_task.abort();
+                            drop(next_browser);
+                            return Err(error);
+                        }
+                    }
                 }
                 Err(error) => {
                     last_session_error = Some(error);
@@ -267,6 +290,40 @@ async fn wait_for_initial_injection_inner(
                 }
             }
         }
+    }
+}
+
+/// 表示重连候选完成宿主页与进程归属复核后的处置方式。
+enum ReconnectValidationDecision {
+    /// 候选已通过全部校验，可以替换当前会话。
+    Accept,
+    /// 候选未通过临时校验，关闭后可在截止时间内重试。
+    Retry(AppError),
+    /// 无法可信判断端点归属，必须立即拒绝而不能降级重试。
+    Reject(AppError),
+}
+
+/// 仅接受完整通过宿主校验的重连候选，并将归属检查故障设为失败关闭。
+fn reconnect_validation_decision(
+    host: SkinHostKind,
+    verification: Result<bool, AppError>,
+) -> ReconnectValidationDecision {
+    match verification {
+        Ok(true) => ReconnectValidationDecision::Accept,
+        Ok(false) => ReconnectValidationDecision::Retry(AppError::new(
+            "skin.cdp_rejected",
+            format!("调试端点不是 {} 的唯一可信主页面。", host.display_name()),
+        )),
+        Err(error)
+            if matches!(
+                error.code,
+                "skin.workbuddy_cdp_owner_inspection_failed"
+                    | "skin.workbuddy_process_inspection_failed"
+            ) =>
+        {
+            ReconnectValidationDecision::Reject(error)
+        }
+        Err(error) => ReconnectValidationDecision::Retry(error),
     }
 }
 

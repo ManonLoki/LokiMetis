@@ -14,6 +14,7 @@ use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 
 mod settings_state;
 
+use crate::commands::ScanTaskOwner;
 use crate::dto::{AgentClientKindDto, SourceRootDto};
 #[cfg(test)]
 use crate::privacy_store::load_settings;
@@ -36,6 +37,8 @@ pub(crate) struct AppRuntimeState {
     pub(crate) scans: AgentClientRegistry<Arc<ScanCoordinator>>,
     /// 分客户端防止并发 SQLite writer 的本机索引扫描协调器。
     pub(crate) local_scan: AgentClientRegistry<LocalScanCoordinator>,
+    /// 拥有周期循环与显式后台扫描，并在应用退出时取消、等待和回收。
+    pub(crate) scan_tasks: ScanTaskOwner,
     /// 当前全设备元数据发现状态与临时候选；应用退出即丢弃。
     pub(crate) root_discovery: Arc<RootDiscoveryCoordinator>,
     /// 本产品 app-data 目录；从不指向任一 `CODEX_HOME`。
@@ -79,8 +82,9 @@ impl AppRuntimeState {
             local_scan: AgentClientRegistry::new(
                 local_scan_coordinator.clone(),
                 local_scan_coordinator.clone(),
-                local_scan_coordinator,
+                local_scan_coordinator.clone(),
             ),
+            scan_tasks: ScanTaskOwner::new(local_scan_coordinator),
             root_discovery: Arc::new(RootDiscoveryCoordinator::default()),
             app_data_dir,
             privacy_settings: RwLock::new(LocalPrivacySettings::default()),

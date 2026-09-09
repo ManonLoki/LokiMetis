@@ -119,6 +119,7 @@ pub(crate) fn workbuddy_endpoint_owned_by_root(
     ))
 }
 
+/// 仅当目标端口全部监听于回环地址且归属唯一 PID 时返回其 owner。
 fn unique_loopback_listener_owner(
     ipv4_rows: &[MIB_TCPROW_OWNER_PID],
     ipv6_rows: &[MIB_TCP6ROW_OWNER_PID],
@@ -154,6 +155,7 @@ fn unique_loopback_listener_owner(
         .flatten()
 }
 
+/// 沿可信进程快照父链确认 listener owner 属于指定 WorkBuddy 根。
 fn process_belongs_to_verified_root(
     process_pid: u32,
     root_pid: u32,
@@ -174,6 +176,7 @@ fn process_belongs_to_verified_root(
     false
 }
 
+/// 同时读取 IPv4 与 IPv6 TCP listener 表，避免遗漏双栈或通配监听。
 fn tcp_listener_rows() -> Result<(Vec<MIB_TCPROW_OWNER_PID>, Vec<MIB_TCP6ROW_OWNER_PID>), AppError>
 {
     Ok((
@@ -182,6 +185,7 @@ fn tcp_listener_rows() -> Result<(Vec<MIB_TCPROW_OWNER_PID>, Vec<MIB_TCP6ROW_OWN
     ))
 }
 
+/// 读取指定地址族的 owner-PID listener 表，并对系统返回长度做边界复核。
 fn tcp_listener_rows_for<Row: Copy>(address_family: u32) -> Result<Vec<Row>, AppError> {
     let mut required_bytes = 0_u32;
     let status = unsafe {
@@ -239,6 +243,7 @@ fn tcp_listener_rows_for<Row: Copy>(address_family: u32) -> Result<Vec<Row>, App
     Err(cdp_owner_inspection_error())
 }
 
+/// 返回不暴露进程或端口详情的 CDP owner 检查错误。
 fn cdp_owner_inspection_error() -> AppError {
     AppError::new(
         "skin.workbuddy_cdp_owner_inspection_failed",
@@ -322,6 +327,7 @@ fn has_verified_ancestor(
     false
 }
 
+/// 在没有既存可信实例时启动官方 WorkBuddy，并设置本机调试端口。
 pub(crate) async fn launch_workbuddy(port: u16) -> Result<(), AppError> {
     let candidates = discover_executables();
     if !enumerate_process_snapshot(&candidates)?
@@ -346,6 +352,7 @@ pub(crate) async fn launch_workbuddy(port: u16) -> Result<(), AppError> {
     Ok(())
 }
 
+/// 复核所选实例身份后关闭全部旧进程，再按原参数重启 WorkBuddy。
 pub(crate) async fn restart_workbuddy_gui_process(
     pid: u32,
     expected_path: &Path,
@@ -379,6 +386,7 @@ pub(crate) async fn restart_workbuddy_gui_process(
     Ok(())
 }
 
+/// 在超时内逐轮复核并关闭全部官方 WorkBuddy 进程，返回涉及的 PID 数量。
 pub(crate) async fn force_close_workbuddy_gui() -> Result<usize, AppError> {
     let candidates = discover_executables();
     let deadline = tokio::time::Instant::now() + CODEX_FORCE_CLOSE_TIMEOUT;
@@ -420,6 +428,7 @@ pub(crate) async fn force_close_workbuddy_gui() -> Result<usize, AppError> {
     ))
 }
 
+/// 表示关闭已部分执行但后续身份复核失败，禁止直接启动替代实例。
 fn force_close_incomplete_error(cause: &AppError) -> AppError {
     AppError::with_details(
         "skin.workbuddy_force_close_incomplete",
@@ -428,6 +437,7 @@ fn force_close_incomplete_error(cause: &AppError) -> AppError {
     )
 }
 
+/// 通过只读 WMI 查询 WorkBuddy 命令行；失败只返回脱敏信号。
 fn query_process_command_lines() -> Result<Vec<WmiProcess>, ()> {
     let connection = WMIConnection::new().map_err(|_| ())?;
     connection
@@ -435,6 +445,7 @@ fn query_process_command_lines() -> Result<Vec<WmiProcess>, ()> {
         .map_err(|_| ())
 }
 
+/// 用 ToolHelp 建立进程与父链快照，并仅接纳路径匹配官方候选的 WorkBuddy。
 fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapshot, AppError> {
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
@@ -527,6 +538,7 @@ fn process_inspection_error() -> AppError {
     )
 }
 
+/// 打开可终止句柄后再次核对路径；进程已退出时安全返回空值。
 fn open_verified_process(process: &GuiProcess) -> Result<Option<OwnedHandle>, AppError> {
     let handle = match unsafe {
         OpenProcess(
@@ -564,6 +576,7 @@ fn open_verified_process(process: &GuiProcess) -> Result<Option<OwnedHandle>, Ap
     Ok(Some(handle))
 }
 
+/// 从 Windows 官方程序目录收集去重且真实存在的 WorkBuddy 可执行文件。
 fn discover_executables() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if let Some(root) = known_folder_path(&FOLDERID_LocalAppData) {
@@ -594,6 +607,7 @@ fn discover_executables() -> Vec<PathBuf> {
     discovered
 }
 
+/// 读取 Windows Known Folder 路径并释放系统分配的字符串缓冲区。
 fn known_folder_path(folder_id: &windows::core::GUID) -> Option<PathBuf> {
     let raw = unsafe { SHGetKnownFolderPath(folder_id, KF_FLAG_DEFAULT, None) }.ok()?;
     let path = unsafe { raw.to_string() }.ok().map(PathBuf::from);

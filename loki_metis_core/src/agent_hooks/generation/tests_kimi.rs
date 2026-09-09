@@ -10,6 +10,7 @@ use crate::agent_hooks::{
 };
 
 #[test]
+/// 验证 Kimi Code 预览遵循受管 TOML 文件与事件契约。
 fn kimi_code_preview_uses_managed_toml_rules() {
     let preview = generate_test_hook_config(AiTool::KimiCode).unwrap();
     let parsed = toml::from_str::<toml::Value>(&preview.content).unwrap();
@@ -40,6 +41,7 @@ fn kimi_code_preview_uses_managed_toml_rules() {
 }
 
 #[test]
+/// 验证 Kimi Code TOML 序列化能无损往返特殊字符。
 fn kimi_code_toml_serializer_round_trips_special_characters() {
     use super::super::{HookProtocol, kimi_code::KIMI_CODE};
 
@@ -73,6 +75,7 @@ fn kimi_code_toml_serializer_round_trips_special_characters() {
 }
 
 #[test]
+/// 验证 Kimi Code 合并保留用户 TOML 且重复执行结果不变。
 fn kimi_code_merge_preserves_user_toml_and_is_idempotent() {
     let generated = generate_test_hook_config(AiTool::KimiCode).unwrap();
     let existing = "default_model = \"kimi-code/k3\"\n\n[background]\nkeep_alive_on_exit = true\n";
@@ -90,6 +93,7 @@ fn kimi_code_merge_preserves_user_toml_and_is_idempotent() {
 }
 
 #[test]
+/// 验证 Kimi Code 拒绝边界不完整的受管配置块。
 fn kimi_code_merge_rejects_a_broken_managed_block() {
     let generated = generate_test_hook_config(AiTool::KimiCode).unwrap();
     let broken = "default_model = \"kimi-code/k3\"\n# LokiMetis:tool=kimi-code begin\n";
@@ -97,6 +101,7 @@ fn kimi_code_merge_rejects_a_broken_managed_block() {
 }
 
 #[test]
+/// 验证 Kimi Code 状态机覆盖权限、失败、停止与释放路径。
 fn kimi_code_state_machine_covers_permission_failure_stop_and_release() {
     let mut machine = HookStateMachine::default();
     let mut apply = |event: &str| {

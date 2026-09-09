@@ -287,6 +287,7 @@
                 source: SkinSource::User,
                 id: "missing".into(),
             },
+            false,
         ) {
             Err(error) => error,
             Ok(_) => panic!("不存在的皮肤标识不应被加载"),
@@ -383,6 +384,7 @@
                 source: SkinSource::User,
                 id: "test-skin".into(),
             },
+            true,
         )
         .expect("皮肤应成功加载");
 

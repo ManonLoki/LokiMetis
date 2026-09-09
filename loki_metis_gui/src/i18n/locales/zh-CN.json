@@ -48,7 +48,8 @@
       "preview_alt": "{{name}} 皮肤预览",
       "by": "作者 {{author}}",
       "select": "选择 {{name}}",
-      "actions": "{{name}} 的资源操作"
+      "actions": "{{name}} 的资源操作",
+      "third_party_code": "将执行第三方代码"
     },
     "action": {
       "apply": "应用",
@@ -72,9 +73,19 @@
       "unreadable": "无法读取",
       "continue": "仍然应用"
     },
+    "code_trust": {
+      "apply_title": "信任并执行第三方代码？",
+      "apply_description": "{{name}} 包含 renderer-inject.js；继续后会在 {{host}} 内执行其中的第三方代码。",
+      "not_safety_proof": "LokiMetis 只检查皮肤包结构和资源限制；这些检查不会审查脚本，也不能证明脚本安全。",
+      "apply_acknowledgement": "我明白这将执行第三方代码，并信任该皮肤的来源。",
+      "import_title": "所选皮肤包含第三方代码",
+      "import_description": "所选项目中有 {{count}} 个兼容皮肤包含 renderer-inject.js。导入会把这些代码保存在本机；稍后应用皮肤时会在受支持宿主内执行。",
+      "import_acknowledgement": "我明白这些文件包含第三方代码，并信任它们的来源。",
+      "continue": "信任并继续"
+    },
     "import": {
       "title": "确认导入皮肤",
-      "summary": "已从 {{total}} 个压缩包中安全预检出 {{ready}} 个可导入项目。",
+      "summary": "格式与资源检查从 {{total}} 个压缩包中识别出 {{ready}} 个可导入项目。",
       "commit": "导入所选（{{count}}）"
     },
     "create": {

@@ -1,5 +1,48 @@
 use super::*;
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use loki_metis_core::{
+    LocalScanFuture, LocalScanOutput, LocalScanProgress, LocalUsageScanner, ScanCancellation,
+    ScanKind, SourceRootReindexRequest,
+};
+
+/// 阻塞首个客户端直到 owner 取消，用于精确复现批次 shutdown 竞态。
+struct CancellationBlockingScanner {
+    calls: AtomicUsize,
+    started: tokio::sync::Notify,
+}
+
+impl LocalUsageScanner for CancellationBlockingScanner {
+    /// 记录调用次数，并让首个批次等待 owner 取消。
+    fn execute(
+        &self,
+        _kind: ScanKind,
+        _origin: ScanStartOrigin,
+        cancellation: ScanCancellation,
+        _on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
+    ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>> {
+        Box::pin(async move {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.started.notify_one();
+            while !cancellation.is_cancelled() {
+                tokio::task::yield_now().await;
+            }
+            Err("cancelled by fixture".to_owned())
+        })
+    }
+
+    /// 此批次夹具不支持单根重建，调用即表示测试路径错误。
+    fn reindex_source_root(
+        &self,
+        _request: SourceRootReindexRequest,
+        _cancellation: ScanCancellation,
+        _on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
+    ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>> {
+        Box::pin(async { unreachable!("batch fixture never reindexes one root") })
+    }
+}
+
 /// 验证初始化批次只接受完成/部分完成，显式发现取消后仍可统一索引。
 #[test]
 fn refresh_trigger_maps_only_approved_discovery_states() {
@@ -96,5 +139,98 @@ fn upgrade_reindex_selection_is_scoped_and_ordered() {
     assert_eq!(
         upgrade_reindex_clients(enabled, &states),
         vec![AgentClientKindDto::GrokBuildCli]
+    );
+}
+
+/// 关闭门禁先到达时，direct Tauri refresh 必须在任何扫描状态或 writer 认领前拒绝。
+#[tokio::test]
+async fn direct_refresh_is_rejected_after_scan_owner_shutdown() {
+    let temp = tempfile::tempdir().expect("isolated app-data is available");
+    let state = AppRuntimeState::new(temp.path().to_path_buf());
+    state.scan_tasks.shutdown().await;
+
+    let error = refresh_local_indexes_for_command(
+        &state,
+        &[AgentClientKindDto::Codex],
+        LocalIndexRefreshTriggerDto::DirectManual,
+    )
+    .await
+    .expect_err("shutdown rejects direct refresh before it can claim state");
+
+    assert_eq!(error, local_scan_writer_busy_message());
+    assert_eq!(
+        state
+            .scans
+            .get(AgentClientKindDto::Codex.into())
+            .snapshot()
+            .await
+            .state,
+        ScanStateDto::Idle
+    );
+    assert!(
+        !state
+            .local_scan
+            .get(AgentClientKindDto::Codex.into())
+            .is_running()
+    );
+}
+
+/// shutdown 取消首个客户端后，同一显式批次不得再启动后续客户端。
+#[tokio::test]
+async fn shutdown_stops_explicit_batch_before_next_client() {
+    let temp = tempfile::tempdir().expect("isolated app-data is available");
+    let scanner = Arc::new(CancellationBlockingScanner {
+        calls: AtomicUsize::new(0),
+        started: tokio::sync::Notify::new(),
+    });
+    let mut state = AppRuntimeState::new(temp.path().to_path_buf());
+    state
+        .agent_clients
+        .get_mut(AgentClientKindDto::Codex.into())
+        .local_scanner = scanner.clone();
+    state
+        .agent_clients
+        .get_mut(AgentClientKindDto::ClaudeCode.into())
+        .local_scanner = scanner.clone();
+    let state = Arc::new(state);
+    let started = scanner.started.notified();
+    let refresh_state = Arc::clone(&state);
+    let mut refresh = tokio::spawn(async move {
+        let _direct_scan = refresh_state
+            .scan_tasks
+            .register_direct_scan()
+            .expect("fixture registers the direct batch");
+        refresh_local_indexes_with_origin(
+            &refresh_state,
+            vec![AgentClientKindDto::Codex, AgentClientKindDto::ClaudeCode],
+            ScanStartOrigin::ExplicitUser,
+        )
+        .await
+    });
+    tokio::select! {
+        _ = started => {}
+        result = &mut refresh => panic!("batch ended before scanner start: {result:?}"),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+            panic!("first client did not reach scanner start")
+        }
+    }
+
+    state.scan_tasks.shutdown().await;
+    let statuses = refresh
+        .await
+        .expect("batch task joins")
+        .expect("cooperative cancellation is a terminal status");
+
+    assert_eq!(scanner.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(statuses.len(), 1);
+    assert_eq!(statuses[0].state, ScanStateDto::Cancelled);
+    assert_eq!(
+        state
+            .scans
+            .get(AgentClientKindDto::ClaudeCode.into())
+            .snapshot()
+            .await
+            .state,
+        ScanStateDto::Idle
     );
 }

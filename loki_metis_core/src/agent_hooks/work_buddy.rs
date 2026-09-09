@@ -10,7 +10,7 @@ use crate::agent_hooks::{AiTool, HookBehavior, HookWriteOutcome};
 // WorkBuddy 协议的静态单例，供 `protocol()` 分发函数按 AiTool::WorkBuddy 取用
 pub(super) static WORK_BUDDY: WorkBuddyProtocol = WorkBuddyProtocol;
 
-// 零大小的标记结构体，仅用于承载 HookProtocol trait 实现
+/// WorkBuddy 的无状态 Hook 协议适配器。
 pub(super) struct WorkBuddyProtocol;
 
 // WorkBuddy 内置 CodeBuddy Agent 引擎，并从 v2.48 起使用独立的
@@ -74,32 +74,32 @@ const EVENTS: &[HookEvent] = &[
 
 // 为 WorkBuddy 实现统一的 Hook 协议 trait
 impl HookProtocol for WorkBuddyProtocol {
-    // 返回对应的 AiTool 枚举值
+    /// 返回 WorkBuddy 的统一工具标识。
     fn tool(&self) -> AiTool {
         AiTool::WorkBuddy
     }
-    // 返回面向用户展示的工具名称
+    /// 返回用于界面展示的 WorkBuddy 名称。
     fn name(&self) -> &'static str {
         "WorkBuddy"
     }
-    // 返回用于 URL/路径的工具标识（slug）
+    /// 返回用于路径和配置标识的稳定短名。
     fn slug(&self) -> &'static str {
         "workbuddy"
     }
-    // 返回受管配置文件在工具配置目录下的相对文件名
+    /// 返回 WorkBuddy 配置根下的 Hook 配置文件名。
     fn config_filename(&self) -> &'static str {
         "settings.json"
     }
-    // 返回用于前端预览展示的完整相对路径
+    /// 返回面向用户展示的 Hook 配置相对路径。
     fn preview_filename(&self) -> &'static str {
         ".workbuddy/settings.json"
     }
-    // 返回本工具关心的事件表
+    /// 返回 WorkBuddy 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
     }
 
-    // 生成单个事件对应的 command hook 条目
+    /// 使用 WorkBuddy 固定要求的 POSIX 命令构造事件处理配置。
     fn handler(&self, event: &HookEvent, commands: &ManagedCommands) -> Value {
         // WorkBuddy 的内置 CodeBuddy 引擎在 Windows 上也固定使用 Git Bash
         // 执行 command Hook；cmd.exe 包装命令会被 Bash 错误解析。
@@ -107,7 +107,7 @@ impl HookProtocol for WorkBuddyProtocol {
         command_group(&commands.posix, event.matcher)
     }
 
-    // WorkBuddy 需要在 Hooks 面板审核，并重启或新建会话加载新规则。
+    /// 标记 WorkBuddy 写入后需要在 Hooks 面板审核并重新加载规则。
     fn changed_write_outcome(&self) -> HookWriteOutcome {
         HookWriteOutcome::WorkBuddyReviewRequired
     }

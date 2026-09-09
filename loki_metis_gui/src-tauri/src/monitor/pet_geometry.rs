@@ -171,6 +171,7 @@ pub fn clamp_pet_window_to_work_area<R: Runtime>(window: &WebviewWindow<R>) {
 mod tests {
     use super::*;
 
+    /// 六种布局应映射到约定的 AI Monitor 窗口尺寸。
     #[test]
     fn six_layouts_have_aimonitor_window_dimensions() {
         assert_eq!(
@@ -199,6 +200,7 @@ mod tests {
         );
     }
 
+    /// 无显示器信息时的尺寸范围应按布局最长轴缩放。
     #[test]
     fn fallback_range_uses_layout_longest_axis() {
         assert_eq!(pet_size_range_fallback(PetLayout::Single), (32, 360));
@@ -206,6 +208,7 @@ mod tests {
         assert_eq!(pet_size_range_fallback(PetLayout::Row3), (32, 120));
     }
 
+    /// 缩放后的位置应限制在带偏移的显示器工作区内。
     #[test]
     fn resize_position_is_clamped_inside_offset_work_area() {
         let area_position = PhysicalPosition::new(-1_920, 24);

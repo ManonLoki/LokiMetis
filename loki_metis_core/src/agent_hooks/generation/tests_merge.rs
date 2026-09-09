@@ -178,6 +178,7 @@ fn grok_managed_entry_cleanup_has_explicit_empty_and_unchanged_semantics() {
 }
 
 #[test]
+/// 验证 Cursor 合并保留用户命令且重复执行不会追加重复项。
 fn cursor_merge_is_idempotent_and_preserves_other_commands() {
     let generated = generate_test_hook_config(AiTool::Cursor).unwrap();
     let existing = r#"{
@@ -220,6 +221,7 @@ fn assert_grouped_merge_is_idempotent(tool: AiTool, event: &str, other_command: 
 }
 
 #[test]
+/// 验证第二批分组协议均保留用户命令且合并幂等。
 fn grouped_phase_two_merges_are_idempotent_and_preserve_user_commands() {
     assert_grouped_merge_is_idempotent(AiTool::QwenCode, "Stop", "other-stop");
     assert_grouped_merge_is_idempotent(AiTool::Qoder, "PostToolUse", "other-post-tool");
@@ -227,6 +229,7 @@ fn grouped_phase_two_merges_are_idempotent_and_preserve_user_commands() {
 }
 
 #[test]
+/// 验证 GitHub Copilot 合并保留其他 handler 并恢复当前版本元数据。
 fn github_copilot_merge_is_idempotent_and_preserves_other_handlers() {
     let generated = generate_test_hook_config(AiTool::GitHubCopilot).unwrap();
     let existing = r#"{
@@ -250,6 +253,7 @@ fn github_copilot_merge_is_idempotent_and_preserves_other_handlers() {
 }
 
 #[test]
+/// 验证每种工具的状态转换由其协议事件表独立定义。
 fn hook_transitions_are_owned_by_each_tool_protocol() {
     assert_eq!(
         hook_transition(AiTool::ClaudeCode, "Notification"),

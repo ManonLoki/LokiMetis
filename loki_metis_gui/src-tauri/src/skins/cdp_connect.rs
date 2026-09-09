@@ -17,7 +17,12 @@ async fn connect_or_launch(
         };
         let verified = match run_cancellable(
             cancel,
-            browser_matches_host(host, &mut browser, endpoint),
+            browser_matches_host_for_root(
+                host,
+                &mut browser,
+                endpoint,
+                (host == SkinHostKind::WorkBuddy).then_some(selected.process.pid),
+            ),
         )
         .await
         {
@@ -127,6 +132,7 @@ fn available_launch_endpoint(host: SkinHostKind) -> Result<CdpEndpoint, AppError
     available_launch_endpoint_excluding(host, &[])
 }
 
+/// 为 WorkBuddy 选择未被占用且未在本轮失败过的端口，Codex 则保持固定端点。
 fn available_launch_endpoint_excluding(
     host: SkinHostKind,
     excluded_ports: &[u16],
@@ -138,6 +144,7 @@ fn available_launch_endpoint_excluding(
     Ok(CdpEndpoint::default_for(host))
 }
 
+/// 构造带宿主名称的 CDP 就绪超时错误，避免暴露端点细节。
 fn cdp_unavailable_for(host: SkinHostKind) -> AppError {
     AppError::new(
         "skin.cdp_unavailable",
@@ -145,6 +152,7 @@ fn cdp_unavailable_for(host: SkinHostKind) -> AppError {
     )
 }
 
+/// 探测宿主当前运行与 CDP 可用状态，并返回本轮验证过的端点。
 async fn host_runtime_status(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
@@ -312,6 +320,7 @@ fn manual_close_required() -> AppError {
     manual_close_required_for(SkinHostKind::Codex)
 }
 
+/// 按宿主返回需要用户先保存工作并确认恢复的稳定错误。
 fn manual_close_required_for(host: SkinHostKind) -> AppError {
     match host {
         SkinHostKind::Codex => AppError::new(
@@ -334,6 +343,7 @@ fn should_request_workbuddy_recovery(
     host == SkinHostKind::WorkBuddy && host_running && is_workbuddy_connection_error(error_code)
 }
 
+/// 判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。
 fn is_workbuddy_connection_error(error_code: &str) -> bool {
     matches!(
         error_code,
@@ -428,26 +438,60 @@ async fn connect_existing_browser_with_preferred(
     }))
 }
 
+/// 验证浏览器包含目标宿主页面；WorkBuddy 还需绑定端口与可信进程根。
 async fn browser_matches_host(
     host: SkinHostKind,
     browser: &mut Browser,
     endpoint: CdpEndpoint,
+) -> Result<bool, AppError> {
+    browser_matches_host_for_root(host, browser, endpoint, None).await
+}
+
+/// 验证浏览器与可选的 WorkBuddy 根进程精确绑定。
+async fn browser_matches_host_for_root(
+    host: SkinHostKind,
+    browser: &mut Browser,
+    endpoint: CdpEndpoint,
+    expected_workbuddy_root_pid: Option<u32>,
 ) -> Result<bool, AppError> {
     fetch_targets(browser).await?;
     for page in browser_pages(browser).await? {
         if is_host_page(host, &page).await? {
             return if host == SkinHostKind::WorkBuddy {
                 let processes = platform_host_processes(host).await?;
-                let [root] = processes.as_slice() else {
+                let Some(root_pid) =
+                    trusted_workbuddy_root_pid(&processes, expected_workbuddy_root_pid)
+                else {
                     return Ok(false);
                 };
-                platform_workbuddy_endpoint_owned_by_root(endpoint.port, root.pid).await
+                platform_workbuddy_endpoint_owned_by_root(endpoint.port, root_pid).await
             } else {
                 Ok(true)
             };
         }
     }
     Ok(false)
+}
+
+/// 选择端点必须绑定的 WorkBuddy 根 PID；指定实例时不得改用其它唯一实例。
+fn trusted_workbuddy_root_pid(
+    processes: &[PlatformCodexProcess],
+    expected_workbuddy_root_pid: Option<u32>,
+) -> Option<u32> {
+    match expected_workbuddy_root_pid {
+        Some(expected) => exactly_one(
+            processes
+                .iter()
+                .filter(|process| process.pid == expected),
+        )
+        .map(|process| process.pid),
+        None => {
+            let [root] = processes else {
+                return None;
+            };
+            Some(root.pid)
+        }
+    }
 }
 
 /// 执行换皮宿主内部的 `connect_browser` 步骤。
@@ -488,6 +532,7 @@ async fn wait_for_initial_injection(
     skin: &SkinReference,
     page_ready_timeout: Duration,
     endpoint: CdpEndpoint,
+    expected_workbuddy_root_pid: Option<u32>,
     transaction_id: &str,
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(Browser, JoinHandle<()>, InjectionReport), AppError> {
@@ -506,6 +551,7 @@ async fn wait_for_initial_injection(
                     skin,
                     page_ready_timeout,
                     endpoint,
+                    expected_workbuddy_root_pid,
                     &transaction,
                 ),
             )
@@ -525,6 +571,7 @@ async fn wait_for_initial_injection(
                     &mut browser,
                     &mut handler_task,
                     endpoint,
+                    expected_workbuddy_root_pid,
                     transaction_id,
                     &transaction_targets,
                 )
@@ -542,6 +589,7 @@ async fn wait_for_initial_injection(
                 &mut browser,
                 &mut handler_task,
                 endpoint,
+                expected_workbuddy_root_pid,
                 transaction_id,
                 &transaction_targets,
             )
@@ -561,6 +609,7 @@ async fn rollback_initial_injection(
     browser: &mut Browser,
     handler_task: &mut HandlerTaskGuard,
     endpoint: CdpEndpoint,
+    expected_workbuddy_root_pid: Option<u32>,
     transaction_id: &str,
     transaction_targets: &BTreeSet<String>,
 ) -> Result<usize, AppError> {
@@ -581,7 +630,14 @@ async fn rollback_initial_injection(
         Ok(connection) => connection,
         Err(_) => return Err(first_error),
     };
-    match browser_matches_host(host, &mut next_browser, endpoint).await {
+    match browser_matches_host_for_root(
+        host,
+        &mut next_browser,
+        endpoint,
+        expected_workbuddy_root_pid,
+    )
+    .await
+    {
         Ok(true) => {
             handler_task.replace(next_handler_task);
             *browser = next_browser;

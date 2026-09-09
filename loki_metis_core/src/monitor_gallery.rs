@@ -177,6 +177,7 @@ pub fn image_data_url(format: ImageFormat, bytes: &[u8]) -> String {
     )
 }
 
+/// 使用固定标准字母表把图片字节编码为带正确补位的 Base64 文本。
 fn encode_base64(input: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
@@ -210,6 +211,7 @@ mod tests {
     const GIF: &[u8] = b"GIF89a\x01\x00";
     const WEBP: &[u8] = b"RIFF....WEBP";
 
+    /// 验证三种受支持格式均能被计数并生成匹配 MIME 的预览。
     #[test]
     fn gallery_counts_jpeg_png_gif_and_encodes_preview() {
         let jpeg = preview_from_bytes("j1", "a.jpg", JPEG).expect("jpeg");
@@ -228,6 +230,7 @@ mod tests {
         assert_eq!(gallery.images.len(), 3);
     }
 
+    /// 验证空输入生成无条目且各格式计数均为零的图库。
     #[test]
     fn empty_gallery_has_zero_counts() {
         let gallery = assemble_image_gallery(Vec::new());
@@ -237,6 +240,7 @@ mod tests {
         assert_eq!(gallery.counts.gif, 0);
     }
 
+    /// 验证空字节和不受支持的文件魔数会返回各自的稳定错误。
     #[test]
     fn illegal_format_and_empty_bytes_are_rejected() {
         let unsupported = preview_from_bytes("w1", "x.webp", WEBP).expect_err("webp");
@@ -245,6 +249,7 @@ mod tests {
         assert_eq!(empty.code, "error.monitor.imageEmpty");
     }
 
+    /// 验证上传清单只公开 JPEG、PNG 与 GIF 的 MIME 和扩展名。
     #[test]
     fn upload_accept_lists_only_jpeg_png_gif() {
         let accept = image_upload_accept();

@@ -102,6 +102,19 @@ async fn refresh_local_indexes_for_state(
     refresh_local_indexes_with_origin(state, clients, origin).await
 }
 
+/// 把由 Tauri command 直接 await 的扫描登记到 owner，使应用关闭会取消并等待它返回。
+async fn refresh_local_indexes_for_command(
+    state: &AppRuntimeState,
+    clients: &[AgentClientKindDto],
+    trigger: LocalIndexRefreshTriggerDto,
+) -> Result<Vec<ScanStatusDto>, String> {
+    let _direct_scan = state
+        .scan_tasks
+        .register_direct_scan()
+        .map_err(|_| local_scan_writer_busy_message().to_owned())?;
+    refresh_local_indexes_for_state(state, clients, trigger).await
+}
+
 /// 在一个全局 writer 许可内按固定 Agent 顺序执行指定来源的近 30 日索引。
 async fn refresh_local_indexes_with_origin(
     state: &AppRuntimeState,
@@ -123,14 +136,21 @@ async fn refresh_local_indexes_with_origin(
     let cancellation = permit.cancellation_token();
     let mut statuses = Vec::with_capacity(clients.len());
     for client in clients {
+        if cancellation.is_cancelled() {
+            break;
+        }
         let account_context_guard = if client == AgentClientKindDto::Codex {
             Some(state.lock_codex_account_context().await)
         } else {
             None
         };
+        if cancellation.is_cancelled() {
+            drop(account_context_guard);
+            break;
+        }
         let scan_state = Arc::clone(state.scans.get(client.into()));
         let lease = scan_state
-            .start(ScanKindDto::Quick, now_epoch_ms())
+            .start(ScanKindDto::Quick, now_epoch_ms(), cancellation.clone())
             .await
             .map_err(|_| local_scan_in_progress_error_message().to_owned())?;
         drop(account_context_guard);
@@ -141,6 +161,7 @@ async fn refresh_local_indexes_with_origin(
             "batched local index refresh started"
         );
         execute_scan_task(ScanTask {
+            scan_id: lease.scan_id.clone(),
             client,
             scanner: Arc::clone(&state.agent_clients.get(client.into()).local_scanner),
             operation: ScanTaskOperation::Scan {
@@ -154,6 +175,9 @@ async fn refresh_local_indexes_with_origin(
         })
         .await?;
         statuses.push(scan_state.snapshot().await);
+        if cancellation.is_cancelled() {
+            break;
+        }
     }
     drop(permit);
     Ok(statuses)
@@ -228,7 +252,7 @@ pub(crate) async fn refresh_local_indexes(
     clients: Vec<AgentClientKindDto>,
     trigger: LocalIndexRefreshTriggerDto,
 ) -> Result<Vec<ScanStatusDto>, String> {
-    let statuses = refresh_local_indexes_for_state(&state, &clients, trigger).await?;
+    let statuses = refresh_local_indexes_for_command(&state, &clients, trigger).await?;
     refresh_tray_daily_token_title(&app).await;
     Ok(statuses)
 }
@@ -249,6 +273,9 @@ pub(crate) async fn run_periodic_quick_scans(
     let cancellation = permit.cancellation_token();
     let mut executed = 0_usize;
     for client in clients {
+        if cancellation.is_cancelled() {
+            break;
+        }
         if execute_periodic_quick_scan(state, *client, cancellation.clone()).await {
             executed = executed.saturating_add(1);
         }
@@ -264,14 +291,21 @@ async fn execute_periodic_quick_scan(
     client: AgentClientKindDto,
     cancellation: loki_metis_core::ScanCancellation,
 ) -> bool {
+    if cancellation.is_cancelled() {
+        return false;
+    }
     let scan_running =
         state.scans.get(client.into()).snapshot().await.state == ScanStateDto::Running;
+    if cancellation.is_cancelled() {
+        return false;
+    }
     if ensure_periodic_quick_scan_allowed(state.initialization_completed().await, scan_running)
         .is_err()
+        || cancellation.is_cancelled()
     {
         return false;
     }
-    if !state.enabled_agents().await.contains(client.into()) {
+    if !state.enabled_agents().await.contains(client.into()) || cancellation.is_cancelled() {
         return false;
     }
     let account_context_guard = if client == AgentClientKindDto::Codex {
@@ -279,8 +313,15 @@ async fn execute_periodic_quick_scan(
     } else {
         None
     };
+    if cancellation.is_cancelled() {
+        drop(account_context_guard);
+        return false;
+    }
     let scan_state = Arc::clone(state.scans.get(client.into()));
-    let Ok(lease) = scan_state.start(ScanKindDto::Quick, now_epoch_ms()).await else {
+    let Ok(lease) = scan_state
+        .start(ScanKindDto::Quick, now_epoch_ms(), cancellation.clone())
+        .await
+    else {
         return false;
     };
     drop(account_context_guard);
@@ -292,6 +333,7 @@ async fn execute_periodic_quick_scan(
         "scan started"
     );
     let _ = execute_scan_task(ScanTask {
+        scan_id: lease.scan_id.clone(),
         client,
         scanner: Arc::clone(&state.agent_clients.get(client.into()).local_scanner),
         operation: ScanTaskOperation::Scan {

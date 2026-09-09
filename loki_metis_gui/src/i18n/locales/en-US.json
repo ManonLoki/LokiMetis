@@ -39,7 +39,8 @@
       "preview_alt": "{{name}} skin preview",
       "by": "By {{author}}",
       "select": "Select {{name}}",
-      "actions": "Resource actions for {{name}}"
+      "actions": "Resource actions for {{name}}",
+      "third_party_code": "Runs third-party code"
     },
     "action": {
       "apply": "Apply",
@@ -60,9 +61,19 @@
       "unreadable": "Unavailable",
       "continue": "Apply anyway"
     },
+    "code_trust": {
+      "apply_title": "Trust and execute third-party code?",
+      "apply_description": "{{name}} contains renderer-inject.js. Continuing will execute this third-party code inside {{host}}.",
+      "not_safety_proof": "LokiMetis checks package structure and resource limits only. These checks do not review or prove the script is safe.",
+      "apply_acknowledgement": "I understand this will execute third-party code and I trust this skin's source.",
+      "import_title": "Selected skins contain third-party code",
+      "import_description": "{{count}} selected compatible skin packages contain renderer-inject.js. Importing stores that code on this device; applying a skin later will execute it inside a supported host.",
+      "import_acknowledgement": "I understand these files contain third-party code and I trust their sources.",
+      "continue": "Trust and continue"
+    },
     "import": {
       "title": "Confirm skin import",
-      "summary": "{{ready}} importable items passed safe preflight from {{total}} archives.",
+      "summary": "Package and resource validation found {{ready}} importable items in {{total}} archives.",
       "commit": "Import selected ({{count}})"
     },
     "create": {

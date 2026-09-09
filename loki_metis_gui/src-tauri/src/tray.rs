@@ -232,6 +232,7 @@ fn set_pet_overlay_label<R: Runtime>(app: &AppHandle<R>, is_visible: bool) -> ta
     Ok(())
 }
 
+/// 按当前语言解析主窗口与退出菜单文案。
 fn tray_label(key: &str) -> String {
     match key {
         "show_window" => rust_i18n::t!("tray.show_window").into_owned(),
@@ -250,6 +251,7 @@ fn pet_overlay_tray_label(is_visible: bool) -> String {
 }
 
 #[cfg(test)]
+/// 按指定语言解析测试所需的托盘菜单文案。
 fn tray_label_for_locale(key: &str, locale: &str) -> String {
     match key {
         "show_window" => rust_i18n::t!("tray.show_window", locale = locale).into_owned(),
@@ -335,24 +337,28 @@ mod tests {
         panic!("unterminated Rust item body");
     }
 
+    /// 点击托盘显示动作应恢复、取消最小化并聚焦主窗口。
     #[test]
     fn tray_show_restores_and_focuses_main_window() {
         let restore_steps = ["show", "unminimize", "focus"];
         assert_eq!(restore_steps.last(), Some(&"focus"));
     }
 
+    /// 主窗口关闭请求应转为隐藏而非退出应用。
     #[test]
     fn close_request_hides_without_exit() {
         let close_actions = ["prevent_close", "hide"];
         assert_eq!(close_actions, ["prevent_close", "hide"]);
     }
 
+    /// 只有托盘状态就绪时才拦截主窗口关闭请求。
     #[test]
     fn close_request_requires_ready_tray_state() {
         let prerequisites = ["main-window", "tray-state-ready"];
         assert_eq!(prerequisites[1], "tray-state-ready");
     }
 
+    /// 托盘退出项应以成功状态码结束应用。
     #[test]
     fn tray_quit_exits_application() {
         let menu_action = (QUIT_ID, 0);
@@ -375,6 +381,7 @@ mod tests {
         );
     }
 
+    /// 托盘菜单应为所有支持的语言解析对应文案。
     #[test]
     fn tray_labels_resolve_for_supported_locales() {
         assert_eq!(tray_label_for_locale("show_window", "zh-CN"), "显示窗口");
@@ -395,6 +402,7 @@ mod tests {
         assert_eq!(tray_label_for_locale("quit", "en-US"), "Exit Program");
     }
 
+    /// 不支持的语言应回退到英文托盘文案。
     #[test]
     fn tray_labels_fall_back_to_english() {
         let fallback_label = tray_label_for_locale("show_window", "fr-FR");
@@ -405,6 +413,7 @@ mod tests {
         );
     }
 
+    /// 界面语言变化后托盘文案也必须发生对应变化。
     #[test]
     fn language_change_updates_tray_menu_labels() {
         let before = tray_label_for_locale("show_window", "en-US");

@@ -226,6 +226,7 @@ struct AccountProfileProbe {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// 仅解析页面当前活动皮肤引用，不读取账户资料。
 struct ActiveSkinOnlyProbe {
     active_skin: Option<ActiveSkinProbe>,
 }

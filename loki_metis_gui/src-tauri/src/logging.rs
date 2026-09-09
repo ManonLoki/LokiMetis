@@ -8,8 +8,10 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 const RETAINED_LOG_FILES: usize = 7;
 
 #[allow(dead_code)]
+/// 保持非阻塞日志工作线程存活直至应用退出。
 pub(crate) struct LoggingGuard(WorkerGuard);
 
+/// 安装按日轮换且保留数量有界的文件日志订阅器。
 pub(crate) fn install_logging(app: &mut tauri::App) -> tauri::Result<()> {
     let log_directory = app.path().app_log_dir()?;
     std::fs::create_dir_all(&log_directory)?;
@@ -36,6 +38,7 @@ pub(crate) fn install_logging(app: &mut tauri::App) -> tauri::Result<()> {
 mod tests {
     use super::*;
 
+    /// 滚动日志保留数量必须维持固定上限。
     #[test]
     fn rolling_logs_have_a_bounded_retention() {
         assert_eq!(RETAINED_LOG_FILES, 7);

@@ -10,6 +10,7 @@ use crate::agent_hooks::{AiTool, HookBehavior};
 
 // 测试：结束墓碑拒绝迟到的旧 generation 事件，但接受全新 generation 的事件
 #[test]
+/// 验证 Cursor 墓碑拒绝迟到开始，但允许新的显式 generation。
 fn cursor_tombstone_rejects_late_start_but_accepts_a_new_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -60,6 +61,7 @@ fn cursor_tombstone_rejects_late_start_but_accepts_a_new_generation() {
 
 // 测试：针对另一 generation 的迟到结束事件不能终止当前正在进行的工作
 #[test]
+/// 验证其他 generation 的迟到结束不能终止当前工作。
 fn delayed_cursor_end_for_another_generation_cannot_end_current_work() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -95,6 +97,7 @@ fn delayed_cursor_end_for_another_generation_cannot_end_current_work() {
 
 // 测试：已停止的轮次收到不带 generation id 的进度事件时应被忽略
 #[test]
+/// 验证已停止轮次忽略不带 generation 标识的进度事件。
 fn stopped_turn_ignores_progress_without_a_generation_id() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -126,6 +129,7 @@ fn stopped_turn_ignores_progress_without_a_generation_id() {
 
 // 测试：Cursor 子代理事件永远不能占用/改写父 generation
 #[test]
+/// 验证 Cursor 子代理事件不会占用父级 generation。
 fn cursor_subagent_events_never_claim_the_parent_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -181,6 +185,7 @@ fn cursor_subagent_events_never_claim_the_parent_generation() {
 
 // 测试：不带 id 的 Cursor 结束事件不能超越刚刚开始的 generation
 #[test]
+/// 验证无 ID 的 Cursor 结束事件不能越过刚开始的新 generation。
 fn idless_cursor_end_cannot_overtake_a_just_started_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -248,6 +253,7 @@ fn idless_cursor_end_cannot_overtake_a_just_started_generation() {
 
 // 测试：不带 id 的重复终止事件不能重新给已结束的 generation 打上新标签（如错误态）
 #[test]
+/// 验证无 ID 的重复终止事件不能重新标记已完成 generation。
 fn idless_duplicate_terminal_cannot_relabel_a_finished_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();

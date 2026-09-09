@@ -43,20 +43,24 @@ describe("typed skin host API", () => {
     });
   });
 
-  /** 锁定多实例应用必须携带精确来源、ID 与显式目标。 */
-  test("install targets the selected instance", async () => {
+  /** 锁定应用必须携带精确目标及本次第三方代码信任决定。 */
+  test("install targets the selected instance with explicit code consent", async () => {
     mocks.invoke.mockResolvedValue({ type: "installed", status: {} });
     await skinApi.install(
       "codex",
-      { id: "minecraft", source: "builtin" },
+      { id: "retro", source: "user" },
       false,
       "codex-42",
+      false,
+      true,
     );
     expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
       allowAppearanceMismatch: false,
+      allowThirdPartyCode: true,
+      allowWorkBuddyRecovery: false,
       host: "codex",
       instanceId: "codex-42",
-      skin: { id: "minecraft", source: "builtin" },
+      skin: { id: "retro", source: "user" },
     });
   });
 
@@ -73,6 +77,7 @@ describe("typed skin host API", () => {
       false,
       null,
       true,
+      false,
     );
     expect(mocks.invoke).toHaveBeenNthCalledWith(
       1,
@@ -81,6 +86,7 @@ describe("typed skin host API", () => {
     );
     expect(mocks.invoke).toHaveBeenNthCalledWith(2, "install_skin", {
       allowAppearanceMismatch: false,
+      allowThirdPartyCode: false,
       allowWorkBuddyRecovery: true,
       host: "workBuddy",
       skin: { id: "minecraft", source: "builtin" },
@@ -98,6 +104,17 @@ describe("typed skin host API", () => {
     const event = { token: "batch-1", totalFiles: 2, type: "started" };
     mocks.channels[0]?.onmessage(event);
     expect(onProgress).toHaveBeenCalledWith(event);
+  });
+
+  /** 兼容皮肤提交必须把本次显式信任作为独立 IPC 字段传给后端。 */
+  test("import commit carries explicit third-party code consent", async () => {
+    mocks.invoke.mockResolvedValue({ failed: [], installed: [], skippedCount: 0 });
+    await skinApi.commitImport("batch-1", ["item-1"], true);
+    expect(mocks.invoke).toHaveBeenCalledWith("commit_skin_import", {
+      allowThirdPartyCode: true,
+      selectedItemIds: ["item-1"],
+      token: "batch-1",
+    });
   });
 
   /** 验证批量删除只传递核心层可校验的精确引用集合。 */

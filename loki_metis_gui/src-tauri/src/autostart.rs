@@ -1,6 +1,7 @@
 use tauri_plugin_autostart::ManagerExt;
 
 #[tauri::command]
+/// 读取操作系统中当前的开机自启注册状态。
 pub(crate) async fn get_autostart_enabled(app: tauri::AppHandle) -> Result<bool, String> {
     app.autolaunch()
         .is_enabled()
@@ -8,6 +9,7 @@ pub(crate) async fn get_autostart_enabled(app: tauri::AppHandle) -> Result<bool,
 }
 
 #[tauri::command]
+/// 幂等地启用或禁用操作系统开机自启注册，并返回实际状态。
 pub(crate) async fn set_autostart_enabled(
     app: tauri::AppHandle,
     enabled: bool,
@@ -37,43 +39,52 @@ pub(crate) async fn set_autostart_enabled(
 #[cfg(test)]
 mod tests {
     #[derive(Clone, Copy)]
+    /// 模拟操作系统持有的开机自启注册位。
     struct FakeRegistration(bool);
 
     impl FakeRegistration {
+        /// 返回模拟注册状态。
         fn is_enabled(self) -> bool {
             self.0
         }
 
+        /// 直接设置模拟注册状态。
         fn set(&mut self, enabled: bool) {
             self.0 = enabled;
         }
 
+        /// 启用模拟注册。
         fn enable(&mut self) {
             self.set(true);
         }
 
+        /// 禁用模拟注册。
         fn disable(&mut self) {
             self.set(false);
         }
     }
 
+    /// 缺少系统注册时开机自启应默认为关闭。
     #[test]
     fn autostart_defaults_disabled_without_registration() {
         assert!(!FakeRegistration(false).is_enabled());
     }
 
+    /// 查询结果应反映操作系统实际注册状态。
     #[test]
     fn autostart_state_reads_operating_system_registration() {
         let simulated_os = FakeRegistration(true);
         assert!(simulated_os.is_enabled());
     }
 
+    /// 系统注册修改失败必须以稳定错误对调用方可见。
     #[test]
     fn autostart_enable_disable_failures_are_observable() {
         let operation: Result<(), &str> = Err("autostart-mutation-failed");
         assert_eq!(operation.unwrap_err(), "autostart-mutation-failed");
     }
 
+    /// 重复设置相同值不应改变最终状态。
     #[test]
     fn autostart_commands_are_idempotent() {
         let mut simulated_os = FakeRegistration(false);
@@ -83,6 +94,7 @@ mod tests {
         assert_eq!(first, simulated_os.is_enabled());
     }
 
+    /// 真实端到端切换后必须恢复测试前的系统注册状态。
     #[test]
     fn autostart_e2e_restores_previous_registration() {
         let mut simulated_os = FakeRegistration(false);

@@ -39,7 +39,7 @@ pub fn generate_wsl_hook_config(
     generate_hook_config_with_executable(tool, relay_executable, Some(wsl_executable))
 }
 
-// 生成主配置文件内容的通用实现，供本机与 WSL 两个公开入口共用
+/// 生成主配置文件内容，统一承载本机与 WSL 两个公开入口。
 fn generate_hook_config_with_executable(
     // 目标 AI 工具类型
     tool: AiTool,
@@ -248,8 +248,7 @@ pub fn remove_managed_hook_entries(
         })
 }
 
-// 为一个事件生成三种平台变体的托管命令字符串（POSIX shell、Windows CMD、
-// 经 PowerShell 转发到 CMD），供各工具的 `handler` 按自身协议组装配置条目。
+/// 为一个事件生成 POSIX、Windows CMD 与 PowerShell 宿主三种托管命令。
 fn managed_commands(
     // 当前工具的协议实现，用于取 slug 等信息
     protocol: &dyn HookProtocol,
@@ -312,22 +311,25 @@ fn managed_commands(
     }
 }
 
-// 按 Windows CMD 双引号规则转义一个参数。
+/// 按 Windows CMD 双引号规则转义单个参数。
 fn windows_quote(value: &str) -> String {
     // 用双引号包裹整体，内部已有的双引号按 CMD 规则转义为两个双引号
     format!("\"{}\"", value.replace('"', "\"\""))
 }
 
-// PowerShell 会先解析整条 command，再把 `/c` 后的文本交给 CMD。用反引号保护
-// 内层双引号，才能同时保住含空格的安装路径和参数边界。
+/// 按 PowerShell 到 CMD 的双层解析规则保护参数边界。
+///
+/// 反引号保护内层双引号，确保含空格的安装路径仍作为单个参数传递。
 fn powershell_host_quote(value: &str) -> String {
     // 先转义值内部已有的反引号，避免与后续转义规则冲突；
     // 再把双引号转义为反引号+双引号，交由 PowerShell 解析后仍保留给 CMD 的双引号
     format!("`\"{}`\"", value.replace('`', "``").replace('"', "`\""))
 }
 
-// 判断一条当前格式的命令字符串是否携带指定管理标识。Windows PowerShell
-// 宿主可能保留用于保护双引号的反引号，因此比较前只归一化该现役转义形式。
+/// 判断当前格式的命令是否携带精确管理标识。
+///
+/// Windows PowerShell 宿主可能保留保护双引号的反引号，因此比较前仅归一化
+/// 这一种现役转义形式。
 pub(super) fn command_has_marker(command: &str, marker: &str) -> bool {
     // 闭包：判断给定字符串是否包含 `marker'` 或 `marker"`，
     // 即标识后紧跟命令引号收尾，避免误判成标识的前缀子串

@@ -47,6 +47,7 @@ pub fn resolve_pet_overlay_position(
         .then_some(position)
 }
 
+/// 使用半开矩形边界判断浮窗与工作区是否具有正面积交集。
 fn rectangles_intersect(window: (i32, i32, u32, u32), work_area: (i32, i32, u32, u32)) -> bool {
     let (x, y, width, height) = window;
     let (area_x, area_y, area_width, area_height) = work_area;
@@ -64,6 +65,7 @@ fn rectangles_intersect(window: (i32, i32, u32, u32), work_area: (i32, i32, u32,
 mod tests {
     use super::*;
 
+    /// 构造覆盖常见全高清桌面的测试工作区。
     fn desktop() -> PetOverlayWorkArea {
         PetOverlayWorkArea {
             x: 0,
@@ -73,6 +75,7 @@ mod tests {
         }
     }
 
+    /// 验证与任一工作区相交的已保存位置会被原样保留。
     #[test]
     fn valid_position_intersecting_work_area_is_kept() {
         let stored = PetOverlayPosition { x: 240, y: 90 };
@@ -82,6 +85,7 @@ mod tests {
         );
     }
 
+    /// 验证缺少已保存位置时交由调用方回退默认几何。
     #[test]
     fn missing_position_falls_back_to_default() {
         assert_eq!(
@@ -90,6 +94,7 @@ mod tests {
         );
     }
 
+    /// 验证完全位于工作区外的位置会回退默认几何。
     #[test]
     fn offscreen_position_falls_back_to_default() {
         let stored = PetOverlayPosition {
@@ -102,6 +107,7 @@ mod tests {
         );
     }
 
+    /// 验证空工作区或零尺寸浮窗均不能保留旧位置。
     #[test]
     fn empty_work_areas_or_zero_size_fall_back() {
         let stored = PetOverlayPosition { x: 20, y: 20 };
@@ -115,6 +121,7 @@ mod tests {
         );
     }
 
+    /// 验证部分落在工作区内的浮窗仍视为可见并保留位置。
     #[test]
     fn position_partially_on_work_area_is_kept() {
         let stored = PetOverlayPosition { x: 1800, y: 900 };
@@ -124,6 +131,7 @@ mod tests {
         );
     }
 
+    /// 验证高分屏场景使用物理外框尺寸判断半离屏窗口是否可见。
     #[test]
     fn retina_half_offscreen_uses_physical_outer_size() {
         let stored = PetOverlayPosition { x: -400, y: 100 };

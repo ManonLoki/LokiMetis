@@ -18,7 +18,7 @@ use crate::agent_hooks::{AiTool, HookBehavior};
 // Claude Code 协议的单例静态实例，供注册表引用
 pub(super) static CLAUDE_CODE: ClaudeCodeProtocol = ClaudeCodeProtocol;
 
-// Claude Code 协议的空结构体（无状态，仅承载 trait 实现）
+/// Claude Code 的无状态 Hook 协议适配器。
 pub(super) struct ClaudeCodeProtocol;
 
 // Claude Code 支持的公开 Hook 事件列表及其归一化事件类型
@@ -81,32 +81,32 @@ const EVENTS: &[HookEvent] = &[
 
 // 为 Claude Code 实现 HookProtocol trait
 impl HookProtocol for ClaudeCodeProtocol {
-    // 该协议对应的 AI 工具标识
+    /// 返回 Claude Code 的统一工具标识。
     fn tool(&self) -> AiTool {
         AiTool::ClaudeCode
     }
-    // 展示用的工具名称
+    /// 返回用于界面展示的 Claude Code 名称。
     fn name(&self) -> &'static str {
         "Claude Code"
     }
-    // 用于路径/标识拼接的短标识符
+    /// 返回用于路径和配置标识的稳定短名。
     fn slug(&self) -> &'static str {
         "claude-code"
     }
-    // 配置文件名
+    /// 返回 Claude Code 配置根下的 Hook 配置文件名。
     fn config_filename(&self) -> &'static str {
         "settings.json"
     }
-    // 预览展示用的相对路径
+    /// 返回面向用户展示的 Hook 配置相对路径。
     fn preview_filename(&self) -> &'static str {
         ".claude/settings.json"
     }
-    // 返回该协议支持的全部事件列表
+    /// 返回 Claude Code 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
     }
 
-    // 构造该事件对应的 Hook 配置条目：按平台选择命令，并附带 matcher 过滤
+    /// 按当前平台命令和可选 matcher 构造事件处理配置。
     fn handler(&self, event: &HookEvent, commands: &ManagedCommands) -> Value {
         command_group(platform_command(commands), event.matcher)
     }

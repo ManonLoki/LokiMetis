@@ -155,10 +155,12 @@ mod tests {
     };
     use crate::{AiTool, HookBehavior};
 
+    /// 把测试图片 ID 切片转换为校验器使用的已知集合。
     fn known(ids: &[&str]) -> HashSet<String> {
         ids.iter().map(|id| (*id).to_owned()).collect()
     }
 
+    /// 构造四种展示行为都绑定唯一图片的完整测试草稿。
     fn complete_draft(tool: AiTool) -> AiProfileDraft {
         let mut draft = AiProfileDraft::default_for(tool);
         for (index, hook) in draft.hooks.iter_mut().enumerate() {
@@ -167,6 +169,7 @@ mod tests {
         draft
     }
 
+    /// 验证默认草稿覆盖固定四种行为且内容与图片均为空。
     #[test]
     fn default_draft_covers_four_empty_behaviors() {
         let draft = AiProfileDraft::default_for(AiTool::Codex);
@@ -188,6 +191,7 @@ mod tests {
         );
     }
 
+    /// 验证合并结果按工具目录顺序补齐所有受支持 Agent。
     #[test]
     fn merge_fills_every_supported_tool_in_catalog_order() {
         let mut saved = AiProfileDraft::default_for(AiTool::Grok);
@@ -203,6 +207,7 @@ mod tests {
         assert_eq!(merged[0].slot, DEFAULT_PROFILE_SLOT);
     }
 
+    /// 验证合并及显式夹紧都会把槽位限制在十二个展示位内。
     #[test]
     fn merge_clamps_saved_slot_into_the_twelve_slot_range() {
         let mut saved = AiProfileDraft::default_for(AiTool::Codex);
@@ -215,6 +220,7 @@ mod tests {
         assert_eq!(clamp_profile_slot(13), MAX_PROFILE_SLOT);
     }
 
+    /// 验证保存校验拒绝越界槽位和图库中不存在的图片 ID。
     #[test]
     fn validate_rejects_slot_out_of_range_and_unknown_image() {
         let mut draft = complete_draft(AiTool::Codex);
@@ -232,6 +238,7 @@ mod tests {
         assert_eq!(unknown.code, "error.monitor.unknownImage");
     }
 
+    /// 验证图片可为空，非空图片存在时完整草稿能够保存。
     #[test]
     fn validate_accepts_incomplete_images_when_ids_exist_or_empty() {
         let draft = AiProfileDraft::default_for(AiTool::WorkBuddy);

@@ -119,6 +119,9 @@ pub enum SkinRuleError {
     /// 图片引用不是主题根目录中的 PNG 或 JPEG 安全文件名。
     #[error("invalid theme image name")]
     InvalidThemeImageName,
+    /// 自由注入脚本尚未获得本次操作的显式信任确认。
+    #[error("third-party skin code consent required")]
+    ThirdPartyCodeConsentRequired,
 }
 
 /// 判断字符串是否满足皮肤目录与清单共用的稳定标识语法。
@@ -152,6 +155,17 @@ pub fn validate_skin_import_batch_size(count: usize) -> Result<(), SkinRuleError
         .contains(&count)
         .then_some(())
         .ok_or(SkinRuleError::InvalidBatchSize)
+}
+
+/// 要求兼容皮肤在本次导入或应用前获得显式第三方代码信任；纯主题无需该授权。
+pub fn validate_skin_code_execution_consent(
+    package_type: SkinPackageType,
+    explicitly_trusted: bool,
+) -> Result<(), SkinRuleError> {
+    if package_type == SkinPackageType::LegacySkin && !explicitly_trusted {
+        return Err(SkinRuleError::ThirdPartyCodeConsentRequired);
+    }
+    Ok(())
 }
 
 /// 校验删除批次只含不重复的用户皮肤引用。
@@ -291,6 +305,17 @@ mod tests {
             validate_theme_image_name("../background.png"),
             Err(SkinRuleError::InvalidThemeImageName)
         );
+    }
+
+    /// 兼容皮肤必须逐次获得明确授权，纯主题不能被错误地归入自由脚本授权路径。
+    #[test]
+    fn legacy_skin_requires_explicit_code_execution_consent() {
+        assert_eq!(
+            validate_skin_code_execution_consent(SkinPackageType::LegacySkin, false),
+            Err(SkinRuleError::ThirdPartyCodeConsentRequired)
+        );
+        assert!(validate_skin_code_execution_consent(SkinPackageType::LegacySkin, true).is_ok());
+        assert!(validate_skin_code_execution_consent(SkinPackageType::Theme, false).is_ok());
     }
 
     /// 两个批准宿主必须保持稳定 camelCase wire 值与用户可见名称。

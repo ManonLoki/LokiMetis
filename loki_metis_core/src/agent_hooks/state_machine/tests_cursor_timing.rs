@@ -7,6 +7,7 @@ use crate::agent_hooks::{AiTool, HookBehavior};
 
 // 测试：迟到的 workspaceOpen 不能在真实会话之后遗留一个占位记录
 #[test]
+/// 验证迟到的工作区打开不会遗留真实会话占位符。
 fn late_workspace_open_cannot_leave_a_real_session_placeholder() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -36,6 +37,7 @@ fn late_workspace_open_cannot_leave_a_real_session_placeholder() {
 
 // 测试：真实工作事件也能替换掉工作区占位
 #[test]
+/// 验证真实工作事件同样会替换工作区占位符。
 fn a_real_work_event_also_replaces_the_workspace_placeholder() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -61,6 +63,7 @@ fn a_real_work_event_also_replaces_the_workspace_placeholder() {
 
 // 测试：Cursor 工具调用失败在同一 generation 内是可恢复的
 #[test]
+/// 验证 Cursor 工具失败后同一 generation 仍可继续恢复工作。
 fn cursor_tool_failure_is_recoverable_within_the_same_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -106,6 +109,7 @@ fn cursor_tool_failure_is_recoverable_within_the_same_generation() {
 
 // 测试：Cursor 子代理错误既不会结束也不会重新标注父 generation
 #[test]
+/// 验证子代理错误不会结束或改写父级 generation。
 fn cursor_subagent_error_does_not_end_or_relabel_the_parent_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -143,6 +147,7 @@ fn cursor_subagent_error_does_not_end_or_relabel_the_parent_generation() {
 
 // 测试：不带 generation 的进度事件应沿用已知的当前 generation
 #[test]
+/// 验证无 generation 的 Cursor 进度沿用已知当前 generation。
 fn cursor_progress_without_generation_keeps_the_known_current_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -174,6 +179,7 @@ fn cursor_progress_without_generation_keeps_the_known_current_generation() {
 
 // 测试：已退休的 Cursor generation 不能替换或停止最新的 generation
 #[test]
+/// 验证已退役 generation 不能替换或停止最新 generation。
 fn retired_cursor_generations_cannot_replace_or_stop_the_latest_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -234,6 +240,7 @@ fn retired_cursor_generations_cannot_replace_or_stop_the_latest_generation() {
 
 // 测试：显式的 generation 替换会退休上一个 generation
 #[test]
+/// 验证显式 generation 替换会退役前一 generation。
 fn explicit_generation_replacement_retires_the_previous_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -266,6 +273,7 @@ fn explicit_generation_replacement_retires_the_previous_generation() {
 
 // 测试：陈旧的终止事件只会退休其自身 generation，不会打断当前工作
 #[test]
+/// 验证陈旧终止事件只退役自身 generation，不停止当前工作。
 fn stale_terminal_event_retires_its_generation_without_stopping_current_work() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -313,6 +321,7 @@ fn stale_terminal_event_retires_its_generation_without_stopping_current_work() {
 
 // 测试：不匹配的进度事件不会阻塞后续的显式工作开始事件
 #[test]
+/// 验证不匹配的进度不会阻止后续显式工作开始。
 fn mismatched_progress_does_not_block_a_later_explicit_work_start() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -356,6 +365,7 @@ fn mismatched_progress_does_not_block_a_later_explicit_work_start() {
 
 // 测试：首次观测到的终止事件会退休其对应的 generation
 #[test]
+/// 验证首次观测到的终止事件会登记并退役对应 generation。
 fn first_observed_terminal_event_retires_its_generation() {
     // 构造一台全新的默认状态机
     let mut machine = HookStateMachine::default();
@@ -400,6 +410,7 @@ fn first_observed_terminal_event_retires_its_generation() {
 
 // 测试：单个会话内已退休的 generation 历史记录数量是有上限的
 #[test]
+/// 验证每个会话保存的退役 generation 历史具有明确上限。
 fn retired_generation_history_is_bounded_per_session() {
     // 引入会话模块中定义的“每会话最大已退休轮次数”常量
     use super::session::MAX_RETIRED_TURNS_PER_SESSION;
@@ -435,6 +446,7 @@ fn retired_generation_history_is_bounded_per_session() {
 
 // 测试：过期的墓碑允许使用相同 id 建立一个全新的会话
 #[test]
+/// 验证墓碑过期后同一会话 ID 可以建立全新会话。
 fn expired_tombstone_allows_a_fresh_session_with_the_same_id() {
     // 局部引入 Duration，仅本测试使用
     use std::time::Duration;

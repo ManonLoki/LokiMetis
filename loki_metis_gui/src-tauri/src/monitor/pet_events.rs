@@ -16,6 +16,7 @@ pub fn emit_pet_window_state_changed<R: Runtime>(app: &AppHandle<R>) {
 mod tests {
     use super::*;
 
+    /// 原生事件名必须与前端监听契约保持一致。
     #[test]
     fn event_name_matches_frontend_contract() {
         assert_eq!(PET_WINDOW_STATE_CHANGED_EVENT, "pet-window-state-changed");
