@@ -43,7 +43,8 @@ export function HostCapabilitySwitch({
   }, [setting.data]);
 
   const update = useMutation({
-    mutationFn: setEnabled,
+    // 只转发组件契约中的布尔值，避免 Query 的第二个上下文参数覆盖宿主 API 调用器。
+    mutationFn: (enabled: boolean) => setEnabled(enabled),
     onMutate: (nextEnabled) => {
       setUpdateFailed(false);
       setDisplayed(nextEnabled);
@@ -54,6 +55,11 @@ export function HostCapabilitySwitch({
     },
     onError: async () => {
       const authoritative = await setting.refetch();
+      if (authoritative.isError) {
+        setDisplayed(undefined);
+        setUpdateFailed(false);
+        return;
+      }
       setDisplayed(authoritative.data);
       setUpdateFailed(true);
     },
@@ -114,7 +120,9 @@ export function HostCapabilitySwitch({
                 leftSection={<IconRefresh aria-hidden="true" size={16} />}
                 onClick={() => {
                   setUpdateFailed(false);
-                  void setting.refetch();
+                  void setting.refetch().then((authoritative) => {
+                    if (!authoritative.isError) setDisplayed(authoritative.data);
+                  });
                 }}
                 size="xs"
                 variant="light"

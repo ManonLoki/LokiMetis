@@ -2,6 +2,8 @@ use super::*;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::dto::ScanStateDto;
+
 use loki_metis_core::{
     LocalScanFuture, LocalScanOutput, LocalScanProgress, LocalUsageScanner, ScanCancellation,
     ScanKind, SourceRootReindexRequest,
@@ -163,7 +165,6 @@ async fn direct_refresh_is_rejected_after_scan_owner_shutdown() {
             .scans
             .get(AgentClientKindDto::Codex.into())
             .snapshot()
-            .await
             .state,
         ScanStateDto::Idle
     );
@@ -229,7 +230,6 @@ async fn shutdown_stops_explicit_batch_before_next_client() {
             .scans
             .get(AgentClientKindDto::ClaudeCode.into())
             .snapshot()
-            .await
             .state,
         ScanStateDto::Idle
     );

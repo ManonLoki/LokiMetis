@@ -45,7 +45,6 @@ async fn published_progress_is_immediate_ordered_and_scan_scoped() {
     let coordinator = Arc::new(ScanCoordinator::default());
     let first = coordinator
         .start(ScanKindDto::Quick, 1, ScanCancellation::new())
-        .await
         .expect("first scan starts");
 
     for (files_scanned, calls_added) in [(1, 2), (2, 3)] {
@@ -62,14 +61,13 @@ async fn published_progress_is_immediate_ordered_and_scan_scoped() {
             },
         );
     }
-    let first_status = coordinator.snapshot().await;
+    let first_status = coordinator.snapshot();
     assert_eq!(first_status.files_visited, 2);
     assert_eq!(first_status.calls_indexed, 3);
 
-    assert!(coordinator.finish_completed(&first.scan_id, 2).await);
+    assert!(coordinator.finish_completed(&first.scan_id, 2));
     let second = coordinator
         .start(ScanKindDto::FullDevice, 1, ScanCancellation::new())
-        .await
         .expect("replacement scan starts");
     publish_scan_progress(
         &coordinator,
@@ -84,7 +82,7 @@ async fn published_progress_is_immediate_ordered_and_scan_scoped() {
         },
     );
 
-    let second_status = coordinator.snapshot().await;
+    let second_status = coordinator.snapshot();
     assert_eq!(
         second_status.scan_id.as_deref(),
         Some(second.scan_id.as_str())

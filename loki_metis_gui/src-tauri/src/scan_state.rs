@@ -6,19 +6,16 @@ use crate::dto::{
     UiMessageCodeDto,
 };
 use loki_metis_core::{
-    ScanCancellation, ScanCoordinator as CoreScanCoordinator, ScanLifecycle, ScanScopeCode,
-    ScanScopeProgress, ScanStateError as CoreScanStateError, ScanStatus as CoreScanStatus,
+    ScanCancellation, ScanCoordinator as CoreScanCoordinator, ScanLease as CoreScanLease,
+    ScanLifecycle, ScanScopeCode, ScanScopeProgress, ScanStateError as CoreScanStateError,
+    ScanStatus as CoreScanStatus,
 };
 
 /// 表示扫描协调器拒绝重复启动或无任务取消的稳定错误。
 pub type ScanStateError = CoreScanStateError;
 
 /// 表示一次已启动扫描的运行期租约。
-#[derive(Debug, Clone)]
-pub struct ScanLease {
-    /// 当前扫描会话唯一 ID。
-    pub scan_id: String,
-}
+pub type ScanLease = CoreScanLease;
 
 /// 管理当前客户端唯一扫描 writer，并为前端返回可轮询快照。
 #[derive(Debug)]
@@ -38,20 +35,14 @@ impl Default for ScanCoordinator {
 
 impl ScanCoordinator {
     /// 启动唯一扫描 writer，并返回其必须轮询的状态。
-    pub async fn start(
+    pub fn start(
         &self,
         kind: ScanKindDto,
         started_at_epoch_ms: i64,
         cancellation: ScanCancellation,
     ) -> Result<ScanLease, ScanStateError> {
-        let lease = self
-            .core
+        self.core
             .start(to_core_scan_kind(kind), started_at_epoch_ms, cancellation)
-            .await?;
-
-        Ok(ScanLease {
-            scan_id: lease.scan_id,
-        })
     }
 
     /// 仅为仍拥有当前运行态的会话更新轻量进度。
@@ -84,41 +75,34 @@ impl ScanCoordinator {
 
     /// 请求取消当前扫描；实际停止由 worker 在受控边界轮询确认。
     #[cfg(test)]
-    pub async fn request_cancel(&self) -> Result<ScanStatusDto, ScanStateError> {
-        let status = self.core.request_cancel().await?;
-        Ok(to_dto_scan_status(status))
+    pub fn request_cancel(&self) -> Result<ScanStatusDto, ScanStateError> {
+        Ok(to_dto_scan_status(self.core.request_cancel()?))
     }
 
     /// 标记 worker 已确认取消，并把覆盖语义留给本机索引模块汇报。
-    pub async fn finish_cancelled(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
-        self.core
-            .finish_cancelled(scan_id, finished_at_epoch_ms)
-            .await
+    pub fn finish_cancelled(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
+        self.core.finish_cancelled(scan_id, finished_at_epoch_ms)
     }
 
     /// 标记扫描成功，并把进度固定为 100%。
-    pub async fn finish_completed(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
-        self.core
-            .finish_completed(scan_id, finished_at_epoch_ms)
-            .await
+    pub fn finish_completed(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
+        self.core.finish_completed(scan_id, finished_at_epoch_ms)
     }
 
     /// 标记扫描失败；调用方只传入已经脱敏且带客户端归属的稳定说明。
-    pub async fn finish_failed(
-        &self,
-        scan_id: &str,
-        finished_at_epoch_ms: i64,
-        message: &str,
-    ) -> bool {
+    pub fn finish_failed(&self, scan_id: &str, finished_at_epoch_ms: i64, message: &str) -> bool {
         self.core
             .finish_failed(scan_id, finished_at_epoch_ms, message)
-            .await
+    }
+
+    /// 仅判定当前是否有扫描在运行，不构造完整 DTO 快照。
+    pub fn is_running(&self) -> bool {
+        self.core.is_running()
     }
 
     /// 返回前端可安全轮询的当前状态副本。
-    pub async fn snapshot(&self) -> ScanStatusDto {
-        let status = self.core.snapshot().await;
-        to_dto_scan_status(status)
+    pub fn snapshot(&self) -> ScanStatusDto {
+        to_dto_scan_status(self.core.snapshot())
     }
 }
 
@@ -220,20 +204,16 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKindDto::Quick, 1, test_cancellation())
-            .await
             .expect("first scan starts");
 
         assert!(matches!(
-            coordinator
-                .start(ScanKindDto::FullDevice, 2, test_cancellation())
-                .await,
+            coordinator.start(ScanKindDto::FullDevice, 2, test_cancellation()),
             Err(ScanStateError::AlreadyRunning)
         ));
 
-        assert!(coordinator.finish_completed(&lease.scan_id, 3).await);
+        assert!(coordinator.finish_completed(&lease.scan_id, 3));
         coordinator
             .start(ScanKindDto::FullDevice, 4, test_cancellation())
-            .await
             .expect("completed scan releases writer ownership");
     }
 
@@ -243,12 +223,10 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKindDto::Quick, 1, test_cancellation())
-            .await
             .expect("scan starts");
 
         let status = coordinator
             .request_cancel()
-            .await
             .expect("running scan can be cancelled");
 
         assert_eq!(lease.scan_id, "scan-1");
@@ -256,8 +234,8 @@ mod tests {
         assert_eq!(status.message_code, UiMessageCodeDto::ScanCancelling);
         assert!(!status.can_cancel);
 
-        assert!(coordinator.finish_cancelled(&lease.scan_id, 2).await);
-        assert_eq!(coordinator.snapshot().await.state, ScanStateDto::Cancelled);
+        assert!(coordinator.finish_cancelled(&lease.scan_id, 2));
+        assert_eq!(coordinator.snapshot().state, ScanStateDto::Cancelled);
     }
 
     /// 验证并发发布乱序时不会让用户可见进度或阶段标签倒退。
@@ -266,7 +244,6 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKindDto::FullDevice, 1, test_cancellation())
-            .await
             .expect("scan starts");
         assert!(coordinator.update_progress(
             &lease.scan_id,
@@ -295,7 +272,7 @@ mod tests {
             "迟到的发现进度".to_owned(),
         ));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.progress_basis_points, 6_250);
         assert_eq!(status.files_visited, 4);
         assert_eq!(status.calls_indexed, 7);
@@ -314,22 +291,17 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKindDto::Quick, 1, test_cancellation())
-            .await
             .expect("scan starts");
-        assert!(
-            coordinator
-                .finish_failed(
-                    &lease.scan_id,
-                    2,
-                    &loki_metis_core::local_scan_client_failure_message(
-                        "Claude Code",
-                        loki_metis_core::local_scan_task_error_message(),
-                    ),
-                )
-                .await
-        );
+        assert!(coordinator.finish_failed(
+            &lease.scan_id,
+            2,
+            &loki_metis_core::local_scan_client_failure_message(
+                "Claude Code",
+                loki_metis_core::local_scan_task_error_message(),
+            ),
+        ));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.state, ScanStateDto::Failed);
         assert!(status.message.starts_with("Claude Code 扫描失败"));
         assert!(!status.message.contains("Codex 原始文件"));
@@ -341,12 +313,10 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let first = coordinator
             .start(ScanKindDto::Quick, 1, test_cancellation())
-            .await
             .expect("first scan starts");
-        assert!(coordinator.finish_completed(&first.scan_id, 2).await);
+        assert!(coordinator.finish_completed(&first.scan_id, 2));
         let second = coordinator
             .start(ScanKindDto::FullDevice, 1, test_cancellation())
-            .await
             .expect("next scan starts");
 
         assert!(!coordinator.update_progress(
@@ -359,7 +329,7 @@ mod tests {
             "旧扫描迟到".to_owned(),
         ));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.scan_id.as_deref(), Some(second.scan_id.as_str()));
         assert_eq!(status.state, ScanStateDto::Running);
         assert_eq!(status.progress_basis_points, 0);

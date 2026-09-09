@@ -14,7 +14,7 @@ use tauri::{AppHandle, State};
 use crate::commands::scan_orchestration::{ScanTask, ScanTaskOperation, execute_scan_task};
 use crate::dto::{
     AgentClientKindDto, ClearIndexResultDto, LocalIndexRefreshTriggerDto, ScanKindDto,
-    ScanStateDto, ScanStatusDto, UiMessageCodeDto,
+    ScanStatusDto, UiMessageCodeDto,
 };
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
 use crate::tray::refresh_tray_daily_token_title;
@@ -123,7 +123,7 @@ async fn refresh_local_indexes_with_origin(
 ) -> Result<Vec<ScanStatusDto>, String> {
     for client in &clients {
         ensure_scan_start_access_by_policy(state, origin, ScanKindDto::Quick).await?;
-        if state.scans.get((*client).into()).snapshot().await.state == ScanStateDto::Running {
+        if state.scans.get((*client).into()).is_running() {
             return Err(local_scan_in_progress_error_message().to_owned());
         }
     }
@@ -151,7 +151,6 @@ async fn refresh_local_indexes_with_origin(
         let scan_state = Arc::clone(state.scans.get(client.into()));
         let lease = scan_state
             .start(ScanKindDto::Quick, now_epoch_ms(), cancellation.clone())
-            .await
             .map_err(|_| local_scan_in_progress_error_message().to_owned())?;
         drop(account_context_guard);
         tracing::info!(
@@ -174,10 +173,7 @@ async fn refresh_local_indexes_with_origin(
             roots_state: Arc::clone(state.roots.get(client.into())),
         })
         .await?;
-        statuses.push(scan_state.snapshot().await);
-        if cancellation.is_cancelled() {
-            break;
-        }
+        statuses.push(scan_state.snapshot());
     }
     drop(permit);
     Ok(statuses)
@@ -294,8 +290,7 @@ async fn execute_periodic_quick_scan(
     if cancellation.is_cancelled() {
         return false;
     }
-    let scan_running =
-        state.scans.get(client.into()).snapshot().await.state == ScanStateDto::Running;
+    let scan_running = state.scans.get(client.into()).is_running();
     if cancellation.is_cancelled() {
         return false;
     }
@@ -318,9 +313,7 @@ async fn execute_periodic_quick_scan(
         return false;
     }
     let scan_state = Arc::clone(state.scans.get(client.into()));
-    let Ok(lease) = scan_state
-        .start(ScanKindDto::Quick, now_epoch_ms(), cancellation.clone())
-        .await
+    let Ok(lease) = scan_state.start(ScanKindDto::Quick, now_epoch_ms(), cancellation.clone())
     else {
         return false;
     };

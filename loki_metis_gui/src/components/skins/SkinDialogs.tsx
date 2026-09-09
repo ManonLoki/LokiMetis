@@ -11,7 +11,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { IconAlertTriangle, IconCopy, IconSparkles } from "@tabler/icons-react";
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -174,11 +174,18 @@ export function ImportDialog({
   onSelectedChange,
 }: ImportDialogProps): ReactElement {
   const { t } = useTranslation();
-  const selectedLegacyItems =
-    batch?.items.filter(
-      (item) => selected.includes(item.itemId) && item.skin.packageType === "legacySkin",
-    ) ?? [];
-  const selectedLegacyKey = selectedLegacyItems.map((item) => item.itemId).join("\u0000");
+  const selectedIds = useMemo(() => new Set(selected), [selected]);
+  const selectedLegacyItems = useMemo(
+    () =>
+      batch?.items.filter(
+        (item) => selectedIds.has(item.itemId) && item.skin.packageType === "legacySkin",
+      ) ?? [],
+    [batch?.items, selectedIds],
+  );
+  const selectedLegacyKey = useMemo(
+    () => selectedLegacyItems.map((item) => item.itemId).join("\u0000"),
+    [selectedLegacyItems],
+  );
   const [thirdPartyCodeTrusted, setThirdPartyCodeTrusted] = useState(false);
   useEffect(() => {
     setThirdPartyCodeTrusted(false);

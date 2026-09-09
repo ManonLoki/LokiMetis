@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -82,6 +82,9 @@ describe("dashboard settings capabilities", () => {
       if (command === "get_autostart_enabled") {
         return false;
       }
+      if (command === "set_autostart_enabled") {
+        return true;
+      }
       throw new Error(`unexpected command ${command}`);
     });
   });
@@ -130,7 +133,11 @@ describe("dashboard settings capabilities", () => {
     expect(
       await screen.findByRole("switch", { name: "System notifications" }),
     ).toBeVisible();
-    expect(screen.getByRole("switch", { name: "Start at login" })).toBeVisible();
+    const autostartSwitch = screen.getByRole("switch", { name: "Start at login" });
+    expect(autostartSwitch).toBeVisible();
+    await userEvent.click(autostartSwitch);
+    await waitFor(() => expect(autostartSwitch).toBeChecked());
+    expect(invokeMock).toHaveBeenCalledWith("set_autostart_enabled", { enabled: true });
     const sponsorSection = screen.getByTestId("settings-sponsor-section");
     expect(
       within(sponsorSection).getByRole("heading", { name: "Sponsor LokiMetis" }),

@@ -27,6 +27,7 @@ describe("authoritative host capability switch", () => {
 
     await screen.findByRole("alert");
     expect(toggle).not.toBeChecked();
+    expect(setEnabled).toHaveBeenCalledWith(true);
     expect(getEnabled).toHaveBeenCalledTimes(2);
     expect(getEnabled).toHaveBeenNthCalledWith(1);
     expect(getEnabled).toHaveBeenNthCalledWith(2);
@@ -54,9 +55,46 @@ describe("authoritative host capability switch", () => {
 
     await screen.findByRole("alert");
     expect(toggle).not.toBeChecked();
+    expect(setEnabled).toHaveBeenCalledWith(true);
     expect(getEnabled).toHaveBeenCalledTimes(2);
     expect(getEnabled).toHaveBeenNthCalledWith(1);
     expect(getEnabled).toHaveBeenNthCalledWith(2);
     expect(screen.getByText(/Check system login items/i)).toBeVisible();
+  });
+
+  /** 写入与权威重读都失败时必须进入未知态，并允许重试恢复同值状态。 */
+  test("autostart_switch_recovers_after_mutation_and_reread_fail", async () => {
+    const getEnabled = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockRejectedValueOnce(new Error("host reread failed"))
+      .mockResolvedValueOnce(false);
+    const setEnabled = vi.fn().mockRejectedValue(new Error("host rejected"));
+    render(
+      <TestProviders>
+        <HostCapabilitySwitch
+          getEnabled={getEnabled}
+          id="autostart"
+          queryKey={["test-autostart-double-failure"]}
+          setEnabled={setEnabled}
+        />
+      </TestProviders>,
+    );
+
+    const toggle = await screen.findByRole("switch", { name: "Start at login" });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    await userEvent.click(toggle);
+
+    expect(
+      await screen.findByText(/operating system login item cannot be read/i),
+    ).toBeVisible();
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute("data-authoritative-state", "unknown");
+
+    await userEvent.click(screen.getByRole("button", { name: "Reload actual state" }));
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAttribute("data-authoritative-state", "disabled");
+    expect(getEnabled).toHaveBeenCalledTimes(3);
   });
 });

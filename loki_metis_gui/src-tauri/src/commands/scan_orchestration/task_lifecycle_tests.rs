@@ -41,7 +41,7 @@ impl LocalUsageScanner for PanicScanner {
 async fn wait_for_terminal(scan: &ScanCoordinator) -> crate::dto::ScanStatusDto {
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
-            let status = scan.snapshot().await;
+            let status = scan.snapshot();
             if status.state != ScanStateDto::Running {
                 return status;
             }
@@ -62,7 +62,6 @@ async fn spawned_scan_panic_finishes_visible_state() {
     let scan = Arc::new(ScanCoordinator::default());
     let lease = scan
         .start(ScanKindDto::Quick, 1, cancellation.clone())
-        .await
         .expect("visible scan starts");
 
     spawn_scan_task(
@@ -105,7 +104,6 @@ async fn aborted_scan_finalizer_finishes_only_its_visible_lease() {
     let cancellation = ScanCancellation::new();
     let lease = scan
         .start(ScanKindDto::Quick, 1, cancellation.clone())
-        .await
         .expect("visible scan starts");
     cancellation.cancel();
 

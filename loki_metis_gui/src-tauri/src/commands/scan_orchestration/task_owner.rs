@@ -132,31 +132,13 @@ impl ScanTaskOwner {
         self.shutdown_with_timeout(SCAN_TASK_SHUTDOWN_TIMEOUT).await;
     }
 
-    /// 取得所有任务并广播关闭；多次调用只在第一次返回任务。
-    fn begin_shutdown(&self) -> Vec<OwnedScanTask> {
-        let tasks = {
-            let mut state = self.lock_state();
-            state.shutting_down = true;
-            std::mem::take(&mut state.tasks)
-        };
-        self.local_scan.shutdown();
-        for task in &tasks {
-            task.cancellation.cancel();
-            let _ = task.shutdown.send(true);
-        }
-        tasks
-    }
-
     /// 使用给定总时限完成关闭，供生产固定门限和快速回归测试复用。
     async fn shutdown_with_timeout(&self, timeout: Duration) {
         let (tasks, deadline) = self.begin_shutdown_with_deadline(timeout);
-        for mut task in tasks {
-            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if remaining.is_zero() {
-                task.handle.abort();
-                continue;
-            }
-            match tokio::time::timeout(remaining, &mut task.handle).await {
+        // 并发收敛：顺序等待会让第一个不响应取消的任务吃掉整个预算，
+        // 使后面的任务无机会走到安全点就被强制中止。
+        futures::future::join_all(tasks.into_iter().map(|mut task| async move {
+            match tokio::time::timeout_at(deadline, &mut task.handle).await {
                 Ok(Ok(())) => {}
                 Ok(Err(tauri::Error::JoinError(error))) if error.is_cancelled() => {}
                 Ok(Err(error)) => {
@@ -166,7 +148,8 @@ impl ScanTaskOwner {
                     task.handle.abort();
                 }
             }
-        }
+        }))
+        .await;
         self.wait_for_direct_scans(deadline).await;
     }
 
@@ -256,8 +239,7 @@ impl Drop for DirectScanGuard<'_> {
 impl Drop for ScanTaskOwner {
     /// 非正常销毁无法异步等待，仍会关闭 writer、广播取消并中止所有登记任务。
     fn drop(&mut self) {
-        let tasks = self.begin_shutdown();
-        for task in tasks {
+        for task in self.begin_shutdown_with_deadline(Duration::ZERO).0 {
             task.handle.abort();
         }
     }

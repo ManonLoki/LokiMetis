@@ -95,8 +95,8 @@ input {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: light-dark(rgba(255, 252, 247, 0.92), rgba(24, 25, 27, 0.94));
-  border-bottom: 1px solid light-dark(#eadfd0, #38332e);
+  background: var(--app-dashboard-toolbar-background);
+  border-bottom: 1px solid var(--app-dashboard-toolbar-border);
   backdrop-filter: blur(18px);
 }
 
@@ -218,7 +218,7 @@ input {
 .navigation-link {
   display: block;
   padding: 0.55rem 0.75rem;
-  color: light-dark(#655d54, #bdb7af);
+  color: var(--app-dashboard-nav-text);
   font-size: 0.88rem;
   font-weight: 700;
   text-decoration: none;
@@ -230,18 +230,18 @@ input {
 
 .navigation-link:hover,
 .navigation-link:focus-visible {
-  color: light-dark(#a52f25, #ff9b6f);
-  background: light-dark(#fff0e5, #34231e);
+  color: var(--app-dashboard-nav-hover-text);
+  background: var(--app-dashboard-nav-hover-background);
   outline: none;
 }
 
 .navigation-link.active {
-  color: light-dark(#94291f, #ffb18e);
-  background: light-dark(#fbe2d6, #3c241d);
+  color: var(--app-dashboard-nav-active-text);
+  background: var(--app-dashboard-nav-active-background);
 }
 
 .navigation-link:focus-visible {
-  box-shadow: 0 0 0 3px light-dark(rgba(196, 59, 45, 0.24), rgba(255, 155, 111, 0.35));
+  box-shadow: 0 0 0 3px var(--app-dashboard-nav-focus-ring);
 }
 
 .app-main {
@@ -267,9 +267,9 @@ input {
 .chart-panel,
 .breakdown-panel,
 .state-panel {
-  background: light-dark(rgba(255, 255, 255, 0.82), rgba(31, 32, 35, 0.9));
-  border-color: light-dark(rgba(103, 81, 60, 0.15), rgba(255, 255, 255, 0.1));
-  box-shadow: 0 18px 50px light-dark(rgba(91, 63, 36, 0.07), rgba(0, 0, 0, 0.12));
+  background: var(--app-data-panel-background);
+  border-color: var(--app-data-panel-border);
+  box-shadow: 0 18px 50px var(--app-data-panel-shadow);
   backdrop-filter: blur(12px);
 }
 
@@ -346,8 +346,8 @@ input {
 
 .mini-metric {
   padding: 0.9rem 1rem;
-  background: light-dark(#fcfaf7, #28292c);
-  border: 1px solid light-dark(rgba(103, 81, 60, 0.1), rgba(255, 255, 255, 0.08));
+  background: var(--app-mini-metric-background);
+  border: 1px solid var(--app-mini-metric-border);
   border-radius: 0.75rem;
 }
 
@@ -371,7 +371,7 @@ input {
 }
 
 .calls-footer {
-  border-top: 1px solid light-dark(rgba(103, 81, 60, 0.12), rgba(255, 255, 255, 0.08));
+  border-top: 1px solid var(--app-data-divider);
 }
 
 .state-panel {

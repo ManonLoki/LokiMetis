@@ -132,6 +132,15 @@ struct CoordinatorInner {
     state: Mutex<CoordinatorState>,
 }
 
+impl CoordinatorInner {
+    /// 取得登记表锁；测试 panic 污染锁后仍保留取消与关闭能力。
+    fn lock_state(&self) -> std::sync::MutexGuard<'_, CoordinatorState> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
 /// 必须在同一同步锁内读取和更新的扫描登记与不可逆关闭状态。
 #[derive(Debug, Default)]
 struct CoordinatorState {
@@ -192,11 +201,7 @@ impl ScanCoordinator {
     /// 在已取得 writer 名额后原子检查关闭门禁、安装取消令牌并构造 RAII 许可。
     fn activate(&self, slot: OwnedSemaphorePermit) -> Result<ScanPermit, LocalError> {
         let cancellation = CancellationToken::new();
-        let mut state = self
-            .inner
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut state = self.inner.lock_state();
         if state.shutting_down {
             return Err(LocalError::new(
                 LocalErrorKind::ScanBusy,
@@ -215,11 +220,7 @@ impl ScanCoordinator {
     /// 请求当前活动扫描取消；没有活动扫描时返回 false。
     #[cfg(test)]
     pub fn cancel_active(&self) -> bool {
-        let state = self
-            .inner
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let state = self.inner.lock_state();
         if let Some(cancellation) = state.current.as_ref() {
             cancellation.cancel();
             true
@@ -235,11 +236,7 @@ impl ScanCoordinator {
 
     /// 关闭 writer 入口并请求当前扫描取消；等待中的显式批次会立即失败。
     pub fn shutdown(&self) {
-        let mut state = self
-            .inner
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut state = self.inner.lock_state();
         state.shutting_down = true;
         self.inner.slot.close();
         if let Some(cancellation) = state.current.as_ref() {
@@ -259,11 +256,7 @@ impl Drop for ScanPermit {
     /// 先取消仍可能运行的阻塞岛，再释放 writer 并清除当前句柄。
     fn drop(&mut self) {
         self.cancellation.cancel();
-        let mut state = self
-            .inner
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut state = self.inner.lock_state();
         state.current = None;
     }
 }

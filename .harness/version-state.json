@@ -21,7 +21,9 @@
     "BUG-WINDOWS-WORKBUDDY-SKIN-INJECTION",
     "BUG-SCAN-TASK-LIFECYCLE-ISOLATION",
     "BUG-LEGACY-SKIN-SCRIPT-CONSENT",
-    "BUG-MACOS-CDP-PROCESS-OWNERSHIP"
+    "BUG-MACOS-CDP-PROCESS-OWNERSHIP",
+    "BUG-HOST-CAPABILITY-MUTATION-CONTEXT",
+    "BUG-PRODUCTION-CSS-LIGHT-DARK-LOSS"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -336,8 +338,18 @@
       "change_id": "BUG-MACOS-CDP-PROCESS-OWNERSHIP",
       "kind": "bug-fix",
       "required_version": "0.2.22"
+    },
+    {
+      "change_id": "BUG-HOST-CAPABILITY-MUTATION-CONTEXT",
+      "kind": "bug-fix",
+      "required_version": "0.2.23"
+    },
+    {
+      "change_id": "BUG-PRODUCTION-CSS-LIGHT-DARK-LOSS",
+      "kind": "bug-fix",
+      "required_version": "0.2.24"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.22"
+  "target_version": "0.2.24"
 }

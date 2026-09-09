@@ -85,33 +85,31 @@ impl SpawnedScanFinalizer {
     fn disarm(&mut self) {
         self.armed = false;
     }
+
+    /// 按原 scan_id 写入带客户端归属的失败终态；panic 兜底与 abort 兜底共用。
+    fn finish_failure(&self) {
+        self.scan.finish_failed(
+            &self.scan_id,
+            now_epoch_ms(),
+            &local_scan_client_failure_message(
+                self.client.display_name(),
+                &support::local_scan_task_error_message(),
+            ),
+        );
+    }
 }
 
 impl Drop for SpawnedScanFinalizer {
-    /// abort 无法继续 poll 原 future，另起极短任务按原 scan_id 写入取消/失败终态。
+    /// abort 无法继续 poll 原 future，直接按原 scan_id 写入取消或失败终态。
     fn drop(&mut self) {
         if !self.armed {
             return;
         }
-        let scan_id = self.scan_id.clone();
-        let client = self.client;
-        let cancellation = self.cancellation.clone();
-        let scan = Arc::clone(&self.scan);
-        tauri::async_runtime::spawn(async move {
-            if cancellation.is_cancelled() {
-                scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
-            } else {
-                scan.finish_failed(
-                    &scan_id,
-                    now_epoch_ms(),
-                    &local_scan_client_failure_message(
-                        client.display_name(),
-                        &support::local_scan_task_error_message(),
-                    ),
-                )
-                .await;
-            }
-        });
+        if self.cancellation.is_cancelled() {
+            self.scan.finish_cancelled(&self.scan_id, now_epoch_ms());
+        } else {
+            self.finish_failure();
+        }
     }
 }
 
@@ -133,33 +131,23 @@ pub(crate) fn spawn_scan_task(
     owner.spawn(cancellation, move |shutdown| async move {
         let _permit = permit;
         let mut finalizer = finalizer;
-        let outcome = AssertUnwindSafe(execute_scan_task(task))
+        let succeeded = match AssertUnwindSafe(execute_scan_task(task))
             .catch_unwind()
-            .await;
-        let outcome = match outcome {
-            Ok(outcome) => outcome,
+            .await
+        {
+            Ok(outcome) => outcome.is_ok(),
             Err(_) => {
                 tracing::error!(
                     client = finalizer.client.display_name(),
                     scan_id = %finalizer.scan_id,
                     "local scan task panicked"
                 );
-                finalizer
-                    .scan
-                    .finish_failed(
-                        &finalizer.scan_id,
-                        now_epoch_ms(),
-                        &local_scan_client_failure_message(
-                            finalizer.client.display_name(),
-                            &support::local_scan_task_error_message(),
-                        ),
-                    )
-                    .await;
-                Err(support::local_scan_task_error_message())
+                finalizer.finish_failure();
+                false
             }
         };
         finalizer.disarm();
-        if outcome.is_ok()
+        if succeeded
             && !shutdown.is_cancelled()
             && let Some(app_handle) = app_handle
         {
@@ -181,7 +169,7 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
         roots_state,
     } = task;
     if cancellation.is_cancelled() {
-        scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
+        scan.finish_cancelled(&scan_id, now_epoch_ms());
         return Ok(());
     }
     let scan_for_progress = Arc::clone(&scan);
@@ -242,15 +230,15 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
             *coverage_state.write().await = output.coverage.clone();
             *roots_state.write().await = output.roots.into_iter().map(to_source_root_dto).collect();
             if output.coverage.state == CoverageState::Cancelled {
-                scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
+                scan.finish_cancelled(&scan_id, now_epoch_ms());
             } else {
-                scan.finish_completed(&scan_id, now_epoch_ms()).await;
+                scan.finish_completed(&scan_id, now_epoch_ms());
             }
             Ok(())
         }
         Err(error) => {
             if cancellation_for_outcome.is_cancelled() {
-                scan.finish_cancelled(&scan_id, now_epoch_ms()).await;
+                scan.finish_cancelled(&scan_id, now_epoch_ms());
                 return Ok(());
             }
             tracing::warn!(
@@ -262,8 +250,7 @@ pub(crate) async fn execute_scan_task(task: ScanTask) -> Result<(), String> {
                 &scan_id,
                 now_epoch_ms(),
                 &local_scan_client_failure_message(client.display_name(), &error),
-            )
-            .await;
+            );
             Err(error)
         }
     }

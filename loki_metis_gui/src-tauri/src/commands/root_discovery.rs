@@ -183,7 +183,7 @@ pub(crate) async fn get_local_scan_status(
     state: State<'_, AppRuntimeState>,
     client: AgentClientKindDto,
 ) -> Result<ScanStatusDto, String> {
-    Ok(state.scans.get(client.into()).snapshot().await)
+    Ok(state.scans.get(client.into()).snapshot())
 }
 
 /// 把 core 的根激活状态映射为 DTO 激活状态。

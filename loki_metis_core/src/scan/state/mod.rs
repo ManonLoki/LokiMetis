@@ -32,7 +32,7 @@ struct ScanInner {
 /// 管理单客户端唯一扫描 writer 与取消状态。
 #[derive(Debug)]
 pub struct ScanCoordinator {
-    /// 使用异步锁序列化状态更新，避免在持有 worker 时直接做 I/O。
+    /// 用同步锁序列化状态更新；临界区只做纯内存写入，不含 I/O 或等待。
     inner: Mutex<ScanInner>,
 }
 
@@ -51,7 +51,7 @@ impl Default for ScanCoordinator {
 
 impl ScanCoordinator {
     /// 启动唯一扫描 writer；返回可用于取消的会话。
-    pub async fn start(
+    pub fn start(
         &self,
         kind: ScanKind,
         started_at_epoch_ms: i64,
@@ -128,7 +128,7 @@ impl ScanCoordinator {
     }
 
     /// 请求取消运行中的任务。
-    pub async fn request_cancel(&self) -> Result<ScanStatus, ScanStateError> {
+    pub fn request_cancel(&self) -> Result<ScanStatus, ScanStateError> {
         let mut inner = self.inner.lock().unwrap();
         if inner.status.state != ScanLifecycle::Running {
             return Err(ScanStateError::NoActiveScan);
@@ -147,50 +147,47 @@ impl ScanCoordinator {
     }
 
     /// 标记扫描已被用户取消。
-    pub async fn finish_cancelled(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
+    pub fn finish_cancelled(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
         self.finish(
             scan_id,
             ScanLifecycle::Cancelled,
             finished_at_epoch_ms,
             scan_cancelled_status_message(),
         )
-        .await
     }
 
     /// 标记扫描成功完成。
-    pub async fn finish_completed(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
+    pub fn finish_completed(&self, scan_id: &str, finished_at_epoch_ms: i64) -> bool {
         self.finish(
             scan_id,
             ScanLifecycle::Completed,
             finished_at_epoch_ms,
             scan_completed_status_message(),
         )
-        .await
     }
 
     /// 标记扫描失败。
-    pub async fn finish_failed(
-        &self,
-        scan_id: &str,
-        finished_at_epoch_ms: i64,
-        message: &str,
-    ) -> bool {
+    pub fn finish_failed(&self, scan_id: &str, finished_at_epoch_ms: i64, message: &str) -> bool {
         self.finish(
             scan_id,
             ScanLifecycle::Failed,
             finished_at_epoch_ms,
             message,
         )
-        .await
+    }
+
+    /// 仅判定是否处于运行态；避免调用方为读一个字段克隆整份状态。
+    pub fn is_running(&self) -> bool {
+        self.inner.lock().unwrap().status.state == ScanLifecycle::Running
     }
 
     /// 返回可轮询的状态快照。
-    pub async fn snapshot(&self) -> ScanStatus {
+    pub fn snapshot(&self) -> ScanStatus {
         self.inner.lock().unwrap().status.clone()
     }
 
     /// 原子结束扫描并记录终态时间与安全消息。
-    async fn finish(
+    fn finish(
         &self,
         scan_id: &str,
         state: ScanLifecycle,
@@ -244,21 +241,17 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKind::Quick, 1, test_cancellation())
-            .await
             .expect("first run starts");
 
         assert_eq!(
-            coordinator
-                .start(ScanKind::FullDevice, 2, test_cancellation())
-                .await,
+            coordinator.start(ScanKind::FullDevice, 2, test_cancellation()),
             Err(ScanStateError::AlreadyRunning)
         );
 
-        assert!(coordinator.finish_completed(&lease.scan_id, 3).await);
+        assert!(coordinator.finish_completed(&lease.scan_id, 3));
         assert!(
             coordinator
                 .start(ScanKind::FullDevice, 4, test_cancellation())
-                .await
                 .is_ok()
         );
     }
@@ -270,12 +263,10 @@ mod tests {
         let cancellation = test_cancellation();
         coordinator
             .start(ScanKind::Quick, 1, cancellation.clone())
-            .await
             .expect("run starts");
 
         let status = coordinator
             .request_cancel()
-            .await
             .expect("cancel request succeeds");
 
         assert!(status.is_cancel_requested);
@@ -291,7 +282,6 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKind::FullDevice, 1, test_cancellation())
-            .await
             .expect("run starts");
 
         assert!(coordinator.update_progress(
@@ -321,7 +311,7 @@ mod tests {
             "过期阶段".to_owned(),
         ));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.progress_basis_points, 6_250);
         assert_eq!(status.current_scope_label, "已完成 4 / 7 个数据根");
         assert_eq!(status.scope_progress.roots_completed, 4);
@@ -333,7 +323,6 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKind::Quick, 1, test_cancellation())
-            .await
             .expect("run starts");
 
         assert!(coordinator.update_progress(
@@ -355,7 +344,7 @@ mod tests {
             "同基点后续事件".to_owned(),
         ));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.files_visited, 9);
         assert_eq!(status.calls_indexed, 6);
     }
@@ -366,23 +355,18 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let lease = coordinator
             .start(ScanKind::Quick, 1, test_cancellation())
-            .await
             .expect("run starts");
 
-        assert!(
-            coordinator
-                .finish_failed(
-                    &lease.scan_id,
-                    2,
-                    &crate::local_scan_client_failure_message(
-                        "Codex",
-                        crate::local_scan_task_error_message(),
-                    ),
-                )
-                .await
-        );
+        assert!(coordinator.finish_failed(
+            &lease.scan_id,
+            2,
+            &crate::local_scan_client_failure_message(
+                "Codex",
+                crate::local_scan_task_error_message(),
+            ),
+        ));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.state, ScanLifecycle::Failed);
         assert!(status.message.contains("Codex 扫描失败"));
     }
@@ -393,12 +377,10 @@ mod tests {
         let coordinator = ScanCoordinator::default();
         let first = coordinator
             .start(ScanKind::Quick, 1, test_cancellation())
-            .await
             .expect("first run starts");
-        assert!(coordinator.finish_completed(&first.scan_id, 2).await);
+        assert!(coordinator.finish_completed(&first.scan_id, 2));
         let second = coordinator
             .start(ScanKind::FullDevice, 1, test_cancellation())
-            .await
             .expect("second run starts even with the same observed timestamp");
         assert_ne!(first.scan_id, second.scan_id);
 
@@ -411,9 +393,9 @@ mod tests {
             None,
             "旧会话迟到进度".to_owned(),
         ));
-        assert!(!coordinator.finish_cancelled(&first.scan_id, 3).await);
+        assert!(!coordinator.finish_cancelled(&first.scan_id, 3));
 
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.scan_id.as_deref(), Some(second.scan_id.as_str()));
         assert_eq!(status.state, ScanLifecycle::Running);
         assert_eq!(status.progress_basis_points, 0);

@@ -10,11 +10,12 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node ./tests/verify-built-css.mjs",
     "test": "vitest run",
+    "verify:built-css": "node ./tests/verify-built-css.mjs",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0 && node --require ./tests/register-node-path.cjs ../.agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs --root .",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"tests/**/*.{ts,tsx}\" \"*.{json,html,ts,mjs}\" \"!src/routeTree.gen.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"tests/**/*.{ts,tsx,mjs}\" \"*.{json,html,ts,mjs}\" \"!src/routeTree.gen.ts\"",
     "tauri": "tauri"
   },
   "dependencies": {

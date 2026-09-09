@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use loki_metis_core::{
-    ScanStartOrigin, local_scan_in_progress_error_message,
+    ScanStartOrigin, local_scan_in_progress_error_message, local_scan_writer_busy_message,
     source_root_operations_blocked_by_scan_message,
 };
 use tauri::{AppHandle, State};
@@ -11,7 +11,7 @@ use tauri::{AppHandle, State};
 use super::access::ensure_scan_start_access_by_policy;
 use super::ensure_business_access;
 use super::scan_orchestration::{ScanTask, ScanTaskOperation, spawn_scan_task};
-use crate::dto::{AgentClientKindDto, ScanKindDto, ScanStateDto, ScanStatusDto};
+use crate::dto::{AgentClientKindDto, ScanKindDto, ScanStatusDto};
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
 use crate::source_commands::validated_source_root_reindex_request;
 
@@ -25,12 +25,12 @@ async fn reindex_source_root_for_state(
     let _scan_reservation = state
         .scan_tasks
         .register_direct_scan()
-        .map_err(str::to_owned)?;
+        .map_err(|_| local_scan_writer_busy_message().to_owned())?;
     ensure_business_access(state).await?;
     ensure_scan_start_access_by_policy(state, ScanStartOrigin::ExplicitUser, ScanKindDto::Quick)
         .await?;
     let scan_state = Arc::clone(state.scans.get(client.into()));
-    if scan_state.snapshot().await.state == ScanStateDto::Running {
+    if scan_state.is_running() {
         return Err(local_scan_in_progress_error_message().to_owned());
     }
     let permit = state
@@ -42,7 +42,6 @@ async fn reindex_source_root_for_state(
     let request = validated_source_root_reindex_request(state, client, root_id).await?;
     let lease = scan_state
         .start(ScanKindDto::Quick, now_epoch_ms(), cancellation.clone())
-        .await
         .map_err(|_| local_scan_in_progress_error_message().to_owned())?;
     let scan_id = lease.scan_id;
     tracing::info!(
@@ -66,10 +65,10 @@ async fn reindex_source_root_for_state(
         permit,
         app_handle,
     ) {
-        scan_state.finish_cancelled(&scan_id, now_epoch_ms()).await;
+        scan_state.finish_cancelled(&scan_id, now_epoch_ms());
         return Err(error.to_owned());
     }
-    Ok(scan_state.snapshot().await)
+    Ok(scan_state.snapshot())
 }
 
 /// IPC 入口：前端只提交客户端与稳定根 ID。
@@ -131,7 +130,7 @@ mod tests {
         .await
         .expect_err("shutdown rejects command at its owner reservation");
 
-        assert_eq!(error, "scan-task-owner-shutting-down");
+        assert_eq!(error, local_scan_writer_busy_message());
         assert!(
             !loki_metis_core::source_client_usage_index_path(
                 temp.path(),

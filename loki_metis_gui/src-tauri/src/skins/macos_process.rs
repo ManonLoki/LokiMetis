@@ -1,8 +1,8 @@
 //! 在 macOS 上把回环 CDP 监听端口绑定到已验证宿主进程树。
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
-use super::AppError;
+use super::{AppError, workbuddy_owner_inspection_failed};
 
 const LSOF_PATH: &str = "/usr/sbin/lsof";
 const PS_PATH: &str = "/bin/ps";
@@ -19,12 +19,12 @@ pub(crate) async fn workbuddy_endpoint_owned_by_root(
         .args(["-sTCP:LISTEN", "-Fpn"])
         .output()
         .await
-        .map_err(|_| owner_inspection_failed())?;
+        .map_err(|_| workbuddy_owner_inspection_failed())?;
     if !listener_output.status.success() {
         return if listener_output.stdout.is_empty() {
             Ok(false)
         } else {
-            Err(owner_inspection_failed())
+            Err(workbuddy_owner_inspection_failed())
         };
     }
     let Some(owner_pid) =
@@ -37,13 +37,13 @@ pub(crate) async fn workbuddy_endpoint_owned_by_root(
         .args(["-axo", "pid=,ppid="])
         .output()
         .await
-        .map_err(|_| owner_inspection_failed())?;
+        .map_err(|_| workbuddy_owner_inspection_failed())?;
     if !process_output.status.success() {
-        return Err(owner_inspection_failed());
+        return Err(workbuddy_owner_inspection_failed());
     }
     let Some(parents) = parse_process_parents(&String::from_utf8_lossy(&process_output.stdout))
     else {
-        return Err(owner_inspection_failed());
+        return Err(workbuddy_owner_inspection_failed());
     };
     Ok(process_descends_from(owner_pid, root_pid, &parents))
 }
@@ -54,7 +54,6 @@ fn unique_loopback_listener_owner(output: &str, port: u16) -> Option<u32> {
     let ipv6 = format!("[::1]:{port}");
     let mut current_pid = None;
     let mut owners = BTreeSet::new();
-    let mut saw_listener = false;
     for line in output.lines().filter(|line| !line.is_empty()) {
         match line.as_bytes()[0] {
             b'p' => current_pid = line[1..].parse::<u32>().ok(),
@@ -64,12 +63,15 @@ fn unique_loopback_listener_owner(output: &str, port: u16) -> Option<u32> {
                     return None;
                 }
                 owners.insert(current_pid?);
-                saw_listener = true;
             }
             _ => {}
         }
     }
-    (saw_listener && owners.len() == 1).then(|| owners.into_iter().next())?
+    if owners.len() == 1 {
+        owners.into_iter().next()
+    } else {
+        None
+    }
 }
 
 /// 解析 `ps` 的 PID/PPID 快照；重复 PID 或畸形行使整份快照失效。
@@ -92,12 +94,12 @@ fn process_descends_from(owner_pid: u32, root_pid: u32, parents: &HashMap<u32, u
         return false;
     }
     let mut current = owner_pid;
-    let mut visited = HashSet::new();
-    loop {
+    // 链长超过快照中的 PID 总数即说明存在环，无需再额外分配 visited 集合。
+    for _ in 0..parents.len() {
         if current == root_pid {
             return true;
         }
-        if current == 0 || !visited.insert(current) {
+        if current == 0 {
             return false;
         }
         let Some(parent) = parents.get(&current) else {
@@ -105,14 +107,7 @@ fn process_descends_from(owner_pid: u32, root_pid: u32, parents: &HashMap<u32, u
         };
         current = *parent;
     }
-}
-
-/// 返回不包含端口、PID、路径或系统输出的稳定端点归属检查错误。
-fn owner_inspection_failed() -> AppError {
-    AppError::new(
-        "skin.workbuddy_cdp_owner_inspection_failed",
-        "无法验证 WorkBuddy 调试端口所属进程，未应用皮肤。",
-    )
+    false
 }
 
 #[cfg(test)]

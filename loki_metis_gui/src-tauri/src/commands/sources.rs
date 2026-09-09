@@ -36,7 +36,7 @@ pub(super) async fn get_sources_for_state(
     Ok(SourcesDto {
         roots,
         coverage: state.coverages.get(client.into()).read().await.clone(),
-        scan: state.scans.get(client.into()).snapshot().await,
+        scan: state.scans.get(client.into()).snapshot(),
     })
 }
 

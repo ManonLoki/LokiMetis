@@ -175,6 +175,14 @@ fn third_party_code_consent_required_error() -> AppError {
     )
 }
 
+/// 返回不暴露端口、PID 或路径的稳定 WorkBuddy 端点归属检查错误。
+fn workbuddy_owner_inspection_failed() -> AppError {
+    AppError::new(
+        "skin.workbuddy_cdp_owner_inspection_failed",
+        "无法验证 WorkBuddy 调试端口所属进程，未应用皮肤。",
+    )
+}
+
 /// 执行换皮宿主内部的 `validate_delete_batch` 步骤。
 fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
     loki_metis_core::validate_skin_delete_batch(skins).map_err(|error| match error {
@@ -199,11 +207,9 @@ fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
         SkinRuleError::InvalidCreatorText
         | SkinRuleError::InvalidThemeMetadata
         | SkinRuleError::InvalidColorModes
-        | SkinRuleError::InvalidThemeImageName => {
+        | SkinRuleError::InvalidThemeImageName
+        | SkinRuleError::ThirdPartyCodeConsentRequired => {
             AppError::new("skin.delete_selection_invalid", "皮肤删除请求无效。")
-        }
-        SkinRuleError::ThirdPartyCodeConsentRequired => {
-            third_party_code_consent_required_error()
         }
     })
 }

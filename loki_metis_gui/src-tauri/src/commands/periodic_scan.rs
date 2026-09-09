@@ -9,7 +9,7 @@ use loki_metis_core::{
 };
 use tauri::{AppHandle, Manager};
 
-use crate::dto::{AgentClientKindDto, ScanStateDto};
+use crate::dto::AgentClientKindDto;
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
 use crate::tray::refresh_tray_daily_token_title;
 
@@ -80,19 +80,20 @@ async fn wait_for_scan_deadline(
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
         let until_day_change = duration_until_next_local_day(now_epoch_ms()).unwrap_or(remaining);
         if until_day_change >= remaining {
-            return tokio::select! {
-                _ = tokio::time::sleep(remaining) => true,
-                _ = shutdown.cancelled() => false,
-            };
+            return sleep_unless_shutdown(remaining, shutdown).await;
         }
-        let elapsed = tokio::select! {
-            _ = tokio::time::sleep(until_day_change) => true,
-            _ = shutdown.cancelled() => false,
-        };
-        if !elapsed {
+        if !sleep_unless_shutdown(until_day_change, shutdown).await {
             return false;
         }
         refresh_tray_daily_token_title(app_handle).await;
+    }
+}
+
+/// 睡满给定时长返回 true；关闭信号先到则立即返回 false。
+async fn sleep_unless_shutdown(duration: Duration, shutdown: &mut ScanTaskShutdown) -> bool {
+    tokio::select! {
+        _ = tokio::time::sleep(duration) => true,
+        _ = shutdown.cancelled() => false,
     }
 }
 
@@ -113,10 +114,7 @@ pub(crate) async fn run_shared_scan_interval_tick(state: &AppRuntimeState) {
     let mut running: BTreeMap<SourceClientKind, bool> = BTreeMap::new();
     for client in AgentClientKindDto::ALL {
         let kind = SourceClientKind::from(client);
-        running.insert(
-            kind,
-            state.scans.get(kind).snapshot().await.state == ScanStateDto::Running,
-        );
+        running.insert(kind, state.scans.get(kind).is_running());
     }
     let client_running = |client: SourceClientKind| {
         running
@@ -137,7 +135,7 @@ pub(crate) async fn run_shared_scan_interval_tick(state: &AppRuntimeState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dto::ScanKindDto;
+    use crate::dto::{ScanKindDto, ScanStateDto};
     use crate::scan_state::ScanCoordinator;
     use std::sync::Arc;
     use tempfile::tempdir;
@@ -160,7 +158,7 @@ mod tests {
 
     /// 读取指定客户端当前可见扫描状态。
     async fn scan_state(state: &AppRuntimeState, client: AgentClientKindDto) -> ScanStateDto {
-        state.scans.get(client.into()).snapshot().await.state
+        state.scans.get(client.into()).snapshot().state
     }
 
     /// 验证未完成向导时任何客户端都不会认领周期扫描，writer 也在返回前释放。
@@ -200,13 +198,12 @@ mod tests {
             state.scans.get(AgentClientKindDto::ClaudeCode.into());
         coordinator
             .start(ScanKindDto::Quick, 1, ScanCancellation::new())
-            .await
             .expect("fixture starts a running scan");
 
         let executed = run_periodic_quick_scans(&state, &[AgentClientKindDto::ClaudeCode]).await;
 
         assert_eq!(executed, 0);
-        let status = coordinator.snapshot().await;
+        let status = coordinator.snapshot();
         assert_eq!(status.state, ScanStateDto::Running);
         assert_eq!(status.scan_id.as_deref(), Some("scan-1"));
     }
@@ -225,8 +222,7 @@ mod tests {
         let status = state
             .scans
             .get(AgentClientKindDto::ClaudeCode.into())
-            .snapshot()
-            .await;
+            .snapshot();
         assert!(!matches!(
             status.state,
             ScanStateDto::Idle | ScanStateDto::Running
@@ -252,7 +248,7 @@ mod tests {
         run_shared_scan_interval_tick(&state).await;
 
         for client in AgentClientKindDto::ALL {
-            let status = state.scans.get(client.into()).snapshot().await;
+            let status = state.scans.get(client.into()).snapshot();
             assert!(
                 !matches!(status.state, ScanStateDto::Idle | ScanStateDto::Running),
                 "{} must finish within the same tick",

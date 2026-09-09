@@ -355,23 +355,18 @@ pub fn run() {
         if matches!(
             event,
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-        ) && let Some(state) = app_handle.try_state::<runtime::AppRuntimeState>()
-        {
-            tauri::async_runtime::block_on(state.scan_tasks.shutdown());
-        }
-        if matches!(
-            event,
-            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-        ) && let Some(worker) = app_handle.try_state::<NotificationWorker>()
-        {
-            worker.shutdown();
-        }
-        if matches!(
-            event,
-            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-        ) && let Some(worker) = app_handle.try_state::<HookConfigWriter>()
-        {
-            worker.shutdown();
+        ) {
+            // 通知 worker 只需发出取消信号；扫描任务随后在固定时限内完成收敛。
+            // Hook 配置 writer 的 shutdown 会同步等待线程退出，因此必须放在扫描时限之后。
+            if let Some(worker) = app_handle.try_state::<NotificationWorker>() {
+                worker.shutdown();
+            }
+            if let Some(state) = app_handle.try_state::<runtime::AppRuntimeState>() {
+                tauri::async_runtime::block_on(state.scan_tasks.shutdown());
+            }
+            if let Some(worker) = app_handle.try_state::<HookConfigWriter>() {
+                worker.shutdown();
+            }
         }
     });
 }
@@ -579,6 +574,27 @@ mod tests {
                 && hook_repair < show
                 && show < tray
         );
+    }
+
+    /// 退出时必须先启动有界扫描收敛，再同步等待可能阻塞的 Hook 配置 writer。
+    #[test]
+    fn exit_starts_bounded_scan_shutdown_before_joining_hook_writer() {
+        let source = include_str!("lib.rs");
+        let exit_handler = source
+            .find("app.run(|app_handle, event| {")
+            .expect("application exit handler");
+        let handler = &source[exit_handler..];
+        let notification = handler
+            .find("try_state::<NotificationWorker>()")
+            .expect("notification shutdown");
+        let scan = handler
+            .find("state.scan_tasks.shutdown()")
+            .expect("bounded scan shutdown");
+        let hook_writer = handler
+            .find("try_state::<HookConfigWriter>()")
+            .expect("hook writer shutdown");
+
+        assert!(notification < scan && scan < hook_writer);
     }
 
     /// 静态配置只预建主窗口；桌宠和设置窗分别由 Rust 在需要时动态创建。

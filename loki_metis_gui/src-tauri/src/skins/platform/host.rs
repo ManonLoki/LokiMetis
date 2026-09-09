@@ -57,12 +57,7 @@ async fn platform_workbuddy_endpoint_owned_by_root(
             windows_codex::workbuddy_endpoint_owned_by_root(port, root_pid)
         })
         .await
-        .map_err(|_| {
-            AppError::new(
-                "skin.workbuddy_cdp_owner_inspection_failed",
-                "无法验证 WorkBuddy 调试端口所属进程，未应用皮肤。",
-            )
-        })?;
+        .map_err(|_| workbuddy_owner_inspection_failed())?;
     }
     #[cfg(target_os = "macos")]
     {

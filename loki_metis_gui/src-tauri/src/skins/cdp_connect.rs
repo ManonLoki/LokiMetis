@@ -478,20 +478,10 @@ fn trusted_workbuddy_root_pid(
     processes: &[PlatformCodexProcess],
     expected_workbuddy_root_pid: Option<u32>,
 ) -> Option<u32> {
-    match expected_workbuddy_root_pid {
-        Some(expected) => exactly_one(
-            processes
-                .iter()
-                .filter(|process| process.pid == expected),
-        )
-        .map(|process| process.pid),
-        None => {
-            let [root] = processes else {
-                return None;
-            };
-            Some(root.pid)
-        }
-    }
+    exactly_one(processes.iter().filter(|process| {
+        expected_workbuddy_root_pid.is_none_or(|expected| process.pid == expected)
+    }))
+    .map(|process| process.pid)
 }
 
 /// 执行换皮宿主内部的 `connect_browser` 步骤。
