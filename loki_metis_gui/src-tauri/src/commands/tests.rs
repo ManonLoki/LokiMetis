@@ -1,3 +1,4 @@
+use super::migrate_local_indexes;
 use super::usage::{get_usage_charts_for_state, get_usage_overview_for_state};
 use crate::dto::{
     TimeStandardDto, UsageChartDimensionDto, UsageChartGranularityDto, UsageClientKindDto,
@@ -21,6 +22,9 @@ const EXPECTED_OVERVIEW_WINDOWS: [UsageWindow; 6] = [
 async fn overview_returns_six_calendar_windows_without_wizard() {
     let temp = tempdir().expect("isolated app-data is available");
     let state = AppRuntimeState::new(temp.path().to_path_buf());
+    migrate_local_indexes(&state)
+        .await
+        .expect("startup migration initializes read-only query fixtures");
     state
         .set_enabled_agents(&[crate::dto::UsageClientKindDto::Codex])
         .await
@@ -40,6 +44,9 @@ async fn overview_returns_six_calendar_windows_without_wizard() {
 async fn chart_command_keeps_fixed_bucket_contract_and_dimension_boundary() {
     let temp = tempdir().expect("isolated app-data is available");
     let state = AppRuntimeState::new(temp.path().to_path_buf());
+    migrate_local_indexes(&state)
+        .await
+        .expect("startup migration initializes read-only query fixtures");
 
     let today = get_usage_charts_for_state(
         &state,
@@ -83,6 +90,9 @@ async fn chart_command_keeps_fixed_bucket_contract_and_dimension_boundary() {
 async fn combined_chart_requires_one_configured_data_source() {
     let temp = tempdir().expect("isolated app-data is available");
     let state = AppRuntimeState::new(temp.path().to_path_buf());
+    migrate_local_indexes(&state)
+        .await
+        .expect("startup migration initializes read-only query fixtures");
     state
         .set_enabled_agents(&[UsageClientKindDto::Codex])
         .await

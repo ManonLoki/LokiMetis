@@ -2,27 +2,25 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use loki_metis_core::{
-    DiscoveryMethod, ManualSourceAddDecision, ManualSourceInspectOutcome, RootCandidate,
-    RootCandidateEvidence, RootDiscoveryCoordinator, RootDiscoveryLifecycle, RootDiscoveryPlatform,
-    RootDiscoveryProgress, RootDiscoveryScope, RootDiscoveryStrategy, SourceClientKind,
-    SourceRootCandidate, decide_manual_source_add, path_key, source_client_app_data_dir,
-    source_root_add, source_root_alias_from_path,
+    ManualSourceAddDecision, RootCandidate, RootCandidateEvidence, RootDiscoveryCoordinator,
+    RootDiscoveryLifecycle, RootDiscoveryPlatform, RootDiscoveryProgress, RootDiscoveryScope,
+    RootDiscoveryStrategy, SourceClientKind, SourceRootCandidate, decide_manual_source_add,
+    path_key, source_client_app_data_dir, source_root_add, source_root_alias_from_path,
     source_root_selected_directory_unreadable_message, source_root_store_error_message, stable_id,
 };
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 
 use super::support::{
-    SourceRootCatalogAdapter, build_source_root_mutation_response, ensure_local_scan_not_running,
-    refresh_source_roots_snapshot, to_source_client_kind,
+    SourceRootCatalogAdapter, build_source_root_mutation_response, refresh_source_roots_snapshot,
+    to_source_client_kind,
 };
 use crate::backend::local_index::{
-    CancellationToken, ClaudeDiscoveredRoot, ClaudeRootInspection, ClaudeSignatureBudget,
-    DiscoveryProgress, FullDiscoveryOptions, RootInspection, SignatureProbeContext,
+    CancellationToken, ClaudeDiscoveredRoot, DiscoveryProgress, FullDiscoveryOptions,
     discover_claude_full_device_with_progress, discover_full_device_with_progress,
-    inspect_claude_root, inspect_root, validate_local_plain_directory,
 };
 use crate::commands::{
     ROOT_DISCOVERY_CANDIDATE_EVENT, candidate_to_dto, root_discovery_status_dto,
@@ -30,10 +28,34 @@ use crate::commands::{
 use crate::dto::{
     AgentClientKindDto, ManualAddOutcomeDto, ManualAddSourceRootDto, UiMessageCodeDto,
 };
-use crate::runtime::AppRuntimeState;
+use crate::runtime::{AppRuntimeState, BackgroundTaskShutdown};
+use crate::source_commands::acquire_source_root_write_permit;
+use crate::source_commands::manual_inspection::{
+    MANUAL_INSPECTION_TIMEOUT, ManualInspectionCompletion, inspect_selected_path_owned,
+};
 
-/// 确保同一时刻只有一次手动添加流程在运行，避免并发目录选择互相干扰。
-static MANUAL_ADD_GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+/// 只保存手动添加流程的预约状态，不用锁跨越原生目录选择或用户等待。
+static MANUAL_ADD_BUSY: AtomicBool = AtomicBool::new(false);
+
+/// 手动添加流程的短临界区预约；所有返回、错误和 panic 展开路径都会自动释放。
+struct ManualAddReservation;
+
+impl ManualAddReservation {
+    /// 原子预约唯一手动添加流程，已有流程时立即失败而不等待。
+    fn acquire() -> Result<Self, &'static str> {
+        MANUAL_ADD_BUSY
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map(|_| Self)
+            .map_err(|_| "manual add is already in progress")
+    }
+}
+
+impl Drop for ManualAddReservation {
+    /// 释放预约，使目录选择取消和所有错误路径都不会永久占用入口。
+    fn drop(&mut self) {
+        MANUAL_ADD_BUSY.store(false, Ordering::Release);
+    }
+}
 
 /// 打开原生目录选择器，核对所选路径；合格则幂等登记，否则启动子树深搜。
 ///
@@ -44,10 +66,7 @@ pub(crate) async fn manual_add_source_root(
     state: State<'_, AppRuntimeState>,
     client: AgentClientKindDto,
 ) -> Result<ManualAddSourceRootDto, String> {
-    let _gate = MANUAL_ADD_GATE
-        .try_lock()
-        .map_err(|_| "manual add is already in progress".to_owned())?;
-    ensure_local_scan_not_running(&state, client)?;
+    let reservation = Arc::new(ManualAddReservation::acquire().map_err(str::to_owned)?);
     if state.root_discovery.snapshot().lifecycle == RootDiscoveryLifecycle::Running {
         return Err("root discovery is already running".to_owned());
     }
@@ -60,36 +79,84 @@ pub(crate) async fn manual_add_source_root(
         .await
         .map_err(|_| source_root_selected_directory_unreadable_message().to_owned())?
     else {
-        return Ok(ManualAddSourceRootDto {
-            outcome: ManualAddOutcomeDto::Cancelled,
-            changed: false,
-            message_code: UiMessageCodeDto::SourceAddCancelled,
-            discovery: None,
-        });
+        return Ok(cancelled_manual_add_response());
     };
     let selected_path = selection
         .into_path()
         .map_err(|_| source_root_selected_directory_unreadable_message().to_owned())?;
 
     let source_client = to_source_client_kind(client);
-    let checked_path = selected_path.clone();
-    let inspect_outcome = tauri::async_runtime::spawn_blocking(move || {
-        validate_local_plain_directory(&checked_path)
-            .map(|()| inspect_selected_path(source_client, &checked_path))
-    })
+    let coordinator = Arc::clone(&state.root_discovery);
+    if !coordinator.start(
+        RootDiscoveryStrategy::MetadataTraversal,
+        manual_discovery_platform(),
+        RootDiscoveryScope::ManualSubtree,
+        1,
+    ) {
+        return Err("root discovery is already running".to_owned());
+    }
+    let inspect_outcome = match inspect_selected_path_owned(
+        &state.background_tasks,
+        Arc::clone(&coordinator),
+        source_client,
+        selected_path.clone(),
+        Arc::clone(&reservation),
+        MANUAL_INSPECTION_TIMEOUT,
+    )
     .await
-    .map_err(|_| source_root_selected_directory_unreadable_message().to_owned())?
-    .map_err(|_| source_root_selected_directory_unreadable_message().to_owned())?;
+    {
+        ManualInspectionCompletion::Finished(Ok(outcome)) => outcome,
+        ManualInspectionCompletion::Finished(Err(_)) => {
+            if coordinator.is_cancel_requested() {
+                finish_cancelled_manual_inspection(&coordinator);
+                return Ok(cancelled_manual_add_response());
+            }
+            coordinator.fail("manual_source_inspection_unreadable");
+            return Err(source_root_selected_directory_unreadable_message().to_owned());
+        }
+        ManualInspectionCompletion::Cancelled => {
+            finish_cancelled_manual_inspection(&coordinator);
+            return Ok(cancelled_manual_add_response());
+        }
+        ManualInspectionCompletion::DeadlineExceeded => {
+            tracing::warn!("manual source signature inspection exceeded its deadline");
+            finish_cancelled_manual_inspection(&coordinator);
+            return Ok(cancelled_manual_add_response());
+        }
+        ManualInspectionCompletion::WorkerUnavailable => {
+            if coordinator.is_cancel_requested() {
+                finish_cancelled_manual_inspection(&coordinator);
+                return Ok(cancelled_manual_add_response());
+            }
+            coordinator.fail("manual_source_inspection_worker_unavailable");
+            return Err(source_root_selected_directory_unreadable_message().to_owned());
+        }
+    };
+    if coordinator.is_cancel_requested() {
+        finish_cancelled_manual_inspection(&coordinator);
+        return Ok(cancelled_manual_add_response());
+    }
 
     match decide_manual_source_add(inspect_outcome.decision_input) {
-        ManualSourceAddDecision::AbortCancelled => Ok(ManualAddSourceRootDto {
-            outcome: ManualAddOutcomeDto::Cancelled,
-            changed: false,
-            message_code: UiMessageCodeDto::SourceAddCancelled,
-            discovery: None,
-        }),
+        ManualSourceAddDecision::AbortCancelled => {
+            finish_cancelled_manual_inspection(&coordinator);
+            Ok(cancelled_manual_add_response())
+        }
         ManualSourceAddDecision::Register => {
-            register_verified_root(&state, client, source_client, inspect_outcome.found_path).await
+            let response = register_verified_root(
+                &state,
+                client,
+                source_client,
+                inspect_outcome.found_path,
+                &coordinator,
+            )
+            .await?;
+            if response.outcome == ManualAddOutcomeDto::Cancelled {
+                finish_cancelled_manual_inspection(&coordinator);
+            } else {
+                finish_completed_manual_inspection(&coordinator);
+            }
+            Ok(response)
         }
         ManualSourceAddDecision::DeepSearch => {
             start_manual_subtree_discovery(app, &state, source_client, selected_path).await
@@ -97,133 +164,42 @@ pub(crate) async fn manual_add_source_root(
     }
 }
 
-/// 单次结构探测的结果：核对结论与（找到时）实际根路径。
-struct InspectBundle {
-    /// core 归约核对结论所需的输入。
-    decision_input: ManualSourceInspectOutcome,
-    /// 探测命中时的实际根路径。
-    found_path: Option<PathBuf>,
-}
-
-impl InspectBundle {
-    /// 构造探测确认命中的结果。
-    fn found(path: PathBuf) -> Self {
-        Self {
-            decision_input: ManualSourceInspectOutcome::Found,
-            found_path: Some(path),
-        }
-    }
-
-    /// 构造未能确认为合格根的结果。
-    fn unverified(decision_input: ManualSourceInspectOutcome) -> Self {
-        Self {
-            decision_input,
-            found_path: None,
-        }
+/// 构造不携带路径或发现快照的稳定取消响应。
+fn cancelled_manual_add_response() -> ManualAddSourceRootDto {
+    ManualAddSourceRootDto {
+        outcome: ManualAddOutcomeDto::Cancelled,
+        changed: false,
+        message_code: UiMessageCodeDto::SourceAddCancelled,
+        discovery: None,
     }
 }
 
-/// 按客户端类型选择结构签名探测策略，核对用户所选路径；WorkBuddy 不经手动添加
-/// 入口（前端只能选 `AgentClientKindDto` 三个批准客户端），不可达。
-fn inspect_selected_path(client: SourceClientKind, path: &Path) -> InspectBundle {
-    let cancellation = CancellationToken::new();
-    let options = FullDiscoveryOptions::default();
-    match client {
-        SourceClientKind::Codex => {
-            let alias = source_root_alias_from_path(path, client);
-            let mut probe = SignatureProbeContext::new(&options, &cancellation);
-            classify_codex_inspection(inspect_root(
-                path,
-                alias,
-                DiscoveryMethod::Registered,
-                None,
-                Some(&mut probe),
-            ))
-        }
-        SourceClientKind::ClaudeCode => {
-            let mut budget = ClaudeSignatureBudget::new(&options, &cancellation);
-            classify_claude_inspection(path, inspect_claude_root(path, &mut budget))
-        }
-        SourceClientKind::GrokBuildCli => {
-            let mut budget =
-                crate::backend::local_index::GrokSignatureBudget::new(&options, &cancellation);
-            classify_grok_inspection(
-                path,
-                crate::backend::local_index::inspect_grok_root(path, &mut budget),
-            )
-        }
-        SourceClientKind::WorkBuddy => {
-            unreachable!("手动添加入口只接受 AgentClientKindDto 的三个批准客户端")
-        }
+/// 返回手动子树任务对应的当前宿主平台。
+fn manual_discovery_platform() -> RootDiscoveryPlatform {
+    if cfg!(target_os = "windows") {
+        RootDiscoveryPlatform::Windows
+    } else if cfg!(target_os = "macos") {
+        RootDiscoveryPlatform::MacOs
+    } else {
+        RootDiscoveryPlatform::Other
     }
 }
 
-/// 把 Codex 结构探测结论映射为统一的核对结果。
-fn classify_codex_inspection(inspection: RootInspection) -> InspectBundle {
-    match inspection {
-        RootInspection::Found(root) => InspectBundle::found(root.path),
-        RootInspection::NotRoot => InspectBundle::unverified(ManualSourceInspectOutcome::NotRoot),
-        RootInspection::RejectedSignature => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Rejected)
-        }
-        RootInspection::Indeterminate => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Indeterminate)
-        }
-        RootInspection::Cancelled => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Cancelled)
-        }
-        RootInspection::BudgetExhausted => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::BudgetExhausted)
-        }
-    }
+/// 把首次核对正常结束为完整单卷任务。
+fn finish_completed_manual_inspection(coordinator: &RootDiscoveryCoordinator) {
+    let mut progress = coordinator.snapshot().progress;
+    progress.volumes_completed = 1;
+    coordinator.update_progress(progress);
+    coordinator.finish(false, false);
 }
 
-/// 把 Grok 结构探测结论映射为统一的核对结果。
-fn classify_grok_inspection(
-    path: &Path,
-    inspection: crate::backend::local_index::GrokRootInspection,
-) -> InspectBundle {
-    use crate::backend::local_index::GrokRootInspection;
-    match inspection {
-        GrokRootInspection::Found(_) => InspectBundle::found(path.to_path_buf()),
-        GrokRootInspection::NotRoot => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::NotRoot)
-        }
-        GrokRootInspection::Rejected => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Rejected)
-        }
-        GrokRootInspection::Indeterminate => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Indeterminate)
-        }
-        GrokRootInspection::Cancelled => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Cancelled)
-        }
-        GrokRootInspection::BudgetExhausted => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::BudgetExhausted)
-        }
-    }
-}
-
-/// 把 Claude 结构探测结论映射为统一的核对结果。
-fn classify_claude_inspection(path: &Path, inspection: ClaudeRootInspection) -> InspectBundle {
-    match inspection {
-        ClaudeRootInspection::Found(_) => InspectBundle::found(path.to_path_buf()),
-        ClaudeRootInspection::NotRoot => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::NotRoot)
-        }
-        ClaudeRootInspection::Rejected => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Rejected)
-        }
-        ClaudeRootInspection::Indeterminate => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Indeterminate)
-        }
-        ClaudeRootInspection::Cancelled => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::Cancelled)
-        }
-        ClaudeRootInspection::BudgetExhausted => {
-            InspectBundle::unverified(ManualSourceInspectOutcome::BudgetExhausted)
-        }
-    }
+/// 把首次核对结束为取消状态，不把所选目录伪称为已完整检查。
+fn finish_cancelled_manual_inspection(coordinator: &RootDiscoveryCoordinator) {
+    let _ = coordinator.request_cancel();
+    let mut progress = coordinator.snapshot().progress;
+    progress.volumes_completed = 0;
+    coordinator.update_progress(progress);
+    coordinator.finish(false, false);
 }
 
 /// 把已确认的路径幂等登记为数据根，并刷新数据源快照。
@@ -232,7 +208,11 @@ async fn register_verified_root(
     client: AgentClientKindDto,
     source_client: SourceClientKind,
     found_path: Option<PathBuf>,
+    coordinator: &RootDiscoveryCoordinator,
 ) -> Result<ManualAddSourceRootDto, String> {
+    if coordinator.is_cancel_requested() {
+        return Ok(cancelled_manual_add_response());
+    }
     let path =
         found_path.ok_or_else(|| source_root_selected_directory_unreadable_message().to_owned())?;
     let candidate = SourceRootCandidate {
@@ -240,6 +220,10 @@ async fn register_verified_root(
         alias: source_root_alias_from_path(&path, source_client),
         path,
     };
+    let _write_permit = acquire_source_root_write_permit(state, client)?;
+    if coordinator.is_cancel_requested() {
+        return Ok(cancelled_manual_add_response());
+    }
     let app_data_dir = source_client_app_data_dir(&state.app_data_dir, source_client);
     let mut catalog = SourceRootCatalogAdapter::new(app_data_dir, source_client);
     let mutation = source_root_add(&mut catalog, &candidate)
@@ -267,26 +251,32 @@ async fn start_manual_subtree_discovery(
     selected_path: PathBuf,
 ) -> Result<ManualAddSourceRootDto, String> {
     let coordinator = Arc::clone(&state.root_discovery);
-    let platform = if cfg!(target_os = "windows") {
-        RootDiscoveryPlatform::Windows
-    } else if cfg!(target_os = "macos") {
-        RootDiscoveryPlatform::MacOs
-    } else {
-        RootDiscoveryPlatform::Other
-    };
-    if !coordinator.start(
-        RootDiscoveryStrategy::MetadataTraversal,
-        platform,
-        RootDiscoveryScope::ManualSubtree,
-        1,
-    ) {
-        return Err("root discovery is already running".to_owned());
+    if coordinator.is_cancel_requested() {
+        finish_cancelled_manual_inspection(&coordinator);
+        return Ok(cancelled_manual_add_response());
     }
 
     let coordinator_for_task = Arc::clone(&coordinator);
-    tauri::async_runtime::spawn_blocking(move || {
-        run_manual_subtree_discovery(app, coordinator_for_task, source_client, selected_path);
-    });
+    if let Err(error) =
+        state
+            .background_tasks
+            .spawn_blocking("manual-subtree-discovery", move |shutdown| {
+                if shutdown.is_cancelled() {
+                    let _ = coordinator_for_task.request_cancel();
+                }
+                run_manual_subtree_discovery(
+                    app,
+                    coordinator_for_task,
+                    source_client,
+                    selected_path,
+                    &shutdown,
+                );
+            })
+    {
+        let _ = coordinator.request_cancel();
+        coordinator.finish(false, false);
+        return Err(error.to_owned());
+    }
 
     // `coordinator.start` 上面已在同步临界区把 lifecycle 置为 Running，
     // 此处快照必为 Running，无需轮询等待后台任务启动。
@@ -304,6 +294,7 @@ fn run_manual_subtree_discovery(
     coordinator: Arc<RootDiscoveryCoordinator>,
     source_client: SourceClientKind,
     selected_path: PathBuf,
+    shutdown: &BackgroundTaskShutdown,
 ) {
     let cancellation = CancellationToken::new();
     let options = FullDiscoveryOptions {
@@ -311,7 +302,8 @@ fn run_manual_subtree_discovery(
         ..FullDiscoveryOptions::default()
     };
     let on_progress = |progress: DiscoveryProgress| {
-        if coordinator.is_cancel_requested() {
+        if shutdown.is_cancelled() || coordinator.is_cancel_requested() {
+            let _ = coordinator.request_cancel();
             cancellation.cancel();
         }
         coordinator.update_progress(RootDiscoveryProgress {
@@ -351,22 +343,24 @@ fn run_manual_subtree_discovery(
             unreachable!("手动添加入口只接受 AgentClientKindDto 的三个批准客户端")
         }
     };
-    for (path, evidence) in &discovered_candidates {
-        submit_discovered_candidate(&app, &coordinator, source_client, *evidence, path);
-    }
-
-    let final_snapshot = coordinator.snapshot();
-    coordinator.update_progress(RootDiscoveryProgress {
-        volumes_completed: 1,
-        volumes_total: 1,
-        directories_checked: final_snapshot.progress.directories_checked,
-        file_names_checked: 0,
-        candidates_found: coordinator.candidates().len() as u64,
-        permission_denied: final_snapshot.progress.permission_denied,
-        io_errors: 0,
-        skipped: final_snapshot.progress.skipped,
-    });
-    coordinator.finish(false, true);
+    deliver_discovered_candidates(
+        &coordinator,
+        source_client,
+        discovered_candidates,
+        || shutdown.is_cancelled(),
+        |candidate| {
+            let Some(dto) = candidate_to_dto(candidate) else {
+                return;
+            };
+            if manual_discovery_is_cancelled(&coordinator, &|| shutdown.is_cancelled()) {
+                return;
+            }
+            if app.emit(ROOT_DISCOVERY_CANDIDATE_EVENT, dto).is_err() {
+                tracing::warn!("manual subtree candidate event delivery failed");
+            }
+        },
+    );
+    finish_manual_subtree_discovery(&coordinator, shutdown.is_cancelled());
 }
 
 /// 保留 Claude 严格签名实际命中的主 transcript / subagent 证据。
@@ -379,14 +373,41 @@ fn claude_manual_candidates(
         .collect()
 }
 
-/// 把单个发现候选提交进协调器并向前端广播事件。
+/// 逐项交付已发现候选；取消或关闭后不得再提交候选或调用事件回调。
+fn deliver_discovered_candidates(
+    coordinator: &RootDiscoveryCoordinator,
+    client: SourceClientKind,
+    candidates: impl IntoIterator<Item = (PathBuf, RootCandidateEvidence)>,
+    is_shutdown: impl Fn() -> bool,
+    mut on_candidate: impl FnMut(RootCandidate),
+) {
+    for (path, evidence) in candidates {
+        if manual_discovery_is_cancelled(coordinator, &is_shutdown) {
+            break;
+        }
+        submit_discovered_candidate(
+            coordinator,
+            client,
+            evidence,
+            &path,
+            &is_shutdown,
+            &mut on_candidate,
+        );
+    }
+}
+
+/// 把单个发现候选提交进协调器，并在调用事件回调前再次复核取消状态。
 fn submit_discovered_candidate(
-    app: &AppHandle,
     coordinator: &RootDiscoveryCoordinator,
     client: SourceClientKind,
     evidence: RootCandidateEvidence,
     path: &Path,
+    is_shutdown: &impl Fn() -> bool,
+    on_candidate: &mut impl FnMut(RootCandidate),
 ) {
+    if manual_discovery_is_cancelled(coordinator, is_shutdown) {
+        return;
+    }
     let candidate = RootCandidate {
         id: stable_id(client.candidate_namespace(), &path_key(path)),
         client,
@@ -394,17 +415,104 @@ fn submit_discovered_candidate(
         strategy: RootDiscoveryStrategy::MetadataTraversal,
         evidence,
     };
-    if coordinator.submit_candidate(candidate.clone())
-        && let Some(dto) = candidate_to_dto(candidate)
-        && app.emit(ROOT_DISCOVERY_CANDIDATE_EVENT, dto).is_err()
-    {
-        tracing::warn!("manual subtree candidate event delivery failed");
+    if coordinator.submit_candidate(candidate.clone()) {
+        if manual_discovery_is_cancelled(coordinator, is_shutdown) {
+            coordinator.remove_candidates(std::slice::from_ref(&candidate.id));
+            return;
+        }
+        on_candidate(candidate);
     }
+}
+
+/// 把应用关闭折叠为协调器取消，并返回当前任务是否已经不可继续交付结果。
+fn manual_discovery_is_cancelled(
+    coordinator: &RootDiscoveryCoordinator,
+    is_shutdown: &impl Fn() -> bool,
+) -> bool {
+    if is_shutdown() {
+        let _ = coordinator.request_cancel();
+    }
+    coordinator.is_cancel_requested()
+}
+
+/// 用取消感知的卷完成计数结束手动子树任务，避免取消状态伪称覆盖完整。
+fn finish_manual_subtree_discovery(
+    coordinator: &RootDiscoveryCoordinator,
+    shutdown_requested: bool,
+) {
+    if shutdown_requested {
+        let _ = coordinator.request_cancel();
+    }
+    let cancelled = coordinator.is_cancel_requested();
+    let final_snapshot = coordinator.snapshot();
+    coordinator.update_progress(RootDiscoveryProgress {
+        volumes_completed: u64::from(!cancelled),
+        volumes_total: 1,
+        directories_checked: final_snapshot.progress.directories_checked,
+        file_names_checked: 0,
+        candidates_found: coordinator.candidates().len() as u64,
+        permission_denied: final_snapshot.progress.permission_denied,
+        io_errors: 0,
+        skipped: final_snapshot.progress.skipped,
+    });
+    coordinator.finish(false, true);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
+
+    /// 原子预约必须拒绝并发流程，并在 RAII guard 销毁后立即恢复可用。
+    #[test]
+    fn manual_add_reservation_is_non_blocking_and_released_on_drop() {
+        MANUAL_ADD_BUSY.store(false, Ordering::Release);
+        let reservation = ManualAddReservation::acquire().expect("first flow reserves the picker");
+        assert_eq!(
+            ManualAddReservation::acquire().err(),
+            Some("manual add is already in progress")
+        );
+
+        drop(reservation);
+
+        ManualAddReservation::acquire().expect("reservation is released on every exit path");
+    }
+
+    /// 首个候选事件触发取消后，第二个结果不得再提交或调用事件回调。
+    #[test]
+    fn manual_subtree_stops_result_delivery_after_callback_cancellation() {
+        let coordinator = RootDiscoveryCoordinator::default();
+        assert!(coordinator.start(
+            RootDiscoveryStrategy::MetadataTraversal,
+            RootDiscoveryPlatform::Other,
+            RootDiscoveryScope::ManualSubtree,
+            1,
+        ));
+        let delivered = Cell::new(0_usize);
+        deliver_discovered_candidates(
+            &coordinator,
+            SourceClientKind::Codex,
+            [
+                (PathBuf::from("/first"), RootCandidateEvidence::CodexRollout),
+                (
+                    PathBuf::from("/second"),
+                    RootCandidateEvidence::CodexRollout,
+                ),
+            ],
+            || false,
+            |_| {
+                delivered.set(delivered.get().saturating_add(1));
+                assert!(coordinator.request_cancel());
+            },
+        );
+        finish_manual_subtree_discovery(&coordinator, false);
+
+        assert_eq!(delivered.get(), 1);
+        assert_eq!(coordinator.candidates().len(), 1);
+        let status = coordinator.snapshot();
+        assert_eq!(status.lifecycle, RootDiscoveryLifecycle::Cancelled);
+        assert_eq!(status.progress.volumes_completed, 0);
+    }
 
     /// 验证子树深搜命中 subagent transcript 时保留其专属证据类型。
     #[test]

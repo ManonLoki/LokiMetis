@@ -11,6 +11,7 @@ pub struct SkinService {
     workbuddy_runtime_generation: AtomicU64,
     account_profile_probes: StdMutex<HashMap<String, Arc<OnceCell<Option<AccountProfile>>>>>,
     verified_endpoint_hints: StdMutex<HashMap<SkinHostKind, CdpEndpoint>>,
+    watch_task_reaper: Arc<StdMutex<WatchTaskReaper>>,
     operation: Mutex<()>,
     runtime: Mutex<RuntimeState>,
 }

@@ -9,8 +9,10 @@ use tokio::sync::watch;
 
 use crate::backend::local_index::ScanCoordinator as LocalScanCoordinator;
 
-/// 正常退出等待扫描安全点收敛的总时限；超时后才中止仍未返回的 async 壳。
+/// 正常退出等待扫描到达安全点的共同宽限；超时后中止并等待 async 壳销毁。
 const SCAN_TASK_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+/// 总时限尾部留给 async abort 后的终态确认。
+const SCAN_TASK_FINAL_REAP_BUDGET: Duration = Duration::from_secs(1);
 
 /// 交给长期任务的关闭观察端，使周期 sleep 可被退出事件立即唤醒。
 pub(crate) struct ScanTaskShutdown {
@@ -41,6 +43,22 @@ struct OwnedScanTask {
     cancellation: ScanCancellation,
     shutdown: watch::Sender<bool>,
     handle: JoinHandle<()>,
+}
+
+/// 在共同截止时间内等待任务终态；超时则把真实句柄交还 owner 继续处理。
+async fn wait_for_owned_scan_task(
+    mut task: OwnedScanTask,
+    deadline: tokio::time::Instant,
+) -> Option<OwnedScanTask> {
+    match tokio::time::timeout_at(deadline, &mut task.handle).await {
+        Ok(Ok(())) => None,
+        Ok(Err(tauri::Error::JoinError(error))) if error.is_cancelled() => None,
+        Ok(Err(error)) => {
+            tracing::warn!(%error, "owned scan task stopped unexpectedly during shutdown");
+            None
+        }
+        Err(_) => Some(task),
+    }
 }
 
 /// 受同步锁保护的短生命周期登记表；锁内从不执行 await。
@@ -127,30 +145,50 @@ impl ScanTaskOwner {
         Ok(())
     }
 
-    /// 取消全部扫描并在共同截止时间内等待任务收敛，超时任务随后被中止并回收。
+    /// 取消全部扫描并在共同截止时间内等待任务收敛，超时任务随后被中止并等待回收。
     pub(crate) async fn shutdown(&self) {
         self.shutdown_with_timeout(SCAN_TASK_SHUTDOWN_TIMEOUT).await;
     }
 
     /// 使用给定总时限完成关闭，供生产固定门限和快速回归测试复用。
     async fn shutdown_with_timeout(&self, timeout: Duration) {
-        let (tasks, deadline) = self.begin_shutdown_with_deadline(timeout);
-        // 并发收敛：顺序等待会让第一个不响应取消的任务吃掉整个预算，
-        // 使后面的任务无机会走到安全点就被强制中止。
-        futures::future::join_all(tasks.into_iter().map(|mut task| async move {
-            match tokio::time::timeout_at(deadline, &mut task.handle).await {
-                Ok(Ok(())) => {}
-                Ok(Err(tauri::Error::JoinError(error))) if error.is_cancelled() => {}
-                Ok(Err(error)) => {
-                    tracing::warn!(%error, "owned scan task stopped unexpectedly during shutdown");
-                }
-                Err(_) => {
-                    task.handle.abort();
-                }
-            }
-        }))
-        .await;
-        self.wait_for_direct_scans(deadline).await;
+        let (tasks, final_deadline) = self.begin_shutdown_with_deadline(timeout);
+        let final_reap_budget = SCAN_TASK_FINAL_REAP_BUDGET.min(timeout / 2);
+        let cooperative_deadline = final_deadline
+            .checked_sub(final_reap_budget)
+            .unwrap_or(final_deadline);
+
+        // 并发收敛：顺序等待会让一个慢任务独占共同预算。
+        let overdue = futures::future::join_all(
+            tasks
+                .into_iter()
+                .map(|task| wait_for_owned_scan_task(task, cooperative_deadline)),
+        )
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        for task in &overdue {
+            task.handle.abort();
+        }
+        let unreaped = futures::future::join_all(
+            overdue
+                .into_iter()
+                .map(|task| wait_for_owned_scan_task(task, final_deadline)),
+        )
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        if !unreaped.is_empty() {
+            tracing::error!(
+                count = unreaped.len(),
+                "owned scan tasks did not terminate before shutdown deadline"
+            );
+            // 保留尚未终止的真实句柄，避免把同步 poll 误报为已经回收。
+            self.lock_state().tasks.extend(unreaped);
+        }
+        self.wait_for_direct_scans(final_deadline).await;
     }
 
     /// 原子进入关闭并只在首次调用时创建 deadline，供连续退出事件共享总预算。
@@ -291,11 +329,11 @@ mod tests {
 
     /// 验证截止时间后 owner 会中止不响应协作取消的 async 壳并回收其资源。
     #[tokio::test]
-    async fn shutdown_aborts_task_that_ignores_cancellation_after_deadline() {
+    async fn shutdown_aborts_and_reaps_task_that_ignores_cancellation_after_deadline() {
         let coordinator = LocalScanCoordinator::default();
         let owner = ScanTaskOwner::new(coordinator);
         let cancellation = ScanCancellation::new();
-        let (dropped_tx, dropped_rx) = tokio::sync::oneshot::channel();
+        let (dropped_tx, mut dropped_rx) = tokio::sync::oneshot::channel();
 
         owner
             .spawn(cancellation.clone(), move |_shutdown| async move {
@@ -307,7 +345,11 @@ mod tests {
         owner.shutdown_with_timeout(Duration::from_millis(10)).await;
 
         assert!(cancellation.is_cancelled());
-        dropped_rx.await.expect("aborted future is dropped");
+        assert_eq!(
+            dropped_rx.try_recv(),
+            Ok(()),
+            "shutdown must not return before the aborted future is reaped"
+        );
         assert_eq!(owner.owned_task_count(), 0);
     }
 
@@ -398,9 +440,9 @@ mod tests {
         drop(reservation);
     }
 
-    /// 验证不可让出的同步 poll 不会让 abort 后的 JoinHandle await 破坏关闭硬时限。
+    /// 不可让出的同步 poll 超过总时限时仍有界返回，并保留句柄直到任务真正终止。
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn shutdown_does_not_await_uncooperative_task_after_abort() {
+    async fn shutdown_retains_uncooperative_task_without_exceeding_deadline() {
         use std::sync::atomic::{AtomicBool, Ordering};
 
         let coordinator = LocalScanCoordinator::default();
@@ -418,17 +460,31 @@ mod tests {
             .expect("uncooperative task is registered");
         started_rx.await.expect("task entered synchronous poll");
 
-        let shutdown_owner = std::sync::Arc::clone(&owner);
-        let shutdown = tokio::spawn(async move {
-            shutdown_owner
-                .shutdown_with_timeout(Duration::from_millis(10))
-                .await;
-        });
-        let result = tokio::time::timeout(Duration::from_millis(100), shutdown).await;
-        release.store(true, Ordering::Release);
+        tokio::time::timeout(
+            Duration::from_millis(250),
+            owner.shutdown_with_timeout(Duration::from_millis(20)),
+        )
+        .await
+        .expect("shutdown keeps its total deadline");
+        assert_eq!(owner.owned_task_count(), 1);
 
-        result
-            .expect("shutdown returns without awaiting the aborted poll")
-            .expect("shutdown task joins");
+        release.store(true, Ordering::Release);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                let finished = owner
+                    .lock_state()
+                    .tasks
+                    .iter()
+                    .all(|task| task.handle.inner().is_finished());
+                if finished {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("retained task eventually reaches its terminal state");
+        owner.shutdown_with_timeout(Duration::from_millis(1)).await;
+        assert_eq!(owner.owned_task_count(), 0);
     }
 }

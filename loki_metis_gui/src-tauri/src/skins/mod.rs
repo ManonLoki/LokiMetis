@@ -7,7 +7,11 @@ mod error;
 #[cfg(target_os = "macos")]
 mod macos_codex;
 #[cfg(target_os = "macos")]
+mod macos_identity;
+#[cfg(target_os = "macos")]
 mod macos_process;
+#[cfg(unix)]
+mod process_reaper;
 #[cfg(target_os = "windows")]
 mod windows_codex;
 
@@ -16,9 +20,8 @@ use std::ffi::OsString;
 use std::future::Future;
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
+use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock, Weak as StdWeak};
 use std::time::{Duration, Instant, SystemTime};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -50,10 +53,12 @@ include!("service_import_body.rs");
 include!("service_runtime_body.rs");
 include!("service_install_body.rs");
 
+include!("watch_task_owner.rs");
 include!("lifecycle.rs");
 include!("catalog.rs");
 include!("validation.rs");
 include!("conversion.rs");
+include!("file_manager.rs");
 include!("payload.rs");
 include!("instances.rs");
 include!("cdp_connect.rs");
@@ -64,6 +69,7 @@ include!("injection.rs");
 #[cfg(test)]
 mod tests {
     include!("tests/support.rs");
+    include!("tests/lifecycle.rs");
     include!("tests/runtime.rs");
     include!("tests/themes.rs");
     include!("tests/imports.rs");

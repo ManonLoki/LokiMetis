@@ -23,7 +23,22 @@
     "BUG-LEGACY-SKIN-SCRIPT-CONSENT",
     "BUG-MACOS-CDP-PROCESS-OWNERSHIP",
     "BUG-HOST-CAPABILITY-MUTATION-CONTEXT",
-    "BUG-PRODUCTION-CSS-LIGHT-DARK-LOSS"
+    "BUG-PRODUCTION-CSS-LIGHT-DARK-LOSS",
+    "BUG-DIALOG-CAPABILITY-WINDOW-SCOPE",
+    "BUG-WINDOWS-SEARCH-CANCELLATION-DEADLINE",
+    "BUG-HOOK-CONFIG-WRITER-SHUTDOWN-DEADLINE",
+    "BUG-MACOS-NOTIFICATION-AUTHORIZATION-RECOVERY",
+    "BUG-BACKGROUND-TASK-OWNERSHIP",
+    "BUG-LOCAL-INDEX-WRITER-ISOLATION",
+    "BUG-SKIN-AUTHORITATIVE-QUERY-RECOVERY",
+    "BUG-SOURCES-ACTION-ERROR-RECOVERY",
+    "BUG-MONITOR-WORKBENCH-QUERY-STATE",
+    "BUG-WINDOWS-SKIN-HOST-TRUST",
+    "BUG-MACOS-SKIN-HOST-TRUST",
+    "BUG-SKIN-FILE-MANAGER-TRUST",
+    "BUG-HOOK-LISTENER-CONNECTION-LIMIT",
+    "BUG-SKIN-WATCHER-SHUTDOWN-OWNERSHIP",
+    "BUG-MANUAL-SOURCE-DISCOVERY-CANCELLATION"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -348,8 +363,83 @@
       "change_id": "BUG-PRODUCTION-CSS-LIGHT-DARK-LOSS",
       "kind": "bug-fix",
       "required_version": "0.2.24"
+    },
+    {
+      "change_id": "BUG-DIALOG-CAPABILITY-WINDOW-SCOPE",
+      "kind": "bug-fix",
+      "required_version": "0.2.25"
+    },
+    {
+      "change_id": "BUG-WINDOWS-SEARCH-CANCELLATION-DEADLINE",
+      "kind": "bug-fix",
+      "required_version": "0.2.26"
+    },
+    {
+      "change_id": "BUG-HOOK-CONFIG-WRITER-SHUTDOWN-DEADLINE",
+      "kind": "bug-fix",
+      "required_version": "0.2.27"
+    },
+    {
+      "change_id": "BUG-MACOS-NOTIFICATION-AUTHORIZATION-RECOVERY",
+      "kind": "bug-fix",
+      "required_version": "0.2.28"
+    },
+    {
+      "change_id": "BUG-BACKGROUND-TASK-OWNERSHIP",
+      "kind": "bug-fix",
+      "required_version": "0.2.29"
+    },
+    {
+      "change_id": "BUG-LOCAL-INDEX-WRITER-ISOLATION",
+      "kind": "bug-fix",
+      "required_version": "0.2.30"
+    },
+    {
+      "change_id": "BUG-SKIN-AUTHORITATIVE-QUERY-RECOVERY",
+      "kind": "bug-fix",
+      "required_version": "0.2.31"
+    },
+    {
+      "change_id": "BUG-SOURCES-ACTION-ERROR-RECOVERY",
+      "kind": "bug-fix",
+      "required_version": "0.2.32"
+    },
+    {
+      "change_id": "BUG-MONITOR-WORKBENCH-QUERY-STATE",
+      "kind": "bug-fix",
+      "required_version": "0.2.33"
+    },
+    {
+      "change_id": "BUG-WINDOWS-SKIN-HOST-TRUST",
+      "kind": "bug-fix",
+      "required_version": "0.2.34"
+    },
+    {
+      "change_id": "BUG-MACOS-SKIN-HOST-TRUST",
+      "kind": "bug-fix",
+      "required_version": "0.2.35"
+    },
+    {
+      "change_id": "BUG-SKIN-FILE-MANAGER-TRUST",
+      "kind": "bug-fix",
+      "required_version": "0.2.36"
+    },
+    {
+      "change_id": "BUG-HOOK-LISTENER-CONNECTION-LIMIT",
+      "kind": "bug-fix",
+      "required_version": "0.2.37"
+    },
+    {
+      "change_id": "BUG-SKIN-WATCHER-SHUTDOWN-OWNERSHIP",
+      "kind": "bug-fix",
+      "required_version": "0.2.38"
+    },
+    {
+      "change_id": "BUG-MANUAL-SOURCE-DISCOVERY-CANCELLATION",
+      "kind": "bug-fix",
+      "required_version": "0.2.39"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.24"
+  "target_version": "0.2.39"
 }

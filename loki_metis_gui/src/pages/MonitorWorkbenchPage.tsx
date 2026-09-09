@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 
 import { findAvailableMonitorAiTool } from "../ai-capabilities";
 import { getHookRelayStatus, getMonitorCapabilities } from "../api/monitor";
+import { FailureState, LoadingState } from "../components/UsageUi";
 import { visibleErrorMessage } from "../visible-error";
 
 /** 中继指标块：以稳定的标签和值展示一项本机统计。 */
@@ -42,13 +43,29 @@ export function MonitorWorkbenchPage() {
     queryFn: getMonitorCapabilities,
     queryKey: ["monitor-capabilities"],
   });
+  if (relay.isPending || capabilities.isPending) {
+    return <LoadingState />;
+  }
+  if (relay.data === undefined || capabilities.data === undefined) {
+    return (
+      <FailureState
+        error={relay.error ?? capabilities.error}
+        onRetry={() => void Promise.all([relay.refetch(), capabilities.refetch()])}
+      />
+    );
+  }
   const status = relay.data;
+  const refreshError = relay.isRefetchError
+    ? relay.error
+    : capabilities.isRefetchError
+      ? capabilities.error
+      : null;
   const lastEventTool = status?.lastEvent
-    ? findAvailableMonitorAiTool(capabilities.data?.aiTools ?? [], status.lastEvent.tool)
+    ? findAvailableMonitorAiTool(capabilities.data.aiTools, status.lastEvent.tool)
     : null;
   return (
     <Stack data-testid="monitor-workbench" gap="md">
-      {relay.error ? <Alert color="red">{visibleErrorMessage(relay.error)}</Alert> : null}
+      {refreshError ? <Alert color="red">{visibleErrorMessage(refreshError)}</Alert> : null}
       <Card className="surface-card" p="md" radius="lg" withBorder>
         <Stack gap="md">
           <Group align="flex-start" justify="space-between" wrap="wrap">
@@ -58,8 +75,8 @@ export function MonitorWorkbenchPage() {
                 {t("monitor.workbench.description")}
               </Text>
             </div>
-            <Badge color={status?.listening ? "green" : "red"} variant="light">
-              {status?.listening
+            <Badge color={status.listening ? "green" : "red"} variant="light">
+              {status.listening
                 ? t("monitor.workbench.listening", { address: status.bindAddress })
                 : t("monitor.workbench.offline")}
             </Badge>
@@ -67,14 +84,14 @@ export function MonitorWorkbenchPage() {
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <RelayMetric
               label={t("monitor.workbench.receivedLabel")}
-              value={status?.receivedCount ?? 0}
+              value={status.receivedCount}
             />
             <RelayMetric
               label={t("monitor.workbench.failedLabel")}
-              value={status?.failedCount ?? 0}
+              value={status.failedCount}
             />
           </SimpleGrid>
-          {status?.lastEvent && lastEventTool ? (
+          {status.lastEvent && lastEventTool ? (
             <Text size="sm">
               {t("monitor.workbench.lastEventLabel")} <Code>{lastEventTool.name}</Code> /{" "}
               <Code>{status.lastEvent.hookType}</Code>
@@ -84,7 +101,7 @@ export function MonitorWorkbenchPage() {
               {t("monitor.workbench.noEvent")}
             </Text>
           )}
-          {status?.lastError ? (
+          {status.lastError ? (
             <Alert color="red">
               {t("monitor.workbench.lastError", { error: status.lastError })}
             </Alert>

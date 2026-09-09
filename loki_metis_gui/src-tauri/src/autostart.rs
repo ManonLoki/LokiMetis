@@ -94,9 +94,9 @@ mod tests {
         assert_eq!(first, simulated_os.is_enabled());
     }
 
-    /// 真实端到端切换后必须恢复测试前的系统注册状态。
+    /// 模拟注册状态机切换后可按保存值恢复；真实 OS 注册由安装候选验收证明。
     #[test]
-    fn autostart_e2e_restores_previous_registration() {
+    fn simulated_registration_toggle_restores_previous_value() {
         let mut simulated_os = FakeRegistration(false);
         let previous = simulated_os.is_enabled();
         if previous {

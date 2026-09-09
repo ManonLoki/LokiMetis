@@ -354,7 +354,7 @@ impl SkinService {
     }
 
     /// 执行换皮宿主内部的 `open_directory` 步骤。
-    pub fn open_directory(&self, skin: &SkinReference) -> Result<(), AppError> {
+    pub async fn open_directory(&self, skin: &SkinReference) -> Result<(), AppError> {
         validate_skin_reference(skin)?;
         if skin.source == SkinSource::Builtin {
             return Err(AppError::new(
@@ -363,7 +363,7 @@ impl SkinService {
             ));
         }
         let directory = self.skin_directory(skin)?;
-        open_in_file_manager(&directory)
+        open_in_file_manager(&directory).await
     }
 
     /// 执行换皮宿主内部的 `take_pending_import` 步骤。

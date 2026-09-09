@@ -258,6 +258,179 @@ fn disabled_writer_ignores_enabled_request_without_creating_config() {
 }
 
 #[test]
+/// 显式写入由具名生命周期 worker 执行，并通过异步通道返回真实结果。
+fn owned_worker_executes_explicit_write_and_returns_result() {
+    let root = tempdir().expect("temp");
+    let config_directory = root.path().join("app-config");
+    let hook_directory = root.path().join("codex");
+    let settings = settings_for(AiTool::Codex, &hook_directory);
+    super::super::settings::save_monitor_settings(&config_directory, &settings)
+        .expect("save monitor settings");
+    let writer = HookConfigWriter::start(PathBuf::from("/opt/LokiMetis"), root.path().to_owned());
+
+    let result =
+        tauri::async_runtime::block_on(writer.write_config(config_directory, AiTool::Codex))
+            .expect("explicit worker write");
+    writer.shutdown();
+
+    assert!(result.config_changed);
+    assert_eq!(
+        PathBuf::from(result.filename),
+        hook_directory.join("hooks.json")
+    );
+    assert!(
+        std::fs::read_to_string(hook_directory.join("hooks.json"))
+            .expect("explicit config")
+            .contains("/opt/LokiMetis")
+    );
+}
+
+#[test]
+/// 显式等待超时只取消受管请求；worker 句柄仍由 owner 持有且不得延迟落盘。
+fn explicit_write_timeout_cancels_without_detaching_worker() {
+    let root = tempdir().expect("temp");
+    let config_directory = root.path().join("app-config");
+    let hook_directory = root.path().join("codex");
+    let settings = settings_for(AiTool::Codex, &hook_directory);
+    super::super::settings::save_monitor_settings(&config_directory, &settings)
+        .expect("save monitor settings");
+    let writer = Arc::new(HookConfigWriter::start(
+        PathBuf::from("/opt/LokiMetis"),
+        root.path().to_owned(),
+    ));
+    let write_guard = HOOK_CONFIG_WRITE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("hook write lock");
+
+    let request_writer = Arc::clone(&writer);
+    let request = std::thread::spawn(move || {
+        tauri::async_runtime::block_on(request_writer.write_config_with_timeout(
+            config_directory,
+            AiTool::Codex,
+            Duration::from_millis(20),
+        ))
+    });
+    std::thread::sleep(Duration::from_millis(60));
+    assert!(!hook_directory.join("hooks.json").exists());
+    drop(write_guard);
+
+    let error = request
+        .join()
+        .expect("request thread")
+        .expect_err("cancelled explicit request must fail closed");
+    assert_eq!(error.code, "error.hooks.writeFailed");
+    assert_eq!(
+        error.params.get("detail").map(String::as_str),
+        Some("hook config write was cancelled before completion")
+    );
+    assert!(writer.worker.lock().expect("worker owner").is_some());
+
+    writer.shutdown();
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(!hook_directory.join("hooks.json").exists());
+    assert!(writer.worker.lock().expect("joined worker").is_none());
+}
+
+#[test]
+/// IPC future 被丢弃时 cancellation guard 必须立刻通知仍受 owner 管理的请求。
+fn explicit_write_guard_propagates_future_cancellation() {
+    let cancellation = Arc::new(AtomicBool::new(false));
+    let guard = HookWriteCancellationGuard::new(Arc::clone(&cancellation));
+    drop(guard);
+    assert!(cancellation.load(Ordering::Acquire));
+}
+
+#[test]
+/// 应用退出必须同时取消在途与排队显式写入，并立即答复尚未执行的调用。
+fn shutdown_cancels_active_and_pending_explicit_writes() {
+    let active = Arc::new(AtomicBool::new(false));
+    let pending = Arc::new(AtomicBool::new(false));
+    let (response, receiver) = oneshot::channel();
+    let mut state = HookWriterState {
+        settings: Some(MonitorSettings::default()),
+        repair_requested: true,
+        explicit_requests: VecDeque::from([ExplicitHookWriteRequest {
+            config_directory: PathBuf::from("/not/read/during-this-test"),
+            tool: AiTool::Codex,
+            cancellation: Arc::clone(&pending),
+            response,
+        }]),
+        active_explicit_cancellation: Some(Arc::clone(&active)),
+        shutting_down: false,
+    };
+
+    begin_hook_writer_shutdown(&mut state);
+
+    assert!(state.shutting_down);
+    assert!(state.settings.is_none());
+    assert!(!state.repair_requested);
+    assert!(state.explicit_requests.is_empty());
+    assert!(active.load(Ordering::Acquire));
+    assert!(pending.load(Ordering::Acquire));
+    let result = tauri::async_runtime::block_on(receiver).expect("shutdown response");
+    assert_eq!(
+        result
+            .expect_err("pending request must fail on shutdown")
+            .code,
+        "error.hooks.writeFailed"
+    );
+}
+
+#[test]
+/// Tauri 显式写入命令必须保持 async，并只等待生命周期 writer，不能直接执行文件 I/O。
+fn explicit_hook_command_delegates_blocking_io_to_owned_writer() {
+    let source = include_str!("commands.rs");
+    let start = source
+        .find("pub async fn write_monitor_hook_config")
+        .expect("explicit hook command must be async");
+    let body = &source[start..];
+    let end = body
+        .find("\n}\n\n/// 读取本机 Hook 中继状态")
+        .expect("explicit hook command boundary");
+    let body = &body[..end];
+    assert!(body.contains("State<'_, HookConfigWriter>"));
+    assert!(body.contains("write_config"));
+    assert!(body.contains(".await"));
+    assert!(!body.contains("load_monitor_settings"));
+    assert!(!body.contains("current_exe"));
+    assert!(!body.contains("write_hook_config("));
+}
+
+#[test]
+/// 不可中断的本机 I/O worker 超过期限时不得继续阻塞应用退出回调。
+fn hook_writer_join_respects_shutdown_deadline() {
+    let worker = std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    });
+    let started = std::time::Instant::now();
+
+    let worker = join_worker_until(worker, std::time::Duration::from_millis(20))
+        .expect_err("超时后必须返回仍受管的线程句柄");
+    assert!(started.elapsed() < std::time::Duration::from_millis(150));
+    worker.join().expect("测试 worker 最终必须回收");
+
+    let source = include_str!("store.rs");
+    assert!(source.contains("retained_hook_writer_owner().retain(worker_handle)"));
+}
+
+/// 未显式 shutdown 的空闲 writer 在 Drop 后也必须让线程终态并释放共享状态。
+#[test]
+fn hook_writer_drop_reaps_idle_worker() {
+    let root = tempdir().expect("temp");
+    let writer = HookConfigWriter::start(PathBuf::from("/opt/LokiMetis"), root.path().to_owned());
+    let shared = Arc::downgrade(writer.shared.as_ref().expect("writer shared state"));
+
+    drop(writer);
+
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while shared.upgrade().is_some() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(shared.upgrade().is_none());
+}
+
+#[test]
 /// 外部 writer 在一次校正完全结束后最终覆盖时，低频自愈仍会恢复 marker 并保留外部内容。
 fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
     let root = tempdir().expect("temp");

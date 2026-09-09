@@ -75,22 +75,29 @@ impl LocalIndexBinding {
         (self.local_provider, self.parser_source_label.clone())
     }
 
-    /// 按当前绑定的客户端 app-data 目录与 parser generation 打开索引。
-    async fn open_index(&self) -> Result<LocalIndex, String> {
+    /// 按当前绑定打开可执行迁移或数据变更的 writer 索引。
+    async fn open_index_for_write(&self) -> Result<LocalIndex, String> {
         LocalIndex::open_in_app_data(&self.app_data_dir, self.parser_version)
+            .await
+            .map_err(|_| local_read_error())
+    }
+
+    /// 按当前绑定只读打开已迁移索引，不在查询路径执行 schema 写入。
+    async fn open_index_for_read(&self) -> Result<LocalIndex, String> {
+        LocalIndex::open_read_only_in_app_data(&self.app_data_dir, self.parser_version)
             .await
             .map_err(|_| local_read_error())
     }
 
     /// 只清理本产品派生索引，保留数据根登记与原始 Agent 文件。
     pub(crate) async fn clear_index(&self) -> Result<(), String> {
-        let mut index = self.open_index().await?;
+        let mut index = self.open_index_for_write().await?;
         index.clear_index().await.map_err(|_| local_read_error())
     }
 
-    /// 打开并迁移数据库后，返回当前 parser generation 的安全索引状态。
+    /// 从启动阶段已经迁移完成的数据库返回当前 parser generation 安全状态。
     pub(crate) async fn index_state(&self) -> Result<LocalIndexState, String> {
-        let index = self.open_index().await?;
+        let index = self.open_index_for_read().await?;
         index.index_state().await.map_err(|_| local_read_error())
     }
 

@@ -7,21 +7,6 @@ fn validate_code_execution_consent(
         .map_err(|_| third_party_code_consent_required_error())
 }
 
-/// 执行换皮宿主内部的 `open_in_file_manager` 步骤。
-fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
-    #[cfg(target_os = "macos")]
-    let mut command = Command::new("/usr/bin/open");
-    #[cfg(target_os = "windows")]
-    let mut command = Command::new("explorer");
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let mut command = Command::new("xdg-open");
-    command
-        .arg(directory)
-        .spawn()
-        .map(|_| ())
-        .map_err(|_| AppError::new("skin.open_failed", "无法在文件管理器中打开皮肤目录。"))
-}
-
 /// 执行换皮宿主内部的 `build_payload` 步骤。
 #[cfg(test)]
 fn build_payload(directory: &Path, explicitly_trusted: bool) -> Result<String, AppError> {
@@ -354,10 +339,7 @@ fn resolved_instance_for_host(
 }
 
 /// 使用已经确定的稳定 ID 解析实例其余运行信息。
-fn resolved_instance_with_id(
-    process: PlatformCodexProcess,
-    id: String,
-) -> ResolvedCodexInstance {
+fn resolved_instance_with_id(process: PlatformCodexProcess, id: String) -> ResolvedCodexInstance {
     let arguments = reusable_process_arguments(&process.command_line);
     ResolvedCodexInstance {
         id,

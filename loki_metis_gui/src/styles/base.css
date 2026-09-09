@@ -1,0 +1,92 @@
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 960px;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-panel {
+  background:
+    radial-gradient(circle at 88% 10%, var(--app-glow), transparent 33%),
+    linear-gradient(
+      138deg,
+      var(--app-surface),
+      color-mix(in srgb, var(--app-surface) 84%, transparent)
+    );
+  border: 1px solid var(--app-border);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px -48px var(--app-accent);
+  min-height: 330px;
+  overflow: hidden;
+  position: relative;
+}
+
+.hero-panel::after {
+  background-image:
+    linear-gradient(var(--app-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--app-border) 1px, transparent 1px);
+  background-size: 30px 30px;
+  content: "";
+  inset: 0 0 0 auto;
+  mask-image: linear-gradient(to left, rgba(0, 0, 0, 0.45), transparent);
+  opacity: 0.24;
+  pointer-events: none;
+  position: absolute;
+  width: 46%;
+}
+
+.hero-title {
+  font-size: clamp(2.2rem, 5vw, 4.6rem);
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  max-width: 720px;
+}
+
+.surface-card,
+.workspace-card {
+  background: var(--app-surface);
+  border-color: var(--app-border);
+}
+
+.surface-card {
+  box-shadow: 0 16px 42px -38px rgba(15, 23, 42, 0.72);
+}
+
+.workspace-card {
+  border-style: dashed;
+  min-height: 130px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .surface-card {
+    transition:
+      border-color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .surface-card:hover {
+    border-color: color-mix(in srgb, var(--app-accent) 34%, var(--app-border));
+    transform: translateY(-1px);
+  }
+}

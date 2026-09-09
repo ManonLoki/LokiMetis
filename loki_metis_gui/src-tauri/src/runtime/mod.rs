@@ -13,6 +13,9 @@ use loki_metis_core::{
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 
 mod settings_state;
+mod task_owner;
+
+pub(crate) use task_owner::{BackgroundTaskOwner, BackgroundTaskShutdown};
 
 use crate::commands::ScanTaskOwner;
 use crate::dto::{AgentClientKindDto, SourceRootDto};
@@ -41,6 +44,8 @@ pub(crate) struct AppRuntimeState {
     pub(crate) scan_tasks: ScanTaskOwner,
     /// 当前全设备元数据发现状态与临时候选；应用退出即丢弃。
     pub(crate) root_discovery: Arc<RootDiscoveryCoordinator>,
+    /// 拥有根发现与一次性维护任务，并在退出时有界回收。
+    pub(crate) background_tasks: BackgroundTaskOwner,
     /// 本产品 app-data 目录；从不指向任一 `CODEX_HOME`。
     pub(crate) app_data_dir: PathBuf,
     /// 当前完整本地设置快照。
@@ -67,6 +72,7 @@ impl AppRuntimeState {
             source_client_app_data_dir(&app_data_dir, SourceClientKind::GrokBuildCli);
         let codex_account_context_gate = Arc::new(Mutex::new(()));
         let local_scan_coordinator = LocalScanCoordinator::default();
+        let root_discovery = Arc::new(RootDiscoveryCoordinator::default());
         Self {
             codex_account_context_gate: Arc::clone(&codex_account_context_gate),
             agent_clients: AgentClientRegistry::new(
@@ -85,7 +91,8 @@ impl AppRuntimeState {
                 local_scan_coordinator.clone(),
             ),
             scan_tasks: ScanTaskOwner::new(local_scan_coordinator),
-            root_discovery: Arc::new(RootDiscoveryCoordinator::default()),
+            root_discovery: Arc::clone(&root_discovery),
+            background_tasks: BackgroundTaskOwner::new(root_discovery),
             app_data_dir,
             privacy_settings: RwLock::new(LocalPrivacySettings::default()),
             privacy_settings_loaded: Mutex::new(false),

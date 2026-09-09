@@ -21,8 +21,8 @@ pub(crate) use root_discovery::{
     to_status_dto as root_discovery_status_dto,
 };
 pub(crate) use scan::{
-    clear_local_index, refresh_indexes_requiring_upgrade, refresh_local_indexes,
-    run_periodic_quick_scans,
+    clear_local_index, migrate_local_indexes, refresh_indexes_requiring_upgrade,
+    refresh_local_indexes, run_periodic_quick_scans,
 };
 pub(crate) use scan_orchestration::ScanTaskOwner;
 pub(crate) use settings::{get_privacy_settings, set_retention_days, set_scan_interval};

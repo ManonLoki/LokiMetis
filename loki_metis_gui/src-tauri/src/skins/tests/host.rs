@@ -94,14 +94,30 @@
     }
 
     #[test]
-    /// WorkBuddy 归属检查不可判定时必须失败关闭，不能继续采用或降级重试。
-    fn reconnected_workbuddy_session_fails_closed_on_ownership_inspection_error() {
-        for code in [
-            "skin.workbuddy_cdp_owner_inspection_failed",
-            "skin.workbuddy_process_inspection_failed",
+    /// 任一宿主的归属检查不可判定时必须失败关闭，不能继续采用或降级重试。
+    fn reconnected_session_fails_closed_on_ownership_inspection_error() {
+        for (host, code) in [
+            (
+                SkinHostKind::Codex,
+                "skin.codex_cdp_owner_inspection_failed",
+            ),
+            (SkinHostKind::Codex, "skin.codex_process_inspection_failed"),
+            (SkinHostKind::Codex, "skin.codex_process_inspection_timeout"),
+            (
+                SkinHostKind::WorkBuddy,
+                "skin.workbuddy_cdp_owner_inspection_failed",
+            ),
+            (
+                SkinHostKind::WorkBuddy,
+                "skin.workbuddy_process_inspection_failed",
+            ),
+            (
+                SkinHostKind::WorkBuddy,
+                "skin.workbuddy_process_inspection_timeout",
+            ),
         ] {
             let ReconnectValidationDecision::Reject(error) = reconnect_validation_decision(
-                SkinHostKind::WorkBuddy,
+                host,
                 Err(AppError::new(code, "测试错误")),
             ) else {
                 panic!("归属检查故障必须立即拒绝重连候选");
@@ -305,8 +321,8 @@
     }
 
     #[test]
-    /// 验证换皮迁移中的 `dynamic_endpoint_candidates_prefer_newer_processes_and_keep_fixed_fallback` 回归场景。
-    fn dynamic_endpoint_candidates_prefer_newer_processes_and_keep_fixed_fallback() {
+    /// Codex 端点只来自显式声明，绝不能无条件补入可能被其它进程占用的 9341。
+    fn codex_endpoint_candidates_never_add_unclaimed_default() {
         let endpoints = endpoint_candidates_from_commands(vec![
             (10, "ChatGPT.exe --remote-debugging-port=9222".into()),
             (30, "ChatGPT.exe --remote-debugging-port 9555".into()),
@@ -315,11 +331,7 @@
         ]);
         assert_eq!(
             endpoints,
-            vec![
-                CdpEndpoint::new(9555),
-                CdpEndpoint::new(9222),
-                CdpEndpoint::default(),
-            ]
+            vec![CdpEndpoint::new(9555), CdpEndpoint::new(9222)]
         );
         assert_eq!(
             endpoint_candidates_from_commands(vec![(
@@ -328,6 +340,13 @@
             )]),
             vec![CdpEndpoint::default()]
         );
+        assert!(endpoint_candidates_from_commands(Vec::new()).is_empty());
+        assert!(host_endpoint_candidates_from_commands(
+            SkinHostKind::Codex,
+            Vec::new(),
+            None,
+        )
+        .is_empty());
     }
 
     #[test]
@@ -363,8 +382,8 @@
     }
 
     #[test]
-    /// 验证 WMI 命令行不可用时，刚验证过的动态端点仍能跨恢复后的首次重扫保留。
-    fn workbuddy_endpoint_candidates_prefer_verified_runtime_hint_without_wmi() {
+    /// 原生命令行不可用时，刚验证过的动态端点仍能跨恢复后的首次重扫保留。
+    fn workbuddy_endpoint_candidates_prefer_verified_runtime_hint_without_command_line() {
         assert_eq!(
             host_endpoint_candidates_from_commands(
                 SkinHostKind::WorkBuddy,
@@ -376,7 +395,7 @@
     }
 
     #[test]
-    /// WMI 命令行从可用降级为空时，同一 WorkBuddy 根的实例 ID 必须保持不变。
+    /// 原生命令行从可用降级为空时，同一 WorkBuddy 根的实例 ID 必须保持不变。
     fn workbuddy_instance_id_does_not_depend_on_command_line() {
         let process = |command_line: &str| PlatformCodexProcess {
             pid: 77,
@@ -410,6 +429,40 @@
         assert_eq!(trusted_workbuddy_root_pid(&processes, Some(43)), None);
         assert_eq!(trusted_workbuddy_root_pid(&processes, None), None);
         assert_eq!(trusted_workbuddy_root_pid(&[process(41)], None), Some(41));
+    }
+
+    #[test]
+    /// Codex 声明端口与候选不一致时不能借“唯一进程”回退冒认端点。
+    fn codex_declared_port_mismatch_rejects_root_fallback() {
+        let process = |pid, command_line: &str| PlatformCodexProcess {
+            pid,
+            executable: PathBuf::from(r"C:\Program Files\ChatGPT\ChatGPT.exe"),
+            command_line: command_line.into(),
+        };
+        assert_eq!(
+            trusted_codex_root_pid(
+                &[process(41, "ChatGPT.exe --remote-debugging-port=9342")],
+                CdpEndpoint::new(9341),
+                None,
+            ),
+            None
+        );
+        assert_eq!(
+            trusted_codex_root_pid(
+                &[process(41, "ChatGPT.exe")],
+                CdpEndpoint::new(9341),
+                None,
+            ),
+            Some(41)
+        );
+    }
+
+    #[test]
+    /// 首次注入提交前 owner 根 PID 消失或换成其它进程时必须拒绝提交。
+    fn initial_injection_rejects_endpoint_owner_change() {
+        assert!(endpoint_owner_is_stable(41, Some(41)));
+        assert!(!endpoint_owner_is_stable(41, Some(42)));
+        assert!(!endpoint_owner_is_stable(41, None));
     }
 
     #[test]
@@ -449,6 +502,17 @@
             "skin.workbuddy_process_inspection_failed",
             true,
         ));
+        for code in [
+            "skin.codex_cdp_owner_inspection_failed",
+            "skin.codex_process_inspection_failed",
+            "skin.codex_process_inspection_timeout",
+            "skin.workbuddy_cdp_owner_inspection_failed",
+            "skin.workbuddy_process_inspection_failed",
+            "skin.workbuddy_process_inspection_timeout",
+        ] {
+            assert!(is_host_inspection_error(code));
+            assert!(!is_workbuddy_connection_error(code));
+        }
     }
 
     #[test]

@@ -3,7 +3,8 @@ use crate::commands::ensure_business_access;
 use crate::dto::AgentClientKindDto;
 use crate::runtime::AppRuntimeState;
 use crate::source_commands::support::{
-    acquire_source_root_write_permit, parser_version_for_client, to_source_client_kind,
+    acquire_source_root_write_context, acquire_source_root_write_permit, parser_version_for_client,
+    to_source_client_kind,
 };
 use loki_metis_core::{
     SourceClientKind, ensure_primary_source_root_supported, normalize_source_root_alias,
@@ -36,6 +37,32 @@ fn source_registration_holds_the_client_scan_writer() {
             .expect("released mutation permit allows the next scan");
         drop(scan_permit);
     }
+}
+
+/// writer 忙时即使账户锁也被占用，根修改也必须先返回 busy，不能反向等待形成 ABBA。
+#[tokio::test]
+async fn root_mutation_rejects_busy_writer_before_waiting_for_account_gate() {
+    let temp = tempfile::tempdir().expect("isolated app-data is available");
+    let state = AppRuntimeState::new(temp.path().to_path_buf());
+    let _writer = state
+        .local_scan
+        .get(AgentClientKindDto::Codex.into())
+        .try_start()
+        .expect("fixture occupies the global writer");
+    let _account = state.lock_codex_account_context().await;
+
+    let result = tokio::time::timeout(
+        std::time::Duration::from_millis(100),
+        acquire_source_root_write_context(&state, AgentClientKindDto::Codex),
+    )
+    .await
+    .expect("busy writer is rejected before the account gate can be awaited");
+
+    assert!(matches!(
+        result,
+        Err(ref error)
+            if error == loki_metis_core::source_root_operations_blocked_by_scan_message()
+    ));
 }
 
 /// 验证根 ID 校验只接受各客户端固定前缀加稳定散列，拒绝路径或跨客户端混用。

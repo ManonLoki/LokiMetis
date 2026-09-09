@@ -21,8 +21,7 @@ async fn try_activate_host_window(host: SkinHostKind, endpoint: CdpEndpoint) {
         }
     };
     let Some(pid) = unique_codex_pid_for_endpoint(&processes, endpoint).or_else(|| {
-        (host == SkinHostKind::WorkBuddy && processes.len() == 1)
-            .then(|| processes[0].process.pid)
+        (host == SkinHostKind::WorkBuddy && processes.len() == 1).then(|| processes[0].process.pid)
     }) else {
         tracing::warn!(?host, "code=skin.host_window_activation_target_missing");
         return;
@@ -96,145 +95,7 @@ async fn browser_pages(browser: &Browser) -> Result<Vec<Page>, AppError> {
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `launch_platform_codex` 步骤。
 async fn launch_platform_codex() -> Result<(), AppError> {
-    let executable = discover_codex_executable().await?;
-    if codex_is_running(&executable).await {
-        return Err(manual_close_required());
-    }
-    let bundle = executable
-        .parent()
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .ok_or_else(|| AppError::new("skin.codex_not_found", "Codex 应用路径无效。"))?;
-    let status = tokio::process::Command::new("/usr/bin/open")
-        .args(["-na"])
-        .arg(bundle)
-        .args([
-            "--args",
-            "--remote-debugging-address=127.0.0.1",
-            "--remote-debugging-port=9341",
-        ])
-        .status()
-        .await
-        .map_err(|_| AppError::new("skin.codex_launch_failed", "无法启动 Codex。"))?;
-    if !status.success() {
-        return Err(AppError::new(
-            "skin.codex_launch_failed",
-            "系统未能以调试参数启动 Codex。",
-        ));
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `discover_codex_executable` 步骤。
-async fn discover_codex_executable() -> Result<PathBuf, AppError> {
-    let output = tokio::process::Command::new("/usr/bin/mdfind")
-        .arg("kMDItemCFBundleIdentifier == \"com.openai.codex\"")
-        .output()
-        .await
-        .map_err(|_| AppError::new("skin.codex_not_found", "无法定位 Codex 应用。"))?;
-    let mut bundles = vec![PathBuf::from("/Applications/ChatGPT.app")];
-    if let Some(home) = std::env::var_os("HOME") {
-        bundles.push(PathBuf::from(home).join("Applications/ChatGPT.app"));
-    }
-    bundles.extend(
-        String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .filter(|line| !line.is_empty())
-            .map(PathBuf::from),
-    );
-    for bundle in bundles {
-        let info = bundle.join("Contents/Info.plist");
-        if !info.is_file() {
-            continue;
-        }
-        let identifier = plist_value(&info, "CFBundleIdentifier").await;
-        let executable_name = plist_value(&info, "CFBundleExecutable").await;
-        if identifier.as_deref() == Some("com.openai.codex") {
-            if let Some(name) = executable_name {
-                let executable = bundle.join("Contents/MacOS").join(name);
-                if executable.is_file() {
-                    return Ok(executable);
-                }
-            }
-        }
-    }
-    Err(AppError::new(
-        "skin.codex_not_found",
-        "未找到官方 Codex 应用（com.openai.codex）。",
-    ))
-}
-
-#[cfg(target_os = "macos")]
-/// 定位经过 bundle identifier 验证的 WorkBuddy 主程序。
-async fn discover_workbuddy_executable() -> Result<PathBuf, AppError> {
-    let output = tokio::process::Command::new("/usr/bin/mdfind")
-        .arg("kMDItemCFBundleIdentifier == \"com.tencent.workbuddy.mac\"")
-        .output()
-        .await
-        .map_err(|_| AppError::new("skin.workbuddy_not_found", "无法定位 WorkBuddy 应用。"))?;
-    let mut bundles = vec![PathBuf::from("/Applications/WorkBuddy.app")];
-    if let Some(home) = std::env::var_os("HOME") {
-        bundles.push(PathBuf::from(home).join("Applications/WorkBuddy.app"));
-    }
-    bundles.extend(
-        String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .filter(|line| !line.is_empty())
-            .map(PathBuf::from),
-    );
-    for bundle in bundles {
-        let info = bundle.join("Contents/Info.plist");
-        if !info.is_file() {
-            continue;
-        }
-        if plist_value(&info, "CFBundleIdentifier").await.as_deref()
-            != Some("com.tencent.workbuddy.mac")
-        {
-            continue;
-        }
-        if let Some(name) = plist_value(&info, "CFBundleExecutable").await {
-            let executable = bundle.join("Contents/MacOS").join(name);
-            if executable.is_file() {
-                return Ok(executable);
-            }
-        }
-    }
-    Err(AppError::new(
-        "skin.workbuddy_not_found",
-        "未找到官方 WorkBuddy 应用（com.tencent.workbuddy.mac）。",
-    ))
-}
-
-#[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `plist_value` 步骤。
-async fn plist_value(info: &Path, key: &str) -> Option<String> {
-    let output = tokio::process::Command::new("/usr/bin/plutil")
-        .args(["-extract", key, "raw", "-o", "-"])
-        .arg(info)
-        .output()
-        .await
-        .ok()?;
-    output
-        .status
-        .success()
-        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
-}
-
-#[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `codex_is_running` 步骤。
-async fn codex_is_running(executable: &Path) -> bool {
-    let Ok(output) = tokio::process::Command::new("/bin/ps")
-        .args(["-axo", "command="])
-        .output()
-        .await
-    else {
-        return false;
-    };
-    let executable = executable.to_string_lossy();
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .any(|line| line == executable || line.starts_with(&format!("{executable} ")))
+    macos_process::launch_host(SkinHostKind::Codex, 9341).await
 }
 
 #[cfg(any(target_os = "macos", test))]
@@ -267,79 +128,40 @@ fn matching_process_command_lines(output: &str, executable: &Path) -> Vec<(u32, 
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `platform_codex_command_lines` 步骤。
 async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> {
-    let executable = discover_codex_executable().await?;
-    codex_command_lines_for(&executable).await
-}
-
-#[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `codex_command_lines_for` 步骤。
-async fn codex_command_lines_for(executable: &Path) -> Result<Vec<(u32, String)>, AppError> {
-    let output = tokio::process::Command::new("/bin/ps")
-        .args(["-axo", "pid=,command="])
-        .output()
-        .await
-        .map_err(|_| {
-            AppError::new(
-                "skin.codex_process_inspection_failed",
-                "无法读取 Codex 调试启动参数。",
-            )
-        })?;
-    if !output.status.success() {
-        return Err(AppError::new(
-            "skin.codex_process_inspection_failed",
-            "无法读取 Codex 调试启动参数。",
-        ));
-    }
-    Ok(matching_process_command_lines(
-        &String::from_utf8_lossy(&output.stdout),
-        executable,
-    ))
+    macos_process::host_command_lines(SkinHostKind::Codex).await
 }
 
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
 async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
-    let executable = discover_codex_executable().await?;
-    Ok(codex_command_lines_for(&executable)
+    Ok(macos_process::host_processes(SkinHostKind::Codex)
         .await?
         .into_iter()
-        .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
-        .map(|(pid, command_line)| PlatformCodexProcess {
-            pid,
-            executable: executable.clone(),
-            command_line,
-        })
+        .filter(|process| is_primary_codex_command_line(&process.command_line))
         .collect())
 }
 
 #[cfg(target_os = "macos")]
 /// 列出经过官方可执行路径验证的 WorkBuddy GUI 主进程。
 async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
-    let executable = discover_workbuddy_executable().await?;
-    Ok(codex_command_lines_for(&executable)
+    Ok(macos_process::host_processes(SkinHostKind::WorkBuddy)
         .await?
         .into_iter()
-        .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
-        .map(|(pid, command_line)| PlatformCodexProcess {
-            pid,
-            executable: executable.clone(),
-            command_line,
-        })
+        .filter(|process| is_primary_codex_command_line(&process.command_line))
         .collect())
 }
 
 #[cfg(target_os = "macos")]
 /// 读取 macOS 官方 WorkBuddy 主程序对应的进程命令行。
 async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppError> {
-    let executable = discover_workbuddy_executable().await?;
-    codex_command_lines_for(&executable).await
+    macos_process::host_command_lines(SkinHostKind::WorkBuddy).await
 }
 
 #[cfg(target_os = "macos")]
 /// 判断 macOS 官方 WorkBuddy 是否运行，未安装按未运行处理。
 async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
-    match discover_workbuddy_executable().await {
-        Ok(executable) => Ok(codex_is_running(&executable).await),
+    match macos_process::host_is_running(SkinHostKind::WorkBuddy).await {
+        Ok(running) => Ok(running),
         Err(error) if error.code == "skin.workbuddy_not_found" => Ok(false),
         Err(error) => Err(error),
     }
@@ -348,40 +170,13 @@ async fn platform_workbuddy_is_running() -> Result<bool, AppError> {
 #[cfg(target_os = "macos")]
 /// 在 macOS 上启动官方 WorkBuddy，并通过环境变量绑定本机调试端口。
 async fn launch_platform_workbuddy(port: u16) -> Result<(), AppError> {
-    let executable = discover_workbuddy_executable().await?;
-    if codex_is_running(&executable).await {
-        return Err(manual_close_required_for(SkinHostKind::WorkBuddy));
-    }
-    tokio::process::Command::new(executable)
-        .env(
-            "WORKBUDDY_REMOTE_DEBUGGING_PORT",
-            port.to_string(),
-        )
-        .spawn()
-        .map_err(|_| AppError::new("skin.workbuddy_launch_failed", "无法启动 WorkBuddy。"))?;
-    Ok(())
+    macos_process::launch_host(SkinHostKind::WorkBuddy, port).await
 }
 
 #[cfg(target_os = "macos")]
 /// 仅向路径验证通过的 macOS WorkBuddy 进程发送终止信号。
 async fn force_close_platform_workbuddy() -> Result<(), AppError> {
-    let executable = discover_workbuddy_executable().await?;
-    for (pid, _) in codex_command_lines_for(&executable).await? {
-        let status = tokio::process::Command::new("/bin/kill")
-            .args(["-TERM", &pid.to_string()])
-            .status()
-            .await
-            .map_err(|_| {
-                AppError::new("skin.workbuddy_force_close_failed", "无法关闭 WorkBuddy。")
-            })?;
-        if !status.success() {
-            return Err(AppError::new(
-                "skin.workbuddy_force_close_failed",
-                "无法关闭 WorkBuddy。",
-            ));
-        }
-    }
-    Ok(())
+    macos_process::force_close_host(SkinHostKind::WorkBuddy).await
 }
 
 #[cfg(target_os = "macos")]
@@ -397,33 +192,7 @@ async fn restart_platform_workbuddy_instance(
             "所选 WorkBuddy 实例身份已变化，请重新选择。",
         ));
     }
-    let status = tokio::process::Command::new("/bin/kill")
-        .args(["-TERM", &selected.process.pid.to_string()])
-        .status()
-        .await
-        .map_err(|_| {
-            AppError::new(
-                "skin.workbuddy_force_close_failed",
-                "无法关闭所选 WorkBuddy 实例。",
-            )
-        })?;
-    if !status.success() {
-        return Err(AppError::new(
-            "skin.workbuddy_force_close_failed",
-            "无法关闭所选 WorkBuddy 实例。",
-        ));
-    }
-    tokio::process::Command::new(&selected.process.executable)
-        .args(&selected.arguments)
-        .env("WORKBUDDY_REMOTE_DEBUGGING_PORT", port.to_string())
-        .spawn()
-        .map_err(|_| {
-            AppError::new(
-                "skin.workbuddy_launch_failed",
-                "无法使用原启动参数重新打开所选 WorkBuddy 实例。",
-            )
-        })?;
-    Ok(())
+    macos_process::restart_host_instance(SkinHostKind::WorkBuddy, selected, port).await
 }
 
 #[cfg(target_os = "macos")]
@@ -439,75 +208,27 @@ async fn restart_platform_codex_instance(
             "所选 Codex 实例身份已变化，请重新选择。",
         ));
     }
-    let pid = selected.process.pid.to_string();
-    let status = tokio::process::Command::new("/bin/kill")
-        .args(["-TERM", pid.as_str()])
-        .status()
-        .await
-        .map_err(|_| AppError::new("skin.codex_force_close_failed", "无法关闭所选 Codex 实例。"))?;
-    if !status.success() {
-        return Err(AppError::new(
-            "skin.codex_force_close_failed",
-            "无法关闭所选 Codex 实例。",
-        ));
-    }
-    tokio::process::Command::new(&selected.process.executable)
-        .args(&selected.arguments)
-        .args([
-            "--remote-debugging-address=127.0.0.1".to_owned(),
-            format!("--remote-debugging-port={port}"),
-        ])
-        .spawn()
-        .map_err(|_| {
-            AppError::new(
-                "skin.codex_launch_failed",
-                "无法使用原启动参数重新打开所选 Codex 实例。",
-            )
-        })?;
-    Ok(())
+    let mut restarted = selected.clone();
+    restarted
+        .arguments
+        .push("--remote-debugging-address=127.0.0.1".to_owned());
+    restarted
+        .arguments
+        .push(format!("--remote-debugging-port={port}"));
+    macos_process::restart_host_instance(SkinHostKind::Codex, &restarted, port).await
 }
 
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `force_close_platform_codex` 步骤。
 async fn force_close_platform_codex() -> Result<(), AppError> {
-    let executable = discover_codex_executable().await?;
-    let pids = codex_command_lines_for(&executable)
-        .await
-        .map_err(|_| {
-            AppError::new(
-                "skin.codex_force_close_failed",
-                "无法检查当前 Codex/GPT 桌面应用进程。",
-            )
-        })?
-        .into_iter()
-        .map(|(pid, _)| pid.to_string())
-        .collect::<Vec<_>>();
-    for pid in &pids {
-        let status = tokio::process::Command::new("/bin/kill")
-            .args(["-TERM", pid])
-            .status()
-            .await
-            .map_err(|_| {
-                AppError::new(
-                    "skin.codex_force_close_failed",
-                    "无法关闭当前 Codex/GPT 桌面应用，请保存工作后手动退出。",
-                )
-            })?;
-        if !status.success() {
-            return Err(AppError::new(
-                "skin.codex_force_close_failed",
-                "无法关闭当前 Codex/GPT 桌面应用，请保存工作后手动退出。",
-            ));
-        }
-    }
-    Ok(())
+    macos_process::force_close_host(SkinHostKind::Codex).await
 }
 
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `platform_codex_is_running` 步骤。
 async fn platform_codex_is_running() -> Result<bool, AppError> {
-    match discover_codex_executable().await {
-        Ok(executable) => Ok(codex_is_running(&executable).await),
+    match macos_process::host_is_running(SkinHostKind::Codex).await {
+        Ok(running) => Ok(running),
         Err(error) if error.code == "skin.codex_not_found" => Ok(false),
         Err(error) => Err(error),
     }
@@ -667,7 +388,6 @@ async fn force_close_platform_codex() -> Result<(), AppError> {
         "当前版本仅支持在 macOS 或 Windows 上强制启动 Codex 皮肤。",
     ))
 }
-
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 未支持平台始终报告 WorkBuddy 未运行。

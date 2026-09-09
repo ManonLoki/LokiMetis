@@ -43,6 +43,28 @@ if (lightDarkSources.length > 0) {
 const builtFiles = await collectCssFiles(builtAssetsRoot);
 if (builtFiles.length === 0) throw new Error("生产构建没有生成 CSS 资源");
 
+const builtCss = (await Promise.all(builtFiles.map((file) => readFile(file, "utf8")))).join(
+  "\n",
+);
+// 每个第一方样式入口使用一个不会与 Mantine 碰撞的稳定标记。这样即使主入口漏掉
+// 某个 @import，第三方 CSS 仍存在也无法让生产构建误判通过。
+const requiredBuiltMarkers = [
+  ".hero-panel",
+  ".dashboard-toolbar",
+  ".navigation-link.active",
+  ".monitor-page-shell",
+  ".chart-figure",
+  ".pet-shell",
+  "--app-dashboard-toolbar-background",
+  "--app-chart-text",
+];
+const missingBuiltMarkers = requiredBuiltMarkers.filter(
+  (marker) => !builtCss.includes(marker),
+);
+if (missingBuiltMarkers.length > 0) {
+  throw new Error(`生产 CSS 缺少第一方样式标记: ${missingBuiltMarkers.join(", ")}`);
+}
+
 const unsafeBuiltFiles = await findOffenders(
   builtFiles,
   /--lightningcss-(?:light|dark)\b/gu,

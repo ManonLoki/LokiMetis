@@ -7,7 +7,7 @@ target-platforms = ["windows", "macos", "linux"]
 interfaces = ["gui"]
 
 [workspace.package]
-version = "0.2.24"
+version = "0.2.39"
 edition = "2024"
 rust-version = "1.95"
 
@@ -21,6 +21,7 @@ futures = "0.3.34"
 jiff = "0.2.35"
 loki_metis_core = { path = "loki_metis_core" }
 mac-usernotifications = "0.3.1"
+notify-rust = "4.18.0"
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "std",
     "NSDate",
@@ -81,6 +82,11 @@ windows = { version = "0.61.3", default-features = false, features = [
     "Win32_Foundation",
     "Win32_NetworkManagement_IpHelper",
     "Win32_Networking_WinSock",
+    "Win32_Security_Cryptography",
+    "Win32_Security_Cryptography_Catalog",
+    "Win32_Security_Cryptography_Sip",
+    "Win32_Security_WinTrust",
+    "Win32_Storage_Packaging_Appx",
     "Win32_System_Com",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_Registry",
@@ -89,6 +95,5 @@ windows = { version = "0.61.3", default-features = false, features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 windows-permissions = "0.2.4"
-wmi = { version = "0.18.4", default-features = false }
 zeroize = "1.9.0"
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }

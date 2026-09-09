@@ -65,6 +65,51 @@ pub(crate) async fn open_private_sqlite(
     Ok((connection, database_path))
 }
 
+/// 只读打开已经存在的私有 SQLite；不创建目录、文件、不改权限，也不执行 schema 写入。
+pub(crate) async fn open_private_sqlite_read_only(
+    app_data_dir: &Path,
+    file_name: &str,
+) -> Result<(DatabaseConnection, PathBuf), PrivateSqliteError> {
+    if app_data_dir.as_os_str().is_empty()
+        || file_name.is_empty()
+        || Path::new(file_name).components().count() != 1
+    {
+        return Err(PrivateSqliteError::InvalidPath);
+    }
+    let directory_metadata = tokio::fs::symlink_metadata(app_data_dir)
+        .await
+        .map_err(map_io_error)?;
+    if directory_metadata.file_type().is_symlink() || !directory_metadata.is_dir() {
+        return Err(PrivateSqliteError::InvalidPath);
+    }
+    let database_path = app_data_dir.join(file_name);
+    let database_metadata = tokio::fs::symlink_metadata(&database_path)
+        .await
+        .map_err(map_io_error)?;
+    if database_metadata.file_type().is_symlink() || !database_metadata.is_file() {
+        return Err(PrivateSqliteError::InvalidPath);
+    }
+
+    let mut options = ConnectOptions::new("sqlite://placeholder.sqlite3");
+    options.sqlx_logging(false);
+    {
+        let database_path = database_path.clone();
+        options.map_sqlx_sqlite_opts(move |sqlite_options| {
+            sqlite_options
+                .filename(&database_path)
+                .create_if_missing(false)
+                .read_only(true)
+                .foreign_keys(true)
+                .busy_timeout(Duration::from_millis(5_000))
+                .pragma("trusted_schema", "OFF")
+        });
+    }
+    let connection = Database::connect(options)
+        .await
+        .map_err(|_| PrivateSqliteError::Database)?;
+    Ok((connection, database_path))
+}
+
 /// 在 Unix 上把数据库限制为当前用户读写；其他平台沿用 app-data ACL。
 async fn set_private_database_permissions(_database_path: &Path) -> Result<(), PrivateSqliteError> {
     #[cfg(unix)]
@@ -135,5 +180,26 @@ mod tests {
                 .expect_err("symlink is rejected"),
             PrivateSqliteError::InvalidPath
         );
+    }
+
+    /// 只读打开不得创建缺失数据库，且可读取已由写入口完成初始化的文件。
+    #[tokio::test]
+    async fn read_only_open_requires_an_existing_private_database() {
+        let temp = tempdir().expect("isolated app-data exists");
+        assert_eq!(
+            open_private_sqlite_read_only(temp.path(), "missing.sqlite3")
+                .await
+                .expect_err("read-only open never creates a missing database"),
+            PrivateSqliteError::StorageUnavailable
+        );
+        let (connection, path) = open_private_sqlite(temp.path(), "present.sqlite3")
+            .await
+            .expect("writer initializes the database");
+        drop(connection);
+        let (_read_only, reopened_path) =
+            open_private_sqlite_read_only(temp.path(), "present.sqlite3")
+                .await
+                .expect("existing private database opens read-only");
+        assert_eq!(reopened_path, path);
     }
 }

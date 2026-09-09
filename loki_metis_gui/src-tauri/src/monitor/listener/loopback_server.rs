@@ -7,12 +7,15 @@ use std::{
 
 use loki_metis_core::{HOOK_RELAY_EPHEMERAL_PORT, hook_relay_loopback_address};
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::{Semaphore, mpsc};
+use tokio::task::JoinSet;
 use tokio::time::timeout;
 
 use super::super::relay;
-use super::control::{HookListenerPolicy, hook_listener_policy, write_hook_relay_status};
+use super::control::{
+    HookListenerPolicy, HookListenerShutdown, hook_listener_policy, write_hook_relay_status,
+};
 use super::http_protocol::{fail, handle_connection, write_http_response};
 use super::{ConnectionOutcome, HookRelayStatus, QueuedHookEvent};
 
@@ -20,6 +23,8 @@ use super::{ConnectionOutcome, HookRelayStatus, QueuedHookEvent};
 const HOOK_HTTP_REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
 /// listener 回写短响应的最长时间。
 const HOOK_HTTP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(3);
+/// 未认证连接也计入的固定任务上限，避免慢连接耗尽异步运行时资源。
+pub(super) const HOOK_CONNECTION_TASK_LIMIT: usize = 32;
 
 /// 返回只允许操作系统分配端口的回环绑定地址。
 pub(super) fn hook_relay_bind_addr() -> std::net::SocketAddr {
@@ -41,7 +46,11 @@ pub(super) async fn run_listener(
     status: Arc<RwLock<HookRelayStatus>>,
     sender: mpsc::Sender<QueuedHookEvent>,
     policy: Arc<RwLock<HookListenerPolicy>>,
+    shutdown: HookListenerShutdown,
 ) -> Result<(), String> {
+    if shutdown.is_cancelled() {
+        return Ok(());
+    }
     let listener = bind_local_hook_relay_listener()
         .await
         .map_err(|error| error.to_string())?;
@@ -64,44 +73,150 @@ pub(super) async fn run_listener(
         current.listening = true;
         current.bind_address = bind_address;
     }
-    loop {
-        let (mut stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
-        let status = Arc::clone(&status);
-        let sender = sender.clone();
-        let policy = Arc::clone(&policy);
-        let instance_id = rendezvous.instance_id.clone();
-        tauri::async_runtime::spawn(async move {
-            let outcome = match timeout(
-                HOOK_HTTP_REQUEST_TIMEOUT,
-                handle_connection(&mut stream, &instance_id),
-            )
-            .await
-            {
-                Ok(outcome) => outcome,
-                Err(_) => fail("408 Request Timeout", "Request Timeout"),
-            };
-            let (response_status, response_body, authenticated) =
-                enqueue_connection_outcome(outcome, &sender, &status, &policy);
-            if let Err(error) = timeout(
-                HOOK_HTTP_RESPONSE_TIMEOUT,
-                write_http_response(
-                    &mut stream,
-                    response_status,
-                    response_body,
-                    authenticated.then_some(instance_id.as_str()),
-                ),
-            )
-            .await
-            .map_err(|_| "response timeout".to_owned())
-            .and_then(|result| result.map_err(|error| error.to_string()))
-            {
-                tracing::warn!(
-                    target: "loki_metis::hook_listener",
-                    %error,
-                    "failed to write hook listener response"
-                );
+    let connection_slots = Arc::new(Semaphore::new(HOOK_CONNECTION_TASK_LIMIT));
+    let listener_result = run_connection_loop(
+        listener,
+        Arc::clone(&status),
+        sender,
+        policy,
+        rendezvous.instance_id.clone(),
+        shutdown,
+        connection_slots,
+    )
+    .await;
+    remove_rendezvous_if_current(&rendezvous_path, &rendezvous);
+    write_hook_relay_status(&status).listening = false;
+    listener_result
+}
+
+/// 接受连接并在固定并发槽内持有全部连接任务，关闭前中止并回收每个任务与许可。
+pub(super) async fn run_connection_loop(
+    listener: TcpListener,
+    status: Arc<RwLock<HookRelayStatus>>,
+    sender: mpsc::Sender<QueuedHookEvent>,
+    policy: Arc<RwLock<HookListenerPolicy>>,
+    instance_id: String,
+    mut shutdown: HookListenerShutdown,
+    connection_slots: Arc<Semaphore>,
+) -> Result<(), String> {
+    let mut connections = JoinSet::new();
+    let listener_result = loop {
+        tokio::select! {
+            biased;
+            _ = shutdown.cancelled() => break Ok(()),
+            completed = connections.join_next(), if !connections.is_empty() => {
+                if let Some(Err(error)) = completed
+                    && !error.is_cancelled()
+                {
+                    tracing::warn!(
+                        target: "loki_metis::hook_listener",
+                        %error,
+                        "hook listener connection task stopped unexpectedly"
+                    );
+                }
             }
-        });
+            accepted = listener.accept() => {
+                let (stream, _) = match accepted {
+                    Ok(accepted) => accepted,
+                    Err(error) => break Err(error.to_string()),
+                };
+                let permit = match Arc::clone(&connection_slots).try_acquire_owned() {
+                    Ok(permit) => permit,
+                    Err(_) => {
+                        record_listener_failure(&status, "Hook listener connection limit reached");
+                        drop(stream);
+                        continue;
+                    }
+                };
+                let connection_status = Arc::clone(&status);
+                let connection_sender = sender.clone();
+                let connection_policy = Arc::clone(&policy);
+                let instance_id = instance_id.clone();
+                connections.spawn(async move {
+                    // Owned permit 与任务同寿命，正常结束和 abort 都会释放连接槽。
+                    let _permit = permit;
+                    serve_connection(
+                        stream,
+                        instance_id,
+                        connection_sender,
+                        connection_status,
+                        connection_policy,
+                    )
+                    .await;
+                });
+            }
+        }
+    };
+    connections.abort_all();
+    while let Some(completed) = connections.join_next().await {
+        if let Err(error) = completed
+            && !error.is_cancelled()
+        {
+            tracing::warn!(
+                target: "loki_metis::hook_listener",
+                %error,
+                "hook listener connection task did not stop cleanly"
+            );
+        }
+    }
+    listener_result
+}
+
+/// 处理单条已接受连接；其句柄始终由 listener 内部 JoinSet 拥有。
+async fn serve_connection(
+    mut stream: tokio::net::TcpStream,
+    instance_id: String,
+    sender: mpsc::Sender<QueuedHookEvent>,
+    status: Arc<RwLock<HookRelayStatus>>,
+    policy: Arc<RwLock<HookListenerPolicy>>,
+) {
+    let outcome = match timeout(
+        HOOK_HTTP_REQUEST_TIMEOUT,
+        handle_connection(&mut stream, &instance_id),
+    )
+    .await
+    {
+        Ok(outcome) => outcome,
+        Err(_) => fail("408 Request Timeout", "Request Timeout"),
+    };
+    let (response_status, response_body, authenticated) =
+        enqueue_connection_outcome(outcome, &sender, &status, &policy);
+    if let Err(error) = timeout(
+        HOOK_HTTP_RESPONSE_TIMEOUT,
+        write_http_response(
+            &mut stream,
+            response_status,
+            response_body,
+            authenticated.then_some(instance_id.as_str()),
+        ),
+    )
+    .await
+    .map_err(|_| "response timeout".to_owned())
+    .and_then(|result| result.map_err(|error| error.to_string()))
+    {
+        tracing::warn!(
+            target: "loki_metis::hook_listener",
+            %error,
+            "failed to write hook listener response"
+        );
+    }
+}
+
+/// 仅当磁盘文件仍属于当前实例时删除，避免误删已重启实例的端点。
+fn remove_rendezvous_if_current(path: &std::path::Path, expected: &relay::HookRelayRendezvous) {
+    let is_current = std::fs::read(path)
+        .ok()
+        .and_then(|payload| serde_json::from_slice::<relay::HookRelayRendezvous>(&payload).ok())
+        .is_some_and(|current| current == *expected);
+    if is_current
+        && let Err(error) = std::fs::remove_file(path)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!(
+            target: "loki_metis::hook_listener",
+            %error,
+            "failed to remove the stopped hook listener rendezvous"
+        );
     }
 }
 

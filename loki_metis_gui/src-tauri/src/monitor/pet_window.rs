@@ -14,6 +14,8 @@ use tauri::{
     WebviewWindowBuilder,
 };
 
+use crate::runtime::AppRuntimeState;
+
 use super::pet_geometry::{
     apply_pet_constraints, apply_pet_size, clamp_pet_window_to_work_area, normalize_pet_resize,
     pet_size_range,
@@ -354,17 +356,24 @@ pub fn schedule_pet_overlay_position_persist<R: Runtime>(
     };
     let generation = PET_OVERLAY_MOVE_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
     let app = window.app_handle().clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        if generation != PET_OVERLAY_MOVE_GENERATION.load(Ordering::Relaxed) {
-            return;
-        }
-        let Ok(config_dir) = app.path().app_config_dir() else {
-            return;
-        };
-        let work_areas = pet_overlay_work_areas(&app);
-        let _ = persist_pet_overlay_position(&config_dir, position, outer_size, &work_areas);
-    });
+    let task_app = app.clone();
+    let _ = app.state::<AppRuntimeState>().background_tasks.spawn(
+        "pet-position-debounce",
+        move |mut shutdown| async move {
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(200)) => {}
+                _ = shutdown.cancelled() => return,
+            }
+            if generation != PET_OVERLAY_MOVE_GENERATION.load(Ordering::Relaxed) {
+                return;
+            }
+            let Ok(config_dir) = task_app.path().app_config_dir() else {
+                return;
+            };
+            let work_areas = pet_overlay_work_areas(&task_app);
+            let _ = persist_pet_overlay_position(&config_dir, position, outer_size, &work_areas);
+        },
+    );
 }
 
 /// 原生 `WindowEvent::Resized` 入口：立即修正宽高比，再防抖保存单格大小。
@@ -395,21 +404,28 @@ pub fn handle_pet_overlay_resized<R: Runtime>(window: &tauri::Window<R>, size: P
         return;
     }
     let layout = settings.pet_window.layout;
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        if generation != PET_OVERLAY_RESIZE_GENERATION.load(Ordering::Relaxed) {
-            return;
-        }
-        let expected_size = settings.pet_window.pet_size;
-        let mut changed = false;
-        let saved = update_monitor_settings(&config_dir, |current| {
-            changed = expected_size != pet_size
-                && replace_pet_size_if_unchanged(current, layout, expected_size, pet_size);
-        });
-        if saved.is_ok() && changed {
-            super::pet_events::emit_pet_window_state_changed(&app);
-        }
-    });
+    let task_app = app.clone();
+    let _ = app.state::<AppRuntimeState>().background_tasks.spawn(
+        "pet-size-debounce",
+        move |mut shutdown| async move {
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(200)) => {}
+                _ = shutdown.cancelled() => return,
+            }
+            if generation != PET_OVERLAY_RESIZE_GENERATION.load(Ordering::Relaxed) {
+                return;
+            }
+            let expected_size = settings.pet_window.pet_size;
+            let mut changed = false;
+            let saved = update_monitor_settings(&config_dir, |current| {
+                changed = expected_size != pet_size
+                    && replace_pet_size_if_unchanged(current, layout, expected_size, pet_size);
+            });
+            if saved.is_ok() && changed {
+                super::pet_events::emit_pet_window_state_changed(&task_app);
+            }
+        },
+    );
 }
 
 /// 跨显示器移动后重算约束，并在小屏上收敛当前大小。

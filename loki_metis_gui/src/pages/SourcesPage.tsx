@@ -1,4 +1,4 @@
-import { Alert, Stack } from "@mantine/core";
+import { Alert, Button, Stack, Text } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
@@ -55,7 +55,13 @@ export function SourcesPage() {
   if (view === "workbuddy") {
     return <WorkbuddySources />;
   }
-  return <LocalSourcesPage client={client} />;
+  return <LocalSourcesPage client={client} key={client} />;
+}
+
+/** 把一次链式索引写入绑定到来源页开始操作时的权威查询代次。 */
+interface SourceAuthorityToken {
+  client: AgentClientKind;
+  epoch: number;
 }
 
 /** 为三个本机客户端装配数据源查询。 */
@@ -66,20 +72,27 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
   const queryClient = useQueryClient();
   const [rootMutationMessageCode, setRootMutationMessageCode] =
     useState<UiMessageCode | null>(null);
-  const [renameTarget, setRenameTarget] = useState<{ alias: string; id: string } | null>(
-    null,
-  );
+  const [sourceActionFailure, setSourceActionFailure] = useState<unknown>(null);
+  const [renameTarget, setRenameTarget] = useState<{
+    alias: string;
+    id: string;
+    targetClient: AgentClientKind;
+  } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const [removeTarget, setRemoveTarget] = useState<{ alias: string; id: string } | null>(
-    null,
-  );
+  const [removeTarget, setRemoveTarget] = useState<{
+    alias: string;
+    id: string;
+    targetClient: AgentClientKind;
+  } | null>(null);
   const invalidatedTerminal = useRef<string | null>(null);
   const overviewQuery = useQuery({
     queryFn: () => getUsageOverview(client, timeStandard),
     queryKey: ["usage-overview", client, timeStandard.mode, timeStandard.customTimeZone],
   });
+  // 后台重读失败时 TanStack Query 会保留最近可信 data；下游查询继续展示该快照，
+  // 但页面会冻结写操作，直到全部权威读取恢复。
   const businessReady =
-    overviewQuery.isSuccess && !overviewQuery.data.productDefinitionRequired;
+    overviewQuery.data !== undefined && !overviewQuery.data.productDefinitionRequired;
   useRootCandidateEvents(businessReady);
   const sourcesQuery = useQuery({
     enabled: businessReady,
@@ -106,16 +119,71 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
     refetchInterval: () =>
       discoveryQuery.data?.state === "running" ? SCAN_STATUS_POLL_INTERVAL_MS : false,
   });
+  const queryRefreshError =
+    (overviewQuery.data !== undefined ? overviewQuery.error : null) ??
+    (sourcesQuery.data !== undefined ? sourcesQuery.error : null) ??
+    (scanQuery.data !== undefined ? scanQuery.error : null) ??
+    (discoveryQuery.data !== undefined ? discoveryQuery.error : null) ??
+    (candidatesQuery.data !== undefined ? candidatesQuery.error : null);
+  const discoveryBatchWritesReady =
+    businessReady &&
+    overviewQuery.error === null &&
+    sourcesQuery.data !== undefined &&
+    sourcesQuery.error === null &&
+    scanQuery.data !== undefined &&
+    scanQuery.error === null &&
+    discoveryQuery.data !== undefined &&
+    discoveryQuery.error === null &&
+    candidatesQuery.data !== undefined &&
+    candidatesQuery.error === null;
+  const sourceAuthorityRef = useRef({
+    client,
+    epoch: 0,
+    ready: discoveryBatchWritesReady,
+  });
+  if (
+    sourceAuthorityRef.current.client !== client ||
+    sourceAuthorityRef.current.ready !== discoveryBatchWritesReady
+  ) {
+    sourceAuthorityRef.current = {
+      client,
+      epoch: sourceAuthorityRef.current.epoch + 1,
+      ready: discoveryBatchWritesReady,
+    };
+  }
+  const captureSourceAuthority = (
+    targetClient: AgentClientKind,
+  ): SourceAuthorityToken | null => {
+    const authority = sourceAuthorityRef.current;
+    return authority.ready && authority.client === targetClient
+      ? { client: targetClient, epoch: authority.epoch }
+      : null;
+  };
+  const sourceAuthorityMatches = (token: SourceAuthorityToken): boolean => {
+    const authority = sourceAuthorityRef.current;
+    return (
+      authority.ready &&
+      authority.client === token.client &&
+      authority.epoch === token.epoch
+    );
+  };
   const discoveryBatch = useDiscoveryBatchIndex({
-    businessReady,
+    businessReady: discoveryBatchWritesReady,
     candidates: candidatesQuery.data,
     client,
     discovery: discoveryQuery.data,
   });
+  /** 每次新动作先清除另一类旧失败，页面只展示最近一次真实动作的结果。 */
+  const beginSourceAction = () => {
+    setSourceActionFailure(null);
+    setRootMutationMessageCode(null);
+    discoveryBatch.resetError();
+  };
   const discoveryMutation = useMutation({
     mutationFn: ({ scope }: { scope: RootDiscoveryScope; targetClient: AgentClientKind }) =>
       startRootDiscovery(scope),
     onMutate: ({ targetClient }) => {
+      beginSourceAction();
       discoveryBatch.begin(targetClient);
       clearRootCandidateCache(queryClient);
     },
@@ -123,25 +191,57 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       queryClient.setQueryData(["root-discovery-status"], status);
       await queryClient.invalidateQueries({ queryKey: ROOT_CANDIDATES_QUERY_KEY });
     },
-    onError: discoveryBatch.abort,
+    onError: (cause) => {
+      setSourceActionFailure(cause);
+      discoveryBatch.abort();
+    },
   });
   const cancelDiscoveryMutation = useMutation({
     mutationFn: cancelRootDiscovery,
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
     onSuccess: (status) => queryClient.setQueryData(["root-discovery-status"], status),
   });
   const directRefreshMutation = useMutation({
-    mutationFn: (targetClient: AgentClientKind) =>
-      refreshLocalIndexes([targetClient], "directManual"),
-    onSuccess: async (_statuses, targetClient) => {
+    mutationFn: ({
+      authority,
+      targetClient,
+    }: {
+      authority: SourceAuthorityToken;
+      targetClient: AgentClientKind;
+    }) => {
+      if (!sourceAuthorityMatches(authority)) {
+        throw new Error("authoritative-query-unavailable");
+      }
+      return refreshLocalIndexes([targetClient], "directManual");
+    },
+    onError: setSourceActionFailure,
+    onSuccess: async (_statuses, { targetClient }) => {
       await invalidateLocalUsageQueries(queryClient, targetClient);
     },
   });
   const manualAddMutation = useMutation({
-    mutationFn: (targetClient: typeof client) => manualAddSourceRoot(targetClient),
-    onSuccess: async (result, targetClient) => {
+    mutationFn: ({
+      authority,
+      targetClient,
+    }: {
+      authority: SourceAuthorityToken;
+      targetClient: typeof client;
+    }) => {
+      if (!sourceAuthorityMatches(authority)) {
+        throw new Error("authoritative-query-unavailable");
+      }
+      return manualAddSourceRoot(targetClient);
+    },
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
+    onSuccess: async (result, { authority, targetClient }) => {
       setRootMutationMessageCode(result.messageCode);
-      if (result.outcome === "registered" || result.outcome === "alreadyRegistered") {
-        await directRefreshMutation.mutateAsync(targetClient);
+      if (
+        (result.outcome === "registered" || result.outcome === "alreadyRegistered") &&
+        sourceAuthorityMatches(authority)
+      ) {
+        await directRefreshMutation.mutateAsync({ authority, targetClient });
       }
       if (result.outcome === "deepSearchStarted") {
         discoveryBatch.begin(targetClient);
@@ -154,9 +254,15 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
     },
   });
   const addCandidate = async (candidate: RootCandidateDto) => {
+    const authority = captureSourceAuthority(candidate.client);
+    if (!authority) throw new Error("authoritative-query-unavailable");
+    beginSourceAction();
     await discoveryBatch.retryCandidate(candidate);
-    if (!discoveryBatch.isActive) {
-      await directRefreshMutation.mutateAsync(candidate.client);
+    if (!discoveryBatch.isActive && sourceAuthorityMatches(authority)) {
+      await directRefreshMutation.mutateAsync({
+        authority,
+        targetClient: candidate.client,
+      });
     }
   };
   const rootEnabledMutation = useMutation({
@@ -169,6 +275,8 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       rootId: string;
       targetClient: typeof client;
     }) => setSourceRootEnabled(targetClient, rootId, enabled),
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
     onSuccess: async (result, { targetClient }) => {
       setRootMutationMessageCode(result.messageCode ?? null);
       await invalidateLocalUsageQueries(queryClient, targetClient);
@@ -184,6 +292,8 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       rootId: string;
       targetClient: typeof client;
     }) => renameSourceRoot(targetClient, rootId, alias),
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
     onSuccess: async (result, { targetClient }) => {
       setRootMutationMessageCode(result.messageCode ?? null);
       await invalidateLocalUsageQueries(queryClient, targetClient);
@@ -197,6 +307,8 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       rootId: string;
       targetClient: typeof client;
     }) => removeSourceRoot(targetClient, rootId),
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
     onSuccess: async (result, { targetClient }) => {
       setRootMutationMessageCode(result.messageCode ?? null);
       await invalidateLocalUsageQueries(queryClient, targetClient);
@@ -210,6 +322,8 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       rootId: string;
       targetClient: typeof client;
     }) => reindexSourceRoot(targetClient, rootId),
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
     onSuccess: (status, { targetClient }) => {
       queryClient.setQueryData(["scan-status", targetClient], status);
     },
@@ -222,6 +336,8 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       rootId: string | null;
       targetClient: typeof client;
     }) => setPrimarySourceRoot(targetClient, rootId),
+    onError: setSourceActionFailure,
+    onMutate: beginSourceAction,
     onSuccess: async (result, { targetClient }) => {
       setRootMutationMessageCode(result.messageCode ?? null);
       await invalidateLocalUsageQueries(queryClient, targetClient);
@@ -235,6 +351,16 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
     primaryRootMutation.isPending ||
     directRefreshMutation.isPending ||
     discoveryBatch.isRefreshing;
+  const sourceActionError = sourceActionFailure ?? discoveryBatch.error;
+  const queryStateBlocked = queryRefreshError !== null;
+
+  /** 新发现动作开始前清除同组旧错误，避免一次失败永久遮蔽后续恢复结果。 */
+  const resetDiscoveryActionErrors = () => {
+    beginSourceAction();
+    discoveryMutation.reset();
+    cancelDiscoveryMutation.reset();
+    manualAddMutation.reset();
+  };
 
   useEffect(() => {
     const scan = scanQuery.data;
@@ -253,10 +379,10 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
     void invalidateLocalUsageQueries(queryClient, client);
   }, [client, queryClient, scanQuery.data]);
 
-  if (overviewQuery.isPending) {
+  if (overviewQuery.data === undefined && overviewQuery.isPending) {
     return <LoadingState />;
   }
-  if (overviewQuery.isError) {
+  if (overviewQuery.data === undefined) {
     return (
       <FailureState
         error={overviewQuery.error}
@@ -273,14 +399,14 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
     );
   }
   if (
-    sourcesQuery.isPending ||
-    scanQuery.isPending ||
-    discoveryQuery.isPending ||
-    candidatesQuery.isPending
+    (sourcesQuery.data === undefined && sourcesQuery.isPending) ||
+    (scanQuery.data === undefined && scanQuery.isPending) ||
+    (discoveryQuery.data === undefined && discoveryQuery.isPending) ||
+    (candidatesQuery.data === undefined && candidatesQuery.isPending)
   ) {
     return <LoadingState label={t("sources.page.loading")} />;
   }
-  if (sourcesQuery.isError) {
+  if (sourcesQuery.data === undefined) {
     return (
       <FailureState
         error={sourcesQuery.error}
@@ -288,16 +414,18 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
       />
     );
   }
-  if (scanQuery.isError) {
+  if (scanQuery.data === undefined) {
     return (
       <FailureState error={scanQuery.error} onRetry={() => void scanQuery.refetch()} />
     );
   }
-  if (discoveryQuery.isError || candidatesQuery.isError) {
+  if (discoveryQuery.data === undefined || candidatesQuery.data === undefined) {
     return (
       <FailureState
         error={discoveryQuery.error || candidatesQuery.error}
-        onRetry={() => void discoveryQuery.refetch()}
+        onRetry={() =>
+          void Promise.all([discoveryQuery.refetch(), candidatesQuery.refetch()])
+        }
       />
     );
   }
@@ -305,7 +433,8 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
   const scan = scanQuery.data;
   const discovery = discoveryQuery.data;
   const candidates = candidatesQuery.data;
-  const scanStartBlocked = scan.state === "running" || rootMutationPending;
+  const sourceWritesBlocked = rootMutationPending || queryStateBlocked;
+  const scanStartBlocked = scan.state === "running" || sourceWritesBlocked;
 
   return (
     <Stack className="page-stack" gap="xl">
@@ -314,24 +443,34 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
           {uiMessageLabel(t, rootMutationMessageCode)}
         </Alert>
       ) : null}
-      {rootEnabledMutation.isError ||
-      renameRootMutation.isError ||
-      removeRootMutation.isError ||
-      reindexRootMutation.isError ||
-      primaryRootMutation.isError ||
-      directRefreshMutation.isError ||
-      discoveryBatch.error ? (
+      {sourceActionError ? (
         <Alert color="red" title={t("sources.page.updateErrorTitle")}>
           {visibleErrorMessage(
-            rootEnabledMutation.error ||
-              renameRootMutation.error ||
-              removeRootMutation.error ||
-              reindexRootMutation.error ||
-              primaryRootMutation.error ||
-              directRefreshMutation.error ||
-              discoveryBatch.error,
+            sourceActionError,
             t("sources.page.updateErrorBody", { client: clientLabel }),
           )}
+        </Alert>
+      ) : null}
+      {queryRefreshError ? (
+        <Alert color="red" role="alert" title={t("ui.failureTitle")}>
+          <Stack align="flex-start" gap="sm">
+            <Text size="sm">{visibleErrorMessage(queryRefreshError)}</Text>
+            <Button
+              onClick={() =>
+                void Promise.all([
+                  overviewQuery.refetch(),
+                  sourcesQuery.refetch(),
+                  scanQuery.refetch(),
+                  discoveryQuery.refetch(),
+                  candidatesQuery.refetch(),
+                ])
+              }
+              size="xs"
+              variant="light"
+            >
+              {t("common.retry")}
+            </Button>
+          </Stack>
         </Alert>
       ) : null}
       {scan.state === "running" ? (
@@ -356,11 +495,11 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
             : null
         }
         onRemove={(rootId, currentAlias) =>
-          setRemoveTarget({ alias: currentAlias, id: rootId })
+          setRemoveTarget({ alias: currentAlias, id: rootId, targetClient: client })
         }
         onReindex={(rootId) => reindexRootMutation.mutate({ rootId, targetClient: client })}
         onRename={(rootId, currentAlias) => {
-          setRenameTarget({ alias: currentAlias, id: rootId });
+          setRenameTarget({ alias: currentAlias, id: rootId, targetClient: client });
           setRenameDraft(currentAlias);
         }}
         onToggleEnabled={(rootId, nextEnabled) =>
@@ -399,23 +538,45 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
         discoveryPending={discoveryMutation.isPending}
         manualAddClients={[client]}
         manualAddPending={manualAddMutation.isPending}
-        mutationBlocked={rootMutationPending || scanStartBlocked}
+        mutationBlocked={sourceWritesBlocked || scanStartBlocked}
         onAdd={addCandidate}
-        onCancel={() => cancelDiscoveryMutation.mutate()}
-        onManualAdd={(targetClient) => manualAddMutation.mutate(targetClient)}
-        onStart={(scope) => discoveryMutation.mutate({ scope, targetClient: client })}
+        onCancel={() => {
+          resetDiscoveryActionErrors();
+          cancelDiscoveryMutation.mutate();
+        }}
+        onManualAdd={(targetClient) => {
+          resetDiscoveryActionErrors();
+          const authority = captureSourceAuthority(targetClient);
+          if (authority) manualAddMutation.mutate({ authority, targetClient });
+        }}
+        onStart={(scope) => {
+          resetDiscoveryActionErrors();
+          discoveryMutation.mutate({ scope, targetClient: client });
+        }}
       />
 
       <SourceRootDialogs
-        clientLabel={clientLabel}
+        blocked={queryStateBlocked}
+        clientLabel={agentClientLabel(
+          renameTarget?.targetClient ?? removeTarget?.targetClient ?? client,
+        )}
         onCloseRemove={() => setRemoveTarget(null)}
         onCloseRename={() => setRenameTarget(null)}
         onConfirmRemove={(rootId) => {
-          removeRootMutation.mutate({ rootId, targetClient: client });
+          if (!removeTarget || removeTarget.id !== rootId) return;
+          removeRootMutation.mutate({
+            rootId,
+            targetClient: removeTarget.targetClient,
+          });
           setRemoveTarget(null);
         }}
         onConfirmRename={(rootId, alias) => {
-          renameRootMutation.mutate({ alias, rootId, targetClient: client });
+          if (!renameTarget || renameTarget.id !== rootId) return;
+          renameRootMutation.mutate({
+            alias,
+            rootId,
+            targetClient: renameTarget.targetClient,
+          });
           setRenameTarget(null);
         }}
         onRenameDraftChange={setRenameDraft}

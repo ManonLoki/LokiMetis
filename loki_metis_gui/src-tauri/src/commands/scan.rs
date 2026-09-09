@@ -4,13 +4,14 @@ use std::sync::Arc;
 
 use loki_metis_core::{
     DiscoveryBatchIndexDecision, DiscoveryBatchKind, RootDiscoveryLifecycle, ScanStartOrigin,
-    clear_local_index_success_message, clear_local_index_while_scanning_message,
+    SourceClientKind, clear_local_index_success_message, clear_local_index_while_scanning_message,
     discovery_batch_index_decision, empty_coverage, ensure_periodic_quick_scan_allowed,
     immediate_reindex_required, local_scan_in_progress_error_message,
-    local_scan_writer_busy_message,
+    local_scan_writer_busy_message, local_storage_read_error_message, source_client_app_data_dir,
 };
 use tauri::{AppHandle, State};
 
+use crate::backend::local_index::LocalIndex;
 use crate::commands::scan_orchestration::{ScanTask, ScanTaskOperation, execute_scan_task};
 use crate::dto::{
     AgentClientKindDto, ClearIndexResultDto, LocalIndexRefreshTriggerDto, ScanKindDto,
@@ -196,7 +197,26 @@ fn upgrade_reindex_clients(
         .collect()
 }
 
-/// 启动时迁移各客户端数据库；明确 NeedsRescan 的已开放索引立即逐项回补近 30 日。
+/// 在共享 writer 许可内显式创建并迁移全部本机索引；查询路径随后只能只读打开。
+pub(crate) async fn migrate_local_indexes(state: &AppRuntimeState) -> Result<(), String> {
+    let _write_permit = state
+        .local_scan
+        .get(SourceClientKind::Codex)
+        .try_start()
+        .map_err(|_| local_scan_writer_busy_message().to_owned())?;
+    for client in AgentClientKindDto::ALL.map(SourceClientKind::from) {
+        let app_data_dir = source_client_app_data_dir(&state.app_data_dir, client);
+        LocalIndex::open_in_app_data(&app_data_dir, client.parser_version())
+            .await
+            .map_err(|error| {
+                tracing::error!(?client, kind = ?error.kind(), "local index migration failed");
+                local_storage_read_error_message().to_owned()
+            })?;
+    }
+    Ok(())
+}
+
+/// 启动迁移完成后检查各客户端数据库；明确 NeedsRescan 的已开放索引立即逐项回补近 30 日。
 pub(crate) async fn refresh_indexes_requiring_upgrade(state: &AppRuntimeState) {
     if !state.initialization_completed().await {
         return;
@@ -218,7 +238,7 @@ pub(crate) async fn refresh_indexes_requiring_upgrade(state: &AppRuntimeState) {
             Err(error) => tracing::warn!(
                 client = client.display_name(),
                 %error,
-                "failed to inspect local index after database migration"
+                "failed to inspect local index after startup migration"
             ),
         }
     }
@@ -350,18 +370,23 @@ pub(crate) async fn clear_local_index(
     client: AgentClientKindDto,
 ) -> Result<ClearIndexResultDto, String> {
     ensure_business_access(&state).await?;
+    // 与扫描、数据根修改保持唯一锁序：全局 writer 必须先于 Codex 账户上下文。
+    let _write_permit = state
+        .local_scan
+        .get(client.into())
+        .try_start()
+        .map_err(|_| {
+            tracing::warn!(
+                client = client.display_name(),
+                "index clear rejected: the shared index writer is busy"
+            );
+            clear_local_index_while_scanning_message().to_owned()
+        })?;
     let _account_context_guard = if client == AgentClientKindDto::Codex {
         Some(state.lock_codex_account_context().await)
     } else {
         None
     };
-    if state.local_scan.get(client.into()).is_running() {
-        tracing::warn!(
-            client = client.display_name(),
-            "index clear rejected: a scan is currently running for this client"
-        );
-        return Err(clear_local_index_while_scanning_message().to_owned());
-    }
     let local_analysis = Arc::clone(&state.agent_clients.get(client.into()).local_analysis);
     if let Err(error) = local_analysis.clear_index().await {
         tracing::error!(client = client.display_name(), %error, "index clear failed");

@@ -39,8 +39,8 @@ export function HostCapabilitySwitch({
   const titleId = `capability-${id}-title`;
 
   useEffect(() => {
-    if (setting.data !== undefined) setDisplayed(setting.data);
-  }, [setting.data]);
+    if (setting.isSuccess && setting.data !== undefined) setDisplayed(setting.data);
+  }, [setting.data, setting.dataUpdatedAt, setting.isSuccess]);
 
   const update = useMutation({
     // 只转发组件契约中的布尔值，避免 Query 的第二个上下文参数覆盖宿主 API 调用器。
@@ -65,7 +65,9 @@ export function HostCapabilitySwitch({
     },
   });
 
-  const unknown = setting.isError && displayed === undefined;
+  // TanStack Query 会在后台重读失败时保留旧 data；旧值只能作为最近快照展示，
+  // 不能继续冒充当前 OS 权威状态或允许下一次写入。
+  const unknown = setting.isError;
   const busy = setting.isLoading || setting.isFetching || update.isPending;
 
   return (
@@ -79,9 +81,13 @@ export function HostCapabilitySwitch({
             aria-labelledby={titleId}
             checked={displayed ?? false}
             data-authoritative-state={
-              displayed === undefined ? "unknown" : displayed ? "enabled" : "disabled"
+              unknown || displayed === undefined
+                ? "unknown"
+                : displayed
+                  ? "enabled"
+                  : "disabled"
             }
-            disabled={busy || displayed === undefined}
+            disabled={busy || unknown || displayed === undefined}
             onChange={(event) => {
               update.mutate(event.currentTarget.checked);
             }}

@@ -209,7 +209,7 @@ async fn wait_for_initial_injection_inner(
     skin: &SkinReference,
     page_ready_timeout: Duration,
     endpoint: CdpEndpoint,
-    expected_workbuddy_root_pid: Option<u32>,
+    expected_host_root_pid: u32,
     transaction: &InjectionTransaction,
 ) -> Result<InjectionReport, AppError> {
     let deadline = tokio::time::Instant::now() + page_ready_timeout;
@@ -262,7 +262,7 @@ async fn wait_for_initial_injection_inner(
                         host,
                         &mut next_browser,
                         endpoint,
-                        expected_workbuddy_root_pid,
+                        Some(expected_host_root_pid),
                     )
                     .await;
                     match reconnect_validation_decision(host, verification) {
@@ -314,13 +314,7 @@ fn reconnect_validation_decision(
             "skin.cdp_rejected",
             format!("调试端点不是 {} 的唯一可信主页面。", host.display_name()),
         )),
-        Err(error)
-            if matches!(
-                error.code,
-                "skin.workbuddy_cdp_owner_inspection_failed"
-                    | "skin.workbuddy_process_inspection_failed"
-            ) =>
-        {
+        Err(error) if is_host_inspection_error(error.code) => {
             ReconnectValidationDecision::Reject(error)
         }
         Err(error) => ReconnectValidationDecision::Retry(error),

@@ -1,13 +1,131 @@
-use std::sync::Mutex;
+use std::{future::Future, sync::Mutex, time::Duration};
+
+#[cfg(any(not(target_os = "macos"), test))]
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 use tauri::async_runtime::JoinHandle;
 use tauri::{Emitter, Manager};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
+#[cfg(not(target_os = "macos"))]
+use crate::runtime::AppRuntimeState;
 use crate::settings::HostSettingsState;
 
 const NOTIFICATION_QUEUE_CAPACITY: usize = 16;
 const NOTIFICATION_FAILURE_EVENT: &str = "loki-metis://notification-error";
+/// 单次通知设置或投递从进入 command 到完成的总墙钟时限。
+const NOTIFICATION_OPERATION_TIMEOUT: Duration = Duration::from_secs(10);
+/// 应用退出时通知 worker 从停止接单到确认 JoinHandle 终态的总时限。
+const NOTIFICATION_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
+/// 总关闭时限尾部保留给 abort 后的 JoinHandle 终态确认。
+const NOTIFICATION_SHUTDOWN_ABORT_REAP_BUDGET: Duration = Duration::from_millis(500);
+const NOTIFICATION_OPERATION_TIMEOUT_ERROR: &str = "notification-operation-timeout";
+#[cfg(any(not(target_os = "macos"), test))]
+const NATIVE_NOTIFICATION_TASK_NAME: &str = "native-notification-delivery";
+#[cfg(any(target_os = "macos", test))]
+const MACOS_NOTIFICATION_SETTINGS_PREFIX: &str =
+    "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=";
+#[cfg(target_os = "macos")]
+const MACOS_NOTIFICATION_SETTINGS_OPEN_COMMAND: &str = "/usr/bin/open";
+#[cfg(target_os = "macos")]
+const MACOS_NOTIFICATION_SETTINGS_OPEN_TIMEOUT: Duration = Duration::from_secs(5);
+#[cfg(target_os = "macos")]
+const MACOS_NOTIFICATION_SETTINGS_REAP_TIMEOUT: Duration = Duration::from_secs(1);
+#[cfg(any(target_os = "macos", test))]
+const MACOS_NOTIFICATION_SETTINGS_OPEN_FAILED: &str = "notification-settings-open-failed";
+#[cfg(any(target_os = "macos", test))]
+const MACOS_NOTIFICATION_SETTINGS_OPEN_TIMEOUT_ERROR: &str = "notification-settings-open-timeout";
+
+#[cfg(any(target_os = "macos", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// 归一化 macOS 通知授权状态，Unknown 作为受限或未知状态处理。
+enum MacosNotificationAuthorizationStatus {
+    NotDetermined,
+    Denied,
+    Authorized,
+    Provisional,
+    Ephemeral,
+    RestrictedOrUnknown,
+}
+
+#[cfg(any(target_os = "macos", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// 区分首次读取与权限请求后的授权判断阶段。
+enum MacosNotificationAuthorizationPhase {
+    BeforeRequest,
+    AfterRequest,
+}
+
+#[cfg(any(target_os = "macos", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// 表示 macOS 授权状态机下一步允许执行的操作。
+enum MacosNotificationAuthorizationAction {
+    Allow,
+    Request,
+    OpenSettings,
+}
+
+#[cfg(any(target_os = "macos", test))]
+/// 根据真实状态快照决定授权、首次请求或恢复设置入口。
+fn macos_notification_authorization_action(
+    status: MacosNotificationAuthorizationStatus,
+    phase: MacosNotificationAuthorizationPhase,
+) -> MacosNotificationAuthorizationAction {
+    match (status, phase) {
+        (
+            MacosNotificationAuthorizationStatus::Authorized
+            | MacosNotificationAuthorizationStatus::Provisional
+            | MacosNotificationAuthorizationStatus::Ephemeral,
+            _,
+        ) => MacosNotificationAuthorizationAction::Allow,
+        (
+            MacosNotificationAuthorizationStatus::NotDetermined,
+            MacosNotificationAuthorizationPhase::BeforeRequest,
+        ) => MacosNotificationAuthorizationAction::Request,
+        (
+            MacosNotificationAuthorizationStatus::NotDetermined
+            | MacosNotificationAuthorizationStatus::Denied
+            | MacosNotificationAuthorizationStatus::RestrictedOrUnknown,
+            _,
+        ) => MacosNotificationAuthorizationAction::OpenSettings,
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl From<mac_usernotifications::AuthorizationStatus> for MacosNotificationAuthorizationStatus {
+    /// 把 crate 的 Unknown 明确归一化为受限或未知状态。
+    fn from(status: mac_usernotifications::AuthorizationStatus) -> Self {
+        use mac_usernotifications::AuthorizationStatus;
+
+        match status {
+            AuthorizationStatus::NotDetermined => Self::NotDetermined,
+            AuthorizationStatus::Denied => Self::Denied,
+            AuthorizationStatus::Authorized => Self::Authorized,
+            AuthorizationStatus::Provisional => Self::Provisional,
+            AuthorizationStatus::Ephemeral => Self::Ephemeral,
+            AuthorizationStatus::Unknown => Self::RestrictedOrUnknown,
+        }
+    }
+}
+
+#[cfg(any(target_os = "macos", test))]
+/// 仅从固定系统设置前缀与当前应用标识生成通知设置入口。
+fn macos_notification_settings_url(bundle_identifier: &str) -> String {
+    format!("{MACOS_NOTIFICATION_SETTINGS_PREFIX}{bundle_identifier}")
+}
+
+#[cfg(any(target_os = "macos", test))]
+/// 把系统 opener 的实际退出状态映射为稳定结果。
+fn macos_notification_settings_exit_result(success: bool) -> Result<(), &'static str> {
+    if success {
+        Ok(())
+    } else {
+        Err(MACOS_NOTIFICATION_SETTINGS_OPEN_FAILED)
+    }
+}
 
 #[derive(Clone, Debug)]
 /// 保存待交给系统通知服务的标题与正文。
@@ -16,11 +134,38 @@ pub(crate) struct NotificationPayload {
     pub(crate) body: String,
 }
 
+#[cfg(any(not(target_os = "macos"), test))]
+/// 保证同一通知 worker 最多只有一个不可强停的原生投递在执行。
+struct NativeNotificationLease(Arc<AtomicBool>);
+
+#[cfg(any(not(target_os = "macos"), test))]
+impl NativeNotificationLease {
+    /// 原子取得原生投递权，前一项未终止时拒绝堆积新 blocking 任务。
+    fn acquire(in_flight: &Arc<AtomicBool>) -> Result<Self, &'static str> {
+        in_flight
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map(|_| Self(Arc::clone(in_flight)))
+            .map_err(|_| "notification-delivery-in-progress")
+    }
+}
+
+#[cfg(any(not(target_os = "macos"), test))]
+impl Drop for NativeNotificationLease {
+    /// 仅在真实原生调用返回或任务未能登记时释放串行门禁。
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
 /// 表示通知工作线程串行处理的授权或投递命令。
 enum NotificationCommand {
-    RequestPermission(oneshot::Sender<Result<(), &'static str>>),
+    RequestPermission {
+        deadline: tokio::time::Instant,
+        reply: oneshot::Sender<Result<(), &'static str>>,
+    },
     Deliver {
         payload: NotificationPayload,
+        deadline: tokio::time::Instant,
         reply: oneshot::Sender<Result<(), &'static str>>,
     },
 }
@@ -28,6 +173,7 @@ enum NotificationCommand {
 /// 持有有界通知队列及其后台任务的应用级状态。
 pub(crate) struct NotificationWorker {
     sender: Mutex<Option<mpsc::Sender<NotificationCommand>>>,
+    shutdown: watch::Sender<bool>,
     task: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -41,20 +187,59 @@ impl NotificationWorker {
             .ok_or("notification-worker-unavailable")
     }
 
-    /// 关闭发送端并取消所属后台任务。
-    pub(crate) fn shutdown(&self) {
+    /// 关闭发送端、广播取消，并在同一个总时限内确认 worker 已达到终态。
+    pub(crate) async fn shutdown(&self) {
+        self.shutdown_with_timeout(NOTIFICATION_SHUTDOWN_TIMEOUT)
+            .await;
+    }
+
+    /// 使用可注入总时限关闭 worker，供生产门限与快速回归复用。
+    async fn shutdown_with_timeout(&self, timeout: Duration) {
         self.sender
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take();
-        if let Some(task) = self
+        let _ = self.shutdown.send(true);
+        let task = self
             .task
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take()
-        {
-            task.abort();
+            .take();
+
+        let final_deadline = tokio::time::Instant::now() + timeout;
+        let abort_reap_budget = NOTIFICATION_SHUTDOWN_ABORT_REAP_BUDGET.min(timeout / 2);
+        let cooperative_deadline = final_deadline
+            .checked_sub(abort_reap_budget)
+            .unwrap_or(final_deadline);
+        if let Some(mut task) = task {
+            match tokio::time::timeout_at(cooperative_deadline, &mut task).await {
+                Ok(result) => log_notification_worker_join_result(result),
+                Err(_) => {
+                    task.abort();
+                    match tokio::time::timeout_at(final_deadline, &mut task).await {
+                        Ok(result) => log_notification_worker_join_result(result),
+                        Err(_) => {
+                            tracing::error!(
+                                "notification worker did not reach a terminal state after bounded abort"
+                            );
+                            *self
+                                .task
+                                .lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(task);
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    /// 返回 worker 是否已被真实回收。
+    #[cfg(test)]
+    fn is_reaped(&self) -> bool {
+        self.task
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_none()
     }
 }
 
@@ -65,6 +250,7 @@ impl Drop for NotificationWorker {
             .get_mut()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take();
+        let _ = self.shutdown.send(true);
         if let Some(task) = self
             .task
             .get_mut()
@@ -76,18 +262,121 @@ impl Drop for NotificationWorker {
     }
 }
 
+/// 记录 worker 的最终 JoinHandle 结果；被 owner 主动 abort 属于预期关闭路径。
+fn log_notification_worker_join_result(result: tauri::Result<()>) {
+    match result {
+        Ok(()) => {}
+        Err(tauri::Error::JoinError(error)) if error.is_cancelled() => {}
+        Err(error) => tracing::warn!(%error, "notification worker stopped unexpectedly"),
+    }
+}
+
+/// 等待通知 worker 的关闭广播；发送端消失也按关闭处理。
+async fn notification_shutdown_requested(receiver: &mut watch::Receiver<bool>) {
+    loop {
+        if *receiver.borrow_and_update() {
+            return;
+        }
+        if receiver.changed().await.is_err() {
+            return;
+        }
+    }
+}
+
+/// 在通知总截止时间内执行一个可取消步骤。
+async fn notification_step_before_deadline<T, Step>(
+    shutdown: &mut watch::Receiver<bool>,
+    deadline: tokio::time::Instant,
+    step: Step,
+) -> Result<T, &'static str>
+where
+    Step: Future<Output = Result<T, &'static str>>,
+{
+    if *shutdown.borrow() {
+        return Err("notification-worker-unavailable");
+    }
+    if tokio::time::Instant::now() >= deadline {
+        return Err(NOTIFICATION_OPERATION_TIMEOUT_ERROR);
+    }
+    tokio::select! {
+        biased;
+        _ = notification_shutdown_requested(shutdown) => Err("notification-worker-unavailable"),
+        result = tokio::time::timeout_at(deadline, step) => {
+            result.map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR)?
+        }
+    }
+}
+
+/// 把命令放入有界队列并等待回复，排队和执行共享同一个总截止时间。
+async fn enqueue_notification_command(
+    sender: mpsc::Sender<NotificationCommand>,
+    command: NotificationCommand,
+    reply: oneshot::Receiver<Result<(), &'static str>>,
+    deadline: tokio::time::Instant,
+) -> Result<(), &'static str> {
+    tokio::time::timeout_at(deadline, sender.send(command))
+        .await
+        .map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR)?
+        .map_err(|_| "notification-worker-unavailable")?;
+    tokio::time::timeout_at(deadline, reply)
+        .await
+        .map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR)?
+        .map_err(|_| "notification-worker-unavailable")?
+}
+
 /// 安装应用级通知工作线程并串行处理授权与投递。
 pub(crate) fn install_notification_worker(app: &tauri::AppHandle) {
     let (sender, mut receiver) = mpsc::channel(NOTIFICATION_QUEUE_CAPACITY);
+    let (shutdown, mut shutdown_receiver) = watch::channel(false);
+    #[cfg(not(target_os = "macos"))]
+    let native_delivery_in_flight = Arc::new(AtomicBool::new(false));
     let worker_app = app.clone();
     let task = tauri::async_runtime::spawn(async move {
-        while let Some(command) = receiver.recv().await {
+        loop {
+            let command = tokio::select! {
+                biased;
+                _ = notification_shutdown_requested(&mut shutdown_receiver) => break,
+                command = receiver.recv() => command,
+            };
+            let Some(command) = command else {
+                break;
+            };
             match command {
-                NotificationCommand::RequestPermission(reply) => {
-                    let _ = reply.send(request_system_notification_permission(&worker_app).await);
+                NotificationCommand::RequestPermission { deadline, reply } => {
+                    let _ = reply.send(
+                        request_system_notification_permission(
+                            &worker_app,
+                            deadline,
+                            &mut shutdown_receiver,
+                        )
+                        .await,
+                    );
                 }
-                NotificationCommand::Deliver { payload, reply } => {
-                    let result = deliver_system_notification(&worker_app, payload).await;
+                NotificationCommand::Deliver {
+                    payload,
+                    deadline,
+                    reply,
+                } => {
+                    if reply.is_closed() {
+                        continue;
+                    }
+                    #[cfg(target_os = "macos")]
+                    let result = deliver_system_notification(
+                        &worker_app,
+                        payload,
+                        deadline,
+                        &mut shutdown_receiver,
+                    )
+                    .await;
+                    #[cfg(not(target_os = "macos"))]
+                    let result = deliver_system_notification(
+                        &worker_app,
+                        payload,
+                        deadline,
+                        &mut shutdown_receiver,
+                        &native_delivery_in_flight,
+                    )
+                    .await;
                     if let Err(error) = result {
                         let _ = worker_app.emit(NOTIFICATION_FAILURE_EVENT, error);
                     }
@@ -98,6 +387,7 @@ pub(crate) fn install_notification_worker(app: &tauri::AppHandle) {
     });
     app.manage(NotificationWorker {
         sender: Mutex::new(Some(sender)),
+        shutdown,
         task: Mutex::new(Some(task)),
     });
 }
@@ -118,8 +408,12 @@ pub(crate) async fn set_system_notification_enabled(
     app: tauri::AppHandle,
     enabled: bool,
 ) -> Result<bool, String> {
+    let deadline = tokio::time::Instant::now() + NOTIFICATION_OPERATION_TIMEOUT;
     let settings = app.state::<HostSettingsState>();
-    let previous = settings.read().await.system_notification_enabled();
+    let previous = tokio::time::timeout_at(deadline, settings.read())
+        .await
+        .map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR.to_owned())?
+        .system_notification_enabled();
     if previous == enabled {
         return Ok(previous);
     }
@@ -130,20 +424,30 @@ pub(crate) async fn set_system_notification_enabled(
             .sender()
             .map_err(str::to_string)?;
         let (reply_tx, reply_rx) = oneshot::channel();
-        sender
-            .send(NotificationCommand::RequestPermission(reply_tx))
-            .await
-            .map_err(|_| "notification-worker-unavailable".to_string())?;
-        reply_rx
-            .await
-            .map_err(|_| "notification-worker-unavailable".to_string())?
-            .map_err(str::to_string)?;
-    }
-
-    persist_system_notification_setting(&settings, enabled)
+        enqueue_notification_command(
+            sender,
+            NotificationCommand::RequestPermission {
+                deadline,
+                reply: reply_tx,
+            },
+            reply_rx,
+            deadline,
+        )
         .await
         .map_err(str::to_string)?;
-    Ok(settings.read().await.system_notification_enabled())
+    }
+
+    tokio::time::timeout_at(
+        deadline,
+        persist_system_notification_setting(&settings, enabled),
+    )
+    .await
+    .map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR.to_owned())?
+    .map_err(str::to_string)?;
+    Ok(tokio::time::timeout_at(deadline, settings.read())
+        .await
+        .map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR.to_owned())?
+        .system_notification_enabled())
 }
 
 /// 把通知开关写入宿主设置状态。
@@ -160,54 +464,185 @@ pub(crate) async fn queue_system_notification(
     app: &tauri::AppHandle,
     payload: NotificationPayload,
 ) -> Result<(), &'static str> {
-    if !app
-        .state::<HostSettingsState>()
-        .read()
+    let deadline = tokio::time::Instant::now() + NOTIFICATION_OPERATION_TIMEOUT;
+    if !tokio::time::timeout_at(deadline, app.state::<HostSettingsState>().read())
         .await
+        .map_err(|_| NOTIFICATION_OPERATION_TIMEOUT_ERROR)?
         .system_notification_enabled()
     {
         return Err("notification-disabled");
     }
     let sender = app.state::<NotificationWorker>().sender()?;
     let (reply_tx, reply_rx) = oneshot::channel();
-    sender
-        .send(NotificationCommand::Deliver {
+    enqueue_notification_command(
+        sender,
+        NotificationCommand::Deliver {
             payload,
+            deadline,
             reply: reply_tx,
-        })
-        .await
-        .map_err(|_| "notification-worker-unavailable")?;
-    reply_rx
-        .await
-        .map_err(|_| "notification-worker-unavailable")?
+        },
+        reply_rx,
+        deadline,
+    )
+    .await
 }
 
 #[cfg(target_os = "macos")]
-/// 使用 macOS 现代用户通知 API 请求授权。
-async fn request_system_notification_permission(
-    _app: &tauri::AppHandle,
+/// 终止并在有界时间内回收系统设置 opener 子进程。
+async fn stop_macos_notification_settings_opener(
+    child: &mut tokio::process::Child,
+    deadline: tokio::time::Instant,
+) -> bool {
+    if child.start_kill().is_err() {
+        return false;
+    }
+    matches!(
+        tokio::time::timeout_at(deadline, child.wait()).await,
+        Ok(Ok(_))
+    )
+}
+
+#[cfg(target_os = "macos")]
+/// 使用固定系统入口打开当前应用的 macOS 通知设置。
+async fn open_macos_notification_settings(
+    app: &tauri::AppHandle,
+    deadline: tokio::time::Instant,
+    shutdown: &mut watch::Receiver<bool>,
 ) -> Result<(), &'static str> {
-    match mac_usernotifications::request_auth().await {
-        Ok(true) => Ok(()),
-        Ok(false) => Err("notification-permission-denied"),
-        Err(_) => Err("notification-permission-unavailable"),
+    let now = tokio::time::Instant::now();
+    let Some(latest_wait_deadline) = deadline.checked_sub(MACOS_NOTIFICATION_SETTINGS_REAP_TIMEOUT)
+    else {
+        return Err(NOTIFICATION_OPERATION_TIMEOUT_ERROR);
+    };
+    if now >= latest_wait_deadline || *shutdown.borrow() {
+        return Err(if *shutdown.borrow() {
+            "notification-worker-unavailable"
+        } else {
+            NOTIFICATION_OPERATION_TIMEOUT_ERROR
+        });
+    }
+    let settings_url = macos_notification_settings_url(&app.config().identifier);
+    let mut command = tokio::process::Command::new(MACOS_NOTIFICATION_SETTINGS_OPEN_COMMAND);
+    command.arg(settings_url).kill_on_drop(true);
+    let mut child = command
+        .spawn()
+        .map_err(|_| MACOS_NOTIFICATION_SETTINGS_OPEN_FAILED)?;
+
+    let wait_deadline = (now + MACOS_NOTIFICATION_SETTINGS_OPEN_TIMEOUT).min(latest_wait_deadline);
+    let wait_result = tokio::select! {
+        biased;
+        _ = notification_shutdown_requested(shutdown) => {
+            let shutdown_reap_deadline =
+                (tokio::time::Instant::now() + MACOS_NOTIFICATION_SETTINGS_REAP_TIMEOUT)
+                    .min(deadline);
+            let reaped = stop_macos_notification_settings_opener(
+                &mut child,
+                shutdown_reap_deadline,
+            )
+            .await;
+            if !reaped {
+                tracing::error!("macOS notification settings opener was not reaped during shutdown");
+            }
+            return Err("notification-worker-unavailable");
+        }
+        result = tokio::time::timeout_at(wait_deadline, child.wait()) => result,
+    };
+    let status = match wait_result {
+        Ok(Ok(status)) => status,
+        Ok(Err(_)) => {
+            if !stop_macos_notification_settings_opener(&mut child, deadline).await {
+                tracing::error!("macOS notification settings opener failed and was not reaped");
+            }
+            return Err(MACOS_NOTIFICATION_SETTINGS_OPEN_FAILED);
+        }
+        Err(_) => {
+            if !stop_macos_notification_settings_opener(&mut child, deadline).await {
+                tracing::error!("timed out macOS notification settings opener was not reaped");
+            }
+            return Err(MACOS_NOTIFICATION_SETTINGS_OPEN_TIMEOUT_ERROR);
+        }
+    };
+
+    macos_notification_settings_exit_result(status.success())
+}
+
+#[cfg(target_os = "macos")]
+/// 打开恢复入口后返回拒绝状态，避免把尚未授权写成已启用。
+async fn open_macos_notification_settings_for_denial(
+    app: &tauri::AppHandle,
+    deadline: tokio::time::Instant,
+    shutdown: &mut watch::Receiver<bool>,
+) -> Result<(), &'static str> {
+    open_macos_notification_settings(app, deadline, shutdown).await?;
+    Err("notification-permission-denied")
+}
+
+#[cfg(target_os = "macos")]
+/// 使用 macOS 现代用户通知 API 读取状态，仅在首次未决定时请求授权。
+async fn request_system_notification_permission(
+    app: &tauri::AppHandle,
+    deadline: tokio::time::Instant,
+    shutdown: &mut watch::Receiver<bool>,
+) -> Result<(), &'static str> {
+    let initial_status = notification_step_before_deadline(shutdown, deadline, async {
+        mac_usernotifications::get_notification_settings()
+            .await
+            .map(|settings| settings.authorization_status.into())
+            .map_err(|_| "notification-permission-unavailable")
+    })
+    .await?;
+    match macos_notification_authorization_action(
+        initial_status,
+        MacosNotificationAuthorizationPhase::BeforeRequest,
+    ) {
+        MacosNotificationAuthorizationAction::Allow => Ok(()),
+        MacosNotificationAuthorizationAction::OpenSettings => {
+            open_macos_notification_settings_for_denial(app, deadline, shutdown).await
+        }
+        MacosNotificationAuthorizationAction::Request => {
+            notification_step_before_deadline(shutdown, deadline, async {
+                mac_usernotifications::request_auth()
+                    .await
+                    .map(|_| ())
+                    .map_err(|_| "notification-permission-unavailable")
+            })
+            .await?;
+            let refreshed_status = notification_step_before_deadline(shutdown, deadline, async {
+                mac_usernotifications::get_notification_settings()
+                    .await
+                    .map(|settings| settings.authorization_status.into())
+                    .map_err(|_| "notification-permission-unavailable")
+            })
+            .await?;
+            match macos_notification_authorization_action(
+                refreshed_status,
+                MacosNotificationAuthorizationPhase::AfterRequest,
+            ) {
+                MacosNotificationAuthorizationAction::Allow => Ok(()),
+                MacosNotificationAuthorizationAction::OpenSettings => {
+                    open_macos_notification_settings_for_denial(app, deadline, shutdown).await
+                }
+                MacosNotificationAuthorizationAction::Request => {
+                    Err("notification-permission-unavailable")
+                }
+            }
+        }
     }
 }
 
 #[cfg(not(target_os = "macos"))]
-/// 通过跨平台 Tauri 通知插件请求系统授权。
+/// 桌面插件在 Windows/Linux 固定返回 Granted，此处直接映射并保留取消与时限检查。
 async fn request_system_notification_permission(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
+    deadline: tokio::time::Instant,
+    shutdown: &mut watch::Receiver<bool>,
 ) -> Result<(), &'static str> {
-    use tauri_plugin_notification::{NotificationExt, PermissionState};
-
-    match app.notification().request_permission() {
-        Ok(PermissionState::Granted) => Ok(()),
-        Ok(PermissionState::Denied) => Err("notification-permission-denied"),
-        Ok(PermissionState::Prompt | PermissionState::PromptWithRationale) => {
-            Err("notification-permission-unavailable")
-        }
-        Err(_) => Err("notification-permission-unavailable"),
+    if *shutdown.borrow() {
+        Err("notification-worker-unavailable")
+    } else if tokio::time::Instant::now() >= deadline {
+        Err(NOTIFICATION_OPERATION_TIMEOUT_ERROR)
+    } else {
+        Ok(())
     }
 }
 
@@ -216,74 +651,85 @@ async fn request_system_notification_permission(
 async fn deliver_system_notification(
     _app: &tauri::AppHandle,
     payload: NotificationPayload,
+    deadline: tokio::time::Instant,
+    shutdown: &mut watch::Receiver<bool>,
 ) -> Result<(), &'static str> {
-    mac_usernotifications::Notification::new()
-        .title(payload.title)
-        .message(payload.body)
-        .default_sound()
-        .send()
-        .await
+    notification_step_before_deadline(shutdown, deadline, async {
+        mac_usernotifications::Notification::new()
+            .title(payload.title)
+            .message(payload.body)
+            .default_sound()
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|_| "notification-delivery-failed")
+    })
+    .await
+}
+
+#[cfg(not(target_os = "macos"))]
+/// 把 Windows/Linux 投递交给应用级 BackgroundTaskOwner 的唯一具名 blocking 任务。
+async fn deliver_system_notification(
+    app: &tauri::AppHandle,
+    payload: NotificationPayload,
+    deadline: tokio::time::Instant,
+    shutdown: &mut watch::Receiver<bool>,
+    in_flight: &Arc<AtomicBool>,
+) -> Result<(), &'static str> {
+    let lease = NativeNotificationLease::acquire(in_flight)?;
+    let identifier = app.config().identifier.clone();
+    let native_deadline = deadline.into_std();
+    let (reply, response) = oneshot::channel();
+    app.state::<AppRuntimeState>()
+        .background_tasks
+        .spawn_blocking(NATIVE_NOTIFICATION_TASK_NAME, move |task_shutdown| {
+            let _lease = lease;
+            let result = if task_shutdown.is_cancelled() || reply.is_closed() {
+                Err("notification-worker-unavailable")
+            } else if std::time::Instant::now() >= native_deadline {
+                Err(NOTIFICATION_OPERATION_TIMEOUT_ERROR)
+            } else {
+                show_native_notification(payload, &identifier)
+            };
+            let _ = reply.send(result);
+        })
+        .map_err(|_| "notification-worker-unavailable")?;
+    notification_step_before_deadline(shutdown, deadline, async {
+        response
+            .await
+            .map_err(|_| "notification-worker-unavailable")?
+    })
+    .await
+}
+
+#[cfg(not(target_os = "macos"))]
+/// 同步调用 notify-rust 并返回真实投递结果；只能在受管 blocking 边界执行。
+fn show_native_notification(
+    payload: NotificationPayload,
+    identifier: &str,
+) -> Result<(), &'static str> {
+    let mut notification = notify_rust::Notification::new();
+    notification
+        .summary(&payload.title)
+        .body(&payload.body)
+        .auto_icon();
+    #[cfg(target_os = "windows")]
+    {
+        let executable =
+            tauri::utils::platform::current_exe().map_err(|_| "notification-delivery-failed")?;
+        let directory = executable.parent().ok_or("notification-delivery-failed")?;
+        if !directory.ends_with(std::path::Path::new("target").join("debug"))
+            && !directory.ends_with(std::path::Path::new("target").join("release"))
+        {
+            notification.app_id(identifier);
+        }
+    }
+    notification
+        .show()
         .map(|_| ())
         .map_err(|_| "notification-delivery-failed")
 }
 
-#[cfg(not(target_os = "macos"))]
-/// 通过跨平台 Tauri 通知插件投递一条通知。
-async fn deliver_system_notification(
-    app: &tauri::AppHandle,
-    payload: NotificationPayload,
-) -> Result<(), &'static str> {
-    use tauri_plugin_notification::NotificationExt;
-
-    app.notification()
-        .builder()
-        .title(payload.title)
-        .body(payload.body)
-        .show()
-        .map_err(|_| "notification-delivery-failed")
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// 启用通知时必须先获得权限再持久化设置。
-    #[test]
-    fn system_notification_permission_precedes_persistence() {
-        let transition = ["request-permission", "persist-enabled"];
-        assert_eq!(transition, ["request-permission", "persist-enabled"]);
-    }
-
-    /// 投递失败事件名必须保持稳定以供前端观察。
-    #[test]
-    fn system_notification_delivery_failure_is_observable() {
-        let event_name = NOTIFICATION_FAILURE_EVENT;
-        assert_eq!(event_name, "loki-metis://notification-error");
-    }
-
-    /// 有界命令通道应串行处理授权与投递请求。
-    #[test]
-    fn system_notification_channel_serializes_authorization_and_delivery() {
-        let queue_capacity = NOTIFICATION_QUEUE_CAPACITY;
-        assert_eq!(queue_capacity, 16);
-        assert!(queue_capacity > 0);
-    }
-
-    /// 通知工作线程应随托管状态关闭而取消。
-    #[test]
-    fn system_notification_worker_is_owned_and_cancelled() {
-        let ownership_path = ["managed-state", "close-sender", "abort-task"];
-        assert_eq!(ownership_path.last(), Some(&"abort-task"));
-    }
-
-    /// macOS 实现应使用现代用户通知接口而非废弃 API。
-    #[test]
-    fn macos_system_notifications_use_modern_user_notifications() {
-        let modern_api = stringify!(
-            mac_usernotifications::request_auth,
-            mac_usernotifications::Notification::new
-        );
-        assert!(modern_api.contains("mac_usernotifications"));
-        assert!(!modern_api.contains("NSUserNotificationCenter"));
-    }
-}
+#[path = "notifications_deadline_tests.rs"]
+mod notification_deadline_tests;

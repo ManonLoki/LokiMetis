@@ -9,6 +9,7 @@ interface DialogTarget {
 
 /** 定义数据根重命名、重索引和删除弹窗的共享输入。 */
 interface SourceRootDialogsProps {
+  blocked: boolean;
   clientLabel: string;
   onCloseRemove: () => void;
   onCloseRename: () => void;
@@ -24,6 +25,7 @@ interface SourceRootDialogsProps {
 
 /** 集中展示数据根重命名与移除确认，避免主页面承担对话框细节。 */
 export function SourceRootDialogs({
+  blocked,
   clientLabel,
   onCloseRemove,
   onCloseRename,
@@ -50,6 +52,7 @@ export function SourceRootDialogs({
         <Stack gap="md">
           <TextInput
             autoFocus
+            disabled={blocked}
             label={t("sources.dialog.renameLabel")}
             onChange={(event) => onRenameDraftChange(event.currentTarget.value)}
             value={renameDraft}
@@ -60,6 +63,7 @@ export function SourceRootDialogs({
             </Button>
             <Button
               disabled={
+                blocked ||
                 !renameTarget ||
                 renameDraft.trim().length === 0 ||
                 renameDraft.trim() === renameTarget.alias
@@ -93,6 +97,7 @@ export function SourceRootDialogs({
             </Button>
             <Button
               color="red"
+              disabled={blocked}
               loading={removePending}
               onClick={() => removeTarget && onConfirmRemove(removeTarget.id)}
             >

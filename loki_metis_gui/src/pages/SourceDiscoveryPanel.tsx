@@ -104,7 +104,7 @@ export function SourceDiscoveryPanel({
             ))}
             <Button
               color="red"
-              disabled={discovery.state !== "running"}
+              disabled={mutationBlocked || discovery.state !== "running"}
               loading={cancelPending}
               onClick={onCancel}
               variant="light"
@@ -141,7 +141,11 @@ export function SourceDiscoveryPanel({
           </Alert>
         ) : null}
         {visibleCandidates.length > 0 ? (
-          <RootCandidateCapsules candidates={visibleCandidates} onAdd={onAdd} />
+          <RootCandidateCapsules
+            candidates={visibleCandidates}
+            disabled={mutationBlocked}
+            onAdd={onAdd}
+          />
         ) : null}
       </Stack>
     </Paper>

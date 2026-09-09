@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, test, vi } from "vitest";
 
 import { HostCapabilitySwitch } from "../components/HostCapabilitySwitch";
@@ -96,5 +97,87 @@ describe("authoritative host capability switch", () => {
     expect(toggle).not.toBeChecked();
     expect(toggle).toHaveAttribute("data-authoritative-state", "disabled");
     expect(getEnabled).toHaveBeenCalledTimes(3);
+  });
+
+  /** 已有缓存后的后台重读失败仍必须进入未知态，不能让旧 OS 快照继续可写。 */
+  test("cached_autostart_state_becomes_read_only_when_refetch_fails", async () => {
+    const queryKey = ["test-autostart-cached-refetch"] as const;
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    });
+    const getEnabled = vi
+      .fn()
+      .mockResolvedValueOnce(true)
+      .mockRejectedValueOnce(new Error("host refetch failed"))
+      .mockResolvedValueOnce(true);
+    const setEnabled = vi.fn().mockResolvedValue(false);
+    render(
+      <TestProviders queryClient={queryClient}>
+        <HostCapabilitySwitch
+          getEnabled={getEnabled}
+          id="autostart"
+          queryKey={queryKey}
+          setEnabled={setEnabled}
+        />
+      </TestProviders>,
+    );
+
+    const toggle = await screen.findByRole("switch", { name: "Start at login" });
+    await waitFor(() => expect(toggle).toBeChecked());
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey });
+    });
+
+    expect(
+      await screen.findByText(/operating system login item cannot be read/i),
+    ).toBeVisible();
+    expect(toggle).toBeDisabled();
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAttribute("data-authoritative-state", "unknown");
+    expect(setEnabled).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Reload actual state" }));
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAttribute("data-authoritative-state", "enabled");
+  });
+
+  /** 双失败清空展示值后，同值的后续成功读取也必须按新的成功代次自动恢复。 */
+  test("same_value_background_success_recovers_an_unknown_switch", async () => {
+    const queryKey = ["test-autostart-same-value-recovery"] as const;
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    });
+    const getEnabled = vi
+      .fn()
+      .mockResolvedValueOnce(true)
+      .mockRejectedValueOnce(new Error("rollback read failed"))
+      .mockResolvedValueOnce(true);
+    const setEnabled = vi.fn().mockRejectedValue(new Error("write failed"));
+    render(
+      <TestProviders queryClient={queryClient}>
+        <HostCapabilitySwitch
+          getEnabled={getEnabled}
+          id="autostart"
+          queryKey={queryKey}
+          setEnabled={setEnabled}
+        />
+      </TestProviders>,
+    );
+
+    const toggle = await screen.findByRole("switch", { name: "Start at login" });
+    await waitFor(() => expect(toggle).toBeChecked());
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(toggle).toHaveAttribute("data-authoritative-state", "unknown"),
+    );
+
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey });
+    });
+
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAttribute("data-authoritative-state", "enabled");
   });
 });

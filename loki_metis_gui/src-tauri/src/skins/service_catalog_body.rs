@@ -13,6 +13,7 @@ impl SkinService {
             workbuddy_runtime_generation: AtomicU64::new(0),
             account_profile_probes: StdMutex::new(HashMap::new()),
             verified_endpoint_hints: StdMutex::new(HashMap::new()),
+            watch_task_reaper: Arc::new(StdMutex::new(WatchTaskReaper::default())),
             operation: Mutex::new(()),
             runtime: Mutex::new(RuntimeState::default()),
         }
@@ -282,5 +283,4 @@ impl SkinService {
         *self.catalog.write().map_err(|_| catalog_cache_error())? = None;
         Ok(())
     }
-
 }

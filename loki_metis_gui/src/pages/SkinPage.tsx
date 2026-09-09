@@ -11,24 +11,22 @@ import {
   Tabs,
   Text,
 } from "@mantine/core";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type QueryKey,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconAlertCircle, IconPalette, IconTrash } from "@tabler/icons-react";
-import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   skinApi,
   skinHostAvailable,
   SkinHostError,
-  type CodexInstance,
-  type PreparedSkinImportBatch,
-  type SkinAppearanceCheck,
   type SkinCreationPrompt,
   type SkinDescriptor,
   type SkinHostKind,
@@ -39,7 +37,6 @@ import {
   skinInstancesQueryKey,
   skinStatusQueryKey,
 } from "../api/query-keys";
-import { getMonitorCapabilities, getMonitorSettings } from "../api/monitor";
 import {
   AppearanceDialog,
   CreateThemeDialog,
@@ -49,138 +46,59 @@ import {
 } from "../components/skins/SkinDialogs";
 import { SkinCard } from "../components/skins/SkinCard";
 import { SkinToolbar } from "../components/skins/SkinToolbar";
-import {
-  clearRememberedSkin,
-  readRememberedSkin,
-  rememberSkin,
-} from "../lib/skin-preference";
-import {
-  needsWorkBuddyCdpRecovery,
-  resolveSoleTargetInstance,
-} from "../lib/skin-instances";
-import { skinPageSessionAtom } from "../state/skin-page";
-
-/** 把资源描述收敛成原生命令要求的精确引用。 */
-function skinReference(skin: SkinDescriptor): SkinReference {
-  return { id: skin.id, source: skin.source };
-}
+import { clearRememberedSkin } from "../lib/skin-preference";
+import { useSkinHostQueries } from "./useSkinHostQueries";
+import { skinReference, useSkinHostActions } from "./useSkinHostActions";
+import { useSkinImportController } from "./useSkinImportController";
 
 /** 比较两个可选皮肤引用是否指向同一份来源资源。 */
 function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
   return left?.id === right.id && left.source === right.source;
 }
 
-/** 待用户确认的宿主重启请求：记录目标宿主、实例与本次要应用的皮肤。 */
-interface PendingHostRestart {
-  allowThirdPartyCode: boolean;
+/** 将一次性第三方代码确认绑定到发起操作时的宿主，防止切换标签后错投。 */
+interface ThirdPartyCodeRequest {
   host: SkinHostKind;
-  instanceId: string | null;
-  instanceLabel: string;
-  mode: "restartSelected" | "recoverWindowsWorkBuddy";
   skin: SkinDescriptor;
-}
-
-/** 识别后端在最后一刻发现 WorkBuddy 仍运行但无可用 CDP 的稳定恢复请求。 */
-function isWorkBuddyRecoveryRequired(cause: unknown): cause is SkinHostError {
-  return (
-    cause instanceof SkinHostError && cause.code === "skin.workbuddy_recovery_required"
-  );
-}
-
-/** 以统一的启用/轮询/新鲜度策略订阅一个换皮宿主查询。 */
-function useHostQuery<TData>(
-  hostAvailable: boolean,
-  queryKey: QueryKey,
-  queryFn: () => Promise<TData>,
-  intervalMs: number,
-) {
-  return useQuery({
-    enabled: hostAvailable,
-    queryFn,
-    queryKey,
-    refetchInterval: hostAvailable ? intervalMs : false,
-    staleTime: intervalMs / 2,
-  });
 }
 
 /** 渲染由统一 Agent 选择动态驱动的本机换皮资源库与宿主生命周期。 */
 export function SkinPage(): ReactElement {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [session, setSession] = useAtom(skinPageSessionAtom);
+  const {
+    activeHost,
+    capabilities,
+    catalog,
+    host,
+    hostAvailable,
+    hostOptions,
+    hostStateReady,
+    instances,
+    queryFailure,
+    queryRefreshFailure,
+    session,
+    setSession,
+    settings,
+    status,
+  } = useSkinHostQueries();
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createOpened, setCreateOpened] = useState(false);
   const [creationPrompt, setCreationPrompt] = useState<SkinCreationPrompt | null>(null);
-  const [importBatch, setImportBatch] = useState<PreparedSkinImportBatch | null>(null);
-  const [importSelected, setImportSelected] = useState<string[]>([]);
-  const [importProgress, setImportProgress] = useState<number | null>(null);
-  const [appearance, setAppearance] = useState<{
-    allowThirdPartyCode: boolean;
-    skin: SkinDescriptor;
-    check: SkinAppearanceCheck;
-    target: CodexInstance | null;
-    allowWorkBuddyRecovery: boolean;
-  } | null>(null);
-  const [thirdPartyCodeRequest, setThirdPartyCodeRequest] = useState<SkinDescriptor | null>(
-    null,
-  );
-  const [restartRequest, setRestartRequest] = useState<PendingHostRestart | null>(null);
+  const [thirdPartyCodeRequest, setThirdPartyCodeRequest] =
+    useState<ThirdPartyCodeRequest | null>(null);
   const [convertSkin, setConvertSkin] = useState<SkinDescriptor | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<SkinDescriptor[]>([]);
   const [selectedUserSkins, setSelectedUserSkins] = useState<SkinReference[]>([]);
-  const [remembered, setRemembered] = useState<SkinReference | null>(null);
-
-  const capabilities = useQuery({
-    queryFn: getMonitorCapabilities,
-    queryKey: ["monitor-capabilities"],
-  });
-  const settings = useQuery({
-    queryFn: getMonitorSettings,
-    queryKey: ["monitor-settings"],
-  });
-  const enabledTools = useMemo(
-    () => new Set(settings.data?.enabledAiTools ?? []),
-    [settings.data?.enabledAiTools],
-  );
-  const hostOptions = useMemo(
-    () =>
-      (capabilities.data?.aiTools ?? []).filter(
-        (item): item is typeof item & { skinHost: SkinHostKind } =>
-          enabledTools.has(item.tool) && item.skinHost != null,
-      ),
-    [capabilities.data?.aiTools, enabledTools],
-  );
-  const activeHost =
-    hostOptions.find((item) => item.skinHost === session.selectedHost)?.skinHost ??
-    hostOptions[0]?.skinHost ??
-    null;
-  const host = activeHost ?? "codex";
-  const hostAvailable = skinHostAvailable() && activeHost !== null;
+  const mounted = useRef(true);
 
   useEffect(() => {
-    if (activeHost !== null && session.selectedHost !== activeHost) {
-      setSession((value) => ({ ...value, selectedHost: activeHost }));
-    }
-  }, [activeHost, session.selectedHost, setSession]);
-
-  useEffect(() => {
-    setRemembered(activeHost === null ? null : readRememberedSkin(activeHost));
-  }, [activeHost]);
-
-  const catalog = useHostQuery(hostAvailable, SKIN_CATALOG_QUERY_KEY, skinApi.list, 5_000);
-  const instances = useHostQuery(
-    hostAvailable,
-    skinInstancesQueryKey(host),
-    () => skinApi.instances(host),
-    4_000,
-  );
-  const status = useHostQuery(
-    hostAvailable,
-    skinStatusQueryKey(host),
-    () => skinApi.status(host),
-    4_000,
-  );
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const action = useMutation<void, unknown, () => Promise<void>>({
     mutationFn: (operation) => operation(),
@@ -189,6 +107,7 @@ export function SkinPage(): ReactElement {
   /** 统一显示脱敏宿主错误，不暴露文件路径或调试端点。 */
   const showError = useCallback(
     (cause: unknown): void => {
+      if (!mounted.current) return;
       setNotice(null);
       setError(cause instanceof SkinHostError ? cause.message : t("skins.error.unknown"));
     },
@@ -196,13 +115,17 @@ export function SkinPage(): ReactElement {
   );
 
   /** 让换皮相关查询在一次真实变更后共同回到宿主权威状态。 */
-  const refresh = useCallback(async (): Promise<void> => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: SKIN_CATALOG_QUERY_KEY }),
-      queryClient.invalidateQueries({ queryKey: skinStatusQueryKey(host) }),
-      queryClient.invalidateQueries({ queryKey: skinInstancesQueryKey(host) }),
-    ]);
-  }, [host, queryClient]);
+  const refreshHost = useCallback(
+    async (targetHost: SkinHostKind): Promise<void> => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: SKIN_CATALOG_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: skinStatusQueryKey(targetHost) }),
+        queryClient.invalidateQueries({ queryKey: skinInstancesQueryKey(targetHost) }),
+      ]);
+    },
+    [queryClient],
+  );
+  const refresh = useCallback(() => refreshHost(host), [host, refreshHost]);
 
   /** 执行可见操作并收敛错误边界。 */
   const run = useCallback(
@@ -217,34 +140,40 @@ export function SkinPage(): ReactElement {
     [action.mutateAsync, showError],
   );
 
-  useEffect(() => {
-    if (!hostAvailable) return;
-    let unlisten: (() => void) | undefined;
-    void skinApi
-      .onFileDrop((event) => {
-        if (event.type !== "drop") return;
-        setImportProgress(0);
-        void run(async () => {
-          const batch = await skinApi.prepareDroppedPaths(event.paths, (progress) => {
-            if (progress.type === "started") setImportProgress(0);
-            else
-              setImportProgress((value) =>
-                Math.min(100, (value ?? 0) + 100 / Math.max(1, event.paths.length)),
-              );
-          });
-          setImportBatch(batch);
-          setImportSelected(batch.items.map((item) => item.itemId));
-          setImportProgress(null);
-        });
-      })
-      .then((cleanup) => {
-        unlisten = cleanup;
-      });
-    return () => unlisten?.();
-  }, [hostAvailable]);
+  const {
+    importBatch,
+    importProgress,
+    importSelected,
+    prepareImport,
+    setImportBatch,
+    setImportSelected,
+  } = useSkinImportController({
+    enabled: hostStateReady,
+    mounted,
+    run,
+    showError,
+  });
 
   const instanceList = instances.data ?? [];
-  const selectedInstance = resolveSoleTargetInstance(instanceList);
+  const {
+    appearance,
+    installOnInstance,
+    remembered,
+    requestInstall,
+    restartAndInstall,
+    restartRequest,
+    selectedInstance,
+    setAppearance,
+    setRemembered,
+    setRestartRequest,
+  } = useSkinHostActions({
+    activeHost,
+    host,
+    hostStateReady,
+    instanceList,
+    refreshHost,
+    setNotice,
+  });
   const activeSkin =
     selectedInstance?.activeSkin ??
     (status.data?.installed && status.data.skinId && status.data.source
@@ -270,148 +199,16 @@ export function SkinPage(): ReactElement {
     [selectedUserSkins],
   );
 
-  /** 在实例明确且无需重启时执行皮肤安装。 */
-  const installOnInstance = useCallback(
-    async (
-      skin: SkinDescriptor,
-      target: CodexInstance | null,
-      allowThirdPartyCode: boolean,
-      allowMismatch = false,
-      allowWorkBuddyRecovery = false,
-    ): Promise<void> => {
-      const result = await skinApi.install(
-        host,
-        skinReference(skin),
-        allowMismatch,
-        target?.id ?? null,
-        allowWorkBuddyRecovery,
-        allowThirdPartyCode,
-      );
-      if (result.type === "needsConfirmation") {
-        setAppearance({
-          allowThirdPartyCode,
-          allowWorkBuddyRecovery,
-          check: result.check,
-          skin,
-          target,
-        });
-        return;
-      }
-      const reference = skinReference(skin);
-      rememberSkin(host, reference);
-      setRemembered(reference);
-      setSession((value) => ({
-        ...value,
-        restoreDismissedHosts: { ...value.restoreDismissedHosts, [host]: false },
-      }));
-      setNotice(t("skins.notice.applied", { name: skin.name }));
-      await refresh();
-    },
-    [host, refresh, setSession, t],
-  );
-
-  /** 按原生平台能力选择 Windows 全量恢复或既有单实例重启确认。 */
-  const requestRestartConfirmation = useCallback(
-    async (
-      skin: SkinDescriptor,
-      target: CodexInstance | null,
-      allowThirdPartyCode: boolean,
-    ): Promise<void> => {
-      const windowsWorkBuddyRecovery =
-        host === "workBuddy" && (await skinApi.supportsWindowsWorkBuddyRecovery());
-      if (!windowsWorkBuddyRecovery && target === null) {
-        throw new SkinHostError(
-          "skin.host_instance_selection_required",
-          t("skins.error.choose_instance"),
-        );
-      }
-      setRestartRequest({
-        allowThirdPartyCode,
-        host,
-        instanceId: target?.id ?? null,
-        instanceLabel: target?.label ?? "",
-        mode: windowsWorkBuddyRecovery ? "recoverWindowsWorkBuddy" : "restartSelected",
-        skin,
-      });
-    },
-    [host, t],
-  );
-
-  /** 解析唯一目标并在可能影响 Codex 会话时先进入确认弹窗。 */
-  const requestInstall = useCallback(
-    async (skin: SkinDescriptor, allowThirdPartyCode: boolean): Promise<void> => {
-      try {
-        let current = instanceList;
-        if (current.length === 0) {
-          await skinApi.launchHost(host);
-          current = await queryClient.fetchQuery({
-            queryFn: () => skinApi.instances(host),
-            queryKey: skinInstancesQueryKey(host),
-          });
-        }
-        const target = resolveSoleTargetInstance(current);
-        if (target === null) {
-          if (host === "workBuddy" && needsWorkBuddyCdpRecovery(current)) {
-            await requestRestartConfirmation(skin, null, allowThirdPartyCode);
-            return;
-          }
-          throw new SkinHostError(
-            "skin.host_instance_selection_required",
-            t("skins.error.choose_instance"),
-          );
-        }
-        if (target.state === "runningWithoutCdp" && host !== "workBuddy") {
-          await requestRestartConfirmation(skin, target, allowThirdPartyCode);
-          return;
-        }
-        await installOnInstance(skin, target, allowThirdPartyCode);
-      } catch (cause) {
-        if (host !== "workBuddy" || !isWorkBuddyRecoveryRequired(cause)) throw cause;
-        const refreshed = await queryClient.fetchQuery({
-          queryFn: () => skinApi.instances(host),
-          queryKey: skinInstancesQueryKey(host),
-          staleTime: 0,
-        });
-        const target = resolveSoleTargetInstance(refreshed);
-        if (
-          target === null &&
-          refreshed.length > 1 &&
-          !needsWorkBuddyCdpRecovery(refreshed)
-        ) {
-          throw new SkinHostError(
-            "skin.host_instance_selection_required",
-            t("skins.error.choose_instance"),
-          );
-        }
-        await requestRestartConfirmation(skin, target, allowThirdPartyCode);
-      }
-    },
-    [host, instanceList, installOnInstance, queryClient, requestRestartConfirmation, t],
-  );
-
-  /** 从原生文件选择器预检一个有界 ZIP 批次。 */
-  const prepareImport = useCallback(async (): Promise<void> => {
-    setImportProgress(0);
-    const batch = await skinApi.prepareImport((progress) => {
-      if (progress.type === "started") setImportProgress(0);
-      else setImportProgress((value) => Math.min(95, (value ?? 0) + 12));
-    });
-    setImportProgress(null);
-    if (batch === null) return;
-    setImportBatch(batch);
-    setImportSelected(batch.items.map((item) => item.itemId));
-  }, []);
-
   /** 稳定的资源卡回调集合，避免轮询刷新导致整批卡片重渲染。 */
   const handleApply = useCallback(
     (item: SkinDescriptor) => {
       if (item.packageType === "legacySkin") {
-        setThirdPartyCodeRequest(item);
+        setThirdPartyCodeRequest({ host, skin: item });
         return;
       }
       void run(() => requestInstall(item, false));
     },
-    [run, requestInstall],
+    [host, run, requestInstall],
   );
   const handleConvert = useCallback((item: SkinDescriptor) => setConvertSkin(item), []);
   const handleDelete = useCallback((item: SkinDescriptor) => setDeleteTargets([item]), []);
@@ -450,23 +247,33 @@ export function SkinPage(): ReactElement {
       }),
     [host, refresh, run, selectedInstance, t],
   );
+  const hostTransitionLocked =
+    action.isPending ||
+    thirdPartyCodeRequest !== null ||
+    appearance !== null ||
+    restartRequest !== null;
 
   return (
     <Stack data-testid="skin-page" gap="lg">
       {hostOptions.length > 0 ? (
         <Tabs
           aria-label={t("skins.host.tabs")}
-          onChange={(value) =>
+          onChange={(value) => {
+            if (hostTransitionLocked) return;
             setSession((current) => ({
               ...current,
               selectedHost: value as SkinHostKind | null,
-            }))
-          }
+            }));
+          }}
           value={activeHost}
         >
           <Tabs.List>
             {hostOptions.map((item) => (
-              <Tabs.Tab key={item.skinHost} value={item.skinHost}>
+              <Tabs.Tab
+                disabled={hostTransitionLocked}
+                key={item.skinHost}
+                value={item.skinHost}
+              >
                 {item.name}
               </Tabs.Tab>
             ))}
@@ -482,6 +289,7 @@ export function SkinPage(): ReactElement {
       {skinHostAvailable() &&
       !capabilities.isPending &&
       !settings.isPending &&
+      queryFailure === null &&
       hostOptions.length === 0 ? (
         <Alert icon={<IconAlertCircle size={18} />} title={t("skins.host.empty_title")}>
           {t("skins.host.empty_description")}
@@ -504,13 +312,39 @@ export function SkinPage(): ReactElement {
           {notice}
         </Alert>
       ) : null}
+      {queryFailure !== null || queryRefreshFailure !== null ? (
+        <Alert color="red" icon={<IconAlertCircle size={18} />} role="alert">
+          <Group justify="space-between">
+            <Text size="sm">
+              {(queryFailure ?? queryRefreshFailure) instanceof SkinHostError
+                ? (queryFailure ?? queryRefreshFailure)?.message
+                : t("skins.error.unknown")}
+            </Text>
+            <Button
+              onClick={() =>
+                void Promise.all([
+                  capabilities.refetch(),
+                  settings.refetch(),
+                  ...(hostAvailable
+                    ? [catalog.refetch(), instances.refetch(), status.refetch()]
+                    : []),
+                ])
+              }
+              size="xs"
+              variant="light"
+            >
+              {t("common.retry")}
+            </Button>
+          </Group>
+        </Alert>
+      ) : null}
       {importProgress !== null ? <Progress animated value={importProgress} /> : null}
 
       <Paper className="surface-card" p="md" radius="lg" withBorder>
         <Stack gap="md">
           <SkinToolbar
             busy={action.isPending}
-            hostAvailable={hostAvailable}
+            hostAvailable={hostStateReady}
             onCreate={() => setCreateOpened(true)}
             onImport={() => void run(prepareImport)}
             onRefresh={() => void run(refresh)}
@@ -521,6 +355,7 @@ export function SkinPage(): ReactElement {
             <Group gap="xs" justify="flex-end">
               <Button
                 color="red"
+                disabled={!hostStateReady || action.isPending}
                 leftSection={<IconTrash size={17} />}
                 onClick={() =>
                   setDeleteTargets(
@@ -540,6 +375,7 @@ export function SkinPage(): ReactElement {
       </Paper>
 
       {rememberedDescriptor &&
+      hostStateReady &&
       activeSkin === null &&
       !session.restoreDismissedHosts[host] ? (
         <Alert
@@ -575,7 +411,11 @@ export function SkinPage(): ReactElement {
         </Alert>
       ) : null}
 
-      {catalog.isLoading ? (
+      {capabilities.isPending || settings.isPending ? (
+        <Center py="xl">
+          <Loader />
+        </Center>
+      ) : !hostAvailable || queryFailure !== null ? null : catalog.isLoading ? (
         <Center py="xl">
           <Loader />
         </Center>
@@ -591,7 +431,7 @@ export function SkinPage(): ReactElement {
           {filteredSkins.map((skin) => (
             <SkinCard
               active={sameSkin(activeSkin, skinReference(skin))}
-              busy={action.isPending || !hostAvailable}
+              busy={action.isPending || !hostStateReady}
               key={`${skin.source}:${skin.id}`}
               onApply={handleApply}
               onConvert={handleConvert}
@@ -608,6 +448,7 @@ export function SkinPage(): ReactElement {
       )}
 
       <CreateThemeDialog
+        blocked={!hostStateReady}
         onClose={() => setCreateOpened(false)}
         onCreate={(name, author) =>
           void run(async () => {
@@ -627,6 +468,7 @@ export function SkinPage(): ReactElement {
       />
       <ImportDialog
         batch={importBatch}
+        blocked={!hostStateReady}
         onCancel={() =>
           void run(async () => {
             if (importBatch) await skinApi.cancelImport(importBatch.token);
@@ -651,9 +493,10 @@ export function SkinPage(): ReactElement {
         selected={importSelected}
       />
       <ThirdPartyCodeDialog
+        blocked={!hostStateReady}
         hostName={
-          hostOptions.find((item) => item.skinHost === host)?.name ??
-          (host === "workBuddy" ? "WorkBuddy" : "Codex")
+          hostOptions.find((item) => item.skinHost === thirdPartyCodeRequest?.host)?.name ??
+          (thirdPartyCodeRequest?.host === "workBuddy" ? "WorkBuddy" : "Codex")
         }
         onCancel={() => setThirdPartyCodeRequest(null)}
         onConfirm={() =>
@@ -661,14 +504,15 @@ export function SkinPage(): ReactElement {
             if (!thirdPartyCodeRequest) return;
             const pending = thirdPartyCodeRequest;
             setThirdPartyCodeRequest(null);
-            await requestInstall(pending, true);
+            await requestInstall(pending.skin, true, pending.host);
           })
         }
         opened={thirdPartyCodeRequest !== null}
         pending={action.isPending}
-        skinName={thirdPartyCodeRequest?.name ?? ""}
+        skinName={thirdPartyCodeRequest?.skin.name ?? ""}
       />
       <AppearanceDialog
+        blocked={!hostStateReady}
         check={appearance?.check ?? null}
         onCancel={() => setAppearance(null)}
         onConfirm={() =>
@@ -677,6 +521,7 @@ export function SkinPage(): ReactElement {
             const pending = appearance;
             setAppearance(null);
             await installOnInstance(
+              pending.host,
               pending.skin,
               pending.target,
               pending.allowThirdPartyCode,
@@ -688,6 +533,7 @@ export function SkinPage(): ReactElement {
         pending={action.isPending}
       />
       <SkinConfirmDialog
+        blocked={!hostStateReady}
         description={t(
           restartRequest?.mode === "recoverWindowsWorkBuddy"
             ? "skins.restart.workbuddy_description"
@@ -702,6 +548,7 @@ export function SkinPage(): ReactElement {
             setRestartRequest(null);
             if (pending.mode === "recoverWindowsWorkBuddy") {
               await installOnInstance(
+                pending.host,
                 pending.skin,
                 null,
                 pending.allowThirdPartyCode,
@@ -711,11 +558,12 @@ export function SkinPage(): ReactElement {
               return;
             }
             if (!pending.instanceId) return;
-            const restarted = await skinApi.restartInstance(
+            await restartAndInstall(
               pending.host,
+              pending.skin,
               pending.instanceId,
+              pending.allowThirdPartyCode,
             );
-            await installOnInstance(pending.skin, restarted, pending.allowThirdPartyCode);
           })
         }
         opened={restartRequest !== null}
@@ -727,6 +575,7 @@ export function SkinPage(): ReactElement {
         )}
       />
       <SkinConfirmDialog
+        blocked={!hostStateReady}
         description={t("skins.convert.description", { name: convertSkin?.name ?? "" })}
         onCancel={() => setConvertSkin(null)}
         onConfirm={() =>
@@ -743,6 +592,7 @@ export function SkinPage(): ReactElement {
         title={t("skins.convert.title")}
       />
       <SkinConfirmDialog
+        blocked={!hostStateReady}
         confirmColor="red"
         description={t("skins.delete.description", { count: deleteTargets.length })}
         onCancel={() => setDeleteTargets([])}

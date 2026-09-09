@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -20,6 +20,40 @@ vi.mock("@tauri-apps/api/webview", () => ({
 
 import { SkinPage } from "../src/pages/SkinPage";
 import { TestProviders } from "./testUtils";
+
+/** 提供无皮肤但权威查询均成功的 Tauri 宿主基线。 */
+function mockReadyEmptySkinHost(
+  extra?: (command: string) => Promise<unknown> | undefined,
+): void {
+  mocks.hostAvailable = true;
+  mocks.invoke.mockImplementation((command: string) => {
+    const overridden = extra?.(command);
+    if (overridden !== undefined) return overridden;
+    if (command === "get_monitor_capabilities") {
+      return Promise.resolve({
+        aiTools: [{ tool: "codex", name: "Codex", skinHost: "codex" }],
+      });
+    }
+    if (command === "get_monitor_settings") {
+      return Promise.resolve({ enabledAiTools: ["codex"], hookDirectories: {} });
+    }
+    if (command === "list_skins") return Promise.resolve([]);
+    if (command === "list_skin_host_instances") return Promise.resolve([]);
+    if (command === "skin_status") {
+      return Promise.resolve({
+        affectedPages: 0,
+        compatibility: null,
+        installed: false,
+        packageType: null,
+        skinId: null,
+        skinName: null,
+        source: null,
+        version: "1",
+      });
+    }
+    return Promise.reject(new Error(`unexpected command: ${command}`));
+  });
+}
 
 describe("skin page", () => {
   beforeEach(() => {
@@ -533,6 +567,112 @@ describe("skin page", () => {
     );
   });
 
+  /** 重启确认和后续安装必须锁定发起时的宿主，不能因标签切换而错投。 */
+  test("binds a restart confirmation to its originating host", async () => {
+    mocks.hostAvailable = true;
+    let restarted = false;
+    const instance = (host: "codex" | "workBuddy", ready: boolean) => ({
+      accountLabel: null,
+      activeSkin: null,
+      activeSkinName: null,
+      avatarDataUrl: null,
+      debugPort: ready ? (host === "codex" ? 9222 : 9441) : null,
+      id: `${host}-1`,
+      label: host === "codex" ? "Codex process 10" : "WorkBuddy process 20",
+      pid: host === "codex" ? 10 : 20,
+      profile: null,
+      state: ready ? "ready" : "runningWithoutCdp",
+    });
+    mocks.invoke.mockImplementation(
+      (command: string, args?: { host?: "codex" | "workBuddy" }) => {
+        if (command === "get_monitor_capabilities") {
+          return Promise.resolve({
+            aiTools: [
+              { tool: "codex", name: "Codex", skinHost: "codex" },
+              { tool: "workBuddy", name: "WorkBuddy", skinHost: "workBuddy" },
+            ],
+          });
+        }
+        if (command === "get_monitor_settings") {
+          return Promise.resolve({
+            enabledAiTools: ["codex", "workBuddy"],
+            hookDirectories: {},
+          });
+        }
+        if (command === "list_skins") {
+          return Promise.resolve([
+            {
+              author: "ManonLoki",
+              id: "minecraft",
+              name: "Minecraft",
+              packageType: "theme",
+              previewDataUrl: "",
+              source: "builtin",
+              supportedColorModes: ["light", "dark"],
+              version: "1.0.0",
+            },
+          ]);
+        }
+        if (command === "list_skin_host_instances") {
+          const targetHost = args?.host ?? "codex";
+          return Promise.resolve([
+            instance(targetHost, targetHost === "workBuddy" || restarted),
+          ]);
+        }
+        if (command === "skin_status") {
+          return Promise.resolve({
+            affectedPages: 0,
+            compatibility: null,
+            installed: false,
+            packageType: null,
+            skinId: null,
+            skinName: null,
+            source: null,
+            version: "1",
+          });
+        }
+        if (command === "restart_skin_host_instance") {
+          if (args?.host !== "codex") return Promise.reject(new Error("wrong host"));
+          restarted = true;
+          return Promise.resolve(instance("codex", true));
+        }
+        if (command === "install_skin") {
+          return Promise.resolve({ type: "installed", status: {} });
+        }
+        return Promise.reject(new Error(`unexpected command: ${command}`));
+      },
+    );
+
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    expect(await screen.findByText("Restart the selected host instance?")).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Codex" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "WorkBuddy" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("restart_skin_host_instance", {
+        host: "codex",
+        instanceId: "codex-1",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
+        allowAppearanceMismatch: false,
+        allowThirdPartyCode: false,
+        allowWorkBuddyRecovery: false,
+        host: "codex",
+        instanceId: "codex-1",
+        skin: { id: "minecraft", source: "builtin" },
+      }),
+    );
+  });
+
   /** 兼容皮肤必须在任何启动、重启或安装调用前取得一次性显式信任，取消保持零副作用。 */
   test("gates compatible skin application before every host side effect", async () => {
     mocks.hostAvailable = true;
@@ -640,5 +780,160 @@ describe("skin page", () => {
         skin: { id: "retro-script", source: "user" },
       }),
     );
+  });
+
+  /** 页面先卸载、拖放订阅后完成时，晚到的 cleanup 仍必须立刻执行。 */
+  test("cleans up a drag-drop listener that resolves after unmount", async () => {
+    mockReadyEmptySkinHost();
+    let resolveListener: ((cleanup: () => void) => void) | undefined;
+    mocks.onDragDropEvent.mockImplementation(
+      () =>
+        new Promise<() => void>((resolve) => {
+          resolveListener = resolve;
+        }),
+    );
+    const cleanup = vi.fn();
+    const view = render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    await waitFor(() => expect(mocks.onDragDropEvent).toHaveBeenCalledOnce());
+    view.unmount();
+    await act(async () => resolveListener?.(cleanup));
+
+    await waitFor(() => expect(cleanup).toHaveBeenCalledOnce());
+  });
+
+  /** 原生预检失败后必须清除动画进度，并把失败保留在可见错误边界。 */
+  test("clears import progress when native preparation fails", async () => {
+    let rejectImport: ((cause: unknown) => void) | undefined;
+    const preparation = new Promise<never>((_resolve, reject) => {
+      rejectImport = reject;
+    });
+    mockReadyEmptySkinHost((command) =>
+      command === "prepare_skin_import" ? preparation : undefined,
+    );
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    const importButton = await screen.findByRole("button", { name: "Import" });
+    await waitFor(() => expect(importButton).toBeEnabled());
+    await userEvent.click(importButton);
+    expect(screen.getByRole("progressbar")).toBeVisible();
+
+    await act(async () => rejectImport?.(new Error("native preparation failed")));
+
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+    expect(await screen.findByText("native preparation failed")).toBeVisible();
+  });
+
+  /** 宿主权威查询失败不得伪装成空列表，重试成功前也不得开放写操作。 */
+  test("shows and recovers from an authoritative host query failure", async () => {
+    let instanceReads = 0;
+    mockReadyEmptySkinHost((command) => {
+      if (command !== "list_skin_host_instances") return undefined;
+      instanceReads += 1;
+      return instanceReads === 1
+        ? Promise.reject(new Error("instance query failed"))
+        : Promise.resolve([]);
+    });
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    expect(await screen.findByText("instance query failed")).toBeVisible();
+    expect(
+      screen.queryByText("No skins match the current filters."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText("instance query failed")).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Import" })).toBeEnabled(),
+    );
+  });
+
+  /** 后台刷新失败时保留已读取目录，但冻结写操作直至权威查询恢复。 */
+  test("keeps a cached catalog visible while a host refetch is failing", async () => {
+    let catalogReads = 0;
+    mockReadyEmptySkinHost((command) => {
+      if (command !== "list_skins") return undefined;
+      catalogReads += 1;
+      if (catalogReads > 1) return Promise.reject(new Error("catalog refresh failed"));
+      return Promise.resolve([
+        {
+          author: "ManonLoki",
+          id: "cached-theme",
+          name: "Cached theme",
+          packageType: "theme",
+          previewDataUrl: "",
+          source: "user",
+          supportedColorModes: ["light", "dark"],
+          version: "1.0.0",
+        },
+      ]);
+    });
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    expect(await screen.findByText("Cached theme")).toBeVisible();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select Cached theme" }));
+    expect(screen.getByRole("button", { name: "Delete selected (1)" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(await screen.findByText("catalog refresh failed")).toBeVisible();
+    expect(screen.getByText("Cached theme")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
+    const deleteSelected = screen.getByRole("button", { name: "Delete selected (1)" });
+    expect(deleteSelected).toBeDisabled();
+    await userEvent.click(deleteSelected);
+    expect(mocks.invoke).not.toHaveBeenCalledWith("delete_skins", expect.anything());
+  });
+
+  /** 宿主能力尚未读取时目录保持加载态，不能把 disabled query 伪装成空目录。 */
+  test("does not show an empty catalog while host selection is still loading", async () => {
+    let resolveCapabilities:
+      | ((value: {
+          aiTools: Array<{ name: string; skinHost: "codex"; tool: string }>;
+        }) => void)
+      | undefined;
+    const pendingCapabilities = new Promise<{
+      aiTools: Array<{ name: string; skinHost: "codex"; tool: string }>;
+    }>((resolve) => {
+      resolveCapabilities = resolve;
+    });
+    mockReadyEmptySkinHost((command) =>
+      command === "get_monitor_capabilities" ? pendingCapabilities : undefined,
+    );
+    render(
+      <TestProviders>
+        <SkinPage />
+      </TestProviders>,
+    );
+
+    expect(
+      screen.queryByText("No skins match the current filters."),
+    ).not.toBeInTheDocument();
+    await act(async () =>
+      resolveCapabilities?.({
+        aiTools: [{ name: "Codex", skinHost: "codex", tool: "codex" }],
+      }),
+    );
+
+    expect(await screen.findByText("No skins match the current filters.")).toBeVisible();
   });
 });

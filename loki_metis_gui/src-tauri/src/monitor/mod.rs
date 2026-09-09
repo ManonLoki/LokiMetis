@@ -16,6 +16,7 @@ mod profiles;
 mod relay;
 mod settings;
 mod store;
+mod thread_owner;
 mod wsl;
 
 pub use commands::{
@@ -43,9 +44,7 @@ pub use pet_window::{
 pub use profiles::{load_profile_drafts, save_profile_draft};
 pub use relay::run_hook_relay_if_requested;
 pub use settings::{MonitorSettings, load_monitor_settings, update_monitor_settings};
-pub use store::{
-    HookConfigWriter, list_hook_config_locations, validate_hook_config_directory, write_hook_config,
-};
+pub use store::{HookConfigWriter, list_hook_config_locations, validate_hook_config_directory};
 
 use loki_metis_core::{
     AiTool, HookBehavior, ImageUploadAccept, MonitorCapabilityRange, SkinHostKind,

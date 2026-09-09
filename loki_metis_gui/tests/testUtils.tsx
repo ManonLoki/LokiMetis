@@ -35,11 +35,17 @@ export const availableDashboardAiTypesFixture: AvailableAiTypeDto[] = [
 ];
 
 /** 为组件测试挂载与生产一致的最小稳定 Provider 集合。 */
-export function TestProviders({ children }: { children: ReactNode }): ReactElement {
-  const queryClient = new QueryClient({
+export function TestProviders({
+  children,
+  queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
-  });
-  const store = createStore();
+  }),
+  store = createStore(),
+}: {
+  children: ReactNode;
+  queryClient?: QueryClient;
+  store?: ReturnType<typeof createStore>;
+}): ReactElement {
   return (
     <I18nextProvider i18n={appI18n}>
       <JotaiProvider store={store}>

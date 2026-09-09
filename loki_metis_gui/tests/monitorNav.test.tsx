@@ -219,6 +219,72 @@ describe("monitor header tabs", () => {
     expect(screen.queryByText("openCode")).not.toBeInTheDocument();
   });
 
+  /** 任一权威查询失败时工作台显示可重试失败态，绝不伪造离线、零计数或空事件。 */
+  test.each(["get_hook_relay_status", "get_monitor_capabilities"])(
+    "workbench_keeps_%s_failure_distinct_from_empty_status",
+    async (failedCommand) => {
+      invokeMock.mockImplementation(async (command: string) => {
+        if (command === failedCommand) throw new Error("authoritative read failed");
+        if (command === "get_hook_relay_status") {
+          return {
+            listening: true,
+            bindAddress: "127.0.0.1:23456",
+            receivedCount: 4,
+            failedCount: 1,
+            lastEvent: null,
+            lastError: null,
+          };
+        }
+        if (command === "get_monitor_capabilities") {
+          return monitorCapabilitiesFixture();
+        }
+        throw new Error(`unexpected command ${command}`);
+      });
+
+      await renderMonitor();
+
+      expect(await screen.findByRole("button", { name: "Retry" })).toBeVisible();
+      expect(screen.queryByText("Offline")).not.toBeInTheDocument();
+      expect(screen.queryByText("No Hook events yet")).not.toBeInTheDocument();
+      expect(screen.queryByText("Received events")).not.toBeInTheDocument();
+    },
+  );
+
+  /** 后台轮询失败时保留最近一次可信指标，只以内联错误提示刷新异常。 */
+  test("workbench_keeps_cached_status_after_a_refetch_failure", async () => {
+    let relayReads = 0;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_hook_relay_status") {
+        relayReads += 1;
+        if (relayReads > 1) throw new Error("relay refresh failed");
+        return {
+          listening: true,
+          bindAddress: "127.0.0.1:23456",
+          receivedCount: 7,
+          failedCount: 1,
+          lastEvent: null,
+          lastError: null,
+        };
+      }
+      if (command === "get_monitor_capabilities") {
+        return monitorCapabilitiesFixture();
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    await renderMonitor();
+    expect(await screen.findByText("7")).toBeVisible();
+    expect(
+      await screen.findByText(
+        "The operation could not be completed. Try again.",
+        {},
+        { timeout: 4_500 },
+      ),
+    ).toBeVisible();
+    expect(screen.getByText("Received events")).toBeVisible();
+    expect(screen.getByText(/Listening on 127.0.0.1:23456/)).toBeVisible();
+  });
+
   /** Hooks 设置只投影统一 Agent 选择，不再复制第二套复选面板。 */
   test("hooks_settings_intersect_capabilities_and_historical_enabled_tools", async () => {
     invokeMock.mockImplementation(async (command) => {

@@ -43,11 +43,8 @@ fn workbuddy_target_binding_matches(
 async fn current_windows_workbuddy_target(
     endpoint: CdpEndpoint,
 ) -> Result<ResolvedCodexInstance, AppError> {
-    let instances = resolved_host_instances_with_preferred(
-        SkinHostKind::WorkBuddy,
-        Some(endpoint),
-    )
-    .await?;
+    let instances =
+        resolved_host_instances_with_preferred(SkinHostKind::WorkBuddy, Some(endpoint)).await?;
     unique_workbuddy_target_for_endpoint(&instances, endpoint).ok_or_else(|| {
         workbuddy_recovery_unstable(
             "WorkBuddy 恢复期间实例或调试端点发生变化，未应用皮肤，请重试。",
@@ -161,11 +158,9 @@ impl SkinService {
             })?;
             self.remember_verified_endpoint(SkinHostKind::WorkBuddy, endpoint)?;
             preferred_endpoint = Some(endpoint);
-            let instances = resolved_host_instances_with_preferred(
-                SkinHostKind::WorkBuddy,
-                preferred_endpoint,
-            )
-            .await?;
+            let instances =
+                resolved_host_instances_with_preferred(SkinHostKind::WorkBuddy, preferred_endpoint)
+                    .await?;
             if let Some(instance) = unique_workbuddy_target_for_endpoint(&instances, endpoint) {
                 return Ok((instance, endpoint));
             }
@@ -208,6 +203,8 @@ impl SkinService {
         )?;
         let _operation = self.operation.lock().await;
         let _runtime_mutation = self.begin_host_runtime_mutation(host);
+        self.ensure_watch_runtime_open()?;
+        self.reap_watch_tasks().await?;
         let (_guard, mut cancel) = self.begin_codex_operation()?;
         let mut preferred_endpoint = self.verified_endpoint_hint(host)?;
 
@@ -219,9 +216,9 @@ impl SkinService {
             Some(instance)
         } else {
             match instance_id {
-                Some(id) => Some(
-                    resolve_host_instance_with_preferred(host, id, preferred_endpoint).await?,
-                ),
+                Some(id) => {
+                    Some(resolve_host_instance_with_preferred(host, id, preferred_endpoint).await?)
+                }
                 None if host == SkinHostKind::WorkBuddy => {
                     let mut instances =
                         resolved_host_instances_with_preferred(host, preferred_endpoint).await?;
@@ -250,7 +247,9 @@ impl SkinService {
                 }
             }
         };
-        let target_instance_id = selected_instance.as_ref().map(|instance| instance.id.clone());
+        let target_instance_id = selected_instance
+            .as_ref()
+            .map(|instance| instance.id.clone());
         let target_key = target_instance_id
             .as_deref()
             .map(|instance_id| runtime_instance_key(host, instance_id));
@@ -260,12 +259,11 @@ impl SkinService {
                 .as_ref()
                 .and_then(|target| runtime.instances.get(target));
             let is_running = instance.is_some_and(|instance| {
-                instance.active.as_ref().is_some_and(|active| {
-                    active.source == skin.source && active.id == skin.id
-                }) && instance
-                    .task
+                instance
+                    .active
                     .as_ref()
-                    .is_some_and(|task| !task.join.is_finished())
+                    .is_some_and(|active| active.source == skin.source && active.id == skin.id)
+                    && instance.task.as_ref().is_some_and(WatchTask::is_running)
             });
             if is_running {
                 let compatibility = instance.and_then(|value| value.compatibility.clone());
@@ -311,28 +309,29 @@ impl SkinService {
             preferred_endpoint,
         )
         .await;
-        let (mut browser, handler_task, connection_source, endpoint) = match connection {
-            Ok(connection) => connection,
-            Err(error)
-                if allow_workbuddy_recovery
-                    && error.code == "skin.workbuddy_recovery_required" =>
-            {
-                let (instance, recovered_endpoint) = self
-                    .recover_windows_workbuddy_target(&mut cancel, preferred_endpoint)
-                    .await?;
-                preferred_endpoint = Some(recovered_endpoint);
-                selected_instance = Some(instance);
-                connect_or_launch(
-                    host,
-                    &mut cancel,
-                    selected_instance.as_ref(),
-                    preferred_endpoint,
-                )
-                .await
-                .map_err(authorized_workbuddy_error)?
-            }
-            Err(error) => return Err(error),
-        };
+        let (mut browser, handler_task, connection_source, endpoint, verified_root_pid) =
+            match connection {
+                Ok(connection) => connection,
+                Err(error)
+                    if allow_workbuddy_recovery
+                        && error.code == "skin.workbuddy_recovery_required" =>
+                {
+                    let (instance, recovered_endpoint) = self
+                        .recover_windows_workbuddy_target(&mut cancel, preferred_endpoint)
+                        .await?;
+                    preferred_endpoint = Some(recovered_endpoint);
+                    selected_instance = Some(instance);
+                    connect_or_launch(
+                        host,
+                        &mut cancel,
+                        selected_instance.as_ref(),
+                        preferred_endpoint,
+                    )
+                    .await
+                    .map_err(authorized_workbuddy_error)?
+                }
+                Err(error) => return Err(error),
+            };
         self.remember_verified_endpoint(host, endpoint)?;
         if replaces_all_host_runtimes(host) {
             let current = current_windows_workbuddy_target(endpoint).await;
@@ -358,14 +357,16 @@ impl SkinService {
             }
             selected_instance = Some(current);
         }
-        let target_instance_id = selected_instance.as_ref().map(|instance| instance.id.clone());
+        let target_instance_id = selected_instance
+            .as_ref()
+            .map(|instance| instance.id.clone());
         let target_key = target_instance_id
             .as_deref()
             .map(|instance_id| runtime_instance_key(host, instance_id));
         let target_instance_id =
             target_instance_id.unwrap_or_else(|| format!("endpoint:{}", endpoint.port));
-        let target_key = target_key
-            .unwrap_or_else(|| runtime_instance_key(host, &target_instance_id));
+        let target_key =
+            target_key.unwrap_or_else(|| runtime_instance_key(host, &target_instance_id));
         let policy = AppearancePolicy {
             supported_color_modes: loaded.descriptor.supported_color_modes.clone(),
             requirements: loaded.appearance_requirements.clone(),
@@ -416,15 +417,11 @@ impl SkinService {
                 }));
             }
         }
-        let expected_workbuddy_root_pid = (host == SkinHostKind::WorkBuddy)
-            .then(|| selected_instance.as_ref().map(|instance| instance.process.pid))
-            .flatten();
-
         let previous_tasks = {
             let mut runtime = self.runtime.lock().await;
             take_replaced_watch_tasks(&mut runtime, host, &target_key)
         };
-        if let Err(error) = stop_watch_tasks(previous_tasks).await {
+        if let Err(error) = self.stop_watch_tasks(previous_tasks).await {
             handler_task.abort();
             drop(browser);
             return Err(error);
@@ -438,7 +435,7 @@ impl SkinService {
             skin,
             connection_source.page_ready_timeout(),
             endpoint,
-            expected_workbuddy_root_pid,
+            verified_root_pid,
             &transaction_id,
             &mut cancel,
         )
@@ -463,7 +460,7 @@ impl SkinService {
                 &mut browser,
                 &mut handler_task,
                 endpoint,
-                expected_workbuddy_root_pid,
+                verified_root_pid,
                 &transaction_id,
                 &report.transaction_targets,
             )
@@ -494,7 +491,7 @@ impl SkinService {
                     &mut browser,
                     &mut handler_task,
                     endpoint,
-                    expected_workbuddy_root_pid,
+                    verified_root_pid,
                     &transaction_id,
                     &report.transaction_targets,
                 )
@@ -515,7 +512,7 @@ impl SkinService {
                 &mut browser,
                 &mut handler_task,
                 endpoint,
-                expected_workbuddy_root_pid,
+                verified_root_pid,
                 &transaction_id,
                 &report.transaction_targets,
             )
@@ -535,7 +532,7 @@ impl SkinService {
                 &mut browser,
                 &mut handler_task,
                 endpoint,
-                expected_workbuddy_root_pid,
+                verified_root_pid,
                 &transaction_id,
                 &report.transaction_targets,
             )
@@ -549,11 +546,34 @@ impl SkinService {
         };
 
         let (cancel, cancel_rx) = watch::channel(false);
+        let registration = match self.register_active_watch_task(cancel.clone()) {
+            Ok(registration) => registration,
+            Err(error) => {
+                let mut handler_task = HandlerTaskGuard::new(handler_task_value);
+                let rollback = rollback_initial_injection(
+                    host,
+                    &mut browser,
+                    &mut handler_task,
+                    endpoint,
+                    verified_root_pid,
+                    &transaction_id,
+                    &report.transaction_targets,
+                )
+                .await;
+                handler_task.abort();
+                drop(browser);
+                return Err(match rollback {
+                    Ok(_) => error,
+                    Err(rollback) => rollback_error(&error, rollback),
+                });
+            }
+        };
         let payload = Arc::clone(&loaded.payload);
         let watched_skin = skin.clone();
         let handler_abort = handler_task_value.abort_handle();
         let initial_transaction = Some((transaction_id, report.transaction_targets.clone()));
         let join = tokio::spawn(async move {
+            let _registration = registration;
             watch_pages(
                 host,
                 browser,
@@ -565,20 +585,32 @@ impl SkinService {
             )
             .await
         });
+        let watch_task = WatchTask::new(
+            &self.watch_task_reaper,
+            host,
+            cancel,
+            join,
+            handler_abort,
+            endpoint,
+        );
         let mut runtime = self.runtime.lock().await;
+        let shutting_down = self.lock_watch_task_reaper().shutting_down;
+        if shutting_down {
+            drop(runtime);
+            let error = operation_cancelled();
+            let cleanup = self.stop_watch_tasks(vec![watch_task]).await;
+            return Err(match cleanup {
+                Ok(_) => error,
+                Err(cleanup) => rollback_error(&error, cleanup),
+            });
+        }
         let compatibility = report.compatibility_status();
         runtime.instances.insert(
             target_key.clone(),
             InstanceRuntime {
                 active: Some(loaded.descriptor.clone()),
                 compatibility: Some(compatibility.clone()),
-                task: Some(WatchTask {
-                    host,
-                    cancel,
-                    join,
-                    handler_abort,
-                    endpoint,
-                }),
+                task: Some(watch_task),
             },
         );
         runtime.last_targets.insert(host, target_key.clone());
@@ -603,20 +635,21 @@ impl SkinService {
     ) -> Result<SkinStatus, AppError> {
         let _operation = self.operation.lock().await;
         let _runtime_mutation = self.begin_host_runtime_mutation(host);
+        self.reap_watch_tasks().await?;
         let preferred_endpoint = self.verified_endpoint_hint(host)?;
         let cleanup_endpoint = match instance_id {
-            Some(id) => match resolve_host_instance_with_preferred(host, id, preferred_endpoint)
-                .await
-            {
-                Ok(instance) => instance.debug_port.map(CdpEndpoint::new),
-                Err(error)
-                    if replaces_all_host_runtimes(host)
-                        && error.code == "skin.host_instance_changed" =>
-                {
-                    None
+            Some(id) => {
+                match resolve_host_instance_with_preferred(host, id, preferred_endpoint).await {
+                    Ok(instance) => instance.debug_port.map(CdpEndpoint::new),
+                    Err(error)
+                        if replaces_all_host_runtimes(host)
+                            && error.code == "skin.host_instance_changed" =>
+                    {
+                        None
+                    }
+                    Err(error) => return Err(error),
                 }
-                Err(error) => return Err(error),
-            },
+            }
             None => None,
         };
         let target_key = instance_id.map(|id| runtime_instance_key(host, id));
@@ -625,7 +658,7 @@ impl SkinService {
             take_uninstall_watch_tasks(&mut runtime, host, target_key.as_deref())
         };
         let had_tasks = !tasks.is_empty();
-        let mut affected_pages = stop_watch_tasks(tasks).await?;
+        let mut affected_pages = self.stop_watch_tasks(tasks).await?;
         if replaces_all_host_runtimes(host) {
             let endpoint = cleanup_endpoint.or(preferred_endpoint);
             let removed = if let Some(endpoint) = endpoint {
@@ -635,8 +668,8 @@ impl SkinService {
             };
             affected_pages = affected_pages.saturating_add(removed);
             if removed == 0 {
-                affected_pages = affected_pages
-                    .saturating_add(remove_from_existing_endpoint(host).await?);
+                affected_pages =
+                    affected_pages.saturating_add(remove_from_existing_endpoint(host).await?);
             }
         } else if !had_tasks {
             affected_pages = if let Some(endpoint) = cleanup_endpoint {

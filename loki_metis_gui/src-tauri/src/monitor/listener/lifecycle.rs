@@ -13,7 +13,9 @@ use tokio::sync::mpsc;
 use tokio::time::{MissedTickBehavior, interval_at};
 
 use super::super::{listener_state, pet_events};
-use super::control::{HookListenerPolicy, hook_listener_policy, write_hook_relay_status};
+use super::control::{
+    HookListenerPolicy, HookListenerShutdown, hook_listener_policy, write_hook_relay_status,
+};
 use super::{HookRelayLastEvent, HookRelayStatus, IncomingHookEvent, QueuedHookEvent};
 
 /// 孤儿会话回收时间；超时只回落 Idle，不猜测为 SessionEnd。
@@ -28,6 +30,7 @@ pub(super) async fn run_hook_worker(
     app: AppHandle,
     config_dir: std::path::PathBuf,
     policy: Arc<RwLock<HookListenerPolicy>>,
+    mut shutdown: HookListenerShutdown,
 ) {
     let mut state_machines = HashMap::<AiTool, HookStateMachine>::new();
     let mut machine_generations = HashMap::<AiTool, u64>::new();
@@ -37,6 +40,8 @@ pub(super) async fn run_hook_worker(
     sweep.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
         tokio::select! {
+            biased;
+            _ = shutdown.cancelled() => break,
             queued = receiver.recv() => {
                 let Some(queued) = queued else {
                     break;

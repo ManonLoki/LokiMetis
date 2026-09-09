@@ -270,7 +270,6 @@ impl PageProbe {
         self.codex && self.url == "app://-/index.html"
     }
 
-
     /// WorkBuddy 只接受其本机 `file:` 渲染页面与稳定标题、根节点组合。
     fn is_verified_workbuddy(&self) -> bool {
         self.work_buddy && self.url.starts_with("file://")
@@ -312,9 +311,43 @@ struct AppearancePolicy {
 struct WatchTask {
     host: SkinHostKind,
     cancel: watch::Sender<bool>,
-    join: JoinHandle<Result<usize, AppError>>,
-    handler_abort: AbortHandle,
+    join: Option<JoinHandle<Result<usize, AppError>>>,
+    handler_abort: Option<AbortHandle>,
     endpoint: CdpEndpoint,
+    owner: StdWeak<StdMutex<WatchTaskReaper>>,
+}
+
+/// 保存已经离开运行态、但尚未完成终态确认或端点清理的监视任务。
+struct RetainedWatchTask {
+    host: SkinHostKind,
+    endpoint: CdpEndpoint,
+    /// `None` 表示任务已经确认终止，只剩端点清理需要在后续操作重试。
+    join: Option<JoinHandle<Result<usize, AppError>>>,
+    /// watcher 终态前需要一并中止的 CDP handler。
+    handler_abort: Option<AbortHandle>,
+    /// 正常生命周期仍存在时把取消中的句柄归还原 service owner。
+    owner: StdWeak<StdMutex<WatchTaskReaper>>,
+}
+
+#[derive(Default)]
+/// 由 `SkinService` 持有的监视任务回收器；同步锁只保护短暂的句柄移交。
+struct WatchTaskReaper {
+    retained: Vec<RetainedWatchTask>,
+    /// 已构造且任务 future 尚未到终态的 watcher 取消发送端。
+    active: HashMap<u64, watch::Sender<bool>>,
+    /// 下一个 active watcher 登记 ID。
+    next_registration_id: u64,
+    shutting_down: bool,
+    /// `SkinService::drop` 已开始，后续迟到句柄必须交给进程级 owner。
+    service_dropped: bool,
+    /// 首次应用退出事件确定的总截止；重复退出事件不得重新获得完整预算。
+    shutdown_deadline: Option<tokio::time::Instant>,
+}
+
+/// watcher future 持有的 active 登记守卫；终态或 abort 都会从 service owner 注销。
+struct ActiveWatchRegistration {
+    registration_id: Option<u64>,
+    owner: Arc<StdMutex<WatchTaskReaper>>,
 }
 
 /// 定义换皮宿主 `HandlerTaskGuard` 使用的内部数据。

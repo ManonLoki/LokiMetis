@@ -23,7 +23,7 @@ pub(crate) async fn open_recent_usage_snapshot(
     observed_at_epoch_ms: i64,
     time_standard: &TimeStandard,
 ) -> Result<UsageSnapshot, String> {
-    let mut index = LocalIndex::open_in_app_data(app_data_dir, parser_version)
+    let mut index = LocalIndex::open_read_only_in_app_data(app_data_dir, parser_version)
         .await
         .map_err(|_| local_read_error())?;
     let cutoff = WindowBoundaries::for_standard(
@@ -132,7 +132,7 @@ pub(crate) async fn load_source_root_summaries_for_parser(
     parser_version: u32,
     environment_label: &'static str,
 ) -> Result<Vec<SourceRootSummary>, String> {
-    let index = LocalIndex::open_in_app_data(app_data_dir, parser_version)
+    let index = LocalIndex::open_read_only_in_app_data(app_data_dir, parser_version)
         .await
         .map_err(|_| local_read_error())?;
     let roots = index

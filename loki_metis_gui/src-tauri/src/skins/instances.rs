@@ -1,9 +1,9 @@
 /// 执行换皮宿主内部的 `resolve_codex_instance` 步骤。
+#[cfg(target_os = "macos")]
 async fn resolve_codex_instance(id: &str) -> Result<ResolvedCodexInstance, AppError> {
-    platform_codex_processes()
+    resolved_host_instances(SkinHostKind::Codex)
         .await?
         .into_iter()
-        .map(resolved_instance)
         .find(|instance| instance.id == id)
         .ok_or_else(|| {
             AppError::new(
@@ -13,7 +13,7 @@ async fn resolve_codex_instance(id: &str) -> Result<ResolvedCodexInstance, AppEr
         })
 }
 
-/// 解析指定宿主的实例，并只把经过页面验证的 WorkBuddy 端点关联到唯一进程树根。
+/// 解析指定宿主的实例，并只把经过页面与 owner 验证的端点关联到对应进程树根。
 async fn resolved_host_instances(
     host: SkinHostKind,
 ) -> Result<Vec<ResolvedCodexInstance>, AppError> {
@@ -30,12 +30,13 @@ async fn resolved_host_instances_with_preferred(
         .into_iter()
         .map(|process| resolved_instance_for_host(host, process))
         .collect::<Vec<_>>();
-    if host == SkinHostKind::WorkBuddy && instances.len() == 1 {
-        instances[0].debug_port = None;
-        let root_pid = instances[0].process.pid;
-        for endpoint in cdp_endpoint_candidates_for(host, preferred_endpoint).await {
+    let endpoint_candidates = cdp_endpoint_candidates_for(host, preferred_endpoint).await?;
+    for instance in &mut instances {
+        instance.debug_port = None;
+        let root_pid = instance.process.pid;
+        for endpoint in endpoint_candidates.iter().copied() {
             if endpoint_matches_host(host, endpoint, Some(root_pid)).await? {
-                instances[0].debug_port = Some(endpoint.port);
+                instance.debug_port = Some(endpoint.port);
                 break;
             }
         }
@@ -43,7 +44,7 @@ async fn resolved_host_instances_with_preferred(
     Ok(instances)
 }
 
-/// 验证端点确属目标宿主；WorkBuddy 还必须属于预期根进程树。
+/// 验证端点确属目标宿主，并绑定到预期的可信根进程树。
 async fn endpoint_matches_host(
     host: SkinHostKind,
     endpoint: CdpEndpoint,
@@ -52,23 +53,8 @@ async fn endpoint_matches_host(
     let Ok((mut browser, task)) = connect_browser(endpoint).await else {
         return Ok(false);
     };
-    let matches = async {
-        fetch_targets(&mut browser).await?;
-        for page in browser_pages(&browser).await? {
-            if is_host_page(host, &page).await? {
-                if host == SkinHostKind::WorkBuddy {
-                    let Some(root_pid) = expected_root_pid else {
-                        return Ok(false);
-                    };
-                    return platform_workbuddy_endpoint_owned_by_root(endpoint.port, root_pid).await;
-                }
-                return Ok(true);
-            }
-        }
-        Ok::<_, AppError>(false)
-    }
-    .await
-    ;
+    let matches =
+        browser_matches_host_for_root(host, &mut browser, endpoint, expected_root_pid).await;
     task.abort();
     drop(browser);
     matches
@@ -101,6 +87,7 @@ fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
 }
 
 /// 重新发现并按稳定 ID 解析目标宿主实例，拒绝已退出或身份变化的实例。
+#[cfg(target_os = "macos")]
 async fn resolve_host_instance(
     host: SkinHostKind,
     id: &str,
@@ -175,7 +162,19 @@ async fn probe_resolved_account_profile(
     })?;
     let (mut browser, task) = connect_browser(CdpEndpoint::new(port)).await?;
     let result = async {
-        fetch_targets(&mut browser).await?;
+        if !browser_matches_host_for_root(
+            SkinHostKind::Codex,
+            &mut browser,
+            CdpEndpoint::new(port),
+            Some(resolved.process.pid),
+        )
+        .await?
+        {
+            return Err(AppError::new(
+                "skin.cdp_rejected",
+                "Codex 调试端点不再属于所选实例。",
+            ));
+        }
         discover_account_profile_until_ready(&browser).await
     }
     .await;
@@ -197,7 +196,19 @@ async fn probe_resolved_active_skin(
     })?;
     let (mut browser, task) = connect_browser(CdpEndpoint::new(port)).await?;
     let result = async {
-        fetch_targets(&mut browser).await?;
+        if !browser_matches_host_for_root(
+            host,
+            &mut browser,
+            CdpEndpoint::new(port),
+            Some(resolved.process.pid),
+        )
+        .await?
+        {
+            return Err(AppError::new(
+                "skin.cdp_rejected",
+                format!("{} 调试端点不再属于所选实例。", host.display_name()),
+            ));
+        }
         for page in browser_pages(&browser).await? {
             if !is_host_page(host, &page).await? {
                 continue;
@@ -469,11 +480,7 @@ fn available_debug_port_for_excluding(
 #[cfg(test)]
 /// 执行换皮宿主内部的 `endpoint_candidates_from_commands` 步骤。
 fn endpoint_candidates_from_commands(commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
-    let mut endpoints = explicit_endpoint_candidates_from_commands(commands);
-    if !endpoints.iter().any(|endpoint| *endpoint == CdpEndpoint::default()) {
-        endpoints.push(CdpEndpoint::default());
-    }
-    endpoints
+    explicit_endpoint_candidates_from_commands(commands)
 }
 
 /// 只提取命令行真实声明的端口，不混入任何宿主默认回退。
@@ -490,16 +497,16 @@ fn explicit_endpoint_candidates_from_commands(
         .collect()
 }
 
-/// 合并宿主命令行、已验证首选值与默认值，形成有序 CDP 候选。
+/// 合并宿主命令行与已验证首选值；仅 WorkBuddy 保留其兼容默认端口。
 async fn cdp_endpoint_candidates_for(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
-) -> Vec<CdpEndpoint> {
-    host_endpoint_candidates_from_commands(
+) -> Result<Vec<CdpEndpoint>, AppError> {
+    Ok(host_endpoint_candidates_from_commands(
         host,
-        platform_host_command_lines(host).await.unwrap_or_default(),
+        platform_host_command_lines(host).await?,
         preferred_endpoint,
-    )
+    ))
 }
 
 /// 在通用命令行端口候选上替换宿主默认值，保留 WorkBuddy renderer 的动态端口。
@@ -509,9 +516,11 @@ fn host_endpoint_candidates_from_commands(
     preferred_endpoint: Option<CdpEndpoint>,
 ) -> Vec<CdpEndpoint> {
     let mut endpoints = explicit_endpoint_candidates_from_commands(commands);
-    let default = CdpEndpoint::default_for(host);
-    if !endpoints.iter().any(|endpoint| *endpoint == default) {
-        endpoints.push(default);
+    if host == SkinHostKind::WorkBuddy {
+        let default = CdpEndpoint::default_for(host);
+        if !endpoints.iter().any(|endpoint| *endpoint == default) {
+            endpoints.push(default);
+        }
     }
     if let Some(preferred) = preferred_endpoint {
         endpoints.retain(|endpoint| *endpoint != preferred);

@@ -122,6 +122,43 @@ fn refresh_clients_are_unique_and_use_fixed_order() {
     );
 }
 
+/// 启动迁移必须独占共享 writer；成功后普通查询可用只读入口且不再触发迁移。
+#[tokio::test]
+async fn startup_migration_owns_writer_before_read_only_queries() {
+    let temp = tempfile::tempdir().expect("isolated app-data is available");
+    let state = AppRuntimeState::new(temp.path().to_path_buf());
+    let writer = state
+        .local_scan
+        .get(loki_metis_core::SourceClientKind::Codex)
+        .try_start()
+        .expect("fixture occupies the global writer");
+    assert_eq!(
+        migrate_local_indexes(&state).await,
+        Err(local_scan_writer_busy_message().to_owned())
+    );
+    for client in AgentClientKindDto::ALL.map(loki_metis_core::SourceClientKind::from) {
+        assert!(!loki_metis_core::source_client_usage_index_path(temp.path(), client).exists());
+    }
+
+    drop(writer);
+    migrate_local_indexes(&state)
+        .await
+        .expect("exclusive startup migration succeeds");
+    for client in AgentClientKindDto::ALL.map(loki_metis_core::SourceClientKind::from) {
+        let client_dir = loki_metis_core::source_client_app_data_dir(temp.path(), client);
+        let index = LocalIndex::open_read_only_in_app_data(&client_dir, client.parser_version())
+            .await
+            .expect("migrated database opens through the read-only path");
+        assert_eq!(
+            index
+                .index_state()
+                .await
+                .expect("current schema is readable"),
+            loki_metis_core::LocalIndexState::NotScanned
+        );
+    }
+}
+
 /// 只有已开放且明确 NeedsRescan 的客户端进入启动后立即重建队列。
 #[test]
 fn upgrade_reindex_selection_is_scoped_and_ordered() {

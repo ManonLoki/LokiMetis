@@ -215,11 +215,11 @@ pub fn cancel_skin_import(token: String, service: State<'_, SkinService>) -> Res
 
 /// 用系统文件管理器打开用户皮肤目录。
 #[tauri::command]
-pub fn open_skin_directory(
+pub async fn open_skin_directory(
     skin: SkinReference,
     service: State<'_, SkinService>,
 ) -> Result<(), AppError> {
-    service.open_directory(&skin)
+    service.open_directory(&skin).await
 }
 
 /// 删除一个经过验证且非内置的用户皮肤。

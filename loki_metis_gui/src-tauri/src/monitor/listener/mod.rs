@@ -15,10 +15,10 @@ use loki_metis_core::{
 };
 use serde::Serialize;
 use tauri::AppHandle;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 pub use control::HookListenerControl;
-use control::{HookListenerPolicy, write_hook_relay_status};
+use control::{HookListenerPolicy, HookListenerShutdown, write_hook_relay_status};
 use http_protocol::ConnectionOutcome;
 use lifecycle::run_hook_worker;
 use loopback_server::run_listener;
@@ -31,8 +31,8 @@ use http_protocol::{encode_http_response, handle_connection, parse_hook_request}
 use lifecycle::{expire_inactive_hook_sessions, process_hook_event};
 #[cfg(test)]
 use loopback_server::{
-    bind_local_hook_relay_listener, bound_hook_relay_address, enqueue_connection_outcome,
-    hook_relay_bind_addr,
+    HOOK_CONNECTION_TASK_LIMIT, bind_local_hook_relay_listener, bound_hook_relay_address,
+    enqueue_connection_outcome, hook_relay_bind_addr, run_connection_loop,
 };
 
 /// listener 到状态机 worker 的有界事件队列容量。
@@ -112,27 +112,38 @@ pub fn spawn_hook_listener(
     let status = Arc::new(RwLock::new(HookRelayStatus::default()));
     let policy = Arc::new(RwLock::new(HookListenerPolicy::new(&enabled_tools)));
     let (sender, receiver) = mpsc::channel(HOOK_EVENT_QUEUE_CAPACITY);
-    tauri::async_runtime::spawn(run_hook_worker(
+    let (shutdown, shutdown_receiver) = watch::channel(false);
+    let worker = tauri::async_runtime::spawn(run_hook_worker(
         receiver,
         Arc::clone(&status),
         app,
         config_dir,
         Arc::clone(&policy),
+        HookListenerShutdown::new(shutdown_receiver.clone()),
     ));
     let shared = Arc::clone(&status);
     let listener_policy = Arc::clone(&policy);
-    tauri::async_runtime::spawn(async move {
-        if let Err(error) = run_listener(Arc::clone(&shared), sender, listener_policy).await {
+    let listener = tauri::async_runtime::spawn(async move {
+        if let Err(error) = run_listener(
+            Arc::clone(&shared),
+            sender,
+            listener_policy,
+            HookListenerShutdown::new(shutdown_receiver),
+        )
+        .await
+        {
             tracing::error!(target: "loki_metis::hook_listener", %error, "hook listener stopped");
             let mut current = write_hook_relay_status(&shared);
             current.listening = false;
             current.last_error = Some(error);
         }
     });
-    let control = HookListenerControl {
+    let control = HookListenerControl::new(
         policy,
-        status: Arc::clone(&status),
-    };
+        Arc::clone(&status),
+        shutdown,
+        vec![worker, listener],
+    );
     (status, control)
 }
 

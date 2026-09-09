@@ -1,19 +1,10 @@
 //! Windows WorkBuddy 主进程的发现、验证、启动和定向重启。
 
 use std::collections::{HashMap, HashSet};
-use std::ffi::c_void;
 use std::mem::size_of;
-use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 
-use windows::Win32::Foundation::{
-    ERROR_INSUFFICIENT_BUFFER, ERROR_NO_MORE_FILES, NO_ERROR, WAIT_OBJECT_0,
-};
-use windows::Win32::NetworkManagement::IpHelper::{
-    GetExtendedTcpTable, MIB_TCP6ROW_OWNER_PID, MIB_TCPROW_OWNER_PID, TCP_TABLE_OWNER_PID_LISTENER,
-};
-use windows::Win32::Networking::WinSock::{AF_INET, AF_INET6};
-use windows::Win32::System::Com::CoTaskMemFree;
+use windows::Win32::Foundation::{ERROR_NO_MORE_FILES, WAIT_OBJECT_0};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
@@ -21,16 +12,16 @@ use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
     TerminateProcess, WaitForSingleObject,
 };
-use windows::Win32::UI::Shell::{
-    FOLDERID_LocalAppData, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX64,
-    FOLDERID_ProgramFilesX86, KF_FLAG_DEFAULT, SHGetKnownFolderPath,
-};
-use wmi::WMIConnection;
 
 use super::super::{CODEX_FORCE_CLOSE_TIMEOUT, CODEX_PAGE_POLL_INTERVAL};
+use super::install_identity::{
+    KnownInstallRoots, TrustedPublisher, fixed_existing_executable,
+    is_trusted_traditional_executable, paths_equal_ignore_ascii_case,
+};
+use super::port_owner::loopback_listener_owner;
+use super::process_query::query_verified_process_command_line;
 use super::{
-    AppError, GuiProcess, OwnedHandle, PROCESS_COMMAND_LINE_TIMEOUT, WmiProcess,
-    paths_equal_ignore_ascii_case, query_process_path, query_process_path_from_handle,
+    AppError, GuiProcess, OwnedHandle, query_process_path, query_process_path_from_handle,
     utf16_array_to_string,
 };
 
@@ -107,8 +98,9 @@ pub(crate) fn workbuddy_endpoint_owned_by_root(
         return Ok(false);
     }
 
-    let (ipv4_rows, ipv6_rows) = tcp_listener_rows()?;
-    let Some(owner_pid) = unique_loopback_listener_owner(&ipv4_rows, &ipv6_rows, port) else {
+    let Some(owner_pid) =
+        loopback_listener_owner(port).map_err(|_| cdp_owner_inspection_error())?
+    else {
         return Ok(false);
     };
     Ok(process_belongs_to_verified_root(
@@ -117,42 +109,6 @@ pub(crate) fn workbuddy_endpoint_owned_by_root(
         &verified_pids,
         &snapshot.parents,
     ))
-}
-
-/// 仅当目标端口全部监听于回环地址且归属唯一 PID 时返回其 owner。
-fn unique_loopback_listener_owner(
-    ipv4_rows: &[MIB_TCPROW_OWNER_PID],
-    ipv6_rows: &[MIB_TCP6ROW_OWNER_PID],
-    port: u16,
-) -> Option<u32> {
-    let matching_ipv4 = ipv4_rows
-        .iter()
-        .filter(|row| u16::from_be(row.dwLocalPort as u16) == port)
-        .collect::<Vec<_>>();
-    let matching_ipv6 = ipv6_rows
-        .iter()
-        .filter(|row| u16::from_be(row.dwLocalPort as u16) == port)
-        .collect::<Vec<_>>();
-    if matching_ipv4.is_empty() && matching_ipv6.is_empty() {
-        return None;
-    }
-    if matching_ipv4
-        .iter()
-        .any(|row| !Ipv4Addr::from(row.dwLocalAddr.to_ne_bytes()).is_loopback())
-        || matching_ipv6
-            .iter()
-            .any(|row| !Ipv6Addr::from(row.ucLocalAddr).is_loopback())
-    {
-        return None;
-    }
-    let owners = matching_ipv4
-        .into_iter()
-        .map(|row| row.dwOwningPid)
-        .chain(matching_ipv6.into_iter().map(|row| row.dwOwningPid))
-        .collect::<HashSet<_>>();
-    (owners.len() == 1)
-        .then(|| owners.into_iter().next())
-        .flatten()
 }
 
 /// 沿可信进程快照父链确认 listener owner 属于指定 WorkBuddy 根。
@@ -176,73 +132,6 @@ fn process_belongs_to_verified_root(
     false
 }
 
-/// 同时读取 IPv4 与 IPv6 TCP listener 表，避免遗漏双栈或通配监听。
-fn tcp_listener_rows() -> Result<(Vec<MIB_TCPROW_OWNER_PID>, Vec<MIB_TCP6ROW_OWNER_PID>), AppError>
-{
-    Ok((
-        tcp_listener_rows_for::<MIB_TCPROW_OWNER_PID>(AF_INET.0 as u32)?,
-        tcp_listener_rows_for::<MIB_TCP6ROW_OWNER_PID>(AF_INET6.0 as u32)?,
-    ))
-}
-
-/// 读取指定地址族的 owner-PID listener 表，并对系统返回长度做边界复核。
-fn tcp_listener_rows_for<Row: Copy>(address_family: u32) -> Result<Vec<Row>, AppError> {
-    let mut required_bytes = 0_u32;
-    let status = unsafe {
-        GetExtendedTcpTable(
-            None,
-            &mut required_bytes,
-            false,
-            address_family,
-            TCP_TABLE_OWNER_PID_LISTENER,
-            0,
-        )
-    };
-    if status != ERROR_INSUFFICIENT_BUFFER.0 && status != NO_ERROR.0 {
-        return Err(cdp_owner_inspection_error());
-    }
-    if required_bytes < size_of::<u32>() as u32 {
-        return Ok(Vec::new());
-    }
-
-    for _ in 0..3 {
-        let word_count = (required_bytes as usize).div_ceil(size_of::<u32>());
-        let mut buffer = vec![0_u32; word_count];
-        let mut returned_bytes = (buffer.len() * size_of::<u32>()) as u32;
-        let status = unsafe {
-            GetExtendedTcpTable(
-                Some(buffer.as_mut_ptr().cast::<c_void>()),
-                &mut returned_bytes,
-                false,
-                address_family,
-                TCP_TABLE_OWNER_PID_LISTENER,
-                0,
-            )
-        };
-        if status == ERROR_INSUFFICIENT_BUFFER.0 {
-            required_bytes = returned_bytes;
-            continue;
-        }
-        if status != NO_ERROR.0 || returned_bytes < size_of::<u32>() as u32 {
-            return Err(cdp_owner_inspection_error());
-        }
-        let count = buffer[0] as usize;
-        let rows_bytes = count
-            .checked_mul(size_of::<Row>())
-            .and_then(|value| value.checked_add(size_of::<u32>()))
-            .ok_or_else(cdp_owner_inspection_error)?;
-        if rows_bytes > returned_bytes as usize || rows_bytes > buffer.len() * size_of::<u32>() {
-            return Err(cdp_owner_inspection_error());
-        }
-        // SAFETY: `GetExtendedTcpTable` wrote a table for the requested address family into an
-        // aligned `u32` buffer. The validated count and byte bounds cover every copied row.
-        let rows =
-            unsafe { std::slice::from_raw_parts(buffer.as_ptr().add(1).cast::<Row>(), count) };
-        return Ok(rows.to_vec());
-    }
-    Err(cdp_owner_inspection_error())
-}
-
 /// 返回不暴露进程或端口详情的 CDP owner 检查错误。
 fn cdp_owner_inspection_error() -> AppError {
     AppError::new(
@@ -251,7 +140,7 @@ fn cdp_owner_inspection_error() -> AppError {
     )
 }
 
-/// 合并 ToolHelp 的可信路径/父子关系与 WMI 命令行，不把命令行当作进程身份。
+/// 合并 ToolHelp 的可信路径/父子关系与原生命令行，不把命令行当作进程身份。
 async fn inspected_workbuddy_processes() -> Result<InspectedWorkBuddyProcesses, AppError> {
     let snapshot = enumerate_process_snapshot(&discover_executables())?;
     if snapshot.processes.is_empty() {
@@ -260,17 +149,13 @@ async fn inspected_workbuddy_processes() -> Result<InspectedWorkBuddyProcesses, 
             parents: snapshot.parents,
         });
     }
-    let query = tokio::task::spawn_blocking(query_process_command_lines);
-    let rows = match tokio::time::timeout(PROCESS_COMMAND_LINE_TIMEOUT, query).await {
-        Ok(Ok(Ok(rows))) => rows,
-        Ok(Ok(Err(_))) | Ok(Err(_)) | Err(_) => {
-            tracing::warn!("code=skin.workbuddy_process_command_line_unavailable");
-            Vec::new()
-        }
-    };
-    let command_lines = rows
-        .into_iter()
-        .filter_map(|row| Some((row.process_id, row.command_line?)))
+    let command_lines = snapshot
+        .processes
+        .iter()
+        .filter_map(|process| {
+            query_verified_process_command_line(process.process.pid, &process.process.path)
+                .map(|line| (process.process.pid, line))
+        })
         .collect::<HashMap<_, _>>();
     Ok(InspectedWorkBuddyProcesses {
         processes: attach_command_lines(snapshot.processes, &command_lines),
@@ -339,12 +224,21 @@ pub(crate) async fn launch_workbuddy(port: u16) -> Result<(), AppError> {
             "WorkBuddy 正在运行但未开放皮肤所需的调试端口，需要确认后恢复调试连接。",
         ));
     }
-    let executable = candidates.into_iter().next().ok_or_else(|| {
+    let expected_path = candidates.into_iter().next().ok_or_else(|| {
         AppError::new(
             "skin.workbuddy_not_found",
             "未找到官方 WorkBuddy 桌面应用，请先安装或更新应用。",
         )
     })?;
+    let executable = discover_executables()
+        .into_iter()
+        .find(|candidate| paths_equal_ignore_ascii_case(candidate, &expected_path))
+        .ok_or_else(|| {
+            AppError::new(
+                "skin.workbuddy_not_found",
+                "WorkBuddy 安装路径在启动前发生变化，请重新安装或刷新。",
+            )
+        })?;
     tokio::process::Command::new(executable)
         .env("WORKBUDDY_REMOTE_DEBUGGING_PORT", port.to_string())
         .spawn()
@@ -373,7 +267,16 @@ pub(crate) async fn restart_workbuddy_gui_process(
         ));
     }
     force_close_workbuddy_gui().await?;
-    tokio::process::Command::new(expected_path)
+    let executable = discover_executables()
+        .into_iter()
+        .find(|candidate| paths_equal_ignore_ascii_case(candidate, expected_path))
+        .ok_or_else(|| {
+            AppError::new(
+                "skin.workbuddy_instance_changed",
+                "WorkBuddy 安装路径在重启前发生变化，未启动替代进程。",
+            )
+        })?;
+    tokio::process::Command::new(executable)
         .args(arguments)
         .env("WORKBUDDY_REMOTE_DEBUGGING_PORT", port.to_string())
         .spawn()
@@ -437,14 +340,6 @@ fn force_close_incomplete_error(cause: &AppError) -> AppError {
     )
 }
 
-/// 通过只读 WMI 查询 WorkBuddy 命令行；失败只返回脱敏信号。
-fn query_process_command_lines() -> Result<Vec<WmiProcess>, ()> {
-    let connection = WMIConnection::new().map_err(|_| ())?;
-    connection
-        .raw_query("SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name = 'WorkBuddy.exe'")
-        .map_err(|_| ())
-}
-
 /// 用 ToolHelp 建立进程与父链快照，并仅接纳路径匹配官方候选的 WorkBuddy。
 fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapshot, AppError> {
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
@@ -483,6 +378,7 @@ fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapsho
                 && candidates
                     .iter()
                     .any(|candidate| paths_equal_ignore_ascii_case(&path, candidate))
+                && is_trusted_traditional_executable(&path, TrustedPublisher::Tencent)
             {
                 processes.push(WorkBuddyProcess {
                     process: GuiProcess {
@@ -573,33 +469,40 @@ fn open_verified_process(process: &GuiProcess) -> Result<Option<OwnedHandle>, Ap
             "WorkBuddy 进程状态已变化，未执行强制关闭。",
         ));
     }
+    if !discover_executables()
+        .iter()
+        .any(|candidate| paths_equal_ignore_ascii_case(candidate, &current_path))
+    {
+        return Err(AppError::new(
+            "skin.workbuddy_force_close_failed",
+            "WorkBuddy 进程身份无法再次验证，未执行强制关闭。",
+        ));
+    }
     Ok(Some(handle))
 }
 
 /// 从 Windows 官方程序目录收集去重且真实存在的 WorkBuddy 可执行文件。
 fn discover_executables() -> Vec<PathBuf> {
+    let roots = KnownInstallRoots::discover();
     let mut candidates = Vec::new();
-    if let Some(root) = known_folder_path(&FOLDERID_LocalAppData) {
+    if let Some(root) = roots.local_app_data.as_ref() {
         candidates.extend([
-            root.join("Programs/WorkBuddy/WorkBuddy.exe"),
-            root.join("Tencent/WorkBuddy/WorkBuddy.exe"),
+            fixed_existing_executable(root, "Programs/WorkBuddy/WorkBuddy.exe"),
+            fixed_existing_executable(root, "Tencent/WorkBuddy/WorkBuddy.exe"),
         ]);
     }
-    for folder_id in [
-        &FOLDERID_ProgramFiles,
-        &FOLDERID_ProgramFilesX64,
-        &FOLDERID_ProgramFilesX86,
-    ] {
-        if let Some(root) = known_folder_path(folder_id) {
-            candidates.push(root.join("WorkBuddy/WorkBuddy.exe"));
-        }
+    for root in &roots.program_files {
+        candidates.push(fixed_existing_executable(root, "WorkBuddy/WorkBuddy.exe"));
     }
     let mut discovered: Vec<PathBuf> = Vec::new();
-    for candidate in candidates {
-        if candidate.is_file()
-            && !discovered
-                .iter()
-                .any(|existing| paths_equal_ignore_ascii_case(existing, &candidate))
+    for candidate in candidates
+        .into_iter()
+        .flatten()
+        .filter(|candidate| is_trusted_traditional_executable(candidate, TrustedPublisher::Tencent))
+    {
+        if !discovered
+            .iter()
+            .any(|existing| paths_equal_ignore_ascii_case(existing, &candidate))
         {
             discovered.push(candidate);
         }
@@ -607,23 +510,28 @@ fn discover_executables() -> Vec<PathBuf> {
     discovered
 }
 
-/// 读取 Windows Known Folder 路径并释放系统分配的字符串缓冲区。
-fn known_folder_path(folder_id: &windows::core::GUID) -> Option<PathBuf> {
-    let raw = unsafe { SHGetKnownFolderPath(folder_id, KF_FLAG_DEFAULT, None) }.ok()?;
-    let path = unsafe { raw.to_string() }.ok().map(PathBuf::from);
-    unsafe { CoTaskMemFree(Some(raw.0.cast())) };
-    path
+/// 窗口激活前确认 PID 当前仍属于可信 WorkBuddy 安装路径。
+pub(super) fn is_verified_gui_process(pid: u32) -> bool {
+    enumerate_process_snapshot(&discover_executables()).is_ok_and(|snapshot| {
+        snapshot
+            .processes
+            .iter()
+            .any(|process| process.process.pid == pid)
+    })
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::port_owner::unique_loopback_listener_owner;
     use super::{
-        GuiProcess, MIB_TCP6ROW_OWNER_PID, MIB_TCPROW_OWNER_PID, WorkBuddyProcess,
-        attach_command_lines, process_belongs_to_verified_root, select_workbuddy_roots,
-        unique_loopback_listener_owner,
+        GuiProcess, WorkBuddyProcess, attach_command_lines, process_belongs_to_verified_root,
+        select_workbuddy_roots,
     };
     use std::collections::{HashMap, HashSet};
     use std::path::PathBuf;
+    use windows::Win32::NetworkManagement::IpHelper::{
+        MIB_TCP6ROW_OWNER_PID, MIB_TCPROW_OWNER_PID,
+    };
 
     /// 构造不接触真实进程的 WorkBuddy 树节点。
     fn process(pid: u32, parent_pid: u32, arguments: &str) -> (WorkBuddyProcess, String) {

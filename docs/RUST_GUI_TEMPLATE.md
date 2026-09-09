@@ -13,7 +13,7 @@
 
 - Rust 2024 edition、Tauri 2、Tokio、serde、tracing、rust-i18n。
 - React 19、TypeScript、Vite、Mantine、TanStack Router、TanStack Query、Jotai、i18next/react-i18next、Tabler Icons。
-- 系统通知启用时，Windows/Linux 使用 `tauri-plugin-notification` Rust API；macOS target 另使用 `mac-usernotifications = "0.3.1"` 的现代 User Notifications API。WebView 不安装 notification JavaScript 包或获得 `notification:*` capability。
+- 系统通知启用时，Windows/Linux 由 Rust-only 受管 worker 直接使用 `notify-rust = "4.18.0"` 投递并回传真实完成结果；`tauri-plugin-notification` 只保留桌面插件初始化。macOS target 另使用 `mac-usernotifications = "0.3.1"` 的现代 User Notifications API。WebView 不安装 notification JavaScript 包或获得 `notification:*` capability。
 - 前端生产代码不得依赖 Node.js API。依赖版本、Node/pnpm engines 与脚本以当前清单为准，不要求全局第三方包。
 
 ## 当前 GUI 能力
@@ -28,7 +28,7 @@ Tauri Builder 顺序固定为：
 4. `tauri-plugin-window-state`，只保存/恢复尺寸、位置和最大化；
 5. `tauri-plugin-dialog`，WebView capability 精确为 `dialog:default`；
 6. `tauri-plugin-opener`，只允许系统浏览器打开固定 GitHub 仓库地址；
-7. `tauri-plugin-notification`，由 Rust-only worker 串行处理；
+7. `tauri-plugin-notification`，只初始化一次；实际授权与投递由 Rust-only worker 串行处理；
 8. `tauri-plugin-autostart`，以 OS 注册状态为权威。
 
 每个插件恰好注册一次。托盘由同一 Builder 的 `.setup(...)` 与 `.on_window_event(...)` 接线；关闭主窗口隐藏，托盘“显示窗口”/“Show Window”和左键恢复，浮窗显隐项按真实可见性切换为“显示浮窗”/“Show Floating Window”或“隐藏浮窗”/“Hide Floating Window”且冷启动默认显示，托盘“退出程序”/“Exit Program”真正终止应用。托盘安装后与既有扫描/来源/Agent 变更路径复用 core 联合窗口聚合刷新当天 Token 总数，并在 adapter 展示层按十进制 `K`/`M`/`B`、两位小数和逗号千分位格式化；无当天记录或联合读取失败时清空标题，不新增独立轮询或统计存储。Tauri 原生标题在 Windows 不受支持，Windows 保持仅图标降级。

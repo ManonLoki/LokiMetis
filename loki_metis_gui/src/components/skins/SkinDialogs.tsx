@@ -22,6 +22,7 @@ import type {
 
 /** 描述通用确认弹窗中的本地化内容与确认回调。 */
 export interface SkinConfirmDialogProps {
+  blocked?: boolean;
   confirmColor?: string;
   description: string;
   opened: boolean;
@@ -33,6 +34,7 @@ export interface SkinConfirmDialogProps {
 
 /** 渲染删除、转换和定向重启共用的显式确认边界。 */
 export function SkinConfirmDialog({
+  blocked = false,
   confirmColor,
   description,
   opened,
@@ -50,7 +52,12 @@ export function SkinConfirmDialog({
           <Button disabled={pending} onClick={onCancel} variant="default">
             {t("skins.dialog.cancel")}
           </Button>
-          <Button color={confirmColor} loading={pending} onClick={onConfirm}>
+          <Button
+            color={confirmColor}
+            disabled={blocked}
+            loading={pending}
+            onClick={onConfirm}
+          >
             {t("skins.dialog.confirm")}
           </Button>
         </Group>
@@ -61,6 +68,7 @@ export function SkinConfirmDialog({
 
 /** 描述外观不一致确认弹窗所需数据。 */
 export interface AppearanceDialogProps {
+  blocked?: boolean;
   check: SkinAppearanceCheck | null;
   pending: boolean;
   onCancel: () => void;
@@ -69,6 +77,7 @@ export interface AppearanceDialogProps {
 
 /** 展示宿主只读探测到的主题变量差异，并要求用户显式继续。 */
 export function AppearanceDialog({
+  blocked = false,
   check,
   pending,
   onCancel,
@@ -94,7 +103,7 @@ export function AppearanceDialog({
           <Button disabled={pending} onClick={onCancel} variant="default">
             {t("skins.dialog.cancel")}
           </Button>
-          <Button loading={pending} onClick={onConfirm}>
+          <Button disabled={blocked} loading={pending} onClick={onConfirm}>
             {t("skins.appearance.continue")}
           </Button>
         </Group>
@@ -105,6 +114,7 @@ export function AppearanceDialog({
 
 /** 描述应用兼容皮肤前一次性的第三方代码信任确认。 */
 export interface ThirdPartyCodeDialogProps {
+  blocked?: boolean;
   hostName: string;
   opened: boolean;
   pending: boolean;
@@ -115,6 +125,7 @@ export interface ThirdPartyCodeDialogProps {
 
 /** 明确说明兼容脚本会被执行；结构校验不被表述为脚本安全证明。 */
 export function ThirdPartyCodeDialog({
+  blocked = false,
   hostName,
   opened,
   pending,
@@ -138,6 +149,7 @@ export function ThirdPartyCodeDialog({
         </Text>
         <Checkbox
           checked={trusted}
+          disabled={blocked}
           label={t("skins.code_trust.apply_acknowledgement")}
           onChange={(event) => setTrusted(event.currentTarget.checked)}
         />
@@ -145,7 +157,12 @@ export function ThirdPartyCodeDialog({
           <Button disabled={pending} onClick={onCancel} variant="default">
             {t("skins.dialog.cancel")}
           </Button>
-          <Button color="red" disabled={!trusted} loading={pending} onClick={onConfirm}>
+          <Button
+            color="red"
+            disabled={blocked || !trusted}
+            loading={pending}
+            onClick={onConfirm}
+          >
             {t("skins.code_trust.continue")}
           </Button>
         </Group>
@@ -157,6 +174,7 @@ export function ThirdPartyCodeDialog({
 /** 描述导入预检弹窗的批次和选中项。 */
 export interface ImportDialogProps {
   batch: PreparedSkinImportBatch | null;
+  blocked?: boolean;
   pending: boolean;
   selected: string[];
   onCancel: () => void;
@@ -167,6 +185,7 @@ export interface ImportDialogProps {
 /** 展示原生层安全解压后的逐项结果，仅提交用户确认的项目。 */
 export function ImportDialog({
   batch,
+  blocked = false,
   pending,
   selected,
   onCancel,
@@ -220,6 +239,7 @@ export function ImportDialog({
               <Text size="sm">{t("skins.code_trust.not_safety_proof")}</Text>
               <Checkbox
                 checked={thirdPartyCodeTrusted}
+                disabled={blocked}
                 label={t("skins.code_trust.import_acknowledgement")}
                 onChange={(event) => setThirdPartyCodeTrusted(event.currentTarget.checked)}
               />
@@ -232,6 +252,7 @@ export function ImportDialog({
               <Checkbox
                 checked={selected.includes(item.itemId)}
                 description={item.archiveName}
+                disabled={blocked}
                 key={item.itemId}
                 label={`${item.skin.name} · ${item.skin.author}`}
                 onChange={(event) => {
@@ -259,7 +280,9 @@ export function ImportDialog({
             {t("skins.dialog.cancel")}
           </Button>
           <Button
-            disabled={selected.length === 0 || (trustRequired && !thirdPartyCodeTrusted)}
+            disabled={
+              blocked || selected.length === 0 || (trustRequired && !thirdPartyCodeTrusted)
+            }
             loading={pending}
             onClick={() => onCommit(trustRequired && thirdPartyCodeTrusted)}
           >
@@ -273,6 +296,7 @@ export function ImportDialog({
 
 /** 描述创建主题与获取 Codex 生成提示词的双入口。 */
 export interface CreateThemeDialogProps {
+  blocked?: boolean;
   opened: boolean;
   pending: boolean;
   prompt: SkinCreationPrompt | null;
@@ -284,6 +308,7 @@ export interface CreateThemeDialogProps {
 
 /** 渲染快速主题脚手架表单及可复制的动态 Codex 提示词。 */
 export function CreateThemeDialog({
+  blocked = false,
   opened,
   pending,
   prompt,
@@ -308,12 +333,14 @@ export function CreateThemeDialog({
           {t("skins.create.description")}
         </Text>
         <TextInput
+          disabled={blocked}
           label={t("skins.create.name")}
           maxLength={80}
           onChange={(event) => setName(event.currentTarget.value)}
           value={name}
         />
         <TextInput
+          disabled={blocked}
           label={t("skins.create.author")}
           maxLength={80}
           onChange={(event) => setAuthor(event.currentTarget.value)}
@@ -321,13 +348,14 @@ export function CreateThemeDialog({
         />
         <Group>
           <Button
-            disabled={!name.trim() || !author.trim()}
+            disabled={blocked || !name.trim() || !author.trim()}
             loading={pending}
             onClick={() => onCreate(name, author)}
           >
             {t("skins.create.scaffold")}
           </Button>
           <Button
+            disabled={blocked}
             leftSection={<IconSparkles size={17} />}
             loading={promptPending}
             onClick={onLoadPrompt}

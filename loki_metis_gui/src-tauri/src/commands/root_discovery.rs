@@ -52,22 +52,36 @@ pub(crate) async fn start_root_discovery(
     if !coordinator.start(strategy, platform, discovery_scope, 0) {
         return Err("root discovery is already running".to_owned());
     }
-    tauri::async_runtime::spawn_blocking(move || {
-        let summary =
-            discover_metadata_roots_with_callback(&coordinator, discovery_scope, |candidate| {
-                let Some(dto) = candidate_to_dto(candidate) else {
-                    return;
-                };
-                if app.emit(ROOT_DISCOVERY_CANDIDATE_EVENT, dto).is_err() {
-                    tracing::warn!("root discovery candidate event delivery failed");
-                }
-            });
-        tracing::info!(
-            system_index_available = summary.system_index_available,
-            fallback_performed = summary.fallback_performed,
-            "root discovery finished"
-        );
-    });
+    let task_coordinator = Arc::clone(&coordinator);
+    if let Err(error) = state
+        .background_tasks
+        .spawn_blocking("root-discovery", move |shutdown| {
+            if shutdown.is_cancelled() {
+                let _ = task_coordinator.request_cancel();
+            }
+            let summary = discover_metadata_roots_with_callback(
+                &task_coordinator,
+                discovery_scope,
+                |candidate| {
+                    let Some(dto) = candidate_to_dto(candidate) else {
+                        return;
+                    };
+                    if app.emit(ROOT_DISCOVERY_CANDIDATE_EVENT, dto).is_err() {
+                        tracing::warn!("root discovery candidate event delivery failed");
+                    }
+                },
+            );
+            tracing::info!(
+                system_index_available = summary.system_index_available,
+                fallback_performed = summary.fallback_performed,
+                "root discovery finished"
+            );
+        })
+    {
+        let _ = coordinator.request_cancel();
+        coordinator.finish(false, false);
+        return Err(error.to_owned());
+    }
     for _ in 0..20 {
         let status = state.root_discovery.snapshot();
         if status.lifecycle == RootDiscoveryLifecycle::Running {
@@ -133,12 +147,15 @@ pub(crate) async fn add_root_candidate(
     if candidate.client == SourceClientKind::WorkBuddy {
         return Err("WorkBuddy 默认数据目录不可通过发现候选登记。".to_owned());
     }
+    let client = client_to_dto(candidate.client)
+        .ok_or_else(|| "WorkBuddy 默认数据目录不可通过发现候选登记。".to_owned())?;
     let path = PathBuf::from(&candidate.absolute_path);
     let checked_path = path.clone();
     tauri::async_runtime::spawn_blocking(move || validate_local_plain_directory(&checked_path))
         .await
         .map_err(|_| "candidate validation task failed".to_owned())?
         .map_err(|error| error.to_string())?;
+    let _write_permit = crate::source_commands::acquire_source_root_write_permit(&state, client)?;
     let app_data = source_client_app_data_dir(&state.app_data_dir, candidate.client);
     let mut index = LocalIndex::open_in_app_data(&app_data, candidate.client.parser_version())
         .await
@@ -158,8 +175,7 @@ pub(crate) async fn add_root_candidate(
         .root_discovery
         .remove_candidates(std::slice::from_ref(&candidate_id));
     Ok(AddRootCandidateDto {
-        client: client_to_dto(candidate.client)
-            .ok_or_else(|| "WorkBuddy 默认数据目录不可通过发现候选登记。".to_owned())?,
+        client,
         root_id,
         added,
         background_state: to_activation_state_dto(background_state),

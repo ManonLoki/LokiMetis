@@ -40,18 +40,19 @@ use commands::{
     get_privacy_settings, get_root_discovery_status, get_source_roots, get_sources,
     get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics,
     get_workbuddy_source_status, get_workbuddy_statistics, get_workbuddy_usage_statistics,
-    list_root_candidates, refresh_local_indexes, reindex_source_root, set_retention_days,
-    set_scan_interval, spawn_periodic_local_scans, spawn_retention_cleanup, start_root_discovery,
+    list_root_candidates, migrate_local_indexes, refresh_local_indexes, reindex_source_root,
+    set_retention_days, set_scan_interval, spawn_periodic_local_scans, spawn_retention_cleanup,
+    start_root_discovery,
 };
 use deep_link::install_deep_link;
 use locale::{LocaleState, get_system_locale, resolve_system_locale, set_interface_language};
 use logging::install_logging;
 pub use monitor::run_hook_relay_if_requested;
 use monitor::{
-    HookConfigWriter, PET_SETTINGS_LABEL, close_pet_overlay, delete_monitor_image_cmd,
-    focus_first_populated_pet_page, get_hook_relay_status, get_monitor_capabilities,
-    get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view, get_pet_window_state,
-    hide_pet_settings, list_monitor_hook_locations, list_monitor_images_cmd,
+    HookConfigWriter, HookListenerControl, PET_SETTINGS_LABEL, close_pet_overlay,
+    delete_monitor_image_cmd, focus_first_populated_pet_page, get_hook_relay_status,
+    get_monitor_capabilities, get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view,
+    get_pet_window_state, hide_pet_settings, list_monitor_hook_locations, list_monitor_images_cmd,
     list_monitor_profile_drafts, load_monitor_settings, pet_overlay_window_description,
     resize_pet_step, save_enabled_ai_selection, save_hook_config_directory, save_monitor_image_cmd,
     save_monitor_profile_draft, set_pet_always_on_top, set_pet_layout, set_pet_locked,
@@ -202,6 +203,10 @@ pub fn run() {
             );
             app.manage(skin_service);
             let runtime_state = runtime::AppRuntimeState::new(app_data_dir);
+            // 所有查询连接都严格只读；必须先在唯一 writer 许可内创建并迁移索引，
+            // 再发布 runtime state 或启动任何会读取本机数据库的后台任务。
+            tauri::async_runtime::block_on(migrate_local_indexes(&runtime_state))
+                .map_err(std::io::Error::other)?;
             let monitor_config_dir = app.path().app_config_dir()?;
             let initial_monitor_settings = load_monitor_settings(&monitor_config_dir)
                 .and_then(|settings| tauri::async_runtime::block_on(
@@ -356,14 +361,45 @@ pub fn run() {
             event,
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
         ) {
-            // 通知 worker 只需发出取消信号；扫描任务随后在固定时限内完成收敛。
-            // Hook 配置 writer 的 shutdown 会同步等待线程退出，因此必须放在扫描时限之后。
-            if let Some(worker) = app_handle.try_state::<NotificationWorker>() {
-                worker.shutdown();
-            }
-            if let Some(state) = app_handle.try_state::<runtime::AppRuntimeState>() {
-                tauri::async_runtime::block_on(state.scan_tasks.shutdown());
-            }
+            // 先让各 owner 在同一异步调度轮中发出取消，再并发等待固定时限。
+            let notification_worker = app_handle.try_state::<NotificationWorker>();
+            let runtime_state = app_handle.try_state::<runtime::AppRuntimeState>();
+            let hook_listener = app_handle.try_state::<HookListenerControl>();
+            let skin_service = app_handle.try_state::<skins::SkinService>();
+            tauri::async_runtime::block_on(async {
+                let notification_shutdown = async {
+                    if let Some(worker) = notification_worker.as_ref() {
+                        worker.shutdown().await;
+                    }
+                };
+                let background_shutdown = async {
+                    if let Some(state) = runtime_state.as_ref() {
+                        state.background_tasks.shutdown().await;
+                    }
+                };
+                let scan_shutdown = async {
+                    if let Some(state) = runtime_state.as_ref() {
+                        state.scan_tasks.shutdown().await;
+                    }
+                };
+                let listener_shutdown = async {
+                    if let Some(listener) = hook_listener.as_ref() {
+                        listener.shutdown().await;
+                    }
+                };
+                let skin_shutdown = async {
+                    if let Some(service) = skin_service.as_ref() {
+                        service.shutdown().await;
+                    }
+                };
+                tokio::join!(
+                    notification_shutdown,
+                    background_shutdown,
+                    scan_shutdown,
+                    listener_shutdown,
+                    skin_shutdown
+                );
+            });
             if let Some(worker) = app_handle.try_state::<HookConfigWriter>() {
                 worker.shutdown();
             }
@@ -401,6 +437,53 @@ mod tests {
         let windows_before = ["main"];
         let windows_after = windows_before;
         assert_eq!(windows_after, ["main"]);
+    }
+
+    /// 原生 dialog 权限只属于主窗口，桌宠及其设置窗只能使用窄 Rust IPC。
+    #[test]
+    fn native_dialog_capability_is_scoped_to_the_main_window() {
+        let default_capability: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/default.json"))
+                .expect("default capability");
+        let dialog_capability: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/main-dialog.json"))
+                .expect("main dialog capability");
+
+        assert_eq!(
+            default_capability["windows"],
+            serde_json::json!(["main", "pet", "pet-settings"])
+        );
+        assert_eq!(
+            default_capability["permissions"],
+            serde_json::json!(["core:default", "core:event:default"])
+        );
+        assert_eq!(dialog_capability["windows"], serde_json::json!(["main"]));
+        assert_eq!(
+            dialog_capability["permissions"],
+            serde_json::json!(["dialog:default"])
+        );
+    }
+
+    /// 启动发布 runtime state 与后台读取器之前必须完成唯一 writer 负责的索引迁移。
+    #[test]
+    fn startup_migrates_local_indexes_before_publishing_readers() {
+        let source = include_str!("lib.rs");
+        let migration = source
+            .find("block_on(migrate_local_indexes(&runtime_state))")
+            .expect("startup migration is wired");
+        let managed = source
+            .find("app.manage(runtime_state);")
+            .expect("runtime state is published");
+        let retention = source
+            .find("spawn_retention_cleanup(app.handle().clone())")
+            .expect("retention reader is started");
+        let periodic = source
+            .find("spawn_periodic_local_scans(app.handle().clone())")
+            .expect("periodic reader is started");
+
+        assert!(migration < managed);
+        assert!(migration < retention);
+        assert!(migration < periodic);
     }
 
     /// 窗口标题只显示应用名，不应拼接版本号。
@@ -576,25 +659,38 @@ mod tests {
         );
     }
 
-    /// 退出时必须先启动有界扫描收敛，再同步等待可能阻塞的 Hook 配置 writer。
+    /// 退出时必须并发收敛后台、扫描与 Hook listener，再等待同步 writer。
     #[test]
-    fn exit_starts_bounded_scan_shutdown_before_joining_hook_writer() {
+    fn exit_reaps_all_async_owners_before_joining_hook_writer() {
         let source = include_str!("lib.rs");
         let exit_handler = source
             .find("app.run(|app_handle, event| {")
             .expect("application exit handler");
         let handler = &source[exit_handler..];
         let notification = handler
-            .find("try_state::<NotificationWorker>()")
+            .find("worker.shutdown().await")
             .expect("notification shutdown");
         let scan = handler
             .find("state.scan_tasks.shutdown()")
             .expect("bounded scan shutdown");
+        let background = handler
+            .find("state.background_tasks.shutdown()")
+            .expect("bounded background shutdown");
+        let listener = handler
+            .find("listener.shutdown()")
+            .expect("bounded listener shutdown");
         let hook_writer = handler
             .find("try_state::<HookConfigWriter>()")
             .expect("hook writer shutdown");
 
-        assert!(notification < scan && scan < hook_writer);
+        assert!(
+            notification < background
+                && notification < scan
+                && notification < listener
+                && background < hook_writer
+                && scan < hook_writer
+                && listener < hook_writer
+        );
     }
 
     /// 静态配置只预建主窗口；桌宠和设置窗分别由 Rust 在需要时动态创建。

@@ -3,25 +3,56 @@
 use loki_metis_core::{LocalIndex, SourceClientKind, source_client_usage_index_path};
 use tauri::{AppHandle, Manager};
 
-use crate::runtime::{AppRuntimeState, now_epoch_ms};
+use crate::backend::local_index::ScanPermit;
+use crate::runtime::{AppRuntimeState, BackgroundTaskShutdown, now_epoch_ms};
 
 /// 进程启动后安排一次后台清理；初始化未完成则不读索引。
 pub(crate) fn spawn_retention_cleanup(app_handle: AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        let state = app_handle.state::<AppRuntimeState>();
-        if let Err(error) =
-            prune_derived_usage_for_saved_retention(state.inner(), now_epoch_ms()).await
-        {
-            tracing::warn!(%error, "startup retention cleanup did not finish");
-        }
-    });
+    let task_app_handle = app_handle.clone();
+    if let Err(error) = app_handle
+        .state::<AppRuntimeState>()
+        .background_tasks
+        .spawn(
+            "startup-retention-cleanup",
+            move |mut shutdown| async move {
+                let state = task_app_handle.state::<AppRuntimeState>();
+                if let Err(error) = prune_derived_usage_for_saved_retention_with_shutdown(
+                    state.inner(),
+                    now_epoch_ms(),
+                    Some(&mut shutdown),
+                )
+                .await
+                {
+                    tracing::warn!(%error, "startup retention cleanup did not finish");
+                }
+            },
+        )
+    {
+        tracing::warn!(%error, "startup retention cleanup was rejected during shutdown");
+    }
 }
 
 /// 用当前已保存天数与设备当地民用日删除窗外派生调用和累计快照。
+#[cfg(test)]
 pub(crate) async fn prune_derived_usage_for_saved_retention(
     state: &AppRuntimeState,
     observed_at_epoch_ms: i64,
 ) -> Result<(), String> {
+    prune_derived_usage_for_saved_retention_with_shutdown(state, observed_at_epoch_ms, None).await
+}
+
+/// 启动任务额外观察应用关闭，避免退出后继续打开下一个索引。
+async fn prune_derived_usage_for_saved_retention_with_shutdown(
+    state: &AppRuntimeState,
+    observed_at_epoch_ms: i64,
+    mut shutdown: Option<&mut BackgroundTaskShutdown>,
+) -> Result<(), String> {
+    if shutdown
+        .as_deref()
+        .is_some_and(BackgroundTaskShutdown::is_cancelled)
+    {
+        return Ok(());
+    }
     if !state.initialization_completed().await {
         return Ok(());
     }
@@ -35,14 +66,49 @@ pub(crate) async fn prune_derived_usage_for_saved_retention(
         &jiff::tz::TimeZone::system(),
     )
     .map_err(|_| "自动清理无法计算保留窗口。".to_owned())?;
+
+    // 三个 registry 项共享同一个 coordinator。启动清理必须可靠地排在当前 writer
+    // 后面，并在一个许可内处理全部索引，避免客户端之间释放许可后被周期扫描插队。
+    let Some(write_permit) = wait_for_shared_writer(state, shutdown.as_deref_mut()).await? else {
+        return Ok(());
+    };
+    let writer_cancellation = write_permit.cancellation_token();
     for client in [
         SourceClientKind::Codex,
         SourceClientKind::ClaudeCode,
         SourceClientKind::GrokBuildCli,
     ] {
+        if writer_cancellation.is_cancelled()
+            || shutdown
+                .as_deref()
+                .is_some_and(BackgroundTaskShutdown::is_cancelled)
+        {
+            break;
+        }
         prune_client_derived_usage(&state.app_data_dir, client, cutoff).await;
     }
     Ok(())
+}
+
+/// 等待共享索引 writer；应用关闭必须能打断排队，不能把启动清理遗留到退出之后。
+async fn wait_for_shared_writer(
+    state: &AppRuntimeState,
+    shutdown: Option<&mut BackgroundTaskShutdown>,
+) -> Result<Option<ScanPermit>, String> {
+    let coordinator = state.local_scan.get(SourceClientKind::Codex);
+    let permit = match shutdown {
+        Some(shutdown) => {
+            tokio::select! {
+                biased;
+                _ = shutdown.cancelled() => return Ok(None),
+                permit = coordinator.start_when_available() => permit,
+            }
+        }
+        None => coordinator.start_when_available().await,
+    };
+    permit
+        .map(Some)
+        .map_err(|_| "自动清理无法取得本机索引写入许可。".to_owned())
 }
 
 /// 打开已有物理库并按发生时间裁剪派生用量；文件不存在则跳过。
@@ -105,7 +171,13 @@ mod tests {
                 .expect("index opens");
         let database_path = index.database_path().to_path_buf();
         drop(index);
-        insert_retention_fixture(&database_path, cutoff.saturating_sub(1), cutoff).await;
+        insert_retention_fixture(
+            &database_path,
+            SourceClientKind::Codex,
+            cutoff.saturating_sub(1),
+            cutoff,
+        )
+        .await;
 
         let state = AppRuntimeState::new(temp.path().to_path_buf());
         prune_derived_usage_for_saved_retention(&state, observed)
@@ -150,7 +222,13 @@ mod tests {
                 .expect("index opens");
         let database_path = index.database_path().to_path_buf();
         drop(index);
-        insert_retention_fixture(&database_path, cutoff.saturating_sub(1), cutoff).await;
+        insert_retention_fixture(
+            &database_path,
+            SourceClientKind::Codex,
+            cutoff.saturating_sub(1),
+            cutoff,
+        )
+        .await;
 
         let state = AppRuntimeState::new(temp.path().to_path_buf());
         prune_derived_usage_for_saved_retention(&state, observed)
@@ -172,19 +250,171 @@ mod tests {
         );
     }
 
+    /// 初始 writer 忙时启动清理必须排队，并在同一许可内覆盖启用与禁用客户端。
+    #[tokio::test]
+    async fn startup_prune_waits_for_busy_writer_and_prunes_every_client() {
+        let temp = tempdir().expect("isolated app-data exists");
+        let settings = crate::privacy_store::LocalPrivacySettings {
+            enabled_agents: loki_metis_core::EnabledAgents::empty()
+                .with(SourceClientKind::Codex, true),
+            ..Default::default()
+        };
+        save_settings(temp.path(), &settings).expect("settings persist");
+        let observed = 1_775_000_000_000_i64;
+        let cutoff = loki_metis_core::retention_cutoff_epoch_ms(
+            settings.retention_days,
+            observed,
+            &loki_metis_core::TimeStandard::Local,
+            &jiff::tz::TimeZone::system(),
+        )
+        .expect("cutoff exists");
+        let clients = [
+            SourceClientKind::Codex,
+            SourceClientKind::ClaudeCode,
+            SourceClientKind::GrokBuildCli,
+        ];
+        for client in clients {
+            let client_dir = source_client_app_data_dir(temp.path(), client);
+            let index = LocalIndex::open_in_app_data(&client_dir, client.parser_version())
+                .await
+                .expect("index opens");
+            let database_path = index.database_path().to_path_buf();
+            drop(index);
+            insert_retention_fixture(&database_path, client, cutoff.saturating_sub(1), cutoff)
+                .await;
+        }
+
+        let state = std::sync::Arc::new(AppRuntimeState::new(temp.path().to_path_buf()));
+        let scan_permit = state
+            .local_scan
+            .get(SourceClientKind::Codex)
+            .try_start()
+            .expect("scan writer is occupied");
+        let cleanup_state = std::sync::Arc::clone(&state);
+        let mut cleanup = tokio::spawn(async move {
+            prune_derived_usage_for_saved_retention(&cleanup_state, observed).await
+        });
+
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(100), &mut cleanup)
+                .await
+                .is_err(),
+            "startup cleanup must remain queued behind the active writer"
+        );
+        drop(scan_permit);
+        tokio::time::timeout(std::time::Duration::from_secs(2), cleanup)
+            .await
+            .expect("queued cleanup finishes after the writer is released")
+            .expect("cleanup task joins")
+            .expect("queued startup prune succeeds");
+
+        for client in clients {
+            let client_dir = source_client_app_data_dir(temp.path(), client);
+            let index = LocalIndex::open_in_app_data(&client_dir, client.parser_version())
+                .await
+                .expect("index reopens");
+            let remaining = index.canonical_calls().await.expect("calls remain");
+            assert_eq!(remaining.calls.len(), 1, "{client:?} is pruned");
+            assert_eq!(remaining.calls[0].logical_call_id, "inside");
+        }
+    }
+
+    /// 应用关闭必须打断 writer 排队并让 owner 及时回收启动清理任务。
+    #[tokio::test]
+    async fn startup_prune_writer_wait_is_cancelled_by_shutdown() {
+        let temp = tempdir().expect("isolated app-data exists");
+        let settings = crate::privacy_store::LocalPrivacySettings::default();
+        save_settings(temp.path(), &settings).expect("settings persist");
+        let observed = 1_775_000_000_000_i64;
+        let cutoff = loki_metis_core::retention_cutoff_epoch_ms(
+            settings.retention_days,
+            observed,
+            &loki_metis_core::TimeStandard::Local,
+            &jiff::tz::TimeZone::system(),
+        )
+        .expect("cutoff exists");
+        let client_dir = source_client_app_data_dir(temp.path(), SourceClientKind::Codex);
+        let index =
+            LocalIndex::open_in_app_data(&client_dir, SourceClientKind::Codex.parser_version())
+                .await
+                .expect("index opens");
+        let database_path = index.database_path().to_path_buf();
+        drop(index);
+        insert_retention_fixture(
+            &database_path,
+            SourceClientKind::Codex,
+            cutoff.saturating_sub(1),
+            cutoff,
+        )
+        .await;
+
+        let state = std::sync::Arc::new(AppRuntimeState::new(temp.path().to_path_buf()));
+        let scan_permit = state
+            .local_scan
+            .get(SourceClientKind::Codex)
+            .try_start()
+            .expect("scan writer is occupied");
+        let cleanup_state = std::sync::Arc::clone(&state);
+        let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
+        state
+            .background_tasks
+            .spawn("retention-cleanup-test", move |mut shutdown| async move {
+                let result = prune_derived_usage_for_saved_retention_with_shutdown(
+                    &cleanup_state,
+                    observed,
+                    Some(&mut shutdown),
+                )
+                .await;
+                let _ = result_sender.send(result);
+            })
+            .expect("cleanup task is owned");
+
+        tokio::task::yield_now().await;
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            state.background_tasks.shutdown(),
+        )
+        .await
+        .expect("shutdown cancels the queued cleanup");
+        result_receiver
+            .await
+            .expect("cleanup reports its result")
+            .expect("cancelled cleanup exits successfully");
+        assert!(
+            state.local_scan.get(SourceClientKind::Codex).is_running(),
+            "cleanup cancellation must not release another task's writer permit"
+        );
+        drop(scan_permit);
+
+        let index =
+            LocalIndex::open_in_app_data(&client_dir, SourceClientKind::Codex.parser_version())
+                .await
+                .expect("index reopens");
+        assert_eq!(
+            index
+                .canonical_calls()
+                .await
+                .expect("calls remain")
+                .calls
+                .len(),
+            2,
+            "shutdown cancellation must not begin retention writes"
+        );
+    }
+
     /// 往已迁移库写入一根、一条窗外调用和一条窗内调用。
     async fn insert_retention_fixture(
         database_path: &std::path::Path,
+        client: SourceClientKind,
         outside_epoch_ms: i64,
         inside_epoch_ms: i64,
     ) {
         let app_data_dir = database_path
             .parent()
             .expect("database has an app-data parent");
-        let mut index =
-            LocalIndex::open_in_app_data(app_data_dir, SourceClientKind::Codex.parser_version())
-                .await
-                .expect("fixture index opens");
+        let mut index = LocalIndex::open_in_app_data(app_data_dir, client.parser_version())
+            .await
+            .expect("fixture index opens");
         index
             .register_confirmed_root_fields(
                 "root-keep",
@@ -232,7 +462,7 @@ mod tests {
                  VALUES
                    ('source-keep', 1, 'thread', {outside}, 'outside', 1),
                    ('source-keep', 1, 'thread', {inside}, 'inside', 2);",
-                parser = SourceClientKind::Codex.parser_version(),
+                parser = client.parser_version(),
                 outside = outside_epoch_ms,
                 inside = inside_epoch_ms,
             ))

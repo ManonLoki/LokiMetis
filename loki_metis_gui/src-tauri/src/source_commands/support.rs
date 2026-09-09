@@ -2,7 +2,6 @@
 
 use std::path::PathBuf;
 
-#[cfg(test)]
 use crate::backend::local_index::ScanPermit;
 use crate::backend::local_index::{
     ClaudeDiscoveredRoot, DiscoveredRoot, DiscoveryMethod, LocalIndex, RegisterDiscoveredRoot,
@@ -20,8 +19,7 @@ use loki_metis_core::{
     source_root_operations_blocked_by_scan_message,
 };
 
-/// 测试专用别名，供获取与扫描共用的数据根写许可类型标注复用。
-#[cfg(test)]
+/// 数据根变更持有的独占 writer 许可；与扫描共享同一个 SQLite 写槽。
 pub(crate) type SourceRootWriteLease = ScanPermit;
 
 /// 持久化层 adapter：按 client 类型映射为同一 core catalog 接口。
@@ -205,20 +203,7 @@ pub(crate) const fn to_source_client_kind(client: AgentClientKindDto) -> SourceC
     }
 }
 
-/// 扫描 writer 运行时拒绝 registry 变更，避免中途改变扫描边界。
-pub(crate) fn ensure_local_scan_not_running(
-    state: &AppRuntimeState,
-    client: AgentClientKindDto,
-) -> Result<(), String> {
-    if state.local_scan.get(client.into()).is_running() {
-        Err(source_root_operations_blocked_by_scan_message().to_owned())
-    } else {
-        Ok(())
-    }
-}
-
 /// 原子取得与扫描共用的客户端 writer 许可。
-#[cfg(test)]
 pub(crate) fn acquire_source_root_write_permit(
     state: &AppRuntimeState,
     client: AgentClientKindDto,
@@ -228,6 +213,26 @@ pub(crate) fn acquire_source_root_write_permit(
         .get(client.into())
         .try_start()
         .map_err(|_| source_root_operations_blocked_by_scan_message().to_owned())
+}
+
+/// 以全仓唯一顺序取得索引 writer 与 Codex 账户上下文，避免和扫描路径形成 ABBA。
+pub(crate) async fn acquire_source_root_write_context(
+    state: &AppRuntimeState,
+    client: AgentClientKindDto,
+) -> Result<
+    (
+        SourceRootWriteLease,
+        Option<tokio::sync::OwnedMutexGuard<()>>,
+    ),
+    String,
+> {
+    let write_permit = acquire_source_root_write_permit(state, client)?;
+    let account_context_guard = if client == AgentClientKindDto::Codex {
+        Some(state.lock_codex_account_context().await)
+    } else {
+        None
+    };
+    Ok((write_permit, account_context_guard))
 }
 
 /// 将 Core 侧归约结果转为前端可消费的固定响应对象。

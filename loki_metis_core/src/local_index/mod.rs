@@ -32,7 +32,9 @@ pub use snapshot::UsageSnapshot;
 pub use source_registry::{DiscoveryMethod, RegisteredRoot, RootRecord, RootUsageSummaryRecord};
 
 use crate::client_ports::USAGE_INDEX_FILE_NAME;
-use crate::private_sqlite::{PrivateSqliteError, open_private_sqlite};
+use crate::private_sqlite::{
+    PrivateSqliteError, open_private_sqlite, open_private_sqlite_read_only,
+};
 use migrator::Migrator;
 
 /// 管理调用方指定 app-data 内的单一物理数据库连接。
@@ -59,6 +61,22 @@ impl LocalIndex {
         parser_version: u32,
     ) -> Result<Self, LocalError> {
         let (connection, database_path) = open_database(app_data_dir).await?;
+        Ok(Self {
+            connection,
+            database_path,
+            parser_version,
+        })
+    }
+
+    /// 只读打开已经由受许可 writer 完成迁移的索引；不创建文件或执行 schema 迁移。
+    pub async fn open_read_only_in_app_data(
+        app_data_dir: &Path,
+        parser_version: u32,
+    ) -> Result<Self, LocalError> {
+        let (connection, database_path) =
+            open_private_sqlite_read_only(app_data_dir, USAGE_INDEX_FILE_NAME)
+                .await
+                .map_err(map_private_sqlite_error)?;
         Ok(Self {
             connection,
             database_path,

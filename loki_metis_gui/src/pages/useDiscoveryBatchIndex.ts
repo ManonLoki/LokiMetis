@@ -36,6 +36,8 @@ export function useDiscoveryBatchIndex({
 }: DiscoveryBatchIndexOptions) {
   const queryClient = useQueryClient();
   const sequenceRef = useRef(0);
+  const businessReadyRef = useRef(businessReady);
+  businessReadyRef.current = businessReady;
   const activeBatchRef = useRef<DiscoveryBatch | null>(null);
   const registrationPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
   const finalizedBatchIdsRef = useRef<Set<number>>(new Set());
@@ -67,8 +69,14 @@ export function useDiscoveryBatchIndex({
     setCurrentBatch(null);
   }, [setCurrentBatch]);
 
+  /** 新的用户动作开始时清除上一批次错误，避免已恢复后仍显示旧失败。 */
+  const resetError = useCallback(() => setError(null), []);
+
   const registerCandidate = useCallback(
     (candidate: RootCandidateDto): Promise<void> => {
+      if (!businessReadyRef.current) {
+        return Promise.reject(new Error("authoritative-query-unavailable"));
+      }
       const current = registrationPromisesRef.current.get(candidate.id);
       if (current) return current;
 
@@ -131,7 +139,7 @@ export function useDiscoveryBatchIndex({
   }, [activeBatch, begin, businessReady, candidates, client, discovery]);
 
   useEffect(() => {
-    if (!activeBatch || !discovery) return;
+    if (!businessReady || !activeBatch || !discovery) return;
     if (discovery.state === "idle" || discovery.state === "running") return;
     if (finalizedBatchIdsRef.current.has(activeBatch.id)) return;
     finalizedBatchIdsRef.current.add(activeBatch.id);
@@ -142,6 +150,7 @@ export function useDiscoveryBatchIndex({
     }
 
     const batch = activeBatch;
+    let authorityLostBeforeRefresh = false;
     void Promise.resolve()
       .then(async () => {
         setIsRefreshing(true);
@@ -149,11 +158,19 @@ export function useDiscoveryBatchIndex({
           queryFn: listRootCandidates,
           queryKey: ROOT_CANDIDATES_QUERY_KEY,
         });
+        if (!businessReadyRef.current) {
+          authorityLostBeforeRefresh = true;
+          return;
+        }
         const registrations = selectVisibleDiscoveryCandidates(terminalCandidates, [
           batch.client,
         ]).map(registerCandidate);
         await Promise.allSettled(registrations);
         if (activeBatchRef.current?.id !== batch.id) return;
+        if (!businessReadyRef.current) {
+          authorityLostBeforeRefresh = true;
+          return;
+        }
         await refreshLocalIndexes([batch.client], "discoveryBatch");
         await invalidateLocalUsageQueries(queryClient, batch.client);
       })
@@ -161,10 +178,21 @@ export function useDiscoveryBatchIndex({
         setError(cause instanceof Error ? cause : new Error("batch-index-refresh-failed"));
       })
       .finally(() => {
-        if (activeBatchRef.current?.id === batch.id) setCurrentBatch(null);
+        if (authorityLostBeforeRefresh) {
+          finalizedBatchIdsRef.current.delete(batch.id);
+        } else if (activeBatchRef.current?.id === batch.id) {
+          setCurrentBatch(null);
+        }
         setIsRefreshing(false);
       });
-  }, [activeBatch, discovery, queryClient, registerCandidate, setCurrentBatch]);
+  }, [
+    activeBatch,
+    businessReady,
+    discovery,
+    queryClient,
+    registerCandidate,
+    setCurrentBatch,
+  ]);
 
   return {
     abort,
@@ -173,12 +201,8 @@ export function useDiscoveryBatchIndex({
     failedCandidateIds,
     isActive: activeBatch !== null,
     isRefreshing,
+    resetError,
     retryCandidate: async (candidate: RootCandidateDto) => {
-      setFailedCandidateIds((failed) => {
-        const next = new Set(failed);
-        next.delete(candidate.id);
-        return next;
-      });
       await registerCandidate(candidate);
     },
   };

@@ -26,15 +26,11 @@ impl SkinService {
         host: SkinHostKind,
         observed_generation: u64,
     ) -> bool {
-        observed_generation % 2 == 0
-            && self.host_runtime_generation(host) == observed_generation
+        observed_generation % 2 == 0 && self.host_runtime_generation(host) == observed_generation
     }
 
     /// 读取同一应用生命周期内最近一次经过宿主页验证的调试端点。
-    fn verified_endpoint_hint(
-        &self,
-        host: SkinHostKind,
-    ) -> Result<Option<CdpEndpoint>, AppError> {
+    fn verified_endpoint_hint(&self, host: SkinHostKind) -> Result<Option<CdpEndpoint>, AppError> {
         self.verified_endpoint_hints
             .lock()
             .map(|hints| hints.get(&host).copied())
@@ -72,12 +68,7 @@ impl SkinService {
             .last_targets
             .get(&host)
             .and_then(|target| runtime.instances.get(target))
-            .filter(|instance| {
-                instance
-                    .task
-                    .as_ref()
-                    .is_some_and(|task| !task.join.is_finished())
-            })
+            .filter(|instance| instance.task.as_ref().is_some_and(WatchTask::is_running))
             .and_then(|instance| instance.active.as_ref().map(|skin| (instance, skin)))
             .map(|(instance, skin)| {
                 let target = runtime
@@ -102,8 +93,7 @@ impl SkinService {
         };
         let mut instances = if host == SkinHostKind::WorkBuddy {
             let mut items = Vec::new();
-            for resolved in
-                resolved_host_instances_with_preferred(host, preferred_endpoint).await?
+            for resolved in resolved_host_instances_with_preferred(host, preferred_endpoint).await?
             {
                 items.push(self.cached_host_instance(host, resolved).await?);
             }
@@ -113,7 +103,9 @@ impl SkinService {
             discover_host_process_instances(host).await?
         };
         if host == SkinHostKind::Codex {
-            self.retain_account_profile_probes(instances.iter().map(|instance| instance.id.as_str()));
+            self.retain_account_profile_probes(
+                instances.iter().map(|instance| instance.id.as_str()),
+            );
         }
         self.retain_recovered_instance_runtimes(
             host,
@@ -185,10 +177,7 @@ impl SkinService {
         runtime.instances.retain(|instance_id, instance| {
             !runtime_instance_belongs_to_host(host, instance_id)
                 || active.contains(instance_id)
-                || instance
-                    .task
-                    .as_ref()
-                    .is_some_and(|task| !task.join.is_finished())
+                || instance.task.as_ref().is_some_and(WatchTask::is_running)
         });
     }
 
@@ -212,7 +201,7 @@ impl SkinService {
             .instances
             .get(&key)
             .and_then(|instance| instance.task.as_ref())
-            .is_some_and(|task| !task.join.is_finished());
+            .is_some_and(WatchTask::is_running);
         if has_live_task {
             return;
         }
@@ -249,24 +238,21 @@ impl SkinService {
         }
         if host == SkinHostKind::WorkBuddy {
             let observed_generation = self.host_runtime_generation(host);
-            let recovered_observation = probe_resolved_active_skin(host, &resolved)
-                .await
-                .ok()
-                .map(|identity| {
-                    identity
-                        .as_ref()
-                        .and_then(|identity| self.resolve_recovered_skin(identity))
-                });
+            let recovered_observation =
+                probe_resolved_active_skin(host, &resolved)
+                    .await
+                    .ok()
+                    .map(|identity| {
+                        identity
+                            .as_ref()
+                            .and_then(|identity| self.resolve_recovered_skin(identity))
+                    });
             let recovered_observation = self
                 .host_runtime_observation_is_current(host, observed_generation)
                 .then_some(recovered_observation)
                 .flatten();
-            let mut instance = host_instance_from_resolved(
-                host,
-                resolved,
-                CodexRuntimeState::Ready,
-                None,
-            );
+            let mut instance =
+                host_instance_from_resolved(host, resolved, CodexRuntimeState::Ready, None);
             if let Some(descriptor) = recovered_observation
                 .as_ref()
                 .and_then(|observation| observation.as_ref())
@@ -330,14 +316,12 @@ impl SkinService {
     }
 
     /// 执行换皮宿主内部的 `annotate_codex_instances` 步骤。
-    async fn annotate_host_instances(
-        &self,
-        host: SkinHostKind,
-        instances: &mut [CodexInstance],
-    ) {
+    async fn annotate_host_instances(&self, host: SkinHostKind, instances: &mut [CodexInstance]) {
         let runtime = self.runtime.lock().await;
         for instance in instances {
-            let instance_runtime = runtime.instances.get(&runtime_instance_key(host, &instance.id));
+            let instance_runtime = runtime
+                .instances
+                .get(&runtime_instance_key(host, &instance.id));
             instance.active_skin_name = displayed_active_skin_name(
                 instance_runtime.and_then(|value| value.active.as_ref()),
             );
@@ -411,7 +395,8 @@ impl SkinService {
         &self,
         host: SkinHostKind,
     ) -> Result<CodexRuntimeStatus, AppError> {
-        let (status, endpoint) = host_runtime_status(host, self.verified_endpoint_hint(host)?).await?;
+        let (status, endpoint) =
+            host_runtime_status(host, self.verified_endpoint_hint(host)?).await?;
         if let Some(endpoint) = endpoint {
             self.remember_verified_endpoint(host, endpoint)?;
         }
@@ -423,12 +408,8 @@ impl SkinService {
         let _operation = self.operation.lock().await;
         let _runtime_mutation = self.begin_host_runtime_mutation(host);
         let (_guard, mut cancel) = self.begin_codex_operation()?;
-        let (status, endpoint) = launch_and_wait_for_cdp(
-            host,
-            &mut cancel,
-            self.verified_endpoint_hint(host)?,
-        )
-        .await?;
+        let (status, endpoint) =
+            launch_and_wait_for_cdp(host, &mut cancel, self.verified_endpoint_hint(host)?).await?;
         if let Some(endpoint) = endpoint {
             self.remember_verified_endpoint(host, endpoint)?;
         }
@@ -504,7 +485,8 @@ impl SkinService {
                     if verified {
                         self.remember_verified_endpoint(host, endpoint)?;
                         let instances = self.scanned_host_instances(host).await?;
-                        if let Some(instance) = restarted_instance_for_endpoint(instances, endpoint) {
+                        if let Some(instance) = restarted_instance_for_endpoint(instances, endpoint)
+                        {
                             return Ok(instance);
                         }
                     }

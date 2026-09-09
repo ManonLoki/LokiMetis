@@ -1,10 +1,11 @@
 //! Hook listener 的协议、绑定与基础状态机回归。
 
 use super::{
-    ConnectionOutcome, HookListenerControl, HookListenerPolicy, HookRelayStatus, IncomingHookEvent,
-    bind_local_hook_relay_listener, bound_hook_relay_address, encode_http_response,
-    enqueue_connection_outcome, handle_connection, hook_listener_policy, hook_relay_bind_addr,
-    parse_hook_request, process_hook_event,
+    ConnectionOutcome, HOOK_CONNECTION_TASK_LIMIT, HookListenerControl, HookListenerPolicy,
+    HookListenerShutdown, HookRelayStatus, IncomingHookEvent, bind_local_hook_relay_listener,
+    bound_hook_relay_address, encode_http_response, enqueue_connection_outcome, handle_connection,
+    hook_listener_policy, hook_relay_bind_addr, parse_hook_request, process_hook_event,
+    run_connection_loop,
 };
 use loki_metis_core::{
     AiTool, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_INSTANCE_HEADER, HookBehavior, HookStateMachine,
@@ -16,7 +17,9 @@ use std::sync::{Arc, RwLock};
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tempfile::tempdir;
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf};
+use tokio::net::TcpStream;
+use tokio::sync::Semaphore;
 
 /// 所有协议样例共享的合法 listener 实例身份。
 const TEST_INSTANCE_ID: &str = "01234567-89ab-4def-8123-456789abcdef";
@@ -109,6 +112,66 @@ async fn binds_only_an_os_assigned_loopback_port() {
         Duration::from_secs(1),
     );
     assert!(connected.is_ok(), "bound port must accept a local connect");
+}
+
+/// 超过固定上限的慢连接必须在 accept 后立即关闭，且 shutdown 会归还全部任务许可。
+#[tokio::test]
+async fn excess_slow_connections_are_closed_without_leaking_task_permits() {
+    let listener = bind_local_hook_relay_listener()
+        .await
+        .expect("dynamic bind");
+    let address = listener.local_addr().expect("listener address");
+    let status = Arc::new(RwLock::new(HookRelayStatus::default()));
+    let policy = Arc::new(RwLock::new(HookListenerPolicy::new(&[AiTool::Codex])));
+    let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+    let (shutdown, shutdown_receiver) = tokio::sync::watch::channel(false);
+    let connection_slots = Arc::new(Semaphore::new(HOOK_CONNECTION_TASK_LIMIT));
+    let server = tokio::spawn(run_connection_loop(
+        listener,
+        Arc::clone(&status),
+        sender,
+        policy,
+        TEST_INSTANCE_ID.to_owned(),
+        HookListenerShutdown::new(shutdown_receiver),
+        Arc::clone(&connection_slots),
+    ));
+
+    let mut slow_connections = Vec::with_capacity(HOOK_CONNECTION_TASK_LIMIT);
+    for _ in 0..HOOK_CONNECTION_TASK_LIMIT {
+        let mut stream = TcpStream::connect(address).await.expect("slow connection");
+        stream.write_all(b"P").await.expect("partial request");
+        slow_connections.push(stream);
+    }
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while connection_slots.available_permits() != 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("all slow connections occupy their task permits");
+
+    let mut excess = TcpStream::connect(address)
+        .await
+        .expect("excess connection");
+    let mut response = [0_u8; 1];
+    let closed = tokio::time::timeout(Duration::from_secs(1), excess.read(&mut response))
+        .await
+        .expect("excess connection is closed promptly");
+    assert!(matches!(closed, Ok(0) | Err(_)));
+    assert_eq!(status.read().expect("status").failed_count, 1);
+    assert_eq!(connection_slots.available_permits(), 0);
+
+    shutdown.send(true).expect("listener shutdown");
+    tokio::time::timeout(Duration::from_secs(1), server)
+        .await
+        .expect("connection loop stops promptly")
+        .expect("connection loop task")
+        .expect("connection loop result");
+    assert_eq!(
+        connection_slots.available_permits(),
+        HOOK_CONNECTION_TASK_LIMIT
+    );
+    drop(slow_connections);
 }
 
 /// 合法的实例化请求应保留工具与事件。
@@ -343,10 +406,8 @@ fn listener_control(
 ) -> (Arc<RwLock<HookRelayStatus>>, HookListenerControl) {
     let status = Arc::new(RwLock::new(HookRelayStatus::default()));
     let policy = Arc::new(RwLock::new(HookListenerPolicy::new(enabled_tools)));
-    let control = HookListenerControl {
-        policy,
-        status: Arc::clone(&status),
-    };
+    let (shutdown, _) = tokio::sync::watch::channel(false);
+    let control = HookListenerControl::new(policy, Arc::clone(&status), shutdown, Vec::new());
     (status, control)
 }
 

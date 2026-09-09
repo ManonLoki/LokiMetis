@@ -1,11 +1,13 @@
 //! 平台范围只凭卷、目录项与文件名发现候选；显式环境根另走有界严格签名。
 
 use std::collections::{HashSet, VecDeque};
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
+
+#[cfg(test)]
+use std::fs;
 
 use loki_metis_core::{
     CoverageReport, RootCandidate, RootCandidateEvidence, RootDiscoveryCoordinator,
@@ -15,17 +17,18 @@ use loki_metis_core::{
 };
 
 use super::current_user_home;
-use super::discovery::metadata_is_link_like;
 use super::{
     CancellationToken, ClaudeDiscoveryInputs, DiscoveryInputs, GrokDiscoveryInputs,
     LocalVolumeRoots, discover_claude_quick, discover_grok_quick, discover_quick,
-    is_obviously_network_path, validate_local_plain_directory,
+    validate_local_plain_directory,
 };
 
 mod platform_index;
 mod scope;
+mod worker_pool;
 
 use scope::{current_platform, discovery_scope, platform_priority_roots, priority_queue};
+use worker_pool::{MetadataTraversalBudget, MetadataWorkerPool, TraversalStopReason};
 
 /// 执行结果只包含非路径计数；候选直接提交到运行时协调器。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -56,93 +59,6 @@ struct VolumeQueue {
     completed: bool,
     /// 该卷发现遍历的根路径。
     traversal_root: PathBuf,
-}
-
-/// 单个目录一次遍历产出的子目录、命中候选与错误/跳过计数。
-#[derive(Debug, Default)]
-struct DirectoryResult {
-    /// 待继续入队的子目录。
-    children: Vec<PathBuf>,
-    /// 本次遍历命中的候选路径及其证据类型。
-    candidates: Vec<(PathBuf, RootCandidateEvidence)>,
-    /// 本次检查过的文件名数量。
-    file_names_checked: u64,
-    /// 权限拒绝计数。
-    permission_denied: u64,
-    /// I/O 错误计数。
-    io_errors: u64,
-    /// 因链接、非本地卷等原因跳过的计数。
-    skipped: u64,
-}
-
-/// 覆盖整次发现生命周期的固定目录 worker 池，避免每轮反复创建原生线程。
-struct MetadataWorkerPool {
-    sender: Option<mpsc::SyncSender<(usize, PathBuf)>>,
-    results: mpsc::Receiver<(usize, Result<DirectoryResult, ()>)>,
-    workers: Vec<std::thread::JoinHandle<()>>,
-}
-
-impl MetadataWorkerPool {
-    /// 创建固定大小的元数据探测工作池并启动受控 worker。
-    fn new(worker_count: usize) -> Self {
-        let (sender, receiver) = mpsc::sync_channel::<(usize, PathBuf)>(worker_count * 2);
-        let receiver = Arc::new(Mutex::new(receiver));
-        let (result_sender, results) = mpsc::channel();
-        let mut workers = Vec::with_capacity(worker_count);
-        for _ in 0..worker_count {
-            let receiver = Arc::clone(&receiver);
-            let result_sender = result_sender.clone();
-            workers.push(std::thread::spawn(move || {
-                loop {
-                    let job = receiver
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .recv();
-                    let Ok((volume, path)) = job else {
-                        break;
-                    };
-                    let result = std::panic::catch_unwind(|| inspect_directory_metadata(&path))
-                        .map_err(|_| ());
-                    if result_sender.send((volume, result)).is_err() {
-                        break;
-                    }
-                }
-            }));
-        }
-        drop(result_sender);
-        Self {
-            sender: Some(sender),
-            results,
-            workers,
-        }
-    }
-
-    /// 提交一批目录探测任务，并按原序收集每项结果。
-    fn inspect(&self, jobs: Vec<(usize, PathBuf)>) -> Vec<(usize, Result<DirectoryResult, ()>)> {
-        let Some(sender) = self.sender.as_ref() else {
-            return Vec::new();
-        };
-        let mut expected = 0_usize;
-        for job in jobs {
-            if sender.send(job).is_err() {
-                break;
-            }
-            expected += 1;
-        }
-        (0..expected)
-            .filter_map(|_| self.results.recv().ok())
-            .collect()
-    }
-}
-
-impl Drop for MetadataWorkerPool {
-    /// 关闭任务通道并回收全部元数据探测 worker。
-    fn drop(&mut self) {
-        self.sender.take();
-        for worker in self.workers.drain(..) {
-            let _ = worker.join();
-        }
-    }
 }
 
 /// 执行发现并在候选首次插入时立即通知调用方。
@@ -204,18 +120,13 @@ pub(crate) fn discover_metadata_roots_with_callback(
         return MetadataDiscoverySummary::default();
     }
     let (system_index_available, indexed_paths) = platform_index::query(&volumes, coordinator);
-    for path in indexed_paths {
-        if path_blocked_by_discovery_policy(&path, &volumes)
-            || !path_is_in_search_scope(&path, &volumes)
-        {
-            continue;
-        }
-        if let Some((candidate, evidence)) = candidate_from_file_name(&path)
-            && validate_local_plain_directory(&candidate).is_ok()
-        {
-            submit_candidate(coordinator, candidate, evidence, strategy, &on_candidate);
-        }
-    }
+    submit_indexed_path_candidates(
+        coordinator,
+        &volumes,
+        strategy,
+        indexed_paths,
+        &on_candidate,
+    );
     coordinator.begin_fallback(system_index_available);
     let mut summary = discover_metadata_roots_in_with_callback(
         coordinator,
@@ -223,9 +134,37 @@ pub(crate) fn discover_metadata_roots_with_callback(
         platform_priority_roots(),
         &on_candidate,
     );
-    coordinator.finish(system_index_available, true);
+    if coordinator.snapshot().lifecycle != loki_metis_core::RootDiscoveryLifecycle::Failed {
+        coordinator.finish(system_index_available, true);
+    }
     summary.system_index_available = system_index_available;
     summary
+}
+
+/// 逐项校验系统索引结果；取消后不得继续访问路径或向协调器提交新候选。
+fn submit_indexed_path_candidates(
+    coordinator: &RootDiscoveryCoordinator,
+    volumes: &LocalVolumeRoots,
+    strategy: RootDiscoveryStrategy,
+    indexed_paths: impl IntoIterator<Item = PathBuf>,
+    on_candidate: &impl Fn(RootCandidate),
+) {
+    for path in indexed_paths {
+        if coordinator.is_cancel_requested() {
+            break;
+        }
+        if path_blocked_by_discovery_policy(&path, volumes)
+            || !path_is_in_search_scope(&path, volumes)
+        {
+            continue;
+        }
+        if let Some((candidate, evidence)) = candidate_from_file_name(&path)
+            && validate_local_plain_directory(&candidate).is_ok()
+            && !coordinator.is_cancel_requested()
+        {
+            submit_candidate(coordinator, candidate, evidence, strategy, on_candidate);
+        }
+    }
 }
 
 /// 有界核对 Codex/Claude 环境根与 Grok 的环境根或默认 `~/.grok`。
@@ -417,6 +356,23 @@ fn discover_metadata_roots_in_with_callback(
     priority_roots: Vec<PathBuf>,
     on_candidate: &impl Fn(RootCandidate),
 ) -> MetadataDiscoverySummary {
+    discover_metadata_roots_in_with_callback_and_budget(
+        coordinator,
+        volumes,
+        priority_roots,
+        on_candidate,
+        MetadataTraversalBudget::new(),
+    )
+}
+
+/// 使用给定总预算执行兜底遍历，供生产固定预算与 deadline 合同测试复用。
+fn discover_metadata_roots_in_with_callback_and_budget(
+    coordinator: &RootDiscoveryCoordinator,
+    volumes: LocalVolumeRoots,
+    priority_roots: Vec<PathBuf>,
+    on_candidate: &impl Fn(RootCandidate),
+    budget: MetadataTraversalBudget,
+) -> MetadataDiscoverySummary {
     let total = u64::try_from(volumes.search_roots.len()).unwrap_or(u64::MAX);
     let excluded_roots = volumes.excluded_roots.clone();
     if coordinator.snapshot().lifecycle != loki_metis_core::RootDiscoveryLifecycle::Running
@@ -447,10 +403,13 @@ fn discover_metadata_roots_in_with_callback(
         .flat_map(|queue| queue.pending.iter().cloned())
         .collect::<HashSet<_>>();
     let mut next_volume = 0_usize;
-    let worker_pool = MetadataWorkerPool::new(adaptive_worker_count());
+    let worker_pool = MetadataWorkerPool::new(adaptive_worker_count(), coordinator, budget);
+    let mut traversal_stop = None;
+    let mut coverage_limited = false;
 
-    while queues.iter().any(|queue| !queue.completed) {
-        if coordinator.is_cancel_requested() {
+    'traversal: while queues.iter().any(|queue| !queue.completed) {
+        if let Some(stop_reason) = budget.stop_reason(coordinator) {
+            traversal_stop = Some(stop_reason);
             break;
         }
         let jobs = take_fair_jobs(&mut queues, adaptive_worker_count(), &mut next_volume);
@@ -458,12 +417,21 @@ fn discover_metadata_roots_in_with_callback(
             mark_completed_queues(&mut queues, &mut progress);
             continue;
         }
-        let results = worker_pool.inspect(jobs);
-        for (volume, joined) in results {
+        let batch = worker_pool.inspect(jobs);
+        if let Some(stop_reason) = batch.stop_reason {
+            traversal_stop = Some(stop_reason);
+            break;
+        }
+        for (volume, joined) in batch.results {
+            if let Some(stop_reason) = budget.stop_reason(coordinator) {
+                traversal_stop = Some(stop_reason);
+                break 'traversal;
+            }
             progress.directories_checked = progress.directories_checked.saturating_add(1);
             let Ok(result) = joined else {
                 progress.io_errors = progress.io_errors.saturating_add(1);
-                continue;
+                traversal_stop = Some(TraversalStopReason::WorkerUnavailable);
+                break 'traversal;
             };
             progress.file_names_checked = progress
                 .file_names_checked
@@ -473,17 +441,41 @@ fn discover_metadata_roots_in_with_callback(
                 .saturating_add(result.permission_denied);
             progress.io_errors = progress.io_errors.saturating_add(result.io_errors);
             progress.skipped = progress.skipped.saturating_add(result.skipped);
+            match result.stop_reason {
+                Some(TraversalStopReason::Cancelled | TraversalStopReason::DeadlineExceeded) => {
+                    traversal_stop = result.stop_reason;
+                    break 'traversal;
+                }
+                Some(TraversalStopReason::DirectoryEntryLimit) => coverage_limited = true,
+                Some(TraversalStopReason::WorkerUnavailable) => {
+                    traversal_stop = result.stop_reason;
+                    break 'traversal;
+                }
+                None => {}
+            }
             let traversal_root = queues[volume].traversal_root.clone();
             for child in result.children {
+                if let Some(stop_reason) = budget.stop_reason(coordinator) {
+                    traversal_stop = Some(stop_reason);
+                    break 'traversal;
+                }
                 if is_discovery_path_excluded(&child, &traversal_root, &excluded_roots) {
                     progress.skipped = progress.skipped.saturating_add(1);
                     continue;
+                }
+                if let Some(stop_reason) = budget.stop_reason(coordinator) {
+                    traversal_stop = Some(stop_reason);
+                    break 'traversal;
                 }
                 if visited.insert(child.clone()) {
                     queues[volume].pending.push_back(child);
                 }
             }
             for (path, evidence) in result.candidates {
+                if let Some(stop_reason) = budget.stop_reason(coordinator) {
+                    traversal_stop = Some(stop_reason);
+                    break 'traversal;
+                }
                 if path_has_full_discovery_skip_directory_name(&path)
                     || excluded_roots
                         .iter()
@@ -491,6 +483,10 @@ fn discover_metadata_roots_in_with_callback(
                 {
                     progress.skipped = progress.skipped.saturating_add(1);
                     continue;
+                }
+                if let Some(stop_reason) = budget.stop_reason(coordinator) {
+                    traversal_stop = Some(stop_reason);
+                    break 'traversal;
                 }
                 submit_candidate(
                     coordinator,
@@ -505,7 +501,20 @@ fn discover_metadata_roots_in_with_callback(
         coordinator.update_progress(progress);
     }
     coordinator.update_progress(progress);
-    coordinator.finish(false, true);
+    traversal_stop = traversal_stop.or_else(|| budget.stop_reason(coordinator));
+    if traversal_stop == Some(TraversalStopReason::Cancelled) {
+        coordinator.finish(false, true);
+    } else if let Some(error_code) = traversal_stop.and_then(TraversalStopReason::error_code) {
+        coordinator.fail(error_code);
+    } else if coverage_limited {
+        coordinator.fail(
+            TraversalStopReason::DirectoryEntryLimit
+                .error_code()
+                .expect("directory limit has a stable error code"),
+        );
+    } else {
+        coordinator.finish(false, true);
+    }
     MetadataDiscoverySummary {
         system_index_available: false,
         fallback_performed: true,
@@ -572,50 +581,6 @@ fn mark_completed_queues(queues: &mut [VolumeQueue], progress: &mut RootDiscover
             progress.volumes_completed = progress.volumes_completed.saturating_add(1);
         }
     }
-}
-
-/// 读取一个目录的目录项元数据；此函数没有任何打开普通文件的入口。
-fn inspect_directory_metadata(path: &Path) -> DirectoryResult {
-    let mut result = DirectoryResult::default();
-    if is_obviously_network_path(path) {
-        result.skipped = 1;
-        return result;
-    }
-    let entries = match fs::read_dir(path) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
-            result.permission_denied = 1;
-            return result;
-        }
-        Err(_) => {
-            result.io_errors = 1;
-            return result;
-        }
-    };
-    for entry in entries {
-        let Ok(entry) = entry else {
-            result.io_errors = result.io_errors.saturating_add(1);
-            continue;
-        };
-        let entry_path = entry.path();
-        let Ok(metadata) = fs::symlink_metadata(&entry_path) else {
-            result.io_errors = result.io_errors.saturating_add(1);
-            continue;
-        };
-        if metadata_is_link_like(&metadata) {
-            result.skipped = result.skipped.saturating_add(1);
-            continue;
-        }
-        if metadata.is_dir() {
-            result.children.push(entry_path);
-        } else if metadata.is_file() {
-            result.file_names_checked = result.file_names_checked.saturating_add(1);
-            if let Some(candidate) = candidate_from_file_name(&entry_path) {
-                result.candidates.push(candidate);
-            }
-        }
-    }
-    result
 }
 
 /// 只按文件名与父目录结构推导候选根。
@@ -697,6 +662,9 @@ fn submit_candidate(
     strategy: RootDiscoveryStrategy,
     on_candidate: &impl Fn(RootCandidate),
 ) {
+    if coordinator.is_cancel_requested() {
+        return;
+    }
     let client = match evidence {
         RootCandidateEvidence::CodexRollout => SourceClientKind::Codex,
         RootCandidateEvidence::ClaudeTranscript | RootCandidateEvidence::ClaudeSubagent => {
@@ -714,9 +682,16 @@ fn submit_candidate(
         evidence,
     };
     if coordinator.submit_candidate(candidate.clone()) {
+        if coordinator.is_cancel_requested() {
+            coordinator.remove_candidates(std::slice::from_ref(&candidate.id));
+            return;
+        }
         on_candidate(candidate);
     }
 }
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod contract_tests;

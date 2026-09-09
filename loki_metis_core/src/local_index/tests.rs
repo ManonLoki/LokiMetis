@@ -50,6 +50,66 @@ async fn reopening_same_directory_is_idempotent() {
         .expect("second open reuses migrated schema");
 }
 
+/// 只读入口既不创建缺失索引，也不把旧 schema 偷偷迁移成当前版本。
+#[tokio::test]
+async fn read_only_open_never_creates_or_migrates_schema() {
+    let missing = tempfile::tempdir().expect("isolated missing app-data exists");
+    assert!(
+        LocalIndex::open_read_only_in_app_data(missing.path(), 1)
+            .await
+            .is_err()
+    );
+    assert!(!missing.path().join(USAGE_INDEX_FILE_NAME).exists());
+
+    let legacy = tempfile::tempdir().expect("isolated legacy app-data exists");
+    let database_path = legacy.path().join(USAGE_INDEX_FILE_NAME);
+    let fixture = reopen_for_inspection(&database_path).await;
+    fixture
+        .execute_unprepared(
+            "CREATE TABLE source_roots (
+               root_id TEXT PRIMARY KEY NOT NULL,
+               access_path BLOB NOT NULL,
+               alias TEXT NOT NULL,
+               enabled INTEGER NOT NULL,
+               discovery_method TEXT NOT NULL,
+               last_coverage_state TEXT
+             );
+             PRAGMA user_version = 1;",
+        )
+        .await
+        .expect("legacy fixture is created");
+    drop(fixture);
+
+    let read_only = LocalIndex::open_read_only_in_app_data(legacy.path(), 1)
+        .await
+        .expect("legacy bytes may be opened without migration");
+    assert!(read_only.index_state().await.is_err());
+    drop(read_only);
+
+    let inspection = reopen_for_inspection(&database_path).await;
+    let version: i64 = inspection
+        .query_one(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .expect("legacy version query succeeds")
+        .expect("legacy version row exists")
+        .try_get_by_index(0)
+        .expect("legacy version is readable");
+    assert_eq!(version, 1);
+    assert!(
+        inspection
+            .query_one(Statement::from_string(
+                DbBackend::Sqlite,
+                "SELECT version FROM seaql_migrations LIMIT 1",
+            ))
+            .await
+            .is_err(),
+        "read-only open must not create migration bookkeeping"
+    );
+}
+
 /// 打开一个已经迁移完成的数据库文件用于只读检查；调用方负责先让
 /// `LocalIndex` 完成迁移并释放连接，避免和它持有的单连接池竞争。
 async fn reopen_for_inspection(database_path: &Path) -> sea_orm::DatabaseConnection {

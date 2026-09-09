@@ -1,0 +1,126 @@
+.brand-mark {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+}
+
+.brand-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgba(164, 48, 31, 0.24));
+}
+
+.brand-title {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.brand-version {
+  white-space: nowrap;
+}
+
+.navigation-link {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  color: var(--app-dashboard-nav-text);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0.65rem;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.navigation-link:hover,
+.navigation-link:focus-visible {
+  color: var(--app-dashboard-nav-hover-text);
+  background: var(--app-dashboard-nav-hover-background);
+  outline: none;
+}
+
+.navigation-link.active {
+  color: var(--app-dashboard-nav-active-text);
+  background: var(--app-dashboard-nav-active-background);
+}
+
+.navigation-link:focus-visible {
+  box-shadow: 0 0 0 3px var(--app-dashboard-nav-focus-ring);
+}
+
+.app-main {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: auto;
+}
+
+.page-stack {
+  width: min(calc(100% - 1rem), 2400px);
+  padding-top: 0;
+  padding-bottom: clamp(1.5rem, 4vw, 3.5rem);
+  margin-inline: auto;
+}
+
+.route-state {
+  min-height: calc(100vh - 8rem);
+  padding: 2rem;
+  text-align: center;
+}
+
+@media (max-width: 36rem) {
+  .initialization-shell {
+    align-items: flex-start;
+    padding: 0.5rem;
+  }
+
+  .initialization-step-content {
+    min-height: 0;
+  }
+
+  .initialization-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .initialization-actions > * {
+    width: 100%;
+  }
+
+  .initialization-scan-actions {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .initialization-scan-actions > * {
+    flex: 1 1 10rem;
+  }
+
+  .page-stack {
+    width: min(calc(100% - 1rem), 2400px);
+    padding-top: 0;
+    padding-bottom: 1rem;
+  }
+}
+
+.empty-state-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--app-empty-icon-color);
+  background: var(--app-empty-icon-background);
+}
+
+.empty-state {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

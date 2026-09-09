@@ -1,6 +1,7 @@
 //! 实现只接受稳定根 ID 的数据根停用与索引移除 commands。
 
 mod manual_add;
+mod manual_inspection;
 mod support;
 
 pub(crate) use manual_add::manual_add_source_root;
@@ -23,11 +24,12 @@ use crate::commands::ensure_business_access;
 use crate::dto::{AgentClientKindDto, SourceRootMutationDto};
 use crate::runtime::AppRuntimeState;
 use crate::source_commands::support::{
-    SourceRootCatalogAdapter, build_source_root_mutation_response, ensure_local_scan_not_running,
-    parser_version_for_client, refresh_source_roots_snapshot, source_root_catalog_error_message,
-    to_source_client_kind,
+    SourceRootCatalogAdapter, acquire_source_root_write_context,
+    build_source_root_mutation_response, parser_version_for_client, refresh_source_roots_snapshot,
+    source_root_catalog_error_message, to_source_client_kind,
 };
 use crate::tray::refresh_tray_daily_token_title;
+pub(crate) use support::acquire_source_root_write_permit;
 
 /// 校验单根重新索引请求，并只把稳定根 ID 交给扫描 adapter。
 pub(crate) async fn validated_source_root_reindex_request(
@@ -62,12 +64,8 @@ pub(crate) async fn set_source_root_enabled(
     ensure_business_access(&state).await?;
     validate_source_root_id(to_source_client_kind(client), &root_id)
         .map_err(|_| source_root_id_invalid_message().to_owned())?;
-    ensure_local_scan_not_running(&state, client)?;
-    let account_context_guard = if client == AgentClientKindDto::Codex {
-        Some(state.lock_codex_account_context().await)
-    } else {
-        None
-    };
+    let (_write_permit, account_context_guard) =
+        acquire_source_root_write_context(&state, client).await?;
     let source_client = to_source_client_kind(client);
     let app_data_dir = source_client_app_data_dir(&state.app_data_dir, source_client);
     let mut catalog = SourceRootCatalogAdapter::new(app_data_dir, source_client);
@@ -98,7 +96,7 @@ pub(crate) async fn rename_source_root(
         .map_err(|_| source_root_id_invalid_message().to_owned())?;
     let alias = normalize_source_root_alias(&alias)
         .map_err(|_| source_root_alias_invalid_message().to_owned())?;
-    ensure_local_scan_not_running(&state, client)?;
+    let _write_permit = acquire_source_root_write_permit(&state, client)?;
     let source_client = to_source_client_kind(client);
     let app_data_dir = source_client_app_data_dir(&state.app_data_dir, source_client);
     let mut catalog = SourceRootCatalogAdapter::new(app_data_dir, source_client);
@@ -122,12 +120,8 @@ pub(crate) async fn remove_source_root(
     ensure_business_access(&state).await?;
     validate_source_root_id(to_source_client_kind(client), &root_id)
         .map_err(|_| source_root_id_invalid_message().to_owned())?;
-    ensure_local_scan_not_running(&state, client)?;
-    let account_context_guard = if client == AgentClientKindDto::Codex {
-        Some(state.lock_codex_account_context().await)
-    } else {
-        None
-    };
+    let (_write_permit, account_context_guard) =
+        acquire_source_root_write_context(&state, client).await?;
     let source_client = to_source_client_kind(client);
     let app_data_dir = source_client_app_data_dir(&state.app_data_dir, source_client);
     let mut catalog = SourceRootCatalogAdapter::new(app_data_dir, source_client);
@@ -156,8 +150,8 @@ pub(crate) async fn set_primary_source_root(
         validate_source_root_id(source_client, root_id)
             .map_err(|_| source_root_id_invalid_message().to_owned())?;
     }
-    let account_context_guard = state.lock_codex_account_context().await;
-    ensure_local_scan_not_running(&state, client)?;
+    let (_write_permit, account_context_guard) =
+        acquire_source_root_write_context(&state, client).await?;
     let requested_primary_root_id = root_id.clone();
     let app_data_dir = source_client_app_data_dir(&state.app_data_dir, source_client);
     let parser_version = parser_version_for_client(client);

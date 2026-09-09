@@ -7,9 +7,7 @@ async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> 
 }
 
 /// 读取指定宿主已验证进程的命令行，用于发现其显式 CDP 端口。
-async fn platform_host_command_lines(
-    host: SkinHostKind,
-) -> Result<Vec<(u32, String)>, AppError> {
+async fn platform_host_command_lines(host: SkinHostKind) -> Result<Vec<(u32, String)>, AppError> {
     match host {
         SkinHostKind::Codex => platform_codex_command_lines().await,
         SkinHostKind::WorkBuddy => platform_workbuddy_command_lines().await,
@@ -61,7 +59,35 @@ async fn platform_workbuddy_endpoint_owned_by_root(
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_process::workbuddy_endpoint_owned_by_root(port, root_pid).await;
+        return macos_process::host_endpoint_owned_by_root(SkinHostKind::WorkBuddy, port, root_pid)
+            .await;
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = (port, root_pid);
+        Ok(false)
+    }
+}
+
+/// 把 Codex CDP listener 的唯一 owner 绑定到指定可信进程树。
+async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Result<bool, AppError> {
+    #[cfg(target_os = "windows")]
+    {
+        return tokio::task::spawn_blocking(move || {
+            windows_codex::codex_endpoint_owned_by_root(port, root_pid)
+        })
+        .await
+        .map_err(|_| {
+            AppError::new(
+                "skin.codex_cdp_owner_inspection_failed",
+                "无法验证 Codex 调试端口所属进程，未应用皮肤。",
+            )
+        })?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        return macos_process::host_endpoint_owned_by_root(SkinHostKind::Codex, port, root_pid)
+            .await;
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {

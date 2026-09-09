@@ -1,15 +1,15 @@
 # LokiMetis Third-Party Notices
 
-This notice covers third-party dependencies resolved for LokiMetis v0.2.22.
+This notice covers third-party dependencies resolved for LokiMetis v0.2.39.
 Copyright and license rights remain with their respective authors and projects.
 The declared license expression and source link below identify the governing terms for each package.
 
 锁定输入 / Locked inputs:
 
-- `Cargo.lock` SHA-256: `674f986a7cc9b671cd831571a16056e25ab76374a01d6737937e807aaf560bac`
+- `Cargo.lock` SHA-256: `ee6ce731fa5e38f5a7b967bb8bb93648cabc98ff67581e1429751bb3c3f72a63`
 - `loki_metis_gui/pnpm-lock.yaml` SHA-256: `42b99405966b6af755508fe3bbc31add375045aae3a226fa34b9084148b20598`
 
-## Rust dependencies (628)
+## Rust dependencies (627)
 
 | Package | Version | Declared license | Source |
 |---|---:|---|---|
@@ -614,7 +614,6 @@ The declared license expression and source link below identify the governing ter
 | winreg | 0.10.1 | MIT | https://github.com/gentoo90/winreg-rs |
 | winreg | 0.55.0 | MIT | https://github.com/gentoo90/winreg-rs |
 | wit-bindgen | 0.57.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | https://github.com/bytecodealliance/wit-bindgen |
-| wmi | 0.18.4 | MIT OR Apache-2.0 | https://github.com/ohadravid/wmi-rs |
 | writeable | 0.6.4 | Unicode-3.0 | https://github.com/unicode-org/icu4x |
 | wry | 0.55.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/wry |
 | x11 | 2.21.0 | MIT | https://github.com/AltF02/x11-rs.git |

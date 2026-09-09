@@ -19,7 +19,7 @@ use super::{
     emit_pet_window_state_changed, list_hook_config_locations, list_monitor_image_gallery,
     load_monitor_settings, load_profile_drafts, monitor_capabilities, overlay_image_bytes,
     save_monitor_image, save_profile_draft, start_pet_overlay_dragging, update_monitor_settings,
-    validate_hook_config_directory, write_hook_config,
+    validate_hook_config_directory,
 };
 
 /// 解析应用配置目录，并把宿主错误映射为稳定设置读取错误。
@@ -179,16 +179,13 @@ pub fn list_monitor_hook_locations(app: AppHandle) -> Result<Vec<HookConfigLocat
 
 /// 为指定工具写入本机 Hook 配置。
 #[tauri::command]
-pub fn write_monitor_hook_config(
+pub async fn write_monitor_hook_config(
     app: AppHandle,
     tool: AiTool,
+    hook_writer: State<'_, HookConfigWriter>,
 ) -> Result<HookConfigWriteResult, HookError> {
     ensure_public_monitor_tool(tool)?;
-    let settings = load_monitor_settings(&config_dir(&app)?)?;
-    let executable = std::env::current_exe().map_err(|error| {
-        HookError::new("error.hooks.writeFailed").param("detail", error.to_string())
-    })?;
-    write_hook_config(&settings, tool, &executable, &home_dir(&app)?)
+    hook_writer.write_config(config_dir(&app)?, tool).await
 }
 
 /// 读取本机 Hook 中继状态。

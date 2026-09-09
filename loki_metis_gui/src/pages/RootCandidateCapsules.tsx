@@ -9,9 +9,11 @@ import { visibleErrorMessage } from "../visible-error";
 /** 用可独立并发添加的胶囊条目展示实时候选。 */
 export function RootCandidateCapsules({
   candidates,
+  disabled = false,
   onAdd,
 }: {
   candidates: RootCandidateDto[];
+  disabled?: boolean;
   onAdd: (candidate: RootCandidateDto) => Promise<void>;
 }) {
   const { t } = useTranslation();
@@ -70,6 +72,7 @@ export function RootCandidateCapsules({
               {t(`sources.discovery.strategy.${candidate.strategy}`)}
             </Badge>
             <Button
+              disabled={disabled}
               loading={pendingIds.has(candidate.id)}
               onClick={() => void addCandidate(candidate)}
               radius="xl"
