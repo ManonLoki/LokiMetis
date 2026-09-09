@@ -10,6 +10,9 @@ use std::{
     time::Duration,
 };
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use loki_metis_core::{AiTool, HookTransition, normalize_enabled_ai_tools};
 use tauri::async_runtime::JoinHandle;
 use tokio::sync::watch;
@@ -55,16 +58,34 @@ impl HookListenerShutdown {
     }
 }
 
+/// 一项由 control 或进程级 reaper 持有的 Hook listener 任务。
+struct OwnedHookListenerTask {
+    handle: JoinHandle<()>,
+    #[cfg(test)]
+    registration_id: u64,
+}
+
+impl OwnedHookListenerTask {
+    /// 包装新登记句柄；测试构建同时分配进程内唯一身份。
+    fn new(handle: JoinHandle<()>) -> Self {
+        Self {
+            handle,
+            #[cfg(test)]
+            registration_id: NEXT_HOOK_LISTENER_TASK_TEST_ID.fetch_add(1, Ordering::Relaxed),
+        }
+    }
+}
+
 /// Hook 两项长期任务的已登记句柄与首次关闭截止时间。
 struct HookListenerTaskState {
-    tasks: Vec<JoinHandle<()>>,
+    tasks: Vec<OwnedHookListenerTask>,
     shutdown_deadline: Option<tokio::time::Instant>,
 }
 
 /// 从 control 移交后的异步任务及唯一 reaper 运行标志。
 #[derive(Default)]
 struct RetainedHookListenerState {
-    tasks: Vec<JoinHandle<()>>,
+    tasks: Vec<OwnedHookListenerTask>,
     reaper_running: bool,
 }
 
@@ -89,6 +110,10 @@ impl RetainedHookListenerOwner {
 
 /// 所有 control 实例共享的最终异步任务 owner。
 static RETAINED_HOOK_LISTENER_TASKS: OnceLock<RetainedHookListenerOwner> = OnceLock::new();
+
+/// 为并行 reaper 回归分配唯一任务身份，避免用共享表全局数量断言。
+#[cfg(test)]
+static NEXT_HOOK_LISTENER_TASK_TEST_ID: AtomicU64 = AtomicU64::new(1);
 
 /// 当前允许进入状态机的工具集合，以及每次启停变化后的单调代数。
 #[derive(Debug)]
@@ -129,6 +154,34 @@ pub struct HookListenerControl {
     tasks: Mutex<HookListenerTaskState>,
 }
 
+/// 在 shutdown future 被取消或 panic 时把尚未终态的句柄交还原 control。
+struct HookListenerShutdownBatch<'owner> {
+    owner: &'owner HookListenerControl,
+    tasks: Vec<OwnedHookListenerTask>,
+}
+
+impl<'owner> HookListenerShutdownBatch<'owner> {
+    /// 接管本轮关闭批次，直到终态确认或显式转交进程级 owner。
+    fn new(owner: &'owner HookListenerControl, tasks: Vec<OwnedHookListenerTask>) -> Self {
+        Self { owner, tasks }
+    }
+
+    /// 正常超时时取出剩余句柄，避免 Drop 再登记到原 control。
+    fn into_tasks(mut self) -> Vec<OwnedHookListenerTask> {
+        std::mem::take(&mut self.tasks)
+    }
+}
+
+impl Drop for HookListenerShutdownBatch<'_> {
+    /// 任一 await 被取消或栈展开时恢复整批所有权，绝不因局部 Vec 销毁而 detach。
+    fn drop(&mut self) {
+        if self.tasks.is_empty() {
+            return;
+        }
+        self.owner.lock_tasks().tasks.append(&mut self.tasks);
+    }
+}
+
 impl HookListenerControl {
     /// 创建同时拥有 listener 与事件 worker 句柄的运行时控制器。
     pub(super) fn new(
@@ -142,7 +195,7 @@ impl HookListenerControl {
             status,
             shutdown,
             tasks: Mutex::new(HookListenerTaskState {
-                tasks,
+                tasks: tasks.into_iter().map(OwnedHookListenerTask::new).collect(),
                 shutdown_deadline: None,
             }),
         }
@@ -182,42 +235,40 @@ impl HookListenerControl {
     async fn shutdown_with_timeout(&self, timeout: Duration) {
         self.replace_enabled_tools(&[]);
         let _ = self.shutdown.send(true);
-        let now = tokio::time::Instant::now();
-        let (tasks, final_deadline) = {
-            let mut state = self.lock_tasks();
-            let deadline = *state.shutdown_deadline.get_or_insert(now + timeout);
-            (std::mem::take(&mut state.tasks), deadline)
-        };
+        let (mut batch, final_deadline) = self.begin_shutdown_batch(timeout);
         let final_reap_budget = HOOK_LISTENER_FINAL_REAP_BUDGET.min(timeout / 2);
         let cooperative_deadline = final_deadline
             .checked_sub(final_reap_budget)
             .unwrap_or(final_deadline);
-        let overdue = futures::future::join_all(
-            tasks
-                .into_iter()
-                .map(|task| wait_for_hook_listener_task(task, cooperative_deadline)),
-        )
-        .await;
-        let overdue = overdue.into_iter().flatten().collect::<Vec<_>>();
-        for task in &overdue {
-            task.abort();
+
+        // 两项任务本身已经并发运行；逐句柄共用绝对截止时间可让 batch 在每个
+        // await 期间持续拥有其余句柄，同时不会把串行等待累加到总预算之外。
+        reap_hook_listener_tasks_until(&mut batch.tasks, cooperative_deadline).await;
+        for task in &batch.tasks {
+            task.handle.abort();
         }
-        let unreaped = futures::future::join_all(
-            overdue
-                .into_iter()
-                .map(|task| wait_for_hook_listener_task(task, final_deadline)),
-        )
-        .await
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-        if !unreaped.is_empty() {
+        reap_hook_listener_tasks_until(&mut batch.tasks, final_deadline).await;
+        if !batch.tasks.is_empty() {
             tracing::error!(
-                task_count = unreaped.len(),
+                task_count = batch.tasks.len(),
                 "owned hook listener tasks did not reach a terminal state before shutdown deadline"
             );
-            retain_hook_listener_tasks(unreaped);
+            retain_hook_listener_tasks(batch.into_tasks());
         }
+    }
+
+    /// 原子摘除当前批次并建立恢复守卫；首次关闭保存唯一共同截止时间。
+    fn begin_shutdown_batch(
+        &self,
+        timeout: Duration,
+    ) -> (HookListenerShutdownBatch<'_>, tokio::time::Instant) {
+        let now = tokio::time::Instant::now();
+        let (tasks, deadline) = {
+            let mut state = self.lock_tasks();
+            let deadline = *state.shutdown_deadline.get_or_insert(now + timeout);
+            (std::mem::take(&mut state.tasks), deadline)
+        };
+        (HookListenerShutdownBatch::new(self, tasks), deadline)
     }
 
     /// 取得句柄表锁；测试 panic 污染后仍保留回收能力。
@@ -228,24 +279,45 @@ impl HookListenerControl {
     }
 }
 
-/// 等待一项 listener 任务到共同截止时间；超时返回原句柄继续由 control 持有。
+/// 等待一项 listener 任务到共同截止时间；超时保持原句柄仍在批次内。
 async fn wait_for_hook_listener_task(
-    mut task: JoinHandle<()>,
+    task: &mut OwnedHookListenerTask,
     deadline: tokio::time::Instant,
-) -> Option<JoinHandle<()>> {
-    let result = if task.inner().is_finished() {
-        Some((&mut task).await)
+) -> Option<tauri::Result<()>> {
+    let result = if task.handle.inner().is_finished() {
+        Some((&mut task.handle).await)
     } else {
-        tokio::time::timeout_at(deadline, &mut task).await.ok()
+        tokio::time::timeout_at(deadline, &mut task.handle)
+            .await
+            .ok()
     };
+    result
+}
+
+/// 记录 listener 任务终态；取消属于预期回收，panic 与其他错误保持可观察。
+fn log_hook_listener_task_result(result: tauri::Result<()>) {
     match result {
-        Some(Ok(())) => None,
-        Some(Err(tauri::Error::JoinError(error))) if error.is_cancelled() => None,
-        Some(Err(error)) => {
+        Ok(()) => {}
+        Err(tauri::Error::JoinError(error)) if error.is_cancelled() => {}
+        Err(error) => {
             tracing::warn!(%error, "owned hook listener task stopped unexpectedly");
-            None
         }
-        None => Some(task),
+    }
+}
+
+/// 在共享截止时间前观察各句柄终态，立即移除已完成项并保留其余所有权。
+async fn reap_hook_listener_tasks_until(
+    tasks: &mut Vec<OwnedHookListenerTask>,
+    deadline: tokio::time::Instant,
+) {
+    let mut index = 0;
+    while index < tasks.len() {
+        if let Some(result) = wait_for_hook_listener_task(&mut tasks[index], deadline).await {
+            let _task = tasks.swap_remove(index);
+            log_hook_listener_task_result(result);
+        } else {
+            index += 1;
+        }
     }
 }
 
@@ -255,7 +327,7 @@ impl Drop for HookListenerControl {
         let _ = self.shutdown.send(true);
         let tasks = self.lock_tasks().tasks.drain(..).collect::<Vec<_>>();
         for task in &tasks {
-            task.abort();
+            task.handle.abort();
         }
         retain_hook_listener_tasks(tasks);
     }
@@ -267,7 +339,7 @@ fn retained_hook_listener_owner() -> &'static RetainedHookListenerOwner {
 }
 
 /// 把超时任务移交静态表，并启动一个不依赖 Tokio 调度让出的终态 reaper。
-fn retain_hook_listener_tasks(tasks: Vec<JoinHandle<()>>) {
+fn retain_hook_listener_tasks(tasks: Vec<OwnedHookListenerTask>) {
     if tasks.is_empty() {
         return;
     }
@@ -320,10 +392,10 @@ fn hook_listener_reaper_loop(shared: &Arc<(Mutex<RetainedHookListenerState>, Con
         let waker = futures::task::noop_waker_ref();
         let mut context = Context::from_waker(waker);
         state.tasks.retain_mut(|task| {
-            if !task.inner().is_finished() {
+            if !task.handle.inner().is_finished() {
                 return true;
             }
-            match Pin::new(task).poll(&mut context) {
+            match Pin::new(&mut task.handle).poll(&mut context) {
                 Poll::Ready(Ok(())) => false,
                 Poll::Ready(Err(error)) => {
                     if !matches!(&error, tauri::Error::JoinError(join) if join.is_cancelled()) {
@@ -343,16 +415,17 @@ fn hook_listener_reaper_loop(shared: &Arc<(Mutex<RetainedHookListenerState>, Con
     }
 }
 
-/// 返回仍由进程级 owner 持有的 listener task 数量。
+/// 返回进程级 owner 是否仍持有指定测试任务。
 #[cfg(test)]
-fn retained_hook_listener_task_count() -> usize {
+fn retained_hook_listener_owns_task(registration_id: u64) -> bool {
     retained_hook_listener_owner()
         .shared
         .0
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .tasks
-        .len()
+        .iter()
+        .any(|task| task.registration_id == registration_id)
 }
 
 /// 清空被禁用工具当前占用的槽位；没有活跃槽位时不制造虚假 revision。

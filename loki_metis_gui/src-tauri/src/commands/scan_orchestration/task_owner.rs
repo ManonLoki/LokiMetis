@@ -1,7 +1,16 @@
 //! 拥有 GUI 生命周期内主动生成的扫描任务，并在真正退出时有界取消、等待和回收。
 //! 本模块不决定扫描业务，只管理 JoinHandle、关闭信号和共享 writer 的宿主生命周期。
 
-use std::{future::Future, sync::Mutex, time::Duration};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Mutex, OnceLock},
+    task::{Context, Poll},
+    time::Duration,
+};
+
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use loki_metis_core::ScanCancellation;
 use tauri::async_runtime::JoinHandle;
@@ -43,21 +52,28 @@ struct OwnedScanTask {
     cancellation: ScanCancellation,
     shutdown: watch::Sender<bool>,
     handle: JoinHandle<()>,
+    #[cfg(test)]
+    registration_id: u64,
 }
+
+/// 进程级保留 owner 异常销毁时尚未确认终态的扫描句柄。
+static RETAINED_SCAN_TASKS: OnceLock<Mutex<Vec<OwnedScanTask>>> = OnceLock::new();
+
+/// 为并行测试分配不冲突的扫描任务身份，避免用全局数量形成竞态断言。
+#[cfg(test)]
+static NEXT_SCAN_TASK_TEST_ID: AtomicU64 = AtomicU64::new(1);
 
 /// 在共同截止时间内等待任务终态；超时则把真实句柄交还 owner 继续处理。
 async fn wait_for_owned_scan_task(
-    mut task: OwnedScanTask,
+    task: &mut OwnedScanTask,
     deadline: tokio::time::Instant,
-) -> Option<OwnedScanTask> {
-    match tokio::time::timeout_at(deadline, &mut task.handle).await {
-        Ok(Ok(())) => None,
-        Ok(Err(tauri::Error::JoinError(error))) if error.is_cancelled() => None,
-        Ok(Err(error)) => {
-            tracing::warn!(%error, "owned scan task stopped unexpectedly during shutdown");
-            None
-        }
-        Err(_) => Some(task),
+) -> Option<tauri::Result<()>> {
+    if task.handle.inner().is_finished() {
+        Some((&mut task.handle).await)
+    } else {
+        tokio::time::timeout_at(deadline, &mut task.handle)
+            .await
+            .ok()
     }
 }
 
@@ -78,6 +94,34 @@ pub(crate) struct ScanTaskOwner {
     state: Mutex<ScanTaskOwnerState>,
     /// 发布 direct_scans 变化，让异步关闭不持有同步锁即可等待命令返回。
     direct_scan_changes: watch::Sender<usize>,
+}
+
+/// 在 shutdown future 被取消或 panic 时，把仍未终态的扫描句柄交还原 owner。
+struct ScanTaskShutdownBatch<'owner> {
+    owner: &'owner ScanTaskOwner,
+    tasks: Vec<OwnedScanTask>,
+}
+
+impl<'owner> ScanTaskShutdownBatch<'owner> {
+    /// 接管本轮关闭批次；所有 await 都只能借用该批次内的句柄。
+    fn new(owner: &'owner ScanTaskOwner, tasks: Vec<OwnedScanTask>) -> Self {
+        Self { owner, tasks }
+    }
+
+    /// 供 owner 的同步 Drop 路径取回批次并转交进程级 owner。
+    fn into_tasks(mut self) -> Vec<OwnedScanTask> {
+        std::mem::take(&mut self.tasks)
+    }
+}
+
+impl Drop for ScanTaskShutdownBatch<'_> {
+    /// 取消和栈展开均恢复所有权，不让局部 JoinHandle 随 future 一起 detach。
+    fn drop(&mut self) {
+        if self.tasks.is_empty() {
+            return;
+        }
+        self.owner.lock_state().tasks.append(&mut self.tasks);
+    }
 }
 
 /// 把直接 await 的 Tauri 扫描命令登记到 owner；drop 即证明该命令已退出扫描路径。
@@ -126,10 +170,9 @@ impl ScanTaskOwner {
         Build: FnOnce(ScanTaskShutdown) -> Task,
         Task: Future<Output = ()> + Send + 'static,
     {
+        reap_process_scan_tasks();
         let mut state = self.lock_state();
-        state
-            .tasks
-            .retain(|task| !task.handle.inner().is_finished());
+        reap_finished_owned_scan_tasks(&mut state.tasks);
         if state.shutting_down {
             cancellation.cancel();
             return Err("scan-task-owner-shutting-down");
@@ -141,6 +184,8 @@ impl ScanTaskOwner {
             cancellation,
             shutdown,
             handle,
+            #[cfg(test)]
+            registration_id: NEXT_SCAN_TASK_TEST_ID.fetch_add(1, Ordering::Relaxed),
         });
         Ok(())
     }
@@ -152,42 +197,28 @@ impl ScanTaskOwner {
 
     /// 使用给定总时限完成关闭，供生产固定门限和快速回归测试复用。
     async fn shutdown_with_timeout(&self, timeout: Duration) {
-        let (tasks, final_deadline) = self.begin_shutdown_with_deadline(timeout);
+        reap_process_scan_tasks();
+        let (mut batch, final_deadline) = self.begin_shutdown_with_deadline(timeout);
         let final_reap_budget = SCAN_TASK_FINAL_REAP_BUDGET.min(timeout / 2);
         let cooperative_deadline = final_deadline
             .checked_sub(final_reap_budget)
             .unwrap_or(final_deadline);
 
-        // 并发收敛：顺序等待会让一个慢任务独占共同预算。
-        let overdue = futures::future::join_all(
-            tasks
-                .into_iter()
-                .map(|task| wait_for_owned_scan_task(task, cooperative_deadline)),
-        )
-        .await
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-        for task in &overdue {
+        // 扫描任务已经并发运行；逐句柄复用同一绝对截止时间，既不会累加总预算，
+        // 也可让 batch 在每个 await 期间继续持有尚未轮到的全部句柄。
+        reap_owned_scan_tasks_until(&mut batch.tasks, cooperative_deadline).await;
+        for task in &batch.tasks {
             task.handle.abort();
         }
-        let unreaped = futures::future::join_all(
-            overdue
-                .into_iter()
-                .map(|task| wait_for_owned_scan_task(task, final_deadline)),
-        )
-        .await
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-        if !unreaped.is_empty() {
+        reap_owned_scan_tasks_until(&mut batch.tasks, final_deadline).await;
+        if !batch.tasks.is_empty() {
             tracing::error!(
-                count = unreaped.len(),
+                count = batch.tasks.len(),
                 "owned scan tasks did not terminate before shutdown deadline"
             );
-            // 保留尚未终止的真实句柄，避免把同步 poll 误报为已经回收。
-            self.lock_state().tasks.extend(unreaped);
         }
+        // 正常超时与取消、panic 使用同一恢复路径；此处显式恢复后再等待直接命令。
+        drop(batch);
         self.wait_for_direct_scans(final_deadline).await;
     }
 
@@ -195,7 +226,7 @@ impl ScanTaskOwner {
     fn begin_shutdown_with_deadline(
         &self,
         timeout: Duration,
-    ) -> (Vec<OwnedScanTask>, tokio::time::Instant) {
+    ) -> (ScanTaskShutdownBatch<'_>, tokio::time::Instant) {
         let now = tokio::time::Instant::now();
         let (tasks, deadline) = {
             let mut state = self.lock_state();
@@ -203,8 +234,10 @@ impl ScanTaskOwner {
             let deadline = *state.shutdown_deadline.get_or_insert(now + timeout);
             (std::mem::take(&mut state.tasks), deadline)
         };
-        self.cancel_for_shutdown(&tasks);
-        (tasks, deadline)
+        // 先建立异常恢复守卫，再调用 writer 或任务取消路径。
+        let batch = ScanTaskShutdownBatch::new(self, tasks);
+        self.cancel_for_shutdown(&batch.tasks);
+        (batch, deadline)
     }
 
     /// 等待没有独立 JoinHandle 的命令返回；共享 deadline 保持退出总时限不变。
@@ -252,6 +285,19 @@ impl ScanTaskOwner {
         self.lock_state().shutdown_deadline
     }
 
+    /// 返回进程级 owner 是否仍持有指定测试任务。
+    #[cfg(test)]
+    fn process_owns_task(registration_id: u64) -> bool {
+        reap_process_scan_tasks();
+        RETAINED_SCAN_TASKS.get().is_some_and(|owner| {
+            owner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .iter()
+                .any(|task| task.registration_id == registration_id)
+        })
+    }
+
     /// 关闭共享 writer，并向已摘除的后台任务广播两层取消信号。
     fn cancel_for_shutdown(&self, tasks: &[OwnedScanTask]) {
         self.local_scan.shutdown();
@@ -275,12 +321,88 @@ impl Drop for DirectScanGuard<'_> {
 }
 
 impl Drop for ScanTaskOwner {
-    /// 非正常销毁无法异步等待，仍会关闭 writer、广播取消并中止所有登记任务。
+    /// 非正常销毁无法异步等待；abort 后的句柄转交进程级 owner，不能直接 detach。
     fn drop(&mut self) {
-        for task in self.begin_shutdown_with_deadline(Duration::ZERO).0 {
+        let mut tasks = self
+            .begin_shutdown_with_deadline(Duration::ZERO)
+            .0
+            .into_tasks();
+        reap_finished_owned_scan_tasks(&mut tasks);
+        for task in &tasks {
             task.handle.abort();
         }
+        reap_finished_owned_scan_tasks(&mut tasks);
+        retain_process_scan_tasks(tasks);
     }
+}
+
+/// 记录扫描任务终态；正常取消不报错，panic 与运行时异常保持可观察。
+fn log_owned_scan_task_result(result: tauri::Result<()>) {
+    match result {
+        Ok(()) => {}
+        Err(tauri::Error::JoinError(error)) if error.is_cancelled() => {}
+        Err(error) => {
+            tracing::warn!(%error, "owned scan task stopped unexpectedly during shutdown");
+        }
+    }
+}
+
+/// 在共享绝对截止时间前观察各项终态，并立即从批次移除已完成句柄。
+async fn reap_owned_scan_tasks_until(
+    tasks: &mut Vec<OwnedScanTask>,
+    deadline: tokio::time::Instant,
+) {
+    let mut index = 0;
+    while index < tasks.len() {
+        if let Some(result) = wait_for_owned_scan_task(&mut tasks[index], deadline).await {
+            let _task = tasks.swap_remove(index);
+            log_owned_scan_task_result(result);
+        } else {
+            index += 1;
+        }
+    }
+}
+
+/// 无阻塞轮询已经报告完成的句柄，仅在观察其终态后从 owner 移除。
+fn reap_finished_owned_scan_tasks(tasks: &mut Vec<OwnedScanTask>) {
+    let waker = futures::task::noop_waker_ref();
+    let mut context = Context::from_waker(waker);
+    tasks.retain_mut(|task| {
+        if !task.handle.inner().is_finished() {
+            return true;
+        }
+        match Pin::new(&mut task.handle).poll(&mut context) {
+            Poll::Ready(result) => {
+                log_owned_scan_task_result(result);
+                false
+            }
+            Poll::Pending => true,
+        }
+    });
+}
+
+/// 回收进程级 owner 中已经终态的扫描任务。
+fn reap_process_scan_tasks() {
+    let Some(owner) = RETAINED_SCAN_TASKS.get() else {
+        return;
+    };
+    let mut tasks = owner
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reap_finished_owned_scan_tasks(&mut tasks);
+}
+
+/// 保留无法在同步 Drop 中确认终态的真实句柄，直至后续观察或进程退出。
+fn retain_process_scan_tasks(tasks: Vec<OwnedScanTask>) {
+    if tasks.is_empty() {
+        return;
+    }
+    let owner = RETAINED_SCAN_TASKS.get_or_init(|| Mutex::new(Vec::new()));
+    let mut retained = owner
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reap_finished_owned_scan_tasks(&mut retained);
+    retained.extend(tasks);
 }
 
 #[cfg(test)]
@@ -351,6 +473,114 @@ mod tests {
             "shutdown must not return before the aborted future is reaped"
         );
         assert_eq!(owner.owned_task_count(), 0);
+    }
+
+    /// shutdown future 被真实取消时，局部批次必须把句柄交还 owner 并可再次回收。
+    #[tokio::test]
+    async fn cancelling_shutdown_future_restores_scan_task_to_owner() {
+        let owner = std::sync::Arc::new(ScanTaskOwner::new(LocalScanCoordinator::default()));
+        let cancellation = ScanCancellation::new();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (dropped_tx, dropped_rx) = tokio::sync::oneshot::channel();
+        owner
+            .spawn(cancellation.clone(), move |_shutdown| async move {
+                let _drop_signal = DropSignal(Some(dropped_tx));
+                let _ = started_tx.send(());
+                std::future::pending::<()>().await;
+            })
+            .expect("scan task is registered");
+        started_rx.await.expect("scan task starts");
+
+        let shutdown_owner = std::sync::Arc::clone(&owner);
+        let shutdown_task = tokio::spawn(async move {
+            shutdown_owner
+                .shutdown_with_timeout(Duration::from_millis(100))
+                .await;
+        });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while owner.owned_task_count() != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("shutdown batch takes the scan handle");
+
+        shutdown_task.abort();
+        let join_error = shutdown_task
+            .await
+            .expect_err("shutdown task is deterministically cancelled");
+        assert!(join_error.is_cancelled());
+        assert_eq!(owner.owned_task_count(), 1);
+        assert!(cancellation.is_cancelled());
+
+        owner.shutdown_with_timeout(Duration::ZERO).await;
+        dropped_rx
+            .await
+            .expect("restored scan task is aborted and reaches terminal state");
+        owner.shutdown_with_timeout(Duration::ZERO).await;
+        assert_eq!(owner.owned_task_count(), 0);
+    }
+
+    /// 关闭批次建立后的 panic 必须经 Drop 恢复全部未终态句柄。
+    #[tokio::test]
+    async fn panic_after_taking_shutdown_batch_restores_scan_task_to_owner() {
+        let owner = ScanTaskOwner::new(LocalScanCoordinator::default());
+        owner
+            .spawn(ScanCancellation::new(), |_shutdown| async {
+                std::future::pending::<()>().await;
+            })
+            .expect("scan task is registered");
+
+        let (batch, _) = owner.begin_shutdown_with_deadline(Duration::from_millis(100));
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _batch = batch;
+            panic!("expected shutdown panic");
+        }));
+
+        assert!(unwind.is_err());
+        assert_eq!(owner.owned_task_count(), 1);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while owner.owned_task_count() != 0 {
+                owner.shutdown_with_timeout(Duration::ZERO).await;
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("panic-restored scan task is eventually reaped");
+        assert_eq!(owner.owned_task_count(), 0);
+    }
+
+    /// owner Drop 时 abort 未结束任务后，句柄必须转交进程级稳定 owner 再观察终态。
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn drop_transfers_unfinished_scan_task_to_process_owner() {
+        use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+
+        let owner = ScanTaskOwner::new(LocalScanCoordinator::default());
+        let release = std::sync::Arc::new(AtomicBool::new(false));
+        let task_release = std::sync::Arc::clone(&release);
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        owner
+            .spawn(ScanCancellation::new(), move |_shutdown| async move {
+                let _ = started_tx.send(());
+                while !task_release.load(AtomicOrdering::Acquire) {
+                    std::hint::spin_loop();
+                }
+            })
+            .expect("non-yielding scan task is registered");
+        let registration_id = owner.lock_state().tasks[0].registration_id;
+        started_rx.await.expect("non-yielding scan task starts");
+
+        drop(owner);
+
+        assert!(ScanTaskOwner::process_owns_task(registration_id));
+        release.store(true, AtomicOrdering::Release);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while ScanTaskOwner::process_owns_task(registration_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("process owner observes and reaps the terminal scan task");
     }
 
     /// 验证关闭会等待由 Tauri command 直接 await 的扫描退出，并拒绝关闭后的新命令。

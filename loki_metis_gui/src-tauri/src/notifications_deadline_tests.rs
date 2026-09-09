@@ -20,7 +20,7 @@ fn test_worker(shutdown: watch::Sender<bool>, task: JoinHandle<()>) -> Notificat
     NotificationWorker {
         sender: Mutex::new(Some(sender)),
         shutdown,
-        task: Mutex::new(Some(task)),
+        tasks: NotificationWorkerTaskOwner::new(task),
     }
 }
 
@@ -70,6 +70,123 @@ async fn system_notification_worker_observes_shutdown_broadcast() {
         .await
         .expect("worker receives cooperative shutdown");
     assert!(worker.is_reaped());
+}
+
+/// 关闭 future 被取消时，未终态句柄必须回存 owner，且后续关闭沿原预算回收。
+#[tokio::test]
+async fn cancelling_notification_shutdown_restores_handle_to_owner() {
+    let (shutdown, mut shutdown_observer) = watch::channel(false);
+    let (dropped_tx, mut dropped_rx) = oneshot::channel();
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let task = tauri::async_runtime::spawn(async move {
+        let _drop_signal = DropSignal(Some(dropped_tx));
+        let _ = started_tx.send(());
+        let _ = release_rx.await;
+    });
+    let worker = Arc::new(test_worker(shutdown, task));
+    started_rx.await.expect("notification worker starts");
+
+    let shutdown_worker = Arc::clone(&worker);
+    let shutdown_task = tokio::spawn(async move {
+        shutdown_worker
+            .shutdown_with_timeout(Duration::from_secs(10))
+            .await;
+    });
+    shutdown_observer
+        .changed()
+        .await
+        .expect("shutdown broadcasts after the guard owns the handle");
+    shutdown_task.abort();
+    let join_error = shutdown_task
+        .await
+        .expect_err("shutdown task is deterministically cancelled");
+    assert!(join_error.is_cancelled());
+
+    assert_eq!(worker.owned_task_count(), 1);
+    assert!(matches!(
+        dropped_rx.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    let first_schedule = worker
+        .shutdown_schedule()
+        .expect("first shutdown freezes its shared deadline");
+
+    release_tx.send(()).expect("worker remains owned and alive");
+    worker.shutdown_with_timeout(Duration::from_secs(30)).await;
+
+    dropped_rx
+        .await
+        .expect("subsequent shutdown observes the restored task terminal state");
+    assert!(worker.is_reaped());
+    assert_eq!(worker.shutdown_schedule(), Some(first_schedule));
+}
+
+/// 关闭守卫经历 panic 展开时同样必须把未终态句柄交还原 owner。
+#[tokio::test]
+async fn panic_during_notification_shutdown_restores_handle_to_owner() {
+    let (shutdown, _shutdown_observer) = watch::channel(false);
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let task = tauri::async_runtime::spawn(async move {
+        let _ = started_tx.send(());
+        let _ = release_rx.await;
+    });
+    let worker = test_worker(shutdown, task);
+    started_rx.await.expect("notification worker starts");
+
+    let (batch, _) = worker.begin_shutdown(Duration::from_secs(10));
+    let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+        let _batch = batch;
+        panic!("expected notification shutdown panic");
+    }));
+    assert!(unwind.is_err());
+    assert_eq!(worker.owned_task_count(), 1);
+
+    release_tx
+        .send(())
+        .expect("panic-restored task remains alive");
+    worker.shutdown_with_timeout(Duration::from_secs(30)).await;
+    assert!(worker.is_reaped());
+}
+
+/// Drop 遇到不可让出 poll 时必须把 abort 后原句柄交给进程 owner，直至真实终态。
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_notification_worker_retains_unyielding_handle_until_terminal() {
+    let release = Arc::new(AtomicBool::new(false));
+    let task_release = Arc::clone(&release);
+    let (dropped_tx, mut dropped_rx) = oneshot::channel();
+    let (started_tx, started_rx) = oneshot::channel();
+    let task = tauri::async_runtime::spawn(async move {
+        let _drop_signal = DropSignal(Some(dropped_tx));
+        let _ = started_tx.send(());
+        while !task_release.load(Ordering::Acquire) {
+            std::hint::spin_loop();
+        }
+    });
+    let task_id = task.inner().id();
+    let (shutdown, _shutdown_receiver) = watch::channel(false);
+    let worker = test_worker(shutdown, task);
+    started_rx.await.expect("notification worker starts");
+
+    drop(worker);
+
+    assert!(retained_notification_owner_owns_task(task_id));
+    assert!(matches!(
+        dropped_rx.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    release.store(true, Ordering::Release);
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while retained_notification_owner_owns_task(task_id) {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("retained owner reaps the handle after its future reaches terminal state");
+    dropped_rx
+        .await
+        .expect("unyielding worker future is dropped only after release");
 }
 
 /// 满队列不得让调用方无限等待；排队本身消费同一个操作截止时间。

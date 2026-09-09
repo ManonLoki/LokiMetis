@@ -10,6 +10,15 @@ use tauri::async_runtime::JoinHandle;
 use tauri::{Emitter, Manager};
 use tokio::sync::{mpsc, oneshot, watch};
 
+#[path = "notifications_worker_owner.rs"]
+mod notifications_worker_owner;
+
+#[cfg(test)]
+use notifications_worker_owner::retained_notification_owner_owns_task;
+use notifications_worker_owner::{
+    NotificationShutdownSchedule, NotificationShutdownTaskBatchGuard, NotificationWorkerTaskOwner,
+};
+
 #[cfg(not(target_os = "macos"))]
 use crate::runtime::AppRuntimeState;
 use crate::settings::HostSettingsState;
@@ -174,7 +183,7 @@ enum NotificationCommand {
 pub(crate) struct NotificationWorker {
     sender: Mutex<Option<mpsc::Sender<NotificationCommand>>>,
     shutdown: watch::Sender<bool>,
-    task: Mutex<Option<JoinHandle<()>>>,
+    tasks: NotificationWorkerTaskOwner,
 }
 
 impl NotificationWorker {
@@ -195,51 +204,57 @@ impl NotificationWorker {
 
     /// 使用可注入总时限关闭 worker，供生产门限与快速回归复用。
     async fn shutdown_with_timeout(&self, timeout: Duration) {
+        let (mut batch, schedule) = self.begin_shutdown(timeout);
+
+        reap_notification_worker_tasks_until(&mut batch.tasks, schedule.cooperative_deadline).await;
+        for task in &batch.tasks {
+            task.abort();
+        }
+        reap_notification_worker_tasks_until(&mut batch.tasks, schedule.final_deadline).await;
+        if !batch.tasks.is_empty() {
+            tracing::error!(
+                task_count = batch.tasks.len(),
+                "notification worker did not reach a terminal state after bounded abort"
+            );
+        }
+        // batch 正常返回时也会把超时句柄交还 owner；取消与 panic 走同一路径。
+    }
+
+    /// 原子接管当前句柄并冻结首次关闭时限，随后才广播取消。
+    fn begin_shutdown(
+        &self,
+        timeout: Duration,
+    ) -> (
+        NotificationShutdownTaskBatchGuard<'_>,
+        NotificationShutdownSchedule,
+    ) {
         self.sender
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take();
+        let (batch, schedule) = self
+            .tasks
+            .begin_shutdown(timeout, NOTIFICATION_SHUTDOWN_ABORT_REAP_BUDGET);
         let _ = self.shutdown.send(true);
-        let task = self
-            .task
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take();
-
-        let final_deadline = tokio::time::Instant::now() + timeout;
-        let abort_reap_budget = NOTIFICATION_SHUTDOWN_ABORT_REAP_BUDGET.min(timeout / 2);
-        let cooperative_deadline = final_deadline
-            .checked_sub(abort_reap_budget)
-            .unwrap_or(final_deadline);
-        if let Some(mut task) = task {
-            match tokio::time::timeout_at(cooperative_deadline, &mut task).await {
-                Ok(result) => log_notification_worker_join_result(result),
-                Err(_) => {
-                    task.abort();
-                    match tokio::time::timeout_at(final_deadline, &mut task).await {
-                        Ok(result) => log_notification_worker_join_result(result),
-                        Err(_) => {
-                            tracing::error!(
-                                "notification worker did not reach a terminal state after bounded abort"
-                            );
-                            *self
-                                .task
-                                .lock()
-                                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(task);
-                        }
-                    }
-                }
-            }
-        }
+        (batch, schedule)
     }
 
     /// 返回 worker 是否已被真实回收。
     #[cfg(test)]
     fn is_reaped(&self) -> bool {
-        self.task
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .is_none()
+        self.tasks.task_count() == 0
+    }
+
+    /// 返回稳定 owner 当前持有的 worker 句柄数。
+    #[cfg(test)]
+    fn owned_task_count(&self) -> usize {
+        self.tasks.task_count()
+    }
+
+    /// 返回首次关闭冻结的时限，供重复调用预算回归验证。
+    #[cfg(test)]
+    fn shutdown_schedule(&self) -> Option<NotificationShutdownSchedule> {
+        self.tasks.shutdown_schedule()
     }
 }
 
@@ -251,14 +266,7 @@ impl Drop for NotificationWorker {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take();
         let _ = self.shutdown.send(true);
-        if let Some(task) = self
-            .task
-            .get_mut()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take()
-        {
-            task.abort();
-        }
+        self.tasks.abort_and_retain_all();
     }
 }
 
@@ -268,6 +276,29 @@ fn log_notification_worker_join_result(result: tauri::Result<()>) {
         Ok(()) => {}
         Err(tauri::Error::JoinError(error)) if error.is_cancelled() => {}
         Err(error) => tracing::warn!(%error, "notification worker stopped unexpectedly"),
+    }
+}
+
+/// 在共享截止时间前等待并移除已终态 worker 句柄，未终态项持续由 batch 持有。
+async fn reap_notification_worker_tasks_until(
+    tasks: &mut Vec<JoinHandle<()>>,
+    deadline: tokio::time::Instant,
+) {
+    let mut index = 0;
+    while index < tasks.len() {
+        let result = if tasks[index].inner().is_finished() {
+            Some((&mut tasks[index]).await)
+        } else {
+            tokio::time::timeout_at(deadline, &mut tasks[index])
+                .await
+                .ok()
+        };
+        if let Some(result) = result {
+            let _terminal_task = tasks.swap_remove(index);
+            log_notification_worker_join_result(result);
+        } else {
+            index += 1;
+        }
     }
 }
 
@@ -388,7 +419,7 @@ pub(crate) fn install_notification_worker(app: &tauri::AppHandle) {
     app.manage(NotificationWorker {
         sender: Mutex::new(Some(sender)),
         shutdown,
-        task: Mutex::new(Some(task)),
+        tasks: NotificationWorkerTaskOwner::new(task),
     });
 }
 

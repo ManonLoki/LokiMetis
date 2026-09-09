@@ -23,7 +23,7 @@ use super::AppError;
 const STORE_ACTIVATION_TOTAL_TIMEOUT: Duration = Duration::from_secs(15);
 const STORE_ACTIVATION_FINAL_CANCEL_BUDGET: Duration = Duration::from_secs(2);
 const ACTIVATION_PHASE_COM_CALL: u8 = 1;
-const ACTIVATION_PHASE_FINISHED: u8 = 2;
+const ACTIVATION_PHASE_OUTCOME_READY: u8 = 2;
 
 /// Store 激活调用已经返回时的可观察结果。
 pub(super) type StoreActivationResult = Result<(), StoreActivationFailure>;
@@ -107,9 +107,9 @@ impl StoreActivationControl {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(outcome);
     }
 
-    /// 仅在线程已到达完成 phase 后取走一次终态结果。
+    /// 仅在线程发布结果 phase 后取走一次终态结果；该 phase 不代表原生线程已退出。
     fn take_outcome(&self) -> Option<StoreActivationResult> {
-        if self.phase.load(Ordering::Acquire) != ACTIVATION_PHASE_FINISHED {
+        if self.phase.load(Ordering::Acquire) != ACTIVATION_PHASE_OUTCOME_READY {
             return None;
         }
         self.outcome
@@ -122,7 +122,7 @@ impl StoreActivationControl {
 /// owner 持有仍可能位于 COM 内的原生线程句柄。
 struct OwnedStoreActivation {
     id: u64,
-    _handle: JoinHandle<()>,
+    handle: JoinHandle<()>,
 }
 
 #[derive(Default)]
@@ -139,6 +139,42 @@ struct StoreActivationOwner {
 }
 
 impl StoreActivationOwner {
+    /// 只在目标线程已经终止后从 owner 取出并 join，绝不等待仍在运行的线程。
+    fn reap_finished_locked(
+        state: &mut StoreActivationOwnerState,
+        expected_id: Option<u64>,
+    ) -> bool {
+        let Some(task) = state.task.as_ref() else {
+            return false;
+        };
+        if expected_id.is_some_and(|expected_id| task.id != expected_id)
+            || !task.handle.is_finished()
+        {
+            return false;
+        }
+
+        let task = state
+            .task
+            .take()
+            .expect("finished Store activation remains registered");
+        if task.handle.join().is_err() {
+            tracing::warn!(
+                activation_id = task.id,
+                "Store activation thread panicked outside its guarded operation"
+            );
+        }
+        true
+    }
+
+    /// 从外部调用线程回收一个已经终止的指定工作线程。
+    fn reap_finished(&self, expected_id: u64) -> bool {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Self::reap_finished_locked(&mut state, Some(expected_id))
+    }
+
     /// 在登记句柄后才放行线程，消除“线程先结束、句柄后登记”的竞态。
     fn start<Operation>(
         self: &Arc<Self>,
@@ -147,10 +183,38 @@ impl StoreActivationOwner {
     where
         Operation: FnOnce(Arc<StoreActivationControl>) -> StoreActivationResult + Send + 'static,
     {
+        self.start_inner(operation, || {})
+    }
+
+    #[cfg(test)]
+    /// 为回归测试在结果发布与原生线程退出之间插入可控尾段。
+    fn start_with_worker_tail<Operation, WorkerTail>(
+        self: &Arc<Self>,
+        operation: Operation,
+        worker_tail: WorkerTail,
+    ) -> Result<StoreActivationLease, StoreActivationLifecycleFailure>
+    where
+        Operation: FnOnce(Arc<StoreActivationControl>) -> StoreActivationResult + Send + 'static,
+        WorkerTail: FnOnce() + Send + 'static,
+    {
+        self.start_inner(operation, worker_tail)
+    }
+
+    /// 创建受管工作线程，并在结果发布后运行仅由调用方提供的有界尾段。
+    fn start_inner<Operation, WorkerTail>(
+        self: &Arc<Self>,
+        operation: Operation,
+        worker_tail: WorkerTail,
+    ) -> Result<StoreActivationLease, StoreActivationLifecycleFailure>
+    where
+        Operation: FnOnce(Arc<StoreActivationControl>) -> StoreActivationResult + Send + 'static,
+        WorkerTail: FnOnce() + Send + 'static,
+    {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Self::reap_finished_locked(&mut state, None);
         if state.task.is_some() {
             return Err(StoreActivationLifecycleFailure::Busy);
         }
@@ -158,7 +222,6 @@ impl StoreActivationOwner {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed) + 1;
         let control = Arc::new(StoreActivationControl::default());
         let worker_control = Arc::clone(&control);
-        let worker_owner = Arc::clone(self);
         let registration = Arc::new(AtomicBool::new(false));
         let worker_registration = Arc::clone(&registration);
         let handle = thread::Builder::new()
@@ -171,16 +234,13 @@ impl StoreActivationOwner {
                     catch_unwind(AssertUnwindSafe(|| operation(Arc::clone(&worker_control))))
                         .unwrap_or(Err(StoreActivationFailure::WorkerPanicked));
                 worker_control.store_outcome(outcome);
-                worker_owner.finish_from_worker(id);
                 worker_control
                     .phase
-                    .store(ACTIVATION_PHASE_FINISHED, Ordering::Release);
+                    .store(ACTIVATION_PHASE_OUTCOME_READY, Ordering::Release);
+                worker_tail();
             })
             .map_err(|_| StoreActivationLifecycleFailure::ThreadStart)?;
-        state.task = Some(OwnedStoreActivation {
-            id,
-            _handle: handle,
-        });
+        state.task = Some(OwnedStoreActivation { id, handle });
         registration.store(true, Ordering::Release);
         drop(state);
         Ok(StoreActivationLease {
@@ -189,17 +249,6 @@ impl StoreActivationOwner {
             control,
             completed: false,
         })
-    }
-
-    /// 由工作线程在最后一步移除并关闭自身 JoinHandle；阻塞期间句柄始终归 owner 所有。
-    fn finish_from_worker(&self, id: u64) {
-        let mut state = self
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if state.task.as_ref().is_some_and(|task| task.id == id) {
-            state.task.take();
-        }
     }
 
     #[cfg(test)]
@@ -239,6 +288,7 @@ impl StoreActivationLease {
         loop {
             if let Some(outcome) = self.control.take_outcome() {
                 self.completed = true;
+                self.owner.reap_finished(self.id);
                 return Ok(outcome);
             }
             if tokio::time::Instant::now() >= cancel_deadline {
@@ -255,6 +305,7 @@ impl StoreActivationLease {
         loop {
             if let Some(outcome) = self.control.take_outcome() {
                 self.completed = true;
+                self.owner.reap_finished(self.id);
                 return Ok(outcome);
             }
             if tokio::time::Instant::now() >= final_deadline {
@@ -423,6 +474,16 @@ mod tests {
     use std::sync::mpsc;
     use std::time::Instant;
 
+    /// 在有限时间内由测试调用线程 join 已终止的指定 Store 激活线程。
+    fn reap_owned_task_until_terminal(owner: &StoreActivationOwner, id: u64) {
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while owner.owned_task_count() != 0 && Instant::now() < deadline {
+            owner.reap_finished(id);
+            thread::park_timeout(Duration::from_millis(1));
+        }
+        assert_eq!(owner.owned_task_count(), 0);
+    }
+
     #[tokio::test]
     /// 工作线程返回的业务失败必须原样送达等待方并完成回收。
     async fn worker_failure_is_returned_to_the_caller() {
@@ -430,6 +491,7 @@ mod tests {
         let lease = owner
             .start(|_| Err(StoreActivationFailure::ManagerCreation))
             .expect("worker starts");
+        let id = lease.id;
 
         let outcome = lease
             .wait(Duration::from_secs(1), Duration::from_millis(50))
@@ -437,7 +499,7 @@ mod tests {
             .expect("lifecycle completes");
 
         assert_eq!(outcome, Err(StoreActivationFailure::ManagerCreation));
-        assert_eq!(owner.owned_task_count(), 0);
+        reap_owned_task_until_terminal(owner.as_ref(), id);
     }
 
     #[tokio::test]
@@ -447,6 +509,7 @@ mod tests {
         let lease = owner
             .start(|_| panic!("simulated activation panic"))
             .expect("worker starts");
+        let id = lease.id;
 
         let outcome = lease
             .wait(Duration::from_secs(1), Duration::from_millis(50))
@@ -454,7 +517,7 @@ mod tests {
             .expect("lifecycle completes");
 
         assert_eq!(outcome, Err(StoreActivationFailure::WorkerPanicked));
-        assert_eq!(owner.owned_task_count(), 0);
+        reap_owned_task_until_terminal(owner.as_ref(), id);
     }
 
     #[tokio::test]
@@ -469,15 +532,11 @@ mod tests {
                 Err(StoreActivationFailure::Cancelled)
             })
             .expect("worker starts");
+        let id = lease.id;
         assert_eq!(owner.owned_task_count(), 1);
 
         drop(lease);
-        let deadline = Instant::now() + Duration::from_secs(1);
-        while owner.owned_task_count() != 0 && Instant::now() < deadline {
-            thread::park_timeout(Duration::from_millis(1));
-        }
-
-        assert_eq!(owner.owned_task_count(), 0);
+        reap_owned_task_until_terminal(owner.as_ref(), id);
     }
 
     #[tokio::test]
@@ -491,6 +550,7 @@ mod tests {
                 Err(StoreActivationFailure::Cancelled)
             })
             .expect("worker starts");
+        let id = lease.id;
         let started_at = Instant::now();
 
         let result = lease
@@ -505,11 +565,7 @@ mod tests {
         assert_eq!(owner.owned_task_count(), 1);
 
         release_tx.send(()).expect("release worker");
-        let deadline = Instant::now() + Duration::from_secs(1);
-        while owner.owned_task_count() != 0 && Instant::now() < deadline {
-            thread::park_timeout(Duration::from_millis(1));
-        }
-        assert_eq!(owner.owned_task_count(), 0);
+        reap_owned_task_until_terminal(owner.as_ref(), id);
     }
 
     #[test]
@@ -523,6 +579,7 @@ mod tests {
                 Ok(())
             })
             .expect("first worker starts");
+        let id = first.id;
 
         assert!(matches!(
             owner.start(|_| Ok(())),
@@ -531,10 +588,61 @@ mod tests {
 
         release_tx.send(()).expect("release first worker");
         drop(first);
+        reap_owned_task_until_terminal(owner.as_ref(), id);
+    }
+
+    #[tokio::test]
+    /// 结果发布后的尾段仍必须保留句柄，线程退出后才允许下一次 start 回收并继续。
+    async fn published_outcome_does_not_detach_the_worker_tail() {
+        let owner = Arc::new(StoreActivationOwner::default());
+        let (release_tx, release_rx) = mpsc::channel();
+        let tail_finished = Arc::new(AtomicBool::new(false));
+        let worker_tail_finished = Arc::clone(&tail_finished);
+        let first = owner
+            .start_with_worker_tail(
+                |_| Ok(()),
+                move || {
+                    let _ = release_rx.recv();
+                    worker_tail_finished.store(true, Ordering::Release);
+                },
+            )
+            .expect("first worker starts");
+
+        let outcome = first
+            .wait(Duration::from_secs(1), Duration::from_millis(50))
+            .await
+            .expect("published outcome remains observable");
+
+        assert_eq!(outcome, Ok(()));
+        assert!(!tail_finished.load(Ordering::Acquire));
+        assert_eq!(owner.owned_task_count(), 1);
+        assert!(matches!(
+            owner.start(|_| Ok(())),
+            Err(StoreActivationLifecycleFailure::Busy)
+        ));
+
+        release_tx.send(()).expect("release worker tail");
         let deadline = Instant::now() + Duration::from_secs(1);
-        while owner.owned_task_count() != 0 && Instant::now() < deadline {
-            thread::park_timeout(Duration::from_millis(1));
-        }
-        assert_eq!(owner.owned_task_count(), 0);
+        let second = loop {
+            match owner.start(|_| Ok(())) {
+                Ok(lease) => break lease,
+                Err(StoreActivationLifecycleFailure::Busy) if Instant::now() < deadline => {
+                    thread::park_timeout(Duration::from_millis(1));
+                }
+                Err(error) => {
+                    panic!("next start did not reap the terminal worker: {error:?}")
+                }
+            }
+        };
+        let second_id = second.id;
+        assert!(tail_finished.load(Ordering::Acquire));
+        assert_eq!(
+            second
+                .wait(Duration::from_secs(1), Duration::from_millis(50))
+                .await
+                .expect("second lifecycle completes"),
+            Ok(())
+        );
+        reap_owned_task_until_terminal(owner.as_ref(), second_id);
     }
 }
