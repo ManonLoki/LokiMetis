@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "releases": [
     {
-      "releaseDate": "2026-09-09",
-      "version": "v0.2.22",
+      "releaseDate": "2026-09-10",
+      "version": "v0.2.41",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
@@ -48,44 +48,44 @@
       ],
       "bugFixes": [
         {
-          "zh-CN": "修复“全部”视图纳入未配置 Agent、默认落点不稳定和不适用子路由残留的问题。",
-          "en-US": "Fixed the All view including unconfigured Agents, unstable default landing, and stale inapplicable subroutes."
+          "zh-CN": "修复“全部”视图纳入未配置 Agent、默认路由漂移，以及设置、数据源、监控和换肤页面在查询失败或 Agent 切换后沿用过期状态的问题。",
+          "en-US": "Fixed the All view including unconfigured Agents, default-route drift, and stale state in Settings, Sources, Monitor, and Skins after query failures or Agent switches."
         },
         {
-          "zh-CN": "修复 Hooks 中继、分段读取与会话生命周期不一致导致部分 AI 消息无法监听的问题。",
-          "en-US": "Fixed missed AI events caused by Hook relay, partial-read, and session-lifecycle inconsistencies."
+          "zh-CN": "修复开机自启开关错误传递查询上下文、回读失败无法恢复，以及 macOS 通知授权和有界投递状态不同步的问题。",
+          "en-US": "Fixed autostart passing query context to host commands, switch state failing to recover after readback errors, and stale macOS notification authorization or bounded-delivery state."
+        },
+        {
+          "zh-CN": "修复生产构建中的 CSS 条件色兼容与样式入口裁剪，避免主题、导航、用量看板和监控界面丢失样式。",
+          "en-US": "Fixed production CSS conditional-color compatibility and entry pruning so themes, navigation, usage dashboards, and monitoring views keep their styles."
+        },
+        {
+          "zh-CN": "修复 Hooks 中继分段读取、配置原子写入与迁移、连接上限及 WSL/关机生命周期竞态，避免遗漏 AI 消息或残留进程。",
+          "en-US": "Fixed Hook relay partial reads, atomic configuration writes and migrations, connection limits, and WSL/shutdown lifecycle races that could miss AI events or leave processes behind."
         },
         {
           "zh-CN": "修复桌宠冷启动占位、图片协议、位置绑定、托盘显隐和设置窗生命周期问题。",
           "en-US": "Fixed desktop pet cold-start placeholders, image protocol handling, position binding, tray visibility, and settings-window lifecycle."
         },
         {
-          "zh-CN": "修复自定义 Cargo 构建目录下打包资源解析失败导致的启动崩溃。",
-          "en-US": "Fixed a startup crash caused by bundled-resource resolution under custom Cargo target directories."
+          "zh-CN": "修复扫描、保留清理与本机索引任务的所有权、取消和单写入隔离，防止旧进度污染新任务、数据库争用和退出挂起。",
+          "en-US": "Fixed ownership, cancellation, and single-writer isolation for scans, retention cleanup, and local indexing to prevent stale progress, database contention, and shutdown hangs."
         },
         {
-          "zh-CN": "修复扫描任务生命周期隔离和退出取消竞态，防止旧进度污染新扫描，并降低扫描汇总内存峰值。",
-          "en-US": "Fixed scan-task lifecycle isolation and shutdown cancellation races, prevented stale progress from contaminating later scans, and reduced scan-summary memory peaks."
+          "zh-CN": "修复元数据与手动数据源发现的有限预算、共享取消、截止时间和迟到结果隔离，避免扫描超时后继续写入旧状态。",
+          "en-US": "Fixed bounded budgets, shared cancellation, deadlines, and late-result isolation in metadata and manual source discovery so timed-out scans cannot overwrite current state."
         },
         {
-          "zh-CN": "修复应用包版本、发布资源与 DMG 安装布局偏离根版本和 GUI 规范的问题。",
-          "en-US": "Fixed app bundle version, release resource, and DMG layout drift from the root version and GUI contract."
+          "zh-CN": "修复自定义 Cargo 资源解析、版本载体、Windows WMI、图标与原生对话框，以及 DMG 安装布局的打包漂移。",
+          "en-US": "Fixed packaging drift across custom Cargo resource resolution, version carriers, Windows WMI, icons and native dialogs, and the DMG installation layout."
         },
         {
-          "zh-CN": "修复 Windows 构建中 WMI 绑定版本冲突和 WorkBuddy 可执行文件发现类型推断失败。",
-          "en-US": "Fixed Windows build failures caused by conflicting WMI bindings and WorkBuddy executable-discovery type inference."
+          "zh-CN": "修复 Windows Codex 与 WorkBuddy 换肤的可信可执行文件、商店激活、端口和进程树绑定，并为旧版脚本保留明确的一次性确认。",
+          "en-US": "Fixed trusted executable, Store activation, port, and process-tree binding for Windows Codex and WorkBuddy skins while retaining explicit one-time consent for legacy scripts."
         },
         {
-          "zh-CN": "修复设置页把查询上下文误当作更新日志调用器，导致候选内更新日志无法打开。",
-          "en-US": "Fixed Settings treating query context as the release-notes invoker, which prevented bundled candidate notes from opening."
-        },
-        {
-          "zh-CN": "修复 Windows 安装器、卸载器、快捷方式与已安装应用可能使用错误图标，以及缺少 Common Controls v6 清单导致原生对话框加载失败的问题。",
-          "en-US": "Fixed incorrect icons across the Windows installer, uninstaller, shortcuts, and installed-app surfaces, plus native-dialog load failures caused by a missing Common Controls v6 manifest."
-        },
-        {
-          "zh-CN": "修复 WorkBuddy 换肤注入与清理；旧版脚本现在要求明确的一次性第三方代码确认，macOS 调试端口还会绑定唯一可信进程树。",
-          "en-US": "Fixed WorkBuddy skin injection and cleanup; legacy scripts now require explicit one-time third-party code consent, and macOS debugging ports are bound to one trusted process tree."
+          "zh-CN": "修复 macOS 换肤签名、资源和进程所有权，以及安装、重启、导入、文件管理、watcher 与 CDP handler 在取消、回滚和跨代切换时的清理竞态。",
+          "en-US": "Fixed macOS skin signing, resource, and process ownership plus cleanup races across install, restart, import, file management, watchers, and CDP handlers during cancellation, rollback, and generation changes."
         }
       ]
     }
