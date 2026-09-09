@@ -32,7 +32,7 @@ class TestResizeObserver implements ResizeObserver {
   unobserve(): void {}
 }
 
-/** 创建只包含品牌支持 namespace 的真实 i18next 测试实例。 */
+/** 创建只包含 GUI 支持 namespace 的真实 i18next 测试实例。 */
 async function createTestI18n(locale: "zh-CN" | "en-US"): Promise<i18n> {
   const instance = createInstance();
   await instance.init({
@@ -40,8 +40,8 @@ async function createTestI18n(locale: "zh-CN" | "en-US"): Promise<i18n> {
     interpolation: { escapeValue: false },
     lng: locale,
     resources: {
-      "en-US": { brandSupport: enUS },
-      "zh-CN": { brandSupport: zhCN },
+      "en-US": { guiSupport: enUS },
+      "zh-CN": { guiSupport: zhCN },
     },
   });
   return instance;

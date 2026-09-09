@@ -39,21 +39,16 @@ import {
   APP_THEME,
   APP_THEME_CSS_VARIABLES,
 } from "./AppThemeProviderTemplate";
-import { SponsorPageTemplate } from "./SponsorPageTemplate";
-import { SupportMedia } from "./SupportMedia";
 import { SettingsPageTemplate } from "./SettingsPageTemplate";
 import {
-  BRAND_SUPPORT_PROFILE,
-  formatBrandWindowTitle,
-  isLocalSupportPath,
-  resolveBrandAssetPath,
-} from "./brandSupportProfile";
-import { formatDisplayVersion } from "./displayVersion";
+  formatAppWindowTitle,
+  formatDisplayVersion,
+} from "./displayVersion";
 import {
   MAX_VISIBLE_RELEASE_NOTE_ITEMS,
   MAX_VISIBLE_RELEASE_NOTE_VERSIONS,
 } from "./releaseNotes";
-import { buildSupportNavigationItems } from "./supportNavigation";
+import { FIXED_SUPPORT_NAVIGATION_ITEMS } from "./supportNavigation";
 
 /** 为 jsdom 补齐 Mantine 布局组件依赖的只读观察器。 */
 class TestResizeObserver implements ResizeObserver {
@@ -67,7 +62,7 @@ class TestResizeObserver implements ResizeObserver {
   unobserve(): void {}
 }
 
-/** 创建只包含品牌支持 namespace 的真实 i18next 测试实例。 */
+/** 创建只包含 GUI 支持 namespace 的真实 i18next 测试实例。 */
 async function createTestI18n(locale: "zh-CN" | "en-US"): Promise<i18n> {
   const instance = createInstance();
   await instance.init({
@@ -75,8 +70,8 @@ async function createTestI18n(locale: "zh-CN" | "en-US"): Promise<i18n> {
     interpolation: { escapeValue: false },
     lng: locale,
     resources: {
-      "en-US": { brandSupport: enUS },
-      "zh-CN": { brandSupport: zhCN },
+      "en-US": { guiSupport: enUS },
+      "zh-CN": { guiSupport: zhCN },
     },
   });
   return instance;
@@ -96,7 +91,7 @@ async function renderTemplate(
   );
 }
 
-describe("shared brand support templates", () => {
+describe("shared GUI support templates", () => {
   beforeEach(() => {
     window.localStorage.clear();
     Object.defineProperty(globalThis, "ResizeObserver", {
@@ -124,41 +119,26 @@ describe("shared brand support templates", () => {
 
   /** 窗口标题始终只使用当前应用名和权威版本。 */
   it("formats the fixed dynamic window title from authoritative inputs", () => {
-    expect(formatBrandWindowTitle("Example Utility", "3.4.5")).toBe(
+    expect(formatAppWindowTitle("Example Utility", "3.4.5")).toBe(
       "Example Utility v3.4.5",
     );
-    expect(formatBrandWindowTitle("Example Utility", "vv3.4.5")).toBe(
+    expect(formatAppWindowTitle("Example Utility", "vv3.4.5")).toBe(
       "Example Utility v3.4.5",
     );
     expect(formatDisplayVersion("V3.4.5")).toBe("v3.4.5");
-    expect(() => formatBrandWindowTitle(" ", "3.4.5")).toThrow(
+    expect(() => formatAppWindowTitle(" ", "3.4.5")).toThrow(
       /application name and version/,
     );
-    expect(zhCN.navigation).toEqual({
-      settings: "设置",
-      sponsor: "赞助",
-    });
+    expect(zhCN.navigation).toEqual({ settings: "设置" });
     expect(zhCN.tray).toEqual({ quit: "退出", show_window: "显示窗口" });
-    expect(enUS.navigation).toEqual({
-      settings: "Settings",
-      sponsor: "Sponsor",
-    });
+    expect(enUS.navigation).toEqual({ settings: "Settings" });
     expect(enUS.tray).toEqual({ quit: "Quit", show_window: "Show Window" });
-    expect(
-      buildSupportNavigationItems({ sponsorPage: true }),
-    ).toEqual([
-      { id: "sponsor", labelKey: "navigation.sponsor", to: "/sponsor" },
+    expect(FIXED_SUPPORT_NAVIGATION_ITEMS).toEqual([
       { id: "settings", labelKey: "navigation.settings", to: "/settings" },
     ]);
-    expect(buildSupportNavigationItems({ sponsorPage: false })).toEqual([
-      { id: "settings", labelKey: "navigation.settings", to: "/settings" },
-    ]);
-    expect(BRAND_SUPPORT_PROFILE.contacts).toEqual({
-      support: { channel: "QQ", value: "2222980" },
-    });
   });
 
-  /** 共享品牌支持测试同时锚定系统通知与开机自启开关的固定契约名称。 */
+  /** 共享支持测试同时锚定系统通知与开机自启开关的固定契约名称。 */
   it("anchors the capability switch contract coverage in the shared support suite", async () => {
     const getSystemNotificationEnabled = vi.fn().mockResolvedValue(false);
     const getAutostartEnabled = vi.fn().mockResolvedValue(true);
@@ -199,7 +179,7 @@ describe("shared brand support templates", () => {
     ).toHaveAttribute("data-authoritative-state", "enabled");
   });
 
-  /** 固定侧栏保持功能项向下增长，并把赞助、设置按固定顺序贴底。 */
+  /** 固定侧栏保持功能项向下增长，并把设置入口贴底。 */
   it("renders the fixed sidebar with a visible version and fixed bottom order", async () => {
     const onNavigate = vi.fn();
     await renderTemplate(
@@ -223,7 +203,6 @@ describe("shared brand support templates", () => {
         logoSrc="/app-identity/logo.png"
         mode="compact"
         onNavigate={onNavigate}
-        supportPages={{ sponsorPage: true }}
         version="3.4.5"
       />,
     );
@@ -253,7 +232,7 @@ describe("shared brand support templates", () => {
       within(screen.getByTestId("fixed-bottom-navigation"))
         .getAllByRole("button")
         .map((item) => item.getAttribute("aria-label")),
-    ).toEqual(["赞助", "设置"]);
+    ).toEqual(["设置"]);
 
     fireEvent.click(screen.getByRole("button", { name: "任务" }));
     expect(onNavigate).toHaveBeenCalledWith("/jobs");
@@ -286,7 +265,6 @@ describe("shared brand support templates", () => {
         logoSrc="/app-identity/logo.png"
         mode="compact"
         onNavigate={vi.fn()}
-        supportPages={{ sponsorPage: true }}
         version="v9.8.7"
       />,
     );
@@ -314,7 +292,7 @@ describe("shared brand support templates", () => {
       alignItems: "center",
       width: "100%",
     });
-    for (const label of ["一二三四五六七八九十", "赞助", "设置"]) {
+    for (const label of ["一二三四五六七八九十", "设置"]) {
       const item = screen.getByRole("button", { name: label });
       expect(item).toHaveAttribute(
         "data-navigation-layout",
@@ -373,7 +351,6 @@ describe("shared brand support templates", () => {
           },
         ]}
         onNavigate={vi.fn()}
-        supportPages={{ sponsorPage: false }}
         version="1.2.3"
       >
         <Text>主内容</Text>
@@ -494,7 +471,7 @@ describe("shared brand support templates", () => {
     expect(screen.getByText("Example Utility")).toBeInTheDocument();
     expect(screen.getByText("版本 v3.4.5")).toBeInTheDocument();
     expect(screen.queryByText(/vv3\.4\.5/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/2222980/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/联系信息/)).not.toBeInTheDocument();
     expect(screen.queryByText("免责声明")).not.toBeInTheDocument();
   });
 
@@ -647,101 +624,5 @@ describe("shared brand support templates", () => {
     expect(
       screen.queryByRole("button", { name: /check for updates/i }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/QQ:2222980/)).not.toBeInTheDocument();
-  });
-
-  /** 赞助页展示三档固定价格、品牌联系人、档位插图和两种支付码。 */
-  it("renders the complete fixed sponsor profile with accessible payment images", async () => {
-    await renderTemplate(<SponsorPageTemplate />);
-
-    expect(screen.getByText("19")).toBeInTheDocument();
-    expect(screen.getByText("199")).toBeInTheDocument();
-    expect(screen.getByText("1999")).toBeInTheDocument();
-    expect(screen.getAllByText(/2222980/).length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("img", { name: "微信支付赞助二维码" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("img", { name: "支付宝赞助二维码" }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("article")).toHaveLength(3);
-    const pageStyle =
-      screen.getByTestId("brand-sponsor-page").getAttribute("style") ?? "";
-    expect(screen.getByTestId("brand-sponsor-page")).toHaveAttribute(
-      "data-color-scheme",
-      "light",
-    );
-    expect(pageStyle).not.toMatch(/min-width|pointer-events/i);
-  });
-
-  /** 英文深色方案复用同一品牌事实，并保持支付码可访问名称。 */
-  it("renders the same sponsor profile in English and dark color scheme", async () => {
-    await renderTemplate(<SponsorPageTemplate />, "en-US", "dark");
-
-    expect(screen.getByTestId("brand-sponsor-page")).toHaveAttribute(
-      "data-color-scheme",
-      "dark",
-    );
-    expect(screen.getAllByRole("article")).toHaveLength(3);
-    expect(
-      screen
-        .getAllByRole("article")
-        .every((card) => card.getAttribute("data-color-scheme") === "dark"),
-    ).toBe(true);
-    expect(
-      screen.getByRole("heading", {
-        name: "Freely Maintained by Shoucheng & Feiying Studio",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("CNY")).toHaveLength(3);
-    expect(
-      screen.getByRole("img", { name: "WeChat Pay sponsorship QR code" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("QQ 2222980")).toBeInTheDocument();
-  });
-
-  /** 本地视频始终带 controls、字幕和文字稿，且不会自动播放。 */
-  it("renders a local video with captions and transcript without autoplay", async () => {
-    await renderTemplate(
-      <SupportMedia
-        media={{
-          captionsLabel: "简体中文字幕",
-          captionsLanguage: "zh-CN",
-          captionsSrc: "/brand-support/video/demo.zh-CN.vtt",
-          kind: "video",
-          poster: "/brand-support/video/demo.jpg",
-          src: "/brand-support/video/demo.webm",
-          title: "功能演示",
-          transcriptHref: "/brand-support/video/demo.zh-CN.txt",
-          transcriptLabel: "查看文字稿",
-        }}
-      />,
-    );
-
-    const video = screen.getByLabelText("功能演示") as HTMLVideoElement;
-    expect(video.controls).toBe(true);
-    expect(video.autoplay).toBe(false);
-    expect(video.querySelector('track[kind="captions"]')).toHaveAttribute(
-      "src",
-      "/brand-support/video/demo.zh-CN.vtt",
-    );
-    expect(screen.getByRole("link", { name: "查看文字稿" })).toHaveAttribute(
-      "href",
-      "/brand-support/video/demo.zh-CN.txt",
-    );
-  });
-
-  /** 远程媒体与路径跳转不能绕过本地打包边界。 */
-  it("rejects remote or escaping media paths", () => {
-    expect(isLocalSupportPath("https://media.invalid/demo.mp4")).toBe(false);
-    expect(isLocalSupportPath("/brand-support/../secret")).toBe(false);
-    expect(() =>
-      resolveBrandAssetPath("/brand-support", "../secret"),
-    ).toThrow();
-  });
-
-  /** 可选品牌资源只包含 sponsor 辅助图片。 */
-  it("keeps the six optional sponsor assets", () => {
-    expect(BRAND_SUPPORT_PROFILE.optionalAssets).toHaveLength(6);
   });
 });

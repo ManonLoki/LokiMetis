@@ -1,7 +1,6 @@
 {
   "navigation": {
-    "settings": "Settings",
-    "sponsor": "Sponsor"
+    "settings": "Settings"
   },
   "sidebar": {
     "application_navigation": "Application navigation",
@@ -46,50 +45,6 @@
   "tray": {
     "show_window": "Show Window",
     "quit": "Quit"
-  },
-  "sponsor": {
-    "title": "Freely Maintained by Shoucheng & Feiying Studio",
-    "contact_label": "QQ {{contact}}",
-    "subtitle_no_service": "No real-time support / unlimited Q&A / remote troubleshooting",
-    "subtitle_thanks": ", thank you for understanding 🙏",
-    "capabilities_label": "Tech Stack:",
-    "capability_browser": "Browser",
-    "capability_proxy": "Network Proxy",
-    "capability_cloud": "Cloud Services",
-    "capability_rpa": "RPA Automation",
-    "pc_focus": "Focused on PC",
-    "pc_platform": "(Windows/MacOS/Linux)",
-    "pc_growing": ", multi-language development, AI business implementation and more are continuously growing.",
-    "scan_to_sponsor": "Scan to Sponsor",
-    "currency_unit": "CNY",
-    "tier1_name": "A Cup of Milk Tea",
-    "tier2_name": "A Good Meal",
-    "tier3_name": "Big Spender",
-    "tier1_image_alt": "Refreshment sponsorship tier illustration",
-    "tier2_image_alt": "Meal sponsorship tier illustration",
-    "tier3_image_alt": "Growth sponsorship tier illustration",
-    "payment_instructions": "After payment, add QQ 2222980 with screenshot proof to join the group.",
-    "payment_wechat_alt": "WeChat Pay sponsorship QR code",
-    "payment_alipay_alt": "Alipay sponsorship QR code",
-    "sponsor_message": "Sponsoring is a way to support the author and team. We will do our best to be worthy of your support.",
-    "tier1_b1": "Early access and private version download rights",
-    "tier1_b2_main": "QQ Message Support",
-    "tier1_b2_note": "Does not include Q&A/troubleshooting commitments",
-    "tier1_b3_main": "Join QQ Group (Note: Group is muted)",
-    "tier1_b3_note": "Version releases, video releases, business case releases (if any)\nOther valuable content.",
-    "tier1_b4_main": "1 Text Session (1 question)",
-    "tier1_b4_note": "Async reply, suggested within 10 min / ≤800 chars\nSuitable for: usage ideas, process advice, direction guidance\nNo remote troubleshooting, no guaranteed resolution",
-    "tier2_b1": "Includes all of the above",
-    "tier2_b2_main": "Priority scheduling for feature requests",
-    "tier2_b2_note": "Note: Not a guaranteed development",
-    "tier2_b3_main": "1 Voice Session 30 min (by appointment)",
-    "tier2_b3_note": "Suitable for: business process review, tool strategy, plan review\nExcludes custom development/long-term follow-up",
-    "tier3_b1": "Includes all of the above",
-    "tier3_b2_main": "1 In-Person Meeting 2 hours",
-    "tier3_b2_note": "Very limited slots, by appointment\nOnly in same city or arranged cities; travel/food not included\nAuthor may accept or decline based on availability"
-  },
-  "media": {
-    "transcript": "View transcript"
   },
   "release_notes": {
     "dialog_title": "Release notes",

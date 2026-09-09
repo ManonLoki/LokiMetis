@@ -126,7 +126,7 @@ fn has_unique_non_empty_items(items: &[LocalizedReleaseNoteItem]) -> bool {
     })
 }
 
-/// 接受带且只带一个小写 v 的 SemVer 或 Harness 十二位时间版本。
+/// 接受带且只带一个小写 v、Cargo u64 major 与历史低位边界的 SemVer 或时间版本。
 fn is_valid_display_version(version: &str) -> bool {
     let Some(machine_version) = version.strip_prefix('v') else {
         return false;
@@ -139,7 +139,10 @@ fn is_valid_display_version(version: &str) -> bool {
     }
     let components: Vec<&str> = machine_version.split('.').collect();
     components.len() == 3
-        && components.iter().all(|component| {
+        && !components[0].is_empty()
+        && components[0].bytes().all(|byte| byte.is_ascii_digit())
+        && components[0].parse::<u64>().is_ok()
+        && components[1..].iter().all(|component| {
             !component.is_empty()
                 && component.bytes().all(|byte| byte.is_ascii_digit())
                 && component.parse::<u16>().is_ok_and(|value| value <= 100)
@@ -208,6 +211,17 @@ mod tests {
 
         assert_eq!(document.releases.len(), 1);
         assert_eq!(document.releases[0].version, "v1.2.3");
+    }
+
+    /// major 接受 Cargo u64 边界，历史低位 100 可读，任一越界都失败关闭。
+    #[test]
+    fn accepts_u64_major_and_only_legacy_lower_components_through_100() {
+        assert!(is_valid_display_version("v101.0.0"));
+        assert!(is_valid_display_version("v18446744073709551615.0.0"));
+        assert!(is_valid_display_version("v0.100.100"));
+        assert!(!is_valid_display_version("v18446744073709551616.0.0"));
+        assert!(!is_valid_display_version("v0.101.0"));
+        assert!(!is_valid_display_version("v0.0.101"));
     }
 
     /// 未知字段、重复条目和多重 v 前缀都必须失败关闭。

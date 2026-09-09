@@ -9,9 +9,11 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from typing import Sequence
 
 
@@ -21,6 +23,15 @@ SECRET_PATTERNS = (
     re.compile(br"(?:^|[^A-Za-z0-9])AKIA[0-9A-Z]{16}(?:$|[^A-Za-z0-9])"),
     re.compile(br"(?:^|[^A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,}(?:$|[^A-Za-z0-9])"),
     re.compile(br"(?:^|[^A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}(?:$|[^A-Za-z0-9_-])"),
+)
+CACHED_PATCH_ARGUMENTS = (
+    "diff",
+    "--cached",
+    "--binary",
+    "--full-index",
+    "--no-renames",
+    "--no-ext-diff",
+    "--no-textconv",
 )
 
 
@@ -34,16 +45,25 @@ def run_git(
     *,
     check: bool = True,
     text: bool = True,
+    environment: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]:
     """在精确项目根运行 Git；从不经 shell，也不绕过 hooks。"""
 
     try:
+        command_environment = {
+            **os.environ,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GCM_INTERACTIVE": "Never",
+        }
+        if environment:
+            command_environment.update(environment)
         result = subprocess.run(
             ["git", "-C", str(root), *arguments],
             check=False,
             capture_output=True,
             text=text,
             encoding="utf-8" if text else None,
+            env=command_environment,
         )
     except FileNotFoundError as error:
         raise ReleaseGitError("git executable is unavailable") from error
@@ -55,8 +75,8 @@ def run_git(
     return result
 
 
-def resolve_repository(project_root: str) -> tuple[Path, str]:
-    """要求独立非符号链接 Git 顶层与可解析的 40 位 HEAD。"""
+def resolve_repository(project_root: str) -> tuple[Path, str, str]:
+    """要求独立非符号链接 Git 顶层、具名分支与可解析的 40 位 HEAD。"""
 
     supplied = Path(project_root).expanduser()
     if supplied.is_symlink():
@@ -70,15 +90,20 @@ def resolve_repository(project_root: str) -> tuple[Path, str]:
     query = run_git(
         root,
         ["rev-parse", "--is-inside-work-tree", "--show-toplevel", "HEAD"],
-    ).stdout.splitlines()
-    if len(query) != 3 or query[0] != "true":
+    )
+    values = query.stdout.splitlines()
+    if len(values) != 3 or values[0] != "true":
         raise ReleaseGitError("project root is not a Git work tree with HEAD")
-    if Path(query[1]).resolve(strict=True) != root:
+    if Path(values[1]).resolve(strict=True) != root:
         raise ReleaseGitError("project root must equal the independent Git top level")
-    head = query[2]
+    head = values[2]
     if not HEAD_PATTERN.fullmatch(head):
         raise ReleaseGitError("HEAD must resolve to a 40-character lowercase commit")
-    return root, head
+    branch_result = run_git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
+    branch = branch_result.stdout.strip()
+    if branch_result.returncode != 0 or not branch:
+        raise ReleaseGitError("HEAD must be attached to a named branch")
+    return root, head, branch
 
 
 def status_bytes(root: Path) -> bytes:
@@ -91,10 +116,21 @@ def status_bytes(root: Path) -> bytes:
     ).stdout
 
 
-def repository_snapshot_digest(root: Path, status_value: bytes) -> str:
-    """摘要状态、已跟踪 diff、index 与未跟踪文件字节，阻断复核后的内容竞态。"""
+def repository_snapshot_digest(
+    root: Path,
+    status_value: bytes,
+    *,
+    head: str,
+    branch: str,
+) -> str:
+    """摘要分支、HEAD、状态、diff、index 与未跟踪字节，阻断切换竞态。"""
 
     digest = hashlib.sha256()
+    digest.update(b"branch\0")
+    digest.update(branch.encode("utf-8", "surrogateescape"))
+    digest.update(b"\0head\0")
+    digest.update(head.encode("ascii"))
+    digest.update(b"\0")
     digest.update(b"status\0")
     digest.update(status_value)
     for label, arguments in (
@@ -132,13 +168,19 @@ def decode_status_records(value: bytes) -> list[str]:
 def inspect_repository(project_root: str) -> dict[str, object]:
     """返回当前 HEAD、clean 结论与快照摘要，供 Agent 逐项复核真实 diff。"""
 
-    root, head = resolve_repository(project_root)
+    root, head, branch = resolve_repository(project_root)
     status = status_bytes(root)
     return {
         "status": "clean" if not status else "dirty",
         "projectRoot": str(root),
+        "branch": branch,
         "head": head,
-        "statusSha256": repository_snapshot_digest(root, status),
+        "statusSha256": repository_snapshot_digest(
+            root,
+            status,
+            head=head,
+            branch=branch,
+        ),
         "records": decode_status_records(status),
     }
 
@@ -184,6 +226,50 @@ def staged_diff_contains_secret(root: Path) -> bool:
     return any(pattern.search(patch) for pattern in SECRET_PATTERNS)
 
 
+def cached_index_patch(
+    root: Path, *, environment: dict[str, str] | None = None
+) -> bytes:
+    """返回包含新增、删除、mode 与二进制字节的规范化完整 index patch。"""
+
+    return run_git(
+        root,
+        list(CACHED_PATCH_ARGUMENTS),
+        text=False,
+        environment=environment,
+    ).stdout
+
+
+def freeze_expected_index_patch(root: Path, literal_pathspecs: Sequence[str]) -> bytes:
+    """在隔离 index 中冻结当前快照执行同一 add 后应得到的精确 patch。"""
+
+    git_directory_result = run_git(root, ["rev-parse", "--git-dir"])
+    git_directory_lines = git_directory_result.stdout.splitlines()
+    if len(git_directory_lines) != 1:
+        raise ReleaseGitError("cannot resolve the repository Git directory")
+    git_directory = Path(git_directory_lines[0])
+    if not git_directory.is_absolute():
+        git_directory = root / git_directory
+    index_path = git_directory / "index"
+    if index_path.is_symlink() or not index_path.is_file():
+        raise ReleaseGitError("repository index must be a regular file")
+    index_parent = index_path.parent
+    if index_parent.is_symlink() or not index_parent.is_dir():
+        raise ReleaseGitError("repository index parent must be a regular directory")
+
+    with tempfile.TemporaryDirectory(
+        prefix=".release-reviewed-index-", dir=index_parent
+    ) as temporary_directory:
+        temporary_index = Path(temporary_directory) / "index"
+        shutil.copyfile(index_path, temporary_index)
+        temporary_environment = {"GIT_INDEX_FILE": str(temporary_index)}
+        run_git(
+            root,
+            ["add", "-A", "--", *literal_pathspecs],
+            environment=temporary_environment,
+        )
+        return cached_index_patch(root, environment=temporary_environment)
+
+
 def commit_approved(
     project_root: str,
     *,
@@ -193,7 +279,7 @@ def commit_approved(
 ) -> dict[str, object]:
     """在快照未变化时暂存精确路径、运行正常 hooks 提交，并要求最终 clean。"""
 
-    root, previous_head = resolve_repository(project_root)
+    root, previous_head, branch = resolve_repository(project_root)
     if not re.fullmatch(r"[0-9a-f]{64}", expected_status_sha256):
         raise ReleaseGitError("expected status SHA-256 must be 64 lowercase hexadecimal characters")
     if not message.strip() or "\0" in message:
@@ -203,7 +289,12 @@ def commit_approved(
         raise ReleaseGitError("at least one reviewed path is required")
 
     before = status_bytes(root)
-    if repository_snapshot_digest(root, before) != expected_status_sha256:
+    if repository_snapshot_digest(
+        root,
+        before,
+        head=previous_head,
+        branch=branch,
+    ) != expected_status_sha256:
         raise ReleaseGitError("working tree changed after review; inspect it again before committing")
     if not before:
         raise ReleaseGitError("working tree is clean; refusing an empty release commit")
@@ -216,7 +307,30 @@ def commit_approved(
         )
 
     literal_pathspecs = [f":(literal){path}" for path in approved]
+    expected_index_patch = freeze_expected_index_patch(root, literal_pathspecs)
+    frozen_status = status_bytes(root)
+    _, frozen_head, frozen_branch = resolve_repository(str(root))
+    if (
+        frozen_head != previous_head
+        or frozen_branch != branch
+        or repository_snapshot_digest(
+            root,
+            frozen_status,
+            head=frozen_head,
+            branch=frozen_branch,
+        )
+        != expected_status_sha256
+    ):
+        raise ReleaseGitError(
+            "working tree, branch, HEAD, or index changed while freezing the reviewed content"
+        )
+
     run_git(root, ["add", "-A", "--", *literal_pathspecs])
+    reviewed_index_patch = cached_index_patch(root)
+    if reviewed_index_patch != expected_index_patch:
+        raise ReleaseGitError(
+            "staged content changed after review; inspect it again before committing"
+        )
     staged = nul_paths(root, ["diff", "--cached", "--name-only", "-z"])
     if not staged:
         raise ReleaseGitError("reviewed paths produced no staged changes")
@@ -238,19 +352,42 @@ def commit_approved(
         raise ReleaseGitError(
             "reviewed paths do not cover the complete working tree; refusing a partial release commit"
         )
+    _, commit_parent, commit_branch = resolve_repository(str(root))
+    if commit_parent != previous_head or commit_branch != branch:
+        raise ReleaseGitError("branch or HEAD changed before the reviewed commit")
 
     # 不传 --no-verify；任一 pre-commit/commit-msg hook、签名或提交失败都会直接阻断。
     commit_result = run_git(root, ["commit", "-m", message], check=False)
     if commit_result.returncode != 0:
-        detail = commit_result.stderr.strip() or commit_result.stdout.strip() or "unknown commit failure"
-        raise ReleaseGitError(f"git commit failed; hooks were not bypassed: {detail}")
+        raise ReleaseGitError("git commit failed; hooks were not bypassed")
 
     final_status = status_bytes(root)
     if final_status:
         raise ReleaseGitError("commit succeeded but working tree is not clean; release must stop")
-    _, head = resolve_repository(str(root))
+    _, head, final_branch = resolve_repository(str(root))
     if head == previous_head:
         raise ReleaseGitError("git commit did not advance HEAD")
+    if final_branch != branch:
+        raise ReleaseGitError("git commit changed the reviewed branch unexpectedly")
+    parents = run_git(root, ["rev-list", "--parents", "-n", "1", head]).stdout.split()
+    if parents != [head, previous_head]:
+        raise ReleaseGitError("reviewed commit is not the direct non-merge child of the reviewed HEAD")
+    committed_patch = run_git(
+        root,
+        [
+            "diff",
+            "--binary",
+            "--full-index",
+            "--no-renames",
+            "--no-ext-diff",
+            "--no-textconv",
+            previous_head,
+            head,
+        ],
+        text=False,
+    ).stdout
+    if committed_patch != reviewed_index_patch:
+        raise ReleaseGitError("a commit hook changed the reviewed staged content; release must stop")
     return {
         "status": "committed",
         "projectRoot": str(root),

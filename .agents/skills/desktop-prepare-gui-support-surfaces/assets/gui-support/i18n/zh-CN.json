@@ -1,7 +1,6 @@
 {
   "navigation": {
-    "settings": "设置",
-    "sponsor": "赞助"
+    "settings": "设置"
   },
   "sidebar": {
     "application_navigation": "应用导航",
@@ -46,50 +45,6 @@
   "tray": {
     "show_window": "显示窗口",
     "quit": "退出"
-  },
-  "sponsor": {
-    "title": "软件免费由守城工作室&飞鹰工作室维护",
-    "contact_label": "QQ {{contact}}",
-    "subtitle_no_service": "不提供实时客服 / 无限答疑 / 远程排障",
-    "subtitle_thanks": "，感谢理解 🙏",
-    "capabilities_label": "能力栈：",
-    "capability_browser": "浏览器",
-    "capability_proxy": "网络代理",
-    "capability_cloud": "各种云服务",
-    "capability_rpa": "RPA自动化业务",
-    "pc_focus": "集中在PC端",
-    "pc_platform": "（Windows/MacOS/Linux）",
-    "pc_growing": "，多语言栈开发工作，AI业务跑通落地等还在不断增加。",
-    "scan_to_sponsor": "扫码赞助",
-    "currency_unit": "元",
-    "tier1_name": "一杯奶茶",
-    "tier2_name": "一顿好饭",
-    "tier3_name": "一掷千金",
-    "tier1_image_alt": "一杯奶茶赞助档位插图",
-    "tier2_image_alt": "一顿好饭赞助档位插图",
-    "tier3_image_alt": "一掷千金赞助档位插图",
-    "payment_instructions": "扫码支付后加 守城QQ 2222980。截图证明，拉您入群。",
-    "payment_wechat_alt": "微信支付赞助二维码",
-    "payment_alipay_alt": "支付宝赞助二维码",
-    "sponsor_message": "赞助是为了给予作者及其团队一份支持的心意，当然我们也会努力对得起这份心意。",
-    "tier1_b1": "抢先版和不对外版下载资格",
-    "tier1_b2_main": "QQ留言支持",
-    "tier1_b2_note": "不包含答疑/排障承诺",
-    "tier1_b3_main": "加QQ群  注意：群禁言",
-    "tier1_b3_note": "版本发布、视频发布、业务案例发布（如果有）\n其他有价值。",
-    "tier1_b4_main": "1次文字交流（1 个问题）",
-    "tier1_b4_note": "异步回复，建议控制在 10 分钟 / ≤800字\n适合：使用思路、流程建议、方向指路\n不做远程排障、不保证一定解决",
-    "tier2_b1": "含以上全部",
-    "tier2_b2_main": "功能需求优先响应排期",
-    "tier2_b2_note": "注意：不是保证开发",
-    "tier2_b3_main": "1次语音交流 30 分钟（需预约）",
-    "tier2_b3_note": "适合：业务流程梳理、工具使用策略、方案评审\n不包含定制开发/长期跟进",
-    "tier3_b1": "含以上全部",
-    "tier3_b2_main": "1次线下交流 2 小时",
-    "tier3_b2_note": "名额极少，需预约\n仅限：同城或可安排城市；交通/餐费自理\n作者可根据时间与需求选择是否接单/婉拒"
-  },
-  "media": {
-    "transcript": "查看文字稿"
   },
   "release_notes": {
     "dialog_title": "更新日志",

@@ -1,4 +1,4 @@
 interface:
   display_name: "准备 GUI 支持界面"
-  short_description: "按八项 GUI 配置建立标题、侧栏、固定设置与条件赞助页"
-  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，按八项 GUI 配置建立仅含应用名和版本的标题、侧栏、固定设置页、i18n、三态主题及条件赞助页；本地更新日志固定从设置页读取候选资源，不建立 About 或任何远程数据管线。"
+  short_description: "按七项 GUI 配置与受保护赞助扩展建立固定支持界面"
+  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，完整消费上游七项 GUI 配置，建立标题、侧栏、固定设置页、i18n 与三态主题，并保留 product-owned sponsor_page 扩展已有的 /settings 底部微信支付与支付宝双收款码区；本地更新日志固定从设置页读取候选资源，不建立 /sponsor、赞助导航、共享 sponsor template assets、受管二维码资产或远程数据管线。"

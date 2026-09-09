@@ -9,7 +9,6 @@ import {
   readDetailedSidebarCollapsed,
   type FeatureNavigationItem,
 } from "./AppSidebarTemplate";
-import { type SupportPageSelection } from "./supportNavigation";
 
 /** 已批准 detailed 运行时壳层所需的展示输入。 */
 export interface AppShellTemplateProps {
@@ -18,7 +17,6 @@ export interface AppShellTemplateProps {
   children: ReactNode;
   featureItems: FeatureNavigationItem[];
   onNavigate: (path: string) => void;
-  supportPages: SupportPageSelection;
   version: string;
 }
 
@@ -32,7 +30,6 @@ export function AppShellTemplate({
   children,
   featureItems,
   onNavigate,
-  supportPages,
   version,
 }: AppShellTemplateProps): ReactElement {
   const [detailedSidebarCollapsed, setDetailedSidebarCollapsed] = useState(
@@ -63,7 +60,6 @@ export function AppShellTemplate({
           mode="detailed"
           onCollapsedChange={handleCollapsedChange}
           onNavigate={onNavigate}
-          supportPages={supportPages}
           version={version}
         />
       </MantineAppShell.Navbar>

@@ -62,7 +62,7 @@ function CapabilitySwitch({
   capability,
   id,
 }: CapabilitySwitchProps): ReactElement {
-  const { t } = useTranslation("brandSupport");
+  const { t } = useTranslation("guiSupport");
   const titleId = `settings-capability-title-${id}`;
   const descriptionId = `settings-capability-description-${id}`;
   const title = t(`settings.${id}_title`);
@@ -205,7 +205,7 @@ export function SettingsPageTemplate({
   releaseNotesLoader = loadBundledReleaseNotes,
   systemNotification,
 }: SettingsPageTemplateProps): ReactElement {
-  const { t } = useTranslation("brandSupport");
+  const { t } = useTranslation("guiSupport");
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [releaseNotesOpened, setReleaseNotesOpened] = useState(false);
   const [releaseNotes, setReleaseNotes] = useState<

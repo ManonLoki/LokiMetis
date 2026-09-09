@@ -9,7 +9,7 @@
 - `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；产品专属像素和例外写入受保护的 `docs/GUI_APP_PROFILE.md`/ADR，不通过编辑目录制造分叉。
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
-- `conditional`：只在受保护 profile 已启用某项可选桌面能力，或目标平台满足专用工具条件时存在的工程资产。托盘、单实例、深链接、全局快捷键、通知和开机自启相关 Skills 读取 profile 中各自的 `enabled|disabled`；Windows 本地安装 Skill 读取目标平台。GUI 适配器（内联系统语言、窗口状态和 dialog 固定子契约）、支持界面、正式 GUI 构建与发布性能 Skill 是固定工程层，按普通 `managed` 传播，无需额外选择。三个旧独立固定基线 Skill 路径与 Harness 源专用的 `desktop-curate-harness-memory` 为 `tombstone`；dialog 行为仍固定保持主窗口 `dialog:default` 且不授权 fs。支持界面的 Skill、参考、React 模板、品牌 profile/i18n/manifest 和全部原始媒体属于同一完整工程资产，产品实例 `docs/GUI_SUPPORT_SURFACES.md` 不属于。
+- `conditional`：只在受保护 profile 已启用某项可选桌面能力，或目标平台满足专用工具条件时存在的工程资产。托盘、单实例、深链接、全局快捷键、通知和开机自启相关 Skills 读取 profile 中各自的 `enabled|disabled`；Windows 本地安装 Skill 读取目标平台。GUI 适配器（内联系统语言、窗口状态和 dialog 固定子契约）、支持界面、正式 GUI 构建与发布性能 Skill 是固定工程层，按普通 `managed` 传播，无需额外选择。三个旧独立固定基线 Skill 路径与 Harness 源专用的 `desktop-curate-harness-memory` 为 `tombstone`；dialog 行为仍固定保持主窗口 `dialog:default` 且不授权 fs。支持界面的 Skill、参考、React 模板、i18n 与本地发布说明资产属于同一完整工程资产，产品实例 `docs/GUI_SUPPORT_SURFACES.md` 不属于。
 - `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、验证证据和未知本地文件。升级器只报告，不写入。
 - `tombstone`：终端下游永久不应恢复的 Harness 初始化/派生能力和模板专用文件；来源候选必须排除，目标出现时阻断。`$desktop-test-gui-initialization-e2e` 只在 GUI 唯一基线提交前使用，其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs`、夹具与测试都随该前置 Skill 一同删除；升级不得把它重新注入终端下游。
 

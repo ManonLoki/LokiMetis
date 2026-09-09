@@ -13,6 +13,7 @@
 
 - Rust 2024 edition、Tauri 2、Tokio、serde、tracing、rust-i18n。
 - React 19、TypeScript、Vite、Mantine、TanStack Router、TanStack Query、Jotai、i18next/react-i18next、Tabler Icons。
+- 系统通知启用时，Windows/Linux 使用 `tauri-plugin-notification` Rust API；macOS target 另使用 `mac-usernotifications = "0.3.1"` 的现代 User Notifications API。WebView 不安装 notification JavaScript 包或获得 `notification:*` capability。
 - 前端生产代码不得依赖 Node.js API。依赖版本、Node/pnpm engines 与脚本以当前清单为准，不要求全局第三方包。
 
 ## 当前 GUI 能力
@@ -39,7 +40,8 @@ Tauri Builder 顺序固定为：
 - 只有一个 `invoke_handler`，固定包含 `get_app_metadata`、`get_system_locale`、`set_interface_language`、`load_release_notes`，并包含通知与自启各自的窄 get/set 命令。
 - `get_app_metadata` 从打包名称、Cargo 版本和产品定义状态返回类型化元数据，标题固定为 `LokiMetis` 且不带版本号；不得返回联系人或浏览器猜测值。
 - 系统语言由 OS locale 与已保存语言偏好共同解析；设置语言时同步 React i18next、Rust `rust_i18n` 与托盘文案。
-- 通知应用偏好默认关闭并由 Rust 持有；自启默认不注册且始终回读 OS 状态。异步切换失败时界面恢复真实状态并显示可操作错误。
+- 通知应用偏好默认关闭并由 Rust 持有；macOS 使用现代 `UNUserNotificationCenter` 异步 API，先读取真实授权状态，只有 `NotDetermined` 才请求权限并复读；`Authorized`、`Provisional`、`Ephemeral` 才允许持久化启用。`Denied`、`Restricted`/`Unknown` 或请求后仍未授权时保持偏好为 `false`，并由 Rust-only 受控 opener 使用固定 `x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=` 前缀与当前 `AppHandle` identifier 打开本应用的系统通知设置；它不得接受 WebView URL、任意 bundle identifier 或 shell 字符串，打开失败必须返回独立、可观察的稳定错误。该恢复入口不扩大只允许固定 GitHub 地址的 WebView opener capability。
+- 自启默认不注册且始终回读 OS 状态。通知或自启异步切换失败时，界面重读并恢复真实状态，显示可操作错误；通知权限、排队和投递不得只写日志或伪装成功。
 - 页面会话状态保存在应用根 Jotai store，进程内跨路由保持；TanStack Query 拥有异步数据和缓存。领域状态始终以 core 为权威。
 
 ## 固定壳层
@@ -76,6 +78,7 @@ Tauri Builder 顺序固定为：
 - 日常开发只运行本次变化需要的相关非空 core、Rust adapter 与 React 回归测试。
 - 业务行为必须先有 core 测试，再验证 IPC/视图映射；宿主能力由结构测试和适用的真实宿主场景覆盖。
 - 侧栏、主题、i18n、设置、通知、自启、托盘、单实例、深链接、窗口状态和 dialog 的实现必须与 profile 一致，并扫描禁用能力、updater、统计和远程遥测残留。
+- macOS 通知结构回归必须覆盖授权状态先于请求、只在 `NotDetermined` 请求、拒绝/受限/请求后仍未授权时精确打开当前应用通知设置，以及打开失败可观察；真实权限、设置恢复与投递只由已签名、公证并 stapled 的安装候选 E2E 证明，未签名 debug 应用不能代证。
 - 格式、lint、全仓测试、真实 Tauri 构建、性能和最终产物 E2E 只在本次变化或专用流程要求时运行。实际命令以当前清单与对应 Skill 为准。
 
 ## 构建与交付
@@ -83,8 +86,15 @@ Tauri Builder 顺序固定为：
 - Windows 原生本地安装试包只生成 x64 NSIS 开发制品，不升级为候选。
 - 正式候选支持 macOS 原生 DMG、Windows 原生 x64 NSIS，以及 macOS xwin 的 Windows x64 NSIS；xwin 不能证明 Windows 原生安装、运行或性能。
 - Linux 是源码目标平台，但在建立真实渠道合同前正式产物保持 `Unverified`。
-- 候选必须从 clean HEAD 运行完整非空 Rust/前端测试，按当次选择执行性能与最终产物 E2E，并遵守 `docs/RELEASE.md` 的 manifest、摘要、签名和原子收集规则。
+- `$desktop-prepare-release` 在任何发布提交或候选构建前锁定本次发布的 `reviewSelection`、`performanceSelection` 与 macOS `macosSigningSelection`/`macosSigningSource`。三项选择不写入通用持久策略，同一发布的修复或中断重跑复用原选择，新发布重新解析；`system_notification = enabled` 的 macOS 候选必须启用签名，冲突在提交前停止。E2E 不由发布准备锁定，构建只为本次运行另行解析当前 E2E 选择与渠道硬要求。
+- 候选必须来自具名分支的 clean 40 位 source commit。构建只读消费已经封存的审查、性能和签名信封，不得重新询问、翻转选择或制造证据；先运行完整非空 Rust/前端测试。审查启用时，结构化证据必须绑定被审查的同一 source commit；性能启用或渠道强制时，在打包前以同一 clean HEAD 的 `gui-release-v2` release-profile no-bundle 探针验证冷启动、交互/Long Task、整进程树 CPU/RSS、内存增长和进程回收。纯指标失败只有在原始证据允许时才可由用户明确 waiver，结构、绑定、窗口状态恢复或进程回收失败不可豁免。
+- macOS 签名关闭时使用 `--no-sign`，记录原因与剩余风险且不探测本机签名身份、证书、公证凭据或 profile；启用时 Developer ID 签名、公证、stapling、Gatekeeper 与最终验证缺一不可，任一步失败都阻断且不得回退 unsigned。xwin runtime 和 Windows 原生安装/性能继续精确标记 `Unverified`，不能由交叉构建成功代证。
+- 所有布局、签名、公证、stapling 和包内资源变化完成后才计算最终安装包、release notes 与适用审查/性能证据的摘要。候选先在隔离 staging 中写入 `milestoneAcceptance: pending` 的 manifest，再按 manifest 重新枚举并复算精确文件集、大小、SHA-256、选择与证据；全部成功后才以不跟随链接的目录级原子替换提交到根 `release/`，提交后只读重验，不得遗留历史、额外、空或未声明文件。
+- manifest 至少绑定项目/版本、source commit 与 clean 状态、平台/架构、bundle format、native/xwin 模式、安装包路径/大小/SHA-256、release-notes 版本/路径/摘要、Rust/前端测试数、`runtimeVerification`、审查/性能/签名及适用公证证据、当次 E2E 选择和 `milestoneAcceptance`。最终字节形成后，`$desktop-verify-delivery` 按持久策略要求的冒烟、构建当次 E2E、渠道硬要求以及同一候选的审查、性能、发布说明、DMG 布局、签名和 manifest 完整性决定 `accepted` 或退回开发循环；E2E 不得翻转已锁定选择或把失败、`Not run`、`Unverified`、unsigned 通知候选改判为通过。
+- 发布说明、签名、公证、stapling、重打包或渠道处理只要改变运行字节、启动器、依赖或行为，就形成新候选并重新进入构建与验收。构建和发布准备不自动授权 tag、push、上传、商店提交或正式渠道发布。
 
 ## 按需产品能力
 
-当前不预置产品文件操作、外部进程或网络能力。产品规格明确需求后，由 `$desktop-implement-change` 使用其对应参考并保持 core-first、最小权限、可取消、可观察和可测试。普通网络能力不得用于重新引入 updater、产品统计或远程遥测。
+保留最新 Approved Product Spec 已明确批准的本地文件能力、经官方身份与安装路径验证的 Codex/WorkBuddy GUI 进程操作、仅回环地址的 CDP，以及只允许 `https://github.com/ManonLoki/LokiMetis` 的 WebView opener；macOS 通知恢复另仅允许上述 Rust-only 固定系统设置入口。这些都是有界产品/宿主能力，不构成通用文件系统、任意进程或 shell、非回环网络、任意 URL 或远程数据管线授权。
+
+新增或扩大文件、外部程序、网络与系统入口必须先由产品规格明确批准，再由 `$desktop-implement-change` 读取对应能力参考并保持 core-first、最小权限、可取消、可观察、可测试和失败可恢复。普通网络能力不得用于重新引入 updater、产品统计或远程遥测。

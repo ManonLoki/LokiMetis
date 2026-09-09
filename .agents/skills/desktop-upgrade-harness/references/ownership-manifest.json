@@ -67,6 +67,7 @@
     {"pattern": ".agents/skills/desktop-add-gui-system-notifications/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-autostart/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-build-tauri-local-install/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/codex-skin-generator/**", "mode": "protected"},
     {"pattern": ".agents/skills/**", "mode": "managed"}
   ]
 }

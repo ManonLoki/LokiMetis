@@ -10,7 +10,7 @@ LokiMetis 是一个面向 Windows、macOS 与 Linux 的 Tauri 2 GUI-only 本机 
 - Rust 架构：`loki_metis_core` + `loki_metis_gui`
 - 界面：Tauri 2 + React + TypeScript + Mantine
 - 目标平台：Windows、macOS、Linux
-- 产品定义：待完成
+- 产品定义：已批准
 
 产品目标、范围、约束或成功标准变化时，使用 `$desktop-define-product` 更新最新 Product Spec；日常实现仍遵守 core-first、最小权限与本次相关测试边界。
 
@@ -38,14 +38,17 @@ Core-first 是硬规则：不依赖 Tauri、WebView 或操作系统才能成立�
 
 先阅读 [`AGENTS.md`](AGENTS.md) 的任务路由。命令、脚本名称和参数必须以当前 `Cargo.toml`、`loki_metis_gui/package.json` 及相应 Skill 中实际声明的内容为准；不要假定全局第三方工具存在，也不要使用 README 中的示例替代项目脚本事实。
 
-日常变化只运行本次需要的相关非空单元/回归测试。完整 workspace 测试、Tauri 构建、性能门禁、安装包 E2E 和发布流程仅在对应任务明确触发时执行。
+日常变化只运行本次需要的相关非空单元/回归测试。真实测试或构建已因受管工具缺失或明确低于下界而失败时，才由 `$desktop-check-development-environment` 安装或升级到官方兼容稳定版；范围内版本原样复用，只读检查保持零写入。完整 workspace 测试、Tauri 构建、性能门禁、安装包 E2E 和发布流程仅在对应任务明确触发时执行。
 
 ## 构建与发布边界
 
 - 普通 Windows 本地安装试包是开发制品，不是发布候选。
-- 正式候选必须来自干净且明确的源码提交，绑定真实平台、产物摘要、测试结果和当次 E2E/性能选择。
+- 新生成的 Minor/Patch 使用 `0..99` base-100 自动进位；版本只由 `$desktop-manage-version` 在真实变化完成并通过相关测试后提交。
+- 正式发布先锁定当次 `reviewSelection`、`performanceSelection` 和 macOS 签名意图；构建只读消费这些选择并另行解析本次 E2E。性能启用时使用 `gui-release-v2`。
+- macOS 签名默认 `disabled/not-requested` 且不探测本机身份或凭据；但本项目启用了系统通知，因此 macOS 最终候选必须启用并完成签名、公证、stapling、Gatekeeper 与最终验证，失败不能回退 unsigned。
+- 正式候选必须来自干净且明确的源码提交，绑定真实平台、产物摘要、测试和选择；最终字节先在仓库同级同文件系统 staging 中形成并复核，再以目录级原子替换提交 `release/`。整组 manifest 只能一致为 `pending`、`rejected` 或 `accepted`。
 - 应用不提供 updater、联网检查、强制更新、更新制品、产品统计或远程遥测。
-- 根 `release-notes.json` 只在首次正式发布准备时创建；当前缺失是预期状态。
+- 根 `release-notes.json` 已存在，只由正式发布准备维护并作为候选内双语本地资源使用。
 - tag、push、上传、签名、公证、商店提交和渠道发布均需要各自明确授权。
 
 版本、构建和候选合同见 [`docs/RELEASE.md`](docs/RELEASE.md)。

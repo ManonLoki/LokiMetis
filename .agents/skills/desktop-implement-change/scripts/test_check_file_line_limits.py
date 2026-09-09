@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -184,11 +185,11 @@ class FileLineLimitTests(RepositoryFixture):
             )
         )
 
-    def test_handles_hidden_spaces_and_newlines_in_paths(self) -> None:
-        """NUL 清单必须无歧义处理隐藏、空格和换行文件名。"""
+    def test_handles_hidden_and_spaced_paths(self) -> None:
+        """所有宿主都必须无歧义处理隐藏且含空格的文件名。"""
 
         payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
-        names = [".hidden file.md", "line\nbreak.txt"]
+        names = [".hidden file.md"]
         for name in names:
             self.write(name, payload)
         self.track(*names)
@@ -197,6 +198,17 @@ class FileLineLimitTests(RepositoryFixture):
             [item["path"] for item in report["violations"]],
             sorted(names),
         )
+
+    @unittest.skipIf(os.name == "nt", "Windows filenames cannot contain newlines")
+    def test_handles_newlines_in_paths(self) -> None:
+        """支持该文件名的宿主必须以 NUL 清单无歧义处理换行。"""
+
+        payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
+        name = "line\nbreak.txt"
+        self.write(name, payload)
+        self.track(name)
+        report = inspect_repository(self.root)
+        self.assertEqual([item["path"] for item in report["violations"]], [name])
 
     def test_ignored_binary_and_symlink_targets_do_not_bypass_or_expand_scope(self) -> None:
         """忽略文件、二进制和链接目标不参与人工维护文本计数。"""

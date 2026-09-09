@@ -19,6 +19,8 @@ export interface ReleaseNotesDocument {
 /** 允许测试替换窄命令调用，而不引入通用文件系统权限。 */
 export type ReleaseNotesInvoker = (command: string) => Promise<unknown>;
 
+const MAX_CARGO_SEMVER_MAJOR = "18446744073709551615";
+
 const invokeReleaseNotesCommand: ReleaseNotesInvoker = (command) =>
   invoke<unknown>(command);
 
@@ -53,12 +55,26 @@ function isCanonicalReleaseDate(value: string): boolean {
   return day >= 1 && day <= (days[month - 1] ?? 0);
 }
 
-/** 要求版本只带一个小写 v，并满足受限 SemVer 或 Harness 时间版本。 */
+/** 按十进制字符串比较 major，避免 JavaScript Number 丢失 Cargo u64 边界精度。 */
+function isCargoSemverMajor(value: string): boolean {
+  const normalized = value.replace(/^0+(?=\d)/u, "");
+  return (
+    normalized.length < MAX_CARGO_SEMVER_MAJOR.length ||
+    (normalized.length === MAX_CARGO_SEMVER_MAJOR.length &&
+      normalized <= MAX_CARGO_SEMVER_MAJOR)
+  );
+}
+
+/** 要求版本只带一个小写 v，并满足 Cargo u64 major、历史低位边界或时间版本。 */
 function isDisplayVersion(value: string): boolean {
   const harnessVersion = /^v\d{12}$/u;
   if (harnessVersion.test(value)) return true;
   const semantic = /^v(\d+)\.(\d+)\.(\d+)$/u.exec(value);
-  return semantic !== null && semantic.slice(1).every((part) => Number(part) <= 100);
+  return (
+    semantic !== null &&
+    isCargoSemverMajor(semantic[1] ?? "") &&
+    semantic.slice(2).every((part) => Number(part) <= 100)
+  );
 }
 
 /** 判断某个语言字段是否为非空且无首尾空白的文本。 */

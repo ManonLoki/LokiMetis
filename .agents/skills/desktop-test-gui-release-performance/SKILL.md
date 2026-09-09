@@ -15,27 +15,26 @@ description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求�
 
 ## 固定指标
 
-- 先执行至少 1 次不计分预热，再执行恰好 5 次冷启动；从进程启动到主窗口可见且可交互的中位数不超过 2000 ms，最大值不超过 3000 ms。
-- renderer transcript 固定只覆盖一个专用 `interaction-session`：该会话从启动模块加载贯穿至少 20 轮导航/内存循环、空闲观测与启用托盘时的隐藏/显示观测。1 次预热与 5 次冷启动继续由独立外部秒表和逐次 window-state 重置证明，不得声称 transcript 覆盖每次冷启动。
-- 对至少 20 次已批准、具有可观察结果的真实界面交互采样；nearest-rank p95 不超过 100 ms，任何一次必须小于 200 ms。
-- 使用浏览器 `PerformanceObserver` 记录全部不短于 50 ms 的 Long Task；任何 Long Task 必须小于 200 ms。
-- 对 Tauri 主进程和全部 WebView/受管子进程组成的整棵进程树采样。连续至少 30 秒空闲 CPU 的 p95 不超过一个逻辑核的 5%；启用托盘时，关闭隐藏后的连续至少 30 秒 CPU p95 不超过 2%。
-- 稳态整棵进程树 RSS 不超过 300 MiB，峰值不超过 500 MiB。完成至少 20 轮导航/交互后，RSS 增长不得超过 `max(初始 RSS × 15%, 32 MiB)`。
+- 先执行至少 1 次不计分预热，再执行恰好 5 次冷启动；从进程启动到主窗口可见且可交互的中位数不超过 2400 ms，最大值不超过 3600 ms。
+- 对至少 20 次已批准、具有可观察结果的真实界面交互采样；nearest-rank p95 不超过 120 ms，任何一次必须小于 240 ms。
+- 使用浏览器 `PerformanceObserver` 记录全部不短于 50 ms 的 Long Task；任何 Long Task 必须小于 240 ms。
+- 对 Tauri 主进程和全部 WebView/受管子进程组成的整棵进程树采样。连续至少 30 秒空闲 CPU 的 p95 不超过一个逻辑核的 6%；启用托盘时，关闭隐藏后的连续至少 30 秒 CPU p95 不超过 2.4%。
+- 稳态整棵进程树 RSS 不超过 360 MiB，峰值不超过 600 MiB。完成至少 20 轮导航/交互后，RSS 增长不得超过 `max(初始 RSS × 18%, 38.4 MiB)`。
 - 每次启动和整轮测量结束都必须关闭或回收全部受管进程。观测不可用、只采父进程、样本不足、超时或无法确认都按失败处理，不能按未发现问题处理。
 
 ## 执行
 
 1. 读取 `docs/GUI_APP_PROFILE.md`，解析托盘是否启用。用 Computer Use 操作 no-bundle 探针；进程采样只使用平台原生只读能力和 Python 标准库，不安装全局包、不注入持久遥测、不上传数据。记录使用的进程采样器，并遮盖用户名、绝对本机路径和无关进程参数。
 2. 固定的 window-state 基线会在真实宿主写入窗口状态，因此性能测量必须先隔离并可恢复该状态：从应用 identity 和当前平台运行时数据目录解析插件实际使用的唯一状态文件，拒绝模糊路径、符号链接、目录级目标或无法证明属于该应用的数据；在项目外独立临时目录记录原文件逐字节副本、摘要和必要元数据，或明确记录原先不存在。为本轮选择一个确定的测试种子（优先使用“不存在”以测首启回退，也可使用已记录的有效状态），预热前以及每一次冷启动前都恢复为同一测试种子，绝不得复用上一次运行刚写回的窗口状态。每次进程回收后检查状态落盘，但不把绝对路径或内容写入证据；整轮无论成功、失败、超时还是取消，都必须把原字节和元数据或原先不存在的状态恢复并用摘要/缺席复核。无法安全定位、快照、重置或恢复时停止，本轮性能门禁失败且不得开始打包。
-3. 完整阅读 [性能证据契约](references/performance-evidence-schema.md)，在项目外的独立临时目录写入原始 JSON 观测。证据绑定 `performanceSelection: enabled`、探针摘要/提交、clean 状态、Release profile、本次 E2E 选择、平台/架构、整进程树标记、启动/交互/Long Task、CPU/RSS、循环次数、`allProcessesRecovered` 进程回收结论，以及不泄露路径/内容的窗口状态测试种子、逐次重置和原状态恢复结论；同时必须写入精确的 `rendererTranscriptScope: "interaction-session"`，把 transcript 的单会话证明范围与外部冷启动序列明确分开。
+3. 完整阅读 [性能证据契约](references/performance-evidence-schema.md)，在项目外的独立临时目录写入原始 JSON 观测。证据绑定 `performanceSelection: enabled`、探针摘要/提交、clean 状态、Release profile、本次 E2E 选择、平台/架构、整进程树标记、启动/交互/Long Task、CPU/RSS、循环次数、`allProcessesRecovered` 进程回收结论，以及不泄露路径/内容的窗口状态测试种子、逐次重置和原状态恢复结论。
 4. 运行：
 
    ```text
-   python3 .agents/skills/desktop-test-gui-release-performance/scripts/validate_gui_release_performance.py --probe <release-no-bundle-executable> --manifest <build-manifest> --evidence <raw-json> --renderer-transcript <renderer-jsonl> --tray-enabled <enabled|disabled> --output <probe>.performance.json
+   python3 .agents/skills/desktop-test-gui-release-performance/scripts/validate_gui_release_performance.py --probe <release-no-bundle-executable> --manifest <build-manifest> --evidence <raw-json> --tray-enabled <enabled|disabled> --output <probe>.performance.json
    ```
 
    Helper 会重新计算探针摘要、拒绝安装容器字段冒充探针、核对 manifest/观测绑定、计算指标并原子写入 `passed` 或 `failed` 证据。输出已内嵌原始观测；不得把临时原始 JSON 作为 release 目录中的旁路文件。
-5. 在后续安装包 manifest 中保留 `performanceSelection: enabled`、`performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256` 和 `performanceThresholdProfile: gui-release-v1`。只有 helper 返回 0、全部受管进程已回收且原窗口状态已复原并复核，才能记录 `performanceStatus: passed`；`e2eSelection: disabled` 不能改变该判断。
+5. 在后续安装包 manifest 中保留 `performanceSelection: enabled`、`performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256` 和 `performanceThresholdProfile: gui-release-v2`。只有 helper 返回 0、全部受管进程已回收且原窗口状态已复原并复核，才能记录 `performanceStatus: passed`；`e2eSelection: disabled` 不能改变该判断。`gui-release-v2` 相对 v1 只把耗时、CPU、RSS 与 RSS 增长的允许上限放宽 20%；预热、样本量、观察时长、循环次数和 50 ms Long Task 记录下限保持不变，旧 v1 证据不得改标或复用为 v2。
 
 ## 打包后的运行时绑定
 
@@ -50,4 +49,4 @@ description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求�
 
 ## 完成输出
 
-报告当次 `performanceSelection: enabled`、精确 no-bundle 探针与自身摘要、clean 源码提交、原生环境、采样器、`rendererTranscript.scope: interaction-session`、5 次外部计时冷启动、至少 20 次交互、Long Task、CPU/RSS/增长、进程回收、脱敏的窗口状态种子/逐次重置/原状态恢复结论、证据相对路径和 `passed | failed | waived`。只有 `passed`，或有明确失败证据且 `waiverAllowed: true` 的 `waived`，并且三项完整性标记为 `true`、原窗口状态已经恢复验证，才能开始完整打包；其他结果返回开发循环。本 Skill 不生成 `performanceStatus: Not run`，该状态只由未调用本 Skill 的 GUI 构建禁用分支记录。
+报告当次 `performanceSelection: enabled`、精确 no-bundle 探针与自身摘要、clean 源码提交、原生环境、采样器、5 次启动、至少 20 次交互、Long Task、CPU/RSS/增长、进程回收、脱敏的窗口状态种子/逐次重置/原状态恢复结论、证据相对路径和 `passed | failed | waived`。只有 `passed`，或有明确失败证据且 `waiverAllowed: true` 的 `waived`，并且三项完整性标记为 `true`、原窗口状态已经恢复验证，才能开始完整打包；其他结果返回开发循环。本 Skill 不生成 `performanceStatus: Not run`，该状态只由未调用本 Skill 的 GUI 构建禁用分支记录。

@@ -57,6 +57,27 @@ class ReleaseNotesTests(unittest.TestCase):
             "###Bug fixes\n\n- Fix vv1.2.3",
         )
 
+    def test_semver_reader_accepts_u64_major_and_legacy_lower_100(self) -> None:
+        """major 接受 Cargo u64 边界，历史低位 100 可读，任一越界都失败。"""
+
+        for valid in ("101.0.0", "18446744073709551615.0.0", "0.100.100"):
+            with self.subTest(version=valid):
+                self.assertEqual(
+                    release_notes.normalize_display_version(valid), f"v{valid}"
+                )
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "major"):
+            release_notes.normalize_display_version("18446744073709551616.0.0")
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "major"):
+            release_notes.normalize_display_version(f"{'9' * 5000}.0.0")
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "version must"):
+            release_notes.normalize_display_version("1.٢.3")
+        for invalid in ("0.101.0", "0.0.101"):
+            with self.subTest(version=invalid):
+                with self.assertRaisesRegex(
+                    release_notes.ReleaseNotesError, "minor and patch"
+                ):
+                    release_notes.normalize_display_version(invalid)
+
     def test_upsert_replaces_same_version_and_retains_latest_five(self) -> None:
         """同版本重试替换旧条目，新增版本始终截断到最近五次。"""
 

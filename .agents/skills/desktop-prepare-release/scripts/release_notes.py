@@ -17,6 +17,8 @@ from typing import Any, Sequence
 SCHEMA_VERSION = 2
 MAX_RELEASES = 5
 MAX_ITEMS_PER_SECTION = 10
+MAX_SEMVER_MAJOR = (1 << 64) - 1
+MAX_SEMVER_MAJOR_TEXT = str(MAX_SEMVER_MAJOR)
 SUPPORTED_LOCALES = ("zh-CN", "en-US")
 ROOT_KEYS = {"schemaVersion", "releases"}
 ENTRY_KEYS = {
@@ -40,12 +42,21 @@ RENDER_COPY = {
         "none": "None",
     },
 }
-SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
-HARNESS_VERSION = re.compile(r"^\d{12}$")
+SEMVER = re.compile(r"^([0-9]+)\.([0-9]+)\.([0-9]+)$")
+HARNESS_VERSION = re.compile(r"^[0-9]{12}$")
 
 
 class ReleaseNotesError(ValueError):
     """表示更新日志文件或命令输入违反稳定契约。"""
+
+
+def _decimal_is_at_most(value: str, maximum: str) -> bool:
+    """不触发 Python 大整数位数限制地比较非负十进制文本。"""
+
+    significant = value.lstrip("0") or "0"
+    return len(significant) < len(maximum) or (
+        len(significant) == len(maximum) and significant <= maximum
+    )
 
 
 def normalize_display_version(value: str) -> str:
@@ -56,8 +67,18 @@ def normalize_display_version(value: str) -> str:
         normalized = normalized[1:]
     semantic = SEMVER.fullmatch(normalized)
     if semantic is not None:
-        if any(int(part) > 100 for part in semantic.groups()):
-            raise ReleaseNotesError("semantic version components must be within 0..100")
+        major, minor, patch = semantic.groups()
+        if not _decimal_is_at_most(major, MAX_SEMVER_MAJOR_TEXT):
+            raise ReleaseNotesError(
+                f"semantic version major must be within 0..{MAX_SEMVER_MAJOR}"
+            )
+        if (
+            not _decimal_is_at_most(minor, "100")
+            or not _decimal_is_at_most(patch, "100")
+        ):
+            raise ReleaseNotesError(
+                "semantic version minor and patch components must be within 0..100"
+            )
     elif HARNESS_VERSION.fullmatch(normalized) is None:
         raise ReleaseNotesError(
             "version must be x.y.z or a 12-digit Harness time version"

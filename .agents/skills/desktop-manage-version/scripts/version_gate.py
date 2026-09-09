@@ -16,9 +16,13 @@ from pathlib import Path
 from typing import Any
 
 STATE_RELATIVE = Path(".harness/version-state.json")
-SEMVER_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+SEMVER_PATTERN = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
+)
 CHANGE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 SOURCE_COMMIT_PATTERN = re.compile(r"^[0-9a-fA-F]{40}$")
+CARGO_SEMVER_COMPONENT_MAX = (1 << 64) - 1
+CARGO_SEMVER_COMPONENT_MAX_TEXT = str(CARGO_SEMVER_COMPONENT_MAX)
 VERSION_LINE_PATTERN = re.compile(
     r'^(?P<prefix>\s*version\s*=\s*")(?P<version>[^"]+)(?P<suffix>"\s*(?:#.*)?(?:\r?\n)?)$'
 )
@@ -29,9 +33,18 @@ class GateError(RuntimeError):
     """表示必须失败关闭的版本契约错误。"""
 
 
+def _decimal_is_at_most(value: str, maximum: str) -> bool:
+    """不依赖大整数转换比较非负十进制文本。"""
+
+    significant = value.lstrip("0") or "0"
+    return len(significant) < len(maximum) or (
+        len(significant) == len(maximum) and significant <= maximum
+    )
+
+
 @dataclass(frozen=True, order=True)
 class Version:
-    """表示受限在 0..100 的稳定三段语义化版本。"""
+    """表示稳定三段语义化版本，并兼容历史值中的下位分量 100。"""
 
     major: int
     minor: int
@@ -46,10 +59,39 @@ class Version:
             raise GateError(
                 f"unsupported version {raw!r}; expected stable MAJOR.MINOR.PATCH"
             )
-        values = tuple(int(value) for value in match.groups())
-        if any(value > 100 for value in values):
-            raise GateError(f"version component outside inclusive range 0..100: {raw}")
-        return cls(*values)
+        major_text, minor_text, patch_text = match.groups()
+        if not _decimal_is_at_most(major_text, CARGO_SEMVER_COMPONENT_MAX_TEXT):
+            raise GateError("major component exceeds Cargo u64::MAX")
+        if (
+            not _decimal_is_at_most(minor_text, "100")
+            or not _decimal_is_at_most(patch_text, "100")
+        ):
+            raise GateError(
+                "minor and patch components outside legacy-compatible range 0..100"
+            )
+        return cls(int(major_text), int(minor_text), int(patch_text))
+
+    def normalized(self) -> "Version":
+        """把历史下位分量 100 规范化为 base-100 表示。"""
+
+        minor = self.minor + self.patch // 100
+        patch = self.patch % 100
+        major = self.major + minor // 100
+        if major > CARGO_SEMVER_COMPONENT_MAX:
+            raise GateError("automatic Major carry exceeds Cargo u64::MAX")
+        return Version(major, minor % 100, patch)
+
+    def bump_minor(self) -> "Version":
+        """提升一次中间版本，并把末位归零，必要时向 Major 进位。"""
+
+        current = self.normalized()
+        return Version(current.major, current.minor + 1, 0).normalized()
+
+    def bump_patch(self) -> "Version":
+        """提升一次末位版本，必要时连续向 Minor 和 Major 进位。"""
+
+        current = self.normalized()
+        return Version(current.major, current.minor, current.patch + 1).normalized()
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
@@ -205,7 +247,11 @@ def _load_state(path: Path) -> dict[str, Any]:
         if not _exact_keys(item, {"change_id", "kind", "required_version"}):
             raise GateError("pending change has unexpected fields")
         _validate_change_id(item["change_id"])
-        if item["kind"] not in {"feature", "bug-fix", "major"}:
+        if not isinstance(item["kind"], str) or item["kind"] not in {
+            "feature",
+            "bug-fix",
+            "major",
+        }:
             raise GateError("pending change has unsupported kind")
         required_version = Version.parse(item["required_version"])
         if required_version > target:
@@ -218,6 +264,28 @@ def _load_state(path: Path) -> dict[str, Any]:
         raise GateError("applied_bug_ids must contain unique strings")
     for bug_id in bug_ids:
         _validate_change_id(bug_id)
+    bug_id_set = set(bug_ids)
+    pending_requires_feature_lock = any(
+        item["kind"] in {"feature", "major"} for item in state["pending_changes"]
+    )
+    if state["feature_bump_applied"] != pending_requires_feature_lock:
+        raise GateError(
+            "feature_bump_applied must match pending feature or major changes"
+        )
+    pending_bug_ids = {
+        item["change_id"]
+        for item in state["pending_changes"]
+        if item["kind"] == "bug-fix"
+    }
+    if not pending_bug_ids.issubset(bug_id_set):
+        raise GateError("pending bug-fix IDs must exist in applied_bug_ids")
+    pending_non_bug_ids = {
+        item["change_id"]
+        for item in state["pending_changes"]
+        if item["kind"] != "bug-fix"
+    }
+    if pending_non_bug_ids & bug_id_set:
+        raise GateError("historical bug-fix IDs cannot be reused by another kind")
     last_release = state["last_release"]
     if last_release is not None:
         if not _exact_keys(last_release, {"source_commit", "version"}):
@@ -316,6 +384,14 @@ def _transition(
         return current, next_state, _idempotent_result(
             existing["required_version"], "change-already-applied"
         )
+    if stable_id in state["applied_bug_ids"]:
+        if kind != "bug-fix":
+            raise GateError(
+                f"change_id {stable_id!r} is already used by kind 'bug-fix'"
+            )
+        return current, next_state, _idempotent_result(
+            str(current), "bug-id-already-consumed"
+        )
 
     next_version = current
     reason: str
@@ -323,27 +399,19 @@ def _transition(
         if state["feature_bump_applied"]:
             reason = "feature-bump-already-applied-in-release-cycle"
         else:
-            if current.minor >= 100:
-                raise GateError("Minor overflow at 100; user decision is required")
-            next_version = Version(current.major, current.minor + 1, 0)
+            next_version = current.bump_minor()
             next_state["feature_bump_applied"] = True
             reason = "first-feature-in-release-cycle"
     elif kind == "bug-fix":
-        if stable_id in state["applied_bug_ids"]:
-            return current, next_state, _idempotent_result(
-                str(current), "bug-id-already-consumed"
-            )
-        if current.patch >= 100:
-            raise GateError("Patch overflow at 100; user decision is required")
-        next_version = Version(current.major, current.minor, current.patch + 1)
+        next_version = current.bump_patch()
         next_state["applied_bug_ids"].append(stable_id)
         reason = "distinct-completed-bug-fix"
     elif kind == "major":
         if not user_approved:
             raise GateError("Major change requires explicit --user-approved")
-        if major is None or not 0 <= major <= 100:
-            raise GateError("approved Major must be inside inclusive range 0..100")
-        if major <= current.major:
+        if major is None or not 0 <= major <= CARGO_SEMVER_COMPONENT_MAX:
+            raise GateError("approved Major must be inside Cargo u64 range")
+        if major <= current.normalized().major:
             raise GateError("approved Major must be greater than the current Major")
         next_version = Version(major, 0, 0)
         next_state["feature_bump_applied"] = True

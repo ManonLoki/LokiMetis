@@ -20,11 +20,11 @@
 | 行为保持的结构清理 | 上述工程事实与本次命中的源码 | `$desktop-refactor-code` |
 | GUI 展示、交互、身份或桌面能力 | `docs/GUI_APP_PROFILE.md`、`docs/design_standards/README.md` 和精确命中标准 | 对应 GUI Skill |
 | 国际化字符串抽取 | GUI profile、真实前端与 Rust 原生文案 | `$desktop-extract-i18n-strings` |
-| 环境故障恢复 | 真实失败和所需工具链事实 | `$desktop-check-development-environment` |
+| 环境故障恢复 | 真实失败和所需工具链事实；只读检查保持零写入 | `$desktop-check-development-environment`，缺失时安装、明确低于下界时受管升级、范围内稳定版原样复用 |
 | Git 配置或即将创建提交 | 独立仓库状态与提交要求 | `$desktop-configure-git-commits` |
 | 用户要求持久计划、交接或高风险协调 | 当前范围、依赖和已有最新计划（若存在） | `$desktop-plan-change` |
 | Windows 本地安装试包 | 根目标平台事实与本地试包规则 | `$desktop-build-tauri-local-install` |
-| 准备、构建或收集发布候选 | `docs/RELEASE.md` 与当次 E2E/性能选择 | `$desktop-prepare-release`、`$desktop-build-tauri-release`、`$desktop-collect-release-artifacts` |
+| 准备、构建或收集发布候选 | `docs/RELEASE.md` 与当次发布审查、性能、macOS 签名和 E2E 选择 | `$desktop-prepare-release` 先锁定审查/性能/签名，`$desktop-build-tauri-release` 只读消费并另行解析 E2E，收集使用 `$desktop-collect-release-artifacts` |
 | 最终产物 E2E、性能或完整验收 | `docs/RELEASE.md`、候选 manifest 与精确证据 | `$desktop-test-final-artifact-e2e`、`$desktop-test-gui-release-performance`、`$desktop-verify-delivery` |
 | 更新工程规则或维护工具 | 当前受保护事实与明确提供的新工程源 | `$desktop-upgrade-harness`，默认先预览 |
 
@@ -34,10 +34,10 @@
 - Core-first 是硬规则：平台无关业务类型、规则、值域、用例、状态转换、持久化策略与稳定错误属于 `loki_metis_core`；Tauri/React 只承担展示、IPC 映射和宿主机制。
 - 接口固定为 GUI。不得新增 CLI、TUI、MCP adapter，也不得接入应用 updater、联网检查、强制更新、更新制品、产品统计或远程遥测。
 - GUI 必须与 `docs/GUI_APP_PROFILE.md` 一致：托盘、通知、自启、赞助支持、单实例和受限深链接启用；赞助内容按产品差异嵌入设置页，独立赞助路由与全局快捷键禁用；侧栏固定为 compact。禁用能力必须零依赖、零配置、零命令、零路由、零状态和零运行时资源。
-- 日常开发直接实施，只运行本次需要的相关非空单元/回归测试。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、E2E、Verification 或人工复核。
-- 已初始化项目的版本只由 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期与缺陷去重状态。
+- 日常开发直接实施，只运行本次需要的相关非空单元/回归测试。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、E2E、Verification 或人工复核；软行数候选与临时标记只在明确发布且 `reviewSelection = enabled` 时集中审查，硬门禁始终有效。
+- 已初始化项目的版本只由 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期与缺陷去重状态。新生成 Minor/Patch 使用 `0..99` base-100 自动进位，历史 lower component `100` 保持可读且只在真实 `apply` 时规范化；只有真实渠道发布成功才重置周期。
 - 对产物声称“完成”“可用”或“已验证”必须有真实可观察结果；mock、stub、源码片段、中性页面或开发预览不能冒充候选验收。
-- Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 和技术债只由各自独立事件触发；普通开发不创建占位记录。
+- Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 和技术债只由各自独立事件触发；候选构建、收集、E2E、验收与 ready 复核只写忽略的 `release/` 原子集合和最终回复，不创建 tracked 占位或候选记录。
 - 不覆盖或撤销用户已有修改，不为假想未来增加抽象、能力或依赖；跨平台实现不得默认单一 Shell、路径、权限模型或宿主能力。
 
 ## Skills 地图
@@ -58,6 +58,7 @@
 | UI 布局、交互与 compact 侧栏 | `docs/design_standards/README.md` 及其索引标准 |
 | 当前版本与目标平台 | 根 `Cargo.toml` |
 | 发布周期与缺陷去重 | `.harness/version-state.json` |
+| Harness 上游来源与升级基线 | `.harness/upstream-lock.json` 与 `$desktop-upgrade-harness` |
 | 构建、候选和发布 | `docs/RELEASE.md` |
 | 商业许可 | `LICENSE.zh-CN.md`、`LICENSE.en.md` |
 

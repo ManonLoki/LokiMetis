@@ -11,7 +11,7 @@
 - 使用 TanStack Router（`@tanstack/react-router`）及其 Vite 插件建立文件路由和自动 route code splitting；`src/routeTree.gen.ts` 是唯一生成路由树，必须提交但禁止手改，并在 ESLint、Prettier 与中文注释门禁中按根相对路径精确排除。
 - 使用 TanStack Query（`@tanstack/react-query`）管理命令支撑及其他异步资源状态，包括请求生命周期、缓存和失效。
 - 使用 Jotai（`jotai`）管理确实需要跨组件共享的纯客户端状态。应用根 Provider/store 必须位于不会随 route unmount 重建的壳层；活动选项卡、已应用查询/筛选、排序、分页页码/每页数量及同类可恢复页面工作状态在页面模块顶层创建稳定 atom，并在当前应用进程内跨路由保留。已启用的关闭隐藏和单实例唤醒沿用同一 store，真正退出后由新 store 回到默认值；详细侧栏折叠偏好使用独立设备级存储，不进入该 store。
-- 使用 `i18next` 与 `react-i18next` 作为界面文案国际化事实标准；初始化已经交付真实侧栏与设置页，并可能交付赞助页面，因此中性 GUI 脚手架也必须立即接入（见 ADR-20260806-001）。
+- 使用 `i18next` 与 `react-i18next` 作为界面文案国际化事实标准；初始化已经交付真实侧栏与设置页，因此中性 GUI 脚手架必须立即接入（见 ADR-20260806-001）。
 - 使用 ESLint + `typescript-eslint`、Prettier、Vitest、Testing Library、`jest-dom`、`user-event` 与 jsdom 形成固定静态和测试基线。
 
 实施适配器时为每个直接包声明满足实际 API、Node.js、Tauri WebView、平台和安全约束的最低兼容稳定范围。`dependencies`/`devDependencies` 使用带完整三段下界的 caret（例如 `^1.2.3`），或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符和无下界范围。确需因上游缺陷或互操作约束精确固定时，先记录硬规则例外与解除条件。
@@ -73,14 +73,14 @@
 - 前端代码使用窄而有类型的 Tauri 命令。它不包含业务规则、迁移、平台无关验证或第二套持久存储。
 - React event handler、Router loader、Query mutation 和 atom 只管理导航、请求生命周期或纯交互状态；它们不得编排多个命令来决定业务结果。需要条件、重试或状态决策的工作流必须由单个 core 用例通过窄 Tauri 命令暴露。
 - React 事件必须绑定在拥有动作的语义控件本身，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理按钮、链接、`Switch` 或 `Checkbox` 动作；父级有自己的独立动作时应隔离冲突传播。表格中的 `Switch` 只能因用户操作该控件而切换，点击所在行或单元格不得切换。
-- 页面会话 atom 只保存控件值，不得接入 `atomWithStorage`、localStorage、sessionStorage、IndexedDB、Tauri Store、文件/数据库或 URL，也不得镜像 TanStack Query 数据或 core 权威状态；语言、主题与详细侧栏折叠等已批准的设备偏好沿用各自独立持久化契约。查询范围或每页数量变化时页码重置为 1；路由返回后只有 Query 成功、当前页大于 1 且结果为空时才回退第 1 页并以新 query key 重查，loading/error 与第 1 页空结果不回退。复用品牌包的 `pageSessionState.ts`/`PageSessionState.test.ts` 作为初始化实现与回归基线。
-- 在 Tauri 中打包本地前端资产。GUI 下游保留该 Skill 的品牌源资产，运行时只复制所选页面需要的资源；初始化固定建立 `/settings`，`/sponsor` 按 profile 选择存在，`/about` 必须缺席。侧栏布局只从 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md) 取得：compact 为 `80px` 全宽居中竖排菜单且不折叠；detailed 为 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标，并由 AppShell 拥有折叠状态和同步主内容偏移。产品功能项从顶部向下增长，底部按已选赞助、固定设置生成。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver；设置页固定显示应用/版本、本地更新日志、语言和 `light`/`dark`/`auto`。标题固定为 `{applicationName} v{version}`。选择 Sponsor 时按 manifest 原样复制完整媒体并适配亮暗主题；QQ 仅作为 Sponsor 的赞助支持联系方式，不得进入标题、应用元数据、侧栏或设置页。未选赞助页不得有路由、导航入口或运行时资源。
+- 页面会话 atom 只保存控件值，不得接入 `atomWithStorage`、localStorage、sessionStorage、IndexedDB、Tauri Store、文件/数据库或 URL，也不得镜像 TanStack Query 数据或 core 权威状态；语言、主题与详细侧栏折叠等已批准的设备偏好沿用各自独立持久化契约。查询范围或每页数量变化时页码重置为 1；路由返回后只有 Query 成功、当前页大于 1 且结果为空时才回退第 1 页并以新 query key 重查，loading/error 与第 1 页空结果不回退。复用 GUI 支持资源包的 `pageSessionState.ts`/`PageSessionState.test.ts` 作为初始化实现与回归基线。
+- 在 Tauri 中打包本地前端资产。GUI 下游保留该 Skill 的中性 GUI 支持资源；初始化的固定支持路由集合精确为 `/settings`，固定支持导航只包含设置入口，不复制额外固定支持页资源。LokiMetis 的 product-owned `sponsor_page = enabled` 只让受保护产品实现把已有 `SponsorPaymentPanel` 放在 `/settings` 底部并消费产品自有 `/brand-support/sponsor/` 微信支付与支付宝图片；它不增加路由或导航，不把组件、i18n、二维码或其它 sponsor template assets 复制回受管 GUI 支持资源。侧栏布局只从 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md) 取得：compact 为 `80px` 全宽居中竖排菜单且不折叠；detailed 为 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标，并由 AppShell 拥有折叠状态和同步主内容偏移。产品功能项从顶部向下增长，固定设置入口贴底。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver；设置页固定显示应用/版本、本地更新日志、语言和 `light`/`dark`/`auto`。标题固定为 `{applicationName} v{version}`。
 - `releaseNotesResource.ts` 固定调用 `load_release_notes` Tauri 命令并把 IPC 值从 `unknown` 严格收窄；`SettingsPageTemplate` 使用该加载器，更新日志弹窗提供 loading、失败与自身绑定的重试，不显示原始本机错误。设置页的五版/十条裁剪只是防御性显示上限，不能替代 Rust、发布准备和构建资源门禁；不得改用通用前端文件系统插件或编译时假数据。
 - 应用启动时使用 Tauri `tauri-plugin-os` 的 `locale()` 探测系统语言初始化 `i18next`；缺少对应资源时回退英文。界面必须提供 Mantine 组件实现的可发现语言切换入口，切换后的选择通过 GUI 适配器的本地偏好存储持久化，不写入 core；选择系统托盘时，还需通知 Rust adapter 无需重启地刷新当前托盘菜单标签。
-- 翻译资源按功能域拆分文件并使用稳定的层级 key（如 `settings.language.label`），不得在组件中拼接原始中文/英文字符串；核心领域错误标识作为 key 的一部分由前端映射为当前语言文案，业务判断本身不得放入翻译资源或组件。初始化把品牌包的中英文 JSON 注册为 `brandSupport` namespace，仍复用唯一 i18next 实例和语言偏好；缺少对应系统语言资源时回退英文。
-- 初始化设置页只包含固定的应用信息、语言、主题和按 profile 启用的宿主能力开关；不得增加未声明的网络状态或远程数据管线。
+- 翻译资源按功能域拆分文件并使用稳定的层级 key（如 `settings.language.label`），不得在组件中拼接原始中文/英文字符串；核心领域错误标识作为 key 的一部分由前端映射为当前语言文案，业务判断本身不得放入翻译资源或组件。初始化把 GUI 支持资源包的中英文 JSON 注册为 `guiSupport` namespace，仍复用唯一 i18next 实例和语言偏好；缺少对应系统语言资源时回退英文。
+- 初始化设置页只包含固定的应用信息、语言、主题和按上游七字段 profile 启用的宿主能力开关；不得增加未声明的网络状态或远程数据管线。LokiMetis 已批准的第八字段是 product-owned 例外，只保留设置页底部的本地静态微信支付/支付宝双码区，不扩展共享初始化模板。
 
-侧栏功能项以 `TablerIcon` 组件注入，所选赞助/固定设置由模板提供 Tabler 组件，不生成 About 图标或入口。Testing Library 按 `tauri-gui-sidebar-compact-80-v1` 锁定全宽居中、无固定 `em/ch` 盒和无折叠，按 detailed 标准锁定默认 `248px` 展开、`72px` Logo、`22px` 图标、自身折叠按钮、身份父级无动作、`76px`/`44px` 收起、AppShell 双宽度同步、图标-only + Tooltip 与偏好持久化；初始化 E2E 再从真实本机调试窗口复核可见结果。
+侧栏功能项以 `TablerIcon` 组件注入，固定设置入口由模板提供 Tabler 组件；固定支持导航不得接受额外项目。Testing Library 按 `tauri-gui-sidebar-compact-80-v1` 锁定全宽居中、无固定 `em/ch` 盒和无折叠，按 detailed 标准锁定默认 `248px` 展开、`72px` Logo、`22px` 图标、自身折叠按钮、身份父级无动作、`76px`/`44px` 收起、AppShell 双宽度同步、图标-only + Tooltip 与偏好持久化；初始化 E2E 再从真实本机调试窗口复核可见结果。
 
 ## 工具链与质量门禁
 
@@ -89,7 +89,7 @@
 - 前端清单提供稳定的 `dev`、`build`、`test`、`typecheck`、`lint` 和 `format:check` 脚本；`lint` 必须同时运行 ESLint 与 [TypeScript AST 中文注释检查器](check-typescript-chinese-comments.cjs)，项目 validator 也独立调用同一检查器，避免只改脚本即可绕过。
 - TypeScript Compiler AST 中文注释检查器及其 [专项测试](check-typescript-chinese-comments.test.ts) 是 GUI 下游保留的治理资产。复制到项目自有工具目录后只修改导入路径和扫描根，不扩张到局部变量/普通匿名回调，也不得增加自动批量注释功能。
 - 门禁跟踪直接及后置命名/默认导出的箭头函数组件与 hook；`test`/`it` 只在 `.test.*`、`.spec.*`、`test/`、`tests/`、`__tests__/` 或显式从 `vitest` 导入的上下文中视为测试场景，避免业务同名调用误报。
-- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖两种侧栏模式及详细模式持久化、功能区、按选择生成的底部顺序、固定设置内容与翻译键、设置固定路由、固定本地发布说明，以及赞助路由的存在与缺席；同时拒绝 About 字段、入口、路由和资源。选择 Sponsor 时再覆盖对应主题、媒体、QQ 赞助联系方式与内容约束；未选时锁定没有入口、路由和运行时资源。行内交互还要分别点击语义控件与父级周围区域，证明父级不会代理按钮、链接、`Switch` 或 `Checkbox`。页面会话回归用同一根 store 证明选项卡、查询/筛选、排序和分页跨 route unmount/remount 保留，用新 store 证明进程重启回到默认值，并覆盖成功空页回退、loading/error 不回退及第 1 页不循环。视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
+- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖两种侧栏模式及详细模式持久化、功能区、固定底部设置入口、固定设置内容与翻译键、设置固定路由和固定本地发布说明，并断言固定支持页面、导航及受管专属资源精确匹配设置页允许集合。LokiMetis 产品回归另覆盖 `/settings` 底部双码区、两种支付方式的可访问名称和原始产品路径，并负向断言 `/sponsor`、赞助导航与共享赞助模板缺席。行内交互还要分别点击语义控件与父级周围区域，证明父级不会代理按钮、链接、`Switch` 或 `Checkbox`。页面会话回归用同一根 store 证明选项卡、查询/筛选、排序和分页跨 route unmount/remount 保留，用新 store 证明进程重启回到默认值，并覆盖成功空页回退、loading/error 不回退及第 1 页不循环。视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
 
 ## 配置、日志与产物
 
@@ -97,14 +97,14 @@
 - 已批准的前端配置必须经过类型和边界校验，汇总为只读/冻结的单一配置对象。组件、route、Query、atom 和业务模块不得直接散落读取 `import.meta.env`；没有真实配置项时不创建占位 BaseURL、超时或环境文件。
 - 产品源码不直接使用 `console.*`。真实需要前端日志时，使用稳定的 `level/scope/event/context` 结构、严格字段 allowlist 和脱敏；Tauri 下游通过窄命令把清理后的诊断事件汇入 Rust `tracing` 本地文件日志，不建立浏览器端第二套持久日志或任何远程导出管线。
 - Release 前端构建必须拒绝 source map、开发/测试 endpoint、debug/info 哨兵、本机绝对路径、未脱敏秘密和未经批准的 `console.debug/info`。该静态扫描针对最终 `dist`，完成后才允许 Tauri 打包；它不替代日志行为测试、秘密扫描或真实产物验收。
-- 前端不得持有远程服务或发布者长期秘密。可选支持能力只消费经 Tauri 窄命令映射的类型化结果；生产 `dist` 必须拒绝秘密实值、固定未批准 endpoint 和禁用能力的残留配置。
+- 前端不得持有远程服务或发布者长期秘密。已批准的宿主能力只消费经 Tauri 窄命令映射的类型化结果；生产 `dist` 必须拒绝秘密实值、固定未批准 endpoint 和禁用能力的残留配置。
 
 ## 必需证据
 
 - 使用 pnpm，记录 `engines` 兼容范围与实际运行版本，提交正常解析的 `pnpm-lock.yaml`；另保存最低直接版本解析及最低 Node.js/pnpm 环境通过相关检查的证据。
 - 日常开发只运行本次前端变化需要的非空单元/回归测试。显式构建运行 `package.json` 与锁文件声明的完整非空单元测试套件和锁定 `pnpm build`；格式、类型、lint 和最终 `dist` 静态扫描只在本次变化需要、用户明确要求或发布/渠道硬要求时运行。
 - 测试路由未找到/错误边界、Query 加载/错误/重新获取/失效、Jotai 转换、纯键盘使用和相关无障碍语义。
-- 测试默认语言探测与回退、设置页应用/版本/本地更新日志、语言/三态主题切换的渲染与持久化、所选侧栏图标/文字/顺序与版本、设置固定路由、赞助路由按选择存在或缺席、About 零残留，以及缺失翻译 key 时不泄漏原始 key 给用户。选择托盘时，Rust/真实宿主测试另锁定托盘语言刷新和不泄漏 `tray.*` 原始键。
+- 测试默认语言探测与回退、设置页应用/版本/本地更新日志、语言/三态主题切换的渲染与持久化、所选侧栏图标/文字/顺序与版本、固定设置路由，以及固定支持页面、导航与受管专属资源的精确允许集合；缺失翻译 key 时不得向用户泄漏原始 key。LokiMetis 同时以受保护产品测试锁定设置页底部微信支付/支付宝双码区，不把这些产品断言或图片并入共享模板。选择托盘时，Rust/真实宿主测试另锁定托盘语言刷新和不泄漏 `tray.*` 原始键。
 - 固定测试 `load_release_notes` 命令名、IPC 畸形/越界拒绝、候选资源加载成功、失败与重试、近五版/每类十条及关闭后复用；正式候选 E2E 必须从实际安装包设置页显示当前 JSON，注入测试夹具不构成打包证据。
 - 发布阶段验收期间，在已打包或发布模式 Tauri 应用中使用真实构建前端完成已批准关键流程。
 

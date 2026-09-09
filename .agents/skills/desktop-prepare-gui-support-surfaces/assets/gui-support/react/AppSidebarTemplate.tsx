@@ -12,7 +12,6 @@ import {
 import {
   IconChevronLeft,
   IconChevronRight,
-  IconHeart,
   IconSettings,
   type TablerIcon,
 } from "@tabler/icons-react";
@@ -20,8 +19,7 @@ import { type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
-  buildSupportNavigationItems,
-  type SupportPageSelection,
+  FIXED_SUPPORT_NAVIGATION_ITEMS,
   type SupportNavigationItem,
 } from "./supportNavigation";
 import { formatDisplayVersion } from "./displayVersion";
@@ -107,7 +105,6 @@ export interface AppSidebarTemplateProps {
   version: string;
   featureItems: FeatureNavigationItem[];
   mode: AppSidebarMode;
-  supportPages: SupportPageSelection;
   activePath: string;
   onNavigate: (path: string) => void;
   detailedCollapsed?: boolean;
@@ -119,7 +116,6 @@ const FIXED_NAVIGATION_ICONS: Record<
   SupportNavigationItem["id"],
   TablerIcon
 > = {
-  sponsor: IconHeart,
   settings: IconSettings,
 };
 
@@ -273,20 +269,19 @@ function SidebarNavigationItem({
   );
 }
 
-/** 渲染所选侧栏模式，功能从上向下增长且已选支持页面固定贴底。 */
+/** 渲染所选侧栏模式，功能从上向下增长且设置入口固定贴底。 */
 export function AppSidebarTemplate({
   applicationName,
   logoSrc,
   version,
   featureItems,
   mode,
-  supportPages,
   activePath,
   onNavigate,
   detailedCollapsed,
   onCollapsedChange,
 }: AppSidebarTemplateProps): ReactElement {
-  const { t } = useTranslation("brandSupport");
+  const { t } = useTranslation("guiSupport");
   const displayVersion = formatDisplayVersion(version);
   if (
     mode === "detailed" &&
@@ -305,7 +300,6 @@ export function AppSidebarTemplate({
         : "detailedExpanded";
   const width = APP_SIDEBAR_WIDTHS[sizeKey];
   const logoSize = APP_SIDEBAR_LOGO_SIZES[sizeKey];
-  const supportNavigationItems = buildSupportNavigationItems(supportPages);
 
   if (logoSrc !== APP_SIDEBAR_LOGO_PATH) {
     throw new Error(
@@ -425,7 +419,7 @@ export function AppSidebarTemplate({
           data-testid="fixed-bottom-navigation"
           gap={APP_SIDEBAR_MENU_STACK_GAP_PX}
         >
-          {supportNavigationItems.map((item) => {
+          {FIXED_SUPPORT_NAVIGATION_ITEMS.map((item) => {
             const label = t(item.labelKey);
             return (
               <SidebarNavigationItem

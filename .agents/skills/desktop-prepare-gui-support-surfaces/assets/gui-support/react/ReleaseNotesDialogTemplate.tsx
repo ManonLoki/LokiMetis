@@ -37,7 +37,7 @@ export function ReleaseNotesDialogTemplate({
   onRetry,
   onClose,
 }: ReleaseNotesDialogTemplateProps): ReactElement {
-  const { i18n, t } = useTranslation("brandSupport");
+  const { i18n, t } = useTranslation("guiSupport");
   const locale = resolveReleaseNotesLocale(i18n.resolvedLanguage);
   const visibleReleases = selectVisibleReleaseNotes(releases, locale);
 
