@@ -55,10 +55,7 @@ pub use grok::{
 };
 pub(crate) use grok::{GrokRootInspection, GrokSignatureBudget, inspect_grok_root};
 #[cfg(test)]
-pub(crate) use grok::{
-    PRODUCTION_GROK_SESSION_ENVELOPE_JSONL, SYNTHETIC_GROK_UPDATES_JSONL,
-    sum_completed_usage_from_fixture,
-};
+pub(crate) use grok::{PRODUCTION_GROK_SESSION_ENVELOPE_JSONL, SYNTHETIC_GROK_UPDATES_JSONL};
 pub use jsonl::DEFAULT_MAX_JSONL_LINE_BYTES;
 #[cfg(test)]
 pub use jsonl::PARSER_VERSION;

@@ -69,6 +69,7 @@ function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
   return left?.id === right.id && left.source === right.source;
 }
 
+/** 待用户确认的宿主重启请求：记录目标宿主、实例与本次要应用的皮肤。 */
 interface PendingHostRestart {
   host: SkinHostKind;
   instanceId: string | null;

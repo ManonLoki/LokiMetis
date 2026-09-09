@@ -1,6 +1,6 @@
 //! Grok Build CLI 有界全设备发现。
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
@@ -179,7 +179,6 @@ where
         }
     }
 
-    let _started = BTreeSet::<PathBuf>::new();
     GrokDiscoveryResult {
         coverage: CoverageReport {
             state: coverage_state(

@@ -9,12 +9,8 @@ use loki_metis_core::{
     immediate_reindex_required, local_scan_in_progress_error_message,
     local_scan_writer_busy_message,
 };
-#[cfg(test)]
-use loki_metis_core::{local_scan_client_failure_message, local_scan_writer_busy_failure_detail};
 use tauri::{AppHandle, State};
 
-#[cfg(test)]
-use crate::commands::scan_orchestration::spawn_scan_task;
 use crate::commands::scan_orchestration::{ScanTask, ScanTaskOperation, execute_scan_task};
 use crate::dto::{
     AgentClientKindDto, ClearIndexResultDto, LocalIndexRefreshTriggerDto, ScanKindDto,
@@ -25,108 +21,6 @@ use crate::tray::refresh_tray_daily_token_title;
 
 use super::access::ensure_scan_start_access_by_policy;
 use super::ensure_business_access;
-
-/// 在首次设置标记成功时安排唯一一次自动快速扫描；重复调用保持无副作用。
-#[cfg(test)]
-pub(crate) async fn start_initial_scan_if_needed(
-    state: &AppRuntimeState,
-) -> Result<Option<ScanStatusDto>, String> {
-    if !state.claim_initial_scan().await? {
-        return Ok(None);
-    }
-    let existing_scan = state
-        .scans
-        .get(AgentClientKindDto::Codex.into())
-        .snapshot()
-        .await;
-    if existing_scan.started_at_epoch_ms.is_some() {
-        return Ok(Some(existing_scan));
-    }
-    if !state
-        .enabled_agents()
-        .await
-        .contains(AgentClientKindDto::Codex.into())
-    {
-        return Ok(None);
-    }
-    start_scan_for_client(
-        state,
-        AgentClientKindDto::Codex,
-        ScanKindDto::Quick,
-        ScanStartOrigin::InitialAutomatic,
-    )
-    .await
-    .map(Some)
-}
-
-/// 复用同一单 writer 门禁启动扫描，并按触发来源应用初始化访问策略。
-/// 生产路径的周期与批量刷新都已改为在同一许可内串行 await，本入口只剩测试夹具使用。
-#[cfg(test)]
-pub(crate) async fn start_scan_for_client(
-    state: &AppRuntimeState,
-    client: AgentClientKindDto,
-    kind: ScanKindDto,
-    origin: ScanStartOrigin,
-) -> Result<ScanStatusDto, String> {
-    ensure_scan_start_access_by_policy(state, origin, kind).await?;
-    let _account_context_guard = if client == AgentClientKindDto::Codex {
-        Some(state.lock_codex_account_context().await)
-    } else {
-        None
-    };
-    let scan_state = Arc::clone(state.scans.get(client.into()));
-    let lease = scan_state.start(kind, now_epoch_ms()).await.map_err(|_| {
-        tracing::warn!(
-            client = client.display_name(),
-            ?kind,
-            ?origin,
-            "scan start rejected: another scan is already running for this client"
-        );
-        local_scan_in_progress_error_message().to_owned()
-    })?;
-    let local_permit = match state.local_scan.get(client.into()).try_start() {
-        Ok(permit) => permit,
-        Err(_) => {
-            tracing::warn!(
-                client = client.display_name(),
-                ?kind,
-                ?origin,
-                "scan start rejected: local index writer is busy with another client"
-            );
-            scan_state
-                .finish_failed(
-                    now_epoch_ms(),
-                    &local_scan_client_failure_message(
-                        client.display_name(),
-                        local_scan_writer_busy_failure_detail(),
-                    ),
-                )
-                .await;
-            return Err(local_scan_writer_busy_message().to_owned());
-        }
-    };
-    let _scan_id = lease.scan_id;
-    tracing::info!(
-        client = client.display_name(),
-        ?kind,
-        ?origin,
-        "scan started"
-    );
-    spawn_scan_task(
-        ScanTask {
-            client,
-            scanner: Arc::clone(&state.agent_clients.get(client.into()).local_scanner),
-            operation: ScanTaskOperation::Scan { kind, origin },
-            cancellation: local_permit.cancellation_token(),
-            scan: Arc::clone(&scan_state),
-            coverage_state: Arc::clone(state.coverages.get(client.into())),
-            roots_state: Arc::clone(state.roots.get(client.into())),
-        },
-        local_permit,
-        None,
-    );
-    Ok(scan_state.snapshot().await)
-}
 
 /// 在固定客户端顺序中去重并拒绝空批次或重复输入。
 fn ordered_refresh_clients(

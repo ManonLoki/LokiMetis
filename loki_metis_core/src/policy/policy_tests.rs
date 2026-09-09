@@ -147,16 +147,6 @@ fn scan_policy_retention_follows_saved_days_not_the_thirty_day_ingest_window() {
     );
 }
 
-/// 验证完成初始化与否的通用业务门禁。
-#[test]
-fn denies_business_access_without_initialization() {
-    assert_eq!(
-        ensure_business_access(false),
-        Err(BusinessAccessError::InitializationRequired)
-    );
-    assert_eq!(ensure_business_access(true), Ok(()));
-}
-
 /// 验证覆盖报告合并遵循失败 > 取消 > 部分 > 完整的优先级。
 #[test]
 fn merges_coverage_with_latest_scope_and_sums_metadata() {

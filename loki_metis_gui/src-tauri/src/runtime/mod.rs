@@ -120,9 +120,6 @@ impl AppRuntimeState {
             .await = Some(now_epoch_ms());
     }
 
-    /// 退出路径只回收本机扫描状态。
-    pub(crate) async fn shutdown_application(&self) {}
-
     /// 首次读取设置时完成旧字段清理；损坏或 I/O 失败时保守回退。
     // “惰性初始化 + 加锁去重”模式：privacy_settings_loaded 是一个
     // Mutex<bool> 标记位，第一次调用时才真正从磁盘读取设置文件，

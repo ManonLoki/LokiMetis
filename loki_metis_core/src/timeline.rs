@@ -229,23 +229,6 @@ fn monday_of_week(today: Date) -> Result<Date, TimelineError> {
         .map_err(|_| TimelineError::InvalidObservedTimestamp)
 }
 
-/// 从观测时刻生成「当天及其往前连续 `day_count - 1` 个本地日」的日期序列。
-///
-/// 成员资格只看民用日期：`day_count = 1` 仅为观测日，`2` 为当天加前一日。
-/// 扫描回补、保留窗口和手动近 30 日统计仍用连续自然日，不对应界面日历窗口。
-/// 日期从最旧到最新排列。
-pub fn local_dates_for_day_count(
-    day_count: u16,
-    observed_at_epoch_ms: i64,
-) -> Result<Vec<Date>, TimelineError> {
-    dates_for_day_count(
-        day_count,
-        observed_at_epoch_ms,
-        &TimeStandard::Local,
-        &TimeZone::system(),
-    )
-}
-
 /// 返回保留窗口下界：观测日及其往前连续 `days - 1` 个所选标准民用日的首日起点。
 pub fn retention_cutoff_epoch_ms(
     days: RetentionDays,
@@ -318,16 +301,6 @@ pub fn belongs_to_window(
     ))
 }
 
-/// 判断发生时刻的本地日期是否落在给定日期集合内。
-pub fn occurred_on_local_dates(occurred_at_epoch_ms: i64, dates: &[Date]) -> bool {
-    occurred_on_dates(
-        occurred_at_epoch_ms,
-        dates,
-        &TimeStandard::Local,
-        &TimeZone::system(),
-    )
-}
-
 /// 判断发生时刻在所选标准下的民用日是否落在给定日期集合内。
 pub fn occurred_on_dates(
     occurred_at_epoch_ms: i64,
@@ -337,43 +310,6 @@ pub fn occurred_on_dates(
 ) -> bool {
     civil_date_for_timestamp(occurred_at_epoch_ms, standard, device_tz)
         .is_some_and(|date| dates.contains(&date))
-}
-
-/// 按窗口与观测时刻筛选 canonical 调用，成员资格只看本地日期。
-pub fn filter_canonical_usage_for_local_window(
-    canonical: &CanonicalUsageSet,
-    window: LocalUsageWindow,
-    observed_at_epoch_ms: i64,
-) -> Result<CanonicalUsageSet, TimelineError> {
-    filter_canonical_usage_for_window(
-        canonical,
-        window,
-        observed_at_epoch_ms,
-        &TimeStandard::Local,
-        &TimeZone::system(),
-    )
-}
-
-/// 按窗口、观测时刻和时间标准筛选 canonical 调用。
-pub fn filter_canonical_usage_for_window(
-    canonical: &CanonicalUsageSet,
-    window: LocalUsageWindow,
-    observed_at_epoch_ms: i64,
-    standard: &TimeStandard,
-    device_tz: &TimeZone,
-) -> Result<CanonicalUsageSet, TimelineError> {
-    let dates = dates_for_window(window, observed_at_epoch_ms, standard, device_tz)?;
-    Ok(filter_canonical_usage_for_dates(
-        canonical, &dates, standard, device_tz,
-    ))
-}
-
-/// 按给定本地日期集合筛选 canonical 调用。
-pub fn filter_canonical_usage_for_local_dates(
-    canonical: &CanonicalUsageSet,
-    dates: &[Date],
-) -> CanonicalUsageSet {
-    filter_canonical_usage_for_dates(canonical, dates, &TimeStandard::Local, &TimeZone::system())
 }
 
 /// 按给定民用日集合与时间标准筛选 canonical 调用。
@@ -391,14 +327,6 @@ pub fn filter_canonical_usage_for_dates(
     })
 }
 
-/// 按单个本地日期筛选 canonical 调用，供日桶与逐日统计快照共用。
-pub fn filter_canonical_usage_for_local_date(
-    canonical: &CanonicalUsageSet,
-    date: Date,
-) -> CanonicalUsageSet {
-    filter_canonical_usage_for_local_dates(canonical, std::slice::from_ref(&date))
-}
-
 /// 按单个民用日与时间标准筛选 canonical 调用。
 pub fn filter_canonical_usage_for_date(
     canonical: &CanonicalUsageSet,
@@ -407,11 +335,6 @@ pub fn filter_canonical_usage_for_date(
     device_tz: &TimeZone,
 ) -> CanonicalUsageSet {
     filter_canonical_usage_for_dates(canonical, std::slice::from_ref(&date), standard, device_tz)
-}
-
-/// 把 Unix 毫秒时间戳转为系统时区本地日期。
-pub fn local_date_for_timestamp(epoch_ms: i64) -> Option<Date> {
-    civil_date_for_timestamp(epoch_ms, &TimeStandard::Local, &TimeZone::system())
 }
 
 /// 把 Unix 毫秒转为所选标准下的民用日期。
@@ -425,11 +348,6 @@ pub fn civil_date_for_timestamp(
             .to_zoned(zone_for_standard(standard, device_tz))
             .date()
     })
-}
-
-/// 返回给定日期在系统时区下的第一秒可表示时间。
-pub fn local_day_start_epoch_ms(date: Date) -> Option<i64> {
-    day_start_epoch_ms(date, &TimeStandard::Local, &TimeZone::system())
 }
 
 /// 返回观测时刻之后下一设备当地自然日的首个可表示瞬间。

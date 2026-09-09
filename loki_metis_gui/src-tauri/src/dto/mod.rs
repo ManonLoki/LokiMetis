@@ -16,6 +16,7 @@ mod privacy;
 mod scan;
 mod sources;
 mod statistics;
+#[cfg(test)]
 mod system;
 mod usage;
 mod workbuddy;
@@ -28,6 +29,7 @@ pub use privacy::*;
 pub use scan::*;
 pub use sources::*;
 pub use statistics::*;
+#[cfg(test)]
 pub use system::*;
 pub use usage::*;
 pub use workbuddy::*;

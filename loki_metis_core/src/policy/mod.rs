@@ -174,30 +174,6 @@ pub const fn scan_start_access_error_message(error: ScanStartAccessError) -> &'s
     }
 }
 
-/// 表示通用业务入口门禁：初始化未完成时拒绝执行。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-pub enum BusinessAccessError {
-    /// 初始化未完成。
-    #[error("initialization has not completed")]
-    InitializationRequired,
-}
-
-/// 对依赖完成初始化的业务入口进行统一校验。
-pub fn ensure_business_access(initialization_completed: bool) -> Result<(), BusinessAccessError> {
-    if initialization_completed {
-        Ok(())
-    } else {
-        Err(BusinessAccessError::InitializationRequired)
-    }
-}
-
-/// 返回业务入口门禁拒绝后的用户提示文案。
-pub const fn business_access_error_message(error: BusinessAccessError) -> &'static str {
-    match error {
-        BusinessAccessError::InitializationRequired => "请先完成初始化向导。",
-    }
-}
-
 /// 表示源根来源类型，用于稳定的标识前缀校验。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SourceClientKind {

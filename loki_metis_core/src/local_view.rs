@@ -108,27 +108,6 @@ pub enum SourceDiscoveryMethod {
     MetadataDiscovery,
 }
 
-/// 组装固定四窗口的本机窗口数据。
-pub fn build_local_windows(
-    canonical: &CanonicalUsageSet,
-    coverage: &CoverageReport,
-    index_state: LocalIndexState,
-    observed_at_epoch_ms: i64,
-    provider: ProviderKind,
-    source_version: Option<&str>,
-) -> Result<LocalRecordsSummary, String> {
-    build_local_windows_with_standard(
-        canonical,
-        coverage,
-        index_state,
-        observed_at_epoch_ms,
-        provider,
-        source_version,
-        TimeStandard::Local,
-        &jiff::tz::TimeZone::system(),
-    )
-}
-
 /// 按已保存时间标准和设备时区组装固定四窗口的本机窗口数据。
 #[allow(clippy::too_many_arguments)]
 pub fn build_local_windows_with_standard(

@@ -2,6 +2,7 @@ import type { SkinHostKind, SkinReference } from "../api/skins";
 
 const REMEMBERED_SKIN_KEY = "loki-metis.remembered-skin.v2";
 
+/** 按换皮宿主拆分记忆键，避免不同宿主的上次选择互相覆盖。 */
 function rememberedSkinKey(host: SkinHostKind): string {
   return `${REMEMBERED_SKIN_KEY}.${host}`;
 }

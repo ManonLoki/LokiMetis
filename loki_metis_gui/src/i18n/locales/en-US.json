@@ -15,19 +15,6 @@
     "logo_alt": "{{applicationName}} application mark",
     "version": "Version {{version}}"
   },
-  "home": {
-    "eyebrow": "Local AI workspace",
-    "title": "Usage, monitoring, and Codex appearance in one place",
-    "description": "LokiMetis aggregates local AI agent usage, manages Hooks monitoring, and provides recoverable skins for an explicitly selected Codex instance.",
-    "status_label": "Current status",
-    "status_ready": "GUI initialization complete",
-    "definition_label": "Codex skins",
-    "definition_required": "Required",
-    "next_step_title": "Next step",
-    "next_step_description": "Open the skin library from the sidebar to browse built-in themes or manage your own.",
-    "workspace_title": "Workspace",
-    "workspace_description": "The dashboard is the default landing page, and resources and preferences stay on this device."
-  },
   "skins": {
     "host": {
       "tabs": "Skin hosts",

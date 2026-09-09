@@ -1,14 +1,14 @@
 //! 设置与初始化状态的更新、持久化与读取路径。
 
 use crate::dto::{
-    AvailableAiTypeDto, IndexLocationCodeDto, InitializationStatusDto, LanguagePreferenceDto,
-    PrivacySettingsDto, UsageClientKindDto,
+    AvailableAiTypeDto, IndexLocationCodeDto, PrivacySettingsDto, UsageClientKindDto,
 };
+#[cfg(test)]
+use crate::dto::{InitializationStatusDto, LanguagePreferenceDto};
 use crate::privacy_store::{LocalPrivacySettings, save_settings};
 use loki_metis_core::{
     AiTool, EnabledAgents, RetentionDays, ScanIntervalMinutes, SourceClientKind, agent_wire_label,
     dashboard_selection_for_ai_tools, index_location_claude_code_label, index_location_codex_label,
-    initialization_state_save_failed_message, language_setting_save_failed_message,
     merge_public_ai_selections, normalize_enabled_ai_tools, privacy_settings_save_failed_message,
     public_ai_capabilities, retention_days_range_message, retention_days_save_failed_message,
     scan_interval_range_message, scan_interval_save_failed_message,
@@ -16,7 +16,7 @@ use loki_metis_core::{
 #[cfg(test)]
 use loki_metis_core::{
     enabled_agents_error_message, initial_scan_state_save_failed_message,
-    workbuddy_stats_enabled_save_failed_message,
+    initialization_state_save_failed_message, language_setting_save_failed_message,
 };
 
 use super::AppRuntimeState;
@@ -85,6 +85,7 @@ impl AppRuntimeState {
         self.privacy_settings.read().await.retention_days
     }
 
+    #[cfg(test)]
     /// 返回不含客户端数据的首次初始化门禁状态。
     pub(crate) async fn initialization_status(&self) -> InitializationStatusDto {
         self.ensure_privacy_settings_loaded().await;
@@ -95,6 +96,7 @@ impl AppRuntimeState {
         }
     }
 
+    #[cfg(test)]
     /// 持久化界面语言偏好；不刷新查询，也不触发扫描或索引。
     pub(crate) async fn set_language_preference(
         &self,
@@ -112,6 +114,7 @@ impl AppRuntimeState {
         true
     }
 
+    #[cfg(test)]
     /// 持久化首次初始化完成或测试重置状态，同时保留其他设置字段。
     pub(crate) async fn set_initialization_completed(&self, completed: bool) -> Result<(), String> {
         self.update_privacy_settings(initialization_state_save_failed_message(), |settings| {
@@ -201,15 +204,6 @@ impl AppRuntimeState {
     pub(crate) async fn workbuddy_stats_enabled(&self) -> bool {
         self.ensure_privacy_settings_loaded().await;
         self.privacy_settings.read().await.workbuddy_stats_enabled
-    }
-
-    /// 保存 WorkBuddy 本地统计开关；关闭时后续读取命令必须拒绝返回统计数据。
-    #[cfg(test)]
-    pub(crate) async fn set_workbuddy_stats_enabled(&self, enabled: bool) -> Result<(), String> {
-        self.update_privacy_settings(workbuddy_stats_enabled_save_failed_message(), |settings| {
-            settings.workbuddy_stats_enabled = enabled;
-        })
-        .await
     }
 
     /// 返回当前已开放的本机 Agent 集合。

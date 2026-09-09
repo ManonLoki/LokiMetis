@@ -15,19 +15,6 @@
     "logo_alt": "{{applicationName}} 应用标识",
     "version": "版本 {{version}}"
   },
-  "home": {
-    "eyebrow": "本机 AI 工作台",
-    "title": "掌握用量、监控与 Codex 外观",
-    "description": "LokiMetis 在本机聚合 AI Agent 用量，管理 Hooks 监控，并为明确选择的 Codex 实例提供可恢复的换皮能力。",
-    "status_label": "当前状态",
-    "status_ready": "GUI 初始化完成",
-    "definition_label": "Codex 换皮",
-    "definition_required": "需要补充",
-    "next_step_title": "下一步",
-    "next_step_description": "从侧边栏进入换皮资源库，浏览内置主题或管理自己的皮肤。",
-    "workspace_title": "工作区",
-    "workspace_description": "默认从看板进入，所有资源和偏好均保留在本机。"
-  },
   "skins": {
     "host": {
       "tabs": "换皮宿主",

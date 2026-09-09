@@ -3,14 +3,13 @@
 use std::path::Path;
 
 use crate::backend::local_index::LocalIndex;
-#[cfg(test)]
-use loki_metis_core::LocalIndexState;
 use loki_metis_core::{
-    CoverageReport, ProviderKind, SourceClientKind, SourceDiscoveryCode, SourceRootSummary,
-    TimeStandard, UsageSnapshot, WindowBoundaries, build_empty_local_windows,
-    build_indexed_source_roots, build_local_windows_with_standard,
-    local_storage_read_error_message,
+    CoverageReport, ProviderKind, SourceDiscoveryCode, SourceRootSummary, TimeStandard,
+    UsageSnapshot, WindowBoundaries, build_empty_local_windows, build_indexed_source_roots,
+    build_local_windows_with_standard, local_storage_read_error_message,
 };
+#[cfg(test)]
+use loki_metis_core::{LocalIndexState, SourceClientKind};
 use tauri::async_runtime::spawn_blocking;
 
 #[cfg(test)]
@@ -143,6 +142,7 @@ pub(crate) async fn load_source_root_summaries_for_parser(
     Ok(build_indexed_source_roots(&roots, environment_label))
 }
 
+#[cfg(test)]
 /// 为指定客户端构造无扫描四窗口兜底零值。
 pub(crate) fn empty_local_windows(
     coverage: &CoverageReport,

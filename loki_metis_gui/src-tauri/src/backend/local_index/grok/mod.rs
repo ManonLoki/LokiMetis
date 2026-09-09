@@ -16,10 +16,7 @@ pub use discovery::{
 };
 pub(crate) use discovery::{GrokRootInspection, GrokSignatureBudget, inspect_grok_root};
 #[cfg(test)]
-pub(crate) use jsonl::{
-    PRODUCTION_GROK_SESSION_ENVELOPE_JSONL, SYNTHETIC_GROK_UPDATES_JSONL,
-    sum_completed_usage_from_fixture,
-};
+pub(crate) use jsonl::{PRODUCTION_GROK_SESSION_ENVELOPE_JSONL, SYNTHETIC_GROK_UPDATES_JSONL};
 pub use scan::scan_grok_discovered_roots;
 
 #[cfg(test)]

@@ -23,44 +23,6 @@ pub enum UsageChartDimensionDto {
     Root,
 }
 
-/// 概览趋势允许同时选择的固定 Token 指标。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum UsageChartTokenMetricDto {
-    /// 上游单次总量之和。
-    TotalTokens,
-    /// 包含缓存的全部输入。
-    InputTokens,
-    /// 输入中的缓存读取子集。
-    CachedInputTokens,
-    /// 输入中的缓存写入子集。
-    CacheWriteInputTokens,
-    /// 全部输出。
-    OutputTokens,
-    /// 输出中的推理子集。
-    ReasoningOutputTokens,
-}
-
-/// 用量分布允许选择的固定指标。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum UsageChartDistributionMetricDto {
-    /// 上游单次总量之和。
-    TotalTokens,
-    /// 包含缓存的全部输入。
-    InputTokens,
-    /// 输入中的缓存读取子集。
-    CachedInputTokens,
-    /// 输入中的缓存写入子集。
-    CacheWriteInputTokens,
-    /// 全部输出。
-    OutputTokens,
-    /// 输出中的推理子集。
-    ReasoningOutputTokens,
-    /// canonical 调用数。
-    CallCount,
-}
-
 impl From<UsageChartDimensionDto> for loki_metis_core::UsageChartDimension {
     /// 将 IPC 图表维度映射为 core 领域维度。
     fn from(value: UsageChartDimensionDto) -> Self {

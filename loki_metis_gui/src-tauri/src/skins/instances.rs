@@ -457,6 +457,7 @@ fn available_debug_port_for_excluding(
         })
 }
 
+#[cfg(test)]
 /// 执行换皮宿主内部的 `endpoint_candidates_from_commands` 步骤。
 fn endpoint_candidates_from_commands(commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
     let mut endpoints = explicit_endpoint_candidates_from_commands(commands);

@@ -368,11 +368,6 @@ pub(super) fn hook_restart_required(tool: AiTool) -> bool {
     protocol(tool).changed_write_outcome().restart_required()
 }
 
-/// 判断配置内容中是否已包含当前工具的 `LokiMetis` 管理标识。
-pub fn hook_config_has_managed_marker(content: &str, tool: AiTool) -> bool {
-    contains_managed_marker(content, tool)
-}
-
 /// 按 Hook 请求路径中的 slug 反查对应工具，避免与各协议自身的 `slug()` 重复维护映射表。
 pub fn tool_from_slug(slug: &str) -> Option<AiTool> {
     AiTool::ALL

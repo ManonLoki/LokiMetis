@@ -230,6 +230,7 @@ fn load_monitor_settings_unlocked(config_dir: &Path) -> Result<MonitorSettings, 
     Ok(settings)
 }
 
+#[cfg(test)]
 /// 保存监控设置并返回落盘后的规范化结果，调用方无需再读一次。
 pub fn save_monitor_settings(
     config_dir: &Path,

@@ -536,7 +536,7 @@ fn discovers_an_exclusively_locked_jsonl_without_opening_it() {
 /// 静态锁定发现适配器没有普通文件内容读取入口。
 #[test]
 fn discovery_adapter_has_no_content_open_primitive() {
-    let source = include_str!("../metadata_discovery.rs");
+    let source = include_str!("mod.rs");
     for parts in [
         ["File", "::open"],
         ["read_to", "_string"],
