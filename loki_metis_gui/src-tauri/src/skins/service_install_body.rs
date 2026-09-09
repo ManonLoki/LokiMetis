@@ -1,3 +1,8 @@
+/// 在完整安装事务退出前持续占用 shutdown completion 登记。
+struct InstallCompletionGuard {
+    _registration: ActiveWatchRegistration,
+}
+
 /// Windows WorkBuddy 的恢复会关闭全部旧进程，因此新 PID 必须接管该宿主的全部旧运行态。
 fn replaces_all_host_runtimes(host: SkinHostKind) -> bool {
     cfg!(target_os = "windows") && host == SkinHostKind::WorkBuddy
@@ -109,6 +114,47 @@ fn take_uninstall_watch_tasks(
 }
 
 impl SkinService {
+    /// 为完整安装事务建立退出 completion guard，并返回同一持久取消通道。
+    fn begin_install_completion(
+        &self,
+    ) -> Result<
+        (
+            InstallCompletionGuard,
+            watch::Sender<bool>,
+            watch::Receiver<bool>,
+        ),
+        AppError,
+    > {
+        let (cancel, receiver) = watch::channel(false);
+        let registration = self.register_shutdown_participant(cancel.clone())?;
+        Ok((
+            InstallCompletionGuard {
+                _registration: registration,
+            },
+            cancel,
+            receiver,
+        ))
+    }
+
+    /// 把安装 completion 的同一发送端发布为当前宿主操作取消入口。
+    fn bind_install_codex_operation(
+        &self,
+        cancel: watch::Sender<bool>,
+    ) -> Result<CodexOperationGuard<'_>, AppError> {
+        let id = self.next_codex_operation_id.fetch_add(1, Ordering::Relaxed);
+        let mut active = self.codex_operation.lock().map_err(|_| {
+            AppError::new(
+                "skin.operation_state_failed",
+                "无法准备 Codex 操作状态，请重启应用后重试。",
+            )
+        })?;
+        *active = Some(CodexOperation { id, cancel });
+        Ok(CodexOperationGuard {
+            id,
+            active: &self.codex_operation,
+        })
+    }
+
     /// 在一次受确认的操作内收敛 WorkBuddy，并把已验证端点绑定到唯一官方进程树根。
     async fn recover_windows_workbuddy_target(
         &self,
@@ -202,10 +248,14 @@ impl SkinService {
             allow_third_party_code,
         )?;
         let _operation = self.operation.lock().await;
+        let (_install_completion, install_cancel, mut cancel) = self.begin_install_completion()?;
+        let _codex_operation = self.bind_install_codex_operation(install_cancel)?;
         let _runtime_mutation = self.begin_host_runtime_mutation(host);
         self.ensure_watch_runtime_open()?;
         self.reap_watch_tasks().await?;
-        let (_guard, mut cancel) = self.begin_codex_operation()?;
+        if *cancel.borrow() {
+            return Err(operation_cancelled());
+        }
         let mut preferred_endpoint = self.verified_endpoint_hint(host)?;
 
         let mut selected_instance = if allow_workbuddy_recovery {

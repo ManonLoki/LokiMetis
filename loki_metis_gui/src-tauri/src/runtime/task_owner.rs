@@ -77,6 +77,34 @@ pub(crate) struct BackgroundTaskOwner {
     state: Mutex<BackgroundTaskOwnerState>,
 }
 
+/// 在关闭 future 被取消或 panic 时，把仍未确认终态的句柄交还原 owner。
+struct ShutdownTaskBatchGuard<'owner> {
+    owner: &'owner BackgroundTaskOwner,
+    tasks: Vec<OwnedBackgroundTask>,
+}
+
+impl<'owner> ShutdownTaskBatchGuard<'owner> {
+    /// 接管本轮关闭批次；正常或异常离开作用域都由 Drop 恢复剩余所有权。
+    fn new(owner: &'owner BackgroundTaskOwner, tasks: Vec<OwnedBackgroundTask>) -> Self {
+        Self { owner, tasks }
+    }
+
+    /// 由同步 Drop 路径取回批次，清空守卫以避免重新登记到即将销毁的 owner。
+    fn into_tasks(mut self) -> Vec<OwnedBackgroundTask> {
+        std::mem::take(&mut self.tasks)
+    }
+}
+
+impl Drop for ShutdownTaskBatchGuard<'_> {
+    /// await 取消与 panic 都会经过这里，不能让局部 JoinHandle 因 Vec 销毁而 detach。
+    fn drop(&mut self) {
+        if self.tasks.is_empty() {
+            return;
+        }
+        self.owner.lock_state().tasks.append(&mut self.tasks);
+    }
+}
+
 impl BackgroundTaskOwner {
     /// 绑定发现协调器，使退出可先发出业务取消再等待任务。
     pub(crate) fn new(root_discovery: Arc<RootDiscoveryCoordinator>) -> Self {
@@ -171,58 +199,42 @@ impl BackgroundTaskOwner {
 
     /// 使用可注入时限执行关闭，供生产门限与快速回归复用。
     async fn shutdown_with_timeout(&self, timeout: Duration) {
-        let (tasks, final_deadline) = self.begin_shutdown(timeout);
+        let (mut batch, final_deadline) = self.begin_shutdown(timeout);
         let final_reap_budget = BACKGROUND_TASK_FINAL_REAP_BUDGET.min(timeout / 2);
         let cooperative_deadline = final_deadline
             .checked_sub(final_reap_budget)
             .unwrap_or(final_deadline);
 
-        // 第一阶段并发等待所有任务合作退出；不能让单个慢任务独占共同预算。
-        let overdue = futures::future::join_all(
-            tasks
-                .into_iter()
-                .map(|task| wait_for_owned_task(task, cooperative_deadline)),
-        )
-        .await
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+        // 所有任务本身已经并发运行；逐句柄使用同一绝对截止时间等待，既不让慢任务
+        // 延长总预算，也让 batch 在每个 await 期间持续拥有尚未终态的句柄。
+        reap_owned_tasks_until(&mut batch.tasks, cooperative_deadline).await;
 
         // abort 只对尚未进入同步阻塞区的 async future 有终止语义；对 spawn_blocking
         // 调用 abort 会制造已经回收的假象，因此 blocking 任务只继续观察合作取消。
-        for task in &overdue {
+        for task in &batch.tasks {
             if task.kind == BackgroundTaskKind::AbortableAsync {
                 task.handle.abort();
             }
         }
 
-        let unreaped = futures::future::join_all(
-            overdue
-                .into_iter()
-                .map(|task| wait_for_owned_task(task, final_deadline)),
-        )
-        .await
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-        if !unreaped.is_empty() {
-            for task in &unreaped {
+        reap_owned_tasks_until(&mut batch.tasks, final_deadline).await;
+        if !batch.tasks.is_empty() {
+            for task in &batch.tasks {
                 tracing::error!(
                     task = task.name,
                     kind = ?task.kind,
                     "owned background task did not reach a terminal state before shutdown deadline"
                 );
             }
-            // 不丢弃仍在运行的 JoinHandle；owner 保留真实所有权直到任务终止或进程退出。
-            self.lock_state().tasks.extend(unreaped);
         }
+        // batch 的 Drop 在正常返回时也把超时任务交还 owner；取消或 panic 走同一路径。
     }
 
-    /// 原子进入关闭，先发布业务取消与通用关闭信号再返回句柄。
+    /// 原子进入关闭，先用异常安全守卫接管句柄，再发布业务取消与通用关闭信号。
     fn begin_shutdown(
         &self,
         timeout: Duration,
-    ) -> (Vec<OwnedBackgroundTask>, tokio::time::Instant) {
+    ) -> (ShutdownTaskBatchGuard<'_>, tokio::time::Instant) {
         let now = tokio::time::Instant::now();
         let (tasks, deadline) = {
             let mut state = self.lock_state();
@@ -230,14 +242,16 @@ impl BackgroundTaskOwner {
             let deadline = *state.shutdown_deadline.get_or_insert(now + timeout);
             (std::mem::take(&mut state.tasks), deadline)
         };
+        // 必须先建立异常恢复守卫，再调用任何可能 panic 的业务取消钩子。
+        let batch = ShutdownTaskBatchGuard::new(self, tasks);
         let _ = self.root_discovery.request_cancel();
-        for task in &tasks {
+        for task in &batch.tasks {
             if let Some(cancel) = &task.cooperative_cancel {
                 cancel();
             }
             let _ = task.shutdown.send(true);
         }
-        (tasks, deadline)
+        (batch, deadline)
     }
 
     /// 取得登记表锁；测试 panic 污染后仍保留回收能力。
@@ -270,7 +284,7 @@ impl BackgroundTaskOwner {
 impl Drop for BackgroundTaskOwner {
     /// 异常销毁无法异步等待；未确认终态的句柄转交进程级 owner，绝不直接 detach。
     fn drop(&mut self) {
-        let mut tasks = self.begin_shutdown(Duration::ZERO).0;
+        let mut tasks = self.begin_shutdown(Duration::ZERO).0.into_tasks();
         reap_finished_owned_tasks(&mut tasks);
         for task in &tasks {
             if task.kind == BackgroundTaskKind::AbortableAsync {
@@ -345,11 +359,11 @@ fn log_owned_task_join_result(name: &'static str, result: tauri::Result<()>) -> 
     }
 }
 
-/// 等待一项任务到共同截止时间；超时返回原句柄，使调用方仍持有真实所有权。
+/// 等待一项任务到共同截止时间；返回终态结果，超时则保持原句柄不动。
 async fn wait_for_owned_task(
-    mut task: OwnedBackgroundTask,
+    task: &mut OwnedBackgroundTask,
     deadline: tokio::time::Instant,
-) -> Option<OwnedBackgroundTask> {
+) -> Option<tauri::Result<()>> {
     let result = if task.handle.inner().is_finished() {
         Some((&mut task.handle).await)
     } else {
@@ -357,11 +371,22 @@ async fn wait_for_owned_task(
             .await
             .ok()
     };
-    if let Some(result) = result {
-        log_owned_task_join_result(task.name, result);
-        None
-    } else {
-        Some(task)
+    result
+}
+
+/// 在共享截止时间前逐一观察终态，并立即移除已完成句柄，保证 guard 可安全恢复余项。
+async fn reap_owned_tasks_until(
+    tasks: &mut Vec<OwnedBackgroundTask>,
+    deadline: tokio::time::Instant,
+) {
+    let mut index = 0;
+    while index < tasks.len() {
+        if let Some(result) = wait_for_owned_task(&mut tasks[index], deadline).await {
+            let task = tasks.swap_remove(index);
+            log_owned_task_join_result(task.name, result);
+        } else {
+            index += 1;
+        }
     }
 }
 
@@ -522,6 +547,105 @@ mod tests {
         })
         .await
         .expect("finished blocking handle is eventually reaped");
+    }
+
+    /// 关闭 future 被取消时，批次中尚未终态的 blocking 句柄必须交还原 owner。
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cancelling_shutdown_future_restores_unfinished_handle_to_owner() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let owner = Arc::new(BackgroundTaskOwner::new(Arc::new(
+            RootDiscoveryCoordinator::default(),
+        )));
+        let release = Arc::new(AtomicBool::new(false));
+        let task_release = Arc::clone(&release);
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (cancelled_tx, cancelled_rx) = tokio::sync::oneshot::channel();
+        let cancelled_tx = Arc::new(Mutex::new(Some(cancelled_tx)));
+        let task_cancelled_tx = Arc::clone(&cancelled_tx);
+        owner
+            .spawn_blocking_cancelable(
+                "cancelled-shutdown-owner-test",
+                move || {
+                    if let Some(sender) = task_cancelled_tx
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .take()
+                    {
+                        let _ = sender.send(());
+                    }
+                },
+                move |_shutdown| {
+                    let _ = started_tx.send(());
+                    while !task_release.load(Ordering::Acquire) {
+                        std::thread::park_timeout(Duration::from_millis(1));
+                    }
+                },
+            )
+            .expect("cancelable blocking task registers");
+        started_rx.await.expect("blocking task starts");
+
+        let shutdown_owner = Arc::clone(&owner);
+        let shutdown_task = tokio::spawn(async move {
+            shutdown_owner
+                .shutdown_with_timeout(Duration::from_secs(10))
+                .await;
+        });
+        cancelled_rx
+            .await
+            .expect("shutdown takes ownership and invokes cancellation");
+        shutdown_task.abort();
+        let join_error = shutdown_task
+            .await
+            .expect_err("shutdown task is deterministically cancelled");
+        assert!(join_error.is_cancelled());
+        assert_eq!(owner.owned_task_count(), 1);
+
+        release.store(true, Ordering::Release);
+        tokio::time::timeout(
+            Duration::from_secs(1),
+            owner.shutdown_with_timeout(Duration::ZERO),
+        )
+        .await
+        .expect("restored handle is reaped without extending the original deadline");
+        assert_eq!(owner.owned_task_count(), 0);
+    }
+
+    /// 关闭批次建立后的 panic 必须经守卫恢复全部未终态句柄。
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn panic_during_shutdown_restores_unfinished_handle_to_owner() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let owner = BackgroundTaskOwner::new(Arc::new(RootDiscoveryCoordinator::default()));
+        let release = Arc::new(AtomicBool::new(false));
+        let task_release = Arc::clone(&release);
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        owner
+            .spawn_blocking("panicked-shutdown-owner-test", move |_shutdown| {
+                let _ = started_tx.send(());
+                while !task_release.load(Ordering::Acquire) {
+                    std::thread::park_timeout(Duration::from_millis(1));
+                }
+            })
+            .expect("blocking task registers");
+        started_rx.await.expect("blocking task starts");
+
+        let (batch, _) = owner.begin_shutdown(Duration::from_secs(10));
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _batch = batch;
+            panic!("expected shutdown panic");
+        }));
+        assert!(unwind.is_err());
+        assert_eq!(owner.owned_task_count(), 1);
+
+        release.store(true, Ordering::Release);
+        tokio::time::timeout(
+            Duration::from_secs(1),
+            owner.shutdown_with_timeout(Duration::ZERO),
+        )
+        .await
+        .expect("panic-restored handle is reaped without extending the original deadline");
+        assert_eq!(owner.owned_task_count(), 0);
     }
 
     /// owner 异常 Drop 时未结束的 blocking 句柄必须转交进程级 owner 而非 detach。

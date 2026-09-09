@@ -50,8 +50,8 @@ impl SkinService {
         self.lock_watch_task_reaper().retained.push(task);
     }
 
-    /// 在同一短锁中复核 shutdown 门禁并登记 watcher 取消发送端。
-    fn register_active_watch_task(
+    /// 在同一短锁中复核 shutdown 门禁并登记需要在退出前完成的活动。
+    fn register_shutdown_participant(
         &self,
         cancel: watch::Sender<bool>,
     ) -> Result<ActiveWatchRegistration, AppError> {
@@ -68,8 +68,16 @@ impl SkinService {
         })
     }
 
-    /// 等待全部已登记 watcher 到终态；所有调用共享首次 shutdown 的最终截止。
-    async fn wait_for_active_watch_tasks_until(
+    /// 登记已构造但尚未提交到运行态的 watcher，使退出能取消并等待其完成。
+    fn register_active_watch_task(
+        &self,
+        cancel: watch::Sender<bool>,
+    ) -> Result<ActiveWatchRegistration, AppError> {
+        self.register_shutdown_participant(cancel)
+    }
+
+    /// 等待全部已登记 watcher 与安装事务到终态；所有调用共享首次 shutdown 的最终截止。
+    async fn wait_for_active_shutdown_participants_until(
         &self,
         deadline: tokio::time::Instant,
     ) -> Result<(), AppError> {
@@ -206,7 +214,9 @@ impl SkinService {
             Ok(affected) => affected_pages = affected_pages.saturating_add(affected),
             Err(error) => first_error = Some(error),
         }
-        if let Err(error) = self.wait_for_active_watch_tasks_until(final_deadline).await
+        if let Err(error) = self
+            .wait_for_active_shutdown_participants_until(final_deadline)
+            .await
             && first_error.is_none()
         {
             first_error = Some(error);

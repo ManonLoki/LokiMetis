@@ -38,7 +38,8 @@
     "BUG-SKIN-FILE-MANAGER-TRUST",
     "BUG-HOOK-LISTENER-CONNECTION-LIMIT",
     "BUG-SKIN-WATCHER-SHUTDOWN-OWNERSHIP",
-    "BUG-MANUAL-SOURCE-DISCOVERY-CANCELLATION"
+    "BUG-MANUAL-SOURCE-DISCOVERY-CANCELLATION",
+    "BUG-SKINS-INSTALL-SHUTDOWN-COMPLETION-20260910"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -438,8 +439,13 @@
       "change_id": "BUG-MANUAL-SOURCE-DISCOVERY-CANCELLATION",
       "kind": "bug-fix",
       "required_version": "0.2.39"
+    },
+    {
+      "change_id": "BUG-SKINS-INSTALL-SHUTDOWN-COMPLETION-20260910",
+      "kind": "bug-fix",
+      "required_version": "0.2.40"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.39"
+  "target_version": "0.2.40"
 }
