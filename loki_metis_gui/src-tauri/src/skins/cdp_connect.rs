@@ -1,3 +1,17 @@
+/// 把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner。
+fn hold_connected_handler_during<T, Operation>(
+    handler_task: HandlerTaskGuard,
+    operation: Operation,
+) -> impl Future<Output = (HandlerTaskGuard, T)>
+where
+    Operation: Future<Output = T>,
+{
+    async move {
+        let result = operation.await;
+        (handler_task, result)
+    }
+}
+
 /// 执行换皮宿主内部的 `connect_or_launch` 步骤。
 async fn connect_or_launch(
     host: SkinHostKind,
@@ -7,7 +21,7 @@ async fn connect_or_launch(
 ) -> Result<
     (
         Browser,
-        JoinHandle<()>,
+        HandlerTaskGuard,
         ConnectionSource,
         CdpEndpoint,
         u32,
@@ -24,17 +38,15 @@ async fn connect_or_launch(
             Ok(connection) => connection,
             Err(error) => return Err(remap_workbuddy_connection_error(host, error).await),
         };
-        let verified_root_pid = match run_cancellable(
-            cancel,
-            browser_host_root_pid(
-                host,
-                &mut browser,
-                endpoint,
-                Some(selected.process.pid),
+        let (mut handler_task, verified_root_pid) = hold_connected_handler_during(
+            handler_task,
+            run_cancellable(
+                cancel,
+                browser_host_root_pid(host, &mut browser, endpoint, Some(selected.process.pid)),
             ),
         )
-        .await
-        {
+        .await;
+        let verified_root_pid = match verified_root_pid {
             Ok(verified) => verified,
             Err(error) => {
                 handler_task.abort();
@@ -45,16 +57,14 @@ async fn connect_or_launch(
         let Some(verified_root_pid) = verified_root_pid else {
             handler_task.abort();
             drop(browser);
-            return Err(
-                remap_workbuddy_connection_error(
-                    host,
-                    AppError::new(
-                        "skin.cdp_rejected",
-                        format!("调试端点不是 {} 的唯一可信主页面。", host.display_name()),
-                    ),
-                )
-                .await,
-            );
+            return Err(remap_workbuddy_connection_error(
+                host,
+                AppError::new(
+                    "skin.cdp_rejected",
+                    format!("调试端点不是 {} 的唯一可信主页面。", host.display_name()),
+                ),
+            )
+            .await);
         };
         return Ok((
             browser,
@@ -99,7 +109,7 @@ async fn poll_until_cdp_ready(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
     endpoint: CdpEndpoint,
-) -> Result<(Browser, JoinHandle<()>, CdpEndpoint, u32), AppError> {
+) -> Result<(Browser, HandlerTaskGuard, CdpEndpoint, u32), AppError> {
     let deadline = tokio::time::Instant::now() + CODEX_LAUNCH_TIMEOUT;
     while tokio::time::Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
@@ -115,9 +125,12 @@ async fn poll_until_cdp_ready(
         };
         match connection_result {
             Ok((mut browser, handler_task)) => {
-                let verified_root_pid = run_cancellable(
-                    cancel,
-                    browser_host_root_pid(host, &mut browser, endpoint, None),
+                let (mut handler_task, verified_root_pid) = hold_connected_handler_during(
+                    handler_task,
+                    run_cancellable(
+                        cancel,
+                        browser_host_root_pid(host, &mut browser, endpoint, None),
+                    ),
                 )
                 .await;
                 match verified_root_pid {
@@ -161,8 +174,7 @@ fn available_launch_endpoint_excluding(
     excluded_ports: &[u16],
 ) -> Result<CdpEndpoint, AppError> {
     if host == SkinHostKind::WorkBuddy && cfg!(target_os = "windows") {
-        return available_debug_port_for_excluding(host, &[], excluded_ports)
-            .map(CdpEndpoint::new);
+        return available_debug_port_for_excluding(host, &[], excluded_ports).map(CdpEndpoint::new);
     }
     let endpoint = CdpEndpoint::default_for(host);
     if excluded_ports.contains(&endpoint.port)
@@ -170,10 +182,7 @@ fn available_launch_endpoint_excluding(
     {
         return Err(AppError::new(
             "skin.cdp_unavailable",
-            format!(
-                "{} 的本机调试端口不可用，未启动宿主。",
-                host.display_name()
-            ),
+            format!("{} 的本机调试端口不可用，未启动宿主。", host.display_name()),
         ));
     }
     Ok(endpoint)
@@ -183,7 +192,10 @@ fn available_launch_endpoint_excluding(
 fn cdp_unavailable_for(host: SkinHostKind) -> AppError {
     AppError::new(
         "skin.cdp_unavailable",
-        format!("{} 未在 15 秒内开放可验证的本机调试页面。", host.display_name()),
+        format!(
+            "{} 未在 15 秒内开放可验证的本机调试页面。",
+            host.display_name()
+        ),
     )
 }
 
@@ -194,7 +206,7 @@ async fn host_runtime_status(
 ) -> Result<(CodexRuntimeStatus, Option<CdpEndpoint>), AppError> {
     let (_cancel_tx, mut cancel_rx) = watch::channel(false);
     match connect_existing_browser_with_preferred(host, &mut cancel_rx, preferred_endpoint).await {
-        Ok((browser, handler_task, endpoint, _)) => {
+        Ok((browser, mut handler_task, endpoint, _)) => {
             handler_task.abort();
             drop(browser);
             return Ok((
@@ -325,7 +337,10 @@ fn force_close_timeout_error(host: SkinHostKind) -> AppError {
             SkinHostKind::Codex => "skin.codex_force_close_timeout",
             SkinHostKind::WorkBuddy => "skin.workbuddy_force_close_timeout",
         },
-        format!("{} 未能在 15 秒内关闭，请保存工作后手动退出。", host.display_name()),
+        format!(
+            "{} 未能在 15 秒内关闭，请保存工作后手动退出。",
+            host.display_name()
+        ),
     )
 }
 
@@ -335,7 +350,7 @@ async fn wait_for_cdp_ready(
     cancel: &mut watch::Receiver<bool>,
     endpoint: CdpEndpoint,
 ) -> Result<(CodexRuntimeStatus, Option<CdpEndpoint>), AppError> {
-    let (browser, handler_task, _, _) = poll_until_cdp_ready(host, cancel, endpoint).await?;
+    let (browser, mut handler_task, _, _) = poll_until_cdp_ready(host, cancel, endpoint).await?;
     handler_task.abort();
     drop(browser);
     Ok((
@@ -419,9 +434,13 @@ async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -
 async fn connect_existing_browser(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
-) -> Result<(Browser, JoinHandle<()>, CdpEndpoint), AppError> {
+) -> Result<(Browser, HandlerTaskGuard, CdpEndpoint), AppError> {
     let (browser, handler_task, endpoint, _) =
         connect_existing_browser_with_preferred(host, cancel, None).await?;
+    if handler_task.is_finished() {
+        drop(browser);
+        return Err(AppError::new("skin.cdp_failed", "宿主调试会话已意外结束。"));
+    }
     Ok((browser, handler_task, endpoint))
 }
 
@@ -430,7 +449,7 @@ async fn connect_existing_browser_with_preferred(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
     preferred_endpoint: Option<CdpEndpoint>,
-) -> Result<(Browser, JoinHandle<()>, CdpEndpoint, u32), AppError> {
+) -> Result<(Browser, HandlerTaskGuard, CdpEndpoint, u32), AppError> {
     let candidates = run_cancellable(
         cancel,
         cdp_endpoint_candidates_for(host, preferred_endpoint),
@@ -440,8 +459,11 @@ async fn connect_existing_browser_with_preferred(
     for endpoint in candidates {
         match run_cancellable(cancel, connect_browser(endpoint)).await {
             Ok((mut browser, handler_task)) => {
-                let verified_root_pid =
-                    browser_host_root_pid(host, &mut browser, endpoint, None).await;
+                let (mut handler_task, verified_root_pid) = hold_connected_handler_during(
+                    handler_task,
+                    browser_host_root_pid(host, &mut browser, endpoint, None),
+                )
+                .await;
                 match verified_root_pid {
                     Ok(Some(root_pid)) => {
                         return Ok((browser, handler_task, endpoint, root_pid));
@@ -481,7 +503,7 @@ async fn connect_existing_browser_with_preferred(
 include!("cdp_identity.rs");
 
 /// 执行换皮宿主内部的 `connect_browser` 步骤。
-async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, JoinHandle<()>), AppError> {
+async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, HandlerTaskGuard), AppError> {
     let config = HandlerConfig {
         request_timeout: CDP_REQUEST_TIMEOUT,
         ..HandlerConfig::default()
@@ -499,6 +521,7 @@ async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, JoinHandle<(
             "调试端点返回了非本机 WebSocket 地址，连接已拒绝。",
         ));
     }
+    let reservation = reserve_handler_task_capacity()?;
     let handler_task = tokio::spawn(async move {
         while let Some(event) = handler.next().await {
             if event.is_err() {
@@ -506,14 +529,14 @@ async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, JoinHandle<(
             }
         }
     });
-    Ok((browser, handler_task))
+    Ok((browser, reservation.bind(handler_task)))
 }
 
 /// 执行换皮宿主内部的 `wait_for_initial_injection` 步骤。
 async fn wait_for_initial_injection(
     host: SkinHostKind,
     browser: Browser,
-    handler_task: JoinHandle<()>,
+    handler_task: HandlerTaskGuard,
     payload: &Arc<str>,
     skin: &SkinReference,
     page_ready_timeout: Duration,
@@ -521,9 +544,9 @@ async fn wait_for_initial_injection(
     expected_host_root_pid: u32,
     transaction_id: &str,
     cancel: &mut watch::Receiver<bool>,
-) -> Result<(Browser, JoinHandle<()>, InjectionReport), AppError> {
+) -> Result<(Browser, HandlerTaskGuard, InjectionReport), AppError> {
     let mut browser = browser;
-    let mut handler_task = HandlerTaskGuard::new(handler_task);
+    let mut handler_task = handler_task;
     let transaction = InjectionTransaction::new(transaction_id);
     let result = {
         let wait = async {
@@ -552,27 +575,25 @@ async fn wait_for_initial_injection(
         monitor_host_operation(host, cancel, wait).await
     };
     match result {
-        Ok(report) => match handler_task.take() {
-            Some(handler_task) => Ok((browser, handler_task, report)),
-            None => {
-                let error = AppError::new("skin.cdp_failed", "宿主调试会话已意外结束。");
-                let transaction_targets = transaction.tracked_targets();
-                let rollback = rollback_initial_injection(
-                    host,
-                    &mut browser,
-                    &mut handler_task,
-                    endpoint,
-                    expected_host_root_pid,
-                    transaction_id,
-                    &transaction_targets,
-                )
-                .await;
-                Err(match rollback {
-                    Ok(_) => error,
-                    Err(rollback) => rollback_error(&error, rollback),
-                })
-            }
-        },
+        Ok(report) if !handler_task.is_finished() => Ok((browser, handler_task, report)),
+        Ok(_) => {
+            let error = AppError::new("skin.cdp_failed", "宿主调试会话已意外结束。");
+            let transaction_targets = transaction.tracked_targets();
+            let rollback = rollback_initial_injection(
+                host,
+                &mut browser,
+                &mut handler_task,
+                endpoint,
+                expected_host_root_pid,
+                transaction_id,
+                &transaction_targets,
+            )
+            .await;
+            Err(match rollback {
+                Ok(_) => error,
+                Err(rollback) => rollback_error(&error, rollback),
+            })
+        }
         Err(error) => {
             let transaction_targets = transaction.tracked_targets();
             let rollback = rollback_initial_injection(
@@ -604,26 +625,19 @@ async fn rollback_initial_injection(
     transaction_id: &str,
     transaction_targets: &BTreeSet<String>,
 ) -> Result<usize, AppError> {
-    let first_error = match verify_stable_endpoint_binding(
-        host,
-        browser,
-        endpoint,
-        expected_host_root_pid,
-    )
-    .await
-    {
-        Ok(()) => match rollback_marked_injection_pages(
-            browser,
-            transaction_id,
-            transaction_targets,
-        )
-        .await
+    let first_error =
+        match verify_stable_endpoint_binding(host, browser, endpoint, expected_host_root_pid).await
         {
-            Ok(removed) => return Ok(removed),
+            Ok(()) => {
+                match rollback_marked_injection_pages(browser, transaction_id, transaction_targets)
+                    .await
+                {
+                    Ok(removed) => return Ok(removed),
+                    Err(error) => error,
+                }
+            }
             Err(error) => error,
-        },
-        Err(error) => error,
-    };
+        };
     if matches!(platform_host_is_running(host).await, Ok(false)) {
         return Ok(0);
     }
@@ -631,15 +645,21 @@ async fn rollback_initial_injection(
         Ok(connection) => connection,
         Err(_) => return Err(first_error),
     };
-    match browser_matches_host_for_root(
-        host,
-        &mut next_browser,
-        endpoint,
-        Some(expected_host_root_pid),
+    let (mut next_handler_task, verification) = hold_connected_handler_during(
+        next_handler_task,
+        browser_matches_host_for_root(
+            host,
+            &mut next_browser,
+            endpoint,
+            Some(expected_host_root_pid),
+        ),
     )
-    .await
-    {
+    .await;
+    match verification {
         Ok(true) => {
+            if next_handler_task.is_finished() {
+                return Err(first_error);
+            }
             handler_task.replace(next_handler_task);
             *browser = next_browser;
             rollback_marked_injection_pages(browser, transaction_id, transaction_targets).await

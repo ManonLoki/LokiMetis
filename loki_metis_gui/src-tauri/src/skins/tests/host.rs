@@ -217,8 +217,8 @@
             while !task.is_finished() {
                 tokio::task::yield_now().await;
             }
-            let mut guard = HandlerTaskGuard::new(task);
-            assert!(guard.take().is_none());
+            let guard = HandlerTaskGuard::new(task);
+            assert!(guard.is_finished());
         });
     }
 

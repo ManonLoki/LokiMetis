@@ -345,12 +345,6 @@ pub(super) fn retained_process_count() -> usize {
 }
 
 #[cfg(test)]
-/// 返回仍处于主动命令 future 内、但受进程级关闭信号覆盖的 owner 数。
-pub(super) fn active_process_count() -> usize {
-    lock_process_reaper().active.len()
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use std::process::Stdio;
@@ -386,7 +380,6 @@ mod tests {
     /// active owner 必须在同步 spawn 返回前登记，并在确认终态后原子移除。
     #[tokio::test]
     async fn active_child_is_registered_for_shutdown_until_reaped() {
-        let before = active_process_count();
         let mut command = Command::new("/bin/sleep");
         command
             .arg("30")
@@ -394,12 +387,21 @@ mod tests {
             .stdout(Stdio::null())
             .stderr(Stdio::null());
         let mut owner = OwnedProcessChild::spawn(&mut command).expect("测试子进程应可启动");
-        assert_eq!(active_process_count(), before + 1);
+        let registration_id = owner
+            .registration_id
+            .expect("主动子进程必须保存自己的登记标识");
+        assert!(
+            lock_process_reaper().active.contains_key(&registration_id),
+            "本测试子进程必须在同步 spawn 返回前完成登记"
+        );
         owner
             .terminate_and_reap_until(tokio::time::Instant::now() + Duration::from_secs(1))
             .await
             .expect("测试子进程必须可终止并回收");
-        assert_eq!(active_process_count(), before);
+        assert!(
+            !lock_process_reaper().active.contains_key(&registration_id),
+            "本测试子进程确认终态后必须移除自己的登记"
+        );
     }
 
     /// shutdown 门禁、spawn 与 active 登记必须处于同一临界区，禁止检查后启动竞态。

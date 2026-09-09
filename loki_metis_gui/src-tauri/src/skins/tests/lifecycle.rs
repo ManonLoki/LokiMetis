@@ -48,19 +48,65 @@ async fn cancelled_endpoint_cleanup_scope_aborts_handler_task() {
         .await
         .expect("aborted handler future must be dropped")
         .expect("handler drop signal must remain connected");
+}
 
-    let source = include_str!("../injection.rs");
-    let cleanup_via = source
-        .split_once("async fn cleanup_via")
-        .expect("cleanup helper must exist")
-        .1;
-    assert!(cleanup_via.contains("mut handler_task: HandlerTaskGuard"));
-    assert!(
-        source
-            .matches("HandlerTaskGuard::new(handler_task)")
-            .count()
-            >= 2
+#[tokio::test]
+/// 连接后的验证 future 被真实取消时，统一 ownership scope 必须中止并销毁 handler。
+async fn cancelled_connected_handler_scope_does_not_detach_task() {
+    let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+    let (dropped_tx, dropped_rx) = tokio::sync::oneshot::channel();
+    let handler = tokio::spawn(async move {
+        let _drop_signal = WatchHandlerDropSignal(Some(dropped_tx));
+        let _ = started_tx.send(());
+        std::future::pending::<()>().await;
+    });
+    started_rx.await.expect("connected handler must start");
+
+    let ownership_scope = super::hold_connected_handler_during(
+        HandlerTaskGuard::new(handler),
+        std::future::pending::<()>(),
     );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), ownership_scope)
+            .await
+            .is_err(),
+        "test timeout must cancel the real ownership future"
+    );
+    tokio::time::timeout(Duration::from_secs(1), dropped_rx)
+        .await
+        .expect("cancelled ownership scope must abort the handler promptly")
+        .expect("handler drop signal must remain connected");
+}
+
+#[tokio::test]
+/// 连接后的验证 future panic 时，栈展开也必须经同一 guard 中止并销毁 handler。
+async fn panicked_connected_handler_scope_does_not_detach_task() {
+    let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+    let (dropped_tx, dropped_rx) = tokio::sync::oneshot::channel();
+    let handler = tokio::spawn(async move {
+        let _drop_signal = WatchHandlerDropSignal(Some(dropped_tx));
+        let _ = started_tx.send(());
+        std::future::pending::<()>().await;
+    });
+    started_rx.await.expect("connected handler must start");
+
+    let ownership_scope = tokio::spawn(super::hold_connected_handler_during(
+        HandlerTaskGuard::new(handler),
+        async {
+            panic!("verification fixture panics after the handler is connected");
+            #[allow(unreachable_code)]
+            ()
+        },
+    ));
+    let panic = match ownership_scope.await {
+        Ok(_) => panic!("ownership scope must propagate the fixture panic"),
+        Err(error) => error,
+    };
+    assert!(panic.is_panic());
+    tokio::time::timeout(Duration::from_secs(1), dropped_rx)
+        .await
+        .expect("panicked ownership scope must abort the handler promptly")
+        .expect("handler drop signal must remain connected");
 }
 
 #[tokio::test]

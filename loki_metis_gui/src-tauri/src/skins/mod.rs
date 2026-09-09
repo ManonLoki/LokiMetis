@@ -46,6 +46,7 @@ use self::error::AppError;
 include!("constants.rs");
 include!("model.rs");
 include!("manifests.rs");
+include!("handler_task_owner.rs");
 include!("service_state.rs");
 
 include!("service_catalog_body.rs");
@@ -70,6 +71,7 @@ include!("injection.rs");
 mod tests {
     include!("tests/support.rs");
     include!("tests/lifecycle.rs");
+    include!("tests/handler_task_owner.rs");
     include!("tests/runtime.rs");
     include!("tests/themes.rs");
     include!("tests/imports.rs");

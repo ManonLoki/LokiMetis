@@ -359,7 +359,7 @@ impl SkinService {
             preferred_endpoint,
         )
         .await;
-        let (mut browser, handler_task, connection_source, endpoint, verified_root_pid) =
+        let (mut browser, mut handler_task, connection_source, endpoint, verified_root_pid) =
             match connection {
                 Ok(connection) => connection,
                 Err(error)
@@ -490,7 +490,7 @@ impl SkinService {
             &mut cancel,
         )
         .await;
-        let (mut browser, handler_task, report) = match injection {
+        let (mut browser, mut handler_task, report) = match injection {
             Ok(result) => result,
             Err(error) => {
                 let error = remap_workbuddy_connection_error(host, error).await;
@@ -501,8 +501,6 @@ impl SkinService {
                 });
             }
         };
-        let mut handler_task = HandlerTaskGuard::new(handler_task);
-
         if *cancel.borrow() {
             let error = operation_cancelled();
             let rollback = rollback_initial_injection(
@@ -575,7 +573,7 @@ impl SkinService {
             });
         }
 
-        let Some(handler_task_value) = handler_task.take() else {
+        let Some(handler_abort) = handler_task.abort_handle() else {
             let error = AppError::new("skin.cdp_failed", "宿主调试会话已意外结束。");
             let rollback = rollback_initial_injection(
                 host,
@@ -599,7 +597,6 @@ impl SkinService {
         let registration = match self.register_active_watch_task(cancel.clone()) {
             Ok(registration) => registration,
             Err(error) => {
-                let mut handler_task = HandlerTaskGuard::new(handler_task_value);
                 let rollback = rollback_initial_injection(
                     host,
                     &mut browser,
@@ -620,14 +617,13 @@ impl SkinService {
         };
         let payload = Arc::clone(&loaded.payload);
         let watched_skin = skin.clone();
-        let handler_abort = handler_task_value.abort_handle();
         let initial_transaction = Some((transaction_id, report.transaction_targets.clone()));
         let join = tokio::spawn(async move {
             let _registration = registration;
             watch_pages(
                 host,
                 browser,
-                handler_task_value,
+                handler_task,
                 payload,
                 watched_skin,
                 initial_transaction,

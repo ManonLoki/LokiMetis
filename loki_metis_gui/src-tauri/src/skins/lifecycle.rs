@@ -110,6 +110,7 @@ impl SkinService {
 
     /// 为正常操作建立一次完整而有界的 watcher 回收轮次。
     async fn reap_watch_tasks(&self) -> Result<usize, AppError> {
+        reap_finished_handler_tasks();
         let budget = WatchStopBudget::production();
         let (cooperative_deadline, final_deadline) = budget.deadlines(tokio::time::Instant::now());
         let mut cleanup = remove_from_endpoint;
@@ -124,6 +125,7 @@ impl SkinService {
 
     /// 停止一组已从运行态摘除的 watcher，并优先回收上一轮保留的句柄。
     async fn stop_watch_tasks(&self, tasks: Vec<WatchTask>) -> Result<usize, AppError> {
+        reap_finished_handler_tasks();
         let budget = WatchStopBudget::production();
         let (cooperative_deadline, final_deadline) = budget.deadlines(tokio::time::Instant::now());
         let mut cleanup = remove_from_endpoint;
@@ -139,6 +141,7 @@ impl SkinService {
 
     /// 应用退出时关闭 watcher 登记、取消在途安装，并在首次确定的共同截止内回收。
     pub(crate) async fn shutdown(&self) {
+        close_handler_task_reservations();
         let mut cleanup = remove_from_endpoint;
         if let Err(error) = self
             .shutdown_with_budget_and_cleanup(WatchStopBudget::production(), &mut cleanup)
@@ -233,6 +236,11 @@ impl SkinService {
             Ok(affected) => affected_pages = affected_pages.saturating_add(affected),
             Err(error) if first_error.is_none() => first_error = Some(error),
             Err(_) => {}
+        }
+        if let Err(error) = reap_handler_tasks_until(final_deadline).await
+            && first_error.is_none()
+        {
+            first_error = Some(error);
         }
         first_error.map_or(Ok(affected_pages), Err)
     }

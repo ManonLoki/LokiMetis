@@ -258,15 +258,25 @@ async fn wait_for_initial_injection_inner(
             }
             match connect_browser(endpoint).await {
                 Ok((mut next_browser, next_handler_task)) => {
-                    let verification = browser_matches_host_for_root(
-                        host,
-                        &mut next_browser,
-                        endpoint,
-                        Some(expected_host_root_pid),
+                    let (mut next_handler_task, verification) = hold_connected_handler_during(
+                        next_handler_task,
+                        browser_matches_host_for_root(
+                            host,
+                            &mut next_browser,
+                            endpoint,
+                            Some(expected_host_root_pid),
+                        ),
                     )
                     .await;
                     match reconnect_validation_decision(host, verification) {
                         ReconnectValidationDecision::Accept => {
+                            if next_handler_task.is_finished() {
+                                last_session_error = Some(AppError::new(
+                                    "skin.cdp_failed",
+                                    "宿主调试会话已意外结束。",
+                                ));
+                                continue;
+                            }
                             handler_task.replace(next_handler_task);
                             *browser = next_browser;
                             break;

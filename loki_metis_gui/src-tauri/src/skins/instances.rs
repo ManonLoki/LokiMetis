@@ -53,8 +53,11 @@ async fn endpoint_matches_host(
     let Ok((mut browser, task)) = connect_browser(endpoint).await else {
         return Ok(false);
     };
-    let matches =
-        browser_matches_host_for_root(host, &mut browser, endpoint, expected_root_pid).await;
+    let (mut task, matches) = hold_connected_handler_during(
+        task,
+        browser_matches_host_for_root(host, &mut browser, endpoint, expected_root_pid),
+    )
+    .await;
     task.abort();
     drop(browser);
     matches
@@ -161,7 +164,7 @@ async fn probe_resolved_account_profile(
         )
     })?;
     let (mut browser, task) = connect_browser(CdpEndpoint::new(port)).await?;
-    let result = async {
+    let (mut task, result) = hold_connected_handler_during(task, async {
         if !browser_matches_host_for_root(
             SkinHostKind::Codex,
             &mut browser,
@@ -176,7 +179,7 @@ async fn probe_resolved_account_profile(
             ));
         }
         discover_account_profile_until_ready(&browser).await
-    }
+    })
     .await;
     task.abort();
     drop(browser);
@@ -195,7 +198,7 @@ async fn probe_resolved_active_skin(
         )
     })?;
     let (mut browser, task) = connect_browser(CdpEndpoint::new(port)).await?;
-    let result = async {
+    let (mut task, result) = hold_connected_handler_during(task, async {
         if !browser_matches_host_for_root(
             host,
             &mut browser,
@@ -226,7 +229,7 @@ async fn probe_resolved_active_skin(
             return Ok(recovered_skin_identity(probe.active_skin));
         }
         Ok(None)
-    }
+    })
     .await;
     task.abort();
     drop(browser);

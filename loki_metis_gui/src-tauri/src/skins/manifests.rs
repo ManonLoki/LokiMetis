@@ -354,31 +354,38 @@ struct ActiveWatchRegistration {
 struct HandlerTaskGuard(Option<JoinHandle<()>>);
 
 impl HandlerTaskGuard {
-    /// 执行换皮宿主内部的 `new` 步骤。
+    #[cfg(test)]
+    /// 为隔离测试登记容量并接管手工构造的 handler。
     fn new(task: JoinHandle<()>) -> Self {
-        Self(Some(task))
+        reserve_handler_task_capacity()
+            .unwrap_or_else(|error| panic!("handler fixture capacity unavailable: {}", error.code))
+            .bind(task)
     }
 
     /// 执行换皮宿主内部的 `abort` 步骤。
     fn abort(&mut self) {
         if let Some(task) = self.0.take() {
-            task.abort();
+            retain_aborted_handler_task(task);
         }
     }
 
-    /// 执行换皮宿主内部的 `replace` 步骤。
-    fn replace(&mut self, task: JoinHandle<()>) {
+    /// 中止旧 handler，并从另一个 guard 原子接管替代任务。
+    fn replace(&mut self, mut replacement: Self) {
         self.abort();
-        self.0 = Some(task);
+        self.0 = replacement.0.take();
     }
 
-    /// 只移交仍存活的 handler；已结束任务不能被登记为运行中的 watcher。
-    fn take(&mut self) -> Option<JoinHandle<()>> {
-        if self.0.as_ref().is_some_and(JoinHandle::is_finished) {
-            self.0.take();
-            return None;
-        }
-        self.0.take()
+    /// 已结束任务不能被登记为运行中的 watcher。
+    fn is_finished(&self) -> bool {
+        self.0.as_ref().is_none_or(JoinHandle::is_finished)
+    }
+
+    /// 为 watcher owner 复制独立取消能力，同时保留原 JoinHandle 所有权。
+    fn abort_handle(&self) -> Option<AbortHandle> {
+        self.0
+            .as_ref()
+            .filter(|task| !task.is_finished())
+            .map(JoinHandle::abort_handle)
     }
 }
 

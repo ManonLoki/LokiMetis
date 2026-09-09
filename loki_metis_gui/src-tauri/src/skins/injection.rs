@@ -2,7 +2,7 @@
 async fn watch_pages(
     host: SkinHostKind,
     mut browser: Browser,
-    handler_task: JoinHandle<()>,
+    mut handler_task: HandlerTaskGuard,
     payload: Arc<str>,
     skin: SkinReference,
     initial_transaction: Option<(String, BTreeSet<String>)>,
@@ -444,7 +444,7 @@ async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppE
         Err(_error) if matches!(platform_host_is_running(host).await, Ok(false)) => return Ok(0),
         Err(error) => return Err(error),
     };
-    cleanup_via(host, browser, HandlerTaskGuard::new(handler_task)).await
+    cleanup_via(host, browser, handler_task).await
 }
 
 /// 执行换皮宿主内部的 `remove_from_endpoint` 步骤。
@@ -454,7 +454,7 @@ async fn remove_from_endpoint(
 ) -> Result<usize, AppError> {
     let connection = connect_browser(endpoint).await;
     let (mut browser, handler_task) = match connection {
-        Ok((browser, handler_task)) => (browser, HandlerTaskGuard::new(handler_task)),
+        Ok((browser, handler_task)) => (browser, handler_task),
         Err(_error) if matches!(platform_host_is_running(host).await, Ok(false)) => return Ok(0),
         Err(error) => return Err(error),
     };

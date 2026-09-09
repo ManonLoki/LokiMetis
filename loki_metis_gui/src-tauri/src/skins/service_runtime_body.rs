@@ -477,9 +477,12 @@ impl SkinService {
         while tokio::time::Instant::now() < deadline {
             match run_cancellable(&mut cancel, connect_browser(endpoint)).await {
                 Ok((mut browser, task)) => {
-                    let verified = browser_matches_host(host, &mut browser, endpoint)
-                        .await
-                        .unwrap_or(false);
+                    let (mut task, verified) = hold_connected_handler_during(
+                        task,
+                        browser_matches_host(host, &mut browser, endpoint),
+                    )
+                    .await;
+                    let verified = verified.unwrap_or(false);
                     task.abort();
                     drop(browser);
                     if verified {
