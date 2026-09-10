@@ -42,7 +42,10 @@
     "BUG-SKINS-INSTALL-SHUTDOWN-COMPLETION-20260910",
     "BUG-SKINS-CDP-HANDLER-CANCEL-OWNERSHIP-20260910",
     "BUG-WINDOWS-AUTOSTART-MISSING-RUN-KEY-20260910",
-    "BUG-WINDOWS-HOOK-RENDEZVOUS-INSTALL-DIR-20260910"
+    "BUG-WINDOWS-HOOK-RENDEZVOUS-INSTALL-DIR-20260910",
+    "BUG-PET-OVERLAY-MIN-SIZE-RESIZE-HANG-20260910",
+    "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
+    "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910"
   ],
   "cycle_base_version": "0.2.43",
   "feature_bump_applied": false,
@@ -50,7 +53,23 @@
     "source_commit": "caf75e6728364bb481e3280fcad69f8683aeaa7c",
     "version": "0.2.43"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "BUG-PET-OVERLAY-MIN-SIZE-RESIZE-HANG-20260910",
+      "kind": "bug-fix",
+      "required_version": "0.2.44"
+    },
+    {
+      "change_id": "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
+      "kind": "bug-fix",
+      "required_version": "0.2.45"
+    },
+    {
+      "change_id": "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910",
+      "kind": "bug-fix",
+      "required_version": "0.2.46"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.2.43"
+  "target_version": "0.2.46"
 }
