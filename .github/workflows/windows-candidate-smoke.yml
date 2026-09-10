@@ -115,7 +115,9 @@ jobs:
 
           $webViewArguments = "--remote-debugging-port=9222 --remote-allow-origins=*"
           $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $webViewArguments
-          $webViewPolicyKey = "HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments"
+          # GitHub-hosted Windows runners use a high-integrity process. WebView2 ignores
+          # environment-variable and HKCU overrides for elevated hosts, but honors HKLM policy.
+          $webViewPolicyKey = "HKLM:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments"
           New-Item -Path $webViewPolicyKey -Force | Out-Null
           if (Get-ItemProperty -Path $webViewPolicyKey -Name "loki_metis_gui.exe" -ErrorAction SilentlyContinue) {
             throw "Fresh runner unexpectedly contains a LokiMetis WebView2 browser-arguments policy"
