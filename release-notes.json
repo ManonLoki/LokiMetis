@@ -3,6 +3,25 @@
   "releases": [
     {
       "releaseDate": "2026-09-10",
+      "version": "v0.2.46",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复桌宠浮窗最小尺寸低于 64 像素时，Windows 缩放后的非客户区缩放命中会吞掉点击并进入原生缩放死循环的问题。",
+          "en-US": "Fixed the desktop pet overlay dropping below 64px, which let Windows DPI-scaled non-client resize hit-tests swallow clicks and enter a native resize hang."
+        },
+        {
+          "zh-CN": "修复在 Windows 上从主线程同步打开桌宠设置窗导致 WebView2 IPC 自死锁、窗口无法显示且应用无响应的问题。",
+          "en-US": "Fixed opening the desktop pet settings window synchronously on Windows, which deadlocked WebView2 IPC, left the popup hidden, and froze the app."
+        },
+        {
+          "zh-CN": "修复桌宠设置窗仍显示系统标题栏，以及冷启动按系统语言检测后未持久化导致浮窗和设置窗回退英文的问题。",
+          "en-US": "Fixed the pet settings window still showing a native title bar, and cold-start locale detection not being persisted so overlay and settings windows fell back to English."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-10",
       "version": "v0.2.43",
       "featureOptimizations": [
         {
