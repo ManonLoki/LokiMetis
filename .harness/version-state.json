@@ -47,29 +47,13 @@
     "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
     "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910"
   ],
-  "cycle_base_version": "0.2.43",
+  "cycle_base_version": "0.2.46",
   "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "caf75e6728364bb481e3280fcad69f8683aeaa7c",
-    "version": "0.2.43"
+    "source_commit": "a114e32be44fc2742ddecfefc5c9f8415cfce179",
+    "version": "0.2.46"
   },
-  "pending_changes": [
-    {
-      "change_id": "BUG-PET-OVERLAY-MIN-SIZE-RESIZE-HANG-20260910",
-      "kind": "bug-fix",
-      "required_version": "0.2.44"
-    },
-    {
-      "change_id": "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
-      "kind": "bug-fix",
-      "required_version": "0.2.45"
-    },
-    {
-      "change_id": "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910",
-      "kind": "bug-fix",
-      "required_version": "0.2.46"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.2.46"
 }
