@@ -429,7 +429,14 @@ jobs:
             Start-Sleep -Seconds 1
           }
           if (Test-Path $installDir) {
-            throw "Installation directory remains after uninstall"
+            $remainingEntries = @(Get-ChildItem -Path $installDir -Force -Recurse | ForEach-Object {
+              @{
+                relativePath = [System.IO.Path]::GetRelativePath($installDir, $_.FullName)
+                type = if ($_.PSIsContainer) { "directory" } else { "file" }
+                length = if ($_.PSIsContainer) { 0 } else { $_.Length }
+              }
+            })
+            throw "Installation directory remains after uninstall: $($remainingEntries | ConvertTo-Json -Compress)"
           }
           foreach ($screenshot in @($dashboardScreenshot, $settingsScreenshot, $releaseNotesScreenshot)) {
             if (-not (Test-Path -PathType Leaf $screenshot) -or (Get-Item $screenshot).Length -eq 0) {
