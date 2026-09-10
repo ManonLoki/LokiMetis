@@ -129,6 +129,7 @@ jobs:
             -Value $webViewArguments | Out-Null
           $application = Start-Process -FilePath $appPath -PassThru
           $targets = $null
+          $mainTargetReady = $false
           for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
             if ($application.HasExited) {
               throw "Installed application exited before WebView inspection"
@@ -136,9 +137,9 @@ jobs:
             try {
               $targets = @(Invoke-RestMethod -Uri "http://127.0.0.1:9222/json/list" -TimeoutSec 2)
               if (@($targets | Where-Object {
-                $_.url -match "^(tauri://localhost|https?://tauri\.localhost)" -and
-                $_.url -notmatch "[?&]view=pet(?:&|$)"
+                $_.url -match "^(tauri://localhost|https?://tauri\.localhost)/dashboard(?:[/?#]|$)"
               }).Count -gt 0) {
+                $mainTargetReady = $true
                 break
               }
             } catch {
@@ -146,8 +147,8 @@ jobs:
             }
             Start-Sleep -Seconds 1
           }
-          if ($null -eq $targets) {
-            throw "WebView2 DevTools endpoint did not become available"
+          if (-not $mainTargetReady) {
+            throw "The main dashboard WebView2 target did not become available"
           }
 
           $dashboardScreenshot = Join-Path $env:RUNNER_TEMP "windows-dashboard.png"
@@ -166,7 +167,7 @@ jobs:
             (item) =>
               item.type === "page" &&
               /^(tauri:\/\/localhost|https?:\/\/tauri\.localhost)/.test(item.url) &&
-              new URL(item.url).searchParams.get("view") === null &&
+              ["/dashboard", "/dashboard/"].includes(new URL(item.url).pathname) &&
               item.webSocketDebuggerUrl,
           );
           if (!target) throw new Error("Tauri WebView target not found");
