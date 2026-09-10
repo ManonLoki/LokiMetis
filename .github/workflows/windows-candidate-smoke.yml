@@ -1,0 +1,436 @@
+name: Windows v0.2.41 candidate smoke
+
+on:
+  push:
+    branches:
+      - codex/windows-smoke-v0.2.41
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_ID: "385972768"
+      RELEASE_TAG: v0.2.41
+      SOURCE_COMMIT: 976476539c4e6410201cf7ec3ba89f6432f83e44
+      ASSET_NAME: LokiMetis-v0.2.41-windows-x64.exe
+      EXPECTED_SHA256: 4a8158c70eeb0910d01356d2f9ccdd2a5330d0fc3844719fa08538ea81408c4b
+
+    steps:
+      - name: Download exact draft asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $headers = @{
+            Accept = "application/vnd.github+json"
+            Authorization = "Bearer $env:GH_TOKEN"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $release = Invoke-RestMethod `
+            -Headers $headers `
+            -Uri "https://api.github.com/repos/ManonLoki/LokiMetis/releases/$env:RELEASE_ID"
+          if (-not $release.draft) {
+            throw "Expected a draft release"
+          }
+          if ($release.tag_name -ne $env:RELEASE_TAG) {
+            throw "Release tag mismatch: $($release.tag_name)"
+          }
+          if ($release.target_commitish -ne $env:SOURCE_COMMIT) {
+            throw "Release source mismatch: $($release.target_commitish)"
+          }
+          $asset = @($release.assets | Where-Object { $_.name -eq $env:ASSET_NAME })
+          if ($asset.Count -ne 1) {
+            throw "Expected exactly one Windows candidate asset"
+          }
+          $installerPath = Join-Path $env:RUNNER_TEMP $env:ASSET_NAME
+          $downloadHeaders = @{
+            Accept = "application/octet-stream"
+            Authorization = "Bearer $env:GH_TOKEN"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          Invoke-WebRequest -Headers $downloadHeaders -Uri $asset[0].url -OutFile $installerPath
+          $actualHash = (Get-FileHash -Algorithm SHA256 $installerPath).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:EXPECTED_SHA256) {
+            throw "Candidate SHA-256 mismatch: $actualHash"
+          }
+          "INSTALLER_PATH=$installerPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install, launch, inspect, and restore
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installDir = Join-Path $env:LOCALAPPDATA "LokiMetis"
+          if (Test-Path $installDir) {
+            throw "Fresh runner unexpectedly contains a LokiMetis installation"
+          }
+
+          $installer = Start-Process `
+            -FilePath $env:INSTALLER_PATH `
+            -ArgumentList @("/S", "/NS") `
+            -PassThru `
+            -Wait
+          if ($installer.ExitCode -ne 0) {
+            throw "NSIS installer exited with $($installer.ExitCode)"
+          }
+
+          $appPath = Join-Path $installDir "loki_metis_gui.exe"
+          $uninstallerPath = Join-Path $installDir "uninstall.exe"
+          if (-not (Test-Path -PathType Leaf $appPath)) {
+            throw "Installed application executable is missing"
+          }
+          if (-not (Test-Path -PathType Leaf $uninstallerPath)) {
+            throw "Installed uninstaller is missing"
+          }
+          $versionInfo = (Get-Item $appPath).VersionInfo
+          if ($versionInfo.ProductVersion -notmatch "^0\.2\.41(?:\.0)?$") {
+            throw "Installed ProductVersion mismatch: $($versionInfo.ProductVersion)"
+          }
+          $releaseNotes = @(Get-ChildItem -Path $installDir -Filter release-notes.json -File -Recurse)
+          if ($releaseNotes.Count -ne 1) {
+            throw "Expected exactly one bundled release-notes.json"
+          }
+          $notes = Get-Content -Raw $releaseNotes[0].FullName | ConvertFrom-Json
+          if ($notes.releases[0].version -ne "v0.2.41") {
+            throw "Bundled release-notes version mismatch"
+          }
+
+          $appDataDir = Join-Path $env:APPDATA "com.manonloki.lokimetis"
+          New-Item -ItemType Directory -Path $appDataDir -Force | Out-Null
+          @{
+            languagePreference = "en-US"
+            scanIntervalMinutes = 5
+            retentionDays = 90
+            initializationCompleted = $true
+            initialScanAttempted = $true
+            enabledAgents = @("codex")
+            workbuddyStatsEnabled = $false
+          } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $appDataDir "privacy-settings.json")
+
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222 --remote-allow-origins=*"
+          $application = Start-Process -FilePath $appPath -PassThru
+          $targets = $null
+          for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
+            if ($application.HasExited) {
+              throw "Installed application exited before WebView inspection"
+            }
+            try {
+              $targets = @(Invoke-RestMethod -Uri "http://127.0.0.1:9222/json/list" -TimeoutSec 2)
+              if (@($targets | Where-Object {
+                $_.url -match "^(tauri://localhost|https?://tauri\.localhost)" -and
+                $_.url -notmatch "[?&]view=pet(?:&|$)"
+              }).Count -gt 0) {
+                break
+              }
+            } catch {
+              $targets = $null
+            }
+            Start-Sleep -Seconds 1
+          }
+          if ($null -eq $targets) {
+            throw "WebView2 DevTools endpoint did not become available"
+          }
+
+          $dashboardScreenshot = Join-Path $env:RUNNER_TEMP "windows-dashboard.png"
+          $settingsScreenshot = Join-Path $env:RUNNER_TEMP "windows-settings.png"
+          $releaseNotesScreenshot = Join-Path $env:RUNNER_TEMP "windows-release-notes.png"
+          $env:DASHBOARD_SCREENSHOT_PATH = $dashboardScreenshot
+          $env:SETTINGS_SCREENSHOT_PATH = $settingsScreenshot
+          $env:RELEASE_NOTES_SCREENSHOT_PATH = $releaseNotesScreenshot
+
+          $cdpScript = @'
+          import { writeFileSync } from "node:fs";
+
+          const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+          const targets = await (await fetch("http://127.0.0.1:9222/json/list")).json();
+          const target = targets.find(
+            (item) =>
+              item.type === "page" &&
+              /^(tauri:\/\/localhost|https?:\/\/tauri\.localhost)/.test(item.url) &&
+              new URL(item.url).searchParams.get("view") === null &&
+              item.webSocketDebuggerUrl,
+          );
+          if (!target) throw new Error("Tauri WebView target not found");
+
+          const socket = new WebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            socket.addEventListener("open", resolve, { once: true });
+            socket.addEventListener("error", reject, { once: true });
+          });
+          let nextId = 0;
+          const pending = new Map();
+          socket.addEventListener("message", (event) => {
+            const message = JSON.parse(event.data);
+            if (!message.id || !pending.has(message.id)) return;
+            const { resolve, reject } = pending.get(message.id);
+            pending.delete(message.id);
+            if (message.error) reject(new Error(JSON.stringify(message.error)));
+            else resolve(message.result);
+          });
+          function send(method, params = {}) {
+            const id = ++nextId;
+            return new Promise((resolve, reject) => {
+              pending.set(id, { resolve, reject });
+              socket.send(JSON.stringify({ id, method, params }));
+            });
+          }
+          async function evaluate(expression) {
+            const reply = await send("Runtime.evaluate", {
+              expression,
+              awaitPromise: true,
+              returnByValue: true,
+            });
+            if (reply.exceptionDetails) throw new Error(JSON.stringify(reply.exceptionDetails));
+            return reply.result.value;
+          }
+          async function waitFor(probe, label) {
+            for (let attempt = 0; attempt < 60; attempt += 1) {
+              const value = await probe();
+              if (value) return value;
+              await sleep(500);
+            }
+            throw new Error(`Timed out waiting for ${label}`);
+          }
+          async function capture(path) {
+            const shot = await send("Page.captureScreenshot", { format: "png", fromSurface: true });
+            writeFileSync(path, Buffer.from(shot.data, "base64"));
+          }
+
+          await send("Runtime.enable");
+          await send("Page.enable");
+          const action = process.env.SMOKE_ACTION;
+          if (action === "inspect") {
+            const dashboard = await waitFor(
+              () => evaluate(`(() => {
+                if (document.readyState !== "complete" || !document.querySelector('[data-testid="dashboard-page"]')) {
+                  return false;
+                }
+                return {
+                  href: location.href,
+                  pathname: location.pathname,
+                  title: document.title,
+                  text: document.body.innerText,
+                  stylesheets: document.styleSheets.length,
+                  bodyBackground: getComputedStyle(document.body).backgroundColor,
+                  hasLocalCardRule: [...document.styleSheets].some((sheet) =>
+                    [...sheet.cssRules].some((rule) => rule.cssText.includes(".local-card")),
+                  ),
+                  hasSurfaceCardRule: [...document.styleSheets].some((sheet) =>
+                    [...sheet.cssRules].some((rule) => rule.cssText.includes(".surface-card")),
+                  )
+                };
+              })()`),
+              "dashboard",
+            );
+            if (dashboard.pathname !== "/dashboard" && dashboard.pathname !== "/dashboard/") {
+              throw new Error(`Unexpected initial route: ${dashboard.href}`);
+            }
+            if (
+              dashboard.stylesheets < 1 ||
+              dashboard.bodyBackground === "rgba(0, 0, 0, 0)" ||
+              !dashboard.hasLocalCardRule ||
+              !dashboard.hasSurfaceCardRule
+            ) {
+              throw new Error(`Production styles missing on dashboard: ${JSON.stringify(dashboard)}`);
+            }
+            await capture(process.env.DASHBOARD_SCREENSHOT_PATH);
+            await evaluate(`(() => {
+              const button = document.querySelector('[data-testid="navigation-settings"]');
+              if (!button) throw new Error("Settings navigation button missing");
+              button.click();
+              return true;
+            })()`);
+            const settings = await waitFor(
+              () => evaluate(`(() => {
+                if (location.pathname !== "/settings") return false;
+                const cards = [...document.querySelectorAll(".surface-card")];
+                const cardStyles = cards.slice(0, 4).map((card) => {
+                  const style = getComputedStyle(card);
+                  return {
+                    backgroundColor: style.backgroundColor,
+                    borderWidth: style.borderWidth,
+                    borderRadius: style.borderRadius,
+                  };
+                });
+                return {
+                  href: location.href,
+                  pathname: location.pathname,
+                  text: document.body.innerText,
+                  stylesheets: document.styleSheets.length,
+                  cardCount: cards.length,
+                  cardStyles,
+                };
+              })()`),
+              "settings route",
+            );
+            if (!settings.text.includes("0.2.41") || settings.cardCount < 4) {
+              throw new Error(`Settings content or cards missing: ${JSON.stringify(settings)}`);
+            }
+            if (settings.cardStyles.some((style) => style.backgroundColor === "rgba(0, 0, 0, 0)" || style.borderWidth === "0px")) {
+              throw new Error(`Settings card styles missing: ${JSON.stringify(settings.cardStyles)}`);
+            }
+            await capture(process.env.SETTINGS_SCREENSHOT_PATH);
+            await evaluate(`(() => {
+              const button = [...document.querySelectorAll("button")].find((item) =>
+                ["View release notes", "查看更新日志"].includes(item.textContent.trim()),
+              );
+              if (!button) throw new Error("Release notes button missing");
+              button.click();
+              return true;
+            })()`);
+            const releaseNotes = await waitFor(
+              () => evaluate(`(() => {
+                const text = document.body.innerText;
+                const hasEntry = text.includes("2026-09-10 · v0.2.41");
+                const hasFeatureSection = text.includes("Feature improvements") || text.includes("功能优化");
+                const hasFixSection = text.includes("Bug fixes") || text.includes("问题修复");
+                return hasEntry && hasFeatureSection && hasFixSection ? { hasEntry, hasFeatureSection, hasFixSection } : false;
+              })()`),
+              "release notes dialog",
+            );
+            await capture(process.env.RELEASE_NOTES_SCREENSHOT_PATH);
+            console.log(JSON.stringify({ dashboard, settings, releaseNotes }));
+          } else if (action === "enable-autostart" || action === "disable-autostart") {
+            await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape" });
+            await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape" });
+            const desired = action === "enable-autostart";
+            const current = await waitFor(
+              () => evaluate(`(() => {
+                const input = document.querySelector('[data-testid="settings-capability-autostart"] input[type="checkbox"]');
+                if (!input || input.disabled) return false;
+                return { checked: input.checked };
+              })()`),
+              "autostart switch",
+            );
+            if (current.checked !== desired) {
+              await evaluate(`(() => {
+                const input = document.querySelector('[data-testid="settings-capability-autostart"] input[type="checkbox"]');
+                input.click();
+                return true;
+              })()`);
+            }
+            const authoritative = await waitFor(
+              () => evaluate(`(() => {
+                const input = document.querySelector('[data-testid="settings-capability-autostart"] input[type="checkbox"]');
+                if (!input || input.disabled || input.checked !== ${desired}) return false;
+                return {
+                  checked: input.checked,
+                  state: input.dataset.authoritativeState || input.parentElement?.dataset.authoritativeState || "",
+                };
+              })()`),
+              `autostart ${desired ? "enabled" : "disabled"} state`,
+            );
+            if (authoritative.state !== (desired ? "enabled" : "disabled")) {
+              throw new Error(`Unexpected authoritative autostart state: ${JSON.stringify(authoritative)}`);
+            }
+            console.log(JSON.stringify(authoritative));
+          } else {
+            throw new Error(`Unknown smoke action: ${action}`);
+          }
+          socket.close();
+          '@
+
+          $env:SMOKE_ACTION = "inspect"
+          $inspectionJson = & node --experimental-websocket --input-type=module -e $cdpScript
+          if ($LASTEXITCODE -ne 0) {
+            throw "WebView inspection failed"
+          }
+          $inspection = $inspectionJson | ConvertFrom-Json
+
+          $env:SMOKE_ACTION = "enable-autostart"
+          $enableJson = & node --experimental-websocket --input-type=module -e $cdpScript
+          if ($LASTEXITCODE -ne 0) {
+            throw "Autostart enable interaction failed"
+          }
+          $enable = $enableJson | ConvertFrom-Json
+          if (-not $enable.checked) {
+            throw "Autostart switch did not enable"
+          }
+          $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+          $runCommand = Get-ItemPropertyValue -Path $runKey -Name "LokiMetis"
+          if (-not [string]::Equals($runCommand.Trim(), $appPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Autostart registry command does not point to the installed executable: $runCommand"
+          }
+
+          $env:SMOKE_ACTION = "disable-autostart"
+          $disableJson = & node --experimental-websocket --input-type=module -e $cdpScript
+          if ($LASTEXITCODE -ne 0) {
+            throw "Autostart disable interaction failed"
+          }
+          $disable = $disableJson | ConvertFrom-Json
+          if ($disable.checked) {
+            throw "Autostart switch did not disable"
+          }
+          $runValueStillExists = $true
+          try {
+            Get-ItemPropertyValue -Path $runKey -Name "LokiMetis" -ErrorAction Stop | Out-Null
+          } catch {
+            $runValueStillExists = $false
+          }
+          if ($runValueStillExists) {
+            throw "Autostart registry value remains after disabling"
+          }
+
+          Stop-Process -Id $application.Id -Force
+          $application.WaitForExit()
+          $uninstaller = Start-Process -FilePath $uninstallerPath -ArgumentList "/S" -PassThru -Wait
+          if ($uninstaller.ExitCode -ne 0) {
+            throw "NSIS uninstaller exited with $($uninstaller.ExitCode)"
+          }
+          for ($attempt = 0; $attempt -lt 30 -and (Test-Path $installDir); $attempt += 1) {
+            Start-Sleep -Seconds 1
+          }
+          if (Test-Path $installDir) {
+            throw "Installation directory remains after uninstall"
+          }
+          foreach ($screenshot in @($dashboardScreenshot, $settingsScreenshot, $releaseNotesScreenshot)) {
+            if (-not (Test-Path -PathType Leaf $screenshot) -or (Get-Item $screenshot).Length -eq 0) {
+              throw "Expected non-empty screenshot evidence: $screenshot"
+            }
+          }
+
+          $evidencePath = Join-Path $env:RUNNER_TEMP "windows-smoke.txt"
+          @(
+            "LokiMetis Windows native smoke evidence",
+            "sourceCommit=$env:SOURCE_COMMIT",
+            "artifact=$env:ASSET_NAME",
+            "artifactSha256=$env:EXPECTED_SHA256",
+            "runnerOS=$env:RUNNER_OS",
+            "runnerArchitecture=$env:RUNNER_ARCH",
+            "imageOS=$env:ImageOS",
+            "imageVersion=$env:ImageVersion",
+            "installMode=currentUser-silent",
+            "installedProductVersion=$($versionInfo.ProductVersion)",
+            "bundledReleaseNotes=v0.2.41",
+            "dashboardRoute=$($inspection.dashboard.href)",
+            "dashboardStylesheets=$($inspection.dashboard.stylesheets)",
+            "dashboardLocalCardRule=passed",
+            "dashboardSurfaceCardRule=passed",
+            "settingsRoute=$($inspection.settings.href)",
+            "settingsSurfaceCards=$($inspection.settings.cardCount)",
+            "settingsComputedCardStyles=passed",
+            "releaseNotesDialog=passed",
+            "autostartEnableReadback=passed",
+            "autostartRegistryTarget=$runCommand",
+            "autostartDisableReadback=passed",
+            "autostartRestoredState=off",
+            "processExit=passed",
+            "installDirectoryCleanup=passed",
+            "status=passed"
+          ) | Set-Content -Encoding utf8 $evidencePath
+
+      - name: Upload smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-v0.2.41-smoke-evidence
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/windows-smoke.txt
+            ${{ runner.temp }}/windows-dashboard.png
+            ${{ runner.temp }}/windows-settings.png
+            ${{ runner.temp }}/windows-release-notes.png
+          retention-days: 7
