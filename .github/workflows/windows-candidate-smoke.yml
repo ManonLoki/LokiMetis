@@ -319,14 +319,33 @@ jobs:
             await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape" });
             await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape" });
             const desired = action === "enable-autostart";
-            const current = await waitFor(
-              () => evaluate(`(() => {
-                const input = document.querySelector('[data-testid="settings-capability-autostart"] input[type="checkbox"]');
-                if (!input || input.disabled) return false;
-                return { checked: input.checked };
-              })()`),
-              "autostart switch",
-            );
+            let current;
+            try {
+              current = await waitFor(
+                () => evaluate(`(() => {
+                  const input = document.querySelector('[data-testid="settings-capability-autostart"] input[type="checkbox"]');
+                  if (!input || input.disabled) return false;
+                  return { checked: input.checked };
+                })()`),
+                "autostart switch",
+              );
+            } catch (error) {
+              const diagnostic = await evaluate(`(() => {
+                const card = document.querySelector('[data-testid="settings-capability-autostart"]');
+                const input = card?.querySelector('input[type="checkbox"]');
+                return {
+                  href: location.href,
+                  hasSettingsPage: Boolean(document.querySelector('[data-testid="settings-page"]')),
+                  hasCard: Boolean(card),
+                  hasInput: Boolean(input),
+                  disabled: input?.disabled ?? null,
+                  checked: input?.checked ?? null,
+                  state: input?.dataset.authoritativeState ?? "",
+                  cardText: card?.innerText ?? "",
+                };
+              })()`);
+              throw new Error(`${error.message}; diagnostic=${JSON.stringify(diagnostic)}`);
+            }
             if (current.checked !== desired) {
               await evaluate(`(() => {
                 const input = document.querySelector('[data-testid="settings-capability-autostart"] input[type="checkbox"]');
@@ -450,10 +469,11 @@ jobs:
           ) | Set-Content -Encoding utf8 $evidencePath
 
       - name: Upload smoke evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: windows-v0.2.41-smoke-evidence
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
             ${{ runner.temp }}/windows-smoke.txt
             ${{ runner.temp }}/windows-dashboard.png
