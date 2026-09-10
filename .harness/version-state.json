@@ -41,7 +41,8 @@
     "BUG-MANUAL-SOURCE-DISCOVERY-CANCELLATION",
     "BUG-SKINS-INSTALL-SHUTDOWN-COMPLETION-20260910",
     "BUG-SKINS-CDP-HANDLER-CANCEL-OWNERSHIP-20260910",
-    "BUG-WINDOWS-AUTOSTART-MISSING-RUN-KEY-20260910"
+    "BUG-WINDOWS-AUTOSTART-MISSING-RUN-KEY-20260910",
+    "BUG-WINDOWS-HOOK-RENDEZVOUS-INSTALL-DIR-20260910"
   ],
   "cycle_base_version": "0.1.0",
   "feature_bump_applied": true,
@@ -456,8 +457,13 @@
       "change_id": "BUG-WINDOWS-AUTOSTART-MISSING-RUN-KEY-20260910",
       "kind": "bug-fix",
       "required_version": "0.2.42"
+    },
+    {
+      "change_id": "BUG-WINDOWS-HOOK-RENDEZVOUS-INSTALL-DIR-20260910",
+      "kind": "bug-fix",
+      "required_version": "0.2.43"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.42"
+  "target_version": "0.2.43"
 }

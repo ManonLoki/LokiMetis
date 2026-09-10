@@ -1,12 +1,12 @@
 # LokiMetis Third-Party Notices
 
-This notice covers third-party dependencies resolved for LokiMetis v0.2.42.
+This notice covers third-party dependencies resolved for LokiMetis v0.2.43.
 Copyright and license rights remain with their respective authors and projects.
 The declared license expression and source link below identify the governing terms for each package.
 
 锁定输入 / Locked inputs:
 
-- `Cargo.lock` SHA-256: `80ca75f0b0be165b82683971bd7470b0719eba678fad34033d5a777dcbe56405`
+- `Cargo.lock` SHA-256: `0fff504d438e21722d08c3bf0ef9594692110a2830e5f3fbbcf2da1bff906992`
 - `loki_metis_gui/pnpm-lock.yaml` SHA-256: `42b99405966b6af755508fe3bbc31add375045aae3a226fa34b9084148b20598`
 
 ## Rust dependencies (627)

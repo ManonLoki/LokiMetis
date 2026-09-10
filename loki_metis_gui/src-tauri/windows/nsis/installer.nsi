@@ -807,6 +807,10 @@ Section Uninstall
     Delete "$INSTDIR\\{{this}}"
   {{/each}}
 
+  ; Remove the exact rendezvous file written into INSTDIR by unreleased 0.2.41/0.2.42 candidates.
+  ; Newer builds store it under a dedicated per-user LOCALAPPDATA cache namespace.
+  Delete "$INSTDIR\loki-metis-hook-relay.json"
+
   ; Delete app associations
   {{#each file_associations as |association| ~}}
     {{#each association.ext as |ext| ~}}

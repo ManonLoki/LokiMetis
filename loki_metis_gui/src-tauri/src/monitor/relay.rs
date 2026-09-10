@@ -31,7 +31,12 @@ const LOCAL_RELAY_REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
 /// 防止异常本机服务返回无界响应。
 const MAX_HOOK_HTTP_RESPONSE_BYTES: u64 = 16 * 1024;
 /// 各平台用户私有缓存根下的稳定应用子目录。
+#[cfg(any(test, target_os = "linux", target_os = "macos"))]
 const HOOK_RELAY_APP_DIRECTORY: &str = "lokimetis";
+/// Windows 当前用户安装目录是 `LokiMetis`；缓存命名空间必须避免
+/// 在大小写不敏感文件系统上与其别名。
+#[cfg(any(test, target_os = "windows"))]
+const WINDOWS_HOOK_RELAY_CACHE_NAMESPACE: &str = "com.manonloki.lokimetis";
 
 /// 严格解析后的 Hook relay 参数。
 #[derive(Debug, PartialEq, Eq)]
@@ -262,11 +267,9 @@ fn select_hook_relay_rendezvous_path(
         }
         #[cfg(any(test, target_os = "windows"))]
         HookRelayHostPlatform::Windows => {
-            let root = usable_absolute_root(_user_profile)
-                .ok_or_else(|| anyhow!("Windows Hook relay 缺少绝对 USERPROFILE"))?;
-            root.join("AppData")
-                .join("Local")
-                .join(HOOK_RELAY_APP_DIRECTORY)
+            let root = usable_absolute_root(_local_app_data)
+                .ok_or_else(|| anyhow!("Windows Hook relay 缺少绝对 LOCALAPPDATA"))?;
+            root.join(WINDOWS_HOOK_RELAY_CACHE_NAMESPACE)
         }
     };
     Ok(directory.join(HOOK_RELAY_RENDEZVOUS_FILENAME))
@@ -298,13 +301,13 @@ pub(super) fn hook_relay_rendezvous_path() -> anyhow::Result<PathBuf> {
     }
     #[cfg(target_os = "windows")]
     {
-        let user_profile = std::env::var_os("USERPROFILE").map(PathBuf::from);
+        let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
         return select_hook_relay_rendezvous_path(
             HookRelayHostPlatform::Windows,
             None,
             None,
+            local_app_data.as_deref(),
             None,
-            user_profile.as_deref(),
         );
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]

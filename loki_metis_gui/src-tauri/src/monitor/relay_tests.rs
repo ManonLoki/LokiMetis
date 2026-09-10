@@ -231,24 +231,51 @@ fn desktop_rendezvous_paths_use_stable_user_cache_roots() {
 
     let local_app_data = root.path().join("windows").join("local-app-data");
     let user_profile = root.path().join("windows").join("users").join("alice");
-    let expected = user_profile
-        .join("AppData")
-        .join("Local")
-        .join("lokimetis")
+    let expected = local_app_data
+        .join("com.manonloki.lokimetis")
         .join(HOOK_RELAY_RENDEZVOUS_FILENAME);
-    for local_app_data in [Some(local_app_data.as_path()), None] {
-        assert_eq!(
-            select_hook_relay_rendezvous_path(
-                HookRelayHostPlatform::Windows,
-                None,
-                None,
-                local_app_data,
-                Some(user_profile.as_path()),
-            )
-            .unwrap(),
-            expected
-        );
-    }
+    assert_eq!(
+        select_hook_relay_rendezvous_path(
+            HookRelayHostPlatform::Windows,
+            None,
+            None,
+            Some(local_app_data.as_path()),
+            Some(user_profile.as_path()),
+        )
+        .unwrap(),
+        expected
+    );
+    assert!(
+        select_hook_relay_rendezvous_path(
+            HookRelayHostPlatform::Windows,
+            None,
+            None,
+            None,
+            Some(user_profile.as_path()),
+        )
+        .is_err()
+    );
+}
+
+/// Windows 缓存命名空间在大小写不敏感文件系统上也不能与 currentUser 安装目录重合。
+#[test]
+fn windows_rendezvous_namespace_does_not_alias_the_nsis_install_directory() {
+    let root = tempdir().expect("temp");
+    let local_app_data = root.path().join("AppData").join("Local");
+    let path = select_hook_relay_rendezvous_path(
+        HookRelayHostPlatform::Windows,
+        None,
+        None,
+        Some(local_app_data.as_path()),
+        None,
+    )
+    .unwrap();
+    let rendezvous_directory = path.parent().unwrap().to_string_lossy().to_lowercase();
+    let install_directory = local_app_data
+        .join("LokiMetis")
+        .to_string_lossy()
+        .to_lowercase();
+    assert_ne!(rendezvous_directory, install_directory);
 }
 
 /// 任何平台缺少可验证绝对用户根时都明确失败，不回退 temp 或当前目录。

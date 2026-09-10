@@ -595,6 +595,7 @@ mod tests {
         assert!(nsis_template.contains("Call RelocalizeExistingStartMenuShortcut"));
         assert!(nsis_template.contains("Call RelocalizeExistingDesktopShortcut"));
         assert!(nsis_template.contains("$OtherDisplayName.lnk"));
+        assert!(nsis_template.contains("$INSTDIR\\loki-metis-hook-relay.json"));
         assert!(nsis_english.contains("productDisplayName ${LANG_ENGLISH} \"LokiMetis\""));
         assert!(nsis_chinese.contains("productDisplayName ${LANG_SIMPCHINESE} \"诡秘神谕\""));
     }
