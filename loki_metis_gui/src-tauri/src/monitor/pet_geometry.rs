@@ -5,8 +5,11 @@ use tauri::{LogicalSize, Monitor, PhysicalPosition, PhysicalSize, Runtime, Webvi
 
 /// 找不到显示器时用于推导保守上限的逻辑短边。
 const FALLBACK_LOGICAL_SHORTEST_SIDE: u32 = 1_440;
-/// 单格统一最小逻辑像素边长。
-pub const PET_CELL_MIN: u16 = 32;
+/// 单格统一最小逻辑像素边长；必须与窗口创建时的 `min_inner_size(64.0, 64.0)` 安全底线保持一致。
+/// 低于此值时，无边框可缩放窗口在高 DPI 下的原生缩放热区会覆盖整个窗口客户区，
+/// 导致鼠标点击（含右键）被系统当作非客户区缩放操作吞掉，
+/// 主线程随之进入原生模态缩放循环、整个应用卡死且无法通过托盘退出。
+pub const PET_CELL_MIN: u16 = 64;
 
 /// 由布局与单格大小计算窗口逻辑尺寸。
 pub fn logical_pet_window_size(layout: PetLayout, pet_size: u16) -> LogicalSize<f64> {
@@ -203,9 +206,15 @@ mod tests {
     /// 无显示器信息时的尺寸范围应按布局最长轴缩放。
     #[test]
     fn fallback_range_uses_layout_longest_axis() {
-        assert_eq!(pet_size_range_fallback(PetLayout::Single), (32, 360));
-        assert_eq!(pet_size_range_fallback(PetLayout::Grid), (32, 180));
-        assert_eq!(pet_size_range_fallback(PetLayout::Row3), (32, 120));
+        assert_eq!(pet_size_range_fallback(PetLayout::Single), (64, 360));
+        assert_eq!(pet_size_range_fallback(PetLayout::Grid), (64, 180));
+        assert_eq!(pet_size_range_fallback(PetLayout::Row3), (64, 120));
+    }
+
+    /// 单格最小尺寸必须至少等于窗口创建时的安全底线，避免无边框缩放热区吞掉整窗点击。
+    #[test]
+    fn cell_min_matches_window_builder_safety_floor() {
+        assert!(PET_CELL_MIN >= 64);
     }
 
     /// 缩放后的位置应限制在带偏移的显示器工作区内。

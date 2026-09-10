@@ -42,7 +42,7 @@ const EMPTY_PET_STATE: PetWindowState = {
   hasAnyImage: false,
   slots: [0, 1, 2, 3].map((slotIndex) => ({ slotIndex, tile: null })),
   petSize: 64,
-  sizeMin: 32,
+  sizeMin: 64,
   sizeMax: 256,
   alwaysOnTop: true,
 };

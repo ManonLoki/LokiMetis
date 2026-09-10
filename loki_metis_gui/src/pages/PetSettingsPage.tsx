@@ -30,7 +30,7 @@ const DEFAULT_WINDOW_STATE: PetWindowState = {
   hasAnyImage: false,
   slots: [],
   petSize: 64,
-  sizeMin: 32,
+  sizeMin: 64,
   sizeMax: 256,
   alwaysOnTop: true,
 };
