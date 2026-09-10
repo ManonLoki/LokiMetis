@@ -120,15 +120,26 @@ pub fn get_pet_overlay_view(
 }
 
 /// 打开独立桌宠设置窗口。
+///
+/// 必须异步执行：这是一次同步 IPC 调用，在 Windows 上和触发它的 WebView2
+/// 消息回调同线程（即主线程）。首次打开要新建 WebView2 子窗口，其创建需要
+/// 宿主把任务派发回主线程并阻塞等待完成；若直接在主线程同步执行，
+/// 派发目标就是自己，形成自等待死锁——设置窗建好了却卡在 show() 之前，
+/// 整个应用随之失去响应。切到 spawn_blocking 让实际调用离开主线程即可让
+/// 派发-等待正常完成。
 #[tauri::command]
-pub fn show_pet_settings(app: AppHandle) -> Result<(), String> {
-    show_pet_settings_window(&app)
+pub async fn show_pet_settings(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || show_pet_settings_window(&app))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 /// 隐藏独立桌宠设置窗口。
 #[tauri::command]
-pub fn hide_pet_settings(app: AppHandle) -> Result<(), String> {
-    hide_pet_settings_window(&app)
+pub async fn hide_pet_settings(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || hide_pet_settings_window(&app))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 /// 切换六种桌宠布局并按当前显示器约束窗口尺寸。
