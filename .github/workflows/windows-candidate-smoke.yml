@@ -162,12 +162,14 @@ jobs:
           import { writeFileSync } from "node:fs";
 
           const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+          const action = process.env.SMOKE_ACTION;
+          const expectedPaths = action === "inspect" ? ["/dashboard", "/dashboard/"] : ["/settings"];
           const targets = await (await fetch("http://127.0.0.1:9222/json/list")).json();
           const target = targets.find(
             (item) =>
               item.type === "page" &&
               /^(tauri:\/\/localhost|https?:\/\/tauri\.localhost)/.test(item.url) &&
-              ["/dashboard", "/dashboard/"].includes(new URL(item.url).pathname) &&
+              expectedPaths.includes(new URL(item.url).pathname) &&
               item.webSocketDebuggerUrl,
           );
           if (!target) throw new Error("Tauri WebView target not found");
@@ -218,7 +220,6 @@ jobs:
 
           await send("Runtime.enable");
           await send("Page.enable");
-          const action = process.env.SMOKE_ACTION;
           if (action === "inspect") {
             const dashboard = await waitFor(
               () => evaluate(`(() => {
