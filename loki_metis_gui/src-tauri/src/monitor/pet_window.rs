@@ -288,6 +288,7 @@ pub fn show_pet_settings_window(app: &AppHandle) -> Result<(), String> {
         .title("LokiMetis 桌宠设置")
         .inner_size(320.0, 470.0)
         .min_inner_size(280.0, 440.0)
+        .decorations(false)
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)

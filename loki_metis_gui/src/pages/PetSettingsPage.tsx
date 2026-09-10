@@ -75,7 +75,7 @@ export function PetSettingsPage(): ReactElement {
 
   return (
     <main className="pet-settings-shell" data-testid="pet-settings-page">
-      <header>
+      <header data-tauri-drag-region="deep">
         <div>
           <strong>{t("monitor.pet.settingsTitle")}</strong>
           <small>{t("monitor.pet.settingsHint")}</small>

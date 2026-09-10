@@ -13,7 +13,7 @@ import {
   type AppMetadata,
   type InterfaceLanguage,
 } from "../lib/api";
-import { readSavedInterfaceLanguage } from "../lib/language";
+import { persistInterfaceLanguage, readSavedInterfaceLanguage } from "../lib/language";
 import { appMetadataQuery } from "../lib/queries";
 import { interfaceLanguageAtom } from "../state/interfaceLanguage";
 import { AppSidebar, APP_SIDEBAR_WIDTHS } from "./AppSidebar";
@@ -58,7 +58,9 @@ export function AppShellFrame(): ReactElement {
       .then(async (language) => {
         if (!active) return;
         await i18n.changeLanguage(language);
-        if (active) setLanguage(language);
+        if (!active) return;
+        persistInterfaceLanguage(language);
+        setLanguage(language);
       })
       .catch(() => undefined);
     return () => {
