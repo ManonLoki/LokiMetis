@@ -113,7 +113,18 @@ jobs:
             workbuddyStatsEnabled = $false
           } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $appDataDir "privacy-settings.json")
 
-          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222 --remote-allow-origins=*"
+          $webViewArguments = "--remote-debugging-port=9222 --remote-allow-origins=*"
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $webViewArguments
+          $webViewPolicyKey = "HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments"
+          New-Item -Path $webViewPolicyKey -Force | Out-Null
+          if (Get-ItemProperty -Path $webViewPolicyKey -Name "loki_metis_gui.exe" -ErrorAction SilentlyContinue) {
+            throw "Fresh runner unexpectedly contains a LokiMetis WebView2 browser-arguments policy"
+          }
+          New-ItemProperty `
+            -Path $webViewPolicyKey `
+            -Name "loki_metis_gui.exe" `
+            -PropertyType String `
+            -Value $webViewArguments | Out-Null
           $application = Start-Process -FilePath $appPath -PassThru
           $targets = $null
           for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
@@ -379,6 +390,10 @@ jobs:
 
           Stop-Process -Id $application.Id -Force
           $application.WaitForExit()
+          Remove-ItemProperty -Path $webViewPolicyKey -Name "loki_metis_gui.exe"
+          if (Get-ItemProperty -Path $webViewPolicyKey -Name "loki_metis_gui.exe" -ErrorAction SilentlyContinue) {
+            throw "Temporary LokiMetis WebView2 browser-arguments policy remains after cleanup"
+          }
           $uninstaller = Start-Process -FilePath $uninstallerPath -ArgumentList "/S" -PassThru -Wait
           if ($uninstaller.ExitCode -ne 0) {
             throw "NSIS uninstaller exited with $($uninstaller.ExitCode)"
@@ -421,6 +436,7 @@ jobs:
             "autostartDisableReadback=passed",
             "autostartRestoredState=off",
             "processExit=passed",
+            "webViewDebugPolicyRestored=passed",
             "installDirectoryCleanup=passed",
             "status=passed"
           ) | Set-Content -Encoding utf8 $evidencePath
