@@ -6,7 +6,9 @@ on:
       - codex/windows-smoke-v0.2.41
 
 permissions:
-  contents: read
+  # GitHub only exposes draft releases to tokens with push-level contents access.
+  # The workflow itself still performs read-only release API requests.
+  contents: write
 
 jobs:
   smoke:
