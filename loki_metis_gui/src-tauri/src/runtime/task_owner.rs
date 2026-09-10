@@ -2,6 +2,7 @@
 
 use std::{
     future::Future,
+    panic::{AssertUnwindSafe, catch_unwind},
     pin::Pin,
     sync::Arc,
     sync::Mutex,
@@ -13,6 +14,12 @@ use std::{
 use loki_metis_core::RootDiscoveryCoordinator;
 use tauri::async_runtime::JoinHandle;
 use tokio::sync::watch;
+
+#[cfg(test)]
+use super::task_capacity::{BACKGROUND_TASK_CAPACITY, BACKGROUND_TASK_CAPACITY_ERROR};
+use super::task_capacity::{
+    BackgroundTaskCapacity, BackgroundTaskSlot, process_background_task_capacity,
+};
 
 /// 正常退出等待后台任务合作收敛的共同时限。
 const BACKGROUND_TASK_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
@@ -61,7 +68,6 @@ enum BackgroundTaskKind {
 
 /// 进程级保留异常销毁时仍未终态的任务，防止丢弃句柄形成 detached 执行。
 static RETAINED_BACKGROUND_TASKS: OnceLock<Mutex<Vec<OwnedBackgroundTask>>> = OnceLock::new();
-
 /// 受同步锁保护的短临界区登记表；锁内不执行 await。
 #[derive(Default)]
 struct BackgroundTaskOwnerState {
@@ -74,6 +80,7 @@ struct BackgroundTaskOwnerState {
 /// GUI 生命周期内 root discovery 与一次性维护任务的唯一 owner。
 pub(crate) struct BackgroundTaskOwner {
     root_discovery: Arc<RootDiscoveryCoordinator>,
+    capacity: Arc<BackgroundTaskCapacity>,
     state: Mutex<BackgroundTaskOwnerState>,
 }
 
@@ -110,6 +117,20 @@ impl BackgroundTaskOwner {
     pub(crate) fn new(root_discovery: Arc<RootDiscoveryCoordinator>) -> Self {
         Self {
             root_discovery,
+            capacity: process_background_task_capacity(),
+            state: Mutex::new(BackgroundTaskOwnerState::default()),
+        }
+    }
+
+    /// 使用指定隔离容量构造测试 owner，避免并行用例争用生产计数器。
+    #[cfg(test)]
+    fn new_with_capacity(
+        root_discovery: Arc<RootDiscoveryCoordinator>,
+        capacity: Arc<BackgroundTaskCapacity>,
+    ) -> Self {
+        Self {
+            root_discovery,
+            capacity,
             state: Mutex::new(BackgroundTaskOwnerState::default()),
         }
     }
@@ -124,12 +145,22 @@ impl BackgroundTaskOwner {
         Build: FnOnce(BackgroundTaskShutdown) -> Task,
         Task: Future<Output = ()> + Send + 'static,
     {
-        self.spawn_handle(name, BackgroundTaskKind::AbortableAsync, None, |shutdown| {
-            tauri::async_runtime::spawn(build(shutdown))
-        })
+        self.spawn_handle(
+            name,
+            BackgroundTaskKind::AbortableAsync,
+            None,
+            |shutdown, slot| {
+                let task = build(shutdown);
+                tauri::async_runtime::spawn(async move {
+                    let _slot = slot;
+                    task.await;
+                })
+            },
+        )
     }
 
     /// 启动并登记一项阻塞岛任务；业务循环应同时观察关闭端。
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     pub(crate) fn spawn_blocking<Build>(
         &self,
         name: &'static str,
@@ -142,7 +173,12 @@ impl BackgroundTaskOwner {
             name,
             BackgroundTaskKind::CooperativeBlocking,
             None,
-            |shutdown| tauri::async_runtime::spawn_blocking(move || build(shutdown)),
+            |shutdown, slot| {
+                tauri::async_runtime::spawn_blocking(move || {
+                    let _slot = slot;
+                    build(shutdown);
+                })
+            },
         )
     }
 
@@ -161,34 +197,61 @@ impl BackgroundTaskOwner {
             name,
             BackgroundTaskKind::CooperativeBlocking,
             Some(Box::new(cancel)),
-            |shutdown| tauri::async_runtime::spawn_blocking(move || build(shutdown)),
+            |shutdown, slot| {
+                tauri::async_runtime::spawn_blocking(move || {
+                    let _slot = slot;
+                    build(shutdown);
+                })
+            },
         )
     }
 
-    /// 在单一同步临界区内完成关闭检查、启动与登记。
+    /// 先在锁内预约，锁外启动任务，再按关闭竞态决定登记或立即取消并转交。
     fn spawn_handle(
         &self,
         name: &'static str,
         kind: BackgroundTaskKind,
         cooperative_cancel: Option<Box<dyn Fn() + Send + Sync + 'static>>,
-        spawn: impl FnOnce(BackgroundTaskShutdown) -> JoinHandle<()>,
+        spawn: impl FnOnce(BackgroundTaskShutdown, BackgroundTaskSlot) -> JoinHandle<()>,
     ) -> Result<(), &'static str> {
         reap_process_background_tasks();
-        let mut state = self.lock_state();
-        reap_finished_owned_tasks(&mut state.tasks);
-        if state.shutting_down {
-            return Err("background-task-owner-shutting-down");
-        }
+        let slot = {
+            let mut state = self.lock_state();
+            reap_finished_owned_tasks(&mut state.tasks);
+            if state.shutting_down {
+                return Err("background-task-owner-shutting-down");
+            }
+            BackgroundTaskSlot::reserve(&self.capacity)?
+        };
         let (shutdown, receiver) = watch::channel(false);
-        let handle = spawn(BackgroundTaskShutdown { receiver });
-        state.tasks.push(OwnedBackgroundTask {
+        let handle = spawn(BackgroundTaskShutdown { receiver }, slot);
+        let mut pending = Some(OwnedBackgroundTask {
             name,
             shutdown,
             cooperative_cancel,
             handle,
             kind,
         });
-        Ok(())
+        {
+            let mut state = self.lock_state();
+            if !state.shutting_down {
+                state
+                    .tasks
+                    .push(pending.take().expect("pending task exists before adoption"));
+            }
+        }
+        let Some(task) = pending else {
+            return Ok(());
+        };
+
+        request_owned_task_cancellation(&task);
+        if task.kind == BackgroundTaskKind::AbortableAsync {
+            task.handle.abort();
+        }
+        let mut tasks = vec![task];
+        reap_finished_owned_tasks(&mut tasks);
+        retain_process_background_tasks(tasks);
+        Err("background-task-owner-shutting-down")
     }
 
     /// 请求 root discovery 及所有任务取消，并在共同时限内并发回收。
@@ -239,6 +302,7 @@ impl BackgroundTaskOwner {
         let (tasks, deadline) = {
             let mut state = self.lock_state();
             state.shutting_down = true;
+            reap_finished_owned_tasks(&mut state.tasks);
             let deadline = *state.shutdown_deadline.get_or_insert(now + timeout);
             (std::mem::take(&mut state.tasks), deadline)
         };
@@ -246,10 +310,7 @@ impl BackgroundTaskOwner {
         let batch = ShutdownTaskBatchGuard::new(self, tasks);
         let _ = self.root_discovery.request_cancel();
         for task in &batch.tasks {
-            if let Some(cancel) = &task.cooperative_cancel {
-                cancel();
-            }
-            let _ = task.shutdown.send(true);
+            request_owned_task_cancellation(task);
         }
         (batch, deadline)
     }
@@ -279,6 +340,19 @@ impl BackgroundTaskOwner {
                 .any(|task| task.name == name)
         })
     }
+}
+
+/// 逐任务隔离合作取消钩子的 panic，并始终继续发布通用关闭信号。
+fn request_owned_task_cancellation(task: &OwnedBackgroundTask) {
+    if let Some(cancel) = &task.cooperative_cancel
+        && catch_unwind(AssertUnwindSafe(cancel)).is_err()
+    {
+        tracing::error!(
+            task = task.name,
+            "owned background task cancel hook panicked"
+        );
+    }
+    let _ = task.shutdown.send(true);
 }
 
 impl Drop for BackgroundTaskOwner {
@@ -718,3 +792,7 @@ mod tests {
         owner.shutdown_with_timeout(Duration::from_millis(50)).await;
     }
 }
+
+#[cfg(test)]
+#[path = "task_owner_capacity_tests.rs"]
+mod capacity_tests;

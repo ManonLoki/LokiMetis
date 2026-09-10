@@ -65,11 +65,10 @@ enum FileManagerCommandError {
 fn file_manager_process_error(error: process_reaper::OwnedProcessError) -> FileManagerCommandError {
     match error {
         process_reaper::OwnedProcessError::Spawn => FileManagerCommandError::Spawn,
-        process_reaper::OwnedProcessError::ReapTimedOut => {
-            FileManagerCommandError::ReapTimedOut
-        }
+        process_reaper::OwnedProcessError::ReapTimedOut => FileManagerCommandError::ReapTimedOut,
         process_reaper::OwnedProcessError::Io
-        | process_reaper::OwnedProcessError::ShuttingDown => FileManagerCommandError::Failed,
+        | process_reaper::OwnedProcessError::ShuttingDown
+        | process_reaper::OwnedProcessError::CapacityExceeded => FileManagerCommandError::Failed,
     }
 }
 
@@ -210,6 +209,16 @@ mod file_manager_tests {
         assert_eq!(
             run_owned_file_manager_command(command, FILE_MANAGER_TIMEOUT).await,
             Err(FileManagerCommandError::Failed)
+        );
+    }
+
+    /// 进程 owner 容量耗尽必须稳定映射为 launcher 失败。
+    #[cfg(unix)]
+    #[test]
+    fn file_manager_maps_process_capacity_to_failure() {
+        assert_eq!(
+            file_manager_process_error(process_reaper::OwnedProcessError::CapacityExceeded),
+            FileManagerCommandError::Failed
         );
     }
 

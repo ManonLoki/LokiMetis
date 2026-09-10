@@ -12,6 +12,7 @@ mod pet_events;
 mod pet_geometry;
 mod pet_view;
 mod pet_window;
+mod pet_window_debounce;
 mod profiles;
 mod relay;
 mod settings;
@@ -40,6 +41,9 @@ pub use pet_window::{
     constrain_pet_overlay_to_current_monitor, handle_pet_overlay_resized, is_pet_settings_label,
     pet_overlay_window_description, pet_overlay_window_is_open,
     schedule_pet_overlay_position_persist, show_or_create_pet_overlay, start_pet_overlay_dragging,
+};
+pub(crate) use pet_window_debounce::{
+    PetMoveDebounceChannel, PetResizeDebounceChannel, install_pet_window_debounce_workers,
 };
 pub use profiles::{load_profile_drafts, save_profile_draft};
 pub use relay::run_hook_relay_if_requested;

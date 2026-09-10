@@ -3,6 +3,16 @@
 use super::*;
 use tempfile::tempdir;
 
+/// 为指定工具生成、校验并原子写入本机或 WSL 配置。
+fn write_hook_config(
+    settings: &MonitorSettings,
+    tool: AiTool,
+    relay_executable: &Path,
+    home_directory: &Path,
+) -> Result<HookConfigWriteResult, HookError> {
+    write_hook_config_with_cancellation(settings, tool, relay_executable, home_directory, None)
+}
+
 /// 非阻塞检查常驻 Hook 锁当前是否已由 worker 释放。
 fn hook_config_lock_is_available(directory: &Path) -> bool {
     let path = directory.join(".lokimetis-hook-config.lock");
@@ -286,7 +296,7 @@ fn owned_worker_executes_explicit_write_and_returns_result() {
 }
 
 #[test]
-/// 显式等待超时只取消受管请求；worker 句柄仍由 owner 持有且不得延迟落盘。
+/// 显式等待超时只取消受管请求，worker 句柄仍由 owner 持有。
 fn explicit_write_timeout_cancels_without_detaching_worker() {
     let root = tempdir().expect("temp");
     let config_directory = root.path().join("app-config");
@@ -305,31 +315,144 @@ fn explicit_write_timeout_cancels_without_detaching_worker() {
 
     let request_writer = Arc::clone(&writer);
     let request = std::thread::spawn(move || {
-        tauri::async_runtime::block_on(request_writer.write_config_with_timeout(
+        let started = Instant::now();
+        let result = tauri::async_runtime::block_on(request_writer.write_config_with_deadlines(
             config_directory,
             AiTool::Codex,
             Duration::from_millis(20),
-        ))
+            Duration::from_millis(100),
+        ));
+        (started.elapsed(), result)
     });
-    std::thread::sleep(Duration::from_millis(60));
-    assert!(!hook_directory.join("hooks.json").exists());
-    drop(write_guard);
 
-    let error = request
-        .join()
-        .expect("request thread")
-        .expect_err("cancelled explicit request must fail closed");
+    let (elapsed, result) = request.join().expect("request thread");
+    let error = result.expect_err("cancelled explicit request must fail closed");
+    assert!(elapsed < Duration::from_millis(500));
     assert_eq!(error.code, "error.hooks.writeFailed");
     assert_eq!(
         error.params.get("detail").map(String::as_str),
-        Some("hook config write was cancelled before completion")
+        Some(HOOK_WRITE_CANCELLED_DETAIL)
     );
     assert!(writer.worker.lock().expect("worker owner").is_some());
+    assert!(!hook_directory.join("hooks.json").exists());
 
+    drop(write_guard);
     writer.shutdown();
     std::thread::sleep(Duration::from_millis(50));
     assert!(!hook_directory.join("hooks.json").exists());
     assert!(writer.worker.lock().expect("joined worker").is_none());
+}
+
+#[test]
+/// worker 不让出时，IPC 仍须在同一最终绝对截止时间返回并保留取消。
+fn explicit_response_wait_has_a_hard_cancellation_deadline() {
+    let cancellation = Arc::new(AtomicBool::new(false));
+    let (response, mut receiver) = oneshot::channel();
+    let (release, blocked) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        let _ = blocked.recv();
+        drop(response);
+    });
+    let started = Instant::now();
+    let response_deadline = tokio::time::Instant::now() + Duration::from_millis(20);
+    let cancellation_deadline = response_deadline + Duration::from_millis(30);
+
+    let error = tauri::async_runtime::block_on(await_explicit_hook_write_response(
+        &mut receiver,
+        Arc::clone(&cancellation),
+        response_deadline,
+        cancellation_deadline,
+    ))
+    .expect_err("blocked response must reach the hard deadline");
+
+    assert!(started.elapsed() >= Duration::from_millis(45));
+    assert!(started.elapsed() < Duration::from_millis(500));
+    assert!(cancellation.load(Ordering::Acquire));
+    assert!(
+        !worker.is_finished(),
+        "worker ownership must remain observable"
+    );
+    assert_eq!(error.code, "error.hooks.writeFailed");
+    assert_eq!(
+        error.params.get("detail").map(String::as_str),
+        Some(HOOK_WRITE_CANCEL_DEADLINE_DETAIL)
+    );
+    drop(receiver);
+    release.send(()).expect("release blocked worker");
+    worker.join().expect("owned worker must be reaped");
+}
+
+#[test]
+/// 入队前必须回收已取消项、答复稳定错误，并把释放的容量交给新请求。
+fn enqueue_reclaims_cancelled_requests_before_capacity_check() {
+    let cancelled = Arc::new(AtomicBool::new(true));
+    let (cancelled_response, cancelled_receiver) = oneshot::channel();
+    let mut state = HookWriterState::default();
+    state.explicit_requests.push_back(ExplicitHookWriteRequest {
+        config_directory: PathBuf::from("/cancelled"),
+        tool: AiTool::Codex,
+        cancellation: cancelled,
+        response: cancelled_response,
+    });
+    let (replacement_response, _replacement_receiver) = oneshot::channel();
+
+    enqueue_explicit_hook_write(
+        &mut state,
+        ExplicitHookWriteRequest {
+            config_directory: PathBuf::from("/replacement"),
+            tool: AiTool::Codex,
+            cancellation: Arc::new(AtomicBool::new(false)),
+            response: replacement_response,
+        },
+    )
+    .expect("cancelled slot must be reusable");
+
+    assert_eq!(state.explicit_requests.len(), 1);
+    let error = tauri::async_runtime::block_on(cancelled_receiver)
+        .expect("cancelled response")
+        .expect_err("cancelled queued request must fail");
+    assert_eq!(error.code, "error.hooks.writeFailed");
+    assert_eq!(
+        error.params.get("detail").map(String::as_str),
+        Some(HOOK_WRITE_CANCELLED_DETAIL)
+    );
+}
+
+#[test]
+/// 显式请求队列达到硬上限后必须立即拒绝新请求。
+fn explicit_request_queue_applies_bounded_backpressure() {
+    let mut state = HookWriterState::default();
+    for index in 0..MAX_EXPLICIT_HOOK_WRITE_QUEUE {
+        let (response, _receiver) = oneshot::channel();
+        enqueue_explicit_hook_write(
+            &mut state,
+            ExplicitHookWriteRequest {
+                config_directory: PathBuf::from(format!("/queued/{index}")),
+                tool: AiTool::Codex,
+                cancellation: Arc::new(AtomicBool::new(false)),
+                response,
+            },
+        )
+        .expect("queue slot");
+    }
+    let (overflow_response, _overflow_receiver) = oneshot::channel();
+    let error = enqueue_explicit_hook_write(
+        &mut state,
+        ExplicitHookWriteRequest {
+            config_directory: PathBuf::from("/overflow"),
+            tool: AiTool::Codex,
+            cancellation: Arc::new(AtomicBool::new(false)),
+            response: overflow_response,
+        },
+    )
+    .expect_err("full queue must reject new work");
+
+    assert_eq!(state.explicit_requests.len(), MAX_EXPLICIT_HOOK_WRITE_QUEUE);
+    assert_eq!(error.code, "error.hooks.writeFailed");
+    assert_eq!(
+        error.params.get("detail").map(String::as_str),
+        Some(HOOK_WRITE_QUEUE_FULL_DETAIL)
+    );
 }
 
 #[test]

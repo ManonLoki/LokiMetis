@@ -1,8 +1,6 @@
 //! 桌宠原生窗口：创建、显隐、几何持久化与 position-first 读模型。
 
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
 
 use loki_metis_core::{
     HookError, PetLayout, PetOverlayPosition, PetOverlayWindowSpec, PetOverlayWorkArea,
@@ -28,13 +26,8 @@ use super::settings::{
 pub const PET_SETTINGS_LABEL: &str = "pet-settings";
 /// 首次定位时离主显示器工作区右下边缘的逻辑像素。
 const PET_DEFAULT_INSET: f64 = 16.0;
-/// 浮窗移动防抖代数；只有最新一次 Moved 到期后才写入位置。
-static PET_OVERLAY_MOVE_GENERATION: AtomicU64 = AtomicU64::new(0);
-/// 浮窗缩放防抖代数；只有最新一次 Resized 到期后才写入大小。
-static PET_OVERLAY_RESIZE_GENERATION: AtomicU64 = AtomicU64::new(0);
-
 /// 仅当布局与单格大小仍匹配事件快照时写入新大小，避免旧窗口事件覆盖新设置。
-fn replace_pet_size_if_unchanged(
+pub(super) fn replace_pet_size_if_unchanged(
     settings: &mut MonitorSettings,
     expected_layout: PetLayout,
     expected_size: u16,
@@ -354,26 +347,11 @@ pub fn schedule_pet_overlay_position_persist<R: Runtime>(
     else {
         return;
     };
-    let generation = PET_OVERLAY_MOVE_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
     let app = window.app_handle().clone();
-    let task_app = app.clone();
-    let _ = app.state::<AppRuntimeState>().background_tasks.spawn(
-        "pet-position-debounce",
-        move |mut shutdown| async move {
-            tokio::select! {
-                _ = tokio::time::sleep(Duration::from_millis(200)) => {}
-                _ = shutdown.cancelled() => return,
-            }
-            if generation != PET_OVERLAY_MOVE_GENERATION.load(Ordering::Relaxed) {
-                return;
-            }
-            let Ok(config_dir) = task_app.path().app_config_dir() else {
-                return;
-            };
-            let work_areas = pet_overlay_work_areas(&task_app);
-            let _ = persist_pet_overlay_position(&config_dir, position, outer_size, &work_areas);
-        },
-    );
+    let _ = app
+        .state::<AppRuntimeState>()
+        .pet_move_debounce
+        .submit(position, outer_size);
 }
 
 /// 原生 `WindowEvent::Resized` 入口：立即修正宽高比，再防抖保存单格大小。
@@ -399,32 +377,11 @@ pub fn handle_pet_overlay_resized<R: Runtime>(window: &tauri::Window<R>, size: P
         settings.pet_window.pet_size,
     );
     clamp_pet_window_to_work_area(&webview);
-    let generation = PET_OVERLAY_RESIZE_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
-    if pet_size == settings.pet_window.pet_size {
-        return;
-    }
     let layout = settings.pet_window.layout;
-    let task_app = app.clone();
-    let _ = app.state::<AppRuntimeState>().background_tasks.spawn(
-        "pet-size-debounce",
-        move |mut shutdown| async move {
-            tokio::select! {
-                _ = tokio::time::sleep(Duration::from_millis(200)) => {}
-                _ = shutdown.cancelled() => return,
-            }
-            if generation != PET_OVERLAY_RESIZE_GENERATION.load(Ordering::Relaxed) {
-                return;
-            }
-            let expected_size = settings.pet_window.pet_size;
-            let mut changed = false;
-            let saved = update_monitor_settings(&config_dir, |current| {
-                changed = expected_size != pet_size
-                    && replace_pet_size_if_unchanged(current, layout, expected_size, pet_size);
-            });
-            if saved.is_ok() && changed {
-                super::pet_events::emit_pet_window_state_changed(&task_app);
-            }
-        },
+    let _ = app.state::<AppRuntimeState>().pet_resize_debounce.submit(
+        layout,
+        settings.pet_window.pet_size,
+        pet_size,
     );
 }
 

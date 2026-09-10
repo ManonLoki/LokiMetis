@@ -13,10 +13,17 @@ use tokio::sync::{mpsc, oneshot, watch};
 #[path = "notifications_worker_owner.rs"]
 mod notifications_worker_owner;
 
-#[cfg(test)]
-use notifications_worker_owner::retained_notification_owner_owns_task;
+#[cfg(target_os = "macos")]
+use notifications_worker_owner::NotificationOpenerChildGuard;
+#[cfg(any(target_os = "macos", test))]
+use notifications_worker_owner::reserve_notification_opener_slot;
 use notifications_worker_owner::{
     NotificationShutdownSchedule, NotificationShutdownTaskBatchGuard, NotificationWorkerTaskOwner,
+};
+#[cfg(test)]
+use notifications_worker_owner::{
+    RetainableNotificationOpenerChild, retained_notification_opener_is_owned,
+    retained_notification_owner_owns_task,
 };
 
 #[cfg(not(target_os = "macos"))]
@@ -521,16 +528,19 @@ pub(crate) async fn queue_system_notification(
 #[cfg(target_os = "macos")]
 /// 终止并在有界时间内回收系统设置 opener 子进程。
 async fn stop_macos_notification_settings_opener(
-    child: &mut tokio::process::Child,
+    child: &mut NotificationOpenerChildGuard<tokio::process::Child>,
     deadline: tokio::time::Instant,
 ) -> bool {
     if child.start_kill().is_err() {
         return false;
     }
-    matches!(
-        tokio::time::timeout_at(deadline, child.wait()).await,
-        Ok(Ok(_))
-    )
+    match tokio::time::timeout_at(deadline, child.child_mut().wait()).await {
+        Ok(Ok(_)) => {
+            child.mark_terminal();
+            true
+        }
+        Ok(Err(_)) | Err(_) => false,
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -553,11 +563,13 @@ async fn open_macos_notification_settings(
         });
     }
     let settings_url = macos_notification_settings_url(&app.config().identifier);
+    let opener_reservation = reserve_notification_opener_slot()?;
     let mut command = tokio::process::Command::new(MACOS_NOTIFICATION_SETTINGS_OPEN_COMMAND);
     command.arg(settings_url).kill_on_drop(true);
-    let mut child = command
+    let child = command
         .spawn()
         .map_err(|_| MACOS_NOTIFICATION_SETTINGS_OPEN_FAILED)?;
+    let mut child = opener_reservation.adopt(child);
 
     let wait_deadline = (now + MACOS_NOTIFICATION_SETTINGS_OPEN_TIMEOUT).min(latest_wait_deadline);
     let wait_result = tokio::select! {
@@ -576,10 +588,14 @@ async fn open_macos_notification_settings(
             }
             return Err("notification-worker-unavailable");
         }
-        result = tokio::time::timeout_at(wait_deadline, child.wait()) => result,
+        result = tokio::time::timeout_at(wait_deadline, child.child_mut().wait()) => result,
     };
-    let status = match wait_result {
-        Ok(Ok(status)) => status,
+    let success = match wait_result {
+        Ok(Ok(status)) => {
+            let success = status.success();
+            child.mark_terminal();
+            success
+        }
         Ok(Err(_)) => {
             if !stop_macos_notification_settings_opener(&mut child, deadline).await {
                 tracing::error!("macOS notification settings opener failed and was not reaped");
@@ -594,7 +610,7 @@ async fn open_macos_notification_settings(
         }
     };
 
-    macos_notification_settings_exit_result(status.success())
+    macos_notification_settings_exit_result(success)
 }
 
 #[cfg(target_os = "macos")]

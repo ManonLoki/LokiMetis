@@ -33,6 +33,17 @@ const HOOK_WRITER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);
 const HOOK_WRITER_SHUTDOWN_POLL: Duration = Duration::from_millis(10);
 /// 显式写入等待 owner 完成的上限；覆盖一个在途 WSL 写入和本次 WSL 总时限。
 const EXPLICIT_HOOK_WRITE_TIMEOUT: Duration = Duration::from_secs(35);
+/// 显式写入首次超时发布取消后，IPC 最多再等待这一固定宽限。
+const EXPLICIT_HOOK_CANCEL_GRACE: Duration = Duration::from_secs(1);
+/// 显式写入队列的硬上限，防止卡住的存储层导致请求无界累积。
+const MAX_EXPLICIT_HOOK_WRITE_QUEUE: usize = 32;
+/// 队列回收与 worker 取消边界共用的稳定错误详情。
+const HOOK_WRITE_CANCELLED_DETAIL: &str = "hook config write was cancelled before completion";
+/// worker 未在最终截止时间内确认取消时返回的稳定错误详情。
+const HOOK_WRITE_CANCEL_DEADLINE_DETAIL: &str =
+    "hook config write cancellation was not acknowledged before the deadline";
+/// 有界队列已满时返回的稳定背压错误详情。
+const HOOK_WRITE_QUEUE_FULL_DETAIL: &str = "hook config writer request queue is full";
 
 /// 一次由 UI 明确请求、但由生命周期 worker 实际执行的 Hook 配置写入。
 struct ExplicitHookWriteRequest {
@@ -76,7 +87,7 @@ impl HookWriteCancellationGuard {
         self.armed = false;
     }
 
-    /// 到达响应时限时立即发布取消，但继续持有守卫直到 worker 返回终态。
+    /// 到达首次时限时发布取消，守卫保留到结果或最终截止。
     fn cancel(&self) {
         self.cancellation.store(true, Ordering::Release);
     }
@@ -191,17 +202,25 @@ impl HookConfigWriter {
         config_directory: PathBuf,
         tool: AiTool,
     ) -> Result<HookConfigWriteResult, HookError> {
-        self.write_config_with_timeout(config_directory, tool, EXPLICIT_HOOK_WRITE_TIMEOUT)
-            .await
+        self.write_config_with_deadlines(
+            config_directory,
+            tool,
+            EXPLICIT_HOOK_WRITE_TIMEOUT,
+            EXPLICIT_HOOK_CANCEL_GRACE,
+        )
+        .await
     }
 
-    /// 使用可注入等待期限排队显式写入，供超时与取消回归测试复用。
-    async fn write_config_with_timeout(
+    /// 使用可注入的首次与取消期限排队，供硬截止回归复用。
+    async fn write_config_with_deadlines(
         &self,
         config_directory: PathBuf,
         tool: AiTool,
         timeout: Duration,
+        cancellation_grace: Duration,
     ) -> Result<HookConfigWriteResult, HookError> {
+        let response_deadline = tokio::time::Instant::now() + timeout;
+        let cancellation_deadline = response_deadline + cancellation_grace;
         let Some(shared) = &self.shared else {
             return Err(hook_write_lifecycle_error(
                 "hook config writer is unavailable",
@@ -219,37 +238,25 @@ impl HookConfigWriter {
                     "hook config writer is shutting down",
                 ));
             }
-            state.explicit_requests.push_back(ExplicitHookWriteRequest {
-                config_directory,
-                tool,
-                cancellation: Arc::clone(&cancellation),
-                response,
-            });
+            enqueue_explicit_hook_write(
+                &mut state,
+                ExplicitHookWriteRequest {
+                    config_directory,
+                    tool,
+                    cancellation: Arc::clone(&cancellation),
+                    response,
+                },
+            )?;
             wake.notify_one();
         }
 
-        let mut cancellation_guard = HookWriteCancellationGuard::new(cancellation);
-        match tokio::time::timeout(timeout, &mut receiver).await {
-            Ok(Ok(result)) => {
-                cancellation_guard.disarm();
-                result
-            }
-            Ok(Err(_)) => Err(hook_write_lifecycle_error(
-                "hook config writer stopped before returning a result",
-            )),
-            Err(_) => {
-                cancellation_guard.cancel();
-                // 不在 35 秒处制造假失败：必须等 owner 确认再返回，保证调用方收到
-                // 结果后不会再有本机 persist 或 WSL mv 落盘。
-                let result = receiver.await.map_err(|_| {
-                    hook_write_lifecycle_error(
-                        "hook config writer stopped while cancelling an overdue write",
-                    )
-                })?;
-                cancellation_guard.disarm();
-                result
-            }
-        }
+        await_explicit_hook_write_response(
+            &mut receiver,
+            cancellation,
+            response_deadline,
+            cancellation_deadline,
+        )
+        .await
     }
 
     /// 停止并有界回收 worker；重复调用保持幂等。
@@ -296,6 +303,40 @@ impl HookConfigWriter {
     }
 }
 
+/// 在同一组绝对截止时间内等待显式写入；最终超时不放弃取消令牌。
+async fn await_explicit_hook_write_response(
+    receiver: &mut oneshot::Receiver<Result<HookConfigWriteResult, HookError>>,
+    cancellation: Arc<AtomicBool>,
+    response_deadline: tokio::time::Instant,
+    cancellation_deadline: tokio::time::Instant,
+) -> Result<HookConfigWriteResult, HookError> {
+    let mut cancellation_guard = HookWriteCancellationGuard::new(cancellation);
+    match tokio::time::timeout_at(response_deadline, &mut *receiver).await {
+        Ok(Ok(result)) => {
+            cancellation_guard.disarm();
+            result
+        }
+        Ok(Err(_)) => Err(hook_write_lifecycle_error(
+            "hook config writer stopped before returning a result",
+        )),
+        Err(_) => {
+            cancellation_guard.cancel();
+            match tokio::time::timeout_at(cancellation_deadline, receiver).await {
+                Ok(Ok(result)) => {
+                    cancellation_guard.disarm();
+                    result
+                }
+                Ok(Err(_)) => Err(hook_write_lifecycle_error(
+                    "hook config writer stopped while cancelling an overdue write",
+                )),
+                Err(_) => Err(hook_write_lifecycle_error(
+                    HOOK_WRITE_CANCEL_DEADLINE_DETAIL,
+                )),
+            }
+        }
+    }
+}
+
 impl Drop for HookConfigWriter {
     /// 即使应用未显式调用 shutdown，也发布取消并把超时线程移交长期 owner。
     fn drop(&mut self) {
@@ -327,6 +368,29 @@ fn join_worker_until(
 /// 构造不会暴露配置路径或内容的 Hook writer 生命周期错误。
 fn hook_write_lifecycle_error(detail: &'static str) -> HookError {
     HookError::new("error.hooks.writeFailed").param("detail", detail)
+}
+
+/// 回收已取消请求后在硬容量内入队，满队列立即向调用方施加背压。
+fn enqueue_explicit_hook_write(
+    state: &mut HookWriterState,
+    request: ExplicitHookWriteRequest,
+) -> Result<(), HookError> {
+    let mut retained = VecDeque::with_capacity(state.explicit_requests.len());
+    while let Some(queued) = state.explicit_requests.pop_front() {
+        if queued.cancellation.load(Ordering::Acquire) {
+            let _ = queued
+                .response
+                .send(Err(hook_write_lifecycle_error(HOOK_WRITE_CANCELLED_DETAIL)));
+        } else {
+            retained.push_back(queued);
+        }
+    }
+    state.explicit_requests = retained;
+    if state.explicit_requests.len() >= MAX_EXPLICIT_HOOK_WRITE_QUEUE {
+        return Err(hook_write_lifecycle_error(HOOK_WRITE_QUEUE_FULL_DETAIL));
+    }
+    state.explicit_requests.push_back(request);
+    Ok(())
 }
 
 /// 关闭 writer 状态并取消当前及排队显式写入，不把接收端留到 owner 销毁才唤醒。
@@ -525,17 +589,6 @@ pub fn validate_hook_config_directory(directory: &str) -> Result<String, HookErr
     Ok(directory.to_owned())
 }
 
-/// 为指定工具生成、完整校验并以原子替换写入本机或 WSL 配置。
-#[cfg(test)]
-fn write_hook_config(
-    settings: &MonitorSettings,
-    tool: AiTool,
-    relay_executable: &Path,
-    home_directory: &Path,
-) -> Result<HookConfigWriteResult, HookError> {
-    write_hook_config_with_cancellation(settings, tool, relay_executable, home_directory, None)
-}
-
 /// 串行化一次显式或后台写入；后台路径额外携带应用退出取消令牌。
 fn write_hook_config_with_cancellation(
     settings: &MonitorSettings,
@@ -577,9 +630,7 @@ fn lock_hook_config_writes(
 /// 在阻塞阶段边界观察调用或应用退出取消，未开始的写入必须失败关闭。
 fn ensure_hook_write_not_cancelled(cancellation: Option<&AtomicBool>) -> Result<(), HookError> {
     if cancellation.is_some_and(|cancellation| cancellation.load(Ordering::Acquire)) {
-        return Err(hook_write_lifecycle_error(
-            "hook config write was cancelled before completion",
-        ));
+        return Err(hook_write_lifecycle_error(HOOK_WRITE_CANCELLED_DETAIL));
     }
     Ok(())
 }

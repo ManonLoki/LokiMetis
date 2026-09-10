@@ -63,7 +63,9 @@ impl From<OwnedProcessError> for BoundedCommandError {
         match error {
             OwnedProcessError::Spawn => Self::Spawn,
             OwnedProcessError::ReapTimedOut => Self::ReapTimedOut,
-            OwnedProcessError::Io | OwnedProcessError::ShuttingDown => Self::Io,
+            OwnedProcessError::Io
+            | OwnedProcessError::ShuttingDown
+            | OwnedProcessError::CapacityExceeded => Self::Io,
         }
     }
 }
@@ -700,6 +702,15 @@ mod tests {
                 .expect("系统命令应可启动并回收");
             assert!(!output.status.success());
         });
+    }
+
+    /// 进程 owner 容量耗尽应映射为稳定 I/O 故障，不得误报 spawn 或超时。
+    #[test]
+    fn process_capacity_error_maps_to_bounded_io_failure() {
+        assert_eq!(
+            BoundedCommandError::from(OwnedProcessError::CapacityExceeded),
+            BoundedCommandError::Io
+        );
     }
 
     /// macOS 宿主发现与命令执行不得回退到 PATH、mdfind 或 plist 自报信息。

@@ -52,9 +52,10 @@ use monitor::{
     HookConfigWriter, HookListenerControl, PET_SETTINGS_LABEL, close_pet_overlay,
     delete_monitor_image_cmd, focus_first_populated_pet_page, get_hook_relay_status,
     get_monitor_capabilities, get_monitor_image_bytes, get_monitor_settings, get_pet_overlay_view,
-    get_pet_window_state, hide_pet_settings, list_monitor_hook_locations, list_monitor_images_cmd,
-    list_monitor_profile_drafts, load_monitor_settings, pet_overlay_window_description,
-    resize_pet_step, save_enabled_ai_selection, save_hook_config_directory, save_monitor_image_cmd,
+    get_pet_window_state, hide_pet_settings, install_pet_window_debounce_workers,
+    list_monitor_hook_locations, list_monitor_images_cmd, list_monitor_profile_drafts,
+    load_monitor_settings, pet_overlay_window_description, resize_pet_step,
+    save_enabled_ai_selection, save_hook_config_directory, save_monitor_image_cmd,
     save_monitor_profile_draft, set_pet_always_on_top, set_pet_layout, set_pet_locked,
     set_pet_size, show_main_window, show_or_create_pet_overlay, show_pet_settings,
     spawn_hook_listener, start_pet_overlay_drag, turn_pet_page, update_monitor_settings,
@@ -216,6 +217,12 @@ pub fn run() {
                         settings,
                     ),
                 ));
+            tauri::async_runtime::block_on(install_pet_window_debounce_workers(
+                app.handle().clone(),
+                monitor_config_dir.clone(),
+                &runtime_state,
+            ))
+            .map_err(std::io::Error::other)?;
             app.manage(runtime_state);
             spawn_retention_cleanup(app.handle().clone());
             install_notification_worker(app.handle());
