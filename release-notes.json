@@ -3,7 +3,7 @@
   "releases": [
     {
       "releaseDate": "2026-09-10",
-      "version": "v0.2.41",
+      "version": "v0.2.42",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
@@ -52,8 +52,8 @@
           "en-US": "Fixed the All view including unconfigured Agents, default-route drift, and stale state in Settings, Sources, Monitor, and Skins after query failures or Agent switches."
         },
         {
-          "zh-CN": "修复开机自启开关错误传递查询上下文、回读失败无法恢复，以及 macOS 通知授权和有界投递状态不同步的问题。",
-          "en-US": "Fixed autostart passing query context to host commands, switch state failing to recover after readback errors, and stale macOS notification authorization or bounded-delivery state."
+          "zh-CN": "修复开机自启开关错误传递查询上下文、回读失败无法恢复，以及 Windows 新用户缺少 Run 注册表键时状态读取和启用失败；同时修复 macOS 通知授权和有界投递状态不同步的问题。",
+          "en-US": "Fixed autostart passing query context to host commands, switch recovery after readback errors, and state reads or enabling on fresh Windows accounts without a Run registry key; also fixed stale macOS notification authorization and bounded-delivery state."
         },
         {
           "zh-CN": "修复生产构建中的 CSS 条件色兼容与样式入口裁剪，避免主题、导航、用量看板和监控界面丢失样式。",
