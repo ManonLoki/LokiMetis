@@ -3,7 +3,7 @@
   "releases": [
     {
       "releaseDate": "2026-09-10",
-      "version": "v0.2.42",
+      "version": "v0.2.43",
       "featureOptimizations": [
         {
           "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
@@ -60,8 +60,8 @@
           "en-US": "Fixed production CSS conditional-color compatibility and entry pruning so themes, navigation, usage dashboards, and monitoring views keep their styles."
         },
         {
-          "zh-CN": "修复 Hooks 中继分段读取、配置原子写入与迁移、连接上限及 WSL/关机生命周期竞态，避免遗漏 AI 消息或残留进程。",
-          "en-US": "Fixed Hook relay partial reads, atomic configuration writes and migrations, connection limits, and WSL/shutdown lifecycle races that could miss AI events or leave processes behind."
+          "zh-CN": "修复 Hooks 中继分段读取、配置原子写入与迁移、连接上限、Windows 中继缓存与安装目录冲突，以及 WSL/关机生命周期竞态，避免遗漏 AI 消息、卸载残留或残留进程。",
+          "en-US": "Fixed Hook relay partial reads, atomic configuration writes and migrations, connection limits, the Windows rendezvous cache colliding with the install directory, and WSL/shutdown lifecycle races that could miss AI events, leave uninstall residue, or leave processes behind."
         },
         {
           "zh-CN": "修复桌宠冷启动占位、图片协议、位置绑定、托盘显隐和设置窗生命周期问题。",
