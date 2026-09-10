@@ -262,7 +262,10 @@ jobs:
             })()`);
             const settings = await waitFor(
               () => evaluate(`(() => {
-                if (location.pathname !== "/settings") return false;
+                if (
+                  location.pathname !== "/settings" ||
+                  !document.querySelector('[data-testid="settings-page"]')
+                ) return false;
                 const cards = [...document.querySelectorAll(".surface-card")];
                 const cardStyles = cards.slice(0, 4).map((card) => {
                   const style = getComputedStyle(card);
@@ -272,7 +275,7 @@ jobs:
                     borderRadius: style.borderRadius,
                   };
                 });
-                return {
+                const result = {
                   href: location.href,
                   pathname: location.pathname,
                   text: document.body.innerText,
@@ -280,6 +283,7 @@ jobs:
                   cardCount: cards.length,
                   cardStyles,
                 };
+                return result.text.includes("0.2.41") && result.cardCount >= 4 ? result : false;
               })()`),
               "settings route",
             );
