@@ -1,4 +1,4 @@
-name: Windows v0.2.42 candidate smoke
+name: Windows v0.2.43 candidate smoke
 
 on:
   push:
@@ -16,10 +16,10 @@ jobs:
     timeout-minutes: 15
     env:
       RELEASE_ID: "385972768"
-      RELEASE_TAG: v0.2.42
-      SOURCE_COMMIT: f27e51ba3171a069be85028e7f86996d9aa57cbb
-      ASSET_NAME: LokiMetis-v0.2.42-windows-x64.exe
-      EXPECTED_SHA256: 6075c73543002db9942bae66418f0b32f0270271d126e1c2d30b4256d89ce8e2
+      RELEASE_TAG: v0.2.43
+      SOURCE_COMMIT: caf75e6728364bb481e3280fcad69f8683aeaa7c
+      ASSET_NAME: LokiMetis-v0.2.43-windows-x64.exe
+      EXPECTED_SHA256: 450ce8a0011c031d15fb9522d07c1c74d7a6ae9524fd0480f1d6c5c7e24aebed
 
     steps:
       - name: Download exact draft asset
@@ -89,7 +89,7 @@ jobs:
             throw "Installed uninstaller is missing"
           }
           $versionInfo = (Get-Item $appPath).VersionInfo
-          if ($versionInfo.ProductVersion -notmatch "^0\.2\.42(?:\.0)?$") {
+          if ($versionInfo.ProductVersion -notmatch "^0\.2\.43(?:\.0)?$") {
             throw "Installed ProductVersion mismatch: $($versionInfo.ProductVersion)"
           }
           $releaseNotes = @(Get-ChildItem -Path $installDir -Filter release-notes.json -File -Recurse)
@@ -97,7 +97,7 @@ jobs:
             throw "Expected exactly one bundled release-notes.json"
           }
           $notes = Get-Content -Raw $releaseNotes[0].FullName | ConvertFrom-Json
-          if ($notes.releases[0].version -ne "v0.2.42") {
+          if ($notes.releases[0].version -ne "v0.2.43") {
             throw "Bundled release-notes version mismatch"
           }
 
@@ -149,6 +149,14 @@ jobs:
           }
           if (-not $mainTargetReady) {
             throw "The main dashboard WebView2 target did not become available"
+          }
+          $relayCachePath = Join-Path $env:LOCALAPPDATA "com.manonloki.lokimetis\loki-metis-hook-relay.json"
+          $legacyRelayPath = Join-Path $installDir "loki-metis-hook-relay.json"
+          if (-not (Test-Path -PathType Leaf $relayCachePath)) {
+            throw "Hook relay rendezvous is missing from the dedicated LOCALAPPDATA cache"
+          }
+          if (Test-Path $legacyRelayPath) {
+            throw "Hook relay rendezvous leaked into the installation directory"
           }
 
           $dashboardScreenshot = Join-Path $env:RUNNER_TEMP "windows-dashboard.png"
@@ -284,11 +292,11 @@ jobs:
                   cardCount: cards.length,
                   cardStyles,
                 };
-                return result.text.includes("0.2.42") && result.cardCount >= 4 ? result : false;
+                return result.text.includes("0.2.43") && result.cardCount >= 4 ? result : false;
               })()`),
               "settings route",
             );
-            if (!settings.text.includes("0.2.42") || settings.cardCount < 4) {
+            if (!settings.text.includes("0.2.43") || settings.cardCount < 4) {
               throw new Error(`Settings content or cards missing: ${JSON.stringify(settings)}`);
             }
             if (settings.cardStyles.some((style) => style.backgroundColor === "rgba(0, 0, 0, 0)" || style.borderWidth === "0px")) {
@@ -306,7 +314,7 @@ jobs:
             const releaseNotes = await waitFor(
               () => evaluate(`(() => {
                 const text = document.body.innerText;
-                const hasEntry = text.includes("2026-09-10 · v0.2.42");
+                const hasEntry = text.includes("2026-09-10 · v0.2.43");
                 const hasFeatureSection = text.includes("Feature improvements") || text.includes("功能优化");
                 const hasFixSection = text.includes("Bug fixes") || text.includes("问题修复");
                 return hasEntry && hasFeatureSection && hasFixSection ? { hasEntry, hasFeatureSection, hasFixSection } : false;
@@ -417,6 +425,10 @@ jobs:
 
           Stop-Process -Id $application.Id -Force
           $application.WaitForExit()
+          '{"legacyCandidate":true}' | Set-Content -Encoding utf8 $legacyRelayPath
+          if (-not (Test-Path -PathType Leaf $legacyRelayPath)) {
+            throw "Could not stage the legacy rendezvous cleanup fixture"
+          }
           Remove-ItemProperty -Path $webViewPolicyKey -Name "loki_metis_gui.exe"
           if (Get-ItemProperty -Path $webViewPolicyKey -Name "loki_metis_gui.exe" -ErrorAction SilentlyContinue) {
             throw "Temporary LokiMetis WebView2 browser-arguments policy remains after cleanup"
@@ -456,7 +468,7 @@ jobs:
             "imageVersion=$env:ImageVersion",
             "installMode=currentUser-silent",
             "installedProductVersion=$($versionInfo.ProductVersion)",
-            "bundledReleaseNotes=v0.2.42",
+            "bundledReleaseNotes=v0.2.43",
             "dashboardRoute=$($inspection.dashboard.href)",
             "dashboardStylesheets=$($inspection.dashboard.stylesheets)",
             "dashboardLocalCardRule=passed",
@@ -469,6 +481,8 @@ jobs:
             "autostartRegistryTarget=$runCommand",
             "autostartDisableReadback=passed",
             "autostartRestoredState=off",
+            "relayCacheIsolation=passed",
+            "legacyRelayCleanup=passed",
             "processExit=passed",
             "webViewDebugPolicyRestored=passed",
             "installDirectoryCleanup=passed",
@@ -479,7 +493,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: windows-v0.2.42-smoke-evidence
+          name: windows-v0.2.43-smoke-evidence
           if-no-files-found: warn
           path: |
             ${{ runner.temp }}/windows-smoke.txt
