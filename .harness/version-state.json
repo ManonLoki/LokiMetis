@@ -47,19 +47,13 @@
     "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
     "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910"
   ],
-  "cycle_base_version": "0.2.46",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.3.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "a114e32be44fc2742ddecfefc5c9f8415cfce179",
-    "version": "0.2.46"
+    "source_commit": "69425debb3b8d0a9c7d1ce5b372d4d4f4c97ee47",
+    "version": "0.3.0"
   },
-  "pending_changes": [
-    {
-      "change_id": "FEAT-AUTOSTART-HIDDEN-DOCK-20260912",
-      "kind": "feature",
-      "required_version": "0.3.0"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.3.0"
 }
