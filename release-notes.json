@@ -3,6 +3,17 @@
   "releases": [
     {
       "releaseDate": "2026-09-12",
+      "version": "v0.3.3",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复开机自启在应用已有实例运行时意外显示主窗口的问题；登录启动保持后台隐藏，手动再次打开仍可恢复窗口。",
+          "en-US": "Fixed launch-at-login unexpectedly showing the main window when the app was already running; login launches stay hidden while manually reopening the app still restores the window."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-12",
       "version": "v0.3.2",
       "featureOptimizations": [],
       "bugFixes": [
