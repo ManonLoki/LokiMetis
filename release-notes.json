@@ -2,6 +2,21 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-12",
+      "version": "v0.3.0",
+      "featureOptimizations": [
+        {
+          "zh-CN": "开启开机自动启动后，应用首次自启拉起时主窗口默认保持隐藏，只显示托盘图标和桌宠，不再打扰用户；手动打开应用时窗口显示如常。",
+          "en-US": "When launch-at-login is enabled, the main window now stays hidden on the autostart-triggered launch, showing only the tray icon and pet overlay; manually opening the app still shows the window as before."
+        },
+        {
+          "zh-CN": "macOS 上隐藏程序坞（Dock）图标，应用完全由系统托盘承载，与关闭主窗口即最小化到托盘的行为保持一致。",
+          "en-US": "The Dock icon is now hidden on macOS, since the app already lives entirely in the system tray and closing the main window already minimizes it there."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
       "releaseDate": "2026-09-10",
       "version": "v0.2.46",
       "featureOptimizations": [],
