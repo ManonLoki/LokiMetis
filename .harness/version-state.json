@@ -46,7 +46,8 @@
     "BUG-PET-OVERLAY-MIN-SIZE-RESIZE-HANG-20260910",
     "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
     "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910",
-    "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912"
+    "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912",
+    "BUG-SETTINGS-VERSION-BADGE-UPPERCASE-20260912"
   ],
   "cycle_base_version": "0.3.0",
   "feature_bump_applied": false,
@@ -59,8 +60,13 @@
       "change_id": "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912",
       "kind": "bug-fix",
       "required_version": "0.3.1"
+    },
+    {
+      "change_id": "BUG-SETTINGS-VERSION-BADGE-UPPERCASE-20260912",
+      "kind": "bug-fix",
+      "required_version": "0.3.2"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.3.1"
+  "target_version": "0.3.2"
 }

@@ -144,7 +144,7 @@ export function SettingsPage({
             {metadata.data === undefined ? (
               <Skeleton h={28} radius="xl" w={92} />
             ) : (
-              <Badge size="lg" variant="light">
+              <Badge size="lg" style={{ textTransform: "none" }} variant="light">
                 {t("settings.version")} {formatDisplayVersion(metadata.data.version)}
               </Badge>
             )}

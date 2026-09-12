@@ -105,6 +105,10 @@ describe("dashboard settings capabilities", () => {
       ),
     ).not.toBeInTheDocument();
     const applicationSection = screen.getByTestId("settings-application-section");
+    // Mantine Badge 默认会把 v 转成 V，正式版本号必须保持小写前缀。
+    expect(await within(applicationSection).findByText("Version v0.1.0")).toHaveStyle({
+      textTransform: "none",
+    });
     expect(
       within(applicationSection).getByRole("button", { name: "View release notes" }),
     ).toBeVisible();
