@@ -3,6 +3,17 @@
   "releases": [
     {
       "releaseDate": "2026-09-12",
+      "version": "v0.3.1",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 WorkBuddy 监控在权限被拒绝或澄清问题得到回答后，桌宠展示会一直卡在“询问中”状态的问题",
+          "en-US": "Fixed WorkBuddy monitoring getting stuck showing \"asking\" forever after a permission was denied or a clarifying question was answered"
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-12",
       "version": "v0.3.0",
       "featureOptimizations": [
         {
