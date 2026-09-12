@@ -21,12 +21,23 @@ fn single_instance_plugin_is_registered_first() {
     );
 }
 
-/// 第二次启动应恢复现有主窗口而不是创建重复窗口。
+/// 普通第二次启动应恢复现有主窗口，自启重复启动则不得使窗口闪现。
 #[test]
 fn second_launch_restores_existing_main_window() {
-    let windows_before = ["main"];
-    let windows_after = windows_before;
-    assert_eq!(windows_after, ["main"]);
+    let manual = ["/Applications/LokiMetis.app/Contents/MacOS/loki_metis_gui".to_owned()];
+    let autostart = [manual[0].clone(), "--autostart".to_owned()];
+    assert!(!super::is_autostart_launch(&manual));
+    assert!(super::is_autostart_launch(&autostart));
+    assert!(super::is_autostart_launch(&[
+        manual[0].clone(),
+        "--other".to_owned(),
+        "--autostart".to_owned(),
+    ]));
+    assert!(!super::is_autostart_launch(&[
+        manual[0].clone(),
+        "--autostart-extra".to_owned(),
+    ]));
+    assert!(!super::is_autostart_launch(&["--autostart".to_owned()]));
 }
 
 /// 主窗口不得随进程启动自动可见，可见性完全由启动逻辑显式决定。
@@ -60,7 +71,7 @@ fn autostart_plugin_is_registered_with_launch_marker_arg() {
 fn autostart_launch_skips_showing_main_window() {
     let source = include_str!("lib.rs");
     let flag = source
-        .find("let launched_via_autostart = std::env::args()")
+        .find("let launched_via_autostart = is_autostart_launch(")
         .expect("autostart launch flag is computed");
     let guard = source
         .find("if !launched_via_autostart {")
@@ -71,6 +82,22 @@ fn autostart_launch_skips_showing_main_window() {
         .expect("main window is restored for non-autostart launches");
     assert!(flag < guard);
     assert!(guard < restore);
+}
+
+/// 已有实例收到自启重复启动时，必须在回调里检查参数后才决定是否显示主窗口。
+#[test]
+fn autostart_second_launch_does_not_restore_main_window() {
+    let source = include_str!("lib.rs");
+    let callback = source
+        .find("tauri_plugin_single_instance::init(|app, args, _cwd|")
+        .expect("single-instance callback");
+    let next_plugin = source[callback..]
+        .find(".plugin(tauri_plugin_deep_link::init())")
+        .map(|offset| callback + offset)
+        .expect("next plugin");
+    let handler = &source[callback..next_plugin];
+    assert!(handler.contains("if !is_autostart_launch(&args) {"));
+    assert!(handler.contains("restore_main_window(app)"));
 }
 
 /// Dock 图标常驻会与托盘常驻语义重复，macOS 上必须在启动时隐藏。

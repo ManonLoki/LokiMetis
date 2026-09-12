@@ -92,6 +92,10 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 const APPLICATION_NAME: &str = "LokiMetis";
 /// 开机自启插件在自启进程附加的标记参数，用于区分自启启动与用户手动启动。
 const AUTOSTART_LAUNCH_ARG: &str = "--autostart";
+/// 只把实际启动参数中的精确自启标记视为后台启动，跳过可执行文件路径。
+fn is_autostart_launch(args: &[String]) -> bool {
+    args.iter().skip(1).any(|arg| arg == AUTOSTART_LAUNCH_ARG)
+}
 /// 只在显式本机性能验收进程中注入，供轻量入口同步判定是否观测。
 const PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT: &str = "Object.defineProperty(window,'__LOKI_METIS_PERFORMANCE_EVIDENCE__',{configurable:false,enumerable:false,value:true,writable:false});";
 
@@ -160,8 +164,11 @@ pub fn run() {
         builder
     };
     let builder = builder
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = restore_main_window(app);
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // 登录项可能在已有实例运行时再次拉起应用，不得因此显示原本隐藏的主窗口。
+            if !is_autostart_launch(&args) {
+                let _ = restore_main_window(app);
+            }
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_os::init())
@@ -192,7 +199,7 @@ pub fn run() {
                 tracing::warn!(%error, "failed to hide the dock icon");
             }
             // 自启插件会在系统自启进程上附加该标记参数，用于区分自启与用户手动启动。
-            let launched_via_autostart = std::env::args().any(|arg| arg == AUTOSTART_LAUNCH_ARG);
+            let launched_via_autostart = is_autostart_launch(&std::env::args().collect::<Vec<_>>());
             // 性能证据是显式本机测试通道；路径在构建 WebView 之前已失败关闭校验。
             app.manage(performance_evidence_state);
             install_logging(app)?;

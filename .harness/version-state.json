@@ -47,7 +47,8 @@
     "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
     "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910",
     "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912",
-    "BUG-SETTINGS-VERSION-BADGE-UPPERCASE-20260912"
+    "BUG-SETTINGS-VERSION-BADGE-UPPERCASE-20260912",
+    "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912"
   ],
   "cycle_base_version": "0.3.2",
   "feature_bump_applied": false,
@@ -55,7 +56,13 @@
     "source_commit": "c9e3e2eda3a4baf88eb02a0135eab3e7a86cbbea",
     "version": "0.3.2"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912",
+      "kind": "bug-fix",
+      "required_version": "0.3.3"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.3.2"
+  "target_version": "0.3.3"
 }
