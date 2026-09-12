@@ -1,4 +1,3 @@
-
 /// 单实例插件必须最先注册且只能注册一次。
 #[test]
 fn single_instance_plugin_is_registered_first() {
@@ -21,11 +20,16 @@ fn single_instance_plugin_is_registered_first() {
     );
 }
 
-/// 普通第二次启动应恢复现有主窗口，自启重复启动则不得使窗口闪现。
+/// 普通第二次启动应恢复现有主窗口，自启或深链接重复启动必须交给各自入口处理。
 #[test]
 fn second_launch_restores_existing_main_window() {
     let manual = ["/Applications/LokiMetis.app/Contents/MacOS/loki_metis_gui".to_owned()];
     let autostart = [manual[0].clone(), "--autostart".to_owned()];
+    let valid_deep_link = [manual[0].clone(), "app-loki-metis://restore".to_owned()];
+    let rejected_deep_link = [
+        manual[0].clone(),
+        "app-loki-metis://restore?payload=1".to_owned(),
+    ];
     assert!(!super::is_autostart_launch(&manual));
     assert!(super::is_autostart_launch(&autostart));
     assert!(super::is_autostart_launch(&[
@@ -38,6 +42,20 @@ fn second_launch_restores_existing_main_window() {
         "--autostart-extra".to_owned(),
     ]));
     assert!(!super::is_autostart_launch(&["--autostart".to_owned()]));
+    assert!(super::should_restore_main_window_for_second_launch(&manual));
+    assert!(!super::should_restore_main_window_for_second_launch(
+        &autostart
+    ));
+    assert!(!super::should_restore_main_window_for_second_launch(
+        &valid_deep_link
+    ));
+    assert!(!super::should_restore_main_window_for_second_launch(
+        &rejected_deep_link
+    ));
+    assert!(!super::should_restore_main_window_for_second_launch(&[
+        manual[0].clone(),
+        "APP-LOKI-METIS://restore?payload=1".to_owned(),
+    ]));
 }
 
 /// 主窗口不得随进程启动自动可见，可见性完全由启动逻辑显式决定。
@@ -96,7 +114,7 @@ fn autostart_second_launch_does_not_restore_main_window() {
         .map(|offset| callback + offset)
         .expect("next plugin");
     let handler = &source[callback..next_plugin];
-    assert!(handler.contains("if !is_autostart_launch(&args) {"));
+    assert!(handler.contains("if should_restore_main_window_for_second_launch(&args) {"));
     assert!(handler.contains("restore_main_window(app)"));
 }
 

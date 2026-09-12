@@ -3,12 +3,16 @@
   "releases": [
     {
       "releaseDate": "2026-09-12",
-      "version": "v0.3.3",
+      "version": "v0.3.4",
       "featureOptimizations": [],
       "bugFixes": [
         {
           "zh-CN": "修复开机自启在应用已有实例运行时意外显示主窗口的问题；登录启动保持后台隐藏，手动再次打开仍可恢复窗口。",
           "en-US": "Fixed launch-at-login unexpectedly showing the main window when the app was already running; login launches stay hidden while manually reopening the app still restores the window."
+        },
+        {
+          "zh-CN": "修复带参数或片段的受限深链接被单实例回调错误恢复主窗口的问题；只有固定的无载荷恢复链接可以显示窗口。",
+          "en-US": "Fixed payload-bearing or fragmented restricted deep links incorrectly restoring the main window through the single-instance callback; only the fixed payload-free restore link can show it."
         }
       ]
     },

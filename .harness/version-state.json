@@ -48,7 +48,8 @@
     "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910",
     "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912",
     "BUG-SETTINGS-VERSION-BADGE-UPPERCASE-20260912",
-    "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912"
+    "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912",
+    "BUG-DEEP-LINK-SINGLE-INSTANCE-BYPASS-20260912"
   ],
   "cycle_base_version": "0.3.2",
   "feature_bump_applied": false,
@@ -61,8 +62,13 @@
       "change_id": "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912",
       "kind": "bug-fix",
       "required_version": "0.3.3"
+    },
+    {
+      "change_id": "BUG-DEEP-LINK-SINGLE-INSTANCE-BYPASS-20260912",
+      "kind": "bug-fix",
+      "required_version": "0.3.4"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.3.3"
+  "target_version": "0.3.4"
 }

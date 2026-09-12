@@ -96,6 +96,14 @@ const AUTOSTART_LAUNCH_ARG: &str = "--autostart";
 fn is_autostart_launch(args: &[String]) -> bool {
     args.iter().skip(1).any(|arg| arg == AUTOSTART_LAUNCH_ARG)
 }
+/// 单实例回调只处理普通重复启动；本应用协议必须交给深链接插件完成严格校验。
+fn should_restore_main_window_for_second_launch(args: &[String]) -> bool {
+    !is_autostart_launch(args)
+        && !args.iter().skip(1).any(|arg| {
+            arg.split_once(':')
+                .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("app-loki-metis"))
+        })
+}
 /// 只在显式本机性能验收进程中注入，供轻量入口同步判定是否观测。
 const PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT: &str = "Object.defineProperty(window,'__LOKI_METIS_PERFORMANCE_EVIDENCE__',{configurable:false,enumerable:false,value:true,writable:false});";
 
@@ -165,8 +173,8 @@ pub fn run() {
     };
     let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // 登录项可能在已有实例运行时再次拉起应用，不得因此显示原本隐藏的主窗口。
-            if !is_autostart_launch(&args) {
+            // 登录项和深链接都有专属入口；单实例回调不能绕过它们的隐藏或校验语义。
+            if should_restore_main_window_for_second_launch(&args) {
                 let _ = restore_main_window(app);
             }
         }))
