@@ -3,12 +3,16 @@
   "releases": [
     {
       "releaseDate": "2026-09-12",
-      "version": "v0.3.1",
+      "version": "v0.3.2",
       "featureOptimizations": [],
       "bugFixes": [
         {
-          "zh-CN": "修复 WorkBuddy 监控在权限被拒绝或澄清问题得到回答后，桌宠展示会一直卡在“询问中”状态的问题",
-          "en-US": "Fixed WorkBuddy monitoring getting stuck showing \"asking\" forever after a permission was denied or a clarifying question was answered"
+          "zh-CN": "修复 WorkBuddy 监控在权限被拒绝或澄清问题得到回答后，桌宠展示会一直卡在“询问中”状态的问题。",
+          "en-US": "Fixed WorkBuddy monitoring getting stuck showing “asking” after a permission was denied or a clarifying question was answered."
+        },
+        {
+          "zh-CN": "修复设置页将版本号的小写 v 显示成大写 V 的问题。",
+          "en-US": "Fixed Settings displaying the version prefix as uppercase V instead of lowercase v."
         }
       ]
     },
