@@ -379,6 +379,57 @@ mod tests {
         }
     }
 
+    /// WorkBuddy 内置引擎在权限被拒绝或澄清结束后各只发一次收尾事件；
+    /// 缺失这两个事件会让展示永远卡在询问态（真实回归：见 work_buddy.rs）。
+    #[test]
+    fn workbuddy_permission_denied_and_elicitation_result_close_the_asking_state() {
+        let mut machine = HookStateMachine::default();
+        assert_eq!(
+            apply_tool(
+                &mut machine,
+                AiTool::WorkBuddy,
+                "PermissionRequest",
+                Some("session-1"),
+                Some("turn-1"),
+                1,
+            ),
+            HookEventDecision::Forward(HookTransition::Display(HookBehavior::Asking))
+        );
+        assert_eq!(
+            apply_tool(
+                &mut machine,
+                AiTool::WorkBuddy,
+                "PermissionDenied",
+                Some("session-1"),
+                Some("turn-1"),
+                2,
+            ),
+            HookEventDecision::Forward(HookTransition::Display(HookBehavior::Error))
+        );
+        assert_eq!(
+            apply_tool(
+                &mut machine,
+                AiTool::WorkBuddy,
+                "Elicitation",
+                Some("session-1"),
+                Some("turn-1"),
+                3,
+            ),
+            HookEventDecision::Forward(HookTransition::Display(HookBehavior::Asking))
+        );
+        assert_eq!(
+            apply_tool(
+                &mut machine,
+                AiTool::WorkBuddy,
+                "ElicitationResult",
+                Some("session-1"),
+                Some("turn-1"),
+                4,
+            ),
+            HookEventDecision::Forward(HookTransition::Display(HookBehavior::Running))
+        );
+    }
+
     /// 会话墓碑拦截迟到事件，但显式 SessionStart 可恢复并保留旧轮次历史。
     #[test]
     fn ended_tombstone_rejects_late_events_and_resumes_explicitly() {

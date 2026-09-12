@@ -40,8 +40,20 @@ const EVENTS: &[HookEvent] = &[
         "PermissionRequest",
         HookEventKind::State(HookBehavior::Asking),
     ),
+    HookEvent::new(
+        // 权限被拒绝 -> 出错态；WorkBuddy 内置引擎在此之后不会再发出其他事件
+        // 结束该询问，若不显式处理该事件，展示会永远卡在询问态。
+        "PermissionDenied",
+        HookEventKind::State(HookBehavior::Error),
+    ),
     // 请求澄清 -> 等待用户确认态
     HookEvent::new("Elicitation", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::new(
+        // MCP 澄清已回答，工具调用继续 -> 回到运行态；同样是询问态的唯一退出事件，
+        // 缺失时展示会永远卡在询问态。
+        "ElicitationResult",
+        HookEventKind::State(HookBehavior::Running),
+    ),
     // 停止 -> 回到空闲展示
     HookEvent::new("Stop", HookEventKind::Stop),
     // 停止失败 -> 出错态
