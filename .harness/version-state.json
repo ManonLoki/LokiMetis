@@ -45,7 +45,8 @@
     "BUG-WINDOWS-HOOK-RENDEZVOUS-INSTALL-DIR-20260910",
     "BUG-PET-OVERLAY-MIN-SIZE-RESIZE-HANG-20260910",
     "BUG-PET-SETTINGS-WINDOWS-IPC-DEADLOCK-20260910",
-    "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910"
+    "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910",
+    "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912"
   ],
   "cycle_base_version": "0.3.0",
   "feature_bump_applied": false,
@@ -53,7 +54,13 @@
     "source_commit": "69425debb3b8d0a9c7d1ce5b372d4d4f4c97ee47",
     "version": "0.3.0"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912",
+      "kind": "bug-fix",
+      "required_version": "0.3.1"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.3.0"
+  "target_version": "0.3.1"
 }
