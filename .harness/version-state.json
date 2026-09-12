@@ -51,24 +51,13 @@
     "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912",
     "BUG-DEEP-LINK-SINGLE-INSTANCE-BYPASS-20260912"
   ],
-  "cycle_base_version": "0.3.2",
+  "cycle_base_version": "0.3.4",
   "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "c9e3e2eda3a4baf88eb02a0135eab3e7a86cbbea",
-    "version": "0.3.2"
+    "source_commit": "40002a8f8a6e1f0c53f948c2a751d155c722ec72",
+    "version": "0.3.4"
   },
-  "pending_changes": [
-    {
-      "change_id": "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912",
-      "kind": "bug-fix",
-      "required_version": "0.3.3"
-    },
-    {
-      "change_id": "BUG-DEEP-LINK-SINGLE-INSTANCE-BYPASS-20260912",
-      "kind": "bug-fix",
-      "required_version": "0.3.4"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.3.4"
 }
