@@ -42,7 +42,10 @@ fn second_launch_restores_existing_main_window() {
         "--autostart-extra".to_owned(),
     ]));
     assert!(!super::is_autostart_launch(&["--autostart".to_owned()]));
-    assert!(super::should_restore_main_window_for_second_launch(&manual));
+    assert_eq!(
+        super::should_restore_main_window_for_second_launch(&manual),
+        !cfg!(target_os = "macos")
+    );
     assert!(!super::should_restore_main_window_for_second_launch(
         &autostart
     ));
@@ -116,6 +119,22 @@ fn autostart_second_launch_does_not_restore_main_window() {
     let handler = &source[callback..next_plugin];
     assert!(handler.contains("if should_restore_main_window_for_second_launch(&args) {"));
     assert!(handler.contains("restore_main_window(app)"));
+}
+
+/// macOS 普通再次打开必须使用原生 Reopen，避免 URL 拉起的无参数副进程绕过深链接校验。
+#[test]
+fn macos_reopen_owns_manual_main_window_restore() {
+    let source = include_str!("lib.rs");
+    let run = source
+        .find("app.run(|app_handle, event|")
+        .expect("run loop");
+    let exit = source[run..]
+        .find("tauri::RunEvent::ExitRequested")
+        .map(|offset| run + offset)
+        .expect("exit handling");
+    let handler = &source[run..exit];
+    assert!(handler.contains("tauri::RunEvent::Reopen { .. }"));
+    assert!(handler.contains("restore_main_window(app_handle)"));
 }
 
 /// Dock 图标常驻会与托盘常驻语义重复，macOS 上必须在启动时隐藏。

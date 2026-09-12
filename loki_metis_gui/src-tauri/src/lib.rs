@@ -98,7 +98,8 @@ fn is_autostart_launch(args: &[String]) -> bool {
 }
 /// 单实例回调只处理普通重复启动；本应用协议必须交给深链接插件完成严格校验。
 fn should_restore_main_window_for_second_launch(args: &[String]) -> bool {
-    !is_autostart_launch(args)
+    !cfg!(target_os = "macos")
+        && !is_autostart_launch(args)
         && !args.iter().skip(1).any(|arg| {
             arg.split_once(':')
                 .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("app-loki-metis"))
@@ -395,6 +396,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("failed to build LokiMetis desktop application");
     app.run(|app_handle, event| {
+        #[cfg(target_os = "macos")]
+        if matches!(event, tauri::RunEvent::Reopen { .. }) {
+            // Finder/LaunchServices 的普通再次打开由原生 Reopen 表达；URL 则只交给深链接校验。
+            let _ = restore_main_window(app_handle);
+        }
         if matches!(
             event,
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
