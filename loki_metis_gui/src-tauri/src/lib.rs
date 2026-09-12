@@ -90,6 +90,8 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 
 /// 应用名；窗口标题只用它，不带版本号。
 const APPLICATION_NAME: &str = "LokiMetis";
+/// 开机自启插件在自启进程附加的标记参数，用于区分自启启动与用户手动启动。
+const AUTOSTART_LAUNCH_ARG: &str = "--autostart";
 /// 只在显式本机性能验收进程中注入，供轻量入口同步判定是否观测。
 const PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT: &str = "Object.defineProperty(window,'__LOKI_METIS_PERFORMANCE_EVIDENCE__',{configurable:false,enumerable:false,value:true,writable:false});";
 
@@ -172,7 +174,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![AUTOSTART_LAUNCH_ARG]),
+        ))
         .on_page_load(|webview, payload| {
             if payload.event() == PageLoadEvent::Finished
                 && let Err(error) = ensure_main_window_is_recoverable(webview.app_handle())
@@ -181,6 +186,13 @@ pub fn run() {
             }
         })
         .setup(move |app| {
+            // Dock 图标常驻会与托盘常驻语义重复；应用生命周期完全由托盘承载。
+            #[cfg(target_os = "macos")]
+            if let Err(error) = app.handle().set_dock_visibility(false) {
+                tracing::warn!(%error, "failed to hide the dock icon");
+            }
+            // 自启插件会在系统自启进程上附加该标记参数，用于区分自启与用户手动启动。
+            let launched_via_autostart = std::env::args().any(|arg| arg == AUTOSTART_LAUNCH_ARG);
             // 性能证据是显式本机测试通道；路径在构建 WebView 之前已失败关闭校验。
             app.manage(performance_evidence_state);
             install_logging(app)?;
@@ -266,6 +278,10 @@ pub fn run() {
             spawn_periodic_local_scans(app.handle().clone());
             install_deep_link(app.handle());
             ensure_main_window_is_recoverable(app.handle())?;
+            // 开机自启拉起时主窗口默认保持隐藏，只有托盘和桌宠可见；用户手动启动仍照常显示。
+            if !launched_via_autostart {
+                restore_main_window(app.handle())?;
+            }
             Ok(())
         })
         .on_window_event(|window, event| handle_window(window, event))
@@ -444,6 +460,64 @@ mod tests {
         let windows_before = ["main"];
         let windows_after = windows_before;
         assert_eq!(windows_after, ["main"]);
+    }
+
+    /// 主窗口不得随进程启动自动可见，可见性完全由启动逻辑显式决定。
+    #[test]
+    fn main_window_config_starts_hidden() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri config");
+        let windows = config["app"]["windows"].as_array().expect("windows");
+        let main = windows
+            .iter()
+            .find(|window| window["label"] == "main")
+            .expect("main window entry");
+        assert_eq!(main["visible"], serde_json::json!(false));
+    }
+
+    /// 自启插件必须附加标记参数，供启动逻辑区分开机自启与用户手动启动。
+    #[test]
+    fn autostart_plugin_is_registered_with_launch_marker_arg() {
+        let source = include_str!("lib.rs");
+        assert!(source.contains(r#"const AUTOSTART_LAUNCH_ARG: &str = "--autostart";"#));
+        let init = source
+            .find("tauri_plugin_autostart::init(")
+            .expect("autostart plugin registration");
+        let call = &source[init..init + 160];
+        assert!(call.contains("MacosLauncher::LaunchAgent"));
+        assert!(call.contains("Some(vec![AUTOSTART_LAUNCH_ARG])"));
+    }
+
+    /// 开机自启拉起时必须跳过显式展示，主窗口才能保持隐藏；手动启动仍需展示。
+    #[test]
+    fn autostart_launch_skips_showing_main_window() {
+        let source = include_str!("lib.rs");
+        let flag = source
+            .find("let launched_via_autostart = std::env::args()")
+            .expect("autostart launch flag is computed");
+        let guard = source
+            .find("if !launched_via_autostart {")
+            .expect("main window show is gated on the autostart flag");
+        let restore = source[guard..]
+            .find("restore_main_window(app.handle())?;")
+            .map(|offset| guard + offset)
+            .expect("main window is restored for non-autostart launches");
+        assert!(flag < guard);
+        assert!(guard < restore);
+    }
+
+    /// Dock 图标常驻会与托盘常驻语义重复，macOS 上必须在启动时隐藏。
+    #[test]
+    fn macos_dock_icon_is_hidden_on_setup() {
+        let source = include_str!("lib.rs");
+        let cfg = source
+            .find(r#"#[cfg(target_os = "macos")]"#)
+            .expect("macos-gated setup code exists");
+        let call = source[cfg..]
+            .find("set_dock_visibility(false)")
+            .map(|offset| cfg + offset)
+            .expect("dock visibility is disabled on macOS setup");
+        assert!(call > cfg);
     }
 
     /// 原生 dialog 权限只属于主窗口，桌宠及其设置窗只能使用窄 Rust IPC。
