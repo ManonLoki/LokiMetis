@@ -48,12 +48,18 @@
     "BUG-PET-SETTINGS-FRAMELESS-STALE-I18N-20260910"
   ],
   "cycle_base_version": "0.2.46",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": {
     "source_commit": "a114e32be44fc2742ddecfefc5c9f8415cfce179",
     "version": "0.2.46"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "FEAT-AUTOSTART-HIDDEN-DOCK-20260912",
+      "kind": "feature",
+      "required_version": "0.3.0"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.2.46"
+  "target_version": "0.3.0"
 }
