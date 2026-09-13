@@ -2,6 +2,25 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-13",
+      "version": "v0.3.7",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 macOS 上 ChatGPT 主进程与可信子进程共同监听同一本机调试端口时，换肤错误拒绝连接的问题；仍逐一验证所有监听进程属于同一官方宿主进程树。",
+          "en-US": "Fixed skins rejecting a local debugging port shared by the ChatGPT main process and trusted child processes on macOS; every listener is still verified against the same official host process tree."
+        },
+        {
+          "zh-CN": "修复换肤 CDP 验证链在默认 Tokio 工作线程栈上可能溢出并使应用退出的问题。",
+          "en-US": "Fixed a possible app exit caused by the skin CDP verification chain overflowing the default Tokio worker stack."
+        },
+        {
+          "zh-CN": "兼容皮肤点击“应用”后不再重复询问第三方脚本信任；导入时的来源确认和宿主重启风险确认仍保留。",
+          "en-US": "Removed the repeated third-party script trust prompt when applying a compatible skin; source confirmation on import and host restart warnings remain."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-12",
       "version": "v0.3.4",
       "featureOptimizations": [],
@@ -62,94 +81,6 @@
         {
           "zh-CN": "修复桌宠设置窗仍显示系统标题栏，以及冷启动按系统语言检测后未持久化导致浮窗和设置窗回退英文的问题。",
           "en-US": "Fixed the pet settings window still showing a native title bar, and cold-start locale detection not being persisted so overlay and settings windows fell back to English."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-10",
-      "version": "v0.2.43",
-      "featureOptimizations": [
-        {
-          "zh-CN": "新增 Codex、Claude Code、Grok 与 WorkBuddy 的本机用量看板、调用明细和趋势洞察。",
-          "en-US": "Added local usage dashboards, call details, and trend insights for Codex, Claude Code, Grok, and WorkBuddy."
-        },
-        {
-          "zh-CN": "新增基于 Hooks 的 AI 监控工作台、本地图片管理和配置写入流程。",
-          "en-US": "Added a Hook-based AI monitoring workbench, local image management, and configuration workflow."
-        },
-        {
-          "zh-CN": "新增 12 个纯位置编号的桌宠浮窗，以及拖拽、布局、分页、缩放和托盘控制。",
-          "en-US": "Added a 12-position desktop pet overlay with dragging, layouts, paging, scaling, and tray controls."
-        },
-        {
-          "zh-CN": "新增 Codex 与 WorkBuddy 本机换肤，内置六套主题并支持受控导入、导出、创建和恢复。",
-          "en-US": "Added local Codex and WorkBuddy skins with six built-in themes plus controlled import, export, creation, and restore flows."
-        },
-        {
-          "zh-CN": "为 Windows WorkBuddy 换肤增加受控 CDP 恢复：经用户确认后关闭官方路径下经过验证的旧进程树，并启动唯一的本机调试实例。",
-          "en-US": "Added controlled CDP recovery for Windows WorkBuddy skins: after user confirmation, verified old process trees under official paths are closed and a single local-debugging instance is started."
-        },
-        {
-          "zh-CN": "统一 Agent 启用面板，让用量看板、Hooks、桌宠与换肤只展示各自真实支持的类型。",
-          "en-US": "Unified Agent enablement so usage dashboards, Hooks, desktop pets, and skins expose only the types they actually support."
-        },
-        {
-          "zh-CN": "重组用量看板、AI 监控与应用换肤的设置和导航，精简换肤工具栏，并在应用信息中提供可离线打开的双语更新日志。",
-          "en-US": "Reorganized settings and navigation for Usage Dashboard, AI Monitor, and App Skins, simplified the skins toolbar, and added offline bilingual release notes to app information."
-        },
-        {
-          "zh-CN": "为 Windows 安装器与 macOS Finder 提供中英文应用显示名，并统一托盘菜单和应用换肤界面的本地化文案。",
-          "en-US": "Added localized English and Chinese app display names for the Windows installer and macOS Finder, and aligned tray-menu and App Skins wording."
-        },
-        {
-          "zh-CN": "在 macOS 与兼容 Linux 托盘中显示全部已启用来源的当天 Token 总量，并随扫描、配置变化和跨日刷新。",
-          "en-US": "Added daily total token usage across all enabled sources to the macOS and compatible Linux tray, refreshed after scans, configuration changes, and day rollover."
-        },
-        {
-          "zh-CN": "在设置中新增固定 GitHub 仓库入口，以及微信支付和支付宝赞助二维码。",
-          "en-US": "Added a fixed GitHub repository link plus WeChat Pay and Alipay sponsorship QR codes to Settings."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复“全部”视图纳入未配置 Agent、默认路由漂移，以及设置、数据源、监控和换肤页面在查询失败或 Agent 切换后沿用过期状态的问题。",
-          "en-US": "Fixed the All view including unconfigured Agents, default-route drift, and stale state in Settings, Sources, Monitor, and Skins after query failures or Agent switches."
-        },
-        {
-          "zh-CN": "修复开机自启开关错误传递查询上下文、回读失败无法恢复，以及 Windows 新用户缺少 Run 注册表键时状态读取和启用失败；同时修复 macOS 通知授权和有界投递状态不同步的问题。",
-          "en-US": "Fixed autostart passing query context to host commands, switch recovery after readback errors, and state reads or enabling on fresh Windows accounts without a Run registry key; also fixed stale macOS notification authorization and bounded-delivery state."
-        },
-        {
-          "zh-CN": "修复生产构建中的 CSS 条件色兼容与样式入口裁剪，避免主题、导航、用量看板和监控界面丢失样式。",
-          "en-US": "Fixed production CSS conditional-color compatibility and entry pruning so themes, navigation, usage dashboards, and monitoring views keep their styles."
-        },
-        {
-          "zh-CN": "修复 Hooks 中继分段读取、配置原子写入与迁移、连接上限、Windows 中继缓存与安装目录冲突，以及 WSL/关机生命周期竞态，避免遗漏 AI 消息、卸载残留或残留进程。",
-          "en-US": "Fixed Hook relay partial reads, atomic configuration writes and migrations, connection limits, the Windows rendezvous cache colliding with the install directory, and WSL/shutdown lifecycle races that could miss AI events, leave uninstall residue, or leave processes behind."
-        },
-        {
-          "zh-CN": "修复桌宠冷启动占位、图片协议、位置绑定、托盘显隐和设置窗生命周期问题。",
-          "en-US": "Fixed desktop pet cold-start placeholders, image protocol handling, position binding, tray visibility, and settings-window lifecycle."
-        },
-        {
-          "zh-CN": "修复扫描、保留清理与本机索引任务的所有权、取消和单写入隔离，防止旧进度污染新任务、数据库争用和退出挂起。",
-          "en-US": "Fixed ownership, cancellation, and single-writer isolation for scans, retention cleanup, and local indexing to prevent stale progress, database contention, and shutdown hangs."
-        },
-        {
-          "zh-CN": "修复元数据与手动数据源发现的有限预算、共享取消、截止时间和迟到结果隔离，避免扫描超时后继续写入旧状态。",
-          "en-US": "Fixed bounded budgets, shared cancellation, deadlines, and late-result isolation in metadata and manual source discovery so timed-out scans cannot overwrite current state."
-        },
-        {
-          "zh-CN": "修复自定义 Cargo 资源解析、版本载体、Windows WMI、图标与原生对话框，以及 DMG 安装布局的打包漂移。",
-          "en-US": "Fixed packaging drift across custom Cargo resource resolution, version carriers, Windows WMI, icons and native dialogs, and the DMG installation layout."
-        },
-        {
-          "zh-CN": "修复 Windows Codex 与 WorkBuddy 换肤的可信可执行文件、商店激活、端口和进程树绑定，并为旧版脚本保留明确的一次性确认。",
-          "en-US": "Fixed trusted executable, Store activation, port, and process-tree binding for Windows Codex and WorkBuddy skins while retaining explicit one-time consent for legacy scripts."
-        },
-        {
-          "zh-CN": "修复 macOS 换肤签名、资源和进程所有权，以及安装、重启、导入、文件管理、watcher 与 CDP handler 在取消、回滚和跨代切换时的清理竞态。",
-          "en-US": "Fixed macOS skin signing, resource, and process ownership plus cleanup races across install, restart, import, file management, watchers, and CDP handlers during cancellation, rollback, and generation changes."
         }
       ]
     }
