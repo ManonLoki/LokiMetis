@@ -27,7 +27,7 @@ mod platform_index;
 mod scope;
 mod worker_pool;
 
-use scope::{current_platform, discovery_scope, platform_priority_roots, priority_queue};
+use scope::{discovery_scope, platform_priority_roots, priority_queue};
 use worker_pool::{MetadataTraversalBudget, MetadataWorkerPool, TraversalStopReason};
 
 /// 执行结果只包含非路径计数；候选直接提交到运行时协调器。
@@ -75,15 +75,14 @@ pub(crate) fn discover_metadata_roots_with_callback(
         );
     }
     let total = u64::try_from(volumes.search_roots.len()).unwrap_or(u64::MAX);
-    let strategy = if cfg!(target_os = "windows") {
-        RootDiscoveryStrategy::WindowsSearch
-    } else if cfg!(target_os = "macos") {
-        RootDiscoveryStrategy::MacOsSpotlight
-    } else {
-        RootDiscoveryStrategy::MetadataTraversal
-    };
+    let strategy = RootDiscoveryStrategy::current();
     if coordinator.snapshot().lifecycle != loki_metis_core::RootDiscoveryLifecycle::Running
-        && !coordinator.start(strategy, current_platform(), discovery_kind, total)
+        && !coordinator.start(
+            strategy,
+            RootDiscoveryPlatform::current(),
+            discovery_kind,
+            total,
+        )
     {
         return MetadataDiscoverySummary::default();
     }
@@ -600,11 +599,15 @@ fn candidate_from_file_name(path: &Path) -> Option<(PathBuf, RootCandidateEviden
     }
     let stem = name.strip_suffix(".jsonl")?;
     let parent = path.parent()?;
-    if is_uuid_name(stem) && parent.parent()?.file_name()?.to_str()? == "projects" {
+    if super::claude::path_rules::is_uuid(stem)
+        && parent.parent()?.file_name()?.to_str()? == "projects"
+    {
         let root = parent.parent()?.parent()?.to_path_buf();
         return allowed_root(&root).then_some((root, RootCandidateEvidence::ClaudeTranscript));
     }
-    if is_subagent_name(stem) && parent.file_name()?.to_str()? == "subagents" {
+    if super::claude::path_rules::is_subagent_jsonl_name(name)
+        && parent.file_name()?.to_str()? == "subagents"
+    {
         let project_root = parent.parent()?.parent()?;
         if project_root.parent()?.file_name()?.to_str()? == "projects" {
             let root = project_root.parent()?.parent()?.to_path_buf();
@@ -633,25 +636,6 @@ fn allowed_root(path: &Path) -> bool {
             .as_deref(),
         Some("logs" | "log" | "cache" | "caches" | "test" | "tests")
     )
-}
-
-/// 验证标准连字符 UUID 文件名，不解析正文。
-fn is_uuid_name(value: &str) -> bool {
-    value.len() == 36
-        && value.bytes().enumerate().all(|(index, byte)| {
-            matches!(index, 8 | 13 | 18 | 23) && byte == b'-'
-                || !matches!(index, 8 | 13 | 18 | 23) && byte.is_ascii_hexdigit()
-        })
-}
-
-/// 验证 Claude subagent 的稳定文件名前缀。
-fn is_subagent_name(value: &str) -> bool {
-    value.strip_prefix("agent-").is_some_and(|suffix| {
-        !suffix.is_empty()
-            && suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-    })
 }
 
 /// 按规范路径去重并提交候选，日志不得调用此函数参数的 Display。

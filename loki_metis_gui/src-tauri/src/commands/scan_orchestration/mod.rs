@@ -287,15 +287,35 @@ impl LocalUsageScanner for CodexLocalUsageScanner {
     ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>> {
         let app_data_dir = self.app_data_dir().to_path_buf();
         let gate = self.account_context_gate_arc();
-        Box::pin(run::run_reindex::<CodexClient>(
+        reindex_with_client::<CodexClient>(
             app_data_dir.clone(),
             app_data_dir,
             Some(gate),
             request,
             cancellation,
             on_progress,
-        ))
+        )
     }
+}
+
+/// 用给定 [`client::ScanClient`] 重放 `run_reindex`；三个扫描器句柄的 `reindex_source_root`
+/// body 除客户端类型外完全相同，收敛到这一处避免逐个复制粘贴。
+fn reindex_with_client<'a, C: client::ScanClient + 'a>(
+    app_data_dir: std::path::PathBuf,
+    settings_app_data_dir: std::path::PathBuf,
+    account_context_gate: Option<Arc<tokio::sync::Mutex<()>>>,
+    request: SourceRootReindexRequest,
+    cancellation: ScanCancellation,
+    on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
+) -> LocalScanFuture<'a, Result<LocalScanOutput, String>> {
+    Box::pin(run::run_reindex::<C>(
+        app_data_dir,
+        settings_app_data_dir,
+        account_context_gate,
+        request,
+        cancellation,
+        on_progress,
+    ))
 }
 
 impl LocalUsageScanner for GrokLocalUsageScanner {
@@ -327,14 +347,14 @@ impl LocalUsageScanner for GrokLocalUsageScanner {
         cancellation: ScanCancellation,
         on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
     ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>> {
-        Box::pin(run::run_reindex::<client::GrokClient>(
+        reindex_with_client::<client::GrokClient>(
             self.app_data_dir().to_path_buf(),
             self.product_app_data_dir().to_path_buf(),
             None,
             request,
             cancellation,
             on_progress,
-        ))
+        )
     }
 }
 
@@ -366,14 +386,14 @@ impl LocalUsageScanner for ClaudeLocalUsageScanner {
         cancellation: ScanCancellation,
         on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
     ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>> {
-        Box::pin(run::run_reindex::<client::ClaudeClient>(
+        reindex_with_client::<client::ClaudeClient>(
             self.app_data_dir().to_path_buf(),
             self.product_app_data_dir().to_path_buf(),
             None,
             request,
             cancellation,
             on_progress,
-        ))
+        )
     }
 }
 

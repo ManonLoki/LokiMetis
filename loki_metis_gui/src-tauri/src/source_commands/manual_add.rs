@@ -330,7 +330,7 @@ pub(crate) async fn manual_add_source_root(
     let coordinator = Arc::clone(&state.root_discovery);
     if !coordinator.start(
         RootDiscoveryStrategy::MetadataTraversal,
-        manual_discovery_platform(),
+        RootDiscoveryPlatform::current(),
         RootDiscoveryScope::ManualSubtree,
         1,
     ) {
@@ -412,17 +412,6 @@ fn cancelled_manual_add_response() -> ManualAddSourceRootDto {
         changed: false,
         message_code: UiMessageCodeDto::SourceAddCancelled,
         discovery: None,
-    }
-}
-
-/// 返回手动子树任务对应的当前宿主平台。
-fn manual_discovery_platform() -> RootDiscoveryPlatform {
-    if cfg!(target_os = "windows") {
-        RootDiscoveryPlatform::Windows
-    } else if cfg!(target_os = "macos") {
-        RootDiscoveryPlatform::MacOs
-    } else {
-        RootDiscoveryPlatform::Other
     }
 }
 

@@ -39,7 +39,7 @@ fn exactly_one<T>(mut iter: impl Iterator<Item = T>) -> Option<T> {
 
 /// 执行换皮宿主内部的 `unique_codex_pid_for_endpoint` 步骤。
 fn unique_codex_pid_for_endpoint(
-    instances: &[ResolvedCodexInstance],
+    instances: &[ResolvedSkinHostInstance],
     endpoint: CdpEndpoint,
 ) -> Option<u32> {
     exactly_one(
@@ -52,9 +52,9 @@ fn unique_codex_pid_for_endpoint(
 
 /// 执行换皮宿主内部的 `restarted_instance_for_endpoint` 步骤。
 fn restarted_instance_for_endpoint(
-    instances: Vec<CodexInstance>,
+    instances: Vec<SkinHostInstance>,
     endpoint: CdpEndpoint,
-) -> Option<CodexInstance> {
+) -> Option<SkinHostInstance> {
     exactly_one(
         instances
             .into_iter()
@@ -133,7 +133,7 @@ async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> 
 
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
-async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(macos_process::host_processes(SkinHostKind::Codex)
         .await?
         .into_iter()
@@ -143,7 +143,7 @@ async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppErro
 
 #[cfg(target_os = "macos")]
 /// 列出经过官方可执行路径验证的 WorkBuddy GUI 主进程。
-async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+async fn platform_workbuddy_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(macos_process::host_processes(SkinHostKind::WorkBuddy)
         .await?
         .into_iter()
@@ -182,7 +182,7 @@ async fn force_close_platform_workbuddy() -> Result<(), AppError> {
 #[cfg(target_os = "macos")]
 /// 复核 macOS WorkBuddy 实例身份后按原参数和新端口重启。
 async fn restart_platform_workbuddy_instance(
-    selected: &ResolvedCodexInstance,
+    selected: &ResolvedSkinHostInstance,
     port: u16,
 ) -> Result<(), AppError> {
     let current = resolve_host_instance(SkinHostKind::WorkBuddy, &selected.id).await?;
@@ -198,10 +198,10 @@ async fn restart_platform_workbuddy_instance(
 #[cfg(target_os = "macos")]
 /// 执行换皮宿主内部的 `restart_platform_codex_instance` 步骤。
 async fn restart_platform_codex_instance(
-    selected: &ResolvedCodexInstance,
+    selected: &ResolvedSkinHostInstance,
     port: u16,
 ) -> Result<(), AppError> {
-    let current = resolve_codex_instance(&selected.id).await?;
+    let current = resolve_skin_host_instance(&selected.id).await?;
     if current.process.executable != selected.process.executable {
         return Err(AppError::new(
             "skin.codex_instance_changed",
@@ -248,12 +248,12 @@ async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> 
 
 #[cfg(target_os = "windows")]
 /// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
-async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(windows_codex::gui_processes()
         .await?
         .into_iter()
         .filter(|(_, command_line)| is_primary_codex_command_line(command_line))
-        .map(|(process, command_line)| PlatformCodexProcess {
+        .map(|(process, command_line)| PlatformHostProcess {
             pid: process.pid(),
             executable: process.path().to_owned(),
             command_line,
@@ -264,7 +264,7 @@ async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppErro
 #[cfg(target_os = "windows")]
 /// 执行换皮宿主内部的 `restart_platform_codex_instance` 步骤。
 async fn restart_platform_codex_instance(
-    selected: &ResolvedCodexInstance,
+    selected: &ResolvedSkinHostInstance,
     port: u16,
 ) -> Result<(), AppError> {
     windows_codex::restart_gui_process(
@@ -302,11 +302,11 @@ async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppErr
 
 #[cfg(target_os = "windows")]
 /// 将 Windows 可信 WorkBuddy 进程转换为统一的平台进程结构。
-async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+async fn platform_workbuddy_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(windows_codex::workbuddy_gui_processes()
         .await?
         .into_iter()
-        .map(|(process, command_line)| PlatformCodexProcess {
+        .map(|(process, command_line)| PlatformHostProcess {
             pid: process.pid(),
             executable: process.path().to_owned(),
             command_line,
@@ -317,7 +317,7 @@ async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, App
 #[cfg(target_os = "windows")]
 /// 委托 Windows 适配器复核并重启指定 WorkBuddy 实例。
 async fn restart_platform_workbuddy_instance(
-    selected: &ResolvedCodexInstance,
+    selected: &ResolvedSkinHostInstance,
     port: u16,
 ) -> Result<(), AppError> {
     windows_codex::restart_workbuddy_gui_process(
@@ -355,14 +355,14 @@ async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> 
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
-async fn platform_codex_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(Vec::new())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 执行换皮宿主内部的 `restart_platform_codex_instance` 步骤。
 async fn restart_platform_codex_instance(
-    _selected: &ResolvedCodexInstance,
+    _selected: &ResolvedSkinHostInstance,
     _port: u16,
 ) -> Result<(), AppError> {
     Err(AppError::new(
@@ -403,14 +403,14 @@ async fn platform_workbuddy_command_lines() -> Result<Vec<(u32, String)>, AppErr
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 未支持平台不提供 WorkBuddy 进程实例。
-async fn platform_workbuddy_processes() -> Result<Vec<PlatformCodexProcess>, AppError> {
+async fn platform_workbuddy_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(Vec::new())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 未支持平台拒绝重启 WorkBuddy 实例。
 async fn restart_platform_workbuddy_instance(
-    _selected: &ResolvedCodexInstance,
+    _selected: &ResolvedSkinHostInstance,
     _port: u16,
 ) -> Result<(), AppError> {
     Err(AppError::new(

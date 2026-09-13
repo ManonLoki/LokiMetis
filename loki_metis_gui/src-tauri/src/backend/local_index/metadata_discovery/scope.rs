@@ -4,23 +4,12 @@ use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{RootDiscoveryPlatform, RootDiscoveryScope};
+use loki_metis_core::RootDiscoveryScope;
 
 use super::super::{
     LocalPathStatus, LocalVolumeRoots, classify_local_path, current_user_home,
     enumerate_local_volume_roots, metadata_is_link_like, validate_local_plain_directory,
 };
-
-/// 返回当前编译目标对应的数据源发现平台。
-pub(super) const fn current_platform() -> RootDiscoveryPlatform {
-    if cfg!(target_os = "windows") {
-        RootDiscoveryPlatform::Windows
-    } else if cfg!(target_os = "macos") {
-        RootDiscoveryPlatform::MacOs
-    } else {
-        RootDiscoveryPlatform::Other
-    }
-}
 
 /// 根据用户选择返回快速优先目录或全部已确认本地卷。
 ///

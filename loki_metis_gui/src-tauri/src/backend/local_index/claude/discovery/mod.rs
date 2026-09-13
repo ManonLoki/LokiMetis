@@ -20,14 +20,12 @@ use std::path::PathBuf;
 
 use loki_metis_core::{CoverageReport, RootCandidateEvidence};
 
-use super::super::discovery::{path_key, stable_id};
+use super::super::discovery::{coverage_state, path_key, reject_symlink_components, stable_id};
 use super::super::{
     CancellationToken, DiscoveryMethod, FullDiscoveryOptions, LocalPathStatus, RegisteredRoot,
     classify_local_path, is_obviously_network_path,
 };
-use signature::{
-    Inspection, SignatureBudget, coverage_state, inspect_root, reject_link_components, safe_alias,
-};
+use signature::{Inspection, SignatureBudget, inspect_root, safe_alias};
 
 pub(crate) use signature::{
     Inspection as ClaudeRootInspection, SignatureBudget as ClaudeSignatureBudget,
@@ -185,7 +183,7 @@ fn inspect_candidates(
             }
             continue;
         }
-        match reject_link_components(&candidate.path) {
+        match reject_symlink_components(&candidate.path) {
             Ok(true) => {
                 symlink_skipped_count = symlink_skipped_count.saturating_add(1);
                 skipped_count = skipped_count.saturating_add(1);

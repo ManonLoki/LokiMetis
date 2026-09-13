@@ -9,7 +9,7 @@
 mod discovery; // Claude 数据根发现：只认可 `projects/<project>/<session>.jsonl` 结构签名
 mod index; // Claude 专属的 LocalIndex 扩展方法（复用父模块同一 SQLite，物理隔离数据）
 mod jsonl; // Claude transcript 的流式解析器
-mod path_rules; // transcript 相对路径与文件名硬规则
+pub(super) mod path_rules; // transcript 相对路径与文件名硬规则
 mod scan; // Claude 数据根的扫描编排入口
 
 pub use discovery::{

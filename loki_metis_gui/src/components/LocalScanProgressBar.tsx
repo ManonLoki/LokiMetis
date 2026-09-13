@@ -29,6 +29,8 @@ export function LocalScanProgressBar({
     })),
   });
 
+  const scanStatesKey = queries.map((query) => query.data?.state ?? "").join(",");
+
   useEffect(() => {
     enabledAgents.forEach((client, index) => {
       const state = queries[index]?.data?.state;
@@ -38,7 +40,8 @@ export function LocalScanProgressBar({
       }
       if (state) previousStates.current[client] = state;
     });
-  }, [enabledAgents, queries, queryClient]);
+    // 依赖派生的状态字符串而非 `queries`：后者每次渲染都是新数组引用，会让本效果逐帧重跑。
+  }, [enabledAgents, queryClient, scanStatesKey]);
 
   const active = enabledAgents
     .map((client, index) => ({ client, scan: queries[index]?.data }))

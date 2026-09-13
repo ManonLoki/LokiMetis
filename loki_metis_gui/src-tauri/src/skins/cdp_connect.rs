@@ -16,7 +16,7 @@ where
 async fn connect_or_launch(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
-    selected: Option<&ResolvedCodexInstance>,
+    selected: Option<&ResolvedSkinHostInstance>,
     preferred_endpoint: Option<CdpEndpoint>,
 ) -> Result<
     (
@@ -145,7 +145,17 @@ async fn poll_until_cdp_ready(
                         drop(browser);
                         return Err(error);
                     }
-                    Ok(None) | Err(_) => {
+                    Ok(None) => {
+                        tracing::warn!("poll_until_cdp_ready: connected but no verified root pid");
+                        handler_task.abort();
+                        drop(browser);
+                    }
+                    Err(error) => {
+                        tracing::warn!(
+                            code = error.code,
+                            message = error.message,
+                            "poll_until_cdp_ready: root pid verification failed"
+                        );
                         handler_task.abort();
                         drop(browser);
                     }
@@ -156,7 +166,13 @@ async fn poll_until_cdp_ready(
             {
                 return Err(error);
             }
-            Err(_) => {}
+            Err(error) => {
+                tracing::warn!(
+                    code = error.code,
+                    message = error.message,
+                    "poll_until_cdp_ready: connection attempt failed"
+                );
+            }
         }
         cancellable_sleep(cancel, CODEX_PAGE_POLL_INTERVAL).await?;
     }
@@ -199,25 +215,44 @@ fn cdp_unavailable_for(host: SkinHostKind) -> AppError {
     )
 }
 
+/// 已验证端点的既有连接偶发一次性 CDP 抖动（如目标枚举暂时为空），
+/// 短暂重试几次再判定为「未开放调试端口」，避免误判成需要重启宿主。
+const HOST_RUNTIME_STATUS_ATTEMPTS: u32 = 3;
+const HOST_RUNTIME_STATUS_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(400);
+
 /// 探测宿主当前运行与 CDP 可用状态，并返回本轮验证过的端点。
 async fn host_runtime_status(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
 ) -> Result<(CodexRuntimeStatus, Option<CdpEndpoint>), AppError> {
-    let (_cancel_tx, mut cancel_rx) = watch::channel(false);
-    match connect_existing_browser_with_preferred(host, &mut cancel_rx, preferred_endpoint).await {
-        Ok((browser, mut handler_task, endpoint, _)) => {
-            handler_task.abort();
-            drop(browser);
-            return Ok((
-                CodexRuntimeStatus::new(classify_codex_runtime(true, false)),
-                Some(endpoint),
-            ));
+    for attempt in 1..=HOST_RUNTIME_STATUS_ATTEMPTS {
+        let (_cancel_tx, mut cancel_rx) = watch::channel(false);
+        match connect_existing_browser_with_preferred(host, &mut cancel_rx, preferred_endpoint)
+            .await
+        {
+            Ok((browser, mut handler_task, endpoint, _)) => {
+                handler_task.abort();
+                drop(browser);
+                return Ok((
+                    CodexRuntimeStatus::new(classify_codex_runtime(true, false)),
+                    Some(endpoint),
+                ));
+            }
+            Err(error) if is_host_inspection_error(error.code) => {
+                return Err(error);
+            }
+            Err(error) => {
+                tracing::warn!(
+                    attempt,
+                    code = error.code,
+                    message = error.message,
+                    "host_runtime_status: existing connection check failed"
+                );
+                if attempt < HOST_RUNTIME_STATUS_ATTEMPTS {
+                    tokio::time::sleep(HOST_RUNTIME_STATUS_RETRY_DELAY).await;
+                }
+            }
         }
-        Err(error) if is_host_inspection_error(error.code) => {
-            return Err(error);
-        }
-        Err(_) => {}
     }
     Ok((
         CodexRuntimeStatus::new(classify_codex_runtime(

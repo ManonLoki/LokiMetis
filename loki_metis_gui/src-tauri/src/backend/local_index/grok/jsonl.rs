@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 use std::io::Read;
 
-use jiff::Timestamp;
 use loki_metis_core::{
     Confidence, SourceClientKind, SourceProvenance, TokenUsage, UsageCall,
     grok_project_display_label, safe_model_label,
@@ -328,37 +327,22 @@ fn usage_payload(record: &Envelope) -> &Envelope {
         .map_or(record, Box::as_ref)
 }
 
-/// 接受 RFC3339 字符串或 Unix 秒/毫秒数字时间戳。
+/// 接受 RFC3339 字符串或 Unix 秒/毫秒数字时间戳；解析规则与 Codex rollout 共享同一份契约。
 fn envelope_occurred_at_epoch_ms(record: &Envelope, payload: &Envelope) -> Option<i64> {
-    parse_json_timestamp(record.timestamp.as_ref())
-        .or_else(|| parse_json_timestamp(payload.timestamp.as_ref()))
-        .or_else(|| parse_rfc3339(record.created_at.as_deref()))
-        .or_else(|| parse_rfc3339(payload.created_at.as_deref()))
-}
-
-/// 从数字或字符串 JSON 值解析毫秒时间戳。
-fn parse_json_timestamp(value: Option<&serde_json::Value>) -> Option<i64> {
-    match value? {
-        serde_json::Value::String(text) => parse_rfc3339(Some(text)),
-        serde_json::Value::Number(number) => {
-            let raw = number
-                .as_i64()
-                .or_else(|| number.as_f64().map(|value| value as i64))?;
-            Some(if raw.abs() >= 1_000_000_000_000 {
-                raw
-            } else {
-                raw.saturating_mul(1_000)
-            })
-        }
-        _ => None,
-    }
-}
-
-/// 将可选 RFC 3339 时间转换为毫秒时间戳。
-fn parse_rfc3339(value: Option<&str>) -> Option<i64> {
-    value
-        .and_then(|text| text.parse::<Timestamp>().ok())
-        .map(|timestamp| timestamp.as_millisecond())
+    super::super::jsonl::codec::parse_timestamp(record.timestamp.as_ref())
+        .or_else(|| super::super::jsonl::codec::parse_timestamp(payload.timestamp.as_ref()))
+        .or_else(|| {
+            record
+                .created_at
+                .as_deref()
+                .and_then(super::super::jsonl::codec::parse_rfc3339_millis)
+        })
+        .or_else(|| {
+            payload
+                .created_at
+                .as_deref()
+                .and_then(super::super::jsonl::codec::parse_rfc3339_millis)
+        })
 }
 
 /// 解析单行 Grok 事件并只接受具有可信完成用量的轮次。

@@ -53,19 +53,19 @@ pub(super) trait ScanClient {
         F: FnMut(DiscoveryProgress);
 
     /// 把已确认数据根登记到该客户端的存储层。
-    async fn register_root(
+    fn register_root(
         index: &mut LocalIndex,
         root: &Self::DiscoveredRoot,
-    ) -> Result<(), LocalError>;
+    ) -> impl std::future::Future<Output = Result<(), LocalError>> + Send;
 
     /// 增量扫描一批已确认数据根。
-    async fn scan_discovered_roots<F>(
+    fn scan_discovered_roots<F>(
         index: &mut LocalIndex,
         roots: &[Self::DiscoveredRoot],
         config: ScanConfig,
         cancellation: &CancellationToken,
         on_progress: F,
-    ) -> Result<ScanSummary, LocalError>
+    ) -> impl std::future::Future<Output = Result<ScanSummary, LocalError>> + Send
     where
         F: FnMut(ScanProgress) + Send;
 }

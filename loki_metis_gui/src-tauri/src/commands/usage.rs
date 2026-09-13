@@ -97,7 +97,6 @@ pub(super) async fn get_usage_overview_for_state(
     let (local_records, implementation_message, implementation_message_code) = match local_result {
         Ok(records) => (records, None, None),
         Err(_) => {
-            let coverage = coverage_state.read().await.clone();
             let failed_coverage = loki_metis_core::CoverageReport {
                 state: loki_metis_core::CoverageState::Failed,
                 ..coverage

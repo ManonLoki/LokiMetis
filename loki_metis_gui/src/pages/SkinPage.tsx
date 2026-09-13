@@ -42,7 +42,6 @@ import {
   CreateThemeDialog,
   ImportDialog,
   SkinConfirmDialog,
-  ThirdPartyCodeDialog,
 } from "../components/skins/SkinDialogs";
 import { SkinCard } from "../components/skins/SkinCard";
 import { SkinToolbar } from "../components/skins/SkinToolbar";
@@ -54,12 +53,6 @@ import { useSkinImportController } from "./useSkinImportController";
 /** 比较两个可选皮肤引用是否指向同一份来源资源。 */
 function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
   return left?.id === right.id && left.source === right.source;
-}
-
-/** 将一次性第三方代码确认绑定到发起操作时的宿主，防止切换标签后错投。 */
-interface ThirdPartyCodeRequest {
-  host: SkinHostKind;
-  skin: SkinDescriptor;
 }
 
 /** 渲染由统一 Agent 选择动态驱动的本机换皮资源库与宿主生命周期。 */
@@ -86,8 +79,6 @@ export function SkinPage(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [createOpened, setCreateOpened] = useState(false);
   const [creationPrompt, setCreationPrompt] = useState<SkinCreationPrompt | null>(null);
-  const [thirdPartyCodeRequest, setThirdPartyCodeRequest] =
-    useState<ThirdPartyCodeRequest | null>(null);
   const [convertSkin, setConvertSkin] = useState<SkinDescriptor | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<SkinDescriptor[]>([]);
   const [selectedUserSkins, setSelectedUserSkins] = useState<SkinReference[]>([]);
@@ -201,14 +192,9 @@ export function SkinPage(): ReactElement {
 
   /** 稳定的资源卡回调集合，避免轮询刷新导致整批卡片重渲染。 */
   const handleApply = useCallback(
-    (item: SkinDescriptor) => {
-      if (item.packageType === "legacySkin") {
-        setThirdPartyCodeRequest({ host, skin: item });
-        return;
-      }
-      void run(() => requestInstall(item, false));
-    },
-    [host, run, requestInstall],
+    (item: SkinDescriptor) =>
+      void run(() => requestInstall(item, item.packageType === "legacySkin")),
+    [run, requestInstall],
   );
   const handleConvert = useCallback((item: SkinDescriptor) => setConvertSkin(item), []);
   const handleDelete = useCallback((item: SkinDescriptor) => setDeleteTargets([item]), []);
@@ -248,10 +234,7 @@ export function SkinPage(): ReactElement {
     [host, refresh, run, selectedInstance, t],
   );
   const hostTransitionLocked =
-    action.isPending ||
-    thirdPartyCodeRequest !== null ||
-    appearance !== null ||
-    restartRequest !== null;
+    action.isPending || appearance !== null || restartRequest !== null;
 
   return (
     <Stack data-testid="skin-page" gap="lg">
@@ -491,25 +474,6 @@ export function SkinPage(): ReactElement {
         onSelectedChange={setImportSelected}
         pending={action.isPending}
         selected={importSelected}
-      />
-      <ThirdPartyCodeDialog
-        blocked={!hostStateReady}
-        hostName={
-          hostOptions.find((item) => item.skinHost === thirdPartyCodeRequest?.host)?.name ??
-          (thirdPartyCodeRequest?.host === "workBuddy" ? "WorkBuddy" : "Codex")
-        }
-        onCancel={() => setThirdPartyCodeRequest(null)}
-        onConfirm={() =>
-          void run(async () => {
-            if (!thirdPartyCodeRequest) return;
-            const pending = thirdPartyCodeRequest;
-            setThirdPartyCodeRequest(null);
-            await requestInstall(pending.skin, true, pending.host);
-          })
-        }
-        opened={thirdPartyCodeRequest !== null}
-        pending={action.isPending}
-        skinName={thirdPartyCodeRequest?.skin.name ?? ""}
       />
       <AppearanceDialog
         blocked={!hostStateReady}

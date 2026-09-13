@@ -9,9 +9,9 @@ use tauri_plugin_dialog::DialogExt;
 use crate::bundled_resources::resolve_bundled_resource;
 
 use super::{
-    AppError, BatchDeleteResult, BatchImportResult, CodexInstance, CodexRuntimeStatus,
-    InstallSkinResult, MAX_IMPORT_BATCH_FILES, PreparedSkinImportBatch, SkinCreationPrompt,
-    SkinDescriptor, SkinImportPreparationEvent, SkinReference, SkinService, SkinStatus,
+    AppError, BatchDeleteResult, BatchImportResult, CodexRuntimeStatus, InstallSkinResult,
+    MAX_IMPORT_BATCH_FILES, PreparedSkinImportBatch, SkinCreationPrompt, SkinDescriptor,
+    SkinHostInstance, SkinImportPreparationEvent, SkinReference, SkinService, SkinStatus,
     ThemeConversionResult, save_export_archive,
 };
 use loki_metis_core::SkinHostKind;
@@ -254,7 +254,7 @@ pub async fn skin_host_runtime_status(
 pub async fn list_skin_host_instances(
     host: SkinHostKind,
     service: State<'_, SkinService>,
-) -> Result<Vec<CodexInstance>, AppError> {
+) -> Result<Vec<SkinHostInstance>, AppError> {
     service.scanned_host_instances(host).await
 }
 
@@ -264,7 +264,7 @@ pub async fn probe_skin_host_instance(
     host: SkinHostKind,
     instance_id: String,
     service: State<'_, SkinService>,
-) -> Result<CodexInstance, AppError> {
+) -> Result<SkinHostInstance, AppError> {
     service.probe_host_instance(host, &instance_id).await
 }
 
@@ -274,7 +274,7 @@ pub async fn restart_skin_host_instance(
     host: SkinHostKind,
     instance_id: String,
     service: State<'_, SkinService>,
-) -> Result<CodexInstance, AppError> {
+) -> Result<SkinHostInstance, AppError> {
     service.restart_host_instance(host, &instance_id).await
 }
 

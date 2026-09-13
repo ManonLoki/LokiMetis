@@ -19,7 +19,7 @@ use super::install_identity::{
     is_trusted_traditional_executable, paths_equal_ignore_ascii_case,
 };
 use super::port_owner::loopback_listener_owner;
-use super::process_query::query_verified_process_command_line;
+use super::process_query::{process_belongs_to_verified_root, query_verified_process_command_line};
 use super::{
     AppError, GuiProcess, OwnedHandle, query_process_path, query_process_path_from_handle,
     utf16_array_to_string,
@@ -109,27 +109,6 @@ pub(crate) fn workbuddy_endpoint_owned_by_root(
         &verified_pids,
         &snapshot.parents,
     ))
-}
-
-/// 沿可信进程快照父链确认 listener owner 属于指定 WorkBuddy 根。
-fn process_belongs_to_verified_root(
-    process_pid: u32,
-    root_pid: u32,
-    verified_pids: &HashSet<u32>,
-    parents: &HashMap<u32, u32>,
-) -> bool {
-    if !verified_pids.contains(&process_pid) || !verified_pids.contains(&root_pid) {
-        return false;
-    }
-    let mut current = process_pid;
-    let mut visited = HashSet::new();
-    while current != 0 && visited.insert(current) {
-        if current == root_pid {
-            return true;
-        }
-        current = parents.get(&current).copied().unwrap_or_default();
-    }
-    false
 }
 
 /// 返回不暴露进程或端口详情的 CDP owner 检查错误。

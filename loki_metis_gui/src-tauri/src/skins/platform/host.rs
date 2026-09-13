@@ -17,7 +17,7 @@ async fn platform_host_command_lines(host: SkinHostKind) -> Result<Vec<(u32, Str
 /// 列出指定宿主的可信主进程及其启动参数。
 async fn platform_host_processes(
     host: SkinHostKind,
-) -> Result<Vec<PlatformCodexProcess>, AppError> {
+) -> Result<Vec<PlatformHostProcess>, AppError> {
     match host {
         SkinHostKind::Codex => platform_codex_processes().await,
         SkinHostKind::WorkBuddy => platform_workbuddy_processes().await,
@@ -27,7 +27,7 @@ async fn platform_host_processes(
 /// 以原实例身份和参数重启指定宿主，并绑定新的本机调试端口。
 async fn restart_platform_host_instance(
     host: SkinHostKind,
-    selected: &ResolvedCodexInstance,
+    selected: &ResolvedSkinHostInstance,
     port: u16,
 ) -> Result<(), AppError> {
     match host {

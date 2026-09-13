@@ -13,7 +13,7 @@ use serde_json::Value;
 use super::discovery::stable_id;
 use super::{CancellationToken, LocalError, LocalErrorKind};
 
-mod codec;
+pub(super) mod codec;
 mod context;
 
 #[cfg(test)]

@@ -26,9 +26,9 @@ fn authorized_workbuddy_error(error: AppError) -> AppError {
 
 /// 只接受绑定到指定端点的唯一 WorkBuddy 根，避免孤立页面或启动交接被误认成目标。
 fn unique_workbuddy_target_for_endpoint(
-    instances: &[ResolvedCodexInstance],
+    instances: &[ResolvedSkinHostInstance],
     endpoint: CdpEndpoint,
-) -> Option<ResolvedCodexInstance> {
+) -> Option<ResolvedSkinHostInstance> {
     let [instance] = instances else {
         return None;
     };
@@ -37,8 +37,8 @@ fn unique_workbuddy_target_for_endpoint(
 
 /// 注入事务提交前后必须仍是同一个根实例与端点。
 fn workbuddy_target_binding_matches(
-    expected: &ResolvedCodexInstance,
-    current: &ResolvedCodexInstance,
+    expected: &ResolvedSkinHostInstance,
+    current: &ResolvedSkinHostInstance,
     endpoint: CdpEndpoint,
 ) -> bool {
     expected.id == current.id && current.debug_port == Some(endpoint.port)
@@ -47,7 +47,7 @@ fn workbuddy_target_binding_matches(
 /// 重新发现并验证 Windows WorkBuddy 的唯一目标仍绑定指定端点。
 async fn current_windows_workbuddy_target(
     endpoint: CdpEndpoint,
-) -> Result<ResolvedCodexInstance, AppError> {
+) -> Result<ResolvedSkinHostInstance, AppError> {
     let instances =
         resolved_host_instances_with_preferred(SkinHostKind::WorkBuddy, Some(endpoint)).await?;
     unique_workbuddy_target_for_endpoint(&instances, endpoint).ok_or_else(|| {
@@ -160,7 +160,7 @@ impl SkinService {
         &self,
         cancel: &mut watch::Receiver<bool>,
         mut preferred_endpoint: Option<CdpEndpoint>,
-    ) -> Result<(ResolvedCodexInstance, CdpEndpoint), AppError> {
+    ) -> Result<(ResolvedSkinHostInstance, CdpEndpoint), AppError> {
         let mut excluded_ports = Vec::new();
         let mut last_error = None;
         for attempt in 0..2 {

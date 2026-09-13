@@ -1,6 +1,6 @@
-/// 执行换皮宿主内部的 `resolve_codex_instance` 步骤。
+/// 执行换皮宿主内部的 `resolve_skin_host_instance` 步骤。
 #[cfg(target_os = "macos")]
-async fn resolve_codex_instance(id: &str) -> Result<ResolvedCodexInstance, AppError> {
+async fn resolve_skin_host_instance(id: &str) -> Result<ResolvedSkinHostInstance, AppError> {
     resolved_host_instances(SkinHostKind::Codex)
         .await?
         .into_iter()
@@ -16,7 +16,7 @@ async fn resolve_codex_instance(id: &str) -> Result<ResolvedCodexInstance, AppEr
 /// 解析指定宿主的实例，并只把经过页面与 owner 验证的端点关联到对应进程树根。
 async fn resolved_host_instances(
     host: SkinHostKind,
-) -> Result<Vec<ResolvedCodexInstance>, AppError> {
+) -> Result<Vec<ResolvedSkinHostInstance>, AppError> {
     resolved_host_instances_with_preferred(host, None).await
 }
 
@@ -24,7 +24,7 @@ async fn resolved_host_instances(
 async fn resolved_host_instances_with_preferred(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
-) -> Result<Vec<ResolvedCodexInstance>, AppError> {
+) -> Result<Vec<ResolvedSkinHostInstance>, AppError> {
     let mut instances = platform_host_processes(host)
         .await?
         .into_iter()
@@ -94,7 +94,7 @@ fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
 async fn resolve_host_instance(
     host: SkinHostKind,
     id: &str,
-) -> Result<ResolvedCodexInstance, AppError> {
+) -> Result<ResolvedSkinHostInstance, AppError> {
     resolve_host_instance_with_preferred(host, id, None).await
 }
 
@@ -103,7 +103,7 @@ async fn resolve_host_instance_with_preferred(
     host: SkinHostKind,
     id: &str,
     preferred_endpoint: Option<CdpEndpoint>,
-) -> Result<ResolvedCodexInstance, AppError> {
+) -> Result<ResolvedSkinHostInstance, AppError> {
     resolved_host_instances_with_preferred(host, preferred_endpoint)
         .await?
         .into_iter()
@@ -122,7 +122,7 @@ async fn resolve_host_instance_with_preferred(
 /// 扫描宿主主进程并生成按 PID 从新到旧排列的前端实例快照。
 async fn discover_host_process_instances(
     host: SkinHostKind,
-) -> Result<Vec<CodexInstance>, AppError> {
+) -> Result<Vec<SkinHostInstance>, AppError> {
     let mut instances = resolved_host_instances(host)
         .await?
         .into_iter()
@@ -133,7 +133,7 @@ async fn discover_host_process_instances(
 }
 
 /// 把已解析宿主进程映射为扫描快照，并由调试端口决定运行状态。
-fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedCodexInstance) -> CodexInstance {
+fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedSkinHostInstance) -> SkinHostInstance {
     let state = if resolved.debug_port.is_some() {
         CodexRuntimeState::Ready
     } else {
@@ -142,9 +142,9 @@ fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedCodexInstance) ->
     host_instance_from_resolved(host, resolved, state, None)
 }
 
-/// 执行换皮宿主内部的 `scanned_codex_instance` 步骤。
+/// 执行换皮宿主内部的 `scanned_skin_host_instance` 步骤。
 #[cfg(test)]
-fn scanned_codex_instance(resolved: ResolvedCodexInstance) -> CodexInstance {
+fn scanned_skin_host_instance(resolved: ResolvedSkinHostInstance) -> SkinHostInstance {
     let state = if resolved.debug_port.is_some() {
         CodexRuntimeState::Ready
     } else {
@@ -155,7 +155,7 @@ fn scanned_codex_instance(resolved: ResolvedCodexInstance) -> CodexInstance {
 
 /// 执行换皮宿主内部的 `probe_resolved_account_profile` 步骤。
 async fn probe_resolved_account_profile(
-    resolved: &ResolvedCodexInstance,
+    resolved: &ResolvedSkinHostInstance,
 ) -> Result<Option<AccountProfile>, AppError> {
     let port = resolved.debug_port.ok_or_else(|| {
         AppError::new(
@@ -189,7 +189,7 @@ async fn probe_resolved_account_profile(
 /// WorkBuddy 只读取 LokiMetis 自己写入的皮肤标记，不检查账户或会话资料。
 async fn probe_resolved_active_skin(
     host: SkinHostKind,
-    resolved: &ResolvedCodexInstance,
+    resolved: &ResolvedSkinHostInstance,
 ) -> Result<Option<RecoveredSkinIdentity>, AppError> {
     let port = resolved.debug_port.ok_or_else(|| {
         AppError::new(
@@ -238,16 +238,16 @@ async fn probe_resolved_active_skin(
 
 /// 执行换皮宿主内部的 `codex_instance_from_resolved` 步骤。
 fn codex_instance_from_resolved(
-    resolved: ResolvedCodexInstance,
+    resolved: ResolvedSkinHostInstance,
     state: CodexRuntimeState,
     account_profile: Option<AccountProfile>,
-) -> CodexInstance {
+) -> SkinHostInstance {
     let label = resolved
         .profile
         .as_ref()
         .map(|profile| format!("Codex · {profile}"))
         .unwrap_or_else(|| format!("Codex 进程 {}", resolved.process.pid));
-    CodexInstance {
+    SkinHostInstance {
         id: resolved.id,
         pid: resolved.process.pid,
         label,
@@ -266,15 +266,15 @@ fn codex_instance_from_resolved(
 /// 将已验证进程映射为宿主实例，同时保留 Codex 专属账户信息边界。
 fn host_instance_from_resolved(
     host: SkinHostKind,
-    resolved: ResolvedCodexInstance,
+    resolved: ResolvedSkinHostInstance,
     state: CodexRuntimeState,
     account_profile: Option<AccountProfile>,
-) -> CodexInstance {
+) -> SkinHostInstance {
     if host == SkinHostKind::Codex {
         return codex_instance_from_resolved(resolved, state, account_profile);
     }
     let label = format!("{} 进程 {}", host.display_name(), resolved.process.pid);
-    CodexInstance {
+    SkinHostInstance {
         id: resolved.id,
         pid: resolved.process.pid,
         label,
@@ -447,7 +447,7 @@ fn displayed_active_skin_name(active: Option<&SkinDescriptor>) -> Option<String>
 /// 从宿主默认端口区间选择未被已知实例占用的本机监听端口。
 fn available_debug_port_for(
     host: SkinHostKind,
-    instances: &[ResolvedCodexInstance],
+    instances: &[ResolvedSkinHostInstance],
 ) -> Result<u16, AppError> {
     available_debug_port_for_excluding(host, instances, &[])
 }
@@ -455,7 +455,7 @@ fn available_debug_port_for(
 /// 选择端口时同时排除已占用端口和本轮已失败端口。
 fn available_debug_port_for_excluding(
     host: SkinHostKind,
-    instances: &[ResolvedCodexInstance],
+    instances: &[ResolvedSkinHostInstance],
     excluded_ports: &[u16],
 ) -> Result<u16, AppError> {
     let used = instances
@@ -532,9 +532,12 @@ fn host_endpoint_candidates_from_commands(
     endpoints
 }
 
-/// 执行换皮宿主内部的 `operation_cancelled` 步骤。
+/// 执行换皮宿主内部的 `operation_cancelled` 步骤；文案保持宿主中立，
+/// 因为调用方既有 Codex 专属路径，也有 WorkBuddy 等其它宿主共用的
+/// 通用取消/关闭门禁（如 [`crate::skins::lifecycle`] 的 shutdown 门禁），
+/// 后者在调用时并不持有具体的 [`SkinHostKind`]。
 fn operation_cancelled() -> AppError {
-    AppError::new("skin.operation_cancelled", "已停止 Codex 启动或页面搜寻。")
+    AppError::new("skin.operation_cancelled", "已停止启动或页面搜寻。")
 }
 
 /// 执行换皮宿主内部的 `codex_exited` 步骤。

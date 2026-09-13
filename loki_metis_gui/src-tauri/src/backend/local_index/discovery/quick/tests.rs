@@ -2,6 +2,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use loki_metis_core::CoverageState;
 use tempfile::tempdir;
 
 // 本文件测的是 discovery/quick.rs：快速发现只检查默认主目录、

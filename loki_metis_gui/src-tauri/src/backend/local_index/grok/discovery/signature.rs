@@ -4,10 +4,10 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{CoverageState, RootCandidateEvidence};
+use loki_metis_core::RootCandidateEvidence;
 use serde::Deserialize;
 
-use super::super::super::discovery::{metadata_is_link_like, walk_ancestors_for_link_component};
+use super::super::super::discovery::metadata_is_link_like;
 use super::super::super::{CancellationToken, FullDiscoveryOptions};
 use super::super::path_rules::is_grok_updates_path;
 
@@ -251,15 +251,6 @@ fn signature_usage_payload(record: &SignatureEnvelope) -> &SignatureEnvelope {
         .map_or(record, Box::as_ref)
 }
 
-/// 沿路径祖先检查链接组件。
-pub(super) fn reject_link_components(path: &Path) -> std::io::Result<bool> {
-    match walk_ancestors_for_link_component(path) {
-        Ok(has_link) => Ok(has_link),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error),
-    }
-}
-
 /// 取路径末段作为安全展示别名。
 pub(super) fn safe_alias(path: &Path) -> String {
     path.file_name()
@@ -267,22 +258,6 @@ pub(super) fn safe_alias(path: &Path) -> String {
         .filter(|value| !value.is_empty())
         .unwrap_or("Grok 数据根")
         .to_owned()
-}
-
-/// 按取消、预算与跳过计数折算覆盖状态。
-pub(super) fn coverage_state(
-    cancelled: bool,
-    budget_exhausted: bool,
-    permission_denied_count: u64,
-    skipped_count: u64,
-) -> CoverageState {
-    if cancelled {
-        CoverageState::Cancelled
-    } else if budget_exhausted || permission_denied_count > 0 || skipped_count > 0 {
-        CoverageState::Partial
-    } else {
-        CoverageState::Complete
-    }
 }
 
 /// 判定路径是否落在排除根集合内。

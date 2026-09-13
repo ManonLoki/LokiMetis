@@ -41,7 +41,7 @@ pub(super) fn is_uuid_jsonl_name(value: &str) -> bool {
 }
 
 /// Claude 子代理 transcript 只接受官方 `agent-<安全标识>.jsonl` 文件名。
-pub(super) fn is_subagent_jsonl_name(value: &str) -> bool {
+pub(in crate::backend::local_index) fn is_subagent_jsonl_name(value: &str) -> bool {
     value
         .strip_prefix("agent-")
         .and_then(|value| value.strip_suffix(".jsonl"))
@@ -55,7 +55,7 @@ pub(super) fn is_subagent_jsonl_name(value: &str) -> bool {
 }
 
 /// 判定字符串是否符合标准 UUID（含连字符）格式。
-pub(super) fn is_uuid(value: &str) -> bool {
+pub(in crate::backend::local_index) fn is_uuid(value: &str) -> bool {
     value.len() == 36
         && value.bytes().enumerate().all(|(index, byte)| {
             if matches!(index, 8 | 13 | 18 | 23) {

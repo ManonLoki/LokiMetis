@@ -1,5 +1,6 @@
 //! 使用一次有界的 Windows 内核查询读取已验证进程命令行。
 
+use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::path::Path;
@@ -46,6 +47,28 @@ pub(super) fn query_verified_process_command_line(
         return None;
     }
     query_process_command_line_from_handle(handle.0)
+}
+
+/// 沿同一次进程快照的父链确认 listener owner 属于指定可信根；Codex 与
+/// WorkBuddy 的端口 owner 校验共用同一条父链遍历逻辑。
+pub(super) fn process_belongs_to_verified_root(
+    process_pid: u32,
+    root_pid: u32,
+    verified_pids: &HashSet<u32>,
+    parents: &HashMap<u32, u32>,
+) -> bool {
+    if !verified_pids.contains(&process_pid) || !verified_pids.contains(&root_pid) {
+        return false;
+    }
+    let mut current = process_pid;
+    let mut visited = HashSet::new();
+    while current != 0 && visited.insert(current) {
+        if current == root_pid {
+            return true;
+        }
+        current = parents.get(&current).copied().unwrap_or_default();
+    }
+    false
 }
 
 /// 用固定上限缓冲区执行一次内核查询，并严格验证返回指针与 UTF-16 长度。

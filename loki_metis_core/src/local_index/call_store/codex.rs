@@ -20,7 +20,7 @@ async fn prefetch_exact_threads(
     transaction: &DatabaseTransaction,
     source_id: &str,
     generation: i64,
-    thread_keys: &[String],
+    thread_keys: &[&str],
 ) -> Result<HashSet<String>, LocalError> {
     let mut exact_threads = HashSet::with_capacity(thread_keys.len());
     if thread_keys.is_empty() {
@@ -28,7 +28,7 @@ async fn prefetch_exact_threads(
     }
     let placeholders = in_placeholders(3, thread_keys.len());
     let mut values: Vec<sea_orm::Value> = vec![source_id.into(), generation.into()];
-    values.extend(thread_keys.iter().map(Into::into));
+    values.extend(thread_keys.iter().map(|key| (*key).into()));
     let rows = transaction
         .query_all(statement(
             &format!(
@@ -63,7 +63,7 @@ pub(crate) async fn insert_usage_batch(
         return Ok(0);
     }
     let generation = to_sql_u64(generation)?;
-    let thread_keys: Vec<String> = batch.iter().map(|call| call.thread_key.clone()).collect();
+    let thread_keys: Vec<&str> = batch.iter().map(|call| call.thread_key.as_str()).collect();
     let mut exact_threads =
         prefetch_exact_threads(transaction, source_id, generation, &thread_keys).await?;
     let mut added = 0_u64;

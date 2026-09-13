@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
-use loki_metis_core::{CoverageReport, CoverageState};
+use loki_metis_core::CoverageReport;
 
 use super::inspection::{
     RootInspection, SignatureProbeContext, inspect_root, reject_symlink_components, safe_path_alias,
@@ -258,13 +258,12 @@ fn discover_candidates(
         }
     }
 
-    let state = if user_cancelled {
-        CoverageState::Cancelled
-    } else if budget_exhausted || permission_denied_count > 0 || skipped_count > 0 {
-        CoverageState::Partial
-    } else {
-        CoverageState::Complete
-    };
+    let state = super::coverage_state(
+        user_cancelled,
+        budget_exhausted,
+        permission_denied_count,
+        skipped_count,
+    );
     if budget_exhausted {
         // 预算耗尽会在循环中途 break，跳出前尚未处理到的候选根既没有进入
         // roots（确认有效），也没有进入 confirmed_invalid_root_ids（确认失效）。

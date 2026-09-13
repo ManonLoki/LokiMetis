@@ -49,7 +49,10 @@
     "BUG-WORKBUDDY-HOOK-ASKING-ERROR-20260912",
     "BUG-SETTINGS-VERSION-BADGE-UPPERCASE-20260912",
     "BUG-AUTOSTART-MAIN-WINDOW-VISIBILITY-20260912",
-    "BUG-DEEP-LINK-SINGLE-INSTANCE-BYPASS-20260912"
+    "BUG-DEEP-LINK-SINGLE-INSTANCE-BYPASS-20260912",
+    "BUG-CODEX-CDP-MULTI-LISTENER-20260913",
+    "BUG-LEGACY-SKIN-REDUNDANT-APPLY-CONSENT-20260913",
+    "BUG-SKIN-TOKIO-STACK-OVERFLOW-20260913"
   ],
   "cycle_base_version": "0.3.4",
   "feature_bump_applied": false,
@@ -57,7 +60,23 @@
     "source_commit": "40002a8f8a6e1f0c53f948c2a751d155c722ec72",
     "version": "0.3.4"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "BUG-CODEX-CDP-MULTI-LISTENER-20260913",
+      "kind": "bug-fix",
+      "required_version": "0.3.5"
+    },
+    {
+      "change_id": "BUG-LEGACY-SKIN-REDUNDANT-APPLY-CONSENT-20260913",
+      "kind": "bug-fix",
+      "required_version": "0.3.6"
+    },
+    {
+      "change_id": "BUG-SKIN-TOKIO-STACK-OVERFLOW-20260913",
+      "kind": "bug-fix",
+      "required_version": "0.3.7"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.3.4"
+  "target_version": "0.3.7"
 }

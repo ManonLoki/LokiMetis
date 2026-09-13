@@ -139,7 +139,7 @@ fn decode_optional_token(value: &str) -> Option<Option<u64>> {
 // 按秒计算对应约公元 2286 年附近，按毫秒计算则对应 1970 年附近——
 // 真实数据不可能出现“秒值大到超过 100 亿”的情况，所以小于这个阈值的
 // 数字按“秒”处理再乘 1000 转毫秒，达到或超过阈值的数字本身已经是毫秒。
-pub(super) fn parse_timestamp(value: Option<&Value>) -> Option<i64> {
+pub(in crate::backend::local_index) fn parse_timestamp(value: Option<&Value>) -> Option<i64> {
     let value = value?;
     if let Some(integer) = value.as_i64() {
         let milliseconds = if (-10_000_000_000..10_000_000_000).contains(&integer) {
@@ -169,7 +169,7 @@ fn supported_timestamp_millis(value: i64) -> Option<i64> {
 }
 
 /// 解析 rollout 常见 RFC3339 时间，并保留既有四位年份与大写分隔符契约。
-pub(super) fn parse_rfc3339_millis(value: &str) -> Option<i64> {
+pub(in crate::backend::local_index) fn parse_rfc3339_millis(value: &str) -> Option<i64> {
     let bytes = value.as_bytes();
     if bytes.len() < 20
         || bytes.get(4) != Some(&b'-')

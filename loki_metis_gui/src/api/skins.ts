@@ -58,7 +58,7 @@ export interface CodexRuntimeStatus {
 }
 
 /** 描述一个已验证的 Codex GUI 主进程和可选账户资料。 */
-export interface CodexInstance {
+export interface SkinHostInstance {
   id: string;
   pid: number;
   label: string;
@@ -252,9 +252,9 @@ export const skinApi = {
   deleteMany: (skins: SkinReference[]) =>
     invokeSkin<BatchDeleteResult>("delete_skins", { skins }),
   instances: (host: SkinHostKind) =>
-    invokeSkin<CodexInstance[]>("list_skin_host_instances", { host }),
+    invokeSkin<SkinHostInstance[]>("list_skin_host_instances", { host }),
   restartInstance: (host: SkinHostKind, instanceId: string) =>
-    invokeSkin<CodexInstance>("restart_skin_host_instance", { host, instanceId }),
+    invokeSkin<SkinHostInstance>("restart_skin_host_instance", { host, instanceId }),
   launchHost: (host: SkinHostKind) =>
     invokeSkin<CodexRuntimeStatus>("launch_skin_host", { host }),
   supportsWindowsWorkBuddyRecovery: () =>

@@ -40,7 +40,7 @@ use install_identity::{
     store_package_data_exists,
 };
 use port_owner::loopback_listener_owner;
-use process_query::query_verified_process_command_line;
+use process_query::{process_belongs_to_verified_root, query_verified_process_command_line};
 use store_activation::activate_store_codex_owned;
 
 const PROCESS_PATH_CAPACITY: usize = 32_768;
@@ -503,27 +503,6 @@ pub(crate) fn codex_endpoint_owned_by_root(
             &snapshot.parents,
         )
     }))
-}
-
-/// 沿同一次进程快照的父链确认 listener owner 属于指定可信根。
-fn process_belongs_to_verified_root(
-    process_pid: u32,
-    root_pid: u32,
-    verified_pids: &HashSet<u32>,
-    parents: &std::collections::HashMap<u32, u32>,
-) -> bool {
-    if !verified_pids.contains(&process_pid) || !verified_pids.contains(&root_pid) {
-        return false;
-    }
-    let mut current = process_pid;
-    let mut visited = HashSet::new();
-    while current != 0 && visited.insert(current) {
-        if current == root_pid {
-            return true;
-        }
-        current = parents.get(&current).copied().unwrap_or_default();
-    }
-    false
 }
 
 /// 返回不暴露 PID 或端口的 Codex CDP owner 检查错误。

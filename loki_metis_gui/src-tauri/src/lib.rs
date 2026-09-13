@@ -160,9 +160,29 @@ async fn reconcile_initial_enabled_ai_selection(
     Ok(saved)
 }
 
+/// 换皮流程为验证 CDP 端点归属、连接与重连逐层包装了大量泛型 async 组合子
+/// （`run_cancellable`/`monitor_host_operation`/`hold_connected_handler_during` 等）；
+/// 调试构建下这条调用链未内联，单次 poll 沿途的原生栈帧会显著大于 tokio 默认的
+/// 2MiB 工作线程栈，曾在应用皮肤时导致 `tokio-rt-worker` 栈溢出并使进程直接 abort。
+/// 必须在首次访问 `tauri::async_runtime`（包括 `setup` 内的 `block_on`）前替换默认运行时。
+const ASYNC_RUNTIME_WORKER_STACK_SIZE: usize = 16 * 1024 * 1024;
+
+/// 用更大工作线程栈的 tokio 运行时替换 Tauri 默认运行时；运行时必须存活到进程退出。
+fn install_large_stack_async_runtime() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(ASYNC_RUNTIME_WORKER_STACK_SIZE)
+        .build()
+        .expect("failed to build the tokio runtime backing tauri::async_runtime");
+    tauri::async_runtime::set(runtime.handle().clone());
+    // 进程生命周期内持续使用；泄漏是有意为之，避免运行时被提前 drop 导致工作线程关闭。
+    std::mem::forget(runtime);
+}
+
 /// 运行唯一 GUI adapter，并统一拥有完整原生生命周期。
 #[rustfmt::skip]
 pub fn run() {
+    install_large_stack_async_runtime();
     let performance_evidence_state = PerformanceEvidenceState::from_environment()
         .expect("failed to initialize local performance evidence");
     let performance_evidence_enabled = performance_evidence_state.is_enabled();

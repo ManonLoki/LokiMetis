@@ -5,10 +5,10 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use jiff::Timestamp;
-use loki_metis_core::{CoverageState, RootCandidateEvidence};
+use loki_metis_core::RootCandidateEvidence;
 use serde::Deserialize;
 
-use super::super::super::discovery::{metadata_is_link_like, walk_ancestors_for_link_component};
+use super::super::super::discovery::metadata_is_link_like;
 use super::super::super::{CancellationToken, FullDiscoveryOptions};
 use super::super::path_rules::{is_subagent_jsonl_name, is_uuid, is_uuid_jsonl_name};
 
@@ -395,15 +395,6 @@ fn nonempty(value: Option<&str>) -> bool {
     value.is_some_and(|value| !value.trim().is_empty())
 }
 
-/// 沿路径的每一级祖先检查是否存在链接组件，供候选路径安全性校验复用。
-pub(super) fn reject_link_components(path: &Path) -> std::io::Result<bool> {
-    match walk_ancestors_for_link_component(path) {
-        Ok(has_link) => Ok(has_link),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error),
-    }
-}
-
 /// 取路径末段作为安全展示别名；末段缺失或为空时回退到固定中文占位。
 pub(super) fn safe_alias(path: &Path) -> String {
     path.file_name()
@@ -411,22 +402,6 @@ pub(super) fn safe_alias(path: &Path) -> String {
         .filter(|value| !value.is_empty())
         .unwrap_or("Claude Code 数据根")
         .to_owned()
-}
-
-/// 按取消、预算耗尽与权限/跳过计数折算出本次发现的覆盖状态。
-pub(super) fn coverage_state(
-    cancelled: bool,
-    budget_exhausted: bool,
-    permission_denied_count: u64,
-    skipped_count: u64,
-) -> CoverageState {
-    if cancelled {
-        CoverageState::Cancelled
-    } else if budget_exhausted || permission_denied_count > 0 || skipped_count > 0 {
-        CoverageState::Partial
-    } else {
-        CoverageState::Complete
-    }
 }
 
 /// 判定路径是否落在本次遍历需要排除的固定根集合内。

@@ -232,14 +232,8 @@ pub(crate) async fn start_root_discovery(
     if coordinator.snapshot().lifecycle == RootDiscoveryLifecycle::Running {
         return Err("root discovery is already running".to_owned());
     }
-    let strategy = if cfg!(target_os = "windows") {
-        RootDiscoveryStrategy::WindowsSearch
-    } else if cfg!(target_os = "macos") {
-        RootDiscoveryStrategy::MacOsSpotlight
-    } else {
-        RootDiscoveryStrategy::MetadataTraversal
-    };
-    let platform = current_platform();
+    let strategy = RootDiscoveryStrategy::current();
+    let platform = RootDiscoveryPlatform::current();
     let discovery_scope = match scope {
         RootDiscoveryScopeDto::UserPriority => RootDiscoveryScope::UserPriority,
         RootDiscoveryScopeDto::FullLocalVolumes => RootDiscoveryScope::FullLocalVolumes,
@@ -432,7 +426,7 @@ pub(crate) fn to_status_dto(status: RootDiscoveryStatus) -> RootDiscoveryStatusD
         },
         strategy: to_strategy_dto(status.strategy),
         platform: to_platform_dto(if status.platform == RootDiscoveryPlatform::Other {
-            current_platform()
+            RootDiscoveryPlatform::current()
         } else {
             status.platform
         }),
@@ -452,17 +446,6 @@ pub(crate) fn to_status_dto(status: RootDiscoveryStatus) -> RootDiscoveryStatusD
         io_errors: progress.io_errors,
         skipped: progress.skipped,
         error_code: status.error_code,
-    }
-}
-
-/// 探测当前编译目标所在平台，供未命中固定策略时回退展示。
-const fn current_platform() -> RootDiscoveryPlatform {
-    if cfg!(target_os = "windows") {
-        RootDiscoveryPlatform::Windows
-    } else if cfg!(target_os = "macos") {
-        RootDiscoveryPlatform::MacOs
-    } else {
-        RootDiscoveryPlatform::Other
     }
 }
 

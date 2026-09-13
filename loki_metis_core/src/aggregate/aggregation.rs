@@ -22,9 +22,9 @@ pub fn aggregate_canonical_usage(
         Some(0_u64)
     };
 
-    let mut thread_keys = BTreeSet::new();
-    let mut root_ids = BTreeSet::new();
-    let mut source_ids = BTreeSet::new();
+    let mut thread_keys: BTreeSet<&str> = BTreeSet::new();
+    let mut root_ids: BTreeSet<&str> = BTreeSet::new();
+    let mut source_ids: BTreeSet<&str> = BTreeSet::new();
     let mut cross_root_duplicate_source_count = 0_u64;
     let mut confidence = Confidence::Exact;
     let mut accounted_total = 0_u64;
@@ -47,30 +47,38 @@ pub fn aggregate_canonical_usage(
             None => cached_read_call_count = None,
         }
 
-        thread_keys.insert(call.thread_key.clone());
-        let mut source_counts_by_root = std::collections::BTreeMap::<&str, u64>::new();
+        thread_keys.insert(call.thread_key.as_str());
         for provenance in &call.provenance {
-            root_ids.insert(provenance.root_id.clone());
-            source_ids.insert(provenance.source_id.clone());
-            let root_source_count = source_counts_by_root
-                .entry(provenance.root_id.as_str())
-                .or_default();
-            *root_source_count = root_source_count
-                .checked_add(1)
-                .ok_or(TokenUsageError::Overflow)?;
+            root_ids.insert(provenance.root_id.as_str());
+            source_ids.insert(provenance.source_id.as_str());
         }
 
-        let call_source_count = source_counts_by_root
-            .values()
-            .try_fold(0_u64, |total, count| total.checked_add(*count))
-            .ok_or(TokenUsageError::Overflow)?;
-        let single_root_baseline_count = source_counts_by_root
-            .values()
-            .copied()
-            .max()
-            .unwrap_or_default();
+        // 单一 provenance（绝大多数调用）不可能产生跨根重复，跳过按根计数的 map 分配。
+        let cross_root_delta = if call.provenance.len() > 1 {
+            let mut source_counts_by_root = std::collections::BTreeMap::<&str, u64>::new();
+            for provenance in &call.provenance {
+                let root_source_count = source_counts_by_root
+                    .entry(provenance.root_id.as_str())
+                    .or_default();
+                *root_source_count = root_source_count
+                    .checked_add(1)
+                    .ok_or(TokenUsageError::Overflow)?;
+            }
+            let call_source_count = source_counts_by_root
+                .values()
+                .try_fold(0_u64, |total, count| total.checked_add(*count))
+                .ok_or(TokenUsageError::Overflow)?;
+            let single_root_baseline_count = source_counts_by_root
+                .values()
+                .copied()
+                .max()
+                .unwrap_or_default();
+            call_source_count.saturating_sub(single_root_baseline_count)
+        } else {
+            0_u64
+        };
         cross_root_duplicate_source_count = cross_root_duplicate_source_count
-            .checked_add(call_source_count.saturating_sub(single_root_baseline_count))
+            .checked_add(cross_root_delta)
             .ok_or(TokenUsageError::Overflow)?;
         confidence = lower_confidence(confidence, call.confidence);
     }

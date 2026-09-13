@@ -85,7 +85,7 @@ impl SkinService {
     pub async fn scanned_host_instances(
         &self,
         host: SkinHostKind,
-    ) -> Result<Vec<CodexInstance>, AppError> {
+    ) -> Result<Vec<SkinHostInstance>, AppError> {
         let preferred_endpoint = if host == SkinHostKind::WorkBuddy {
             self.verified_endpoint_hint(host)?
         } else {
@@ -121,7 +121,7 @@ impl SkinService {
         &self,
         host: SkinHostKind,
         instance_id: &str,
-    ) -> Result<CodexInstance, AppError> {
+    ) -> Result<SkinHostInstance, AppError> {
         let resolved = resolve_host_instance_with_preferred(
             host,
             instance_id,
@@ -226,8 +226,8 @@ impl SkinService {
     async fn cached_host_instance(
         &self,
         host: SkinHostKind,
-        resolved: ResolvedCodexInstance,
-    ) -> Result<CodexInstance, AppError> {
+        resolved: ResolvedSkinHostInstance,
+    ) -> Result<SkinHostInstance, AppError> {
         if resolved.debug_port.is_none() {
             return Ok(host_instance_from_resolved(
                 host,
@@ -316,7 +316,7 @@ impl SkinService {
     }
 
     /// 执行换皮宿主内部的 `annotate_codex_instances` 步骤。
-    async fn annotate_host_instances(&self, host: SkinHostKind, instances: &mut [CodexInstance]) {
+    async fn annotate_host_instances(&self, host: SkinHostKind, instances: &mut [SkinHostInstance]) {
         let runtime = self.runtime.lock().await;
         for instance in instances {
             let instance_runtime = runtime
@@ -458,7 +458,7 @@ impl SkinService {
         &self,
         host: SkinHostKind,
         instance_id: &str,
-    ) -> Result<CodexInstance, AppError> {
+    ) -> Result<SkinHostInstance, AppError> {
         let _operation = self.operation.lock().await;
         let _runtime_mutation = self.begin_host_runtime_mutation(host);
         let (_guard, mut cancel) = self.begin_codex_operation()?;

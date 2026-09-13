@@ -235,6 +235,7 @@ fn reusable_process_arguments(command_line: &str) -> Vec<String> {
         }
         if value.starts_with("--remote-debugging-port=")
             || value.starts_with("--remote-debugging-address=")
+            || value.starts_with("--remote-allow-origins")
         {
             continue;
         }
@@ -291,7 +292,7 @@ fn user_data_directory(arguments: &[String]) -> Option<PathBuf> {
 }
 
 /// 执行换皮宿主内部的 `stable_instance_id` 步骤。
-fn stable_instance_id(process: &PlatformCodexProcess) -> String {
+fn stable_instance_id(process: &PlatformHostProcess) -> String {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in process
         .executable
@@ -306,7 +307,7 @@ fn stable_instance_id(process: &PlatformCodexProcess) -> String {
 }
 
 /// WorkBuddy 的命令行可能在跨平台探测中降级，实例身份只依赖 PID 与已验证路径。
-fn stable_workbuddy_instance_id(process: &PlatformCodexProcess) -> String {
+fn stable_workbuddy_instance_id(process: &PlatformHostProcess) -> String {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in process
         .executable
@@ -321,7 +322,7 @@ fn stable_workbuddy_instance_id(process: &PlatformCodexProcess) -> String {
 }
 
 /// 执行换皮宿主内部的 `resolved_instance` 步骤。
-fn resolved_instance(process: PlatformCodexProcess) -> ResolvedCodexInstance {
+fn resolved_instance(process: PlatformHostProcess) -> ResolvedSkinHostInstance {
     let id = stable_instance_id(&process);
     resolved_instance_with_id(process, id)
 }
@@ -329,8 +330,8 @@ fn resolved_instance(process: PlatformCodexProcess) -> ResolvedCodexInstance {
 /// 按宿主选择稳定身份来源；命令行仍只用于端口、配置和安全重启参数。
 fn resolved_instance_for_host(
     host: SkinHostKind,
-    process: PlatformCodexProcess,
-) -> ResolvedCodexInstance {
+    process: PlatformHostProcess,
+) -> ResolvedSkinHostInstance {
     let id = match host {
         SkinHostKind::Codex => stable_instance_id(&process),
         SkinHostKind::WorkBuddy => stable_workbuddy_instance_id(&process),
@@ -339,9 +340,9 @@ fn resolved_instance_for_host(
 }
 
 /// 使用已经确定的稳定 ID 解析实例其余运行信息。
-fn resolved_instance_with_id(process: PlatformCodexProcess, id: String) -> ResolvedCodexInstance {
+fn resolved_instance_with_id(process: PlatformHostProcess, id: String) -> ResolvedSkinHostInstance {
     let arguments = reusable_process_arguments(&process.command_line);
-    ResolvedCodexInstance {
+    ResolvedSkinHostInstance {
         id,
         debug_port: debug_port_from_command_line(&process.command_line),
         profile: user_data_profile(&arguments),

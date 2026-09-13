@@ -397,7 +397,7 @@
     #[test]
     /// 原生命令行从可用降级为空时，同一 WorkBuddy 根的实例 ID 必须保持不变。
     fn workbuddy_instance_id_does_not_depend_on_command_line() {
-        let process = |command_line: &str| PlatformCodexProcess {
+        let process = |command_line: &str| PlatformHostProcess {
             pid: 77,
             executable: PathBuf::from(
                 r"C:\Users\test\AppData\Local\Programs\WorkBuddy\WorkBuddy.exe",
@@ -418,7 +418,7 @@
     #[test]
     /// 多实例时只选取用户指定的 WorkBuddy 根 PID，不得改用当前其它实例。
     fn selected_workbuddy_root_binding_rejects_replacement_instance() {
-        let process = |pid| PlatformCodexProcess {
+        let process = |pid| PlatformHostProcess {
             pid,
             executable: PathBuf::from("/Applications/WorkBuddy.app/Contents/MacOS/WorkBuddy"),
             command_line: format!("WorkBuddy --remote-debugging-port={}", 9400 + pid),
@@ -434,7 +434,7 @@
     #[test]
     /// Codex 声明端口与候选不一致时不能借“唯一进程”回退冒认端点。
     fn codex_declared_port_mismatch_rejects_root_fallback() {
-        let process = |pid, command_line: &str| PlatformCodexProcess {
+        let process = |pid, command_line: &str| PlatformHostProcess {
             pid,
             executable: PathBuf::from(r"C:\Program Files\ChatGPT\ChatGPT.exe"),
             command_line: command_line.into(),
@@ -518,7 +518,7 @@
     #[test]
     /// WorkBuddy 从根 A 交接到根 B 时，即使复用了同一端点，也不能把注入状态登记到旧 ID。
     fn workbuddy_binding_rejects_single_root_pid_handoff() {
-        let process = |pid| PlatformCodexProcess {
+        let process = |pid| PlatformHostProcess {
             pid,
             executable: PathBuf::from(
                 r"C:\Users\test\AppData\Local\Programs\WorkBuddy\WorkBuddy.exe",

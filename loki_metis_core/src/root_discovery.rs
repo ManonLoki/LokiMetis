@@ -34,6 +34,21 @@ pub enum RootDiscoveryStrategy {
     MetadataTraversal,
 }
 
+impl RootDiscoveryStrategy {
+    /// 探测当前编译目标对应的展示策略；目前 Windows/macOS 分支都只是
+    /// 展示标签，实际遍历统一走普通元数据遍历。GUI 侧多处发现入口共用
+    /// 同一份判定，避免各自重复 `cfg!` 分支。
+    pub const fn current() -> Self {
+        if cfg!(target_os = "windows") {
+            Self::WindowsSearch
+        } else if cfg!(target_os = "macos") {
+            Self::MacOsSpotlight
+        } else {
+            Self::MetadataTraversal
+        }
+    }
+}
+
 /// 数据源发现使用的平台路径策略。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RootDiscoveryPlatform {
@@ -43,6 +58,20 @@ pub enum RootDiscoveryPlatform {
     MacOs,
     /// 当前未提供专属优先目录的平台。
     Other,
+}
+
+impl RootDiscoveryPlatform {
+    /// 探测当前编译目标所在平台；未命中 Windows/macOS 时回退到 `Other`。
+    /// GUI 侧多处发现入口共用同一份判定，避免各自重复 `cfg!` 分支。
+    pub const fn current() -> Self {
+        if cfg!(target_os = "windows") {
+            Self::Windows
+        } else if cfg!(target_os = "macos") {
+            Self::MacOs
+        } else {
+            Self::Other
+        }
+    }
 }
 
 /// 数据源发现的用户选择范围。

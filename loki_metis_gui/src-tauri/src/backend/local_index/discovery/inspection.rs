@@ -334,7 +334,7 @@ fn inspect_plain_directory(path: &Path) -> (bool, bool) {
 }
 
 /// 拒绝候选根及任一祖先组件的符号链接或 reparse point；缺失祖先视为无链接而非错误。
-pub(super) fn reject_symlink_components(path: &Path) -> std::io::Result<bool> {
+pub(crate) fn reject_symlink_components(path: &Path) -> std::io::Result<bool> {
     match walk_ancestors_for_link_component(path) {
         Ok(has_link) => Ok(has_link),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),

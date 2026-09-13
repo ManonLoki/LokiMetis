@@ -7,14 +7,14 @@ use std::path::PathBuf;
 use loki_metis_core::CoverageReport;
 
 use super::super::super::discovery::{
-    DiscoveryProgress, metadata_is_link_like, path_key, stable_id,
+    DiscoveryProgress, coverage_state, metadata_is_link_like, path_key, reject_symlink_components,
+    stable_id,
 };
 use super::super::super::{
     CancellationToken, DiscoveryMethod, FullDiscoveryOptions, is_obviously_network_path,
 };
 use super::signature::{
-    Inspection, SignatureBudget, coverage_state, crosses_search_root, inspect_root, is_excluded,
-    reject_link_components, safe_alias,
+    Inspection, SignatureBudget, crosses_search_root, inspect_root, is_excluded, safe_alias,
 };
 use super::{ClaudeDiscoveredRoot, ClaudeDiscoveryResult};
 
@@ -71,7 +71,7 @@ where
             continue;
         }
         if path == traversal_root {
-            match reject_link_components(&path) {
+            match reject_symlink_components(&path) {
                 Ok(true) => {
                     symlink_skipped_count = symlink_skipped_count.saturating_add(1);
                     skipped_count = skipped_count.saturating_add(1);

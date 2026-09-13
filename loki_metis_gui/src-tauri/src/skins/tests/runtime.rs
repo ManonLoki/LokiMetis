@@ -251,7 +251,7 @@ fn active_skin_probe_prefers_exact_marker_and_validates_legacy_id() {
 /// 验证换皮迁移中的 `window_activation_target_requires_one_exact_debug_endpoint` 回归场景。
 fn window_activation_target_requires_one_exact_debug_endpoint() {
     let instance = |pid, port| {
-        super::resolved_instance(PlatformCodexProcess {
+        super::resolved_instance(PlatformHostProcess {
             pid,
             executable: PathBuf::from("Codex.exe"),
             command_line: format!("Codex.exe --remote-debugging-port={port}"),
@@ -353,7 +353,7 @@ async fn account_profile_probe_does_not_cache_transient_failures() {
 #[test]
 /// 验证换皮迁移中的 `scanned_instance_exposes_process_before_account_profile_probe` 回归场景。
 fn scanned_instance_exposes_process_before_account_profile_probe() {
-    let ready = scanned_codex_instance(super::resolved_instance(PlatformCodexProcess {
+    let ready = scanned_skin_host_instance(super::resolved_instance(PlatformHostProcess {
         pid: 42,
         executable: PathBuf::from("/Applications/ChatGPT"),
         command_line: "ChatGPT --user-data-dir=/profiles/personal --remote-debugging-port=9341"
@@ -364,7 +364,7 @@ fn scanned_instance_exposes_process_before_account_profile_probe() {
     assert_eq!(ready.account_label, None);
     assert_eq!(ready.avatar_data_url, None);
 
-    let unavailable = scanned_codex_instance(super::resolved_instance(PlatformCodexProcess {
+    let unavailable = scanned_skin_host_instance(super::resolved_instance(PlatformHostProcess {
         pid: 43,
         executable: PathBuf::from("/Applications/ChatGPT"),
         command_line: "ChatGPT --user-data-dir=/profiles/company".into(),
@@ -378,12 +378,12 @@ fn scanned_instance_exposes_process_before_account_profile_probe() {
 #[test]
 /// 验证换皮迁移中的 `restarted_endpoint_uses_proven_ready_scan_without_profile_probe_state` 回归场景。
 fn restarted_endpoint_uses_proven_ready_scan_without_profile_probe_state() {
-    let restarted = scanned_codex_instance(super::resolved_instance(PlatformCodexProcess {
+    let restarted = scanned_skin_host_instance(super::resolved_instance(PlatformHostProcess {
         pid: 52,
         executable: PathBuf::from("/Applications/ChatGPT"),
         command_line: "ChatGPT --remote-debugging-port=9342".into(),
     }));
-    let other = scanned_codex_instance(super::resolved_instance(PlatformCodexProcess {
+    let other = scanned_skin_host_instance(super::resolved_instance(PlatformHostProcess {
         pid: 51,
         executable: PathBuf::from("/Applications/ChatGPT"),
         command_line: "ChatGPT --remote-debugging-port=9341".into(),
@@ -417,7 +417,7 @@ fn account_avatar_accepts_only_small_raster_data_urls() {
 #[test]
 /// 验证换皮迁移中的 `codex_instance_serializes_avatar_and_exact_active_skin` 回归场景。
 fn codex_instance_serializes_avatar_and_exact_active_skin() -> Result<(), serde_json::Error> {
-    let value = serde_json::to_value(CodexInstance {
+    let value = serde_json::to_value(SkinHostInstance {
         id: "instance-1".into(),
         pid: 42,
         label: "Codex · company".into(),

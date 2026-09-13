@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::path::PathBuf;
 
-use loki_metis_core::{CoverageReport, CoverageState};
+use loki_metis_core::CoverageReport;
 
 use super::super::inspection::{
     RootInspection, SignatureProbeContext, inspect_root, is_forbidden_auxiliary_root,
@@ -345,16 +345,12 @@ where
     /// 汇总终态覆盖并按规范化路径稳定返回根，不泄露任一路径到 DTO。
     pub(super) fn finish(mut self) -> DiscoveryResult {
         self.publish_progress();
-        let state = if self.user_cancelled || self.cancellation.is_cancelled() {
-            CoverageState::Cancelled
-        } else if self.budget_exhausted
-            || self.permission_denied_count > 0
-            || self.skipped_count > 0
-        {
-            CoverageState::Partial
-        } else {
-            CoverageState::Complete
-        };
+        let state = super::super::coverage_state(
+            self.user_cancelled || self.cancellation.is_cancelled(),
+            self.budget_exhausted,
+            self.permission_denied_count,
+            self.skipped_count,
+        );
         let roots = self.roots.into_values().collect::<Vec<_>>();
         DiscoveryResult {
             coverage: CoverageReport {

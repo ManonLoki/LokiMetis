@@ -673,8 +673,8 @@ describe("skin page", () => {
     );
   });
 
-  /** 兼容皮肤必须在任何启动、重启或安装调用前取得一次性显式信任，取消保持零副作用。 */
-  test("gates compatible skin application before every host side effect", async () => {
+  /** 兼容皮肤应用无需额外信任弹窗，直接以 allowThirdPartyCode: true 完成安装。 */
+  test("applies a compatible skin directly without a trust dialog", async () => {
     mocks.hostAvailable = true;
     mocks.invoke.mockImplementation((command: string) => {
       if (command === "get_monitor_capabilities") {
@@ -739,37 +739,8 @@ describe("skin page", () => {
       </TestProviders>,
     );
 
-    expect(await screen.findByText("Runs third-party code")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
-    expect(await screen.findByText("Trust and execute third-party code?")).toBeVisible();
-    expect(
-      screen.getByText(/will execute this third-party code inside Codex/i),
-    ).toBeVisible();
-    expect(screen.getByText(/do not review or prove the script is safe/i)).toBeVisible();
-    expect(mocks.invoke).not.toHaveBeenCalledWith("install_skin", expect.anything());
-    expect(mocks.invoke).not.toHaveBeenCalledWith("launch_skin_host", expect.anything());
-    expect(mocks.invoke).not.toHaveBeenCalledWith(
-      "restart_skin_host_instance",
-      expect.anything(),
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(
-      screen.queryByText("Trust and execute third-party code?"),
-    ).not.toBeInTheDocument();
-    expect(mocks.invoke).not.toHaveBeenCalledWith("install_skin", expect.anything());
-
-    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
-    const continueButton = await screen.findByRole("button", {
-      name: "Trust and continue",
-    });
-    expect(continueButton).toBeDisabled();
-    await userEvent.click(
-      screen.getByRole("checkbox", {
-        name: /I understand this will execute third-party code/i,
-      }),
-    );
-    await userEvent.click(continueButton);
+    expect(screen.queryByText("Runs third-party code")).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Apply" }));
     await waitFor(() =>
       expect(mocks.invoke).toHaveBeenCalledWith("install_skin", {
         allowAppearanceMismatch: false,

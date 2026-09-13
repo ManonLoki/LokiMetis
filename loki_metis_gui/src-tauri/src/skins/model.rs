@@ -201,8 +201,8 @@ pub struct CodexRuntimeStatus {
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-/// 定义换皮宿主 `CodexInstance` 使用的内部数据。
-pub struct CodexInstance {
+/// 定义换皮宿主 `SkinHostInstance` 使用的内部数据。
+pub struct SkinHostInstance {
     id: String,
     pid: u32,
     label: String,
@@ -259,18 +259,18 @@ enum RecoveredSkinIdentity {
 }
 
 #[derive(Debug, Clone)]
-/// 定义换皮宿主 `PlatformCodexProcess` 使用的内部数据。
-struct PlatformCodexProcess {
+/// 定义换皮宿主 `PlatformHostProcess` 使用的内部数据。
+struct PlatformHostProcess {
     pid: u32,
     executable: PathBuf,
     command_line: String,
 }
 
 #[derive(Debug, Clone)]
-/// 定义换皮宿主 `ResolvedCodexInstance` 使用的内部数据。
-struct ResolvedCodexInstance {
+/// 定义换皮宿主 `ResolvedSkinHostInstance` 使用的内部数据。
+struct ResolvedSkinHostInstance {
     id: String,
-    process: PlatformCodexProcess,
+    process: PlatformHostProcess,
     arguments: Vec<String>,
     debug_port: Option<u16>,
     profile: Option<String>,

@@ -22,7 +22,7 @@ use super::process_reaper::{
     wait_for_process_shutdown,
 };
 use super::{
-    AppError, PlatformCodexProcess, ResolvedCodexInstance, matching_process_command_lines,
+    AppError, PlatformHostProcess, ResolvedSkinHostInstance, matching_process_command_lines,
 };
 
 const OPEN_PATH: &str = "/usr/bin/open";
@@ -165,12 +165,12 @@ pub(crate) async fn host_command_lines(host: SkinHostKind) -> Result<Vec<(u32, S
 /// 将可信命令行快照转换为统一的平台宿主进程。
 pub(crate) async fn host_processes(
     host: SkinHostKind,
-) -> Result<Vec<PlatformCodexProcess>, AppError> {
+) -> Result<Vec<PlatformHostProcess>, AppError> {
     let app = discover_host_app(host)?;
     Ok(command_lines_for_verified(host, &app.executable)
         .await?
         .into_iter()
-        .map(|(pid, command_line)| PlatformCodexProcess {
+        .map(|(pid, command_line)| PlatformHostProcess {
             pid,
             executable: app.executable.clone(),
             command_line,
@@ -200,7 +200,7 @@ pub(crate) async fn launch_host(host: SkinHostKind, port: u16) -> Result<(), App
 /// 复核所选 PID 与应用签名，终止旧进程后以原参数和新端口重启。
 pub(crate) async fn restart_host_instance(
     host: SkinHostKind,
-    selected: &ResolvedCodexInstance,
+    selected: &ResolvedSkinHostInstance,
     port: u16,
 ) -> Result<(), AppError> {
     let app = verify_host_executable(host, &selected.process.executable)?;
@@ -271,8 +271,8 @@ pub(crate) async fn host_endpoint_owned_by_root(
             Err(endpoint_owner_inspection_failed(host))
         };
     }
-    let Some(owner_pid) =
-        unique_loopback_listener_owner(&String::from_utf8_lossy(&listener_output.stdout), port)
+    let Some(owners) =
+        loopback_listener_owners(&String::from_utf8_lossy(&listener_output.stdout), port)
     else {
         return Ok(false);
     };
@@ -289,7 +289,9 @@ pub(crate) async fn host_endpoint_owned_by_root(
     else {
         return Err(endpoint_owner_inspection_failed(host));
     };
-    if !process_descends_from(owner_pid, root_pid, &parents) {
+    // ChatGPT 主进程及其 Computer Use 子进程可以共同监听同一回环端口；
+    // 每一个监听者都必须属于已验证的宿主进程树，不能因其中一个可信就放行其它进程。
+    if !listener_owners_belong_to_root(&owners, root_pid, &parents) {
         return Ok(false);
     }
     let current = verify_host_executable(host, &trusted.executable)
@@ -483,8 +485,9 @@ fn endpoint_owner_inspection_failed(host: SkinHostKind) -> AppError {
     )
 }
 
-/// 从 `lsof -Fpn` 输出中提取唯一的回环监听进程；任何通配或歧义绑定均拒绝。
-fn unique_loopback_listener_owner(output: &str, port: u16) -> Option<u32> {
+/// 列出确实绑定在该回环端口（IPv4/IPv6 皆可）上的全部监听者 PID；
+/// 出现非回环地址（如通配 `*`）一律保守拒绝返回 `None`。
+fn loopback_listener_owners(output: &str, port: u16) -> Option<BTreeSet<u32>> {
     let ipv4 = format!("127.0.0.1:{port}");
     let ipv6 = format!("[::1]:{port}");
     let mut current_pid = None;
@@ -502,9 +505,7 @@ fn unique_loopback_listener_owner(output: &str, port: u16) -> Option<u32> {
             _ => {}
         }
     }
-    (owners.len() == 1)
-        .then(|| owners.into_iter().next())
-        .flatten()
+    (!owners.is_empty()).then_some(owners)
 }
 
 /// 解析 `ps` 的 PID/PPID 快照；重复 PID 或畸形行使整份快照失效。
@@ -519,6 +520,18 @@ fn parse_process_parents(output: &str) -> Option<HashMap<u32, u32>> {
         }
     }
     (!parents.is_empty()).then_some(parents)
+}
+
+/// 共同监听的所有进程都必须属于同一个已验证宿主根。
+fn listener_owners_belong_to_root(
+    owners: &BTreeSet<u32>,
+    root_pid: u32,
+    parents: &HashMap<u32, u32>,
+) -> bool {
+    !owners.is_empty()
+        && owners
+            .iter()
+            .all(|&owner_pid| process_descends_from(owner_pid, root_pid, parents))
 }
 
 /// 沿不可循环的父进程链确认 listener owner 归属于指定已验证根进程。
@@ -550,21 +563,54 @@ mod tests {
     #[test]
     fn listener_owner_accepts_one_process_on_loopback_only() {
         let output = "p42\nn127.0.0.1:9442\nn[::1]:9442\n";
-        assert_eq!(unique_loopback_listener_owner(output, 9442), Some(42));
+        assert_eq!(
+            loopback_listener_owners(output, 9442),
+            Some(BTreeSet::from([42]))
+        );
     }
 
-    /// 通配地址、多个 owner 或缺失 owner 的监听记录必须保守拒绝。
+    /// 同一回环端口的多个监听者（如 Codex 自带的协作进程）都保留下来，
+    /// 交由后续的根进程后代校验决定是否可信，而不是在这里直接拒绝。
     #[test]
-    fn listener_owner_rejects_wildcard_ambiguous_and_orphan_rows() {
-        assert_eq!(unique_loopback_listener_owner("p42\nn*:9442\n", 9442), None);
+    fn listener_owner_keeps_every_loopback_process_when_several_listen() {
         assert_eq!(
-            unique_loopback_listener_owner("p42\nn127.0.0.1:9442\np43\nn[::1]:9442\n", 9442),
-            None
+            loopback_listener_owners("p42\nn127.0.0.1:9442\np43\nn[::1]:9442\n", 9442),
+            Some(BTreeSet::from([42, 43]))
         );
-        assert_eq!(
-            unique_loopback_listener_owner("n127.0.0.1:9442\n", 9442),
-            None
-        );
+    }
+
+    /// ChatGPT 主进程和可信子进程共用端口可通过；混入其它树或缺失 PID 必须拒绝。
+    #[test]
+    fn listener_owners_must_all_descend_from_the_verified_root() {
+        let parents =
+            parse_process_parents("10 1\n20 10\n30 20\n40 1\n").expect("valid process snapshot");
+        assert!(listener_owners_belong_to_root(
+            &BTreeSet::from([10, 20, 30]),
+            10,
+            &parents,
+        ));
+        assert!(!listener_owners_belong_to_root(
+            &BTreeSet::from([10, 40]),
+            10,
+            &parents,
+        ));
+        assert!(!listener_owners_belong_to_root(
+            &BTreeSet::from([10, 99]),
+            10,
+            &parents,
+        ));
+        assert!(!listener_owners_belong_to_root(
+            &BTreeSet::new(),
+            10,
+            &parents,
+        ));
+    }
+
+    /// 通配地址或缺失 owner 的监听记录必须保守拒绝。
+    #[test]
+    fn listener_owner_rejects_wildcard_and_orphan_rows() {
+        assert_eq!(loopback_listener_owners("p42\nn*:9442\n", 9442), None);
+        assert_eq!(loopback_listener_owners("n127.0.0.1:9442\n", 9442), None);
     }
 
     /// listener owner 可以经过多个中间进程归属于已验证 WorkBuddy 根。

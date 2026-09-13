@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
 
-import type { CodexInstance } from "../src/api/skins";
+import type { SkinHostInstance } from "../src/api/skins";
 import {
   needsWorkBuddyCdpRecovery,
   resolveSoleTargetInstance,
 } from "../src/lib/skin-instances";
 
 /** 构造无需访问真实宿主的换皮实例快照。 */
-function hostInstance(id: string): CodexInstance {
+function hostInstance(id: string): SkinHostInstance {
   return {
     accountLabel: null,
     activeSkin: null,

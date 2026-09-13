@@ -10,18 +10,35 @@ mod quick;
 
 use std::path::PathBuf;
 
-use loki_metis_core::CoverageReport;
+use loki_metis_core::{CoverageReport, CoverageState};
 
 use super::{DiscoveryMethod, RegisteredRoot};
 
 pub use full_device::discover_full_device_with_progress;
 pub(crate) use inspection::{
     RootInspection, SignatureProbeContext, inspect_root, metadata_is_link_like,
-    registered_path_matches_candidate, validate_local_plain_directory,
+    registered_path_matches_candidate, reject_symlink_components, validate_local_plain_directory,
     walk_ancestors_for_link_component,
 };
 pub(crate) use loki_metis_core::{path_key, stable_id};
 pub use quick::discover_quick;
+
+/// 按取消、预算耗尽与权限/跳过计数折算出一次数据根发现的覆盖状态；
+/// Codex/Claude/Grok 三条 adapter 管线共用同一份折算规则。
+pub(crate) fn coverage_state(
+    cancelled: bool,
+    budget_exhausted: bool,
+    permission_denied_count: u64,
+    skipped_count: u64,
+) -> CoverageState {
+    if cancelled {
+        CoverageState::Cancelled
+    } else if budget_exhausted || permission_denied_count > 0 || skipped_count > 0 {
+        CoverageState::Partial
+    } else {
+        CoverageState::Complete
+    }
+}
 
 /// 汇总快速发现所需的显式输入，测试可完全避开真实用户环境。
 #[derive(Debug, Clone, Default)]

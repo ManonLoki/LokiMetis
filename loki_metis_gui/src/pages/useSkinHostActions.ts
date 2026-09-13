@@ -15,7 +15,7 @@ import { skinInstancesQueryKey } from "../api/query-keys";
 import {
   skinApi,
   SkinHostError,
-  type CodexInstance,
+  type SkinHostInstance,
   type SkinAppearanceCheck,
   type SkinDescriptor,
   type SkinHostKind,
@@ -39,7 +39,7 @@ export interface SkinAppearanceRequest {
   host: SkinHostKind;
   skin: SkinDescriptor;
   check: SkinAppearanceCheck;
-  target: CodexInstance | null;
+  target: SkinHostInstance | null;
   allowWorkBuddyRecovery: boolean;
 }
 
@@ -58,7 +58,7 @@ interface SkinHostActionsOptions {
   activeHost: SkinHostKind | null;
   host: SkinHostKind;
   hostStateReady: boolean;
-  instanceList: CodexInstance[];
+  instanceList: SkinHostInstance[];
   refreshHost: (host: SkinHostKind) => Promise<void>;
   setNotice: Dispatch<SetStateAction<string | null>>;
 }
@@ -145,7 +145,7 @@ export function useSkinHostActions({
     async (
       operationHost: SkinHostKind,
       skin: SkinDescriptor,
-      target: CodexInstance | null,
+      target: SkinHostInstance | null,
       allowThirdPartyCode: boolean,
       allowMismatch = false,
       allowWorkBuddyRecovery = false,
@@ -193,7 +193,7 @@ export function useSkinHostActions({
     async (
       operationHost: SkinHostKind,
       skin: SkinDescriptor,
-      target: CodexInstance | null,
+      target: SkinHostInstance | null,
       allowThirdPartyCode: boolean,
       authorityToken = captureAuthority(operationHost),
     ): Promise<void> => {

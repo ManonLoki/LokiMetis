@@ -56,7 +56,7 @@ async fn browser_host_root_pid(
 
 /// 选择端点必须绑定的 WorkBuddy 根 PID；指定实例时不得改用其它唯一实例。
 fn trusted_workbuddy_root_pid(
-    processes: &[PlatformCodexProcess],
+    processes: &[PlatformHostProcess],
     expected_workbuddy_root_pid: Option<u32>,
 ) -> Option<u32> {
     exactly_one(processes.iter().filter(|process| {
@@ -67,7 +67,7 @@ fn trusted_workbuddy_root_pid(
 
 /// 选择 Codex 端点必须绑定的根 PID；声明端口冲突或多实例均失败关闭。
 fn trusted_codex_root_pid(
-    processes: &[PlatformCodexProcess],
+    processes: &[PlatformHostProcess],
     endpoint: CdpEndpoint,
     expected_root_pid: Option<u32>,
 ) -> Option<u32> {
