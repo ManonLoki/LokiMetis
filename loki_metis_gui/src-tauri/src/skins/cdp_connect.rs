@@ -225,7 +225,14 @@ async fn host_runtime_status(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
 ) -> Result<(CodexRuntimeStatus, Option<CdpEndpoint>), AppError> {
-    for attempt in 1..=HOST_RUNTIME_STATUS_ATTEMPTS {
+    // 抖动重试只对「已验证过的端点」有意义；没有 preferred_endpoint 时宿主大概率根本没在跑，
+    // 重试只会白白重复一次进程枚举 + 连接尝试并叠加等待时间。
+    let attempts = if preferred_endpoint.is_some() {
+        HOST_RUNTIME_STATUS_ATTEMPTS
+    } else {
+        1
+    };
+    for attempt in 1..=attempts {
         let (_cancel_tx, mut cancel_rx) = watch::channel(false);
         match connect_existing_browser_with_preferred(host, &mut cancel_rx, preferred_endpoint)
             .await
@@ -248,7 +255,7 @@ async fn host_runtime_status(
                     message = error.message,
                     "host_runtime_status: existing connection check failed"
                 );
-                if attempt < HOST_RUNTIME_STATUS_ATTEMPTS {
+                if attempt < attempts {
                     tokio::time::sleep(HOST_RUNTIME_STATUS_RETRY_DELAY).await;
                 }
             }
