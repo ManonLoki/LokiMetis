@@ -162,19 +162,20 @@ async fn maybe_workbuddy_snapshot(
     if !state.workbuddy_stats_enabled().await {
         return WorkbuddySnapshotOutcome::Disabled;
     }
-    let Some(workbuddy_home) = crate::backend::workbuddy::resolve_workbuddy_home() else {
+    let workbuddy_homes = crate::backend::workbuddy::resolve_workbuddy_homes();
+    if workbuddy_homes.is_empty() {
         return WorkbuddySnapshotOutcome::Absent;
-    };
+    }
     let snapshot = if include_trace_diagnostics {
         crate::backend::workbuddy::read_workbuddy_statistics(
-            &workbuddy_home,
+            &workbuddy_homes,
             observed_at_epoch_ms,
             time_standard,
         )
         .await
     } else {
         crate::backend::workbuddy::read_workbuddy_usage_snapshot(
-            &workbuddy_home,
+            &workbuddy_homes,
             observed_at_epoch_ms,
             time_standard,
         )

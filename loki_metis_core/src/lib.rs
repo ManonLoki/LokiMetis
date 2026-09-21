@@ -142,10 +142,11 @@ pub use policy::{
     SourceClientKind, SourceFileObservation, SourceRootAliasValidationError,
     SourceRootDiscoveryVerificationError, SourceRootIdValidationError, SourceRootMutationFeedback,
     SourceRootMutationKind, SourceRootMutationMessageCode, SourceRootMutationOutcome,
-    UsageFilterIdValidationError, WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME,
-    WorkbuddyScanSource, coverage_completeness, decide_manual_source_add,
-    decide_periodic_scan_tick, discover_workbuddy_scan_source, discovery_batch_index_decision,
-    empty_coverage, ensure_periodic_quick_scan_allowed, ensure_primary_source_root_supported,
+    UsageFilterIdValidationError, WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_HOME_DIR_NAMES,
+    WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyScanSource,
+    coverage_completeness, decide_manual_source_add, decide_periodic_scan_tick,
+    discover_workbuddy_scan_sources, discovery_batch_index_decision, empty_coverage,
+    ensure_periodic_quick_scan_allowed, ensure_primary_source_root_supported,
     ensure_scan_start_allowed, ensure_single_verified_source_root,
     extract_single_verified_source_root, initial_coverage, is_safe_usage_filter_id,
     list_scan_source_clients, list_workbuddy_scan_sources, local_index_scan_policy,
@@ -155,7 +156,8 @@ pub use policy::{
     source_root_add_outcome, source_root_alias_from_path, source_root_mutation_feedback,
     source_root_primary_outcome, source_root_remove_outcome, source_root_rename_outcome,
     source_root_set_enabled_outcome, source_root_toggle_enabled_outcome, validate_source_root_id,
-    validate_usage_filter_id, workbuddy_home_from_user_home, workbuddy_scan_source_candidate,
+    validate_usage_filter_id, workbuddy_home_from_user_home, workbuddy_homes_from_user_home,
+    workbuddy_scan_source_candidate,
 };
 pub use provider::{
     Completeness, Confidence, Freshness, MetricFact, MetricScope, ProviderKind,
@@ -245,9 +247,9 @@ pub use workbuddy_stats::{
     WorkbuddyModelUsageWindow, WorkbuddyStatisticsSnapshot, WorkbuddyTraceRecord,
     WorkbuddyTraceStatus, WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin, WorkbuddyUsageQuality,
     WorkbuddyWindowAggregate, build_workbuddy_only_local_windows, build_workbuddy_usage_details,
-    complete_workbuddy_coverage, compute_workbuddy_statistics_with_standard,
-    mark_workbuddy_unavailable_in_local_windows, merge_workbuddy_into_local_windows,
-    workbuddy_combined_usage_unavailable_message,
+    combine_workbuddy_root_coverage, complete_workbuddy_coverage,
+    compute_workbuddy_statistics_with_standard, mark_workbuddy_unavailable_in_local_windows,
+    merge_workbuddy_into_local_windows, workbuddy_combined_usage_unavailable_message,
 };
 
 /// 表示共享核心是否就绪，以及是否仍需补充产品定义。

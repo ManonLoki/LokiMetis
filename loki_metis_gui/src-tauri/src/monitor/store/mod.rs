@@ -1,4 +1,9 @@
-//! 本机 Hook 配置目录、受管多文件原子写入与生命周期补写 worker。
+//! 本机 Hook 配置的受管多文件原子写入与生命周期补写 worker。
+//!
+//! 配置目录定位与校验位于 `locations` 子模块；本模块只负责串行化写入、显式写入
+//! 队列与取消、后台自愈 worker 以及退出时的有界回收。
+
+mod locations;
 
 use std::{
     collections::VecDeque,
@@ -13,13 +18,16 @@ use std::{
 use tokio::sync::oneshot;
 
 use loki_metis_core::{
-    AiTool, HookConfigDirectories, HookConfigLocation, HookConfigPreview, HookConfigWriteResult,
-    HookError, ai_tool_name, generate_hook_auxiliary_configs, generate_hook_config,
-    generate_wsl_hook_config, hook_config_filename, hook_config_write_result, hook_supports_wsl,
-    normalize_enabled_ai_tools, public_monitor_ai_tools,
+    AiTool, HookConfigPreview, HookConfigWriteResult, HookError, ai_tool_name,
+    generate_hook_auxiliary_configs, generate_hook_config, generate_wsl_hook_config,
+    hook_config_filename, hook_config_write_result, hook_supports_wsl, normalize_enabled_ai_tools,
 };
 
+pub use locations::{list_hook_config_locations, validate_hook_config_directory};
+
 use super::{settings::MonitorSettings, thread_owner::RetainedThreadOwner, wsl::WslDirectory};
+
+use self::locations::{hook_config_path_in, hook_config_target_directories, location_for};
 
 /// 串行化显式写入与后台自动补写，避免同一工具配置被并发读改写覆盖。
 static HOOK_CONFIG_WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -496,99 +504,6 @@ fn execute_explicit_hook_write(
     )
 }
 
-/// 读取环境变量覆盖的绝对配置目录。
-fn detected_config_directory(variable: &str, fallback: PathBuf) -> PathBuf {
-    std::env::var_os(variable)
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute())
-        .unwrap_or(fallback)
-}
-
-/// Hermes 在 Windows 上遵循 `%LOCALAPPDATA%\hermes`。
-#[cfg(target_os = "windows")]
-fn default_hermes_home(home: &Path) -> PathBuf {
-    detected_config_directory("LOCALAPPDATA", home.to_owned()).join("hermes")
-}
-
-/// Hermes 在 POSIX 系统上使用 `~/.hermes`。
-#[cfg(not(target_os = "windows"))]
-fn default_hermes_home(home: &Path) -> PathBuf {
-    home.join(".hermes")
-}
-
-/// 全部受支持 AI 工具的公开默认配置根目录。
-fn default_directory(tool: AiTool, home: &Path) -> PathBuf {
-    let open_code_fallback =
-        detected_config_directory("XDG_CONFIG_HOME", home.join(".config")).join("opencode");
-    match tool {
-        AiTool::Codex => detected_config_directory("CODEX_HOME", home.join(".codex")),
-        AiTool::ClaudeCode => detected_config_directory("CLAUDE_CONFIG_DIR", home.join(".claude")),
-        AiTool::Cursor => home.join(".cursor"),
-        AiTool::OpenCode => detected_config_directory("OPENCODE_CONFIG_DIR", open_code_fallback),
-        AiTool::WorkBuddy => home.join(".workbuddy"),
-        AiTool::Hermes => detected_config_directory("HERMES_HOME", default_hermes_home(home)),
-        AiTool::OpenClaw => detected_config_directory("OPENCLAW_STATE_DIR", home.join(".openclaw")),
-        AiTool::CodeBuddy => {
-            detected_config_directory("CODEBUDDY_CONFIG_DIR", home.join(".codebuddy"))
-        }
-        AiTool::QwenCode => home.join(".qwen"),
-        AiTool::KimiCode => detected_config_directory("KIMI_CODE_HOME", home.join(".kimi-code")),
-        AiTool::Qoder => home.join(".qoder"),
-        AiTool::GeminiCli => home.join(".gemini"),
-        AiTool::GitHubCopilot => detected_config_directory("COPILOT_HOME", home.join(".copilot")),
-        AiTool::Grok => detected_config_directory("GROK_HOME", home.join(".grok")),
-    }
-}
-
-/// 解析某工具最终配置定位。
-fn location_for(
-    tool: AiTool,
-    directories: &HookConfigDirectories,
-    home_directory: &Path,
-) -> HookConfigLocation {
-    let custom = directories.get(tool).trim();
-    let (directory, is_custom) = if custom.is_empty() {
-        (default_directory(tool, home_directory), false)
-    } else {
-        (PathBuf::from(custom), true)
-    };
-    let config_path = directory.join(hook_config_filename(tool));
-    HookConfigLocation {
-        tool,
-        directory: directory.to_string_lossy().into_owned(),
-        config_path: config_path.to_string_lossy().into_owned(),
-        is_custom,
-    }
-}
-
-/// 按统一公开目录列出当前可配置 Agent 的 Hook 定位；隐藏协议仍保留内部实现。
-pub fn list_hook_config_locations(
-    settings: &MonitorSettings,
-    home_directory: &Path,
-) -> Vec<HookConfigLocation> {
-    public_monitor_ai_tools()
-        .map(|tool| location_for(tool, &settings.hook_directories, home_directory))
-        .collect()
-}
-
-/// 校验并规范化自定义 Hook 目录；空字符串表示恢复默认目录。
-pub fn validate_hook_config_directory(directory: &str) -> Result<String, HookError> {
-    let directory = directory.trim();
-    if directory.is_empty() {
-        return Ok(String::new());
-    }
-    let path = Path::new(directory);
-    let is_wsl_unc = cfg!(target_os = "windows") && WslDirectory::parse(directory).is_some();
-    if !path.is_absolute() && !is_wsl_unc {
-        return Err(HookError::new("error.hooks.directoryNotAbsolute"));
-    }
-    if !is_wsl_unc && path.exists() && !path.is_dir() {
-        return Err(HookError::new("error.hooks.directoryNotAFolder")
-            .param("path", path.to_string_lossy().into_owned()));
-    }
-    Ok(directory.to_owned())
-}
-
 /// 串行化一次显式或后台写入；后台路径额外携带应用退出取消令牌。
 fn write_hook_config_with_cancellation(
     settings: &MonitorSettings,
@@ -636,6 +551,10 @@ fn ensure_hook_write_not_cancelled(cancellation: Option<&AtomicBool>) -> Result<
 }
 
 /// 已持有配置写锁时执行单个工具的完整多文件写入。
+///
+/// 同一工具可能有多个固定配置根（WorkBuddy 国内版与国际版），每个根都要独立完成
+/// 主配置与辅助文件的合并写入。取消是硬边界，一旦观察到就立即停止；单个根失败
+/// 不会阻止其余根继续写入，最终以第一个失败结束，交由后台自愈重试收敛。
 fn write_hook_config_unlocked(
     settings: &MonitorSettings,
     tool: AiTool,
@@ -672,13 +591,40 @@ fn write_hook_config_unlocked(
             cancellation.as_deref(),
         );
     }
-    write_local_configs(
+
+    let mut config_changed = false;
+    let mut first_error = None;
+    for directory in
+        hook_config_target_directories(tool, &settings.hook_directories, home_directory)
+    {
+        ensure_hook_write_not_cancelled(cancellation.as_deref())?;
+        let result = write_local_configs(
+            tool,
+            Path::new(&hook_config_path_in(tool, &directory)),
+            &directory,
+            generated.clone(),
+            cancellation.as_deref(),
+        );
+        match result {
+            Ok(result) => config_changed |= result.config_changed,
+            Err(error) => {
+                tracing::warn!(
+                    tool = ai_tool_name(tool),
+                    code = error.code,
+                    "failed to write one of the fixed hook config roots"
+                );
+                first_error = Some(error);
+            }
+        }
+    }
+    if let Some(error) = first_error {
+        return Err(error);
+    }
+    Ok(hook_config_write_result(
         tool,
-        &config_path,
-        Path::new(&location.directory),
-        generated,
-        cancellation.as_deref(),
-    )
+        config_path.to_string_lossy().into_owned(),
+        config_changed,
+    ))
 }
 
 /// 合并并写入普通本机配置及工具声明的全部辅助文件。
@@ -788,5 +734,4 @@ fn repair_enabled_hook_configs_with_cancellation(
 }
 
 #[cfg(test)]
-#[path = "store_tests.rs"]
 mod tests;

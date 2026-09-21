@@ -22,6 +22,7 @@ fn usage(
         logical_call_id: id.to_owned(),
         session_key: session.to_owned(),
         source_id: format!("source-{id}"),
+        root_id: "workbuddy-root-test".to_owned(),
         occurred_at_epoch_ms,
         model: model.map(ToOwned::to_owned),
         project_key: Some("project-safe".to_owned()),
@@ -437,8 +438,10 @@ fn usage_page_groups_actual_models_with_cache_components() {
     let (page, model_usage) = build_workbuddy_usage_details(
         &records,
         &complete_workbuddy_coverage(),
-        "workbuddy-root-test",
-        ".workbuddy",
+        &std::collections::BTreeMap::from([(
+            "workbuddy-root-test".to_owned(),
+            ".workbuddy".to_owned(),
+        )]),
         crate::LocalUsageWindow::Today,
         crate::UsageDimension::Model,
         OBSERVED_EPOCH_MS,
@@ -465,4 +468,124 @@ fn usage_page_groups_actual_models_with_cache_components() {
         .map(|group| group.total_tokens)
         .sum();
     assert_eq!(model_total, page.fact.value.tokens.total_tokens);
+}
+
+/// 构造一条属于指定 WorkBuddy 数据根的 usage 事件，供双版本合并测试使用。
+fn usage_in_root(
+    root_id: &str,
+    id: &str,
+    session: &str,
+    occurred_at_epoch_ms: i64,
+    input_tokens: i64,
+    output_tokens: i64,
+) -> WorkbuddyUsageEventRecord {
+    let mut record = usage(
+        id,
+        session,
+        occurred_at_epoch_ms,
+        Some("model-a"),
+        WorkbuddyUsageOrigin::TopLevel,
+        input_tokens,
+        0,
+        output_tokens,
+        None,
+    );
+    record.root_id = root_id.to_owned();
+    record
+}
+
+/// 国内版与国际版记录合并后必须按各自数据根解析别名，缺别名时失败关闭。
+#[test]
+fn merged_editions_resolve_each_root_alias_and_reject_missing_alias() {
+    let records = vec![
+        usage_in_root(
+            "workbuddy-root-cn",
+            "cn-1",
+            "cn-session",
+            TODAY_EPOCH_MS,
+            10,
+            5,
+        ),
+        usage_in_root(
+            "workbuddy-root-intl",
+            "intl-1",
+            "intl-session",
+            TODAY_EPOCH_MS,
+            20,
+            7,
+        ),
+    ];
+    let aliases = std::collections::BTreeMap::from([
+        ("workbuddy-root-cn".to_owned(), ".workbuddy".to_owned()),
+        ("workbuddy-root-intl".to_owned(), ".workbuddy-ai".to_owned()),
+    ]);
+
+    let (page, model_usage) = build_workbuddy_usage_details(
+        &records,
+        &complete_workbuddy_coverage(),
+        &aliases,
+        crate::LocalUsageWindow::Today,
+        crate::UsageDimension::Model,
+        OBSERVED_EPOCH_MS,
+        &crate::TimeStandard::utc(),
+        &jiff::tz::TimeZone::UTC,
+    )
+    .expect("merged statistics page");
+
+    // 两条根各自的请求都必须计入同一个 WorkBuddy 统计页。
+    assert_eq!(page.fact.value.call_count, 2);
+    assert_eq!(page.fact.value.tokens.total_tokens, 42);
+    assert_eq!(model_usage.groups.len(), 1);
+
+    // 缺少任一已出现数据根的别名时必须报错，不能用空标签冒充来源。
+    let incomplete = std::collections::BTreeMap::from([(
+        "workbuddy-root-cn".to_owned(),
+        ".workbuddy".to_owned(),
+    )]);
+    assert!(
+        build_workbuddy_usage_details(
+            &records,
+            &complete_workbuddy_coverage(),
+            &incomplete,
+            crate::LocalUsageWindow::Today,
+            crate::UsageDimension::Model,
+            OBSERVED_EPOCH_MS,
+            &crate::TimeStandard::utc(),
+            &jiff::tz::TimeZone::UTC,
+        )
+        .is_err()
+    );
+}
+
+/// 两个固定根的覆盖结论必须按根求和，任一 Partial 都不能被完整根掩盖。
+#[test]
+fn root_coverage_merges_by_root_and_degrades_on_partial() {
+    let complete = crate::CoverageReport {
+        state: crate::CoverageState::Complete,
+        roots_scanned: 1,
+        roots_discovered: 1,
+        permission_denied_count: 0,
+        skipped_count: 0,
+        warning_count: 0,
+    };
+    let partial = crate::CoverageReport {
+        state: crate::CoverageState::Partial,
+        roots_scanned: 1,
+        roots_discovered: 1,
+        permission_denied_count: 0,
+        skipped_count: 1,
+        warning_count: 2,
+    };
+
+    let merged = combine_workbuddy_root_coverage(&[complete.clone(), complete.clone()]);
+    assert_eq!(merged.state, crate::CoverageState::Complete);
+    assert_eq!(merged.roots_scanned, 2);
+    assert_eq!(merged.roots_discovered, 2);
+
+    let degraded = combine_workbuddy_root_coverage(&[complete, partial]);
+    assert_eq!(degraded.state, crate::CoverageState::Partial);
+    assert_eq!(degraded.roots_scanned, 2);
+    assert_eq!(degraded.roots_discovered, 2);
+    assert_eq!(degraded.skipped_count, 1);
+    assert_eq!(degraded.warning_count, 2);
 }

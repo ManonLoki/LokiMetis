@@ -274,6 +274,12 @@ pub struct HookConfigLocation {
     pub config_path: String,
     /// 是否为用户自定义目录。
     pub is_custom: bool,
+    /// 同一工具除主配置外必须一并维护的固定配置文件路径。
+    ///
+    /// 多数工具只有一个固定配置位置，此字段为空；WorkBuddy 国内版与国际版是两个
+    /// 互不相同的固定安装目录，自定义目录为空时两者都要写入，因而此处携带国际版
+    /// 的配置文件路径。用户显式指定自定义目录后该字段为空，表示只写入自定义位置。
+    pub additional_config_paths: Vec<String>,
 }
 
 /// AI 实例在展示面上的四态行为。

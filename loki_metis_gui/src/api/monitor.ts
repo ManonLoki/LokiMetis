@@ -80,6 +80,13 @@ export interface HookConfigLocation {
   directory: string;
   configPath: string;
   isCustom: boolean;
+  /**
+   * 同一工具除主配置外必须一并写入的固定配置文件路径。
+   *
+   * 多数工具为空；WorkBuddy 国内版与国际版是两个固定安装目录，自定义目录为空时
+   * 两者都要写入，因而此处携带国际版配置文件的完整路径。
+   */
+  additionalConfigPaths: string[];
 }
 
 /** Hook 写入结果。 */

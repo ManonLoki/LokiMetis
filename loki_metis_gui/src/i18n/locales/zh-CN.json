@@ -289,6 +289,7 @@
       "saveDirectory": "保存路径",
       "restoreDirectory": "恢复默认",
       "configFile": "配置文件",
+      "additionalConfigFiles": "同时写入的其它配置文件",
       "write": "写入 Hooks",
       "written": "已写入 {{file}}（{{outcome}}）",
       "activation": {

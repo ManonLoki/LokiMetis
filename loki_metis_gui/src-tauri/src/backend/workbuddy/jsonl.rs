@@ -352,6 +352,7 @@ fn parse_complete_line(line: &[u8], source: &WorkbuddyProjectFile, root_id: &str
         logical_call_id,
         session_key,
         source_id,
+        root_id: root_id.to_owned(),
         occurred_at_epoch_ms: timestamp,
         model: provider.model,
         project_key: Some(stable_id("workbuddy-project", project_seed)),

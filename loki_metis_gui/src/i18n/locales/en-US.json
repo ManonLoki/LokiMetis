@@ -283,6 +283,7 @@
       "saveDirectory": "Save path",
       "restoreDirectory": "Restore default",
       "configFile": "Configuration file",
+      "additionalConfigFiles": "Additional configuration files",
       "write": "Write Hooks",
       "written": "Wrote {{file}} ({{outcome}})",
       "activation": {

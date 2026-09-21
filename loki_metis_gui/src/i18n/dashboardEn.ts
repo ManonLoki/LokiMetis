@@ -557,7 +557,7 @@ export const dashboardEnUS = {
   workbuddySources: {
     title: "WorkBuddy data source",
     description:
-      "Read-only detection and parsing of ~/.workbuddy/projects/<project>/<session>.jsonl and its subagents/*.jsonl. No data root or product index is created. JSONL line bytes are read during parsing, but conversation bodies are never retained, displayed, indexed, uploaded, or logged.",
+      "Read-only detection and parsing of projects/<project>/<session>.jsonl and its subagents/*.jsonl under both fixed directories, ~/.workbuddy and ~/.workbuddy-ai, merged into a single set of statistics. No data root or product index is created. JSONL line bytes are read during parsing, but conversation bodies are never retained, displayed, indexed, uploaded, or logged.",
     found: "Found: {{alias}}",
     notFound: "Not found",
     notFoundTitle: "No local WorkBuddy directory found",

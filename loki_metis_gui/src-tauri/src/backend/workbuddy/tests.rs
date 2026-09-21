@@ -2,7 +2,10 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use loki_metis_core::{CoverageState, LocalUsageWindow, TimeStandard, UsageDimension};
+use loki_metis_core::{
+    CoverageState, LocalUsageWindow, TimeStandard, UsageDimension, WORKBUDDY_HOME_DIR_NAME,
+    WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME,
+};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 
@@ -16,11 +19,41 @@ fn epoch_ms(value: &str) -> i64 {
         .as_millisecond()
 }
 
-/// 创建 WorkBuddy 夹具根及其固定 `projects` 目录。
-fn fixture_home(root: &Path) -> PathBuf {
-    let home = root.join(".workbuddy");
+/// 在夹具根下创建指定 WorkBuddy 版本的固定目录及其 `projects` 子目录。
+fn fixture_edition_home(root: &Path, dir_name: &str) -> PathBuf {
+    let home = root.join(dir_name);
     fs::create_dir_all(home.join("projects")).expect("projects fixture root exists");
     home
+}
+
+/// 创建 WorkBuddy 国内版夹具根及其固定 `projects` 目录。
+fn fixture_home(root: &Path) -> PathBuf {
+    fixture_edition_home(root, WORKBUDDY_HOME_DIR_NAME)
+}
+
+/// 创建 WorkBuddy 国际版夹具根及其固定 `projects` 目录。
+fn fixture_international_home(root: &Path) -> PathBuf {
+    fixture_edition_home(root, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME)
+}
+
+/// 把夹具路径包装成只读扫描源；测试只关心探测证据，身份字段只求稳定。
+fn fixture_source(home: &Path) -> WorkbuddyScanSource {
+    WorkbuddyScanSource {
+        root_id: "workbuddy-root-fixture".to_owned(),
+        alias: "fixture".to_owned(),
+        path: home.to_path_buf(),
+    }
+}
+
+/// 读取单个夹具根的项目结构证据，保留读取失败以便断言失败关闭语义。
+fn single_source_evidence(
+    home: &Path,
+) -> Result<WorkbuddyProjectSourceEvidence, WorkbuddyReadError> {
+    inspect_workbuddy_project_sources(&[fixture_source(home)])
+        .into_iter()
+        .next()
+        .expect("single fixture root yields one inspection")
+        .evidence
 }
 
 /// 生成一条直接携带 `providerData.usage` 的真实形状事件。
@@ -98,14 +131,27 @@ fn write_lines(path: &Path, lines: &[String]) {
     }
 }
 
-/// 按生产路径读取指定窗口的模型表，失败时给出明确测试诊断。
+/// 写入一个固定根下形状最小的 Trace 诊断文件。
+fn write_trace(home: &Path, status: &str, duration: i64) {
+    let traces_dir = home.join(WORKBUDDY_TRACES_DIR_NAME).join("1234");
+    fs::create_dir_all(&traces_dir).expect("trace fixture dir exists");
+    fs::write(
+        traces_dir.join("trace.json"),
+        format!(
+            r#"{{"trace":{{"startedAt":"2026-09-04T10:00:00Z","duration":{duration},"status":"{status}"}}}}"#
+        ),
+    )
+    .expect("trace fixture writes");
+}
+
+/// 按生产路径读取单个夹具根在指定窗口的模型表，失败时给出明确测试诊断。
 async fn model_window(
     home: &Path,
     window: LocalUsageWindow,
     now_epoch_ms: i64,
 ) -> loki_metis_core::WorkbuddyModelUsageWindow {
     read_workbuddy_usage_details(
-        home,
+        &[home.to_path_buf()],
         window,
         UsageDimension::Model,
         now_epoch_ms,
@@ -176,7 +222,7 @@ async fn reads_top_level_and_subagent_usage_with_exact_model_breakdown() {
     )
     .expect("trace fixture writes");
 
-    let evidence = inspect_workbuddy_project_source(&home).expect("source evidence available");
+    let evidence = single_source_evidence(&home).expect("source evidence available");
     assert_eq!(evidence.file_count, 2);
     assert_eq!(evidence.top_level_file_count, 1);
     assert_eq!(evidence.subagent_file_count, 1);
@@ -184,7 +230,7 @@ async fn reads_top_level_and_subagent_usage_with_exact_model_breakdown() {
     assert_eq!(evidence.skipped_count, 0);
     assert!(!evidence.budget_exhausted);
 
-    let snapshot = read_workbuddy_statistics(&home, day_two, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(&[home.clone()], day_two, TimeStandard::utc())
         .await
         .expect("statistics compute succeeds");
     assert_eq!(snapshot.coverage.state, CoverageState::Complete);
@@ -233,6 +279,78 @@ async fn reads_top_level_and_subagent_usage_with_exact_model_breakdown() {
     );
 }
 
+/// 国内版与国际版两个固定根必须合并成同一份快照，并保留逐根会话身份。
+#[tokio::test]
+async fn merges_domestic_and_international_roots_into_one_snapshot() {
+    let temp = tempdir().expect("isolated dir exists");
+    let domestic = fixture_home(temp.path());
+    let international = fixture_international_home(temp.path());
+    let now = epoch_ms("2026-09-04T12:00:00Z");
+    write_lines(
+        &domestic.join("projects/project-a/session-a.jsonl"),
+        &[usage_event(
+            now,
+            "shared-session",
+            "domestic-call",
+            "alpha",
+            100,
+            80,
+            10,
+            1,
+            1.25,
+        )],
+    );
+    write_lines(
+        &international.join("projects/project-a/session-a.jsonl"),
+        &[usage_event(
+            now,
+            "shared-session",
+            "international-call",
+            "alpha",
+            40,
+            30,
+            4,
+            1,
+            0.25,
+        )],
+    );
+    let homes = vec![domestic, international];
+
+    let snapshot = read_workbuddy_statistics(&homes, now, TimeStandard::utc())
+        .await
+        .expect("merged editions compute succeeds");
+    assert_eq!(snapshot.coverage.state, CoverageState::Complete);
+    assert_eq!(snapshot.coverage.roots_scanned, 2);
+    assert_eq!(snapshot.total_requests, 2);
+    assert_eq!(snapshot.total_input_tokens, 140);
+    assert_eq!(snapshot.total_cached_input_tokens, 110);
+    assert_eq!(snapshot.total_uncached_input_tokens, 30);
+    assert_eq!(snapshot.total_output_tokens, 14);
+    assert_eq!(snapshot.total_tokens, 154);
+    assert_eq!(snapshot.total_credits, Some(1.5));
+    assert_eq!(snapshot.daily_buckets.len(), 1);
+    assert_eq!(snapshot.daily_buckets[0].request_count, 2);
+    // 两个版本是互不相同的安装，同名 sessionId 属于各自根下的不同会话。
+    assert_eq!(snapshot.total_sessions, 2);
+
+    let details = read_workbuddy_usage_details(
+        &homes,
+        LocalUsageWindow::ThisMonth,
+        UsageDimension::Model,
+        now,
+        TimeStandard::utc(),
+    )
+    .await
+    .expect("merged model window builds");
+    assert_eq!(details.model_usage.groups.len(), 1);
+    let alpha = &details.model_usage.groups[0];
+    assert_eq!(alpha.model.as_deref(), Some("alpha"));
+    assert_eq!(alpha.call_count, 2);
+    assert_eq!(alpha.total_tokens, 154);
+    assert_eq!(details.statistics.fact.value.call_count, 2);
+    assert_eq!(details.statistics.fact.value.tokens.total_tokens, 154);
+}
+
 /// 统计页和模型表必须由同一批 project JSONL 事件构造并相互对账。
 #[tokio::test]
 async fn usage_details_reconciles_exact_components_and_models() {
@@ -248,7 +366,7 @@ async fn usage_details_reconciles_exact_components_and_models() {
     );
 
     let details = read_workbuddy_usage_details(
-        &home,
+        &[home.clone()],
         LocalUsageWindow::ThisMonth,
         UsageDimension::Model,
         now,
@@ -312,7 +430,7 @@ async fn ignores_unterminated_tail_without_degrading_coverage() {
     .expect("unterminated fixture tail writes");
     drop(file);
 
-    let snapshot = read_workbuddy_statistics(&home, now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
         .await
         .expect("statistics compute succeeds");
     assert_eq!(snapshot.coverage.state, CoverageState::Complete);
@@ -349,7 +467,7 @@ async fn malformed_and_oversized_lines_are_partial_and_recovery_continues() {
     .expect("valid recovery line writes");
     drop(file);
 
-    let snapshot = read_workbuddy_statistics(&home, now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
         .await
         .expect("partial statistics remain usable");
     assert_eq!(snapshot.coverage.state, CoverageState::Partial);
@@ -384,7 +502,7 @@ async fn reads_usage_after_two_megabytes_in_one_file() {
     drop(file);
     assert!(fs::metadata(&path).expect("fixture metadata").len() > 2 * 1024 * 1024);
 
-    let snapshot = read_workbuddy_statistics(&home, now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
         .await
         .expect("large file statistics compute succeeds");
     assert_eq!(snapshot.coverage.state, CoverageState::Complete);
@@ -392,44 +510,78 @@ async fn reads_usage_after_two_megabytes_in_one_file() {
     assert_eq!(snapshot.total_tokens, 30);
 }
 
-/// 获批 `projects` 根缺失时必须失败关闭为来源不可用。
+/// 尚未产生 `projects` 布局的固定根只被跳过；全部根都如此时按来源不可用处理。
 #[tokio::test]
-async fn missing_projects_root_is_source_unavailable() {
+async fn roots_without_projects_layout_are_skipped_until_none_remain() {
     let temp = tempdir().expect("isolated dir exists");
-    let home = temp.path().join(".workbuddy");
-    fs::create_dir_all(&home).expect("workbuddy fixture home exists");
+    let now = epoch_ms("2026-09-04T12:00:00Z");
+    let domestic = temp.path().join(WORKBUDDY_HOME_DIR_NAME);
+    let international = temp.path().join(WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME);
+    fs::create_dir_all(&domestic).expect("domestic fixture home exists");
+    fs::create_dir_all(&international).expect("international fixture home exists");
 
-    let result =
-        read_workbuddy_statistics(&home, epoch_ms("2026-09-04T12:00:00Z"), TimeStandard::utc())
-            .await;
+    // 两个根都还没有用量布局：整体按未安装来源处理，逐根探测也同为不可用。
+    let result = read_workbuddy_statistics(
+        &[domestic.clone(), international.clone()],
+        now,
+        TimeStandard::utc(),
+    )
+    .await;
     assert_eq!(result.unwrap_err(), WorkbuddyReadError::SourceUnavailable);
     assert_eq!(
-        inspect_workbuddy_project_source(&home).unwrap_err(),
+        single_source_evidence(&domestic).unwrap_err(),
         WorkbuddyReadError::SourceUnavailable
     );
+    assert_eq!(
+        single_source_evidence(&international).unwrap_err(),
+        WorkbuddyReadError::SourceUnavailable
+    );
+
+    // 只有国际版产生布局后，该根独立贡献用量，缺失的国内版不影响结果。
+    write_lines(
+        &international.join("projects/project-a/session-a.jsonl"),
+        &[usage_event(now, "s1", "m1", "alpha", 10, 5, 1, 1, 0.1)],
+    );
+    let snapshot = read_workbuddy_statistics(&[domestic, international], now, TimeStandard::utc())
+        .await
+        .expect("international-only usage remains readable");
+    assert_eq!(snapshot.coverage.state, CoverageState::Complete);
+    assert_eq!(snapshot.coverage.roots_scanned, 1);
+    assert_eq!(snapshot.total_requests, 1);
+    assert_eq!(snapshot.total_tokens, 11);
 }
 
-/// 已存在但链接型的 `projects` 根是安全读取失败，不能伪装成未安装来源。
+/// 已存在但链接型的 `projects` 根是安全读取失败，并使整个来源失败关闭。
 #[cfg(unix)]
 #[tokio::test]
-async fn linked_projects_root_is_an_explicit_read_failure() {
+async fn linked_projects_root_fails_the_whole_source_closed() {
     use std::os::unix::fs::symlink;
 
     let temp = tempdir().expect("isolated dir exists");
-    let home = temp.path().join(".workbuddy");
+    let now = epoch_ms("2026-09-04T12:00:00Z");
+    let domestic = temp.path().join(WORKBUDDY_HOME_DIR_NAME);
     let outside = temp.path().join("outside-projects");
-    fs::create_dir_all(&home).expect("workbuddy fixture home exists");
+    fs::create_dir_all(&domestic).expect("workbuddy fixture home exists");
     fs::create_dir_all(&outside).expect("outside fixture exists");
-    symlink(&outside, home.join("projects")).expect("projects symlink creates");
+    symlink(&outside, domestic.join("projects")).expect("projects symlink creates");
 
     let result =
-        read_workbuddy_statistics(&home, epoch_ms("2026-09-04T12:00:00Z"), TimeStandard::utc())
-            .await;
+        read_workbuddy_statistics(std::slice::from_ref(&domestic), now, TimeStandard::utc()).await;
     assert_eq!(result.unwrap_err(), WorkbuddyReadError::Read);
     assert_eq!(
-        inspect_workbuddy_project_source(&home).unwrap_err(),
+        single_source_evidence(&domestic).unwrap_err(),
         WorkbuddyReadError::Read
     );
+
+    // 另一个根即使完全健康，也不能把被链接根的部分结果伪装成完整统计。
+    let international = fixture_international_home(temp.path());
+    write_lines(
+        &international.join("projects/project-a/session-a.jsonl"),
+        &[usage_event(now, "s1", "m1", "alpha", 10, 5, 1, 1, 0.1)],
+    );
+    let result =
+        read_workbuddy_statistics(&[domestic, international], now, TimeStandard::utc()).await;
+    assert_eq!(result.unwrap_err(), WorkbuddyReadError::Read);
 }
 
 /// 符号链接 transcript 必须被拒绝，链接目标不得贡献任何用量。
@@ -461,13 +613,13 @@ async fn rejects_symlinked_project_transcripts() {
     );
     symlink(&outside, project_dir.join("linked.jsonl")).expect("fixture symlink creates");
 
-    let evidence = inspect_workbuddy_project_source(&home).expect("source evidence available");
+    let evidence = single_source_evidence(&home).expect("source evidence available");
     assert_eq!(evidence.file_count, 1);
     assert_eq!(evidence.top_level_file_count, 1);
     assert_eq!(evidence.subagent_file_count, 0);
     assert_eq!(evidence.skipped_count, 1);
 
-    let snapshot = read_workbuddy_statistics(&home, now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
         .await
         .expect("safe records remain usable");
     assert_eq!(snapshot.coverage.state, CoverageState::Partial);
@@ -480,6 +632,33 @@ async fn rejects_symlinked_project_transcripts() {
             .len(),
         1
     );
+}
+
+/// 两个固定根的 Trace 诊断必须合并成一份快照，而不是只读国内版。
+#[tokio::test]
+async fn trace_diagnostics_merge_across_both_roots() {
+    let temp = tempdir().expect("isolated dir exists");
+    let now = epoch_ms("2026-09-04T12:00:00Z");
+    let domestic = fixture_home(temp.path());
+    let international = fixture_international_home(temp.path());
+    write_lines(
+        &domestic.join("projects/project-a/session-a.jsonl"),
+        &[usage_event(now, "s1", "d1", "alpha", 10, 5, 1, 1, 0.1)],
+    );
+    write_lines(
+        &international.join("projects/project-a/session-a.jsonl"),
+        &[usage_event(now, "s1", "i1", "alpha", 10, 5, 1, 1, 0.1)],
+    );
+    write_trace(&domestic, "error", 1_500);
+    write_trace(&international, "ok", 500);
+
+    let snapshot = read_workbuddy_statistics(&[domestic, international], now, TimeStandard::utc())
+        .await
+        .expect("statistics compute succeeds");
+    assert_eq!(snapshot.trace_total_count, 2);
+    assert_eq!(snapshot.trace_error_count, 1);
+    assert_eq!(snapshot.trace_cancelled_count, 0);
+    assert_eq!(snapshot.trace_average_duration_ms, 1_000.0);
 }
 
 /// 未知 Trace 状态必须被忽略，且缺失 traces 目录本身不是用量错误。

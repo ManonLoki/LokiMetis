@@ -516,7 +516,7 @@ export const dashboardZhCN = {
   workbuddySources: {
     title: "WorkBuddy 数据源",
     description:
-      "只读探测并解析固定的 ~/.workbuddy/projects/<project>/<session>.jsonl 与其 subagents/*.jsonl；不会注册数据根或建立本产品索引。解析会读取 JSONL 行的内容字节，但正文不会被保留、展示、索引、上传或记录。",
+      "只读探测并解析国内版 ~/.workbuddy 与国际版 ~/.workbuddy-ai 两个固定目录下的 projects/<project>/<session>.jsonl 及其 subagents/*.jsonl，并合并为同一份统计；不会注册数据根或建立本产品索引。解析会读取 JSONL 行的内容字节，但正文不会被保留、展示、索引、上传或记录。",
     found: "已发现：{{alias}}",
     notFound: "未发现",
     notFoundTitle: "未发现本机 WorkBuddy 目录",

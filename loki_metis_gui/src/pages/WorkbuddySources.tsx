@@ -19,15 +19,16 @@ const WORKBUDDY_SOURCE_STATUS_QUERY_KEY = ["workbuddy-source-status"];
 function workbuddyDiscoveryStatus(
   state: "idle" | "complete",
   scope: RootDiscoveryScope,
-  installed: boolean,
+  rootCount: number,
 ): RootDiscoveryStatusDto {
   const complete = state === "complete";
+  const found = complete ? rootCount : 0;
   return {
-    candidatesFound: complete && installed ? 1 : 0,
-    directoriesChecked: complete ? 1 : 0,
+    candidatesFound: found,
+    directoriesChecked: found,
     errorCode: null,
     fallbackPerformed: false,
-    fileNamesChecked: complete ? 1 : 0,
+    fileNamesChecked: found,
     ioErrors: 0,
     platform: "other",
     permissionDenied: 0,
@@ -36,18 +37,19 @@ function workbuddyDiscoveryStatus(
     state,
     strategy: "metadataTraversal",
     systemIndexAvailable: false,
-    volumesCompleted: complete ? 1 : 0,
-    volumesTotal: complete ? 1 : 0,
+    volumesCompleted: found,
+    volumesTotal: found,
   };
 }
 
 /** WorkBuddy 数据源页：与 Codex/Claude Code/Grok 同一横向菜单位置，复用根表
- * 与发现面板，但只探测固定的 `~/.workbuddy`，不登记产品数据根、不建索引。 */
+ * 与发现面板，但只探测固定的 `~/.workbuddy` 与 `~/.workbuddy-ai` 两个只读根，
+ * 不登记产品数据根、不建索引。 */
 export function WorkbuddySources() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [discovery, setDiscovery] = useState<RootDiscoveryStatusDto>(() =>
-    workbuddyDiscoveryStatus("idle", "userPriority", false),
+    workbuddyDiscoveryStatus("idle", "userPriority", 0),
   );
   const statusQuery = useQuery({
     queryFn: getWorkbuddySourceStatus,
@@ -104,10 +106,10 @@ export function WorkbuddySources() {
         onCancel={() => undefined}
         onManualAdd={() => undefined}
         onStart={(scope) => {
-          setDiscovery(workbuddyDiscoveryStatus("idle", scope, status.installed));
+          setDiscovery(workbuddyDiscoveryStatus("idle", scope, 0));
           void statusQuery.refetch().then((result) => {
             setDiscovery(
-              workbuddyDiscoveryStatus("complete", scope, result.data?.installed === true),
+              workbuddyDiscoveryStatus("complete", scope, result.data?.roots.length ?? 0),
             );
           });
         }}

@@ -143,50 +143,6 @@ fn empty_enabled_set_performs_no_write_or_delete() {
 }
 
 #[test]
-/// 自定义目录只接受空重置或指向目录的绝对路径。
-fn custom_directory_requires_an_absolute_directory_or_empty_reset() {
-    let root = tempdir().expect("temp");
-    assert_eq!(validate_hook_config_directory("  ").expect("empty"), "");
-    assert_eq!(
-        validate_hook_config_directory(&format!("  {}  ", root.path().display()))
-            .expect("absolute directory"),
-        root.path().to_string_lossy()
-    );
-    assert_eq!(
-        validate_hook_config_directory("relative/hooks")
-            .expect_err("relative path")
-            .code,
-        "error.hooks.directoryNotAbsolute"
-    );
-    let file = root.path().join("not-a-directory");
-    std::fs::write(&file, "file").expect("file");
-    assert_eq!(
-        validate_hook_config_directory(&file.to_string_lossy())
-            .expect_err("file path")
-            .code,
-        "error.hooks.directoryNotAFolder"
-    );
-}
-
-#[test]
-/// 即使相对路径来自旧持久设置，真正写入前仍必须拒绝。
-fn write_rejects_relative_directory_loaded_from_persisted_settings() {
-    let mut settings = MonitorSettings::default();
-    settings
-        .hook_directories
-        .set(AiTool::Codex, "relative/from-old-settings".to_owned());
-    let error = write_hook_config(
-        &settings,
-        AiTool::Codex,
-        Path::new("/opt/LokiMetis"),
-        Path::new("/home/test"),
-    )
-    .expect_err("relative persisted path");
-    assert_eq!(error.code, "error.hooks.directoryNotAbsolute");
-    assert!(!Path::new("relative/from-old-settings/hooks.json").exists());
-}
-
-#[test]
 /// 相同 relay 与事件集合的重复写入保持幂等。
 fn repeated_write_is_idempotent() {
     let root = tempdir().expect("temp");
@@ -503,7 +459,7 @@ fn shutdown_cancels_active_and_pending_explicit_writes() {
 #[test]
 /// Tauri 显式写入命令必须保持 async，并只等待生命周期 writer，不能直接执行文件 I/O。
 fn explicit_hook_command_delegates_blocking_io_to_owned_writer() {
-    let source = include_str!("commands.rs");
+    let source = include_str!("../commands.rs");
     let start = source
         .find("pub async fn write_monitor_hook_config")
         .expect("explicit hook command must be async");
@@ -533,7 +489,7 @@ fn hook_writer_join_respects_shutdown_deadline() {
     assert!(started.elapsed() < std::time::Duration::from_millis(150));
     worker.join().expect("测试 worker 最终必须回收");
 
-    let source = include_str!("store.rs");
+    let source = include_str!("mod.rs");
     assert!(source.contains("retained_hook_writer_owner().retain(worker_handle)"));
 }
 
@@ -657,44 +613,6 @@ fn owned_worker_replaces_the_previous_directory_snapshot() {
         std::fs::read_to_string(new_path)
             .expect("new config remains managed")
             .contains("LokiMetis:tool=codex")
-    );
-}
-
-#[test]
-/// 默认路径只基于调用方注入的 Tauri 主目录，而不是 store 自行猜测 HOME。
-fn default_locations_use_the_injected_tauri_home_directory() {
-    let root = tempdir().expect("temp");
-    let settings = MonitorSettings::default();
-    let locations = list_hook_config_locations(&settings, root.path());
-    assert_eq!(
-        locations
-            .iter()
-            .map(|location| location.tool)
-            .collect::<Vec<_>>(),
-        vec![
-            AiTool::Codex,
-            AiTool::ClaudeCode,
-            AiTool::Cursor,
-            AiTool::Grok,
-            AiTool::WorkBuddy,
-        ]
-    );
-    assert!(
-        locations
-            .iter()
-            .all(|location| location.tool != AiTool::OpenCode)
-    );
-    let cursor = locations
-        .into_iter()
-        .find(|location| location.tool == AiTool::Cursor)
-        .expect("cursor location");
-    assert_eq!(
-        PathBuf::from(&cursor.directory),
-        root.path().join(".cursor")
-    );
-    assert_eq!(
-        PathBuf::from(&cursor.config_path),
-        root.path().join(".cursor").join("hooks.json")
     );
 }
 

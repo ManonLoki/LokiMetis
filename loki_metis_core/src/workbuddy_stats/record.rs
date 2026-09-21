@@ -32,6 +32,8 @@ pub struct WorkbuddyUsageEventRecord {
     pub session_key: String,
     /// 当前来源文件生成的稳定 ID，不含路径。
     pub source_id: String,
+    /// 该记录所属的 WorkBuddy 固定只读根 ID，用于按根还原展示别名与来源归属。
+    pub root_id: String,
     /// 请求发生时刻的 Unix 毫秒时间戳。
     pub occurred_at_epoch_ms: i64,
     /// 当前事件实际执行的模型；core 会执行安全 slug 校验。
@@ -73,6 +75,7 @@ pub(super) struct ValidatedWorkbuddyUsageRecord {
     pub(super) logical_call_id: String,
     pub(super) session_key: String,
     pub(super) source_ids: Vec<String>,
+    pub(super) root_id: String,
     pub(super) occurred_at_epoch_ms: i64,
     pub(super) model: Option<String>,
     pub(super) project_key: Option<String>,
@@ -190,6 +193,7 @@ fn validate_record(record: &WorkbuddyUsageEventRecord) -> Option<ValidatedWorkbu
         logical_call_id: record.logical_call_id.clone(),
         session_key: record.session_key.clone(),
         source_ids: vec![record.source_id.clone()],
+        root_id: record.root_id.clone(),
         occurred_at_epoch_ms: record.occurred_at_epoch_ms,
         model: record.model.as_deref().and_then(safe_thread_title),
         project_key: record.project_key.as_deref().and_then(safe_technical_label),
@@ -205,6 +209,7 @@ fn validate_record(record: &WorkbuddyUsageEventRecord) -> Option<ValidatedWorkbu
 fn same_fact(left: &ValidatedWorkbuddyUsageRecord, right: &ValidatedWorkbuddyUsageRecord) -> bool {
     left.logical_call_id == right.logical_call_id
         && left.session_key == right.session_key
+        && left.root_id == right.root_id
         && left.occurred_at_epoch_ms == right.occurred_at_epoch_ms
         && left.model == right.model
         && left.project_key == right.project_key

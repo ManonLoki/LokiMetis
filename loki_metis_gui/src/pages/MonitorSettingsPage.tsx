@@ -231,6 +231,15 @@ export function MonitorSettingsPage() {
                         size="xs"
                         value={location?.configPath ?? ""}
                       />
+                      {(location?.additionalConfigPaths ?? []).map((path) => (
+                        <TextInput
+                          key={path}
+                          label={t("monitor.settings.additionalConfigFiles")}
+                          readOnly
+                          size="xs"
+                          value={path}
+                        />
+                      ))}
                       <Group justify="space-between" wrap="wrap">
                         <Group gap="xs" wrap="wrap">
                           <Button

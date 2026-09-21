@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use loki_metis_core::{
     CoverageReport, LocalUsageWindow, WorkbuddyDailyBucket, WorkbuddyHourlyBucket,
-    WorkbuddyHourlyTrend, WorkbuddyModelUsageGroup, WorkbuddyModelUsageWindow, WorkbuddyScanSource,
+    WorkbuddyHourlyTrend, WorkbuddyModelUsageGroup, WorkbuddyModelUsageWindow,
     WorkbuddyStatisticsSnapshot, WorkbuddyWindowAggregate,
 };
 
@@ -12,17 +12,33 @@ use super::{
     RootActivationStateDto, SourceDiscoveryCodeDto, SourceRootDto, UsageStatisticsDto, UsageWindow,
 };
 
+/// 数据源页一行 WorkBuddy 只读根的展示输入；由 adapter 探测后填充，不含路径。
+pub(crate) struct WorkbuddySourceRow {
+    /// 已发现固定根的稳定根 ID。
+    pub(crate) root_id: String,
+    /// 该根的安全展示别名。
+    pub(crate) alias: String,
+    /// 该根获批 project JSONL 文件数。
+    pub(crate) file_count: u64,
+    /// 该根枚举时跳过数量，含触发枚举预算。
+    pub(crate) skipped_count: u64,
+    /// 该根枚举时错误数量。
+    pub(crate) error_count: u64,
+    /// 该根是否已具备可统计的完整布局。
+    pub(crate) ready: bool,
+}
+
 /// 数据源页展示的 WorkBuddy 只读发现状态；不携带绝对路径。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkbuddySourceStatusDto {
     /// 用户是否已在设置中显式开放读取。
     pub enabled: bool,
-    /// 本机是否发现可枚举的 `~/.workbuddy/projects` 普通目录。
+    /// 本机是否发现可枚举的 WorkBuddy 固定只读根。
     pub installed: bool,
-    /// 发现命中时的安全展示别名，未发现为 `None`。
+    /// 第一个已发现根的安全展示别名；未发现为 `None`。
     pub alias: Option<String>,
-    /// 与物理 Agent 数据源表同形的已发现默认根；未发现为空。
+    /// 与物理 Agent 数据源表同形的已发现默认根；国内版与国际版各占一行。
     pub roots: Vec<SourceRootDto>,
 }
 
@@ -37,28 +53,16 @@ impl WorkbuddySourceStatusDto {
         }
     }
 
-    /// 组合开关、project JSONL 枚举证据与根别名，构造数据源页只读根表。
-    pub(crate) fn new(
-        enabled: bool,
-        source: Option<WorkbuddyScanSource>,
-        file_count: u64,
-        skipped_count: u64,
-        error_count: u64,
-        ready: bool,
-    ) -> Self {
-        let alias = source.as_ref().map(|source| source.alias.clone());
-        let roots = source
-            .map(|source| {
-                vec![workbuddy_default_root_dto(
-                    enabled,
-                    &source,
-                    file_count,
-                    skipped_count,
-                    error_count,
-                    ready,
-                )]
-            })
-            .unwrap_or_default();
+    /// 组合开关与逐根探测结果，构造数据源页只读根表。
+    ///
+    /// 每个已发现固定根各自成行，不把国内版与国际版的文件数合并到同一行；
+    /// `alias` 只保留第一个已发现根的别名以兼容既有调用方。
+    pub(crate) fn new(enabled: bool, rows: Vec<WorkbuddySourceRow>) -> Self {
+        let alias = rows.first().map(|row| row.alias.clone());
+        let roots: Vec<SourceRootDto> = rows
+            .into_iter()
+            .map(|row| workbuddy_default_root_dto(enabled, row))
+            .collect();
         Self {
             enabled,
             installed: !roots.is_empty(),
@@ -68,22 +72,15 @@ impl WorkbuddySourceStatusDto {
     }
 }
 
-/// 把已发现的 `~/.workbuddy` 映射成数据源表的一行；不登记产品索引。
-fn workbuddy_default_root_dto(
-    enabled: bool,
-    source: &WorkbuddyScanSource,
-    file_count: u64,
-    skipped_count: u64,
-    error_count: u64,
-    ready: bool,
-) -> SourceRootDto {
+/// 把一个已发现的固定 WorkBuddy 根映射成数据源表的一行；不登记产品索引。
+fn workbuddy_default_root_dto(enabled: bool, row: WorkbuddySourceRow) -> SourceRootDto {
     SourceRootDto {
-        id: source.root_id.clone(),
-        alias: source.alias.clone(),
+        id: row.root_id,
+        alias: row.alias,
         enabled,
-        activation_state: if ready {
+        activation_state: if row.ready {
             RootActivationStateDto::Ready
-        } else if skipped_count > 0 || error_count > 0 {
+        } else if row.skipped_count > 0 || row.error_count > 0 {
             RootActivationStateDto::ValidationFailed
         } else {
             RootActivationStateDto::ConfirmedUnindexed
@@ -91,9 +88,9 @@ fn workbuddy_default_root_dto(
         is_primary: false,
         discovery_label: "默认数据目录".to_owned(),
         discovery_code: SourceDiscoveryCodeDto::DefaultRoot,
-        file_count,
-        skipped_count,
-        error_count,
+        file_count: row.file_count,
+        skipped_count: row.skipped_count,
+        error_count: row.error_count,
         duplicate_count: 0,
         last_scan_at_epoch_ms: None,
     }

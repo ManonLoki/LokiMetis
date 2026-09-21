@@ -184,12 +184,14 @@ fn compute_workbuddy_statistics(
 ///
 /// 与分别调用两个构造器相比，这里只做一遍校验/去重/排序，并且只聚合调用方
 /// 请求的那个模型窗口，避免为丢弃的五个窗口重复扫描全部记录。
+///
+/// `root_aliases` 必须覆盖本批记录出现的每个数据根；国内版与国际版合并读取时
+/// 两条根都要出现，缺失任一别名会返回错误而不是产生无名来源。
 #[allow(clippy::too_many_arguments)]
 pub fn build_workbuddy_usage_details(
     records: &[WorkbuddyUsageEventRecord],
     coverage: &CoverageReport,
-    root_id: &str,
-    root_alias: &str,
+    root_aliases: &BTreeMap<String, String>,
     window: LocalUsageWindow,
     dimension: UsageDimension,
     observed_at_epoch_ms: i64,
@@ -201,8 +203,7 @@ pub fn build_workbuddy_usage_details(
     let statistics = usage_page::build_workbuddy_usage_statistics(
         &records,
         &coverage,
-        root_id,
-        root_alias,
+        root_aliases,
         window,
         dimension,
         observed_at_epoch_ms,
@@ -215,6 +216,47 @@ pub fn build_workbuddy_usage_details(
         model_usage::build_model_usage_window(&records, window, today, time_standard, device_tz)
             .ok_or_else(|| "无法解析所选窗口的日历范围".to_owned())?;
     Ok((statistics, model_usage))
+}
+
+/// 合成多个 WorkBuddy 固定只读根的覆盖结论。
+///
+/// 国内版与国际版属于同一个可选来源：任一已读根为 Partial 时整体只能声明
+/// Partial，任一失败或取消也不能被其余完整根掩盖。根数与各类缺口计数按根求和，
+/// 使合并后的覆盖事实与逐根读取保持一致。
+pub fn combine_workbuddy_root_coverage(reports: &[CoverageReport]) -> CoverageReport {
+    let state = if reports
+        .iter()
+        .any(|report| report.state == CoverageState::Failed)
+    {
+        CoverageState::Failed
+    } else if reports
+        .iter()
+        .any(|report| report.state == CoverageState::Cancelled)
+    {
+        CoverageState::Cancelled
+    } else if reports
+        .iter()
+        .any(|report| report.state == CoverageState::Partial)
+    {
+        CoverageState::Partial
+    } else {
+        CoverageState::Complete
+    };
+
+    let sum_field = |field: fn(&CoverageReport) -> u64| -> u64 {
+        reports
+            .iter()
+            .fold(0_u64, |total, report| total.saturating_add(field(report)))
+    };
+
+    CoverageReport {
+        state,
+        roots_scanned: sum_field(|report| report.roots_scanned),
+        roots_discovered: sum_field(|report| report.roots_discovered),
+        permission_denied_count: sum_field(|report| report.permission_denied_count),
+        skipped_count: sum_field(|report| report.skipped_count),
+        warning_count: sum_field(|report| report.warning_count),
+    }
 }
 
 /// 按逐请求用量与独立 Trace 诊断生成完整快照。

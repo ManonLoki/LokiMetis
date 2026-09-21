@@ -692,11 +692,11 @@ export interface WorkbuddyStatisticsDto {
 export interface WorkbuddySourceStatusDto {
   /** 用户是否已在设置中显式开放读取。 */
   enabled: boolean;
-  /** 本机是否发现 `~/.workbuddy` 普通目录；Ready 状态另要求 projects 可读。 */
+  /** 本机是否发现任一固定 WorkBuddy 普通目录；Ready 状态另要求 projects 可读。 */
   installed: boolean;
-  /** 发现命中时的安全展示别名，未发现为 `null`。 */
+  /** 第一个已发现根的安全展示别名，未发现为 `null`。 */
   alias: string | null;
-  /** 与物理 Agent 数据源表同形的已发现默认根；未发现为空。 */
+  /** 与物理 Agent 数据源表同形的已发现默认根；国内版与国际版各占一行，未发现为空。 */
   roots: SourceRootDto[];
 }
 

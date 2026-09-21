@@ -3,20 +3,28 @@
 //! 用量唯一来自 `projects/<project>/<session>.jsonl` 和对应一层
 //! `subagents/*.jsonl`。adapter 会解析完整 JSON 行，但只投影直接
 //! `providerData.usage`、实际模型、时间戳与积分；正文不会进入返回值、索引或日志。
+//!
+//! 国内版 `~/.workbuddy` 与国际版 `~/.workbuddy-ai` 是两个固定只读根，共同构成
+//! 同一个可选 WorkBuddy 来源：每个已产生获批 `projects` 布局的根各自沿用既有
+//! 文件数、字节与目录项预算读取，再在本地合并成一批事件、一份覆盖结论和两个
+//! 数据根别名。固定根存在但尚未产生 `projects` 布局时不贡献用量也不算失败；
+//! 已产生布局却读取失败的根使整个来源失败关闭，避免把部分总量冒充完整统计。
 
 mod jsonl;
 mod projects;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use loki_metis_core::{
-    LocalUsageWindow, SourceClientKind, TimeStandard, UsageDimension, UsageStatisticsPage,
-    WorkbuddyModelUsageWindow, WorkbuddyScanSource, WorkbuddyStatisticsSnapshot,
-    WorkbuddyTraceRecord, WorkbuddyTraceStatus, build_workbuddy_usage_details,
-    compute_workbuddy_statistics_with_standard, discover_workbuddy_scan_source, path_key,
-    source_root_alias_from_path, stable_id, workbuddy_home_from_user_home,
+    CoverageReport, LocalUsageWindow, SourceClientKind, TimeStandard, UsageDimension,
+    UsageStatisticsPage, WorkbuddyModelUsageWindow, WorkbuddyScanSource,
+    WorkbuddyStatisticsSnapshot, WorkbuddyTraceRecord, WorkbuddyTraceStatus,
+    build_workbuddy_usage_details, combine_workbuddy_root_coverage,
+    compute_workbuddy_statistics_with_standard, discover_workbuddy_scan_sources, path_key,
+    source_root_alias_from_path, stable_id,
 };
 use serde::Deserialize;
 
@@ -27,19 +35,19 @@ use self::projects::{WorkbuddyProjectFiles, discover_project_files};
 
 /// WorkBuddy trace 记录子目录固定名称。
 const WORKBUDDY_TRACES_DIR_NAME: &str = "traces";
-/// 单次读取最多扫描的 trace 文件数。
+/// 单次读取单个根最多扫描的 trace 文件数。
 const MAX_TRACE_FILES: usize = 5_000;
-/// 单次 Trace 诊断最多观察的目录项数，限制大量无效文件或目录造成的资源消耗。
+/// 单次 Trace 诊断单个根最多观察的目录项数，限制大量无效文件或目录造成的资源消耗。
 const MAX_TRACE_DIRECTORY_ENTRIES: usize = 25_000;
 /// 单个 trace 允许的最大字节数；超限只影响独立诊断，不影响用量。
 const MAX_TRACE_FILE_BYTES: u64 = 64 * 1024 * 1024;
-/// 单次 trace 诊断允许读取的总字节数。
+/// 单次 trace 诊断单个根允许读取的总字节数。
 const MAX_TRACE_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
 
 /// 标识 WorkBuddy 本地统计读取失败的稳定类别，不携带路径细节。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WorkbuddyReadError {
-    /// 未定位安装目录，或获批 `projects` 根缺失/不是普通目录。
+    /// 未定位任何安装目录，或获批 `projects` 根缺失/不是普通目录。
     SourceUnavailable,
     /// 目录或文件在读取过程中不可安全读取。
     Read,
@@ -76,35 +84,54 @@ impl WorkbuddyProjectSourceEvidence {
     }
 }
 
-/// 返回当前用户的 WorkBuddy 安装目录；无法解析主目录时返回 `None`。
-pub(crate) fn resolve_workbuddy_home() -> Option<PathBuf> {
-    current_user_home().map(|home| workbuddy_home_from_user_home(&home))
+/// 一个已发现固定根的探测结果，供数据源页逐根展示。
+pub(crate) struct WorkbuddySourceInspection {
+    /// 已确认存在的固定只读根身份。
+    pub(crate) source: WorkbuddyScanSource,
+    /// 该根的获批 project JSONL 布局证据；读取失败时携带稳定错误类别。
+    pub(crate) evidence: Result<WorkbuddyProjectSourceEvidence, WorkbuddyReadError>,
 }
 
-/// 只读探测当前用户是否存在普通的 WorkBuddy 安装目录。
-pub(crate) fn discover_workbuddy_source() -> Option<WorkbuddyScanSource> {
-    let home = current_user_home()?;
-    discover_workbuddy_scan_source(&home)
+/// 按稳定顺序返回当前用户真实存在的 WorkBuddy 固定安装目录；都未安装时返回空。
+pub(crate) fn resolve_workbuddy_homes() -> Vec<PathBuf> {
+    discover_workbuddy_sources()
+        .into_iter()
+        .map(|source| source.path)
+        .collect()
 }
 
-/// 检查获批 project JSONL 布局并返回无路径证据；不会解析记录正文。
-pub(crate) fn inspect_workbuddy_project_source(
-    workbuddy_home: &Path,
-) -> Result<WorkbuddyProjectSourceEvidence, WorkbuddyReadError> {
-    discover_project_files(workbuddy_home)
-        .map(|files| WorkbuddyProjectSourceEvidence::from_files(&files))
+/// 只读探测当前用户存在的全部 WorkBuddy 固定只读来源。
+pub(crate) fn discover_workbuddy_sources() -> Vec<WorkbuddyScanSource> {
+    let Some(home) = current_user_home() else {
+        return Vec::new();
+    };
+    discover_workbuddy_scan_sources(&home)
 }
 
-/// 读取 project JSONL 与 Trace，并按查看时间标准生成统计快照。
+/// 逐根检查获批 project JSONL 布局并返回无路径证据；不解析记录正文。
+pub(crate) fn inspect_workbuddy_project_sources(
+    sources: &[WorkbuddyScanSource],
+) -> Vec<WorkbuddySourceInspection> {
+    sources
+        .iter()
+        .map(|source| WorkbuddySourceInspection {
+            source: source.clone(),
+            evidence: discover_project_files(&source.path)
+                .map(|files| WorkbuddyProjectSourceEvidence::from_files(&files)),
+        })
+        .collect()
+}
+
+/// 读取全部固定根的 project JSONL 与 Trace，并按查看时间标准生成合并统计快照。
 pub(crate) async fn read_workbuddy_statistics(
-    workbuddy_home: &Path,
+    workbuddy_homes: &[PathBuf],
     now_epoch_ms: i64,
     time_standard: TimeStandard,
 ) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
     // 用量与 Trace 走两棵互不相关的目录树，先各自起线程再一起等待。
-    let trace_home = workbuddy_home.to_path_buf();
-    let trace_task = tokio::task::spawn_blocking(move || read_traces(&trace_home));
-    let (inputs, traces) = tokio::join!(read_workbuddy_usage_inputs(workbuddy_home), trace_task);
+    let trace_homes = workbuddy_homes.to_vec();
+    let trace_task = tokio::task::spawn_blocking(move || read_all_traces(&trace_homes));
+    let (inputs, traces) = tokio::join!(read_workbuddy_usage_inputs(workbuddy_homes), trace_task);
     let inputs = inputs?;
     let traces = traces.unwrap_or_default();
     Ok(compute_workbuddy_statistics_with_standard(
@@ -117,13 +144,13 @@ pub(crate) async fn read_workbuddy_statistics(
     ))
 }
 
-/// 只读取 project JSONL 用量，不触碰与本机用量统计无关的 Trace 目录。
+/// 只读取全部固定根的 project JSONL 用量，不触碰与本机用量统计无关的 Trace 目录。
 pub(crate) async fn read_workbuddy_usage_snapshot(
-    workbuddy_home: &Path,
+    workbuddy_homes: &[PathBuf],
     now_epoch_ms: i64,
     time_standard: TimeStandard,
 ) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
-    let inputs = read_workbuddy_usage_inputs(workbuddy_home).await?;
+    let inputs = read_workbuddy_usage_inputs(workbuddy_homes).await?;
     Ok(compute_workbuddy_statistics_with_standard(
         &inputs.records,
         &[],
@@ -142,19 +169,18 @@ pub(crate) struct WorkbuddyUsageDetails {
 
 /// 用同一批 JSONL 记录构造统计页和模型表，避免跨午夜或活跃追加造成漂移。
 pub(crate) async fn read_workbuddy_usage_details(
-    workbuddy_home: &Path,
+    workbuddy_homes: &[PathBuf],
     window: LocalUsageWindow,
     dimension: UsageDimension,
     now_epoch_ms: i64,
     time_standard: TimeStandard,
 ) -> Result<WorkbuddyUsageDetails, WorkbuddyReadError> {
-    let inputs = read_workbuddy_usage_inputs(workbuddy_home).await?;
+    let inputs = read_workbuddy_usage_inputs(workbuddy_homes).await?;
     let device_tz = jiff::tz::TimeZone::system();
     let (statistics, model_usage) = build_workbuddy_usage_details(
         &inputs.records,
         &inputs.coverage,
-        &inputs.root_id,
-        &inputs.root_alias,
+        &inputs.root_aliases,
         window,
         dimension,
         now_epoch_ms,
@@ -171,30 +197,54 @@ pub(crate) async fn read_workbuddy_usage_details(
 /// adapter 内一次读取的全部安全输入。
 struct WorkbuddyUsageInputs {
     records: Vec<loki_metis_core::WorkbuddyUsageEventRecord>,
-    coverage: loki_metis_core::CoverageReport,
-    root_id: String,
-    root_alias: String,
+    coverage: CoverageReport,
+    root_aliases: BTreeMap<String, String>,
 }
 
-/// 在阻塞线程中读取主用量；调用方按界面需要决定是否另读 Trace。
+/// 在阻塞线程中读取全部固定根的用量；调用方按界面需要决定是否另读 Trace。
 async fn read_workbuddy_usage_inputs(
-    workbuddy_home: &Path,
+    workbuddy_homes: &[PathBuf],
 ) -> Result<WorkbuddyUsageInputs, WorkbuddyReadError> {
-    let root_id = stable_id(
-        SourceClientKind::WorkBuddy.root_id_namespace(),
-        &path_key(workbuddy_home),
-    );
-    let root_alias = source_root_alias_from_path(workbuddy_home, SourceClientKind::WorkBuddy);
-    let usage_home = workbuddy_home.to_path_buf();
-    let usage_root_id = root_id.clone();
-    let usage_task =
-        tokio::task::spawn_blocking(move || read_project_usage(&usage_home, &usage_root_id));
-    let usage = usage_task.await.map_err(|_| WorkbuddyReadError::Read)??;
+    let homes = workbuddy_homes.to_vec();
+    tokio::task::spawn_blocking(move || read_usage_inputs_blocking(&homes))
+        .await
+        .map_err(|_| WorkbuddyReadError::Read)?
+}
+
+/// 按稳定顺序逐根读取用量并合并；无任何可读布局时按未安装来源处理。
+///
+/// 每个根各自计算稳定根 ID 与展示别名，使合并后的记录仍能按根还原来源归属。
+/// 固定根存在但没有 `projects` 目录时该版本尚未产生用量，只跳过该根；已经产生
+/// 获批布局却读取失败时立即向上传播，整体失败关闭。
+fn read_usage_inputs_blocking(
+    workbuddy_homes: &[PathBuf],
+) -> Result<WorkbuddyUsageInputs, WorkbuddyReadError> {
+    let mut records = Vec::new();
+    let mut coverages: Vec<CoverageReport> = Vec::new();
+    let mut root_aliases = BTreeMap::new();
+    for home in workbuddy_homes {
+        let root_id = stable_id(
+            SourceClientKind::WorkBuddy.root_id_namespace(),
+            &path_key(home),
+        );
+        let root_alias = source_root_alias_from_path(home, SourceClientKind::WorkBuddy);
+        match read_project_usage(home, &root_id) {
+            Ok(usage) => {
+                records.extend(usage.records);
+                coverages.push(usage.coverage);
+                root_aliases.insert(root_id, root_alias);
+            }
+            Err(WorkbuddyReadError::SourceUnavailable) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    if root_aliases.is_empty() {
+        return Err(WorkbuddyReadError::SourceUnavailable);
+    }
     Ok(WorkbuddyUsageInputs {
-        records: usage.records,
-        coverage: usage.coverage,
-        root_id,
-        root_alias,
+        records,
+        coverage: combine_workbuddy_root_coverage(&coverages),
+        root_aliases,
     })
 }
 
@@ -213,7 +263,15 @@ struct TraceMeta {
     status: String,
 }
 
-/// 只遍历 `traces/<pid>/*.json` 两层普通目录/文件，并应用文件与字节预算。
+/// 按稳定顺序读取每个固定根的 Trace 诊断；单一根缺失只贡献空集合。
+fn read_all_traces(workbuddy_homes: &[PathBuf]) -> Vec<WorkbuddyTraceRecord> {
+    workbuddy_homes
+        .iter()
+        .flat_map(|home| read_traces(home))
+        .collect()
+}
+
+/// 只遍历单个根 `traces/<pid>/*.json` 两层普通目录/文件，并应用该根的文件与字节预算。
 fn read_traces(workbuddy_home: &Path) -> Vec<WorkbuddyTraceRecord> {
     let traces_dir = workbuddy_home.join(WORKBUDDY_TRACES_DIR_NAME);
     let Ok(metadata) = fs::symlink_metadata(&traces_dir) else {

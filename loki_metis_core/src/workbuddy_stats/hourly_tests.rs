@@ -24,6 +24,7 @@ fn usage(
         logical_call_id: id.to_owned(),
         session_key: session.to_owned(),
         source_id: format!("source-{id}"),
+        root_id: "workbuddy-root-test".to_owned(),
         occurred_at_epoch_ms: timestamp,
         model: Some("model".to_owned()),
         project_key: None,

@@ -36,9 +36,10 @@ pub use source_root_mutation::{
 };
 pub use source_visit::{SourceFileObservation, retain_ingestable_calls, source_file_needs_visit};
 pub use workbuddy_scan_source::{
-    WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyScanSource,
-    discover_workbuddy_scan_source, list_scan_source_clients, list_workbuddy_scan_sources,
-    workbuddy_home_from_user_home, workbuddy_scan_source_candidate,
+    WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_HOME_DIR_NAMES, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME,
+    WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyScanSource, discover_workbuddy_scan_sources,
+    list_scan_source_clients, list_workbuddy_scan_sources, workbuddy_home_from_user_home,
+    workbuddy_homes_from_user_home, workbuddy_scan_source_candidate,
 };
 
 /// 表示扫描触发的来源类型，决定是否允许后台自动触发。
