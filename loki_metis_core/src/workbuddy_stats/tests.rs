@@ -229,6 +229,49 @@ fn invalid_tokens_are_omitted_and_missing_credit_stays_unknown() {
     assert_eq!(snapshot.coverage.warning_count, 1);
 }
 
+/// 缺少数据根身份的记录必须被排除，避免快照与来源明细对同一批数据得出不同结论。
+#[test]
+fn empty_root_id_is_omitted_from_usage_statistics() {
+    let valid = usage(
+        "valid-root",
+        "s1",
+        TODAY_EPOCH_MS,
+        Some("model-a"),
+        WorkbuddyUsageOrigin::TopLevel,
+        10,
+        4,
+        2,
+        Some(1.0),
+    );
+    let mut invalid = usage(
+        "missing-root",
+        "s2",
+        TODAY_EPOCH_MS,
+        Some("model-b"),
+        WorkbuddyUsageOrigin::TopLevel,
+        20,
+        5,
+        3,
+        Some(2.0),
+    );
+    invalid.root_id = "  ".to_owned();
+
+    let snapshot = compute_workbuddy_statistics_with_standard(
+        &[valid, invalid],
+        &[],
+        &complete_workbuddy_coverage(),
+        OBSERVED_EPOCH_MS,
+        &crate::TimeStandard::utc(),
+        &jiff::tz::TimeZone::UTC,
+    );
+
+    assert_eq!(snapshot.total_requests, 1);
+    assert_eq!(snapshot.total_tokens, 12);
+    assert_eq!(snapshot.total_credits, Some(1.0));
+    assert_eq!(snapshot.coverage.state, crate::CoverageState::Partial);
+    assert_eq!(snapshot.coverage.warning_count, 1);
+}
+
 /// Trace 只能影响状态与耗时诊断，不能产生 Token、请求或模型行。
 #[test]
 fn traces_never_contribute_usage_or_models() {

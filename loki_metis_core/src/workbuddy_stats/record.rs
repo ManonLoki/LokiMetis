@@ -165,6 +165,7 @@ pub(super) fn prepare_workbuddy_usage_records(
 fn validate_record(record: &WorkbuddyUsageEventRecord) -> Option<ValidatedWorkbuddyUsageRecord> {
     if record.session_key.trim().is_empty()
         || record.source_id.trim().is_empty()
+        || record.root_id.trim().is_empty()
         || Timestamp::from_millisecond(record.occurred_at_epoch_ms).is_err()
         || !(1..=MAX_REQUESTS_PER_EVENT).contains(&record.request_count)
     {
