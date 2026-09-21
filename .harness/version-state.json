@@ -55,19 +55,13 @@
     "BUG-SKIN-TOKIO-STACK-OVERFLOW-20260913",
     "BUG-WORKBUDDY-INTERNATIONAL-DUAL-ROOT-20260921"
   ],
-  "cycle_base_version": "0.3.7",
+  "cycle_base_version": "0.3.8",
   "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "45885a519a17fe3879a14686afa2bfaae68794af",
-    "version": "0.3.7"
+    "source_commit": "5a58f5872ad610830606fe3f464ff444b1c78999",
+    "version": "0.3.8"
   },
-  "pending_changes": [
-    {
-      "change_id": "BUG-WORKBUDDY-INTERNATIONAL-DUAL-ROOT-20260921",
-      "kind": "bug-fix",
-      "required_version": "0.3.8"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.3.8"
 }
