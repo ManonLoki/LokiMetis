@@ -27,7 +27,7 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "PostToolUseFailure",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkCompletion(HookBehavior::Error),
     ),
     HookEvent::new(
         "PermissionRequest",
@@ -35,11 +35,18 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "PermissionDenied",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkProgress(HookBehavior::Error),
     ),
     HookEvent::new("Elicitation", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::new(
+        "ElicitationResult",
+        HookEventKind::State(HookBehavior::Running),
+    ),
     HookEvent::new("Stop", HookEventKind::Stop),
-    HookEvent::new("StopFailure", HookEventKind::State(HookBehavior::Error)),
+    HookEvent::new(
+        "StopFailure",
+        HookEventKind::TerminalState(HookBehavior::Error),
+    ),
     HookEvent::new(
         "SubagentStart",
         HookEventKind::WorkProgress(HookBehavior::Running),
@@ -57,6 +64,11 @@ const EVENTS: &[HookEvent] = &[
         HookEventKind::WorkCompletion(HookBehavior::Running),
     ),
     HookEvent::with_matcher("Notification", "idle_prompt", HookEventKind::Stop),
+    HookEvent::with_matcher(
+        "Notification",
+        "permission_prompt",
+        HookEventKind::State(HookBehavior::Asking),
+    ),
     HookEvent::new("SessionEnd", HookEventKind::SessionEnd),
 ];
 

@@ -39,6 +39,28 @@ fn last_week_dates_cover_seven_civil_days() {
     assert_eq!(dates.len(), 7);
 }
 
+/// 月末读取范围必须覆盖完整上月与本月，不能被近三十日边界截断。
+#[test]
+fn overview_snapshot_starts_at_previous_calendar_month() {
+    let device_tz = TimeZone::fixed(jiff::tz::offset(8));
+    let observed = zoned_civil_ms(2026, 8, 31, 15, 0, 0, &device_tz);
+
+    assert_eq!(
+        overview_snapshot_start_epoch_ms(observed, &TimeStandard::Local, &device_tz)
+            .expect("overview boundary is valid"),
+        zoned_civil_ms(2026, 7, 1, 0, 0, 0, &device_tz)
+    );
+    assert_eq!(
+        overview_snapshot_start_epoch_ms(observed, &TimeStandard::utc(), &device_tz)
+            .expect("UTC overview boundary is valid"),
+        zoned_civil_ms(2026, 7, 1, 0, 0, 0, &TimeZone::UTC)
+    );
+    assert_eq!(
+        overview_snapshot_start_epoch_ms(i64::MAX, &TimeStandard::Local, &device_tz),
+        Err(TimelineError::InvalidObservedTimestamp)
+    );
+}
+
 /// Claude 空 Token 形状不得继承 Codex 的推理字段。
 #[test]
 fn empty_tokens_for_claude_provider_keeps_unavailable_output_optional() {

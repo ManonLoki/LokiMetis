@@ -62,10 +62,36 @@ fn claude_preview_covers_permission_and_lifecycle_events() {
     assert_eq!(preview.filename, ".claude/settings.json");
     assert!(preview.content.contains("\"SessionStart\""));
     assert!(preview.content.contains("\"PermissionRequest\""));
+    assert!(preview.content.contains("\"PermissionDenied\""));
     assert!(preview.content.contains("LokiMetis:tool=claude-code"));
     let value: Value = serde_json::from_str(&preview.content).unwrap();
     assert_eq!(value["hooks"]["Notification"][0]["matcher"], "idle_prompt");
+    assert_eq!(
+        value["hooks"]["Notification"][1]["matcher"],
+        "permission_prompt"
+    );
     assert!(value["hooks"]["SessionStart"][0].get("matcher").is_none());
+}
+
+/// 三种客户端的同名通知分组都必须写出，且分别转发至受管 relay。
+#[test]
+fn claude_compatible_notification_matchers_are_both_generated() {
+    for tool in [AiTool::ClaudeCode, AiTool::WorkBuddy, AiTool::CodeBuddy] {
+        let preview = generate_test_hook_config(tool).unwrap();
+        let value: Value = serde_json::from_str(&preview.content).unwrap();
+        let groups = value["hooks"]["Notification"].as_array().unwrap();
+        assert_eq!(groups.len(), 2, "{tool:?}");
+        assert_eq!(groups[0]["matcher"], "idle_prompt", "{tool:?}");
+        assert_eq!(groups[1]["matcher"], "permission_prompt", "{tool:?}");
+        for group in groups {
+            assert!(
+                group["hooks"][0]["command"]
+                    .as_str()
+                    .unwrap()
+                    .contains("--loki-metis-hook-relay")
+            );
+        }
+    }
 }
 
 /// Codex 使用 PascalCase 嵌套 handler 且 SessionEnd 带超时。

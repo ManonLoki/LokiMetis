@@ -13,7 +13,7 @@ use crate::dto::{
     UsageChartBucketDto, UsageChartDimensionDto, UsageChartDto, UsageChartGranularityDto,
     UsageWindow,
 };
-use crate::local_view::{local_read_error, open_recent_usage_snapshot};
+use crate::local_view::{local_read_error, open_calendar_usage_snapshot};
 use crate::statistics_view::{to_core_window, to_dto_group, to_dto_window};
 
 /// 从单个物理 Agent 的专属 SQLite 一致快照读取图表。
@@ -29,7 +29,7 @@ pub(crate) async fn load_usage_chart_for_parser(
     source_label: &str,
     time_standard: TimeStandard,
 ) -> Result<UsageChartDto, String> {
-    let snapshot = open_recent_usage_snapshot(
+    let snapshot = open_calendar_usage_snapshot(
         app_data_dir,
         parser_version,
         observed_at_epoch_ms,

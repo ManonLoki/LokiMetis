@@ -156,6 +156,23 @@ pub fn dates_for_window(
     dates_inclusive(from, to)
 }
 
+/// 返回六个概览窗口中最早民用日的起点，供索引按窗口完整装载调用。
+pub fn overview_snapshot_start_epoch_ms(
+    observed_at_epoch_ms: i64,
+    standard: &TimeStandard,
+    device_tz: &TimeZone,
+) -> Result<i64, TimelineError> {
+    let today = civil_date_for_timestamp(observed_at_epoch_ms, standard, device_tz)
+        .ok_or(TimelineError::InvalidObservedTimestamp)?;
+    let mut earliest = today;
+    for window in LocalUsageWindow::OVERVIEW_WINDOWS {
+        let (start, _) = inclusive_calendar_range(window, today)?;
+        earliest = earliest.min(start);
+    }
+    day_start_epoch_ms(earliest, standard, device_tz)
+        .ok_or(TimelineError::InvalidObservedTimestamp)
+}
+
 /// 按观测民用日解析统一日历窗口的闭区间起止日期。
 ///
 /// 今日与昨日各为单日；本周为当前周周一至当天；上周为上一自然周周一至周日；

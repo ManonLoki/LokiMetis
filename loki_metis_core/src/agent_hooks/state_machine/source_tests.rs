@@ -54,16 +54,14 @@ fn status_driven_protocols_map_native_states() {
     );
 }
 
-// 测试用例：验证不在“抑制重复事件”白名单内的工具，会持续转发相同的受支持事件
+// 测试用例：验证异构插件仍会持续转发相同的受支持事件
 #[test]
-/// 验证抑制白名单外的工具会逐次转发重复的受支持事件。
-fn tools_outside_suppression_allowlist_forward_repeated_supported_events() {
+/// 验证 Hermes/OpenClaw 插件的原生事件继续逐次转发。
+fn heterogeneous_plugins_forward_repeated_supported_events() {
     // 遍历一组“每事件必转发”类型工具及其对应的触发事件
     for (tool, event) in [
-        (AiTool::WorkBuddy, "PreToolUse"),
         (AiTool::Hermes, "pre_llm_call"),
         (AiTool::OpenClaw, "before_agent_run"),
-        (AiTool::CodeBuddy, "PreToolUse"),
     ] {
         // 为每个工具构造一台全新的状态机
         let mut machine = HookStateMachine::default();

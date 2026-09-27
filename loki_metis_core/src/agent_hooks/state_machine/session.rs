@@ -12,6 +12,10 @@ pub(super) struct HookSessionState {
     pub(super) turn_id: Option<String>,
     pub(super) retired_turn_ids: VecDeque<String>,
     pub(super) quarantined_turn_ids: VecDeque<String>,
+    /// 已结束但上游未提供轮次 ID；仅用于去重迟到的终止事件。
+    pub(super) finished_unidentified_turn: bool,
+    /// API 错误结束了无 ID 轮次；恢复需明确工作起点。
+    pub(super) failed_unidentified_turn: bool,
     pub(super) ended: bool,
     pub(super) last_seen_at: Duration,
     pub(super) explicit_turn_started_at: Option<Duration>,
@@ -40,6 +44,8 @@ impl HookSessionState {
 
     /// 开启新轮次并退休被替代的可识别轮次。
     pub(super) fn start_turn(&mut self, turn_id: Option<&str>) {
+        self.finished_unidentified_turn = false;
+        self.failed_unidentified_turn = false;
         if self.turn_id.as_deref() != turn_id {
             if let Some(previous) = self.turn_id.take() {
                 self.retire_turn(previous);
@@ -175,7 +181,7 @@ pub(super) fn stopped_turn_decision(
         return StoppedTurnDecision::NotApplicable;
     }
     if turn_id.is_none() {
-        return if session.turn_id.is_some() {
+        return if session.turn_id.is_some() || session.failed_unidentified_turn {
             StoppedTurnDecision::SuppressLateEvent
         } else {
             StoppedTurnDecision::NotApplicable

@@ -9,7 +9,7 @@ use crate::dto::{
     UsageCallSortField as UsageCallSortFieldDto, UsageCallsPageDto, UsageCallsQueryDto,
     UsageFilterOptionDto,
 };
-use crate::local_view::{local_read_error, open_recent_usage_snapshot};
+use crate::local_view::{local_read_error, open_calendar_usage_snapshot};
 #[cfg(test)]
 use loki_metis_core::SourceClientKind;
 use loki_metis_core::build_usage_calls_page;
@@ -57,7 +57,7 @@ pub(crate) async fn load_usage_calls_for_parser(
     source_label: &str,
     time_standard: TimeStandard,
 ) -> Result<UsageCallsPageDto, String> {
-    let snapshot = open_recent_usage_snapshot(
+    let snapshot = open_calendar_usage_snapshot(
         app_data_dir,
         parser_version,
         observed_at_epoch_ms,

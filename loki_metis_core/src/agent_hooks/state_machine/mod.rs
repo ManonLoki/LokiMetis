@@ -14,6 +14,8 @@ mod turn;
 #[cfg(test)]
 mod source_tests;
 #[cfg(test)]
+mod tests_claude_compatible;
+#[cfg(test)]
 mod tests_cursor_reentry;
 #[cfg(test)]
 mod tests_cursor_timing;
@@ -358,25 +360,6 @@ mod tests {
             ),
             HookEventDecision::Forward(HookTransition::Display(HookBehavior::Running))
         );
-    }
-
-    /// WorkBuddy 保持 AIMonitor 的逐事件直通行为，不参与重复抑制。
-    #[test]
-    fn workbuddy_forwards_repeated_supported_events() {
-        let mut machine = HookStateMachine::default();
-        for second in [1, 2] {
-            assert_eq!(
-                machine.apply_event_with_status_at(
-                    AiTool::WorkBuddy,
-                    "PreToolUse",
-                    Some("session-1"),
-                    Some("turn-1"),
-                    None,
-                    Duration::from_secs(second),
-                ),
-                HookEventDecision::Forward(HookTransition::Display(HookBehavior::Running))
-            );
-        }
     }
 
     /// WorkBuddy 内置引擎在权限被拒绝或澄清结束后各只发一次收尾事件；

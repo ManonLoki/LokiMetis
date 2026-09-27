@@ -279,6 +279,51 @@ async fn reads_top_level_and_subagent_usage_with_exact_model_breakdown() {
     );
 }
 
+/// 同一 `messageId` 的后续直接 usage 会修正初值，最终 Token 只计一次。
+#[tokio::test]
+async fn later_provider_usage_update_keeps_final_workbuddy_ai_totals() {
+    let temp = tempdir().expect("isolated dir exists");
+    let home = fixture_international_home(temp.path());
+    let first = epoch_ms("2026-09-04T12:00:00Z");
+    write_lines(
+        &home.join("projects/project-a/session-a.jsonl"),
+        &[
+            usage_event(
+                first,
+                "session-a",
+                "message-a",
+                "model-a",
+                88_551,
+                88_320,
+                5_061,
+                1,
+                0.0,
+            ),
+            usage_event(
+                first + 9_625,
+                "session-a",
+                "message-a",
+                "model-a",
+                93_805,
+                93_568,
+                2_525,
+                1,
+                0.0,
+            ),
+        ],
+    );
+
+    let snapshot = read_workbuddy_statistics(&[home], first + 10_000, TimeStandard::utc())
+        .await
+        .expect("statistics compute succeeds");
+    assert_eq!(snapshot.coverage.state, CoverageState::Complete);
+    assert_eq!(snapshot.total_requests, 1);
+    assert_eq!(snapshot.total_input_tokens, 93_805);
+    assert_eq!(snapshot.total_cached_input_tokens, 93_568);
+    assert_eq!(snapshot.total_output_tokens, 2_525);
+    assert_eq!(snapshot.total_tokens, 96_330);
+}
+
 /// 国内版与国际版两个固定根必须合并成同一份快照，并保留逐根会话身份。
 #[tokio::test]
 async fn merges_domestic_and_international_roots_into_one_snapshot() {

@@ -383,6 +383,7 @@ pub fn generate_hook_auxiliary_configs(tool: AiTool) -> Vec<HookConfigPreview> {
 }
 
 /// 按原生事件名查找指定工具的协议事件定义。
+#[cfg(test)]
 pub(super) fn event_definition(tool: AiTool, event: &str) -> Option<HookEvent> {
     protocol(tool)
         .events()
@@ -394,10 +395,22 @@ pub(super) fn event_definition(tool: AiTool, event: &str) -> Option<HookEvent> {
 
 /// 结合协议事件与可选原生状态解析状态机事件种类。
 pub(super) fn event_kind(tool: AiTool, event: &str, status: Option<&str>) -> Option<HookEventKind> {
-    // 先取出协议实现，后续同时用于查找事件定义和调用 event_kind
+    // 同名事件有多个 matcher 时，必须按原生子类型选择，未知子类型不得误用首项。
     let protocol = protocol(tool);
-    // 找到事件定义后，交给协议按事件与状态值解析出具体种类
-    event_definition(tool, event).map(|definition| protocol.event_kind(&definition, status))
+    let mut candidates = protocol
+        .events()
+        .iter()
+        .filter(|candidate| candidate.name == event);
+    let first = candidates.next()?;
+    let definition = if candidates.next().is_some() {
+        protocol
+            .events()
+            .iter()
+            .find(|candidate| candidate.name == event && candidate.matcher == status)?
+    } else {
+        first
+    };
+    Some(protocol.event_kind(definition, status))
 }
 
 /// 返回工具协议声明的生命周期交接缓冲时长。
@@ -464,6 +477,8 @@ pub(crate) fn forwards_every_event(tool: AiTool) -> bool {
             | AiTool::ClaudeCode
             | AiTool::Cursor
             | AiTool::OpenCode
+            | AiTool::WorkBuddy
+            | AiTool::CodeBuddy
             | AiTool::QwenCode
             | AiTool::KimiCode
             | AiTool::Qoder

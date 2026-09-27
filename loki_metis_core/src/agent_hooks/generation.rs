@@ -66,8 +66,20 @@ fn generate_hook_config_with_executable(
     for event in protocol.events() {
         // 为当前事件生成三种平台命令变体
         let commands = managed_commands(protocol, event.name, relay_executable, wsl_executable);
-        // 调用协议的 handler 实现，把命令组装成该工具期望的 JSON 结构，并按事件名存入 hooks
-        hooks.insert(event.name.to_owned(), protocol.handler(event, &commands));
+        let handler = protocol.handler(event, &commands);
+        if let Some(existing) = hooks.get_mut(event.name) {
+            // 仅同名事件需要合并分组；Kimi TOML 等单事件协议保留原有 handler 形状。
+            let (Some(existing_entries), Value::Array(generated_entries)) =
+                (existing.as_array_mut(), handler)
+            else {
+                return Err(
+                    HookError::new("error.hooks.generatedEventNotArray").param("event", event.name)
+                );
+            };
+            existing_entries.extend(generated_entries);
+        } else {
+            hooks.insert(event.name.to_owned(), handler);
+        }
     }
 
     Ok(HookConfigPreview {

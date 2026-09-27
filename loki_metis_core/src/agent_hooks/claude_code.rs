@@ -42,17 +42,30 @@ const EVENTS: &[HookEvent] = &[
         "PermissionRequest",
         HookEventKind::State(HookBehavior::Asking),
     ),
+    // 自动权限模式拒绝工具调用；Claude 仍可处理或重试，不结束本轮。
+    HookEvent::new(
+        "PermissionDenied",
+        HookEventKind::WorkProgress(HookBehavior::Error),
+    ),
     // 需要用户澄清/补充信息，同样视为询问态
     HookEvent::new("Elicitation", HookEventKind::State(HookBehavior::Asking)),
-    // 工具调用失败，视为错误态
+    // 工具调用失败不代表轮次结束，后续工具调用仍可继续。
     HookEvent::new(
         "PostToolUseFailure",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkCompletion(HookBehavior::Error),
     ),
     // 明确的停止事件
     HookEvent::new("Stop", HookEventKind::Stop),
-    // 停止过程失败，视为错误态
-    HookEvent::new("StopFailure", HookEventKind::State(HookBehavior::Error)),
+    // API 错误使本轮结束，不能再接纳该轮迟到的工具事件。
+    HookEvent::new(
+        "StopFailure",
+        HookEventKind::TerminalState(HookBehavior::Error),
+    ),
+    // MCP 澄清回答已提交，工具调用继续。
+    HookEvent::new(
+        "ElicitationResult",
+        HookEventKind::State(HookBehavior::Running),
+    ),
     // 子代理开始，视为工作进度
     HookEvent::new(
         "SubagentStart",
@@ -73,8 +86,13 @@ const EVENTS: &[HookEvent] = &[
         "PostCompact",
         HookEventKind::WorkCompletion(HookBehavior::Running),
     ),
-    // 带 matcher 过滤的通知事件：仅当 matcher 为 idle_prompt 时视为停止
+    // 空闲提醒与权限请求共用原生 Notification 事件名，分别保留两个 matcher。
     HookEvent::with_matcher("Notification", "idle_prompt", HookEventKind::Stop),
+    HookEvent::with_matcher(
+        "Notification",
+        "permission_prompt",
+        HookEventKind::State(HookBehavior::Asking),
+    ),
     // 会话结束事件
     HookEvent::new("SessionEnd", HookEventKind::SessionEnd),
 ];

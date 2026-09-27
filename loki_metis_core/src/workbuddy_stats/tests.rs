@@ -188,6 +188,159 @@ fn duplicates_fold_and_conflicts_fail_closed() {
     assert_eq!(snapshot.coverage.warning_count, 2);
 }
 
+/// 同文件同调用的晚到用量可修正输出分量，但只把总量递增的最终事实计一次。
+#[test]
+fn later_workbuddy_usage_observation_replaces_preliminary_totals() {
+    let first = usage(
+        "updated-call",
+        "same-session",
+        TODAY_EPOCH_MS,
+        Some("model-a"),
+        WorkbuddyUsageOrigin::TopLevel,
+        88_551,
+        88_320,
+        5_061,
+        Some(0.0),
+    );
+    let mut final_observation = first.clone();
+    final_observation.occurred_at_epoch_ms += 9_625;
+    final_observation.input_tokens = 93_805;
+    final_observation.cached_input_tokens = 93_568;
+    final_observation.output_tokens = 2_525;
+    final_observation.total_tokens = 96_330;
+    let records = [final_observation, first];
+
+    let quality = record::workbuddy_usage_quality(&records);
+    assert_eq!(quality.duplicate_record_count, 1);
+    assert_eq!(quality.conflicting_duplicate_record_count, 0);
+    let snapshot = compute_workbuddy_statistics_with_standard(
+        &records,
+        &[],
+        &complete_workbuddy_coverage(),
+        OBSERVED_EPOCH_MS,
+        &crate::TimeStandard::utc(),
+        &jiff::tz::TimeZone::UTC,
+    );
+    assert_eq!(snapshot.total_requests, 1);
+    assert_eq!(snapshot.total_input_tokens, 93_805);
+    assert_eq!(snapshot.total_cached_input_tokens, 93_568);
+    assert_eq!(snapshot.total_output_tokens, 2_525);
+    assert_eq!(snapshot.total_tokens, 96_330);
+    assert_eq!(snapshot.coverage.state, crate::CoverageState::Complete);
+}
+
+/// 晚到的完全相同用量只保留一次，并使用最后的观察时刻。
+#[test]
+fn later_identical_workbuddy_observation_is_one_call() {
+    let first = usage(
+        "same-call",
+        "same-session",
+        TODAY_EPOCH_MS,
+        Some("model-a"),
+        WorkbuddyUsageOrigin::TopLevel,
+        100,
+        50,
+        20,
+        Some(0.1),
+    );
+    let mut later = first.clone();
+    later.occurred_at_epoch_ms += 1_000;
+    let records = [later.clone(), first];
+
+    let (prepared, quality) = record::prepare_workbuddy_usage_records(&records);
+    assert_eq!(quality.duplicate_record_count, 1);
+    assert_eq!(quality.conflicting_duplicate_record_count, 0);
+    assert_eq!(prepared.len(), 1);
+    assert_eq!(prepared[0].occurred_at_epoch_ms, later.occurred_at_epoch_ms);
+    assert_eq!(prepared[0].usage.total_tokens, 120);
+}
+
+/// Token 不变时允许同源晚到积分由缺失变为已知，最终积分只计一次。
+#[test]
+fn later_workbuddy_credit_enrichment_keeps_tokens_once() {
+    let first = usage(
+        "credit-call",
+        "same-session",
+        TODAY_EPOCH_MS,
+        Some("model-a"),
+        WorkbuddyUsageOrigin::TopLevel,
+        100,
+        50,
+        20,
+        None,
+    );
+    let mut later = first.clone();
+    later.occurred_at_epoch_ms += 1_000;
+    later.credit = Some(0.25);
+    let records = [later, first];
+
+    let snapshot = compute_workbuddy_statistics_with_standard(
+        &records,
+        &[],
+        &complete_workbuddy_coverage(),
+        OBSERVED_EPOCH_MS,
+        &crate::TimeStandard::utc(),
+        &jiff::tz::TimeZone::UTC,
+    );
+    assert_eq!(snapshot.total_requests, 1);
+    assert_eq!(snapshot.total_tokens, 120);
+    assert_eq!(snapshot.total_credits, Some(0.25));
+    assert_eq!(snapshot.coverage.state, crate::CoverageState::Complete);
+}
+
+/// 时间较晚仍不足以覆盖回退、等总量分量变化、换模型或异源冲突。
+#[test]
+fn later_conflicting_workbuddy_observations_still_fail_closed() {
+    let first = usage(
+        "conflicting-call",
+        "same-session",
+        TODAY_EPOCH_MS,
+        Some("model-a"),
+        WorkbuddyUsageOrigin::TopLevel,
+        100,
+        50,
+        20,
+        Some(0.1),
+    );
+    let mut lower_total = first.clone();
+    lower_total.occurred_at_epoch_ms += 1_000;
+    lower_total.input_tokens = 90;
+    lower_total.total_tokens = 110;
+    let mut same_total_changed_components = first.clone();
+    same_total_changed_components.occurred_at_epoch_ms += 1_000;
+    same_total_changed_components.input_tokens = 101;
+    same_total_changed_components.output_tokens = 19;
+    let mut changed_model = first.clone();
+    changed_model.occurred_at_epoch_ms += 1_000;
+    changed_model.input_tokens = 110;
+    changed_model.total_tokens = 130;
+    changed_model.model = Some("model-b".to_owned());
+    let mut different_source = first.clone();
+    different_source.occurred_at_epoch_ms += 1_000;
+    different_source.source_id = "another-source".to_owned();
+    let mut changed_request_count = first.clone();
+    changed_request_count.occurred_at_epoch_ms += 1_000;
+    changed_request_count.request_count = 2;
+    let mut lower_credit = first.clone();
+    lower_credit.occurred_at_epoch_ms += 1_000;
+    lower_credit.credit = Some(0.05);
+
+    for conflicting in [
+        lower_total,
+        same_total_changed_components,
+        changed_model,
+        different_source,
+        changed_request_count,
+        lower_credit,
+    ] {
+        let records = [first.clone(), conflicting];
+        let quality = record::workbuddy_usage_quality(&records);
+        assert_eq!(quality.conflicting_duplicate_record_count, 2);
+        assert_eq!(quality.duplicate_record_count, 0);
+        assert!(record::prepare_workbuddy_usage_records(&records).0.is_empty());
+    }
+}
+
 /// 缓存违反输入子集关系时整条排除；缺积分不影响 Token 但积分保持不可用。
 #[test]
 fn invalid_tokens_are_omitted_and_missing_credit_stays_unknown() {

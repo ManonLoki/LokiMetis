@@ -236,6 +236,7 @@ pub use timeline::{
     filter_canonical_usage_for_date, filter_canonical_usage_for_dates, first_representable_in_date,
     first_representable_local_instant, inclusive_calendar_range, local_dates_for_window,
     next_day_start_epoch_ms, next_local_day_start_epoch_ms, occurred_on_dates,
+    overview_snapshot_start_epoch_ms,
     retention_cutoff_epoch_ms,
 };
 pub use usage::{

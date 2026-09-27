@@ -12,7 +12,7 @@ use loki_metis_core::{
 use tauri::async_runtime::spawn_blocking;
 
 use crate::dto::{UsageDailyBucketDto, UsageGroupDto, UsageStatisticsDto, UsageWindow};
-use crate::local_view::{local_read_error, open_recent_usage_snapshot};
+use crate::local_view::{local_read_error, open_calendar_usage_snapshot};
 
 /// 从一个 SQLite 只读事务读取统计快照，并生成命中结构。
 #[cfg(test)]
@@ -52,7 +52,7 @@ pub(crate) async fn load_usage_statistics_for_parser(
     source_label: &str,
     time_standard: TimeStandard,
 ) -> Result<UsageStatisticsDto, String> {
-    let snapshot = open_recent_usage_snapshot(
+    let snapshot = open_calendar_usage_snapshot(
         app_data_dir,
         parser_version,
         observed_at_epoch_ms,

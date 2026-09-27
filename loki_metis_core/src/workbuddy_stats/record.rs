@@ -63,9 +63,9 @@ pub struct WorkbuddyUsageEventRecord {
 pub struct WorkbuddyUsageQuality {
     /// 字段或 Token 不变量不合法、因而被排除的记录数。
     pub invalid_record_count: u64,
-    /// 相同稳定调用 ID 携带冲突事实、因而整组被排除的记录数。
+    /// 相同稳定调用 ID 携带无法排序的冲突事实、因而整组被排除的记录数。
     pub conflicting_duplicate_record_count: u64,
-    /// 完全一致的重复观察数量；只计一次用量。
+    /// 完全一致或被后续合法更新取代的观察数量；只计最终一次用量。
     pub duplicate_record_count: u64,
 }
 
@@ -94,7 +94,7 @@ pub(super) fn workbuddy_usage_quality(
     prepare_workbuddy_usage_records(records).1
 }
 
-/// 校验、稳定归一化并按逻辑调用 ID 去重；冲突组整组失败关闭。
+/// 校验、稳定归一化并按逻辑调用 ID 去重；只接纳同源递进观察。
 pub(super) fn prepare_workbuddy_usage_records(
     records: &[WorkbuddyUsageEventRecord],
 ) -> (Vec<ValidatedWorkbuddyUsageRecord>, WorkbuddyUsageQuality) {
@@ -130,25 +130,31 @@ pub(super) fn prepare_workbuddy_usage_records(
             continue;
         }
 
-        let first = &validated[0];
-        if validated
-            .iter()
-            .skip(1)
-            .any(|candidate| !same_fact(first, candidate))
-        {
+        let observation_count = validated.len();
+        validated.sort_by_key(|record| record.occurred_at_epoch_ms);
+        let mut selected = validated.remove(0);
+        let mut conflict = false;
+        for mut candidate in validated {
+            if same_fact(&selected, &candidate) {
+                selected.source_ids.extend(candidate.source_ids);
+            } else if is_later_usage_update(&selected, &candidate) {
+                candidate.source_ids.extend(selected.source_ids);
+                selected = candidate;
+            } else {
+                conflict = true;
+                break;
+            }
+        }
+        if conflict {
             quality.conflicting_duplicate_record_count = quality
                 .conflicting_duplicate_record_count
-                .saturating_add(u64::try_from(validated.len()).unwrap_or(u64::MAX));
+                .saturating_add(u64::try_from(observation_count).unwrap_or(u64::MAX));
             continue;
         }
 
         quality.duplicate_record_count = quality
             .duplicate_record_count
-            .saturating_add(u64::try_from(validated.len().saturating_sub(1)).unwrap_or(u64::MAX));
-        let mut selected = validated.remove(0);
-        for duplicate in validated {
-            selected.source_ids.extend(duplicate.source_ids);
-        }
+            .saturating_add(u64::try_from(observation_count.saturating_sub(1)).unwrap_or(u64::MAX));
         selected.source_ids.sort();
         selected.source_ids.dedup();
         prepared.push(selected);
@@ -208,16 +214,50 @@ fn validate_record(record: &WorkbuddyUsageEventRecord) -> Option<ValidatedWorkbu
 
 /// 判断两个同 ID 观察是否描述同一事实；来源 ID 不参与比较，只用于合并追溯。
 fn same_fact(left: &ValidatedWorkbuddyUsageRecord, right: &ValidatedWorkbuddyUsageRecord) -> bool {
-    left.logical_call_id == right.logical_call_id
-        && left.session_key == right.session_key
-        && left.root_id == right.root_id
+    same_identity(left, right)
         && left.occurred_at_epoch_ms == right.occurred_at_epoch_ms
-        && left.model == right.model
-        && left.project_key == right.project_key
-        && left.project_label == right.project_label
         && left.request_count == right.request_count
         && left.usage == right.usage
         && optional_float_eq(left.credit, right.credit)
+}
+
+/// 同源晚到观察可补齐积分；总量增加时允许输出分量随输入修正。
+/// 总量不变时，所有 Token 分量必须完全相同。
+fn is_later_usage_update(
+    previous: &ValidatedWorkbuddyUsageRecord,
+    later: &ValidatedWorkbuddyUsageRecord,
+) -> bool {
+    same_identity(previous, later)
+        && previous
+            .source_ids
+            .iter()
+            .any(|source| later.source_ids.contains(source))
+        && later.occurred_at_epoch_ms > previous.occurred_at_epoch_ms
+        && later.request_count == previous.request_count
+        && (if later.usage.total_tokens > previous.usage.total_tokens {
+            later.usage.input_tokens >= previous.usage.input_tokens
+                && later.usage.cached_input_tokens >= previous.usage.cached_input_tokens
+        } else {
+            later.usage == previous.usage
+        })
+        && match (previous.credit, later.credit) {
+            (Some(previous), Some(later)) => later >= previous,
+            (None, _) => true,
+            (Some(_), None) => false,
+        }
+}
+
+/// 调用身份、模型、项目和层级必须始终稳定；来源文件另由更新规则核对。
+fn same_identity(
+    left: &ValidatedWorkbuddyUsageRecord,
+    right: &ValidatedWorkbuddyUsageRecord,
+) -> bool {
+    left.logical_call_id == right.logical_call_id
+        && left.session_key == right.session_key
+        && left.root_id == right.root_id
+        && left.model == right.model
+        && left.project_key == right.project_key
+        && left.project_label == right.project_label
         && left.origin == right.origin
 }
 

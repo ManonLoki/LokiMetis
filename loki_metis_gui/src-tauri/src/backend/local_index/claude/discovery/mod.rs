@@ -7,6 +7,7 @@
 //! （见下方 `is_uuid_jsonl_name`）以及固定的 `subagents/agent-*.jsonl`。
 
 mod full;
+mod embedded;
 mod signature;
 
 #[cfg(test)]
@@ -32,10 +33,10 @@ pub(crate) use signature::{
     inspect_root as inspect_claude_root,
 };
 
-/// 汇总 Claude Code 快速发现的显式候选，不在构造阶段访问文件系统。
+/// 汇总 Claude Code 快速发现的显式候选；内嵌 Desktop 根在发现调用时有界枚举。
 #[derive(Debug, Clone, Default)]
 pub struct ClaudeDiscoveryInputs {
-    /// 当前用户主目录；存在时只检查其 `.claude` 直接候选。
+    /// 当前用户主目录；用于 `.claude` 及 macOS Claude Desktop 固定容器候选。
     pub home_dir: Option<PathBuf>,
     /// 当前进程生效的 `CLAUDE_CONFIG_DIR`。
     pub claude_config_dir: Option<PathBuf>,
@@ -102,14 +103,16 @@ struct Candidate {
     method: DiscoveryMethod,
 }
 
-/// 只快速检查默认、当前环境与已启用登记根，不递归搜索其他位置。
+/// 快速检查默认、当前环境、已启用登记根及 macOS Desktop 固定容器。
 pub fn discover_claude_quick(
     inputs: &ClaudeDiscoveryInputs,
     cancellation: &CancellationToken,
 ) -> ClaudeDiscoveryResult {
-    let candidates = quick_candidates(inputs);
+    let mut candidates = quick_candidates(inputs);
+    let embedded = embedded::candidates(inputs.home_dir.as_deref(), cancellation);
+    candidates.extend(embedded.candidates);
     let options = FullDiscoveryOptions::default();
-    inspect_candidates(candidates, cancellation, &options)
+    inspect_candidates(candidates, cancellation, &options, embedded.quality)
 }
 
 /// 用户已登记根优先消费共享签名预算；环境与默认自动候选随后补充。
@@ -150,6 +153,7 @@ fn inspect_candidates(
     candidates: Vec<Candidate>,
     cancellation: &CancellationToken,
     options: &FullDiscoveryOptions,
+    enumeration: embedded::EnumerationQuality,
 ) -> ClaudeDiscoveryResult {
     let candidate_count = u64::try_from(candidates.len()).unwrap_or(u64::MAX);
     let existing_ids = candidates
@@ -162,12 +166,12 @@ fn inspect_candidates(
     let mut confirmed_invalid_paths = BTreeSet::new();
     let mut unconfirmed_paths = BTreeSet::new();
     let mut inspected_paths = BTreeSet::new();
-    let mut permission_denied_count = 0_u64;
-    let mut skipped_count = 0_u64;
-    let mut symlink_skipped_count = 0_u64;
-    let mut network_skipped_count = 0_u64;
-    let mut cancelled = false;
-    let mut budget_exhausted = false;
+    let mut permission_denied_count = enumeration.permission_denied_count;
+    let mut skipped_count = enumeration.skipped_count;
+    let mut symlink_skipped_count = enumeration.symlink_skipped_count;
+    let mut network_skipped_count = enumeration.network_skipped_count;
+    let mut cancelled = enumeration.cancelled;
+    let mut budget_exhausted = enumeration.budget_exhausted;
     let mut budget = SignatureBudget::new(options, cancellation);
 
     for candidate in candidates {
@@ -370,7 +374,7 @@ fn inspect_candidates(
         roots,
         confirmed_invalid_root_ids: confirmed_invalid_ids.into_iter().collect(),
         unconfirmed_root_ids: unconfirmed_ids.into_iter().collect(),
-        directories_scanned: 0,
+        directories_scanned: enumeration.directories_scanned,
         symlink_skipped_count,
         network_skipped_count,
     }

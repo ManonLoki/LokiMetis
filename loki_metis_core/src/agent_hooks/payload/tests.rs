@@ -80,6 +80,37 @@ fn workbuddy_camel_case_context_is_normalized() {
     assert_eq!(payload.turn_id.as_deref(), Some("workbuddy-turn-2"));
 }
 
+/// 官方 Notification 的 notification_type 进入最小信封，正文不会越过 relay。
+#[test]
+fn claude_compatible_notification_type_is_normalized_without_message_content() {
+    for tool in [AiTool::ClaudeCode, AiTool::WorkBuddy, AiTool::CodeBuddy] {
+        let native = serde_json::to_vec(&serde_json::json!({
+            "hook_event_name": "Notification",
+            "session_id": "session-1",
+            "notification_type": "permission_prompt",
+            "message": "private permission details",
+            "status": "unrelated",
+        }))
+        .unwrap();
+        let PreparedNativeHook::Deliver(payload) =
+            prepare_native_hook(tool, &native, "Notification").unwrap()
+        else {
+            panic!("{tool:?} notification should be delivered");
+        };
+        assert_eq!(
+            payload.status.as_deref(),
+            Some("permission_prompt"),
+            "{tool:?}"
+        );
+        assert_eq!(payload.session_id.as_deref(), Some("session-1"));
+        assert!(
+            !serde_json::to_string(&payload)
+                .unwrap()
+                .contains("private permission details")
+        );
+    }
+}
+
 #[test]
 /// 验证空白主字段会回退到裁剪后的 Cursor 别名字段。
 fn blank_primary_context_fields_fall_back_to_trimmed_cursor_aliases() {

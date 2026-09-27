@@ -57,6 +57,8 @@ impl HookStateMachine {
                 return HookEventDecision::Ignore;
             }
             session.turn_active = true;
+            session.finished_unidentified_turn = false;
+            session.failed_unidentified_turn = false;
             session.phase = HookPhase::Running;
             session.last_seen_at = observed_at;
             return phase_decision(previous, self.aggregate_phase());
@@ -77,7 +79,8 @@ impl HookStateMachine {
         {
             if !session.turn_active
                 && turn_id.is_none()
-                && session.is_retired_turn(session.turn_id.as_deref())
+                && (session.is_retired_turn(session.turn_id.as_deref())
+                    || session.finished_unidentified_turn)
             {
                 return HookEventDecision::Ignore;
             }
@@ -89,6 +92,12 @@ impl HookStateMachine {
                 return HookEventDecision::Ignore;
             }
             session.finish_turn(turn_id);
+            session.finished_unidentified_turn = session.turn_id.is_none();
+            session.failed_unidentified_turn = session.turn_id.is_none()
+                && matches!(
+                    event_kind,
+                    HookEventKind::TerminalState(HookBehavior::Error)
+                );
             session.phase = match transition {
                 HookTransition::Display(HookBehavior::Error) => HookPhase::Error,
                 _ => HookPhase::Idle,
@@ -115,6 +124,8 @@ impl HookStateMachine {
         if starts_new_implicit_turn {
             session.start_turn(turn_id);
         }
+        // 无轮次 ID 的 Stop Hook 可能请求继续；已接纳的活动信号即为续跑证据。
+        session.finished_unidentified_turn = false;
         session.phase = next_turn_phase(session, event_kind, transition, turn_id);
         session.last_seen_at = observed_at;
         phase_decision(previous, self.aggregate_phase())
@@ -164,7 +175,10 @@ fn next_turn_phase(
             HookPhase::Asking
         }
         HookTransition::Display(HookBehavior::Error) => {
-            if matches!(event_kind, HookEventKind::WorkProgress(_)) {
+            if matches!(
+                event_kind,
+                HookEventKind::WorkProgress(_) | HookEventKind::WorkCompletion(_)
+            ) {
                 session.continue_turn(turn_id);
             } else {
                 session.finish_turn(turn_id);

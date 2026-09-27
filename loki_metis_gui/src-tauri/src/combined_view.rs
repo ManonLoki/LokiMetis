@@ -19,7 +19,7 @@ use crate::dto::{
     LocalRecordsSectionDto, UsageCallsPageDto, UsageCallsQueryDto, UsageChartDimensionDto,
     UsageChartDto, UsageWindow,
 };
-use crate::local_view::{local_read_error, map_local_windows, open_recent_usage_snapshot};
+use crate::local_view::{local_read_error, map_local_windows, open_calendar_usage_snapshot};
 use crate::runtime::AppRuntimeState;
 use crate::statistics_view::to_core_window;
 
@@ -327,7 +327,7 @@ async fn load_agent_snapshot(
     time_standard: &TimeStandard,
 ) -> Result<AgentUsageSnapshot, String> {
     let (_, source_version) = binding.identity();
-    let snapshot = open_recent_usage_snapshot(
+    let snapshot = open_calendar_usage_snapshot(
         binding.app_data_dir(),
         binding.parser_version(),
         observed_at_epoch_ms,

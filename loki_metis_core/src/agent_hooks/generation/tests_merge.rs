@@ -37,6 +37,24 @@ fn codex_merge_is_idempotent_and_preserves_other_commands() {
     assert_eq!(value["permissions"]["allow"][0], "Bash");
 }
 
+/// 同名 Notification 的两个受管 matcher 合并后仍与用户分组共存，重复写入不增殖。
+#[test]
+fn claude_compatible_notification_groups_merge_without_overwriting_each_other() {
+    for tool in [AiTool::ClaudeCode, AiTool::WorkBuddy, AiTool::CodeBuddy] {
+        let generated = generate_test_hook_config(tool).unwrap();
+        let existing = r#"{"hooks":{"Notification":[{"matcher":"idle_prompt","hooks":[{"type":"command","command":"user-notify"}]}]}}"#;
+        let first = merge_hook_config(Some(existing), &generated, tool).unwrap();
+        let second = merge_hook_config(Some(&first.content), &generated, tool).unwrap();
+        assert_eq!(first.content, second.content, "{tool:?}");
+        let value: Value = serde_json::from_str(&second.content).unwrap();
+        let groups = value["hooks"]["Notification"].as_array().unwrap();
+        assert_eq!(groups.len(), 3, "{tool:?}");
+        assert_eq!(groups[0]["hooks"][0]["command"], "user-notify");
+        assert_eq!(groups[1]["matcher"], "idle_prompt");
+        assert_eq!(groups[2]["matcher"], "permission_prompt");
+    }
+}
+
 /// 只有完整管理标识才会被识别。
 #[test]
 fn only_the_canonical_managed_marker_is_recognized() {

@@ -246,14 +246,17 @@ fn every_adapter_exposes_the_complete_source_event_table() {
                 "PreToolUse",
                 "PostToolUse",
                 "PermissionRequest",
+                "PermissionDenied",
                 "Elicitation",
                 "PostToolUseFailure",
                 "Stop",
                 "StopFailure",
+                "ElicitationResult",
                 "SubagentStart",
                 "SubagentStop",
                 "PreCompact",
                 "PostCompact",
+                "Notification",
                 "Notification",
                 "SessionEnd",
             ],
@@ -315,6 +318,7 @@ fn every_adapter_exposes_the_complete_source_event_table() {
                 "PreCompact",
                 "PostCompact",
                 "Notification",
+                "Notification",
                 "SessionEnd",
             ],
         ),
@@ -356,12 +360,14 @@ fn every_adapter_exposes_the_complete_source_event_table() {
                 "PermissionRequest",
                 "PermissionDenied",
                 "Elicitation",
+                "ElicitationResult",
                 "Stop",
                 "StopFailure",
                 "SubagentStart",
                 "SubagentStop",
                 "PreCompact",
                 "PostCompact",
+                "Notification",
                 "Notification",
                 "SessionEnd",
             ],
@@ -481,21 +487,29 @@ fn every_adapter_exposes_the_complete_source_event_table() {
 /// 验证带 matcher 的事件与各上游协议子类型契约一致。
 fn event_matchers_match_the_source_protocols() {
     let expected = [
-        (AiTool::ClaudeCode, "Notification", "idle_prompt"),
-        (AiTool::WorkBuddy, "Notification", "idle_prompt"),
-        (AiTool::CodeBuddy, "Notification", "idle_prompt"),
-        (AiTool::QwenCode, "Notification", "idle_prompt"),
-        (AiTool::GeminiCli, "Notification", "ToolPermission"),
+        (AiTool::ClaudeCode, "Notification", 0, "idle_prompt"),
+        (AiTool::ClaudeCode, "Notification", 1, "permission_prompt"),
+        (AiTool::WorkBuddy, "Notification", 0, "idle_prompt"),
+        (AiTool::WorkBuddy, "Notification", 1, "permission_prompt"),
+        (AiTool::CodeBuddy, "Notification", 0, "idle_prompt"),
+        (AiTool::CodeBuddy, "Notification", 1, "permission_prompt"),
+        (AiTool::QwenCode, "Notification", 0, "idle_prompt"),
+        (AiTool::GeminiCli, "Notification", 0, "ToolPermission"),
     ];
     for tool in AiTool::ALL {
+        let mut occurrences = std::collections::HashMap::<&str, usize>::new();
         for event in protocol(tool).events() {
+            let occurrence = occurrences.entry(event.name).or_default();
             let matcher = expected
                 .iter()
-                .find(|(expected_tool, expected_event, _)| {
-                    *expected_tool == tool && *expected_event == event.name
+                .find(|(expected_tool, expected_event, expected_index, _)| {
+                    *expected_tool == tool
+                        && *expected_event == event.name
+                        && *expected_index == *occurrence
                 })
-                .map(|(_, _, matcher)| *matcher);
+                .map(|(_, _, _, matcher)| *matcher);
             assert_eq!(event.matcher, matcher, "{tool:?} {}", event.name);
+            *occurrence += 1;
         }
     }
 }

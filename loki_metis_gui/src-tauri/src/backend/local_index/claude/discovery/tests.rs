@@ -15,6 +15,16 @@ use super::*;
 /// 全部夹具共用的固定合法 session UUID。
 const SESSION_ID: &str = "00000000-0000-0000-0000-000000000001";
 
+/// Claude Desktop 只允许三层固定 ID 容器内的 `.claude` 根。
+#[cfg(target_os = "macos")]
+fn desktop_embedded_root(home: &Path) -> PathBuf {
+    home.join("Library/Application Support/Claude/local-agent-mode-sessions")
+        .join("11111111-1111-1111-1111-111111111111")
+        .join("22222222-2222-2222-2222-222222222222")
+        .join("local_33333333-3333-3333-3333-333333333333")
+        .join(".claude")
+}
+
 /// 验证默认、环境与已登记根同时命中签名时，各自只贡献一次确认结果。
 #[test]
 fn quick_discovery_accepts_default_environment_and_registered_signature_once() {
@@ -62,6 +72,64 @@ fn quick_discovery_accepts_unregistered_default_root() {
         DiscoveryMethod::DefaultHome
     );
     assert_eq!(result.roots[0].alias, ".claude");
+}
+
+/// Claude Desktop 的内嵌 transcript 复用现有 Claude Code 签名与数据源。
+#[cfg(target_os = "macos")]
+#[test]
+fn quick_discovery_accepts_fixed_claude_desktop_container() {
+    let temp = tempdir().expect("temporary home is available");
+    let root = desktop_embedded_root(temp.path());
+    write_transcript(&root.join(format!("projects/project-a/{SESSION_ID}.jsonl")));
+    let near_miss = root
+        .parent()
+        .expect("embedded root has parent")
+        .parent()
+        .expect("local ID has parent")
+        .join("unrelated_44444444-4444-4444-4444-444444444444/.claude");
+    write_transcript(&near_miss.join(format!("projects/project-a/{SESSION_ID}.jsonl")));
+
+    let result = discover_claude_quick(
+        &ClaudeDiscoveryInputs {
+            home_dir: Some(temp.path().to_path_buf()),
+            ..ClaudeDiscoveryInputs::default()
+        },
+        &CancellationToken::new(),
+    );
+
+    assert_eq!(result.coverage.state, CoverageState::Complete);
+    assert_eq!(result.roots.len(), 1);
+    assert_eq!(result.roots[0].path, fs::canonicalize(root).expect("root exists"));
+    assert_eq!(result.roots[0].alias, "Claude Desktop");
+    assert_eq!(result.roots[0].discovery_method, DiscoveryMethod::DefaultHome);
+    assert!(result.directories_scanned >= 3);
+}
+
+/// 内嵌 `.claude` 若为符号链接，不能借固定容器名越界读取外部数据。
+#[cfg(target_os = "macos")]
+#[test]
+fn quick_discovery_rejects_linked_claude_desktop_root() {
+    use std::os::unix::fs::symlink;
+
+    let temp = tempdir().expect("temporary home is available");
+    let target = temp.path().join("outside");
+    write_transcript(&target.join(format!("projects/project-a/{SESSION_ID}.jsonl")));
+    let root = desktop_embedded_root(temp.path());
+    fs::create_dir_all(root.parent().expect("embedded root has parent"))
+        .expect("fixed container exists");
+    symlink(target, &root).expect("embedded root link exists");
+
+    let result = discover_claude_quick(
+        &ClaudeDiscoveryInputs {
+            home_dir: Some(temp.path().to_path_buf()),
+            ..ClaudeDiscoveryInputs::default()
+        },
+        &CancellationToken::new(),
+    );
+
+    assert!(result.roots.is_empty());
+    assert_eq!(result.coverage.state, CoverageState::Partial);
+    assert_eq!(result.symlink_skipped_count, 1);
 }
 
 /// 验证未登记的环境变量指定根命中签名后也能被自动确认。
@@ -197,6 +265,7 @@ fn automatic_candidate_budget_exhaustion_keeps_registered_root() {
         quick_candidates(&inputs),
         &CancellationToken::new(),
         &options,
+        embedded::EnumerationQuality::default(),
     );
 
     assert_eq!(result.coverage.state, CoverageState::Partial);

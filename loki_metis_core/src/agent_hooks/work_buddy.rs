@@ -31,9 +31,9 @@ const EVENTS: &[HookEvent] = &[
         HookEventKind::WorkCompletion(HookBehavior::Running),
     ),
     HookEvent::new(
-        // 工具调用失败 -> 出错态
+        // 工具调用失败 -> 出错态，当前轮次仍可继续
         "PostToolUseFailure",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkCompletion(HookBehavior::Error),
     ),
     HookEvent::new(
         // 请求权限 -> 等待用户确认态
@@ -41,10 +41,9 @@ const EVENTS: &[HookEvent] = &[
         HookEventKind::State(HookBehavior::Asking),
     ),
     HookEvent::new(
-        // 权限被拒绝 -> 出错态；WorkBuddy 内置引擎在此之后不会再发出其他事件
-        // 结束该询问，若不显式处理该事件，展示会永远卡在询问态。
+        // 权限被拒绝 -> 出错态；仍允许同轮次的后续处理退出该展示态。
         "PermissionDenied",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkProgress(HookBehavior::Error),
     ),
     // 请求澄清 -> 等待用户确认态
     HookEvent::new("Elicitation", HookEventKind::State(HookBehavior::Asking)),
@@ -57,7 +56,10 @@ const EVENTS: &[HookEvent] = &[
     // 停止 -> 回到空闲展示
     HookEvent::new("Stop", HookEventKind::Stop),
     // 停止失败 -> 出错态
-    HookEvent::new("StopFailure", HookEventKind::State(HookBehavior::Error)),
+    HookEvent::new(
+        "StopFailure",
+        HookEventKind::TerminalState(HookBehavior::Error),
+    ),
     HookEvent::new(
         // 子代理开始 -> 工作进行中（运行态）
         "SubagentStart",
@@ -80,6 +82,11 @@ const EVENTS: &[HookEvent] = &[
     ),
     // 带 idle_prompt matcher 的 Notification -> 回到空闲展示
     HookEvent::with_matcher("Notification", "idle_prompt", HookEventKind::Stop),
+    HookEvent::with_matcher(
+        "Notification",
+        "permission_prompt",
+        HookEventKind::State(HookBehavior::Asking),
+    ),
     // 会话结束 -> 会话结束
     HookEvent::new("SessionEnd", HookEventKind::SessionEnd),
 ];

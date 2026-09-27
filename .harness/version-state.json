@@ -53,7 +53,10 @@
     "BUG-CODEX-CDP-MULTI-LISTENER-20260913",
     "BUG-LEGACY-SKIN-REDUNDANT-APPLY-CONSENT-20260913",
     "BUG-SKIN-TOKIO-STACK-OVERFLOW-20260913",
-    "BUG-WORKBUDDY-INTERNATIONAL-DUAL-ROOT-20260921"
+    "BUG-WORKBUDDY-INTERNATIONAL-DUAL-ROOT-20260921",
+    "BUG-USAGE-CROSS-DAY-20260927",
+    "BUG-CLAUDE-DESKTOP-WORKBUDDY-USAGE-20260927",
+    "BUG-HOOK-EVENT-SEMANTICS-20260927"
   ],
   "cycle_base_version": "0.3.8",
   "feature_bump_applied": false,
@@ -61,7 +64,23 @@
     "source_commit": "5a58f5872ad610830606fe3f464ff444b1c78999",
     "version": "0.3.8"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "BUG-USAGE-CROSS-DAY-20260927",
+      "kind": "bug-fix",
+      "required_version": "0.3.9"
+    },
+    {
+      "change_id": "BUG-CLAUDE-DESKTOP-WORKBUDDY-USAGE-20260927",
+      "kind": "bug-fix",
+      "required_version": "0.3.10"
+    },
+    {
+      "change_id": "BUG-HOOK-EVENT-SEMANTICS-20260927",
+      "kind": "bug-fix",
+      "required_version": "0.3.11"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.3.8"
+  "target_version": "0.3.11"
 }

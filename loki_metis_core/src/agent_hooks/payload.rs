@@ -42,7 +42,7 @@ pub fn prepare_native_hook(
     if tool != AiTool::Cursor && is_cursor_hosted(&source) {
         return Ok(PreparedNativeHook::SuppressForeignHost);
     }
-    envelope_from_source(&source, configured_event).map(PreparedNativeHook::Deliver)
+    envelope_from_source(tool, &source, configured_event).map(PreparedNativeHook::Deliver)
 }
 
 /// 解析原生 JSON 对象。
@@ -62,6 +62,7 @@ fn parse_native_hook_object(native_json: &[u8]) -> Result<Map<String, Value>, Ho
 
 /// 从原生对象提取最小信封。
 fn envelope_from_source(
+    tool: AiTool,
     source: &Map<String, Value>,
     configured_event: &str,
 ) -> Result<MinimalHookPayload, HookError> {
@@ -94,7 +95,17 @@ fn envelope_from_source(
                 "promptId",
             ],
         ),
-        status: scalar_field(source, "status"),
+        // 三种 Claude 兼容客户端用 notification_type 区分同名 Notification 分组。
+        // 其余事件仍保留原生 status 的既有语义，不把通知正文传出 relay。
+        status: if configured_event == "Notification"
+            && matches!(
+                tool,
+                AiTool::ClaudeCode | AiTool::WorkBuddy | AiTool::CodeBuddy
+            ) {
+            string_field(source, &["notification_type"])
+        } else {
+            scalar_field(source, "status")
+        },
     })
 }
 
