@@ -169,8 +169,7 @@ pub fn overview_snapshot_start_epoch_ms(
         let (start, _) = inclusive_calendar_range(window, today)?;
         earliest = earliest.min(start);
     }
-    day_start_epoch_ms(earliest, standard, device_tz)
-        .ok_or(TimelineError::InvalidObservedTimestamp)
+    day_start_epoch_ms(earliest, standard, device_tz).ok_or(TimelineError::InvalidObservedTimestamp)
 }
 
 /// 按观测民用日解析统一日历窗口的闭区间起止日期。

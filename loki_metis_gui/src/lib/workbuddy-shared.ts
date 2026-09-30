@@ -14,7 +14,7 @@ import {
   timeStandardAtom,
   type WorkbuddyChartGroup,
   type WorkbuddyChartMetric,
-} from "../state/page-session";
+} from "../state/usage-view-state";
 
 export type { WorkbuddyChartGroup, WorkbuddyChartMetric };
 

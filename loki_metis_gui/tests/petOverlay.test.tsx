@@ -17,7 +17,7 @@ import { PetOverlayPage } from "../src/pages/PetOverlayPage";
 import {
   INTERFACE_LANGUAGE_CHANGED_EVENT,
   PET_WINDOW_STATE_CHANGED_EVENT,
-} from "../src/pages/usePetAuxiliaryWindowSync";
+} from "../src/hooks/usePetAuxiliaryWindowSync";
 import { monitorImageBytesToDataUrl } from "../src/pet-overlay-image";
 import { TestProviders } from "./testUtils";
 

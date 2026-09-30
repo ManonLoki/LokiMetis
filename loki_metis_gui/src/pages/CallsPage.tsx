@@ -23,7 +23,7 @@ import {
   type UsageFilterOptionDto,
   type UsageViewKind,
 } from "../api/usage";
-import { LocalIndexNotice } from "../components/dashboard/UsageUi";
+import { LocalIndexNotice } from "../components/usage/UsageUi";
 import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import {
   emptyUsageFilters,
@@ -32,7 +32,7 @@ import {
   type UsageCallSort,
 } from "../state/usage-filters";
 import { usageViewAtom } from "../state/agent-client";
-import { timeStandardAtom } from "../state/page-session";
+import { timeStandardAtom } from "../state/usage-view-state";
 import { visibleErrorMessage } from "../visible-error";
 import { displayLabel } from "../i18n/backend-labels";
 import { CallsResultsTable } from "./CallsResultsTable";

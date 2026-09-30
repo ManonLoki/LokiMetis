@@ -57,7 +57,7 @@ export function UnifiedAgentSelectionPanel(): ReactElement {
   return (
     <Paper
       aria-labelledby="settings-enabled-agent-panel-title"
-      className="surface-card settings-card"
+      className="surface-card settings-card spot-panel"
       data-testid="settings-enabled-agent-panel"
       p="lg"
       radius="lg"

@@ -120,7 +120,7 @@ export function SettingsPage({
   return (
     <Stack data-testid="settings-page" gap="lg">
       <Paper
-        className="surface-card"
+        className="surface-card spot-panel"
         data-testid="settings-application-section"
         p="xl"
         radius="lg"
@@ -182,7 +182,7 @@ export function SettingsPage({
       <AgentSettings />
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-        <Paper className="surface-card" p="xl" radius="lg" withBorder>
+        <Paper className="surface-card spot-panel" p="xl" radius="lg" withBorder>
           <Stack gap="md">
             <Title order={2} size="h3">
               {t("settings.language_title")}
@@ -213,7 +213,7 @@ export function SettingsPage({
           </Stack>
         </Paper>
 
-        <Paper className="surface-card" p="xl" radius="lg" withBorder>
+        <Paper className="surface-card spot-panel" p="xl" radius="lg" withBorder>
           <Stack gap="md">
             <Title order={2} size="h3">
               {t("settings.theme_title")}

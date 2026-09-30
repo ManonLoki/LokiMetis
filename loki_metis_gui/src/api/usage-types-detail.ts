@@ -58,8 +58,7 @@ export type UiMessageCode =
   | "primaryChanged"
   | "primaryAlreadySelected"
   | "primaryCleared"
-  | "primaryNotSet"
-  | "indexCleared";
+  | "primaryNotSet";
 
 /** 固定占位、推理强度与匿名短标签的稳定展示语义。 */
 export type DisplayLabelCode =
@@ -479,8 +478,6 @@ export interface PrivacySettingsDto {
   indexLocationCode?: "codex" | "claudeCode" | "grokBuildCli";
   /** 当前索引体积，后端未知时为空。 */
   indexSizeBytes: number | null;
-  /** 最近一次清空本产品索引的时间。 */
-  lastClearedAtEpochMs: number | null;
   /** 统一 AI 目录中当前能映射到看板的选项；无法映射的类型不进入此数组。 */
   availableAiTypes: AvailableAiTypeDto[];
   /** 用户显式启用本机扫描、统计与监控的 Agent；缺省为空。 */
@@ -687,14 +684,4 @@ export interface WorkbuddySourceStatusDto {
   alias: string | null;
   /** 与物理 Agent 数据源表同形的已发现默认根；国内版与国际版各占一行，未发现为空。 */
   roots: SourceRootDto[];
-}
-
-/** 描述清空本产品索引后的可见结果。 */
-export interface ClearIndexResultDto {
-  /** 是否成功清空本产品索引。 */
-  cleared: boolean;
-  /** 明确不会删除当前客户端原始记录的中文说明。 */
-  message: string;
-  /** 清空结果的稳定本地化代码。 */
-  messageCode?: UiMessageCode;
 }

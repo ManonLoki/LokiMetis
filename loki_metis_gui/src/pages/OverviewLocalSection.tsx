@@ -2,9 +2,9 @@ import { SegmentedControl, Stack } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 import type { LocalRecordsSectionDto, UsageWindow, WindowUsageDto } from "../api/usage";
-import { LocalIndexNotice } from "../components/dashboard/UsageUi";
+import { LocalIndexNotice } from "../components/usage/UsageUi";
 import { LocalWindowSummary } from "./OverviewCards";
-import { overviewWindowOrder } from "./overview-windows";
+import { overviewWindowOrder } from "../lib/overview-windows";
 
 /** 定义物理 Agent 本机概览区域的规范事实与加载状态。 */
 interface OverviewLocalSectionProps {

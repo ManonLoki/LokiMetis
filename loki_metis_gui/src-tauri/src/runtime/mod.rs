@@ -64,8 +64,6 @@ pub(crate) struct AppRuntimeState {
     pub(crate) coverages: AgentClientRegistry<Arc<RwLock<CoverageReport>>>,
     /// 分客户端保存最近一次扫描生成的安全数据根展示记录。
     pub(crate) roots: AgentClientRegistry<Arc<RwLock<Vec<SourceRootDto>>>>,
-    /// 分客户端保存最近一次清空本产品索引的时间。
-    last_cleared_at_epoch_ms: AgentClientRegistry<RwLock<Option<i64>>>,
 }
 
 impl AppRuntimeState {
@@ -115,11 +113,6 @@ impl AppRuntimeState {
                 Arc::new(RwLock::new(Vec::new())),
                 Arc::new(RwLock::new(Vec::new())),
             ),
-            last_cleared_at_epoch_ms: AgentClientRegistry::new(
-                RwLock::new(None),
-                RwLock::new(None),
-                RwLock::new(None),
-            ),
         }
     }
 
@@ -128,15 +121,6 @@ impl AppRuntimeState {
         Arc::clone(&self.codex_account_context_gate)
             .lock_owned()
             .await
-    }
-
-    /// 记录指定客户端索引已经清空的时间，不影响原始文件或登录状态。
-    pub(crate) async fn mark_index_cleared(&self, client: AgentClientKindDto) {
-        *self
-            .last_cleared_at_epoch_ms
-            .get(client.into())
-            .write()
-            .await = Some(now_epoch_ms());
     }
 
     /// 首次读取设置时完成旧字段清理；损坏或 I/O 失败时保守回退。

@@ -4,8 +4,7 @@ use std::sync::Arc;
 
 use loki_metis_core::{
     DiscoveryBatchIndexDecision, DiscoveryBatchKind, RootDiscoveryLifecycle, ScanStartOrigin,
-    SourceClientKind, clear_local_index_success_message, clear_local_index_while_scanning_message,
-    discovery_batch_index_decision, empty_coverage, ensure_periodic_quick_scan_allowed,
+    SourceClientKind, discovery_batch_index_decision, ensure_periodic_quick_scan_allowed,
     immediate_reindex_required, local_scan_in_progress_error_message,
     local_scan_writer_busy_message, local_storage_read_error_message, source_client_app_data_dir,
 };
@@ -13,15 +12,11 @@ use tauri::{AppHandle, State};
 
 use crate::backend::local_index::LocalIndex;
 use crate::commands::scan_orchestration::{ScanTask, ScanTaskOperation, execute_scan_task};
-use crate::dto::{
-    AgentClientKindDto, ClearIndexResultDto, LocalIndexRefreshTriggerDto, ScanKindDto,
-    ScanStatusDto, UiMessageCodeDto,
-};
+use crate::dto::{AgentClientKindDto, LocalIndexRefreshTriggerDto, ScanKindDto, ScanStatusDto};
 use crate::runtime::{AppRuntimeState, now_epoch_ms};
 use crate::tray::refresh_tray_daily_token_title;
 
 use super::access::ensure_scan_start_access_by_policy;
-use super::ensure_business_access;
 
 /// 在固定客户端顺序中去重并拒绝空批次或重复输入。
 fn ordered_refresh_clients(
@@ -360,49 +355,6 @@ async fn execute_periodic_quick_scan(
     })
     .await;
     true
-}
-
-/// 清空当前客户端的本产品派生索引，保留数据根登记与原始客户端文件。
-#[tauri::command]
-pub(crate) async fn clear_local_index(
-    app: AppHandle,
-    state: State<'_, AppRuntimeState>,
-    client: AgentClientKindDto,
-) -> Result<ClearIndexResultDto, String> {
-    ensure_business_access(&state).await?;
-    // 与扫描、数据根修改保持唯一锁序：全局 writer 必须先于 Codex 账户上下文。
-    let _write_permit = state
-        .local_scan
-        .get(client.into())
-        .try_start()
-        .map_err(|_| {
-            tracing::warn!(
-                client = client.display_name(),
-                "index clear rejected: the shared index writer is busy"
-            );
-            clear_local_index_while_scanning_message().to_owned()
-        })?;
-    let _account_context_guard = if client == AgentClientKindDto::Codex {
-        Some(state.lock_codex_account_context().await)
-    } else {
-        None
-    };
-    let local_analysis = Arc::clone(&state.agent_clients.get(client.into()).local_analysis);
-    if let Err(error) = local_analysis.clear_index().await {
-        tracing::error!(client = client.display_name(), %error, "index clear failed");
-        return Err(error);
-    }
-    tracing::info!(client = client.display_name(), "index cleared");
-
-    state.mark_index_cleared(client).await;
-    *state.coverages.get(client.into()).write().await = empty_coverage();
-    drop(_account_context_guard);
-    refresh_tray_daily_token_title(&app).await;
-    Ok(ClearIndexResultDto {
-        cleared: true,
-        message: clear_local_index_success_message(client.display_name()),
-        message_code: UiMessageCodeDto::IndexCleared,
-    })
 }
 
 #[cfg(test)]

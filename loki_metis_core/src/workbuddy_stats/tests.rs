@@ -337,7 +337,11 @@ fn later_conflicting_workbuddy_observations_still_fail_closed() {
         let quality = record::workbuddy_usage_quality(&records);
         assert_eq!(quality.conflicting_duplicate_record_count, 2);
         assert_eq!(quality.duplicate_record_count, 0);
-        assert!(record::prepare_workbuddy_usage_records(&records).0.is_empty());
+        assert!(
+            record::prepare_workbuddy_usage_records(&records)
+                .0
+                .is_empty()
+        );
     }
 }
 

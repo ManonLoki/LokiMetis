@@ -173,8 +173,7 @@ pub use scan::{
     RegisteredRootIdentity, ScanCoordinator, ScanDiscoveryResult, ScanLease, ScanLifecycle,
     ScanProgressEvent, ScanProgressScope, ScanProgressScopeCode, ScanScopeCode, ScanScopeProgress,
     ScanStateError, ScanStatus, ScanTaskProgress, append_platform_discovery_excludes,
-    append_platform_discovery_excludes_for_volumes, clear_local_index_success_message,
-    clear_local_index_while_scanning_message, confirmed_invalid_roots_to_remove,
+    append_platform_discovery_excludes_for_volumes, confirmed_invalid_roots_to_remove,
     discovery_roots_for_active_registration, is_discovery_path_excluded,
     is_full_discovery_skip_directory_name, local_scan_client_failure_message,
     local_scan_error_message, local_scan_error_message_from, local_scan_in_progress_error_message,
@@ -236,8 +235,7 @@ pub use timeline::{
     filter_canonical_usage_for_date, filter_canonical_usage_for_dates, first_representable_in_date,
     first_representable_local_instant, inclusive_calendar_range, local_dates_for_window,
     next_day_start_epoch_ms, next_local_day_start_epoch_ms, occurred_on_dates,
-    overview_snapshot_start_epoch_ms,
-    retention_cutoff_epoch_ms,
+    overview_snapshot_start_epoch_ms, retention_cutoff_epoch_ms,
 };
 pub use usage::{
     IncrementalTokenUsageDecision, SelectedTokenUsage, TokenUsage, TokenUsageError,

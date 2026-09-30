@@ -45,9 +45,9 @@ import {
 } from "../components/skins/SkinDialogs";
 import { SkinCard } from "../components/skins/SkinCard";
 import { SkinToolbar } from "../components/skins/SkinToolbar";
-import { useSkinHostQueries } from "./useSkinHostQueries";
-import { skinReference, useSkinHostActions } from "./useSkinHostActions";
-import { useSkinImportController } from "./useSkinImportController";
+import { useSkinHostQueries } from "../hooks/useSkinHostQueries";
+import { skinReference, useSkinHostActions } from "../hooks/useSkinHostActions";
+import { useSkinImportController } from "../hooks/useSkinImportController";
 
 /** 皮肤目录加载时的骨架，结构与最终卡片网格一致。 */
 function SkinCatalogSkeleton() {

@@ -518,7 +518,6 @@ export const dashboardZhCN = {
       primaryAlreadySelected: "该目录已经是 Codex 主数据目录。",
       primaryCleared: "已清除主数据目录选择。",
       primaryNotSet: "当前未设置 Codex 主数据目录。",
-      indexCleared: "已清空本产品索引；客户端原始文件未受影响。",
     },
     display: {
       unknownModel: "未知模型",

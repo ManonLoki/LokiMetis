@@ -7,8 +7,7 @@ mod progress;
 mod state;
 
 pub use errors::{
-    LocalScanErrorCategory, LocalScanErrorKindProvider, clear_local_index_success_message,
-    clear_local_index_while_scanning_message, local_scan_client_failure_message,
+    LocalScanErrorCategory, LocalScanErrorKindProvider, local_scan_client_failure_message,
     local_scan_error_message, local_scan_error_message_from, local_scan_in_progress_error_message,
     local_scan_not_running_cancellable_message, local_scan_task_error_message,
     local_scan_worker_unavailable_detail, local_scan_writer_busy_failure_detail,

@@ -6,13 +6,13 @@ import type {
   RootCandidateDto,
   RootDiscoveryScope,
   RootDiscoveryStatusDto,
-} from "../api/usage";
-import { agentClientLabel } from "../state/agent-client";
+} from "../../api/usage";
+import { agentClientLabel } from "../../state/agent-client";
 import { RootCandidateCapsules } from "./RootCandidateCapsules";
 import {
   selectVisibleDiscoveryCandidates,
   visibleDiscoveryCandidateCount,
-} from "./visible-discovery-candidates";
+} from "../../lib/visible-discovery-candidates";
 
 /** 定义数据源页快速/完全发现的状态和显式操作。 */
 interface SourceDiscoveryPanelProps {

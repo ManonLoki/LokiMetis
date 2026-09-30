@@ -1,11 +1,12 @@
 import { Badge, Button, Group, Paper, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
-import type { SourceRootDto } from "../api/usage";
-import { formatObservedAt } from "../usage-format";
-import { sourceDiscoveryLabel } from "../i18n/backend-labels";
-import { displayRootAlias } from "../root-label";
-import { EmptyHint } from "../components/StatePanels";
+import type { SourceRootDto } from "../../api/usage";
+import { formatObservedAt } from "../../usage-format";
+import { sourceDiscoveryLabel } from "../../i18n/backend-labels";
+import { displayRootAlias } from "../../root-label";
+import { EmptyHint } from "../StatePanels";
+import { EndTh, EndTd } from "../DataTable";
 
 /** 展示已授权数据根的索引结果表，并暴露启用、重新索引、重命名、移除操作。 */
 // “受控组件”：这个组件自己不持有任何业务状态（没有 useState 管理数据），
@@ -68,14 +69,12 @@ export function SourceRootTable({
             <Table.Tr>
               <Table.Th>{t("sources.table.alias")}</Table.Th>
               <Table.Th>{t("sources.table.discovery")}</Table.Th>
-              <Table.Th ta="right">{t("sources.table.files")}</Table.Th>
-              <Table.Th ta="right">{t("sources.table.skipped")}</Table.Th>
-              <Table.Th ta="right">{t("sources.table.errors")}</Table.Th>
-              <Table.Th ta="right">{t("sources.table.duplicates")}</Table.Th>
+              <EndTh>{t("sources.table.files")}</EndTh>
+              <EndTh>{t("sources.table.skipped")}</EndTh>
+              <EndTh>{t("sources.table.errors")}</EndTh>
+              <EndTh>{t("sources.table.duplicates")}</EndTh>
               <Table.Th>{t("sources.table.lastScan")}</Table.Th>
-              <Table.Th className="w-100" ta="right">
-                {t("sources.table.actions")}
-              </Table.Th>
+              <EndTh className="w-100">{t("sources.table.actions")}</EndTh>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -114,12 +113,12 @@ export function SourceRootTable({
                     </Group>
                   </Table.Td>
                   <Table.Td>{sourceDiscoveryLabel(t, root.discoveryCode)}</Table.Td>
-                  <Table.Td ta="right">{root.fileCount}</Table.Td>
-                  <Table.Td ta="right">{root.skippedCount}</Table.Td>
-                  <Table.Td ta="right">{root.errorCount}</Table.Td>
-                  <Table.Td ta="right">{root.duplicateCount}</Table.Td>
+                  <EndTd>{root.fileCount}</EndTd>
+                  <EndTd>{root.skippedCount}</EndTd>
+                  <EndTd>{root.errorCount}</EndTd>
+                  <EndTd>{root.duplicateCount}</EndTd>
                   <Table.Td>{formatObservedAt(root.lastScanAtEpochMs)}</Table.Td>
-                  <Table.Td className="w-100" ta="right">
+                  <EndTd className="w-100">
                     <Group gap="xs" justify="flex-end" wrap="nowrap">
                       {allowToggle ? (
                         <Button
@@ -180,7 +179,7 @@ export function SourceRootTable({
                         </>
                       ) : null}
                     </Group>
-                  </Table.Td>
+                  </EndTd>
                 </Table.Tr>
               );
             })}

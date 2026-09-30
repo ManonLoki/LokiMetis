@@ -39,20 +39,3 @@ pub(super) async fn get_sources_for_state(
         scan: state.scans.get(client.into()).snapshot(),
     })
 }
-
-/// 只读取当前客户端本机数据根，不触发扫描或索引写入。
-#[tauri::command]
-pub(crate) async fn get_source_roots(
-    state: State<'_, AppRuntimeState>,
-    client: AgentClientKindDto,
-) -> Result<Vec<crate::dto::SourceRootDto>, String> {
-    let binding = Arc::clone(&state.agent_clients.get(client.into()).local_analysis);
-    let roots = load_source_roots_for_parser(
-        binding.app_data_dir(),
-        binding.parser_version(),
-        binding.source_environment_label(),
-    )
-    .await?;
-    *state.roots.get(client.into()).write().await = roots.clone();
-    Ok(roots)
-}

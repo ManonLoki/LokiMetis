@@ -21,13 +21,13 @@ pub(crate) use root_discovery::{
     to_status_dto as root_discovery_status_dto,
 };
 pub(crate) use scan::{
-    clear_local_index, migrate_local_indexes, refresh_indexes_requiring_upgrade,
-    refresh_local_indexes, run_periodic_quick_scans,
+    migrate_local_indexes, refresh_indexes_requiring_upgrade, refresh_local_indexes,
+    run_periodic_quick_scans,
 };
 pub(crate) use scan_orchestration::ScanTaskOwner;
 pub(crate) use settings::{get_privacy_settings, set_retention_days, set_scan_interval};
 pub(crate) use source_reindex::reindex_source_root;
-pub(crate) use sources::{get_source_roots, get_sources};
+pub(crate) use sources::get_sources;
 pub(crate) use usage::{
     get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics,
 };

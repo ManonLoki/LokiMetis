@@ -11,7 +11,7 @@ import {
 } from "../api/usage";
 import { invalidateLocalUsageQueries } from "../api/usage-queries";
 import { ROOT_CANDIDATES_QUERY_KEY } from "./useRootCandidateEvents";
-import { selectVisibleDiscoveryCandidates } from "./visible-discovery-candidates";
+import { selectVisibleDiscoveryCandidates } from "../lib/visible-discovery-candidates";
 
 /** 保存一次有界发现批次的 Agent、候选与游标。 */
 interface DiscoveryBatch {

@@ -28,7 +28,7 @@ import "../pet-overlay.css";
 import {
   usePetAuxiliaryWindowLanguage,
   usePetWindowStateEvents,
-} from "./usePetAuxiliaryWindowSync";
+} from "../hooks/usePetAuxiliaryWindowSync";
 
 const WHEEL_THROTTLE_MS = 220;
 

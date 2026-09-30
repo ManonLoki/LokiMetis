@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { RootCandidateDto, RootDiscoveryStatusDto } from "../src/api/usage";
-import { useDiscoveryBatchIndex } from "../src/pages/useDiscoveryBatchIndex";
+import { useDiscoveryBatchIndex } from "../src/hooks/useDiscoveryBatchIndex";
 import { TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));

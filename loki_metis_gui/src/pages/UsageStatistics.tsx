@@ -18,7 +18,7 @@ import type {
   UsageWindow,
 } from "../api/usage";
 import { FilterBar } from "../components/FilterBar";
-import { TokenTotalDisplay, MiniMetric } from "../components/dashboard/UsageUi";
+import { TokenTotalDisplay, MiniMetric } from "../components/usage/UsageUi";
 import {
   completenessLabel,
   confidenceLabel,
@@ -28,8 +28,9 @@ import {
   formatTokens,
 } from "../usage-format";
 import { displayLabel } from "../i18n/backend-labels";
-import { usageWindowOrder } from "./overview-windows";
+import { usageWindowOrder } from "../lib/overview-windows";
 import { EmptyHint } from "../components/StatePanels";
+import { EndTh, EndTd } from "../components/DataTable";
 
 /** 描述统计展示与固定查询选择器之间的受控交互。 */
 interface UsageStatisticsProps {
@@ -183,11 +184,11 @@ export function UsageStatistics({
                       ? t("statistics.daily.dateRemote")
                       : t("statistics.daily.dateLocal")}
                   </Table.Th>
-                  <Table.Th ta="right">{t("metric.totalTokens")}</Table.Th>
-                  <Table.Th ta="right">{t("metric.input")}</Table.Th>
-                  <Table.Th ta="right">{t("metric.cachedInput")}</Table.Th>
-                  <Table.Th ta="right">{t("metric.output")}</Table.Th>
-                  <Table.Th ta="right">{t("metric.calls")}</Table.Th>
+                  <EndTh>{t("metric.totalTokens")}</EndTh>
+                  <EndTh>{t("metric.input")}</EndTh>
+                  <EndTh>{t("metric.cachedInput")}</EndTh>
+                  <EndTh>{t("metric.output")}</EndTh>
+                  <EndTh>{t("metric.calls")}</EndTh>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -203,31 +204,31 @@ export function UsageStatistics({
                         ) : null}
                       </Group>
                     </Table.Td>
-                    <Table.Td fw={700} ta="right">
+                    <EndTd fw={700}>
                       <TokenTotalDisplay
                         density="inline"
                         value={bucket.measure.tokens.totalTokens}
                       />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay
                         density="inline"
                         value={bucket.measure.tokens.inputTokens}
                       />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay
                         density="inline"
                         value={bucket.measure.tokens.cachedInputTokens}
                       />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay
                         density="inline"
                         value={bucket.measure.tokens.outputTokens}
                       />
-                    </Table.Td>
-                    <Table.Td ta="right">{formatTokens(bucket.measure.callCount)}</Table.Td>
+                    </EndTd>
+                    <EndTd>{formatTokens(bucket.measure.callCount)}</EndTd>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -248,10 +249,10 @@ export function UsageStatistics({
                   <Table.Th>
                     {t(`dimension.${dimension}`, { defaultValue: t("dimension.group") })}
                   </Table.Th>
-                  <Table.Th ta="right">{t("metric.totalTokens")}</Table.Th>
-                  <Table.Th ta="right">{t("statistics.groups.tokenShare")}</Table.Th>
-                  <Table.Th ta="right">{t("metric.calls")}</Table.Th>
-                  <Table.Th ta="right">{t("metric.cacheReadShare")}</Table.Th>
+                  <EndTh>{t("metric.totalTokens")}</EndTh>
+                  <EndTh>{t("statistics.groups.tokenShare")}</EndTh>
+                  <EndTh>{t("metric.calls")}</EndTh>
+                  <EndTh>{t("metric.cacheReadShare")}</EndTh>
                   <Table.Th>{t("statistics.groups.quality")}</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -275,21 +276,19 @@ export function UsageStatistics({
                         ) : null}
                       </Group>
                     </Table.Td>
-                    <Table.Td fw={700} ta="right">
+                    <EndTd fw={700}>
                       <TokenTotalDisplay
                         density="inline"
                         value={group.measure.tokens.totalTokens}
                       />
-                    </Table.Td>
-                    <Table.Td ta="right">
-                      {formatBasisPoints(group.totalTokenShareBasisPoints)}
-                    </Table.Td>
-                    <Table.Td ta="right">{formatTokens(group.measure.callCount)}</Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>{formatBasisPoints(group.totalTokenShareBasisPoints)}</EndTd>
+                    <EndTd>{formatTokens(group.measure.callCount)}</EndTd>
+                    <EndTd>
                       {group.measure.tokens.cachedInputTokens === null
                         ? t("common.notProvided")
                         : formatBasisPoints(group.measure.cacheReadBasisPoints)}
-                    </Table.Td>
+                    </EndTd>
                     <Table.Td>{confidenceLabel(group.measure.confidence)}</Table.Td>
                   </Table.Tr>
                 ))}

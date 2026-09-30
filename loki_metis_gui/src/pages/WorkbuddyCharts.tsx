@@ -20,20 +20,20 @@ import {
   type DistributionRow,
 } from "../components/charts/DistributionChart";
 import { TimeSeriesChart } from "../components/charts/TimeSeriesChart";
-import { TokenTotalDisplay, MiniMetric } from "../components/dashboard/UsageUi";
+import { TokenTotalDisplay, MiniMetric } from "../components/usage/UsageUi";
 import {
   chartPreferencesAtom,
   workbuddyChartPreferencesAtom,
   type WorkbuddyChartGroup,
   type WorkbuddyChartMetric,
-} from "../state/page-session";
+} from "../state/usage-view-state";
 import {
   formatBasisPoints,
   formatCompactTokens,
   formatCredits,
   formatTokens,
 } from "../usage-format";
-import { usageWindowOrder } from "./overview-windows";
+import { usageWindowOrder } from "../lib/overview-windows";
 import { WorkbuddyQueryGate } from "./WorkbuddyGate";
 import {
   CREDITS_SERIES_COLOR,
@@ -50,7 +50,7 @@ import {
   workbuddyChartMetricsForGroup,
   workbuddyCompletedTraceCount,
   workbuddyDailyMetricValue,
-} from "./WorkbuddyShared";
+} from "../lib/workbuddy-shared";
 import "../charts.css";
 
 /** 看板图表选项卡选中 WorkBuddy：同一页同时展示趋势图与用量分布。 */
@@ -141,7 +141,7 @@ function WorkbuddyOverviewCharts() {
           points={hourlyTrend.buckets}
         />
       ) : dailyBuckets.length === 0 ? (
-        <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+        <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
           <Text c="dimmed">{t("workbuddy.noDailyData")}</Text>
         </Paper>
       ) : (
@@ -199,7 +199,7 @@ function WorkbuddyTrendCharts({
       : t("workbuddy.dailyCreditsTitle");
   return (
     <>
-      <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+      <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Text fw={700}>{requestsTitle}</Text>
           <TimeSeriesChart
@@ -218,7 +218,7 @@ function WorkbuddyTrendCharts({
           />
         </Stack>
       </Paper>
-      <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+      <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Text fw={700}>{sessionsTitle}</Text>
           <TimeSeriesChart
@@ -237,7 +237,7 @@ function WorkbuddyTrendCharts({
           />
         </Stack>
       </Paper>
-      <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+      <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Text fw={700}>{tokensTitle}</Text>
           <TimeSeriesChart
@@ -256,7 +256,7 @@ function WorkbuddyTrendCharts({
           />
         </Stack>
       </Paper>
-      <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+      <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Text fw={700}>{creditsTitle}</Text>
           <TimeSeriesChart
@@ -346,7 +346,7 @@ function WorkbuddyUsageDistribution() {
           />
         </Group>
       </Stack>
-      <Paper className="chart-panel" p="lg" radius="lg" withBorder>
+      <Paper className="chart-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="lg">
           <Stack gap={2}>
             <Text fw={700}>{t("charts.distribution.title")}</Text>

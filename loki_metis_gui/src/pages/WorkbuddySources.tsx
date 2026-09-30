@@ -9,8 +9,8 @@ import {
   type RootDiscoveryStatusDto,
 } from "../api/usage";
 import { FailureState, LoadingState } from "../components/StatePanels";
-import { SourceDiscoveryPanel } from "./SourceDiscoveryPanel";
-import { SourceRootTable } from "./SourceRootTable";
+import { SourceDiscoveryPanel } from "../components/sources/SourceDiscoveryPanel";
+import { SourceRootTable } from "../components/sources/SourceRootTable";
 
 /** WorkBuddy 数据源查询的稳定缓存键；开关切换后据此失效重取。 */
 const WORKBUDDY_SOURCE_STATUS_QUERY_KEY = ["workbuddy-source-status"];

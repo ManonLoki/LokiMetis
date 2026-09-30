@@ -2,7 +2,7 @@ import { Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/co
 import { useTranslation } from "react-i18next";
 
 import type { WindowUsageDto } from "../api/usage";
-import { FactMeta, TokenTotalDisplay } from "../components/dashboard/UsageUi";
+import { FactMeta, TokenTotalDisplay, MiniMetric } from "../components/usage/UsageUi";
 import { formatBasisPoints, formatTokens } from "../usage-format";
 
 /** 渲染所选本机窗口的主要指标、完整 Token 构成和多根覆盖。 */
@@ -47,7 +47,12 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
     <section aria-label={t("overviewCards.local.sectionAria", { window: label })}>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card min-h-44 spot-panel"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
               {t("overviewCards.local.callCount")}
             </Text>
@@ -55,7 +60,12 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
               {formatTokens(aggregate.callCount)}
             </Text>
           </Paper>
-          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card min-h-44 spot-panel"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
               {t("overviewCards.local.tokenTotal")}
             </Text>
@@ -66,7 +76,7 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
           </Paper>
         </SimpleGrid>
 
-        <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+        <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
           <Stack gap="md">
             <Group justify="space-between">
               <Title order={3}>
@@ -76,18 +86,15 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
             </Group>
             <SimpleGrid cols={{ base: 2, sm: 3, xl: 6 }}>
               {tokenMetrics.map((metric) => (
-                <div className="mini-metric" key={metric.label}>
-                  <Text c="dimmed" size="xs">
-                    {metric.label}
-                  </Text>
+                <MiniMetric dense key={metric.label} label={metric.label}>
                   <TokenTotalDisplay density="inline" value={metric.value} />
-                </div>
+                </MiniMetric>
               ))}
             </SimpleGrid>
           </Stack>
         </Paper>
 
-        <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+        <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
           <Stack gap="md">
             <Group justify="space-between">
               <Title order={3}>{t("overviewCards.local.coverageTitle")}</Title>
@@ -97,12 +104,9 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
             </Group>
             <SimpleGrid cols={{ base: 2, sm: 3, xl: 6 }}>
               {coverageMetrics.map((metric) => (
-                <div className="mini-metric" key={metric.label}>
-                  <Text c="dimmed" size="xs">
-                    {metric.label}
-                  </Text>
+                <MiniMetric dense key={metric.label} label={metric.label}>
                   <Text fw={800}>{metric.value}</Text>
-                </div>
+                </MiniMetric>
               ))}
             </SimpleGrid>
           </Stack>

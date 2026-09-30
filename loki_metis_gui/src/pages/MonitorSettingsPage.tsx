@@ -146,7 +146,7 @@ export function MonitorSettingsPage() {
     <Stack className="settings-page" data-testid="monitor-settings" gap="lg">
       <Card
         aria-labelledby="monitor-hooks-management-title"
-        className="surface-card settings-card"
+        className="surface-card settings-card spot-panel"
         data-testid="monitor-hooks-management"
         p="sm"
         radius="lg"

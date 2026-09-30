@@ -24,7 +24,7 @@ export function SponsorPaymentPanel(): ReactElement {
 
   return (
     <Paper
-      className="surface-card"
+      className="surface-card spot-panel"
       data-testid="settings-sponsor-section"
       p="xl"
       radius="lg"

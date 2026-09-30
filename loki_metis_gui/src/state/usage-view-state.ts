@@ -11,29 +11,6 @@ import {
 } from "../api/usage-types";
 import { agentClientAtom, usageViewAtom } from "./agent-client";
 
-/** 页面查询当前所处的异步阶段。 */
-export type PageQueryStatus = "loading" | "success" | "error";
-
-/** 数字分页页面在当前程序进程内保存的通用交互状态。 */
-export interface PageSessionState<TTab extends string, TQuery> {
-  activeTab: TTab;
-  query: TQuery;
-  page: number;
-  pageSize: number;
-}
-
-/** 会改变查询范围并要求回到第一页的选项。 */
-export interface PageSelection<TTab extends string, TQuery> {
-  activeTab: TTab;
-  query: TQuery;
-}
-
-/** 用于判断当前数字分页是否已经越界的最小查询结果。 */
-export interface PageResultSnapshot {
-  status: PageQueryStatus;
-  itemCount: number;
-}
-
 /** 概览窗口按四个只读视图保留到当前桌面进程结束。 */
 const overviewWindowsAtom = atom<Record<UsageViewKind, UsageWindow>>({
   all: "today",

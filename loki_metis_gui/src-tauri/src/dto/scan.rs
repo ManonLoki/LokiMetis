@@ -131,18 +131,6 @@ impl Default for ScanStatusDto {
     }
 }
 
-/// 描述清空本产品索引后的可见结果。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ClearIndexResultDto {
-    /// 是否成功清空本产品索引。
-    pub cleared: bool,
-    /// 明确不会删除当前客户端原始记录的中文说明。
-    pub message: String,
-    /// 清空结果的稳定本地化代码。
-    pub message_code: UiMessageCodeDto,
-}
-
 #[cfg(test)]
 mod tests {
     use super::{LocalIndexRefreshTriggerDto, ScanScopeCodeDto, ScanScopeProgressDto};

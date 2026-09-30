@@ -131,19 +131,9 @@ pub const fn scan_scope_local_fixed_volumes_label() -> &'static str {
     "本地固定卷"
 }
 
-/// 返回“已清空 index”操作的通用成功文案。
-pub fn clear_local_index_success_message(client_name: &str) -> String {
-    format!("已清空 {client_name} 的本产品索引；原始客户端文件未受影响。")
-}
-
 /// 返回本机索引读取失败时的实现降级说明。
 pub const fn local_usage_overview_unavailable_message() -> &'static str {
     "本机索引暂时无法读取，请重试。"
-}
-
-/// 清空索引与扫描任务冲突时的提示。
-pub const fn clear_local_index_while_scanning_message() -> &'static str {
-    "扫描运行期间不能清空索引；请先取消扫描。"
 }
 
 /// 根数据登记与扫描写入竞争时禁止修改的统一文案。

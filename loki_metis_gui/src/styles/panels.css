@@ -1,4 +1,4 @@
-/* 内容面板：统一材质、悬停反馈、表格行与筛选栏。新增面板类时同步更新 lib/useSpotlight.ts 的选择器。 */
+/* 内容面板：统一材质、悬停反馈、表格行与筛选栏。需要悬停光晕的面板加 `spot-panel` 标记类，useSpotlight 使用同一标记。 */
 
 /* 所有内容面板共用同一套材质：暖白底、暖色边框、宽扩散阴影与顶部内侧高光。 */
 .surface-card,
@@ -24,10 +24,7 @@
   place-items: center;
 }
 
-.surface-card,
-.metric-card,
-.chart-panel,
-.breakdown-panel,
+.spot-panel,
 .table-panel {
   transition:
     background-color 300ms var(--app-ease),
@@ -35,10 +32,7 @@
     box-shadow 300ms var(--app-ease);
 }
 
-.surface-card:hover,
-.metric-card:hover,
-.chart-panel:hover,
-.breakdown-panel:hover {
+.spot-panel:hover {
   border-color: color-mix(in srgb, var(--app-accent) 30%, var(--app-border));
   box-shadow: var(--app-panel-edge), var(--app-card-shadow-hover);
   background-image: radial-gradient(

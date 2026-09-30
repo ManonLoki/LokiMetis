@@ -3,17 +3,17 @@ import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 
 import type { UsageWindow, WorkbuddyWindowDto } from "../api/usage";
-import { TokenTotalDisplay } from "../components/dashboard/UsageUi";
-import { overviewWindowAtom } from "../state/page-session";
+import { TokenTotalDisplay, MiniMetric } from "../components/usage/UsageUi";
+import { overviewWindowAtom } from "../state/usage-view-state";
 import { formatBasisPoints, formatCredits, formatTokens } from "../usage-format";
-import { overviewWindowOrder } from "./overview-windows";
+import { overviewWindowOrder } from "../lib/overview-windows";
 import { WorkbuddyQueryGate } from "./WorkbuddyGate";
 import {
   formatMinutes,
   selectWorkbuddyWindow,
   useWorkbuddyStatisticsQuery,
   workbuddyTraceErrorRate,
-} from "./WorkbuddyShared";
+} from "../lib/workbuddy-shared";
 
 /** WorkBuddy 概览：与本机看板共用六个日历窗口，展示 project JSONL 精确用量与 Trace 诊断。 */
 export function WorkbuddyOverview() {
@@ -101,7 +101,12 @@ function WorkbuddyWindowSummary({
     <section aria-label={t("overviewCards.local.sectionAria", { window: label })}>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card min-h-44 spot-panel"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
               {t("workbuddy.totalSessions")}
             </Text>
@@ -109,7 +114,12 @@ function WorkbuddyWindowSummary({
               {formatTokens(window?.sessionCount ?? 0)}
             </Text>
           </Paper>
-          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card min-h-44 spot-panel"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
               {t("workbuddy.totalRequests")}
             </Text>
@@ -117,13 +127,23 @@ function WorkbuddyWindowSummary({
               {formatTokens(window?.requestCount ?? 0)}
             </Text>
           </Paper>
-          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card min-h-44 spot-panel"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
               {t("overviewCards.local.tokenTotal")}
             </Text>
             <TokenTotalDisplay className="hero-number" value={window?.tokens ?? 0} />
           </Paper>
-          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
+          <Paper
+            className="metric-card local-card min-h-44 spot-panel"
+            p="lg"
+            radius="lg"
+            withBorder
+          >
             <Text c="dimmed" fw={700} size="sm">
               {t("workbuddy.totalCredits")}
             </Text>
@@ -133,17 +153,14 @@ function WorkbuddyWindowSummary({
           </Paper>
         </SimpleGrid>
 
-        <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
+        <Paper className="breakdown-panel spot-panel" p="lg" radius="lg" withBorder>
           <Stack gap="md">
             <Title order={3}>{t("workbuddy.breakdownTitle", { window: label })}</Title>
             <SimpleGrid cols={{ base: 2, sm: 3 }}>
               {breakdown.map((metric) => (
-                <div className="mini-metric" key={metric.label}>
-                  <Text c="dimmed" size="xs">
-                    {metric.label}
-                  </Text>
+                <MiniMetric dense key={metric.label} label={metric.label}>
                   <Text fw={800}>{metric.value}</Text>
-                </div>
+                </MiniMetric>
               ))}
             </SimpleGrid>
           </Stack>

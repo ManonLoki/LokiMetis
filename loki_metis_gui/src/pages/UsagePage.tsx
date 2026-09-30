@@ -9,7 +9,7 @@ import {
   timeStandardQueryKey,
   type AgentClientKind,
 } from "../api/usage";
-import { LocalIndexNotice } from "../components/dashboard/UsageUi";
+import { LocalIndexNotice } from "../components/usage/UsageUi";
 import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import { UsageStatistics } from "./UsageStatistics";
 import { agentClientAtom, usageViewAtom } from "../state/agent-client";
@@ -17,7 +17,7 @@ import {
   timeStandardAtom,
   usageDimensionAtom,
   usageWindowAtom,
-} from "../state/page-session";
+} from "../state/usage-view-state";
 import { WorkbuddyUsage } from "./WorkbuddyUsage";
 
 /** 统计快照每次读取完成后等待十秒再刷新，慢请求期间保持单飞。 */

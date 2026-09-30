@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { FailureState, LoadingState } from "../components/StatePanels";
-import type { useWorkbuddyStatisticsQuery } from "./WorkbuddyShared";
+import type { useWorkbuddyStatisticsQuery } from "../lib/workbuddy-shared";
 
 /** 开关、隐私或统计查询尚未完成时的共用加载与失败态。 */
 export function WorkbuddyQueryGate({

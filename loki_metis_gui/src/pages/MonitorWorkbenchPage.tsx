@@ -66,7 +66,7 @@ export function MonitorWorkbenchPage() {
   return (
     <Stack data-testid="monitor-workbench" gap="lg">
       {refreshError ? <Alert color="red">{visibleErrorMessage(refreshError)}</Alert> : null}
-      <Card className="surface-card" p="md" radius="lg" withBorder>
+      <Card className="surface-card spot-panel" p="md" radius="lg" withBorder>
         <Stack gap="md">
           <Group align="flex-start" justify="space-between" wrap="wrap">
             <div>

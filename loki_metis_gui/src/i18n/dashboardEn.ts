@@ -574,8 +574,6 @@ export const dashboardEnUS = {
       primaryAlreadySelected: "This directory is already the Codex primary data directory.",
       primaryCleared: "The primary data directory selection was cleared.",
       primaryNotSet: "No Codex primary data directory is selected.",
-      indexCleared:
-        "This app’s index was cleared. Original client files were not modified.",
     },
     display: {
       unknownModel: "Unknown model",

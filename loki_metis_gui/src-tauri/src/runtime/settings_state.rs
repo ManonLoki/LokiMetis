@@ -171,11 +171,6 @@ impl AppRuntimeState {
         };
         let local_client = client.local_client();
         let index_size_bytes = self.index_size_bytes(local_client).await;
-        let last_cleared_at_epoch_ms = *self
-            .last_cleared_at_epoch_ms
-            .get(local_client.into())
-            .read()
-            .await;
         PrivacySettingsDto {
             language_preference,
             scan_interval_minutes,
@@ -193,7 +188,6 @@ impl AppRuntimeState {
                 UsageClientKindDto::GrokBuildCli => IndexLocationCodeDto::GrokBuildCli,
             },
             index_size_bytes,
-            last_cleared_at_epoch_ms,
             enabled_agents,
             available_ai_types: available_dashboard_ai_types(),
             workbuddy_stats_enabled,

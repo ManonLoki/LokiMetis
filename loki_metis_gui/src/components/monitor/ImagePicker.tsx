@@ -14,7 +14,8 @@ import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { MonitorImageCounts, MonitorImagePreview } from "../../api/monitor";
-import { useImageCategoryFilter } from "../../pages/useImageCategoryFilter";
+import { useImageCategoryFilter } from "../../hooks/useImageCategoryFilter";
+import { EmptyHint } from "../StatePanels";
 
 /** 从本机图库选择一张图，并可在面板内直传。 */
 interface ImagePickerProps {
@@ -190,9 +191,9 @@ export function ImagePicker({
                 ))}
               </SimpleGrid>
             ) : (
-              <Text c="dimmed" py="md" size="sm">
+              <EmptyHint compact size="sm">
                 {t("monitor.picker.emptyCategory")}
-              </Text>
+              </EmptyHint>
             )}
           </div>
         </Paper>

@@ -2,9 +2,10 @@ import { Badge, Group, Paper, Stack, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 import type { WorkbuddyModelUsageWindowDto } from "../api/usage";
-import { TokenTotalDisplay } from "../components/dashboard/UsageUi";
+import { TokenTotalDisplay } from "../components/usage/UsageUi";
 import { formatCredits, formatTokens } from "../usage-format";
 import { EmptyHint } from "../components/StatePanels";
+import { EndTh, EndTd } from "../components/DataTable";
 
 /** WorkBuddy project JSONL 实际执行模型的逐模型展示属性。 */
 interface WorkbuddyModelUsageTableProps {
@@ -43,15 +44,15 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("workbuddy.modelUsage.model")}</Table.Th>
-                <Table.Th ta="right">{t("metric.totalTokens")}</Table.Th>
-                <Table.Th ta="right">{t("metric.input")}</Table.Th>
-                <Table.Th ta="right">{t("metric.cachedInput")}</Table.Th>
-                <Table.Th ta="right">{t("metric.uncachedInput")}</Table.Th>
-                <Table.Th ta="right">{t("metric.output")}</Table.Th>
-                <Table.Th ta="right">{t("workbuddy.modelUsage.requests")}</Table.Th>
-                <Table.Th ta="right">{t("workbuddy.modelUsage.topLevelCalls")}</Table.Th>
-                <Table.Th ta="right">{t("workbuddy.modelUsage.subagentCalls")}</Table.Th>
-                <Table.Th ta="right">{t("workbuddy.totalCredits")}</Table.Th>
+                <EndTh>{t("metric.totalTokens")}</EndTh>
+                <EndTh>{t("metric.input")}</EndTh>
+                <EndTh>{t("metric.cachedInput")}</EndTh>
+                <EndTh>{t("metric.uncachedInput")}</EndTh>
+                <EndTh>{t("metric.output")}</EndTh>
+                <EndTh>{t("workbuddy.modelUsage.requests")}</EndTh>
+                <EndTh>{t("workbuddy.modelUsage.topLevelCalls")}</EndTh>
+                <EndTh>{t("workbuddy.modelUsage.subagentCalls")}</EndTh>
+                <EndTh>{t("workbuddy.totalCredits")}</EndTh>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -67,28 +68,28 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
                     <Table.Td fw={700}>
                       {group.model ?? t("workbuddy.modelUsage.unattributed")}
                     </Table.Td>
-                    <Table.Td ta="right">
+                    <EndTd>
                       <TokenTotalDisplay density="inline" value={group.totalTokens} />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay density="inline" value={group.inputTokens} />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay density="inline" value={group.cachedInputTokens} />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay
                         density="inline"
                         value={group.uncachedInputTokens}
                       />
-                    </Table.Td>
-                    <Table.Td ta="right">
+                    </EndTd>
+                    <EndTd>
                       <TokenTotalDisplay density="inline" value={group.outputTokens} />
-                    </Table.Td>
-                    <Table.Td ta="right">{formatTokens(group.callCount)}</Table.Td>
-                    <Table.Td ta="right">{formatTokens(group.topLevelCallCount)}</Table.Td>
-                    <Table.Td ta="right">{formatTokens(group.subagentCallCount)}</Table.Td>
-                    <Table.Td ta="right">{formatCredits(group.credits)}</Table.Td>
+                    </EndTd>
+                    <EndTd>{formatTokens(group.callCount)}</EndTd>
+                    <EndTd>{formatTokens(group.topLevelCallCount)}</EndTd>
+                    <EndTd>{formatTokens(group.subagentCallCount)}</EndTd>
+                    <EndTd>{formatCredits(group.credits)}</EndTd>
                   </Table.Tr>
                 ))
               )}

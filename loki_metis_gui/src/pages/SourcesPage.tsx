@@ -30,21 +30,21 @@ import {
 } from "../api/usage-queries";
 import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import { agentClientAtom, agentClientLabel, usageViewAtom } from "../state/agent-client";
-import { timeStandardAtom } from "../state/page-session";
+import { timeStandardAtom } from "../state/usage-view-state";
 import { visibleErrorMessage } from "../visible-error";
 import { uiMessageLabel } from "../i18n/backend-labels";
-import { SourceDiscoveryPanel } from "./SourceDiscoveryPanel";
-import { SourceRootTable } from "./SourceRootTable";
-import { SourceRootDialogs } from "./SourceRootDialogs";
-import { SourcePrimaryRootControls } from "./SourcePrimaryRootControls";
-import { EmptySourcesPanel } from "./EmptySourcesPanel";
+import { SourceDiscoveryPanel } from "../components/sources/SourceDiscoveryPanel";
+import { SourceRootTable } from "../components/sources/SourceRootTable";
+import { SourceRootDialogs } from "../components/sources/SourceRootDialogs";
+import { SourcePrimaryRootControls } from "../components/sources/SourcePrimaryRootControls";
+import { EmptySourcesPanel } from "../components/sources/EmptySourcesPanel";
 import {
   clearRootCandidateCache,
   ROOT_CANDIDATES_QUERY_KEY,
   useRootCandidateEvents,
-} from "./useRootCandidateEvents";
-import { selectVisibleDiscoveryCandidates } from "./visible-discovery-candidates";
-import { useDiscoveryBatchIndex } from "./useDiscoveryBatchIndex";
+} from "../hooks/useRootCandidateEvents";
+import { selectVisibleDiscoveryCandidates } from "../lib/visible-discovery-candidates";
+import { useDiscoveryBatchIndex } from "../hooks/useDiscoveryBatchIndex";
 import { WorkbuddySources } from "./WorkbuddySources";
 
 /** 展示当前只读视图的数据源：WorkBuddy 走 project JSONL 独立只读探测，其余三个本机客户端

@@ -55,7 +55,7 @@ function SkinCardImpl({
   const userSkin = skin.source === "user";
   return (
     <Card
-      className="surface-card"
+      className="surface-card spot-panel"
       data-testid={`skin-card-${skin.id}`}
       p={0}
       radius="lg"

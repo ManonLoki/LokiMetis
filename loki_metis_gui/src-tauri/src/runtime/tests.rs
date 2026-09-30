@@ -263,7 +263,6 @@ async fn claims_initial_scan_only_once_across_restarts() {
             .await
             .expect("second claim is skipped")
     );
-    state.mark_index_cleared(AgentClientKindDto::Codex).await;
     state
         .set_initialization_completed(false)
         .await

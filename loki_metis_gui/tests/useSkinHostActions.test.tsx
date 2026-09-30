@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { SkinDescriptor } from "../src/api/skins";
-import { useSkinHostActions } from "../src/pages/useSkinHostActions";
+import { useSkinHostActions } from "../src/hooks/useSkinHostActions";
 import { TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));

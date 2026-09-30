@@ -63,8 +63,6 @@ pub enum UiMessageCodeDto {
     PrimaryCleared,
     /// 当前没有 Codex 主数据目录选择。
     PrimaryNotSet,
-    /// 本产品索引已经清空。
-    IndexCleared,
 }
 
 /// 标识前端不得直接展示 backend 中文占位的固定标签语义。

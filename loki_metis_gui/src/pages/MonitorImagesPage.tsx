@@ -34,7 +34,7 @@ import {
   type MonitorImagePreview,
 } from "../api/monitor";
 import { visibleErrorMessage } from "../visible-error";
-import { useImageCategoryFilter } from "./useImageCategoryFilter";
+import { useImageCategoryFilter } from "../hooks/useImageCategoryFilter";
 
 /** 图片管理：展示本机图库，支持筛选、批量上传与删除。 */
 export function MonitorImagesPage() {

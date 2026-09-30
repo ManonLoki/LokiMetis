@@ -1,7 +1,7 @@
 import { Badge, Button, Group, Paper, Select, Stack, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
-import type { SourceRootDto } from "../api/usage";
+import type { SourceRootDto } from "../../api/usage";
 
 /** 保留 Codex 官方上下文所需的唯一主数据根选择。 */
 export function SourcePrimaryRootControls({

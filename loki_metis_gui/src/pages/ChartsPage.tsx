@@ -34,13 +34,13 @@ import {
   LocalIndexNotice,
   TokenTotalDisplay,
   MiniMetric,
-} from "../components/dashboard/UsageUi";
+} from "../components/usage/UsageUi";
 import { FailureState, LoadingState } from "../components/StatePanels";
 import { chartMetricLabel, displayLabel } from "../i18n/backend-labels";
 import { usageViewAtom } from "../state/agent-client";
-import { chartPreferencesAtom, timeStandardAtom } from "../state/page-session";
+import { chartPreferencesAtom, timeStandardAtom } from "../state/usage-view-state";
 import { formatBasisPoints, formatCompactTokens, formatTokens } from "../usage-format";
-import { usageWindowOrder } from "./overview-windows";
+import { usageWindowOrder } from "../lib/overview-windows";
 import { WorkbuddyCharts } from "./WorkbuddyCharts";
 import "../charts.css";
 
@@ -296,7 +296,7 @@ function OverviewCharts({
         ))}
       </SimpleGrid>
 
-      <Paper className="chart-panel" p="lg" radius="lg" withBorder>
+      <Paper className="chart-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Stack gap={2}>
             <Text fw={700}>{t("charts.overview.tokensTitle")}</Text>
@@ -329,7 +329,7 @@ function OverviewCharts({
         </Stack>
       </Paper>
 
-      <Paper className="chart-panel" p="lg" radius="lg" withBorder>
+      <Paper className="chart-panel spot-panel" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Text fw={700}>{t("charts.overview.callsTitle")}</Text>
           <TimeSeriesChart
@@ -368,7 +368,7 @@ function UsageDistribution({
       : `${formatCompactTokens(value)} · ${formatTokens(value)}`;
   };
   return (
-    <Paper className="chart-panel" p="lg" radius="lg" withBorder>
+    <Paper className="chart-panel spot-panel" p="lg" radius="lg" withBorder>
       <Stack gap="lg">
         <Group align="end" justify="space-between">
           <Stack gap={2}>

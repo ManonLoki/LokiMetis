@@ -30,8 +30,6 @@ pub struct PrivacySettingsDto {
     pub index_location_code: IndexLocationCodeDto,
     /// 当前索引体积；未知时为空。
     pub index_size_bytes: Option<u64>,
-    /// 最近一次清空本产品索引的 Unix 毫秒时间戳。
-    pub last_cleared_at_epoch_ms: Option<i64>,
     /// 用户显式开放监控与本机统计的 Agent；缺省为空。
     pub enabled_agents: Vec<UsageClientKindDto>,
     /// 统一目录中当前可由看板识别的 AI 类型；无法映射的类型已被忽略。

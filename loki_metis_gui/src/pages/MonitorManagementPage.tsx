@@ -220,7 +220,7 @@ export function MonitorManagementPage() {
         {visibleTools.map((tool) => (
           <Tabs.Panel key={tool.tool} pt="md" value={tool.tool}>
             <Stack gap="lg">
-              <Card className="surface-card slot-section-card" p="lg" withBorder>
+              <Card className="surface-card slot-section-card spot-panel" p="lg" withBorder>
                 <SlotPicker
                   max={capabilities.data.profileSlot.max}
                   min={capabilities.data.profileSlot.min}

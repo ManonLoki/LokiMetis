@@ -6,11 +6,11 @@ import { useTranslation } from "react-i18next";
 import { getUsageOverview, timeStandardQueryKey } from "../api/usage";
 import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import { usageViewAtom } from "../state/agent-client";
-import { overviewWindowAtom, timeStandardAtom } from "../state/page-session";
+import { overviewWindowAtom, timeStandardAtom } from "../state/usage-view-state";
 import { uiMessageLabel } from "../i18n/backend-labels";
 import { OverviewLocalSection } from "./OverviewLocalSection";
 import { WorkbuddyOverview } from "./WorkbuddyOverview";
-import { selectOverviewWindows } from "./overview-windows";
+import { selectOverviewWindows } from "../lib/overview-windows";
 
 /** 概览每十秒读取本机索引。 */
 const OVERVIEW_REFRESH_INTERVAL_MS = 10_000;

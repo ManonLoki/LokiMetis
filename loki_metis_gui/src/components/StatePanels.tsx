@@ -95,16 +95,19 @@ export function FailureState({
 /** 表格或面板内的单行提示（空数据、更新中），与表头左对齐，不做居中装饰。 */
 export function EmptyHint({
   children,
-  color,
   compact = false,
+  size,
+  tone = "dimmed",
 }: {
   children: ReactNode;
-  color?: string;
   compact?: boolean;
+  size?: "xs" | "sm";
+  tone?: "dimmed" | "error";
 }) {
   return (
     <Text
-      c={color ?? "dimmed"}
+      c={tone === "error" ? "red" : "dimmed"}
+      size={size}
       p={compact ? undefined : "lg"}
       py={compact ? "md" : undefined}
     >

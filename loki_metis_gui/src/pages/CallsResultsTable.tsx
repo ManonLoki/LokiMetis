@@ -7,12 +7,13 @@ import type {
   UsageCallSortField,
   UsageViewKind,
 } from "../api/usage";
-import { TokenTotalDisplay } from "../components/dashboard/UsageUi";
+import { TokenTotalDisplay } from "../components/usage/UsageUi";
 import { displayLabel } from "../i18n/backend-labels";
 import { agentClientLabel } from "../state/agent-client";
 import type { UsageCallSort } from "../state/usage-filters";
 import { formatObservedAt, formatTokens } from "../usage-format";
 import { EmptyHint } from "../components/StatePanels";
+import { EndTh, EndTd } from "../components/DataTable";
 
 /** 渲染一个可访问的固定排序表头；稳定 ID 兜底由后端实现。 */
 function SortHeader({
@@ -153,7 +154,7 @@ export function CallsResultsTable({
                 onChange={onSortChange}
                 sort={sort}
               />
-              <Table.Th ta="right">{t("metric.cacheWrite")}</Table.Th>
+              <EndTh>{t("metric.cacheWrite")}</EndTh>
               <SortHeader
                 align="right"
                 field="uncachedInputTokens"
@@ -187,7 +188,7 @@ export function CallsResultsTable({
             ) : replacementFailed ? (
               <Table.Tr>
                 <Table.Td colSpan={columnCount}>
-                  <EmptyHint color="red" compact>
+                  <EmptyHint compact tone="error">
                     {t("calls.table.replacementFailed")}
                   </EmptyHint>
                 </Table.Td>
@@ -217,45 +218,45 @@ export function CallsResultsTable({
                         )
                       : t("common.notProvided")}
                   </Table.Td>
-                  <Table.Td ta="right">
+                  <EndTd>
                     <TokenTotalDisplay
                       density="inline"
                       value={item.fact.value.inputTokens}
                     />
-                  </Table.Td>
-                  <Table.Td fw={700} ta="right">
+                  </EndTd>
+                  <EndTd fw={700}>
                     <TokenTotalDisplay
                       density="inline"
                       value={item.fact.value.totalTokens}
                     />
-                  </Table.Td>
-                  <Table.Td ta="right">
+                  </EndTd>
+                  <EndTd>
                     <TokenTotalDisplay
                       density="inline"
                       value={item.fact.value.cachedInputTokens}
                     />
-                  </Table.Td>
-                  <Table.Td ta="right">
+                  </EndTd>
+                  <EndTd>
                     <TokenTotalDisplay
                       density="inline"
                       value={item.fact.value.cacheWriteInputTokens}
                     />
-                  </Table.Td>
-                  <Table.Td ta="right">
+                  </EndTd>
+                  <EndTd>
                     <TokenTotalDisplay density="inline" value={item.uncachedInputTokens} />
-                  </Table.Td>
-                  <Table.Td ta="right">
+                  </EndTd>
+                  <EndTd>
                     <TokenTotalDisplay
                       density="inline"
                       value={item.fact.value.outputTokens}
                     />
-                  </Table.Td>
-                  <Table.Td ta="right">
+                  </EndTd>
+                  <EndTd>
                     <TokenTotalDisplay
                       density="inline"
                       value={item.fact.value.reasoningOutputTokens}
                     />
-                  </Table.Td>
+                  </EndTd>
                 </Table.Tr>
               ))
             )}

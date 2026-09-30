@@ -9,7 +9,7 @@ import { PetSettingsPage } from "../src/pages/PetSettingsPage";
 import {
   INTERFACE_LANGUAGE_CHANGED_EVENT,
   PET_WINDOW_STATE_CHANGED_EVENT,
-} from "../src/pages/usePetAuxiliaryWindowSync";
+} from "../src/hooks/usePetAuxiliaryWindowSync";
 import { TestProviders } from "./testUtils";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));

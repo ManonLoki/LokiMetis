@@ -14,11 +14,11 @@ import {
   timeStandardAtom,
   usageDimensionAtom,
   usageWindowAtom,
-} from "../state/page-session";
+} from "../state/usage-view-state";
 import { UsageStatistics } from "./UsageStatistics";
 import { WorkbuddyLockedState } from "./WorkbuddyGate";
 import { WorkbuddyModelUsageTable } from "./WorkbuddyModelUsageTable";
-import { WORKBUDDY_REFRESH_INTERVAL_MS } from "./WorkbuddyShared";
+import { WORKBUDDY_REFRESH_INTERVAL_MS } from "../lib/workbuddy-shared";
 
 /** WorkBuddy 看板用量：通用请求统计与同源 project JSONL 实际模型分项。 */
 export function WorkbuddyUsage() {

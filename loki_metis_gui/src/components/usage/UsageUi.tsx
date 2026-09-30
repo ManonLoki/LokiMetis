@@ -26,10 +26,8 @@ import {
   providerLabel,
 } from "../../usage-format";
 
-// 本文件是各业务页面（Overview/Usage/Calls/Sources）共用的一组小型
-// “纯展示”组件（只接收 props 渲染 UI，不发起网络请求、不持有复杂状态），
-// 类似后端 GUI 里的 DTO——把常见的展示模式（加载中/失败/空状态/事实
-// 质量标签等）抽出来复用，页面组件本身只需要关心业务数据怎么获取。
+// 本文件是看板与 WorkBuddy 各页面共用的“纯展示”组件：Token 合计、索引状态说明、
+// 事实质量标签与小指标卡；只接收 props 渲染，不发起请求、不持有复杂状态。
 
 /** 在任意 Token 表面同时展示两位小数 K/M/B 与千分位精确整数；空值保持未提供。 */
 export function TokenTotalDisplay({
@@ -151,13 +149,32 @@ export function FactMeta<T>({ fact }: { fact: MetricFactDto<T> }) {
   );
 }
 
-/** 统计页与图表页共用的小指标卡：标签在上、数值在下。 */
-export function MiniMetric({ children, label }: { children: ReactNode; label: string }) {
+/** 统计页与图表页共用的小指标卡：标签在上、数值在下；`dense` 用于面板内的紧凑网格。 */
+export function MiniMetric({
+  children,
+  dense = false,
+  label,
+}: {
+  children: ReactNode;
+  dense?: boolean;
+  label: string;
+}) {
+  const caption = (
+    <Text c="dimmed" size={dense ? "xs" : "sm"}>
+      {label}
+    </Text>
+  );
+  if (dense) {
+    return (
+      <div className="mini-metric">
+        {caption}
+        {children}
+      </div>
+    );
+  }
   return (
     <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-      <Text c="dimmed" size="sm">
-        {label}
-      </Text>
+      {caption}
       {children}
     </Paper>
   );

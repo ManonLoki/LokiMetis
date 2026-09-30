@@ -35,8 +35,8 @@ use tauri_plugin_window_state::StateFlags;
 
 use autostart::{get_autostart_enabled, set_autostart_enabled};
 use commands::{
-    add_root_candidate, cancel_root_discovery, clear_local_index, get_local_scan_status,
-    get_privacy_settings, get_root_discovery_status, get_source_roots, get_sources,
+    add_root_candidate, cancel_root_discovery, get_local_scan_status,
+    get_privacy_settings, get_root_discovery_status, get_sources,
     get_usage_calls, get_usage_charts, get_usage_overview, get_usage_statistics,
     get_workbuddy_source_status, get_workbuddy_statistics, get_workbuddy_usage_statistics,
     list_root_candidates, migrate_local_indexes, refresh_local_indexes, reindex_source_root,
@@ -314,7 +314,6 @@ pub fn run() {
             get_usage_statistics,
             get_usage_charts,
             get_sources,
-            get_source_roots,
             start_root_discovery,
             get_root_discovery_status,
             list_root_candidates,
@@ -330,7 +329,6 @@ pub fn run() {
             get_workbuddy_statistics,
             get_workbuddy_usage_statistics,
             get_workbuddy_source_status,
-            clear_local_index,
             set_source_root_enabled,
             rename_source_root,
             remove_source_root,

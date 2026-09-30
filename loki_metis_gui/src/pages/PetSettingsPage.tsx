@@ -18,7 +18,7 @@ import "../pet-overlay.css";
 import {
   usePetAuxiliaryWindowLanguage,
   usePetWindowStateEvents,
-} from "./usePetAuxiliaryWindowSync";
+} from "../hooks/usePetAuxiliaryWindowSync";
 
 /** 设置窗首次读取前的保守桌宠偏好。 */
 const DEFAULT_WINDOW_STATE: PetWindowState = {

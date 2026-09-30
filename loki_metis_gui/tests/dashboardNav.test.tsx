@@ -39,7 +39,6 @@ function privacySettings(): PrivacySettingsDto {
     indexLocationLabel: "Codex index",
     indexLocationCode: "codex",
     indexSizeBytes: null,
-    lastClearedAtEpochMs: null,
     availableAiTypes: availableDashboardAiTypesFixture,
     enabledAgents: ["codex", "claudeCode", "grokBuildCli"],
     workbuddyStatsEnabled: true,
