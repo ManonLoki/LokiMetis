@@ -2,6 +2,46 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-01",
+      "version": "v0.3.12",
+      "featureOptimizations": [
+        {
+          "zh-CN": "统一全部页面的视觉风格：同一套暖色调品牌色与面板材质，导航、标签页、分段控件和筛选栏采用同一设计，同页多张表格的表头对齐。",
+          "en-US": "Unified the look of every page: one warm brand palette and panel material, and the same design for navigation, tabs, segmented controls and filter bars, with table headers aligned across tables on a page."
+        },
+        {
+          "zh-CN": "换用 Phosphor 图标与内置 Geist 字体，加入图表描绘、数值滚动和卡片入场等克制动效，并遵守系统的减少动态效果设置。",
+          "en-US": "Switched to Phosphor icons and the bundled Geist font, and added restrained motion such as chart drawing, number roll-ups and card entrances that respects the system reduced-motion setting."
+        },
+        {
+          "zh-CN": "加载状态改为骨架屏，提示框改为淡底细边样式；精简了说明性文案与页面标题。",
+          "en-US": "Loading states now use skeletons, alerts use a soft tint with a thin border, and explanatory copy and page intros were trimmed."
+        },
+        {
+          "zh-CN": "移除「恢复上次使用的皮肤」提示。",
+          "en-US": "Removed the restore-last-skin prompt."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复「本月」「上月」窗口被固定 30 日范围截断、月初用量合计偏小的问题；六个日历窗口现在按最早起点完整读取。",
+          "en-US": "Fixed the This Month and Last Month windows being cut off by a fixed 30-day range and undercounting early in a month; all six calendar windows are now loaded from their earliest start."
+        },
+        {
+          "zh-CN": "修复 Claude Code、WorkBuddy 与 CodeBuddy 的 Hook 通知和错误结束状态判断，减少桌宠状态错乱。",
+          "en-US": "Fixed hook notification and error-ending state handling for Claude Code, WorkBuddy and CodeBuddy, reducing wrong pet states."
+        },
+        {
+          "zh-CN": "修复 WorkBuddy 同一次调用出现后续更新时被当作冲突整组丢弃的问题，现在按最终一次用量统计。",
+          "en-US": "Fixed WorkBuddy calls that received a later update being dropped as a conflict; the final observation is now counted."
+        },
+        {
+          "zh-CN": "支持发现 macOS Claude Desktop 内嵌目录中的 Claude Code 数据。",
+          "en-US": "Added discovery of Claude Code data inside the macOS Claude Desktop container."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-21",
       "version": "v0.3.8",
       "featureOptimizations": [
@@ -69,21 +109,6 @@
           "en-US": "Fixed Settings displaying the version prefix as uppercase V instead of lowercase v."
         }
       ]
-    },
-    {
-      "releaseDate": "2026-09-12",
-      "version": "v0.3.0",
-      "featureOptimizations": [
-        {
-          "zh-CN": "开启开机自动启动后，应用首次自启拉起时主窗口默认保持隐藏，只显示托盘图标和桌宠，不再打扰用户；手动打开应用时窗口显示如常。",
-          "en-US": "When launch-at-login is enabled, the main window now stays hidden on the autostart-triggered launch, showing only the tray icon and pet overlay; manually opening the app still shows the window as before."
-        },
-        {
-          "zh-CN": "macOS 上隐藏程序坞（Dock）图标，应用完全由系统托盘承载，与关闭主窗口即最小化到托盘的行为保持一致。",
-          "en-US": "The Dock icon is now hidden on macOS, since the app already lives entirely in the system tray and closing the main window already minimizes it there."
-        }
-      ],
-      "bugFixes": []
     }
   ]
 }
