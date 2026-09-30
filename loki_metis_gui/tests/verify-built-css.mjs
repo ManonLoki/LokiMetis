@@ -50,12 +50,12 @@ const builtCss = (await Promise.all(builtFiles.map((file) => readFile(file, "utf
 // 某个 @import，第三方 CSS 仍存在也无法让生产构建误判通过。
 const requiredBuiltMarkers = [
   ".metric-card",
-  ".dashboard-toolbar",
+  ".page-toolbar",
   ".navigation-link.active",
   ".monitor-page-shell",
   ".chart-figure",
   ".pet-shell",
-  "--app-dashboard-toolbar-background",
+  "--app-toolbar-background",
   "--app-chart-text",
 ];
 const missingBuiltMarkers = requiredBuiltMarkers.filter(

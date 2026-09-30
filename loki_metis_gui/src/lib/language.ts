@@ -1,6 +1,4 @@
-import type { i18n as I18nInstance } from "i18next";
-
-import { getSystemLocale, type InterfaceLanguage } from "./api";
+import type { InterfaceLanguage } from "./api";
 
 /** 本机保存界面语言时使用的唯一设备偏好键。 */
 export const INTERFACE_LANGUAGE_STORAGE_KEY = "loki-metis.interface-language";
@@ -31,24 +29,4 @@ export function persistInterfaceLanguage(language: InterfaceLanguage): void {
   } catch {
     // 本次运行内的 i18next 与 Jotai 状态仍保持一致。
   }
-}
-
-/** 按已保存偏好、系统语言、英文回退的顺序完成 i18next 初始化。 */
-export async function initializeInterfaceLanguage(
-  instance: I18nInstance,
-): Promise<InterfaceLanguage> {
-  const saved = readSavedInterfaceLanguage();
-  if (saved !== undefined) {
-    await instance.changeLanguage(saved);
-    return saved;
-  }
-
-  let detected: InterfaceLanguage = "en-US";
-  try {
-    detected = normalizeInterfaceLanguage(await getSystemLocale());
-  } catch {
-    detected = "en-US";
-  }
-  await instance.changeLanguage(detected);
-  return detected;
 }

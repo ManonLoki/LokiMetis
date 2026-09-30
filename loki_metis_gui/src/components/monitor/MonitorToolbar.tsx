@@ -14,9 +14,9 @@ const monitorPageItems = [
 export function MonitorToolbar() {
   const { t } = useTranslation();
   return (
-    <Stack className="dashboard-toolbar" data-monitor-toolbar="" gap={0}>
-      <Group className="dashboard-header-row" wrap="nowrap">
-        <nav aria-label={t("monitor.navigation.pagesAria")} className="dashboard-page-nav">
+    <Stack className="page-toolbar" data-monitor-toolbar="" gap={0}>
+      <Group className="page-toolbar-row" wrap="nowrap">
+        <nav aria-label={t("monitor.navigation.pagesAria")} className="page-nav">
           {monitorPageItems.map((item) => {
             const label = t(`monitor.navigation.${item.key}.label`);
             const description = t(`monitor.navigation.${item.key}.description`);

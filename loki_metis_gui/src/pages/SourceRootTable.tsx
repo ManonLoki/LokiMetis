@@ -5,6 +5,7 @@ import type { SourceRootDto } from "../api/usage";
 import { formatObservedAt } from "../usage-format";
 import { sourceDiscoveryLabel } from "../i18n/backend-labels";
 import { displayRootAlias } from "../root-label";
+import { EmptyHint } from "../components/StatePanels";
 
 /** 展示已授权数据根的索引结果表，并暴露启用、重新索引、重命名、移除操作。 */
 // “受控组件”：这个组件自己不持有任何业务状态（没有 useState 管理数据），
@@ -72,7 +73,7 @@ export function SourceRootTable({
               <Table.Th ta="right">{t("sources.table.errors")}</Table.Th>
               <Table.Th ta="right">{t("sources.table.duplicates")}</Table.Th>
               <Table.Th>{t("sources.table.lastScan")}</Table.Th>
-              <Table.Th className="w-100" ta="center">
+              <Table.Th className="w-100" ta="right">
                 {t("sources.table.actions")}
               </Table.Th>
             </Table.Tr>
@@ -118,8 +119,8 @@ export function SourceRootTable({
                   <Table.Td ta="right">{root.errorCount}</Table.Td>
                   <Table.Td ta="right">{root.duplicateCount}</Table.Td>
                   <Table.Td>{formatObservedAt(root.lastScanAtEpochMs)}</Table.Td>
-                  <Table.Td className="w-100" ta="center">
-                    <Group gap="xs" justify="center" wrap="nowrap">
+                  <Table.Td className="w-100" ta="right">
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
                       {allowToggle ? (
                         <Button
                           aria-label={t("sources.table.toggleAria", {
@@ -186,11 +187,7 @@ export function SourceRootTable({
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
-      {roots.length === 0 ? (
-        <Text c="dimmed" p="xl" ta="center">
-          {t("sources.table.empty")}
-        </Text>
-      ) : null}
+      {roots.length === 0 ? <EmptyHint>{t("sources.table.empty")}</EmptyHint> : null}
     </Paper>
   );
 }

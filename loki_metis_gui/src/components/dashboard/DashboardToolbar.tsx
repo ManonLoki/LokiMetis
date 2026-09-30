@@ -5,12 +5,12 @@ import { useTranslation } from "react-i18next";
 import {
   selectDashboardClientOptions,
   selectDashboardWorkbuddyOption,
-} from "../ai-capabilities";
+} from "../../ai-capabilities";
 import type {
   AgentClientKind,
   AvailableAiTypeDto,
   UsageViewKind,
-} from "../api/usage-types";
+} from "../../api/usage-types";
 import { LocalScanProgressBar } from "./LocalScanProgressBar";
 
 /** 描述用量区域页头横向菜单中的已批准页面。 */
@@ -42,15 +42,6 @@ const allDashboardPageItems: UsagePageItem[] = [
   { key: "calls", to: "/dashboard/calls" },
 ];
 
-/** WorkBuddy 只读视图开放概览、用量与数据源，不提供调用表。 */
-const workbuddyDashboardPageItems: UsagePageItem[] = [
-  { key: "overview", to: "/dashboard" },
-  { key: "statistics", to: "/dashboard/usage" },
-  { key: "charts", to: "/dashboard/charts" },
-  { key: "sources", to: "/dashboard/sources" },
-  { key: "settings", to: "/dashboard/settings" },
-];
-
 /** 定义公共页头的只读视图与横向子页交互。 */
 interface DashboardToolbarProps {
   /** 后端统一目录中当前可映射到看板的 AI 类型。 */
@@ -68,12 +59,8 @@ interface DashboardToolbarProps {
 /** 把当前区域子页渲染为横向可访问链接。 */
 function UsagePageLinks({ view }: { view: UsageViewKind }) {
   const { t } = useTranslation();
-  const items =
-    view === "all"
-      ? allDashboardPageItems
-      : view === "workbuddy"
-        ? workbuddyDashboardPageItems
-        : dashboardPageItems;
+  // WorkBuddy 与物理 Agent 共用同一组子页，只有「全部」视图被限制。
+  const items = view === "all" ? allDashboardPageItems : dashboardPageItems;
   return items.map((item) => {
     const label = t(`shell.navigation.${item.key}.label`);
     const description = t(`shell.navigation.${item.key}.description`);
@@ -115,20 +102,15 @@ export function DashboardToolbar({
   const showSwitcher =
     switcherData.length > 0 || (workbuddyStatsEnabled && workbuddyOption !== null);
   return (
-    <Stack
-      className="dashboard-toolbar"
-      data-dashboard-toolbar=""
-      gap={0}
-      style={{ position: "sticky", top: 0 }}
-    >
+    <Stack className="page-toolbar" data-dashboard-toolbar="" gap={0}>
       <Group
         align="center"
-        className="dashboard-header-row"
+        className="page-toolbar-row"
         data-testid="dashboard-header-row"
         justify="space-between"
         wrap="nowrap"
       >
-        <nav aria-label={t("shell.navigation.pagesAria")} className="dashboard-page-nav">
+        <nav aria-label={t("shell.navigation.pagesAria")} className="page-nav">
           <UsagePageLinks view={view} />
         </nav>
         {showSwitcher ? (

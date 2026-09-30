@@ -3,7 +3,7 @@ import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 
 import type { UsageWindow, WorkbuddyWindowDto } from "../api/usage";
-import { TokenTotalDisplay } from "../components/UsageUi";
+import { TokenTotalDisplay } from "../components/dashboard/UsageUi";
 import { overviewWindowAtom } from "../state/page-session";
 import { formatBasisPoints, formatCredits, formatTokens } from "../usage-format";
 import { overviewWindowOrder } from "./overview-windows";

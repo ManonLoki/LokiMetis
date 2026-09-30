@@ -1,6 +1,5 @@
-import { Text } from "@mantine/core";
-
 import { CHART_WIDTH, axisTickValues } from "./chart-geometry";
+import { EmptyHint } from "../StatePanels";
 
 /** 分布图中的一条可访问横向条。 */
 export interface DistributionRow {
@@ -55,11 +54,7 @@ export function DistributionChart({
 }: DistributionChartProps) {
   const maximum = Math.max(1, ...rows.map((row) => row.value ?? 0));
   if (rows.length === 0) {
-    return (
-      <Text c="dimmed" p="xl" ta="center">
-        {emptyLabel}
-      </Text>
-    );
+    return <EmptyHint>{emptyLabel}</EmptyHint>;
   }
 
   const height = PLOT_TOP + PLOT_BOTTOM + rows.length * ROW_HEIGHT;

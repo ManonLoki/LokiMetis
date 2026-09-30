@@ -19,7 +19,7 @@ import {
   isValidBoundedMinutes,
   parseBoundedMinutes,
 } from "../bounded-minutes";
-import { FailureState, LoadingState } from "../components/UsageUi";
+import { FailureState, LoadingState } from "../components/StatePanels";
 import { agentClientAtom } from "../state/agent-client";
 import { RetentionDaysSettings } from "./RetentionDaysSettings";
 import { useDraftValue } from "../use-draft-value";

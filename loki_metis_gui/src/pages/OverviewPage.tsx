@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 
 import { getUsageOverview, timeStandardQueryKey } from "../api/usage";
-import { FailureState, ImplementationState, LoadingState } from "../components/UsageUi";
+import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import { usageViewAtom } from "../state/agent-client";
 import { overviewWindowAtom, timeStandardAtom } from "../state/page-session";
 import { uiMessageLabel } from "../i18n/backend-labels";

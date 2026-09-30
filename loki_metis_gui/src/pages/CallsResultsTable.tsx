@@ -7,11 +7,12 @@ import type {
   UsageCallSortField,
   UsageViewKind,
 } from "../api/usage";
-import { TokenTotalDisplay } from "../components/UsageUi";
+import { TokenTotalDisplay } from "../components/dashboard/UsageUi";
 import { displayLabel } from "../i18n/backend-labels";
 import { agentClientLabel } from "../state/agent-client";
 import type { UsageCallSort } from "../state/usage-filters";
 import { formatObservedAt, formatTokens } from "../usage-format";
+import { EmptyHint } from "../components/StatePanels";
 
 /** 渲染一个可访问的固定排序表头；稳定 ID 兜底由后端实现。 */
 function SortHeader({
@@ -180,17 +181,15 @@ export function CallsResultsTable({
             {refreshingFirstPage ? (
               <Table.Tr>
                 <Table.Td colSpan={columnCount}>
-                  <Text c="dimmed" py="xl" ta="center">
-                    {t("calls.table.updating")}
-                  </Text>
+                  <EmptyHint compact>{t("calls.table.updating")}</EmptyHint>
                 </Table.Td>
               </Table.Tr>
             ) : replacementFailed ? (
               <Table.Tr>
                 <Table.Td colSpan={columnCount}>
-                  <Text c="red" py="xl" ta="center">
+                  <EmptyHint color="red" compact>
                     {t("calls.table.replacementFailed")}
-                  </Text>
+                  </EmptyHint>
                 </Table.Td>
               </Table.Tr>
             ) : (
@@ -264,11 +263,11 @@ export function CallsResultsTable({
         </Table>
       </Table.ScrollContainer>
       {!refreshingFirstPage && !replacementFailed && items.length === 0 ? (
-        <Text c="dimmed" p="xl" ta="center">
+        <EmptyHint>
           {indexState === "readyNoCalls"
             ? t("calls.table.emptyScanned")
             : t("calls.table.emptyFiltered")}
-        </Text>
+        </EmptyHint>
       ) : null}
       <Group
         className="border-t border-(--app-data-divider)"

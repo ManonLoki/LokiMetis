@@ -4,7 +4,6 @@ import type {
   AgentClientKind,
   UsageClientKind,
   UsageViewKind,
-  ClearIndexResultDto,
   AddRootCandidateDto,
   LocalIndexRefreshTrigger,
   PrivacySettingsDto,
@@ -14,7 +13,6 @@ import type {
   RootDiscoveryScope,
   ManualAddSourceRootDto,
   SourceRootMutationDto,
-  SourceRootDto,
   SourcesDto,
   UsageCallsPageDto,
   UsageCallsQueryDto,
@@ -118,11 +116,6 @@ export async function getSources(client: AgentClientKind): Promise<SourcesDto> {
   return invoke<SourcesDto>(usageCommands.sources, { client });
 }
 
-/** 只读取本机数据目录，初始化向导调用时不会触发扫描状态。 */
-export async function getSourceRoots(client: AgentClientKind): Promise<SourceRootDto[]> {
-  return invoke<SourceRootDto[]>(usageCommands.sourceRoots, { client });
-}
-
 /** 启动不打开会话文件的数据源发现。 */
 export async function startRootDiscovery(
   scope: RootDiscoveryScope,
@@ -219,13 +212,6 @@ export async function getWorkbuddyUsageStatistics(
 /** 读取数据源页展示的 WorkBuddy 只读发现状态；开关关闭时后端不触碰磁盘。 */
 export async function getWorkbuddySourceStatus(): Promise<WorkbuddySourceStatusDto> {
   return invoke<WorkbuddySourceStatusDto>(usageCommands.workbuddySourceStatus);
-}
-
-/** 仅清空当前客户端的本产品索引，不删除会话、登录状态或原始文件。 */
-export async function clearLocalIndex(
-  client: AgentClientKind,
-): Promise<ClearIndexResultDto> {
-  return invoke<ClearIndexResultDto>(usageCommands.clearIndex, { client });
 }
 
 /** 由 Rust 侧原生目录选择器登记或深搜；前端不接收或传回路径。 */

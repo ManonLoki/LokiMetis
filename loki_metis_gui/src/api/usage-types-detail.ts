@@ -28,9 +28,6 @@ export interface TimeStandard {
 /** 缺省当地时间标准。 */
 export const LOCAL_TIME_STANDARD: TimeStandard = { mode: "local", customTimeZone: null };
 
-/** UTC 时间标准；页头「UTC时间」只写入该值。 */
-export const UTC_TIME_STANDARD: TimeStandard = { mode: "custom", customTimeZone: "UTC" };
-
 /** 用量读取身份：当地时间与 UTC 不得复用同一份已渲染快照。 */
 export function timeStandardQueryKey(
   standard: TimeStandard | undefined,
@@ -396,14 +393,6 @@ export interface AddRootCandidateDto {
 
 /** 描述全局首次初始化门禁的持久状态。 */
 export type LanguagePreference = "system" | "zh-CN" | "en-US";
-
-/** 描述全局首次初始化门禁的持久状态。 */
-export interface InitializationStatusDto {
-  /** 完成后才允许挂载业务路由与后台扫描观察器。 */
-  initializationCompleted: boolean;
-  /** 当前界面语言偏好；system 由前端按当前系统语言解析。 */
-  languagePreference: LanguagePreference;
-}
 
 /** 描述数据根 registry 变更的脱敏结果。 */
 export interface SourceRootMutationDto {

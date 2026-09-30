@@ -11,7 +11,6 @@ type SupportedLocale = "zh-CN" | "en-US";
 // 列表渲染场景下可能被调用几十上百次。
 const numberFormatters = new Map<string, Intl.NumberFormat>();
 const compactFormatters = new Map<string, Intl.NumberFormat>();
-const decimalFormatters = new Map<string, Intl.NumberFormat>();
 const creditFormatters = new Map<string, Intl.NumberFormat>();
 const percentFormatters = new Map<string, Intl.NumberFormat>();
 const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
@@ -167,27 +166,6 @@ export function formatCredits(
     () =>
       new Intl.NumberFormat(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }),
   ).format(value);
-}
-
-/** 把索引字节数转换为适合设置页的紧凑体积。 */
-export function formatBytes(value: number | null, targetLocale?: SupportedLocale): string {
-  const locale = currentLocale(targetLocale);
-  if (value === null) {
-    return translated("common.unknown", locale);
-  }
-  const decimal = cachedFormatter(
-    decimalFormatters,
-    locale,
-    () =>
-      new Intl.NumberFormat(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }),
-  );
-  if (value < 1024) {
-    return `${formatTokens(value, locale)} B`;
-  }
-  if (value < 1024 * 1024) {
-    return `${decimal.format(value / 1024)} KB`;
-  }
-  return `${decimal.format(value / 1024 / 1024)} MB`;
 }
 
 /** 把稳定 provider 类型映射为不会误导口径的本地化来源名。 */

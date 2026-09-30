@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 
 import { findAvailableMonitorAiTool } from "../ai-capabilities";
 import { getHookRelayStatus, getMonitorCapabilities } from "../api/monitor";
-import { FailureState, LoadingState } from "../components/UsageUi";
+import { FailureState, LoadingState } from "../components/StatePanels";
 import { visibleErrorMessage } from "../visible-error";
 
 /** 中继指标块：以稳定的标签和值展示一项本机统计。 */

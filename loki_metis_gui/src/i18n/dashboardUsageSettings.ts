@@ -3,9 +3,6 @@ export const dashboardUsageSettingsZhCN = {
   page: {
     title: "用量设置",
     description: "管理用量数据的后台扫描节奏与派生数据保留范围。",
-    codexDescription: "管理 Codex 本机索引与清理范围；本产品不保存会话正文。",
-    claudeDescription:
-      "掌握 Claude Code 本机 transcript 索引与清理范围；本产品不保存会话正文。",
     loading: "正在读取隐私设置",
   },
   retentionDays: {
@@ -36,10 +33,6 @@ export const dashboardUsageSettingsEnUS = {
     title: "Usage settings",
     description:
       "Manage the background scan cadence and retention window for derived usage data.",
-    codexDescription:
-      "Manage the Codex local index and deletion scope. This app does not save conversation content.",
-    claudeDescription:
-      "Control the local Claude Code transcript index and deletion scope. Conversation content is not saved.",
     loading: "Loading privacy settings",
   },
   retentionDays: {

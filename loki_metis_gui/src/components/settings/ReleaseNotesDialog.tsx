@@ -13,12 +13,12 @@ import { WarningCircle, ArrowsClockwise } from "@phosphor-icons/react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { InterfaceLanguage } from "../lib/api";
+import type { InterfaceLanguage } from "../../lib/api";
 import {
   formatDisplayVersion,
   selectVisibleReleaseNotes,
   type ReleaseNotesDocument,
-} from "../lib/releaseNotes";
+} from "../../lib/releaseNotes";
 
 /** 表示更新日志请求的可观察生命周期。 */
 export type ReleaseNotesStatus = "idle" | "loading" | "ready" | "error";

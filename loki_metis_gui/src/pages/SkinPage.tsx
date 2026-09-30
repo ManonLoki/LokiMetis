@@ -237,8 +237,8 @@ export function SkinPage(): ReactElement {
 
   return (
     <Stack data-testid="skin-page" gap="lg">
-      <Stack className="dashboard-toolbar" gap={0}>
-        <Group align="center" className="dashboard-header-row" gap="md" wrap="nowrap">
+      <Stack className="page-toolbar" gap={0}>
+        <Group align="center" className="page-toolbar-row" gap="md" wrap="nowrap">
           {hostOptions.length > 0 ? (
             <Tabs
               aria-label={t("skins.host.tabs")}

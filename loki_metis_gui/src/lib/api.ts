@@ -66,13 +66,6 @@ export async function getAppMetadata(): Promise<AppMetadata> {
   return decodeAppMetadata(await invoke<unknown>("get_app_metadata"));
 }
 
-/** 允许测试替换元数据读取边界。 */
-export async function getAppMetadataWith(
-  invoker: HostInvoker = invokeHost,
-): Promise<AppMetadata> {
-  return decodeAppMetadata(await invoker("get_app_metadata"));
-}
-
 /** 读取并验证系统语言。 */
 export async function getSystemLocale(): Promise<InterfaceLanguage> {
   return decodeInterfaceLanguage(await invoke<unknown>("get_system_locale"));
@@ -85,14 +78,6 @@ export async function setInterfaceLanguage(
   return decodeInterfaceLanguage(
     await invoke<unknown>("set_interface_language", { language }),
   );
-}
-
-/** 允许测试替换语言写入边界。 */
-export async function setInterfaceLanguageWith(
-  language: InterfaceLanguage,
-  invoker: HostInvoker = invokeHost,
-): Promise<InterfaceLanguage> {
-  return decodeInterfaceLanguage(await invoker("set_interface_language", { language }));
 }
 
 /** 读取系统通知的权威启用状态。 */

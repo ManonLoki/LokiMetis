@@ -17,8 +17,8 @@ import type {
   PrivacySettingsDto,
   UsageViewKind,
 } from "../src/api/usage-types";
-import { DashboardLayout } from "../src/components/DashboardLayout";
-import { DashboardToolbar } from "../src/components/DashboardToolbar";
+import { DashboardLayout } from "../src/components/dashboard/DashboardLayout";
+import { DashboardToolbar } from "../src/components/dashboard/DashboardToolbar";
 import { CallsPage } from "../src/pages/CallsPage";
 import { ChartsPage } from "../src/pages/ChartsPage";
 import { UsagePage } from "../src/pages/UsagePage";

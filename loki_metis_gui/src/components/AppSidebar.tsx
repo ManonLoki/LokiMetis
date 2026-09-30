@@ -12,11 +12,10 @@ import { useTranslation } from "react-i18next";
 import { isDashboardLandingPath } from "../default-landing";
 import { formatDisplayVersion } from "../lib/releaseNotes";
 
-export const sidebarMode = "compact";
 export const APP_SIDEBAR_WIDTHS = { compact: 80 } as const;
 export const APP_SIDEBAR_LOGO_SIZES = { compact: 36 } as const;
 export const COMPACT_PADDING = 6;
-export const SECTION_GAP = 8;
+const SECTION_GAP = 8;
 export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
 export const APP_SIDEBAR_ICON_WEIGHT = "regular";
 export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
@@ -25,9 +24,6 @@ export const APP_SIDEBAR_NAV_ITEM_MIN_HEIGHT_PX = 56;
 export const APP_SIDEBAR_NAV_ITEM_PADDING_BLOCK_PX = 4;
 export const APP_SIDEBAR_NAV_ITEM_GAP_PX = 4;
 export const APP_SIDEBAR_LOGO_PATH = "/app-identity/logo.png";
-export const APP_SIDEBAR_COMPACT_PADDING_PX = COMPACT_PADDING;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX =
-  APP_SIDEBAR_NAV_ITEM_MIN_HEIGHT_PX;
 
 /** 描述精简侧栏中的单个导航目的地。 */
 interface NavigationItem {

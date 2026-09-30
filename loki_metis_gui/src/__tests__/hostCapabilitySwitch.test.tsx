@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, test, vi } from "vitest";
 
-import { HostCapabilitySwitch } from "../components/HostCapabilitySwitch";
+import { HostCapabilitySwitch } from "../components/settings/HostCapabilitySwitch";
 import { TestProviders } from "../../tests/testUtils";
 
 describe("authoritative host capability switch", () => {

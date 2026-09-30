@@ -23,12 +23,8 @@ import {
   type UsageFilterOptionDto,
   type UsageViewKind,
 } from "../api/usage";
-import {
-  FailureState,
-  ImplementationState,
-  LocalIndexNotice,
-  LoadingState,
-} from "../components/UsageUi";
+import { LocalIndexNotice } from "../components/dashboard/UsageUi";
+import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import {
   emptyUsageFilters,
   usageFiltersAtom,

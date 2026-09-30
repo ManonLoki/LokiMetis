@@ -2,7 +2,7 @@ import { SegmentedControl, Stack } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 import type { LocalRecordsSectionDto, UsageWindow, WindowUsageDto } from "../api/usage";
-import { LocalIndexNotice } from "../components/UsageUi";
+import { LocalIndexNotice } from "../components/dashboard/UsageUi";
 import { LocalWindowSummary } from "./OverviewCards";
 import { overviewWindowOrder } from "./overview-windows";
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { DashboardLayout } from "../components/DashboardLayout";
+import { DashboardLayout } from "../components/dashboard/DashboardLayout";
 
 /** 看板布局路由：页头与子页出口。 */
 export const Route = createFileRoute("/dashboard")({

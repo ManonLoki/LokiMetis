@@ -1,4 +1,5 @@
 :root {
+  --app-content-width: min(calc(100% - 1rem), 2400px);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -48,22 +49,6 @@ button,
 a,
 input {
   -webkit-tap-highlight-color: transparent;
-}
-
-/* 所有内容面板共用同一套材质：暖白底、暖色边框、宽扩散阴影与顶部内侧高光。 */
-.surface-card,
-.metric-card,
-.scan-card,
-.privacy-card,
-.filter-panel,
-.table-panel,
-.chart-panel,
-.breakdown-panel,
-.state-panel {
-  background: var(--app-surface);
-  border-color: var(--app-border);
-  box-shadow: var(--app-panel-edge), var(--app-card-shadow);
-  backdrop-filter: blur(12px);
 }
 
 @media (prefers-reduced-motion: no-preference) {

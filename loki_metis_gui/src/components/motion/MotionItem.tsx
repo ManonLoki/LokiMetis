@@ -13,8 +13,7 @@ export function MotionItem({
   return (
     <motion.div
       animate={{ opacity: 1, y: 0 }}
-      initial={reduceMotion ? false : { opacity: 0.4, y: 12 }}
-      layout={!reduceMotion}
+      initial={reduceMotion || index > 11 ? false : { opacity: 0.4, y: 12 }}
       transition={{
         damping: 20,
         delay: Math.min(index, 8) * 0.04,

@@ -190,7 +190,7 @@ export function ImagePicker({
                 ))}
               </SimpleGrid>
             ) : (
-              <Text c="dimmed" py="xl" size="sm" ta="center">
+              <Text c="dimmed" py="md" size="sm">
                 {t("monitor.picker.emptyCategory")}
               </Text>
             )}

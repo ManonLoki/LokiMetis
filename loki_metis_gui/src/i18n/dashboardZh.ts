@@ -10,17 +10,11 @@ export const dashboardZhCN = {
   bootstrap: {
     loading: "正在读取初始化状态…",
     errorTitle: "无法读取初始化状态",
-    errorBody: "为避免在设置完成前启动业务读取，看板暂未打开。",
     retry: "重试",
   },
   language: {
     label: "界面语言",
     system: "跟随系统",
-    systemResolved: "跟随系统（{{language}}）",
-    zhCN: "简体中文",
-    enUS: "English",
-    saving: "正在保存语言设置…",
-    saveError: "无法保存语言设置，请重试。",
   },
   shell: {
     clientAll: "全部",
@@ -95,17 +89,14 @@ export const dashboardZhCN = {
         action: "前往数据源重新扫描",
       },
     },
-    scanProgress: "扫描进度",
   },
   router: {
     error: {
       title: "页面加载失败",
-      reload: "重新加载页面",
     },
     notFound: {
       title: "页面不存在",
       body: "该地址不在已批准的应用页面中，请从导航返回。",
-      returnOverview: "返回概览",
     },
   },
   window: {
@@ -143,7 +134,6 @@ export const dashboardZhCN = {
       incompleteWindows: "本机统计窗口不完整，请重试。",
     },
     partialTitle: "部分数据暂不可用",
-    scopeDivider: "口径分隔",
     local: {
       title: "本机记录",
       description: "仅覆盖已授权、已索引并去重的数据目录。",
@@ -154,12 +144,8 @@ export const dashboardZhCN = {
     local: {
       sectionAria: "{{window}}本机记录窗口",
       callCount: "调用总数",
-      callDedupe: "已按稳定调用 ID 去重",
       tokenTotal: "Token 总量",
-      totalDerived: "总量由输入 + 输出推算",
-      totalUpstream: "上游单次总量逐项汇总",
       breakdownTitle: "{{window}} Token 构成",
-      breakdownDescription: "缓存输入含在输入内，推理输出含在输出内，总量不重复计算。",
       coverageTitle: "缓存与数据覆盖",
       enabledRootsBadge: "启用根汇总",
       cachedReadCalls: "缓存读取调用",
@@ -172,9 +158,6 @@ export const dashboardZhCN = {
   statistics: {
     page: {
       title: "用量统计",
-      codexDescription: "按自然日查看趋势，并按模型、推理强度、项目、线程或数据目录分组。",
-      clientDescription:
-        "按自然日查看 {{client}} 趋势，并按模型、项目、线程或数据目录分组。",
       loading: "正在读取本机用量统计",
     },
     controls: {
@@ -182,7 +165,6 @@ export const dashboardZhCN = {
       window: "统计窗口",
       dimension: "分组维度",
       updating: "正在更新",
-      sameSnapshot: "同一快照",
       localRecords: "本机记录",
       observed: "观测于 {{date}}",
     },
@@ -198,11 +180,8 @@ export const dashboardZhCN = {
     },
     daily: {
       title: "逐日趋势",
-      descriptionLocal: "使用设备时区自然日；零值日期不会省略。",
-      descriptionRemote: "使用 UTC 自然日；零值日期不会省略。",
       dateLocal: "当地日期",
       dateRemote: "UTC 日期",
-      dateCustom: "UTC 日期",
       inProgress: "进行中",
     },
     groups: {
@@ -286,8 +265,6 @@ export const dashboardZhCN = {
       updatedTitle: "数据目录已更新",
       updateErrorTitle: "无法更新数据目录索引",
       updateErrorBody: "数据目录更新失败；{{client}} 原始文件未修改。",
-      scanErrorTitle: "无法执行扫描",
-      scanErrorBody: "扫描操作失败；{{client}} 原始文件未修改。",
     },
     background: {
       runningTitle: "后台 Token 统计中",
@@ -297,12 +274,7 @@ export const dashboardZhCN = {
     },
     empty: {
       title: "尚未发现本机 {{client}} 数据目录",
-      codexBody: "快速扫描只检查当前平台的优先目录。",
-      claudeBody: "快速扫描只检查当前平台的优先目录。",
-      grokBody: "快速扫描只检查 GROK_HOME 或 ~/.grok 下的 sessions/**/updates.jsonl。",
       action: "发现数据目录",
-      fullDeviceAction: "发现数据目录",
-      addRootAction: "添加候选数据目录",
     },
     primary: {
       title: "Codex 主数据目录",
@@ -325,9 +297,7 @@ export const dashboardZhCN = {
       },
       quick: "快速扫描",
       fullDevice: "全设备发现",
-      updateIndex: "后台统计",
       cancel: "取消扫描",
-      currentScope: "当前范围：{{scope}}",
       filesVisited: "已访问文件：{{count}}",
       callsIndexed: "已索引调用：{{count}}",
     },
@@ -343,8 +313,6 @@ export const dashboardZhCN = {
       fileNames: "已检查文件名：{{count}}",
       candidates: "候选：{{count}}",
       partialTitle: "发现覆盖不完整",
-      partialBody: "权限拒绝 {{denied}}，I/O 错误 {{errors}}，策略跳过 {{skipped}}。",
-      skippedBody: "I/O 错误 {{errors}}，链接或策略跳过 {{skipped}}。",
       failedTitle: "发现失败",
       failedBody: "稳定错误码：{{code}}。可修复环境后重新开始发现。",
       strategy: {
@@ -427,9 +395,6 @@ export const dashboardZhCN = {
       enabled: "已开启",
       disabled: "已关闭",
       errorTitle: "无法完成开机自启更新",
-      errorBody: "操作未完成；界面已重新读取并显示操作系统中的实际状态。",
-      unknownTitle: "当前状态未知",
-      unknownBody: "暂时无法读取操作系统登录项；为避免误操作，开关保持禁用。",
       retry: "重新读取实际状态",
     },
     retentionDays: dashboardUsageSettingsZhCN.retentionDays,
@@ -500,10 +465,6 @@ export const dashboardZhCN = {
     description:
       "只读解析 ~/.workbuddy 与 ~/.workbuddy-ai 下的 projects/<project>/<session>.jsonl 及 subagents/*.jsonl，合并为同一份统计。不注册数据根，不保留、展示、上传或记录会话正文。",
     found: "已发现：{{alias}}",
-    notFound: "未发现",
-    notFoundTitle: "未发现本机 WorkBuddy 目录",
-    notFoundBody: "请确认已安装 WorkBuddy 并至少运行过一次，再点击重新扫描。",
-    rescan: "重新扫描",
     toggleAria: "开启或关闭 WorkBuddy 本地统计读取",
     loading: "正在探测 WorkBuddy 本机目录",
   },
@@ -574,7 +535,6 @@ export const dashboardZhCN = {
       thread: "线程 {{value}}",
       unnamedRoot: "未命名数据目录",
       remainder: "其余项",
-      disambiguated: "{{label}}（{{index}}）",
     },
     discovery: {
       defaultRoot: "默认数据目录",

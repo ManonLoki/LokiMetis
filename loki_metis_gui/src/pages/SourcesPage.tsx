@@ -28,7 +28,7 @@ import {
   SCAN_STATUS_POLL_INTERVAL_MS,
   invalidateLocalUsageQueries,
 } from "../api/usage-queries";
-import { FailureState, ImplementationState, LoadingState } from "../components/UsageUi";
+import { FailureState, ImplementationState, LoadingState } from "../components/StatePanels";
 import { agentClientAtom, agentClientLabel, usageViewAtom } from "../state/agent-client";
 import { timeStandardAtom } from "../state/page-session";
 import { visibleErrorMessage } from "../visible-error";

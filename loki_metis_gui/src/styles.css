@@ -1,7 +1,9 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "./styles/base.css";
+@import "./styles/panels.css";
 @import "./styles/dashboard.css";
+@import "./styles/controls.css";
 @import "./styles/shell.css";
 @import "./styles/monitor.css";
 

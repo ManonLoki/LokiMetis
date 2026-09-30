@@ -1,7 +1,7 @@
 .navigation-link {
   display: block;
   padding: 0.55rem 0.75rem;
-  color: var(--app-dashboard-nav-text);
+  color: var(--app-nav-text);
   font-size: 0.88rem;
   font-weight: 700;
   text-decoration: none;
@@ -13,22 +13,22 @@
 
 .navigation-link:hover,
 .navigation-link:focus-visible {
-  color: var(--app-dashboard-nav-hover-text);
-  background: var(--app-dashboard-nav-hover-background);
+  color: var(--app-nav-hover-text);
+  background: var(--app-nav-hover-background);
   outline: none;
 }
 
 .navigation-link.active {
-  color: var(--app-dashboard-nav-active-text);
-  background: var(--app-dashboard-nav-active-background);
+  color: var(--app-nav-active-text);
+  background: var(--app-nav-active-background);
 }
 
 .navigation-link:focus-visible {
-  box-shadow: 0 0 0 3px var(--app-dashboard-nav-focus-ring);
+  box-shadow: 0 0 0 3px var(--app-nav-focus-ring);
 }
 
 .page-stack {
-  width: min(calc(100% - 1rem), 2400px);
+  width: var(--app-content-width);
   padding-top: 0;
   padding-bottom: clamp(1.5rem, 4vw, 3.5rem);
   margin-inline: auto;
@@ -69,12 +69,25 @@
   }
 
   .empty-state-icon {
-    animation: empty-float 4.5s ease-in-out infinite;
+    animation: empty-float 4.5s ease-in-out 3;
   }
 
   @keyframes empty-float {
     50% {
       transform: translateY(-4px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .breathing-dot {
+    animation: breathe 1.8s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    50% {
+      opacity: 0.35;
+      transform: scale(0.82);
     }
   }
 }

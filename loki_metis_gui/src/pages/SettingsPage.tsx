@@ -35,12 +35,15 @@ import {
   type ReleaseNotesDocument,
 } from "../lib/releaseNotes";
 import { interfaceLanguageAtom } from "../state/interfaceLanguage";
-import { AgentSettings } from "./AgentSettings";
-import type { AppColorScheme } from "./AppThemeProvider";
-import { syncShellInterfaceLanguage } from "./AppShell";
-import { HostCapabilitySwitch } from "./HostCapabilitySwitch";
-import { ReleaseNotesDialogTemplate, type ReleaseNotesStatus } from "./ReleaseNotesDialog";
-import { SponsorPaymentPanel } from "./SponsorPaymentPanel";
+import { AgentSettings } from "../components/settings/AgentSettings";
+import type { AppColorScheme } from "../components/AppThemeProvider";
+import { syncShellInterfaceLanguage } from "../components/AppShell";
+import { HostCapabilitySwitch } from "../components/settings/HostCapabilitySwitch";
+import {
+  ReleaseNotesDialogTemplate,
+  type ReleaseNotesStatus,
+} from "../components/settings/ReleaseNotesDialog";
+import { SponsorPaymentPanel } from "../components/settings/SponsorPaymentPanel";
 
 /** 应用信息面板唯一允许交给系统浏览器打开的外部地址。 */
 const GITHUB_REPOSITORY_URL = "https://github.com/ManonLoki/LokiMetis";

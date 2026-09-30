@@ -20,7 +20,7 @@ import {
   type DistributionRow,
 } from "../components/charts/DistributionChart";
 import { TimeSeriesChart } from "../components/charts/TimeSeriesChart";
-import { TokenTotalDisplay } from "../components/UsageUi";
+import { TokenTotalDisplay, MiniMetric } from "../components/dashboard/UsageUi";
 import {
   chartPreferencesAtom,
   workbuddyChartPreferencesAtom,
@@ -94,69 +94,45 @@ function WorkbuddyOverviewCharts() {
   return (
     <Stack gap="xl">
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("statistics.summary.totalTokens")}
-          </Text>
+        <MiniMetric label={t("statistics.summary.totalTokens")}>
           <TokenTotalDisplay className="window-number" value={selected?.tokens ?? 0} />
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("metric.input")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("metric.input")}>
           <TokenTotalDisplay className="window-number" value={selected?.inputTokens ?? 0} />
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("metric.cachedInput")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("metric.cachedInput")}>
           <TokenTotalDisplay
             className="window-number"
             value={selected?.cachedInputTokens ?? 0}
           />
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("metric.uncachedInput")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("metric.uncachedInput")}>
           <TokenTotalDisplay
             className="window-number"
             value={selected?.uncachedInputTokens ?? 0}
           />
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("metric.output")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("metric.output")}>
           <TokenTotalDisplay
             className="window-number"
             value={selected?.outputTokens ?? 0}
           />
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("workbuddy.totalRequests")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("workbuddy.totalRequests")}>
           <Text className="window-number" fw={800}>
             {formatTokens(selected?.requestCount ?? 0)}
           </Text>
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("workbuddy.summarySessions")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("workbuddy.summarySessions")}>
           <Text className="window-number" fw={800}>
             {formatTokens(selected?.sessionCount ?? 0)}
           </Text>
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("workbuddy.totalCredits")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("workbuddy.totalCredits")}>
           <Text className="window-number" fw={800}>
             {formatCredits(selected?.credits ?? null)}
           </Text>
-        </Paper>
+        </MiniMetric>
       </SimpleGrid>
       {hourlyTrend ? (
         <WorkbuddyTrendCharts
@@ -166,9 +142,7 @@ function WorkbuddyOverviewCharts() {
         />
       ) : dailyBuckets.length === 0 ? (
         <Paper className="breakdown-panel" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" ta="center">
-            {t("workbuddy.noDailyData")}
-          </Text>
+          <Text c="dimmed">{t("workbuddy.noDailyData")}</Text>
         </Paper>
       ) : (
         <WorkbuddyTrendCharts

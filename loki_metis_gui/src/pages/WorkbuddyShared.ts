@@ -63,13 +63,6 @@ export function selectWorkbuddyHourlyTrend(
   return trends.find((trend) => trend.window === window);
 }
 
-/** 用量日表按日期从新到旧排列，与物理 Agent 逐日趋势一致。 */
-export function newestWorkbuddyDailyBuckets(
-  buckets: WorkbuddyDailyBucketDto[],
-): WorkbuddyDailyBucketDto[] {
-  return [...buckets].sort((left, right) => right.date.localeCompare(left.date));
-}
-
 /** 计算窗口 trace 错误率；没有 trace 时保持未提供。 */
 export function workbuddyTraceErrorRate(
   window: WorkbuddyWindowDto | undefined,

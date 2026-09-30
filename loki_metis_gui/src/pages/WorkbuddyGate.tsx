@@ -2,7 +2,7 @@ import { Button, Paper, Stack, Text, Title } from "@mantine/core";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { FailureState, LoadingState } from "../components/UsageUi";
+import { FailureState, LoadingState } from "../components/StatePanels";
 import type { useWorkbuddyStatisticsQuery } from "./WorkbuddyShared";
 
 /** 开关、隐私或统计查询尚未完成时的共用加载与失败态。 */

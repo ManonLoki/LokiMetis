@@ -3,14 +3,14 @@ import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getLocalScanStatus, type AgentClientKind, type ScanState } from "../api/usage";
+import { getLocalScanStatus, type AgentClientKind, type ScanState } from "../../api/usage";
 import {
   invalidateLocalUsageQueries,
   SCAN_STATUS_POLL_INTERVAL_MS,
-} from "../api/usage-queries";
-import { BreathingDot } from "./motion/BreathingDot";
-import { scanScopeLabel } from "../i18n/backend-labels";
-import { agentClientLabel } from "../state/agent-client";
+} from "../../api/usage-queries";
+import { BreathingDot } from "../motion/BreathingDot";
+import { scanScopeLabel } from "../../i18n/backend-labels";
+import { agentClientLabel } from "../../state/agent-client";
 
 /** 在看板公共粘滞页头中观察全部已开放 Agent 的单一后台统计 worker。 */
 export function LocalScanProgressBar({

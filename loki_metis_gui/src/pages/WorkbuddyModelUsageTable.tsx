@@ -2,8 +2,9 @@ import { Badge, Group, Paper, Stack, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 import type { WorkbuddyModelUsageWindowDto } from "../api/usage";
-import { TokenTotalDisplay } from "../components/UsageUi";
+import { TokenTotalDisplay } from "../components/dashboard/UsageUi";
 import { formatCredits, formatTokens } from "../usage-format";
+import { EmptyHint } from "../components/StatePanels";
 
 /** WorkBuddy project JSONL 实际执行模型的逐模型展示属性。 */
 interface WorkbuddyModelUsageTableProps {
@@ -57,9 +58,7 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
               {groups.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={10}>
-                    <Text c="dimmed" py="md" ta="center">
-                      {t("workbuddy.modelUsage.empty")}
-                    </Text>
+                    <EmptyHint compact>{t("workbuddy.modelUsage.empty")}</EmptyHint>
                   </Table.Td>
                 </Table.Tr>
               ) : (

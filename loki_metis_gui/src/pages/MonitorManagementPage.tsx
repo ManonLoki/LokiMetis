@@ -202,7 +202,6 @@ export function MonitorManagementPage() {
         </Alert>
       ) : null}
       <Tabs
-        className="ai-tool-tabs"
         keepMounted={false}
         onChange={(value) => {
           if (!value) return;

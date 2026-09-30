@@ -11,7 +11,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { MonitorLayout } from "../src/components/MonitorLayout";
+import { MonitorLayout } from "../src/components/monitor/MonitorLayout";
 import { MonitorImagesPage } from "../src/pages/MonitorImagesPage";
 import { MonitorManagementPage } from "../src/pages/MonitorManagementPage";
 import { MonitorSettingsPage } from "../src/pages/MonitorSettingsPage";

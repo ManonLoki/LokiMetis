@@ -10,17 +10,11 @@ export const dashboardEnUS = {
   bootstrap: {
     loading: "Reading initialization status…",
     errorTitle: "Unable to read initialization status",
-    errorBody: "The dashboard is staying closed until setup is complete.",
     retry: "Retry",
   },
   language: {
     label: "Display language",
     system: "Use system language",
-    systemResolved: "Use system language ({{language}})",
-    zhCN: "简体中文",
-    enUS: "English",
-    saving: "Saving language preference…",
-    saveError: "Unable to save the language preference. Try again.",
   },
   shell: {
     clientAll: "All",
@@ -120,17 +114,14 @@ export const dashboardEnUS = {
         action: "Go to Data Sources to rescan",
       },
     },
-    scanProgress: "Scan progress",
   },
   router: {
     error: {
       title: "Page failed to load",
-      reload: "Reload page",
     },
     notFound: {
       title: "Page not found",
       body: "This address is not an approved app page. Use the navigation to return.",
-      returnOverview: "Return to Overview",
     },
   },
   window: {
@@ -168,7 +159,6 @@ export const dashboardEnUS = {
       incompleteWindows: "The local statistics windows are incomplete. Try again.",
     },
     partialTitle: "Some data is temporarily unavailable",
-    scopeDivider: "Separate scopes",
     local: {
       title: "Local records",
       description: "Covers only authorized, indexed, and deduplicated data directories.",
@@ -179,13 +169,8 @@ export const dashboardEnUS = {
     local: {
       sectionAria: "{{window}} local-record window",
       callCount: "Total calls",
-      callDedupe: "Deduplicated by stable call ID",
       tokenTotal: "Total tokens",
-      totalDerived: "Total derived from input + output",
-      totalUpstream: "Summed from per-call upstream totals",
       breakdownTitle: "{{window}} token breakdown",
-      breakdownDescription:
-        "Cached input is included in input, and reasoning output in output. Totals never count them twice.",
       coverageTitle: "Cache and data coverage",
       enabledRootsBadge: "Enabled-root aggregate",
       cachedReadCalls: "Calls with cache reads",
@@ -198,10 +183,6 @@ export const dashboardEnUS = {
   statistics: {
     page: {
       title: "Usage statistics",
-      codexDescription:
-        "View daily trends and group by model, reasoning effort, project, thread, or data directory.",
-      clientDescription:
-        "View {{client}} daily trends and group by model, project, thread, or data directory.",
       loading: "Loading local usage statistics",
     },
     controls: {
@@ -209,7 +190,6 @@ export const dashboardEnUS = {
       window: "Statistics window",
       dimension: "Group by",
       updating: "Updating",
-      sameSnapshot: "Same snapshot",
       localRecords: "Local records",
       observed: "Observed {{date}}",
     },
@@ -225,12 +205,8 @@ export const dashboardEnUS = {
     },
     daily: {
       title: "Daily trend",
-      descriptionLocal:
-        "Uses this device’s time-zone calendar days; zero-value dates are not omitted.",
-      descriptionRemote: "Uses UTC calendar days; zero-value dates are not omitted.",
       dateLocal: "Local date",
       dateRemote: "UTC date",
-      dateCustom: "UTC date",
       inProgress: "In progress",
     },
     groups: {
@@ -318,9 +294,6 @@ export const dashboardEnUS = {
       updateErrorTitle: "Unable to update the data-root index",
       updateErrorBody:
         "The data-root update failed. Original {{client}} files were not modified.",
-      scanErrorTitle: "Unable to run the scan",
-      scanErrorBody:
-        "The scan operation failed. Original {{client}} files were not modified.",
     },
     background: {
       runningTitle: "Background Token statistics running",
@@ -331,13 +304,7 @@ export const dashboardEnUS = {
     },
     empty: {
       title: "No local {{client}} data directory found",
-      codexBody: "Quick scan only checks this platform’s priority directories.",
-      claudeBody: "Quick scan only checks this platform’s priority directories.",
-      grokBody:
-        "Quick scan only checks GROK_HOME or ~/.grok, in sessions/**/updates.jsonl.",
       action: "Discover data directories",
-      fullDeviceAction: "Discover data directories",
-      addRootAction: "Add candidate roots",
     },
     primary: {
       title: "Codex primary data directory",
@@ -361,9 +328,7 @@ export const dashboardEnUS = {
       },
       quick: "Quick scan",
       fullDevice: "Full-device discovery",
-      updateIndex: "Background statistics",
       cancel: "Cancel scan",
-      currentScope: "Current scope: {{scope}}",
       filesVisited: "Files visited: {{count}}",
       callsIndexed: "Calls indexed: {{count}}",
     },
@@ -380,9 +345,6 @@ export const dashboardEnUS = {
       fileNames: "File names checked: {{count}}",
       candidates: "Candidates: {{count}}",
       partialTitle: "Discovery coverage is partial",
-      partialBody:
-        "Permission denied: {{denied}}; I/O errors: {{errors}}; policy skips: {{skipped}}.",
-      skippedBody: "I/O errors: {{errors}}; link or policy skips: {{skipped}}.",
       failedTitle: "Discovery failed",
       failedBody:
         "Stable error code: {{code}}. Fix the environment and start discovery again.",
@@ -469,11 +431,6 @@ export const dashboardEnUS = {
       enabled: "Enabled",
       disabled: "Disabled",
       errorTitle: "Unable to update start at login",
-      errorBody:
-        "The operation did not complete. The interface reread and now shows the operating system’s actual state.",
-      unknownTitle: "Current state is unknown",
-      unknownBody:
-        "The operating-system login item cannot be read right now. The switch stays disabled to prevent an incorrect change.",
       retry: "Read actual state again",
     },
     retentionDays: dashboardUsageSettingsEnUS.retentionDays,
@@ -544,10 +501,6 @@ export const dashboardEnUS = {
     description:
       "Read-only parsing of projects/<project>/<session>.jsonl and subagents/*.jsonl under ~/.workbuddy and ~/.workbuddy-ai, merged into one set of statistics. No data root is registered, and conversation content is never kept, shown, uploaded, or logged.",
     found: "Found: {{alias}}",
-    notFound: "Not found",
-    notFoundTitle: "No local WorkBuddy directory found",
-    notFoundBody: "Confirm WorkBuddy is installed and has run at least once, then rescan.",
-    rescan: "Rescan",
     toggleAria: "Turn WorkBuddy local statistics reading on or off",
     loading: "Detecting the local WorkBuddy directory",
   },
@@ -639,7 +592,6 @@ export const dashboardEnUS = {
       thread: "Thread {{value}}",
       unnamedRoot: "Unnamed data directory",
       remainder: "Other",
-      disambiguated: "{{label}} ({{index}})",
     },
     discovery: {
       defaultRoot: "Default data directory",

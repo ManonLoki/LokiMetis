@@ -8,11 +8,11 @@ import { useTranslation } from "react-i18next";
 import {
   selectDashboardWorkbuddyOption,
   selectEnabledDashboardClients,
-} from "../ai-capabilities";
-import { getPrivacySettings, type UsageViewKind } from "../api/usage";
-import { agentClientAtom, usageViewAtom } from "../state/agent-client";
+} from "../../ai-capabilities";
+import { getPrivacySettings, type UsageViewKind } from "../../api/usage";
+import { agentClientAtom, usageViewAtom } from "../../state/agent-client";
 import { DashboardToolbar } from "./DashboardToolbar";
-import { FailureState, LoadingState } from "./UsageUi";
+import { FailureState, LoadingState } from "../StatePanels";
 
 /** 装配看板页头、已开启 Agent 切换与子页出口。 */
 export function DashboardLayout(): ReactElement {

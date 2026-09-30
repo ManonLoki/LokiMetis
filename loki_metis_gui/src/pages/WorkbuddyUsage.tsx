@@ -9,7 +9,7 @@ import {
   timeStandardQueryKey,
   type UsageDimension,
 } from "../api/usage";
-import { FailureState, LoadingState } from "../components/UsageUi";
+import { FailureState, LoadingState } from "../components/StatePanels";
 import {
   timeStandardAtom,
   usageDimensionAtom,

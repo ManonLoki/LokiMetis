@@ -180,7 +180,6 @@ export function MonitorSettingsPage() {
             </Alert>
           ) : (
             <Tabs
-              className="ai-tool-tabs ai-tool-tabs-compact"
               keepMounted={false}
               onChange={(value) => {
                 if (value) {

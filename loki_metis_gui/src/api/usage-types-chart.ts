@@ -2,7 +2,6 @@ import type {
   LocalIndexState,
   LocalUsageAggregateDto,
   MetricFactDto,
-  UsageViewKind,
   UsageWindow,
 } from "./usage-types";
 import type { UsageGroupDto, UsageMeasureDto } from "./usage-types-detail";
@@ -75,6 +74,3 @@ export interface ChartPreferencesDto {
   /** 当前用量指标。 */
   distributionMetric: UsageChartDistributionMetric;
 }
-
-/** 「全部」与三个物理 Agent 互不覆盖的图表偏好集合。 */
-export type ChartPreferencesByViewDto = Record<UsageViewKind, ChartPreferencesDto>;

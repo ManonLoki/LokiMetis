@@ -31,11 +31,11 @@ import {
 import { FilterBar } from "../components/FilterBar";
 import { TimeSeriesChart, type TimeSeries } from "../components/charts/TimeSeriesChart";
 import {
-  FailureState,
   LocalIndexNotice,
-  LoadingState,
   TokenTotalDisplay,
-} from "../components/UsageUi";
+  MiniMetric,
+} from "../components/dashboard/UsageUi";
+import { FailureState, LoadingState } from "../components/StatePanels";
 import { chartMetricLabel, displayLabel } from "../i18n/backend-labels";
 import { usageViewAtom } from "../state/agent-client";
 import { chartPreferencesAtom, timeStandardAtom } from "../state/page-session";
@@ -284,10 +284,7 @@ function OverviewCharts({
           { isToken: true, label: chartMetricLabel(t, "outputTokens"), value: totalOutput },
           { isToken: false, label: chartMetricLabel(t, "callCount"), value: totalCalls },
         ].map(({ label, value, isToken }) => (
-          <Paper className="mini-metric" key={label} p="lg" radius="lg" withBorder>
-            <Text c="dimmed" size="sm">
-              {label}
-            </Text>
+          <MiniMetric key={label} label={label}>
             {isToken ? (
               <TokenTotalDisplay className="window-number" value={value} />
             ) : (
@@ -295,7 +292,7 @@ function OverviewCharts({
                 {formatTokens(value)}
               </Text>
             )}
-          </Paper>
+          </MiniMetric>
         ))}
       </SimpleGrid>
 

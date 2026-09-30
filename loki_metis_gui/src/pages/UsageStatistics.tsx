@@ -18,7 +18,7 @@ import type {
   UsageWindow,
 } from "../api/usage";
 import { FilterBar } from "../components/FilterBar";
-import { TokenTotalDisplay } from "../components/UsageUi";
+import { TokenTotalDisplay, MiniMetric } from "../components/dashboard/UsageUi";
 import {
   completenessLabel,
   confidenceLabel,
@@ -29,6 +29,7 @@ import {
 } from "../usage-format";
 import { displayLabel } from "../i18n/backend-labels";
 import { usageWindowOrder } from "./overview-windows";
+import { EmptyHint } from "../components/StatePanels";
 
 /** 描述统计展示与固定查询选择器之间的受控交互。 */
 interface UsageStatisticsProps {
@@ -143,41 +144,29 @@ export function UsageStatistics({
       </FilterBar>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("statistics.summary.totalTokens")}
-          </Text>
+        <MiniMetric label={t("statistics.summary.totalTokens")}>
           <TokenTotalDisplay
             className="window-number"
             value={aggregate.tokens.totalTokens}
           />
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("statistics.summary.calls")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("statistics.summary.calls")}>
           <Text className="window-number" fw={800}>
             {formatTokens(aggregate.callCount)}
           </Text>
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("statistics.summary.threads")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("statistics.summary.threads")}>
           <Text className="window-number" fw={800}>
             {formatTokens(aggregate.threadCount)}
           </Text>
-        </Paper>
-        <Paper className="mini-metric" p="lg" radius="lg" withBorder>
-          <Text c="dimmed" size="sm">
-            {t("statistics.summary.cacheReadShare")}
-          </Text>
+        </MiniMetric>
+        <MiniMetric label={t("statistics.summary.cacheReadShare")}>
           <Text className="window-number" fw={800}>
             {aggregate.tokens.cachedInputTokens === null
               ? t("common.notProvided")
               : formatBasisPoints(aggregate.cacheReadBasisPoints)}
           </Text>
-        </Paper>
+        </MiniMetric>
       </SimpleGrid>
 
       <Paper className="table-panel" radius="lg" withBorder>
@@ -308,9 +297,7 @@ export function UsageStatistics({
             </Table>
           </Table.ScrollContainer>
           {groupRows.length === 0 ? (
-            <Text c="dimmed" p="xl" ta="center">
-              {t("statistics.groups.empty")}
-            </Text>
+            <EmptyHint>{t("statistics.groups.empty")}</EmptyHint>
           ) : null}
         </Stack>
       </Paper>

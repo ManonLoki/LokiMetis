@@ -8,7 +8,7 @@ import {
   type RootDiscoveryScope,
   type RootDiscoveryStatusDto,
 } from "../api/usage";
-import { FailureState, LoadingState } from "../components/UsageUi";
+import { FailureState, LoadingState } from "../components/StatePanels";
 import { SourceDiscoveryPanel } from "./SourceDiscoveryPanel";
 import { SourceRootTable } from "./SourceRootTable";
 

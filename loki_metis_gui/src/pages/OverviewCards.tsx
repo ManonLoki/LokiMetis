@@ -2,7 +2,7 @@ import { Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/co
 import { useTranslation } from "react-i18next";
 
 import type { WindowUsageDto } from "../api/usage";
-import { FactMeta, TokenTotalDisplay } from "../components/UsageUi";
+import { FactMeta, TokenTotalDisplay } from "../components/dashboard/UsageUi";
 import { formatBasisPoints, formatTokens } from "../usage-format";
 
 /** 渲染所选本机窗口的主要指标、完整 Token 构成和多根覆盖。 */

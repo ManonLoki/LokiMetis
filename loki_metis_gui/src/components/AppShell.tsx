@@ -15,7 +15,7 @@ import {
 } from "../lib/api";
 import { persistInterfaceLanguage, readSavedInterfaceLanguage } from "../lib/language";
 import { appMetadataQuery } from "../lib/queries";
-import { useSpotlight } from "../lib/useSpotlight";
+import { useSpotlight } from "./motion/useSpotlight";
 import { interfaceLanguageAtom } from "../state/interfaceLanguage";
 import { AppSidebar, APP_SIDEBAR_WIDTHS } from "./AppSidebar";
 
@@ -35,8 +35,6 @@ export async function syncShellInterfaceLanguage(
 ): Promise<InterfaceLanguage> {
   return setInterfaceLanguage(language);
 }
-
-export const applyInterfaceLanguage = syncShellInterfaceLanguage;
 
 /** 渲染固定精简 AppShell，并让应用事实和语言通过真实宿主边界进入界面。 */
 export function AppShellFrame(): ReactElement {
@@ -117,5 +115,3 @@ export function AppShellFrame(): ReactElement {
     </AppShell>
   );
 }
-
-export const AppLayout = AppShellFrame;

@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { SettingsPage } from "../src/components/SettingsPage";
+import { SettingsPage } from "../src/pages/SettingsPage";
 import { appI18n } from "../src/i18n";
 import { UsageSettingsPage } from "../src/pages/UsageSettingsPage";
 import type { PrivacySettingsDto } from "../src/api/usage-types";

@@ -19,14 +19,14 @@ import {
   getMonitorSettings,
   saveEnabledAiSelection,
   type MonitorAiTool,
-} from "../api/monitor";
-import { synchronizeGlobalPrivacySettings } from "../api/usage-queries";
+} from "../../api/monitor";
+import { synchronizeGlobalPrivacySettings } from "../../api/usage-queries";
 import {
   selectAvailableMonitorAiTools,
   selectEnabledAvailableMonitorTools,
-} from "../ai-capabilities";
-import { agentClientAtom } from "../state/agent-client";
-import { visibleErrorMessage } from "../visible-error";
+} from "../../ai-capabilities";
+import { agentClientAtom } from "../../state/agent-client";
+import { visibleErrorMessage } from "../../visible-error";
 
 /** 渲染全产品唯一的 Agent 复选面板，并通过一个命令保存所有区域投影。 */
 export function UnifiedAgentSelectionPanel(): ReactElement {
