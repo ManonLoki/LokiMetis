@@ -14,7 +14,7 @@
 
 侧栏 `position: fixed`、高度 `100dvh`，右侧使用 `1px` 语义边框。AppShell 的 `navbar.width` 必须引用当前侧栏宽度常量；`AppShell.Navbar` 自身 padding 为 `0`，内容偏移不得再写一份数值。
 
-每个导航动作绑定在实际 `NavLink` 或 button 上，当前路由通过该菜单项自身的 `active` 状态高亮。所有功能与支持图标使用 `@tabler/icons-react` 命名组件；不得使用其他图标库、手写 SVG、字符或 emoji。可见标签走 i18n，完整名称保留在菜单项 `aria-label`。展示版本先移除已有 `v`/`V` 前缀，再只添加一个小写 `v`。
+每个导航动作绑定在实际 `NavLink` 或 button 上，当前路由通过该菜单项自身的 `active` 状态高亮。所有功能与支持图标使用 `@phosphor-icons/react` 命名组件；不得使用其他图标库、手写 SVG、字符或 emoji。可见标签走 i18n，完整名称保留在菜单项 `aria-label`。展示版本先移除已有 `v`/`V` 前缀，再只添加一个小写 `v`。
 
 ## 精简模式
 
@@ -57,7 +57,7 @@ compact AppShell 必须把 `mode="compact"` 接入实际 `AppSidebarTemplate`，
 | 展开（首次默认） | `248px` | `72px` | 图标在左、名称在右，名称可见 |
 | 收起 | `76px` | `44px` | 只显示图标；名称由 Mantine `Tooltip` 补充 |
 
-两态共同使用 `22px` 菜单图标和 `stroke = 1.75`。展开菜单项 `min-height: 44px`，横向 padding 使用 Mantine `sm`；收起菜单项左右 padding 为 `0`，left section 的 `margin-inline` 为 `0`。详细身份区使用 Mantine `p="xs"`，不得套用 compact 的 `6px` 内容密度。折叠按钮使用 `18px` Tabler 图标：展开时为 `IconChevronLeft`，收起时为 `IconChevronRight`。
+两态共同使用 `22px` 菜单图标和 `weight = "regular"`。展开菜单项 `min-height: 44px`，横向 padding 使用 Mantine `sm`；收起菜单项左右 padding 为 `0`，left section 的 `margin-inline` 为 `0`。详细身份区使用 Mantine `p="xs"`，不得套用 compact 的 `6px` 内容密度。折叠按钮使用 `18px` Phosphor 图标：展开时为 `CaretLeft`，收起时为 `CaretRight`。
 
 实现只从下列受管常量读取两态事实，禁止在 JSX 中另写同值魔法数字：
 

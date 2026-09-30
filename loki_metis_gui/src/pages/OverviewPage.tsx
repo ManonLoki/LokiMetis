@@ -89,10 +89,10 @@ function LocalOverviewPage() {
       : t("common.unknownError");
 
   return (
-    <Stack className="page-stack" gap="xl">
+    <Stack className="page-stack" gap="lg">
       {overviewQuery.data.implementationMessage ||
       overviewQuery.data.implementationMessageCode ? (
-        <Alert color="orange" title={t("overview.partialTitle")}>
+        <Alert color="yellow" title={t("overview.partialTitle")}>
           {implementationMessage}
         </Alert>
       ) : null}

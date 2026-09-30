@@ -1,18 +1,18 @@
+import { MotionItem } from "../components/motion/MotionItem";
 import {
   Alert,
   Button,
   Center,
   Group,
-  Loader,
-  Paper,
   Progress,
   SimpleGrid,
+  Skeleton,
   Stack,
   Tabs,
   Text,
 } from "@mantine/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconAlertCircle, IconPalette, IconTrash } from "@tabler/icons-react";
+import { WarningCircle, Palette, Trash } from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,
@@ -45,10 +45,20 @@ import {
 } from "../components/skins/SkinDialogs";
 import { SkinCard } from "../components/skins/SkinCard";
 import { SkinToolbar } from "../components/skins/SkinToolbar";
-import { clearRememberedSkin } from "../lib/skin-preference";
 import { useSkinHostQueries } from "./useSkinHostQueries";
 import { skinReference, useSkinHostActions } from "./useSkinHostActions";
 import { useSkinImportController } from "./useSkinImportController";
+
+/** 皮肤目录加载时的骨架，结构与最终卡片网格一致。 */
+function SkinCatalogSkeleton() {
+  return (
+    <SimpleGrid aria-busy="true" cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+      {Array.from({ length: 8 }, (_, index) => (
+        <Skeleton height={220} key={index} radius="lg" />
+      ))}
+    </SimpleGrid>
+  );
+}
 
 /** 比较两个可选皮肤引用是否指向同一份来源资源。 */
 function sameSkin(left: SkinReference | null, right: SkinReference): boolean {
@@ -149,13 +159,11 @@ export function SkinPage(): ReactElement {
   const {
     appearance,
     installOnInstance,
-    remembered,
     requestInstall,
     restartAndInstall,
     restartRequest,
     selectedInstance,
     setAppearance,
-    setRemembered,
     setRestartRequest,
   } = useSkinHostActions({
     activeHost,
@@ -178,13 +186,6 @@ export function SkinPage(): ReactElement {
       );
     });
   }, [catalog.data, session.search]);
-  const rememberedDescriptor = useMemo(
-    () =>
-      (catalog.data ?? []).find(
-        (skin) => remembered !== null && sameSkin(remembered, skinReference(skin)),
-      ),
-    [catalog.data, remembered],
-  );
   const selectedSkinKeys = useMemo(
     () => new Set(selectedUserSkins.map((entry) => `${entry.source}:${entry.id}`)),
     [selectedUserSkins],
@@ -226,8 +227,6 @@ export function SkinPage(): ReactElement {
     () =>
       void run(async () => {
         await skinApi.uninstall(host, selectedInstance?.id ?? null);
-        clearRememberedSkin(host);
-        setRemembered(null);
         setNotice(t("skins.notice.stopped"));
         await refresh();
       }),
@@ -238,34 +237,46 @@ export function SkinPage(): ReactElement {
 
   return (
     <Stack data-testid="skin-page" gap="lg">
-      {hostOptions.length > 0 ? (
-        <Tabs
-          aria-label={t("skins.host.tabs")}
-          onChange={(value) => {
-            if (hostTransitionLocked) return;
-            setSession((current) => ({
-              ...current,
-              selectedHost: value as SkinHostKind | null,
-            }));
-          }}
-          value={activeHost}
-        >
-          <Tabs.List>
-            {hostOptions.map((item) => (
-              <Tabs.Tab
-                disabled={hostTransitionLocked}
-                key={item.skinHost}
-                value={item.skinHost}
-              >
-                {item.name}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs>
-      ) : null}
-
+      <Stack className="dashboard-toolbar" gap={0}>
+        <Group align="center" className="dashboard-header-row" gap="md" wrap="nowrap">
+          {hostOptions.length > 0 ? (
+            <Tabs
+              aria-label={t("skins.host.tabs")}
+              onChange={(value) => {
+                if (hostTransitionLocked) return;
+                setSession((current) => ({
+                  ...current,
+                  selectedHost: value as SkinHostKind | null,
+                }));
+              }}
+              value={activeHost}
+            >
+              <Tabs.List>
+                {hostOptions.map((item) => (
+                  <Tabs.Tab
+                    disabled={hostTransitionLocked}
+                    key={item.skinHost}
+                    value={item.skinHost}
+                  >
+                    {item.name}
+                  </Tabs.Tab>
+                ))}
+              </Tabs.List>
+            </Tabs>
+          ) : null}
+          <SkinToolbar
+            busy={action.isPending}
+            hostAvailable={hostStateReady}
+            onCreate={() => setCreateOpened(true)}
+            onImport={() => void run(prepareImport)}
+            onRefresh={() => void run(refresh)}
+            onSearchChange={(search) => setSession((value) => ({ ...value, search }))}
+            search={session.search}
+          />
+        </Group>
+      </Stack>
       {!skinHostAvailable() ? (
-        <Alert icon={<IconAlertCircle size={18} />} title={t("skins.browser.title")}>
+        <Alert icon={<WarningCircle size={18} />} title={t("skins.browser.title")}>
           {t("skins.browser.description")}
         </Alert>
       ) : null}
@@ -274,14 +285,14 @@ export function SkinPage(): ReactElement {
       !settings.isPending &&
       queryFailure === null &&
       hostOptions.length === 0 ? (
-        <Alert icon={<IconAlertCircle size={18} />} title={t("skins.host.empty_title")}>
+        <Alert icon={<WarningCircle size={18} />} title={t("skins.host.empty_title")}>
           {t("skins.host.empty_description")}
         </Alert>
       ) : null}
       {error !== null ? (
         <Alert
           color="red"
-          icon={<IconAlertCircle size={18} />}
+          icon={<WarningCircle size={18} />}
           onClose={() => setError(null)}
           role="alert"
           title={t("skins.error.title")}
@@ -296,7 +307,7 @@ export function SkinPage(): ReactElement {
         </Alert>
       ) : null}
       {queryFailure !== null || queryRefreshFailure !== null ? (
-        <Alert color="red" icon={<IconAlertCircle size={18} />} role="alert">
+        <Alert color="red" icon={<WarningCircle size={18} />} role="alert">
           <Group justify="space-between">
             <Text size="sm">
               {(queryFailure ?? queryRefreshFailure) instanceof SkinHostError
@@ -323,109 +334,56 @@ export function SkinPage(): ReactElement {
       ) : null}
       {importProgress !== null ? <Progress animated value={importProgress} /> : null}
 
-      <Paper className="surface-card" p="md" radius="lg" withBorder>
-        <Stack gap="md">
-          <SkinToolbar
-            busy={action.isPending}
-            hostAvailable={hostStateReady}
-            onCreate={() => setCreateOpened(true)}
-            onImport={() => void run(prepareImport)}
-            onRefresh={() => void run(refresh)}
-            onSearchChange={(search) => setSession((value) => ({ ...value, search }))}
-            search={session.search}
-          />
-          {selectedUserSkins.length > 0 ? (
-            <Group gap="xs" justify="flex-end">
-              <Button
-                color="red"
-                disabled={!hostStateReady || action.isPending}
-                leftSection={<IconTrash size={17} />}
-                onClick={() =>
-                  setDeleteTargets(
-                    (catalog.data ?? []).filter((skin) =>
-                      selectedSkinKeys.has(`${skin.source}:${skin.id}`),
-                    ),
-                  )
-                }
-                size="xs"
-                variant="light"
-              >
-                {t("skins.action.delete_selected", { count: selectedUserSkins.length })}
-              </Button>
-            </Group>
-          ) : null}
-        </Stack>
-      </Paper>
-
-      {rememberedDescriptor &&
-      hostStateReady &&
-      activeSkin === null &&
-      !session.restoreDismissedHosts[host] ? (
-        <Alert
-          color="violet"
-          icon={<IconPalette size={18} />}
-          title={t("skins.restore.title")}
-        >
-          <Group justify="space-between">
-            <Text size="sm">
-              {t("skins.restore.description", { name: rememberedDescriptor.name })}
-            </Text>
-            <Group gap="xs">
-              <Button onClick={() => handleApply(rememberedDescriptor)} size="xs">
-                {t("skins.restore.action")}
-              </Button>
-              <Button
-                onClick={() =>
-                  setSession((value) => ({
-                    ...value,
-                    restoreDismissedHosts: {
-                      ...value.restoreDismissedHosts,
-                      [host]: true,
-                    },
-                  }))
-                }
-                size="xs"
-                variant="subtle"
-              >
-                {t("skins.restore.dismiss")}
-              </Button>
-            </Group>
-          </Group>
-        </Alert>
+      {selectedUserSkins.length > 0 ? (
+        <Group gap="xs" justify="flex-end">
+          <Button
+            color="red"
+            disabled={!hostStateReady || action.isPending}
+            leftSection={<Trash size={17} />}
+            onClick={() =>
+              setDeleteTargets(
+                (catalog.data ?? []).filter((skin) =>
+                  selectedSkinKeys.has(`${skin.source}:${skin.id}`),
+                ),
+              )
+            }
+            size="xs"
+            variant="light"
+          >
+            {t("skins.action.delete_selected", { count: selectedUserSkins.length })}
+          </Button>
+        </Group>
       ) : null}
 
       {capabilities.isPending || settings.isPending ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <SkinCatalogSkeleton />
       ) : !hostAvailable || queryFailure !== null ? null : catalog.isLoading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <SkinCatalogSkeleton />
       ) : filteredSkins.length === 0 ? (
         <Center py={72}>
           <Stack align="center">
-            <IconPalette color="var(--mantine-color-dimmed)" size={42} />
+            <Palette color="var(--mantine-color-dimmed)" size={42} />
             <Text c="dimmed">{t("skins.catalog.empty")}</Text>
           </Stack>
         </Center>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-          {filteredSkins.map((skin) => (
-            <SkinCard
-              active={sameSkin(activeSkin, skinReference(skin))}
-              busy={action.isPending || !hostStateReady}
-              key={`${skin.source}:${skin.id}`}
-              onApply={handleApply}
-              onConvert={handleConvert}
-              onDelete={handleDelete}
-              onExport={handleExport}
-              onOpen={handleOpen}
-              onSelect={handleSelect}
-              onStop={handleStop}
-              selected={selectedSkinKeys.has(`${skin.source}:${skin.id}`)}
-              skin={skin}
-            />
+          {filteredSkins.map((skin, index) => (
+            <MotionItem index={index} key={`${skin.source}:${skin.id}`}>
+              <SkinCard
+                active={sameSkin(activeSkin, skinReference(skin))}
+                busy={action.isPending || !hostStateReady}
+                onApply={handleApply}
+                onConvert={handleConvert}
+                onDelete={handleDelete}
+                onExport={handleExport}
+                onOpen={handleOpen}
+                onSelect={handleSelect}
+                onStop={handleStop}
+                selected={selectedSkinKeys.has(`${skin.source}:${skin.id}`)}
+                skin={skin}
+              />
+            </MotionItem>
           ))}
         </SimpleGrid>
       )}

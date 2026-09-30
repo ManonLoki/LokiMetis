@@ -9,5 +9,5 @@ interface EmptySourcesPanelProps {
 /** 数据根为空时只提示尚未发现，不展开扫描规则长文。 */
 export function EmptySourcesPanel({ clientLabel }: EmptySourcesPanelProps) {
   const { t } = useTranslation();
-  return <Alert color="orange" title={t("sources.empty.title", { client: clientLabel })} />;
+  return <Alert color="yellow" title={t("sources.empty.title", { client: clientLabel })} />;
 }

@@ -1,5 +1,4 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSetAtom } from "jotai";
 import {
   useCallback,
   useEffect,
@@ -25,8 +24,6 @@ import {
   needsWorkBuddyCdpRecovery,
   resolveSoleTargetInstance,
 } from "../lib/skin-instances";
-import { readRememberedSkin, rememberSkin } from "../lib/skin-preference";
-import { skinPageSessionAtom } from "../state/skin-page";
 
 /** 把资源描述收敛成原生命令要求的精确引用。 */
 export function skinReference(skin: SkinDescriptor): SkinReference {
@@ -87,10 +84,8 @@ export function useSkinHostActions({
 }: SkinHostActionsOptions) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const setSession = useSetAtom(skinPageSessionAtom);
   const [appearance, setAppearance] = useState<SkinAppearanceRequest | null>(null);
   const [restartRequest, setRestartRequest] = useState<PendingHostRestart | null>(null);
-  const [remembered, setRemembered] = useState<SkinReference | null>(null);
   const activeHostRef = useRef(activeHost);
   const authorityRef = useRef({ activeHost, epoch: 0, ready: hostStateReady });
   if (
@@ -110,7 +105,6 @@ export function useSkinHostActions({
 
   useEffect(() => {
     activeHostRef.current = activeHost;
-    setRemembered(activeHost === null ? null : readRememberedSkin(activeHost));
   }, [activeHost]);
 
   /** 捕获当前可写代次；失权、恢复或切换宿主都会让旧操作失效。 */
@@ -172,20 +166,10 @@ export function useSkinHostActions({
         });
         return;
       }
-      const reference = skinReference(skin);
-      rememberSkin(operationHost, reference);
-      if (activeHostRef.current === operationHost) setRemembered(reference);
-      setSession((value) => ({
-        ...value,
-        restoreDismissedHosts: {
-          ...value.restoreDismissedHosts,
-          [operationHost]: false,
-        },
-      }));
       setNotice(t("skins.notice.applied", { name: skin.name }));
       await refreshHost(operationHost);
     },
-    [assertAuthority, captureAuthority, refreshHost, setNotice, setSession, t],
+    [assertAuthority, captureAuthority, refreshHost, setNotice, t],
   );
 
   /** 按原生平台能力选择 Windows 全量恢复或既有单实例重启确认。 */
@@ -352,13 +336,11 @@ export function useSkinHostActions({
   return {
     appearance,
     installOnInstance,
-    remembered,
     requestInstall,
     restartAndInstall,
     restartRequest,
     selectedInstance,
     setAppearance,
-    setRemembered,
     setRestartRequest,
   };
 }

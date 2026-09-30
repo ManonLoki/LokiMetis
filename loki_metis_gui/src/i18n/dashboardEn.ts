@@ -36,7 +36,7 @@ export const dashboardEnUS = {
     },
     noEnabledAgents: {
       title: "No AI agents are enabled",
-      body: "Enable the agents you want to use under Agent configuration in Settings. Disabled agents stay out of the header and all local scanning, statistics, and monitoring.",
+      body: "Enable the agents you want to use under Agent configuration in Settings.",
     },
     navigation: {
       aria: "Main navigation",
@@ -98,8 +98,7 @@ export const dashboardEnUS = {
     implementation: {
       badge: "Feature in progress",
       title: "Usage data is not connected yet",
-      fallback:
-        "The real provider and local index are being integrated. No collected data is displayed or fabricated.",
+      fallback: "The local index is being prepared. No data yet.",
     },
     loadingDefault: "Loading usage data",
     loadingVisible: "{{label}}…",
@@ -107,17 +106,17 @@ export const dashboardEnUS = {
     localIndex: {
       needsRescan: {
         title: "Local index needs to be rescanned",
-        body: "This local index was created by an older parser. Old data will not be presented as current statistics. Run an explicit quick scan to rebuild it safely.",
+        body: "This index came from an older parser. Run a quick scan to rebuild it.",
         action: "Go to Data Sources to rescan",
       },
       notScanned: {
         title: "Local usage index has not been created",
-        body: "Local records for the selected client have not been scanned, so zeros cannot be treated as confirmed zero usage. Scans read only authorized data directories.",
+        body: "The selected client has not been scanned, so zeros do not mean zero usage. Run a scan first.",
         action: "Go to Data Sources for a quick scan",
       },
       readyNoCalls: {
         title: "No usable calls in the scanned scope",
-        body: "A scan has completed, but the current parser found no calls that can be included in statistics. Check the coverage report or run another quick scan.",
+        body: "The scan finished, but no calls could be counted. Check the coverage report or scan again.",
         action: "Go to Data Sources to rescan",
       },
     },
@@ -186,7 +185,7 @@ export const dashboardEnUS = {
       totalUpstream: "Summed from per-call upstream totals",
       breakdownTitle: "{{window}} token breakdown",
       breakdownDescription:
-        "Cached input is a subset of input, and reasoning output is an analytical view of output. Neither is added to the total twice.",
+        "Cached input is included in input, and reasoning output in output. Totals never count them twice.",
       coverageTitle: "Cache and data coverage",
       enabledRootsBadge: "Enabled-root aggregate",
       cachedReadCalls: "Calls with cache reads",
@@ -200,9 +199,9 @@ export const dashboardEnUS = {
     page: {
       title: "Usage statistics",
       codexDescription:
-        "View trends by the saved time standard and reconcilable groups by model, reasoning effort, project, thread, or data directory.",
+        "View daily trends and group by model, reasoning effort, project, thread, or data directory.",
       clientDescription:
-        "View {{client}} trends by the saved time standard and separate, reconcilable groups by model, project, thread, or data directory.",
+        "View {{client}} daily trends and group by model, project, thread, or data directory.",
       loading: "Loading local usage statistics",
     },
     controls: {
@@ -212,7 +211,7 @@ export const dashboardEnUS = {
       updating: "Updating",
       sameSnapshot: "Same snapshot",
       localRecords: "Local records",
-      observed: "Observed {{date}} · Refreshes 10 seconds after each read completes",
+      observed: "Observed {{date}}",
     },
     summary: {
       totalTokens: "Total tokens",
@@ -222,7 +221,7 @@ export const dashboardEnUS = {
     },
     methodology: {
       title: "Methodology",
-      body: "Date buckets, groups, and totals come from the same indexed, deduplicated snapshot; this query does not scan disk. Copies across data directories are assigned to one deterministic data directory, while complete source coverage remains visible under Data Sources.",
+      body: "Totals come from one indexed, deduplicated snapshot; queries do not scan disk. Full sources are listed under Data Sources.",
     },
     daily: {
       title: "Daily trend",
@@ -237,7 +236,7 @@ export const dashboardEnUS = {
     groups: {
       title: "Grouped statistics",
       description:
-        "Uses the same time-standard window as the daily trend. Shows up to 10 groups; additional groups are combined as Other and still reconcile to the total.",
+        "Uses the daily trend window. Shows the top 10 groups; the rest are combined as Other.",
       merged: "Combined",
       tokenShare: "Share of total",
       quality: "Quality",
@@ -253,8 +252,6 @@ export const dashboardEnUS = {
     },
     overview: {
       tokensTitle: "Token trends",
-      tokensDescription:
-        "Select several Token metrics at once. Unavailable components break the line instead of being drawn as zero.",
       metricSelectorAria: "Token trend metrics",
       tokensChartAria: "Token trends across complete time buckets",
       callsTitle: "Call trend",
@@ -262,8 +259,6 @@ export const dashboardEnUS = {
     },
     distribution: {
       title: "Multidimensional usage distribution",
-      description:
-        "Shows Top 10 groups plus a reconciling remainder across fixed dimensions. Switch between Token components and call count.",
       barAria: "Usage distribution bar chart",
       totalTokenShare: "Share of total tokens: {{share}}",
       empty: "There are no local calls to group in this window.",
@@ -273,21 +268,18 @@ export const dashboardEnUS = {
     page: {
       title: "Calls",
       description:
-        "Browse all filtered and deduplicated calls with a stable cursor. Message content is not read, and absolute paths are never sent to the interface.",
+        "Browse filtered, deduplicated calls by cursor. Message content is not read and absolute paths are not exposed.",
       loading: "Loading local calls",
       missingFirstPage: "The calls query did not return its first page.",
     },
     filters: {
       title: "Call filters",
-      description:
-        "Options come from all enabled roots. Changing a filter or sort starts again from the first cursor.",
       all: "All",
       clear: "Clear filters",
     },
     refresh: {
       title: "Unable to refresh call results",
-      retained:
-        "The page structure is preserved and old results are hidden. Retry the current filters and sort.",
+      retained: "Old results are hidden. Retry with the current filters and sort.",
       retry: "Retry refresh",
     },
     table: {
@@ -319,8 +311,7 @@ export const dashboardEnUS = {
   sources: {
     page: {
       title: "Data sources",
-      description:
-        "Check local data directories and scan coverage. Hits for the current tab are deduplicated and added to the registered list directly.",
+      description: "Check local data directories and scan coverage.",
       addRoot: "Add data directory",
       loading: "Loading data-source status",
       updatedTitle: "Data directory updated",
@@ -340,12 +331,10 @@ export const dashboardEnUS = {
     },
     empty: {
       title: "No local {{client}} data directory found",
-      codexBody:
-        "Quick scan only checks this platform’s priority relative directories and their contents. Scan hits are deduplicated into the registered list.",
-      claudeBody:
-        "Quick scan only checks this platform’s priority relative directories and their contents. Scan hits are deduplicated into the registered list.",
+      codexBody: "Quick scan only checks this platform’s priority directories.",
+      claudeBody: "Quick scan only checks this platform’s priority directories.",
       grokBody:
-        "Quick scan only checks GROK_HOME or ~/.grok and sessions/**/updates.jsonl inside them. Scan hits are deduplicated into the registered list.",
+        "Quick scan only checks GROK_HOME or ~/.grok, in sessions/**/updates.jsonl.",
       action: "Discover data directories",
       fullDeviceAction: "Discover data directories",
       addRootAction: "Add candidate roots",
@@ -354,7 +343,7 @@ export const dashboardEnUS = {
       title: "Codex primary data directory",
       badge: "Local primary directory",
       description:
-        "An enabled Codex data directory that passes re-verification can be the only primary directory. This app does not read auth.json.",
+        "A verified Codex data directory can be the primary directory. auth.json is never read.",
       label: "Codex primary data directory",
       duplicate: "{{alias}} (ID {{id}})",
       empty: "No enabled data directories",
@@ -381,7 +370,7 @@ export const dashboardEnUS = {
     discovery: {
       title: "Data source discovery",
       description:
-        "Checks local volumes, directory names, and file names only. Hits for the current tab are registered directly; JSONL is not opened first.",
+        "Checks local volumes, directory names, and file names only. JSONL is not opened before you confirm.",
       startUser: "Quick scan",
       startFull: "Full-disk scan",
       cancel: "Cancel scan",
@@ -474,7 +463,7 @@ export const dashboardEnUS = {
       title: "Start at login",
       badge: "System setting",
       description:
-        "Starts this app in the background after you sign in and keeps the tray recovery entry available. The operating-system login item is authoritative; providing this switch does not turn it on for you.",
+        "Starts in the background at sign-in and keeps the tray entry. The system login item is the source of truth.",
       loading: "Reading the operating-system login item…",
       pending: "Updating the operating-system login item…",
       enabled: "Enabled",
@@ -495,7 +484,7 @@ export const dashboardEnUS = {
     loading: "Loading WorkBuddy local statistics…",
     lockedTitle: "WorkBuddy local statistics is not enabled",
     lockedDescription:
-      "Turn on WorkBuddy local statistics in Settings to see project JSONL requests, sessions, models, and token/credit trends here.",
+      "Turn on WorkBuddy statistics in Settings to see requests, sessions, models, and token/credit trends.",
     configureAction: "Go to Settings",
     totalSessions: "Total sessions",
     totalRequests: "Total requests",
@@ -523,8 +512,6 @@ export const dashboardEnUS = {
     traceCompleted: "Completed traces",
     traceError: "Error traces",
     summarySessions: "Sessions",
-    chartDistributionDescription:
-      "Distribute the same project JSONL usage events by calendar day, or show independent Trace status. Cached input is a subset of all input and is never added to the total again.",
     chartShare: "Share of window: {{share}}",
     chartGroup: {
       day: "Calendar day",
@@ -544,8 +531,6 @@ export const dashboardEnUS = {
     modelUsage: {
       title: "Actual model usage details",
       jsonlScope: "Project JSONL scope",
-      description:
-        "Groups actual execution models from providerData.model on each WorkBuddy project JSONL usage event, including top-level and subagent requests. All input includes cached input, cached input is not added to totals again, and this table reconciles with the statistics above.",
       model: "Actual model",
       requests: "Requests",
       topLevelCalls: "Top-level requests",
@@ -557,7 +542,7 @@ export const dashboardEnUS = {
   workbuddySources: {
     title: "WorkBuddy data source",
     description:
-      "Read-only detection and parsing of projects/<project>/<session>.jsonl and its subagents/*.jsonl under both fixed directories, ~/.workbuddy and ~/.workbuddy-ai, merged into a single set of statistics. No data root or product index is created. JSONL line bytes are read during parsing, but conversation bodies are never retained, displayed, indexed, uploaded, or logged.",
+      "Read-only parsing of projects/<project>/<session>.jsonl and subagents/*.jsonl under ~/.workbuddy and ~/.workbuddy-ai, merged into one set of statistics. No data root is registered, and conversation content is never kept, shown, uploaded, or logged.",
     found: "Found: {{alias}}",
     notFound: "Not found",
     notFoundTitle: "No local WorkBuddy directory found",
@@ -609,7 +594,7 @@ export const dashboardEnUS = {
       overviewLocalIndexUnavailable:
         "The local index is temporarily unavailable. Try again.",
       overviewWorkbuddyUnavailable:
-        "WorkBuddy usage is temporarily unavailable. All currently shows only the other enabled agents and is marked as partial coverage. Try again.",
+        "WorkBuddy usage is unavailable. All shows only the other enabled agents and is marked partial. Try again.",
       scanIdle: "No scan has started yet.",
       scanRunning: "Scanning the authorized scope.",
       scanCancelling: "Cancelling the scan. Discovered candidates will be kept.",

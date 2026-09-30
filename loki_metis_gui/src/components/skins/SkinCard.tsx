@@ -11,12 +11,12 @@ import {
   Text,
 } from "@mantine/core";
 import {
-  IconDots,
-  IconDownload,
-  IconFolderOpen,
-  IconRefresh,
-  IconTrash,
-} from "@tabler/icons-react";
+  DotsThree,
+  DownloadSimple,
+  FolderOpen,
+  ArrowsClockwise,
+  Trash,
+} from "@phosphor-icons/react";
 import { memo, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -90,7 +90,7 @@ function SkinCardImpl({
               {t("skins.card.by", { author: skin.author })} · {skin.version}
             </Text>
           </Stack>
-          <Badge color={skin.packageType === "theme" ? "violet" : "gray"} variant="light">
+          <Badge color={skin.packageType === "theme" ? "brand" : "gray"} variant="light">
             {t(`skins.package.${skin.packageType}`)}
           </Badge>
         </Group>
@@ -106,12 +106,12 @@ function SkinCardImpl({
         </Group>
         <Group gap="xs" justify="space-between" wrap="nowrap">
           <Button
-            color={active ? "red" : "violet"}
+            color={active ? "red" : "brand"}
             disabled={busy}
             fullWidth
             loading={busy}
             onClick={() => (active ? onStop() : onApply(skin))}
-            variant={active ? "light" : "filled"}
+            variant="light"
           >
             {active ? t("skins.action.stop") : t("skins.action.apply")}
           </Button>
@@ -124,25 +124,25 @@ function SkinCardImpl({
                   size="lg"
                   variant="default"
                 >
-                  <IconDots aria-hidden="true" size={18} />
+                  <DotsThree aria-hidden="true" size={18} />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item
-                  leftSection={<IconFolderOpen size={16} />}
+                  leftSection={<FolderOpen size={16} />}
                   onClick={() => onOpen(skin)}
                 >
                   {t("skins.action.open")}
                 </Menu.Item>
                 <Menu.Item
-                  leftSection={<IconDownload size={16} />}
+                  leftSection={<DownloadSimple size={16} />}
                   onClick={() => onExport(skin)}
                 >
                   {t("skins.action.export")}
                 </Menu.Item>
                 {skin.packageType === "legacySkin" ? (
                   <Menu.Item
-                    leftSection={<IconRefresh size={16} />}
+                    leftSection={<ArrowsClockwise size={16} />}
                     onClick={() => onConvert(skin)}
                   >
                     {t("skins.action.convert")}
@@ -151,7 +151,7 @@ function SkinCardImpl({
                 <Menu.Divider />
                 <Menu.Item
                   color="red"
-                  leftSection={<IconTrash size={16} />}
+                  leftSection={<Trash size={16} />}
                   onClick={() => onDelete(skin)}
                 >
                   {t("skins.action.delete")}

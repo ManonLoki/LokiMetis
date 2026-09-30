@@ -376,9 +376,6 @@ function WorkbuddyUsageDistribution() {
         <Stack gap="lg">
           <Stack gap={2}>
             <Text fw={700}>{t("charts.distribution.title")}</Text>
-            <Text c="dimmed" size="sm">
-              {t("workbuddy.chartDistributionDescription")}
-            </Text>
           </Stack>
           <DistributionChart
             ariaLabel={t("charts.distribution.barAria")}

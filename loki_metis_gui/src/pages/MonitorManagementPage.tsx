@@ -4,14 +4,14 @@ import {
   Button,
   Card,
   Group,
-  Loader,
+  Skeleton,
   SimpleGrid,
   Stack,
   Tabs,
   Text,
   Textarea,
 } from "@mantine/core";
-import { IconCheck } from "@tabler/icons-react";
+import { Check } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,7 +42,7 @@ import { visibleErrorMessage } from "../visible-error";
 /** 行为卡片状态色，仅用于展示。 */
 const behaviorColors: Record<MonitorHookBehavior, string> = {
   idle: "gray",
-  running: "violet",
+  running: "brand",
   asking: "yellow",
   error: "red",
 };
@@ -170,8 +170,9 @@ export function MonitorManagementPage() {
   const catalogPending = settings.isPending || capabilities.isPending || profiles.isPending;
   if (catalogPending) {
     return (
-      <Stack align="center" data-testid="monitor-management" py="xl">
-        <Loader size="sm" />
+      <Stack aria-busy="true" data-testid="monitor-management" gap="lg">
+        <Skeleton height={44} radius="lg" />
+        <Skeleton height={260} radius="lg" />
       </Stack>
     );
   }
@@ -184,13 +185,14 @@ export function MonitorManagementPage() {
   }
   if (!activeTool || !draft || !capabilities.data) {
     return (
-      <Stack align="center" data-testid="monitor-management" py="xl">
-        <Loader size="sm" />
+      <Stack aria-busy="true" data-testid="monitor-management" gap="lg">
+        <Skeleton height={44} radius="lg" />
+        <Skeleton height={260} radius="lg" />
       </Stack>
     );
   }
   return (
-    <Stack data-testid="monitor-management" gap="md">
+    <Stack data-testid="monitor-management" gap="lg">
       {mutationError ? (
         <Alert color="red">{visibleErrorMessage(mutationError)}</Alert>
       ) : null}
@@ -230,11 +232,8 @@ export function MonitorManagementPage() {
               <Group align="flex-end" justify="space-between">
                 <div>
                   <Text fw={650}>{t("monitor.management.behaviorDisplay")}</Text>
-                  <Text c="dimmed" mt={3} size="sm">
-                    {t("monitor.management.behaviorDescription")}
-                  </Text>
                 </div>
-                <Badge color="violet" size="lg" variant="light">
+                <Badge color="brand" size="lg" variant="light">
                   {t("monitor.management.configuredCount", {
                     configured: configuredBehaviorCount,
                     total: draft.hooks.length,
@@ -263,9 +262,6 @@ export function MonitorManagementPage() {
                             <span className="behavior-card-status" />
                             <div>
                               <Text fw={700}>{t(`monitor.behavior.${behaviorValue}`)}</Text>
-                              <Text c="dimmed" mt={1} size="xs">
-                                {t("monitor.management.stateDescription")}
-                              </Text>
                             </div>
                           </Group>
                           <Badge
@@ -349,7 +345,7 @@ export function MonitorManagementPage() {
                       </Badge>
                     ) : null}
                     <Button
-                      leftSection={<IconCheck aria-hidden="true" size={17} stroke={1.75} />}
+                      leftSection={<Check aria-hidden="true" size={17} />}
                       loading={save.isPending}
                       onClick={() => save.mutate(draft)}
                     >

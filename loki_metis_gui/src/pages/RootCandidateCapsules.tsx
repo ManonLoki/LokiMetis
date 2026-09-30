@@ -54,14 +54,14 @@ export function RootCandidateCapsules({
                   ? "blue"
                   : candidate.client === "grokBuildCli"
                     ? "teal"
-                    : "violet"
+                    : "brand"
               }
               variant="light"
             >
               {agentClientLabel(candidate.client)}
             </Badge>
             <Tooltip label={candidate.absolutePath} multiline maw={720}>
-              <Text className="candidate-capsule-path" size="sm">
+              <Text className="min-w-0 flex-[1_1_24rem] wrap-anywhere" size="sm">
                 {candidate.absolutePath}
               </Text>
             </Tooltip>

@@ -28,6 +28,7 @@ import {
   DistributionChart,
   type DistributionRow,
 } from "../components/charts/DistributionChart";
+import { FilterBar } from "../components/FilterBar";
 import { TimeSeriesChart, type TimeSeries } from "../components/charts/TimeSeriesChart";
 import {
   FailureState,
@@ -190,7 +191,7 @@ function LocalChartsPage() {
 
       {chart.indexState === "notScanned" || chart.indexState === "needsRescan" ? null : (
         <>
-          <Stack gap="sm">
+          <FilterBar label={t("charts.controls.window")}>
             <SegmentedControl
               aria-label={t("charts.controls.window")}
               data={windowOptions}
@@ -202,19 +203,25 @@ function LocalChartsPage() {
               }
               value={window}
             />
-            <div className="chart-dimension-control">
-              <NativeSelect
-                data={dimensionOptions}
-                label={t("charts.controls.dimension")}
-                onChange={(event) =>
-                  updateFilters({
-                    dimension: event.currentTarget.value as UsageChartDimension,
-                  })
-                }
-                value={filters.dimension}
-              />
-            </div>
-          </Stack>
+            <NativeSelect
+              aria-label={t("charts.controls.dimension")}
+              className="w-64"
+              data={dimensionOptions}
+              leftSection={
+                <Text c="dimmed" size="xs">
+                  {t("charts.controls.dimension")}
+                </Text>
+              }
+              leftSectionWidth={76}
+              leftSectionPointerEvents="none"
+              onChange={(event) =>
+                updateFilters({
+                  dimension: event.currentTarget.value as UsageChartDimension,
+                })
+              }
+              value={filters.dimension}
+            />
+          </FilterBar>
 
           <OverviewCharts
             buckets={chart.buckets}
@@ -296,9 +303,6 @@ function OverviewCharts({
         <Stack gap="md">
           <Stack gap={2}>
             <Text fw={700}>{t("charts.overview.tokensTitle")}</Text>
-            <Text c="dimmed" size="sm">
-              {t("charts.overview.tokensDescription")}
-            </Text>
           </Stack>
           <Checkbox.Group
             aria-label={t("charts.overview.metricSelectorAria")}
@@ -372,9 +376,6 @@ function UsageDistribution({
         <Group align="end" justify="space-between">
           <Stack gap={2}>
             <Text fw={700}>{t("charts.distribution.title")}</Text>
-            <Text c="dimmed" size="sm">
-              {t("charts.distribution.description")}
-            </Text>
           </Stack>
           <NativeSelect
             data={metricOptions.map((value) => ({

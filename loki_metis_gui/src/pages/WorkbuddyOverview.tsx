@@ -31,11 +31,8 @@ export function WorkbuddyOverview() {
   const label = t(`window.${selectedWindow}`);
   return (
     <Stack className="page-stack" data-testid="workbuddy-overview" gap="xl">
-      <section aria-labelledby="workbuddy-overview-heading">
+      <section aria-label={t("overview.local.title")}>
         <Stack gap="md">
-          <Title id="workbuddy-overview-heading" order={2}>
-            {t("overview.local.title")}
-          </Title>
           <SegmentedControl
             aria-label={t("overview.local.windowAria")}
             data={overviewWindowOrder.map((window) => ({
@@ -104,12 +101,7 @@ function WorkbuddyWindowSummary({
     <section aria-label={t("overviewCards.local.sectionAria", { window: label })}>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-          <Paper
-            className="metric-card local-card local-hero-card"
-            p="lg"
-            radius="lg"
-            withBorder
-          >
+          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
             <Text c="dimmed" fw={700} size="sm">
               {t("workbuddy.totalSessions")}
             </Text>
@@ -117,12 +109,7 @@ function WorkbuddyWindowSummary({
               {formatTokens(window?.sessionCount ?? 0)}
             </Text>
           </Paper>
-          <Paper
-            className="metric-card local-card local-hero-card"
-            p="lg"
-            radius="lg"
-            withBorder
-          >
+          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
             <Text c="dimmed" fw={700} size="sm">
               {t("workbuddy.totalRequests")}
             </Text>
@@ -130,23 +117,13 @@ function WorkbuddyWindowSummary({
               {formatTokens(window?.requestCount ?? 0)}
             </Text>
           </Paper>
-          <Paper
-            className="metric-card local-card local-hero-card"
-            p="lg"
-            radius="lg"
-            withBorder
-          >
+          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
             <Text c="dimmed" fw={700} size="sm">
               {t("overviewCards.local.tokenTotal")}
             </Text>
             <TokenTotalDisplay className="hero-number" value={window?.tokens ?? 0} />
           </Paper>
-          <Paper
-            className="metric-card local-card local-hero-card"
-            p="lg"
-            radius="lg"
-            withBorder
-          >
+          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
             <Text c="dimmed" fw={700} size="sm">
               {t("workbuddy.totalCredits")}
             </Text>

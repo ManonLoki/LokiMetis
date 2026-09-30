@@ -223,9 +223,6 @@ function LocalCallsPage({ view }: { view: UsageViewKind }) {
               <Group justify="space-between">
                 <div>
                   <Text fw={700}>{t("calls.filters.title")}</Text>
-                  <Text c="dimmed" size="sm">
-                    {t("calls.filters.description")}
-                  </Text>
                 </div>
                 <Button
                   onClick={() => {

@@ -41,7 +41,7 @@ LokiMetis 使用无预发布/构建元数据的三段语义化版本，由 `$des
 - 下游不安装或配置应用 updater，不实现联网检查、强制更新、自动下载或安装。
 - 不生成应用更新归档、更新签名、channel/target 元数据、公钥验签证据或对应 manifest 字段。
 - 不收集或发送产品统计、行为分析、崩溃报告、远程观测数据或其他远程遥测。
-- 本地 `release-notes.json`、Harness 工程升级、SemVer、本地 tracing 和 GUI 性能采样均不构成上述应用能力。
+- 本地 `release-notes.json`、Harness 工程升级、SemVer、本地 tracing 均不构成上述应用能力。
 
 ## 本地开发试包
 
@@ -50,7 +50,7 @@ Windows 原生本地安装试包不是发布候选。普通“构建/打包/首�
 - 在原生 Windows x64 生成未签名 NSIS 开发制品。
 - 可以基于当前工作树，但必须报告 dirty 风险。
 - 不读取或生成 `release-notes.json`，不传发布专用 Tauri 配置，不写 `release/`，不提交、不安装、不运行。
-- 不解析候选 E2E 或性能选择，不声称可分发、已验收或发布就绪。
+- 不解析候选 E2E 选择，不声称可分发、已验收或发布就绪。
 
 只有用户明确要求“发布候选”或“准备并构建发布”才进入后续流程。
 
@@ -58,7 +58,7 @@ Windows 原生本地安装试包不是发布候选。普通“构建/打包/首�
 
 - macOS 原生：Tauri DMG。
 - Windows 原生 x64：Tauri NSIS。
-- macOS 到 Windows x64：使用 cargo-xwin 构建 NSIS；不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生安装、运行或性能证据。
+- macOS 到 Windows x64：使用 cargo-xwin 构建 NSIS；不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生安装、运行证据。
 - Linux：当前没有已批准的统一正式渠道合同；源码目标有效，正式产物保持 `Unverified`。
 
 macOS 签名采用逐次意图与全有或全无门禁。`$desktop-prepare-release` 在任何发布提交前锁定 `macosSigningSelection`/`macosSigningSource`，来源按 `channel-required > requested > configured > not-requested` 唯一化。没有已批准配置、当次主动要求或渠道硬要求时默认 `disabled/not-requested`，使用 `--no-sign`，记录原因/风险且不得探测本机身份、证书、公证凭据或 profile。选择启用后，Developer ID Application、`notarytool`、`stapler`、完整凭据、签名、公证、stapling、Gatekeeper 和最终验证缺一不可；任一步失败都阻断，不能回退 unsigned。`system_notification = enabled` 的 macOS 候选必须启用并完成签名。任何后处理改变字节后重新计算摘要并重新验收。
@@ -77,10 +77,7 @@ LokiMetis GUI 产物使用：
 - 最终 SHA-256、全量 Rust/前端单元测试结果、签名/公证状态与 `milestoneAcceptance: pending`。
 - 当前 `e2eSelection`、`releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json`。
 - `reviewSelection: enabled | disabled` 与 `reviewStatus: passed | Not run`；启用时含结构化 `reviewEvidence`/`reviewedSourceCommit`，关闭且无硬要求时含非空原因/风险且证据字段缺席。
-- `performanceSelection: enabled | disabled` 与 `performanceStatus: passed | waived | Not run | Unverified`。
 - macOS 的 `macosSigningSelection`/`macosSigningSource`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 与适用 `notarizationEvidence`。
-
-性能选择启用或渠道要求且已原生测量时，manifest 使用 `performanceThresholdProfile: gui-release-v2`，保存与同一提交、平台、架构、native release-profile no-bundle 探针字节绑定的 `performanceEvidence`、`performanceProbeSha256` 和 `performanceRuntimeBinding`。v2 要求一次预热后恰好 5 次冷启动中位数 ≤2400ms、最大 ≤3600ms；至少 20 次代表性交互 nearest-rank p95 ≤120ms 且每次 <240ms；全部 ≥50ms Long Task 各 <240ms；整棵进程树 idle CPU p95 ≤6%（隐藏托盘 ≤2.4%）、稳态 RSS ≤360 MiB、峰值 ≤600 MiB、增长 ≤`max(18%, 38.4 MiB)`，且全部进程回收。`waived` 保留原始失败指标、修复尝试、风险、理由和用户确认，并要求原始证据 `waiverAllowed: true`；不能改判为 `passed`。选择关闭且无硬要求时状态固定 `Not run`，保存原因和剩余风险，且 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 与 `performanceRuntimeBinding` 全部缺席。xwin 在已启用性能但没有原生 Windows 测量时为 `Unverified`；渠道硬要求下不能进入 `accepted`。
 
 manifest 不得包含 updater、更新签名/endpoint、产品统计或远程遥测字段。
 
@@ -100,17 +97,16 @@ manifest 不得包含 updater、更新签名/endpoint、产品统计或远程遥
 
 ## 构建、验收与发布顺序
 
-发布语义审查、GUI 性能和 macOS 签名选择都只对当前发布有效，并在 `$desktop-prepare-release` 写元数据或提交前锁定；同一发布重跑复用，新发布重新解析。E2E 由构建单独逐次解析，`milestone_e2e` 只提供建议默认值。明确“发布/准备并构建发布”授权范围内本地提交与构建，不自动授权 tag、push、上传、商店提交或正式发布；这些外部动作仍需用户明确要求。
+发布语义审查和 macOS 签名选择都只对当前发布有效，并在 `$desktop-prepare-release` 写元数据或提交前锁定；同一发布重跑复用，新发布重新解析。E2E 由构建单独逐次解析，`milestone_e2e` 只提供建议默认值。明确“发布/准备并构建发布”授权范围内本地提交与构建，不自动授权 tag、push、上传、商店提交或正式发布；这些外部动作仍需用户明确要求。
 
-1. `$desktop-prepare-release` 先锁定 `reviewSelection`、`performanceSelection` 和 macOS 签名意图/来源，再用同时绑定具名分支与 HEAD 的检查快照复核工作树、范围、缓存和疑似秘密。归属明确的已完成源码按逻辑提交；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止。helper 提交后要求同分支直接非 merge 子提交且 committed diff 与快照逐字节一致，拒绝 hook 夹带。clean 且无源码变化时不制造空提交。
+1. `$desktop-prepare-release` 先锁定 `reviewSelection` 和 macOS 签名意图/来源，再用同时绑定具名分支与 HEAD 的检查快照复核工作树、范围、缓存和疑似秘密。归属明确的已完成源码按逻辑提交；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止。helper 提交后要求同分支直接非 merge 子提交且 committed diff 与快照逐字节一致，拒绝 hook 夹带。clean 且无源码变化时不制造空提交。
 2. 发布审查 `enabled` 时集中复核行为正确性、core/adapter 边界、对外契约、职责/规模候选和临时标记；只有结构化证据终点等于 reviewed source commit 才能 `passed`。`disabled` 且无硬要求时记录 `Not run`、原因/风险并让证据字段缺席。
 3. 从新源码 HEAD 定位上次真实发布边界，原子生成/整理双语 `release-notes.json`；变化时形成独立发布元数据提交。最终工作树必须干净，`sourceCommit` 精确等于 HEAD，并把三项选择信封与它绑定。
 4. `$desktop-build-tauri-release` 只读消费选择，校验版本、发布说明、GUI 固定结构和零 updater/统计/远程遥测，再以 `--list` 或等价方法证明 Rust 与前端测试非空，并运行全部单元测试。
-5. 性能为 `enabled` 或渠道强制时，从同一 clean HEAD 生成 `gui-release-v2` release-profile no-bundle 探针。每次预热/冷启动前恢复同一隔离 window-state 基线，所有退出路径恢复用户原状态；测量冷启动、交互/Long Task、整进程树 CPU/RSS、内存增长和退出回收。窗口状态、整进程树、探针字节或进程回收失败均不可豁免；纯指标失败才可在 `waiverAllowed: true` 后由用户显式 waiver。
-6. 性能为 `passed`、合法 `waived`，或明确关闭时的完整 `Not run` 契约，才进入适用 DMG/NSIS 打包。macOS 签名 disabled 使用 `--no-sign` 且零探测，enabled 则签名/公证/stapling/Gatekeeper 全有或全无；通知启用要求签名。最终字节形成后计算摘要，在 staging 写并复算 `pending` manifest，再原子替换 `release/` 并只读重验。
-7. `$desktop-verify-delivery` 对最终候选运行持久策略要求的冒烟、当前 E2E 选择和渠道硬要求，并复核同一候选的发布审查、性能、发布说明、DMG 布局、签名与 manifest。失败、超时、取消或已选未执行都返回开发循环。
-8. 所有 required/enabled 检查和人工复核通过后，才在 sibling staging 对整组 manifest 原子写入一致的 `accepted`；拒绝为整组 `rejected`，等待人工为整组 `pending`，禁止 mixed 状态。替换前后都复算最终字节与精确集合。渠道发布真实成功后才调用 `$desktop-manage-version finalize-release`。
-9. 发布说明、签名、公证、stapling、重打包或渠道处理只要改变运行字节、启动器、依赖或行为，就形成新候选并回到步骤 4；旧审查、性能或验收证据不得复用。
+5. 全量测试通过后进入适用 DMG/NSIS 打包。macOS 签名 disabled 使用 `--no-sign` 且零探测，enabled 则签名/公证/stapling/Gatekeeper 全有或全无；通知启用要求签名。最终字节形成后计算摘要，在 staging 写并复算 `pending` manifest，再原子替换 `release/` 并只读重验。
+6. `$desktop-verify-delivery` 对最终候选运行持久策略要求的冒烟、当前 E2E 选择和渠道硬要求，并复核同一候选的发布审查、发布说明、DMG 布局、签名与 manifest。失败、超时、取消或已选未执行都返回开发循环。
+7. 所有 required/enabled 检查和人工复核通过后，才在 sibling staging 对整组 manifest 原子写入一致的 `accepted`；拒绝为整组 `rejected`，等待人工为整组 `pending`，禁止 mixed 状态。替换前后都复算最终字节与精确集合。渠道发布真实成功后才调用 `$desktop-manage-version finalize-release`。
+8. 发布说明、签名、公证、stapling、重打包或渠道处理只要改变运行字节、启动器、依赖或行为，就形成新候选并回到步骤 4；旧审查或验收证据不得复用。
 
 构建、收集、E2E、完整验收和就绪复核不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；候选事实只写忽略的 `release/` manifest、相邻证据和最终回复。只有真实渠道发布成功后的受管记录阶段、人工复核或长期审计被独立触发时，才按对应事实源留证。
 

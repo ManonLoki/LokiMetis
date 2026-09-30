@@ -341,7 +341,7 @@ describe("skin page", () => {
     expect(await screen.findByText("Restart WorkBuddy with a debug port?")).toBeVisible();
     expect(
       screen.getByText(
-        /closes every running WorkBuddy process under a verified official install path/i,
+        /every WorkBuddy process under the official install path is closed/i,
       ),
     ).toBeVisible();
     expect(mocks.invoke).not.toHaveBeenCalledWith("force_launch_skin_host", {

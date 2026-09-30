@@ -1,11 +1,11 @@
 import { Box, Divider, Image, NavLink, ScrollArea, Stack, Text } from "@mantine/core";
 import {
-  IconDeviceDesktopAnalytics,
-  IconLayoutDashboard,
-  IconPalette,
-  IconSettings,
-  type TablerIcon,
-} from "@tabler/icons-react";
+  ChartLineUp,
+  SquaresFour,
+  Palette,
+  GearSix,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -18,7 +18,7 @@ export const APP_SIDEBAR_LOGO_SIZES = { compact: 36 } as const;
 export const COMPACT_PADDING = 6;
 export const SECTION_GAP = 8;
 export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
-export const APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75;
+export const APP_SIDEBAR_ICON_WEIGHT = "regular";
 export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
 export const APP_SIDEBAR_LABEL_LINE_HEIGHT = 1.25;
 export const APP_SIDEBAR_NAV_ITEM_MIN_HEIGHT_PX = 56;
@@ -34,7 +34,7 @@ interface NavigationItem {
   id: "dashboard" | "monitor" | "skins" | "settings";
   label: string;
   path: "/dashboard" | "/monitor" | "/skins" | "/settings";
-  icon: TablerIcon;
+  icon: PhosphorIcon;
 }
 
 /** 描述精简侧栏所需的安装包事实和导航回调。 */
@@ -84,7 +84,7 @@ function AppSidebarNavigationItem({
         <Icon
           aria-hidden="true"
           size={APP_SIDEBAR_NAV_ICON_SIZE_PX}
-          stroke={APP_SIDEBAR_ICON_STROKE_WIDTH}
+          weight={APP_SIDEBAR_ICON_WEIGHT}
         />
       }
       onClick={() => {
@@ -135,25 +135,25 @@ export function AppSidebar({
 }: AppSidebarProps): ReactElement {
   const { t } = useTranslation();
   const dashboard: NavigationItem = {
-    icon: IconLayoutDashboard,
+    icon: SquaresFour,
     id: "dashboard",
     label: t("navigation.dashboard"),
     path: "/dashboard",
   };
   const monitor: NavigationItem = {
-    icon: IconDeviceDesktopAnalytics,
+    icon: ChartLineUp,
     id: "monitor",
     label: t("navigation.monitor"),
     path: "/monitor",
   };
   const skins: NavigationItem = {
-    icon: IconPalette,
+    icon: Palette,
     id: "skins",
     label: t("navigation.skins"),
     path: "/skins",
   };
   const settings: NavigationItem = {
-    icon: IconSettings,
+    icon: GearSix,
     id: "settings",
     label: t("navigation.settings"),
     path: "/settings",

@@ -6,7 +6,6 @@ import {
   NumberInput,
   Paper,
   Stack,
-  Text,
   Title,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -108,7 +107,7 @@ function ScanIntervalSettings({ savedMinutes }: ScanIntervalSettingsProps) {
           {intervalMutation.isSuccess ? (
             <Alert
               aria-live="polite"
-              color="green"
+              color="teal"
               title={t("privacy.scanInterval.successTitle")}
             >
               {t("privacy.scanInterval.successBody", {
@@ -151,11 +150,6 @@ export function UsageSettingsPage() {
 
   return (
     <Stack data-testid="dashboard-settings" gap="xl">
-      <Stack gap={4}>
-        <Title order={1}>{t("privacy.page.title")}</Title>
-        <Text c="dimmed">{t("privacy.page.description")}</Text>
-      </Stack>
-
       <ScanIntervalSettings
         key={`scan-interval-${client}`}
         savedMinutes={settings.scanIntervalMinutes}

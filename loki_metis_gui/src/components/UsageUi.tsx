@@ -1,3 +1,4 @@
+import { Check, Copy } from "@phosphor-icons/react";
 import {
   ActionIcon,
   Alert,
@@ -5,7 +6,8 @@ import {
   Button,
   CopyButton,
   Group,
-  Loader,
+  SimpleGrid,
+  Skeleton,
   Paper,
   Stack,
   Text,
@@ -17,6 +19,7 @@ import { useTranslation } from "react-i18next";
 
 import type { LocalIndexState, MetricFactDto, UiMessageCode } from "../api/usage";
 import { uiMessageLabel } from "../i18n/backend-labels";
+import { CountUp } from "./motion/CountUp";
 import {
   completenessLabel,
   confidenceLabel,
@@ -31,44 +34,6 @@ import { visibleErrorMessage } from "../visible-error";
 // “纯展示”组件（只接收 props 渲染 UI，不发起网络请求、不持有复杂状态），
 // 类似后端 GUI 里的 DTO——把常见的展示模式（加载中/失败/空状态/事实
 // 质量标签等）抽出来复用，页面组件本身只需要关心业务数据怎么获取。
-
-// 项目未引入图标库（如 @tabler/icons-react），这里用最小的内联 SVG
-// 自绘复制/已复制两个图标，避免为一个按钮引入额外依赖。
-function CopyIcon() {
-  return (
-    <svg
-      fill="none"
-      height={14}
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-      width={14}
-    >
-      <rect height="13" rx="2" ry="2" width="13" x="9" y="9" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
-/** 渲染成功状态使用的无文字勾选图标。 */
-function CheckIcon() {
-  return (
-    <svg
-      fill="none"
-      height={14}
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-      width={14}
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  );
-}
 
 /** 在任意 Token 表面同时展示两位小数 K/M/B 与千分位精确整数；空值保持未提供。 */
 export function TokenTotalDisplay({
@@ -89,12 +54,11 @@ export function TokenTotalDisplay({
     );
   }
   const exactValue = formatTokens(value);
-  const compactValue = formatCompactTokens(value);
   if (density === "inline") {
     return (
       <Stack align="flex-end" className="token-inline" gap={0}>
         <Text className={className} fw={700}>
-          {compactValue}
+          <CountUp format={formatCompactTokens} value={value} />
         </Text>
         <Text className="exact-token-number" c="dimmed" size="xs">
           {exactValue}
@@ -105,7 +69,7 @@ export function TokenTotalDisplay({
   return (
     <Stack gap={0}>
       <Text className={className} fw={800}>
-        {compactValue}
+        <CountUp format={formatCompactTokens} value={value} />
       </Text>
       <Group gap={4} wrap="nowrap">
         <Text className="exact-token-number" c="dimmed" size="xs">
@@ -124,7 +88,11 @@ export function TokenTotalDisplay({
                 size="sm"
                 variant="subtle"
               >
-                {copied ? <CheckIcon /> : <CopyIcon />}
+                {copied ? (
+                  <Check aria-hidden="true" size={14} />
+                ) : (
+                  <Copy aria-hidden="true" size={14} />
+                )}
               </ActionIcon>
             </Tooltip>
           )}
@@ -156,7 +124,7 @@ export function ImplementationState({
   return (
     <Paper className="state-panel" radius="lg" withBorder>
       <Stack align="center" gap="sm">
-        <Badge color="orange" size="lg" variant="light">
+        <Badge color="yellow" size="lg" variant="light">
           {t("ui.implementation.badge")}
         </Badge>
         <Title order={2}>{t("ui.implementation.title")}</Title>
@@ -173,12 +141,16 @@ export function LoadingState({ label }: { label?: string }) {
   const { t } = useTranslation();
   const visibleLabel = label ?? t("ui.loadingDefault");
   return (
-    <Paper aria-live="polite" className="state-panel" radius="lg" withBorder>
-      <Group justify="center">
-        <Loader aria-label={visibleLabel} size="sm" />
-        <Text>{t("ui.loadingVisible", { label: visibleLabel })}</Text>
-      </Group>
-    </Paper>
+    <Stack aria-busy="true" aria-live="polite" data-testid="loading-skeleton" gap="lg">
+      <span className="sr-only">{t("ui.loadingVisible", { label: visibleLabel })}</span>
+      <Skeleton height={44} radius="lg" />
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton height={112} key={index} radius="lg" />
+        ))}
+      </SimpleGrid>
+      <Skeleton height={280} radius="lg" />
+    </Stack>
   );
 }
 

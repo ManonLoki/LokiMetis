@@ -1,4 +1,4 @@
-import { SegmentedControl, Stack, Title } from "@mantine/core";
+import { SegmentedControl, Stack } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 import type { LocalRecordsSectionDto, UsageWindow, WindowUsageDto } from "../api/usage";
@@ -26,14 +26,8 @@ export function OverviewLocalSection({
 }: OverviewLocalSectionProps) {
   const { t } = useTranslation();
   return (
-    <section aria-labelledby="local-heading">
+    <section aria-label={t("overview.local.title")}>
       <Stack gap="md">
-        <div>
-          <Title id="local-heading" order={2}>
-            {t("overview.local.title")}
-          </Title>
-        </div>
-
         <LocalIndexNotice state={local.indexState} />
 
         {local.indexState === "notScanned" || local.indexState === "needsRescan" ? null : (

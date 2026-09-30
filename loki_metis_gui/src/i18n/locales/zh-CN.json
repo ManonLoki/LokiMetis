@@ -75,17 +75,17 @@
     "code_trust": {
       "not_safety_proof": "LokiMetis 只检查皮肤包结构和资源限制；这些检查不会审查脚本，也不能证明脚本安全。",
       "import_title": "所选皮肤包含第三方代码",
-      "import_description": "所选项目中有 {{count}} 个兼容皮肤包含 renderer-inject.js。导入会把这些代码保存在本机；稍后应用皮肤时会在受支持宿主内执行。",
+      "import_description": "所选项目中有 {{count}} 个兼容皮肤包含 renderer-inject.js。导入会将其保存在本机，应用皮肤时会在受支持宿主内执行。",
       "import_acknowledgement": "我明白这些文件包含第三方代码，并信任它们的来源。"
     },
     "import": {
       "title": "确认导入皮肤",
-      "summary": "格式与资源检查从 {{total}} 个压缩包中识别出 {{ready}} 个可导入项目。",
+      "summary": "{{total}} 个压缩包中有 {{ready}} 个可导入。",
       "commit": "导入所选（{{count}}）"
     },
     "create": {
       "title": "创建用户主题",
-      "description": "可快速建立可编辑的本机纯主题，或复制带真实资源路径的提示词交给 Codex 完成设计。",
+      "description": "创建可编辑的本机主题，或复制带资源路径的提示词交给 Codex 完成设计。",
       "name": "主题名称",
       "author": "作者",
       "scaffold": "创建脚手架",
@@ -97,21 +97,15 @@
       "title": "重启所选宿主实例？",
       "description": "{{name}} 尚未开放本机调试连接。继续将只重启这个实例，未保存内容可能受影响。",
       "workbuddy_title": "重新启动 WorkBuddy 并挂载调试端口？",
-      "workbuddy_description": "继续后会先重新检查本机调试连接；若仍不可用或存在多个旧实例，将关闭官方安装路径下全部正在运行的 WorkBuddy 进程，未保存内容可能丢失；旧进程完全退出后将只启动一个带本机调试端口的新实例。"
+      "workbuddy_description": "继续前会重新检查本机调试连接；仍不可用或存在多个旧实例时，将关闭官方安装路径下所有 WorkBuddy 进程，未保存内容可能丢失，随后只启动一个带调试端口的新实例。"
     },
     "convert": {
       "title": "有损转换为纯主题？",
-      "description": "{{name}} 的脚本、自由选择器与扩展组件不会进入纯主题；将根据可迁移配色创建新的用户资源，原皮肤保持不变。"
+      "description": "{{name}} 的脚本、自由选择器与扩展组件不会保留；将按其配色创建新的用户主题，原皮肤不变。"
     },
     "delete": {
       "title": "删除用户皮肤？",
       "description": "将永久删除所选的 {{count}} 个用户皮肤目录；内置皮肤不会受影响。"
-    },
-    "restore": {
-      "title": "恢复上次使用的皮肤",
-      "description": "上次成功应用的是 {{name}}，当前所选实例未检测到活动皮肤。",
-      "action": "恢复",
-      "dismiss": "忽略本次"
     },
     "notice": {
       "applied": "已把 {{name}} 应用到所选宿主实例。",
@@ -173,7 +167,7 @@
     "bug_fixes": "问题修复",
     "loading": "正在读取候选内更新日志",
     "load_failed_title": "无法读取更新日志",
-    "load_failed": "首次正式发布前不会生成发布说明。若这已是正式候选，请重新安装完整候选或重试。",
+    "load_failed": "发布说明暂不可用。请重试，或重新安装完整版本。",
     "retry": "重试",
     "none": "无"
   },
@@ -181,12 +175,18 @@
     "navigation": {
       "pagesAria": "监控页面",
       "itemAria": "{{label}}：{{description}}",
-      "workbench": { "label": "工作台", "description": "查看本机 Hook 中继状态" },
+      "workbench": {
+        "label": "工作台",
+        "description": "查看本机 Hook 中继状态"
+      },
       "management": {
         "label": "监控管理",
         "description": "为已启用 Agent 配置展示位与行为图片"
       },
-      "images": { "label": "图片管理", "description": "管理本机监控图片" },
+      "images": {
+        "label": "图片管理",
+        "description": "管理本机监控图片"
+      },
       "settings": {
         "label": "Hooks 设置",
         "description": "为统一启用的 Agent 定位并写入本机 Hooks 配置"
@@ -194,7 +194,6 @@
     },
     "workbench": {
       "title": "本机 Hook 中继",
-      "description": "监听 127.0.0.1 上的 AgentHooks 事件，不扫描局域网设备。",
       "listening": "正在监听 {{address}}",
       "offline": "中继未监听",
       "receivedLabel": "已接收事件",
@@ -208,10 +207,8 @@
       "description": "为已启用 Agent 配置展示位与各行为图片、文案。",
       "noClient": "暂未启用任何 Agent，请先到公共设置的「Agent 配置」中勾选需要管理的客户端。",
       "behaviorDisplay": "行为展示",
-      "behaviorDescription": "为每种行为选择本机图片；显示内容可按需填写。",
       "configuredCount": "已配置 {{configured}} / {{total}}",
       "noImages": "暂无可选图片，可在当前图片选择器里直接上传一张图片并继续配置。",
-      "stateDescription": "处于此状态时展示",
       "content": "内容",
       "contentPlaceholder": "输入可选的补充内容",
       "displayConfig": "展示配置",
@@ -231,7 +228,6 @@
     },
     "slot": {
       "title": "显示位置",
-      "description": "点击对应格子选择展示位置",
       "position": "位置 {{slot}}",
       "groupAria": "选择显示位置",
       "cellAria": "位置 {{slot}}，第 {{row}} 行第 {{column}} 列"
@@ -277,7 +273,7 @@
     },
     "settings": {
       "title": "Hooks 设置",
-      "description": "在公共设置中选择要启用 Hooks 的 Agent，并写入本机 Hook 配置。",
+      "description": "在设置中选择要启用 Hooks 的 Agent，并写入本机配置。",
       "enabled": "启用的 Agent",
       "managementTitle": "Hooks 管理",
       "managementDescription": "按已启用的 Agent 查看本机配置位置并写入 Hooks。",

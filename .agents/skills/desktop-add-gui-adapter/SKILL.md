@@ -27,6 +27,6 @@ description: 为共享 Rust core 建立唯一 Tauri 2 GUI 薄适配器，并按�
 
 1. 运行 core 测试、完整前端测试和当前变更对应的 GUI 结构回归。首次创建时由外层初始化流程调用一次性结构检查与真实宿主 E2E；终端下游不得依赖已裁剪的初始化测试 Skill。
 2. 结构检查必须覆盖固定 os/window-state/dialog、上游七字段 profile、每项条件能力的启用完整与禁用无残留、侧栏/设置/i18n、固定 release-notes 链路、固定支持页面/导航/资源精确允许集合，以及禁止的更新与统计能力完全缺席。LokiMetis 还要验证 product-owned `sponsor_page = enabled` 仍只对应 `/settings` 底部的微信支付与支付宝双码区，产品自有两张图片保持原路径和字节，且没有 `/sponsor` 路由、赞助导航、共享赞助模板或受管二维码资产。
-3. 首次初始化的真实本机调试应用操作由外层初始化流程独占编排。正式候选、性能、签名、打包与验收只由各自专用 Skill 处理。macOS 发布默认由 `$desktop-prepare-release` 记录 `macosSigningSelection = disabled`、`macosSigningSource = not-requested` 并使用 `--no-sign`，不探测身份、证书、公证凭据或 profile；只有用户已配置过、当次主动要求或渠道硬要求时才启用。启用后签名、公证与 stapling 必须作为一个不可降级阶段完成，任一步失败都阻断；启用系统通知的 macOS 候选必须签名。
+3. 首次初始化的真实本机调试应用操作由外层初始化流程独占编排。正式候选、签名、打包与验收只由各自专用 Skill 处理。macOS 发布默认由 `$desktop-prepare-release` 记录 `macosSigningSelection = disabled`、`macosSigningSource = not-requested` 并使用 `--no-sign`，不探测身份、证书、公证凭据或 profile；只有用户已配置过、当次主动要求或渠道硬要求时才启用。启用后签名、公证与 stapling 必须作为一个不可降级阶段完成，任一步失败都阻断；启用系统通知的 macOS 候选必须签名。
 
 完成时报告固定基线、上游七项配置、受保护的 product-owned `sponsor_page` 扩展、条件能力、固定设置页本地更新日志、core 映射、实际测试与未验证宿主边界。

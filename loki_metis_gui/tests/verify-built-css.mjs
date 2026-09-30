@@ -49,7 +49,7 @@ const builtCss = (await Promise.all(builtFiles.map((file) => readFile(file, "utf
 // 每个第一方样式入口使用一个不会与 Mantine 碰撞的稳定标记。这样即使主入口漏掉
 // 某个 @import，第三方 CSS 仍存在也无法让生产构建误判通过。
 const requiredBuiltMarkers = [
-  ".hero-panel",
+  ".metric-card",
   ".dashboard-toolbar",
   ".navigation-link.active",
   ".monitor-page-shell",

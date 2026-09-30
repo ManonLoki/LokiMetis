@@ -13,7 +13,6 @@ mod locale;
 mod logging;
 mod monitor;
 mod notifications;
-mod performance_evidence;
 mod privacy_store;
 mod release_notes;
 mod runtime;
@@ -65,10 +64,6 @@ use notifications::{
     NotificationWorker, get_system_notification_setting, install_notification_worker,
     set_system_notification_enabled,
 };
-use performance_evidence::{
-    PerformanceEvidenceState, finish_performance_evidence, get_performance_evidence_status,
-    record_performance_evidence,
-};
 use release_notes::load_release_notes;
 use settings::HostSettingsState;
 use skins::commands::{
@@ -105,9 +100,6 @@ fn should_restore_main_window_for_second_launch(args: &[String]) -> bool {
                 .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("app-loki-metis"))
         })
 }
-/// 只在显式本机性能验收进程中注入，供轻量入口同步判定是否观测。
-const PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT: &str = "Object.defineProperty(window,'__LOKI_METIS_PERFORMANCE_EVIDENCE__',{configurable:false,enumerable:false,value:true,writable:false});";
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 /// 暴露给前端的稳定应用名称、版本与初始化元数据。
@@ -183,15 +175,7 @@ fn install_large_stack_async_runtime() {
 #[rustfmt::skip]
 pub fn run() {
     install_large_stack_async_runtime();
-    let performance_evidence_state = PerformanceEvidenceState::from_environment()
-        .expect("failed to initialize local performance evidence");
-    let performance_evidence_enabled = performance_evidence_state.is_enabled();
     let builder = tauri::Builder::default();
-    let builder = if performance_evidence_enabled {
-        builder.append_invoke_initialization_script(PERFORMANCE_EVIDENCE_INITIALIZATION_SCRIPT)
-    } else {
-        builder
-    };
     let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // 登录项和深链接都有专属入口；单实例回调不能绕过它们的隐藏或校验语义。
@@ -230,7 +214,6 @@ pub fn run() {
             // 自启插件会在系统自启进程上附加该标记参数，用于区分自启与用户手动启动。
             let launched_via_autostart = is_autostart_launch(&std::env::args().collect::<Vec<_>>());
             // 性能证据是显式本机测试通道；路径在构建 WebView 之前已失败关闭校验。
-            app.manage(performance_evidence_state);
             install_logging(app)?;
             let settings_path = app.path().app_config_dir()?.join("host-settings.json");
             let settings_state = HostSettingsState::new(settings_path);
@@ -285,25 +268,21 @@ pub fn run() {
             );
             app.manage(hook_relay_status);
             app.manage(hook_listener_control);
-            let hook_config_writer = if performance_evidence_enabled {
-                HookConfigWriter::disabled()
-            } else {
-                match app.path().home_dir() {
-                    Ok(hook_home_directory) => {
-                        let writer = HookConfigWriter::new(hook_home_directory);
-                        match initial_monitor_settings {
-                            Ok(settings) => writer.request_enabled(settings),
-                            Err(error) => tracing::warn!(
-                                code = error.code,
-                                "failed to load settings for automatic hook repair"
-                            ),
-                        }
-                        writer
+            let hook_config_writer = match app.path().home_dir() {
+                Ok(hook_home_directory) => {
+                    let writer = HookConfigWriter::new(hook_home_directory);
+                    match initial_monitor_settings {
+                        Ok(settings) => writer.request_enabled(settings),
+                        Err(error) => tracing::warn!(
+                            code = error.code,
+                            "failed to load settings for automatic hook repair"
+                        ),
                     }
-                    Err(error) => {
-                        tracing::warn!(%error, "failed to resolve Tauri home for automatic hooks");
-                        HookConfigWriter::disabled()
-                    }
+                    writer
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "failed to resolve Tauri home for automatic hooks");
+                    HookConfigWriter::disabled()
                 }
             };
             app.manage(hook_config_writer);
@@ -406,10 +385,7 @@ pub fn run() {
             force_launch_skin_host,
             cancel_codex_operation,
             install_skin,
-            uninstall_skin,
-            get_performance_evidence_status,
-            record_performance_evidence,
-            finish_performance_evidence
+            uninstall_skin
         ]);
 
     let app = builder

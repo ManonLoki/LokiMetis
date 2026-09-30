@@ -33,13 +33,13 @@
 | 中性色 | `gray/dark` 统一表达页面、surface、边框和主/次文字，不为每页建立近似灰色 |
 | 状态色 | success/warning/danger/info 必须同时有文字、图标或语义属性，颜色不能独立承载含义 |
 
-- focus ring 不得关闭；sticky header、overlay 和滚动容器不能遮挡焦点。动画尊重 `prefers-reduced-motion`，且不能成为唯一状态提示。标题按 `h1 → h2 → h3` 连续组织，不为视觉大小跳级。
+- focus ring 不得关闭；sticky header、overlay 和滚动容器不能遮挡焦点。动画使用 `motion/react` 或 CSS，尊重 `prefers-reduced-motion`，且不能成为唯一状态提示；只有真实“进行中”状态可以使用持续循环动画，且必须是独立的 memo 叶子组件。标题按 `h1 → h2 → h3` 连续组织，不为视觉大小跳级。
 - 按等价 `320 CSS px` 宽度、200% 文本缩放和用户覆盖文本间距先保证单向回流，再扩展列数与留白。断点只处理真实结构变化；少量变化使用 Mantine 响应式 props，复杂或复用布局使用 CSS Modules，大列表不逐项生成响应式 style props。
 - 文案、按钮、表单和状态区域允许自然换行，不固定高度裁切中文或英文。整个页面不得产生横向滚动；只有确需二维浏览的数据区域可以局部横向滚动。
 
 ## 图标、文案与版本
 
-- 图标直接使用 `@tabler/icons-react` 的命名组件。存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji；数据图形本身不属于图标替代范围。
+- 图标直接使用 `@phosphor-icons/react` 的命名组件，全局统一 `regular` 字重。存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji；数据图形本身不属于图标替代范围。
 - 用户可见文案进入 `i18next`/`react-i18next`，Rust 原生界面文案进入 `rust-i18n`。不得通过字符串拼接组成可翻译句子，core 保持语言无关。
 - 可见版本在展示边界先移除已有 `v`/`V` 前缀，再添加且只添加一个小写 `v`。机器版本字段保持无展示前缀。
 - 窗口标题固定为 `{applicationName} v{version}`；不得附加未声明的反馈渠道或其他标识。

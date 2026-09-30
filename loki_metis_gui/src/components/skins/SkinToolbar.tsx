@@ -1,7 +1,14 @@
-import { Button, Group, TextInput } from "@mantine/core";
-import { IconPlus, IconRefresh, IconSearch, IconUpload } from "@tabler/icons-react";
+import { ActionIcon, Button, TextInput } from "@mantine/core";
+import {
+  Plus,
+  ArrowsClockwise,
+  MagnifyingGlass,
+  UploadSimple,
+} from "@phosphor-icons/react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
+
+import { Magnetic } from "../motion/Magnetic";
 
 /** 描述皮肤资源库工具栏的受控状态。 */
 export interface SkinToolbarProps {
@@ -26,43 +33,46 @@ export function SkinToolbar({
 }: SkinToolbarProps): ReactElement {
   const { t } = useTranslation();
   return (
-    <Group align="end" gap="sm" justify="space-between">
-      <Group align="end" gap="sm" style={{ flex: "1 1 520px" }}>
-        <TextInput
-          aria-label={t("skins.search.label")}
-          leftSection={<IconSearch aria-hidden="true" size={17} />}
-          onChange={(event) => onSearchChange(event.currentTarget.value)}
-          placeholder={t("skins.search.placeholder")}
-          style={{ flex: "1 1 220px" }}
-          value={search}
-        />
-      </Group>
-      <Group gap="xs">
+    <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+      <TextInput
+        aria-label={t("skins.search.label")}
+        className="w-full max-w-80"
+        leftSection={<MagnifyingGlass aria-hidden="true" size={16} />}
+        onChange={(event) => onSearchChange(event.currentTarget.value)}
+        placeholder={t("skins.search.placeholder")}
+        size="sm"
+        value={search}
+      />
+      <Magnetic>
         <Button
           disabled={!hostAvailable || busy}
-          leftSection={<IconUpload size={17} />}
+          leftSection={<UploadSimple size={16} />}
           onClick={onImport}
+          size="sm"
           variant="default"
         >
           {t("skins.action.import")}
         </Button>
+      </Magnetic>
+      <Magnetic>
         <Button
           disabled={!hostAvailable || busy}
-          leftSection={<IconPlus size={17} />}
+          leftSection={<Plus size={16} />}
           onClick={onCreate}
-          variant="default"
+          size="sm"
         >
           {t("skins.action.create")}
         </Button>
-        <Button
-          disabled={!hostAvailable || busy}
-          leftSection={<IconRefresh size={17} />}
-          onClick={onRefresh}
-          variant="light"
-        >
-          {t("skins.action.refresh")}
-        </Button>
-      </Group>
-    </Group>
+      </Magnetic>
+      <ActionIcon
+        aria-label={t("skins.action.refresh")}
+        disabled={!hostAvailable || busy}
+        onClick={onRefresh}
+        size={36}
+        variant="default"
+      >
+        <ArrowsClockwise aria-hidden="true" size={18} />
+      </ActionIcon>
+    </div>
   );
 }

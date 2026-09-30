@@ -12,7 +12,7 @@
 ## 技术栈
 
 - Rust 2024 edition、Tauri 2、Tokio、serde、tracing、rust-i18n。
-- React 19、TypeScript、Vite、Mantine、TanStack Router、TanStack Query、Jotai、i18next/react-i18next、Tabler Icons。
+- React 19、TypeScript、Vite、Mantine、TanStack Router、TanStack Query、Jotai、i18next/react-i18next、Phosphor Icons、Motion（`motion/react`）、Tailwind CSS v4（仅 theme 与 utilities，不引入 preflight）、自托管 Geist 字体（`@fontsource-variable`）。
 - 系统通知启用时，Windows/Linux 由 Rust-only 受管 worker 直接使用 `notify-rust = "4.18.0"` 投递并回传真实完成结果；`tauri-plugin-notification` 只保留桌面插件初始化。macOS target 另使用 `mac-usernotifications = "0.3.1"` 的现代 User Notifications API。WebView 不安装 notification JavaScript 包或获得 `notification:*` capability。
 - 前端生产代码不得依赖 Node.js API。依赖版本、Node/pnpm engines 与脚本以当前清单为准，不要求全局第三方包。
 
@@ -79,18 +79,18 @@ Tauri Builder 顺序固定为：
 - 业务行为必须先有 core 测试，再验证 IPC/视图映射；宿主能力由结构测试和适用的真实宿主场景覆盖。
 - 侧栏、主题、i18n、设置、通知、自启、托盘、单实例、深链接、窗口状态和 dialog 的实现必须与 profile 一致，并扫描禁用能力、updater、统计和远程遥测残留。
 - macOS 通知结构回归必须覆盖授权状态先于请求、只在 `NotDetermined` 请求、拒绝/受限/请求后仍未授权时精确打开当前应用通知设置，以及打开失败可观察；真实权限、设置恢复与投递只由已签名、公证并 stapled 的安装候选 E2E 证明，未签名 debug 应用不能代证。
-- 格式、lint、全仓测试、真实 Tauri 构建、性能和最终产物 E2E 只在本次变化或专用流程要求时运行。实际命令以当前清单与对应 Skill 为准。
+- 格式、lint、全仓测试、真实 Tauri 构建和最终产物 E2E 只在本次变化或专用流程要求时运行。实际命令以当前清单与对应 Skill 为准。
 
 ## 构建与交付
 
 - Windows 原生本地安装试包只生成 x64 NSIS 开发制品，不升级为候选。
-- 正式候选支持 macOS 原生 DMG、Windows 原生 x64 NSIS，以及 macOS xwin 的 Windows x64 NSIS；xwin 不能证明 Windows 原生安装、运行或性能。
+- 正式候选支持 macOS 原生 DMG、Windows 原生 x64 NSIS，以及 macOS xwin 的 Windows x64 NSIS；xwin 不能证明 Windows 原生安装或运行。
 - Linux 是源码目标平台，但在建立真实渠道合同前正式产物保持 `Unverified`。
-- `$desktop-prepare-release` 在任何发布提交或候选构建前锁定本次发布的 `reviewSelection`、`performanceSelection` 与 macOS `macosSigningSelection`/`macosSigningSource`。三项选择不写入通用持久策略，同一发布的修复或中断重跑复用原选择，新发布重新解析；`system_notification = enabled` 的 macOS 候选必须启用签名，冲突在提交前停止。E2E 不由发布准备锁定，构建只为本次运行另行解析当前 E2E 选择与渠道硬要求。
-- 候选必须来自具名分支的 clean 40 位 source commit。构建只读消费已经封存的审查、性能和签名信封，不得重新询问、翻转选择或制造证据；先运行完整非空 Rust/前端测试。审查启用时，结构化证据必须绑定被审查的同一 source commit；性能启用或渠道强制时，在打包前以同一 clean HEAD 的 `gui-release-v2` release-profile no-bundle 探针验证冷启动、交互/Long Task、整进程树 CPU/RSS、内存增长和进程回收。纯指标失败只有在原始证据允许时才可由用户明确 waiver，结构、绑定、窗口状态恢复或进程回收失败不可豁免。
-- macOS 签名关闭时使用 `--no-sign`，记录原因与剩余风险且不探测本机签名身份、证书、公证凭据或 profile；启用时 Developer ID 签名、公证、stapling、Gatekeeper 与最终验证缺一不可，任一步失败都阻断且不得回退 unsigned。xwin runtime 和 Windows 原生安装/性能继续精确标记 `Unverified`，不能由交叉构建成功代证。
-- 所有布局、签名、公证、stapling 和包内资源变化完成后才计算最终安装包、release notes 与适用审查/性能证据的摘要。候选先在隔离 staging 中写入 `milestoneAcceptance: pending` 的 manifest，再按 manifest 重新枚举并复算精确文件集、大小、SHA-256、选择与证据；全部成功后才以不跟随链接的目录级原子替换提交到根 `release/`，提交后只读重验，不得遗留历史、额外、空或未声明文件。
-- manifest 至少绑定项目/版本、source commit 与 clean 状态、平台/架构、bundle format、native/xwin 模式、安装包路径/大小/SHA-256、release-notes 版本/路径/摘要、Rust/前端测试数、`runtimeVerification`、审查/性能/签名及适用公证证据、当次 E2E 选择和 `milestoneAcceptance`。最终字节形成后，`$desktop-verify-delivery` 按持久策略要求的冒烟、构建当次 E2E、渠道硬要求以及同一候选的审查、性能、发布说明、DMG 布局、签名和 manifest 完整性决定 `accepted` 或退回开发循环；E2E 不得翻转已锁定选择或把失败、`Not run`、`Unverified`、unsigned 通知候选改判为通过。
+- `$desktop-prepare-release` 在任何发布提交或候选构建前锁定本次发布的 `reviewSelection` 与 macOS `macosSigningSelection`/`macosSigningSource`。两项选择不写入通用持久策略，同一发布的修复或中断重跑复用原选择，新发布重新解析；`system_notification = enabled` 的 macOS 候选必须启用签名，冲突在提交前停止。E2E 不由发布准备锁定，构建只为本次运行另行解析当前 E2E 选择与渠道硬要求。
+- 候选必须来自具名分支的 clean 40 位 source commit。构建只读消费已经封存的审查和签名信封，不得重新询问、翻转选择或制造证据；先运行完整非空 Rust/前端测试。审查启用时，结构化证据必须绑定被审查的同一 source commit。
+- macOS 签名关闭时使用 `--no-sign`，记录原因与剩余风险且不探测本机签名身份、证书、公证凭据或 profile；启用时 Developer ID 签名、公证、stapling、Gatekeeper 与最终验证缺一不可，任一步失败都阻断且不得回退 unsigned。xwin runtime 和 Windows 原生安装继续精确标记 `Unverified`，不能由交叉构建成功代证。
+- 所有布局、签名、公证、stapling 和包内资源变化完成后才计算最终安装包、release notes 与适用审查证据的摘要。候选先在隔离 staging 中写入 `milestoneAcceptance: pending` 的 manifest，再按 manifest 重新枚举并复算精确文件集、大小、SHA-256、选择与证据；全部成功后才以不跟随链接的目录级原子替换提交到根 `release/`，提交后只读重验，不得遗留历史、额外、空或未声明文件。
+- manifest 至少绑定项目/版本、source commit 与 clean 状态、平台/架构、bundle format、native/xwin 模式、安装包路径/大小/SHA-256、release-notes 版本/路径/摘要、Rust/前端测试数、`runtimeVerification`、审查/签名及适用公证证据、当次 E2E 选择和 `milestoneAcceptance`。最终字节形成后，`$desktop-verify-delivery` 按持久策略要求的冒烟、构建当次 E2E、渠道硬要求以及同一候选的审查、发布说明、DMG 布局、签名和 manifest 完整性决定 `accepted` 或退回开发循环；E2E 不得翻转已锁定选择或把失败、`Not run`、`Unverified`、unsigned 通知候选改判为通过。
 - 发布说明、签名、公证、stapling、重打包或渠道处理只要改变运行字节、启动器、依赖或行为，就形成新候选并重新进入构建与验收。构建和发布准备不自动授权 tag、push、上传、商店提交或正式渠道发布。
 
 ## 按需产品能力

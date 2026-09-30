@@ -437,9 +437,9 @@ function LocalSourcesPage({ client }: { client: AgentClientKind }) {
   const scanStartBlocked = scan.state === "running" || sourceWritesBlocked;
 
   return (
-    <Stack className="page-stack" gap="xl">
+    <Stack className="page-stack" gap="lg">
       {rootMutationMessageCode ? (
-        <Alert aria-live="polite" color="green" title={t("sources.page.updatedTitle")}>
+        <Alert aria-live="polite" color="teal" title={t("sources.page.updatedTitle")}>
           {uiMessageLabel(t, rootMutationMessageCode)}
         </Alert>
       ) : null}

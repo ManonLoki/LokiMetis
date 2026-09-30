@@ -474,7 +474,7 @@ describe("dashboard content surface", () => {
     await userEvent.click(screen.getByRole("link", { name: /Settings:/ }));
 
     const settings = await screen.findByTestId("dashboard-settings");
-    expect(within(settings).getByRole("heading", { name: "Usage settings" })).toBeVisible();
+    expect(within(settings).getByRole("heading", { name: "Scan interval" })).toBeVisible();
     expect(within(settings).getByText("Scan interval")).toBeVisible();
     expect(within(settings).getByText("Automatic cleanup")).toBeVisible();
     expect(router.state.location.pathname).toBe("/dashboard/settings");

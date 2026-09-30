@@ -61,7 +61,7 @@ sidebar_mode = compact
 
 - 通用标准：`tauri-gui-common-v1`
 - 侧栏标准：`tauri-gui-sidebar-compact-80-v1`
-- 当前无经批准的像素或信息架构偏离。
+- 经批准的视觉偏离（`tauri-gui-common-v1`）：Mantine 圆角令牌 `sm/md/lg/xl` 为 `0.5/0.75/1.25/1.75rem`，普通 surface 圆角由 12px 变为 20px；阴影改为带暖色调的宽扩散阴影。图标库由 Tabler 改为 Phosphor（`regular`），新增 Motion、Tailwind v4 utilities 与自托管 Geist 字体。关联 `docs/adr/20260930_ADR.md`。侧栏与信息架构无偏离。
 - 全局快捷键依赖、配置、命令、状态、文案和运行时接线必须缺席。赞助能力仅保留设置页双收款码和对应本地媒体，不复制共享模板的赞助档位、背景、联系人或其它媒体。
 - `/about`、独立 `/sponsor` 与 `/test` 路由必须缺席；固定 `/settings` 提供应用、版本、本地更新日志、固定 GitHub 仓库入口、语言、主题、通知、自启、唯一 Agent 复选面板与底部赞助支持区。用量看板的物理 Agent 与 WorkBuddy 视图在「数据源」后提供 `/dashboard/settings` 「设置」子页，只展示全局扫描间隔与自动清理；「全部」视图不显示。监控区通过 `/monitor/settings` 提供 Hooks 目录与写入操作，但不得复制 Agent 启用复选。一级业务入口名称固定为「用量看板」/「Usage Dashboard」、「AI监控」/「AI Monitor」、「应用换肤」/「App Skins」。
 

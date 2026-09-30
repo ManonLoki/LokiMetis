@@ -10,7 +10,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { IconAlertTriangle, IconCopy, IconSparkles } from "@tabler/icons-react";
+import { Warning, Copy, Sparkle } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -87,7 +87,7 @@ export function AppearanceDialog({
   return (
     <Modal onClose={onCancel} opened={check !== null} title={t("skins.appearance.title")}>
       <Stack>
-        <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
+        <Alert color="yellow" icon={<Warning size={18} />}>
           {t("skins.appearance.description", { mode: check?.effectiveMode ?? "" })}
         </Alert>
         {check?.differences.map((difference) => (
@@ -168,7 +168,7 @@ export function ImportDialog({
         {trustRequired ? (
           <Alert
             color="red"
-            icon={<IconAlertTriangle size={18} />}
+            icon={<Warning size={18} />}
             title={t("skins.code_trust.import_title")}
           >
             <Stack gap="xs">
@@ -297,7 +297,7 @@ export function CreateThemeDialog({
           </Button>
           <Button
             disabled={blocked}
-            leftSection={<IconSparkles size={17} />}
+            leftSection={<Sparkle size={17} />}
             loading={promptPending}
             onClick={onLoadPrompt}
             variant="light"
@@ -312,7 +312,7 @@ export function CreateThemeDialog({
                 {t("skins.create.prompt_title")}
               </Text>
               <Button
-                leftSection={<IconCopy size={16} />}
+                leftSection={<Copy size={16} />}
                 onClick={() => void navigator.clipboard.writeText(prompt.prompt)}
                 size="xs"
                 variant="subtle"

@@ -1188,61 +1188,6 @@
         "sha256": "3e33f6628494d54c019f4b380245ff5274425ddf8465c7a0f63b8a2e4e3d058d"
       }
     },
-    ".agents/skills/desktop-test-gui-release-performance/SKILL.md": {
-      "candidate": {
-        "mode": 420,
-        "sha256": "f77ed193412689ed6227e93291c11a8a3641be66f8d0a7bbb7e2eaac80c65da2"
-      },
-      "mode": "managed",
-      "target": {
-        "mode": 420,
-        "sha256": "f77ed193412689ed6227e93291c11a8a3641be66f8d0a7bbb7e2eaac80c65da2"
-      }
-    },
-    ".agents/skills/desktop-test-gui-release-performance/agents/openai.yaml": {
-      "candidate": {
-        "mode": 420,
-        "sha256": "b64a8a53e7dbf43f9f4e60e98c7e21d0ca4fc0def8dbb61165ab1524d2db7f50"
-      },
-      "mode": "managed",
-      "target": {
-        "mode": 420,
-        "sha256": "b64a8a53e7dbf43f9f4e60e98c7e21d0ca4fc0def8dbb61165ab1524d2db7f50"
-      }
-    },
-    ".agents/skills/desktop-test-gui-release-performance/references/performance-evidence-schema.md": {
-      "candidate": {
-        "mode": 420,
-        "sha256": "36b16604057751050af39683f0d3b67d2bddc80890757e743aefe3cdc5ecebf2"
-      },
-      "mode": "managed",
-      "target": {
-        "mode": 420,
-        "sha256": "36b16604057751050af39683f0d3b67d2bddc80890757e743aefe3cdc5ecebf2"
-      }
-    },
-    ".agents/skills/desktop-test-gui-release-performance/scripts/test_validate_gui_release_performance.py": {
-      "candidate": {
-        "mode": 420,
-        "sha256": "1e0ba6005fdeafe8446123678274a006f6389046a8b6be9582b7f2c02ef979bc"
-      },
-      "mode": "managed",
-      "target": {
-        "mode": 420,
-        "sha256": "1e0ba6005fdeafe8446123678274a006f6389046a8b6be9582b7f2c02ef979bc"
-      }
-    },
-    ".agents/skills/desktop-test-gui-release-performance/scripts/validate_gui_release_performance.py": {
-      "candidate": {
-        "mode": 420,
-        "sha256": "a2481c19137d386b092140cf67eadad1ff79637c9ef1a679b492fac94e6017fc"
-      },
-      "mode": "managed",
-      "target": {
-        "mode": 420,
-        "sha256": "a2481c19137d386b092140cf67eadad1ff79637c9ef1a679b492fac94e6017fc"
-      }
-    },
     ".agents/skills/desktop-upgrade-harness/SKILL.md": {
       "candidate": {
         "mode": 420,

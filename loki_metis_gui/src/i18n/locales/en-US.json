@@ -32,9 +32,18 @@
     "catalog": {
       "empty": "No skins match the current filters."
     },
-    "source": { "builtin": "Built in", "user": "User" },
-    "package": { "theme": "Theme", "legacySkin": "Compatible skin" },
-    "mode": { "light": "Light", "dark": "Dark" },
+    "source": {
+      "builtin": "Built in",
+      "user": "User"
+    },
+    "package": {
+      "theme": "Theme",
+      "legacySkin": "Compatible skin"
+    },
+    "mode": {
+      "light": "Light",
+      "dark": "Dark"
+    },
     "card": {
       "preview_alt": "{{name}} skin preview",
       "by": "By {{author}}",
@@ -53,7 +62,10 @@
       "create": "Create theme",
       "refresh": "Refresh"
     },
-    "dialog": { "cancel": "Cancel", "confirm": "Confirm" },
+    "dialog": {
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
     "appearance": {
       "title": "Confirm appearance differences",
       "description": "The current host's {{mode}} appearance differs from this theme declaration. Continuing applies only to the selected instance.",
@@ -63,17 +75,17 @@
     "code_trust": {
       "not_safety_proof": "LokiMetis checks package structure and resource limits only. These checks do not review or prove the script is safe.",
       "import_title": "Selected skins contain third-party code",
-      "import_description": "{{count}} selected compatible skin packages contain renderer-inject.js. Importing stores that code on this device; applying a skin later will execute it inside a supported host.",
+      "import_description": "{{count}} selected skin packages contain renderer-inject.js. Importing stores it on this device, and applying the skin runs it inside a supported host.",
       "import_acknowledgement": "I understand these files contain third-party code and I trust their sources."
     },
     "import": {
       "title": "Confirm skin import",
-      "summary": "Package and resource validation found {{ready}} importable items in {{total}} archives.",
+      "summary": "{{ready}} of {{total}} archives can be imported.",
       "commit": "Import selected ({{count}})"
     },
     "create": {
       "title": "Create a user theme",
-      "description": "Create an editable local theme scaffold, or copy a prompt containing real resource paths for Codex to complete the design.",
+      "description": "Create an editable local theme, or copy a prompt with real resource paths for Codex to finish the design.",
       "name": "Theme name",
       "author": "Author",
       "scaffold": "Create scaffold",
@@ -85,21 +97,15 @@
       "title": "Restart the selected host instance?",
       "description": "{{name}} does not expose a local debug connection. Continuing restarts only this instance and may affect unsaved work.",
       "workbuddy_title": "Restart WorkBuddy with a debug port?",
-      "workbuddy_description": "Continuing first rechecks the local debug connection. If it is still unavailable or multiple old instances remain, LokiMetis closes every running WorkBuddy process under a verified official install path, so unsaved work may be lost. After the old process trees fully exit, one new instance starts with a local debug port."
+      "workbuddy_description": "Continuing rechecks the local debug connection. If it is still unavailable or several old instances remain, every WorkBuddy process under the official install path is closed and unsaved work may be lost. One new instance then starts with a debug port."
     },
     "convert": {
       "title": "Convert to a theme with data loss?",
-      "description": "Scripts, unrestricted selectors, and extension components from {{name}} are excluded. A new user theme is created from transferable colors and the original remains unchanged."
+      "description": "Scripts, unrestricted selectors, and extension components from {{name}} are dropped. A new user theme is built from its colors; the original is unchanged."
     },
     "delete": {
       "title": "Delete user skins?",
       "description": "This permanently deletes {{count}} selected user skin directories. Built-in skins are unaffected."
-    },
-    "restore": {
-      "title": "Restore the last skin",
-      "description": "{{name}} was the last successfully applied skin, and no active skin was detected in the selected instance.",
-      "action": "Restore",
-      "dismiss": "Not now"
     },
     "notice": {
       "applied": "Applied {{name}} to the selected host instance.",
@@ -161,7 +167,7 @@
     "bug_fixes": "Bug fixes",
     "loading": "Reading release notes bundled with this candidate",
     "load_failed_title": "Release notes unavailable",
-    "load_failed": "Release notes are not generated before the first formal release. If this is a formal candidate, reinstall the complete candidate or retry.",
+    "load_failed": "Release notes are not available yet. Retry, or reinstall the full release.",
     "retry": "Retry",
     "none": "None"
   },
@@ -188,7 +194,6 @@
     },
     "workbench": {
       "title": "Local Hook relay",
-      "description": "Listens for AgentHooks events on 127.0.0.1. It does not scan the LAN.",
       "listening": "Listening on {{address}}",
       "offline": "Relay is not listening",
       "receivedLabel": "Received events",
@@ -202,10 +207,8 @@
       "description": "Configure display slots, behavior images, and optional text for enabled agents.",
       "noClient": "No agent is enabled. Select the clients you want to manage under Agent configuration in Settings.",
       "behaviorDisplay": "Behavior display",
-      "behaviorDescription": "Choose a local image for each behavior; display text is optional.",
       "configuredCount": "{{configured}} / {{total}} configured",
-      "noImages": "No images are available yet. You can upload one directly from this picker and continue configuring.",
-      "stateDescription": "Shown while the agent is in this state",
+      "noImages": "No images yet. Upload one from this picker to continue.",
       "content": "Content",
       "contentPlaceholder": "Enter optional extra content",
       "displayConfig": "Display configuration",
@@ -225,7 +228,6 @@
     },
     "slot": {
       "title": "Display position",
-      "description": "Click the matching cell to choose a display position",
       "position": "Position {{slot}}",
       "groupAria": "Choose display position",
       "cellAria": "Position {{slot}}, row {{row}}, column {{column}}"
@@ -271,7 +273,7 @@
     },
     "settings": {
       "title": "Hooks settings",
-      "description": "Choose which agents should receive Hooks and write their local configurations from the shared Settings page.",
+      "description": "Choose which agents receive Hooks. Configuration is written locally from Settings.",
       "enabled": "Enabled agents",
       "managementTitle": "Hooks management",
       "managementDescription": "Review local config locations and write Hooks for each enabled agent.",

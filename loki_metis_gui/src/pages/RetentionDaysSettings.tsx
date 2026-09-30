@@ -96,7 +96,7 @@ export function RetentionDaysSettings({ savedDays }: RetentionDaysSettingsProps)
           {daysMutation.isSuccess ? (
             <Alert
               aria-live="polite"
-              color="green"
+              color="teal"
               title={t("privacy.retentionDays.successTitle")}
             >
               {t("privacy.retentionDays.successBody", {

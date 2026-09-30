@@ -131,7 +131,7 @@ export function SourceDiscoveryPanel({
           </Text>
         </Group>
         {showEmptyManualDeepSearch ? (
-          <Alert color="orange">{t("backend.message.sourceManualDeepSearchEmpty")}</Alert>
+          <Alert color="yellow">{t("backend.message.sourceManualDeepSearchEmpty")}</Alert>
         ) : null}
         {discovery.state === "failed" ? (
           <Alert color="red" title={t("sources.discovery.failedTitle")}>

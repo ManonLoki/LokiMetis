@@ -22,11 +22,8 @@ export function SlotPicker({ value, min, max, onChange }: SlotPickerProps) {
       <Group align="flex-start" justify="space-between" mb="sm">
         <div>
           <Text fw={650}>{t("monitor.slot.title")}</Text>
-          <Text c="dimmed" mt={3} size="sm">
-            {t("monitor.slot.description")}
-          </Text>
         </div>
-        <Badge color="violet" size="lg" variant="light">
+        <Badge color="brand" size="lg" variant="light">
           {t("monitor.slot.position", { slot: value })}
         </Badge>
       </Group>

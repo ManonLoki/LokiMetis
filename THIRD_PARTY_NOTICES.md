@@ -1,13 +1,13 @@
 # LokiMetis Third-Party Notices
 
-This notice covers third-party dependencies resolved for LokiMetis v0.3.8.
+This notice covers third-party dependencies resolved for LokiMetis v0.3.11.
 Copyright and license rights remain with their respective authors and projects.
 The declared license expression and source link below identify the governing terms for each package.
 
 锁定输入 / Locked inputs:
 
-- `Cargo.lock` SHA-256: `29cd08f0e80ac8b5f616b70838263b724d3a312b006d890073b183745d9141da`
-- `loki_metis_gui/pnpm-lock.yaml` SHA-256: `42b99405966b6af755508fe3bbc31add375045aae3a226fa34b9084148b20598`
+- `Cargo.lock` SHA-256: `0f071e0852f58c4183f9daf412e8f0030dfa74ac47c9d08f047d8b345b570902`
+- `loki_metis_gui/pnpm-lock.yaml` SHA-256: `d52865ea1880e8d608a6a8f437b3f729154f451f0b6033ff608e08fe1aaae699`
 
 ## Rust dependencies (627)
 
@@ -641,7 +641,7 @@ The declared license expression and source link below identify the governing ter
 | zvariant_derive | 5.15.0 | MIT | https://github.com/z-galaxy/zbus/ |
 | zvariant_utils | 4.2.0 | MIT | https://github.com/z-galaxy/zbus/ |
 
-## Frontend runtime dependencies (45)
+## Frontend runtime dependencies (50)
 
 | Package | Version | Declared license | Source |
 |---|---:|---|---|
@@ -651,10 +651,11 @@ The declared license expression and source link below identify the governing ter
 | @floating-ui/react | 0.27.20 | MIT | https://floating-ui.com/docs/react |
 | @floating-ui/react-dom | 2.1.9 | MIT | https://floating-ui.com/docs/react-dom |
 | @floating-ui/utils | 0.2.12 | MIT | https://floating-ui.com |
+| @fontsource-variable/geist | 5.3.0 | OFL-1.1 | https://fontsource.org/fonts/geist |
+| @fontsource-variable/geist-mono | 5.3.0 | OFL-1.1 | https://fontsource.org/fonts/geist-mono |
 | @mantine/core | 9.6.0 | MIT | https://mantine.dev/ |
 | @mantine/hooks | 9.6.0 | MIT | https://mantine.dev |
-| @tabler/icons | 3.46.0 | MIT | https://tabler.io/icons |
-| @tabler/icons-react | 3.46.0 | MIT | https://tabler.io/icons |
+| @phosphor-icons/react | 2.1.10 | MIT | https://phosphoricons.com |
 | @tanstack/history | 1.162.1 | MIT | https://tanstack.com/router |
 | @tanstack/query-core | 5.102.8 | MIT | https://tanstack.com/query |
 | @tanstack/react-query | 5.102.8 | MIT | https://tanstack.com/query |
@@ -668,11 +669,15 @@ The declared license expression and source link below identify the governing ter
 | clsx | 2.1.1 | MIT | https://github.com/lukeed/clsx#readme |
 | cookie-es | 3.1.1 | MIT | https://github.com/unjs/cookie-es#readme |
 | detect-node-es | 1.1.0 | MIT | https://github.com/thekashey/detect-node |
+| framer-motion | 13.4.6 | MIT | Not provided |
 | get-nonce | 1.0.1 | MIT | https://github.com/theKashey/get-nonce |
 | html-parse-stringify | 4.0.1 | MIT | https://github.com/i18next/html-parse-stringify |
 | i18next | 26.4.1 | MIT | https://www.i18next.com |
 | isbot | 5.2.2 | Unlicense | https://isbot.js.org |
 | jotai | 2.20.3 | MIT | https://github.com/pmndrs/jotai |
+| motion | 13.4.6 | MIT | https://github.com/motiondivision/motion#readme |
+| motion-dom | 13.4.5 | MIT | https://github.com/motiondivision/motion#readme |
+| motion-utils | 13.3.0 | MIT | https://github.com/motiondivision/motion#readme |
 | react | 19.2.8 | MIT | https://react.dev/ |
 | react-dom | 19.2.8 | MIT | https://react.dev/ |
 | react-i18next | 17.0.13 | MIT | https://github.com/i18next/react-i18next |

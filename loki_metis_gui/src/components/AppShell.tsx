@@ -1,7 +1,7 @@
 import { Alert, AppShell, Button, Container, Stack } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
+import { WarningCircle, ArrowsClockwise } from "@phosphor-icons/react";
 import { useSetAtom } from "jotai";
 import { useEffect, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,7 @@ import {
 } from "../lib/api";
 import { persistInterfaceLanguage, readSavedInterfaceLanguage } from "../lib/language";
 import { appMetadataQuery } from "../lib/queries";
+import { useSpotlight } from "../lib/useSpotlight";
 import { interfaceLanguageAtom } from "../state/interfaceLanguage";
 import { AppSidebar, APP_SIDEBAR_WIDTHS } from "./AppSidebar";
 
@@ -39,6 +40,7 @@ export const applyInterfaceLanguage = syncShellInterfaceLanguage;
 
 /** 渲染固定精简 AppShell，并让应用事实和语言通过真实宿主边界进入界面。 */
 export function AppShellFrame(): ReactElement {
+  useSpotlight();
   const { i18n, t } = useTranslation();
   const setLanguage = useSetAtom(interfaceLanguageAtom);
   const navigate = useNavigate();
@@ -87,16 +89,16 @@ export function AppShellFrame(): ReactElement {
       </AppShell.Navbar>
       <AppShell.Main>
         <Container fluid p={{ base: "lg", md: 32 }}>
-          <Stack gap="lg">
+          <Stack className="app-content" gap="lg">
             {metadata.isError ? (
               <Alert
-                icon={<IconAlertCircle aria-hidden="true" size={20} />}
+                icon={<WarningCircle aria-hidden="true" size={20} />}
                 title={t("errors.metadata_title")}
               >
                 <Stack align="flex-start" gap="sm">
                   {t("errors.metadata_description")}
                   <Button
-                    leftSection={<IconRefresh aria-hidden="true" size={18} />}
+                    leftSection={<ArrowsClockwise aria-hidden="true" size={18} />}
                     onClick={() => {
                       void metadata.refetch();
                     }}

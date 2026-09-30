@@ -1,7 +1,28 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 @import "./styles/base.css";
 @import "./styles/dashboard.css";
 @import "./styles/shell.css";
 @import "./styles/monitor.css";
+
+/* 只打包拉丁字形；中文回退系统字体，避免为用不到的字符集增加体积。 */
+@font-face {
+  font-display: swap;
+  font-family: "Geist Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  src: url("../node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "Geist Mono Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  src: url("../node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

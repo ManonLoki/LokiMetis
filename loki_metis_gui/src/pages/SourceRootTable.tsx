@@ -54,14 +54,14 @@ export function SourceRootTable({
           verticalSpacing="md"
         >
           <colgroup>
-            <col className="source-alias-column" />
-            <col className="source-method-column" />
-            <col className="source-number-column" />
-            <col className="source-number-column" />
-            <col className="source-number-column" />
-            <col className="source-number-column" />
-            <col className="source-date-column" />
-            <col className="source-actions-column" />
+            <col className="w-60" />
+            <col className="w-34" />
+            <col className="w-21" />
+            <col className="w-21" />
+            <col className="w-21" />
+            <col className="w-21" />
+            <col className="w-40" />
+            <col className="w-100" />
           </colgroup>
           <Table.Thead>
             <Table.Tr>
@@ -72,7 +72,7 @@ export function SourceRootTable({
               <Table.Th ta="right">{t("sources.table.errors")}</Table.Th>
               <Table.Th ta="right">{t("sources.table.duplicates")}</Table.Th>
               <Table.Th>{t("sources.table.lastScan")}</Table.Th>
-              <Table.Th className="source-actions-column" ta="center">
+              <Table.Th className="w-100" ta="center">
                 {t("sources.table.actions")}
               </Table.Th>
             </Table.Tr>
@@ -118,8 +118,8 @@ export function SourceRootTable({
                   <Table.Td ta="right">{root.errorCount}</Table.Td>
                   <Table.Td ta="right">{root.duplicateCount}</Table.Td>
                   <Table.Td>{formatObservedAt(root.lastScanAtEpochMs)}</Table.Td>
-                  <Table.Td className="source-actions-column" ta="center">
-                    <Group className="source-actions-group" gap="xs" wrap="nowrap">
+                  <Table.Td className="w-100" ta="center">
+                    <Group gap="xs" justify="center" wrap="nowrap">
                       {allowToggle ? (
                         <Button
                           aria-label={t("sources.table.toggleAria", {

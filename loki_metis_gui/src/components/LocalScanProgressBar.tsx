@@ -8,6 +8,7 @@ import {
   invalidateLocalUsageQueries,
   SCAN_STATUS_POLL_INTERVAL_MS,
 } from "../api/usage-queries";
+import { BreathingDot } from "./motion/BreathingDot";
 import { scanScopeLabel } from "../i18n/backend-labels";
 import { agentClientLabel } from "../state/agent-client";
 
@@ -52,9 +53,14 @@ export function LocalScanProgressBar({
   return (
     <Box aria-live="polite" className="local-scan-progress" data-local-scan-progress="">
       <Group gap="sm" justify="space-between" wrap="nowrap">
-        <Text fw={700} size="sm">
-          {t("shell.localScanProgress.title", { client: agentClientLabel(active.client) })}
-        </Text>
+        <Group gap={8} wrap="nowrap">
+          <BreathingDot />
+          <Text fw={700} size="sm">
+            {t("shell.localScanProgress.title", {
+              client: agentClientLabel(active.client),
+            })}
+          </Text>
+        </Group>
         <Text c="dimmed" size="xs">
           {scanScopeLabel(t, active.scan)}
         </Text>

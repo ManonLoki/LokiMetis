@@ -64,16 +64,13 @@ export function MonitorWorkbenchPage() {
     ? findAvailableMonitorAiTool(capabilities.data.aiTools, status.lastEvent.tool)
     : null;
   return (
-    <Stack data-testid="monitor-workbench" gap="md">
+    <Stack data-testid="monitor-workbench" gap="lg">
       {refreshError ? <Alert color="red">{visibleErrorMessage(refreshError)}</Alert> : null}
       <Card className="surface-card" p="md" radius="lg" withBorder>
         <Stack gap="md">
           <Group align="flex-start" justify="space-between" wrap="wrap">
             <div>
               <Title order={3}>{t("monitor.workbench.title")}</Title>
-              <Text c="dimmed" mt={4} size="sm">
-                {t("monitor.workbench.description")}
-              </Text>
             </div>
             <Badge color={status.listening ? "green" : "red"} variant="light">
               {status.listening

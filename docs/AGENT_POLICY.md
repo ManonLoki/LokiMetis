@@ -10,7 +10,7 @@ milestone_e2e: disabled
 
 # Agent 运行策略
 
-本文件是 LokiMetis 的 Agent 能力偏好、完整候选冒烟偏好和候选构建 E2E 建议默认值的唯一持久事实来源。项目负责人已确认采用推荐预设；GUI 发布性能选择不持久化，每次发布单独解析。
+本文件是 LokiMetis 的 Agent 能力偏好、完整候选冒烟偏好和候选构建 E2E 建议默认值的唯一持久事实来源。项目负责人已确认采用推荐预设。
 
 ## 字段语义
 
@@ -24,14 +24,11 @@ milestone_e2e: disabled
 ## 日常开发与本地试包
 
 - 日常开发直接实施，只运行本次变化需要的相关非空单元/回归测试和最小替代检查。本文件不自动触发持久计划、全仓检查、构建、冒烟、E2E 或完整验收。
-- Windows GUI 普通本地安装试包由 `$desktop-build-tauri-local-install` 处理。它不要求 clean HEAD，不创建发布候选，不提交、不安装，也不解析候选 E2E 或性能选择。
+- Windows GUI 普通本地安装试包由 `$desktop-build-tauri-local-install` 处理。它不要求 clean HEAD，不创建发布候选，不提交、不安装，也不解析候选 E2E 选择。
 
 ## GUI 发布候选
 
 - 每次显式候选构建在任何测试或编译前解析当次 E2E 选择；当前请求没有明确值时，以 `milestone_e2e` 作为建议默认值询问一次。该选择只对当前候选有效。
-- 每次 GUI 发布独立解析 `performanceSelection: enabled | disabled`；它没有持久默认，也不能从 E2E 选择推断。
-- 性能启用或产品/渠道硬要求时，由 `$desktop-test-gui-release-performance` 对同一 clean HEAD 的 release-profile 探针执行门禁。只有可豁免的纯指标失败才能在用户明确确认后记为 `waived`；不得改判为通过。
-- 性能关闭且无硬要求时，manifest 记录 `performanceStatus: Not run`、原因和剩余风险，不生成性能证据或运行时绑定。
 - 候选构建运行 Rust workspace 与前端全部非空单元测试，再构建真实 Tauri GUI 产物。E2E 启用或渠道要求时，只在最终候选形成后执行；关闭时记录 `Not run` 和剩余风险。
 - 明确发布请求可以授权流程复核并本地提交归属明确的完成改动，但不会授权 tag、push、上传、商店提交或渠道发布。
 

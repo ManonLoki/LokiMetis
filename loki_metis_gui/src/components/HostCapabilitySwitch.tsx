@@ -5,7 +5,7 @@ import {
   useQueryClient,
   type QueryKey,
 } from "@tanstack/react-query";
-import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
+import { WarningCircle, ArrowsClockwise } from "@phosphor-icons/react";
 import { useEffect, useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -106,7 +106,7 @@ export function HostCapabilitySwitch({
 
         {updateFailed ? (
           <Alert
-            icon={<IconAlertCircle aria-hidden="true" size={18} />}
+            icon={<WarningCircle aria-hidden="true" size={18} />}
             role="alert"
             title={t("settings.capability_error_title")}
           >
@@ -116,14 +116,14 @@ export function HostCapabilitySwitch({
 
         {unknown ? (
           <Alert
-            icon={<IconAlertCircle aria-hidden="true" size={18} />}
+            icon={<WarningCircle aria-hidden="true" size={18} />}
             role="alert"
             title={t("settings.capability_unknown_title")}
           >
             <Stack align="flex-start" gap="sm">
               {t(`settings.${id}_unknown`)}
               <Button
-                leftSection={<IconRefresh aria-hidden="true" size={16} />}
+                leftSection={<ArrowsClockwise aria-hidden="true" size={16} />}
                 onClick={() => {
                   setUpdateFailed(false);
                   void setting.refetch().then((authoritative) => {

@@ -6,7 +6,7 @@ import {
   Card,
   Center,
   Group,
-  Loader,
+  Skeleton,
   Menu,
   SegmentedControl,
   SimpleGrid,
@@ -14,12 +14,12 @@ import {
   Text,
 } from "@mantine/core";
 import {
-  IconDots,
-  IconPhoto,
-  IconRefresh,
-  IconTrash,
-  IconUpload,
-} from "@tabler/icons-react";
+  DotsThree,
+  ImageSquare,
+  ArrowsClockwise,
+  Trash,
+  UploadSimple,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -73,7 +73,7 @@ export function MonitorImagesPage() {
   const uploadAccept = imageUploadAcceptValue(capabilities.data?.imageUploadAccept);
   if (blockingError) return <Alert color="red">{visibleErrorMessage(blockingError)}</Alert>;
   return (
-    <Stack data-testid="monitor-images" gap="md">
+    <Stack data-testid="monitor-images" gap="lg">
       <Group
         align="center"
         data-testid="monitor-images-toolbar"
@@ -109,7 +109,7 @@ export function MonitorImagesPage() {
         ) : null}
         <Group data-testid="monitor-images-actions" gap="sm" ml="auto" wrap="nowrap">
           <Button
-            leftSection={<IconRefresh aria-hidden="true" size={17} stroke={1.75} />}
+            leftSection={<ArrowsClockwise aria-hidden="true" size={17} />}
             loading={images.isFetching}
             onClick={() => void images.refetch()}
             variant="default"
@@ -117,7 +117,7 @@ export function MonitorImagesPage() {
             {t("monitor.images.refresh")}
           </Button>
           <Button
-            leftSection={<IconUpload aria-hidden="true" size={17} stroke={1.75} />}
+            leftSection={<UploadSimple aria-hidden="true" size={17} />}
             loading={upload.isPending}
             onClick={() => inputRef.current?.click()}
           >
@@ -146,9 +146,11 @@ export function MonitorImagesPage() {
         </Alert>
       ) : null}
       {images.isPending ? (
-        <Center py={80}>
-          <Loader />
-        </Center>
+        <SimpleGrid aria-busy="true" cols={{ base: 2, sm: 3, lg: 5 }} spacing="lg">
+          {Array.from({ length: 10 }, (_, index) => (
+            <Skeleton height={190} key={index} radius="lg" />
+          ))}
+        </SimpleGrid>
       ) : imageList.length ? (
         <>
           {filteredImages.length ? (
@@ -168,9 +170,9 @@ export function MonitorImagesPage() {
           )}
         </>
       ) : (
-        <Card className="empty-state" withBorder>
+        <Card className="flex min-h-75 flex-col items-center justify-center" withBorder>
           <div className="empty-state-icon">
-            <IconPhoto aria-hidden="true" size={30} stroke={1.75} />
+            <ImageSquare aria-hidden="true" size={30} />
           </div>
           <Text fw={650} mt="md">
             {t("monitor.images.emptyTitle")}
@@ -234,13 +236,13 @@ function LocalImageCard({ image, onDelete }: LocalImageCardProps) {
               color="gray"
               variant="subtle"
             >
-              <IconDots aria-hidden="true" size={18} stroke={1.75} />
+              <DotsThree aria-hidden="true" size={18} />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
               color="red"
-              leftSection={<IconTrash aria-hidden="true" size={16} stroke={1.75} />}
+              leftSection={<Trash aria-hidden="true" size={16} />}
               onClick={onDelete}
             >
               {t("monitor.images.delete")}

@@ -97,7 +97,7 @@ export function CallsResultsTable({
   const { t } = useTranslation();
   const columnCount = view === "all" ? 13 : 12;
   return (
-    <Paper className="table-panel calls-panel" radius="lg" withBorder>
+    <Paper className="table-panel overflow-hidden" radius="lg" withBorder>
       <Table.ScrollContainer
         aria-busy={refreshingFirstPage}
         aria-label={t("calls.table.aria")}
@@ -270,7 +270,11 @@ export function CallsResultsTable({
             : t("calls.table.emptyFiltered")}
         </Text>
       ) : null}
-      <Group className="calls-footer" justify="space-between" p="md">
+      <Group
+        className="border-t border-(--app-data-divider)"
+        justify="space-between"
+        p="md"
+      >
         <Text c="dimmed" size="sm">
           {refreshingFirstPage
             ? t("calls.footer.readingFirstPage")

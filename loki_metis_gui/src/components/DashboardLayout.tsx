@@ -116,7 +116,7 @@ export function DashboardLayout(): ReactElement {
   }
 
   return (
-    <Stack data-testid="dashboard-page" gap="md">
+    <Stack data-testid="dashboard-page" gap="lg">
       {enabledAgents.length === 0 && !workbuddyStatsEnabled ? (
         <Alert title={t("shell.noEnabledAgents.title")}>
           {t("shell.noEnabledAgents.body")}

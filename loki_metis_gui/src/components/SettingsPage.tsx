@@ -13,7 +13,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { IconAlertCircle, IconBrandGithub, IconHistory } from "@tabler/icons-react";
+import { WarningCircle, GithubLogo, ClockCounterClockwise } from "@phosphor-icons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAtom } from "jotai";
 import { useState, type ReactElement } from "react";
@@ -149,14 +149,14 @@ export function SettingsPage({
               </Badge>
             )}
             <Button
-              leftSection={<IconHistory aria-hidden="true" size={18} />}
+              leftSection={<ClockCounterClockwise aria-hidden="true" size={18} />}
               onClick={requestReleaseNotes}
               variant="light"
             >
               {t("settings.release_notes_action")}
             </Button>
             <Button
-              leftSection={<IconBrandGithub aria-hidden="true" size={18} />}
+              leftSection={<GithubLogo aria-hidden="true" size={18} />}
               onClick={() => void openGitHubRepository()}
               variant="subtle"
             >
@@ -166,7 +166,7 @@ export function SettingsPage({
         </Group>
         {repositoryOpenFailed ? (
           <Alert
-            icon={<IconAlertCircle aria-hidden="true" size={18} />}
+            icon={<WarningCircle aria-hidden="true" size={18} />}
             mt="lg"
             role="alert"
             title={t("settings.github_repository_error_title")}
@@ -200,7 +200,7 @@ export function SettingsPage({
             />
             {languageUpdate.isError ? (
               <Alert
-                icon={<IconAlertCircle aria-hidden="true" size={18} />}
+                icon={<WarningCircle aria-hidden="true" size={18} />}
                 role="alert"
                 title={t("settings.language_error_title")}
               >

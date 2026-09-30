@@ -1,16 +1,15 @@
 import {
   Alert,
   Button,
-  Center,
   List,
-  Loader,
+  Skeleton,
   Modal,
   Paper,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
+import { WarningCircle, ArrowsClockwise } from "@phosphor-icons/react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -56,21 +55,22 @@ export function ReleaseNotesDialogTemplate({
       title={t("release_notes.dialog_title")}
     >
       {status === "idle" || status === "loading" ? (
-        <Center py="xl">
-          <Stack align="center" gap="sm">
-            <Loader aria-label={t("release_notes.loading")} size="sm" />
-            <Text c="dimmed">{t("release_notes.loading")}</Text>
-          </Stack>
-        </Center>
+        <Stack aria-busy="true" gap="sm">
+          <span className="sr-only">{t("release_notes.loading")}</span>
+          <Skeleton height={20} radius="sm" width="45%" />
+          <Skeleton height={14} radius="sm" />
+          <Skeleton height={14} radius="sm" />
+          <Skeleton height={14} radius="sm" width="70%" />
+        </Stack>
       ) : status === "error" ? (
         <Alert
-          icon={<IconAlertCircle aria-hidden="true" size={20} />}
+          icon={<WarningCircle aria-hidden="true" size={20} />}
           title={t("release_notes.load_failed_title")}
         >
           <Stack align="flex-start" gap="md">
             <Text>{t("release_notes.load_failed")}</Text>
             <Button
-              leftSection={<IconRefresh aria-hidden="true" size={18} />}
+              leftSection={<ArrowsClockwise aria-hidden="true" size={18} />}
               onClick={onRetry}
               variant="light"
             >

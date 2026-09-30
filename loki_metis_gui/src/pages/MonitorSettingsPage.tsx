@@ -143,7 +143,7 @@ export function MonitorSettingsPage() {
     ? selectedTool
     : (visibleTools[0]?.tool ?? null);
   return (
-    <Stack className="settings-page" data-testid="monitor-settings" gap="sm">
+    <Stack className="settings-page" data-testid="monitor-settings" gap="lg">
       <Card
         aria-labelledby="monitor-hooks-management-title"
         className="surface-card settings-card"
@@ -319,7 +319,7 @@ export function MonitorSettingsPage() {
                       ) : null}
                       {write.data?.tool === item.tool ? (
                         <>
-                          <Alert aria-live="polite" color="green">
+                          <Alert aria-live="polite" color="teal">
                             {t("monitor.settings.written", {
                               file: write.data.filename,
                               outcome: t(`monitor.outcome.${write.data.outcome}`),

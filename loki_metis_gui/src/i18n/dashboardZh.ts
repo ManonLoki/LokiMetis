@@ -36,7 +36,7 @@ export const dashboardZhCN = {
     },
     noEnabledAgents: {
       title: "尚未开放任何 AI Agent",
-      body: "请在公共设置的 Agent 配置中启用需要使用的 Agent。未启用的不会出现在页头，也不会参与本机扫描、统计或监控。",
+      body: "在设置的 Agent 配置中启用要使用的 Agent。",
     },
     navigation: {
       aria: "主导航",
@@ -73,7 +73,7 @@ export const dashboardZhCN = {
     implementation: {
       badge: "功能实施中",
       title: "业务数据尚未接通",
-      fallback: "真实 provider 与本机索引正在装配；当前不会展示或伪造已采集数据。",
+      fallback: "本机索引准备中，暂无数据。",
     },
     loadingDefault: "正在读取用量数据",
     loadingVisible: "{{label}}…",
@@ -81,17 +81,17 @@ export const dashboardZhCN = {
     localIndex: {
       needsRescan: {
         title: "本机索引需要重新扫描",
-        body: "检测到旧版解析器建立的本机索引。旧数据不会冒充当前统计；请显式快速扫描以安全重建。",
+        body: "本机索引来自旧版解析器，请运行快速扫描重建。",
         action: "前往数据源重新扫描",
       },
       notScanned: {
         title: "尚未建立本机用量索引",
-        body: "当前还没有扫描所选客户端的本机记录，因此零值不能解释为真实零用量。扫描只会读取已授权数据目录。",
+        body: "尚未扫描所选客户端，零值不代表没有用量。请先运行扫描。",
         action: "前往数据源快速扫描",
       },
       readyNoCalls: {
         title: "已扫描范围内没有可用调用",
-        body: "本产品已经执行过扫描，但当前解析器没有得到可统计调用。可以检查覆盖报告或重新快速扫描。",
+        body: "扫描已完成，但没有可统计的调用。可查看覆盖报告或重新扫描。",
         action: "前往数据源重新扫描",
       },
     },
@@ -159,8 +159,7 @@ export const dashboardZhCN = {
       totalDerived: "总量由输入 + 输出推算",
       totalUpstream: "上游单次总量逐项汇总",
       breakdownTitle: "{{window}} Token 构成",
-      breakdownDescription:
-        "缓存输入是输入子集，推理输出是输出分析维度，均不会重复加入总量。",
+      breakdownDescription: "缓存输入含在输入内，推理输出含在输出内，总量不重复计算。",
       coverageTitle: "缓存与数据覆盖",
       enabledRootsBadge: "启用根汇总",
       cachedReadCalls: "缓存读取调用",
@@ -173,10 +172,9 @@ export const dashboardZhCN = {
   statistics: {
     page: {
       title: "用量统计",
-      codexDescription:
-        "按已保存时间标准的自然日查看趋势，并按模型、推理强度、项目、线程或数据目录进行可对账分组。",
+      codexDescription: "按自然日查看趋势，并按模型、推理强度、项目、线程或数据目录分组。",
       clientDescription:
-        "按已保存时间标准的自然日查看 {{client}} 趋势，并按模型、项目、线程或数据目录进行独立、可对账分组。",
+        "按自然日查看 {{client}} 趋势，并按模型、项目、线程或数据目录分组。",
       loading: "正在读取本机用量统计",
     },
     controls: {
@@ -186,7 +184,7 @@ export const dashboardZhCN = {
       updating: "正在更新",
       sameSnapshot: "同一快照",
       localRecords: "本机记录",
-      observed: "观测于 {{date}} · 每次读取完成 10 秒后自动刷新",
+      observed: "观测于 {{date}}",
     },
     summary: {
       totalTokens: "总 Token",
@@ -196,7 +194,7 @@ export const dashboardZhCN = {
     },
     methodology: {
       title: "统计口径",
-      body: "日期桶、分组与总计来自同一次已索引去重快照；查询不会扫描磁盘。跨数据目录副本只归属一个确定性数据目录，完整来源仍在“数据源”页保留。",
+      body: "统计来自同一份已索引的去重快照，查询不扫描磁盘。完整来源见“数据源”页。",
     },
     daily: {
       title: "逐日趋势",
@@ -209,8 +207,7 @@ export const dashboardZhCN = {
     },
     groups: {
       title: "分组统计",
-      description:
-        "与逐日趋势使用同一时间标准窗口。最多展示前 10 组，超出部分合并为“其余项”并继续与总计对账。",
+      description: "时间窗口与逐日趋势一致，最多显示前 10 组，其余合并为“其余项”。",
       merged: "合并",
       tokenShare: "总量占比",
       quality: "质量",
@@ -226,7 +223,6 @@ export const dashboardZhCN = {
     },
     overview: {
       tokensTitle: "Token 趋势",
-      tokensDescription: "可同时选择多个 Token 指标；缺失分项会断线，不会被画成零。",
       metricSelectorAria: "Token 趋势指标",
       tokensChartAria: "按完整时间桶显示的 Token 趋势图",
       callsTitle: "调用趋势",
@@ -234,7 +230,6 @@ export const dashboardZhCN = {
     },
     distribution: {
       title: "多维用量分布",
-      description: "按固定维度展示 Top 10 与可对账的其余项；可切换 Token 分项或调用数。",
       barAria: "用量分布柱状图",
       totalTokenShare: "总 Token 占比：{{share}}",
       empty: "当前窗口没有可分组的本机调用记录。",
@@ -243,14 +238,12 @@ export const dashboardZhCN = {
   calls: {
     page: {
       title: "调用",
-      description:
-        "按稳定游标浏览全部已筛选且去重后的调用；不读取正文，也不向界面传递绝对路径。",
+      description: "按游标浏览已筛选、已去重的调用；不读取正文，也不暴露绝对路径。",
       loading: "正在读取本机调用",
       missingFirstPage: "调用查询没有返回首屏。",
     },
     filters: {
       title: "调用筛选",
-      description: "选项来自完整启用根集合；筛选或排序变化会从首游标重新读取。",
       all: "全部",
       clear: "清除筛选",
     },
@@ -287,8 +280,7 @@ export const dashboardZhCN = {
   sources: {
     page: {
       title: "数据源",
-      description:
-        "检查本机数据目录与扫描覆盖；当前选项卡的扫描命中会去重后直接进入已登记列表。",
+      description: "检查本机数据目录与扫描覆盖。",
       addRoot: "添加数据目录",
       loading: "正在读取数据源状态",
       updatedTitle: "数据目录已更新",
@@ -305,12 +297,9 @@ export const dashboardZhCN = {
     },
     empty: {
       title: "尚未发现本机 {{client}} 数据目录",
-      codexBody:
-        "快速扫描只检查当前平台的优先相对目录及其内部；扫描命中去重后直接进入已登记列表。",
-      claudeBody:
-        "快速扫描只检查当前平台的优先相对目录及其内部；扫描命中去重后直接进入已登记列表。",
-      grokBody:
-        "快速扫描只检查 GROK_HOME 或 ~/.grok 及其内部 sessions/**/updates.jsonl；扫描命中去重后直接进入已登记列表。",
+      codexBody: "快速扫描只检查当前平台的优先目录。",
+      claudeBody: "快速扫描只检查当前平台的优先目录。",
+      grokBody: "快速扫描只检查 GROK_HOME 或 ~/.grok 下的 sessions/**/updates.jsonl。",
       action: "发现数据目录",
       fullDeviceAction: "发现数据目录",
       addRootAction: "添加候选数据目录",
@@ -318,8 +307,7 @@ export const dashboardZhCN = {
     primary: {
       title: "Codex 主数据目录",
       badge: "本机主目录",
-      description:
-        "已启用且重新验证通过的 Codex 数据目录可作为唯一主数据目录；本产品不会读取 auth.json。",
+      description: "通过验证的 Codex 数据目录可设为唯一主目录；不会读取 auth.json。",
       label: "Codex 主数据目录",
       duplicate: "{{alias}}（标识 {{id}}）",
       empty: "没有已启用的数据目录",
@@ -345,8 +333,7 @@ export const dashboardZhCN = {
     },
     discovery: {
       title: "数据源发现",
-      description:
-        "只检查本地卷、目录名和文件名；当前选项卡命中会直接登记，不会在确认前打开 JSONL。",
+      description: "只检查本地卷、目录名和文件名，确认前不会打开 JSONL。",
       startUser: "快速扫描",
       startFull: "全盘扫描",
       cancel: "取消扫描",
@@ -434,8 +421,7 @@ export const dashboardZhCN = {
     autostart: {
       title: "开机自启",
       badge: "系统设置",
-      description:
-        "登录系统后在后台启动本应用，并保留托盘恢复入口。操作系统登录项是唯一权威状态；提供此开关不表示已替你开启。",
+      description: "登录系统后在后台启动，并保留托盘入口。以系统登录项的实际状态为准。",
       loading: "正在读取操作系统登录项…",
       pending: "正在更新操作系统登录项…",
       enabled: "已开启",
@@ -454,7 +440,7 @@ export const dashboardZhCN = {
     loading: "正在读取 WorkBuddy 本地统计…",
     lockedTitle: "WorkBuddy 本地统计尚未开启",
     lockedDescription:
-      "在设置中打开 WorkBuddy 本地统计开关后，这里会展示 project JSONL 的请求、会话、模型与 Token/积分趋势。",
+      "在设置中打开 WorkBuddy 统计后，这里显示请求、会话、模型与 Token/积分趋势。",
     configureAction: "前往设置开启",
     totalSessions: "会话总数",
     totalRequests: "请求总数",
@@ -482,8 +468,6 @@ export const dashboardZhCN = {
     traceCompleted: "已完成 Trace",
     traceError: "错误 Trace",
     summarySessions: "会话",
-    chartDistributionDescription:
-      "按同一批 project JSONL usage 事件的民用日或独立 Trace 状态展示分布；缓存输入只是全部输入的子集，不重复计入总量。",
     chartShare: "窗口占比：{{share}}",
     chartGroup: {
       day: "民用日",
@@ -503,8 +487,6 @@ export const dashboardZhCN = {
     modelUsage: {
       title: "实际模型用量明细",
       jsonlScope: "Project JSONL 口径",
-      description:
-        "按 WorkBuddy project JSONL 每条 usage 事件的 providerData.model 汇总实际执行模型；包含顶层与 subagent 请求。全部输入包含缓存输入，缓存输入不重复计入总量，本表与上方统计同源可对账。",
       model: "实际模型",
       requests: "请求数",
       topLevelCalls: "顶层请求",
@@ -516,7 +498,7 @@ export const dashboardZhCN = {
   workbuddySources: {
     title: "WorkBuddy 数据源",
     description:
-      "只读探测并解析国内版 ~/.workbuddy 与国际版 ~/.workbuddy-ai 两个固定目录下的 projects/<project>/<session>.jsonl 及其 subagents/*.jsonl，并合并为同一份统计；不会注册数据根或建立本产品索引。解析会读取 JSONL 行的内容字节，但正文不会被保留、展示、索引、上传或记录。",
+      "只读解析 ~/.workbuddy 与 ~/.workbuddy-ai 下的 projects/<project>/<session>.jsonl 及 subagents/*.jsonl，合并为同一份统计。不注册数据根，不保留、展示、上传或记录会话正文。",
     found: "已发现：{{alias}}",
     notFound: "未发现",
     notFoundTitle: "未发现本机 WorkBuddy 目录",
@@ -554,7 +536,7 @@ export const dashboardZhCN = {
     message: {
       overviewLocalIndexUnavailable: "本机索引暂时无法读取，请重试。",
       overviewWorkbuddyUnavailable:
-        "WorkBuddy 本机用量暂时无法读取；当前“全部”仅展示其他已开启 Agent，覆盖标记为不完整，请重试。",
+        "WorkBuddy 用量暂时无法读取。“全部”仅显示其他已开启的 Agent，并标记为不完整，请重试。",
       scanIdle: "尚未开始扫描。",
       scanRunning: "正在扫描用户授权范围。",
       scanCancelling: "正在取消扫描；已发现候选将保留。",

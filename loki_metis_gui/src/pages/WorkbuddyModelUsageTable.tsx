@@ -31,17 +31,14 @@ export function WorkbuddyModelUsageTable({ modelUsage }: WorkbuddyModelUsageTabl
         <Stack gap="xs" p="lg">
           <Group justify="space-between">
             <Text fw={700}>{t("workbuddy.modelUsage.title")}</Text>
-            <Badge color="violet" variant="light">
+            <Badge color="brand" variant="light">
               {t("workbuddy.modelUsage.jsonlScope")}
             </Badge>
           </Group>
-          <Text c="dimmed" size="sm">
-            {t("workbuddy.modelUsage.description")}
-          </Text>
         </Stack>
 
         <Table.ScrollContainer minWidth={1320}>
-          <Table verticalSpacing="sm">
+          <Table className="data-table" verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("workbuddy.modelUsage.model")}</Table.Th>

@@ -9,7 +9,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { IconCheck, IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
+import { Check, ImageSquare, UploadSimple, X } from "@phosphor-icons/react";
 import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -60,7 +60,7 @@ export function ImagePicker({
               size="sm"
               variant="subtle"
             >
-              <IconX aria-hidden="true" size={15} stroke={1.75} />
+              <X aria-hidden="true" size={15} />
             </ActionIcon>
           </Tooltip>
         ) : null}
@@ -80,13 +80,13 @@ export function ImagePicker({
           <>
             <img alt={selectedImage.filename} src={selectedImage.image} />
             <span className="image-picker-overlay">
-              <IconPhoto aria-hidden="true" size={17} stroke={1.75} />
+              <ImageSquare aria-hidden="true" size={17} />
               {t("monitor.picker.change")}
             </span>
           </>
         ) : (
           <span className="image-picker-empty">
-            <IconPhoto aria-hidden="true" size={24} stroke={1.75} />
+            <ImageSquare aria-hidden="true" size={24} />
             {disabled ? t("monitor.picker.loading") : t("monitor.picker.clickChoose")}
           </span>
         )}
@@ -111,7 +111,7 @@ export function ImagePicker({
               <Button
                 aria-label={t("monitor.picker.uploadSingleAria")}
                 disabled={disabled}
-                leftSection={<IconUpload aria-hidden="true" size={15} stroke={1.75} />}
+                leftSection={<UploadSimple aria-hidden="true" size={15} />}
                 loading={uploading}
                 onClick={() => uploadInputRef.current?.click()}
                 size="xs"
@@ -140,7 +140,7 @@ export function ImagePicker({
                 onClick={() => setOpened(false)}
                 variant="subtle"
               >
-                <IconX aria-hidden="true" size={17} stroke={1.75} />
+                <X aria-hidden="true" size={17} />
               </ActionIcon>
             </Group>
           </Group>
@@ -182,7 +182,7 @@ export function ImagePicker({
                       <img alt="" src={image.image} />
                       {image.id === value ? (
                         <span className="image-picker-check">
-                          <IconCheck aria-hidden="true" size={14} stroke={2} />
+                          <Check aria-hidden="true" size={14} />
                         </span>
                       ) : null}
                     </UnstyledButton>

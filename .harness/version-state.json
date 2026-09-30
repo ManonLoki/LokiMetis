@@ -56,7 +56,8 @@
     "BUG-WORKBUDDY-INTERNATIONAL-DUAL-ROOT-20260921",
     "BUG-USAGE-CROSS-DAY-20260927",
     "BUG-CLAUDE-DESKTOP-WORKBUDDY-USAGE-20260927",
-    "BUG-HOOK-EVENT-SEMANTICS-20260927"
+    "BUG-HOOK-EVENT-SEMANTICS-20260927",
+    "BUG-UI-UNIFIED-REDESIGN-20261001"
   ],
   "cycle_base_version": "0.3.8",
   "feature_bump_applied": false,
@@ -79,8 +80,13 @@
       "change_id": "BUG-HOOK-EVENT-SEMANTICS-20260927",
       "kind": "bug-fix",
       "required_version": "0.3.11"
+    },
+    {
+      "change_id": "BUG-UI-UNIFIED-REDESIGN-20261001",
+      "kind": "bug-fix",
+      "required_version": "0.3.12"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.3.11"
+  "target_version": "0.3.12"
 }

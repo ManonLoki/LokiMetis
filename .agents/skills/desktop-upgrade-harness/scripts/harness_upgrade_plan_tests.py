@@ -228,7 +228,6 @@ class HarnessUpgradePlanTests(HarnessUpgradeTestCase):
             ".agents/skills/desktop-add-gui-adapter/SKILL.md",
             ".agents/skills/desktop-prepare-gui-support-surfaces/SKILL.md",
             ".agents/skills/desktop-build-tauri-release/SKILL.md",
-            ".agents/skills/desktop-test-gui-release-performance/SKILL.md",
         ):
             self.assertEqual("managed", ownership_mode(path, default_mode, rules))
         self.assertEqual(

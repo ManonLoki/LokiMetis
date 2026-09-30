@@ -5,6 +5,7 @@
   background: var(--app-dashboard-toolbar-background);
   border-bottom: 1px solid var(--app-dashboard-toolbar-border);
   backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 var(--app-glass-edge);
 }
 
 .dashboard-header-row {
@@ -35,31 +36,19 @@
   padding: 0.15rem 0.75rem 0.65rem;
   margin-inline: auto;
 }
-.metric-card,
-.source-card,
-.scan-card,
-.privacy-card,
-.filter-panel,
-.table-panel,
-.chart-panel,
-.breakdown-panel,
-.state-panel {
-  background: var(--app-data-panel-background);
-  border-color: var(--app-data-panel-border);
-  box-shadow: 0 18px 50px var(--app-data-panel-shadow);
-  backdrop-filter: blur(12px);
+.mantine-Button-root {
+  transition:
+    background-color 200ms var(--app-ease),
+    border-color 200ms var(--app-ease),
+    transform 200ms var(--app-ease);
 }
 
-.official-card {
-  border-top: 3px solid #c43b2d;
+.mantine-Button-root:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
 }
 
 .local-card {
   border-top: 3px solid #d7952c;
-}
-
-.local-hero-card {
-  min-height: 11rem;
 }
 
 .hero-number {
@@ -74,10 +63,12 @@
 }
 
 .exact-token-number {
+  font-family: var(--mantine-font-family-monospace);
   font-variant-numeric: tabular-nums;
 }
 
 .token-inline {
+  font-family: var(--mantine-font-family-monospace);
   font-variant-numeric: tabular-nums;
 }
 
@@ -88,37 +79,6 @@
 
 .sources-table :is(th, td) {
   vertical-align: middle;
-}
-
-.source-alias-column {
-  width: 15rem;
-}
-
-.source-method-column {
-  width: 8.5rem;
-}
-
-.source-number-column {
-  width: 5.25rem;
-}
-
-.source-date-column {
-  width: 10rem;
-}
-
-.source-actions-column {
-  width: 25rem;
-  text-align: center;
-}
-
-.source-actions-group {
-  justify-content: center;
-}
-
-.candidate-capsule-path {
-  flex: 1 1 24rem;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .mini-metric {
@@ -143,14 +103,6 @@
   outline-offset: 3px;
 }
 
-.calls-panel {
-  overflow: hidden;
-}
-
-.calls-footer {
-  border-top: 1px solid var(--app-data-divider);
-}
-
 .state-panel {
   display: grid;
   width: min(100% - 2rem, 900px);
@@ -158,4 +110,67 @@
   padding: 2rem;
   margin: clamp(2rem, 10vh, 6rem) auto;
   place-items: center;
+}
+
+.surface-card,
+.metric-card,
+.chart-panel,
+.breakdown-panel,
+.table-panel {
+  transition:
+    background-color 300ms var(--app-ease),
+    border-color 300ms var(--app-ease),
+    box-shadow 300ms var(--app-ease);
+}
+
+.surface-card:hover,
+.metric-card:hover,
+.chart-panel:hover,
+.breakdown-panel:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 30%, var(--app-border));
+  box-shadow: var(--app-panel-edge), var(--app-card-shadow-hover);
+  background-image: radial-gradient(
+    280px circle at var(--spot-x, 50%) var(--spot-y, 0%),
+    color-mix(in srgb, var(--app-accent) 8%, transparent),
+    transparent 70%
+  );
+}
+
+.table-panel tbody tr {
+  transition: background-color 160ms var(--app-ease);
+}
+
+.table-panel tbody tr:hover {
+  background-color: color-mix(in srgb, var(--app-accent) 6%, transparent);
+}
+
+/* 同一页内的多张数据表共用列宽：首列固定占比，其余数值列均分，表头自然对齐。 */
+.data-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.data-table :is(th, td):first-child {
+  width: 22%;
+}
+
+.filter-bar {
+  background: var(--app-surface);
+  border-color: var(--app-border);
+}
+
+/* 分段控件：去掉竖分隔线，选中项用浮起的滑块表达。 */
+.mantine-SegmentedControl-root {
+  background: var(--app-muted);
+  border-radius: var(--mantine-radius-md);
+}
+
+.mantine-SegmentedControl-control::before {
+  display: none;
+}
+
+.mantine-SegmentedControl-indicator {
+  background: var(--app-control-background);
+  border-radius: calc(var(--mantine-radius-md) - 2px);
+  box-shadow: var(--app-card-shadow);
 }

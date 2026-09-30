@@ -7,14 +7,12 @@ import { atom } from "jotai";
 export interface SkinPageSession {
   search: string;
   selectedHost: "codex" | "workBuddy" | null;
-  restoreDismissedHosts: Partial<Record<"codex" | "workBuddy", boolean>>;
 }
 
 /** 全新应用 store 中换皮页使用的确定默认值。 */
 export const initialSkinPageSession: SkinPageSession = {
   search: "",
   selectedHost: null,
-  restoreDismissedHosts: {},
 };
 
 /** 仅在当前应用进程中保留换皮页工作上下文。 */

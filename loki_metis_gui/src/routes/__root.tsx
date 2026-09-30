@@ -5,7 +5,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useEffect, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -22,7 +22,7 @@ function NotFoundPage(): ReactElement {
         <Title order={1}>{t("errors.not_found_title")}</Title>
         <Text c="dimmed">{t("errors.not_found_description")}</Text>
         <Button
-          leftSection={<IconArrowLeft aria-hidden="true" size={18} />}
+          leftSection={<ArrowLeft aria-hidden="true" size={18} />}
           onClick={() => {
             void navigate({ replace: true, to: "/dashboard" });
           }}
@@ -45,7 +45,7 @@ function RouteErrorPage(): ReactElement {
         <Title order={1}>{t("errors.unexpected_title")}</Title>
         <Text c="dimmed">{t("errors.unexpected_description")}</Text>
         <Button
-          leftSection={<IconArrowLeft aria-hidden="true" size={18} />}
+          leftSection={<ArrowLeft aria-hidden="true" size={18} />}
           onClick={() => {
             void navigate({ replace: true, to: "/dashboard" });
           }}

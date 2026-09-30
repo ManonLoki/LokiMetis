@@ -3,6 +3,7 @@ import {
   Group,
   NativeSelect,
   Paper,
+  SegmentedControl,
   SimpleGrid,
   Stack,
   Table,
@@ -16,6 +17,7 @@ import type {
   UsageStatisticsDto,
   UsageWindow,
 } from "../api/usage";
+import { FilterBar } from "../components/FilterBar";
 import { TokenTotalDisplay } from "../components/UsageUi";
 import {
   completenessLabel,
@@ -88,61 +90,57 @@ export function UsageStatistics({
 
   return (
     <Stack gap="lg">
-      <Paper
-        aria-label={t("statistics.controls.aria")}
-        className="filter-panel"
-        p="lg"
-        radius="lg"
-        withBorder
-      >
-        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <NativeSelect
-            data={windowOptions}
-            label={t("statistics.controls.window")}
-            onChange={(event) => onWindowChange(event.currentTarget.value as UsageWindow)}
-            value={window}
-          />
-          <NativeSelect
-            data={dimensionOptions.filter(
-              (option) => reasoningAvailable || option.value !== "reasoningEffort",
-            )}
-            label={t("statistics.controls.dimension")}
-            onChange={(event) =>
-              onDimensionChange(event.currentTarget.value as UsageDimension)
-            }
-            value={dimension}
-          />
-        </SimpleGrid>
-        <Group gap="xs" justify="space-between" mt="md">
-          <Group gap="xs">
-            <Badge color="yellow" variant="light">
-              {t("statistics.controls.localRecords")}
-            </Badge>
+      <FilterBar
+        label={t("statistics.controls.aria")}
+        status={
+          <>
             <Badge
-              color={statistics.fact.completeness === "complete" ? "blue" : "orange"}
+              color={statistics.fact.completeness === "complete" ? "teal" : "yellow"}
               variant="light"
             >
               {completenessLabel(statistics.fact.completeness)}
             </Badge>
             <Badge
-              color={statistics.fact.confidence === "exact" ? "blue" : "orange"}
+              color={statistics.fact.confidence === "exact" ? "teal" : "yellow"}
               variant="light"
             >
               {confidenceLabel(statistics.fact.confidence)}
             </Badge>
             <Text c="dimmed" size="xs">
-              {t("statistics.controls.observed", {
-                date: formatObservedAt(statistics.observedAtEpochMs),
-              })}
+              {fetching
+                ? t("statistics.controls.updating")
+                : t("statistics.controls.observed", {
+                    date: formatObservedAt(statistics.observedAtEpochMs),
+                  })}
             </Text>
-          </Group>
-          <Badge color={fetching ? "orange" : "blue"} variant="light">
-            {fetching
-              ? t("statistics.controls.updating")
-              : t("statistics.controls.sameSnapshot")}
-          </Badge>
-        </Group>
-      </Paper>
+          </>
+        }
+      >
+        <SegmentedControl
+          aria-label={t("statistics.controls.window")}
+          data={windowOptions}
+          onChange={(value) => onWindowChange(value as UsageWindow)}
+          value={window}
+        />
+        <NativeSelect
+          aria-label={t("statistics.controls.dimension")}
+          className="w-64"
+          data={dimensionOptions.filter(
+            (option) => reasoningAvailable || option.value !== "reasoningEffort",
+          )}
+          leftSection={
+            <Text c="dimmed" size="xs">
+              {t("statistics.controls.dimension")}
+            </Text>
+          }
+          leftSectionWidth={76}
+          leftSectionPointerEvents="none"
+          onChange={(event) =>
+            onDimensionChange(event.currentTarget.value as UsageDimension)
+          }
+          value={dimension}
+        />
+      </FilterBar>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         <Paper className="mini-metric" p="lg" radius="lg" withBorder>
@@ -188,7 +186,7 @@ export function UsageStatistics({
             <Text fw={700}>{t("statistics.daily.title")}</Text>
           </Group>
           <Table.ScrollContainer minWidth={760}>
-            <Table verticalSpacing="sm">
+            <Table className="data-table" verticalSpacing="sm">
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>
@@ -210,7 +208,7 @@ export function UsageStatistics({
                       <Group gap="xs" wrap="nowrap">
                         <Text>{formatCalendarDate(bucket.localDate)}</Text>
                         {bucket.inProgress ? (
-                          <Badge color="orange" size="xs" variant="light">
+                          <Badge color="yellow" size="xs" variant="light">
                             {t("statistics.daily.inProgress")}
                           </Badge>
                         ) : null}
@@ -255,7 +253,7 @@ export function UsageStatistics({
             <Text fw={700}>{t("statistics.groups.title")}</Text>
           </Group>
           <Table.ScrollContainer minWidth={760}>
-            <Table highlightOnHover verticalSpacing="sm">
+            <Table className="data-table" highlightOnHover verticalSpacing="sm">
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>

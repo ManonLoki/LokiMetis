@@ -24,8 +24,8 @@
 | Git 配置或即将创建提交 | 独立仓库状态与提交要求 | `$desktop-configure-git-commits` |
 | 用户要求持久计划、交接或高风险协调 | 当前范围、依赖和已有最新计划（若存在） | `$desktop-plan-change` |
 | Windows 本地安装试包 | 根目标平台事实与本地试包规则 | `$desktop-build-tauri-local-install` |
-| 准备、构建或收集发布候选 | `docs/RELEASE.md` 与当次发布审查、性能、macOS 签名和 E2E 选择 | `$desktop-prepare-release` 先锁定审查/性能/签名，`$desktop-build-tauri-release` 只读消费并另行解析 E2E，收集使用 `$desktop-collect-release-artifacts` |
-| 最终产物 E2E、性能或完整验收 | `docs/RELEASE.md`、候选 manifest 与精确证据 | `$desktop-test-final-artifact-e2e`、`$desktop-test-gui-release-performance`、`$desktop-verify-delivery` |
+| 准备、构建或收集发布候选 | `docs/RELEASE.md` 与当次发布审查、macOS 签名和 E2E 选择 | `$desktop-prepare-release` 先锁定审查/签名，`$desktop-build-tauri-release` 只读消费并另行解析 E2E，收集使用 `$desktop-collect-release-artifacts` |
+| 最终产物 E2E 或完整验收 | `docs/RELEASE.md`、候选 manifest 与精确证据 | `$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery` |
 | 更新工程规则或维护工具 | 当前受保护事实与明确提供的新工程源 | `$desktop-upgrade-harness`，默认先预览 |
 
 ## 始终生效的边界
@@ -44,7 +44,7 @@
 
 - GUI 基线与能力：`$desktop-add-gui-adapter`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-extract-i18n-strings`、`$desktop-rename-project-identity`。
 - 开发与治理：`$desktop-define-product`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-plan-change`、`$desktop-check-development-environment`、`$desktop-configure-git-commits`、`$desktop-upgrade-harness`。
-- 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-tauri-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-release-performance`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
+- 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-tauri-release`、`$desktop-collect-release-artifacts`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 约束地图
 

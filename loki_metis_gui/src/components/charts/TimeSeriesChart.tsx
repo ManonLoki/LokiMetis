@@ -187,6 +187,7 @@ export function TimeSeriesChart({
               className="chart-series-line"
               d={linePath(item.values, maximum)}
               fill="none"
+              pathLength={1}
               stroke={item.color}
             />
             {item.values.map((value, index) =>

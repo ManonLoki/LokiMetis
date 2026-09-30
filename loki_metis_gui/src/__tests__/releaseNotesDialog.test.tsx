@@ -22,9 +22,7 @@ describe("release notes dialog", () => {
       </TestProviders>,
     );
 
-    expect(
-      screen.getByText(/not generated before the first formal release/i),
-    ).toBeVisible();
+    expect(screen.getByText(/Release notes are not available yet/i)).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledOnce();
   });

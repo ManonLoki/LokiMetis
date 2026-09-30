@@ -284,7 +284,7 @@ describe("dashboard settings capabilities", () => {
 
     const dashboardSettings = await screen.findByTestId("dashboard-settings");
     expect(
-      within(dashboardSettings).getByRole("heading", { name: "Usage settings" }),
+      within(dashboardSettings).getByRole("heading", { name: "Scan interval" }),
     ).toBeVisible();
     expect(within(dashboardSettings).getByText("Scan interval")).toBeVisible();
     expect(within(dashboardSettings).getByText("Automatic cleanup")).toBeVisible();

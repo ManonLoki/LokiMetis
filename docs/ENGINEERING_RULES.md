@@ -44,7 +44,7 @@
 - GUI 操作必须绑定在真正拥有动作的语义元素上。按钮、链接、Switch、Checkbox 和菜单项不得由父级 Card、行、单元格或 `div` 代理；标题和说明用稳定 ID 与 `aria-labelledby`/`aria-describedby` 关联。
 - 页面工作上下文若需跨路由保持，由应用根 Jotai store 中稳定的页面 atom 持有，仅存活于当前进程。不得写入 localStorage、sessionStorage、IndexedDB、Tauri Store、配置文件、数据库或 URL；语言与主题等批准的设备偏好不受此限制。
 - 异步数据与缓存由 TanStack Query 拥有，Jotai 不镜像结果。筛选、范围或每页数量变化时页码归 1；只有查询成功、当前页大于 1 且结果为空时才回退第 1 页，加载、取消、超时和错误不得被解释为空结果。
-- Tabler 图标作为唯一通用图标库；存在合适图标时不得手写 SVG、使用字符或 emoji 代替。
+- Phosphor（`@phosphor-icons/react`）作为唯一通用图标库，全局统一 `regular` 字重；存在合适图标时不得手写 SVG、使用字符或 emoji 代替。动效统一使用 `motion/react`，且必须遵守 `prefers-reduced-motion`；样式以 Mantine 令牌为主，Tailwind 仅用于 utilities，字体只允许打包进应用的自托管字体，不得联网加载。
 
 ### 2.4 文件规模与模块
 
@@ -94,13 +94,13 @@
 ### 5.2 构建与候选
 
 - 显式构建运行 Rust workspace 与前端全部非空单元测试。零测试或失败阻断构建；完整命令以当前 Cargo/package 脚本和对应 Skill 为准。
-- Windows 普通本地安装试包是开发制品：不创建发布说明或 `release/`，不提交、不安装、不解析候选 E2E/性能，也不声称可分发。
-- 正式发布先由 `$desktop-prepare-release` 在任何写入或提交前各解析一次 `reviewSelection`、`performanceSelection` 与 macOS 签名意图/来源并封存到候选信封，构建只能只读消费，不能重新询问、翻转选择或补造证据。安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制启用发布审查；其余情况按当前请求或一次确认决定。关闭只省略非必要语义审查，不能跳过范围、秘密、测试、clean、分支/HEAD、签名、渠道和必需人工签署。
+- Windows 普通本地安装试包是开发制品：不创建发布说明或 `release/`，不提交、不安装、不解析候选 E2E，也不声称可分发。
+- 正式发布先由 `$desktop-prepare-release` 在任何写入或提交前各解析一次 `reviewSelection` 与 macOS 签名意图/来源并封存到候选信封，构建只能只读消费，不能重新询问、翻转选择或补造证据。安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制启用发布审查；其余情况按当前请求或一次确认决定。关闭只省略非必要语义审查，不能跳过范围、秘密、测试、clean、分支/HEAD、签名、渠道和必需人工签署。
 - 发布准备要求独立 Git 根、具名 attached 分支和可解析的 40 位 HEAD，用绑定分支、HEAD、工作区、index 与未跟踪字节的摘要冻结已复核范围。提交前用隔离 index 计算精确预期 patch，只暂存复核路径并正常运行 hooks；提交后必须仍在同分支、形成直接非 merge 子提交，且 committed diff 与冻结 patch 逐字节一致。分支/HEAD/字节变化、范围外 staged 内容、秘密、hook 夹带或签名交互都必须失败关闭并重新复核，不能覆盖、贮藏或吸收范围外用户变化。
 - `reviewSelection: enabled` 时审查上次正式发布提交（首发为仓库起点）到 clean `sourceHead` 的累计行为、core/adapter 边界、对外契约、职责/规模候选与临时标记，全部完成后才记录结构化通过证据；修复后必须重新测试、提交和审查。`disabled` 时记录 `Not run`、非空原因与剩余风险，并要求审查证据字段缺席。
-- 发布构建在测试/编译前单独解析本次 E2E 选择；性能选择只由发布准备解析。性能启用或渠道要求时，对同一 clean HEAD 运行 `gui-release-v2` release-profile no-bundle 探针：一次预热后恰好五次冷启动、至少二十次代表性交互、全部 Long Task、整棵进程树 CPU/RSS、重复操作内存增长和退出回收都必须形成原始证据与 `performanceRuntimeBinding`。每次样本前恢复同一隔离 window-state 基线，所有成功、失败、超时和取消路径都恢复并复核用户原状态；无法定位/恢复窗口状态、绑定探针与最终 runtime 字节或回收进程时失败且不可豁免。只有允许豁免的纯指标失败可在用户查看原始证据并明确确认后记为 `waived`，不得改判通过；关闭且无硬要求时固定 `Not run`，保存原因/风险并要求所有探针、阈值、证据、豁免和运行时绑定字段缺席。
+- 发布构建在测试/编译前单独解析本次 E2E 选择。
 - macOS 签名意图来源按 `channel-required > requested > configured > not-requested` 唯一化；未获批准、未被请求且无渠道硬要求时默认为 `disabled/not-requested`，不得探测本机证书、身份、公证凭据或 profile。启用后签名、公证、stapling 与 Gatekeeper 验证必须全有或全无，任一失败不能回退 unsigned；当前 `system_notification = enabled`，因此 macOS 候选必须启用并完成签名。构建、收集与验收只能复核已封存意图和最终证据，不能自动补签。
-- 最终候选绑定源码提交、目标平台、产物摘要、签名状态、发布说明、发布审查、测试、性能与 E2E 结果。manifest 状态只允许 `pending`、`rejected` 或 `accepted`；`ready` 仅是完整 `accepted` 原子集合的只读复核结论，不得持久化。构建、收集及验收都必须先在项目根同级 staging 写入整组、重新枚举精确集合并复算每个字节，再以目录级原子替换 `release/`；状态更新同样整组提交，禁止 mixed 状态或逐 manifest 更新。签名、公证、打包或任何后处理改变产物字节、启动器、依赖或运行行为时即形成新候选，必须重新验收。
+- 最终候选绑定源码提交、目标平台、产物摘要、签名状态、发布说明、发布审查、测试与 E2E 结果。manifest 状态只允许 `pending`、`rejected` 或 `accepted`；`ready` 仅是完整 `accepted` 原子集合的只读复核结论，不得持久化。构建、收集及验收都必须先在项目根同级 staging 写入整组、重新枚举精确集合并复算每个字节，再以目录级原子替换 `release/`；状态更新同样整组提交，禁止 mixed 状态或逐 manifest 更新。签名、公证、打包或任何后处理改变产物字节、启动器、依赖或运行行为时即形成新候选，必须重新验收。
 - mock、stub、中性脚手架、开发预览、源码片段或只调用内部函数的结果不具备候选验收资格。未实际执行一律记录 `Not run` 或 `Unverified`。
 
 ## 6. 规则例外

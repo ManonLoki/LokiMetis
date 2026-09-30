@@ -47,12 +47,7 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
     <section aria-label={t("overviewCards.local.sectionAria", { window: label })}>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <Paper
-            className="metric-card local-card local-hero-card"
-            p="lg"
-            radius="lg"
-            withBorder
-          >
+          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
             <Text c="dimmed" fw={700} size="sm">
               {t("overviewCards.local.callCount")}
             </Text>
@@ -60,12 +55,7 @@ export function LocalWindowSummary({ windowUsage }: { windowUsage: WindowUsageDt
               {formatTokens(aggregate.callCount)}
             </Text>
           </Paper>
-          <Paper
-            className="metric-card local-card local-hero-card"
-            p="lg"
-            radius="lg"
-            withBorder
-          >
+          <Paper className="metric-card local-card min-h-44" p="lg" radius="lg" withBorder>
             <Text c="dimmed" fw={700} size="sm">
               {t("overviewCards.local.tokenTotal")}
             </Text>
