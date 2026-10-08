@@ -136,8 +136,10 @@ fn analytics_filters_are_independent_across_routes_and_agents(cx:&mut TestAppCon
         window.click(("chart-window",4usize),cx);
         window.click(("usage-client",0usize),cx);
         assert_eq!(shell.read(cx).dashboard.chart.ranges[0],0);
-        assert!(window.try_find("chart-dimension").is_some());
+        assert!(window.try_find("chart-dimension").is_none());
+        assert!(window.try_find("dashboard-calls").is_some());
         window.click(("usage-client",1usize),cx);
+        window.click("dashboard-charts",cx);
         assert_eq!(shell.read(cx).dashboard.chart.ranges[1],4);
         assert_eq!(shell.read(cx).dashboard.ranges[1],0);
     }).expect("验证真实筛选事件与跨 Agent 状态");
@@ -184,5 +186,63 @@ fn analytics_loading_and_failure_hide_untrusted_old_results(cx:&mut TestAppConte
         window.render_frame(cx);assert!(window.try_find("usage-retry").is_some());
         assert!(window.try_find("chart-dimension").is_none());
         window.click("usage-retry",cx);assert!(!shell.read(cx).dashboard.scanning);
+    }).unwrap();
+}
+
+/// All 只暴露概览/调用；排序变化及清除筛选保留会话排序，WorkBuddy 退出调用。
+#[gpui_kit::test]
+fn calls_navigation_sorting_and_clear_preserve_contract(cx:&mut TestAppContext) {
+    use loki_metris_core::*;
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);window.click("dashboard-charts",cx);window.click(("usage-client",0usize),cx);
+        assert_eq!(shell.read(cx).dashboard.route,dashboard::Route::Overview);
+        assert!(window.try_find("dashboard-charts").is_none());assert!(window.try_find("dashboard-calls").is_some());
+        window.click("dashboard-calls",cx);
+    }).unwrap();
+    let page=build_usage_calls_page(&[],LocalIndexState::Ready,&std::collections::BTreeMap::new(),&UsageCallsQuery::default(),0,
+        SourceClientKind::Codex,ProviderKind::RolloutJsonl,None).unwrap();
+    shell.update(cx,|shell,cx|{shell.dashboard.calls.page=Some(page);shell.dashboard.calls.queries[0].filters.model=Some("model-filter".into());cx.notify();});
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);window.click(("calls-sort",4usize),cx);
+        assert_eq!(shell.read(cx).dashboard.calls.queries[0].sort_field,UsageCallSortField::TotalTokens);
+        assert_eq!(shell.read(cx).dashboard.calls.queries[0].sort_direction,UsageCallSortDirection::Desc);
+        window.click(("calls-sort",4usize),cx);window.click("calls-clear",cx);
+        assert_eq!(shell.read(cx).dashboard.calls.queries[0].filters,UsageCallFilters::default());
+        assert_eq!(shell.read(cx).dashboard.calls.queries[0].sort_direction,UsageCallSortDirection::Asc);
+        window.click(("usage-client",1usize),cx);
+        assert_eq!(shell.read(cx).dashboard.route,dashboard::Route::Calls);
+        assert_eq!(shell.read(cx).dashboard.calls.queries[1],UsageCallsQuery::default());
+        window.click(("usage-client",4usize),cx);
+        assert_eq!(shell.read(cx).dashboard.route,dashboard::Route::Overview);
+    }).unwrap();
+}
+
+/// 长时间文案与长项目名不能覆盖相邻列；Token 精确值与紧凑值留在同一列。
+#[gpui_kit::test]
+fn calls_columns_keep_time_project_and_token_bounds_separate(cx:&mut TestAppContext) {
+    use loki_metris_core::*;
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    let tokens=TokenUsage::new(1_234_567,0,None,123,0,Some(1_234_690)).unwrap();
+    let mut page=build_usage_calls_page(&[],LocalIndexState::Ready,&std::collections::BTreeMap::new(),&UsageCallsQuery::default(),0,
+        SourceClientKind::Codex,ProviderKind::RolloutJsonl,None).unwrap();
+    page.items.push(UsageCallItem {id:"layout-call".into(),client:SourceClientKind::Codex,occurred_at_epoch_ms:1_791_488_880_000,
+        project_label:"a-very-long-project-directory-name".into(),project_label_code:DisplayLabelCode::Literal,
+        thread_label:"thread-12345678".into(),thread_label_code:DisplayLabelCode::Literal,
+        model_label:"gpt-6.1-sol".into(),model_label_code:DisplayLabelCode::Literal,
+        reasoning_effort_label:"ultra".into(),reasoning_effort_label_code:DisplayLabelCode::Literal,
+        uncached_input_tokens:Some(tokens.input_tokens),usage:tokens.clone(),confidence:Confidence::Exact,
+        fact:MetricFact::new(tokens,ProviderKind::RolloutJsonl,MetricScope::ThreadObserved,0,Freshness::Fresh,Completeness::Complete,Confidence::Exact,None)});
+    shell.update(cx,|shell,cx|{shell.dashboard.client=0;shell.dashboard.route=dashboard::Route::Calls;shell.dashboard.loading=false;
+        shell.dashboard.calls.page=Some(page);cx.notify();});
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);
+        let time=window.find("call-0-1").bounds();let project=window.find("call-0-2").bounds();let thread=window.find("call-0-3").bounds();
+        assert!(time.right()<=project.left());assert!(project.right()<=thread.left());
+        let label="a-very-long-project-directory-name";
+        let run=gpui_kit::TextRun {len:label.len(),font:gpui_kit::font("Geist"),..Default::default()};
+        let required=window.text_system().shape_line(label.into(),px(14.),&[run],None).width();
+        assert!(project.size.width+px(1.)>=required,"项目列 {:?} 小于实际字体宽度 {:?}",project.size.width,required);
+        assert!(window.try_find("call-0-6").is_some());assert!(window.try_find("calls-count").is_some());
     }).unwrap();
 }

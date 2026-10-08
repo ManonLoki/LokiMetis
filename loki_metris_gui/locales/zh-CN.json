@@ -70,7 +70,7 @@
     "last_week": "上周",
     "this_month": "本月",
     "last_month": "上月",
-    "calls": "调用总数",
+    "calls": "调用",
     "tokens": "Token 总量",
     "token_composition": "Token 构成",
     "local_fact": "直接事实",
@@ -219,5 +219,28 @@
     "no_calls_title": "已扫描范围内没有可用调用",
     "no_calls_body": "扫描已完成，但没有可统计的调用。可查看覆盖报告或重新扫描。",
     "no_calls_action": "前往数据源重新扫描"
+  },
+  "calls": {
+    "filters": "调用筛选",
+    "clear": "清除筛选",
+    "time": "时间",
+    "input": "输入 Token",
+    "table": "本机调用结果",
+    "updating": "正在更新筛选与排序结果…",
+    "first_failed": "新的首屏结果读取失败",
+    "reading_first": "正在读取新的首屏结果",
+    "loaded": "已加载 {loaded} / {total} 条调用",
+    "retry_above": "可在上方重试",
+    "controls_available": "筛选与排序控件保持可用",
+    "load_more": "加载更多",
+    "all_loaded": "已浏览全部调用",
+    "empty_scanned": "已扫描范围内没有可用本机调用记录。",
+    "empty_filtered": "当前筛选下没有本机调用记录。",
+    "next_failed": "下一页加载失败",
+    "refresh_failed": "调用结果刷新失败",
+    "next_retained": "已加载的调用仍保留；可重试当前下一页。",
+    "refresh_retained": "页面结构已保留，旧结果已隐藏；可重试当前筛选与排序。",
+    "retry_next": "重试下一页",
+    "retry_refresh": "重试刷新"
   }
 }

@@ -70,7 +70,7 @@
     "last_week": "Last Week",
     "this_month": "This Month",
     "last_month": "Last Month",
-    "calls": "Total Calls",
+    "calls": "Calls",
     "tokens": "Total Tokens",
     "token_composition": "Token Composition",
     "local_fact": "Direct facts",
@@ -219,5 +219,28 @@
     "no_calls_title": "No usable calls in the scanned scope",
     "no_calls_body": "The scan finished, but no calls could be counted. Check the coverage report or scan again.",
     "no_calls_action": "Go to Data Sources to rescan"
+  },
+  "calls": {
+    "filters": "Call filters",
+    "clear": "Clear filters",
+    "time": "Time",
+    "input": "Input tokens",
+    "table": "Local call results",
+    "updating": "Updating filtered and sorted results…",
+    "first_failed": "Unable to read the new first page",
+    "reading_first": "Reading the new first page",
+    "loaded": "{loaded} / {total} calls loaded",
+    "retry_above": "Retry above",
+    "controls_available": "Filter and sort controls remain available",
+    "load_more": "Load more",
+    "all_loaded": "All calls have been loaded",
+    "empty_scanned": "No usable local calls were found in the scanned scope.",
+    "empty_filtered": "No local calls match the current filters.",
+    "next_failed": "Unable to load the next page",
+    "refresh_failed": "Unable to refresh call results",
+    "next_retained": "Previously loaded calls remain visible. Retry the current next page.",
+    "refresh_retained": "Old results are hidden. Retry with the current filters and sort.",
+    "retry_next": "Retry next page",
+    "retry_refresh": "Retry refresh"
   }
 }

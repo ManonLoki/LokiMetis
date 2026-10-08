@@ -240,7 +240,7 @@ impl Render for Shell {
         self.viewport_width = window.viewport_size().width.into();
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
         let content = match self.page {
-            Page::Dashboard => self.dashboard_page(cx),
+            Page::Dashboard => self.dashboard_page(window,cx),
             Page::Settings => self.settings_page(cx),
             Page::About => self.about_page(cx),
 

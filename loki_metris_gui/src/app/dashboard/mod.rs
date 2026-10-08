@@ -7,6 +7,7 @@ mod charts;
 mod plot;
 mod workbuddy_charts;
 mod state;
+mod calls;
 use statistics::DetailState;
 pub(super) use statistics::Route;
 
@@ -26,6 +27,7 @@ pub(super) struct Dashboard {
     pub route: Route,
     pub detail: DetailState,
     pub chart: charts::ChartState,
+    pub calls: calls::CallsState,
     pub scanning: bool,
     pub scan_error: Option<&'static str>,
     pub watch_task: Option<Task<()>>,
@@ -44,7 +46,7 @@ pub(super) struct Dashboard {
 impl Default for Dashboard {
     /// 首次与参考 App 一样选中 Codex、今日和概览；业务数据尚未查询。
     fn default() -> Self {
-        Self { client: 1, ranges: [0; 5], progress: None, route: Route::Overview, detail: DetailState::default(), chart: charts::ChartState::default(), scanning: false, scan_error: None, watch_task: None, data: None, error: None,
+        Self { client: 1, ranges: [0; 5], progress: None, route: Route::Overview, detail: DetailState::default(), chart: charts::ChartState::default(), calls: calls::CallsState::default(), scanning: false, scan_error: None, watch_task: None, data: None, error: None,
             loading: false, revision: 0, last_read: std::time::Instant::now(), service: None, task: None, copied: false, copied_metric: None, copy_task: None }
     }
 }
@@ -80,6 +82,7 @@ impl Shell {
 
     /// 异步完成后用请求代数丢弃旧响应；切 Agent 不会被旧页面查询覆盖。
     fn reload_usage(&mut self, scan: bool, cx: &mut Context<Self>) {
+        if self.dashboard.route==Route::Calls {self.load_calls(false,cx);return}
         self.dashboard.revision += 1;
         self.dashboard.task.take();
         self.dashboard.loading = false;
@@ -143,6 +146,12 @@ impl Shell {
         cx.notify();
     }
 
+    /// All 没有物理存储；所有页面共用同一客户端身份映射。
+    pub(super) fn usage_client(&self)->Option<SourceClientKind> {
+        match self.dashboard.client {1=>Some(SourceClientKind::Codex),2=>Some(SourceClientKind::ClaudeCode),
+            3=>Some(SourceClientKind::GrokBuildCli),4=>Some(SourceClientKind::WorkBuddy),_=>None}
+    }
+
     /// 客户端变更立即清除旧客户端快照，保留每客户端自己的窗口选择。
     fn select_usage_client(&mut self, index: usize, cx: &mut Context<Self>) {
         if self.dashboard.client == index { return }
@@ -154,18 +163,18 @@ impl Shell {
         self.dashboard.detail.statistics = None;
         self.dashboard.detail.models = None;
         self.dashboard.chart.data=None;self.dashboard.chart.workbuddy=None;
+        self.dashboard.calls.page=None;self.dashboard.calls.loading_next=false;self.dashboard.calls.next_failed=false;self.dashboard.calls.replacement_failed=false;
         for hover in &self.dashboard.chart.hover {hover.set(None);}
-        if index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Sources) { self.dashboard.route = Route::Overview; }
+        if (index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Charts|Route::Sources)) || (index==4 && self.dashboard.route==Route::Calls) { self.dashboard.route = Route::Overview; }
         self.reload_usage(false, cx);
         cx.notify();
     }
 
     /// 业务页顶栏沿用参考产品的横向导航与右侧客户端分段。
-    pub(super) fn dashboard_page(&self, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn dashboard_page(&self, window:&gpui_kit::Window, cx: &mut Context<Self>) -> AnyElement {
         let mut items = vec![(Route::Overview, "overview")];
-        if self.dashboard.client != 0 { items.push((Route::Statistics,"usage")); }
-        items.push((Route::Charts,"charts"));
-        if self.dashboard.client != 0 {items.push((Route::Sources,"sources"));}
+        if self.dashboard.client==0 {items.push((Route::Calls,"calls"));}
+        else {items.extend([(Route::Statistics,"usage"),(Route::Charts,"charts"),(Route::Sources,"sources")]);}
         let tabs = div().flex().items_center().gap_1().children(items.into_iter().map(|(route, key)| {
             let selected = self.dashboard.route == route;
             Button::new(gpui_kit::SharedString::from(format!("dashboard-{key}"))).ghost().h(px(40.))
@@ -195,6 +204,7 @@ impl Shell {
                     progress.roots_completed, progress.roots_total, progress.files_scanned, self.t("dashboard.files"), progress.calls_added, self.t("dashboard.calls"))))))
             .when(self.dashboard.error.is_some() || self.dashboard.scan_error.is_some(), |column| column.child(self.usage_error(cx)))
             .when(self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
+                Route::Calls => self.usage_calls(window,cx),
                 Route::Sources => self.usage_sources(cx),
             Route::Statistics => self.usage_statistics(cx),
             Route::Charts => self.usage_charts(cx),
