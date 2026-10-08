@@ -228,6 +228,7 @@ fn gallery_toolbar_actions_remain_visible(cx: &mut TestAppContext) {
                 "error.monitor.imagesReadFailed",
             )),
             views: Default::default(),
+            residency: Default::default(),
         });
         cx.notify();
     });
@@ -241,6 +242,167 @@ fn gallery_toolbar_actions_remain_visible(cx: &mut TestAppContext) {
                 "{id} must be inside {page:?}, got {bounds:?}"
             );
         }
+    })
+    .unwrap();
+}
+
+/// 三十个真实 GIF 只解码可见格子，离页后 CPU 结果与全部 GPU 帧同时释放。
+#[gpui_kit::test]
+fn gallery_decodes_visible_entries_and_releases_all_frames_on_leave(cx: &mut TestAppContext) {
+    use crate::monitor::image_decode::{MonitorImageDecoder, MonitorImageSource};
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let sources = (0..30)
+        .map(|index| MonitorImageSource {
+            id: format!("visible-fixture-{index}"),
+            bytes: Arc::from(include_bytes!("../../../tests/fixtures/monitor-loop.gif").as_slice()),
+            format: loki_metris_core::ImageFormat::Gif,
+        })
+        .collect::<Vec<_>>();
+    shell.update(cx, |this, cx| {
+        this.page = crate::app::Page::Monitor;
+        this.monitor.route = Route::Images;
+        this.monitor.catalog.images_loaded = true;
+        this.monitor.catalog.images = sources
+            .iter()
+            .map(|source| super::state::ImageEntry {
+                id: source.id.clone(),
+                filename: format!("{}.gif", source.id),
+                format: source.format,
+                source: Ok(source.clone()),
+                views: Default::default(),
+                residency: Default::default(),
+            })
+            .collect();
+        cx.notify();
+    });
+    for _ in 0..4 {
+        cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+            .unwrap();
+        cx.run_until_parked();
+    }
+    let requested = shell.read_with(cx, |this, _| {
+        this.monitor
+            .catalog
+            .images
+            .iter()
+            .filter(|entry| entry.residency.requested.get())
+            .count()
+    });
+    cx.update_window(handle, |_, window, _| {
+        let first = window.find("monitor-image-card-visible-fixture-0").bounds();
+        let last = window
+            .find("monitor-image-card-visible-fixture-29")
+            .bounds();
+        assert!(first.size.height > gpui_kit::px(300.));
+        assert!(last.origin.y > gpui_kit::px(900.));
+    })
+    .unwrap();
+    assert!(
+        requested > 0 && requested < 30,
+        "only visible entries may load; requested {requested}"
+    );
+    assert!(cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
+    assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[29])));
+    let decoded = cx
+        .update_window(handle, |_, window, cx| {
+            window
+                .get_asset::<MonitorImageDecoder>(&sources[0], cx)
+                .unwrap()
+                .unwrap()
+        })
+        .unwrap();
+    let weak = Arc::downgrade(&decoded);
+    cx.executor().advance_clock(Duration::from_millis(200));
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(
+            window.has_image_atlas_entry(&decoded.image),
+            "both animated frames were actually painted"
+        );
+    })
+    .unwrap();
+    cx.simulate_window_visibility_change(handle, gpui_kit::WindowVisibility::Hidden);
+    assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
+    cx.update_window(handle, |_, window, cx| {
+        assert!(!window.has_image_atlas_entry(&decoded.image));
+        // 隐藏后仍可能收到已排队绘帧，不得重新请求已释放资源。
+        window.render_frame(cx);
+    })
+    .unwrap();
+    assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
+    cx.simulate_window_visibility_change(handle, gpui_kit::WindowVisibility::Visible);
+    for _ in 0..4 {
+        cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+            .unwrap();
+        cx.run_until_parked();
+    }
+    assert!(cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
+    cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, cx| {
+            this.page = crate::app::Page::About;
+            cx.notify();
+        });
+        window.render_frame(cx);
+        assert!(!window.has_image_atlas_entry(&decoded.image));
+    })
+    .unwrap();
+    for source in &sources {
+        assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(source)));
+    }
+    drop(decoded);
+    assert!(
+        weak.upgrade().is_none(),
+        "no hidden view or pending cache may retain decoded pixels"
+    );
+}
+
+/// 删除快照到达与窗口隐藏交错时，旧条目不能等待下一次绘帧才释放。
+#[gpui_kit::test]
+fn hidden_window_releases_retired_image_before_another_frame(cx: &mut TestAppContext) {
+    use crate::monitor::image_decode::{MonitorImageDecoder, MonitorImageSource};
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let source = MonitorImageSource {
+        id: "retired-fixture".into(),
+        bytes: Arc::from(include_bytes!("../../../tests/fixtures/monitor-loop.gif").as_slice()),
+        format: loki_metris_core::ImageFormat::Gif,
+    };
+    shell.update(cx, |this, cx| {
+        this.page = crate::app::Page::Monitor;
+        this.monitor.route = Route::Images;
+        this.monitor.catalog.images_loaded = true;
+        this.monitor.catalog.images.push(super::state::ImageEntry {
+            id: source.id.clone(),
+            filename: "retired.gif".into(),
+            format: source.format,
+            source: Ok(source.clone()),
+            views: Default::default(),
+            residency: Default::default(),
+        });
+        cx.notify();
+    });
+    for _ in 0..4 {
+        cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+            .unwrap();
+        cx.run_until_parked();
+    }
+    let decoded = cx
+        .update_window(handle, |_, window, cx| {
+            window
+                .get_asset::<MonitorImageDecoder>(&source, cx)
+                .unwrap()
+                .unwrap()
+        })
+        .unwrap();
+    shell.update(cx, |this, _| {
+        let old = this.monitor.catalog.images.pop().unwrap();
+        this.monitor.catalog.retired_images.push(old);
+    });
+    cx.simulate_window_visibility_change(handle, gpui_kit::WindowVisibility::Hidden);
+    assert!(shell.read_with(cx, |this, _| this.monitor.catalog.retired_images.is_empty()));
+    assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&source)));
+    cx.update_window(handle, |_, window, _| {
+        assert!(!window.has_image_atlas_entry(&decoded.image))
     })
     .unwrap();
 }

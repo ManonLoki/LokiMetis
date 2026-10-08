@@ -40,6 +40,8 @@ pub(crate) struct DecodedMonitorImage {
     /// 纹理含复制边缘保护像素，布局仍使用未经扩展的天然尺寸。
     pub natural_size: Size<DevicePixels>,
     pub plays: Option<u32>,
+    /// 包含所有帧和边缘保护像素，绘制闭包也持有完整结果 owner。
+    pub(super) _memory: super::image_memory::ImageMemoryLease,
 }
 impl Asset for MonitorImageDecoder {
     type Source = MonitorImageSource;
@@ -49,8 +51,13 @@ impl Asset for MonitorImageDecoder {
         source: Self::Source,
         cx: &mut App,
     ) -> impl Future<Output = Self::Output> + Send + 'static {
-        cx.background_executor()
-            .spawn(async move { decode(&source).map_err(|_| "error.monitor.imageDecodeFailed") })
+        cx.background_executor().spawn(async move {
+            let _permit = super::image_memory::DECODERS
+                .acquire()
+                .await
+                .expect("decoder semaphore is never closed");
+            decode(&source).map_err(|_| "error.monitor.imageDecodeFailed")
+        })
     }
 }
 
@@ -97,11 +104,19 @@ fn decode(source: &MonitorImageSource) -> anyhow::Result<Arc<DecodedMonitorImage
         DevicePixels(frames[0].buffer().width() as i32),
         DevicePixels(frames[0].buffer().height() as i32),
     );
+    let retained = frames
+        .iter()
+        .map(|frame| {
+            u64::from(frame.buffer().width() + 2) * u64::from(frame.buffer().height() + 2) * 4
+        })
+        .sum();
+    let memory = super::image_memory::ImageMemoryLease::reserve(retained)?;
     let frames = texture_frames(frames)?;
     Ok(Arc::new(DecodedMonitorImage {
         image: Arc::new(RenderImage::new(frames)),
         natural_size,
         plays,
+        _memory: memory,
     }))
 }
 

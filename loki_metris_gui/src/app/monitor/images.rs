@@ -178,14 +178,59 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> (AnyElement, Option<(i32, i32)>) {
         let result = match &entry.source {
-            Ok(source) => window.use_asset::<MonitorImageDecoder>(source, cx),
+            Ok(source) if entry.residency.requested.get() => {
+                window.get_asset::<MonitorImageDecoder>(source, cx)
+            }
+            Ok(_) => None,
             Err(_) => Some(Err("error.monitor.imagesReadFailed")),
         };
+        let epoch = self.monitor.catalog.frame_epoch.get();
+        entry.residency.register(id.clone(), epoch);
+        let demand_entry = entry.clone();
+        let demand_id = id.clone();
         let mut preview = div()
             .relative()
             .size_full()
             .overflow_hidden()
             .child(checkerboard(checker, cx));
+        // 独立画布先按实际布局决定需求，未进入视口的格子不会启动任何解码。
+        preview = preview.child(
+            canvas(
+                move |bounds, window, cx| {
+                    let visible = bounds.intersect(&window.content_mask().bounds);
+                    let visible = window.is_visible()
+                        && visible.size.width > px(0.)
+                        && visible.size.height > px(0.);
+                    if let Some(placement) = demand_entry
+                        .residency
+                        .placements
+                        .borrow_mut()
+                        .get_mut(&demand_id)
+                    {
+                        placement.1 = visible;
+                    }
+                    if visible {
+                        if let Ok(source) = &demand_entry.source {
+                            demand_entry.residency.requested.set(true);
+                            let _ = window.use_asset::<MonitorImageDecoder>(source, cx);
+                        }
+                    } else if demand_entry.residency.requested.get()
+                        && !demand_entry.residency.cleanup_pending.replace(true)
+                    {
+                        let entry = demand_entry.clone();
+                        window.defer(cx, move |window, cx| {
+                            entry.residency.cleanup_pending.set(false);
+                            if !entry.residency.any_visible() {
+                                release_image(&entry, window, cx);
+                            }
+                        });
+                    }
+                },
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .inset_0(),
+        );
         let dimensions = match result {
             Some(Ok(image)) => {
                 let dimensions = image.natural_size;
@@ -290,7 +335,11 @@ impl Shell {
                         .disabled(
                             state.images_loading || state.uploading || state.deleting.is_some(),
                         )
-                        .on_click(cx.listener(|this, _, _, cx| this.load_monitor_images(cx))),
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            // 显式刷新也重试此前预算不足或解码失败的缓存结果。
+                            this.release_monitor_images(window, cx);
+                            this.load_monitor_images(cx);
+                        })),
                 )
                 .child(
                     Button::new("monitor-images-upload")
@@ -306,6 +355,7 @@ impl Shell {
             .id("monitor-images")
             .test_support()
             .w_full()
+            .flex_shrink_0()
             .flex()
             .flex_col()
             .gap_5()
@@ -368,6 +418,7 @@ impl Shell {
             .id("monitor-images-grid")
             .test_support()
             .w_full()
+            .flex_shrink_0()
             .grid()
             .grid_cols(if self.viewport_width >= 1408. {
                 4
@@ -497,6 +548,28 @@ impl Shell {
             page = page.child(grid);
         }
         page.into_any_element()
+    }
+}
+
+/// 最后一个可见挂载位置离开时，同时释放 CPU 资源与所有动画帧的 GPU 图集。
+pub(super) fn release_image(entry: &ImageEntry, window: &mut Window, cx: &mut gpui_kit::App) {
+    let mut decoded = None;
+    if entry.residency.requested.replace(false) {
+        if let Ok(source) = &entry.source {
+            decoded = window
+                .get_asset::<MonitorImageDecoder>(source, cx)
+                .and_then(Result::ok);
+            cx.remove_asset::<MonitorImageDecoder>(source);
+        }
+    }
+    for (_, view) in entry.views.borrow().values() {
+        let released = view.update(cx, |view, cx| view.release_pixels(cx));
+        if decoded.is_none() {
+            decoded = released;
+        }
+    }
+    if let Some(decoded) = decoded {
+        let _ = window.drop_image(decoded.image.clone());
     }
 }
 

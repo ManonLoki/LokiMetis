@@ -108,16 +108,39 @@ impl MonitorImageView {
             _visibility: visibility,
         }
     }
-    /// 页面离开或选项卸载立即取消计时，仅保留资源和当前时间点。
+    /// 页面离开或选项卸载立即释放像素并取消计时，保留当前时间点。
     pub fn set_mounted(&mut self, mounted: bool, window: &mut Window, cx: &mut Context<Self>) {
         if self.mounted == mounted {
+            if !mounted {
+                self.release_pixels(cx);
+            }
             return;
         }
         self.mounted = mounted;
         if mounted {
             self.start(window, cx);
         } else {
+            self.element_visible = false;
+            self.release_pixels(cx);
+        }
+    }
+    /// 像素释放与时间线分离，离屏后恢复仍使用剩余延时和有限循环终态。
+    pub fn release_pixels(&mut self, cx: &Context<Self>) -> Option<Arc<DecodedMonitorImage>> {
+        if self.started.is_some() {
             self.pause(cx);
+        }
+        self.decoded.take()
+    }
+    /// 只有真实可见画布才请求资源，缓存未命中时由 Asset 完成通知重绘。
+    fn ensure_decoded(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.decoded.is_none() {
+            if let Some(Ok(decoded)) = window.use_asset::<MonitorImageDecoder>(&self.source, cx) {
+                if self.timeline.is_none() {
+                    self.timeline = Some(Timeline::new(&decoded));
+                }
+                self.decoded = Some(decoded);
+                cx.notify();
+            }
         }
     }
     /// 可测试 executor 时钟同时覆盖运行与暂停时间。
@@ -138,6 +161,7 @@ impl MonitorImageView {
     /// 唯一计时 owner 只为实际可见动画工作，静态图和已结束动画没有轮询。
     fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.started.is_some()
+            || self.decoded.is_none()
             || self.finished
             || !self.mounted
             || !self.element_visible
@@ -191,17 +215,8 @@ impl MonitorImageView {
 }
 impl Render for MonitorImageView {
     /// Canvas公开选帧避免 Img 内部无限循环及失焦停止逻辑。
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        if self.decoded.is_none() {
-            if let Some(Ok(decoded)) = window.use_asset::<MonitorImageDecoder>(&self.source, cx) {
-                self.timeline = Some(Timeline::new(&decoded));
-                self.decoded = Some(decoded);
-            }
-        }
-        let image = self
-            .decoded
-            .as_ref()
-            .map(|decoded| (decoded.image.clone(), decoded.natural_size));
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let image = self.decoded.clone();
         let frame = self.frame;
         let fit = match self.fit {
             ObjectFit::Fill => ObjectFit::Fill,
@@ -217,25 +232,29 @@ impl Render for MonitorImageView {
             canvas(
                 move |bounds, window, cx| {
                     let visible = bounds.intersect(&window.content_mask().bounds);
-                    let visible = visible.size.width > gpui_kit::px(0.)
+                    let visible = window.is_visible()
+                        && visible.size.width > gpui_kit::px(0.)
                         && visible.size.height > gpui_kit::px(0.);
                     weak.update(cx, |this, cx| {
                         if this.element_visible != visible {
                             this.element_visible = visible;
                             if visible {
+                                this.ensure_decoded(window, cx);
                                 this.start(window, cx);
                             } else {
-                                this.pause(cx);
+                                this.release_pixels(cx);
                             }
                         } else if visible {
+                            this.ensure_decoded(window, cx);
                             this.start(window, cx);
                         }
-                        this.frame
+                        visible.then_some(this.frame)
                     })
-                    .unwrap_or(frame)
+                    .unwrap_or_else(|_| visible.then_some(frame))
                 },
                 move |bounds, frame, window, _| {
-                    if let Some((image, natural_size)) = image {
+                    if let (Some(decoded), Some(frame)) = (image, frame) {
+                        let natural_size = decoded.natural_size;
                         let image_bounds = fit.get_bounds(bounds, natural_size);
                         let dx = image_bounds.size.width / natural_size.width.0 as f32;
                         let dy = image_bounds.size.height / natural_size.height.0 as f32;
@@ -255,7 +274,7 @@ impl Render for MonitorImageView {
                                     padded,
                                     padded,
                                     Corners::default(),
-                                    image,
+                                    decoded.image.clone(),
                                     frame,
                                     false,
                                 )
@@ -303,6 +322,7 @@ mod tests {
             image: Arc::new(gpui_kit::RenderImage::new(frames)),
             natural_size: size(gpui_kit::DevicePixels(1), gpui_kit::DevicePixels(1)),
             plays,
+            _memory: super::super::image_memory::ImageMemoryLease::reserve(72).unwrap(),
         });
         let handle = cx.add_window(move |window, cx| {
             let source = MonitorImageSource {

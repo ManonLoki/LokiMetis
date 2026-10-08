@@ -17,16 +17,43 @@ impl Shell {
         let epoch = &self.monitor.catalog.frame_epoch;
         epoch.set(epoch.get().wrapping_add(1));
     }
+    /// 原生隐藏可能停止绘帧，不能等待下一次 prepaint 才归还像素与图集。
+    pub(in crate::app) fn release_monitor_images(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        for image in self.monitor.catalog.retired_images.drain(..) {
+            super::images::release_image(&image, window, cx);
+        }
+        for image in &self.monitor.catalog.images {
+            for (_, visible) in image.residency.placements.borrow_mut().values_mut() {
+                *visible = false;
+            }
+            super::images::release_image(image, window, cx);
+        }
+    }
     /// 保持已有 Entity 身份和播放位置，页面离开不遗留动画任务。
     pub(in crate::app) fn finish_monitor_image_frame(
-        &self,
+        &mut self,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let epoch = self.monitor.catalog.frame_epoch.get();
+        for image in self.monitor.catalog.retired_images.drain(..) {
+            super::images::release_image(&image, window, cx);
+        }
         for image in &self.monitor.catalog.images {
+            image
+                .residency
+                .placements
+                .borrow_mut()
+                .retain(|_, (seen, _)| *seen == epoch);
             for (seen, view) in image.views.borrow().values() {
                 view.update(cx, |view, cx| view.set_mounted(*seen == epoch, window, cx));
+            }
+            if image.residency.placements.borrow().is_empty() {
+                super::images::release_image(image, window, cx);
             }
         }
     }

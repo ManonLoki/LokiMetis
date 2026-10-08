@@ -54,6 +54,32 @@ pub(super) struct ImageEntry {
     pub format: ImageFormat,
     pub source: Result<MonitorImageSource, HookError>,
     pub views: ImageViews,
+    pub residency: Rc<ImageResidency>,
+}
+
+/// 每个图像可同时用于图库与多个选择器，完整帧结束后统一判断是否仍可见。
+#[derive(Default)]
+pub(super) struct ImageResidency {
+    pub requested: Cell<bool>,
+    pub cleanup_pending: Cell<bool>,
+    pub placements: RefCell<HashMap<String, (u64, bool)>>,
+}
+impl ImageResidency {
+    /// 当前壳层登记位置并保留上帧可见性，避免 render/prepaint 之间抖动驱逐。
+    pub fn register(&self, id: String, epoch: u64) {
+        self.placements
+            .borrow_mut()
+            .entry(id)
+            .and_modify(|value| value.0 = epoch)
+            .or_insert((epoch, false));
+    }
+    /// 全部子元素 prepaint 完成后读取，不能按回调顺序单独判断共享资源。
+    pub fn any_visible(&self) -> bool {
+        self.placements
+            .borrow()
+            .values()
+            .any(|(_, visible)| *visible)
+    }
 }
 
 /// 同一 Agent 的输入实体跨页面保持，避免重绘覆盖 IME 和未提交文案。
@@ -86,6 +112,7 @@ pub(super) struct Catalog {
     pub profiles_loading: bool,
     pub profiles_error: Option<HookError>,
     pub images: Vec<ImageEntry>,
+    pub retired_images: Vec<ImageEntry>,
     pub images_loaded: bool,
     pub images_loading: bool,
     pub images_error: Option<HookError>,
@@ -114,10 +141,10 @@ impl Catalog {
     }
     /// 快照转换不做磁盘读取、格式解码或 Base64 解析。
     pub fn accept_images(&mut self, mut snapshot: MonitorGallerySnapshot) {
-        let mut old_views = self
+        let mut old_images = self
             .images
             .drain(..)
-            .map(|image| (image.id, image.views))
+            .map(|image| (image.id.clone(), image))
             .collect::<HashMap<_, _>>();
         self.images = snapshot
             .gallery
@@ -139,6 +166,7 @@ impl Catalog {
                     format: image.format,
                     source,
                     views: Default::default(),
+                    residency: Default::default(),
                 }
             })
             .chain(snapshot.unavailable.into_iter().map(|image| ImageEntry {
@@ -147,13 +175,20 @@ impl Catalog {
                 format: image.format,
                 source: Err(image.error),
                 views: Default::default(),
+                residency: Default::default(),
             }))
             .collect();
         for image in &mut self.images {
-            if let Some(views) = old_views.remove(&image.id) {
-                image.views = views;
+            if let Some(old) = old_images.remove(&image.id) {
+                if image.source.is_ok() == old.source.is_ok() {
+                    image.views = old.views;
+                    image.residency = old.residency;
+                } else {
+                    self.retired_images.push(old);
+                }
             }
         }
+        self.retired_images.extend(old_images.into_values());
         self.images_loaded = true;
         self.images_error = None;
     }

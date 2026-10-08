@@ -77,8 +77,10 @@ impl Shell {
     }
 
     /// 后台或完全不可见窗口暂停页面轮询；恢复前台后由既有计时器补读。
-    fn update_window_visibility(&mut self,window:&Window,cx:&mut Context<Self>) {
-        self.window_active=window.is_window_active();self.window_visible=window.is_visible();cx.notify();
+    fn update_window_visibility(&mut self,window:&mut Window,cx:&mut Context<Self>) {
+        self.window_active=window.is_window_active();self.window_visible=window.is_visible();
+        if !self.window_visible {self.release_monitor_images(window,cx);}
+        cx.notify();
     }
 
     /// 保存内容尺寸与有界后台快照，直接退出也能恢复最新状态且不叠加原生标题栏。

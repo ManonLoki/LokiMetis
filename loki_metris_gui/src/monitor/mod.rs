@@ -8,6 +8,7 @@ mod listener_state;
 pub(crate) mod profiles;
 pub(crate) mod images;
 pub(crate) mod image_decode;
+mod image_memory;
 mod png_animation;
 mod animation_metadata;
 pub(crate) mod image_playback;
