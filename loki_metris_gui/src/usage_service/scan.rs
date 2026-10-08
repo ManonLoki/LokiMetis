@@ -1,12 +1,22 @@
 //! 单 writer 扫描只提交被完成的覆盖事实；查询与切页不参与取消。
 
-use super::{ServiceContext, queue::Intent, query::physical_clients};
+use super::{ServiceContext, queue::Intent};
 use crate::backend::{scan_orchestration, local_index::ScanProgress};
 use loki_metris_core::{ScanCancellation, SourceClientKind, LocalScanProgress, CoverageState, source_client_app_data_dir};
 use std::sync::Arc;
 
 /// 同一产品全局 writer 许可持有到扫描和覆盖状态提交均完成。
 pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellation: ScanCancellation) -> Result<(), &'static str> {
+    let (enabled_clients, _) = match context.agents.dashboard_selection().await {
+        Ok(selection)=>selection,Err(error)=>{
+            let mut state=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            state.error=Some(error);state.revision=state.revision.wrapping_add(1);return Err(error);
+        }
+    };
+    let automatic = intent.origin != loki_metris_core::ScanStartOrigin::ExplicitUser;
+    let clients = intent.client.map(|client| vec![client]).unwrap_or(enabled_clients.clone())
+        .into_iter().filter(|client| !automatic || enabled_clients.contains(client)).collect::<Vec<_>>();
+    if clients.is_empty() {return Ok(())}
     let retention=match context.settings.snapshot().await {
         Ok(settings)=>settings.retention_days,
         Err(error)=>{
@@ -28,9 +38,9 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
         let mut state = context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.running = true; state.error = None; state.progress = None;
     }
-    let clients = intent.client.map(|client| vec![client]).unwrap_or_else(|| physical_clients().to_vec());
     for client in clients {
         if cancellation.is_cancelled() { return fail(&context, "usage_scan_cancelled") }
+        if automatic {match context.agents.dashboard_selection().await {Ok((enabled,_))=>if !enabled.contains(&client){continue},Err(error)=>return fail(&context,error)}}
         if client == SourceClientKind::WorkBuddy { continue }
         {let mut state=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);state.client=Some(client);state.progress=None;}
         let progress_state = context.clone();

@@ -1,7 +1,7 @@
 //! 通过真正 GPUI shutdown 钩子验证最终偏好和日志刷新，不依赖 run 返回。
 
 use super::*;
-use crate::preferences::{Preferences, ThemeChoice, load_from};
+use crate::preferences::{PreferencePatch, ThemeChoice, load_from};
 use gpui_kit::TestAppContext;
 use std::{io::{self, Write}, sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}}};
 
@@ -33,7 +33,7 @@ fn native_shutdown_flushes_preferences_and_final_log_exactly_once(cx: &mut TestA
     let (log_writer, guard) = tracing_appender::non_blocking(captured.clone());
     let subscriber = tracing_subscriber::fmt().with_ansi(false).without_time().with_writer(log_writer).finish();
     let shutdown = Shutdown::new(writer.clone(), guard);
-    writer.save(&Preferences { theme: ThemeChoice::Dark, collapsed: true, ..Preferences::default() });
+    drop(writer.mutate(PreferencePatch::Theme(ThemeChoice::Dark)).unwrap());
     tracing::subscriber::with_default(subscriber, || {
         cx.update(|cx| install(cx, shutdown.clone()));
         // TestAppContext 调用的正是原生 App::shutdown，不返回 main 也必须收尾。

@@ -42,7 +42,7 @@ sidebar_mode: compact
 
 产品复刻差异以 [ADR-001](adr/20261009_ADR.md) 批准：保留当前名称、Logo 和独立应用身份；业务导航为用量看板 / AI监控 / 应用换肤，底部设置；参考产品的二级导航与卡片取代中性 88px 页面标题。compact 仍为 80px。参考主题/密度逐阶段通过 Computer Use 校准。旧中性关于页暂保留至应用信息迁入公共设置后移除；原生能力缺口未实现前保持真实 unavailable，不把计划当已启用。
 
-中性基线命中标准 gpui-gui-common-v1；当前业务页采用上段已批准的参考产品像素覆盖。侧栏 compact，固定 80px、Logo 36px、图标 22px、居中图标/名称上下排列，不折叠。待迁移的基线设置页支持中英/随系统和浅深/随系统主题；基线关于页显示真实 Cargo 版本、负责人、受管品牌联系人、免责声明及中性更新/日志入口，无通知开关或赞助页。
+中性基线命中标准 gpui-gui-common-v1；当前业务页采用上段已批准的参考产品像素覆盖。侧栏 compact，固定 80px、Logo 36px、图标 22px、居中图标/名称上下排列，不折叠。公共设置已迁入应用信息与统一 Agent 五项开关，语言为中英两项（系统探测仅初值），主题保留浅深/跟随系统三态；有实际保存回执及失败保留旧值。关于页暂显示真实 Cargo 版本、负责人、受管品牌联系人、免责声明及中性更新/日志入口，尚无通知开关或赞助页。
 
 标题公式为 {applicationName} v{Cargo.version} {contactChannel}:{contactValue}，名称随 locale，联系人取受管品牌 contacts.windowTitle。应用 identifier=com.loki-metris.app，publisher=ManonLoki；不代表已取得商店/签名资格。系统语言由 sys_locale 读取，未知回退英文；窗口只恢复有效尺寸/位置/最大化，首次/损坏居中 1440×900、最小 960×640。
 

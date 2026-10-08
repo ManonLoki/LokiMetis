@@ -9,6 +9,7 @@ jiff.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+tempfile.workspace = true
 same-file.workspace = true
 whichdisk.workspace = true
 loki_metris_core.workspace = true
@@ -35,5 +36,4 @@ objc2-foundation.workspace = true
 
 [dev-dependencies]
 sea-orm.workspace = true
-tempfile.workspace = true
 gpui-kit = { workspace = true, features = ["test-support"] }

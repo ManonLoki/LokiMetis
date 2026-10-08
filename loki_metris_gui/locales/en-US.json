@@ -20,7 +20,16 @@
     "autostart_detail": "Show this app normally after sign-in. The operating system registration is authoritative.",
     "autostart_error": "The operation failed. The actual system state is shown when readable.",
     "autostart_unknown": "The system login item is unavailable. Retry reading it.",
-    "reload": "Reload"
+    "reload": "Reload",
+    "agent_panel_title": "Enabled Agents",
+    "agent_panel_badge": "Global setting",
+    "localized_name": "Chinese name",
+    "application_description": "The application name and version come from the current package.",
+    "version": "Version",
+    "release_notes_action": "View release notes",
+    "theme_title": "Appearance",
+    "language_error": "The native interface language could not be synchronized. Check the app state and try again.",
+    "theme_error": "The theme could not be saved. The previous theme is still active."
   },
   "about": {
     "version": "Version",
@@ -427,6 +436,22 @@
     "decrease": "Decrease"
   },
   "common": {
-    "unknownError": "An unknown error occurred."
+    "unknownError": "The operation could not be completed. Try again."
+  },
+  "ui": {
+    "failureTitle": "Unable to load data right now"
+  },
+  "error": {
+    "monitor": {
+      "settingsInvalid": "The saved monitor settings are not valid.",
+      "settingsReadFailed": "The monitor settings could not be read.",
+      "settingsWriteFailed": "The monitor settings could not be saved."
+    }
+  },
+  "shell": {
+    "noEnabledAgents": {
+      "title": "No AI agents are enabled",
+      "body": "Enable the agents you want to use under Agent configuration in Settings."
+    }
   }
 }

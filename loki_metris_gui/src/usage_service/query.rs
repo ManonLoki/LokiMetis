@@ -31,6 +31,14 @@ pub enum UsageResponse {
 pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancellation: ScanCancellation)
     -> Result<UsageResponse, &'static str>
 {
+    let (enabled_clients, workbuddy_enabled) = context.agents.dashboard_selection().await?;
+    let requested_client = match &query {
+        UsageQuery::Overview(client) | UsageQuery::Chart(client, ..) | UsageQuery::Calls(client, ..) => *client,
+        UsageQuery::Statistics(client, ..) | UsageQuery::Sources(client) => Some(*client),
+    };
+    // 参考宿主允许显式读取停用物理索引；WorkBuddy 停用则完全不探测本机文件。
+    if requested_client == Some(SourceClientKind::WorkBuddy) && !workbuddy_enabled { return Err("usage_agents_disabled") }
+    if requested_client.is_none() && enabled_clients.is_empty() && !workbuddy_enabled { return Err("usage_agents_disabled") }
     if let UsageQuery::Sources(client)=&query {
         let client=*client;
         let roots=if client==SourceClientKind::WorkBuddy {
@@ -71,7 +79,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
             .await.map_err(|_| "usage_aggregate_failed")?;
     }
     let mut jobs = tokio::task::JoinSet::new();
-    for client in physical_clients() {
+    for client in enabled_clients {
         let context = context.clone();
         let report = coverage(&context, client);
         jobs.spawn(async move {
@@ -86,7 +94,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     let mut workbuddy = None;
     let mut failed = false;
     let mut absent = false;
-    if matches!(query, UsageQuery::Overview(..)) {
+    if workbuddy_enabled && matches!(query, UsageQuery::Overview(..)) {
         match workbuddy::read_workbuddy_usage_snapshot(&workbuddy::resolve_workbuddy_homes(), now, TimeStandard::Local).await {
             Ok(snapshot) => workbuddy = Some(snapshot),
             Err(WorkbuddyReadError::SourceUnavailable) => absent = true,

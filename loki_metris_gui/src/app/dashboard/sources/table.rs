@@ -49,11 +49,11 @@ impl Shell {
             .child(div().size(px(6.)).rounded_full().bg(if root.enabled {gpui_kit::rgb(0x40c057).into()}else{cx.theme().muted_foreground}))
             .child(div().id(SharedString::from(format!("source-enabled-{index}"))).role(gpui_kit::Role::Label).aria_label(enabled.clone()).child(enabled)));
         if root.is_primary {badges=badges.child(self.quality_badge(self.t("sources.table.primary"),cx.theme().primary));}
-        let activation=match root.activation_state {
+        let activation=if self.dashboard.scanning_client==self.usage_client()&&self.dashboard.scanning&&self.dashboard.progress.as_ref().is_some_and(|progress|progress.current_root_id==root.id) {Some(("indexing",gpui_kit::rgb(0x339af0).into()))} else {match root.activation_state {
             Activation::Ready=>None,Activation::ValidationFailed=>Some(("validationFailed",cx.theme().danger)),
             Activation::Indexing if self.dashboard.progress.as_ref().is_some_and(|progress|progress.current_root_id==root.id)=>Some(("indexing",gpui_kit::rgb(0x339af0).into())),
             _=>Some(("confirmedUnindexed",gpui_kit::rgb(0x339af0).into())),
-        };
+        }};
         if let Some((key,color))=activation {badges=badges.child(self.quality_badge(self.t(&format!("sources.table.activation.{key}")),color));}
         let discovery=match root.discovery_code {Discovery::DefaultRoot=>"defaultRoot",Discovery::CodexEnvironment=>"codexEnvironment",Discovery::ClaudeEnvironment=>"claudeEnvironment",Discovery::GrokEnvironment=>"grokEnvironment",Discovery::UserRegistered=>"userRegistered",Discovery::FullDevice=>"fullDevice",Discovery::MetadataDiscovery=>"metadataDiscovery"};
         let mut actions=div().w_full().flex().items_center().justify_end().gap_2();

@@ -20,7 +20,16 @@
     "autostart_detail": "登录系统后正常显示应用，实际状态以操作系统登录项为准。",
     "autostart_error": "操作失败；可读取时已显示系统实际状态。",
     "autostart_unknown": "当前无法读取系统登录项，请重试。",
-    "reload": "重新读取"
+    "reload": "重新读取",
+    "agent_panel_title": "启用的 Agent",
+    "agent_panel_badge": "全局设置",
+    "localized_name": "中文名",
+    "application_description": "应用名称和版本来自当前安装包。",
+    "version": "版本",
+    "release_notes_action": "查看更新日志",
+    "theme_title": "外观主题",
+    "language_error": "无法同步原生界面语言。请确认应用状态后重试。",
+    "theme_error": "无法保存外观主题，原主题仍然生效。"
   },
   "about": {
     "version": "版本",
@@ -427,6 +436,22 @@
     "decrease": "减少"
   },
   "common": {
-    "unknownError": "发生未知错误。"
+    "unknownError": "操作未完成，请重试。"
+  },
+  "ui": {
+    "failureTitle": "暂时无法读取数据"
+  },
+  "error": {
+    "monitor": {
+      "settingsInvalid": "已保存的监控设置格式无效。",
+      "settingsReadFailed": "无法读取监控设置。",
+      "settingsWriteFailed": "无法保存监控设置。"
+    }
+  },
+  "shell": {
+    "noEnabledAgents": {
+      "title": "尚未开放任何 AI Agent",
+      "body": "在设置的 Agent 配置中启用要使用的 Agent。"
+    }
   }
 }

@@ -2,6 +2,15 @@
 
 use super::*;
 
+/// 退出紧随接受操作时，实际阻塞任务仍由 owner 等待，不因内部二次派发而丢失写入。
+#[test]
+fn accepted_setting_save_finishes_when_shutdown_starts_immediately() {
+    let root=tempfile::tempdir().unwrap();let directory=root.path().to_owned();
+    let service=UsageService::in_directory(directory.clone()).unwrap();
+    drop(service.save_usage_setting(UsageSettingField::RetentionDays,120).unwrap());service.finish();
+    assert_eq!(store::load(&directory.join("usage-settings.json")).unwrap().retention_days.get(),120);
+}
+
 /// 默认读取零写入，两卡并发保存不会用旧整页快照覆盖彼此。
 #[test]
 fn settings_default_read_is_write_free_and_parallel_fields_survive_restart() {

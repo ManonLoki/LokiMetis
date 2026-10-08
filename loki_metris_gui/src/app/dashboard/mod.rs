@@ -62,6 +62,7 @@ impl Shell {
     /// 启动时只接入独立服务，测试根视图不隐式触碰真实用户目录。
     pub fn attach_usage(&mut self, service: Arc<UsageService>, cx: &mut Context<Self>) {
         self.dashboard.service = Some(service.clone());
+        self.load_agent_settings(cx);
         if let Err(error)=service.start_usage_lifecycle() {self.dashboard.scan_error=Some(error);}
         self.dashboard.watch_task = Some(cx.spawn(async move |entity, cx| {
             let mut revision = service.scan_status().revision;
@@ -83,6 +84,7 @@ impl Shell {
                         this.reload_usage(false,cx);
                     }
                     if this.page==super::Page::Dashboard&&this.dashboard.route==Route::Settings&&!this.dashboard.usage_settings.loading&&!this.dashboard.usage_settings.pending.contains(&true)&&this.dashboard.usage_settings.service_revision!=service.usage_settings_revision() {this.load_usage_settings(cx);}
+                    if !this.agent_settings.loading&&!this.agent_settings.pending&&this.agent_settings.service_revision!=service.agent_settings_revision() {this.load_agent_settings(cx);}
                     if changed {cx.notify();}
                 }).is_err() { return }
                 cx.background_executor().timer(std::time::Duration::from_millis(500)).await;
@@ -93,6 +95,10 @@ impl Shell {
 
     /// 异步完成后用请求代数丢弃旧响应；切 Agent 不会被旧页面查询覆盖。
     pub(in crate::app) fn reload_usage(&mut self, scan: bool, cx: &mut Context<Self>) {
+        if self.agent_settings.value.is_none()||self.agent_settings.dashboard_indices().is_empty() {
+            self.dashboard.revision=self.dashboard.revision.wrapping_add(1);self.dashboard.task.take();
+            self.dashboard.data=None;self.dashboard.loading=false;self.dashboard.error=None;cx.notify();return;
+        }
         if self.dashboard.route==Route::Calls {self.load_calls(false,cx);return}
         if self.dashboard.route==Route::Sources {self.load_sources(cx);return}
         if self.dashboard.route==Route::Settings {self.dashboard.revision+=1;self.dashboard.task.take();self.dashboard.error=None;self.dashboard.loading=false;self.load_usage_settings(cx);return}
@@ -166,7 +172,8 @@ impl Shell {
     }
 
     /// 客户端变更立即清除旧客户端快照，保留每客户端自己的窗口选择。
-    fn select_usage_client(&mut self, index: usize, cx: &mut Context<Self>) {
+    pub(in crate::app) fn select_usage_client(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index!=0&&!self.agent_settings.dashboard_indices().contains(&index) {return}
         if self.dashboard.client == index { return }
         if (1..=3).contains(&index)&&self.dashboard.usage_settings.physical_client!=index {self.dashboard.usage_settings.reset();self.dashboard.usage_settings.physical_client=index;}
         self.dashboard.client = index;
@@ -204,21 +211,32 @@ impl Shell {
         }));
         let agents = div().flex().items_center().rounded(px(16.)).bg(cx.theme().secondary).p_1()
             .children([self.t("dashboard.all"), "Codex".into(), "Claude Code".into(), "Grok".into(), "WorkBuddy".into()]
-                .into_iter().enumerate().map(|(index, label)| {
+                .into_iter().enumerate().filter(|(index,_)|*index==0||self.agent_settings.dashboard_indices().contains(index)).map(|(index, label)| {
                     Button::new(("usage-client", index)).ghost().accessibility_label(label.clone()).h(px(23.)).px(px(6.))
                         .child(div().text_size(px(12.)).font_weight(FontWeight::SEMIBOLD)
                             .text_color(if self.dashboard.client == index { cx.theme().foreground } else { cx.theme().muted_foreground }).child(label))
                         .when(self.dashboard.client == index, |button| button.font_weight(FontWeight::BOLD).text_color(cx.theme().foreground))
                         .on_click(cx.listener(move |this, _, _, cx| this.select_usage_client(index, cx)))
                 }));
+        if self.agent_settings.value.is_none() {
+            return div().w_full().flex().flex_col().gap_4()
+                .child(self.t(if self.agent_settings.loading {"dashboard.loading"}else{"error.monitor.settingsReadFailed"}))
+                .when(!self.agent_settings.loading,|page|page.child(Button::new("agent-settings-retry").outline().label(self.t("dashboard.retry"))
+                    .on_click(cx.listener(|this,_,_,cx|this.load_agent_settings(cx)))))
+                .into_any_element();
+        }
+        let empty=self.agent_settings.dashboard_indices().is_empty();
         div().id("dashboard").test_support().w_full().flex().flex_col().gap_5()
             .child(div().w_full().flex().flex_wrap().items_center().justify_between().gap_3().px_5().pt(px(10.4)).pb(px(8.8))
-                .border_b_1().border_color(cx.theme().border).bg(cx.theme().tab_bar).child(tabs).child(agents))
+                .border_b_1().border_color(cx.theme().border).bg(cx.theme().tab_bar).child(tabs).when(!empty,|bar|bar.child(agents)))
+            .when(empty,|column|column.child(self.panel(cx)
+                .child(div().text_size(px(20.)).font_weight(FontWeight::SEMIBOLD).child(self.t("shell.noEnabledAgents.title")))
+                .child(self.t("shell.noEnabledAgents.body"))))
             .when(self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
                 .when_some(self.dashboard.progress.as_ref(), |line, progress| line.child(format!(" {} / {} · {} {} · {} {}",
                     progress.roots_completed, progress.roots_total, progress.files_scanned, self.t("dashboard.files"), progress.calls_added, self.t("dashboard.calls"))))))
-            .when(self.dashboard.route!=Route::Settings && (self.dashboard.error.is_some() || self.dashboard.scan_error.is_some()), |column| column.child(self.usage_error(cx)))
-            .when(self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
+            .when(!empty&&self.dashboard.route!=Route::Settings && (self.dashboard.error.is_some() || self.dashboard.scan_error.is_some()), |column| column.child(self.usage_error(cx)))
+            .when(!empty&&self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
                 Route::Calls => self.usage_calls(window,cx),
                 Route::Sources => self.usage_sources(cx),
                 Route::Settings=>self.usage_settings_page(cx),
@@ -350,7 +368,7 @@ impl Shell {
     }
 
     /// 质量标记只投影 core 的事实元数据，不推断缺失数据为完整覆盖。
-    fn quality_badge(&self, label: String, color: gpui_kit::Hsla) -> AnyElement {
+    pub(in crate::app) fn quality_badge(&self, label: String, color: gpui_kit::Hsla) -> AnyElement {
         div().px(px(10.)).h(px(20.)).flex().items_center().rounded_full().border_1().border_color(color.opacity(0.4))
             .bg(color.opacity(0.10)).text_color(color).text_size(px(11.)).font_weight(FontWeight::SEMIBOLD)
             .child(label).into_any_element()

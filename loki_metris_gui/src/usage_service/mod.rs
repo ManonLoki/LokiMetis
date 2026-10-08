@@ -7,6 +7,7 @@ mod sources;
 mod background;
 mod discovery;
 mod settings;
+mod agents;
 #[cfg(test)]
 mod source_tests;
 
@@ -47,6 +48,7 @@ struct ServiceContext {
     status: Mutex<ScanStatus>,
     writer: ScanCoordinator,
     settings:Arc<settings::SettingsStore>,
+    agents:Arc<agents::AgentSettingsStore>,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -83,9 +85,10 @@ impl UsageService {
         let discovery=Arc::new(loki_metris_core::RootDiscoveryCoordinator::default());
         let background=Arc::new(background::BackgroundTaskOwner::with_runtime(discovery.clone(),runtime.handle().clone()));
         let settings=Arc::new(settings::SettingsStore::new(directory.join("usage-settings.json"),background.clone()));
+        let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone()));
         let context = Arc::new(ServiceContext { directory, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            settings });
+            settings, agents });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();

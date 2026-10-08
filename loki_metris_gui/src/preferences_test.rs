@@ -1,6 +1,6 @@
 //! 偏好解析和后台退出刷新回归使用独立临时文件。
 
-use super::{LanguageChoice, Preferences, ThemeChoice, load_from};
+use super::{LanguageChoice, Preferences, ThemeChoice, PreferencePatch, load_from};
 
 /// 三态主题、语言与设备侧栏选择可以原样往返。
 #[test]
@@ -24,11 +24,10 @@ fn writer_flushes_latest_snapshot_after_event_loop() {
     std::fs::create_dir(&directory).expect("创建测试临时目录");
     let file = directory.join("preferences.txt");
     let (_, writer) = load_from(Some(file.clone()));
-    for index in 0..32 {
-        writer.save(&Preferences { collapsed: index % 2 == 0, ..Preferences::default() });
-    }
-    let expected = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::English, collapsed: true, ..Preferences::default() };
-    writer.save(&expected);
+    let receipt=writer.mutate(PreferencePatch::Theme(ThemeChoice::Dark)).unwrap();
+    for index in 0..32 {writer.save_window(Some([30.,40.,1200.+index as f32,800.]),false);}
+    drop(receipt);drop(writer.mutate(PreferencePatch::Language(LanguageChoice::English)).unwrap());
+    let expected = Preferences {theme:ThemeChoice::Dark,language:LanguageChoice::English,bounds:Some([30.,40.,1231.,800.]),..Preferences::default()};
     writer.finish();
     assert_eq!(Preferences::decode(&std::fs::read_to_string(&file).expect("后台已写入")), expected);
     std::fs::remove_dir_all(directory).expect("清理测试临时目录");
@@ -39,4 +38,23 @@ fn writer_flushes_latest_snapshot_after_event_loop() {
 fn explicit_language_overrides_system_detection() {
     assert_eq!(Preferences { language: LanguageChoice::Chinese, ..Preferences::default() }.locale(), "zh-CN");
     assert_eq!(Preferences { language: LanguageChoice::English, ..Preferences::default() }.locale(), "en-US");
+}
+
+/// 真实写入失败通过回执报告，后续恢复目录后保存不能继承失败主题。
+#[test]
+fn failed_patch_does_not_change_the_committed_baseline() {
+    let root=tempfile::tempdir().unwrap();let file=root.path().join("preferences.txt");
+    std::fs::create_dir(&file).unwrap();let (_,writer)=load_from(Some(file.clone()));
+    let failed=writer.mutate(PreferencePatch::Theme(ThemeChoice::Dark)).unwrap();
+    assert!(failed.blocking_recv().unwrap().is_err());std::fs::remove_dir(&file).unwrap();
+    writer.mutate(PreferencePatch::Language(LanguageChoice::Chinese)).unwrap().blocking_recv().unwrap().unwrap();
+    writer.finish();let saved=Preferences::decode(&std::fs::read_to_string(file).unwrap());
+    assert_eq!(saved.theme,ThemeChoice::System);assert_eq!(saved.language,LanguageChoice::Chinese);
+}
+
+/// 生产缺少有效持久路径时必须失败，不把仅存在进程内的值报告成已保存。
+#[test]
+fn unavailable_storage_returns_a_failed_receipt() {
+    let (_,writer)=load_from(None);
+    assert!(writer.mutate(PreferencePatch::Theme(ThemeChoice::Dark)).unwrap().blocking_recv().unwrap().is_err());writer.finish();
 }

@@ -7,6 +7,7 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 mod app;
 mod backend;
 mod usage_service;
+mod monitor;
 mod assets;
 mod preferences;
 mod logging;

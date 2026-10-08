@@ -58,7 +58,8 @@ async fn startup_cleanup_at(context:Arc<super::super::ServiceContext>,shutdown:&
 
 /// 仅升级后 NeedsRescan 的已有物理索引回补近30日，普通 Ready 启动不重复 initial 扫描。
 async fn refresh_upgraded_indexes(context:Arc<super::super::ServiceContext>,shutdown:&mut super::super::background::BackgroundTaskShutdown) {
-    for client in super::super::query::physical_clients() {
+    let Ok((clients, _))=context.agents.dashboard_selection().await else {return};
+    for client in clients {
         if shutdown.is_cancelled() {return}
         let path=source_client_usage_index_path(&context.directory,client);if !path.is_file() {continue}
         let required=match LocalIndex::open_read_only_in_app_data(&source_client_app_data_dir(&context.directory,client),client.parser_version()).await {

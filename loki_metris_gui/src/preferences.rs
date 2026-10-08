@@ -97,28 +97,61 @@ impl Preferences {
     }
 }
 
-/// 工作线程只收到合并信号，始终从内存读取最新快照，磁盘写入不持有 UI 状态锁。
+/// 明确偏好逐字段提交，不能携带可能过时的窗口或其他偏好快照。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice) }
+
+/// 几何属于可合并高频事件，不拥有主题与语言字段。
+#[derive(Clone, Copy)]
+struct WindowGeometry {bounds:Option<[f32;4]>,maximized:bool}
+
+/// 几何只占一个待处理信号，不能挤满明确偏好命令的队列。
+#[derive(Default)]
+struct WindowUpdates { latest:Option<WindowGeometry>, queued:bool }
+
+/// 有界命令队列保留真实回执；窗口事件仅发送合并信号。
+enum Command {
+    Window,
+    Mutate(PreferencePatch,tokio::sync::oneshot::Sender<Result<PreferencePatch,&'static str>>),
+    Stop,
+}
+
+/// 只有测试可使用显式内存存储，生产缺路径不能报告落盘成功。
+enum Storage { File(PathBuf), Unavailable, #[cfg(test)] Memory }
+
+/// 工作线程拥有唯一已提交快照，写入成功后才更新基线并通知 UI。
 #[derive(Clone)]
 pub struct Writer {
-    value: Arc<Mutex<Preferences>>,
-    sender: mpsc::SyncSender<Option<()>>,
+    geometry: Arc<Mutex<WindowUpdates>>,
+    sender: mpsc::SyncSender<Command>,
     thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 impl Writer {
-    /// 极短内存更新后非阻塞通知后台；已有信号时自动合并为最新快照。
-    pub fn save(&self, value: &Preferences) {
-        *self.value.lock().expect("偏好内存锁损坏") = value.clone();
-        let _ = self.sender.try_send(Some(()));
+    /// 明确提交要么获得独立回执，要么同步报告队列不可用，绝不静默丢弃。
+    pub fn mutate(&self,patch:PreferencePatch)->Result<tokio::sync::oneshot::Receiver<Result<PreferencePatch,&'static str>>,&'static str> {
+        let (tx,rx)=tokio::sync::oneshot::channel();
+        self.sender.try_send(Command::Mutate(patch,tx)).map_err(|_|"preference_writer_unavailable")?;Ok(rx)
+    }
+
+    /// 高频窗口变化只合并几何；最后退出命令仍会刷新最新值。
+    pub fn save_window(&self,bounds:Option<[f32;4]>,maximized:bool) {
+        let mut updates=self.geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        updates.latest=Some(WindowGeometry{bounds,maximized});
+        if !updates.queued {updates.queued=true;if self.sender.try_send(Command::Window).is_err() {updates.queued=false;}}
     }
 
     /// 原生应用进入不可取消退出阶段后，发送结束信号并等待最后快照完成写入。
     pub fn finish(&self) {
-        let _ = self.sender.send(None);
         if let Some(thread) = self.thread.lock().expect("偏好线程锁损坏").take() {
+            let _ = self.sender.send(Command::Stop);
             let _ = thread.join();
         }
     }
+
+    /// 测试明确注入初始偏好，与 Shell 的已确认基线保持一致。
+    #[cfg(test)]
+    pub(crate) fn in_memory(preferences:Preferences)->Self {start_writer(Storage::Memory,preferences)}
 }
 
 /// 路径采用各平台常见用户目录，没有可用用户根时只保留进程内偏好。
@@ -153,21 +186,38 @@ pub(crate) fn load_from(path: Option<PathBuf>) -> (Preferences, Writer) {
         fs::File::open(path).ok()?.take(4097).read_to_string(&mut text).ok()?;
         (text.len() <= 4096).then(|| Preferences::decode(&text))
     }).unwrap_or_default();
-    let value = Arc::new(Mutex::new(preferences.clone()));
-    let worker_value = value.clone();
-    let (sender, receiver) = mpsc::sync_channel::<Option<()>>(1);
+    let writer=start_writer(path.map(Storage::File).unwrap_or(Storage::Unavailable),preferences.clone());
+    (preferences,writer)
+}
+
+/// 单线程读改写字段与几何，失败不修改已提交偏好，不会让后续命令继承失败值。
+fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
+    let geometry=Arc::new(Mutex::new(WindowUpdates::default()));let worker_geometry=geometry.clone();
+    let (sender, receiver) = mpsc::sync_channel::<Command>(16);
     let thread = thread::spawn(move || {
-        while let Ok(signal) = receiver.recv() {
-            let latest = worker_value.lock().expect("偏好内存锁损坏").clone();
-            if let Some(path) = &path {
-                if let Err(error) = write(path, &latest.encode()) {
-                    tracing::warn!(event = "preference_save_failed", error_kind = ?error.kind());
-                }
+        while let Ok(command) = receiver.recv() {
+            let mut next=committed.clone();
+            let geometry={let mut updates=worker_geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);if matches!(&command,Command::Window) {updates.queued=false;}updates.latest};
+            if let Some(geometry)=geometry {
+                next.bounds=geometry.bounds;next.maximized=geometry.maximized;
             }
-            if signal.is_none() { break }
+            if let Command::Mutate(patch,_)=&command {match patch {
+                PreferencePatch::Theme(theme)=>next.theme=*theme,PreferencePatch::Language(language)=>next.language=*language,
+            }}
+            let result=match &storage {
+                Storage::File(path)=>write(path,&next.encode()),
+                Storage::Unavailable=>Err(std::io::ErrorKind::NotFound.into()),
+                #[cfg(test)] Storage::Memory=>Ok(()),
+            };
+            if result.is_ok() {committed=next;}
+            match command {
+                Command::Mutate(patch,reply)=>{let _=reply.send(result.map(|_|patch).map_err(|_|"preference_save_failed"));},
+                Command::Stop=>break,
+                Command::Window=>{if let Err(error)=result {if matches!(storage,Storage::File(_)) {tracing::warn!(event="preference_save_failed",error_kind=?error.kind());}}},
+            }
         }
     });
-    (preferences, Writer { value, sender, thread: Arc::new(Mutex::new(Some(thread))) })
+    Writer { geometry, sender, thread: Arc::new(Mutex::new(Some(thread))) }
 }
 
 /// 同目录临时文件原子替换，拒绝目标符号链接并清理失败临时文件。
@@ -193,12 +243,12 @@ fn write(path: &PathBuf, text: &str) -> std::io::Result<()> {
     result
 }
 
-/// 拒绝任何已存在的符号链接或非目录祖先，不跟随外部路径读写偏好。
+/// 父路径必须解析为目录，允许 macOS /var 系统别名；目标文件仍单独拒绝链接。
 fn safe_parent(path: &std::path::Path) -> std::io::Result<()> {
     let mut current = PathBuf::new();
     for component in path.parent().expect("偏好文件具有父目录").components() {
         current.push(component.as_os_str());
-        match fs::symlink_metadata(&current) {
+        match fs::metadata(&current) {
             Ok(metadata) if !metadata.is_dir() => return Err(std::io::Error::other("preference ancestors must be real directories")),
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),
             _ => {}

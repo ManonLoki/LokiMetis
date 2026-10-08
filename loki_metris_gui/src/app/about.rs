@@ -31,7 +31,7 @@ impl Shell {
     }
 
     /// 候选构建嵌入已经验证的双语条目，普通构建保持真实空状态且不读取磁盘或网络。
-    fn release_notes_panel(&self, cx: &Context<Self>) -> AnyElement {
+    pub(in crate::app) fn release_notes_panel(&self, cx: &Context<Self>) -> AnyElement {
         let notes = crate::release_notes::RELEASE_NOTES;
         div().id("release-notes").test_support().w_full().min_w_0().flex_shrink_0().flex().flex_col().gap_4().p_6().rounded_lg()
             .border_1().border_color(cx.theme().border).bg(cx.theme().secondary)

@@ -22,6 +22,8 @@ pub enum Page {
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
+    agent_settings:settings::AgentSettingsState,
+    preference_save:settings::PreferenceSaveState,
     dashboard: dashboard::Dashboard,
     page: Page,
     viewport_width: f32,
@@ -61,7 +63,7 @@ impl Shell {
         let activation = cx.observe_window_activation(window, |this,window,cx|this.update_window_visibility(window,cx));
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let locale = preferences.locale();
-        let mut value = Self { page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { agent_settings:Default::default(), preference_save:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             show_update_status: false, show_release_notes: false,
         };
@@ -83,7 +85,7 @@ impl Shell {
         if !self.preferences.maximized {
             self.preferences.bounds = Some(window_geometry(window.bounds(), window.viewport_size()));
         }
-        self.writer.save(&self.preferences);
+        self.writer.save_window(self.preferences.bounds,self.preferences.maximized);
     }
 
     /// 当前 locale 决定中英文展示名称，版本始终来自实际 Cargo 包。
@@ -158,29 +160,21 @@ impl Shell {
         gpui_kit::component::set_locale(if self.locale == "zh-CN" { "zh-CN" } else { "en" });
     }
 
-    /// 主题按钮只修改设备偏好，并立即应用当前窗口外观。
+    /// 主题只有收到真实落盘回执后才应用当前窗口外观。
     fn select_theme(&mut self, theme: ThemeChoice, window: &Window, cx: &mut Context<Self>) {
-        self.preferences.theme = theme;
-        self.apply_theme(window, cx);
-        self.writer.save(&self.preferences);
-        cx.notify();
+        if self.preferences.theme!=theme {self.save_preference(crate::preferences::PreferencePatch::Theme(theme),window,cx);}
     }
 
     /// 语言切换同步应用和组件词典，同时保留当前页面。
-    fn select_language(&mut self, language: LanguageChoice, cx: &mut Context<Self>) {
-        self.preferences.language = language;
-        self.locale = self.preferences.locale();
-        crate::native::set_language(self.locale, cx);
-        self.apply_language();
-        self.writer.save(&self.preferences);
-        cx.refresh_windows();
-        cx.notify();
+    fn select_language(&mut self, language: LanguageChoice, window:&Window,cx: &mut Context<Self>) {
+        if self.preferences.language!=language {self.save_preference(crate::preferences::PreferencePatch::Language(language),window,cx);}
     }
 
     /// 页面切换不创建新的数据副本或重置设备偏好。
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();}
         self.page = page;
+        if page==Page::Settings {self.load_agent_settings(cx);}
         if page==Page::Dashboard {self.reload_usage(false,cx);}
         cx.notify();
     }
@@ -254,7 +248,7 @@ impl Render for Shell {
         div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_size(px(14.)).text_color(cx.theme().foreground)
             .child(self.sidebar(cx))
             .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col()
-                .when(self.page != Page::Dashboard, |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
+                .when(self.page == Page::About, |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
                     .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))

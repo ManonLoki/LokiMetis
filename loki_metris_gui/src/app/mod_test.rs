@@ -14,14 +14,14 @@ impl Drop for FinishWriter {
 /// 通过生产窗口入口建立固定大小、固定语言和隔离内存偏好的壳层。
 pub(super) fn open_shell(cx: &mut TestAppContext, width: f32, height: f32) -> (AnyWindowHandle, Entity<Shell>, FinishWriter) {
     cx.update(gpui_kit::init);
-    let (_, writer) = crate::preferences::load_from(None);
-    let finish = FinishWriter(writer.clone());
     let preferences = Preferences { language: LanguageChoice::English, theme: ThemeChoice::Light, ..Preferences::default() };
+    let writer=crate::preferences::Writer::in_memory(preferences.clone());
+    let finish = FinishWriter(writer.clone());
     let (handle, shell) = cx.update(|cx| {
         gpui_kit::open_window(WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::new(point(px(0.), px(0.)), size(px(width), px(height))))),
             ..Default::default()
-        }, cx, |window, cx| cx.new(|cx| Shell::new(preferences, writer, window, cx))).expect("创建真实布局测试窗口")
+        }, cx, |window, cx| cx.new(|cx| {let mut shell=Shell::new(preferences, writer, window, cx);shell.agent_settings.value=Some(crate::monitor::settings::MonitorSettings{enabled_ai_tools:loki_metris_core::public_monitor_ai_tools().collect(),..Default::default()});shell})).expect("创建真实布局测试窗口")
     });
     (handle, shell, finish)
 }
