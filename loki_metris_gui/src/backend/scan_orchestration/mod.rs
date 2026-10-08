@@ -9,6 +9,32 @@ use loki_metris_core::{LocalScanOutput, LocalScanProgress, SourceClientKind, Sca
     ScanKind, ScanStartOrigin, RetentionDays, SourceRootSummary, build_indexed_source_roots};
 use crate::backend::local_index::LocalIndex;
 
+/// 读取单一物理来源的有界摘要；全新安装不创建或迁移派生库。
+pub(crate) async fn sources(directory:&std::path::Path,client:SourceClientKind)->Result<Vec<SourceRootSummary>,String> {
+    if client==SourceClientKind::WorkBuddy {return Err("usage_client_unsupported".into())}
+    let file=directory.join(loki_metris_core::USAGE_INDEX_FILE_NAME);
+    let exists=tokio::task::spawn_blocking(move||file.try_exists()).await.map_err(|_|"usage_read_failed")?
+        .map_err(|_|"usage_read_failed")?;
+    if !exists {return Ok(Vec::new())}
+    let provider=match client {SourceClientKind::Codex=>loki_metris_core::ProviderKind::RolloutJsonl,
+        SourceClientKind::ClaudeCode=>loki_metris_core::ProviderKind::ClaudeTranscriptJsonl,
+        SourceClientKind::GrokBuildCli=>loki_metris_core::ProviderKind::GrokSessionJsonl,
+        SourceClientKind::WorkBuddy=>return Err("usage_client_unsupported".into())};
+    load_source_root_summaries_for_parser(directory,client.parser_version(),provider.source_environment_label()).await
+}
+
+/// 单根重建共享既有强制 generation 流程，旧代只在新代提交后替换。
+pub(crate) async fn reindex(directory:std::path::PathBuf,client:SourceClientKind,retention:RetentionDays,
+    request:loki_metris_core::SourceRootReindexRequest,cancellation:ScanCancellation,
+    progress:Box<dyn FnMut(LocalScanProgress)+Send>)->Result<LocalScanOutput,String> {
+    match client {
+        SourceClientKind::Codex=>run::run_reindex::<client::CodexClient>(directory,retention,None,request,cancellation,progress).await,
+        SourceClientKind::ClaudeCode=>run::run_reindex::<client::ClaudeClient>(directory,retention,None,request,cancellation,progress).await,
+        SourceClientKind::GrokBuildCli=>run::run_reindex::<client::GrokClient>(directory,retention,None,request,cancellation,progress).await,
+        SourceClientKind::WorkBuddy=>Err("usage_client_unsupported".into()),
+    }
+}
+
 /// 显式注入保留策略和许可令牌，保留停用根、别名与来源 generation 的历史语义。
 pub(crate) async fn scan(directory: std::path::PathBuf, client: SourceClientKind,
     retention: RetentionDays, origin: ScanStartOrigin, cancellation: ScanCancellation,

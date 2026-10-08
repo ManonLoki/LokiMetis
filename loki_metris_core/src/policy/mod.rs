@@ -499,6 +499,16 @@ pub fn merge_coverage_reports(discovery: CoverageReport, scan: &CoverageReport) 
     }
 }
 
+/// 单根重建没有复核其余根，只能保守扩展旧覆盖，不能清除全客户端的既有缺口。
+pub fn extend_coverage_with_partial_scan(previous:CoverageReport,scan:&CoverageReport)->CoverageReport {
+    let mut result=merge_coverage_reports(previous.clone(),scan);
+    result.roots_discovered=previous.roots_discovered.max(scan.roots_discovered);
+    result.permission_denied_count=previous.permission_denied_count.max(scan.permission_denied_count);
+    result.skipped_count=previous.skipped_count.max(scan.skipped_count);
+    result.warning_count=previous.warning_count.max(scan.warning_count);
+    result
+}
+
 /// 返回清空索引后不声称已完整覆盖的默认覆盖报告。
 pub fn empty_coverage() -> CoverageReport {
     CoverageReport {

@@ -179,7 +179,9 @@ impl Shell {
 
     /// 页面切换不创建新的数据副本或重置设备偏好。
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
+        if self.page != page {self.dashboard.sources.reset();}
         self.page = page;
+        if page==Page::Dashboard {self.reload_usage(false,cx);}
         cx.notify();
     }
 
@@ -254,6 +256,7 @@ impl Render for Shell {
                 .when(self.page != Page::Dashboard, |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
                     .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
+            .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
 
     }
 }

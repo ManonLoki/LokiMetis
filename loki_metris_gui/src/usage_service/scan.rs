@@ -8,11 +8,13 @@ use std::sync::Arc;
 /// 同一产品全局 writer 许可持有到扫描和覆盖状态提交均完成。
 pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellation: ScanCancellation) -> Result<(), &'static str> {
     let periodic = intent.origin == loki_metris_core::ScanStartOrigin::PeriodicAutomatic;
-    let _permit = if periodic {
+    let permit = if periodic {
         match context.writer.try_start() { Ok(permit) => permit, Err(_) => return Ok(()) }
     } else {
         context.writer.start_when_available().await.map_err(|_| "usage_scan_busy")?
     };
+    if cancellation.is_cancelled() {return Err("usage_scan_cancelled")}
+    let cancellation=permit.cancellation_token();
     let _finish = Finish(context.clone());
     {
         let mut state = context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -23,6 +25,7 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
     for client in clients {
         if cancellation.is_cancelled() { return fail(&context, "usage_scan_cancelled") }
         if client == SourceClientKind::WorkBuddy { continue }
+        {let mut state=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);state.client=Some(client);state.progress=None;}
         let progress_state = context.clone();
         let output = scan_orchestration::scan(source_client_app_data_dir(&context.directory, client), client,
             retention, intent.origin, cancellation.clone(), Box::new(move |progress| {

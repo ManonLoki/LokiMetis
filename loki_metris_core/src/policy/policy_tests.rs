@@ -479,3 +479,13 @@ fn supports_primary_source_root_only_for_codex() {
         Err(PrimarySourceRootSupportError::NotSupported)
     );
 }
+
+/// 单根成功不能清除另一根的权限缺口；重复重建也不得累计同一缺口。
+#[test]
+fn partial_reindex_preserves_other_root_coverage_gaps() {
+    let mut prior=empty_coverage();prior.roots_discovered=2;prior.roots_scanned=2;prior.permission_denied_count=1;prior.skipped_count=3;
+    let mut one=empty_coverage();one.state=CoverageState::Complete;one.roots_discovered=1;one.roots_scanned=1;
+    let first=extend_coverage_with_partial_scan(prior.clone(),&one);
+    assert_eq!(first,prior);assert_eq!(extend_coverage_with_partial_scan(first,&one),prior);
+    one.state=CoverageState::Cancelled;assert_eq!(extend_coverage_with_partial_scan(prior,&one).state,CoverageState::Cancelled);
+}

@@ -246,3 +246,32 @@ fn calls_columns_keep_time_project_and_token_bounds_separate(cx:&mut TestAppCont
         assert!(window.try_find("call-0-6").is_some());assert!(window.try_find("calls-count").is_some());
     }).unwrap();
 }
+
+/// 来源弹窗从真实行按钮打开，取消不改登记；离页重新挂载清除局部反馈与草稿。
+#[gpui_kit::test]
+fn sources_dialog_is_local_and_scan_busy_blocks_new_row_actions(cx:&mut TestAppContext) {
+    use loki_metris_core::*;
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    let root=SourceRootSummary{id:"codex-root-a".into(),alias:"Codex fixture".into(),enabled:true,
+        activation_state:RootActivationState::Ready,is_primary:true,discovery_label:String::new(),
+        discovery_code:SourceDiscoveryCode::DefaultRoot,file_count:7,skipped_count:0,error_count:0,duplicate_count:0};
+    shell.update(cx,|shell,cx| {shell.dashboard.route=dashboard::Route::Sources;shell.dashboard.sources.roots=Some(vec![root]);cx.notify();});
+    cx.update_window(handle,|_,window,cx| {
+        window.render_frame(cx);window.click("source-rename-0",cx);window.render_frame(cx);
+        assert!(shell.read(cx).dashboard.sources.modal.is_some());
+        window.click("sources-dialog-confirm",cx);
+        assert!(shell.read(cx).dashboard.sources.modal.is_some(),"未修改别名不能提交");
+        window.click("sources-dialog-cancel",cx);window.render_frame(cx);
+        assert!(shell.read(cx).dashboard.sources.modal.is_none());
+        assert_eq!(shell.read(cx).dashboard.sources.roots.as_ref().unwrap()[0].alias,"Codex fixture");
+        shell.update(cx,|shell,cx| {shell.dashboard.scanning=true;cx.notify();});
+        window.render_frame(cx);window.click("source-remove-0",cx);
+        assert!(shell.read(cx).dashboard.sources.modal.is_none(),"扫描忙时不能新开行操作");
+        shell.update(cx,|shell,cx| {shell.dashboard.scanning=false;cx.notify();});
+        window.render_frame(cx);window.click("source-remove-0",cx);
+        assert!(shell.read(cx).dashboard.sources.modal.is_some());
+        window.click("sources-dialog-cancel",cx);window.click("dashboard-overview",cx);
+        assert!(shell.read(cx).dashboard.sources.roots.is_none());
+        assert!(shell.read(cx).dashboard.sources.feedback.is_none());
+    }).unwrap();
+}

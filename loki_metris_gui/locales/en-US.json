@@ -242,5 +242,158 @@
     "refresh_retained": "Old results are hidden. Retry with the current filters and sort.",
     "retry_next": "Retry next page",
     "retry_refresh": "Retry refresh"
+  },
+  "sources": {
+    "page": {
+      "title": "Data sources",
+      "description": "Check local data directories and scan coverage.",
+      "addRoot": "Add data directory",
+      "loading": "Loading data-source status",
+      "updatedTitle": "Data directory updated",
+      "updateErrorTitle": "Unable to update the data-root index",
+      "updateErrorBody": "The data-root update failed. Original {{client}} files were not modified.",
+      "refreshError": "Source refresh failed. The previous directories remain visible; please retry."
+    },
+    "background": {
+      "runningTitle": "Background Token statistics running",
+      "runningBody": "Updating local {{client}} usage. The page refreshes automatically when done.",
+      "failedTitle": "Background Token statistics did not finish",
+      "failedBody": "{{client}} will retry during the next scheduled cycle."
+    },
+    "empty": {
+      "title": "No local {{client}} data directory found",
+      "action": "Discover data directories"
+    },
+    "primary": {
+      "title": "Codex primary data directory",
+      "badge": "Local primary directory",
+      "description": "A verified Codex data directory can be the primary directory. auth.json is never read.",
+      "label": "Codex primary data directory",
+      "duplicate": "{{alias}} (ID {{id}})",
+      "empty": "No enabled data directories",
+      "placeholder": "Use this process’s Codex context",
+      "clear": "Clear primary directory selection"
+    },
+    "scan": {
+      "title": "Scan controls",
+      "state": {
+        "cancelled": "Cancelled",
+        "completed": "Completed",
+        "failed": "Failed",
+        "idle": "Idle",
+        "running": "Scanning"
+      },
+      "quick": "Quick scan",
+      "fullDevice": "Full-device discovery",
+      "cancel": "Cancel scan",
+      "filesVisited": "Files visited: {{count}}",
+      "callsIndexed": "Calls indexed: {{count}}"
+    },
+    "discovery": {
+      "title": "Data source discovery",
+      "description": "Checks local volumes, directory names, and file names only. JSONL is not opened before you confirm.",
+      "startUser": "Quick scan",
+      "startFull": "Full-disk scan",
+      "cancel": "Cancel scan",
+      "add": "Add",
+      "volumes": "Volumes completed: {{completed}} / {{total}}",
+      "directories": "Directories checked: {{count}}",
+      "fileNames": "File names checked: {{count}}",
+      "candidates": "Candidates: {{count}}",
+      "partialTitle": "Discovery coverage is partial",
+      "failedTitle": "Discovery failed",
+      "failedBody": "Stable error code: {{code}}. Fix the environment and start discovery again.",
+      "strategy": {
+        "windowsSearch": "Windows Search",
+        "macOsSpotlight": "Spotlight",
+        "metadataTraversal": "File-name traversal"
+      },
+      "platform": {
+        "other": "This platform uses data source discovery across confirmed local directories."
+      },
+      "scope": {
+        "userPriority": "Current scope: platform priority directories",
+        "fullLocalVolumes": "Current scope: all confirmed local volumes",
+        "manualSubtree": "Current scope: manually selected folder and its subtree"
+      },
+      "addManualClient": "Add {{client}} data directory",
+      "evidence": {
+        "codexRollout": "Codex rollout",
+        "claudeTranscript": "Claude transcript",
+        "claudeSubagent": "Claude subagent",
+        "grokSessionUpdates": "Grok updates.jsonl"
+      },
+      "state": {
+        "idle": "Idle",
+        "running": "Running",
+        "complete": "Scan complete",
+        "partial": "Partial",
+        "cancelled": "Cancelled",
+        "failed": "Failed"
+      }
+    },
+    "dialog": {
+      "renameTitle": "Rename data directory",
+      "renameLabel": "New data-root alias",
+      "removeTitle": "Remove data-root index",
+      "removeBody": "Only this app’s index for “{{alias}}” will be removed. Original {{client}} files will not be deleted.",
+      "removeConfirm": "Remove index",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "table": {
+      "alias": "Data-root alias",
+      "discovery": "Discovery method",
+      "files": "Files",
+      "skipped": "Skipped",
+      "errors": "Errors",
+      "duplicates": "Duplicate sources",
+      "lastScan": "Last scan",
+      "actions": "Actions",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "primary": "Primary data directory",
+      "activation": {
+        "confirmedUnindexed": "Waiting for background statistics",
+        "indexing": "Computing statistics",
+        "validationFailed": "Candidate validation failed"
+      },
+      "enable": "Enable",
+      "disable": "Disable",
+      "reindex": "Reindex",
+      "rename": "Rename",
+      "remove": "Remove index",
+      "toggleAria": "{{action}} {{alias}}",
+      "reindexAria": "Reindex {{alias}}",
+      "renameAria": "Rename {{alias}}",
+      "removeAria": "Remove the index for {{alias}}",
+      "empty": "No data directories are registered.",
+      "neverScanned": "No records yet"
+    },
+    "messages": {
+      "sourceAddCancelled": "Adding a data directory was cancelled.",
+      "sourceRegistered": "The data directory was registered. Run a quick scan to build its index.",
+      "sourceAlreadyRegistered": "This directory is already a data source. Its alias, enabled state, and primary selection were preserved.",
+      "sourceManualDeepSearchStarted": "The selected folder is not a valid data root; a deep search under it has started.",
+      "sourceManualDeepSearchEmpty": "No data roots matching the current client signature were found under the selected folder.",
+      "sourceEnabled": "The data directory is enabled and will be included in the next quick scan.",
+      "sourceDisabled": "The data directory is disabled. Its current index is kept and original files were not modified.",
+      "sourceRenamed": "The data-root alias was updated.",
+      "sourceRemoved": "The data directory was removed from this app’s index. Original files were not modified.",
+      "primaryChanged": "The Codex primary data directory changed.",
+      "primaryAlreadySelected": "This directory is already the Codex primary data directory.",
+      "primaryCleared": "The primary data directory selection was cleared.",
+      "primaryNotSet": "No Codex primary data directory is selected.",
+      "reindexed": "The local index was updated."
+    },
+    "discoveryLabels": {
+      "defaultRoot": "Default data directory",
+      "codexEnvironment": "Current CODEX_HOME",
+      "claudeEnvironment": "Current CLAUDE_CONFIG_DIR",
+      "userRegistered": "Registered by user",
+      "fullDevice": "Full-device discovery",
+      "metadataDiscovery": "Data source discovery",
+      "grokEnvironment": "Current GROK_BUILD_HOME"
+    }
   }
 }

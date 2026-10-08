@@ -150,7 +150,7 @@ pub use policy::{
     ensure_scan_start_allowed, ensure_single_verified_source_root,
     extract_single_verified_source_root, initial_coverage, is_safe_usage_filter_id,
     list_scan_source_clients, list_workbuddy_scan_sources, local_index_scan_policy,
-    local_index_scan_policy_with_retention, merge_coverage_reports, normalize_source_root_alias,
+    local_index_scan_policy_with_retention, merge_coverage_reports, extend_coverage_with_partial_scan, normalize_source_root_alias,
     retain_ingestable_calls, safe_model_label, safe_root_label, safe_short_value,
     safe_technical_label, scan_start_access_error_message, source_file_needs_visit,
     source_root_add_outcome, source_root_alias_from_path, source_root_mutation_feedback,

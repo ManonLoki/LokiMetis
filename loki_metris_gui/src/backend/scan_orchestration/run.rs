@@ -363,6 +363,9 @@ pub(super) async fn run_reindex<C: ScanClient>(
             .await
             .map_err(C::map_local_error)?;
     }
+    // 单根重建也必须完成首次激活；只认领目标，不能带入其它新发现的目录。
+    index.claim_discovered_roots_for_current_scan(&[request.root_id().to_owned()])
+        .await.map_err(C::map_local_error)?;
     let started_at_epoch_ms = now_epoch_ms();
     let has_current_usage = index
         .has_current_parser_usage()
@@ -401,6 +404,11 @@ pub(super) async fn run_reindex<C: ScanClient>(
     .await
     .map_err(C::map_local_error)?;
     let merged_coverage = merge_coverage_reports(discovery_coverage, &summary.coverage);
+    if merged_coverage.state != CoverageState::Cancelled {
+        ensure_scan_active(&cancellation)?;
+        index.finish_background_index_roots(&[request.root_id().to_owned()])
+            .await.map_err(C::map_local_error)?;
+    }
     drop(index);
     let roots = load_source_root_summaries_for_parser(
         &app_data_dir,

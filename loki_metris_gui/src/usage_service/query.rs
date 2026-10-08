@@ -13,6 +13,7 @@ pub enum UsageQuery {
     Statistics(SourceClientKind, LocalUsageWindow, UsageDimension),
     Chart(Option<SourceClientKind>, LocalUsageWindow, UsageChartDimension),
     Calls(Option<SourceClientKind>, UsageCallsQuery),
+    Sources(SourceClientKind),
 }
 
 /// 类型化页面响应避免从概览聚合值反推调用或图表。
@@ -21,6 +22,7 @@ pub enum UsageResponse {
     Statistics(UsageStatisticsPage),
     Chart(UsageChartPage),
     Calls(UsageCallsPage),
+    Sources(Vec<SourceRootSummary>),
     Workbuddy(WorkbuddyStatisticsSnapshot),
     WorkbuddyDetails(UsageStatisticsPage, WorkbuddyModelUsageWindow),
 }
@@ -29,9 +31,19 @@ pub enum UsageResponse {
 pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancellation: ScanCancellation)
     -> Result<UsageResponse, &'static str>
 {
+    if let UsageQuery::Sources(client)=&query {
+        let client=*client;
+        let roots=if client==SourceClientKind::WorkBuddy {
+            tokio::task::spawn_blocking(super::sources::workbuddy_sources).await.map_err(|_|"usage_read_failed")?
+        } else {
+            crate::backend::scan_orchestration::sources(&source_client_app_data_dir(&context.directory,client),client).await.map_err(|_|"usage_read_failed")?
+        };
+        check_cancel(&cancellation)?;
+        return Ok(UsageResponse::Sources(roots));
+    }
     let selected = match &query {
         UsageQuery::Overview(client) | UsageQuery::Chart(client, ..) | UsageQuery::Calls(client, ..) => *client,
-        UsageQuery::Statistics(client, ..) => Some(*client),
+        UsageQuery::Statistics(client, ..)|UsageQuery::Sources(client) => Some(*client),
     };
     let now = current_epoch_ms();
     let zone = TimeZone::system();
@@ -105,7 +117,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
                 &combined.map_err(combined_error)?, window, dimension, now, TimeStandard::Local, &zone).map_err(|_| "usage_aggregate_failed")?)),
             UsageQuery::Calls(_, query) => Ok(UsageResponse::Calls(build_combined_usage_calls_page(
                 &combined.map_err(combined_error)?, &query, now).map_err(|_| "usage_query_failed")?)),
-            UsageQuery::Statistics(..) => Err("usage_client_unsupported"),
+            UsageQuery::Statistics(..)|UsageQuery::Sources(..) => Err("usage_client_unsupported"),
         }
     }).await.map_err(|_| "usage_aggregate_failed")?
 }
@@ -149,6 +161,7 @@ fn build_single(query: UsageQuery, snapshot: UsageSnapshot, coverage: CoverageRe
             provider, Some(&source), TimeStandard::Local, zone).map_err(|_| "usage_aggregate_failed")?)),
         UsageQuery::Calls(_, query) => Ok(UsageResponse::Calls(build_usage_calls_page(&snapshot.canonical.calls, snapshot.index_state,
             &aliases, &query, now, client, provider, Some(&source)).map_err(|_| "usage_query_failed")?)),
+        UsageQuery::Sources(..)=>Err("usage_client_unsupported"),
     }
 }
 

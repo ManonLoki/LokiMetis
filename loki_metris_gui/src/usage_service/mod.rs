@@ -3,8 +3,15 @@
 mod queue;
 mod query;
 mod scan;
+mod sources;
+mod background;
+mod discovery;
+#[cfg(test)]
+mod source_tests;
 
 pub use query::{UsageQuery, UsageResponse};
+pub use sources::{SourceOperation,SourceOperationResult};
+pub use discovery::{DiscoveryView,ManualAddResult};
 use crate::backend::local_index::{current_user_home, ScanCoordinator, ScanProgress};
 use loki_metris_core::{CoverageReport, LocalRecordsSummary, RootRecord, SourceClientKind,
     WorkbuddyStatisticsSnapshot, ScanStartOrigin, RetentionDays};
@@ -26,6 +33,7 @@ pub struct UsageData {
 #[derive(Clone, Default)]
 pub struct ScanStatus {
     pub running: bool,
+    pub client:Option<SourceClientKind>,
     pub revision: u64,
     pub error: Option<&'static str>,
     pub progress: Option<ScanProgress>,
@@ -46,6 +54,9 @@ pub struct UsageService {
     scans: Arc<Queue<Intent, ()>>,
     queries: Arc<Queue<UsageQuery, UsageResponse>>,
     context: Arc<ServiceContext>,
+    background:Arc<background::BackgroundTaskOwner>,
+    discovery:Arc<loki_metris_core::RootDiscoveryCoordinator>,
+    discovery_batch:Arc<discovery::DiscoveryBatch>,
 }
 
 impl UsageService {
@@ -72,11 +83,13 @@ impl UsageService {
             retention: Mutex::new(RetentionDays::default()) });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
+        let discovery=Arc::new(loki_metris_core::RootDiscoveryCoordinator::default());
+        let background=Arc::new(background::BackgroundTaskOwner::with_runtime(discovery.clone(),runtime.handle().clone()));
         let worker = scans.clone(); let state = context.clone();
         runtime.spawn(async move { worker.run(move |intent, token| scan::run(state.clone(), intent, token)).await; });
         let worker = queries.clone(); let state = context.clone();
         runtime.spawn(async move { worker.run(move |query, token| query::load(state.clone(), query, token)).await; });
-        Ok(Arc::new(Self { runtime: Mutex::new(Some(runtime)), scans, queries, context }))
+        Ok(Arc::new(Self { runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default() }))
     }
 
     /// 查询只读既有派生库，快速切页只合并查询意图，不取消 writer。
@@ -106,6 +119,7 @@ impl UsageService {
     pub fn finish(&self) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
             self.context.writer.shutdown();
+            runtime.block_on(self.background.shutdown());
             if !self.scans.stop(Duration::from_secs(10)) { tracing::warn!(event = "usage_shutdown_drain_timeout"); }
             if !self.queries.stop(Duration::from_secs(5)) { tracing::warn!(event = "usage_query_drain_timeout"); }
             runtime.shutdown_timeout(Duration::from_secs(1));

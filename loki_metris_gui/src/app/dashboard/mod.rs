@@ -8,6 +8,7 @@ mod plot;
 mod workbuddy_charts;
 mod state;
 mod calls;
+mod sources;
 use statistics::DetailState;
 pub(super) use statistics::Route;
 
@@ -28,7 +29,9 @@ pub(super) struct Dashboard {
     pub detail: DetailState,
     pub chart: charts::ChartState,
     pub calls: calls::CallsState,
+    pub sources: sources::SourcesState,
     pub scanning: bool,
+    pub scanning_client:Option<SourceClientKind>,
     pub scan_error: Option<&'static str>,
     pub watch_task: Option<Task<()>>,
     pub data: Option<UsageData>,
@@ -40,14 +43,16 @@ pub(super) struct Dashboard {
     pub task: Option<Task<()>>,
     pub copied: bool,
     pub copied_metric: Option<&'static str>,
+    pub manual_pending:bool,
+    pub manual_task:Option<Task<()>>,
     pub copy_task: Option<Task<()>>,
 }
 
 impl Default for Dashboard {
     /// 首次与参考 App 一样选中 Codex、今日和概览；业务数据尚未查询。
     fn default() -> Self {
-        Self { client: 1, ranges: [0; 5], progress: None, route: Route::Overview, detail: DetailState::default(), chart: charts::ChartState::default(), calls: calls::CallsState::default(), scanning: false, scan_error: None, watch_task: None, data: None, error: None,
-            loading: false, revision: 0, last_read: std::time::Instant::now(), service: None, task: None, copied: false, copied_metric: None, copy_task: None }
+        Self { client: 1, ranges: [0; 5], progress: None, route: Route::Overview, detail: DetailState::default(), chart: charts::ChartState::default(), calls: calls::CallsState::default(), sources: sources::SourcesState::default(), scanning: false, scan_error: None, watch_task: None, data: None, error: None,
+            loading: false, revision: 0, last_read: std::time::Instant::now(), service: None, task: None, copied: false, copied_metric: None, copy_task: None,manual_pending:false,manual_task:None,scanning_client:None }
     }
 }
 
@@ -60,9 +65,12 @@ impl Shell {
             let mut revision = service.scan_status().revision;
             loop {
                 let status = service.scan_status();
+                let discovery=service.discovery_view();
                 if entity.update(cx, |this, cx| {
-                    let changed=this.dashboard.scanning!=status.running || this.dashboard.progress!=status.progress;
+                    let changed=this.dashboard.scanning!=status.running || this.dashboard.scanning_client!=status.client || this.dashboard.progress!=status.progress || this.dashboard.sources.discovery!=discovery;
+                    this.dashboard.sources.discovery=discovery;
                     this.dashboard.scanning = status.running;
+                    this.dashboard.scanning_client=status.client;
                     this.dashboard.progress = status.progress;
                     if revision != status.revision {
                         revision = status.revision;
@@ -81,8 +89,9 @@ impl Shell {
     }
 
     /// 异步完成后用请求代数丢弃旧响应；切 Agent 不会被旧页面查询覆盖。
-    fn reload_usage(&mut self, scan: bool, cx: &mut Context<Self>) {
+    pub(in crate::app) fn reload_usage(&mut self, scan: bool, cx: &mut Context<Self>) {
         if self.dashboard.route==Route::Calls {self.load_calls(false,cx);return}
+        if self.dashboard.route==Route::Sources {self.load_sources(cx);return}
         self.dashboard.revision += 1;
         self.dashboard.task.take();
         self.dashboard.loading = false;
@@ -164,6 +173,7 @@ impl Shell {
         self.dashboard.detail.models = None;
         self.dashboard.chart.data=None;self.dashboard.chart.workbuddy=None;
         self.dashboard.calls.page=None;self.dashboard.calls.loading_next=false;self.dashboard.calls.next_failed=false;self.dashboard.calls.replacement_failed=false;
+        self.dashboard.sources.reset();
         for hover in &self.dashboard.chart.hover {hover.set(None);}
         if (index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Charts|Route::Sources)) || (index==4 && self.dashboard.route==Route::Calls) { self.dashboard.route = Route::Overview; }
         self.reload_usage(false, cx);
@@ -183,7 +193,7 @@ impl Shell {
                     .text_color(if selected { cx.theme().accent_foreground } else { cx.theme().muted_foreground }).child(self.t(&format!("dashboard.{key}"))))
                 .when(selected, |button| button.bg(cx.theme().accent).text_color(cx.theme().accent_foreground))
                 .on_click(cx.listener(move |this, _, _, cx| {
-                    if this.dashboard.route != route { this.dashboard.route = route; this.reload_usage(false, cx); }
+                    if this.dashboard.route != route { this.dashboard.sources.reset();this.dashboard.route = route; this.reload_usage(false, cx); }
                 }))
         }));
         let agents = div().flex().items_center().rounded(px(16.)).bg(cx.theme().secondary).p_1()
@@ -198,8 +208,7 @@ impl Shell {
         div().id("dashboard").test_support().w_full().flex().flex_col().gap_5()
             .child(div().w_full().flex().flex_wrap().items_center().justify_between().gap_3().mx_2().px_3().pt(px(10.4)).pb(px(8.8))
                 .border_b_1().border_color(cx.theme().border).bg(cx.theme().tab_bar).child(tabs).child(agents))
-            .when((self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none())
-                || (self.dashboard.route == Route::Sources && self.dashboard.scanning), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
+            .when(self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
                 .when_some(self.dashboard.progress.as_ref(), |line, progress| line.child(format!(" {} / {} · {} {} · {} {}",
                     progress.roots_completed, progress.roots_total, progress.files_scanned, self.t("dashboard.files"), progress.calls_added, self.t("dashboard.calls"))))))
             .when(self.dashboard.error.is_some() || self.dashboard.scan_error.is_some(), |column| column.child(self.usage_error(cx)))
@@ -330,25 +339,6 @@ impl Shell {
                 .aria_label(self.t(&format!("dashboard.{key}"))).aria_value(value.map(format::exact).unwrap_or_else(|| missing.clone()))
                 .font_family("Geist Mono").text_right().text_size(px(16.)).line_height(gpui_kit::relative(1.55)).font_weight(FontWeight::BOLD).child(value.map(format::compact).unwrap_or_else(|| missing.clone())))
             .child(div().font_family("Geist Mono").text_right().text_xs().line_height(gpui_kit::relative(1.4)).text_color(cx.theme().muted_foreground).child(value.map(format::exact).unwrap_or(missing)))
-            .into_any_element()
-    }
-
-    /// 来源只显示当前真实 registry；用户刷新发起独立索引，取消不触碰原始文件。
-    fn usage_sources(&self, cx: &mut Context<Self>) -> AnyElement {
-        let roots = self.dashboard.data.as_ref().map(|data| data.roots.clone()).unwrap_or_default();
-        self.panel(cx)
-            .child(div().flex().items_center().justify_between().child(div().text_lg().font_weight(FontWeight::BOLD).child(self.t("dashboard.sources")))
-                .child(div().flex().gap_2()
-                    .child(Button::new("scan-quick").outline().label(self.t("dashboard.scan"))
-                        .on_click(cx.listener(|this, _, _, cx| this.reload_usage(true, cx))))
-                    .when(self.dashboard.scanning, |row| row.child(Button::new("scan-cancel").outline().label(self.t("dashboard.cancel"))
-                        .on_click(cx.listener(|this, _, _, _| { if let Some(service) = &this.dashboard.service { service.cancel(); } }))))))
-            .children(roots.into_iter().map(|root| {
-                div().w_full().flex().items_center().justify_between().gap_4().py_3().border_b_1().border_color(cx.theme().border)
-                    .child(root.alias)
-                    .child(format!("{} {} · {} {}", root.source_file_count, self.t("dashboard.files"), root.call_observation_count, self.t("dashboard.calls")))
-                    .child(self.t(if root.enabled { "dashboard.enabled" } else { "dashboard.disabled" }))
-            }))
             .into_any_element()
     }
 
