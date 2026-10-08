@@ -245,6 +245,7 @@ impl Render for Shell {
         self.viewport_width = window.viewport_size().width.into();
         self.sync_usage_setting_inputs(window,cx);
         self.sync_monitor_inputs(window,cx);
+        self.sync_monitor_hook_inputs(window,cx);
         self.begin_monitor_image_frame();
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
         let content = match self.page {

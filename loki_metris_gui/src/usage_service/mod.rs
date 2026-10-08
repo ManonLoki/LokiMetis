@@ -9,6 +9,7 @@ mod discovery;
 mod settings;
 mod agents;
 mod monitor_catalog;
+mod hooks;
 #[cfg(test)]
 mod source_tests;
 
@@ -106,7 +107,10 @@ impl UsageService {
     /// 原生启动拥有独立中继任务，配置未读成功前监听门禁始终为空。
     pub fn start_monitoring(&self)->Result<(), &'static str> {
         let rendezvous=crate::monitor::relay::hook_relay_rendezvous_path().map_err(|_|"monitor_rendezvous_unavailable")?;
-        self.start_monitoring_at(rendezvous)
+        self.start_monitoring_at(rendezvous)?;
+        let executable=std::env::current_exe().map_err(|_|"hook_executable_unavailable")?;
+        let home=current_user_home().ok_or("hook_home_unavailable")?;
+        self.start_hook_writer_at(executable,home)
     }
 
     /// 隔离测试只发布到显式传入路径，不覆盖生产或参考 App 缓存。
@@ -151,6 +155,7 @@ impl UsageService {
     pub fn finish(&self) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
             self.context.writer.shutdown();
+            if let Some(host)=self.context.agents.hooks.get() {host.writer.shutdown();}
             if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}
             runtime.block_on(self.background.shutdown());
             if !self.scans.stop(Duration::from_secs(10)) { tracing::warn!(event = "usage_shutdown_drain_timeout"); }

@@ -6,6 +6,7 @@ mod catalog;
 mod management;
 mod picker;
 mod images;
+mod hooks;
 #[cfg(test)]
 mod catalog_tests;
 use crate::monitor::listener::HookRelayStatus;
@@ -16,6 +17,7 @@ use gpui_kit::{AnyElement,Context,FontWeight,IntoElement,Role,base::TestSupportE
 pub(super) struct MonitorView {
     route:state::Route,
     catalog:state::Catalog,
+    hooks:hooks::HooksView,
     status:Option<HookRelayStatus>,
     error:Option<&'static str>,
     last_read:Option<std::time::Instant>,
@@ -34,10 +36,10 @@ impl Shell {
     /// 当前检查点提供真实工作台；其它监控子页在各自闭环接入后增加导航。
     pub(super) fn monitor_page(&self,window:&mut gpui_kit::Window,cx:&mut Context<Self>)->AnyElement {
         let mut tabs=div().w_full().flex().items_center().p_2().gap_1().border_y_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark(){0x191a1c}else{0xf9f7f4}));
-        for (route,id,key) in [(state::Route::Workbench,"monitor-workbench-tab","workbench"),(state::Route::Management,"monitor-management-tab","management"),(state::Route::Images,"monitor-images-tab","images")] {
+        for (route,id,key) in [(state::Route::Workbench,"monitor-workbench-tab","workbench"),(state::Route::Management,"monitor-management-tab","management"),(state::Route::Images,"monitor-images-tab","images"),(state::Route::Hooks,"monitor-hooks-tab","settings")] {
             tabs=tabs.child(gpui_kit::base::Button::new(id).selected(self.monitor.route==route).accessibility_label(format!("{}：{}",self.t(&format!("monitor.navigation.{key}.label")),self.t(&format!("monitor.navigation.{key}.description")))).child(self.t(&format!("monitor.navigation.{key}.label"))).px_3().font_weight(FontWeight::SEMIBOLD).h(px(40.)).rounded(px(12.)).when(self.monitor.route==route,|button|button.bg(cx.theme().accent).text_color(cx.theme().accent_foreground)).on_click(cx.listener(move|this,_,_,cx|this.select_monitor_route(route,cx))));
         }
-        if self.monitor.route!=state::Route::Workbench {return div().w_full().flex_shrink_0().flex().flex_col().gap_5().child(tabs).child(if self.monitor.route==state::Route::Management {self.monitor_management(window,cx)}else{self.monitor_images(window,cx)}).into_any_element()}
+        if self.monitor.route!=state::Route::Workbench {return div().w_full().flex_shrink_0().flex().flex_col().gap_5().child(tabs).child(match self.monitor.route {state::Route::Management=>self.monitor_management(window,cx),state::Route::Hooks=>self.monitor_hooks(cx),_=>self.monitor_images(window,cx)}).into_any_element()}
         let mut page=div().id("monitor-workbench").test_support().w_full().flex().flex_col().gap_5().child(tabs);
         if let Some(error)=self.monitor.error {return page.child(div().id("monitor-error").role(Role::Alert).aria_label(self.t(error)).text_color(cx.theme().danger).child(self.t(error))
             .child(Button::new("monitor-retry").label(self.t("ui.retry")).on_click(cx.listener(|this,_,_,cx|this.refresh_monitor(true,cx))))) .into_any_element()}

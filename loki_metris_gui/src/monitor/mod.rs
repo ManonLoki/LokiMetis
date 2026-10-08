@@ -14,3 +14,6 @@ mod animation_metadata;
 pub(crate) mod image_playback;
 mod catalog;
 mod thread_owner;
+pub(crate) mod store;
+mod hook_config_io;
+mod wsl;

@@ -464,6 +464,33 @@
       "unknownImage": "所选图片不在本机图库中。",
       "imagesTooLarge": "图片资源超过本机图库容量限制。请先移除部分图片。",
       "imageDecodeFailed": "图片无法解码。"
+    },
+    "hooks": {
+      "cleanupUnsupported": "无法自动清理这种格式的 Hook 配置。",
+      "directoryNotAFolder": "Hooks 配置路径不是文件夹。",
+      "directoryNotAbsolute": "Hooks 配置目录必须使用绝对路径。",
+      "existingConfigInvalid": "现有 Hooks 配置格式无效。",
+      "existingConfigRootNotObject": "现有 Hooks 配置的根节点必须是 JSON 对象。",
+      "existingEventNotArray": "现有 Hooks 配置中有事件条目不是数组。",
+      "existingHooksNotObject": "现有配置中的 hooks 条目不是对象。",
+      "existingReadFailed": "无法读取现有 Hooks 配置。",
+      "foreignFileRejected": "现有插件文件不由 LokiMetris 管理，因此没有覆盖。",
+      "generatedConfigInvalid": "LokiMetris 生成了无效的 Hooks 配置。",
+      "generatedConfigRootNotObject": "生成的 Hooks 配置根节点不是 JSON 对象。",
+      "generatedEventNotArray": "生成的 Hooks 配置中有事件条目不是数组。",
+      "generatedHooksMissing": "生成的配置缺少 hooks 条目。",
+      "homeDirectoryUnavailable": "无法定位当前用户的主目录。",
+      "kimiManagedBlockCorrupted": "Kimi Code 配置中的 LokiMetris 托管区块不完整或重复。",
+      "kimiMissingCommand": "生成的 Kimi Code Hook 缺少命令。",
+      "kimiMissingHandler": "生成的 Kimi Code Hook 缺少处理器。",
+      "kimiSerializeFailed": "无法序列化 Kimi Code Hooks 配置。",
+      "locationNotFound": "无法定位 Hooks 配置位置。",
+      "mergeFailed": "无法把 Hooks 配置与现有文件合并。",
+      "renderFailed": "无法生成 Hooks 配置。",
+      "toolUnavailable": "该 AI 工具当前暂不可用。",
+      "writeFailed": "无法写入 Hooks 配置，请检查所选路径及其权限。",
+      "wslUnsupportedByWindowsHost": "Windows 宿主暂不支持此工具的 WSL 原生插件，请选择 Windows 客户端配置目录。",
+      "wslWindowsHostOnly": "只有 Windows 宿主可以访问 WSL 配置路径。"
     }
   },
   "shell": {
@@ -572,6 +599,41 @@
       "imagesFiltered": "显示 %{visible} / 共 %{total} 张",
       "allCount": "全部 %{count}",
       "unavailable": "图片资源不可用"
+    },
+    "settings": {
+      "title": "Hooks 设置",
+      "description": "在设置中选择要启用 Hooks 的 Agent，并写入本机配置。",
+      "enabled": "启用的 Agent",
+      "managementTitle": "Hooks 管理",
+      "managementDescription": "按已启用的 Agent 查看本机配置位置并写入 Hooks。",
+      "chooseAgentFirst": "请先在上方启用至少一个 Agent。",
+      "directory": "配置目录",
+      "directoryPlaceholder": "请输入绝对路径或 WSL UNC 路径",
+      "directoryDialogTitle": "选择 Hooks 配置目录",
+      "chooseDirectory": "选择目录",
+      "saveDirectory": "保存路径",
+      "restoreDirectory": "恢复默认",
+      "configFile": "配置文件",
+      "additionalConfigFiles": "同时写入的其它配置文件",
+      "write": "写入 Hooks",
+      "written": "已写入 %{file}（%{outcome}）",
+      "activation": {
+        "hermesEnableRequired": "运行以下命令，然后重启 Hermes 或创建新会话。",
+        "openClawEnableRequired": "依次运行以下命令。",
+        "copy": "复制",
+        "copied": "已复制",
+        "copyCommandAria": "复制命令：%{command}"
+      }
+    },
+    "outcome": {
+      "unchanged": "配置未变化",
+      "active": "已生效",
+      "restartRequired": "需要重启或新建会话",
+      "codexReviewRequired": "需要在 Codex 中审核",
+      "workBuddyReviewRequired": "需要在 WorkBuddy 中审核",
+      "codeBuddyReviewRequired": "需要在 CodeBuddy 中审核",
+      "hermesEnableRequired": "需要在 Hermes 中启用插件并重启",
+      "openClawEnableRequired": "需要在 OpenClaw 中启用扩展并重启"
     }
   },
   "monitor_service_unavailable": "监控服务不可用"

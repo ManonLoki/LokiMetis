@@ -60,7 +60,7 @@ impl Shell {
     /// 显式子页导航加载真实所需数据，已有未提交档案不会被图库刷新覆盖。
     pub(super) fn select_monitor_route(&mut self, route: Route, cx: &mut Context<Self>) {
         self.monitor.route = route;
-        if route != Route::Workbench {
+        if matches!(route,Route::Management|Route::Images) {
             if !self.monitor.catalog.images_loaded && !self.monitor.catalog.images_loading {
                 self.load_monitor_images(cx);
             }
@@ -70,6 +70,10 @@ impl Shell {
             if !self.monitor.catalog.profiles_loaded && !self.monitor.catalog.profiles_loading {
                 self.load_monitor_profiles(cx);
             }
+        }
+        if route==Route::Hooks {
+            self.load_agent_settings(cx);
+            if !self.monitor.hooks.loaded&&!self.monitor.hooks.loading {self.load_monitor_hook_locations(cx);}
         }
         cx.notify();
     }
@@ -503,7 +507,7 @@ impl Shell {
 }
 
 /// 跨 Tokio owner 回执采用有界轮询；不把 GPUI 假调度器 waker 注册到外部工作线程。
-async fn receipt<T>(
+pub(super) async fn receipt<T>(
     mut work: tokio::sync::oneshot::Receiver<Result<T, HookError>>,
     executor: gpui_kit::BackgroundExecutor,
     code: &'static str,

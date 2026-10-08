@@ -20,6 +20,7 @@ pub(super) enum Route {
     Workbench,
     Management,
     Images,
+    Hooks,
 }
 
 /// 各选择器独立保留格式筛选，切换 Agent 时与原版卸载面板一致重置。
