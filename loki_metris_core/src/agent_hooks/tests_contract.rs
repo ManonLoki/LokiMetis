@@ -160,17 +160,17 @@ fn auxiliary_files_are_declared_only_by_multi_file_plugins() {
 #[test]
 /// 验证独立插件只通过受管 CLI relay 转发事件。
 fn standalone_plugins_forward_only_through_the_cli_relay() {
-    let executable = std::path::Path::new("/opt/LokiMetis/loki_metis_gui");
+    let executable = std::path::Path::new("/opt/LokiMetris/loki_metis_gui");
     for tool in [AiTool::OpenCode, AiTool::Hermes, AiTool::OpenClaw] {
         let preview = generate_hook_config(tool, executable).unwrap();
-        assert!(preview.content.contains("/opt/LokiMetis/loki_metis_gui"));
-        assert!(preview.content.contains("--loki-metis-hook-relay"));
+        assert!(preview.content.contains("/opt/LokiMetris/loki_metis_gui"));
+        assert!(preview.content.contains("--loki-metris-hook-relay"));
         assert!(preview.content.contains("--managed-by"));
         assert!(preview.content.contains(&managed_hook_marker(tool)));
         assert!(preview.content.contains("hook_event_name"));
         assert!(preview.content.contains("session_id"));
         assert!(preview.content.contains("status"));
-        assert!(!preview.content.contains("loki-metis-hook-relay.json"));
+        assert!(!preview.content.contains("loki-metris-hook-relay.json"));
         assert!(!preview.content.contains("127.0.0.1"));
         assert!(!preview.content.contains("/api/hooks/"));
         assert!(!preview.content.contains("node:http"));

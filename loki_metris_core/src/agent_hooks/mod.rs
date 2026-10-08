@@ -52,8 +52,8 @@ pub use types::{
     MAX_NATIVE_HOOK_INPUT_BYTES, hook_relay_loopback_address, normalize_enabled_ai_tools,
 };
 
-// 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetis 写入的条目
-pub(super) const MANAGED_HOOK_PREFIX: &str = "LokiMetis";
+// 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetris 写入的条目
+pub(super) const MANAGED_HOOK_PREFIX: &str = "LokiMetris";
 
 /// 描述 Hook 事件的状态机语义种类，并决定其基础迁移。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -176,7 +176,7 @@ pub(super) trait HookProtocol: Sync {
     fn events(&self) -> &'static [HookEvent];
 
     /// 返回独立配置文件内容时，公共 JSON hooks 生成/合并流程会被跳过。
-    /// 插件只获得 LokiMetis CLI 可执行路径，不得自行访问 listener 端口。
+    /// 插件只获得 LokiMetris CLI 可执行路径，不得自行访问 listener 端口。
     fn standalone_config(&self, _relay_executable: &Path) -> Option<String> {
         // 默认没有独立配置文件，走公共 JSON 生成流程
         None
@@ -194,7 +194,7 @@ pub(super) trait HookProtocol: Sync {
         Vec::new()
     }
 
-    /// 合并独立文件。默认只覆盖带当前工具 `LokiMetis` 标识的受管文件；需要与
+    /// 合并独立文件。默认只覆盖带当前工具 `LokiMetris` 标识的受管文件；需要与
     /// 用户内容共存的独立格式可自行覆盖。
     fn merge_standalone(
         &self,
@@ -208,7 +208,7 @@ pub(super) trait HookProtocol: Sync {
             return Err(HookError::new("error.hooks.foreignFileRejected")
                 .param("filename", generated.filename.clone()));
         }
-        // 否则直接用新生成的内容整体替换（默认策略：独立文件整体由 LokiMetis 托管）
+        // 否则直接用新生成的内容整体替换（默认策略：独立文件整体由 LokiMetris 托管）
         Ok(generated.content.clone())
     }
 
@@ -464,7 +464,7 @@ pub(super) fn platform_command(commands: &ManagedCommands) -> &str {
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     // 其他编译目标当前不受支持，编译期直接报错
-    compile_error!("LokiMetis Hook command generation only supports Windows, macOS, and Linux");
+    compile_error!("LokiMetris Hook command generation only supports Windows, macOS, and Linux");
 }
 
 /// 判断工具是否应绕过状态机抑制并原样转发每个上游事件。
@@ -535,17 +535,17 @@ pub(super) fn js_cli_relay_forwarder(relay_subcommand: &str, marker: &str) -> St
     else resolve()
   }}
   const relay = spawn(relayExecutable, [
-    "--loki-metis-hook-relay", "{relay_subcommand}", hookEvent,
+    "--loki-metris-hook-relay", "{relay_subcommand}", hookEvent,
     "--managed-by", "{marker}",
   ], {{ stdio: ["pipe", "ignore", "ignore"], windowsHide: true }})
   relay.once("error", settle)
   relay.once("exit", (code) => {{
     if (code === 0) settle()
-    else settle(new Error(`LokiMetis CLI relay exited with code ${{code}}`))
+    else settle(new Error(`LokiMetris CLI relay exited with code ${{code}}`))
   }})
   relay.stdin.once("error", settle)
   deadline = setTimeout(() => {{
-    const error = new Error("LokiMetis CLI relay deadline exceeded")
+    const error = new Error("LokiMetris CLI relay deadline exceeded")
     relay.kill()
     settle(error)
   }}, 4000)

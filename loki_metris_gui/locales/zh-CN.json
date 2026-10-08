@@ -2,7 +2,8 @@
   "navigation": {
     "settings": "设置",
     "about": "关于",
-    "dashboard": "用量看板"
+    "dashboard": "用量看板",
+    "monitor": "AI监控"
   },
   "settings": {
     "application": "应用信息",
@@ -453,5 +454,38 @@
       "title": "尚未开放任何 AI Agent",
       "body": "在设置的 Agent 配置中启用要使用的 Agent。"
     }
-  }
+  },
+  "monitor": {
+    "workbench": {
+      "title": "本机 Hook 中继",
+      "listening": "正在监听 %{address}",
+      "offline": "中继未监听",
+      "receivedLabel": "已接收事件",
+      "failedLabel": "失败事件",
+      "lastEventLabel": "最近事件：",
+      "noEvent": "尚未收到 Hook 事件",
+      "lastError": "最近错误：%{error}"
+    },
+    "navigation": {
+      "pagesAria": "监控页面",
+      "itemAria": "{{label}}：{{description}}",
+      "workbench": {
+        "label": "工作台",
+        "description": "查看本机 Hook 中继状态"
+      },
+      "management": {
+        "label": "监控管理",
+        "description": "为已启用 Agent 配置展示位与行为图片"
+      },
+      "images": {
+        "label": "图片管理",
+        "description": "管理本机监控图片"
+      },
+      "settings": {
+        "label": "Hooks 设置",
+        "description": "为统一启用的 Agent 定位并写入本机 Hooks 配置"
+      }
+    }
+  },
+  "monitor_service_unavailable": "监控服务不可用"
 }

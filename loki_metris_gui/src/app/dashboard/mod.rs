@@ -85,6 +85,7 @@ impl Shell {
                     }
                     if this.page==super::Page::Dashboard&&this.dashboard.route==Route::Settings&&!this.dashboard.usage_settings.loading&&!this.dashboard.usage_settings.pending.contains(&true)&&this.dashboard.usage_settings.service_revision!=service.usage_settings_revision() {this.load_usage_settings(cx);}
                     if !this.agent_settings.loading&&!this.agent_settings.pending&&this.agent_settings.service_revision!=service.agent_settings_revision() {this.load_agent_settings(cx);}
+                    if this.page==super::Page::Monitor && this.window_visible {this.refresh_monitor(false,cx);}
                     if changed {cx.notify();}
                 }).is_err() { return }
                 cx.background_executor().timer(std::time::Duration::from_millis(500)).await;

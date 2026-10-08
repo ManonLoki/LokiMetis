@@ -16,7 +16,7 @@ pub(super) static KIMI_CODE: KimiCodeProtocol = KimiCodeProtocol;
 /// Kimi Code 无状态协议实现。
 pub(super) struct KimiCodeProtocol;
 
-/// Kimi 配置中由 LokiMetis 管理的 Hook 集合。
+/// Kimi 配置中由 LokiMetris 管理的 Hook 集合。
 #[derive(Serialize)]
 struct KimiConfig {
     /// 全部托管 Hook 条目。
@@ -162,7 +162,7 @@ impl HookProtocol for KimiCodeProtocol {
         true
     }
 
-    /// 只替换 LokiMetis 受管区块，用户其余 TOML 内容逐字保留。
+    /// 只替换 LokiMetris 受管区块，用户其余 TOML 内容逐字保留。
     fn merge_standalone(
         &self,
         existing_content: Option<&str>,
@@ -187,7 +187,7 @@ impl HookProtocol for KimiCodeProtocol {
     }
 }
 
-/// 从配置中移除唯一且边界完整的 LokiMetis 受管区块。
+/// 从配置中移除唯一且边界完整的 LokiMetris 受管区块。
 fn remove_managed_block(content: &str, tool: AiTool) -> Result<String, HookError> {
     let marker = managed_hook_marker(tool);
     let begin = format!("# {marker} begin");

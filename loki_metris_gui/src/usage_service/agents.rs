@@ -12,12 +12,21 @@ pub(super) struct AgentSettingsStore {
     value: Mutex<Option<MonitorSettings>>,
     owner: Arc<BackgroundTaskOwner>,
     revision: AtomicU64,
+    pub(super) listener:std::sync::OnceLock<Arc<crate::monitor::listener::HookListenerControl>>,
 }
 
 impl AgentSettingsStore {
     /// 目录由当前产品显式注入，构造不读原 App 配置或写 Hooks。
     pub(super) fn new(directory: PathBuf, owner: Arc<BackgroundTaskOwner>) -> Self {
-        Self { directory, value: Mutex::new(None), owner, revision: AtomicU64::new(0) }
+        Self { directory, value: Mutex::new(None), owner, revision: AtomicU64::new(0),listener:Default::default() }
+    }
+
+    /// 绑定与缓存读取/保存共享互斥，晚启动也不会错过已确认的启用集合。
+    pub(super) fn bind_listener(&self,listener:Arc<crate::monitor::listener::HookListenerControl>)->Result<(),&'static str> {
+        let value=self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.listener.set(listener).map_err(|_|"monitor_already_started")?;
+        if let Some(settings)=&*value {self.listener.get().unwrap().replace_enabled_tools(&settings.enabled_ai_tools);}
+        Ok(())
     }
 
     /// 首次读取失败不缓存默认值，后续显式重试仍可恢复真实配置。
@@ -33,13 +42,16 @@ impl AgentSettingsStore {
     fn snapshot_blocking(&self)->Result<MonitorSettings,HookError> {
         let mut value=self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(settings)=&*value {return Ok(settings.clone())}
-        let settings=load_monitor_settings(&self.directory)?;*value=Some(settings.clone());Ok(settings)
+        let settings=load_monitor_settings(&self.directory)?;
+        if let Some(listener)=self.listener.get() {listener.replace_enabled_tools(&settings.enabled_ai_tools);}
+        *value=Some(settings.clone());Ok(settings)
     }
 
     /// 每次读改写只替换启用集合，目录覆盖、桌宠位置和窗口偏好继续保留。
     fn save_blocking(&self, tools: Vec<AiTool>) -> Result<MonitorSettings, HookError> {
         let mut value = self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let settings=update_monitor_settings(&self.directory, |settings| settings.enabled_ai_tools = tools)?;
+        if let Some(listener)=self.listener.get() {listener.replace_enabled_tools(&settings.enabled_ai_tools);}
         *value = Some(settings.clone()); self.revision.fetch_add(1, Ordering::Release); Ok(settings)
     }
 

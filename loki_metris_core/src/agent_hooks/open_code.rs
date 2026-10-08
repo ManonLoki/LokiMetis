@@ -51,12 +51,12 @@ impl HookProtocol for OpenCodeProtocol {
 
     /// 返回自动发现插件文件名。
     fn config_filename(&self) -> &'static str {
-        "plugins/lokimetis.js"
+        "plugins/lokimetris.js"
     }
 
     /// 返回预览路径。
     fn preview_filename(&self) -> &'static str {
-        ".config/opencode/plugins/lokimetis.js"
+        ".config/opencode/plugins/lokimetris.js"
     }
 
     /// 返回完整事件表。
@@ -64,7 +64,7 @@ impl HookProtocol for OpenCodeProtocol {
         EVENTS
     }
 
-    /// 生成只通过 LokiMetis CLI relay 转发事件的 OpenCode 插件。
+    /// 生成只通过 LokiMetris CLI relay 转发事件的 OpenCode 插件。
     fn standalone_config(&self, relay_executable: &Path) -> Option<String> {
         let marker = managed_hook_marker(AiTool::OpenCode);
         let executable_literal =
@@ -123,11 +123,11 @@ const send = async (event) => {{
   try {{
     await forwardThroughCli(hookEvent, body)
   }} catch {{
-    // LokiMetis CLI 不可用时保持单次短超时的 fail-open。
+    // LokiMetris CLI 不可用时保持单次短超时的 fail-open。
   }}
 }}
 
-export const LokiMetisPlugin = async () => ({{
+export const LokiMetrisPlugin = async () => ({{
   event: async ({{ event }}) => send(event),
 }})
 "#

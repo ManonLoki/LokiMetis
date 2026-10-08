@@ -66,14 +66,14 @@ impl HookProtocol for GitHubCopilotProtocol {
         "github-copilot"
     }
 
-    /// 返回 LokiMetis 独立 Hook 文件名。
+    /// 返回 LokiMetris 独立 Hook 文件名。
     fn config_filename(&self) -> &'static str {
-        "hooks/lokimetis.json"
+        "hooks/lokimetris.json"
     }
 
     /// 返回预览路径。
     fn preview_filename(&self) -> &'static str {
-        ".copilot/hooks/lokimetis.json"
+        ".copilot/hooks/lokimetris.json"
     }
 
     /// 返回完整事件表。

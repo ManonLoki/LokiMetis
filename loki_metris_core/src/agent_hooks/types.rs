@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// LokiMetis 支持接入的全部 AI 工具。
+/// LokiMetris 支持接入的全部 AI 工具。
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub enum AiTool {
@@ -318,16 +318,16 @@ pub fn normalize_enabled_ai_tools(selected: &[AiTool]) -> Vec<AiTool> {
 }
 
 /// Hook relay 活跃实例 rendezvous 文件名。
-pub const HOOK_RELAY_RENDEZVOUS_FILENAME: &str = "loki-metis-hook-relay.json";
+pub const HOOK_RELAY_RENDEZVOUS_FILENAME: &str = "loki-metris-hook-relay.json";
 
 /// Hook relay rendezvous JSON 协议版本。
 pub const HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION: u8 = 1;
 
 /// 请求和响应共同携带的 relay 实例校验头。
-pub const HOOK_RELAY_INSTANCE_HEADER: &str = "X-LokiMetis-Hook-Instance";
+pub const HOOK_RELAY_INSTANCE_HEADER: &str = "X-LokiMetris-Hook-Instance";
 
 /// 请求携带的规范 Hook 事件名头。
-pub const HOOK_EVENT_TYPE_HEADER: &str = "X-LokiMetis-Hook-Type";
+pub const HOOK_EVENT_TYPE_HEADER: &str = "X-LokiMetris-Hook-Type";
 
 /// 请求操作系统在回环上分配空闲端口。
 pub const HOOK_RELAY_EPHEMERAL_PORT: u16 = 0;

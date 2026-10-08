@@ -47,12 +47,12 @@ impl HookProtocol for OpenClawProtocol {
 
     /// 返回扩展入口文件名。
     fn config_filename(&self) -> &'static str {
-        "extensions/lokimetis/index.mjs"
+        "extensions/lokimetris/index.mjs"
     }
 
     /// 返回预览路径。
     fn preview_filename(&self) -> &'static str {
-        ".openclaw/extensions/lokimetis/index.mjs"
+        ".openclaw/extensions/lokimetris/index.mjs"
     }
 
     /// 返回完整事件表。
@@ -74,7 +74,7 @@ impl HookProtocol for OpenClawProtocol {
         HookWriteOutcome::OpenClawEnableRequired
     }
 
-    /// 生成只通过 LokiMetis CLI relay 转发事件的 OpenClaw 扩展。
+    /// 生成只通过 LokiMetris CLI relay 转发事件的 OpenClaw 扩展。
     fn standalone_config(&self, relay_executable: &Path) -> Option<String> {
         let marker = managed_hook_marker(AiTool::OpenClaw);
         let executable_literal =
@@ -100,14 +100,14 @@ const send = async (hookEvent, event = {{}}, ctx = {{}}) => {{
   try {{
     await forwardThroughCli(hookEvent, body)
   }} catch {{
-    // LokiMetis CLI 不可用时保持单次短超时的 fail-open。
+    // LokiMetris CLI 不可用时保持单次短超时的 fail-open。
   }}
 }}
 
 export default {{
-  id: "lokimetis",
-  name: "LokiMetis",
-  description: "Relay OpenClaw lifecycle state through the local LokiMetis CLI",
+  id: "lokimetris",
+  name: "LokiMetris",
+  description: "Relay OpenClaw lifecycle state through the local LokiMetris CLI",
   register(api) {{
     for (const hook of [
       "session_start", "before_agent_run", "before_tool_call",
@@ -131,12 +131,12 @@ export default {{
         let marker = managed_hook_marker(AiTool::OpenClaw);
         vec![
             HookConfigPreview {
-                filename: "extensions/lokimetis/openclaw.plugin.json".to_owned(),
+                filename: "extensions/lokimetris/openclaw.plugin.json".to_owned(),
                 content: format!(
                     r#"{{
-  "id": "lokimetis",
-  "name": "LokiMetis",
-  "description": "{marker} - relay OpenClaw lifecycle state to LokiMetis",
+  "id": "lokimetris",
+  "name": "LokiMetris",
+  "description": "{marker} - relay OpenClaw lifecycle state to LokiMetris",
   "version": "1.0.0",
   "activation": {{ "onStartup": true }},
   "configSchema": {{ "type": "object", "additionalProperties": false }}
@@ -144,10 +144,10 @@ export default {{
                 ),
             },
             HookConfigPreview {
-                filename: "extensions/lokimetis/package.json".to_owned(),
+                filename: "extensions/lokimetris/package.json".to_owned(),
                 content: format!(
                     r#"{{
-  "name": "lokimetis-openclaw-plugin",
+  "name": "lokimetris-openclaw-plugin",
   "version": "1.0.0",
   "private": true,
   "type": "module",

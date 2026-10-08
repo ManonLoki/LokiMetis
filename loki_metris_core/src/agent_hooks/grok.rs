@@ -80,12 +80,12 @@ impl HookProtocol for GrokProtocol {
     ///
     /// application 层会将其与用户选择的 `~/.grok` 或 `$GROK_HOME` 组合。
     fn config_filename(&self) -> &'static str {
-        "hooks/lokimetis.json"
+        "hooks/lokimetris.json"
     }
 
     /// 返回面向用户展示的 Grok Hook 配置相对路径。
     fn preview_filename(&self) -> &'static str {
-        ".grok/hooks/lokimetis.json"
+        ".grok/hooks/lokimetris.json"
     }
 
     /// 返回 Grok Build 支持的完整 Hook 事件表。

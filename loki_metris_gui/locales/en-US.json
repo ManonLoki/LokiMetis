@@ -2,7 +2,8 @@
   "navigation": {
     "settings": "Settings",
     "about": "About",
-    "dashboard": "Usage Dashboard"
+    "dashboard": "Usage Dashboard",
+    "monitor": "AI Monitor"
   },
   "settings": {
     "application": "Application",
@@ -453,5 +454,38 @@
       "title": "No AI agents are enabled",
       "body": "Enable the agents you want to use under Agent configuration in Settings."
     }
-  }
+  },
+  "monitor": {
+    "workbench": {
+      "title": "Local Hook relay",
+      "listening": "Listening on %{address}",
+      "offline": "Relay is not listening",
+      "receivedLabel": "Received events",
+      "failedLabel": "Failed events",
+      "lastEventLabel": "Last event:",
+      "noEvent": "No Hook events yet",
+      "lastError": "Last error: %{error}"
+    },
+    "navigation": {
+      "pagesAria": "Monitor pages",
+      "itemAria": "{{label}}: {{description}}",
+      "workbench": {
+        "label": "Workbench",
+        "description": "View the local Hook relay status"
+      },
+      "management": {
+        "label": "Monitor management",
+        "description": "Configure display slots and behavior images for enabled agents"
+      },
+      "images": {
+        "label": "Image management",
+        "description": "Manage local monitor images"
+      },
+      "settings": {
+        "label": "Hooks settings",
+        "description": "Locate and write local Hooks configs for globally enabled agents"
+      }
+    }
+  },
+  "monitor_service_unavailable": "Monitor service unavailable"
 }

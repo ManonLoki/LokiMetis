@@ -20,6 +20,9 @@ use gpui_kit::{App, Bounds, QuitMode, TitlebarOptions, WindowBounds, WindowOptio
 
 /// 同步主线程持有原生事件循环，退出钩子完成偏好与日志收尾，循环返回只作一次性回退。
 fn main() -> std::process::ExitCode {
+    if let Some(code)=monitor::relay::run_hook_relay_if_requested() {return std::process::ExitCode::from(code as u8)}
+    #[cfg(target_os="macos")]
+    native::configure_font_smoothing();
     let (instance_sender, instance_receiver) = std::sync::mpsc::sync_channel(1);
     let directory = match preferences::instance_directory() { Ok(path) => path, Err(_) => return std::process::ExitCode::FAILURE };
     let instance = match native::instance::Instance::acquire(&directory, instance_sender) {
@@ -42,6 +45,7 @@ fn main() -> std::process::ExitCode {
         Ok(service) => service,
         Err(code) => { tracing::error!(event = code); return std::process::ExitCode::FAILURE; }
     };
+    if let Err(error)=usage_service.start_monitoring() {tracing::error!(event=error);}
     shutdown.borrow_mut().own_usage(usage_service.clone());
     let native_shutdown = shutdown.clone();
     gpui_kit::application().with_assets(assets::Assets).run(move |cx: &mut App| {

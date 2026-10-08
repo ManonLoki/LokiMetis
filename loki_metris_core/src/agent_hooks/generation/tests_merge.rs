@@ -59,12 +59,12 @@ fn claude_compatible_notification_groups_merge_without_overwriting_each_other() 
 #[test]
 fn only_the_canonical_managed_marker_is_recognized() {
     assert!(command_has_marker(
-        "'LokiMetis' --managed-by 'LokiMetis:tool=codex'",
-        "LokiMetis:tool=codex"
+        "'LokiMetris' --managed-by 'LokiMetris:tool=codex'",
+        "LokiMetris:tool=codex"
     ));
     assert!(!command_has_marker(
-        ": 'LokiMetis|tool=codex'; curl current",
-        "LokiMetis:tool=codex"
+        ": 'LokiMetris|tool=codex'; curl current",
+        "LokiMetris:tool=codex"
     ));
 }
 
@@ -82,7 +82,7 @@ fn merge_rejects_an_invalid_existing_config() {
 #[test]
 fn hook_commands_use_the_embedded_minimizing_relay() {
     let preview = generate_test_hook_config(AiTool::Codex).unwrap();
-    assert!(preview.content.contains("--loki-metis-hook-relay"));
+    assert!(preview.content.contains("--loki-metris-hook-relay"));
     assert!(preview.content.contains("SessionStart"));
     assert!(!preview.content.contains("Invoke-RestMethod"));
     assert!(!preview.content.contains("curl"));
@@ -117,12 +117,12 @@ fn grok_merge_is_idempotent_and_preserves_other_commands() {
     let value: Value = serde_json::from_str(&first.content).unwrap();
     let stop = serde_json::to_string(&value["hooks"]["Stop"]).unwrap();
     assert_eq!(stop.matches("other-stop").count(), 1);
-    assert_eq!(stop.matches("LokiMetis:tool=grok").count(), 1);
+    assert_eq!(stop.matches("LokiMetris:tool=grok").count(), 1);
     let second = merge_hook_config(Some(&first.content), &generated, AiTool::Grok).unwrap();
     assert_eq!(first.content, second.content);
 }
 
-/// 旧 Grok 文件迁移仅移除 LokiMetis Grok handler，并保留用户、AIMonitor 与根内容。
+/// 旧 Grok 文件迁移仅移除 LokiMetris Grok handler，并保留用户、AIMonitor 与根内容。
 #[test]
 fn grok_managed_entry_cleanup_preserves_mixed_and_root_content_idempotently() {
     let existing = r#"{
@@ -132,15 +132,15 @@ fn grok_managed_entry_cleanup_preserves_mixed_and_root_content_idempotently() {
           { "hooks": [
             { "type": "command", "command": "user-session-start" },
             { "type": "command", "command": "legacy AIMonitor session start" },
-            { "type": "command", "command": "'LokiMetis' --loki-metis-hook-relay grok SessionStart --managed-by 'LokiMetis:tool=grok'" }
+            { "type": "command", "command": "'LokiMetris' --loki-metris-hook-relay grok SessionStart --managed-by 'LokiMetris:tool=grok'" }
           ]},
           { "hooks": [
-            { "type": "command", "command": "'LokiMetis' --loki-metis-hook-relay grok SessionStart --managed-by 'LokiMetis:tool=grok'" }
+            { "type": "command", "command": "'LokiMetris' --loki-metris-hook-relay grok SessionStart --managed-by 'LokiMetris:tool=grok'" }
           ]}
         ],
         "Custom": [
           { "hooks": [
-            { "type": "command", "command": "'LokiMetis' --loki-metis-hook-relay codex Stop --managed-by 'LokiMetis:tool=codex'" }
+            { "type": "command", "command": "'LokiMetris' --loki-metris-hook-relay codex Stop --managed-by 'LokiMetris:tool=codex'" }
           ]}
         ]
       }
@@ -148,10 +148,10 @@ fn grok_managed_entry_cleanup_preserves_mixed_and_root_content_idempotently() {
     let cleaned = remove_managed_hook_entries(AiTool::Grok, existing)
         .unwrap()
         .expect("mixed config remains");
-    assert!(!cleaned.contains("LokiMetis:tool=grok"));
+    assert!(!cleaned.contains("LokiMetris:tool=grok"));
     assert!(cleaned.contains("user-session-start"));
     assert!(cleaned.contains("legacy AIMonitor session start"));
-    assert!(cleaned.contains("LokiMetis:tool=codex"));
+    assert!(cleaned.contains("LokiMetris:tool=codex"));
     let value: Value = serde_json::from_str(&cleaned).unwrap();
     assert_eq!(value["owner"], "user");
     assert_eq!(
@@ -170,7 +170,7 @@ fn grok_managed_entry_cleanup_has_explicit_empty_and_unchanged_semantics() {
         Some(unmanaged.to_owned())
     );
 
-    let managed_group = r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"'LokiMetis' --loki-metis-hook-relay grok Stop --managed-by 'LokiMetis:tool=grok'"}]}]}}"#;
+    let managed_group = r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"'LokiMetris' --loki-metris-hook-relay grok Stop --managed-by 'LokiMetris:tool=grok'"}]}]}}"#;
     assert_eq!(
         remove_managed_hook_entries(AiTool::Grok, managed_group).unwrap(),
         None
@@ -182,7 +182,7 @@ fn grok_managed_entry_cleanup_has_explicit_empty_and_unchanged_semantics() {
         "Stop": [{
           "hooks": [{
             "type": "command",
-            "command": "'LokiMetis' --loki-metis-hook-relay grok Stop --managed-by 'LokiMetis:tool=grok'"
+            "command": "'LokiMetris' --loki-metris-hook-relay grok Stop --managed-by 'LokiMetris:tool=grok'"
           }]
         }]
       }
@@ -204,7 +204,7 @@ fn cursor_merge_is_idempotent_and_preserves_other_commands() {
       "hooks": {
         "stop": [
           { "command": "other-app stop" },
-          { "command": "'LokiMetis' --loki-metis-hook-relay cursor stop --managed-by 'LokiMetis:tool=cursor'" }
+          { "command": "'LokiMetris' --loki-metris-hook-relay cursor stop --managed-by 'LokiMetris:tool=cursor'" }
         ]
       }
     }"#;
@@ -213,7 +213,7 @@ fn cursor_merge_is_idempotent_and_preserves_other_commands() {
     let value: Value = serde_json::from_str(&second.content).unwrap();
     let stop = serde_json::to_string(&value["hooks"]["stop"]).unwrap();
     assert_eq!(stop.matches("other-app stop").count(), 1);
-    assert_eq!(stop.matches("LokiMetis:tool=cursor").count(), 1);
+    assert_eq!(stop.matches("LokiMetris:tool=cursor").count(), 1);
 }
 
 /// 验证 Claude 分组型协议保留用户条目且重复合并幂等。
@@ -255,7 +255,7 @@ fn github_copilot_merge_is_idempotent_and_preserves_other_handlers() {
       "hooks": {
         "userPromptSubmitted": [
           { "type": "command", "command": "other-user-prompt" },
-          { "type": "command", "command": "'LokiMetis' --loki-metis-hook-relay github-copilot userPromptSubmitted --managed-by 'LokiMetis:tool=github-copilot'" }
+          { "type": "command", "command": "'LokiMetris' --loki-metris-hook-relay github-copilot userPromptSubmitted --managed-by 'LokiMetris:tool=github-copilot'" }
         ]
       }
     }"#;
@@ -267,7 +267,7 @@ fn github_copilot_merge_is_idempotent_and_preserves_other_handlers() {
     let prompt = serde_json::to_string(&value["hooks"]["userPromptSubmitted"]).unwrap();
     assert_eq!(value["version"], 1);
     assert_eq!(prompt.matches("other-user-prompt").count(), 1);
-    assert_eq!(prompt.matches("LokiMetis:tool=github-copilot").count(), 1);
+    assert_eq!(prompt.matches("LokiMetris:tool=github-copilot").count(), 1);
 }
 
 #[test]

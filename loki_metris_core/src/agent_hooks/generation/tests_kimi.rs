@@ -15,7 +15,7 @@ fn kimi_code_preview_uses_managed_toml_rules() {
     let preview = generate_test_hook_config(AiTool::KimiCode).unwrap();
     let parsed = toml::from_str::<toml::Value>(&preview.content).unwrap();
     assert_eq!(preview.filename, ".kimi-code/config.toml");
-    assert!(preview.content.contains("LokiMetis:tool=kimi-code begin"));
+    assert!(preview.content.contains("LokiMetris:tool=kimi-code begin"));
     for event in [
         "SessionStart",
         "PermissionRequest",
@@ -28,7 +28,7 @@ fn kimi_code_preview_uses_managed_toml_rules() {
     assert!(
         preview
             .content
-            .contains("--loki-metis-hook-relay 'kimi-code'")
+            .contains("--loki-metris-hook-relay 'kimi-code'")
     );
     assert!(!preview.content.contains("cmd.exe"));
     assert_eq!(
@@ -84,7 +84,7 @@ fn kimi_code_merge_preserves_user_toml_and_is_idempotent() {
     assert_eq!(
         first
             .content
-            .matches("LokiMetis:tool=kimi-code begin")
+            .matches("LokiMetris:tool=kimi-code begin")
             .count(),
         1
     );
@@ -96,7 +96,7 @@ fn kimi_code_merge_preserves_user_toml_and_is_idempotent() {
 /// 验证 Kimi Code 拒绝边界不完整的受管配置块。
 fn kimi_code_merge_rejects_a_broken_managed_block() {
     let generated = generate_test_hook_config(AiTool::KimiCode).unwrap();
-    let broken = "default_model = \"kimi-code/k3\"\n# LokiMetis:tool=kimi-code begin\n";
+    let broken = "default_model = \"kimi-code/k3\"\n# LokiMetris:tool=kimi-code begin\n";
     assert!(merge_hook_config(Some(broken), &generated, AiTool::KimiCode).is_err());
 }
 

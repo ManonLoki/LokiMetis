@@ -61,12 +61,12 @@ impl HookProtocol for HermesProtocol {
 
     /// 返回插件入口文件名。
     fn config_filename(&self) -> &'static str {
-        "plugins/lokimetis/__init__.py"
+        "plugins/lokimetris/__init__.py"
     }
 
     /// 返回预览路径。
     fn preview_filename(&self) -> &'static str {
-        ".hermes/plugins/lokimetis/__init__.py"
+        ".hermes/plugins/lokimetris/__init__.py"
     }
 
     /// 返回完整事件表。
@@ -79,14 +79,14 @@ impl HookProtocol for HermesProtocol {
         HookWriteOutcome::HermesEnableRequired
     }
 
-    /// 生成只通过 LokiMetis CLI relay 转发事件的 Hermes 插件。
+    /// 生成只通过 LokiMetris CLI relay 转发事件的 Hermes 插件。
     fn standalone_config(&self, relay_executable: &Path) -> Option<String> {
         let marker = managed_hook_marker(AiTool::Hermes);
         let executable_literal =
             serde_json::Value::String(relay_executable.to_string_lossy().into_owned()).to_string();
         Some(format!(
             r#"# {marker}
-"""Relay Hermes observer lifecycle events through the LokiMetis CLI."""
+"""Relay Hermes observer lifecycle events through the LokiMetris CLI."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def _send(hook_event: str, **kwargs) -> None:
         subprocess.run(
             [
                 RELAY_EXECUTABLE,
-                "--loki-metis-hook-relay",
+                "--loki-metris-hook-relay",
                 "hermes",
                 hook_event,
                 "--managed-by",
@@ -127,7 +127,7 @@ def _send(hook_event: str, **kwargs) -> None:
             check=False,
         )
     except Exception:
-        # LokiMetis CLI 不可用时保持单次短超时的 fail-open。
+        # LokiMetris CLI 不可用时保持单次短超时的 fail-open。
         pass
 
 
@@ -162,12 +162,12 @@ def register(ctx) -> None:
     fn auxiliary_configs(&self) -> Vec<HookConfigPreview> {
         let marker = managed_hook_marker(AiTool::Hermes);
         vec![HookConfigPreview {
-            filename: "plugins/lokimetis/plugin.yaml".to_owned(),
+            filename: "plugins/lokimetris/plugin.yaml".to_owned(),
             content: format!(
-                r#"name: lokimetis
+                r#"name: lokimetris
 version: 1.0.0
-description: "{marker} - relay Hermes lifecycle state to LokiMetis"
-author: LokiMetis
+description: "{marker} - relay Hermes lifecycle state to LokiMetris"
+author: LokiMetris
 hooks:
   - on_session_start
   - pre_llm_call

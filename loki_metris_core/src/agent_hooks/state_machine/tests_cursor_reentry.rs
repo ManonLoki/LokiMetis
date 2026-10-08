@@ -1,4 +1,4 @@
-//! AIMonitor 源状态机对应场景的 LokiMetis 回归测试。
+//! AIMonitor 源状态机对应场景的 LokiMetris 回归测试。
 
 // 引入标准库的 Duration，用于构造带时间戳的测试事件
 use std::time::Duration;

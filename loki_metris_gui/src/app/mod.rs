@@ -1,6 +1,7 @@
 //! 原生壳层只拥有导航、外观和设备偏好；领域状态始终从直接依赖的共享核心读取。
 
 mod settings;
+mod monitor;
 mod dashboard;
 
 mod about;
@@ -15,6 +16,7 @@ const SIDEBAR_INSET: f32 = 6.;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
     Dashboard,
+    Monitor,
     Settings,
     About,
 
@@ -22,6 +24,7 @@ pub enum Page {
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
+    monitor:monitor::MonitorView,
     agent_settings:settings::AgentSettingsState,
     preference_save:settings::PreferenceSaveState,
     dashboard: dashboard::Dashboard,
@@ -63,7 +66,7 @@ impl Shell {
         let activation = cx.observe_window_activation(window, |this,window,cx|this.update_window_visibility(window,cx));
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let locale = preferences.locale();
-        let mut value = Self { agent_settings:Default::default(), preference_save:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             show_update_status: false, show_release_notes: false,
         };
@@ -174,6 +177,7 @@ impl Shell {
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();}
         self.page = page;
+        if page==Page::Monitor {self.refresh_monitor(true,cx);}
         if page==Page::Settings {self.load_agent_settings(cx);}
         if page==Page::Dashboard {self.reload_usage(false,cx);}
         cx.notify();
@@ -183,6 +187,7 @@ impl Shell {
     fn page_title(&self) -> String {
         self.t(match self.page {
             Page::Dashboard => "navigation.dashboard",
+            Page::Monitor => "navigation.monitor",
             Page::Settings => "navigation.settings",
             Page::About => "navigation.about",
 
@@ -192,10 +197,11 @@ impl Shell {
     /// 参考产品使用固定紧凑侧栏，整项 Button 拥有点击和辅助标签。
     fn navigation_item(&self, page: Page, id: &'static str, key: &str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
         let label = self.t(key);
+        let icon=if page==Page::Monitor {gpui_kit::component::Icon::default().data(include_bytes!("../../assets/icons/chart-line-up.svg"))}else{gpui_kit::component::Icon::new(icon)};
         gpui_kit::base::Button::new(id).h_auto().min_h(px(56.)).py_1().px_0().w_full().flex().items_center().justify_center().rounded(px(12.))
             .accessibility_label(label.clone())
             .child(div().w_full().h_auto().flex_shrink_0().flex().flex_col().items_center().gap_1()
-                .child(gpui_kit::component::Icon::new(icon).size(px(22.)))
+                .child(icon.size(px(22.)))
                 .child(div().w(px(67.)).whitespace_normal().text_center().text_size(px(11.)).line_height(gpui_kit::relative(1.25)).font_weight(FontWeight::NORMAL).child(label)))
             .when(self.page == page, |button| button.bg(cx.theme().accent).text_color(cx.theme().accent_foreground).rounded(px(12.)))
             .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
@@ -221,6 +227,7 @@ impl Shell {
             .p(px(SIDEBAR_INSET)).border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
             .child(identity).child(self.sidebar_divider(cx));
         sidebar = sidebar.child(self.navigation_item(Page::Dashboard, "nav-dashboard", "navigation.dashboard", IconName::LayoutDashboard, cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Monitor,"nav-monitor","navigation.monitor",IconName::Activity,cx));
         sidebar = sidebar.child(div().flex_1());
 
         sidebar = sidebar.child(self.sidebar_divider(cx));
@@ -238,6 +245,7 @@ impl Render for Shell {
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
         let content = match self.page {
             Page::Dashboard => self.dashboard_page(window,cx),
+            Page::Monitor => self.monitor_page(cx),
             Page::Settings => self.settings_page(cx),
             Page::About => self.about_page(cx),
 

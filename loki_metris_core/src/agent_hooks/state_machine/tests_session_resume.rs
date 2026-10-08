@@ -1,4 +1,4 @@
-//! AIMonitor 源状态机对应场景的 LokiMetis 回归测试。
+//! AIMonitor 源状态机对应场景的 LokiMetris 回归测试。
 
 // 引入被测状态机相关类型：事件决策结果、状态机本体、转场类型
 use super::{HookEventDecision, HookStateMachine, HookTransition};

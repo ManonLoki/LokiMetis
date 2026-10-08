@@ -98,6 +98,27 @@ impl UsageService {
         Ok(Arc::new(Self { runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default(),lifecycle_started:Default::default() }))
     }
 
+    /// 原生启动拥有独立中继任务，配置未读成功前监听门禁始终为空。
+    pub fn start_monitoring(&self)->Result<(), &'static str> {
+        let rendezvous=crate::monitor::relay::hook_relay_rendezvous_path().map_err(|_|"monitor_rendezvous_unavailable")?;
+        self.start_monitoring_at(rendezvous)
+    }
+
+    /// 隔离测试只发布到显式传入路径，不覆盖生产或参考 App 缓存。
+    fn start_monitoring_at(&self,path:PathBuf)->Result<(), &'static str> {
+        let runtime=self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let runtime=runtime.as_ref().ok_or("usage_service_closed")?;
+        if self.context.agents.listener.get().is_some() {return Ok(())}
+        let (_,control)=crate::monitor::listener::spawn_hook_listener(runtime.handle(),self.context.directory.join("monitor"),Vec::new(),path);
+        self.context.agents.bind_listener(Arc::new(control))?;
+        Ok(())
+    }
+
+    /// 返回真实中继状态；宿主尚未启动时显式失败，不伪造离线或成功快照。
+    pub fn monitor_status(&self)->Result<crate::monitor::listener::HookRelayStatus,&'static str> {
+        self.context.agents.listener.get().map(|control|control.snapshot()).ok_or("monitor_service_unavailable")
+    }
+
     /// 查询只读既有派生库，快速切页只合并查询意图，不取消 writer。
     pub fn query(&self, query: UsageQuery) -> Result<oneshot::Receiver<Result<UsageResponse, &'static str>>, &'static str> {
         self.queries.submit(query)
@@ -125,6 +146,7 @@ impl UsageService {
     pub fn finish(&self) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
             self.context.writer.shutdown();
+            if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}
             runtime.block_on(self.background.shutdown());
             if !self.scans.stop(Duration::from_secs(10)) { tracing::warn!(event = "usage_shutdown_drain_timeout"); }
             if !self.queries.stop(Duration::from_secs(5)) { tracing::warn!(event = "usage_query_drain_timeout"); }
@@ -132,3 +154,6 @@ impl UsageService {
         }
     }
 }
+
+#[cfg(test)]
+mod monitor_tests;

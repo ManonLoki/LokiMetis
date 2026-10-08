@@ -26,7 +26,7 @@ pub fn generate_hook_config(
 }
 
 /// 为运行在 WSL 内的客户端生成 POSIX Hook 命令。relay 本身仍是 Windows
-/// LokiMetis GUI 可执行文件，但 executable 已由 application 层通过 wslpath 转换为 Linux 路径。
+/// LokiMetris GUI 可执行文件，但 executable 已由 application 层通过 wslpath 转换为 Linux 路径。
 pub fn generate_wsl_hook_config(
     // 目标 AI 工具类型
     tool: AiTool,
@@ -200,7 +200,7 @@ pub fn merge_hook_config(
     })
 }
 
-/// 从现有公共 JSON Hook 配置中只移除指定工具的 LokiMetis 受管条目。
+/// 从现有公共 JSON Hook 配置中只移除指定工具的 LokiMetris 受管条目。
 ///
 /// 没有受管条目时逐字返回原文；清理后仍有用户、其它工具或根级内容时返回
 /// 清理后的 JSON；只有本次确实移除了条目且整个文档仅剩空 `hooks` 时返回 `None`。
@@ -271,7 +271,7 @@ fn managed_commands(
     // 可选的 WSL 侧可执行路径；Some 表示当前是 WSL 场景
     wsl_executable: Option<&str>,
 ) -> ManagedCommands {
-    // 计算该工具的 LokiMetis 管理标识，写入命令末尾的 --managed-by 参数
+    // 计算该工具的 LokiMetris 管理标识，写入命令末尾的 --managed-by 参数
     let marker = managed_hook_marker(protocol.tool());
     // 把路径转换为字符串（有损转换，处理非法 UTF-8 时用替换字符）
     let executable = relay_executable.to_string_lossy().into_owned();
@@ -288,7 +288,7 @@ fn managed_commands(
     // 拼装 POSIX shell 命令：可执行路径、relay 子命令、工具 slug、事件名、管理标识，
     // 每个参数都经过 shell 引号转义
     let posix = format!(
-        "{} --loki-metis-hook-relay {} {} --managed-by {}",
+        "{} --loki-metris-hook-relay {} {} --managed-by {}",
         shell_quote(&posix_executable),
         shell_quote(protocol.slug()),
         shell_quote(event),
@@ -296,7 +296,7 @@ fn managed_commands(
     );
     // 拼装 Windows CMD 命令：用 cmd.exe /d /s /c 包裹，参数按 CMD 双引号规则转义
     let windows = format!(
-        "cmd.exe /d /s /c \"{} --loki-metis-hook-relay {} {} --managed-by {}\"",
+        "cmd.exe /d /s /c \"{} --loki-metris-hook-relay {} {} --managed-by {}\"",
         windows_quote(&executable),
         windows_quote(protocol.slug()),
         windows_quote(event),
@@ -305,7 +305,7 @@ fn managed_commands(
     // 拼装经 PowerShell 宿主转发到 CMD 的命令：需要额外的反引号转义，
     // 用于同时保住含空格路径和参数边界
     let windows_powershell_host = format!(
-        "cmd.exe /d /s /c \"{} --loki-metis-hook-relay {} {} --managed-by {}\"",
+        "cmd.exe /d /s /c \"{} --loki-metris-hook-relay {} {} --managed-by {}\"",
         powershell_host_quote(&executable),
         powershell_host_quote(protocol.slug()),
         powershell_host_quote(event),
@@ -360,3 +360,6 @@ mod tests;
 mod tests_kimi;
 #[cfg(test)]
 mod tests_merge;
+
+#[cfg(test)]
+mod tests_identity;
