@@ -2,7 +2,7 @@
 
 ## 项目使命
 
-诡秘神谕 / LokiMetris 是独立终端下游项目，负责人 ManonLoki。当前只有中性 Rust core 与 GPUI GUI；产品功能尚未定义，首次产品开发使用 `$desktop-define-product`。本仓库不得继续派生项目。
+诡秘神谕 / LokiMetris 是独立终端下游项目，负责人 ManonLoki。产品为历史 LokiMetis 的 GPUI 原生体验复刻，当前边界见最新 `docs/product_spec/`；实施进度见当前 `docs/work_plan/`。本仓库不得继续派生项目。
 
 ## 启动门禁
 

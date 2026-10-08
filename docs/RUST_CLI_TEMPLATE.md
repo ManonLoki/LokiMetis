@@ -5,7 +5,7 @@
 ## 工作区
 
 - resolver 3、edition 2024、MSRV 1.98.1，根 workspace.package.version 是当前版本事实；core/gui 的 version/edition/rust-version 继承 workspace。
-- loki_metris_core 无第三方依赖，当前 ProductDefinition::Undefined 明确表示产品未定义，后续获批业务必须落 core。
+- loki_metris_core 已按批准复刻规格迁入历史纯 Rust 领域模型、SQLite 索引、解析与聚合；声明的项目内依赖见根 Cargo.toml。产品定义已完成，具体复刻进度见自身 Work Plan。core 不依赖 GPUI、Tauri 或 WebView。
 - loki_metris_gui 使用 gpui-kit 0.7.1、rust-i18n 4.2.0 兼容范围、sys-locale 0.3.2、tracing 0.1.44、tracing-subscriber 0.3.23、tracing-appender 0.2.5；实际解析结果以 Cargo 为准。
 - 已选原生机制使用 tray-icon 0.26.1、auto-launch 0.6.0、interprocess 2.4.4、global-hotkey 0.8.0；Windows 条件 raw-window-handle，Kit test-support 仅 dev-dependencies。依赖统一 workspace，成员不另定版本。
 - 优先标准库/现有依赖，不预建运行时/驱动接口；真正必要新依赖先说明确认，显式声明在项目内隔离，不安装全局包。
