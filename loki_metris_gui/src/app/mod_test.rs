@@ -62,57 +62,60 @@ fn resized_window_is_saved_when_quitting_without_window_close(cx: &mut TestAppCo
     std::fs::remove_dir_all(directory).expect("清理隔离偏好目录");
 }
 
-/// 详细菜单左对齐；两档按钮中心都锚定边界和 Logo，伸出的右半边可点击且父级不代理。
+/// 固定紧凑侧栏与主区共享高度和边界，Logo 周围不代理导航点击。
 #[gpui_kit::test]
-fn sidebar_alignment_and_toggle_share_the_fixed_shell_bounds(cx: &mut TestAppContext) {
+fn compact_sidebar_owns_navigation_and_keeps_fixed_bounds(cx: &mut TestAppContext) {
     let (handle, shell, _finish) = open_shell(cx, 1440., 900.);
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         let sidebar = window.find("sidebar").bounds();
         let main = window.find("main-content").bounds();
-        assert_eq!(sidebar.size.width, px(if true { 80. } else { 248. }));
+        assert_eq!(sidebar.size.width, px(80.));
         assert_eq!(main.origin.x, sidebar.right());
         assert_eq!(main.origin.y, sidebar.origin.y);
         assert_eq!(main.right(), px(1440.));
-        if true {
-            assert!(window.try_find("sidebar-toggle").is_none());
-        } else {
-            let icon = window.find(("nav-settings", 1usize)).bounds();
-            let row = window.find(("nav-settings", 0usize)).bounds();
-            assert_eq!(icon.origin.x, row.origin.x, "详细菜单图标不能被 Kit 内层默认居中");
-            assert!(icon.origin.x < sidebar.origin.x + px(32.));
-            for collapsed in [false, true] {
-                window.render_frame(cx);
-                let sidebar = window.find("sidebar").bounds();
-                let main = window.find("main-content").bounds();
-                let logo = window.find("sidebar-logo").bounds();
-                let toggle = window.find("sidebar-toggle").bounds();
-                assert_eq!(shell.read(cx).preferences.collapsed, collapsed);
-                assert_eq!(sidebar.size.width, px(if collapsed { 76. } else { 248. }));
-                assert_eq!(logo.size, size(px(if collapsed { 44. } else { 72. }), px(if collapsed { 44. } else { 72. })));
-                assert_eq!(toggle.size, size(px(24.), px(24.)));
-                assert_eq!(toggle.center().x, sidebar.right(), "按钮必须横跨侧栏和内容边界");
-                assert_eq!(toggle.center().y, logo.center().y, "按钮与 Logo 必须沿同一水平中心线");
-                assert_eq!(main.origin.x, sidebar.right());
-                assert_eq!(main.origin.y, sidebar.origin.y);
-                assert_eq!(main.right(), px(1440.));
-                if collapsed {
-                    assert!(window.try_find(("nav-settings", 2usize)).is_none());
-                    let icon = window.find(("nav-settings", 1usize)).bounds();
-                    assert!((icon.center().x - sidebar.center().x).abs() <= px(1.));
-                }
-                println!("toggle geometry collapsed={collapsed}: sidebar={sidebar:?} logo={logo:?} toggle={toggle:?} main={main:?}");
-                // Button 之外的 Logo/身份区与主内容不拥有折叠动作。
-                window.click("sidebar-logo", cx);
-                window.click("sidebar-identity", cx);
-                window.click_at("application-shell", point(sidebar.right() + px(20.), logo.center().y), cx);
-                assert_eq!(shell.read(cx).preferences.collapsed, collapsed, "周围父级不能代理 Button 动作");
-                // 点击按钮右半边，真实指针落在主内容范围内，不能被它覆盖或被侧栏裁切。
-                window.click_at("sidebar-toggle", point(px(18.), px(12.)), cx);
-                assert_eq!(shell.read(cx).preferences.collapsed, !collapsed, "伸出边界的右半边必须实际可点击");
-            }
-            window.render_frame(cx);
-            assert!(!shell.read(cx).preferences.collapsed);
-        }
+        assert!(window.try_find("sidebar-toggle").is_none());
+        window.click("sidebar-logo", cx);
+        assert_eq!(shell.read(cx).page, Page::Dashboard);
+        window.click("nav-settings", cx);
+        assert_eq!(shell.read(cx).page, Page::Settings);
+        window.click("nav-dashboard", cx);
+        assert_eq!(shell.read(cx).page, Page::Dashboard);
     }).expect("更新真实布局测试窗口");
+}
+
+/// 复制精确带分组整数并只改变按钮反馈；离开页面后仍保留当前客户端窗口。
+#[gpui_kit::test]
+fn overview_copies_exact_value_and_preserves_window_across_navigation(cx: &mut TestAppContext) {
+    use loki_metris_core::{LocalIndexState, LocalRecordsSummary, LocalUsageWindow, MetricFact,
+        MetricScope, ProviderKind, Freshness, Completeness, Confidence, WindowUsage,
+        empty_local_usage_aggregate_for_provider};
+    let (handle, shell, _finish) = open_shell(cx, 1440., 900.);
+    let mut aggregate = empty_local_usage_aggregate_for_provider(ProviderKind::RolloutJsonl);
+    aggregate.call_count = 1;
+    aggregate.tokens.input_tokens = 436_273_700;
+    aggregate.tokens.output_tokens = 80;
+    aggregate.tokens.total_tokens = 436_273_780;
+    let windows = LocalUsageWindow::OVERVIEW_WINDOWS.into_iter().map(|window| WindowUsage {
+        window, fact: MetricFact::new(aggregate.clone(), ProviderKind::RolloutJsonl,
+            MetricScope::DeviceObserved, 0, Freshness::Fresh, Completeness::Complete, Confidence::Exact, None),
+    }).collect();
+    shell.update(cx, |shell, cx| {
+        shell.dashboard.data = Some(crate::usage_service::UsageData {
+            records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
+            roots: Vec::new(), observed_at_epoch_ms: 0, workbuddy: None, workbuddy_read_failed: false,
+        });
+        cx.notify();
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click(("usage-window", 1usize), cx);
+        assert_eq!(shell.read(cx).dashboard.ranges[1], 1);
+        window.click("copy-total", cx);
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("436,273,780"));
+        assert!(shell.read(cx).dashboard.copied);
+        window.click("nav-settings", cx);
+        window.click("nav-dashboard", cx);
+        assert_eq!(shell.read(cx).dashboard.ranges[1], 1);
+    }).expect("验证真实事件与复制结果");
 }

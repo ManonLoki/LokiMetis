@@ -1,6 +1,7 @@
 //! 原生壳层只拥有导航、外观和设备偏好；领域状态始终从直接依赖的共享核心读取。
 
 mod settings;
+mod dashboard;
 
 mod about;
 
@@ -10,12 +11,10 @@ use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscriptio
 
 /// 侧栏内边距同时确定顶部 Logo 与边界控件的垂直原点。
 const SIDEBAR_INSET: f32 = 6.;
-/// 保留详细侧栏原有 pt_7 的 1.75rem 顶部留白，按钮按窗口真实 rem 换算。
-const SIDEBAR_LOGO_TOP: f32 = 1.75;
-
 /// 页面枚举只包含本次初始化实际启用的页面。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
+    Dashboard,
     Settings,
     About,
 
@@ -23,7 +22,9 @@ pub enum Page {
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
+    dashboard: dashboard::Dashboard,
     page: Page,
+    viewport_width: f32,
     preferences: Preferences,
     writer: Writer,
     locale: &'static str,
@@ -54,7 +55,7 @@ impl Shell {
         });
         let bounds_subscription = cx.observe_window_bounds(window, |this, window, _| { this.remember_window(window); });
         let locale = preferences.locale();
-        let mut value = Self { page: Page::Settings, preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             show_update_status: false, show_release_notes: false,
         };
         value.remember_window(window);
@@ -96,6 +97,44 @@ impl Shell {
             ThemeChoice::System => matches!(window.appearance(), WindowAppearance::Dark | WindowAppearance::VibrantDark),
         };
         Theme::change(if dark { ThemeMode::Dark } else { ThemeMode::Light }, None, cx);
+        Theme::update(cx, |theme| {
+            let color = |light, dark_color| gpui_kit::rgb(if dark { dark_color } else { light }).into();
+            theme.font_size = px(16.);
+            theme.font_family = "Geist".into();
+            theme.mono_font_family = "Geist Mono".into();
+            theme.colors.background = color(0xf7f4ef, 0x131211);
+            theme.colors.foreground = color(0x2d241e, 0xf8f8f8);
+            theme.colors.secondary = color(0xfffdf9, 0x1e1c1a);
+            theme.colors.muted = color(0xfcfaf7, 0x26272b);
+            theme.colors.muted_foreground = color(0x847b72, 0x8a8784);
+            theme.colors.border = color(0xe6ddd1, 0x332f2a);
+            theme.colors.primary = color(0xc43b2d, 0xd95a44);
+            theme.colors.primary_foreground = color(0xffffff, 0xffffff);
+            theme.colors.accent = color(0xfbe2d6, 0x3c241d);
+            theme.colors.accent_foreground = color(0x94291f, 0xffb18e);
+            theme.colors.primary_hover = color(0xaa3026, 0xe16b57);
+            theme.colors.primary_active = color(0x94291f, 0xc34b39);
+            theme.colors.secondary_foreground = theme.colors.foreground;
+            theme.colors.secondary_hover = theme.colors.muted;
+            theme.colors.secondary_active = theme.colors.accent;
+            theme.colors.button = theme.colors.secondary;
+            theme.colors.button_foreground = theme.colors.foreground;
+            theme.colors.button_hover = theme.colors.muted;
+            theme.colors.button_active = theme.colors.accent;
+            theme.colors.button_primary = theme.colors.primary;
+            theme.colors.button_primary_foreground = theme.colors.primary_foreground;
+            theme.colors.button_primary_hover = theme.colors.primary_hover;
+            theme.colors.button_primary_active = theme.colors.primary_active;
+            theme.colors.button_secondary = theme.colors.secondary;
+            theme.colors.button_secondary_foreground = theme.colors.foreground;
+            theme.colors.button_secondary_hover = theme.colors.secondary_hover;
+            theme.colors.button_secondary_active = theme.colors.secondary_active;
+            theme.colors.tab_bar = color(0xf9f7f4, 0x191a1c);
+            theme.colors.tab_bar_segmented = theme.colors.secondary;
+            theme.colors.tab_foreground = theme.colors.muted_foreground;
+            theme.colors.tab_active = theme.colors.accent;
+            theme.colors.tab_active_foreground = theme.colors.accent_foreground;
+        });
     }
 
     /// 组件库词典与应用词典使用相同的有效语言。
@@ -131,67 +170,48 @@ impl Shell {
     /// 页面标题来自当前实际页面对应的词典键。
     fn page_title(&self) -> String {
         self.t(match self.page {
+            Page::Dashboard => "navigation.dashboard",
             Page::Settings => "navigation.settings",
             Page::About => "navigation.about",
 
         })
     }
 
-    /// compact 永远显示名称；detailed 按自身持久偏好展示或收起。
-    fn sidebar_width(&self) -> f32 {
-        if true { 80. } else if self.preferences.collapsed { 76. } else { 248. }
-    }
-
-    /// Logo 与边界按钮共享当前详细侧栏档位，避免折叠后垂直中心漂移。
-    fn sidebar_logo_size(&self) -> f32 {
-        if true { 36. } else if self.preferences.collapsed { 44. } else { 72. }
-    }
-
-    /// 具有真实按钮语义的整个菜单项直接拥有点击，不借助父级代理。
+    /// 参考产品使用固定紧凑侧栏，整项 Button 拥有点击和辅助标签。
     fn navigation_item(&self, page: Page, id: &'static str, key: &str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
         let label = self.t(key);
-        let compact = true;
-        let collapsed = !compact && self.preferences.collapsed;
-        if compact {
-            Button::new(id).ghost().h(px(56.)).w_full()
-                .tooltip(label.clone()).accessibility_label(label.clone())
-                .child(div().w_full().flex().flex_col().items_center().gap_1()
-                    .child(gpui_kit::component::Icon::new(icon).size(px(22.)))
-                    .child(div().w_full().text_center().text_size(px(11.)).child(label)))
-                .when(self.page == page, |button| button.primary())
-                .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
-                .into_any_element()
-        } else {
-            Button::new(id).ghost().h(px(44.)).w_full()
-                .tooltip(label.clone()).accessibility_label(label.clone())
-                .child(div().id((id, 0usize)).test_support().w_full().min_w_0().flex().items_center().gap_2()
-                    .when(collapsed, |row| row.justify_center())
-                    .when(!collapsed, |row| row.justify_start())
-                    .child(div().id((id, 1usize)).test_support().flex_shrink_0()
-                        .child(gpui_kit::component::Icon::new(icon).size(px(22.))))
-                    .when(!collapsed, |row| row.child(div().id((id, 2usize)).test_support().min_w_0().child(label))))
-                .when(self.page == page, |button| button.primary())
-                .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
-                .into_any_element()
-        }
+        Button::new(id).ghost().h(px(56.)).w_full()
+            .tooltip(label.clone()).accessibility_label(label.clone())
+            .child(div().w_full().flex().flex_col().items_center().gap_1()
+                .child(gpui_kit::component::Icon::new(icon).size(px(22.)))
+                .child(div().w_full().text_center().text_size(px(11.)).child(label)))
+            .when(self.page == page, |button| button.bg(cx.theme().accent).text_color(cx.theme().accent_foreground).rounded(px(12.)))
+            .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
+            .into_any_element()
+    }
+
+    /// 侧栏分隔线沿用参考的中性色，不占业务导航项内部间距。
+    fn sidebar_divider(&self, cx: &Context<Self>) -> AnyElement {
+        div().h(px(1.)).flex_shrink_0().w_full().my_2()
+            .bg(if cx.theme().mode.is_dark() { gpui_kit::rgb(0x424242) } else { gpui_kit::rgb(0xdee2e6) }).into_any_element()
     }
 
     /// 功能区向下增长，支持区保持已选赞助、设置、已选关于的稳定顺序。
     fn sidebar(&self, cx: &mut Context<Self>) -> AnyElement {
-        let width = self.sidebar_width();
-        let logo_size = self.sidebar_logo_size();
+        let width = 80.;
+        let logo_size = 36.;
         let identity = div().id("sidebar-identity").test_support().relative().w_full().flex_shrink_0().flex().flex_col().items_center().justify_center().gap_2()
-            .when(true, |header| header.py_3())
-            .when(!true, |header| header.pt(gpui_kit::rems(SIDEBAR_LOGO_TOP)).pb_3())
+            .py_2()
             .child(div().id("sidebar-logo").test_support().size(px(logo_size)).flex_shrink_0().child(img(assets::LOGO).size_full()))
-            .child(div().text_xs().text_color(cx.theme().muted_foreground).child(self.version()))
-            .when(!true && !self.preferences.collapsed, |header| header.child(div().w_full().min_w_0().whitespace_normal().text_center().text_sm().font_weight(FontWeight::SEMIBOLD).child(self.name())))
+            .child(div().text_size(px(10.)).text_color(cx.theme().muted_foreground).child(self.version()))
             ;
         let mut sidebar = div().id("sidebar").test_support().w(px(width)).h_full().min_h_0().flex_shrink_0().flex().flex_col()
-            .p(px(SIDEBAR_INSET)).gap_2().border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
-            .child(identity);
+            .p(px(SIDEBAR_INSET)).border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
+            .child(identity).child(self.sidebar_divider(cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Dashboard, "nav-dashboard", "navigation.dashboard", IconName::LayoutDashboard, cx));
         sidebar = sidebar.child(div().flex_1());
 
+        sidebar = sidebar.child(self.sidebar_divider(cx));
         sidebar = sidebar.child(self.navigation_item(Page::Settings, "nav-settings", "navigation.settings", IconName::Settings, cx));
         sidebar = sidebar.child(self.navigation_item(Page::About, "nav-about", "navigation.about", IconName::Info, cx));
         sidebar.into_any_element()
@@ -201,21 +221,21 @@ impl Shell {
 impl Render for Shell {
     /// 原生窗口标题与视图元数据由同一身份和当前语言派生。
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.viewport_width = window.viewport_size().width.into();
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
-        let _definition = loki_metris_core::product_definition();
         let content = match self.page {
+            Page::Dashboard => self.dashboard_page(cx),
             Page::Settings => self.settings_page(cx),
             Page::About => self.about_page(cx),
 
         };
         let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().flex().flex_col()
-            .when(false, |page| page.p_0())
-            .when(!(false), |page| page.p_8())
+            .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);
-        div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_color(cx.theme().foreground)
+        div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_size(px(14.)).text_color(cx.theme().foreground)
             .child(self.sidebar(cx))
             .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col()
-                .when(!(false), |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
+                .when(self.page != Page::Dashboard, |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
                     .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
 

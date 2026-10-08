@@ -5,6 +5,8 @@
 rust_i18n::i18n!("locales", fallback = "en-US");
 
 mod app;
+mod backend;
+mod usage_service;
 mod assets;
 mod preferences;
 mod logging;
@@ -35,11 +37,28 @@ fn main() -> std::process::ExitCode {
     let (preferences, writer) = preferences::load();
     let locale = preferences.locale();
     let shutdown = lifecycle::Shutdown::new(writer.clone(), log_guard);
+    let usage_service = match usage_service::UsageService::new() {
+        Ok(service) => service,
+        Err(code) => { tracing::error!(event = code); return std::process::ExitCode::FAILURE; }
+    };
+    shutdown.borrow_mut().own_usage(usage_service.clone());
     let native_shutdown = shutdown.clone();
     gpui_kit::application().with_assets(assets::Assets).run(move |cx: &mut App| {
         use gpui_kit::component as gpui_component;
         rust_i18n::extend!(gpui_component);
         gpui_kit::init(cx);
+        cx.text_system().add_fonts(vec![
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Regular.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Medium.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-SemiBold.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Bold.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-ExtraBold.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Regular.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Medium.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-SemiBold.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Bold.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-ExtraBold.ttf")),
+        ]).expect("无法注册内嵌字体");
         cx.set_app_identity("com.loki-metris.app", "LokiMetris");
         lifecycle::install(cx, native_shutdown);
         cx.set_quit_mode(QuitMode::Explicit);
@@ -56,7 +75,11 @@ fn main() -> std::process::ExitCode {
             titlebar: Some(TitlebarOptions { title: Some("LokiMetris".into()), ..Default::default() }),
             app_id: Some("com.loki-metris.app".into()),
             ..Default::default()
-        }, cx, |window, cx| cx.new(|cx| app::Shell::new(preferences, writer, window, cx)))
+        }, cx, |window, cx| cx.new(|cx| {
+            let mut shell = app::Shell::new(preferences, writer, window, cx);
+            shell.attach_usage(usage_service, cx);
+            shell
+        }))
         .expect("无法创建 GPUI 窗口");
         native::install(handle, locale, instance, instance_receiver, cx);
         cx.activate(true);

@@ -7,3 +7,11 @@
 从同一负责人的历史 LokiMetis 迁入纯 Rust 领域实现与原有回归：用量/时间聚合、来源身份与 SQLite schema/迁移、调用筛选和游标、联合视图、Hooks/监控/桌宠及皮肤校验。crate 使用当前 `loki_metris_core` 名称；来源目录仅用于开发取证，不成为运行时依赖。业务核心不依赖 Tauri、GPUI 或 WebView，未复制用户会话、数据库或凭据。
 
 当前 core 383 项回归通过。版本经受管门禁从 `0.1.0` 提升为 `0.2.0`，占用本发布周期首个功能提升；整体 GPUI 体验复刻仍在进行，不能据此视为产品或发布候选验收。
+
+## GPUI-USAGE-001 · 真实本机概览接入
+
+分类：feature。required_version：`0.2.0`。关联目标：`GPUI-PARITY-001`。
+
+原生 GPUI 接入独立 SQLite 索引和历史本机扫描宿主，支持 Codex、Claude Code、Grok、WorkBuddy 与联合概览、六个日历窗口、缺失指标和覆盖质量、精确值复制、进程内筛选保持及合作取消/退出收尾。WorkBuddy 单独显示会话、请求、积分与 Trace；官方 Geist 静态字重仅内嵌注册，双语/主题即时切换。原始 Agent 文件只读，参考 App 和其派生数据保持独立。
+
+core 383 项、GUI/扫描宿主 240 项相关回归通过。Computer Use 已执行两端 Codex 昨日逐字段对照、WorkBuddy 概览、复制反馈、主题语言、窗口状态与正常退出检查；开发预览证据只保存在忽略的 release/gpui-parity/。后续统计/图表/调用、完整来源管理、监控、换肤和原生体验仍在实施，未形成最终候选。此功能沿用周期内 `0.2.0`，未再次提升 Minor。

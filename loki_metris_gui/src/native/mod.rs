@@ -1,6 +1,7 @@
 //! 原生能力统一持有生命周期；平台对象在 UI 线程创建，后台输入通过有界轮询映射。
 
 mod tray;
+mod menu;
 pub mod autostart;
 pub mod instance;
 pub mod shortcuts;
@@ -24,6 +25,7 @@ impl Global for Services {}
 
 /// 主窗口创建后安装宿主机制；不注册登录项，不申请通知权限，不绑定默认热键。
 pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>,  cx: &mut App) {
+    menu::install(locale, cx);
     #[cfg(windows)]
     let native_window = handle.update(cx, |_, window, _| windows::MainWindow::capture(window)).ok().and_then(Result::ok);
     let _ = locale;
@@ -92,6 +94,7 @@ pub fn hide_if_available(cx: &mut App) -> bool {
 }
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {
+    menu::set_language(locale, cx);
     if cx.has_global::<Services>() { if let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); } }
 }
 /// 设置视图仅读取内存快照，实际 OS 状态由后台 worker 更新。

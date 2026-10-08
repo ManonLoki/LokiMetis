@@ -9,17 +9,24 @@ use tracing_appender::non_blocking::WorkerGuard;
 pub struct Shutdown {
     writer: Writer,
     log_guard: Option<WorkerGuard>,
+    usage: Option<std::sync::Arc<crate::usage_service::UsageService>>,
 }
 
 impl Shutdown {
     /// 接管主入口的偏好 worker 和日志 guard，所有克隆只共享同一个收尾状态。
     pub fn new(writer: Writer, log_guard: WorkerGuard) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self { writer, log_guard: Some(log_guard) }))
+        Rc::new(RefCell::new(Self { writer, log_guard: Some(log_guard), usage: None }))
+    }
+
+    /// 应用退出钩子拥有业务运行时，窗口隐藏不会停止扫描或销毁服务。
+    pub fn own_usage(&mut self, usage: std::sync::Arc<crate::usage_service::UsageService>) {
+        self.usage = Some(usage);
     }
 
     /// 不可取消退出时先保存最终偏好，再记录停止事件并等待本地日志 worker 刷新。
     pub fn finish(&mut self) {
         let Some(guard) = self.log_guard.take() else { return };
+        if let Some(usage) = self.usage.take() { usage.finish(); }
         self.writer.finish();
         tracing::info!(event = "application_stopped");
         drop(guard);
