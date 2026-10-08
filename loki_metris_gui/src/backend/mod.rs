@@ -3,3 +3,5 @@
 pub(crate) mod local_index;
 
 pub(crate) mod workbuddy;
+
+pub(crate) mod scan_orchestration;

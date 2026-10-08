@@ -24,6 +24,32 @@ pub(super) fn compact(value: u64) -> String {
     format!("{}.{:02}{}", exact((rounded / 100) as u64), rounded % 100, units[index].1)
 }
 
+/// 观测时间始终使用设备时区，异常时间保留明确占位。
+pub(super) fn observed(epoch_ms: i64, locale: &str) -> String {
+    let Ok(timestamp) = jiff::Timestamp::from_millisecond(epoch_ms) else { return "—".into() };
+    let zoned = timestamp.to_zoned(jiff::tz::TimeZone::system());
+    let date = calendar(&zoned.date().to_string(), locale);
+    if locale == "zh-CN" { format!("{date} {}",zoned.strftime("%H:%M")) }
+    else { format!("{date}, {}:{:02} {}", match zoned.hour()%12 {0=>12,h=>h},zoned.minute(),if zoned.hour()<12 {"AM"}else{"PM"}) }
+}
+
+/// 自然日标签不经过时区换算，避免午夜日期发生偏移。
+pub(super) fn calendar(value: &str, locale: &str) -> String {
+    let Ok(date) = value.parse::<jiff::civil::Date>() else { return if locale=="zh-CN" {"未知"}else{"Unknown"}.into() };
+    if locale == "zh-CN" { format!("{}年{}月{}日",date.year(),date.month(),date.day()) }
+    else { format!("{} {}, {}",["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][date.month() as usize-1],date.day(),date.year()) }
+}
+
+/// 积分以两位小数和千分位显示；不再把显示字符串用于聚合。
+pub(super) fn credits(value:f64)->String {
+    let formatted=format!("{value:.2}");
+    let Some((whole,fraction))=formatted.split_once('.') else {return formatted};
+    let (sign,digits)=whole.strip_prefix('-').map_or(("",whole),|digits|("-",digits));
+    let mut grouped=sign.to_owned();
+    for(index,digit)in digits.chars().enumerate(){if index>0 && (digits.len()-index).is_multiple_of(3){grouped.push(',');}grouped.push(digit);}
+    format!("{grouped}.{fraction}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -37,5 +63,16 @@ mod tests {
         assert_eq!(compact(999_995), "1.00M");
         assert_eq!(compact(73_461_934), "73.46M");
         assert_eq!(compact(u64::MAX), "18,446,744,073.71B");
+        assert_eq!(credits(1234.567),"1,234.57");
+        assert_eq!(credits(-123.45),"-123.45");
+        assert_eq!(credits(-1234.5),"-1,234.50");
+    }
+
+    /// 日历格式匹配原版 Intl medium，非法日不发生静默进位。
+    #[test]
+    fn calendar_localizes_and_rejects_invalid_day() {
+        assert_eq!(calendar("2026-10-09","zh-CN"),"2026年10月9日");
+        assert_eq!(calendar("2026-10-09","en-US"),"Oct 9, 2026");
+        assert_eq!(calendar("2026-02-30","zh-CN"),"未知");
     }
 }

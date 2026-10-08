@@ -7,7 +7,7 @@ mod about;
 
 
 use crate::{assets, preferences::{LanguageChoice, Preferences, ThemeChoice, Writer}};
-use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode, button::{Button, ButtonVariants}}, div, img, prelude::*, px};
+use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode}, div, img, prelude::*, px};
 
 /// 侧栏内边距同时确定顶部 Logo 与边界控件的垂直原点。
 const SIDEBAR_INSET: f32 = 6.;
@@ -30,6 +30,10 @@ pub struct Shell {
     locale: &'static str,
     _appearance: Subscription,
     _bounds: Subscription,
+    _activation: Subscription,
+    _visibility: Subscription,
+    window_active: bool,
+    window_visible: bool,
     show_update_status: bool,
     show_release_notes: bool,
 }
@@ -54,14 +58,22 @@ impl Shell {
             !crate::native::hide_if_available(cx)
         });
         let bounds_subscription = cx.observe_window_bounds(window, |this, window, _| { this.remember_window(window); });
+        let activation = cx.observe_window_activation(window, |this,window,cx|this.update_window_visibility(window,cx));
+        let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let locale = preferences.locale();
         let mut value = Self { page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+            _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             show_update_status: false, show_release_notes: false,
         };
         value.remember_window(window);
         value.apply_language();
         value.apply_theme(window, cx);
         value
+    }
+
+    /// 后台或完全不可见窗口暂停页面轮询；恢复前台后由既有计时器补读。
+    fn update_window_visibility(&mut self,window:&Window,cx:&mut Context<Self>) {
+        self.window_active=window.is_window_active();self.window_visible=window.is_visible();cx.notify();
     }
 
     /// 保存内容尺寸与有界后台快照，直接退出也能恢复最新状态且不叠加原生标题栏。
@@ -134,6 +146,10 @@ impl Shell {
             theme.colors.tab_foreground = theme.colors.muted_foreground;
             theme.colors.tab_active = theme.colors.accent;
             theme.colors.tab_active_foreground = theme.colors.accent_foreground;
+            theme.colors.table = theme.colors.secondary;
+            theme.colors.table_head = theme.colors.secondary;
+            theme.colors.table_head_foreground = theme.colors.foreground;
+            theme.colors.table_row_border = color(0xe6ddd1, 0x424242);
         });
     }
 
@@ -180,11 +196,11 @@ impl Shell {
     /// 参考产品使用固定紧凑侧栏，整项 Button 拥有点击和辅助标签。
     fn navigation_item(&self, page: Page, id: &'static str, key: &str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
         let label = self.t(key);
-        Button::new(id).ghost().h(px(56.)).w_full()
-            .tooltip(label.clone()).accessibility_label(label.clone())
-            .child(div().w_full().flex().flex_col().items_center().gap_1()
+        gpui_kit::base::Button::new(id).h_auto().min_h(px(56.)).py_1().px_0().w_full().flex().items_center().justify_center().rounded(px(12.))
+            .accessibility_label(label.clone())
+            .child(div().w_full().h_auto().flex_shrink_0().flex().flex_col().items_center().gap_1()
                 .child(gpui_kit::component::Icon::new(icon).size(px(22.)))
-                .child(div().w_full().text_center().text_size(px(11.)).child(label)))
+                .child(div().w(px(67.)).whitespace_normal().text_center().text_size(px(11.)).line_height(gpui_kit::relative(1.25)).font_weight(FontWeight::NORMAL).child(label)))
             .when(self.page == page, |button| button.bg(cx.theme().accent).text_color(cx.theme().accent_foreground).rounded(px(12.)))
             .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
             .into_any_element()

@@ -119,3 +119,70 @@ fn overview_copies_exact_value_and_preserves_window_across_navigation(cx: &mut T
         assert_eq!(shell.read(cx).dashboard.ranges[1], 1);
     }).expect("验证真实事件与复制结果");
 }
+
+/// 统计和图表的窗口按 Agent 隔离；全部可继续看图，不能误入物理统计页。
+#[gpui_kit::test]
+fn analytics_filters_are_independent_across_routes_and_agents(cx:&mut TestAppContext) {
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);window.click("dashboard-usage",cx);
+        window.click(("statistics-window",1usize),cx);
+        window.click(("usage-client",2usize),cx);
+        assert_eq!(shell.read(cx).dashboard.detail.ranges[2],2);
+        window.click(("usage-client",1usize),cx);
+        assert_eq!(shell.read(cx).dashboard.detail.ranges[1],1);
+        window.click("dashboard-charts",cx);
+        assert_eq!(shell.read(cx).dashboard.chart.ranges[1],0);
+        window.click(("chart-window",4usize),cx);
+        window.click(("usage-client",0usize),cx);
+        assert_eq!(shell.read(cx).dashboard.chart.ranges[0],0);
+        assert!(window.try_find("chart-dimension").is_some());
+        window.click(("usage-client",1usize),cx);
+        assert_eq!(shell.read(cx).dashboard.chart.ranges[1],4);
+        assert_eq!(shell.read(cx).dashboard.ranges[1],0);
+    }).expect("验证真实筛选事件与跨 Agent 状态");
+}
+
+/// 曲线至少保留一条；切 Agent 后使用该 Agent 自己的勾选集合。
+#[gpui_kit::test]
+fn chart_cannot_hide_last_series_and_keeps_agent_choices(cx:&mut TestAppContext) {
+    use loki_metris_core::*;
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    let data=build_usage_chart_with_standard(&canonicalize_usage_calls(Vec::new()),&std::collections::BTreeMap::new(),
+        LocalIndexState::Ready,&empty_coverage(),LocalUsageWindow::Today,UsageChartDimension::Model,
+        1_786_000_000_000,ProviderKind::RolloutJsonl,None,TimeStandard::Local,&jiff::tz::TimeZone::UTC).unwrap();
+    shell.update(cx,|shell,cx|{shell.dashboard.chart.data=Some(data);cx.notify();});
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);window.click("dashboard-charts",cx);
+        window.click(("chart-series",1usize),cx);window.click(("chart-series",4usize),cx);
+        window.click(("chart-series",0usize),cx);
+        assert_eq!(shell.read(cx).dashboard.chart.visible[1],[true,false,false,false,false,false]);
+        let plot=window.find("token-trend").bounds();let scale=f32::from(plot.size.width)/920.;
+        for (x,expected) in [(73.,Some(0)),(485.,Some(12)),(897.,Some(23)),(20.,None)] {
+            window.simulate_mouse_move(plot.origin+point(px(x*scale),px(100.*scale)),cx);
+            window.render_frame(cx);
+            assert_eq!(shell.read(cx).dashboard.chart.hover[0].get(),expected);
+        }
+        window.click(("usage-client",2usize),cx);
+        assert_eq!(shell.read(cx).dashboard.chart.visible[2],[true,true,false,false,true,false]);
+        window.click(("usage-client",1usize),cx);
+        assert_eq!(shell.read(cx).dashboard.chart.visible[1],[true,false,false,false,false,false]);
+    }).expect("验证真实 Checkbox 事件与最少一条曲线约束");
+}
+
+/// 查询失败必须隐藏旧结果；首次加载有骨架，重试不会触发扫描。
+#[gpui_kit::test]
+fn analytics_loading_and_failure_hide_untrusted_old_results(cx:&mut TestAppContext) {
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    shell.update(cx,|shell,cx|{shell.dashboard.route=dashboard::Route::Charts;shell.dashboard.loading=true;cx.notify();});
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);assert!(window.try_find("usage-loading").is_some());
+        assert!(window.try_find("chart-dimension").is_none());
+    }).unwrap();
+    shell.update(cx,|shell,cx|{shell.dashboard.loading=false;shell.dashboard.error=Some("usage_read_failed");cx.notify();});
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);assert!(window.try_find("usage-retry").is_some());
+        assert!(window.try_find("chart-dimension").is_none());
+        window.click("usage-retry",cx);assert!(!shell.read(cx).dashboard.scanning);
+    }).unwrap();
+}
