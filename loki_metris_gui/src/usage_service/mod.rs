@@ -6,6 +6,7 @@ mod scan;
 mod sources;
 mod background;
 mod discovery;
+mod settings;
 #[cfg(test)]
 mod source_tests;
 
@@ -14,7 +15,7 @@ pub use sources::{SourceOperation,SourceOperationResult};
 pub use discovery::{DiscoveryView,ManualAddResult};
 use crate::backend::local_index::{current_user_home, ScanCoordinator, ScanProgress};
 use loki_metris_core::{CoverageReport, LocalRecordsSummary, RootRecord, SourceClientKind,
-    WorkbuddyStatisticsSnapshot, ScanStartOrigin, RetentionDays};
+    WorkbuddyStatisticsSnapshot, ScanStartOrigin};
 use queue::{Intent, Queue};
 use std::{collections::BTreeMap, path::PathBuf, sync::{Arc, Mutex}, time::Duration};
 use tokio::{runtime::Runtime, sync::oneshot};
@@ -45,7 +46,7 @@ struct ServiceContext {
     coverage: Mutex<BTreeMap<SourceClientKind, CoverageReport>>,
     status: Mutex<ScanStatus>,
     writer: ScanCoordinator,
-    retention: Mutex<RetentionDays>,
+    settings:Arc<settings::SettingsStore>,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -57,6 +58,7 @@ pub struct UsageService {
     background:Arc<background::BackgroundTaskOwner>,
     discovery:Arc<loki_metris_core::RootDiscoveryCoordinator>,
     discovery_batch:Arc<discovery::DiscoveryBatch>,
+    lifecycle_started:std::sync::atomic::AtomicBool,
 }
 
 impl UsageService {
@@ -78,18 +80,19 @@ impl UsageService {
         let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2)
             .thread_name("loki-metris-usage").thread_stack_size(16 * 1024 * 1024)
             .enable_all().build().map_err(|_| "usage_runtime_unavailable")?;
-        let context = Arc::new(ServiceContext { directory, coverage: Mutex::new(BTreeMap::new()),
-            status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            retention: Mutex::new(RetentionDays::default()) });
-        let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
-        let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let discovery=Arc::new(loki_metris_core::RootDiscoveryCoordinator::default());
         let background=Arc::new(background::BackgroundTaskOwner::with_runtime(discovery.clone(),runtime.handle().clone()));
+        let settings=Arc::new(settings::SettingsStore::new(directory.join("usage-settings.json"),background.clone()));
+        let context = Arc::new(ServiceContext { directory, coverage: Mutex::new(BTreeMap::new()),
+            status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
+            settings });
+        let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
+        let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();
         runtime.spawn(async move { worker.run(move |intent, token| scan::run(state.clone(), intent, token)).await; });
         let worker = queries.clone(); let state = context.clone();
         runtime.spawn(async move { worker.run(move |query, token| query::load(state.clone(), query, token)).await; });
-        Ok(Arc::new(Self { runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default() }))
+        Ok(Arc::new(Self { runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default(),lifecycle_started:Default::default() }))
     }
 
     /// 查询只读既有派生库，快速切页只合并查询意图，不取消 writer。

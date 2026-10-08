@@ -110,7 +110,8 @@
     "workbuddy_absent": "No local WorkBuddy project JSONL usage data was found.",
     "cancelled": "Scan cancelled. Indexed records are preserved.",
     "usage": "Usage",
-    "charts": "Charts"
+    "charts": "Charts",
+    "settings": "Settings"
   },
   "workbuddy": {
     "sessions": "Total Sessions",
@@ -395,5 +396,37 @@
       "metadataDiscovery": "Data source discovery",
       "grokEnvironment": "Current GROK_BUILD_HOME"
     }
+  },
+  "privacy": {
+    "page": {
+      "title": "Usage settings",
+      "description": "Manage the background scan cadence and retention window for derived usage data.",
+      "loading": "Loading privacy settings"
+    },
+    "retentionDays": {
+      "title": "Automatic cleanup",
+      "badge": "Default: 90 days",
+      "label": "Delete derived usage older than (days)",
+      "error": "Automatic cleanup must be from 1 to 3,650 days.",
+      "save": "Save cleanup window",
+      "successTitle": "Cleanup window saved",
+      "successBody": "{{days}} days were saved. The next launch will clean older derived usage in the background.",
+      "errorTitle": "Unable to save the cleanup window"
+    },
+    "scanInterval": {
+      "title": "Scan interval",
+      "badge": "Default: 5 minutes",
+      "label": "Scan interval (minutes)",
+      "error": "The scan interval must be from 1 to 1,440 minutes.",
+      "save": "Save scan interval",
+      "successTitle": "Scan interval saved",
+      "successBody": "The {{minutes}}-minute scan interval was saved. All clients share this trigger.",
+      "errorTitle": "Unable to save the scan interval"
+    },
+    "increase": "Increase",
+    "decrease": "Decrease"
+  },
+  "common": {
+    "unknownError": "An unknown error occurred."
   }
 }

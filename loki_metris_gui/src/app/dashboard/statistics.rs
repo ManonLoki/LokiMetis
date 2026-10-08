@@ -8,7 +8,7 @@ use loki_metris_core::{UsageDimension, UsageStatisticsPage, WorkbuddyModelUsageW
 
 /// 页面路由独立于所选 Agent；具体筛选按 Agent 隔离。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::app) enum Route { Overview, Statistics, Charts, Calls, Sources }
+pub(in crate::app) enum Route { Overview, Statistics, Charts, Calls, Sources, Settings }
 
 /// 统计结果只是查询快照，时间和分组选择属于进程会话。
 pub(in crate::app) struct DetailState {

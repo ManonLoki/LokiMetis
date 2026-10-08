@@ -6,6 +6,8 @@ mod messages;
 mod retention_days;
 mod scan_interval;
 mod workbuddy_stats;
+mod usage;
+pub use usage::{UsageSettings,UsageSettingField};
 
 pub use enabled_agents::{
     EnabledAgents, EnabledAgentsError, agent_wire_label, enabled_agents_error_message,

@@ -7,6 +7,14 @@ use std::sync::Arc;
 
 /// 同一产品全局 writer 许可持有到扫描和覆盖状态提交均完成。
 pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellation: ScanCancellation) -> Result<(), &'static str> {
+    let retention=match context.settings.snapshot().await {
+        Ok(settings)=>settings.retention_days,
+        Err(error)=>{
+            // 预检不拥有 writer，不能清除另一个实际扫描的 running 状态。
+            let mut state=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            state.error=Some(error);state.revision=state.revision.wrapping_add(1);return Err(error);
+        }
+    };
     let periodic = intent.origin == loki_metris_core::ScanStartOrigin::PeriodicAutomatic;
     let permit = if periodic {
         match context.writer.try_start() { Ok(permit) => permit, Err(_) => return Ok(()) }
@@ -21,7 +29,6 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
         state.running = true; state.error = None; state.progress = None;
     }
     let clients = intent.client.map(|client| vec![client]).unwrap_or_else(|| physical_clients().to_vec());
-    let retention = *context.retention.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     for client in clients {
         if cancellation.is_cancelled() { return fail(&context, "usage_scan_cancelled") }
         if client == SourceClientKind::WorkBuddy { continue }

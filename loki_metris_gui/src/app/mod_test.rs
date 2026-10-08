@@ -275,3 +275,17 @@ fn sources_dialog_is_local_and_scan_busy_blocks_new_row_actions(cx:&mut TestAppC
         assert!(shell.read(cx).dashboard.sources.feedback.is_none());
     }).unwrap();
 }
+
+/// 普通重绘和扫描进度不重建数字编辑器；越界草稿保持可见并阻止提交。
+#[gpui_kit::test]
+fn usage_settings_keeps_native_editor_and_invalid_draft_across_render(cx:&mut TestAppContext) {
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    shell.update(cx,|shell,cx|{shell.dashboard.route=dashboard::Route::Settings;shell.dashboard.usage_settings.saved=Some(loki_metris_core::UsageSettings::default());shell.dashboard.usage_settings.reset_inputs=[Some("5".into()),Some("90".into())];cx.notify();});
+    cx.update_window(handle,|_,window,cx|{
+        window.render_frame(cx);let input=shell.read(cx).dashboard.usage_settings.inputs.as_ref().unwrap()[0].clone();let id=input.entity_id();
+        input.update(cx,|input,cx|input.replace_all("0",window,cx));window.render_frame(cx);window.render_frame(cx);
+        assert_eq!(shell.read(cx).dashboard.usage_settings.inputs.as_ref().unwrap()[0].entity_id(),id);
+        assert_eq!(input.read(cx).value().as_ref(),"0");assert!(window.try_find(("usage-settings-invalid",0usize)).is_some());
+        window.click(("usage-settings-save",0usize),cx);assert!(!shell.read(cx).dashboard.usage_settings.pending[0]);
+    }).unwrap();
+}

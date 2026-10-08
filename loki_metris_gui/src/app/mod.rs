@@ -179,7 +179,7 @@ impl Shell {
 
     /// 页面切换不创建新的数据副本或重置设备偏好。
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
-        if self.page != page {self.dashboard.sources.reset();}
+        if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();}
         self.page = page;
         if page==Page::Dashboard {self.reload_usage(false,cx);}
         cx.notify();
@@ -240,6 +240,7 @@ impl Render for Shell {
     /// 原生窗口标题与视图元数据由同一身份和当前语言派生。
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.viewport_width = window.viewport_size().width.into();
+        self.sync_usage_setting_inputs(window,cx);
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
         let content = match self.page {
             Page::Dashboard => self.dashboard_page(window,cx),

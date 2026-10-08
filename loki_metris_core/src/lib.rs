@@ -190,6 +190,7 @@ pub use scan::{
     source_root_operations_blocked_by_scan_message,
 };
 pub use settings::{
+    UsageSettings,UsageSettingField,
     CURRENT_INITIALIZATION_WIZARD_KEY, DEFAULT_RETENTION_DAYS, DEFAULT_SCAN_INTERVAL_MINUTES,
     DEFAULT_WORKBUDDY_STATS_ENABLED, EnabledAgents, EnabledAgentsError, MAX_RETENTION_DAYS,
     MAX_SCAN_INTERVAL_MINUTES, MIN_RETENTION_DAYS, MIN_SCAN_INTERVAL_MINUTES, RetentionDays,

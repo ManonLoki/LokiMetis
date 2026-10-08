@@ -76,7 +76,7 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
         }
         SourceOperation::Reindex{root_id}=>{
             let request=source_root_reindex_request(&catalog,&root_id).await.map_err(|_|"source_update_failed")?;
-            let retention=*context.retention.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let retention=context.settings.snapshot().await?.retention_days;
             let progress_context=context.clone();
             let output=scan_orchestration::reindex(directory,client,retention,request,cancellation,Box::new(move|progress| {
                 if let LocalScanProgress::Indexing{current_root_id,roots_completed,roots_total,files_scanned,calls_added,..}=progress {
