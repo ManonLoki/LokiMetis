@@ -1,0 +1,4 @@
+interface:
+  display_name: "切换发布后动作"
+  short_description: "为已初始化下游在本地打包和远端 release 分支推送之间持久切换未来发布流程"
+  default_prompt: "使用 $desktop-switch-post-release-action 为已初始化下游选择或切换发布后的固定动作。"

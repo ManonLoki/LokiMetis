@@ -1,0 +1,4 @@
+interface:
+  display_name: "汇总项目开发历史"
+  short_description: "追溯 ADR、Changelog 与 Git 历史，说明项目演进、现状和有证据的未来方向"
+  default_prompt: "使用 $desktop-summarize-development-history，按当前项目的 ADR、Changelog、产品规格、状态、计划和 Git 历史，汇总关键决策与变化，区分已实现、已验证和未来预期，并标注可复核来源。"

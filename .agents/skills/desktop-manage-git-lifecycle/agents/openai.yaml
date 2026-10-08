@@ -1,0 +1,4 @@
+interface:
+  display_name: "管理 Git 生命周期"
+  short_description: "创建开发分支，推送主分支并在发布标签后清理周期资源"
+  default_prompt: "使用 $desktop-manage-git-lifecycle 管理当前项目从开发分支到主分支发布与周期清理。"

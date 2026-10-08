@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "package": "loki_metris_gui",
+  "binary": "loki_metris_gui",
+  "productName": "诡秘神谕",
+  "productNameEn": "LokiMetris",
+  "identifier": "com.loki-metris.app",
+  "publisher": "ManonLoki",
+  "icons": {
+    "source": "loki_metris_gui/assets/logo.png",
+    "macos": "packaging/icons/app.icns",
+    "windows": "packaging/icons/app.ico"
+  },
+  "macos": {
+    "minimumSystemVersion": "12.0",
+    "signingIdentity": null,
+    "background": "packaging/macos/background.png"
+  },
+  "windows": {
+    "signing": null,
+    "extractor": null
+  },
+  "nsis": {
+    "installMode": "currentUser",
+    "languages": [
+      "SimpChinese",
+      "English"
+    ],
+    "displayLanguageSelector": true
+  }
+}

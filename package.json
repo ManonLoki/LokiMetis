@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "engines": {
+    "node": ">=24.21.0",
+    "pnpm": ">=12.4.1"
+  },
+  "scripts": {
+    "validate": "node .agents/skills/desktop-add-gpui-adapter/scripts/gpui_validate.mjs --root .",
+    "test": "cargo test --workspace --all-targets --all-features",
+    "release:inspect": "node .agents/skills/desktop-prepare-release/scripts/release_git.mjs inspect --project-root .",
+    "release:notes": "node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs",
+    "release:context": "node .agents/skills/desktop-prepare-release/scripts/release_context.mjs",
+    "release:git": "node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs release --project-root .",
+    "gpui:package": "node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs"
+  }
+}

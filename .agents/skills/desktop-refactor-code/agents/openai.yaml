@@ -1,0 +1,4 @@
+interface:
+  display_name: "辅助重构"
+  short_description: "从行数、结构、命名、常量、性能死锁与 core-first 六个方面辅助代码重构"
+  default_prompt: "使用 $desktop-refactor-code 按单文件行数、文件组织结构、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助重构当前代码，不改变可观察行为。"

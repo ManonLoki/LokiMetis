@@ -1,0 +1,4 @@
+interface:
+  display_name: "配置 Git 提交规范"
+  short_description: "在真实提交前补齐仓库 local 身份并安装、检查提交消息模板"
+  default_prompt: "使用 $desktop-configure-git-commits；仅当我明确要求配置 Git，或下一步将实际创建提交时，才检查有效身份、仅为缺失字段写仓库 local 回退，并安装检查提交模板。"

@@ -1,0 +1,8 @@
+# Harness 的校验器按 LF 比对模板片段，发布脚本也必须以 LF 交付；
+# 固定工作区换行，避免 core.autocrlf 在 Windows 检出时改写文本。
+* text=auto eol=lf
+
+# 二进制资产不做换行转换。
+*.png binary
+*.jpg binary
+*.jpeg binary

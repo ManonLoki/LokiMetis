@@ -1,0 +1,4 @@
+interface:
+  display_name: "准备发布"
+  short_description: "复核并整理当前代码，合并本地默认主分支并创建、复读版本 tag"
+  default_prompt: "使用 $desktop-prepare-release 复核并提交当前范围，写入只包含 Git 发布身份和审查结论的 tracked 发布上下文，让 lifecycle 携带精确 SHA-256 合并本地默认主分支并创建、复读版本 tag。Git 发布至此完成；随后读取已确认的 post_release_action，执行并检测本地打包或 release 分支推送路径。"

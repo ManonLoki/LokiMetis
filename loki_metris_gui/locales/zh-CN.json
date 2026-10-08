@@ -1,0 +1,56 @@
+{
+  "navigation": {
+    "settings": "设置",
+    "about": "关于"
+  },
+  "settings": {
+    "application": "应用信息",
+    "local_preferences": "外观和语言偏好仅保存在此设备。",
+    "appearance": "外观",
+    "appearance_detail": "选择浅色、深色，或实时跟随操作系统外观。",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "language": "界面语言",
+    "language_detail": "默认探测系统语言，可在此随时切换。",
+    "chinese": "中文",
+    "english": "English",
+    "autostart": "开机自启",
+    "autostart_detail": "登录系统后正常显示应用，实际状态以操作系统登录项为准。",
+    "autostart_error": "操作失败；可读取时已显示系统实际状态。",
+    "autostart_unknown": "当前无法读取系统登录项，请重试。",
+    "reload": "重新读取"
+  },
+  "about": {
+    "version": "版本",
+    "contact_author_title": "联系作者",
+    "support_thanks": "感谢您的支持和反馈",
+    "studio": "守城工作室",
+    "contact_label": "QQ {{contact}}",
+    "update_title": "软件更新",
+    "check_for_updates": "检查更新",
+    "release_notes": "更新日志",
+    "disclaimer_title": "免责声明",
+    "disclaimer_1": "本软件/服务仅供学习研究和合法合规使用，严禁用于任何违反中华人民共和国法律法规的活动",
+    "disclaimer_2": "用户在使用本软件/服务过程中的所有行为及其后果由用户自行承担全部法律责任，与开发者、运营方无关",
+    "disclaimer_3": "您下载、安装、使用本软件/服务即视为已充分阅读、理解并同意接受本声明的全部内容",
+    "application": "关于应用",
+    "description": "这是中性桌面脚手架，产品功能尚未定义。",
+    "author": "项目负责人",
+    "check_updates": "检查更新",
+    "release_features": "功能优化",
+    "release_fixes": "问题修复",
+    "no_changes": "无",
+    "updater_unavailable": "当前 GPUI 基线未提供更新服务，不会发起网络请求。",
+    "no_releases": "当前构建未嵌入发布记录。",
+    "local_first": "本地运行",
+    "local_first_detail": "设置、语言和静态支持页可离线使用。"
+  },
+  "application": {
+    "name": "诡秘神谕"
+  },
+  "tray": {
+    "show_window": "显示窗口",
+    "quit": "退出"
+  }
+}

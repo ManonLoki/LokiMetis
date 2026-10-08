@@ -1,0 +1,4 @@
+interface:
+  display_name: "构建 GPUI 原生安装包"
+  short_description: "通过 pnpm 工程入口构建 GPUI 原生试包或可审计发布候选"
+  default_prompt: "使用 $desktop-build-gpui-release 解析当前 GPUI 项目的模式和原生目标，通过根 pnpm run gpui:package 执行真实构建、全量 Rust 单元测试与打包，并报告产物证据和未验证项。"

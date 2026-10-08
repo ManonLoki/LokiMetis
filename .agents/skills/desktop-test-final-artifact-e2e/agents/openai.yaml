@@ -1,0 +1,4 @@
+interface:
+  display_name: "测试最终产物 E2E"
+  short_description: "通过 Computer Use 对真实最终产物执行端到端验收"
+  default_prompt: "使用 $desktop-test-final-artifact-e2e，对真实最终产物执行已批准的端到端验收。"

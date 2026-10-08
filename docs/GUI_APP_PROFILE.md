@@ -1,0 +1,51 @@
+# GUI 应用资料
+
+- 中文名称：诡秘神谕
+- English name: LokiMetris
+- GUI framework: gpui
+- owner: ManonLoki
+- Logo: candidate-1 金色神谕之眼；用户在本次 Codex 表单明确选择
+- unavailable fixed capabilities: updater / general native dialog / deep_link
+
+```gui-initialization-config
+system_tray: enabled
+system_notification: disabled
+autostart: enabled
+about_page: enabled
+sponsor_page: disabled
+single_instance: enabled
+deep_link: disabled
+global_shortcut: enabled
+sidebar_mode: compact
+```
+
+```gui-global-shortcut-contract
+{"schemaVersion":1,"actions":[]}
+```
+
+## Logo 与图标证据
+
+三个生成请求在发起前绑定稳定顺序 candidate-1 → candidate-2 → candidate-3，三个原始图分别按同序展示。用户明确选择 candidate-1 金色神谕之眼；未检查或标准化其余两个候选。
+
+仅选中项后置验证为 1254×1254、8-bit RGB PNG，可安全解码、有可见像素；保持构图/颜色后缩放为 1024×1024、8-bit RGBA 非交错无损 PNG。原始字节永久保存在 packaging/identity/candidate-1-original.png，仅最终母版进入应用，ICNS/ICO/托盘从同一母版确定性衍生。
+
+| 文件 | 字节数 | SHA-256 |
+|---|---|---|
+| packaging/identity/candidate-1-original.png | 1722011 | 591717236d2f609cc3104278479f8625936c61dbb5891b450d4d40a4e3821f2f |
+| loki_metris_gui/assets/logo.png | 1206313 | 073e1aee636c19b43e1da2e2661514e8834b94dc72b59fb1391723fbfcb25cb8 |
+| loki_metris_gui/assets/tray.rgba | 4096 | 404660dd4f5b112a4a224168fbab614d3ca8bfbefcfe2dc2dbd96f83de1eaeae |
+| packaging/icons/app.icns | 1635688 | 937c808d0d0dc4c9196f9d740038f805102fd1d58ebb55b70434318cce3e9719 |
+| packaging/icons/app.ico | 116871 | ab2dd3433903435f883d5d4c6848f2a622412576a3a4ce2b61a4ff0fcf881286 |
+| packaging/macos/background.png | 2303 | 8e98ead127864a4af8422dde938ca6eaa091d25245808bba37ce8db110b1217e |
+
+## UI 设计与宿主基线
+
+命中标准 gpui-gui-common-v1，侧栏 compact，固定 80px、Logo 36px、图标 22px、居中图标/名称上下排列，不折叠，无产品像素偏离。设置页支持中英/随系统和浅深/随系统主题；关于页显示真实 Cargo 版本、负责人、受管品牌联系人、免责声明及中性更新/日志入口，无通知开关或赞助页。
+
+标题公式为 {applicationName} v{Cargo.version} {contactChannel}:{contactValue}，名称随 locale，联系人取受管品牌 contacts.windowTitle。应用 identifier=com.loki-metris.app，publisher=ManonLoki；不代表已取得商店/签名资格。系统语言由 sys_locale 读取，未知回退英文；窗口只恢复有效尺寸/位置/最大化，首次/损坏居中 1440×900、最小 960×640。
+
+系统托盘、开机自启、单实例、全局快捷键 enabled；通知、赞助、深链接 disabled。热键 actions=0、初始非空 bindings=0、实际系统注册=0，退出无外部键位需要注销。自启仅有能力，初始化不注册，真实宿主检查后恢复原状态。
+
+## macOS 打包资产与未决事项
+
+中性背景 packaging/macos/background.png 为 660×400 PNG，未来原生 DMG 窗口 660×400，应用/Applications 落点取 GPUI 构建 Skill 的受管布局。已生成背景与平台图标不是已构建 DMG 或布局验收。首次真实产品 GUI 身份流程需确认描述、反馈/分发渠道、DMG 视觉及任何商店元数据；当前均未确定。

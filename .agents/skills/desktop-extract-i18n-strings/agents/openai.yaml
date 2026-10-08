@@ -1,0 +1,4 @@
+interface:
+  display_name: "抽取 i18n 硬编码文案"
+  short_description: "把 GUI 硬编码用户可见文案抽取为 i18next/rust-i18n 翻译键，不触碰 core"
+  default_prompt: "使用 $desktop-extract-i18n-strings 把已选 GUI 适配器中硬编码的用户可见文案抽取为 i18next/react-i18next 与 rust-i18n 翻译键，不改变默认语言下的可观察行为，也不触碰共享 core。"

@@ -1,0 +1,20 @@
+# 在首行填写 <type>(<scope>): <summary>；scope 可省略。
+# 破坏性变更仅在已经批准时使用 <type>(<scope>)!: <summary>。
+#
+# 简单且意图明确的变化可以只保留主题行。
+# 非简单变化请在上方按以下结构填写正文：
+#
+# Why:
+# - 为什么需要这次修改；缺陷修复应说明根因。
+#
+# Changes:
+# - 描述行为或契约变化，不要只罗列文件。
+#
+# Impact:
+# - 说明功能、API、数据、性能或兼容性影响；没有时写 None。
+#
+# Test:
+# - 只记录实际执行的命令和结果；未运行时写 Not run: <原因>。
+#
+# Type: feat | fix | refactor | perf | ui | style | docs | test | build | ci | chore | revert
+# 一个 Commit = 一个完整、独立、可解释的变化。

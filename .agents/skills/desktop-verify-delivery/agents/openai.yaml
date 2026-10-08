@@ -1,0 +1,4 @@
+interface:
+  display_name: "验证交付"
+  short_description: "依据当次构建选择或发布要求验收最终真实候选，日常开发不自动调用"
+  default_prompt: "使用 $desktop-verify-delivery 验收或拒绝这个最终真实候选，并记录当前构建选择与可追溯证据。"

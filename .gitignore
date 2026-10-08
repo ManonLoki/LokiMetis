@@ -1,0 +1,34 @@
+# Rust 构建输出
+/target/
+**/target/
+
+# 本地解析生成的依赖锁文件
+Cargo.lock
+pnpm-lock.yaml
+pnpm-package.lock
+
+# Node.js 与前端生成物
+/node_modules/
+**/node_modules/
+/dist/
+**/dist/
+/coverage/
+**/coverage/
+/.vite/
+**/.vite/
+
+# 当前构建结果；由适用 GPUI 构建 Skill 在每次候选构建前原子刷新
+/release/
+# 原子刷新或候选提交被中断时可能遗留的同根 staging
+/.release-clean.*
+
+# 本地环境变量；允许提交公开示例
+.env
+.env.*
+!.env.example
+
+# 编辑器、系统与临时文件
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp

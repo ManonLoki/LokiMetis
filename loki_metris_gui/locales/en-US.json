@@ -1,0 +1,56 @@
+{
+  "navigation": {
+    "settings": "Settings",
+    "about": "About"
+  },
+  "settings": {
+    "application": "Application",
+    "local_preferences": "Appearance and language preferences are stored on this device.",
+    "appearance": "Appearance",
+    "appearance_detail": "Choose light, dark, or follow changes to the operating system appearance.",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "Follow system",
+    "language": "Interface language",
+    "language_detail": "Detect the system language by default, or choose a language here.",
+    "chinese": "中文",
+    "english": "English",
+    "autostart": "Start at login",
+    "autostart_detail": "Show this app normally after sign-in. The operating system registration is authoritative.",
+    "autostart_error": "The operation failed. The actual system state is shown when readable.",
+    "autostart_unknown": "The system login item is unavailable. Retry reading it.",
+    "reload": "Reload"
+  },
+  "about": {
+    "version": "Version",
+    "contact_author_title": "Contact the author",
+    "support_thanks": "Thank you for your support and feedback",
+    "studio": "Shoucheng Studio",
+    "contact_label": "QQ {{contact}}",
+    "update_title": "Software updates",
+    "check_for_updates": "Check for updates",
+    "release_notes": "Release notes",
+    "disclaimer_title": "Disclaimer",
+    "disclaimer_1": "This software/service is for learning, research, and lawful use only. Any activity that violates the laws of the People’s Republic of China is strictly prohibited.",
+    "disclaimer_2": "Users are solely responsible for all actions taken while using this software/service and their consequences. The developers and operators bear no legal liability.",
+    "disclaimer_3": "Downloading, installing, or using this software/service means you have read, understood, and accepted this disclaimer in full.",
+    "application": "About this application",
+    "description": "This is a neutral desktop scaffold. Product features have not been defined.",
+    "author": "Project owner",
+    "check_updates": "Check for updates",
+    "release_features": "Feature improvements",
+    "release_fixes": "Bug fixes",
+    "no_changes": "None",
+    "updater_unavailable": "The current GPUI baseline has no update service and makes no network request.",
+    "no_releases": "This build has no embedded release notes.",
+    "local_first": "Runs locally",
+    "local_first_detail": "Settings, languages and static support pages work offline."
+  },
+  "application": {
+    "name": "LokiMetris"
+  },
+  "tray": {
+    "show_window": "Show Window",
+    "quit": "Quit"
+  }
+}
