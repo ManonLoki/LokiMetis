@@ -39,6 +39,8 @@ auto-launch = "0.6.0"
 interprocess = "2.4.4"
 global-hotkey = "0.8.0"
 raw-window-handle = "0.6.2"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSWindow", "NSView", "NSScreen", "NSResponder", "NSEvent"] }
+objc2 = "0.6.5"
 
 [workspace.metadata.agent-first-harness]
 project-id = "loki_metris"

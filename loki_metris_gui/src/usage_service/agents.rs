@@ -18,6 +18,7 @@ pub(super) struct AgentSettingsStore {
     value: Mutex<Option<MonitorSettings>>,
     owner: Arc<BackgroundTaskOwner>,
     revision: AtomicU64,
+    pub(super) pet_revision: AtomicU64,
     pub(super) listener: std::sync::OnceLock<Arc<crate::monitor::listener::HookListenerControl>>,
     pub(super) hooks: std::sync::OnceLock<super::hooks::HookHost>,
 }
@@ -30,6 +31,7 @@ impl AgentSettingsStore {
             value: Mutex::new(None),
             owner,
             revision: AtomicU64::new(0),
+            pet_revision: AtomicU64::new(0),
             listener: Default::default(),
             hooks: Default::default(),
         }
@@ -177,6 +179,27 @@ impl AgentSettingsStore {
         self.publish(&mut value, settings);
         self.revision.fetch_add(1, Ordering::Release);
         Ok(location)
+    }
+
+    /// 桌宠只提交自身字段，不发布默认Agent、不触发Hooks修复或覆盖其它配置。
+    pub(super) fn save_pet_blocking(
+        &self,
+        change: Option<(loki_metris_core::PetPreferenceChange, loki_metris_core::PetSizeRange)>,
+        position: Option<loki_metris_core::PetOverlayPosition>,
+    ) -> Result<MonitorSettings, HookError> {
+        let mut value = self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let current = load_monitor_settings(&self.directory)?;
+        let preferences = match change {
+            Some((change, range)) => loki_metris_core::change_pet_preferences(current.pet_window, change, range)?,
+            None => current.pet_window,
+        };
+        let settings = update_monitor_settings(&self.directory, |settings| {
+            settings.pet_window = preferences;
+            if let Some(position) = position { settings.pet_overlay_position = Some(position); }
+        })?;
+        *value = Some(settings.clone());
+        self.pet_revision.fetch_add(1, Ordering::Release);
+        Ok(settings)
     }
 
     /// 公开能力目录在 core 中决定映射；WorkBuddy 单独走只读模型。

@@ -239,7 +239,7 @@ pub const PET_OVERLAY_WINDOW_SPEC: PetOverlayWindowSpec = PetOverlayWindowSpec {
     stop_hook_listener: false,
     default_layout: PetLayout::Grid,
     default_cell_size: 64.0,
-    min_cell_size: 32.0,
+    min_cell_size: 64.0,
     default_width: 128.0,
     default_height: 128.0,
 };
@@ -281,6 +281,27 @@ pub fn project_pet_overlay_page(
         has_any_image,
         slots,
     }
+}
+
+/// 文件宿主提供可读性，core统一过滤不可用图片并保持文本与状态位置。
+pub fn project_available_pet_overlay_page(
+    drafts:&[AiProfileDraft], current_states:&[PetOverlayToolState], layout:PetLayout,
+    page_index:usize, available:impl Fn(&str)->bool,
+)->PetOverlayPage {
+    let mut available_drafts=drafts.to_vec();
+    for draft in &mut available_drafts {for hook in &mut draft.hooks {
+        if !hook.image.trim().is_empty()&&!available(hook.image.trim()) {hook.image.clear();}
+    }}
+    project_pet_overlay_page(&available_drafts,current_states,layout,page_index)
+}
+
+/// 首次出现可读图片时定位真实绝对位置，后续切换布局仍保留该位置。
+pub fn first_populated_pet_slot(
+    drafts:&[AiProfileDraft],current_states:&[PetOverlayToolState],available:impl Fn(&str)->bool,
+)->Option<u8> {
+    project_pet_overlay_from_drafts(drafts,current_states).slots.into_iter().find(|slot| {
+        slot.tile.as_ref().and_then(|tile|tile.image_key.as_deref()).is_some_and(&available)
+    }).map(|slot|slot.slot_index)
 }
 
 /// 返回十二个位置在指定布局下所需的页数。
@@ -364,6 +385,19 @@ mod tests {
             behavior,
             revision,
         }
+    }
+
+    /// 图片可读性和首次定位保留绝对位置，缺失图片不抹除状态文案。
+    #[test]
+    fn available_images_preserve_absolute_first_slot_and_text() {
+        let drafts=[draft_with_content(AiTool::Codex,10,("idle","image"),("running","missing"))];
+        let states=[state(AiTool::Codex,9,Some(HookBehavior::Idle),1)];
+        let page=project_available_pet_overlay_page(&drafts,&states,PetLayout::Grid,0,|id|id=="image");
+        assert!(page.has_any_image&&!page.page_has_image);
+        assert_eq!(first_populated_pet_slot(&drafts,&states,|id|id=="image"),Some(9));
+        let missing=project_available_pet_overlay_page(&drafts,&states,PetLayout::Grid,2,|_|false);
+        assert!(!missing.has_any_image);assert_eq!(missing.slots[1].tile.as_ref().unwrap().content,"idle");
+        assert_eq!(first_populated_pet_slot(&drafts,&states,|_|false),None);
     }
 
     /// 验证空投影仍保留十二个无身份、无内容的固定位置。
@@ -657,7 +691,7 @@ mod tests {
         assert!(!spec.stop_hook_listener);
         assert_eq!(spec.default_layout, PetLayout::Grid);
         assert_eq!(spec.default_cell_size, 64.0);
-        assert_eq!(spec.min_cell_size, 32.0);
+        assert_eq!(spec.min_cell_size, 64.0);
         assert_eq!((spec.default_width, spec.default_height), (128.0, 128.0));
     }
 }

@@ -108,6 +108,8 @@ impl MonitorImageView {
             _visibility: visibility,
         }
     }
+    /// 桌宠只在真实解码完成后隐藏空位轮廓。
+    pub fn is_decoded(&self) -> bool { self.decoded.is_some() }
     /// 页面离开或选项卸载立即释放像素并取消计时，保留当前时间点。
     pub fn set_mounted(&mut self, mounted: bool, window: &mut Window, cx: &mut Context<Self>) {
         if self.mounted == mounted {
@@ -216,7 +218,7 @@ impl MonitorImageView {
 impl Render for MonitorImageView {
     /// Canvas公开选帧避免 Img 内部无限循环及失焦停止逻辑。
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let image = self.decoded.clone();
+        let image = self.decoded.as_ref().map(Arc::downgrade);
         let frame = self.frame;
         let fit = match self.fit {
             ObjectFit::Fill => ObjectFit::Fill,
@@ -253,7 +255,7 @@ impl Render for MonitorImageView {
                     .unwrap_or_else(|_| visible.then_some(frame))
                 },
                 move |bounds, frame, window, _| {
-                    if let (Some(decoded), Some(frame)) = (image, frame) {
+                    if let (Some(decoded), Some(frame)) = (image.and_then(|image|image.upgrade()), frame) {
                         let natural_size = decoded.natural_size;
                         let image_bounds = fit.get_bounds(bounds, natural_size);
                         let dx = image_bounds.size.width / natural_size.width.0 as f32;
@@ -396,6 +398,16 @@ mod tests {
         cx.run_until_parked();
         assert_eq!(entity.read_with(cx, |view, _| view.frame), 1);
     }
+    /// 上一帧的Canvas不能继续强持已卸载图片，释放后像素和计时都消失。
+    #[gpui_kit::test]
+    fn previous_canvas_does_not_retain_unmounted_decoded_pixels(cx: &mut TestAppContext) {
+        let (handle,entity)=player(cx,None);
+        let weak=entity.read_with(cx,|view,_|Arc::downgrade(view.decoded.as_ref().unwrap()));
+        cx.update_window(handle,|_,window,cx|entity.update(cx,|view,cx|view.set_mounted(false,window,cx))).unwrap();
+        assert!(weak.upgrade().is_none(),"paint closure retained all decoded frames after unmount");
+        assert!(entity.read_with(cx,|view,_|view.task.is_none()&&view.started.is_none()));
+    }
+
     /// 两轮结束必须停在最后帧；迟到回调按时间直接定位而不丢失整轮。
     #[test]
     fn finite_timeline_stops_at_last_frame_and_infinite_keeps_running() {

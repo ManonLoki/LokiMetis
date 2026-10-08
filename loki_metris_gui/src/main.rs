@@ -15,6 +15,7 @@ mod lifecycle;
 mod release_notes;
 
 mod native;
+mod pet;
 
 use gpui_kit::{App, Bounds, QuitMode, TitlebarOptions, WindowBounds, WindowOptions, prelude::*, px, size};
 
@@ -67,11 +68,6 @@ fn main() -> std::process::ExitCode {
         cx.set_app_identity("com.loki-metris.app", "LokiMetris");
         lifecycle::install(cx, native_shutdown);
         cx.set_quit_mode(QuitMode::Explicit);
-        cx.on_window_closed(|cx, _| {
-            if cx.windows().is_empty() {
-                cx.quit();
-            }
-        }).detach();
         let fallback = Bounds::centered(None, size(px(1440.), px(900.)), cx);
         let bounds = preferences.window_bounds(cx).unwrap_or(WindowBounds::Windowed(fallback));
         let (handle, _shell) = gpui_kit::open_window(WindowOptions {
@@ -82,11 +78,17 @@ fn main() -> std::process::ExitCode {
             ..Default::default()
         }, cx, |window, cx| cx.new(|cx| {
             let mut shell = app::Shell::new(preferences, writer, window, cx);
-            shell.attach_usage(usage_service, cx);
+            shell.attach_usage(usage_service.clone(), cx);
             shell
         }))
         .expect("无法创建 GPUI 窗口");
+        let main_id=handle.window_id();
+        cx.on_window_closed(move|cx,closed| {
+            // 主窗确实被销毁表示托盘恢复不可用；辅助窗不能留下无入口进程。
+            if closed==main_id||cx.windows().is_empty() {cx.quit();}
+        }).detach();
         native::install(handle, locale, instance, instance_receiver, cx);
+        pet::install(handle,usage_service,locale,cx);
         cx.activate(true);
     });
     shutdown.borrow_mut().finish();

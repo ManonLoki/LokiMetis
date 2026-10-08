@@ -31,13 +31,16 @@ global-hotkey.workspace = true
 
 [target.'cfg(any(windows, target_os = "macos"))'.dependencies]
 tray-icon.workspace = true
+raw-window-handle.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows.workspace = true
-raw-window-handle.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-foundation.workspace = true
+objc2-app-kit.workspace = true
+objc2.workspace = true
+
 
 [dev-dependencies]
 sea-orm.workspace = true

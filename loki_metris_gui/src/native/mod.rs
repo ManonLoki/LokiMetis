@@ -13,6 +13,7 @@ use std::time::Duration;
 
 /// 平台窗口与已选服务由唯一 Global 持有，不增加第二条事件循环。
 pub struct Services {
+    main:AnyWindowHandle,
     _poll: Task<()>,
     #[cfg(windows)]
     window: Option<windows::MainWindow>,
@@ -44,7 +45,7 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
                 if !cx.has_global::<Services>() { return }
                 if receiver.try_iter().take(64).count() > 0 { show(handle, cx); }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
-                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit() } }
+                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx) } }
                 let current = cx.global::<Services>().autostart.state().revision;
                 if current != revision { revision = current; cx.refresh_windows(); }
                 let handlers = cx.global::<Services>().shortcuts.pending();
@@ -53,6 +54,7 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
         }
     });
     cx.set_global(Services {
+        main:handle,
         _poll: poll,
         #[cfg(windows)]
         window: native_window,
@@ -84,17 +86,19 @@ pub fn hide_if_available(cx: &mut App) -> bool {
     if !cx.try_global::<Services>().is_some_and(|services| services.tray.is_some()) { return false }
     #[cfg(windows)]
     let native = cx.global::<Services>().window;
+    let main=cx.global::<Services>().main;
     cx.defer(move |cx| {
         #[cfg(windows)]
         if let Some(window) = native { window.hide(); }
         #[cfg(not(windows))]
-        cx.hide();
+        let _=main.update(cx,|_,window,_|crate::pet::host::set_visible(window,false));
     });
     true
 }
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {
     menu::set_language(locale, cx);
+    crate::pet::set_language(locale,cx);
     if cx.has_global::<Services>() { if let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); } }
 }
 /// 设置视图仅读取内存快照，实际 OS 状态由后台 worker 更新。
@@ -124,3 +128,6 @@ pub(crate) fn configure_font_smoothing() {
     // 值类型为 Foundation 支持的 NSNumber，仅修改当前进程搜索列表。
     unsafe {defaults.setVolatileDomain_forName(&arguments,domain);}
 }
+
+/// 托盘只按用户会话可见性改标签，不把系统遮挡误当作隐藏。
+pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services>() {if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_pet_visibility(visible);}}}

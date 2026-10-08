@@ -24,9 +24,12 @@ impl Shutdown {
     }
 
     /// 不可取消退出时先保存最终偏好，再记录停止事件并等待本地日志 worker 刷新。
-    pub fn finish(&mut self) {
+    pub fn finish(&mut self) {self.finish_with_pet(crate::usage_service::PetShutdownPlan::default());}
+
+    /// 唯一退出钩子先捕获桌宠意图，避免依赖短期异步退出预算或钩子顺序。
+    fn finish_with_pet(&mut self,plan:crate::usage_service::PetShutdownPlan) {
         let Some(guard) = self.log_guard.take() else { return };
-        if let Some(usage) = self.usage.take() { usage.finish(); }
+        if let Some(usage) = self.usage.take() { usage.finish_with_pet(plan); }
         self.writer.finish();
         tracing::info!(event = "application_stopped");
         drop(guard);
@@ -35,8 +38,9 @@ impl Shutdown {
 
 /// AppKit 终止进程前会调用此钩子；同步收尾不受 GPUI 短期异步退出超时取消。
 pub fn install(cx: &App, shutdown: Rc<RefCell<Shutdown>>) {
-    cx.on_app_quit(move |_| {
-        shutdown.borrow_mut().finish();
+    cx.on_app_quit(move |cx| {
+        let plan=crate::pet::take_shutdown_plan(cx);
+        shutdown.borrow_mut().finish_with_pet(plan);
         std::future::ready(())
     }).detach();
 }

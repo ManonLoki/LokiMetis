@@ -6,7 +6,7 @@ use std::{
 };
 
 use loki_metris_core::{
-    AiTool, HookConfigDirectories, HookError, PetLayout, PetOverlayPosition,
+    AiTool, HookConfigDirectories, HookError, PetOverlayPosition,
     normalize_enabled_ai_tools,
 };
 
@@ -22,108 +22,8 @@ fn monitor_settings_lock() -> &'static RwLock<()> {
     MONITOR_SETTINGS_LOCK.get_or_init(|| RwLock::new(()))
 }
 
-/// 桌宠窗口的持久偏好；可见性只属于当前会话，不在这里落盘。
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct PetWindowPreferences {
-    /// 当前桌宠布局。
-    #[serde(default, deserialize_with = "deserialize_pet_layout")]
-    pub layout: PetLayout,
-    /// 当前页首个位置的零基索引。
-    #[serde(default, deserialize_with = "deserialize_focused_slot")]
-    pub focused_slot: u8,
-    /// 单格逻辑像素边长。
-    #[serde(
-        default = "default_pet_size",
-        deserialize_with = "deserialize_pet_size"
-    )]
-    pub pet_size: u16,
-    /// 是否始终置顶。
-    #[serde(
-        default = "default_true",
-        deserialize_with = "deserialize_default_true"
-    )]
-    pub always_on_top: bool,
-    /// 是否锁定拖拽和缩放。
-    #[serde(default, deserialize_with = "deserialize_default_false")]
-    pub locked: bool,
-}
-
-impl Default for PetWindowPreferences {
-    /// 返回 2×2、64 像素、置顶且未锁定的桌宠默认偏好。
-    fn default() -> Self {
-        Self {
-            layout: PetLayout::Grid,
-            focused_slot: 0,
-            pet_size: default_pet_size(),
-            always_on_top: true,
-            locked: false,
-        }
-    }
-}
-
-/// 默认桌宠单格边长，与 AIMonitorDesktop 的 64 逻辑像素基线一致。
-const fn default_pet_size() -> u16 {
-    64
-}
-
-/// serde 使用的 true 产品默认值。
-const fn default_true() -> bool {
-    true
-}
-
-/// 把单个畸形 JSON 字段恢复为产品默认，而不连坐整个设置文件。
-fn deserialize_or_default<'de, D, T>(
-    deserializer: D,
-    fallback: impl FnOnce() -> T,
-) -> Result<T, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: serde::de::DeserializeOwned,
-{
-    let value = serde_json::Value::deserialize(deserializer)?;
-    Ok(T::deserialize(value).unwrap_or_else(|_| fallback()))
-}
-
-/// 解析布局，畸形值恢复为默认 2×2。
-fn deserialize_pet_layout<'de, D>(deserializer: D) -> Result<PetLayout, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    deserialize_or_default(deserializer, PetLayout::default)
-}
-
-/// 解析页首位置，畸形值恢复为第一页。
-fn deserialize_focused_slot<'de, D>(deserializer: D) -> Result<u8, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    deserialize_or_default(deserializer, || 0)
-}
-
-/// 解析单格大小，畸形值恢复为 64。
-fn deserialize_pet_size<'de, D>(deserializer: D) -> Result<u16, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    deserialize_or_default(deserializer, default_pet_size)
-}
-
-/// 解析默认为 true 的布尔偏好。
-fn deserialize_default_true<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    deserialize_or_default(deserializer, default_true)
-}
-
-/// 解析默认为 false 的布尔偏好。
-fn deserialize_default_false<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    deserialize_or_default(deserializer, || false)
-}
+pub use loki_metris_core::PetWindowPreferences;
+use loki_metris_core::normalize_pet_window_preferences;
 
 /// 解析 petWindow 对象本身，畸形对象只回退桌宠子设置。
 fn deserialize_pet_window_preferences<'de, D>(
@@ -132,7 +32,8 @@ fn deserialize_pet_window_preferences<'de, D>(
 where
     D: serde::Deserializer<'de>,
 {
-    deserialize_or_default(deserializer, PetWindowPreferences::default)
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(PetWindowPreferences::deserialize(value).unwrap_or_default())
 }
 
 /// 逐项解析历史启用列表；未来或已隐藏的字符串不扩大权限，非字符串形状仍视为损坏。
@@ -145,13 +46,6 @@ where
         .into_iter()
         .filter_map(|label| serde_json::from_value(serde_json::Value::String(label)).ok())
         .collect())
-}
-
-/// 规范化落盘偏好，旧文件或手工编辑的越界值不会进入运行时。
-fn normalize_pet_window_preferences(mut preferences: PetWindowPreferences) -> PetWindowPreferences {
-    preferences.focused_slot = preferences.focused_slot.min(11);
-    preferences.pet_size = preferences.pet_size.clamp(32, 2_048);
-    preferences
 }
 
 /// 监控区持久设置。

@@ -8,6 +8,10 @@ mod background;
 mod discovery;
 mod settings;
 mod agents;
+mod receipt;
+pub(crate) use receipt::receipt;
+mod pet;
+pub(crate) use pet::PetShutdownPlan;
 mod monitor_catalog;
 mod hooks;
 #[cfg(test)]
@@ -152,12 +156,19 @@ impl UsageService {
     pub fn cancel(&self) { self.scans.cancel(); self.context.writer.cancel_active(); }
 
     /// 停止新 writer 并有界等待合作收尾，超时由 runtime 终止剩余任务。
-    pub fn finish(&self) {
+    pub fn finish(&self) { self.finish_with_pet(PetShutdownPlan::default()); }
+
+    /// 退出先排空已接受工作，再顺序提交前台尚未派发的桌宠最终意图。
+    pub(crate) fn finish_with_pet(&self, plan:PetShutdownPlan) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
             self.context.writer.shutdown();
             if let Some(host)=self.context.agents.hooks.get() {host.writer.shutdown();}
             if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}
             runtime.block_on(self.background.shutdown());
+            for change in plan.changes {
+                if let Err(error)=self.context.agents.save_pet_blocking(Some(change),None) {tracing::warn!(code=error.code,"pet shutdown preference failed");}
+            }
+            if let Some(position)=plan.position {if let Err(error)=self.context.agents.save_pet_blocking(None,Some(position)) {tracing::warn!(code=error.code,"pet shutdown position failed");}}
             if !self.scans.stop(Duration::from_secs(10)) { tracing::warn!(event = "usage_shutdown_drain_timeout"); }
             if !self.queries.stop(Duration::from_secs(5)) { tracing::warn!(event = "usage_query_drain_timeout"); }
             runtime.shutdown_timeout(Duration::from_secs(1));

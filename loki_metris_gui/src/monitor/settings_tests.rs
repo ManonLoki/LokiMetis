@@ -1,6 +1,7 @@
 //! 监控设置持久化与并发更新的定向回归测试。
 
 use super::*;
+use loki_metris_core::PetLayout;
 use tempfile::tempdir;
 
 /// 超大配置和目标符号链接必须拒绝，不能误读为合法默认配置或覆盖外部文件。

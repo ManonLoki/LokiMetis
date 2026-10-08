@@ -62,7 +62,9 @@
   },
   "tray": {
     "show_window": "显示窗口",
-    "quit": "退出"
+    "quit": "退出",
+    "hide_pet_overlay": "隐藏浮窗",
+    "show_pet_overlay": "显示浮窗"
   },
   "dashboard": {
     "overview": "概览",
@@ -463,7 +465,9 @@
       "slotOutOfRange": "展示位置超出支持范围。",
       "unknownImage": "所选图片不在本机图库中。",
       "imagesTooLarge": "图片资源超过本机图库容量限制。请先移除部分图片。",
-      "imageDecodeFailed": "图片无法解码。"
+      "imageDecodeFailed": "图片无法解码。",
+      "petSizeInvalid": "桌宠尺寸须在 %{min} 至 %{max} 像素之间。",
+      "petApplyFailed": "无法应用浮窗设置，请重试。"
     },
     "hooks": {
       "cleanupUnsupported": "无法自动清理这种格式的 Hook 配置。",
@@ -634,6 +638,22 @@
       "codeBuddyReviewRequired": "需要在 CodeBuddy 中审核",
       "hermesEnableRequired": "需要在 Hermes 中启用插件并重启",
       "openClawEnableRequired": "需要在 OpenClaw 中启用扩展并重启"
+    },
+    "pet": {
+      "shellAria": "桌宠悬浮窗，第 %{page} / %{pages} 页",
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "settingsTitle": "桌宠设置",
+      "settingsHint": "尺寸按当前显示器自动限制",
+      "settingsClose": "关闭桌宠设置",
+      "displayCount": "显示数量",
+      "layout": "桌宠布局",
+      "size": "桌宠大小",
+      "pixels": "%{size} 像素",
+      "alwaysOnTop": "始终置顶",
+      "lockPositionSize": "锁定位置和大小",
+      "returnMain": "返回主界面",
+      "hideToTray": "隐藏到系统托盘"
     }
   },
   "monitor_service_unavailable": "监控服务不可用"

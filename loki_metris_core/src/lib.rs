@@ -21,6 +21,7 @@ mod monitor_gallery;
 mod monitor_profile;
 mod pet_overlay;
 mod pet_overlay_position;
+mod pet_preferences;
 mod policy;
 mod private_sqlite;
 mod provider;
@@ -117,7 +118,7 @@ pub use pet_overlay::{
     PET_OVERLAY_SLOT_COUNT, PET_OVERLAY_WINDOW_SPEC, PetLayout, PetOverlayPage, PetOverlaySlot,
     PetOverlayTile, PetOverlayToolState, PetOverlayView, PetOverlayWindowSpec,
     apply_pet_overlay_transition, pet_overlay_page_count, pet_overlay_window_spec,
-    project_pet_overlay_from_drafts, project_pet_overlay_page, wrap_pet_overlay_page,
+    project_pet_overlay_from_drafts, project_pet_overlay_page, project_available_pet_overlay_page, first_populated_pet_slot, wrap_pet_overlay_page,
 };
 pub use pet_overlay_position::{
     PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,
@@ -287,3 +288,6 @@ mod tests {
         );
     }
 }
+
+// 桌宠运行态的尺寸与字段级偏好规则由core统一。
+pub use pet_preferences::{PetWindowPreferences, PetSizeRange, PetPreferenceChange, normalize_pet_window_preferences, change_pet_preferences, pet_window_dimensions, pet_size_from_resize};

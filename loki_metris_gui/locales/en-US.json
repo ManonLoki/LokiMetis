@@ -62,7 +62,9 @@
   },
   "tray": {
     "show_window": "Show Window",
-    "quit": "Quit"
+    "quit": "Quit",
+    "hide_pet_overlay": "Hide Floating Window",
+    "show_pet_overlay": "Show Floating Window"
   },
   "dashboard": {
     "overview": "Overview",
@@ -463,7 +465,9 @@
       "slotOutOfRange": "The display position is outside the supported range.",
       "unknownImage": "The selected image is not in the local library.",
       "imagesTooLarge": "Image resources exceed the local library limit. Remove some images first.",
-      "imageDecodeFailed": "The image could not be decoded."
+      "imageDecodeFailed": "The image could not be decoded.",
+      "petSizeInvalid": "Pet size must be between %{min} and %{max} pixels.",
+      "petApplyFailed": "Could not apply floating window settings. Please try again."
     },
     "hooks": {
       "cleanupUnsupported": "This Hook configuration format cannot be cleaned up automatically.",
@@ -634,6 +638,22 @@
       "codeBuddyReviewRequired": "Review required in CodeBuddy",
       "hermesEnableRequired": "Enable the plugin in Hermes and restart",
       "openClawEnableRequired": "Enable the extension in OpenClaw and restart"
+    },
+    "pet": {
+      "shellAria": "Desktop pet overlay, page %{page} of %{pages}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "settingsTitle": "Desktop pet settings",
+      "settingsHint": "Size is limited automatically for the current display",
+      "settingsClose": "Close desktop pet settings",
+      "displayCount": "Display count",
+      "layout": "Desktop pet layout",
+      "size": "Desktop pet size",
+      "pixels": "%{size} pixels",
+      "alwaysOnTop": "Always on top",
+      "lockPositionSize": "Lock position and size",
+      "returnMain": "Return to main window",
+      "hideToTray": "Hide to system tray"
     }
   },
   "monitor_service_unavailable": "Monitor service unavailable"
