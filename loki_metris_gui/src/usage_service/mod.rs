@@ -8,6 +8,7 @@ mod background;
 mod discovery;
 mod settings;
 mod agents;
+mod monitor_catalog;
 #[cfg(test)]
 mod source_tests;
 
@@ -49,6 +50,7 @@ struct ServiceContext {
     writer: ScanCoordinator,
     settings:Arc<settings::SettingsStore>,
     agents:Arc<agents::AgentSettingsStore>,
+    monitor_revision:std::sync::atomic::AtomicU64,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -64,6 +66,9 @@ pub struct UsageService {
 }
 
 impl UsageService {
+    /// 真实窗口回归显式绑定临时目录，不依赖进程全局环境或真实用户数据。
+    #[cfg(test)]
+    pub(crate) fn in_test_directory(directory: PathBuf) -> Result<Arc<Self>, &'static str> { Self::in_directory(directory) }
     /// 事件循环前建立应用 runtime；所有存储仍限定在产品的独立目录。
     pub fn new() -> Result<Arc<Self>, &'static str> {
         #[cfg(target_os = "macos")]
@@ -88,7 +93,7 @@ impl UsageService {
         let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone()));
         let context = Arc::new(ServiceContext { directory, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            settings, agents });
+            settings, agents,monitor_revision:Default::default() });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();

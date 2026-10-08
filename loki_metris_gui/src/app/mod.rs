@@ -242,14 +242,17 @@ impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.viewport_width = window.viewport_size().width.into();
         self.sync_usage_setting_inputs(window,cx);
+        self.sync_monitor_inputs(window,cx);
+        self.begin_monitor_image_frame();
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
         let content = match self.page {
             Page::Dashboard => self.dashboard_page(window,cx),
-            Page::Monitor => self.monitor_page(cx),
+            Page::Monitor => self.monitor_page(window,cx),
             Page::Settings => self.settings_page(cx),
             Page::About => self.about_page(cx),
 
         };
+        self.finish_monitor_image_frame(window,cx);
         let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().flex().flex_col()
             .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);
@@ -259,6 +262,7 @@ impl Render for Shell {
                 .when(self.page == Page::About, |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
                     .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
+            .when_some(self.monitor_profile_overlay(cx),|shell,bar|shell.child(bar))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
 
     }

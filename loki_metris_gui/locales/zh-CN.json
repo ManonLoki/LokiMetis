@@ -446,7 +446,24 @@
     "monitor": {
       "settingsInvalid": "已保存的监控设置格式无效。",
       "settingsReadFailed": "无法读取监控设置。",
-      "settingsWriteFailed": "无法保存监控设置。"
+      "settingsWriteFailed": "无法保存监控设置。",
+      "behaviorDuplicate": "同一种行为不能重复配置。",
+      "behaviorsIncomplete": "四种行为必须各配置一次。",
+      "imageEmpty": "图片内容为空。",
+      "imageInUse": "该图片正在被展示配置使用，无法删除。",
+      "imageNotFound": "找不到所选的本机图片。",
+      "imageUnsupportedType": "不支持的图片类型，请使用 JPEG、PNG 或 GIF。",
+      "imagesInvalid": "本机图片索引格式无效。",
+      "imagesReadFailed": "无法读取本机图片库。",
+      "imagesWriteFailed": "无法更新本机图片库。",
+      "profilesInvalid": "监控展示配置格式无效。",
+      "profilesReadFailed": "无法读取监控展示配置。",
+      "profilesWriteFailed": "无法保存监控展示配置。",
+      "relayStatusUnavailable": "无法获取本机 Hook 中继状态。",
+      "slotOutOfRange": "展示位置超出支持范围。",
+      "unknownImage": "所选图片不在本机图库中。",
+      "imagesTooLarge": "图片资源超过本机图库容量限制。请先移除部分图片。",
+      "imageDecodeFailed": "图片无法解码。"
     }
   },
   "shell": {
@@ -485,6 +502,76 @@
         "label": "Hooks 设置",
         "description": "为统一启用的 Agent 定位并写入本机 Hooks 配置"
       }
+    },
+    "management": {
+      "title": "监控管理",
+      "description": "为已启用 Agent 配置展示位与各行为图片、文案。",
+      "noClient": "暂未启用任何 Agent，请先到公共设置的「Agent 配置」中勾选需要管理的客户端。",
+      "behaviorDisplay": "行为展示",
+      "configuredCount": "已配置 %{configured} / %{total}",
+      "noImages": "暂无可选图片，可在当前图片选择器里直接上传一张图片并继续配置。",
+      "content": "内容",
+      "contentPlaceholder": "输入可选的补充内容",
+      "displayConfig": "展示配置",
+      "ready": "所有状态均已配置，可以保存。",
+      "remaining": "还需为 %{count} 种状态选择图片。",
+      "save": "保存展示配置",
+      "saved": "已保存",
+      "configured": "已配置",
+      "notConfigured": "待选择图片",
+      "optional": "可选"
+    },
+    "behavior": {
+      "idle": "空闲",
+      "running": "运行中",
+      "asking": "询问",
+      "error": "异常"
+    },
+    "slot": {
+      "title": "显示位置",
+      "position": "位置 %{slot}",
+      "groupAria": "选择显示位置",
+      "cellAria": "位置 %{slot}，第 %{row} 行第 %{column} 列"
+    },
+    "picker": {
+      "field": "展示图片",
+      "clear": "清除选择",
+      "clearAria": "清除已选图片",
+      "change": "更换图片",
+      "loading": "正在加载图片",
+      "clickChoose": "点击选择图片",
+      "chooseTitle": "选择展示图片",
+      "closeAria": "关闭图片选择",
+      "selectAria": "选择图片 %{filename}",
+      "uploadSingle": "直接上传",
+      "uploadSingleAria": "上传一张新图片",
+      "uploading": "上传中…",
+      "uploadedAndSelected": "已上传并自动选中 %{filename}",
+      "emptyCategory": "该分类暂无图片",
+      "imagesTotal": "共 %{count} 张图片",
+      "imagesFiltered": "显示 %{visible} / 共 %{total} 张",
+      "allCount": "全部 %{count}"
+    },
+    "images": {
+      "title": "本机图片",
+      "description": "图片保存在本机应用数据目录，不转发到局域网设备。",
+      "empty": "还没有本机监控图片。",
+      "emptyTitle": "还没有本机图片",
+      "emptyDescription": "可一次选择多张 JPEG、PNG 或 GIF 图片，上传后直接分配给 Agent。",
+      "chooseMultiple": "批量选择图片",
+      "upload": "批量上传",
+      "uploaded": "已成功上传 %{count} 张图片。",
+      "delete": "删除图片",
+      "refresh": "刷新",
+      "filterAria": "按图片格式筛选",
+      "reading": "读取中…",
+      "actions": "图片操作：%{name}",
+      "localLibrary": "本机图库",
+      "emptyCategory": "该分类暂无图片",
+      "imagesTotal": "共 %{count} 张图片",
+      "imagesFiltered": "显示 %{visible} / 共 %{total} 张",
+      "allCount": "全部 %{count}",
+      "unavailable": "图片资源不可用"
     }
   },
   "monitor_service_unavailable": "监控服务不可用"

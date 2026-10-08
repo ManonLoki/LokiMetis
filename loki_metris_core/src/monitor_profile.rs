@@ -128,21 +128,46 @@ pub fn validate_profile_draft(
             .param("min", MIN_PROFILE_SLOT.to_string())
             .param("max", MAX_PROFILE_SLOT.to_string()));
     }
-    if draft.hooks.len() != HookBehavior::DISPLAY_BEHAVIORS.len() {
-        return Err(HookError::new("error.monitor.behaviorsIncomplete"));
-    }
-    let mut behaviors = HashSet::new();
+    validate_profile_behaviors(&draft.hooks)?;
     for hook in &mut draft.hooks {
         hook.content = hook.content.trim().to_owned();
         hook.image = hook.image.trim().to_owned();
         if !hook.image.is_empty() && !known_image_ids.contains(&hook.image) {
             return Err(HookError::new("error.monitor.unknownImage"));
         }
+    }
+    Ok(draft)
+}
+
+/// 读取与保存共用四行为结构约束，不依赖图库当前是否可读取。
+pub fn validate_profile_behaviors(hooks: &[HookContent]) -> Result<(), HookError> {
+    if hooks.len() != HookBehavior::DISPLAY_BEHAVIORS.len() {
+        return Err(HookError::new("error.monitor.behaviorsIncomplete"));
+    }
+    let mut behaviors = HashSet::new();
+    for hook in hooks {
         if !behaviors.insert(hook.behavior) {
             return Err(HookError::new("error.monitor.behaviorDuplicate"));
         }
     }
-    Ok(draft)
+    Ok(())
+}
+
+/// 已保存档案仍引用图片时拒绝删除，内部暂未公开 Agent 的引用同样有效。
+pub fn ensure_monitor_image_unused(
+    profiles: &AiProfileDraftSet,
+    image_id: &str,
+) -> Result<(), HookError> {
+    if profiles
+        .drafts
+        .iter()
+        .flat_map(|draft| &draft.hooks)
+        .any(|hook| hook.image == image_id)
+    {
+        Err(HookError::new("error.monitor.imageInUse"))
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -154,6 +179,25 @@ mod tests {
         clamp_profile_slot, merge_profile_drafts, profile_slot_range, validate_profile_draft,
     };
     use crate::{AiTool, HookBehavior};
+
+    /// 隐藏工具引用与公开工具具有相同约束，解除引用后才允许删除。
+    #[test]
+    fn image_reference_guard_includes_hidden_agents() {
+        let mut hidden = AiProfileDraft::default_for(AiTool::OpenCode);
+        hidden.hooks[0].image = "image-one".into();
+        let mut profiles = super::AiProfileDraftSet {
+            drafts: vec![hidden],
+        };
+        assert_eq!(
+            super::ensure_monitor_image_unused(&profiles, "image-one")
+                .unwrap_err()
+                .code,
+            "error.monitor.imageInUse"
+        );
+        assert!(super::ensure_monitor_image_unused(&profiles, "image-two").is_ok());
+        profiles.drafts[0].hooks[0].image.clear();
+        assert!(super::ensure_monitor_image_unused(&profiles, "image-one").is_ok());
+    }
 
     /// 把测试图片 ID 切片转换为校验器使用的已知集合。
     fn known(ids: &[&str]) -> HashSet<String> {

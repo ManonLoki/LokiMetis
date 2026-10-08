@@ -111,7 +111,7 @@ pub use monitor_gallery::{
 pub use monitor_profile::{
     AiProfileDraft, AiProfileDraftSet, DEFAULT_PROFILE_SLOT, HookContent, MAX_PROFILE_SLOT,
     MIN_PROFILE_SLOT, MonitorCapabilityRange, clamp_profile_slot, merge_profile_drafts,
-    profile_slot_range, validate_profile_draft,
+    profile_slot_range, validate_profile_draft, validate_profile_behaviors, ensure_monitor_image_unused,
 };
 pub use pet_overlay::{
     PET_OVERLAY_SLOT_COUNT, PET_OVERLAY_WINDOW_SPEC, PetLayout, PetOverlayPage, PetOverlaySlot,
