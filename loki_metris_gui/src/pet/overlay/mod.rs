@@ -1,5 +1,9 @@
 //! 透明桌宠位置画布，交互只发意图；状态机、布局和分页来自core。
 
+mod gesture;
+#[cfg(test)]
+mod gesture_tests;
+
 use super::{Controller, host};
 use crate::monitor::{
     image_decode::{MonitorImageDecoder, MonitorImageSource},
@@ -30,11 +34,13 @@ pub(super) struct Overlay {
     keyboard_visible: bool,
     players: HashMap<u8, Player>,
     last_wheel: Option<Instant>,
+    double_click: gesture::DoubleClick,
     _controller: Subscription,
     _visibility: Subscription,
     _bounds: Subscription,
     _activation: Subscription,
     _focus: Subscription,
+    _focus_out: Subscription,
 }
 impl Overlay {
     /// 自有观察处理隐藏后的像素回收，失焦仍继续播放。
@@ -43,6 +49,7 @@ impl Overlay {
         let controller = cx.observe(&owner, |_, _, cx| cx.notify());
         let visibility = cx.observe_window_visibility(window, |this, _, window, cx| {
             if !window.is_visible() {
+                this.double_click.cancel();
                 this.release_all(window, cx);
                 this.hovered = false;
                 this.keyboard_visible = false;
@@ -50,7 +57,7 @@ impl Overlay {
             cx.notify();
         });
         let bounds_owner = owner.clone();
-        let bounds = cx.observe_window_bounds(window, move |this, window, cx| {
+        let bounds = cx.observe_window_bounds(window, move |_, window, cx| {
             let bounds = host::bounds(window);
             let scale = window.scale_factor();
             bounds_owner.update(cx, |owner, cx| {
@@ -72,11 +79,11 @@ impl Overlay {
                 }
                 owner.moved(bounds, scale, cx);
             });
-            this.hovered = false;
             cx.notify();
         });
         let activation = cx.observe_window_activation(window, |this, window, cx| {
             if !window.is_window_active() {
+                this.double_click.cancel();
                 this.hovered = false;
                 this.keyboard_visible = false;
             }
@@ -88,9 +95,12 @@ impl Overlay {
             false
         });
         let focus = cx.focus_handle();
-        let focus_observe = cx.on_focus_in(&focus, window, |this, _, cx| {
+        let focus_observe = cx.on_focus_in(&focus, window, |this, _window, cx| {
             this.keyboard_visible = true;
             cx.notify();
+        });
+        let focus_out = cx.on_focus_out(&focus, window, |this, _, _, _| {
+            this.double_click.cancel();
         });
         Self {
             owner,
@@ -99,11 +109,13 @@ impl Overlay {
             keyboard_visible: false,
             players: HashMap::new(),
             last_wheel: None,
+            double_click: gesture::DoubleClick::default(),
             _controller: controller,
             _visibility: visibility,
             _bounds: bounds,
             _activation: activation,
             _focus: focus_observe,
+            _focus_out: focus_out,
         }
     }
     /// 最后挂载位置停止时释放当前窗GPU全部帧，旧绘制闭包只保留弱引用。
@@ -127,6 +139,29 @@ impl Overlay {
     /// 事件和控件共用字段意图，锁定只由core决定缩放是否允许。
     fn change(&mut self, change: PetPreferenceChange, cx: &mut Context<Self>) {
         self.owner.update(cx, |owner, cx| owner.change(change, cx));
+    }
+    /// Canvas仅在paint注册全窗取消观察，不创建Hitbox或拦截输入，覆盖离窗后返回。
+    fn gesture_events(cx: &Context<Self>) -> gpui_kit::AnyElement {
+        let down = cx.entity().downgrade();
+        let motion = down.clone();
+        let exit = down.clone();
+        gpui_kit::canvas(|_, _, _| (), move |_, (), window, _| {
+            window.on_mouse_event(move |_: &gpui_kit::MouseDownEvent, phase, _, cx| {
+                if phase == gpui_kit::DispatchPhase::Capture {
+                    let _ = down.update(cx, |this, _| this.double_click.cancel());
+                }
+            });
+            window.on_mouse_event(move |event: &gpui_kit::MouseMoveEvent, phase, _, cx| {
+                if phase == gpui_kit::DispatchPhase::Capture {
+                    let _ = motion.update(cx, |this, _| this.double_click.motion(event.position));
+                }
+            });
+            window.on_mouse_event(move |_: &gpui_kit::MouseExitEvent, phase, _, cx| {
+                if phase == gpui_kit::DispatchPhase::Capture {
+                    let _ = exit.update(cx, |this, _| this.double_click.cancel());
+                }
+            });
+        }).absolute().inset_0().size_full().into_any_element()
     }
     /// 图片实体不跨窗口复用；同一绝对位置跨页保留自己的播放时间线。
     fn tile(
@@ -189,6 +224,14 @@ impl Overlay {
             .relative()
             .size_full()
             .overflow_hidden()
+            .on_mouse_down(MouseButton::Left, cx.listener(move |this, event, _, _| {
+                this.double_click.begin(id, event);
+            }))
+            .on_click(cx.listener(move |this, event, _, cx| {
+                if this.double_click.complete(id, event) {
+                    this.owner.update(cx, |owner, cx| owner.show_main(cx));
+                }
+            }))
             .when(!decoded, |tile| {
                 tile.child(
                     div()
@@ -270,7 +313,7 @@ impl Overlay {
     }
 }
 impl Render for Overlay {
-    /// 控件独立阻断按下和右键传播，不触发桌面拖动或主窗双击。
+    /// 分页栏阻断左键拖动／双击；任意位置右键均沿用参考的桌宠设置入口。
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let owner = self.owner.read(cx);
         let page = owner.page();
@@ -339,9 +382,11 @@ impl Render for Overlay {
                 gpui_kit::AccessibleAction::ShowContextMenu,
                 move |_, _, cx| a11y_owner.update(cx, |owner, cx| owner.open_settings(cx)),
             )
-            .on_hover(cx.listener(|this, hovered, _, cx| {
+            .hover_listener_mode(gpui_kit::HoverListenerMode::InputModalityIndependent)
+            .on_hover(cx.listener(|this, hovered, _window, cx| {
                 this.hovered = *hovered;
                 if !hovered {
+                    this.double_click.cancel();
                     this.keyboard_visible = false;
                 }
                 cx.notify();
@@ -350,23 +395,38 @@ impl Render for Overlay {
                 MouseButton::Left,
                 cx.listener(move |this, event: &gpui_kit::MouseDownEvent, window, cx| {
                     this.focus.focus(window, cx);
-                    if event.click_count > 1 {
-                        this.owner.update(cx, |owner, cx| owner.show_main(cx));
-                    } else if !locked {
+                    if event.click_count == 1 && !locked {
                         host::start_drag(window, cx);
                     }
                 }),
             )
+            .on_mouse_up(MouseButton::Left, cx.listener(|_this, _, _window, _cx| {
+                _this.double_click.cancel();
+            }))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(|this, _, _, _| {
+                this.double_click.cancel();
+            }))
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|this, _, _, cx| {
+                    this.double_click.cancel();
                     cx.stop_propagation();
                     this.owner.update(cx, |owner, cx| owner.open_settings(cx));
                 }),
             )
-            .on_key_down(cx.listener(|this, event: &gpui_kit::KeyDownEvent, _, cx| {
+            .on_key_down(cx.listener(|this, event: &gpui_kit::KeyDownEvent, window, cx| {
                 this.keyboard_visible = true;
                 cx.notify();
+                let recognized = match event.keystroke.key.as_str() {
+                    "left" | "right" | "menu" | "contextmenu" => true,
+                    "f10" => event.keystroke.modifiers.shift,
+                    _ => false,
+                };
+                if recognized {
+                    this.focus.focus(window, cx);
+                    // macOS以propagate判定是否进入原生键等价／IME回退，已处理事件必须消费。
+                    cx.stop_propagation();
+                }
                 match event.keystroke.key.as_str() {
                     "left" => this.change(PetPreferenceChange::TurnPage(-1), cx),
                     "right" => this.change(PetPreferenceChange::TurnPage(1), cx),
@@ -400,6 +460,7 @@ impl Render for Overlay {
                 }),
             )
             .child(grid)
+            .child(Self::gesture_events(cx))
             .when(controls, |surface| {
                 surface.child(
                     div()
@@ -417,8 +478,14 @@ impl Render for Overlay {
                         .bg(rgba(0x0a0d14d6))
                         .border_t_1()
                         .border_color(rgba(0xffffff1f))
-                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                        .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
+                        .on_mouse_down(MouseButton::Left, cx.listener(|_this, _, _window, cx| {
+                            _this.double_click.cancel();
+                            cx.stop_propagation();
+                        }))
+                        .on_mouse_up(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                            this.double_click.cancel();
+                            cx.stop_propagation();
+                        }))
                         .child(
                             gpui_kit::base::Button::new("pet-previous")
                                 .accessibility_label(previous.clone())
@@ -430,7 +497,7 @@ impl Render for Overlay {
                                 .cursor_pointer()
                                 .hover(|button| button.bg(rgba(0xffffff24)))
                                 .child("‹")
-                                .on_click(cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(|this, _, _window, cx| {
                                     this.change(PetPreferenceChange::TurnPage(-1), cx)
                                 })),
                         )
@@ -451,7 +518,7 @@ impl Render for Overlay {
                                 .cursor_pointer()
                                 .hover(|button| button.bg(rgba(0xffffff24)))
                                 .child("›")
-                                .on_click(cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(|this, _, _window, cx| {
                                     this.change(PetPreferenceChange::TurnPage(1), cx)
                                 })),
                         ),

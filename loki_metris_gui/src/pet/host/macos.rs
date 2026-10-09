@@ -64,11 +64,12 @@ pub fn bounds(window: &Window) -> Bounds<gpui_kit::Pixels> {
         })
         .unwrap_or_else(|_| window.bounds())
 }
-/// NSWindow的显示不改变主界面焦点，隐藏不影响同应用其它窗口。
+/// 显示只激活桌宠本窗；GPUI延迟makeKeyAndOrderFront并检查活窗，避免同步焦点回调重借用。
+/// 与历史TAO 0.35.3的set_visible(true)一致，隐藏不影响同应用其它窗口。
 pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
     let native = native(window)?;
     if visible {
-        native.orderFrontRegardless()
+        window.activate_window()
     } else {
         native.orderOut(None)
     }
@@ -84,10 +85,11 @@ pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
 pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> anyhow::Result<()> {
     let native = native(window)?;
     let resizable = !prefs.locked && !settings;
+    let style = NSWindowStyleMask::Borderless | NSWindowStyleMask::FullSizeContentView;
     native.setStyleMask(if resizable {
-        NSWindowStyleMask::Borderless | NSWindowStyleMask::Resizable
+        style | NSWindowStyleMask::Resizable
     } else {
-        NSWindowStyleMask::Borderless
+        style
     });
     native.setLevel(if settings || prefs.always_on_top {
         3
@@ -111,18 +113,10 @@ pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> an
     }
     Ok(())
 }
-/// macOS的原生拖动由GPUI当前鼠标事件驱动。
-pub fn start_drag(window: &Window, cx: &gpui_kit::App) {
-    if let Ok(native) = native(window) {
-        if let Some(event) = native.currentEvent() {
-            // 不持有GPUI后端锁或App/Entity借用跨越Cocoa同步模态拖动循环。
-            cx.foreground_executor()
-                .spawn(async move {
-                    native.performWindowDragWithEvent(&event);
-                })
-                .detach();
-        }
-    }
+
+/// 在原始鼠标按下回调中交给GPUI同步发起拖动；AppKit接口立即返回。
+pub fn start_drag(window: &Window, _: &gpui_kit::App) {
+    window.start_window_move();
 }
 
 /// 同一次原生frame事务修改尺寸和全局左上角，避免异步resize导致顶边漂移。

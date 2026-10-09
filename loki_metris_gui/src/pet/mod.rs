@@ -366,9 +366,6 @@ impl Controller {
         }
         self.scheduled = None;
         let old = self.settings.pet_window;
-        let old_bounds = self
-            .overlay
-            .and_then(|handle| handle.update(cx, |_, window, _| host::bounds(window)).ok());
         let layout = if let PetPreferenceChange::Layout(layout) = change {
             layout
         } else {
@@ -385,18 +382,31 @@ impl Controller {
             self.next_pending(cx);
             return;
         }
+        // 页码只改变内容；重复宿主事务会刷新 bounds 并使原生指针坐标失效。
+        let native_changed = old.layout != next.layout
+            || old.pet_size != next.pet_size
+            || old.always_on_top != next.always_on_top
+            || old.locked != next.locked;
+        let old_bounds = if native_changed {
+            self.overlay
+                .and_then(|handle| handle.update(cx, |_, window, _| host::bounds(window)).ok())
+        } else {
+            None
+        };
         self.settings_generation = self.settings_generation.wrapping_add(1);
         self.settings.pet_window = next;
-        if let Err(error) = self.apply_geometry(false, cx) {
-            self.settings.pet_window = old;
-            let _ = self.apply_geometry(false, cx);
-            self.restore_bounds(old_bounds, cx);
-            self.last_error = Some(HookError::new("error.monitor.petApplyFailed"));
-            tracing::warn!(%error,"pet native preference failed");
-            self.busy = false;
-            self.next_pending(cx);
-            cx.notify();
-            return;
+        if native_changed {
+            if let Err(error) = self.apply_geometry(false, cx) {
+                self.settings.pet_window = old;
+                let _ = self.apply_geometry(false, cx);
+                self.restore_bounds(old_bounds, cx);
+                self.last_error = Some(HookError::new("error.monitor.petApplyFailed"));
+                tracing::warn!(%error,"pet native preference failed");
+                self.busy = false;
+                self.next_pending(cx);
+                cx.notify();
+                return;
+            }
         }
         self.last_error = None;
         let work = self.service.change_pet_preferences(change, range);
@@ -422,8 +432,10 @@ impl Controller {
                     }
                     Err(error) => {
                         this.settings.pet_window = old;
-                        let _ = this.apply_geometry(false, cx);
-                        this.restore_bounds(old_bounds, cx);
+                        if native_changed {
+                            let _ = this.apply_geometry(false, cx);
+                            this.restore_bounds(old_bounds, cx);
+                        }
                         tracing::warn!(code = error.code, "pet preference save failed");
                         this.last_error = Some(error);
                     }
