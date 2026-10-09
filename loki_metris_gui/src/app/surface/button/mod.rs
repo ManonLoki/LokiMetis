@@ -2,20 +2,22 @@
 
 mod content;
 mod palette;
+mod veil;
+mod veil_raster;
 pub(in crate::app) use content::HistoricalButtonSize;
 use palette::{colors, premultiply, unpremultiply};
 
 use crate::app::surface::motion::CssMotion;
 use gpui_kit::{
-    AnyElement, App, BorderStyle, Bounds, ClickEvent, Context, Edges, Element, ElementId, Entity,
-    FocusHandle, GlobalElementId, HoverListenerMode, InspectorElementId, InteractiveElement,
-    IntoElement, LayoutId, MouseButton, ParentElement, Pixels, RenderOnce, Rgba, SharedString,
-    StyleRefinement, Styled, Window,
+    AnyElement, App, AvailableSpace, BorderStyle, Bounds, ClickEvent, Context, Edges, Element,
+    ElementId, Entity, FocusHandle, GlobalElementId, HoverListenerMode, InspectorElementId,
+    InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement, Pixels, RenderOnce,
+    Rgba, SharedString, StyleRefinement, Styled, Subscription, Window,
     component::{
         Disableable, Icon, Sizable, Size,
         button::{Button, ButtonCustomVariant, ButtonVariants},
     },
-    point, px, quad, transparent_black,
+    point, px, quad, size, transparent_black,
 };
 use std::time::Duration;
 
@@ -23,6 +25,8 @@ use std::time::Duration;
 mod content_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod loading_metal_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod veil_metal_tests;
 
 /// 每种变体对应历史Sources实际使用的Mantine按钮，而非全局主题替换。
 #[derive(Clone, Copy)]
@@ -47,12 +51,26 @@ pub(in crate::app) struct ButtonMotion {
     translation: CssMotion<1>,
     content: content::LoadingMotion,
     content_running: bool,
+    veil: veil::Veil,
+    veil_active: bool,
+    veil_geometry: Option<(Bounds<Pixels>, Pixels, bool)>,
+    veil_cleanup_scheduled: bool,
+    _subscriptions: Vec<Subscription>,
 }
 impl ButtonMotion {
     /// 首次绘制采用静态目标，不制造挂载动画。
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let now = cx.background_executor().now();
         let duration = Duration::from_millis(200);
+        let release = cx.on_release_in(window, |state, window, _| state.veil.clear(window));
+        let visibility = cx.observe_window_visibility(window, |state, visibility, window, cx| {
+            if !visibility.is_visible() {
+                state.veil_geometry = None;
+                state.veil.clear(window);
+            } else {
+                cx.notify();
+            }
+        });
         Self {
             hovered: false,
             mouse_pressed: false,
@@ -63,7 +81,26 @@ impl ButtonMotion {
             translation: CssMotion::with_duration(now, duration),
             content: content::LoadingMotion::new(),
             content_running: false,
+            veil: veil::Veil::default(),
+            veil_active: false,
+            veil_geometry: None,
+            veil_cleanup_scheduled: false,
+            _subscriptions: vec![release, visibility],
         }
+    }
+    /// 回调只捕获弱owner，卸载不会保活按钮或积累退休纹理。
+    fn schedule_veil_cleanup(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.veil_cleanup_scheduled || !self.veil.needs_cleanup() {
+            return;
+        }
+        self.veil_cleanup_scheduled = true;
+        let owner = cx.weak_entity();
+        window.on_next_frame(move |window, cx| {
+            let _ = owner.update(cx, |state, _| {
+                state.veil_cleanup_scheduled = false;
+                state.veil.clear_retired(window);
+            });
+        });
     }
     /// 悬停只通知当前按钮；没有点击或传播副作用。
     fn hover(&mut self, value: bool, cx: &mut Context<Self>) {
@@ -101,6 +138,8 @@ pub(in crate::app) struct SurfaceButton {
     radius: Pixels,
     disabled: bool,
     loading: bool,
+    #[cfg(test)]
+    motion_observer: Option<Box<dyn FnOnce(&Entity<ButtonMotion>)>>,
 }
 impl SurfaceButton {
     /// 控件ID须稳定且在父作用域唯一；状态由该原生元素生命周期限定。
@@ -118,6 +157,8 @@ impl SurfaceButton {
             radius: px(12.),
             disabled: false,
             loading: false,
+            #[cfg(test)]
+            motion_observer: None,
         }
     }
     /// 可见文字继续作为默认可访问名称。
@@ -212,7 +253,7 @@ pub(in crate::app) struct PaintState {
 }
 
 impl Element for SurfaceButton {
-    type RequestLayoutState = (AnyElement, Entity<ButtonMotion>);
+    type RequestLayoutState = (AnyElement, Entity<ButtonMotion>, Option<AnyElement>);
     type PrepaintState = PaintState;
     /// 稳定作用域隔离相邻按钮的短暂反馈owner。
     fn id(&self) -> Option<ElementId> {
@@ -231,6 +272,10 @@ impl Element for SurfaceButton {
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let owner = window.use_keyed_state("source-button-motion", cx, ButtonMotion::new);
+        #[cfg(test)]
+        if let Some(observer) = self.motion_observer.take() {
+            observer(&owner);
+        }
         let foreground = colors(
             self.variant,
             self.dark,
@@ -239,6 +284,7 @@ impl Element for SurfaceButton {
         )
         .2;
         let transparent = transparent_black();
+        let mut veil_element = None;
         let mut button = self
             .button
             .take()
@@ -261,6 +307,7 @@ impl Element for SurfaceButton {
                     .content
                     .sample(self.loading, cx.background_executor().now());
                 state.content_running = parameters.running;
+                state.veil_active = parameters.veil_opacity() > 0.;
                 parameters
             });
             let label = self.label.take().unwrap_or_default();
@@ -268,6 +315,11 @@ impl Element for SurfaceButton {
                 button = button.accessibility_label(label.clone());
             }
             let has_icon = self.left_icon.is_some();
+            veil_element = Some(veil::element(
+                owner.downgrade(),
+                parameters.veil_opacity(),
+                parameters.veil_slide(),
+            ));
             button = button
                 .loading(false)
                 .disabled(self.disabled || self.loading)
@@ -343,7 +395,7 @@ impl Element for SurfaceButton {
         }
         let mut inner = button.render(window, cx).into_any_element();
         let layout = inner.request_layout(window, cx);
-        (layout, (inner, owner))
+        (layout, (inner, owner, veil_element))
     }
     /// 位移同时作用于绘制、原生命中与辅助边界；保持原布局尺寸和周围内容位置。
     fn prepaint(
@@ -391,7 +443,7 @@ impl Element for SurfaceButton {
             let (background, bg_running) = state.background.sample(now);
             let (border, border_running) = state.border.sample(now);
             let (translation, moving) = state.translation.sample(now);
-            PaintState {
+            let paint = PaintState {
                 background: unpremultiply(background),
                 border: unpremultiply(border),
                 bounds: Bounds::new(
@@ -403,8 +455,38 @@ impl Element for SurfaceButton {
                     || moving
                     || state.content_running
                     || (self.historical_size.is_some() && self.loading),
+            };
+            if self.historical_size.is_some()
+                && state.veil_active
+                && window.is_visible()
+                && !paint
+                    .bounds
+                    .intersect(&window.content_mask().bounds)
+                    .is_empty()
+            {
+                let radius = self
+                    .radius
+                    .min(paint.bounds.size.height / 2.)
+                    .min(paint.bounds.size.width / 2.);
+                state.veil_geometry = Some((paint.bounds, radius, self.dark));
+            } else {
+                state.veil_geometry = None;
+                state.veil.clear(window);
             }
+            paint
         });
+        if let Some(veil) = &mut request.2 {
+            // 遮罩位于Kit content的overflow外，尺寸来自同一个实际border-box，不参与父布局。
+            veil.prepaint_as_root(
+                paint.bounds.origin,
+                size(
+                    AvailableSpace::Definite(paint.bounds.size.width),
+                    AvailableSpace::Definite(paint.bounds.size.height),
+                ),
+                window,
+                cx,
+            );
+        }
         let offset = paint.bounds.origin - bounds.origin;
         window.with_element_offset(offset, |window| {
             request.0.prepaint(window, cx);
@@ -443,6 +525,9 @@ impl Element for SurfaceButton {
             border,
             BorderStyle::Solid,
         ));
+        if let Some(veil) = &mut request.2 {
+            veil.paint(window, cx);
+        }
         if paint.running
             && window.is_visible()
             && !paint

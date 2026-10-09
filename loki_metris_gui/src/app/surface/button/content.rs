@@ -141,6 +141,15 @@ pub(super) struct LoadingPaint {
     angle: f32,
     pub(super) running: bool,
 }
+impl LoadingPaint {
+    /// before与inner共享同样时长和ease，但遮罩从透明上方进入。
+    pub(super) fn veil_opacity(self) -> f32 {
+        1. - self.opacity
+    }
+    pub(super) fn veil_slide(self) -> f32 {
+        self.slide
+    }
+}
 impl LoadingMotion {
     /// 历史 inner opacity100ms、inner/loader transform150ms。
     pub(super) fn new() -> Self {
