@@ -1,0 +1,4 @@
+        let params = RenderImageParams {
+            image_id: data.id,
+            frame_index,
+        };

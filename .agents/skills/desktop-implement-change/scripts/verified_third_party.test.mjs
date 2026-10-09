@@ -32,6 +32,24 @@ function assertRejected(pattern) {
   assert.ok(result.errors.some((error) => pattern.test(error)), JSON.stringify(result));
 }
 
+/** GPUI 清单相对 immutable upstream；shim 和补丁绝不进入排除集合。 */
+function installGpuiSource() {
+  const component = "vendor/gpui-pre";
+  const sourceRoot = fileURLToPath(new URL("../../../../vendor/gpui-pre/", import.meta.url));
+  const payload = readFileSync(path.join(sourceRoot, "source-content.sha256"));
+  const entries = parseThirdPartyManifest(payload);
+  const targetRoot = path.join(root, component);
+  mkdirSync(targetRoot, { recursive: true });
+  copyFileSync(path.join(sourceRoot, "source-content.sha256"), path.join(targetRoot, "source-content.sha256"));
+  for (const entry of entries) {
+    const relative = `upstream/${entry.relative}`;
+    const target = path.join(targetRoot, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(path.join(sourceRoot, relative), target);
+  }
+  return entries.map((entry) => `${component}/upstream/${entry.relative}`).sort();
+}
+
 beforeEach(() => { root = mkdtempSync(path.join(tmpdir(), "afh-third-party-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
@@ -44,6 +62,32 @@ test("only the exact pinned manifest and all 18 original files are verified", ()
   const expected = installSource();
   assert.equal(expected.length, 18);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
+});
+
+test("GPUI registration verifies its nested source root and excludes no maintained shim", () => {
+  const expected = installGpuiSource();
+  mkdirSync(path.join(root, "vendor/gpui-pre/src"));
+  writeFileSync(path.join(root, "vendor/gpui-pre/src/lib.rs"), "// maintained shim\n");
+  assert.equal(expected.length, 160);
+  assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
+});
+
+test("a modified GPUI source rejects its whole registration without affecting AccessKit", () => {
+  const expected = installSource();
+  installGpuiSource();
+  writeFileSync(path.join(root, "vendor/gpui-pre/upstream/src/window.rs"), "// changed\n");
+  const result = verifyRegisteredThirdParty(root);
+  assert.deepEqual(result.files, expected);
+  assert.ok(result.errors.some((error) => /原样文件 SHA256 不符.*window\.rs/u.test(error)));
+});
+
+test("a symlink replacing GPUI upstream is rejected before source exclusion", () => {
+  installGpuiSource();
+  const target = path.join(root, "vendor/gpui-pre/upstream");
+  const original = path.join(root, "original-gpui-upstream");
+  renameSync(target, original);
+  symlinkSync(original, target, "dir");
+  assertRejected(/父目录不得是符号链接.*upstream/);
 });
 
 test("rewriting a manifest hash cannot authorize modified upstream bytes", () => {

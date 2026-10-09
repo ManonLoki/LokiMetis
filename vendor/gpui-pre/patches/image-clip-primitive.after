@@ -1,0 +1,4 @@
+            tile: sub_tile,
+            opacity,
+            rounded_clip_bounds,
+        });

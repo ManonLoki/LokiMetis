@@ -1,0 +1,1 @@
+        assert_eq!(std::mem::size_of::<PolychromeSprite>(), 24 * 4);

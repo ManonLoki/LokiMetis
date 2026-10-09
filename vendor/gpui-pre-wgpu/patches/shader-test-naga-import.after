@@ -1,0 +1,5 @@
+mod tests {
+    use super::*;
+    // 复用已声明的 wgpu 对 Naga 的再导出，验证实际拼接的 WGSL。
+    use wgpu::naga;
+    use gpui::{

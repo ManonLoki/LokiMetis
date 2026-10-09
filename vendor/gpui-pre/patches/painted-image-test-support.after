@@ -1,0 +1,7 @@
+    /// 返回已完成帧的真实图片图元，供原始视口、帧和图集复用回归读取。
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn painted_polychrome_sprites(&self) -> Vec<PolychromeSprite> {
+        self.rendered_frame.scene.polychrome_sprites.clone()
+    }
+
+    /// Returns the underlines in the most recently rendered frame's scene.

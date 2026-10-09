@@ -1,0 +1,1 @@
+quad_sdf(input.position.xy, sprite.rounded_clip_bounds, sprite.corner_radii);

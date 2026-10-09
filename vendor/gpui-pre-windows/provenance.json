@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "package": "gpui-pre-windows",
+  "version": "0.3.8",
+  "source": "https://crates.io/api/v1/crates/gpui-pre-windows/0.3.8/download",
+  "archive_sha256": "371f9bb13f97e3bea2f8b8e5e81232bb74d735153c244ae67f7400e743925b1c",
+  "source_manifest_sha256": "6f799175fd8bea70b7645bf917948e545c173e10691ace344f8edb9a35eea770",
+  "upstream_file_count": 28,
+  "upstream_bytes": 655835,
+  "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched",
+  "official_repository": "https://github.com/zed-industries/zed",
+  "source_revision": "279fe070bb389b79652e52065b2f001edcc0b11b",
+  "manifest_definition": "Sorted UTF-8 SHA-256 lines, two ASCII spaces, upstream-relative path, LF; every archive regular file is unchanged."
+}

@@ -1,0 +1,4 @@
+        let corner_radii = corner_radii
+            .clamp_radii_for_quad_size(rounded_clip_bounds.size)
+            .scale(self.scale_factor());
+        let rounded_clip_bounds = self.snap_bounds(rounded_clip_bounds);

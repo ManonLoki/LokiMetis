@@ -10,6 +10,30 @@ const REGISTERED_SOURCES = Object.freeze([
     sha256: "f4bc40427a5db1b6acf7262cf8d4bcdfe25c19b6a16499302252a3942e86ffda",
     entries: 18,
   }),
+  Object.freeze({
+    manifest: "vendor/gpui-pre/source-content.sha256",
+    root: "vendor/gpui-pre/upstream",
+    sha256: "6740789276091f55b305d15d7db9d3e81dd79909879869bdc0cc2a77134c8dd7",
+    entries: 160,
+  }),
+  Object.freeze({
+    manifest: "vendor/gpui-pre-apple/source-content.sha256",
+    root: "vendor/gpui-pre-apple/upstream",
+    sha256: "3a0648847f84019c27d80c8d030a34e709136c4e65c1c69643b1d527cc41c95d",
+    entries: 15,
+  }),
+  Object.freeze({
+    manifest: "vendor/gpui-pre-windows/source-content.sha256",
+    root: "vendor/gpui-pre-windows/upstream",
+    sha256: "6f799175fd8bea70b7645bf917948e545c173e10691ace344f8edb9a35eea770",
+    entries: 28,
+  }),
+  Object.freeze({
+    manifest: "vendor/gpui-pre-wgpu/source-content.sha256",
+    root: "vendor/gpui-pre-wgpu/upstream",
+    sha256: "49af2ca1842fcf48ce4d903972a531b8d0355b73a2c8af30ab466a5e068f60b7",
+    entries: 14,
+  }),
 ]);
 
 function digest(payload) { return createHash("sha256").update(payload).digest("hex"); }
@@ -87,7 +111,7 @@ export function verifyRegisteredThirdParty(root) {
       if (entries.length !== registration.entries) throw new Error(`清单必须恰有 ${registration.entries} 项`);
       const verified = [];
       for (const entry of entries) {
-        const relative = `${directory}/${entry.relative}`;
+        const relative = `${registration.root ?? directory}/${entry.relative}`;
         try {
           if (digest(readPlainFile(root, relative)) !== entry.sha256) throw new Error(`原样文件 SHA256 不符: ${relative}`);
           verified.push(relative);

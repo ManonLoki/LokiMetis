@@ -1,0 +1,10 @@
+        let rounded_clip_bounds = rounded_clip_bounds.unwrap_or(visible_bounds);
+        if rounded_clip_bounds.size.width <= Pixels::ZERO
+            || rounded_clip_bounds.size.height <= Pixels::ZERO {
+            return Ok(());
+        }
+
+        let params = RenderImageParams {
+            image_id: data.id,
+            frame_index,
+        };

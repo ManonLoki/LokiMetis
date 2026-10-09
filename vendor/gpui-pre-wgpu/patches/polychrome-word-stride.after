@@ -1,0 +1,2 @@
+        // 尾部新增四个浮点字后，WebGL 实例步幅必须保持 112 字节。
+        assert_eq!(std::mem::size_of::<PolychromeSprite>(), 28 * 4);

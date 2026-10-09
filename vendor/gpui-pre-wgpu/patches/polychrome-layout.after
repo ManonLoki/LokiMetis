@@ -1,0 +1,12 @@
+// 彩色图片实例尾部保存独立圆角视口；排列必须与 Rust 和其他后端一致。
+struct PolychromeSprite {
+    order: u32,
+    pad: u32,
+    grayscale: u32,
+    opacity: f32,
+    bounds: Bounds,
+    content_mask: Bounds,
+    corner_radii: Corners,
+    tile: AtlasTile,
+    rounded_clip_bounds: Bounds,
+}

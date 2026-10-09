@@ -1,0 +1,10 @@
+/// 图片的独立圆角裁切视口；不会改变原图帧、图集条目或祖先矩形 mask。
+#[derive(Clone, Debug)]
+pub struct ImageRoundedClip {
+    /// 圆心与半径的原始布局坐标，不能用图片交集矩形替代。
+    pub bounds: Bounds<Pixels>,
+    /// 四角半径按完整视口尺寸限制，然后按窗口缩放因子绘制。
+    pub corner_radii: Corners<Pixels>,
+}
+
+/// Indicates which region of the window is visible. Content falling outside of this mask will not be

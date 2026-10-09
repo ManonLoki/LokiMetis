@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["loki_metris_core","loki_metris_gui"]
-exclude = ["vendor/accesskit_macos"]
+exclude = ["vendor/accesskit_macos", "vendor/gpui-pre", "vendor/gpui-pre-apple", "vendor/gpui-pre-windows", "vendor/gpui-pre-wgpu"]
 
 [workspace.package]
 version = "0.2.0"
@@ -57,3 +57,7 @@ gui-framework = "gpui"
 
 [patch.crates-io]
 accesskit_macos = { path = "vendor/accesskit_macos" }
+gpui-pre = { path = "vendor/gpui-pre" }
+gpui-pre-apple = { path = "vendor/gpui-pre-apple" }
+gpui-pre-windows = { path = "vendor/gpui-pre-windows" }
+gpui-pre-wgpu = { path = "vendor/gpui-pre-wgpu" }

@@ -1,0 +1,2 @@
+    // 圆角计算锚定视口，图片缩放或 cover 裁剪不会移动圆角边缘。
+    let distance = quad_sdf(input.position.xy, sprite.rounded_clip_bounds, sprite.corner_radii);

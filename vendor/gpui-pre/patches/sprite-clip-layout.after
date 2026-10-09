@@ -1,0 +1,7 @@
+    pub corner_radii: Corners<ScaledPixels>,
+    pub tile: AtlasTile,
+    /// 独立圆角视口；图元几何和纹理坐标仍由 bounds 决定。
+    pub rounded_clip_bounds: Bounds<ScaledPixels>,
+}
+
+impl From<PolychromeSprite>

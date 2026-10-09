@@ -1,0 +1,18 @@
+{
+  "package": "gpui-pre-wgpu",
+  "version": "0.3.8",
+  "official_repository": "https://github.com/zed-industries/zed",
+  "source_revision": "279fe070bb389b79652e52065b2f001edcc0b11b",
+  "crate_source_url": "https://static.crates.io/crates/gpui-pre-wgpu/gpui-pre-wgpu-0.3.8.crate",
+  "crate_archive_sha256": "439c5421cafe1a7cf68d0c0ae5cc82b26fad6b0e6345ac98d20acaf1f2463914",
+  "crate_archive_regular_file_count": 14,
+  "source_manifest": "source-content.sha256",
+  "source_manifest_sha256": "49af2ca1842fcf48ce4d903972a531b8d0355b73a2c8af30ab466a5e068f60b7",
+  "manifest_definition": "Sorted UTF-8 lines: lowercase sha256(file bytes), two ASCII spaces, upstream-relative path, LF. Covers every original regular file from the official .crate archive without modification.",
+  "source_crate_in_vcs": "gpui_wgpu",
+  "schema_version": 1,
+  "archive_sha256": "439c5421cafe1a7cf68d0c0ae5cc82b26fad6b0e6345ac98d20acaf1f2463914",
+  "upstream_file_count": 14,
+  "upstream_bytes": 447519,
+  "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched"
+}
