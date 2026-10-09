@@ -6,7 +6,8 @@ use super::{
 };
 use crate::monitor::{image_decode::MonitorImageDecoder, image_playback::MonitorImageView};
 use gpui_kit::{
-    AnyElement, Bounds, Context, FontWeight, IntoElement, ObjectFit, Role, Window,
+    AnyElement, Bounds, ContentMask, Context, Corners, FontWeight, IntoElement, ObjectFit, Pixels,
+    Role, Window,
     base::TestSupportExt as _,
     canvas,
     component::{
@@ -174,6 +175,7 @@ impl Shell {
         id: String,
         fit: ObjectFit,
         checker: f32,
+        corners: Corners<Pixels>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> (AnyElement, Option<(i32, i32)>) {
@@ -192,7 +194,7 @@ impl Shell {
             .relative()
             .size_full()
             .overflow_hidden()
-            .child(checkerboard(checker, cx));
+            .child(checkerboard(checker, corners.clone(), cx));
         // 独立画布先按实际布局决定需求，未进入视口的格子不会启动任何解码。
         preview = preview.child(
             canvas(
@@ -243,12 +245,16 @@ impl Shell {
                         let source = entry.source.as_ref().expect("decoded source").clone();
                         (
                             epoch,
-                            cx.new(|cx| MonitorImageView::new(source, fit, window, cx)),
+                            cx.new(|cx| {
+                                MonitorImageView::new(source, fit, window, cx)
+                                    .with_viewport_corners(corners.clone())
+                            }),
                         )
                     });
                 preview = preview.child(
                     div()
                         .id(id)
+                        .test_support()
                         .role(Role::Image)
                         .aria_label(entry.filename.clone())
                         .size_full()
@@ -440,6 +446,12 @@ impl Shell {
                 format!("monitor-gallery-img-{}", entry.id),
                 ObjectFit::Cover,
                 18.,
+                Corners {
+                    top_left: px(19.),
+                    top_right: px(19.),
+                    bottom_left: px(0.),
+                    bottom_right: px(0.),
+                },
                 window,
                 cx,
             );
@@ -481,7 +493,7 @@ impl Shell {
                     .id(format!("monitor-image-card-{}", entry.id))
                     .test_support()
                     .min_w_0()
-                    .rounded(px(16.))
+                    .rounded(px(20.))
                     .overflow_hidden()
                     .border_1()
                     .border_color(cx.theme().border)
@@ -551,6 +563,10 @@ impl Shell {
     }
 }
 
+#[cfg(test)]
+#[path = "image_surface_tests.rs"]
+mod rounded_preview_tests;
+
 /// 最后一个可见挂载位置离开时，同时释放 CPU 资源与所有动画帧的 GPU 图集。
 pub(super) fn release_image(entry: &ImageEntry, window: &mut Window, cx: &mut gpui_kit::App) {
     let mut decoded = None;
@@ -574,13 +590,14 @@ pub(super) fn release_image(entry: &ImageEntry, window: &mut Window, cx: &mut gp
 }
 
 /// 背景棋盘单元保持固定像素尺寸，透明图不被预先合成到主题颜色。
-fn checkerboard(cell: f32, cx: &Context<Shell>) -> AnyElement {
+fn checkerboard(cell: f32, corners: Corners<Pixels>, cx: &Context<Shell>) -> AnyElement {
     let muted = cx.theme().muted;
     let background = cx.theme().secondary;
     canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {
-            window.paint_quad(fill(bounds, background));
+            let corners = corners.clone().clamp_radii_for_quad_size(bounds.size);
+            window.paint_quad(fill(bounds, background).corner_radii(corners.clone()));
             let width: f32 = bounds.size.width.into();
             let height: f32 = bounds.size.height.into();
             for row in 0..(height / cell).ceil() as usize {
@@ -588,13 +605,17 @@ fn checkerboard(cell: f32, cx: &Context<Shell>) -> AnyElement {
                     if (row + column) % 2 == 0 {
                         let x = column as f32 * cell;
                         let y = row as f32 * cell;
-                        window.paint_quad(fill(
-                            Bounds::new(
-                                bounds.origin + point(px(x), px(y)),
-                                size(px(cell.min(width - x)), px(cell.min(height - y))),
-                            ),
-                            muted,
-                        ));
+                        let cell_bounds = Bounds::new(
+                            bounds.origin + point(px(x), px(y)),
+                            size(px(cell.min(width - x)), px(cell.min(height - y))),
+                        );
+                        // 单元格只限制颜色区域，圆心始终属于完整视口。
+                        window.with_content_mask(
+                            Some(ContentMask { bounds: cell_bounds }),
+                            |window| {
+                                window.paint_quad(fill(bounds, muted).corner_radii(corners.clone()));
+                            },
+                        );
                     }
                 }
             }

@@ -2,8 +2,8 @@
 
 use super::image_decode::{DecodedMonitorImage, MonitorImageDecoder, MonitorImageSource};
 use gpui_kit::{
-    Bounds, ContentMask, Context, Corners, ObjectFit, Render, Subscription, Task, Window, canvas,
-    div, point, prelude::*, size,
+    Bounds, ContentMask, Context, Corners, ImageRoundedClip, ObjectFit, Pixels, Render, Subscription,
+    Task, Window, canvas, div, point, prelude::*, size,
 };
 use std::{
     sync::Arc,
@@ -60,6 +60,7 @@ impl Timeline {
 pub(crate) struct MonitorImageView {
     source: MonitorImageSource,
     fit: ObjectFit,
+    viewport_corners: Corners<Pixels>,
     decoded: Option<Arc<DecodedMonitorImage>>,
     timeline: Option<Timeline>,
     frame: usize,
@@ -93,6 +94,7 @@ impl MonitorImageView {
         Self {
             source,
             fit,
+            viewport_corners: Corners::default(),
             decoded: None,
             timeline: None,
             frame: 0,
@@ -107,6 +109,11 @@ impl MonitorImageView {
             painted: Default::default(),
             _visibility: visibility,
         }
+    }
+    /// 每个挂载位置配置自身视口圆角；默认零角保留桌宠的完整透明轮廓。
+    pub fn with_viewport_corners(mut self, corners: Corners<Pixels>) -> Self {
+        self.viewport_corners = corners;
+        self
     }
     /// 桌宠只在真实解码完成后隐藏空位轮廓。
     pub fn is_decoded(&self) -> bool { self.decoded.is_some() }
@@ -220,6 +227,7 @@ impl Render for MonitorImageView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let image = self.decoded.as_ref().map(Arc::downgrade);
         let frame = self.frame;
+        let viewport_corners = self.viewport_corners.clone();
         let fit = match self.fit {
             ObjectFit::Fill => ObjectFit::Fill,
             ObjectFit::Contain => ObjectFit::Contain,
@@ -272,10 +280,13 @@ impl Render for MonitorImageView {
                                 bounds: image_bounds.intersect(&bounds),
                             }),
                             |window| {
-                                window.paint_image(
+                                window.paint_image_with_rounded_clip(
                                     padded,
                                     padded,
-                                    Corners::default(),
+                                    ImageRoundedClip {
+                                        bounds,
+                                        corner_radii: viewport_corners.clone(),
+                                    },
                                     decoded.image.clone(),
                                     frame,
                                     false,
@@ -295,6 +306,10 @@ impl Render for MonitorImageView {
         )
     }
 }
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "image_playback_clip_tests.rs"]
+mod rounded_clip_tests;
 
 #[cfg(test)]
 mod tests {

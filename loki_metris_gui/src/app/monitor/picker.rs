@@ -6,7 +6,7 @@ use super::{
     state::{Category, ImageEntry},
 };
 use gpui_kit::{
-    AnyElement, Context, FontWeight, IntoElement, ObjectFit, Window,
+    AnyElement, Context, Corners, FontWeight, IntoElement, ObjectFit, Window,
     base::TestSupportExt as _,
     component::{
         ActiveTheme, Disableable,
@@ -88,6 +88,7 @@ impl Shell {
                         format!("monitor-picker-current-{key}-{}", selected.id),
                         ObjectFit::Contain,
                         16.,
+                        Corners::all(px(11.)),
                         window,
                         cx,
                     )
@@ -259,6 +260,7 @@ impl Shell {
                 format!("monitor-picker-option-img-{key}-{}", entry.id),
                 ObjectFit::Contain,
                 12.,
+                Corners::all(px(10.)),
                 window,
                 cx,
             )
