@@ -4,7 +4,7 @@ use gpui_kit::base::Easing;
 use std::time::{Duration, Instant};
 
 /// 每个CSS属性独立保存可逆时间线；未变的目标不会因其他属性变化重新计时。
-pub(super) struct CssMotion<const N: usize> {
+pub(in crate::app) struct CssMotion<const N: usize> {
     from: [f64; N],
     target: Option<[f64; N]>,
     reversing_start: [f64; N],

@@ -1,10 +1,10 @@
 //! 来源发现控件投影独立状态机；手动选择器等待任务不随页面卸载丢弃。
 
 use crate::app::surface::{StaticCard, StaticMaterial};
-use super::Shell;
+use super::{Shell,SourceButton,SourceButtonVariant};
 use crate::usage_service::ManualAddResult;
 use gpui_kit::{AnyElement,Context,FontWeight,SharedString,div,prelude::*,px,
-    base::TestSupportExt as _,component::{ActiveTheme,Disableable,button::{Button,ButtonVariants}}};
+    base::TestSupportExt as _,component::{ActiveTheme,Disableable}};
 use loki_metris_core::{RootDiscoveryLifecycle as State,RootDiscoveryScope as Scope,RootDiscoveryStatus};
 
 impl Shell {
@@ -99,14 +99,14 @@ impl Shell {
                     .child(self.quality_badge(state_label.clone(),if status.lifecycle==State::Partial {gpui_kit::rgb(0xf08c00).into()}else{cx.theme().muted_foreground}))))
                 .child(div().text_color(cx.theme().muted_foreground).text_size(px(12.)).child(self.t(&format!("sources.discovery.scope.{scope}")))))
             .child(div().flex().flex_wrap().gap_4()
-                .child(Button::new("sources-discover-quick").primary().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(start_disabled).label(self.t("sources.discovery.startUser"))
+                .child(SourceButton::new("sources-discover-quick",SourceButtonVariant::FilledBrand,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(start_disabled).label(self.t("sources.discovery.startUser"))
                     .on_click(cx.listener(|this,_,_,cx|this.start_source_discovery(Scope::UserPriority,cx))))
-                .child(Button::new("sources-discover-full").outline().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(start_disabled).label(self.t("sources.discovery.startFull"))
+                .child(SourceButton::new("sources-discover-full",SourceButtonVariant::LightBrand,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(start_disabled).label(self.t("sources.discovery.startFull"))
                     .on_click(cx.listener(|this,_,_,cx|this.start_source_discovery(Scope::FullLocalVolumes,cx))))
-                .when(self.dashboard.client!=4,|row|row.child(Button::new("sources-add").outline().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(start_disabled)
+                .when(self.dashboard.client!=4,|row|row.child(SourceButton::new("sources-add",SourceButtonVariant::Default,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(start_disabled)
                     .loading(self.dashboard.manual_pending).label(self.t("sources.page.addRoot"))
                     .on_click(cx.listener(|this,_,_,cx|this.pick_source_directory(cx)))))
-                .child(Button::new("sources-discovery-cancel").outline().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!running||self.dashboard.client==4)
+                .child(SourceButton::new("sources-discovery-cancel",SourceButtonVariant::LightRed,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!running||self.dashboard.client==4)
                     .label(self.t("sources.discovery.cancel"))
                     .on_click(cx.listener(|this,_,_,cx| {
                         if let Some(service)=&this.dashboard.service {
@@ -129,7 +129,7 @@ impl Shell {
             let id=candidate.id.clone();
             card=card.child(div().w_full().flex().items_center().justify_between().gap_3().border_t_1().border_color(cx.theme().border).pt_3()
                 .child(div().flex_1().min_w_0().child(candidate.absolute_path.clone()))
-                .child(Button::new(SharedString::from(format!("candidate-add-{id}"))).primary().h(px(26.)).px_2().rounded(px(28.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||view.retrying_ids.contains(&id))
+                .child(SourceButton::new(SharedString::from(format!("candidate-add-{id}")),SourceButtonVariant::FilledBrand,cx.theme().mode.is_dark()).h(px(26.)).px_2().rounded(px(28.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||view.retrying_ids.contains(&id))
                     .loading(view.retrying_ids.contains(&id)).label(self.t("sources.discovery.add"))
                     .on_click(cx.listener(move|this,_,_,cx|this.retry_source_candidate(id.clone(),cx)))));
         }

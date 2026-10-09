@@ -1,6 +1,6 @@
 //! 历史品牌卡片的原生材质容器；布局、子控件及辅助语义仍交给 GPUI Div。
 
-mod motion;
+pub(in crate::app) mod motion;
 mod palette;
 mod raster;
 mod rim;

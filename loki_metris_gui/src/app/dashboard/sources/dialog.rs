@@ -1,6 +1,6 @@
 //! 目录弹窗持有稳定草稿和焦点，关闭草稿不取消已经提交的后台写入。
 
-use super::Shell;
+use super::{Shell,SourceButton,SourceButtonVariant};
 use crate::usage_service::SourceOperation;
 use gpui_kit::{AnyElement,Context,Entity,FocusHandle,Focusable,Subscription,Window,div,prelude::*,px,FontWeight,
     base::{Dialog,DialogPopup,DialogBackdrop},component::{ActiveTheme,Disableable,input::{Input,InputState,InputEvent},button::{Button,ButtonVariants}}};
@@ -60,10 +60,9 @@ impl Shell {
         else {popup=popup.child(div().flex().flex_col().gap_1().child(self.t("sources.dialog.renameLabel"))
             .child(Input::new(&modal.input).disabled(self.dashboard.sources.refresh_failed)));}
         popup=popup.child(div().flex().justify_end().gap_2()
-            .child(Button::new("sources-dialog-cancel").outline().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).label(self.t("sources.dialog.cancel"))
+            .child(SourceButton::new("sources-dialog-cancel",SourceButtonVariant::SubtleBrand,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).label(self.t("sources.dialog.cancel"))
                 .on_click(cx.listener(|this,_,window,cx|this.close_source_dialog(window,cx))))
-            .child(Button::new("sources-dialog-confirm").primary().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).label(label).disabled(disabled)
-                .when(modal.remove,|button|button.bg(cx.theme().danger))
+            .child(SourceButton::new("sources-dialog-confirm",if modal.remove{SourceButtonVariant::FilledRed}else{SourceButtonVariant::FilledBrand},cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).label(label).disabled(disabled)
                 .on_click(cx.listener(|this,_,window,cx|this.confirm_source_dialog(window,cx)))));
         let weak=cx.entity().downgrade();let confirm=weak.clone();
         Some(Dialog::new(cx).focus_handle(modal.focus.clone()).close_on_escape(true).close_on_backdrop_press(true)

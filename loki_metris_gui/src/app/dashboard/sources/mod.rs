@@ -6,11 +6,14 @@ mod actions;
 mod dialog;
 mod table;
 mod discovery;
+mod button;
+
+use button::{SourceButton, SourceButtonVariant};
 
 use super::Shell;
 use crate::usage_service::{UsageQuery,UsageResponse};
 use gpui_kit::{AnyElement,Context,Task,div,prelude::*,px,FontWeight,
-    component::{ActiveTheme,Disableable,button::{Button,ButtonVariants},menu::{DropdownMenu,PopupMenuItem}}};
+    component::{ActiveTheme,Disableable,Sizable,Size,button::Button,menu::{DropdownMenu,PopupMenuItem}}};
 use loki_metris_core::SourceRootSummary;
 
 /// 局部页面状态随卸载丢弃；服务持有已接受的写任务。
@@ -101,7 +104,7 @@ impl Shell {
         if self.dashboard.loading && self.dashboard.sources.roots.is_none() {return self.usage_loading(cx)}
         let mut page=div().w_full().min_w_0().px_2().flex().flex_col().gap_5();
         if self.dashboard.sources.refresh_failed {page=page.child(self.source_notice(true,self.t("sources.page.refreshError"),cx)
-            .child(Button::new("sources-retry").outline().h(px(30.)).px(px(14.)).rounded(px(12.)).text_size(px(12.)).font_weight(FontWeight::SEMIBOLD).label(self.t("dashboard.retry")).on_click(cx.listener(|this,_,_,cx|this.load_sources(cx)))));}
+            .child(SourceButton::new("sources-retry",SourceButtonVariant::Default,cx.theme().mode.is_dark()).with_size(Size::XSmall).h(px(30.)).px(px(14.)).rounded(px(12.)).text_size(px(12.)).font_weight(FontWeight::SEMIBOLD).label(self.t("dashboard.retry")).on_click(cx.listener(|this,_,_,cx|this.load_sources(cx)))));}
         if let Some(feedback)=&self.dashboard.sources.feedback {page=page.child(match feedback {
             Ok(key)=>self.source_notice(false,self.t("sources.page.updatedTitle"),cx).child(self.t(key)),
             Err(_)=>self.source_notice(true,self.t("sources.page.updateErrorTitle"),cx)
@@ -147,7 +150,7 @@ impl Shell {
                                 }});
                             }));}menu
                         })))
-                .child(div().w_full().flex().justify_end().child(Button::new("sources-primary-clear").ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||current.is_none()).label(self.t("sources.primary.clear"))
+                .child(div().w_full().flex().justify_end().child(SourceButton::new("sources-primary-clear",SourceButtonVariant::SubtleBrand,cx.theme().mode.is_dark()).h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||current.is_none()).label(self.t("sources.primary.clear"))
                     .on_click(cx.listener(|this,_,_,cx|this.change_source(crate::usage_service::SourceOperation::SetPrimary{root_id:None},cx))))))
             .into_any_element()
     }

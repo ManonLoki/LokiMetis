@@ -1,10 +1,10 @@
 //! 来源表格保持历史固定列序、独立行操作与有界横向滚动。
 
 use crate::app::surface::{BrandTableRow, StaticCard, StaticMaterial};
-use super::Shell;
+use super::{Shell,SourceButton,SourceButtonVariant};
 use crate::usage_service::SourceOperation;
 use gpui_kit::{AnyElement,Context,FontWeight,SharedString,div,prelude::*,px,
-    base::TestSupportExt as _,component::{ActiveTheme,Disableable,button::{Button,ButtonVariants},table::{Table,TableHeader,TableHead,TableBody,TableRow,TableCell}}};
+    base::TestSupportExt as _,component::{ActiveTheme,Disableable,table::{Table,TableHeader,TableHead,TableBody,TableRow,TableCell}}};
 use loki_metris_core::{SourceRootSummary,SourceDiscoveryCode as Discovery,RootActivationState as Activation};
 
 /// 原版 colgroup 比例保持固定，宽窗口把剩余宽度按同一比例分配。
@@ -22,7 +22,7 @@ impl Shell {
                     .id(SharedString::from(format!("source-heading-{index}"))).test_support().role(gpui_kit::Role::Label).aria_label(label.clone()).child(label)));
         }
         let roots=self.dashboard.sources.roots.as_deref().unwrap_or_default();
-        let body=if roots.is_empty() {TableBody::new().child(BrandTableRow::new("sources-empty-row",cx.theme().mode.is_dark()).child(TableCell::new().col_span(8).p_4().child(self.t("sources.table.empty"))))}
+        let body=if roots.is_empty() {TableBody::new().child(BrandTableRow::new("sources-empty-row",cx.theme().mode.is_dark()).bottom_corner_radius(px(19.)).child(TableCell::new().col_span(8).p_4().child(self.t("sources.table.empty"))))}
             else {TableBody::new().children(roots.iter().enumerate().map(|(index,root)|self.source_row(index,root,roots,cx)))};
         StaticCard::new("sources-root-table", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().overflow_hidden()
             .child(div().id("sources-table-scroll").test_support().role(gpui_kit::Role::Group).aria_label(self.t("sources.page.title"))
@@ -60,12 +60,12 @@ impl Shell {
         let mut actions=div().w_full().flex().items_center().justify_end().gap_2();
         if self.dashboard.client!=4 {
             let id=root.id.clone();let enabled=!root.enabled;let action=self.t(if enabled {"sources.table.enable"}else{"sources.table.disable"});
-            actions=actions.child(Button::new(("source-toggle",index)).ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled)
+            actions=actions.child(SourceButton::new(("source-toggle",index),SourceButtonVariant::SubtleBrand,cx.theme().mode.is_dark()).h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled)
                 .accessibility_label(format!("{action}{alias}")).label(action)
                 .on_click(cx.listener(move|this,_,_,cx|this.change_source(SourceOperation::SetEnabled{root_id:id.clone(),enabled},cx))));
         }
         let id=root.id.clone();
-        actions=actions.child(Button::new(("source-reindex",index)).ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!root.enabled)
+        actions=actions.child(SourceButton::new(("source-reindex",index),SourceButtonVariant::SubtleBrand,cx.theme().mode.is_dark()).h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!root.enabled)
             .accessibility_label(self.t("sources.table.reindexAria").replace("{{alias}}",&alias)).label(self.t("sources.table.reindex"))
             .on_click(cx.listener(move|this,_,_,cx| {
                 if this.dashboard.client==4 {this.load_sources(cx);}else{this.change_source(SourceOperation::Reindex{root_id:id.clone()},cx);}
@@ -73,13 +73,13 @@ impl Shell {
         if self.dashboard.client!=4 {
             for(remove,key)in [(false,"rename"),(true,"remove")] {
                 let root=root.clone();let label=self.t(&format!("sources.table.{key}"));
-                actions=actions.child(Button::new(SharedString::from(format!("source-{key}-{index}"))).ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled)
+                actions=actions.child(SourceButton::new(SharedString::from(format!("source-{key}-{index}")),if remove{SourceButtonVariant::SubtleRed}else{SourceButtonVariant::SubtleBrand},cx.theme().mode.is_dark()).h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled)
                     .accessibility_label(self.t(&format!("sources.table.{key}Aria")).replace("{{alias}}",&alias)).label(label)
                     .on_click(cx.listener(move|this,_,window,cx|this.open_source_dialog(root.clone(),remove,window,cx))));
             }
         }
         let text=|column:usize,value:String|div().id(SharedString::from(format!("source-{index}-{column}"))).test_support().role(gpui_kit::Role::Label).aria_label(value.clone()).child(value);
-        let mut row=BrandTableRow::new(SharedString::from(format!("source-row-{}",root.id)),cx.theme().mode.is_dark()).child(cell(0).child(div().w_full().min_w_0().flex().items_center().flex_wrap().gap_2()
+        let mut row=BrandTableRow::new(SharedString::from(format!("source-row-{}",root.id)),cx.theme().mode.is_dark()).bottom_corner_radius(px(if index+1==roots.len(){19.}else{0.})).child(cell(0).child(div().w_full().min_w_0().flex().items_center().flex_wrap().gap_2()
             .child(text(0,alias).max_w_full().truncate().font_weight(FontWeight::BOLD).text_size(px(16.))).child(badges)))
             .child(cell(1).child(text(1,self.t(&format!("sources.discoveryLabels.{discovery}")))));
         for(index,value)in [(2,root.file_count),(3,root.skipped_count),(4,root.error_count),(5,root.duplicate_count)] {
