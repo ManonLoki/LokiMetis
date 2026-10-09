@@ -36,6 +36,7 @@ impl ImageMemoryLease {
     }
 }
 impl Drop for ImageMemoryLease {
+    /// 最后一个租约释放时归还常驻像素预算。
     fn drop(&mut self) {
         self.retained.fetch_sub(self.bytes, Ordering::AcqRel);
     }

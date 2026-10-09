@@ -20,6 +20,7 @@
     "signing": null,
     "extractor": null
   },
+  "resources": [{"source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins"}],
   "nsis": {
     "installMode": "currentUser",
     "languages": [

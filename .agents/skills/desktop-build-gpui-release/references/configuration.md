@@ -31,6 +31,7 @@ pnpm run gpui:package --help
     "background": "packaging/macos/background.png"
   },
   "windows": { "signing": null, "extractor": null },
+  "resources": [],
   "nsis": {
     "installMode": "currentUser",
     "languages": ["SimpChinese", "English"],
@@ -39,7 +40,9 @@ pnpm run gpui:package --help
 }
 ```
 
-- 所有字段必须存在，未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件。`minimumSystemVersion` 至少 11.0。
+- 除向后兼容的可选 `resources` 外所有字段必须存在；未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件。`minimumSystemVersion` 至少 11.0。
+- `resources` 缺省为空数组，每项严格为 `{ "source": "项目内文件或目录", "macos": "包内相对路径", "windows": "安装根相对路径" }`。目录递归展开且不能含链接、特殊文件或空目录；例如皮肤资源使用 `{ "source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins" }`，分别进入 `Contents/Resources/skins` 与 Windows 安装根的 `resources/skins`。目标不能大小写碰撞、形成文件/目录前缀冲突，或覆盖两份许可证、根日志、macOS图标、Windows主程序及卸载器。
+- 测试前捕获排序文件清单及SHA-256，测试后、打包前和manifest前复算，Git忽略文件也参与漂移检测。复制和最终app/zip/DMG/NSIS核对相同摘要；资源根本身或其祖先为链接时拒绝。manifest的 `bundledResources` 记录目标路径与摘要；该证据不替代实际运行验收。
 - `windows.extractor` 仅可填写项目内已批准/声明的 `7z.exe` 或 `7zr.exe` 相对路径；调用协议为 `x -y -o<本次隔离目录> <最终NSIS>`。Skill 不下载安装它。支持哪种 NSIS 压缩由实际提取结果决定，解包失败或缺资源阻断候选。
 - `windows.signing` 启用时形如 `{ "certificateThumbprint": "40位十六进制公开指纹", "timestampUrl": "https://批准的时间戳服务" }`。证书只通过宿主已授权 store 使用，不保存私钥、密码或秘密路径。macOS 签名当前不可用，填 `signingIdentity` 不会自动启用。
 - Cargo metadata 的 `rust-test-manifests` 默认 `["Cargo.toml"]`；每个独立 workspace 都须列出。`gui-root` 缺省从明确的 GUI package manifest 得出，根 package 可用 `"."`。`dependency-lock-policy` 缺省 `ignored`；`tracked` 走既有锁文件门禁，不生成或暂存锁文件。

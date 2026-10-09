@@ -14,6 +14,7 @@ struct Fixture {
     root: tempfile::TempDir,
 }
 impl Drop for Fixture {
+    /// 释放临时目录前关闭测试服务。
     fn drop(&mut self) {
         self.service.finish();
     }

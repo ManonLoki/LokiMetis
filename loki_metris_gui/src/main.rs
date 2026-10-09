@@ -16,6 +16,7 @@ mod release_notes;
 
 mod native;
 mod pet;
+mod skins;
 
 use gpui_kit::{App, Bounds, QuitMode, TitlebarOptions, WindowBounds, WindowOptions, prelude::*, px, size};
 

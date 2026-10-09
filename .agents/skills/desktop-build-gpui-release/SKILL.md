@@ -62,7 +62,7 @@ macOS 默认 `disabled/not-requested`、unsigned，不探测身份/凭据；当�
 
 macOS `.app.zip` 用系统 `ditto` 打包，DMG 用 cargo-packager 固定原生配置；Finder 布局阶段有十分钟上限。候选 DMG 在最终字节上只读挂载，核对 `.DS_Store`、项目背景、唯一 `.app`、`/Applications` 拖拽目标与全部资源；headless 无可用 Finder 布局时阻断，不能把缺布局的 DMG 记为通过。Windows NSIS 候选要求项目内显式批准且已声明的 `7z/7zr` 解包器，以只读解包核对最终包内日志、许可证与二进制；缺少时阻断，不自动增加第三方工具。local NSIS 可打出试包，其最终资源/安装/运行保持 `Unverified`。
 
-测试后、打包前及写 manifest 前再次核对源码和配置；源码、上下文或选择漂移均停止。最终安装包或 app 归档、相邻 SHA-256、manifest 在同根暂存区形成精确普通文件集合，再目录级原子提交到忽略的 `release/`。manifest 保留通用字段、实际 packager/GPUI 身份和 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`；不伪造 updater/Tauri 版本，也不写 tracked 项目记忆。
+测试后、打包前及写 manifest 前再次核对源码、配置和显式平台资源清单；资源包含Git忽略文件，按捕获摘要逐字节验证。源码、资源、上下文或选择漂移均停止。最终安装包或 app 归档、相邻 SHA-256、manifest 在同根暂存区形成精确普通文件集合，再目录级原子提交到忽略的 `release/`。manifest 保留通用字段、实际 packager/GPUI 身份和 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`；不伪造 updater/Tauri 版本，也不写 tracked 项目记忆。
 
 E2E 为 `enabled` 或硬要求时，最终候选形成后调用 `$desktop-verify-delivery`；编译/打包期间不混跑安装、启动或 E2E。关闭时准确报告 `Not run` 与风险。构建通过只证明真实产物已生成，不能称已验收或发布就绪。
 

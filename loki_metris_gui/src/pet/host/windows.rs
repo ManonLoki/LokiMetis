@@ -48,12 +48,16 @@ unsafe extern "system" {
     /// 同步发送左键标题区按下，参数不携带外部指针。
     fn SendMessageW(window: Handle, message: u32, wparam: usize, lparam: isize) -> isize;
     #[cfg(target_pointer_width = "64")]
+    /// 读取 64 位窗口样式或指针属性。
     fn GetWindowLongPtrW(window: Handle, index: i32) -> isize;
     #[cfg(target_pointer_width = "64")]
+    /// 更新 64 位窗口样式或指针属性。
     fn SetWindowLongPtrW(window: Handle, index: i32, value: isize) -> isize;
     #[cfg(target_pointer_width = "32")]
+    /// 读取 32 位窗口样式属性。
     fn GetWindowLongW(window: Handle, index: i32) -> i32;
     #[cfg(target_pointer_width = "32")]
+    /// 更新 32 位窗口样式属性。
     fn SetWindowLongW(window: Handle, index: i32, value: i32) -> i32;
 }
 /// 不存储HWND，避免已销毁窗口的句柄被另一个原生窗口复用。

@@ -1,6 +1,6 @@
 # 版本、Git 发布与 GPUI 候选
 
-当前版本唯一取根 Cargo.toml，为 0.1.0；尚无正式 Git 发布、tag、发布日志或候选。产品业务尚未批准，中性 scaffold 不能作为产品交付。目标平台为 Windows/macOS，当前仅 macOS debug 初始化验证，Windows Unverified。
+当前版本唯一取根 Cargo.toml；尚无正式 Git 发布、tag、发布日志或候选。当前产品目标见批准规格及持续计划，开发预览不能作为最终产品交付。目标平台为 Windows/macOS；macOS阶段检查在独立debug预览进行，Windows Unverified。
 
 ## 版本与开发周期
 

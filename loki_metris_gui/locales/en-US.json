@@ -3,7 +3,8 @@
     "settings": "Settings",
     "about": "About",
     "dashboard": "Usage Dashboard",
-    "monitor": "AI Monitor"
+    "monitor": "AI Monitor",
+    "skins": "App Skins"
   },
   "settings": {
     "application": "Application",
@@ -656,5 +657,119 @@
       "hideToTray": "Hide to system tray"
     }
   },
-  "monitor_service_unavailable": "Monitor service unavailable"
+  "monitor_service_unavailable": "Monitor service unavailable",
+  "skins": {
+    "host": {
+      "tabs": "Skin hosts",
+      "empty_title": "No skin host is enabled",
+      "empty_description": "Enable Codex or WorkBuddy in the unified Agent panel in Settings."
+    },
+    "browser": {
+      "title": "Desktop host required",
+      "description": "The browser preview does not read local resources, processes, or debug ports. Use skins in the LokiMetris desktop app."
+    },
+    "search": {
+      "label": "Search skins",
+      "placeholder": "Search by name, author, or ID"
+    },
+    "catalog": {
+      "empty": "No skins match the current filters."
+    },
+    "source": {
+      "builtin": "Built in",
+      "user": "User"
+    },
+    "package": {
+      "theme": "Theme",
+      "legacySkin": "Compatible skin"
+    },
+    "mode": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "card": {
+      "preview_alt": "%{name} skin preview",
+      "by": "By %{author}",
+      "select": "Select %{name}",
+      "actions": "Resource actions for %{name}"
+    },
+    "action": {
+      "apply": "Apply",
+      "stop": "Stop",
+      "open": "Open folder",
+      "export": "Export ZIP",
+      "convert": "Convert to theme",
+      "delete": "Delete",
+      "delete_selected": "Delete selected (%{count})",
+      "import": "Import",
+      "create": "Create theme",
+      "refresh": "Refresh"
+    },
+    "dialog": {
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "appearance": {
+      "title": "Confirm appearance differences",
+      "description": "The current host's %{mode} appearance differs from this theme declaration. Continuing applies only to the selected instance.",
+      "unreadable": "Unavailable",
+      "continue": "Apply anyway"
+    },
+    "code_trust": {
+      "not_safety_proof": "LokiMetris checks package structure and resource limits only. These checks do not review or prove the script is safe.",
+      "import_title": "Selected skins contain third-party code",
+      "import_description": "%{count} selected skin packages contain renderer-inject.js. Importing stores it on this device, and applying the skin runs it inside a supported host.",
+      "import_acknowledgement": "I understand these files contain third-party code and I trust their sources."
+    },
+    "import": {
+      "title": "Confirm skin import",
+      "summary": "%{ready} of %{total} archives can be imported.",
+      "commit": "Import selected (%{count})"
+    },
+    "create": {
+      "title": "Create a user theme",
+      "description": "Create an editable local theme, or copy a prompt with real resource paths for Codex to finish the design.",
+      "name": "Theme name",
+      "author": "Author",
+      "scaffold": "Create scaffold",
+      "codex_prompt": "Generate Codex prompt",
+      "prompt_title": "Generated prompt",
+      "copy": "Copy"
+    },
+    "restart": {
+      "title": "Restart the selected host instance?",
+      "description": "%{name} does not expose a local debug connection. Continuing restarts only this instance and may affect unsaved work.",
+      "workbuddy_title": "Restart WorkBuddy with a debug port?",
+      "workbuddy_description": "Continuing rechecks the local debug connection. If it is still unavailable or several old instances remain, every WorkBuddy process under the official install path is closed and unsaved work may be lost. One new instance then starts with a debug port."
+    },
+    "convert": {
+      "title": "Convert to a theme with data loss?",
+      "description": "Scripts, unrestricted selectors, and extension components from %{name} are dropped. A new user theme is built from its colors; the original is unchanged."
+    },
+    "delete": {
+      "title": "Delete user skins?",
+      "description": "This permanently deletes %{count} selected user skin directories. Built-in skins are unaffected."
+    },
+    "notice": {
+      "applied": "Applied %{name} to the selected host instance.",
+      "stopped": "Stopped and cleaned up the skin in the selected instance.",
+      "created": "Created user theme %{name}.",
+      "imported": "Imported %{count} skins.",
+      "exported": "Saved the skin ZIP to the selected location.",
+      "converted": "Created theme %{name}.",
+      "deleted": "Deleted %{count} user skins."
+    },
+    "error": {
+      "title": "Operation not completed",
+      "unknown": "The skin operation failed. Refresh the host state and try again.",
+      "injection_failed": "Could not verify the skin on every host page. Refresh and try again.",
+      "choose_instance": "Multiple host instances were found. Close the extras, leave one running, then refresh and try again."
+    },
+    "progress": {
+      "preparing": "Checking skin archives (%{processed}/%{total})"
+    },
+    "loading": "Loading skins…",
+    "copied": "Copied",
+    "dismiss": "Dismiss notification"
+  }
 }

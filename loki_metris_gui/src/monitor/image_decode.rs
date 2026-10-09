@@ -44,7 +44,9 @@ pub(crate) struct DecodedMonitorImage {
     pub(super) _memory: super::image_memory::ImageMemoryLease,
 }
 impl Asset for MonitorImageDecoder {
+    /// 已绑定像素预算与来源的解码输入。
     type Source = MonitorImageSource;
+    /// 解码结果由资源引用共同持有。
     type Output = Result<Arc<DecodedMonitorImage>, &'static str>;
     /// GPUI 资源 owner 在后台解码；UI render 不执行图像编解码。
     fn load(

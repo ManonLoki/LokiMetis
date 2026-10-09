@@ -95,6 +95,7 @@ pub(super) fn process_hook_event(event:IncomingHookEvent,observed_at:Duration,ma
     process_hook_event_checked(event,observed_at,machines,status,config_dir,None)
 }
 
+/// 复核启用代数后推进事件并写入状态。
 fn process_hook_event_checked(
     event: IncomingHookEvent,
     observed_at: Duration,
@@ -200,6 +201,7 @@ pub(super) fn expire_inactive_hook_sessions(machines:&mut HashMap<AiTool,HookSta
     expire_inactive_hook_sessions_checked(machines,observed_at,status,config_dir,None)
 }
 
+/// 复核启用代数后回收失活会话。
 fn expire_inactive_hook_sessions_checked(
     state_machines: &mut HashMap<AiTool, HookStateMachine>,
     observed_at: Duration,

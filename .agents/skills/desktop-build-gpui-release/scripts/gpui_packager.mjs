@@ -1,7 +1,7 @@
 /** cargo-packager 0.11.8 的原生配置、签名和最终资源核对。 */
 import fs from 'node:fs';
 import path from 'node:path';
-import { safePath, sha256 } from './gpui_filesystem.mjs';
+import { safePath, safeRoot, relativePath, sha256 } from './gpui_filesystem.mjs';
 import { TARGETS } from './gpui_config.mjs';
 
 /** 生成工具配置而不运行用户 hook，不继承未批准的自动签名配置。 */
@@ -13,7 +13,7 @@ export function packagerConfig({ root, work, config, facts, target, format, reso
     outDir: path.join(work, 'packages'), targetTriple: target,
     formats: format === 'dmg' ? ['app', 'dmg'] : [format],
     icons: [safePath(root, config.icons[format === 'nsis' ? 'windows' : 'macos'], { type: 'file' })],
-    resources: resources.map(file => ({ src: path.join(work, 'resources', file), target: file })),
+    resources: resources.map(file => ({ src: path.join(work,'resources',relativePath(file.target)), target: file.target })),
   };
   if (format === 'nsis') {
     result.windows = { allowDowngrades: false };
@@ -59,10 +59,11 @@ export function finalizeSigning({ run, config, signing, format, artifact, app, e
 
 /** 包内资源必须保持源字节，候选每份许可证与更新日志都核对。 */
 export function verifyResources(resourceRoot, sourceRoot, files) {
+  safeRoot(resourceRoot);
   for (const file of files) {
-    const bundled = safePath(resourceRoot, file, { type: 'file' });
-    const source = safePath(sourceRoot, file, { type: 'file' });
-    if (sha256(bundled) !== sha256(source)) throw new Error(`bundled resource bytes differ: ${file}`);
+    const bundled = safePath(resourceRoot, file.target, { type: 'file' });
+    const source = safePath(sourceRoot, file.source, { type: 'file' });
+    if (sha256(source) !== file.sha256 || sha256(bundled) !== file.sha256) throw new Error(`bundled resource bytes differ: ${file.target}`);
   }
   return 'byte-identical';
 }
@@ -110,12 +111,19 @@ export function verifyNsis({ run, root, config, artifact, destination, resources
     for (const file of fs.readdirSync(directory)) {
       const full = safePath(destination, path.relative(destination, path.join(directory, file)).split(path.sep).join('/'));
       if (fs.lstatSync(full).isDirectory()) walk(full);
-      else if (file === 'release-notes.json') matches.push(path.dirname(full));
+      else if (file === 'release-notes.json' && fs.existsSync(path.join(path.dirname(full),`${config.binary}.exe`))) matches.push(path.dirname(full));
     }
   }
   walk(destination);
-  if (matches.length !== 1) throw new Error('NSIS must contain one release-notes resource');
-  verifyResources(matches[0], root, resources);
-  if (sha256(safePath(matches[0], `${config.binary}.exe`, { type: 'file' })) !== binarySha256) throw new Error('NSIS binary differs from this build');
+  const verified = [], failures = [];
+  for (const candidate of matches) {
+    try {
+      if (sha256(safePath(candidate, `${config.binary}.exe`, { type: 'file' })) !== binarySha256) throw new Error('NSIS binary differs from this build');
+      verifyResources(candidate, root, resources);
+      verified.push(candidate);
+    } catch (error) { failures.push(error); }
+  }
+  if (!verified.length && failures.length) throw failures[0];
+  if (verified.length !== 1) throw new Error('NSIS must contain one complete application resource root');
   return 'final-installer-byte-identical';
 }

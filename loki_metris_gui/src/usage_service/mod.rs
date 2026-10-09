@@ -11,6 +11,12 @@ mod agents;
 mod receipt;
 pub(crate) use receipt::receipt;
 mod pet;
+mod skins;
+mod skin_import;
+pub(crate) use skin_import::SkinImportLease;
+pub(crate) use skins::{SkinEntry, receipt as skin_receipt};
+mod skin_resources;
+pub(crate) use skin_resources::resource_root as skin_resource_root;
 pub(crate) use pet::PetShutdownPlan;
 mod monitor_catalog;
 mod hooks;
@@ -50,6 +56,7 @@ pub struct ScanStatus {
 /// 共享的是扫描元数据和 writer 许可；聚合结果不跨查询缓存。
 struct ServiceContext {
     directory: PathBuf,
+    skins:Arc<skins::OwnedSkins>,
     coverage: Mutex<BTreeMap<SourceClientKind, CoverageReport>>,
     status: Mutex<ScanStatus>,
     writer: ScanCoordinator,
@@ -96,7 +103,8 @@ impl UsageService {
         let background=Arc::new(background::BackgroundTaskOwner::with_runtime(discovery.clone(),runtime.handle().clone()));
         let settings=Arc::new(settings::SettingsStore::new(directory.join("usage-settings.json"),background.clone()));
         let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone()));
-        let context = Arc::new(ServiceContext { directory, coverage: Mutex::new(BTreeMap::new()),
+        let skins=Arc::new(skins::OwnedSkins::new(&directory));
+        let context = Arc::new(ServiceContext { directory, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
             settings, agents,monitor_revision:Default::default() });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
@@ -164,7 +172,9 @@ impl UsageService {
             self.context.writer.shutdown();
             if let Some(host)=self.context.agents.hooks.get() {host.writer.shutdown();}
             if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}
+            runtime.block_on(self.context.skins.shutdown());
             runtime.block_on(self.background.shutdown());
+            self.context.skins.cleanup_imports();
             for change in plan.changes {
                 if let Err(error)=self.context.agents.save_pet_blocking(Some(change),None) {tracing::warn!(code=error.code,"pet shutdown preference failed");}
             }

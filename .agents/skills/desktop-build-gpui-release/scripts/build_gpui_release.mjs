@@ -13,6 +13,7 @@ import { readConfig, projectFacts, TARGETS, PACKAGER_VERSION } from './gpui_conf
 import { candidateSelection, releasedContext, releaseNotes, aboutPageEnabled, renderReleaseNotesRust, containsBytes, candidateManifest } from './gpui_evidence.mjs';
 import { packagerConfig, packagePath, signingChoice, finalizeSigning, verifyResources, verifyMacIdentity, verifyDmg, verifyNsis } from './gpui_packager.mjs';
 import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
+import { collectResources, assertResourcesStable, stageResources } from './gpui_resources.mjs';
 
 /** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
 export function assertNodeRuntime(version = process.versions.node) {
@@ -166,8 +167,7 @@ export function executeBuild(options, hooks = {}) {
   if (candidate && format === 'nsis' && !config.windows.extractor) throw new Error('NSIS candidate requires an approved project-local 7z/7zr extractor');
   const context = candidate ? (hooks.context ?? releasedContext)(root,facts) : null;
   if (candidate && identity.dirty) throw new Error('candidate source must be clean');
-  const resources = ['LICENSE.zh-CN.md','LICENSE.en.md',...(candidate ? ['release-notes.json'] : [])];
-  for (const file of resources) safePath(root,file,{ type: 'file' });
+  const resources = collectResources(root,config,info.platform,candidate);
   const notes = candidate ? releaseNotes(root,facts.version) : null;
   const embedNotes = candidate && aboutPageEnabled(root);
   if (candidate) {
@@ -199,6 +199,7 @@ export function executeBuild(options, hooks = {}) {
   const env = buildEnvironment(config,target,cargoDirectory,embedNotes,notesFile,environment);
   const unitTests = runWorkspaceTests(root,facts,run,env);
   assertSourceStable(root,run,identity);
+  assertResourcesStable(root,config,info.platform,candidate,resources);
   if (candidate && !isDeepStrictEqual((hooks.context ?? releasedContext)(root,facts),context)) throw new Error('release context changed during tests');
   const build = run('cargo',cargoArguments(['build','--release','--package',config.package,'--bin',config.binary,'--target',target,'--message-format','json-render-diagnostics'],lockPolicy),{ env });
   const executables = build.stdout.split(/\r?\n/u).filter(Boolean).flatMap(line => {
@@ -214,13 +215,13 @@ export function executeBuild(options, hooks = {}) {
   fs.copyFileSync(binary,packagedBinary);
   if (format === 'nsis' && signing.selection === 'enabled') finalizeSigning({ run, config, signing, format, artifact: packagedBinary, app: null, env });
   const binarySha256 = sha256(packagedBinary);
-  fs.mkdirSync(path.join(work,'resources'));
-  for (const file of resources) fs.copyFileSync(safePath(root,file,{ type: 'file' }),path.join(work,'resources',file));
+  stageResources(root,path.join(work,'resources'),resources);
   const generated = packagerConfig({ root, work, config, facts, target, format, resources, signing });
   const packagerFile = path.join(work,'packager.json'); fs.writeFileSync(packagerFile,JSON.stringify(generated,null,2) + '\n',{ flag: 'wx' });
   // Finder 布局受打包超时限制，避免 CI 开关静默删除已要求的布局。
   const packageEnv = { ...env }; if (format === 'dmg') delete packageEnv.CI; else packageEnv.CI = 'true';
   assertSourceStable(root,run,identity);
+  assertResourcesStable(root,config,info.platform,candidate,resources);
   if (candidate && !isDeepStrictEqual((hooks.context ?? releasedContext)(root,facts),context)) throw new Error('release context changed before packaging');
   run(tool,['--config',packagerFile],{ env: packageEnv, timeout: 10 * 60 * 1000 });
   let artifact = packagePath(work,config,facts,target,format);
@@ -248,6 +249,7 @@ export function executeBuild(options, hooks = {}) {
   }
   const digest = sha256(artifact);
   assertSourceStable(root,run,identity);
+  assertResourcesStable(root,config,info.platform,candidate,resources);
   if (!isDeepStrictEqual(readConfig(root),config)) throw new Error('GPUI packaging config changed during packaging');
   if (candidate && !isDeepStrictEqual((hooks.context ?? releasedContext)(root,facts),context)) throw new Error('release context changed before manifest');
   const output = candidate ? fs.mkdtempSync(path.join(root,'.release-clean.gpui-stage-')) : fs.mkdtempSync(path.join(workRoot,'local-'));
@@ -256,6 +258,7 @@ export function executeBuild(options, hooks = {}) {
   const manifest = candidate ? { ...candidateManifest({ facts, config, context, target, targetInfo: info, format, artifact: filename, artifactSha256: digest, unitTests, selections, signing, signingResult, notes, resourceVerification, host: { platform, arch: hooks.arch ?? process.arch, release: os.release() }, buildRun }), binarySha256 }
     : { ...plan, artifact: filename, sha256: digest, unitTests, ...signingResult, resourceVerification, runtimeVerification: 'Unverified', distribution: 'local-test-only', sourceDirty: identity.dirty, sourceSnapshotSha256: identity.sourceSha256 };
   const manifestName = `${filename}.manifest.json`;
+  manifest.bundledResources = resources.map(({target,sha256})=>({target,sha256}));
   fs.writeFileSync(path.join(output,manifestName),JSON.stringify(manifest,null,2) + '\n',{ flag: 'wx' });
   const files = [filename,`${filename}.sha256`,manifestName];
   exactFiles(output,files);

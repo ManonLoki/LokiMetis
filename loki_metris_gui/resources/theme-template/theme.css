@@ -1,0 +1,44 @@
+/*
+ * 工程蓝图主题变量表（schemaVersion 3）
+ * 只能修改现有变量的值，不要增加选择器、普通 CSS 属性或 @ 规则。
+ * preview/background 只能引用主题根目录内的 PNG/JPEG 文件。
+ */
+html.codex-dream-skin {
+  --skin-preview-image: url("preview.png");
+  --skin-background-image: url("background.png");
+  --skin-background-size: cover;
+  --skin-background-position-x: 50%;
+  --skin-background-position-y: 50%;
+  --skin-radius: 12px;
+  --skin-blur: 18px;
+  --skin-sidebar-opacity: 92%;
+  --skin-main-opacity: 78%;
+  --skin-header-opacity: 88%;
+  --skin-composer-opacity: 94%;
+  --skin-card-opacity: 90%;
+  --skin-border-width: 1px;
+  --skin-shadow-opacity: 68%;
+  --skin-texture-opacity: 14%;
+}
+
+html.codex-dream-skin[data-dream-shell="dark"] {
+  --skin-bg: #061E33;
+  --skin-panel: #0B2F4D;
+  --skin-panel-alt: #12466D;
+  --skin-accent: #5BD7FF;
+  --skin-accent-alt: #8DE6C7;
+  --skin-text: #F4FBFF;
+  --skin-muted: #B6D6E7;
+  --skin-line: #5C8EAA;
+}
+
+html.codex-dream-skin[data-dream-shell="light"] {
+  --skin-bg: #D9EDF7;
+  --skin-panel: #F5FBFE;
+  --skin-panel-alt: #C7E3F1;
+  --skin-accent: #006C9D;
+  --skin-accent-alt: #08775F;
+  --skin-text: #09283B;
+  --skin-muted: #41677B;
+  --skin-line: #7EACC3;
+}

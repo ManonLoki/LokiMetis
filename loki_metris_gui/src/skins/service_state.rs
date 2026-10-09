@@ -1,0 +1,17 @@
+/// 定义换皮宿主 `SkinService` 使用的内部数据。
+pub struct SkinService {
+    builtin_root: PathBuf,
+    user_root: PathBuf,
+    catalog: StdRwLock<Option<CachedCatalog>>,
+    pending_import: StdMutex<Option<PendingImportBatch>>,
+    import_preparation: StdMutex<Option<ActiveImportPreparation>>,
+    next_codex_operation_id: AtomicU64,
+    codex_operation: StdMutex<Option<CodexOperation>>,
+    codex_runtime_generation: AtomicU64,
+    workbuddy_runtime_generation: AtomicU64,
+    account_profile_probes: StdMutex<HashMap<String, Arc<OnceCell<Option<AccountProfile>>>>>,
+    verified_endpoint_hints: StdMutex<HashMap<SkinHostKind, CdpEndpoint>>,
+    watch_task_reaper: Arc<StdMutex<WatchTaskReaper>>,
+    operation: Mutex<()>,
+    runtime: Mutex<RuntimeState>,
+}

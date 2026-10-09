@@ -8,6 +8,7 @@ use std::{sync::Arc, time::Duration};
 /// 失败或正常退出都回收测试独占后台服务。
 struct FinishService(Arc<crate::usage_service::UsageService>);
 impl Drop for FinishService {
+    /// 测试结束时关闭独占后台服务。
     fn drop(&mut self) {
         self.0.finish();
     }

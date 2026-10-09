@@ -293,6 +293,7 @@ mod macos {
     }
 }
 
+/// 按宿主用户目录发现 macOS 内嵌 Claude 数据候选。
 #[cfg(target_os = "macos")]
 pub(super) fn candidates(
     home_dir: Option<&Path>,

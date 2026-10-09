@@ -3,7 +3,8 @@
     "settings": "设置",
     "about": "关于",
     "dashboard": "用量看板",
-    "monitor": "AI监控"
+    "monitor": "AI监控",
+    "skins": "应用换肤"
   },
   "settings": {
     "application": "应用信息",
@@ -656,5 +657,119 @@
       "hideToTray": "隐藏到系统托盘"
     }
   },
-  "monitor_service_unavailable": "监控服务不可用"
+  "monitor_service_unavailable": "监控服务不可用",
+  "skins": {
+    "host": {
+      "tabs": "换皮宿主",
+      "empty_title": "没有已启用的换皮宿主",
+      "empty_description": "请到设置中的统一 Agent 面板启用 Codex 或 WorkBuddy。"
+    },
+    "browser": {
+      "title": "需要桌面宿主",
+      "description": "浏览器预览不会读取本机资源、进程或调试端口；请在 LokiMetris 桌面应用中使用换皮功能。"
+    },
+    "search": {
+      "label": "搜索皮肤",
+      "placeholder": "按名称、作者或 ID 搜索"
+    },
+    "catalog": {
+      "empty": "没有符合当前筛选的皮肤。"
+    },
+    "source": {
+      "builtin": "内置",
+      "user": "用户"
+    },
+    "package": {
+      "theme": "纯主题",
+      "legacySkin": "兼容皮肤"
+    },
+    "mode": {
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "card": {
+      "preview_alt": "%{name} 皮肤预览",
+      "by": "作者 %{author}",
+      "select": "选择 %{name}",
+      "actions": "%{name} 的资源操作"
+    },
+    "action": {
+      "apply": "应用",
+      "stop": "停止",
+      "open": "打开目录",
+      "export": "导出 ZIP",
+      "convert": "转换为纯主题",
+      "delete": "删除",
+      "delete_selected": "删除所选（%{count}）",
+      "import": "导入",
+      "create": "创建主题",
+      "refresh": "刷新"
+    },
+    "dialog": {
+      "cancel": "取消",
+      "confirm": "确认"
+    },
+    "appearance": {
+      "title": "确认外观差异",
+      "description": "当前宿主的 %{mode} 外观与主题声明存在差异。确认后仅对所选实例继续应用。",
+      "unreadable": "无法读取",
+      "continue": "仍然应用"
+    },
+    "code_trust": {
+      "not_safety_proof": "LokiMetris 只检查皮肤包结构和资源限制；这些检查不会审查脚本，也不能证明脚本安全。",
+      "import_title": "所选皮肤包含第三方代码",
+      "import_description": "所选项目中有 %{count} 个兼容皮肤包含 renderer-inject.js。导入会将其保存在本机，应用皮肤时会在受支持宿主内执行。",
+      "import_acknowledgement": "我明白这些文件包含第三方代码，并信任它们的来源。"
+    },
+    "import": {
+      "title": "确认导入皮肤",
+      "summary": "%{total} 个压缩包中有 %{ready} 个可导入。",
+      "commit": "导入所选（%{count}）"
+    },
+    "create": {
+      "title": "创建用户主题",
+      "description": "创建可编辑的本机主题，或复制带资源路径的提示词交给 Codex 完成设计。",
+      "name": "主题名称",
+      "author": "作者",
+      "scaffold": "创建脚手架",
+      "codex_prompt": "生成 Codex 提示词",
+      "prompt_title": "动态生成提示词",
+      "copy": "复制"
+    },
+    "restart": {
+      "title": "重启所选宿主实例？",
+      "description": "%{name} 尚未开放本机调试连接。继续将只重启这个实例，未保存内容可能受影响。",
+      "workbuddy_title": "重新启动 WorkBuddy 并挂载调试端口？",
+      "workbuddy_description": "继续前会重新检查本机调试连接；仍不可用或存在多个旧实例时，将关闭官方安装路径下所有 WorkBuddy 进程，未保存内容可能丢失，随后只启动一个带调试端口的新实例。"
+    },
+    "convert": {
+      "title": "有损转换为纯主题？",
+      "description": "%{name} 的脚本、自由选择器与扩展组件不会保留；将按其配色创建新的用户主题，原皮肤不变。"
+    },
+    "delete": {
+      "title": "删除用户皮肤？",
+      "description": "将永久删除所选的 %{count} 个用户皮肤目录；内置皮肤不会受影响。"
+    },
+    "notice": {
+      "applied": "已把 %{name} 应用到所选宿主实例。",
+      "stopped": "已停止所选实例中的皮肤并完成清理。",
+      "created": "已创建用户主题 %{name}。",
+      "imported": "已导入 %{count} 个皮肤。",
+      "exported": "皮肤 ZIP 已保存到所选位置。",
+      "converted": "已创建纯主题 %{name}。",
+      "deleted": "已删除 %{count} 个用户皮肤。"
+    },
+    "error": {
+      "title": "操作未完成",
+      "unknown": "换皮操作失败，请刷新宿主状态后重试。",
+      "injection_failed": "未能确认全部宿主页面的皮肤已生效，请刷新后重试。",
+      "choose_instance": "发现多个宿主实例；请先关闭多余实例，仅保留一个后刷新重试。"
+    },
+    "progress": {
+      "preparing": "正在预检皮肤包（%{processed}/%{total}）"
+    },
+    "loading": "正在读取皮肤资源…",
+    "copied": "已复制",
+    "dismiss": "关闭通知"
+  }
 }

@@ -2,6 +2,7 @@
 
 mod settings;
 mod monitor;
+mod skins;
 mod dashboard;
 
 mod about;
@@ -17,6 +18,7 @@ const SIDEBAR_INSET: f32 = 6.;
 pub enum Page {
     Dashboard,
     Monitor,
+    Skins,
     Settings,
     About,
 
@@ -25,6 +27,8 @@ pub enum Page {
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
     monitor:monitor::MonitorView,
+    skins:skins::Skins,
+    native_window:gpui_kit::AnyWindowHandle,
     agent_settings:settings::AgentSettingsState,
     preference_save:settings::PreferenceSaveState,
     dashboard: dashboard::Dashboard,
@@ -66,7 +70,7 @@ impl Shell {
         let activation = cx.observe_window_activation(window, |this,window,cx|this.update_window_visibility(window,cx));
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let locale = preferences.locale();
-        let mut value = Self { monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             show_update_status: false, show_release_notes: false,
         };
@@ -178,7 +182,9 @@ impl Shell {
     /// 页面切换不创建新的数据副本或重置设备偏好。
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();}
+        if self.page==Page::Skins&&page!=Page::Skins {self.leave_skins();}
         self.page = page;
+        if page==Page::Skins {self.refresh_skins(true,cx);}
         if page==Page::Monitor {self.refresh_monitor(true,cx);}
         if page==Page::Settings {self.load_agent_settings(cx);}
         if page==Page::Dashboard {self.reload_usage(false,cx);}
@@ -190,6 +196,7 @@ impl Shell {
         self.t(match self.page {
             Page::Dashboard => "navigation.dashboard",
             Page::Monitor => "navigation.monitor",
+            Page::Skins => "navigation.skins",
             Page::Settings => "navigation.settings",
             Page::About => "navigation.about",
 
@@ -230,6 +237,7 @@ impl Shell {
             .child(identity).child(self.sidebar_divider(cx));
         sidebar = sidebar.child(self.navigation_item(Page::Dashboard, "nav-dashboard", "navigation.dashboard", IconName::LayoutDashboard, cx));
         sidebar = sidebar.child(self.navigation_item(Page::Monitor,"nav-monitor","navigation.monitor",IconName::Activity,cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Skins,"nav-skins","navigation.skins",IconName::Palette,cx));
         sidebar = sidebar.child(div().flex_1());
 
         sidebar = sidebar.child(self.sidebar_divider(cx));
@@ -246,11 +254,13 @@ impl Render for Shell {
         self.sync_usage_setting_inputs(window,cx);
         self.sync_monitor_inputs(window,cx);
         self.sync_monitor_hook_inputs(window,cx);
+        self.sync_skin_inputs(window,cx);
         self.begin_monitor_image_frame();
         window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
         let content = match self.page {
             Page::Dashboard => self.dashboard_page(window,cx),
             Page::Monitor => self.monitor_page(window,cx),
+            Page::Skins => self.skins_page(cx),
             Page::Settings => self.settings_page(cx),
             Page::About => self.about_page(cx),
 
@@ -266,6 +276,7 @@ impl Render for Shell {
                     .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
             .when_some(self.monitor_profile_overlay(cx),|shell,bar|shell.child(bar))
+            .when_some(self.skin_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
 
     }
