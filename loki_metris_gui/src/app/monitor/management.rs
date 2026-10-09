@@ -268,19 +268,20 @@ impl Shell {
             let mut card = div()
                 .id(format!("monitor-behavior-{key}"))
                 .test_support()
+                .relative()
                 .min_w_0()
                 .min_h(px(356.))
                 .flex()
                 .flex_col()
                 .flex_shrink_0()
                 .overflow_hidden()
-                .rounded(px(16.))
+                .rounded(px(20.))
                 .border_1()
                 .border_color(cx.theme().border)
                 .bg(cx.theme().secondary)
-                .child(div().w_full().h(px(4.)).bg(color))
                 .child(
                     div()
+                        .relative()
                         .w_full()
                         .flex()
                         .items_center()
@@ -291,7 +292,7 @@ impl Shell {
                         .pb(px(14.))
                         .border_b_1()
                         .border_color(cx.theme().border)
-                        .bg(color.opacity(0.06))
+                        .child(super::behavior_surface::header_background(color.into()))
                         .child(
                             div()
                                 .flex()
@@ -360,7 +361,9 @@ impl Shell {
                         },
                     ),
             );
-            card = card.child(content);
+            card = card
+                .child(content)
+                .child(super::behavior_surface::top_accent(color.into()));
             behaviors = behaviors.child(card);
         }
         page = page.child(behaviors);

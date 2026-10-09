@@ -4,11 +4,14 @@ use super::Shell;
 mod state;
 mod catalog;
 mod management;
+mod behavior_surface;
 mod picker;
 mod images;
 mod hooks;
 #[cfg(test)]
 mod catalog_tests;
+#[cfg(test)]
+mod behavior_surface_tests;
 use crate::monitor::listener::HookRelayStatus;
 use gpui_kit::{AnyElement,Context,FontWeight,IntoElement,Role,base::TestSupportExt as _,component::{ActiveTheme,button::Button},div,prelude::*,px,rgb};
 
