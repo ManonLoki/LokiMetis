@@ -20,8 +20,8 @@
     "english": "English",
     "autostart": "开机自启",
     "autostart_detail": "登录系统后正常显示应用，实际状态以操作系统登录项为准。",
-    "autostart_error": "操作失败；可读取时已显示系统实际状态。",
-    "autostart_unknown": "当前无法读取系统登录项，请重试。",
+    "autostart_error": "无法更新开机自启。开关已回滚为可读取的实际状态；请检查系统登录项后重试。",
+    "autostart_unknown": "当前无法读取操作系统登录项，请稍后重新读取。",
     "reload": "重新读取",
     "agent_panel_title": "启用的 Agent",
     "agent_panel_badge": "全局设置",
@@ -31,7 +31,24 @@
     "release_notes_action": "查看更新日志",
     "theme_title": "外观主题",
     "language_error": "无法同步原生界面语言。请确认应用状态后重试。",
-    "theme_error": "无法保存外观主题，原主题仍然生效。"
+    "theme_error": "无法保存外观主题，原主题仍然生效。",
+    "system_notification": "系统通知",
+    "sponsor_title": "赞助支持",
+    "sponsor_description": "如果 LokiMetris 对你有帮助，可以使用微信支付或支付宝扫码赞助。",
+    "sponsor_wechat_label": "微信支付",
+    "sponsor_wechat_alt": "LokiMetris 微信支付赞助收款码",
+    "sponsor_alipay_label": "支付宝",
+    "sponsor_alipay_alt": "LokiMetris 支付宝赞助收款码",
+    "github_repository_action": "GitHub 仓库",
+    "github_repository_error": "系统默认浏览器未能打开项目仓库，请稍后重试。",
+    "github_repository_error_title": "无法打开 GitHub",
+    "capability_loading": "正在读取实际状态…",
+    "capability_pending": "正在更新系统设置…",
+    "capability_error_title": "设置未更改",
+    "capability_unknown_title": "当前状态未知",
+    "capability_retry": "重新读取实际状态",
+    "github_repository_description": "LokiMetis 历史项目源码",
+    "system_notification_error": "无法更新通知设置。开关已回滚为可读取的实际状态；请检查系统通知权限后重试。"
   },
   "about": {
     "version": "版本",
@@ -56,7 +73,8 @@
     "updater_unavailable": "当前 GPUI 基线未提供更新服务，不会发起网络请求。",
     "no_releases": "当前构建未嵌入发布记录。",
     "local_first": "本地运行",
-    "local_first_detail": "设置、语言和静态支持页可离线使用。"
+    "local_first_detail": "设置、语言和静态支持页可离线使用。",
+    "close": "关闭"
   },
   "application": {
     "name": "诡秘神谕"
@@ -443,7 +461,8 @@
     "unknownError": "操作未完成，请重试。"
   },
   "ui": {
-    "failureTitle": "暂时无法读取数据"
+    "failureTitle": "暂时无法读取数据",
+    "retry": "重试"
   },
   "error": {
     "monitor": {

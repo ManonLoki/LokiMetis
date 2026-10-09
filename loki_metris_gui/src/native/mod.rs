@@ -3,6 +3,8 @@
 mod tray;
 mod menu;
 pub mod autostart;
+pub mod notifications;
+pub mod links;
 pub mod instance;
 pub mod shortcuts;
 #[cfg(windows)]
@@ -19,13 +21,14 @@ pub struct Services {
     window: Option<windows::MainWindow>,
     tray: Option<tray::Tray>,
     pub autostart: autostart::Service,
+    pub notifications: notifications::Service,
     _instance: instance::Instance,
     pub shortcuts: shortcuts::Service,
 }
 impl Global for Services {}
 
 /// 主窗口创建后安装宿主机制；不注册登录项，不申请通知权限，不绑定默认热键。
-pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>,  cx: &mut App) {
+pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
     menu::install(locale, cx);
     #[cfg(windows)]
     let native_window = handle.update(cx, |_, window, _| windows::MainWindow::capture(window)).ok().and_then(Result::ok);
@@ -60,6 +63,7 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
         window: native_window,
         tray,
         autostart,
+        notifications,
         _instance: instance,
         shortcuts: shortcuts::Service::new(),
     });
@@ -131,3 +135,9 @@ pub(crate) fn configure_font_smoothing() {
 
 /// 托盘只按用户会话可见性改标签，不把系统遮挡误当作隐藏。
 pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services>() {if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_pet_visibility(visible);}}}
+
+/// 设置页只读取应用级通知偏好，离页不丢失真实保存结果。
+pub fn notification_state(cx:&App)->notifications::State {cx.try_global::<Services>().map(|services|services.notifications.state()).unwrap_or_default()}
+
+/// 系统授权与偏好保存串行归属原生服务；初始化从不调用。
+pub fn set_notification(enabled:bool,cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|services|services.notifications.clone()) {service.set(enabled,cx);}}

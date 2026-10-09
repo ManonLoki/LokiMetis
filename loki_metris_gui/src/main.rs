@@ -42,7 +42,9 @@ fn main() -> std::process::ExitCode {
     std::hint::black_box(release_notes::RELEASE_NOTES);
     let (preferences, writer) = preferences::load();
     let locale = preferences.locale();
+    let notifications=native::notifications::Service::new(preferences.system_notification,writer.clone());
     let shutdown = lifecycle::Shutdown::new(writer.clone(), log_guard);
+    shutdown.borrow_mut().own_notifications(notifications.clone());
     let usage_service = match usage_service::UsageService::new() {
         Ok(service) => service,
         Err(code) => { tracing::error!(event = code); return std::process::ExitCode::FAILURE; }
@@ -88,7 +90,7 @@ fn main() -> std::process::ExitCode {
             // 主窗确实被销毁表示托盘恢复不可用；辅助窗不能留下无入口进程。
             if closed==main_id||cx.windows().is_empty() {cx.quit();}
         }).detach();
-        native::install(handle, locale, instance, instance_receiver, cx);
+        native::install(handle, locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
         cx.activate(true);
     });

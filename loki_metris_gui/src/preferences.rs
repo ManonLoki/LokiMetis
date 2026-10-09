@@ -29,6 +29,7 @@ pub struct Preferences {
     pub collapsed: bool,
     pub bounds: Option<[f32; 4]>,
     pub maximized: bool,
+    pub system_notification: bool,
 
 }
 
@@ -73,6 +74,7 @@ impl Preferences {
                 "language" => value.language = match field { "zh-CN" => LanguageChoice::Chinese, "en-US" => LanguageChoice::English, _ => LanguageChoice::System },
                 "collapsed" => value.collapsed = field == "true",
                 "maximized" => value.maximized = field == "true",
+                "system_notification" => value.system_notification = field == "true",
 
                 "bounds" => {
                     let fields: Vec<_> = field.split(',').map(str::parse::<f32>).collect();
@@ -91,7 +93,7 @@ impl Preferences {
         let theme = match self.theme { ThemeChoice::System => "system", ThemeChoice::Light => "light", ThemeChoice::Dark => "dark" };
         let language = match self.language { LanguageChoice::System => "system", LanguageChoice::Chinese => "zh-CN", LanguageChoice::English => "en-US" };
         let bounds = self.bounds.map(|b| format!("{},{},{},{}", b[0], b[1], b[2], b[3])).unwrap_or_default();
-        let text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\n", self.collapsed, self.maximized);
+        let text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\nsystem_notification={}\n", self.collapsed, self.maximized, self.system_notification);
 
         text
     }
@@ -99,7 +101,7 @@ impl Preferences {
 
 /// 明确偏好逐字段提交，不能携带可能过时的窗口或其他偏好快照。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice) }
+pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice), SystemNotification(bool) }
 
 /// 几何属于可合并高频事件，不拥有主题与语言字段。
 #[derive(Clone, Copy)]
@@ -124,18 +126,23 @@ enum Storage { File(PathBuf), Unavailable, #[cfg(test)] Memory }
 pub struct Writer {
     geometry: Arc<Mutex<WindowUpdates>>,
     sender: mpsc::SyncSender<Command>,
+    closing: Arc<Mutex<bool>>,
     thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 impl Writer {
     /// 明确提交要么获得独立回执，要么同步报告队列不可用，绝不静默丢弃。
     pub fn mutate(&self,patch:PreferencePatch)->Result<tokio::sync::oneshot::Receiver<Result<PreferencePatch,&'static str>>,&'static str> {
+        let closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *closing {return Err("preference_writer_unavailable")}
         let (tx,rx)=tokio::sync::oneshot::channel();
         self.sender.try_send(Command::Mutate(patch,tx)).map_err(|_|"preference_writer_unavailable")?;Ok(rx)
     }
 
     /// 高频窗口变化只合并几何；最后退出命令仍会刷新最新值。
     pub fn save_window(&self,bounds:Option<[f32;4]>,maximized:bool) {
+        let closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *closing {return}
         let mut updates=self.geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         updates.latest=Some(WindowGeometry{bounds,maximized});
         if !updates.queued {updates.queued=true;if self.sender.try_send(Command::Window).is_err() {updates.queued=false;}}
@@ -144,7 +151,11 @@ impl Writer {
     /// 原生应用进入不可取消退出阶段后，发送结束信号并等待最后快照完成写入。
     pub fn finish(&self) {
         if let Some(thread) = self.thread.lock().expect("偏好线程锁损坏").take() {
-            let _ = self.sender.send(Command::Stop);
+            {
+                let mut closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                *closing=true;
+                let _ = self.sender.send(Command::Stop);
+            }
             let _ = thread.join();
         }
     }
@@ -152,6 +163,14 @@ impl Writer {
     /// 测试明确注入初始偏好，与 Shell 的已确认基线保持一致。
     #[cfg(test)]
     pub(crate) fn in_memory(preferences:Preferences)->Self {start_writer(Storage::Memory,preferences)}
+
+    /// 测试持有既有几何锁，确定性阻止 worker 写入及发送回执，释放后恢复原有流程。
+    #[cfg(test)]
+    pub(crate) fn pause_worker_for_test(&self) -> impl Drop + '_ {
+        self.geometry
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 }
 
 /// 路径采用各平台常见用户目录，没有可用用户根时只保留进程内偏好。
@@ -202,7 +221,7 @@ fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
                 next.bounds=geometry.bounds;next.maximized=geometry.maximized;
             }
             if let Command::Mutate(patch,_)=&command {match patch {
-                PreferencePatch::Theme(theme)=>next.theme=*theme,PreferencePatch::Language(language)=>next.language=*language,
+                PreferencePatch::Theme(theme)=>next.theme=*theme,PreferencePatch::Language(language)=>next.language=*language,PreferencePatch::SystemNotification(enabled)=>next.system_notification=*enabled,
             }}
             let result=match &storage {
                 Storage::File(path)=>write(path,&next.encode()),
@@ -217,7 +236,7 @@ fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
             }
         }
     });
-    Writer { geometry, sender, thread: Arc::new(Mutex::new(Some(thread))) }
+    Writer { geometry, sender, closing:Arc::new(Mutex::new(false)), thread: Arc::new(Mutex::new(Some(thread))) }
 }
 
 /// 同目录临时文件原子替换，拒绝目标符号链接并清理失败临时文件。

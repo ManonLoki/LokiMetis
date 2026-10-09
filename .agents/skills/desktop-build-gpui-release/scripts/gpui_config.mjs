@@ -38,8 +38,9 @@ function keys(object, expected, label) {
 
 /** 单一严格 schema 防止残留 Tauri 配置、hook 或未知签名字段进入工具。 */
 export function validateConfig(value) {
-  keys(value, ['schemaVersion','package','binary','productName','productNameEn','identifier','publisher','icons','macos','windows','nsis',...(Object.hasOwn(value ?? {},'resources')?['resources']:[])], 'GPUI config');
+  keys(value, ['schemaVersion','package','binary','productName','productNameEn','identifier','publisher','icons','macos','windows','nsis',...(Object.hasOwn(value ?? {},'resources')?['resources']:[]),...(Object.hasOwn(value ?? {},'releaseNotesUi')?['releaseNotesUi']:[])], 'GPUI config');
   if (value.schemaVersion !== 1) throw new Error('unsupported GPUI config schema');
+  if (value.releaseNotesUi !== undefined && typeof value.releaseNotesUi !== 'boolean') throw new Error('releaseNotesUi must be a boolean');
   for (const key of ['package','binary']) if (!/^[A-Za-z][A-Za-z0-9_-]*$/u.test(value[key])) throw new Error(`invalid ${key}`);
   for (const key of ['productName','productNameEn','publisher']) text(value[key], key, key.startsWith('product'));
   if (!/^[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/u.test(value.identifier)) throw new Error('invalid application identifier');

@@ -6,6 +6,7 @@
   "productNameEn": "LokiMetris",
   "identifier": "com.loki-metris.app",
   "publisher": "ManonLoki",
+  "releaseNotesUi": true,
   "icons": {
     "source": "loki_metris_gui/assets/logo.png",
     "macos": "packaging/icons/app.icns",

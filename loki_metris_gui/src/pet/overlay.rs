@@ -421,7 +421,9 @@ impl Render for Overlay {
                         .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
                         .child(
                             gpui_kit::base::Button::new("pet-previous")
-                                .accessibility_label(previous)
+                                .accessibility_label(previous.clone())
+                                .disabled(page.page_count <= 1)
+                                .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(previous.clone()).build(window, cx))
                                 .size(px((vmin * 0.06).clamp(14., 20.)))
                                 .text_size(px((vmin * 0.05).clamp(11., 16.)))
                                 .rounded_full()
@@ -440,7 +442,9 @@ impl Render for Overlay {
                         )
                         .child(
                             gpui_kit::base::Button::new("pet-next")
-                                .accessibility_label(next)
+                                .accessibility_label(next.clone())
+                                .disabled(page.page_count <= 1)
+                                .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(next.clone()).build(window, cx))
                                 .size(px((vmin * 0.06).clamp(14., 20.)))
                                 .text_size(px((vmin * 0.05).clamp(11., 16.)))
                                 .rounded_full()

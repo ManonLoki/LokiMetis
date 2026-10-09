@@ -2,7 +2,7 @@
 
 use super::super::Shell;
 use crate::monitor::settings::MonitorSettings;
-use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Task, Role, assets::IconName,
+use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Task, Role,
     base::{Checkbox, CheckboxState}, component::{ActiveTheme, Icon}, div, prelude::*, px, rgb};
 use loki_metris_core::{AiTool, SourceClientKind, dashboard_selection_for_ai_tools, public_ai_capabilities};
 
@@ -131,14 +131,14 @@ impl Shell {
                 let tool=capability.monitor_tool?;
                 let checked=self.agent_settings.value.as_ref().is_some_and(|settings|settings.enabled_ai_tools.contains(&tool));
                 let entity=cx.entity().downgrade();
-                let border=if busy {cx.theme().border}else if checked {cx.theme().primary}else {rgb(if dark {0x424242}else{0xced4da}).into()};
-                let background=if busy {cx.theme().muted}else if checked {cx.theme().primary}else{rgb(if dark {0x2e2e2e}else{0xffffff}).into()};
+                let border=if busy {rgb(if dark {0x424242}else{0xdee2e6}).into()}else if checked {cx.theme().primary}else {rgb(if dark {0x424242}else{0xced4da}).into()};
+                let background=if busy {rgb(if dark {0x2e2e2e}else{0xe9ecef}).into()}else if checked {cx.theme().primary}else{rgb(if dark {0x2e2e2e}else{0xffffff}).into()};
                 Some(Checkbox::new(("enabled-agent",index)).checked(checked).disabled(busy).accessibility_label(capability.name)
                     .flex().items_center().gap(px(12.)).min_w_0().text_size(px(14.)).line_height(gpui_kit::relative(20./14.))
                     .font_weight(FontWeight::NORMAL)
                     .text_color(if busy {cx.theme().muted_foreground}else{cx.theme().foreground})
                     .child(div().size(px(20.)).flex_shrink_0().rounded(px(8.)).border_1().border_color(border).bg(background).flex().items_center().justify_center()
-                        .when(checked,|square|square.child(Icon::new(IconName::Check).size(px(12.)).text_color(if busy{cx.theme().muted_foreground}else{rgb(0xffffff).into()}))))
+                        .when(checked,|square|square.child(Icon::default().data(include_bytes!("../../../assets/icons/check.svg")).size(px(12.)).text_color(rgb(if busy {if dark {0x696969}else{0xadb5bd}}else{0xffffff})))))
                     .child(capability.name)
                     .on_change(move|next,_,_,cx|{let _=entity.update(cx,|this,cx|this.toggle_agent(tool,next==CheckboxState::Checked,cx));}))
             })))

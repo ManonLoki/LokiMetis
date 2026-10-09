@@ -5,11 +5,11 @@ mod monitor;
 mod skins;
 mod dashboard;
 
-mod about;
+
 
 
 use crate::{assets, preferences::{LanguageChoice, Preferences, ThemeChoice, Writer}};
-use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode}, div, img, prelude::*, px};
+use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode}, div, img, prelude::*, px};
 
 /// 侧栏内边距同时确定顶部 Logo 与边界控件的垂直原点。
 const SIDEBAR_INSET: f32 = 6.;
@@ -20,7 +20,6 @@ pub enum Page {
     Monitor,
     Skins,
     Settings,
-    About,
 
 }
 
@@ -31,6 +30,7 @@ pub struct Shell {
     native_window:gpui_kit::AnyWindowHandle,
     agent_settings:settings::AgentSettingsState,
     preference_save:settings::PreferenceSaveState,
+    repository:settings::RepositoryState,
     dashboard: dashboard::Dashboard,
     page: Page,
     viewport_width: f32,
@@ -43,8 +43,7 @@ pub struct Shell {
     _visibility: Subscription,
     window_active: bool,
     window_visible: bool,
-    show_update_status: bool,
-    show_release_notes: bool,
+    release_notes_modal: Option<settings::ReleaseNotesModal>,
 }
 
 impl Shell {
@@ -70,9 +69,9 @@ impl Shell {
         let activation = cx.observe_window_activation(window, |this,window,cx|this.update_window_visibility(window,cx));
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let locale = preferences.locale();
-        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
-            show_update_status: false, show_release_notes: false,
+            release_notes_modal: None,
         };
         value.remember_window(window);
         value.apply_language();
@@ -181,7 +180,7 @@ impl Shell {
 
     /// 页面切换不创建新的数据副本或重置设备偏好。
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
-        if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();}
+        if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();self.release_notes_modal=None;}
         if self.page==Page::Skins&&page!=Page::Skins {self.leave_skins();}
         self.page = page;
         if page==Page::Skins {self.refresh_skins(true,cx);}
@@ -191,22 +190,15 @@ impl Shell {
         cx.notify();
     }
 
-    /// 页面标题来自当前实际页面对应的词典键。
-    fn page_title(&self) -> String {
-        self.t(match self.page {
-            Page::Dashboard => "navigation.dashboard",
-            Page::Monitor => "navigation.monitor",
-            Page::Skins => "navigation.skins",
-            Page::Settings => "navigation.settings",
-            Page::About => "navigation.about",
-
-        })
-    }
-
     /// 参考产品使用固定紧凑侧栏，整项 Button 拥有点击和辅助标签。
-    fn navigation_item(&self, page: Page, id: &'static str, key: &str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
+    fn navigation_item(&self, page: Page, id: &'static str, key: &str, cx: &mut Context<Self>) -> AnyElement {
         let label = self.t(key);
-        let icon=if page==Page::Monitor {gpui_kit::component::Icon::default().data(include_bytes!("../../assets/icons/chart-line-up.svg"))}else{gpui_kit::component::Icon::new(icon)};
+        let icon=gpui_kit::component::Icon::default().data(match page {
+            Page::Dashboard=>&include_bytes!("../../assets/icons/squares-four.svg")[..],
+            Page::Monitor=>&include_bytes!("../../assets/icons/chart-line-up.svg")[..],
+            Page::Skins=>&include_bytes!("../../assets/icons/palette.svg")[..],
+            Page::Settings=>&include_bytes!("../../assets/icons/gear-six.svg")[..],
+        });
         gpui_kit::base::Button::new(id).h_auto().min_h(px(56.)).py_1().px_0().w_full().flex().items_center().justify_center().rounded(px(12.))
             .accessibility_label(label.clone())
             .child(div().w_full().h_auto().flex_shrink_0().flex().flex_col().items_center().gap_1()
@@ -223,26 +215,25 @@ impl Shell {
             .bg(if cx.theme().mode.is_dark() { gpui_kit::rgb(0x424242) } else { gpui_kit::rgb(0xdee2e6) }).into_any_element()
     }
 
-    /// 功能区向下增长，支持区保持已选赞助、设置、已选关于的稳定顺序。
+    /// 三个业务入口向下增长，公共设置固定在底部。
     fn sidebar(&self, cx: &mut Context<Self>) -> AnyElement {
         let width = 80.;
         let logo_size = 36.;
         let identity = div().id("sidebar-identity").test_support().relative().w_full().flex_shrink_0().flex().flex_col().items_center().justify_center().gap_2()
             .py_2()
             .child(div().id("sidebar-logo").test_support().size(px(logo_size)).flex_shrink_0().child(img(assets::LOGO).size_full()))
-            .child(div().text_size(px(10.)).text_color(cx.theme().muted_foreground).child(self.version()))
+            .child(div().text_size(px(10.)).line_height(px(10.)).text_color(cx.theme().muted_foreground).child(self.version()))
             ;
         let mut sidebar = div().id("sidebar").test_support().w(px(width)).h_full().min_h_0().flex_shrink_0().flex().flex_col()
             .p(px(SIDEBAR_INSET)).border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
             .child(identity).child(self.sidebar_divider(cx));
-        sidebar = sidebar.child(self.navigation_item(Page::Dashboard, "nav-dashboard", "navigation.dashboard", IconName::LayoutDashboard, cx));
-        sidebar = sidebar.child(self.navigation_item(Page::Monitor,"nav-monitor","navigation.monitor",IconName::Activity,cx));
-        sidebar = sidebar.child(self.navigation_item(Page::Skins,"nav-skins","navigation.skins",IconName::Palette,cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Dashboard, "nav-dashboard", "navigation.dashboard", cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Monitor,"nav-monitor","navigation.monitor",cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Skins,"nav-skins","navigation.skins",cx));
         sidebar = sidebar.child(div().flex_1());
 
         sidebar = sidebar.child(self.sidebar_divider(cx));
-        sidebar = sidebar.child(self.navigation_item(Page::Settings, "nav-settings", "navigation.settings", IconName::Settings, cx));
-        sidebar = sidebar.child(self.navigation_item(Page::About, "nav-about", "navigation.about", IconName::Info, cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Settings, "nav-settings", "navigation.settings", cx));
         sidebar.into_any_element()
     }
 }
@@ -262,22 +253,24 @@ impl Render for Shell {
             Page::Monitor => self.monitor_page(window,cx),
             Page::Skins => self.skins_page(cx),
             Page::Settings => self.settings_page(cx),
-            Page::About => self.about_page(cx),
 
         };
         self.finish_monitor_image_frame(window,cx);
         let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().flex().flex_col()
             .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);
-        div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_size(px(14.)).text_color(cx.theme().foreground)
+        // 原生模态打开时只隔离背景的辅助树，仍保留其绘制和控件身份。
+        let modal_open=self.release_notes_modal.is_some();
+        let underlay=div().id("application-underlay").role(gpui_kit::Role::Group).size_full().min_w_0().min_h_0().flex()
+            .a11y_synthetic_children(move|builder| {if modal_open {builder.parent_node().set_hidden();}})
             .child(self.sidebar(cx))
-            .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col()
-                .when(self.page == Page::About, |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
-                    .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
-                .child(content))
+            .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col().child(content));
+        div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_size(px(14.)).text_color(cx.theme().foreground)
+            .child(underlay)
             .when_some(self.monitor_profile_overlay(cx),|shell,bar|shell.child(bar))
             .when_some(self.skin_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
+            .when_some(self.release_notes_dialog(window,cx),|shell,dialog|shell.child(dialog))
 
     }
 }

@@ -79,7 +79,7 @@ impl Shell {
                         revision = status.revision;
                         this.dashboard.scan_error = status.error;
                         if this.dashboard.route!=Route::Settings {this.reload_usage(false, cx);}
-                    } else if this.window_active && this.window_visible && this.page == super::Page::Dashboard && matches!(this.dashboard.route,Route::Statistics|Route::Charts)
+                    } else if this.window_active && this.window_visible && this.page == super::Page::Dashboard && matches!(this.dashboard.route,Route::Overview|Route::Statistics|Route::Charts)
                         && !this.dashboard.loading && this.dashboard.last_read.elapsed() >= std::time::Duration::from_secs(10) {
                         this.reload_usage(false,cx);
                     }

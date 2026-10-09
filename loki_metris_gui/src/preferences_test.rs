@@ -5,7 +5,7 @@ use super::{LanguageChoice, Preferences, ThemeChoice, PreferencePatch, load_from
 /// 三态主题、语言与设备侧栏选择可以原样往返。
 #[test]
 fn preferences_round_trip() {
-    let value = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::Chinese, collapsed: true, bounds: Some([30., 40., 1200., 800.]), maximized: true,  ..Preferences::default() };
+    let value = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::Chinese, collapsed: true, bounds: Some([30., 40., 1200., 800.]), maximized: true, system_notification:true };
     assert_eq!(Preferences::decode(&value.encode()), value);
 }
 
@@ -57,4 +57,40 @@ fn failed_patch_does_not_change_the_committed_baseline() {
 fn unavailable_storage_returns_a_failed_receipt() {
     let (_,writer)=load_from(None);
     assert!(writer.mutate(PreferencePatch::Theme(ThemeChoice::Dark)).unwrap().blocking_recv().unwrap().is_err());writer.finish();
+}
+
+/// 通知字段与几何、主题和语言独立合并，停止后的迟到提交同步拒绝。
+#[test]
+fn notification_patch_preserves_geometry_and_shutdown_closes_admission() {
+    let root=tempfile::tempdir().unwrap();let file=root.path().join("preferences.txt");
+    let (_,writer)=load_from(Some(file.clone()));
+    writer.save_window(Some([30.,40.,1200.,800.]),true);
+    writer.mutate(PreferencePatch::SystemNotification(true)).unwrap().blocking_recv().unwrap().unwrap();
+    writer.mutate(PreferencePatch::Language(LanguageChoice::English)).unwrap().blocking_recv().unwrap().unwrap();
+    writer.finish();
+    assert!(writer.mutate(PreferencePatch::SystemNotification(false)).is_err());
+    writer.save_window(Some([0.,0.,960.,640.]),false);
+    let saved=Preferences::decode(&std::fs::read_to_string(file).unwrap());
+    assert!(saved.system_notification);assert_eq!(saved.language,LanguageChoice::English);
+    assert_eq!(saved.bounds,Some([30.,40.,1200.,800.]));assert!(saved.maximized);
+}
+
+/// 并发关闭与准入共享门禁；任何已接受命令都位于Stop前并获得真实完成回执。
+#[test]
+fn concurrent_finish_never_accepts_an_unprocessed_patch() {
+    for _ in 0..16 {
+        let writer=super::Writer::in_memory(Preferences::default());
+        let barrier=std::sync::Arc::new(std::sync::Barrier::new(3));
+        let submitter=writer.clone();let submit_barrier=barrier.clone();
+        let submit=std::thread::spawn(move|| {
+            submit_barrier.wait();
+            submitter.mutate(PreferencePatch::SystemNotification(true))
+                .map(|receipt|receipt.blocking_recv().expect("accepted patch must not be stranded after Stop").unwrap())
+        });
+        let finisher=writer.clone();let finish_barrier=barrier.clone();
+        let finish=std::thread::spawn(move||{finish_barrier.wait();finisher.finish();});
+        barrier.wait();finish.join().unwrap();
+        if let Ok(patch)=submit.join().unwrap() {assert_eq!(patch,PreferencePatch::SystemNotification(true));}
+        assert!(writer.mutate(PreferencePatch::SystemNotification(false)).is_err());
+    }
 }

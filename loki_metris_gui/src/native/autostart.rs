@@ -11,6 +11,7 @@ mod windows;
 pub struct State {
     pub enabled: Option<bool>,
     pub busy: bool,
+    pub desired:Option<bool>,
     pub error: bool,
     pub revision: u64,
 }
@@ -45,6 +46,7 @@ impl Service {
                 let mut state = shared.lock().expect("自启状态锁损坏");
                 state.enabled = actual;
                 state.busy = false;
+                state.desired = None;
                 state.error = failed;
                 state.revision += 1;
             }
@@ -67,8 +69,10 @@ impl Service {
         let mut state = self.state.lock().expect("自启状态锁损坏");
         if state.busy { return }
         state.busy = true;
+        state.desired = match command {Command::Set(enabled)=>Some(enabled),_=>None};
         if self.sender.try_send(command).is_err() {
             state.busy = false;
+            state.desired = None;
             state.error = true;
         }
         state.revision += 1;

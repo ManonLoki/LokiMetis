@@ -29,7 +29,7 @@ impl Shell {
         if !force&&self.monitor.last_read.is_some_and(|read|read.elapsed()<std::time::Duration::from_secs(3)) {return}
         self.monitor.last_read=Some(std::time::Instant::now());
         let next=self.dashboard.service.as_ref().ok_or("monitor_service_unavailable").and_then(|service|service.monitor_status());
-        match next {Ok(status)=>{self.monitor.status=Some(status);self.monitor.error=None;},Err(error)=>{self.monitor.status=None;self.monitor.error=Some(error);}}
+        match next {Ok(status)=>{self.monitor.status=Some(status);self.monitor.error=None;},Err(error)=>{self.monitor.error=Some(error);}}
         cx.notify();
     }
 
@@ -41,8 +41,10 @@ impl Shell {
         }
         if self.monitor.route!=state::Route::Workbench {return div().w_full().flex_shrink_0().flex().flex_col().gap_5().child(tabs).child(match self.monitor.route {state::Route::Management=>self.monitor_management(window,cx),state::Route::Hooks=>self.monitor_hooks(cx),_=>self.monitor_images(window,cx)}).into_any_element()}
         let mut page=div().id("monitor-workbench").test_support().w_full().flex().flex_col().gap_5().child(tabs);
-        if let Some(error)=self.monitor.error {return page.child(div().id("monitor-error").role(Role::Alert).aria_label(self.t(error)).text_color(cx.theme().danger).child(self.t(error))
-            .child(Button::new("monitor-retry").label(self.t("ui.retry")).on_click(cx.listener(|this,_,_,cx|this.refresh_monitor(true,cx))))) .into_any_element()}
+        if let Some(error)=self.monitor.error {
+            page=page.child(div().id("monitor-error").test_support().role(Role::Alert).aria_label(self.t(error)).rounded(px(12.)).p_4().bg(cx.theme().danger.opacity(0.1)).text_color(cx.theme().danger).child(self.t(error))
+                .child(Button::new("monitor-retry").label(self.t("ui.retry")).on_click(cx.listener(|this,_,_,cx|this.refresh_monitor(true,cx)))));
+        }
         let Some(status)=&self.monitor.status else {return page.into_any_element()};
         let listening=if status.listening {self.t("monitor.workbench.listening").replace("%{address}",&status.bind_address)}else{self.t("monitor.workbench.offline")};
         let color=rgb(if status.listening {0x40c057}else{0xfa5252});
@@ -73,6 +75,28 @@ impl Shell {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// 后台重读失败保留上次指标并显示错误；从未成功读取时只显示失败和重试。
+    #[gpui_kit::test]
+    fn monitor_refresh_failure_keeps_previous_metrics(cx:&mut gpui_kit::TestAppContext) {
+        use gpui_kit::test::TestWindowExt;
+        let(handle,shell,_finish)=crate::app::tests::open_shell(cx,1440.,900.);
+        cx.update_window(handle,|_,window,cx| {
+            shell.update(cx,|this,cx| {
+                this.page=crate::app::Page::Monitor;
+                this.monitor.status=Some(HookRelayStatus{received_count:42,failed_count:3,..Default::default()});
+                this.refresh_monitor(true,cx);
+                assert_eq!(this.monitor.status.as_ref().unwrap().received_count,42);
+                assert!(this.monitor.error.is_some());
+            });
+            window.render_frame(cx);
+            assert!(window.try_find("monitor-error").is_some());
+            assert!(window.try_find("monitor-received").is_some());
+            shell.update(cx,|this,cx|{this.monitor.status=None;cx.notify();});
+            window.render_frame(cx);
+            assert!(window.try_find("monitor-retry").is_some());
+            assert!(window.try_find("monitor-received").is_none());
+        }).unwrap();
+    }
     /// 工作台在原生导航中可达，真实指标布局既不挤压也不代理点击。
     #[gpui_kit::test]
     fn workbench_projection_has_two_readable_metric_columns(cx:&mut gpui_kit::TestAppContext) {

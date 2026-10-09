@@ -8,6 +8,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 /// 同一状态在原生退出回调与事件循环返回回退间共享，日志 worker 只刷新一次。
 pub struct Shutdown {
     writer: Writer,
+    notifications:Option<crate::native::notifications::Service>,
     log_guard: Option<WorkerGuard>,
     usage: Option<std::sync::Arc<crate::usage_service::UsageService>>,
 }
@@ -15,8 +16,11 @@ pub struct Shutdown {
 impl Shutdown {
     /// 接管主入口的偏好 worker 和日志 guard，所有克隆只共享同一个收尾状态。
     pub fn new(writer: Writer, log_guard: WorkerGuard) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self { writer, log_guard: Some(log_guard), usage: None }))
+        Rc::new(RefCell::new(Self { writer, notifications:None, log_guard: Some(log_guard), usage: None }))
     }
+
+    /// 通知授权必须在统一收尾点失效，不能依赖独立退出钩子的执行顺序。
+    pub fn own_notifications(&mut self,service:crate::native::notifications::Service) {self.notifications=Some(service);}
 
     /// 应用退出钩子拥有业务运行时，窗口隐藏不会停止扫描或销毁服务。
     pub fn own_usage(&mut self, usage: std::sync::Arc<crate::usage_service::UsageService>) {
@@ -29,6 +33,7 @@ impl Shutdown {
     /// 唯一退出钩子先捕获桌宠意图，避免依赖短期异步退出预算或钩子顺序。
     fn finish_with_pet(&mut self,plan:crate::usage_service::PetShutdownPlan) {
         let Some(guard) = self.log_guard.take() else { return };
+        if let Some(notifications)=self.notifications.take() {notifications.stop();}
         if let Some(usage) = self.usage.take() { usage.finish_with_pet(plan); }
         self.writer.finish();
         tracing::info!(event = "application_stopped");

@@ -44,6 +44,8 @@ windows.workspace = true
 objc2-foundation.workspace = true
 objc2-app-kit.workspace = true
 objc2.workspace = true
+block2.workspace = true
+objc2-user-notifications.workspace = true
 
 
 [dev-dependencies]

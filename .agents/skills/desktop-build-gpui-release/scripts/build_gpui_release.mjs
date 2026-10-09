@@ -169,7 +169,7 @@ export function executeBuild(options, hooks = {}) {
   if (candidate && identity.dirty) throw new Error('candidate source must be clean');
   const resources = collectResources(root,config,info.platform,candidate);
   const notes = candidate ? releaseNotes(root,facts.version) : null;
-  const embedNotes = candidate && aboutPageEnabled(root);
+  const embedNotes = candidate && (aboutPageEnabled(root) || config.releaseNotesUi === true);
   if (candidate) {
     for (const [file,name] of [['LICENSE.zh-CN.md',config.productName],['LICENSE.en.md',config.productNameEn]]) {
       if (!fs.readFileSync(path.join(root,file),'utf8').includes(name)) throw new Error(`license product identity differs: ${file}`);
@@ -208,7 +208,7 @@ export function executeBuild(options, hooks = {}) {
   });
   if (executables.length !== 1) throw new Error('Cargo did not report exactly one GUI executable');
   const binary = safePath(cargoDirectory,path.relative(cargoDirectory,executables[0]).split(path.sep).join('/'),{ type: 'file' });
-  if (embedNotes && !containsBytes(binary,notes.bytes)) throw new Error('GUI binary lacks this release\'s verified update-log bytes; connect the GPUI build.rs/about-page contract');
+  if (embedNotes && !containsBytes(binary,notes.bytes)) throw new Error('GUI binary lacks this release\'s verified update-log bytes; connect the GPUI build.rs/release-notes UI contract');
   if (!isDeepStrictEqual(readConfig(root),config)) throw new Error('GPUI packaging config changed during build');
   fs.mkdirSync(path.join(work,'binaries'));
   const packagedBinary = path.join(work,'binaries',config.binary + (format === 'nsis' ? '.exe' : ''));

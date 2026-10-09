@@ -56,7 +56,7 @@ pnpm run gpui:package build --root . --mode candidate --format dmg --e2e disable
 
 helper 在测试前验证独立 Git 根、clean 默认主分支/tag、发布上下文、base-100 版本、锁策略及资源；原子隔离旧 `release/`，拒绝链接/重解析、路径越界和覆盖。所有实际 Rust workspaces 分别列出非空全量测试并运行 `cargo test --workspace --all-targets --all-features`；`tracked` 的 metadata、测试、构建全部传 `--locked`，同时核对受跟踪且未被忽略的实际 Cargo.lock。pnpm 只提供 Node 工程命令入口；不触发 React、前端安装/测试或前端锁门禁。
 
-关于页启用时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，关于页直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。关于页禁用时不注入日志 UI。两种情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选关于页的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
+关于页启用，或包装配置明确 `releaseNotesUi: true`（例如日志位于设置页）时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，日志界面直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。两种入口均关闭时不注入日志 UI。所有情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选日志界面的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
 
 macOS 默认 `disabled/not-requested`、unsigned，不探测身份/凭据；当前 Skill 未实现完整 macOS 签名公证，任何启用请求或渠道要求在测试前失败关闭。不能关闭渠道要求继续构建。Windows 有批准的证书指纹与 HTTPS 时间戳配置时，显式 `--signing enabled --signing-source configured|requested|channel-required` 才执行 `signtool sign` 与 `verify /pa /all`，任何失败停止；不创建或输出凭据。机器恰有工具/环境变量不改变选择。
 

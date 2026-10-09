@@ -20,8 +20,8 @@
     "english": "English",
     "autostart": "Start at login",
     "autostart_detail": "Show this app normally after sign-in. The operating system registration is authoritative.",
-    "autostart_error": "The operation failed. The actual system state is shown when readable.",
-    "autostart_unknown": "The system login item is unavailable. Retry reading it.",
+    "autostart_error": "The login item could not be updated. The switch was restored to the readable system state. Check system login items and try again.",
+    "autostart_unknown": "The operating system login item cannot be read right now. Reload it later.",
     "reload": "Reload",
     "agent_panel_title": "Enabled Agents",
     "agent_panel_badge": "Global setting",
@@ -31,7 +31,24 @@
     "release_notes_action": "View release notes",
     "theme_title": "Appearance",
     "language_error": "The native interface language could not be synchronized. Check the app state and try again.",
-    "theme_error": "The theme could not be saved. The previous theme is still active."
+    "theme_error": "The theme could not be saved. The previous theme is still active.",
+    "system_notification": "System notifications",
+    "sponsor_title": "Sponsor LokiMetris",
+    "sponsor_description": "If LokiMetris is useful to you, scan either payment code to sponsor the project.",
+    "sponsor_wechat_label": "WeChat Pay",
+    "sponsor_wechat_alt": "LokiMetris WeChat Pay sponsorship payment code",
+    "sponsor_alipay_label": "Alipay",
+    "sponsor_alipay_alt": "LokiMetris Alipay sponsorship payment code",
+    "github_repository_action": "GitHub repository",
+    "github_repository_error": "The system browser could not open the project repository. Try again later.",
+    "github_repository_error_title": "GitHub could not be opened",
+    "capability_loading": "Reading the actual state…",
+    "capability_pending": "Updating the system setting…",
+    "capability_error_title": "Setting not changed",
+    "capability_unknown_title": "Current state unknown",
+    "capability_retry": "Reload actual state",
+    "github_repository_description": "LokiMetis reference project source",
+    "system_notification_error": "The notification setting could not be updated. The switch was restored to the readable system state. Check system notification permission and try again."
   },
   "about": {
     "version": "Version",
@@ -56,7 +73,8 @@
     "updater_unavailable": "The current GPUI baseline has no update service and makes no network request.",
     "no_releases": "This build has no embedded release notes.",
     "local_first": "Runs locally",
-    "local_first_detail": "Settings, languages and static support pages work offline."
+    "local_first_detail": "Settings, languages and static support pages work offline.",
+    "close": "Close"
   },
   "application": {
     "name": "LokiMetris"
@@ -443,7 +461,8 @@
     "unknownError": "The operation could not be completed. Try again."
   },
   "ui": {
-    "failureTitle": "Unable to load data right now"
+    "failureTitle": "Unable to load data right now",
+    "retry": "Retry"
   },
   "error": {
     "monitor": {

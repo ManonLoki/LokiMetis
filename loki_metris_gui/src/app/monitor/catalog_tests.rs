@@ -341,7 +341,7 @@ fn gallery_decodes_visible_entries_and_releases_all_frames_on_leave(cx: &mut Tes
     assert!(cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
     cx.update_window(handle, |_, window, cx| {
         shell.update(cx, |this, cx| {
-            this.page = crate::app::Page::About;
+            this.page = crate::app::Page::Settings;
             cx.notify();
         });
         window.render_frame(cx);

@@ -74,6 +74,8 @@ fn compact_sidebar_owns_navigation_and_keeps_fixed_bounds(cx: &mut TestAppContex
         assert_eq!(main.origin.x, sidebar.right());
         assert_eq!(main.origin.y, sidebar.origin.y);
         assert_eq!(main.right(), px(1440.));
+        assert_eq!(window.find("sidebar-identity").bounds().size.height, px(70.));
+        assert_eq!(window.find("nav-dashboard").bounds().origin.y, px(93.));
         assert!(window.try_find("sidebar-toggle").is_none());
         window.click("sidebar-logo", cx);
         assert_eq!(shell.read(cx).page, Page::Dashboard);

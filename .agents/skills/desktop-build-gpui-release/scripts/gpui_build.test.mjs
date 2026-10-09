@@ -354,3 +354,24 @@ test('about-disabled candidate keeps packaged log without requiring UI or embedd
   assert.equal(output.milestoneAcceptance,'pending'); assert.equal(output.releaseNotesResourceVerification,'byte-identical');
   assert.equal(fake.calls.find(item => item.program === 'cargo' && item.args[0] === 'build').settings.env.HARNESS_GPUI_RELEASE_NOTES_RS,undefined);
 });
+
+/** 设置页日志入口不依赖独立关于页，缺少二进制真实日志字节仍须阻断。 */
+test('settings release-notes UI embeds and verifies logs with the about page disabled', t => {
+  for (const missingNotes of [false,true]) {
+    const f=fixture(t),profile=path.join(f.root,'docs/GUI_APP_PROFILE.md');
+    fs.writeFileSync(profile,fs.readFileSync(profile,'utf8').replace('about_page: enabled','about_page: disabled'));
+    f.config.releaseNotesUi=true;
+    fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify(f.config));
+    spawnSync('git',['add','.'],{cwd:f.root});spawnSync('git',['commit','-qm','test: settings release notes'],{cwd:f.root});
+    const fake=fakeRun(f,{missingNotes});
+    if(missingNotes) assert.throws(()=>executeBuild(candidateOptions(f.root),hooks(f,fake)),/lacks.*update-log bytes/);
+    else {
+      const output=executeBuild(candidateOptions(f.root),hooks(f,fake));
+      assert.equal(output.releaseNotesResourceVerification,'byte-identical');
+    }
+    assert.ok(fake.calls.find(item=>item.program==='cargo'&&item.args[0]==='build').settings.env.HARNESS_GPUI_RELEASE_NOTES_RS);
+  }
+  const f=fixture(t);
+  fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify({...f.config,releaseNotesUi:'true'}));
+  assert.throws(()=>readConfig(f.root),/must be a boolean/);
+});

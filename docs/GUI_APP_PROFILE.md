@@ -9,10 +9,10 @@
 
 ```gui-initialization-config
 system_tray: enabled
-system_notification: disabled
+system_notification: enabled
 autostart: enabled
-about_page: enabled
-sponsor_page: disabled
+about_page: disabled
+sponsor_page: enabled
 single_instance: enabled
 deep_link: disabled
 global_shortcut: enabled
@@ -40,13 +40,13 @@ sidebar_mode: compact
 
 ## UI 设计与宿主基线
 
-产品复刻差异以 [ADR-001](adr/20261009_ADR.md) 批准：保留当前名称、Logo 和独立应用身份；业务导航为用量看板 / AI监控 / 应用换肤，底部设置；参考产品的二级导航与卡片取代中性 88px 页面标题。compact 仍为 80px。参考主题/密度逐阶段通过 Computer Use 校准。旧中性关于页暂保留至应用信息迁入公共设置后移除；原生能力缺口未实现前保持真实 unavailable，不把计划当已启用。
+产品复刻差异以 [ADR-001](adr/20261009_ADR.md) 批准：保留当前名称、Logo 和独立应用身份；业务导航为用量看板 / AI监控 / 应用换肤，底部设置；参考产品的二级导航与卡片取代中性 88px 页面标题。compact 仍为 80px。参考主题/密度逐阶段通过 Computer Use 校准。应用信息已迁入公共设置，移除旧中性关于入口；赞助区按参考设置页内联，不生成独立导航。通知开关已按本次1:1目标启用，启动不申请系统权限。
 
-中性基线命中标准 gpui-gui-common-v1；当前业务页采用上段已批准的参考产品像素覆盖。侧栏 compact，固定 80px、Logo 36px、图标 22px、居中图标/名称上下排列，不折叠。公共设置已迁入应用信息与统一 Agent 五项开关，语言为中英两项（系统探测仅初值），主题保留浅深/跟随系统三态；有实际保存回执及失败保留旧值。关于页暂显示真实 Cargo 版本、负责人、受管品牌联系人、免责声明及中性更新/日志入口，尚无通知开关或赞助页。
+中性基线命中标准 gpui-gui-common-v1；当前业务页采用上段已批准的参考产品像素覆盖。侧栏 compact，固定 80px、Logo 36px、图标 22px、居中图标/名称上下排列，不折叠。公共设置已迁入应用信息与统一 Agent 五项开关，语言为中英两项（系统探测仅初值），主题保留浅深/跟随系统三态；有实际保存回执及失败保留旧值。更新日志为受控原生弹窗，普通构建保持真实空状态。公共设置包含通知与自启两列卡，以及原样迁入的历史项目微信/支付宝两张本地收款图；用户本次明确授权为达成1:1目标引入所需资源，图片仅展示，不解码重建、不授权支付。GitHub动作是已知历史源码入口，提示中明确LokiMetis，未宣称为新项目仓库。
 
 标题公式为 {applicationName} v{Cargo.version} {contactChannel}:{contactValue}，名称随 locale，联系人取受管品牌 contacts.windowTitle。应用 identifier=com.loki-metris.app，publisher=ManonLoki；不代表已取得商店/签名资格。系统语言由 sys_locale 读取，未知回退英文；窗口只恢复有效尺寸/位置/最大化，首次/损坏居中 1440×900、最小 960×640。
 
-系统托盘、开机自启、单实例、全局快捷键 enabled；通知、赞助、深链接 disabled。热键 actions=0、初始非空 bindings=0、实际系统注册=0，退出无外部键位需要注销。自启仅有能力，初始化不注册，真实宿主检查后恢复原状态。
+系统托盘、开机自启、单实例、全局快捷键 enabled；通知与页内赞助 enabled；独立关于页和深链接 disabled。热键 actions=0、初始非空 bindings=0、实际系统注册=0，退出无外部键位需要注销。自启仅有能力，初始化不注册，真实宿主检查后恢复原状态。
 
 ## macOS 打包资产与未决事项
 
@@ -60,4 +60,4 @@ AI监控已接通工作台、监控管理、图片管理与Hooks设置。工作�
 
 GPUI皮肤页使用统一启用Agent集合筛选Codex／WorkBuddy宿主，提供响应式卡片、搜索、用户资源多选、创建纯主题与生成提示词、原生ZIP选择／预检／信任／导入、导出及转换／删除确认。资源事务属于应用级后台owner；页面离开后预检暂存取消，已接受提交仍完成并清理。宿主操作保留实例身份、代码／外观／Windows整宿主恢复授权，排队操作失去页面授权后不能启动新副作用；已进入事务的补偿不被GUI授权检查阻断。
 
-六套内置皮肤和生成器随包进入macOS `Contents/Resources/skins` 或Windows安装根 `resources/skins`；release只读取包内资源，缺失明确报错。注入runtime、兼容层与事务标记使用LokiMetris独立命名空间，发现原版owner后拒绝接管；自有旧回调停止并保留共享状态清理账本。创建／预检／纯主题提交／导出已有macOS开发预览观察；真实宿主应用／停用、Windows宿主、打包资源实际运行与最终视觉仍未验收。160px预览遵循安装参考版v0.3.12的实际尺寸，历史源码v0.3.15的176px差异未直接套用。
+六套内置皮肤和生成器随包进入macOS `Contents/Resources/skins` 或Windows安装根 `resources/skins`；release只读取包内资源，缺失明确报错。注入runtime、兼容层与事务标记使用LokiMetris独立命名空间，发现原版owner后拒绝接管；自有旧回调停止并保留共享状态清理账本。创建／预检／纯主题提交／导出已有macOS开发预览观察；真实宿主应用／停用、Windows宿主、最终视觉仍未验收；本地App包内资源实际运行已观察。160px预览遵循安装参考版v0.3.12的实际尺寸，历史源码v0.3.15的176px差异未直接套用。
