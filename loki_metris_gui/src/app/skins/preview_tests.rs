@@ -19,12 +19,12 @@ struct PreviewProbe {
 }
 
 impl Render for PreviewProbe {
-    /// 固定160px视口模拟生产预览槽，图片语义不吞并选择框或提交按钮。
+    /// 固定176px视口模拟生产预览槽，图片语义不吞并选择框或提交按钮。
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity().downgrade();
         div().size_full().p(px(24.)).child(
             div().w(px(self.width)).flex().flex_col().child(
-                div().id("preview-frame").test_support().relative().w_full().h(px(160.))
+                div().id("preview-frame").test_support().relative().w_full().h(px(176.))
                     .flex_shrink_0().overflow_hidden().child(skin_preview(
                         ImageSource::Render(self.image.clone()), "preview".into(), "Pikachu preview".into(),
                     )).child(
@@ -63,7 +63,7 @@ fn open(cx: &mut TestAppContext, width: f32) -> (AnyWindowHandle, Entity<Preview
     })
 }
 
-/// 宽框触发上下Cover裁剪，窄框触发左右裁剪；真实Img须始终等于160px视口。
+/// 宽框触发上下Cover裁剪，窄框触发左右裁剪；真实Img须始终等于176px视口。
 #[gpui_kit::test]
 fn decoded_preview_keeps_cover_element_inside_fixed_viewport(cx: &mut TestAppContext) {
     let (handle, probe) = open(cx, 322.);
@@ -75,7 +75,7 @@ fn decoded_preview_keeps_cover_element_inside_fixed_viewport(cx: &mut TestAppCon
                 window.render_frame(cx);
                 let frame = window.find("preview-frame").bounds();
                 let image = window.find("preview-image").bounds();
-                assert_eq!(frame.size, size(px(width), px(160.)));
+                assert_eq!(frame.size, size(px(width), px(176.)));
                 assert_eq!(image, frame, "Cover必须使用预览框而非被素材比例撑高的Img边界");
             }).unwrap();
         }
@@ -104,4 +104,65 @@ fn preview_exposes_image_name_and_keeps_sibling_controls_independent(cx: &mut Te
         assert!(probe.read(cx).selected);
         assert_eq!(probe.read(cx).applied, 1);
     }).unwrap();
+}
+
+
+/// 安装0.3.12的实际SkinCard使用176px；生产壳层在四列／两列及1x／2x下都保持此视口。
+#[gpui_kit::test]
+fn production_skin_card_preview_matches_installed_height(cx: &mut TestAppContext) {
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1492., 900.);
+    let image = Arc::new(Image::from_bytes(
+        ImageFormat::Png,
+        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec(),
+    ));
+    let decoded = cx.update(|cx| image.to_image_data(cx.svg_renderer()).expect("解码真实Pikachu原图"));
+    assert_eq!(decoded.size(0).width.0, 1920);
+    assert_eq!(decoded.size(0).height.0, 1080);
+    shell.update(cx, |this, cx| {
+        this.page = super::Page::Skins;
+        this.skins.host = Some(loki_metris_core::SkinHostKind::Codex);
+        this.skins.entries = Some(vec![crate::usage_service::SkinEntry {
+            skin: crate::skins::SkinDescriptor {
+                id: "pikachu".into(),
+                source: loki_metris_core::SkinSource::Builtin,
+                package_type: loki_metris_core::SkinPackageType::LegacySkin,
+                name: "Pikachu".into(),
+                author: "ManonLoki".into(),
+                version: "0.1.0".into(),
+                preview_data_url: String::new(),
+                supported_color_modes: vec![loki_metris_core::ColorMode::Light],
+            },
+            preview: Some(image),
+        }]);
+        this.skins.status = Some(crate::skins::SkinStatus {
+            installed: false,
+            skin_id: None,
+            source: None,
+            package_type: None,
+            skin_name: None,
+            version: String::new(),
+            affected_pages: 0,
+            compatibility: None,
+            instance_id: None,
+        });
+        cx.notify();
+    });
+    for scale in [1., 2.] {
+        cx.simulate_window_scale_factor_change(handle, scale);
+        for width in [1492., 768.] {
+            cx.simulate_window_resize(handle, size(px(width), px(900.)));
+            cx.update_window(handle, |_, window, cx| {
+                window.render_frame(cx);
+                let preview = window.find("skin-preview-pikachu-Builtin").bounds();
+                let image = window.find("skin-preview-pikachu-Builtin-image").bounds();
+                let metadata = window.find("skin-metadata-pikachu-Builtin").bounds();
+                assert_eq!(preview.size.height, px(176.),
+                    "生产SkinCard的预览高度必须来自安装版合同，width={width}, scale={scale}");
+                assert_eq!(image, preview, "原图的Cover边界必须使用生产预览视口");
+                assert_eq!(metadata.origin.y, preview.bottom(), "元信息必须紧随真实预览底边");
+                assert_eq!(preview.size.width / preview.size.height > 16. / 9., width == 1492.,
+                    "真实响应式列宽应分别覆盖上下裁剪和左右裁剪");
+            }).unwrap();
+        }
+    }
 }

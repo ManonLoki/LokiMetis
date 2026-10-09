@@ -290,7 +290,7 @@ impl Shell {
                 let mut preview = div()
                     .relative()
                     .rounded_t(px(20.))
-                    .h(px(160.))
+                    .h(px(176.))
                     .w_full()
                     .flex_shrink_0()
                     .overflow_hidden()
@@ -445,6 +445,7 @@ impl Shell {
                     .child(
                         div()
                             .id(format!("skin-metadata-{}-{:?}", skin.id, skin.source))
+                            .test_support()
                             .role(Role::Label)
                             .aria_value(format!(
                                 "{} {} · {} {} {} {}",
