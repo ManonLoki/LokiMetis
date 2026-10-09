@@ -84,6 +84,8 @@ async fn register_candidate(context:&Arc<ServiceContext>,owner:&Arc<BackgroundTa
     let root_id=stable_id(candidate.client.root_id_namespace(),&path_key(&path));
     index.register_confirmed_root_fields(&root_id,&path,&source_root_alias_from_path(&path,candidate.client),DiscoveryMethod::MetadataDiscovery)
         .await.map_err(|_|"source_update_failed")?;
+    context.notification_source_epoch.fetch_add(1,std::sync::atomic::Ordering::Release);
+    context.today_refresh.notify_one();
     // 首次登记已提交，立即更新覆盖和可见代数；后续取消不能掩盖已经发生的变更。
     context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner).entry(candidate.client).or_insert_with(empty_coverage).state=CoverageState::Partial;
     {let mut status=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);status.revision=status.revision.wrapping_add(1);}

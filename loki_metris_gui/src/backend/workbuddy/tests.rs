@@ -743,3 +743,16 @@ fn trace_directory_enumeration_obeys_the_hard_entry_budget() {
     assert_eq!(entries.len(), 2);
     assert_eq!(remaining_entries, 0);
 }
+
+/// 通知摘要使用捕获的时区；同一JSONL在UTC与上海的今日归属不同。
+#[tokio::test]
+async fn notification_workbuddy_snapshot_uses_captured_day_zone() {
+    let temp=tempdir().unwrap();let home=fixture_home(temp.path());
+    let event=epoch_ms("2026-09-03T20:00:00Z");let now=epoch_ms("2026-09-04T01:00:00Z");
+    write_lines(&home.join("projects/project-a/session-a.jsonl"),&[usage_event(event,"s","m","model",100,0,10,1,1.0)]);
+    let zone=jiff::tz::TimeZone::get("Asia/Shanghai").unwrap();
+    let local=read_workbuddy_usage_snapshot_in_zone(&[home.clone()],now,TimeStandard::Local,&zone).await.unwrap();
+    let utc=read_workbuddy_usage_snapshot_in_zone(&[home],now,TimeStandard::Local,&jiff::tz::TimeZone::UTC).await.unwrap();
+    let tokens=|s:&WorkbuddyStatisticsSnapshot|s.windows.iter().find(|w|w.window==LocalUsageWindow::Today).unwrap().tokens;
+    assert_eq!(tokens(&local),110);assert_eq!(tokens(&utc),0);
+}

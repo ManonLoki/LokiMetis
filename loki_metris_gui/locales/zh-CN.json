@@ -790,5 +790,30 @@
     "loading": "正在读取皮肤资源…",
     "copied": "已复制",
     "dismiss": "关闭通知"
+  },
+  "notification": {
+    "title": "诡秘神谕",
+    "milestone": "恭喜您今天已经使用「%{total}」的Token了",
+    "permission_allowed": "系统允许通知",
+    "permission_denied": "系统不允许通知",
+    "permission_ask": "需要主动授权",
+    "permission_unavailable": "系统状态不可用",
+    "permission_label": "系统权限：%{status}",
+    "summary": "待提交 %{pending} · API已接受 %{submitted} · 结果不明 %{unknown}",
+    "history": "基线跳过 %{baseline} · 已抑制 %{suppressed} · 已过期 %{expired}",
+    "baseline": "已用当前可信总量建立基线，已有档位不会补发。",
+    "waiting": "今日数据不完整、不可用或已过期，通知已暂停；恢复可信数据后继续。",
+    "unknown": "部分请求结果不明，自动发送已暂停。手动重试可能重复显示通知。",
+    "rejected": "系统提交失败，按30秒、120秒、600秒重试；用尽后等待手动重试。",
+    "storage": "通知历史读取、保存或容量出现问题，已暂停发送。",
+    "rebuilt": "通知历史缺失或损坏，使用首个可信当前总量重建基线；已有档位不补发。",
+    "retry": "刷新权限并重试",
+    "retry_unknown": "重试结果不明的请求（可能重复）",
+    "open_settings": "打开系统通知设置",
+    "busy": "正在保存通知开关",
+    "menu_queue": "系统通知 · 待提交 %{count}",
+    "menu_unknown": "系统通知 · 结果不明",
+    "menu_disabled": "系统通知",
+    "source_rebuilt": "来源集合或索引已改变，旧队列已抑制，并以可信当前总量重建基线。"
   }
 }

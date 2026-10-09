@@ -152,3 +152,28 @@ fn manual_inspection_does_not_resume_a_second_batch_on_page_remount() {
     service.resume_discovery(SourceClientKind::Codex).unwrap();service.resume_discovery(SourceClientKind::GrokBuildCli).unwrap();
     assert_eq!(service.background.owned_task_count(),owned);assert!(!service.context.directory.exists());service.finish();
 }
+
+/// 今日摘要真实复用SQLite All聚合；页面查询取消令牌不拥有应用摘要，Partial不发送。
+#[test]
+fn notification_today_real_index_all_matches_and_sources_reset() {
+    let temp=tempfile::tempdir().unwrap();let source=fixture_root(temp.path());
+    let service=UsageService::in_directory(temp.path().join("data")).unwrap();let id=register_fixture(&service,&source);
+    service.save_enabled_ai_tools(vec![AiTool::Codex]).unwrap().blocking_recv().unwrap().unwrap();
+    service.mutate_source(SourceClientKind::Codex,SourceOperation::Reindex{root_id:id.clone()}).unwrap().blocking_recv().unwrap().unwrap();
+    let now="2026-10-09T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+    let (data,first)={let runtime=service.runtime.lock().unwrap();runtime.as_ref().unwrap().block_on(today::load(service.context.clone(),now,jiff::tz::TimeZone::UTC,ScanCancellation::new())).unwrap()};
+    assert_eq!(first.total_tokens,110);assert_eq!(data.records.windows.iter().find(|w|w.window==LocalUsageWindow::Today).unwrap().fact.value.tokens.total_tokens,110);
+    assert!(!first.eligible(now,&first.day,&first.source));
+    let initial=service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire);
+    service.mutate_source(SourceClientKind::Codex,SourceOperation::Rename{root_id:id.clone(),alias:"新别名".into()}).unwrap().blocking_recv().unwrap().unwrap();
+    assert_eq!(service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire),initial);
+    let second={let runtime=service.runtime.lock().unwrap();runtime.as_ref().unwrap().block_on(today::load(service.context.clone(),now,jiff::tz::TimeZone::UTC,ScanCancellation::new())).unwrap().1};
+    assert_eq!(first.source,second.source);
+    service.save_enabled_ai_tools(vec![AiTool::Codex,AiTool::ClaudeCode]).unwrap().blocking_recv().unwrap().unwrap();
+    assert!(service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire)>initial);
+    service.save_enabled_ai_tools(vec![AiTool::Codex]).unwrap().blocking_recv().unwrap().unwrap();
+    service.mutate_source(SourceClientKind::Codex,SourceOperation::SetEnabled{root_id:id,enabled:false}).unwrap().blocking_recv().unwrap().unwrap();
+    assert!(service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire)>initial);
+    let disabled={let runtime=service.runtime.lock().unwrap();runtime.as_ref().unwrap().block_on(today::load(service.context.clone(),now,jiff::tz::TimeZone::UTC,ScanCancellation::new()))};
+    assert!(disabled.is_err()||disabled.is_ok_and(|(_,v)|!v.eligible(now,&v.day,&v.source)));service.finish();
+}

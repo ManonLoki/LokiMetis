@@ -150,6 +150,14 @@ pub(crate) async fn read_workbuddy_usage_snapshot(
     now_epoch_ms: i64,
     time_standard: TimeStandard,
 ) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
+    read_workbuddy_usage_snapshot_in_zone(workbuddy_homes, now_epoch_ms, time_standard, &jiff::tz::TimeZone::system()).await
+}
+
+/// 摘要与展示共用本轮捕获的时区，后台读取跨午夜不会重新取另一个日界。
+pub(crate) async fn read_workbuddy_usage_snapshot_in_zone(
+    workbuddy_homes: &[PathBuf], now_epoch_ms: i64, time_standard: TimeStandard,
+    zone: &jiff::tz::TimeZone,
+) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
     let inputs = read_workbuddy_usage_inputs(workbuddy_homes).await?;
     Ok(compute_workbuddy_statistics_with_standard(
         &inputs.records,
@@ -157,7 +165,7 @@ pub(crate) async fn read_workbuddy_usage_snapshot(
         &inputs.coverage,
         now_epoch_ms,
         &time_standard,
-        &jiff::tz::TimeZone::system(),
+        zone,
     ))
 }
 

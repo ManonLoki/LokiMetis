@@ -6,3 +6,5 @@ pub(crate) mod workbuddy;
 
 pub(crate) mod scan_orchestration;
 pub(crate) mod source_catalog;
+
+pub(crate) mod notification_state;

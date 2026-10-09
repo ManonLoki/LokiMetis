@@ -30,8 +30,8 @@ tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-ut
 tempfile = "3.27.0"
 same-file = "1.0.6"
 whichdisk = { version = "0.5.0", default-features = false, features = ["list"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSDate", "NSMetadata", "NSMetadataAttributes", "NSObject", "NSPathUtilities", "NSPredicate", "NSRunLoop", "NSString", "NSUserDefaults", "NSDictionary", "NSValue", "NSBundle", "NSURL"] }
-windows = { version = "0.61.3", default-features = false, features = ["Foundation", "Storage", "Storage_Search", "Storage_Streams", "Win32_System_Com", "Win32_UI_Shell", "Win32_Foundation", "Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_Security_Cryptography", "Win32_Security_Cryptography_Catalog", "Win32_Security_Cryptography_Sip", "Win32_Security_WinTrust", "Win32_Storage_Packaging_Appx", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSDate", "NSMetadata", "NSMetadataAttributes", "NSObject", "NSPathUtilities", "NSPredicate", "NSRunLoop", "NSString", "NSUserDefaults", "NSDictionary", "NSArray", "NSValue", "NSBundle", "NSURL"] }
+windows = { version = "0.61.3", default-features = false, features = ["Foundation", "Storage", "Storage_Search", "Storage_Streams", "Win32_System_Com", "Win32_UI_Shell", "Win32_Foundation", "Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_Security_Cryptography", "Win32_Security_Cryptography_Catalog", "Win32_Security_Cryptography_Sip", "Win32_Security_WinTrust", "Win32_Storage_Packaging_Appx", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WinRT", "Data_Xml_Dom", "UI_Notifications"] }
 loki_metris_core = { path = "loki_metris_core" }
 gpui-kit = "0.7.1"
 rust-i18n = "4.2.0"
@@ -47,7 +47,7 @@ raw-window-handle = "0.6.2"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSWindow", "NSView", "NSScreen", "NSResponder", "NSEvent", "NSWorkspace"] }
 objc2 = "0.6.5"
 block2 = "0.6.2"
-objc2-user-notifications = { version = "0.3.2", default-features = false, features = ["std", "block2", "UNUserNotificationCenter", "UNNotificationSettings"] }
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = ["std", "block2", "UNUserNotificationCenter", "UNNotificationSettings", "UNNotificationContent", "UNNotificationRequest", "UNNotificationResponse", "UNNotification"] }
 
 [workspace.metadata.agent-first-harness]
 project-id = "loki_metris"

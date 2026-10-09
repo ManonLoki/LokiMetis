@@ -31,6 +31,10 @@ pub enum UsageResponse {
 pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancellation: ScanCancellation)
     -> Result<UsageResponse, &'static str>
 {
+    if matches!(query, UsageQuery::Overview(None)) {
+        return super::today::load(context, current_epoch_ms(), TimeZone::system(), cancellation).await
+            .map(|(data,_)| UsageResponse::Overview(data));
+    }
     let (enabled_clients, workbuddy_enabled) = context.agents.dashboard_selection().await?;
     let requested_client = match &query {
         UsageQuery::Overview(client) | UsageQuery::Chart(client, ..) | UsageQuery::Calls(client, ..) => *client,
@@ -73,7 +77,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     }
     if let Some(client) = selected {
         let coverage = coverage(&context, client);
-        let snapshot = read_snapshot(&context.directory, client, now).await?;
+        let snapshot = read_snapshot(&context.directory, client, now, &zone).await?;
         check_cancel(&cancellation)?;
         return tokio::task::spawn_blocking(move || build_single(query, snapshot, coverage, client, now, &zone))
             .await.map_err(|_| "usage_aggregate_failed")?;
@@ -82,8 +86,9 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     for client in enabled_clients {
         let context = context.clone();
         let report = coverage(&context, client);
+        let zone = zone.clone();
         jobs.spawn(async move {
-            let snapshot = read_snapshot(&context.directory, client, now).await?;
+            let snapshot = read_snapshot(&context.directory, client, now, &zone).await?;
             Ok::<_, &'static str>(AgentUsageSnapshot::new(client, snapshot, report,
                 Some(provider(client).parser_source_label(client.parser_version()))))
         });
@@ -136,14 +141,14 @@ fn combined_error(error:UsageViewError)->&'static str {
 }
 
 /// 未有派生文件是未扫描；其余打开/读取失败不能伪装可信空值。
-async fn read_snapshot(directory: &std::path::Path, client: SourceClientKind, now: i64) -> Result<UsageSnapshot, &'static str> {
+pub(super) async fn read_snapshot(directory: &std::path::Path, client: SourceClientKind, now: i64, zone: &TimeZone) -> Result<UsageSnapshot, &'static str> {
     let directory = source_client_app_data_dir(directory, client);
     let file = directory.join(USAGE_INDEX_FILE_NAME);
     let exists = tokio::task::spawn_blocking(move || file.try_exists()).await.map_err(|_| "usage_read_failed")?
         .map_err(|_| "usage_read_failed")?;
     if !exists { return Ok(UsageSnapshot { canonical: canonicalize_usage_calls(Vec::new()), index_state: LocalIndexState::NotScanned, roots: Vec::new() }) }
     let mut index = LocalIndex::open_read_only_in_app_data(&directory, client.parser_version()).await.map_err(|_| "usage_index_unavailable")?;
-    let cutoff = overview_snapshot_start_epoch_ms(now, &TimeStandard::Local, &TimeZone::system()).map_err(|_| "usage_time_unavailable")?;
+    let cutoff = overview_snapshot_start_epoch_ms(now, &TimeStandard::Local, zone).map_err(|_| "usage_time_unavailable")?;
     index.usage_view_snapshot_since(cutoff).await.map_err(|_| "usage_read_failed")
 }
 
@@ -174,7 +179,7 @@ fn build_single(query: UsageQuery, snapshot: UsageSnapshot, coverage: CoverageRe
 }
 
 /// 覆盖状态来自上一轮已提交扫描，普通读请求不会把它清空。
-fn coverage(context: &ServiceContext, client: SourceClientKind) -> CoverageReport {
+pub(super) fn coverage(context: &ServiceContext, client: SourceClientKind) -> CoverageReport {
     context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(&client).cloned().unwrap_or_else(empty_coverage)
 }
 
@@ -184,7 +189,7 @@ pub(super) fn physical_clients() -> [SourceClientKind; 3] {
 }
 
 /// provider 映射是源身份，不能以统一 parser-vN 代替。
-fn provider(client: SourceClientKind) -> ProviderKind {
+pub(super) fn provider(client: SourceClientKind) -> ProviderKind {
     match client {
         SourceClientKind::Codex => ProviderKind::RolloutJsonl,
         SourceClientKind::ClaudeCode => ProviderKind::ClaudeTranscriptJsonl,

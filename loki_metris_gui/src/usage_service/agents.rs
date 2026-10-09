@@ -17,6 +17,8 @@ pub(super) struct AgentSettingsStore {
     directory: PathBuf,
     value: Mutex<Option<MonitorSettings>>,
     owner: Arc<BackgroundTaskOwner>,
+    today_refresh:Arc<tokio::sync::Notify>,
+    notification_source_epoch:Arc<AtomicU64>,
     revision: AtomicU64,
     pub(super) pet_revision: AtomicU64,
     /// 首次退出拥有的最终位置命令；不落盘为第二状态，晚到位置工作只能提交此终止意图。
@@ -27,8 +29,9 @@ pub(super) struct AgentSettingsStore {
 
 impl AgentSettingsStore {
     /// 目录由当前产品显式注入，构造不读原 App 配置或写 Hooks。
-    pub(super) fn new(directory: PathBuf, owner: Arc<BackgroundTaskOwner>) -> Self {
+    pub(super) fn new(directory: PathBuf, owner: Arc<BackgroundTaskOwner>, today_refresh:Arc<tokio::sync::Notify>,notification_source_epoch:Arc<AtomicU64>) -> Self {
         Self {
+            today_refresh,notification_source_epoch,
             directory,
             value: Mutex::new(None),
             owner,
@@ -82,7 +85,11 @@ impl AgentSettingsStore {
 
     /// 缓存提交与两个宿主的快照发布保持同一顺序，失败写入不会发布。
     fn publish(&self, value: &mut Option<MonitorSettings>, settings: MonitorSettings) {
+        if value.as_ref().is_some_and(|old| dashboard_selection_for_ai_tools(&old.enabled_ai_tools)!=dashboard_selection_for_ai_tools(&settings.enabled_ai_tools)) {
+            self.notification_source_epoch.fetch_add(1,Ordering::Release);
+        }
         *value = Some(settings.clone());
+        self.today_refresh.notify_one();
         if let Some(listener) = self.listener.get() {
             listener.replace_enabled_tools(&settings.enabled_ai_tools);
         }
@@ -206,6 +213,9 @@ impl AgentSettingsStore {
             change,
             position,
         )?;
+        if value.as_ref().is_some_and(|old| dashboard_selection_for_ai_tools(&old.enabled_ai_tools)!=dashboard_selection_for_ai_tools(&settings.enabled_ai_tools)) {
+            self.notification_source_epoch.fetch_add(1,Ordering::Release);
+        }
         *value = Some(settings.clone());
         if changed {
             self.pet_revision.fetch_add(1, Ordering::Release);

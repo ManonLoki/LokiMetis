@@ -41,6 +41,7 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
     if tray.is_none() { tracing::warn!(event = "tray_unavailable"); }
     let autostart = autostart::Service::new();
     let mut revision = 0;
+    let mut last_notification_state=None;
     let poll = cx.spawn(async move |cx| {
         loop {
             cx.background_executor().timer(Duration::from_millis(40)).await;
@@ -48,7 +49,12 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
                 if !cx.has_global::<Services>() { return }
                 if receiver.try_iter().take(64).count() > 0 { show(handle, cx); }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
-                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx) } }
+                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);} } }
+                let state=notification_state(cx);
+                if last_notification_state.as_ref().is_none_or(|old:&notifications::State|old.enabled!=state.enabled||old.busy!=state.busy||old.desired!=state.desired||old.error!=state.error||old.permission!=state.permission||old.progress.revision!=state.progress.revision) {
+                    if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_notification(&state);}
+                    menu::refresh(cx);last_notification_state=Some(state);cx.refresh_windows();
+                }
                 let current = cx.global::<Services>().autostart.state().revision;
                 if current != revision { revision = current; cx.refresh_windows(); }
                 let handlers = cx.global::<Services>().shortcuts.pending();
@@ -102,6 +108,7 @@ pub fn hide_if_available(cx: &mut App) -> bool {
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {
     menu::set_language(locale, cx);
+    if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.set_language(locale);}
     crate::pet::set_language(locale,cx);
     if cx.has_global::<Services>() { if let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); } }
 }
@@ -141,3 +148,8 @@ pub fn notification_state(cx:&App)->notifications::State {cx.try_global::<Servic
 
 /// 系统授权与偏好保存串行归属原生服务；初始化从不调用。
 pub fn set_notification(enabled:bool,cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|services|services.notifications.clone()) {service.set(enabled,cx);}}
+
+/// 激活或进入设置只触发有界只读权限查询。
+pub fn refresh_notification_permission(cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.refresh_permission(cx);}}
+/// 明确按钮重试由同一应用 owner 处理。
+pub fn retry_notifications(cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.retry(cx);}}

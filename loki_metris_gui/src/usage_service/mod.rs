@@ -1,6 +1,9 @@
 //! 应用拥有的查询与单 writer 索引服务；只读查询不取消、不等待后台扫描。
 
 mod queue;
+mod today;
+mod notifications;
+pub(crate) use notifications::Progress as NotificationProgress;
 mod query;
 mod scan;
 mod sources;
@@ -58,6 +61,8 @@ pub struct ScanStatus {
 /// 共享的是扫描元数据和 writer 许可；聚合结果不跨查询缓存。
 struct ServiceContext {
     directory: PathBuf,
+    today_refresh: Arc<tokio::sync::Notify>,
+    notification_source_epoch: Arc<std::sync::atomic::AtomicU64>,
     skins:Arc<skins::OwnedSkins>,
     coverage: Mutex<BTreeMap<SourceClientKind, CoverageReport>>,
     status: Mutex<ScanStatus>,
@@ -70,6 +75,7 @@ struct ServiceContext {
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
 pub struct UsageService {
     runtime: Mutex<Option<Runtime>>,
+    notifications: notifications::Monitor,
     scans: Arc<Queue<Intent, ()>>,
     queries: Arc<Queue<UsageQuery, UsageResponse>>,
     context: Arc<ServiceContext>,
@@ -104,9 +110,11 @@ impl UsageService {
         let discovery=Arc::new(loki_metris_core::RootDiscoveryCoordinator::default());
         let background=Arc::new(background::BackgroundTaskOwner::with_runtime(discovery.clone(),runtime.handle().clone()));
         let settings=Arc::new(settings::SettingsStore::new(directory.join("usage-settings.json"),background.clone()));
-        let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone()));
+        let today_refresh=Arc::new(tokio::sync::Notify::new());
+        let notification_source_epoch=Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone(),today_refresh.clone(),notification_source_epoch.clone()));
         let skins=Arc::new(skins::OwnedSkins::new(&directory));
-        let context = Arc::new(ServiceContext { directory, skins, coverage: Mutex::new(BTreeMap::new()),
+        let context = Arc::new(ServiceContext { directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
             settings, agents,monitor_revision:Default::default() });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
@@ -115,7 +123,8 @@ impl UsageService {
         runtime.spawn(async move { worker.run(move |intent, token| scan::run(state.clone(), intent, token)).await; });
         let worker = queries.clone(); let state = context.clone();
         runtime.spawn(async move { worker.run(move |query, token| query::load(state.clone(), query, token)).await; });
-        Ok(Arc::new(Self { runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default(),lifecycle_started:Default::default() }))
+        let notifications=notifications::Monitor::start(&runtime,context.clone());
+        Ok(Arc::new(Self { notifications, runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default(),lifecycle_started:Default::default() }))
     }
 
     /// 原生启动拥有独立中继任务，配置未读成功前监听门禁始终为空。
@@ -171,6 +180,7 @@ impl UsageService {
     /// 退出先拥有最终位置屏障，有界回收后台，再提交前台尚未派发的桌宠最终意图。
     pub(crate) fn finish_with_pet(&self, plan:PetShutdownPlan) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
+            runtime.block_on(self.notifications.finish());
             self.context.agents.freeze_final_pet_position(plan.position);
             self.context.writer.shutdown();
             if let Some(host)=self.context.agents.hooks.get() {host.writer.shutdown();}

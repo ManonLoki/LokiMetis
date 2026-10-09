@@ -35,6 +35,9 @@ mod statistics_view;
 mod time_standard;
 mod timeline;
 mod usage;
+pub mod today_usage;
+pub mod usage_milestones;
+pub use today_usage::{UsageDay, TodayAvailability, TodayUsageSnapshot};
 mod workbuddy_stats;
 
 pub use agent_hooks::{

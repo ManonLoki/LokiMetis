@@ -80,6 +80,7 @@ struct Finish(Arc<ServiceContext>);
 impl Drop for Finish {
     /// SQLite 收尾先于本 guard 析构，revision 不早于实际扫描 future 完成。
     fn drop(&mut self) {
+        self.0.today_refresh.notify_one();
         let mut state = self.0.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if std::thread::panicking() { state.error = Some("usage_worker_failed"); }
         state.running = false; state.revision = state.revision.wrapping_add(1);

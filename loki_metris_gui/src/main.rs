@@ -80,6 +80,7 @@ fn main() -> std::process::ExitCode {
             // 主窗确实被销毁表示托盘恢复不可用；辅助窗不能留下无入口进程。
             if closed==main_id||cx.windows().is_empty() {cx.quit();}
         }).detach();
+        notifications.attach(usage_service.clone(),locale,handle.into(),cx);
         native::install(handle, locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
         cx.activate(true);

@@ -518,6 +518,7 @@ impl Controller {
     fn hide(&mut self, cx: &mut Context<Self>) {
         self.close_settings(cx);
         self.visible = false;
+        self.service.today_visible(false);
         crate::native::set_pet_visibility(false, cx);
         if let Some(handle) = self.overlay {
             cx.defer(move |cx| {
@@ -529,6 +530,7 @@ impl Controller {
     /// 复用当前桌宠，显示时不激活主窗口。
     fn show(&mut self, cx: &mut Context<Self>) {
         self.visible = true;
+        self.service.today_visible(true);
         crate::native::set_pet_visibility(true, cx);
         let _ = self.apply_geometry(false, cx);
         if let Some(handle) = self.overlay {
@@ -592,6 +594,7 @@ pub fn install(main: AnyWindowHandle, service: Arc<UsageService>, locale: &str, 
     );
     if let Ok(handle) = result {
         controller.update(cx, |this, cx| {
+            this.service.today_visible(true);
             this.overlay = Some(handle.into());
             this.overlay_view = view;
             let _ = this.apply_geometry(true, cx);

@@ -65,6 +65,7 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
     if cancellation.is_cancelled() {return Err("source_operation_cancelled")}
     let directory=source_client_app_data_dir(&context.directory,client);
     let mut catalog=SourceRootCatalogAdapter::new(directory.clone(),client).map_err(|_|"source_update_failed")?.with_cancellation(cancellation.clone());
+    let resets_notification=!matches!(&operation,SourceOperation::Rename{..}|SourceOperation::SetPrimary{..});
     let outcome=match operation {
         SourceOperation::SetEnabled{root_id,enabled}=>source_root_set_enabled(&mut catalog,&root_id,enabled).await,
         SourceOperation::Rename{root_id,alias}=>source_root_rename(&mut catalog,&root_id,&alias).await,
@@ -84,6 +85,7 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
                         scan_id:String::new(),current_root_id:current_root_id.unwrap_or_default(),roots_completed,roots_total,files_scanned,calls_added,warning_count:0});
                 }
             })).await.map_err(|_|if permit.cancellation_token().is_cancelled(){"source_operation_cancelled"}else{"source_reindex_failed"})?;
+            context.notification_source_epoch.fetch_add(1,std::sync::atomic::Ordering::Release);
             let cancelled=output.coverage.state==CoverageState::Cancelled;
             let mut reports=context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let coverage=extend_coverage_with_partial_scan(reports.remove(&client).unwrap_or_else(empty_coverage),&output.coverage);
@@ -93,6 +95,7 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
         }
     }.map_err(|_|if cancellation.is_cancelled(){"source_operation_cancelled"}else{"source_update_failed"})?;
     if outcome.changed {
+        if resets_notification {context.notification_source_epoch.fetch_add(1,std::sync::atomic::Ordering::Release);}
         let mut reports=context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         reports.entry(client).or_insert_with(empty_coverage).state=CoverageState::Partial;
     }
@@ -137,6 +140,7 @@ struct Finish(Arc<ServiceContext>);
 impl Drop for Finish {
     /// 失败和取消同样释放展示忙态，panic 只保存固定类别。
     fn drop(&mut self) {
+        self.0.today_refresh.notify_one();
         let mut state=self.0.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if std::thread::panicking() {state.error=Some("usage_worker_failed");}
         state.running=false;state.revision=state.revision.wrapping_add(1);

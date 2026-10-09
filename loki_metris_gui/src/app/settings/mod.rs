@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod a11y_tests;
 mod agents;
+mod notifications;
 mod preferences;
 mod release_notes;
 mod release_notes_content;
@@ -150,61 +151,6 @@ impl Shell {
                 matches!(self.preference_save.failed, Some(PreferencePatch::Theme(_))),
                 |card| card.child(self.preference_failure("settings.theme_error", cx)),
             )
-            .into_any_element()
-    }
-
-    /// 通知开关只有真实授权且偏好落盘成功才改变；重复点击在等待期间禁用。
-    fn settings_notifications(&self, cx: &mut Context<Self>) -> AnyElement {
-        let state = crate::native::notification_state(cx);
-        let changed =
-            cx.listener(|_, enabled: &bool, _, cx| crate::native::set_notification(*enabled, cx));
-        self.settings_plain_surface(20., cx)
-            .gap_3()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_3()
-                    .child(
-                        div()
-                            .text_size(px(16.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(Text::new(
-                                "settings-notification-label".into(),
-                                self.t("settings.system_notification").into(),
-                            )),
-                    )
-                    .child(
-                        switches::settings_switch(
-                            "notification-switch",
-                            self.t("settings.system_notification"),
-                            state.desired.unwrap_or(state.enabled),
-                            state.busy,
-                            cx,
-                        )
-                        .on_change(move |enabled, _, window, cx| changed(&enabled, window, cx)),
-                    ),
-            )
-            .when(state.busy, |card| {
-                card.child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(Text::new(
-                            "settings-notification-busy".into(),
-                            self.t("settings.capability_pending").into(),
-                        )),
-                )
-            })
-            .when(state.error.is_some(), |card| {
-                card.child(self.capability_feedback(
-                    "settings.capability_error_title",
-                    "settings.system_notification_error",
-                    None,
-                    cx,
-                ))
-            })
             .into_any_element()
     }
 

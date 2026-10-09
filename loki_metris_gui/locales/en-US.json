@@ -790,5 +790,30 @@
     "loading": "Loading skins…",
     "copied": "Copied",
     "dismiss": "Dismiss notification"
+  },
+  "notification": {
+    "title": "LokiMetris",
+    "milestone": "Congratulations! You have used %{total} tokens today.",
+    "permission_allowed": "Notifications allowed",
+    "permission_denied": "Notifications denied by system",
+    "permission_ask": "Authorization needed",
+    "permission_unavailable": "System status unavailable",
+    "permission_label": "System permission: %{status}",
+    "summary": "Pending %{pending} · API accepted %{submitted} · Unknown %{unknown}",
+    "history": "Baseline skipped %{baseline} · Suppressed %{suppressed} · Expired %{expired}",
+    "baseline": "A baseline was established from the current trusted total. Existing milestones are skipped.",
+    "waiting": "Today’s data is incomplete, unavailable or stale. Notifications pause until trusted data returns.",
+    "unknown": "Some submission results are unknown. Automatic sending is paused. Manual retry may show duplicate notifications.",
+    "rejected": "System submission failed. Retries wait 30, 120 and 600 seconds, then pause for manual retry.",
+    "storage": "Notification history could not be read or saved, or reached its capacity. Sending is paused.",
+    "rebuilt": "Notification history was missing or damaged. The first trusted current total establishes a baseline; existing milestones are skipped.",
+    "retry": "Refresh permission and retry",
+    "retry_unknown": "Retry unknown requests (may duplicate)",
+    "open_settings": "Open system notification settings",
+    "busy": "Saving notification preference",
+    "menu_queue": "System notifications · %{count} pending",
+    "menu_unknown": "System notifications · unknown result",
+    "menu_disabled": "System notifications",
+    "source_rebuilt": "Sources or index changed. Old pending events were suppressed and a baseline uses the trusted current total."
   }
 }

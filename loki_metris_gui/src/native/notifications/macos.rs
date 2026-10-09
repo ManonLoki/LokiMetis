@@ -14,13 +14,16 @@ use std::{
 };
 use tokio::sync::oneshot;
 
-/// 已知权限状态独立于本地偏好，未知平台值失败关闭。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Permission {
-    Ask,
-    Granted,
-    Denied,
-    Unknown,
+use loki_metris_core::usage_milestones::NotificationPermission as Permission;
+
+/// 当前进程必须拥有本产品的正式 bundle 身份。
+pub(super) fn bundled() -> bool {
+    NSBundle::mainBundle().bundleIdentifier().is_some_and(|id| id.to_string()=="com.loki-metris.app")
+}
+/// 只读权限查询不会触发首次授权弹窗。
+pub(super) async fn permission() -> Permission {
+    if !bundled() {return Permission::Unavailable;}
+    query().await.unwrap_or(Permission::Unavailable)
 }
 
 /// 裸二进制缺少本产品 bundle 时拒绝调用可抛 Objective-C 异常的通知中心。
@@ -28,23 +31,17 @@ pub(super) async fn authorize(
     executor: BackgroundExecutor,
     deadline: Instant,
 ) -> Result<(), Error> {
-    if NSBundle::mainBundle()
-        .bundleIdentifier()
-        .is_none_or(|id| id.to_string() != "com.loki-metris.app")
-    {
-        tracing::warn!(event = "notification_bundle_unavailable");
-        return Err(Error::Unavailable);
-    }
+    if !bundled() {return Err(Error::Unavailable);}
     before_request(&executor, deadline)?;
     let mut permission = query().await.map_err(|_| Error::Unavailable)?;
-    if permission == Permission::Ask {
+    if permission == Permission::NotDetermined {
         before_request(&executor, deadline)?;
         request().await.map_err(|_| Error::Unavailable)??;
         before_request(&executor, deadline)?;
         permission = query().await.map_err(|_| Error::Unavailable)?;
     }
     match permission {
-        Permission::Granted => Ok(()),
+        Permission::Allowed => Ok(()),
         Permission::Denied => Err(Error::Denied),
         _ => {
             tracing::warn!(event = "notification_permission_unknown");
@@ -70,12 +67,12 @@ fn query() -> oneshot::Receiver<Permission> {
         // 系统回调参数在回调期间有效，立即复制枚举，不能跨线程保留其借用。
         let status = unsafe { settings.as_ref() }.authorizationStatus();
         let permission = match status {
-            UNAuthorizationStatus::NotDetermined => Permission::Ask,
+            UNAuthorizationStatus::NotDetermined => Permission::NotDetermined,
             UNAuthorizationStatus::Authorized
             | UNAuthorizationStatus::Provisional
-            | UNAuthorizationStatus::Ephemeral => Permission::Granted,
+            | UNAuthorizationStatus::Ephemeral => Permission::Allowed,
             UNAuthorizationStatus::Denied => Permission::Denied,
-            _ => Permission::Unknown,
+            _ => Permission::Unavailable,
         };
         reply(&sender, permission);
     });
