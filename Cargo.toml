@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["loki_metris_core","loki_metris_gui"]
+exclude = ["vendor/accesskit_macos"]
 
 [workspace.package]
 version = "0.2.0"
@@ -53,3 +54,6 @@ project-id = "loki_metris"
 interfaces = ["gui"]
 target-platforms = ["windows", "macos"]
 gui-framework = "gpui"
+
+[patch.crates-io]
+accesskit_macos = { path = "vendor/accesskit_macos" }

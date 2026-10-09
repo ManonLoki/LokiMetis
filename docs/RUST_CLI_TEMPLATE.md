@@ -9,6 +9,7 @@
 - loki_metris_gui 使用 gpui-kit 0.7.1、rust-i18n 4.2.0 兼容范围、sys-locale 0.3.2、tracing 0.1.44、tracing-subscriber 0.3.23、tracing-appender 0.2.5；实际解析结果以 Cargo 为准。
 - 已选原生机制使用 tray-icon 0.26.1、auto-launch 0.6.0、interprocess 2.4.4、global-hotkey 0.8.0；Windows 条件 raw-window-handle，Kit test-support 仅 dev-dependencies。依赖统一 workspace，成员不另定版本。
 - 优先标准库/现有依赖，不预建运行时/驱动接口；真正必要新依赖先说明确认，显式声明在项目内隔离，不安装全局包。
+- macOS标题辅助功能通过项目内`accesskit_macos 0.26.3`路径补丁修正原生Heading角色与层级，保持原公开接口和依赖。官方归档原样保留，标准库生成器只在OUT_DIR应用严格补丁；来源、完整许可、原生selector回归及移除条件见[vendor说明](../vendor/accesskit_macos/README.md)。本地与正式包装均携带三份原样许可及修改声明。
 
 ## Core-first 和运行时
 
@@ -32,6 +33,6 @@ GPUI 当前 updater、通用原生 dialog、深链接 unavailable；通知、原
 
 需要 macOS 通知身份或包内皮肤资源的开发对照使用 `pnpm gpui:preview`，完成后通过 Computer Use 打开 `target/gpui-preview/LokiMetris.app`。此命令复用 Cargo 已配置的 host debug 缓存，核对源码／资源、完整 ad-hoc 签名与严格身份验证后才替换旧预览；旧包保留为同目录 `previous-*.app`。运行中的同路径预览必须先正常退出。工具不启动应用、不使用证书、不公证、不生成分发候选；候选继续使用下述独立打包入口。
 
-Cargo.lock / pnpm 锁默认 ignored，测试构建不用 --locked/--frozen-lockfile；显式切换 tracked 后才按受管锁策略冻结解析。日常只运行本次必要相关非空测试；显式候选全 workspace 测试，零测试/失败阻断。
+Cargo.lock / pnpm 锁默认 ignored，测试构建不用 --locked/--frozen-lockfile；显式切换 tracked 后才按受管锁策略冻结解析。vendor原样归档中的Cargo.lock仅为来源证据，逐字节保留并跟踪，不是当前工作区的解析锁。日常只运行本次必要相关非空测试；显式候选全 workspace 测试，零测试/失败阻断。
 
 普通本地试包通过 $desktop-build-gpui-release 的 local 模式；未来正式 Git 发布后，local_package 从 clean 默认主分支/tag 进入 candidate 模式，当前构建单独解析 E2E/签名。原生 macOS app/DMG 与原生 Windows x64 NSIS 分宿主生成，当前 Windows 尚未运行，不把 macOS 构建推断为 Windows 验证。

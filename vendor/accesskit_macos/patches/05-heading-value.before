@@ -1,0 +1,4 @@
+        if let Some(value) = self.0.numeric_value() {
+            return Some(Value::Number(value));
+        }
+        None

@@ -1,0 +1,45 @@
+        /// 保留父类属性列表，仅为具有正数层级的标题补充原生层级属性。
+        #[method_id(accessibilityAttributeNames)]
+        fn accessibility_attribute_names(&self) -> Id<NSArray<NSString>> {
+            // SAFETY: 当前对象继承 NSAccessibilityElement；父类方法返回可保留的属性数组。
+            let inherited: Option<Id<NSArray<NSString>>> =
+                unsafe { msg_send_id![super(self), accessibilityAttributeNames] };
+            let mut names = inherited.as_ref().map(|array| array.to_vec_retained()).unwrap_or_default();
+            self.resolve(|node| {
+                let heading_level = ns_string!("AXHeadingLevel");
+                if node.role() == Role::Heading
+                    && node.level().is_some_and(|level| level > 0)
+                    && !names.iter().any(|name| name.as_ref() == heading_level)
+                {
+                    names.push(NSString::from_str("AXHeadingLevel"));
+                }
+            });
+            NSArray::from_vec(names)
+        }
+
+        /// 返回标题层级或现有盲文属性，释放树借用后再查询父类其它属性。
+        #[method_id(accessibilityAttributeValue:)]
+        fn accessibility_attribute_value(&self, attr: &NSString) -> Option<Id<NSObject>> {
+            let value = self.resolve(|node| {
+                if attr == ns_string!("AXHeadingLevel") && node.role() == Role::Heading {
+                    return node.level().filter(|level| *level > 0).map(|level| {
+                        Id::into_super(Id::into_super(NSNumber::new_usize(level)))
+                    });
+                }
+                if attr == ns_string!("AXBrailleLabel") && node.has_braille_label() {
+                    return Some(Id::into_super(NSString::from_str(node.braille_label().unwrap())))
+                } else if attr == ns_string!("AXBrailleRoleDescription") && node.has_braille_role_description() {
+                    return Some(Id::into_super(NSString::from_str(node.braille_role_description().unwrap())))
+                }
+
+                None
+            })
+            .flatten();
+            if value.is_some() {
+                value
+            } else {
+                // SAFETY: 与父类原生属性协议保持相同参数和对象返回值；此时已无树借用。
+                unsafe { msg_send_id![super(self), accessibilityAttributeValue: attr] }
+            }
+        }
+

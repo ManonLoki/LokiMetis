@@ -21,7 +21,10 @@
     "signing": null,
     "extractor": null
   },
-  "resources": [{"source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins"}],
+  "resources": [
+    {"source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins"},
+    {"source": "vendor/accesskit_macos/licenses", "macos": "third-party/accesskit_macos", "windows": "resources/third-party/accesskit_macos"}
+  ],
   "nsis": {
     "installMode": "currentUser",
     "languages": [

@@ -6,6 +6,7 @@ import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { verifyRegisteredThirdParty } from "./verified_third_party.mjs";
 
 export const RUST_REVIEW_THRESHOLD = 400;
 export const RUST_HARD_LINE_LIMIT = 800;
@@ -123,6 +124,7 @@ export function inspectRepository(root) {
     lineLimitProfiles: LINE_LIMIT_PROFILES,
     checkedTextFiles: 0,
     excludedGeneratedFiles: [],
+    excludedThirdPartyFiles: [],
     skippedBinaryFiles: 0,
     skippedMissingFiles: 0,
     skippedSymlinks: 0,
@@ -135,12 +137,19 @@ export function inspectRepository(root) {
   const [relativePaths, gitErrors] = gitVisiblePaths(canonical);
   report.errors.push(...gitErrors);
   if (gitErrors.length > 0) return report;
+  const thirdParty = verifyRegisteredThirdParty(canonical);
+  const verifiedThirdPartyFiles = new Set(thirdParty.files);
+  report.errors.push(...thirdParty.errors);
   for (const relative of relativePaths) {
     const [candidate, pathError, skipReason] = safeCandidate(canonical, relative);
     if (pathError) { report.errors.push(pathError); continue; }
     if (candidate === null) {
       if (skipReason === "symlink") report.skippedSymlinks += 1;
       else if (skipReason === "missing") report.skippedMissingFiles += 1;
+      continue;
+    }
+    if (verifiedThirdPartyFiles.has(relative)) {
+      report.excludedThirdPartyFiles.push(relative);
       continue;
     }
     if (GENERATED_LOCKFILE_NAMES.has(path.basename(candidate)) || GENERATED_LOCKFILE_PATHS.has(relative)) {
@@ -158,6 +167,7 @@ export function inspectRepository(root) {
     else if (lines > threshold) report.reviewCandidates.push(item);
   }
   report.excludedGeneratedFiles.sort();
+  report.excludedThirdPartyFiles.sort();
   report.reviewCandidates.sort((left, right) => left.path.localeCompare(right.path));
   report.violations.sort((left, right) => left.path.localeCompare(right.path));
   report.errors.sort();
