@@ -16,6 +16,8 @@ pub(super) struct Editor {
     pub inputs: Option<Vec<Entity<InputState>>>,
     pub reset: bool,
     pub saving: bool,
+    /// 仅标记已接受的目录保存动作，两个按钮各自显示对应 loading。
+    pub saving_default: bool,
     pub writing: bool,
     pub picking: bool,
     pub subscriptions: Vec<Subscription>,
@@ -32,6 +34,7 @@ impl Editor {
             inputs: None,
             reset: true,
             saving: false,
+            saving_default: false,
             writing: false,
             picking: false,
             subscriptions: Vec::new(),
@@ -79,6 +82,7 @@ impl HooksView {
         }
         if let Some(editor) = self.editor_mut(tool) {
             editor.saving = false;
+            editor.saving_default = false;
             match result {
                 Ok(location) => {
                     if editor.draft == submitted_draft {

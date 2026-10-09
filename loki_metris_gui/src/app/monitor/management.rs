@@ -11,13 +11,13 @@ mod button_tests;
 #[path = "management_badge.rs"]
 mod badge;
 
-use super::Shell;
+use super::{Shell, textarea::MonitorTextarea};
 use crate::app::surface::{HistoricalButtonSize, SurfaceButton, SurfaceButtonVariant};
 use badge::{BadgeColor, light_badge};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, Window,
     base::TestSupportExt as _,
-    component::{ActiveTheme, Disableable, input::Textarea},
+    component::{ActiveTheme, Disableable},
     div,
     prelude::*,
     px, relative, rgb,
@@ -377,7 +377,7 @@ impl Shell {
                                     .id(format!("monitor-content-input-{key}"))
                                     .test_support()
                                     .w_full()
-                                    .child(Textarea::new(input).w_full().h(px(68.)).aria_label(
+                                    .child(MonitorTextarea::new(input, cx.theme().mode.is_dark(),
                                         format!(
                                             "{} {}",
                                             self.t(&format!("monitor.behavior.{key}")),

@@ -4,6 +4,7 @@ use super::Shell;
 mod state;
 mod catalog;
 mod management;
+mod textarea;
 mod behavior_surface;
 mod picker;
 mod images;

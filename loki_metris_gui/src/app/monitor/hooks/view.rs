@@ -24,29 +24,30 @@ impl Shell {
     /// 配置路径全部来自宿主；界面从不以存在marker推断安装成功。
     pub(in crate::app::monitor) fn monitor_hooks(&self, cx: &mut Context<Self>) -> AnyElement {
         let state = &self.monitor.hooks;
-        let mut card = crate::app::surface::SpotlightCard::new("monitor-hooks", cx.theme().mode.is_dark())
-            .test_support()
-            .w_full()
-            .flex_shrink_0()
-            .p(px(12.))
-            .flex()
-            .flex_col()
-            .gap(px(12.))
-            .text_color(if cx.theme().mode.is_dark() {
-                rgb(0xc1c2c5).into()
-            } else {
-                cx.theme().foreground
-            })
-            .child(
-                div()
-                    .id("monitor-hooks-title")
-                    .role(Role::Heading)
-                    .aria_label(self.t("monitor.settings.title"))
-                    .text_size(px(19.2))
-                    .line_height(gpui_kit::relative(1.3))
-                    .font_weight(FontWeight(650.))
-                    .child(self.t("monitor.settings.title")),
-            );
+        let mut card =
+            crate::app::surface::SpotlightCard::new("monitor-hooks", cx.theme().mode.is_dark())
+                .test_support()
+                .w_full()
+                .flex_shrink_0()
+                .p(px(12.))
+                .flex()
+                .flex_col()
+                .gap(px(12.))
+                .text_color(if cx.theme().mode.is_dark() {
+                    rgb(0xc1c2c5).into()
+                } else {
+                    cx.theme().foreground
+                })
+                .child(
+                    div()
+                        .id("monitor-hooks-title")
+                        .role(Role::Heading)
+                        .aria_label(self.t("monitor.settings.title"))
+                        .text_size(px(19.2))
+                        .line_height(gpui_kit::relative(1.3))
+                        .font_weight(FontWeight(650.))
+                        .child(self.t("monitor.settings.title")),
+                );
         if let Some(code) = self.agent_settings.error {
             return card
                 .child(self.hook_feedback_element(&self.t(code), true, cx))
@@ -174,46 +175,45 @@ impl Shell {
             .items_center()
             .gap(px(10.))
             .child(
-                Button::new("monitor-hook-choose")
-                    .outline()
-                    .h(px(30.))
-                    .px(px(14.))
-                    .rounded(px(12.))
-                    .text_size(px(12.))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .label(self.t("monitor.settings.chooseDirectory"))
-                    .loading(editor.picking)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.choose_monitor_hook_directory(tool, cx)
-                    })),
+                SurfaceButton::new(
+                    "monitor-hook-choose",
+                    SurfaceButtonVariant::Default,
+                    cx.theme().mode.is_dark(),
+                )
+                .historical_size(HistoricalButtonSize::XSmall)
+                .label(self.t("monitor.settings.chooseDirectory"))
+                .loading(editor.picking)
+                .on_click(
+                    cx.listener(move |this, _, _, cx| this.choose_monitor_hook_directory(tool, cx)),
+                ),
             )
             .child(
-                Button::new("monitor-hook-save")
-                    .h(px(30.))
-                    .px(px(14.))
-                    .rounded(px(12.))
-                    .text_size(px(12.))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .label(self.t("monitor.settings.saveDirectory"))
-                    .loading(editor.saving)
-                    .disabled(!dirty || editor.draft.trim().is_empty())
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.save_monitor_hook_directory(tool, false, cx)
-                    })),
+                SurfaceButton::new(
+                    "monitor-hook-save",
+                    SurfaceButtonVariant::Default,
+                    cx.theme().mode.is_dark(),
+                )
+                .historical_size(HistoricalButtonSize::XSmall)
+                .label(self.t("monitor.settings.saveDirectory"))
+                .loading(editor.saving && !editor.saving_default)
+                .disabled(!dirty || editor.draft.trim().is_empty())
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.save_monitor_hook_directory(tool, false, cx)
+                })),
             )
             .child(
-                Button::new("monitor-hook-reset")
-                    .h(px(30.))
-                    .px(px(14.))
-                    .rounded(px(12.))
-                    .text_size(px(12.))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .label(self.t("monitor.settings.restoreDirectory"))
-                    .loading(editor.saving)
-                    .disabled(!editor.saved.is_custom)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.save_monitor_hook_directory(tool, true, cx)
-                    })),
+                SurfaceButton::new(
+                    "monitor-hook-reset",
+                    SurfaceButtonVariant::SubtleBrand,
+                    cx.theme().mode.is_dark(),
+                )
+                .historical_size(HistoricalButtonSize::XSmall)
+                .label(self.t("monitor.settings.restoreDirectory"))
+                .loading(editor.saving && editor.saving_default)
+                .disabled(!editor.saved.is_custom)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.save_monitor_hook_directory(tool, true, cx)
+                })),
             );
         panel = panel.child(
             div()
@@ -232,13 +232,13 @@ impl Shell {
                         SurfaceButtonVariant::FilledBrand,
                         cx.theme().mode.is_dark(),
                     )
-                        .historical_size(HistoricalButtonSize::XSmall)
-                        .label(self.t("monitor.settings.write"))
-                        .loading(editor.writing)
-                        .disabled(dirty || state.loading)
-                        .on_click(
-                            cx.listener(move |this, _, _, cx| this.write_monitor_hooks(tool, cx)),
-                        ),
+                    .historical_size(HistoricalButtonSize::XSmall)
+                    .label(self.t("monitor.settings.write"))
+                    .loading(editor.writing)
+                    .disabled(dirty || state.loading)
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| this.write_monitor_hooks(tool, cx)),
+                    ),
                 ),
         );
         if let Some((feedback_tool, feedback)) = &state.feedback {

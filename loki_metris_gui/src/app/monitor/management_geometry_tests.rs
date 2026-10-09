@@ -142,7 +142,7 @@ fn monitor_titles_and_field_line_boxes_keep_historical_spacing(cx: &mut TestAppC
             "较小的可选文本必须按基线排布"
         );
         near(input.origin.y - content.bottom(), 0.);
-        near(input.size.height, 68.);
+        line_box(window, input.size.height, 56.4);
     })
     .unwrap();
 }

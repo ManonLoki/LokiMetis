@@ -180,6 +180,7 @@ impl Shell {
             return;
         };
         editor.saving = true;
+        editor.saving_default = restore;
         // 取消旧定位回执的UI观察，已接受的后台查询仍由服务owner收尾。
         state.invalidate_query();
         let feedback_revision = state.clear_feedback();

@@ -67,3 +67,5 @@ GPUI皮肤页使用统一启用Agent集合筛选Codex／WorkBuddy宿主，提供
 监控行为卡标题、图片／内容／可选标签、light徽标和22px清除动作已按参考尺寸设置，更换图片保留原trigger动作并增加独立装饰图标。管理／Hooks／工作台显示名称消费core公开目录，Grok协议身份保持原样。桌宠首图定位仅在成功保存后完成；失败延迟重试，等待当前Agent／桌宠／图库版本的新鲜快照，用户手动翻页终止自动定位。上述原生展示与生命周期回归已通过，混字号字形基线、徽标字距和实际新版窗口仍待比对。
 
 macOS 主字体使用历史 @fontsource-variable 5.3.0 的原样 Geist／Geist Mono Latin WOFF2；两字体各自 OFL 与既有静态 OFL 随包保留。Windows 暂沿用原十份静态 TTF。gpui-pre-macos 的完整固定上游17文件仅在 OUT_DIR 应用字重／原生字体身份补丁，不安装系统字体；19项原生与身份回归通过，不能替代下一开发预览的字形像素对照。未知字体上下文只临时 CFEqual 比较，缓存不持有CFType；首次未命中扫描已有字体，额外变化轴及Windows可变字体仍未验收。
+
+监控补充内容使用真实Kit Textarea的局部外观适配：历史CSS推导两行56.4px、14px／400／1.55、1px边框／12px圆角，暗色#2e2e2e／#424242／占位#696969，浅色白／#ced4da／占位#adb5bd；焦点仅单层品牌描边，100ms标准CSS ease，原生编辑／AX路径继续保留。Hooks目录动作采用历史30px xs内容层，恢复默认为subtle，后台保存仅映射提交操作的loading。真实编辑器／Metal投影和相关Monitor46项通过；真实系统IME组合输入、上下文菜单和Tab体验尚待CU。
