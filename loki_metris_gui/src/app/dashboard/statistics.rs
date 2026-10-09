@@ -98,9 +98,10 @@ impl Shell {
             .child(self.mini_metric("dashboard.cache_ratio",if value.tokens.cached_input_tokens.is_none() {self.t("dashboard.not_provided")}else{self.basis_points(value.cache_read_basis_points)},None,cx)));
         let header=TableHeader::new().text_size(px(16.)).font_weight(FontWeight::BOLD).text_color(cx.theme().foreground).child(TableRow::new().children(["date","total","input","cached","output","calls"].into_iter().enumerate().map(|(index,key)|
             TableHead::new().px(px(10.)).py_3().when(index==0,|head|head.w(gpui_kit::relative(0.22)).flex_shrink_0()).when(index>0,|head|head.text_right()).child(self.t(&format!("statistics.{key}"))))));
-        let body=TableBody::new().children(data.daily_buckets.iter().map(|bucket| {
+        let body=TableBody::new().children(data.daily_buckets.iter().enumerate().map(|(index,bucket)| {
             let tokens=&bucket.measure.tokens;
             BrandTableRow::new(SharedString::from(format!("statistics-daily-row-{}",bucket.local_date)),cx.theme().mode.is_dark())
+                .bottom_corner_radius(if index + 1 == data.daily_buckets.len() { px(19.) } else { px(0.) })
                 .child(TableCell::new().w(gpui_kit::relative(0.22)).flex_shrink_0().px(px(10.)).py_3().child(div().flex().items_center().gap_2().text_size(px(16.))
                     .child(format::calendar(&bucket.local_date,self.locale))
                     .when(bucket.in_progress, |row| row.child(self.quality_badge(self.t("statistics.in_progress"),rgb(0xfab005).into())))))
@@ -116,8 +117,10 @@ impl Shell {
             self.t(&format!("statistics.{dimension_key}")),self.t("statistics.total"),self.t("statistics.share"),self.t("statistics.calls"),
             self.t("dashboard.cache_ratio"),self.t("statistics.quality")].into_iter().enumerate().map(|(index,label)| TableHead::new().px(px(10.)).py_3().when(index==0,|head|head.w(gpui_kit::relative(0.22)).flex_shrink_0()).when((1..5).contains(&index),|head|head.text_right()).child(label))));
         let groups=data.groups.iter().chain(data.remainder.iter());
-        let body=TableBody::new().children(groups.map(|group| {
+        let group_count=data.groups.len()+usize::from(data.remainder.is_some());
+        let body=TableBody::new().children(groups.enumerate().map(|(index,group)| {
             BrandTableRow::new(SharedString::from(format!("statistics-group-row-{}",group.id)),cx.theme().mode.is_dark())
+                .bottom_corner_radius(if index + 1 == group_count { px(19.) } else { px(0.) })
                 .child(TableCell::new().w(gpui_kit::relative(0.22)).flex_shrink_0().px(px(10.)).py_3().child(div().text_size(px(16.)).when(group.remainder, |row| row.font_weight(FontWeight::BOLD))
                     .child(match group.disambiguation_index {Some(index)=>format!("{} ({index})",self.display_label(&group.label,group.label_code)),None=>self.display_label(&group.label,group.label_code)})))
                 .child(self.table_token(Some(group.measure.tokens.total_tokens),cx))
@@ -129,13 +132,14 @@ impl Shell {
         page=page.child(self.table_panel("statistics.groups",Table::new().w_full().text_size(px(16.)).font_weight(FontWeight::NORMAL).text_color(cx.theme().foreground).child(header).child(body).into_any_element(),760.,cx));
         if let Some(models)=&self.dashboard.detail.models {
             let header=TableHeader::new().text_size(px(16.)).font_weight(FontWeight::BOLD).text_color(cx.theme().foreground).child(TableRow::new().children(["actual_model","total","input","cached","uncached","output","requests","top_level","subagent","credits"].into_iter().enumerate().map(|(index,key)| TableHead::new().px(px(10.)).py_3().when(index==0,|head|head.w(gpui_kit::relative(0.22)).flex_shrink_0()).when(index>0,|head|head.text_right()).child(self.t(&format!("statistics.{key}"))))));
-            let body=TableBody::new().children(models.groups.iter().map(|group| BrandTableRow::new(SharedString::from(format!("workbuddy-model-row-{:?}",group.model)),cx.theme().mode.is_dark())
+            let body=TableBody::new().children(models.groups.iter().enumerate().map(|(index,group)| BrandTableRow::new(SharedString::from(format!("workbuddy-model-row-{:?}",group.model)),cx.theme().mode.is_dark())
+                .bottom_corner_radius(if index + 1 == models.groups.len() { px(19.) } else { px(0.) })
                 .child(TableCell::new().w(gpui_kit::relative(0.22)).flex_shrink_0().px(px(10.)).py_3().font_weight(FontWeight::BOLD).child(group.model.clone().unwrap_or_else(||self.t("statistics.unassigned"))))
                 .child(self.table_token(Some(group.total_tokens),cx)).child(self.table_token(Some(group.input_tokens),cx))
                 .child(self.table_token(Some(group.cached_input_tokens),cx)).child(self.table_token(Some(group.uncached_input_tokens),cx)).child(self.table_token(Some(group.output_tokens),cx))
                 .children([group.call_count,group.top_level_call_count,group.subagent_call_count].map(|count|TableCell::new().px(px(10.)).py_3().text_right().child(format::exact(count))))
                 .child(TableCell::new().px(px(10.)).py_3().text_right().child(group.credits.map(format::credits).unwrap_or_else(||self.t("dashboard.not_provided"))))))
-                .when(models.groups.is_empty(),|body|body.child(BrandTableRow::new("workbuddy-model-empty-row",cx.theme().mode.is_dark()).child(TableCell::new().col_span(10).px_5().py_4().text_color(cx.theme().muted_foreground).child(self.t("statistics.no_models")))));
+                .when(models.groups.is_empty(),|body|body.child(BrandTableRow::new("workbuddy-model-empty-row",cx.theme().mode.is_dark()).bottom_corner_radius(px(19.)).child(TableCell::new().col_span(10).px_5().py_4().text_color(cx.theme().muted_foreground).child(self.t("statistics.no_models")))));
             let table=Table::new().w_full().text_size(px(16.)).font_weight(FontWeight::NORMAL).text_color(cx.theme().foreground).child(header).child(body);
             page=page.child(StaticCard::new("workbuddy-model-table-panel", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().p_0().gap_0().mt_3()
                 .child(div().p_5().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("statistics.actual_models")))

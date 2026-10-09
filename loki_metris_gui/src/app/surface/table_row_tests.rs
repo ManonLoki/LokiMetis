@@ -33,6 +33,7 @@ impl Render for Probe {
             let owners = self.owners.clone();
             let weak = cx.entity().downgrade();
             Some(BrandTableRow::new(("brand-row", index), self.dark)
+                .bottom_corner_radius(if index == 1 { px(19.) } else { px(0.) })
                 .observe_owner(move |owner| owners.borrow_mut()[index] = Some(owner.downgrade()))
                 .child(TableCell::new().w(px(200.)).min_w(px(200.)).flex_none().h(px(64.)).p_2().child(format!("Row {index}")))
                 .child(TableCell::new().w(px(200.)).min_w(px(200.)).flex_none().h(px(64.)).p_2()
@@ -71,6 +72,60 @@ fn row_color(index: usize, window: &Window) -> Rgba {
         .filter_map(|quad| quad.background.as_solid().map(Rgba::from))
         .find(|color| color.a > 0. && color.a < 0.1)
         .unwrap_or(gpui_kit::transparent_black().into())
+}
+
+/// 原生悬停背景的末行圆角必须在1x/2x下贴住卡片内框，顶角仍连接上一行。
+#[gpui_kit::test]
+fn actual_last_row_hover_respects_inner_card_bottom_corners(cx: &mut TestAppContext) {
+    let (handle, _, _) = open(cx);
+    for scale in [1., 2.] {
+        cx.simulate_window_scale_factor_change(handle, scale);
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            window.hover(("brand-row", 1usize), cx);
+            window.render_frame(cx);
+        }).unwrap();
+        cx.executor().advance_clock(Duration::from_millis(160));
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let row = window.find(("brand-row", 1usize)).bounds();
+            let viewport = window.find("row-scroll").bounds();
+            let visible = row.intersect(&viewport);
+            let bounds = Bounds::new(
+                point(visible.origin.x, row.origin.y),
+                size(visible.size.width, row.size.height),
+            ).scale(scale);
+            let background = window.painted_quads().into_iter().find(|quad| {
+                quad.bounds == bounds && quad.background.as_solid().is_some_and(|color| {
+                    let color = Rgba::from(color); color.a > 0. && color.a < 0.1
+                })
+            }).expect("实际末行必须绘制悬停色");
+            assert_eq!(background.corner_radii.top_left, px(0.).scale(scale));
+            assert_eq!(background.corner_radii.top_right, px(0.).scale(scale));
+            assert_eq!(background.corner_radii.bottom_left, px(19.).scale(scale));
+            assert_eq!(background.corner_radii.bottom_right, px(19.).scale(scale));
+            window.scroll("row-scroll", ScrollDelta::Pixels(point(px(-10.), px(0.))), cx);
+            window.render_frame(cx);
+            let scrolled = window.find(("brand-row", 1usize)).bounds();
+            assert!(scrolled.origin.x < row.origin.x);
+            assert_eq!(scrolled.size, row.size);
+            let visible = scrolled.intersect(&viewport);
+            let expected = Bounds::new(
+                point(visible.origin.x, scrolled.origin.y),
+                size(visible.size.width, scrolled.size.height),
+            ).scale(scale);
+            let background = window.painted_quads().into_iter().find(|quad| {
+                quad.bounds == expected && quad.background.as_solid().is_some_and(|color| {
+                    let color = Rgba::from(color); color.a > 0. && color.a < 0.1
+                })
+            }).expect("横向滚动后圆角必须仍贴住卡片内框");
+            assert_eq!(background.corner_radii.bottom_left, px(19.).scale(scale));
+            assert_eq!(background.corner_radii.bottom_right, px(19.).scale(scale));
+            window.hover("row-outside", cx);
+            window.render_frame(cx);
+        }).unwrap();
+        cx.executor().advance_clock(Duration::from_millis(160));
+    }
 }
 
 /// 两行相同几何仍有独立hover，160ms端点必须是6%品牌色且适配1x/2x。

@@ -2,7 +2,7 @@
 
 use super::{motion::CssMotion, palette};
 use gpui_kit::{
-    A11ySubtreeBuilder, App, BorderStyle, Bounds, Context, Div, Edges, Element, ElementId, Entity, GlobalElementId,
+    A11ySubtreeBuilder, App, BorderStyle, Bounds, Context, Corners, Div, Edges, Element, ElementId, Entity, GlobalElementId,
     HoverListenerMode, InspectorElementId, IntoElement, LayoutId, Pixels, Role, Stateful, Styled,
     StyleRefinement, Visibility, Window, accesskit, div, prelude::*, px, quad, transparent_black,
     component::{ActiveTheme, AnyChildElement, ChildElement, Sizable, Size},
@@ -43,6 +43,7 @@ pub(in crate::app) struct BrandTableRow {
     dark: bool,
     ix: usize,
     size: Size,
+    bottom_corner_radius: Pixels,
     children: Vec<AnyChildElement>,
     #[cfg(test)]
     owner_observer: Option<Box<dyn FnOnce(&Entity<RowState>)>>,
@@ -56,6 +57,7 @@ impl BrandTableRow {
             dark,
             ix: 0,
             size: Size::default(),
+            bottom_corner_radius: px(0.),
             children: Vec::new(),
             #[cfg(test)]
             owner_observer: None,
@@ -71,6 +73,12 @@ impl BrandTableRow {
     /// 同一行的每列按原TableRow顺序编号，不给文本或按钮增加代理动作。
     pub fn children<E: ChildElement + 'static>(mut self, children: impl IntoIterator<Item = E>) -> Self {
         self.children.extend(children.into_iter().map(AnyChildElement::new));
+        self
+    }
+
+    /// 最后一行采用卡片边框内侧圆角；中间行保持直边，不改变布局或命中。
+    pub fn bottom_corner_radius(mut self, radius: Pixels) -> Self {
+        self.bottom_corner_radius = radius.max(px(0.));
         self
     }
 
@@ -157,7 +165,18 @@ impl Element for BrandTableRow {
                 && window.is_visible() && !bounds.intersect(&window.content_mask().bounds).is_empty();
             if visible {
                 if color[3] > 0. {
-                    window.paint_quad(quad(bounds, px(0.), palette::unpremultiply(color), Edges::default(), transparent_black(), BorderStyle::Solid));
+                    let mut background_bounds = bounds;
+                    if self.bottom_corner_radius > px(0.) {
+                        let visible = bounds.intersect(&window.content_mask().bounds);
+                        background_bounds.origin.x = visible.origin.x;
+                        background_bounds.size.width = visible.size.width;
+                    }
+                    let corners = Corners {
+                        top_left: px(0.), top_right: px(0.),
+                        bottom_left: self.bottom_corner_radius,
+                        bottom_right: self.bottom_corner_radius,
+                    };
+                    window.paint_quad(quad(background_bounds, corners, palette::unpremultiply(color), Edges::default(), transparent_black(), BorderStyle::Solid));
                 }
                 if running { window.request_animation_frame(); }
             }
