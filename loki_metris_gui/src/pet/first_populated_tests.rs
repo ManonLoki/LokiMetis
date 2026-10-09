@@ -254,7 +254,8 @@ fn first_image_partial_snapshot_failure_retries_without_new_catalog_revision(cx:
     let profiles_path = f.root.path().join("monitor/monitor-profiles.json");
     let profiles = std::fs::read(&profiles_path).unwrap();
     std::fs::write(&profiles_path, b"{broken").unwrap();
-    f.service.change_pet_preferences(PetPreferenceChange::Locked(false), PetSizeRange { min: 64, max: 135 })
+    // 使用真实偏好变化触发快照刷新；默认未锁定时再次解锁应为 noop。
+    f.service.change_pet_preferences(PetPreferenceChange::Locked(true), PetSizeRange { min: 64, max: 135 })
         .unwrap().blocking_recv().unwrap().unwrap();
     let catalog_revision = f.service.monitor_catalog_revision();
     cx.executor().advance_clock(Duration::from_secs(2));

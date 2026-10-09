@@ -291,3 +291,20 @@ fn malformed_profile_behavior_structure_is_rejected_at_read_boundary() {
         assert!(super::super::profiles::load_profile_drafts(&config).is_err());
     }
 }
+
+
+/// 原生图库快照只返回识别元数据与原始资源，不能为每轮读取重新构造data URL。
+#[test]
+fn native_gallery_snapshot_has_metadata_and_raw_bytes_without_encoded_payload() {
+    let root = tempfile::tempdir().unwrap();
+    let imported = save_monitor_image(root.path(), "native.gif", GIF).unwrap();
+    let snapshot = list_monitor_images(root.path()).unwrap();
+    assert_eq!(&*snapshot.bytes[&imported.id], GIF);
+    assert_eq!(snapshot.gallery.counts.gif, 1);
+    let json = serde_json::to_value(&snapshot.gallery).unwrap();
+    let entry = &json["images"][0];
+    assert_eq!(entry["id"], imported.id);
+    assert_eq!(entry["filename"], "native.gif");
+    assert!(entry.get("image").is_none(), "native metadata cannot contain full Base64 payload");
+    assert!(serde_json::to_string(&json).unwrap().len() < 512);
+}

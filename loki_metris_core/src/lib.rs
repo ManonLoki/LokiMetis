@@ -106,8 +106,9 @@ pub use local_view::{
     build_local_windows_with_standard, build_source_roots,
 };
 pub use monitor_gallery::{
-    ImageFormat, ImageUploadAccept, MonitorImageCounts, MonitorImageGallery, MonitorImagePreview,
-    assemble_image_gallery, image_data_url, image_upload_accept, preview_from_bytes,
+    ImageFormat, ImageUploadAccept, MonitorImageCatalog, MonitorImageCounts, MonitorImageGallery,
+    MonitorImageMetadata, MonitorImagePreview, assemble_image_catalog, assemble_image_gallery,
+    image_data_url, image_upload_accept, metadata_from_bytes, preview_from_bytes,
 };
 pub use monitor_profile::{
     AiProfileDraft, AiProfileDraftSet, DEFAULT_PROFILE_SLOT, HookContent, MAX_PROFILE_SLOT,

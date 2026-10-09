@@ -194,3 +194,29 @@ pub fn update_monitor_settings(
 #[cfg(test)]
 #[path = "settings_tests.rs"]
 mod tests;
+
+/// 同一写锁内以最新磁盘快照合并桌宠字段；实际值未变时不重写文件或制造提交事实。
+pub(crate) fn update_pet_settings_if_changed(
+    config_dir: &Path,
+    change: Option<(loki_metris_core::PetPreferenceChange, loki_metris_core::PetSizeRange)>,
+    position: Option<PetOverlayPosition>,
+) -> Result<(MonitorSettings, bool), HookError> {
+    let _guard = monitor_settings_lock().write().map_err(|_| {
+        HookError::new("error.monitor.settingsWriteFailed")
+            .param("detail", "monitor settings lock poisoned")
+    })?;
+    let mut current = load_monitor_settings_unlocked(config_dir)?;
+    let preferences = match change {
+        Some((change, range)) => {
+            loki_metris_core::change_pet_preferences(current.pet_window, change, range)?
+        }
+        None => current.pet_window,
+    };
+    let position = position.or(current.pet_overlay_position);
+    if preferences == current.pet_window && position == current.pet_overlay_position {
+        return Ok((current, false));
+    }
+    current.pet_window = preferences;
+    current.pet_overlay_position = position;
+    save_monitor_settings_unlocked(config_dir, &current).map(|settings| (settings, true))
+}

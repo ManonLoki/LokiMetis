@@ -4,6 +4,11 @@ pub(crate) mod host;
 mod overlay;
 mod settings;
 mod size_control;
+mod position;
+#[cfg(test)]
+mod feedback_tests;
+#[cfg(test)]
+mod shutdown_receipt_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -73,7 +78,7 @@ struct Controller {
     last_error: Option<HookError>,
     scheduled: Option<PetPreferenceChange>,
     quitting: bool,
-    position_dirty: Option<PetOverlayPosition>,
+    position: position::PositionQueue,
 }
 impl Controller {
     /// 公共配置首次失败保留安全展示默认，不发布到中继或writer。
@@ -106,7 +111,7 @@ impl Controller {
             last_error: None,
             scheduled: None,
             quitting: false,
-            position_dirty: None,
+            position: Default::default(),
         }
     }
     /// 三类文件快照版本由服务拥有，首图定位须等待与当前版本一致的完整读取。
@@ -509,40 +514,6 @@ impl Controller {
             self.change(next, cx);
         }
     }
-    /// 几何观察只登记200ms防抖；布局变动后的旧尺寸不会再落盘。
-    fn moved(&mut self, bounds: Bounds<gpui_kit::Pixels>, scale: f32, cx: &mut Context<Self>) {
-        if self.applying || !self.geometry_restored || self.quitting {
-            return;
-        }
-        let position = PetOverlayPosition {
-            x: (f32::from(bounds.origin.x) * scale).round() as i32,
-            y: (f32::from(bounds.origin.y) * scale).round() as i32,
-        };
-        self.position_dirty = Some(position);
-        let service = self.service.clone();
-        self.position_task = Some(cx.spawn(async move |entity, cx| {
-            cx.background_executor()
-                .timer(Duration::from_millis(200))
-                .await;
-            if let Ok(work) = service.save_pet_position(position) {
-                if crate::usage_service::receipt(
-                    work,
-                    cx.background_executor().clone(),
-                    "error.monitor.settingsWriteFailed",
-                )
-                .await
-                .is_ok()
-                {
-                    let _ = entity.update(cx, |this, _| {
-                        if this.position_dirty == Some(position) {
-                            this.position_dirty = None;
-                        }
-                        this.settings.pet_overlay_position = Some(position);
-                    });
-                }
-            }
-        }));
-    }
     /// 关闭设置销毁窗口；隐藏桌宠不销毁播放状态、不关闭中继。
     fn hide(&mut self, cx: &mut Context<Self>) {
         self.close_settings(cx);
@@ -769,7 +740,7 @@ pub(crate) fn take_shutdown_plan(cx: &mut App) -> crate::usage_service::PetShutd
             .collect();
         crate::usage_service::PetShutdownPlan {
             changes,
-            position: this.position_dirty.take(),
+            position: this.position.take_dirty(),
         }
     })
 }

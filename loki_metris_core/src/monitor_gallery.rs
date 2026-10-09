@@ -88,6 +88,18 @@ pub fn image_upload_accept() -> ImageUploadAccept {
     }
 }
 
+/// 原生图库的已识别元数据；原始字节由宿主独立持有，不生成展示用编码字符串。
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorImageMetadata {
+    /// 稳定 ID。
+    pub id: String,
+    /// 原始文件名。
+    pub filename: String,
+    /// 由字节魔数判定的格式。
+    pub format: ImageFormat,
+}
+
 /// 一张已识别的本机图库条目，含预览 data URL。
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -135,6 +147,44 @@ pub struct MonitorImageGallery {
     pub counts: MonitorImageCounts,
 }
 
+/// 原生图库快照只有条目元数据和格式计数，不承担图片编码或解码。
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorImageCatalog {
+    /// 元数据条目，顺序与调用方提供的一致。
+    pub images: Vec<MonitorImageMetadata>,
+    /// JPEG/PNG/GIF 计数。
+    pub counts: MonitorImageCounts,
+}
+
+/// 从已识别元数据统计原生图库；空输入得到空库与零计数。
+pub fn assemble_image_catalog(images: Vec<MonitorImageMetadata>) -> MonitorImageCatalog {
+    let mut counts = MonitorImageCounts::empty();
+    for item in &images {
+        match item.format {
+            ImageFormat::Jpeg => counts.jpeg += 1,
+            ImageFormat::Png => counts.png += 1,
+            ImageFormat::Gif => counts.gif += 1,
+        }
+    }
+    MonitorImageCatalog { images, counts }
+}
+
+/// 只识别格式和构造元数据；错误与完整预览相同，不生成 Base64 或复制图片字节。
+pub fn metadata_from_bytes(
+    id: impl Into<String>,
+    filename: impl Into<String>,
+    bytes: &[u8],
+) -> Result<MonitorImageMetadata, HookError> {
+    if bytes.is_empty() {
+        return Err(HookError::new("error.monitor.imageEmpty"));
+    }
+    let Some(format) = ImageFormat::from_bytes(bytes) else {
+        return Err(HookError::new("error.monitor.imageUnsupportedType"));
+    };
+    Ok(MonitorImageMetadata { id: id.into(), filename: filename.into(), format })
+}
+
 /// 把已识别条目组装为图库快照；空输入得到空库与零计数。
 pub fn assemble_image_gallery(images: Vec<MonitorImagePreview>) -> MonitorImageGallery {
     let mut counts = MonitorImageCounts::empty();
@@ -154,17 +204,12 @@ pub fn preview_from_bytes(
     filename: impl Into<String>,
     bytes: &[u8],
 ) -> Result<MonitorImagePreview, HookError> {
-    if bytes.is_empty() {
-        return Err(HookError::new("error.monitor.imageEmpty"));
-    }
-    let Some(format) = ImageFormat::from_bytes(bytes) else {
-        return Err(HookError::new("error.monitor.imageUnsupportedType"));
-    };
+    let metadata = metadata_from_bytes(id, filename, bytes)?;
     Ok(MonitorImagePreview {
-        id: id.into(),
-        filename: filename.into(),
-        format,
-        image: image_data_url(format, bytes),
+        id: metadata.id,
+        filename: metadata.filename,
+        format: metadata.format,
+        image: image_data_url(metadata.format, bytes),
     })
 }
 
@@ -179,6 +224,8 @@ pub fn image_data_url(format: ImageFormat, bytes: &[u8]) -> String {
 
 /// 使用固定标准字母表把图片字节编码为带正确补位的 Base64 文本。
 fn encode_base64(input: &[u8]) -> String {
+    #[cfg(test)]
+    ENCODE_CALLS.with(|calls| calls.set(calls.get() + 1));
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
     for chunk in input.chunks(3) {
@@ -201,6 +248,16 @@ fn encode_base64(input: &[u8]) -> String {
     }
     out
 }
+
+#[cfg(test)]
+std::thread_local! {
+    /// 当前测试线程的编码次数，避免并行测试污染原生元数据路径的零编码断言。
+    static ENCODE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+#[path = "monitor_gallery_native_tests.rs"]
+mod native_metadata_tests;
 
 #[cfg(test)]
 mod tests {

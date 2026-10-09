@@ -18,6 +18,8 @@ pub(crate) use skins::{SkinEntry, receipt as skin_receipt};
 mod skin_resources;
 pub(crate) use skin_resources::resource_root as skin_resource_root;
 pub(crate) use pet::PetShutdownPlan;
+#[cfg(test)]
+pub(crate) use agents::shutdown_tests::{block_pet_mutations, pet_background_task_count};
 mod monitor_catalog;
 mod hooks;
 #[cfg(test)]
@@ -163,12 +165,13 @@ impl UsageService {
     /// 明确取消当前扫描与待处理扫描；普通查询不受影响。
     pub fn cancel(&self) { self.scans.cancel(); self.context.writer.cancel_active(); }
 
-    /// 停止新 writer 并有界等待合作收尾，超时由 runtime 终止剩余任务。
+    /// 停止新 writer 并有界等待合作收尾；不能强停的blocking仍由原owner保留。
     pub fn finish(&self) { self.finish_with_pet(PetShutdownPlan::default()); }
 
-    /// 退出先排空已接受工作，再顺序提交前台尚未派发的桌宠最终意图。
+    /// 退出先拥有最终位置屏障，有界回收后台，再提交前台尚未派发的桌宠最终意图。
     pub(crate) fn finish_with_pet(&self, plan:PetShutdownPlan) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
+            self.context.agents.freeze_final_pet_position(plan.position);
             self.context.writer.shutdown();
             if let Some(host)=self.context.agents.hooks.get() {host.writer.shutdown();}
             if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}

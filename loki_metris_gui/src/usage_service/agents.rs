@@ -19,6 +19,8 @@ pub(super) struct AgentSettingsStore {
     owner: Arc<BackgroundTaskOwner>,
     revision: AtomicU64,
     pub(super) pet_revision: AtomicU64,
+    /// 首次退出拥有的最终位置命令；不落盘为第二状态，晚到位置工作只能提交此终止意图。
+    final_pet_position: std::sync::OnceLock<loki_metris_core::PetOverlayPosition>,
     pub(super) listener: std::sync::OnceLock<Arc<crate::monitor::listener::HookListenerControl>>,
     pub(super) hooks: std::sync::OnceLock<super::hooks::HookHost>,
 }
@@ -32,6 +34,7 @@ impl AgentSettingsStore {
             owner,
             revision: AtomicU64::new(0),
             pet_revision: AtomicU64::new(0),
+            final_pet_position: Default::default(),
             listener: Default::default(),
             hooks: Default::default(),
         }
@@ -181,6 +184,14 @@ impl AgentSettingsStore {
         Ok(location)
     }
 
+    /// 首次关闭发布一次性最终位置；None不设屏障，后续调用不能替换已拥有的终止意图。
+    /// 发布不等待值锁：已持锁且读过旧None的写入必先于最终事务释放锁；其余写入在锁内读取新意图。
+    pub(super) fn freeze_final_pet_position(&self, position: Option<loki_metris_core::PetOverlayPosition>) {
+        if let Some(position) = position {
+            let _ = self.final_pet_position.set(position);
+        }
+    }
+
     /// 桌宠只提交自身字段，不发布默认Agent、不触发Hooks修复或覆盖其它配置。
     pub(super) fn save_pet_blocking(
         &self,
@@ -188,17 +199,17 @@ impl AgentSettingsStore {
         position: Option<loki_metris_core::PetOverlayPosition>,
     ) -> Result<MonitorSettings, HookError> {
         let mut value = self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let current = load_monitor_settings(&self.directory)?;
-        let preferences = match change {
-            Some((change, range)) => loki_metris_core::change_pet_preferences(current.pet_window, change, range)?,
-            None => current.pet_window,
-        };
-        let settings = update_monitor_settings(&self.directory, |settings| {
-            settings.pet_window = preferences;
-            if let Some(position) = position { settings.pet_overlay_position = Some(position); }
-        })?;
+        // 必须在同一mutation锁内读屏障，不能在等待锁之前捕获旧位置决定。
+        let position = position.map(|position| self.final_pet_position.get().copied().unwrap_or(position));
+        let (settings, changed) = crate::monitor::settings::update_pet_settings_if_changed(
+            &self.directory,
+            change,
+            position,
+        )?;
         *value = Some(settings.clone());
-        self.pet_revision.fetch_add(1, Ordering::Release);
+        if changed {
+            self.pet_revision.fetch_add(1, Ordering::Release);
+        }
         Ok(settings)
     }
 
@@ -259,3 +270,6 @@ impl UsageService {
 #[cfg(test)]
 #[path = "agents_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "agents_shutdown_tests.rs"]
+pub(crate) mod shutdown_tests;

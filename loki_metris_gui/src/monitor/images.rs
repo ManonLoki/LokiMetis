@@ -1,8 +1,8 @@
 //! 独立本机图库驱动：索引原子提交，档案引用与删除共用事务锁。
 
 use loki_metris_core::{
-    HookError, MonitorImageGallery, assemble_image_gallery, ensure_monitor_image_unused,
-    preview_from_bytes,
+    HookError, MonitorImageCatalog, assemble_image_catalog, ensure_monitor_image_unused,
+    metadata_from_bytes,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 /// 单张原图资源上限；读写采用同一边界，避免成功写入后无法读回。
 pub(crate) const MAX_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
-/// 完整图库原始字节的单次快照预算，控制 Base64 与解码前资源驻留。
+/// 完整图库原始字节的单次快照预算，控制原图驻留；不包含解码帧或 GPU 资源。
 const MAX_GALLERY_BYTES: u64 = 128 * 1024 * 1024;
 /// JSON 索引的读写共同上限。
 const MAX_INDEX_BYTES: u64 = 1024 * 1024;
@@ -29,10 +29,10 @@ struct MonitorImageRecord {
     stored_name: String,
 }
 
-/// 同一锁内读出的领域图库和原始资源；原生渲染不把 data URL 当网络地址。
+/// 同一锁内读出的领域元数据和原始资源；原生快照明确不包含 data URL。
 #[derive(Clone, Debug)]
 pub(crate) struct MonitorGallerySnapshot {
-    pub gallery: MonitorImageGallery,
+    pub gallery: MonitorImageCatalog,
     pub bytes: HashMap<String, Arc<[u8]>>,
     pub unavailable: Vec<UnavailableMonitorImage>,
 }
@@ -147,7 +147,7 @@ fn snapshot_from_records(
 ) -> Result<MonitorGallerySnapshot, HookError> {
     let directory = images_dir(data);
     let mut total = 0u64;
-    let mut previews = Vec::new();
+    let mut metadata = Vec::new();
     let mut bytes = HashMap::new();
     let mut unavailable = Vec::new();
     for record in records {
@@ -160,13 +160,13 @@ fn snapshot_from_records(
             if total.saturating_add(raw.len() as u64) > MAX_GALLERY_BYTES {
                 return Err(HookError::new("error.monitor.imagesTooLarge"));
             }
-            let preview = preview_from_bytes(&record.id, &record.filename, &raw)?;
-            Ok((raw, preview))
+            let entry = metadata_from_bytes(&record.id, &record.filename, &raw)?;
+            Ok((raw, entry))
         });
         match result {
-            Ok((raw, preview)) => {
+            Ok((raw, entry)) => {
                 total += raw.len() as u64;
-                previews.push(preview);
+                metadata.push(entry);
                 bytes.insert(record.id.clone(), Arc::from(raw));
             }
             Err(error) => unavailable.push(UnavailableMonitorImage {
@@ -185,7 +185,7 @@ fn snapshot_from_records(
         }
     }
     Ok(MonitorGallerySnapshot {
-        gallery: assemble_image_gallery(previews),
+        gallery: assemble_image_catalog(metadata),
         bytes,
         unavailable,
     })
@@ -218,7 +218,7 @@ fn save_monitor_image_with_commit(
         return Err(HookError::new("error.monitor.imagesTooLarge"));
     }
     let id = Uuid::new_v4().to_string();
-    let preview = preview_from_bytes(&id, filename, bytes)?;
+    let entry = metadata_from_bytes(&id, filename, bytes)?;
     let mut records = load_index(data)?;
     let mut snapshot = snapshot_from_records(data, &records)?;
     // 旧索引已超预算时先允许清理，不能排除超额项后继续承诺新导入成功。
@@ -238,7 +238,7 @@ fn save_monitor_image_with_commit(
         return Err(HookError::new("error.monitor.imagesTooLarge"));
     }
     ensure_directory(data, true)?;
-    let name = format!("{id}.{}", preview.format.extension());
+    let name = format!("{id}.{}", entry.format.extension());
     let path = images_dir(data).join(&name);
     let mut temp = tempfile::NamedTempFile::new_in(images_dir(data))
         .map_err(|_| HookError::new("error.monitor.imagesWriteFailed"))?;
@@ -257,8 +257,8 @@ fn save_monitor_image_with_commit(
         return Err(error);
     }
     snapshot.bytes.insert(id.clone(), Arc::from(bytes));
-    snapshot.gallery.images.push(preview);
-    snapshot.gallery = assemble_image_gallery(snapshot.gallery.images);
+    snapshot.gallery.images.push(entry);
+    snapshot.gallery = assemble_image_catalog(snapshot.gallery.images);
     Ok(MonitorImageImport { snapshot, id })
 }
 
