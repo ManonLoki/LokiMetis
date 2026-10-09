@@ -9,8 +9,10 @@ mod spotlight;
 mod state;
 mod textures;
 mod table_row;
+mod button;
 
 pub(in crate::app) use table_row::BrandTableRow;
+pub(in crate::app) use button::{HistoricalButtonSize, SurfaceButton, SurfaceButtonVariant};
 
 use gpui_kit::{
     A11ySubtreeBuilder, AnyElement, App, Bounds, Div, Element, ElementId, Entity, GlobalElementId,

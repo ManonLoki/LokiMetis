@@ -1,12 +1,17 @@
 //! Hooks卡片对应参考输入尺寸、只读路径与逐工具操作状态。
 
+#[cfg(test)]
+#[path = "view_button_tests.rs"]
+mod button_tests;
+
 use super::{Shell, state::Feedback};
+use crate::app::surface::{HistoricalButtonSize, SurfaceButton, SurfaceButtonVariant};
 use gpui_kit::{
     AnyElement, Context, Entity, FontWeight, IntoElement, Role,
     base::TestSupportExt as _,
     component::{
         ActiveTheme, Disableable,
-        button::{Button, ButtonVariants},
+        button::Button,
         input::{Input, InputState},
     },
     div,
@@ -222,13 +227,12 @@ impl Shell {
                 .gap(px(10.))
                 .child(left)
                 .child(
-                    Button::new("monitor-hook-write")
-                        .primary()
-                        .h(px(30.))
-                        .px(px(14.))
-                        .rounded(px(12.))
-                        .text_size(px(12.))
-                        .font_weight(FontWeight::SEMIBOLD)
+                    SurfaceButton::new(
+                        "monitor-hook-write",
+                        SurfaceButtonVariant::FilledBrand,
+                        cx.theme().mode.is_dark(),
+                    )
+                        .historical_size(HistoricalButtonSize::XSmall)
                         .label(self.t("monitor.settings.write"))
                         .loading(editor.writing)
                         .disabled(dirty || state.loading)

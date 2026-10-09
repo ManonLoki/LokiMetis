@@ -2,7 +2,8 @@
 
 use super::*;
 use gpui_kit::{
-    AnyWindowHandle, Bounds, Context, Entity, FontWeight, InputEvent, KeyDownEvent, KeyUpEvent,
+    AnyWindowHandle, App, Bounds, Context, Entity, FontWeight, InputEvent, KeyDownEvent, KeyUpEvent,
+    Pixels, Window, component::Disableable,
     Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, Point, Render, Rgba, Role,
     TestAppContext, WindowBounds, WindowOptions, base::TestSupportExt as _, div, point, prelude::*,
     px, size, test::TestWindowExt as _,

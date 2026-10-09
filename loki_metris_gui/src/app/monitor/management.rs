@@ -4,17 +4,21 @@
 #[path = "management_geometry_tests.rs"]
 mod geometry_tests;
 
+#[cfg(test)]
+#[path = "management_button_tests.rs"]
+mod button_tests;
+
 #[path = "management_badge.rs"]
 mod badge;
 
 use super::Shell;
 use badge::{BadgeColor, light_badge};
+use crate::app::surface::{HistoricalButtonSize, SurfaceButton, SurfaceButtonVariant};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, Window,
     base::TestSupportExt as _,
     component::{
         ActiveTheme, Disableable,
-        button::{Button, ButtonVariants},
         input::Textarea,
     },
     div,
@@ -482,10 +486,20 @@ impl Shell {
                             )
                         })
                         .child(
-                            Button::new("monitor-profile-save")
+                            SurfaceButton::new(
+                                "monitor-profile-save",
+                                SurfaceButtonVariant::FilledBrand,
+                                cx.theme().mode.is_dark(),
+                            )
+                                .historical_size(HistoricalButtonSize::Small)
+                                .left_icon(
+                                    gpui_kit::component::Icon::default().data(include_bytes!(
+                                        "../../../assets/icons/phosphor-check.svg"
+                                    )),
+                                )
                                 .label(self.t("monitor.management.save"))
-                                .primary()
-                                .disabled(state.saving || !state.images_loaded)
+                                .loading(state.saving)
+                                .disabled(!state.images_loaded)
                                 .on_click(
                                     cx.listener(|this, _, _, cx| this.save_monitor_profile(cx)),
                                 ),
