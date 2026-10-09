@@ -1,0 +1,4 @@
+include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/test-fixtures/assets/fonts/lilex/Lilex-Regular.ttf"
+        ))

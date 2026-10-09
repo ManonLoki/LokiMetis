@@ -29,6 +29,57 @@ function safePath(path) {
   return path;
 }
 
+/** 仅登记这次 WGPU 官方测试字体，不能借目录名放行其它第三方或手写内容。 */
+function verifyWgpuFontFixtures(directory, sourceProvenance, build) {
+  if (sourceProvenance.package !== 'gpui-pre-wgpu') return null;
+  const revision = '279fe070bb389b79652e52065b2f001edcc0b11b';
+  const manifestSha256 = '9fd0d42f6f6fcd62a12d6968f37d16d76b04aa048d1dbfe01814181526b8f81b';
+  const declared = build.match(/const FONT_FIXTURE_MANIFEST_SHA256:\s*&str\s*=\s*"([a-f0-9]{64})"/)?.[1];
+  if (sourceProvenance.version !== '0.3.8' || sourceProvenance.source_revision !== revision
+      || declared !== manifestSha256) throw new Error('font fixture registration drift');
+  const manifestPath = join(directory, 'test-fixtures-content.sha256');
+  const provenancePath = join(directory, 'test-fixtures-provenance.json');
+  for (const path of [manifestPath, provenancePath]) {
+    const stat = lstatSync(path);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('font fixture metadata must be a regular file');
+  }
+  const manifest = readFileSync(manifestPath);
+  if (hash(manifest) !== manifestSha256) throw new Error('font fixture manifest drift');
+  const provenance = JSON.parse(readFileSync(provenancePath));
+  if (provenance.repository !== 'https://github.com/zed-industries/zed' || provenance.revision !== revision
+      || provenance.fixture_root !== 'test-fixtures' || provenance.file_count !== 5 || provenance.total_bytes !== 596542
+      || provenance.verification?.sha256_manifest_file !== 'test-fixtures-content.sha256'
+      || provenance.verification?.sha256_manifest_digest !== manifestSha256) throw new Error('font fixture provenance drift');
+  const root = join(directory, 'test-fixtures');
+  const rootStat = lstatSync(root);
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) throw new Error('font fixture root link');
+  const actual = files(root);
+  const expected = new Set();
+  for (const line of manifest.toString('utf8').trimEnd().split('\n')) {
+    const match = line.match(/^([a-f0-9]{64})  (.+)$/);
+    if (!match) throw new Error('malformed font fixture manifest');
+    const [, digest, path] = match;
+    safePath(path);
+    if (expected.has(path)) throw new Error(`duplicate font fixture: ${path}`);
+    expected.add(path);
+    if (!actual.has(path) || hash(actual.get(path)) !== digest) throw new Error(`font fixture byte drift: ${path}`);
+  }
+  if (expected.size !== 5 || actual.size !== 5) throw new Error('font fixture file set drift');
+  if (!Array.isArray(provenance.files) || provenance.files.length !== 5) throw new Error('font fixture provenance file set drift');
+  const reported = new Set();
+  for (const record of provenance.files) {
+    if (!expected.has(record.path) || reported.has(record.path)) throw new Error('font fixture provenance path drift');
+    reported.add(record.path);
+    const bytes = actual.get(record.path);
+    const blobSha1 = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    if (record.size_bytes !== bytes.length || record.sha256 !== hash(bytes) || record.git_blob_sha1 !== blobSha1
+        || record.source_url !== `https://raw.githubusercontent.com/zed-industries/zed/${revision}/${record.path}`) {
+      throw new Error(`font fixture provenance byte drift: ${record.path}`);
+    }
+  }
+  return { files: actual.size, bytes: [...actual.values()].reduce((sum, bytes) => sum + bytes.length, 0), manifest_sha256: manifestSha256 };
+}
+
 /** 从维护入口读取固定常量，并独立按模板顺序复现生成结果及其 SHA。 */
 function verify(directory) {
   const provenance = JSON.parse(readFileSync(join(directory, 'provenance.json')));
@@ -77,7 +128,9 @@ function verify(directory) {
     checked.add(path);
   }
   if (changed.size !== checked.size || [...changed].some(path => !checked.has(path))) throw new Error('generated file set drift');
-  return { package: provenance.package, files: originals.size, bytes, patches: patches.length, manifest_sha256: expectedManifest };
+  const fontFixtures = verifyWgpuFontFixtures(directory, provenance, build);
+  return { package: provenance.package, files: originals.size, bytes, patches: patches.length, manifest_sha256: expectedManifest,
+    ...(fontFixtures ? { font_fixtures: fontFixtures } : {}) };
 }
 
 const paths = process.argv.slice(2);
