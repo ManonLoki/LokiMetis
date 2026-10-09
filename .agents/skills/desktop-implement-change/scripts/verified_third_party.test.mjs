@@ -33,9 +33,8 @@ function assertRejected(pattern) {
 }
 
 /** GPUI 清单相对 immutable upstream；shim 和补丁绝不进入排除集合。 */
-function installGpuiSource() {
-  const component = "vendor/gpui-pre";
-  const sourceRoot = fileURLToPath(new URL("../../../../vendor/gpui-pre/", import.meta.url));
+function installGpuiSource(component = "vendor/gpui-pre") {
+  const sourceRoot = fileURLToPath(new URL(`../../../../${component}/`, import.meta.url));
   const payload = readFileSync(path.join(sourceRoot, "source-content.sha256"));
   const entries = parseThirdPartyManifest(payload);
   const targetRoot = path.join(root, component);
@@ -70,6 +69,26 @@ test("GPUI registration verifies its nested source root and excludes no maintain
   writeFileSync(path.join(root, "vendor/gpui-pre/src/lib.rs"), "// maintained shim\n");
   assert.equal(expected.length, 160);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
+});
+
+test("macOS font registration verifies all 17 originals and excludes no helper or fixture", () => {
+  const expected = installGpuiSource("vendor/gpui-pre-macos");
+  for (const relative of ["src/variable_font.rs", "test-fixtures/font.ttf"]) {
+    const target = path.join(root, "vendor/gpui-pre-macos", relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, "maintained content\n");
+  }
+  assert.equal(expected.length, 17);
+  assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
+});
+
+test("macOS font source drift rejects all its exclusions while keeping other registrations", () => {
+  const expected = installSource();
+  installGpuiSource("vendor/gpui-pre-macos");
+  writeFileSync(path.join(root, "vendor/gpui-pre-macos/upstream/src/text_system.rs"), "// changed\n");
+  const result = verifyRegisteredThirdParty(root);
+  assert.deepEqual(result.files, expected);
+  assert.ok(result.errors.some((error) => /原样文件 SHA256 不符.*text_system\.rs/u.test(error)));
 });
 
 test("a modified GPUI source rejects its whole registration without affecting AccessKit", () => {

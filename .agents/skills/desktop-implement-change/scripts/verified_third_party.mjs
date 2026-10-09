@@ -23,6 +23,12 @@ const REGISTERED_SOURCES = Object.freeze([
     entries: 15,
   }),
   Object.freeze({
+    manifest: "vendor/gpui-pre-macos/source-content.sha256",
+    root: "vendor/gpui-pre-macos/upstream",
+    sha256: "4b29969a342cfbc80229ca6690ec4f29a1954ddd50470a0106d794e669edf406",
+    entries: 17,
+  }),
+  Object.freeze({
     manifest: "vendor/gpui-pre-windows/source-content.sha256",
     root: "vendor/gpui-pre-windows/upstream",
     sha256: "6f799175fd8bea70b7645bf917948e545c173e10691ace344f8edb9a35eea770",

@@ -2,7 +2,13 @@
 
 
 
-参考产品使用 Geist 与 Geist Mono。原生 GPUI 的 macOS 后端不展开可变字体 wght 实例，因此在进程内嵌入同一官方家族的 400/500/600/700/800 静态字重；不安装系统字体。SIL Open Font License 1.1 见随附 OFL 文件。
+参考产品使用 Geist 与 Geist Mono。macOS 通过本地 CoreText 兼容层在进程内注册历史项目原样的可变 WOFF2，保留真实 wght 实例；Windows 暂保留同一官方家族的 400/500/600/700/800 静态字重。均不安装系统字体，SIL Open Font License 1.1 原样文本随包携带于 third-party/geist。
+
+历史包均为 @fontsource-variable 5.3.0，字节直接取自历史项目 node_modules，未解码重编码：
+
+- Geist-Latin-variable.woff2：@fontsource-variable/geist/files/geist-latin-wght-normal.woff2，29400 字节，SHA256 19f9c92546aa300c312235e3125af1b81394d8db9a4bc4a425cd5b641d2d54e1。
+- GeistMono-Latin-variable.woff2：@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2，23128 字节，SHA256 684ad5b531f81d43c1e8c7038262d5db7cdc1f68006e04d6c7769efa8d33c8cc。
+- 两包原 LICENSE 分别保留为 licenses/Geist-variable-OFL.txt（SHA256 71609cbb5c78b5870d712eab73a31d76622635c6ed034ab5cee3b9ecbda8685f）和 licenses/GeistMono-variable-OFL.txt（SHA256 cc815ed4fc045f0e991abb10395b7932bd028c6a067deb13316d6002105074e6）。静态字体许可保留为 licenses/Geist-static-OFL.txt。
 
 
 

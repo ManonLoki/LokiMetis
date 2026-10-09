@@ -13,6 +13,7 @@ mod preferences;
 mod logging;
 mod lifecycle;
 mod release_notes;
+mod fonts;
 
 mod native;
 mod pet;
@@ -56,18 +57,7 @@ fn main() -> std::process::ExitCode {
         use gpui_kit::component as gpui_component;
         rust_i18n::extend!(gpui_component);
         gpui_kit::init(cx);
-        cx.text_system().add_fonts(vec![
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Regular.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Medium.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-SemiBold.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Bold.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/Geist-ExtraBold.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Regular.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Medium.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-SemiBold.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Bold.ttf")),
-            std::borrow::Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-ExtraBold.ttf")),
-        ]).expect("无法注册内嵌字体");
+        fonts::install(cx);
         cx.set_app_identity("com.loki-metris.app", "LokiMetris");
         lifecycle::install(cx, native_shutdown);
         cx.set_quit_mode(QuitMode::Explicit);

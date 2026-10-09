@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "license": "SIL Open Font License 1.1; original files unchanged",
+  "files": [
+    {
+      "path": "Geist-Latin-variable.woff2",
+      "source": "/Users/manonloki/Documents/my-work/loki_metis/loki_metis_gui/node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2",
+      "bytes": 29400,
+      "sha256": "19f9c92546aa300c312235e3125af1b81394d8db9a4bc4a425cd5b641d2d54e1",
+      "package": "@fontsource-variable/geist",
+      "package_version": "5.3.0"
+    },
+    {
+      "path": "GeistMono-Latin-variable.woff2",
+      "source": "/Users/manonloki/Documents/my-work/loki_metis/loki_metis_gui/node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2",
+      "bytes": 23128,
+      "sha256": "684ad5b531f81d43c1e8c7038262d5db7cdc1f68006e04d6c7769efa8d33c8cc",
+      "package": "@fontsource-variable/geist-mono",
+      "package_version": "5.3.0"
+    },
+    {
+      "path": "Geist-static-Regular.ttf",
+      "source": "/Users/manonloki/Documents/my-work/ai/loki_metris/loki_metris_gui/assets/fonts/Geist-Regular.ttf",
+      "bytes": 126048,
+      "sha256": "85a1c6b18a6b0a06dfe9fd4f6d6a5d4979f74ec861eaef4bc7868b5492b8a117",
+      "source_url": "https://raw.githubusercontent.com/vercel/geist-font/a73329da8fc62afc917f796555202e4997f79b7c/fonts/Geist/ttf/Geist-Regular.ttf"
+    },
+    {
+      "path": "Geist-static-Bold.ttf",
+      "source": "/Users/manonloki/Documents/my-work/ai/loki_metris/loki_metris_gui/assets/fonts/Geist-Bold.ttf",
+      "bytes": 128824,
+      "sha256": "3f21f02b827228c3f0c5fb230d027b5a1a263013618e8052bc1b3c5692812c88",
+      "source_url": "https://raw.githubusercontent.com/vercel/geist-font/a73329da8fc62afc917f796555202e4997f79b7c/fonts/Geist/ttf/Geist-Bold.ttf"
+    },
+    {
+      "path": "Geist-OFL.txt",
+      "source": "/Users/manonloki/Documents/my-work/loki_metis/loki_metis_gui/node_modules/@fontsource-variable/geist/LICENSE",
+      "bytes": 4486,
+      "sha256": "71609cbb5c78b5870d712eab73a31d76622635c6ed034ab5cee3b9ecbda8685f"
+    },
+    {
+      "path": "GeistMono-OFL.txt",
+      "source": "/Users/manonloki/Documents/my-work/loki_metis/loki_metis_gui/node_modules/@fontsource-variable/geist-mono/LICENSE",
+      "bytes": 4498,
+      "sha256": "cc815ed4fc045f0e991abb10395b7932bd028c6a067deb13316d6002105074e6"
+    },
+    {
+      "path": "Geist-static-OFL.txt",
+      "source": "/Users/manonloki/Documents/my-work/ai/loki_metris/loki_metris_gui/assets/fonts/Geist-OFL.txt",
+      "bytes": 4383,
+      "sha256": "c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90",
+      "source_url": "https://raw.githubusercontent.com/vercel/geist-font/a73329da8fc62afc917f796555202e4997f79b7c/OFL.txt"
+    }
+  ],
+  "manifest_sha256": "beb3fbcd84f005d5e3ff86de06dc6c1e249fea1d1f67d0c50c78ad08d75974d7"
+}
