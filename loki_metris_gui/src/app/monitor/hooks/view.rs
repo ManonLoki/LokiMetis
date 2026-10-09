@@ -97,8 +97,8 @@ impl Shell {
                 .text_size(px(14.08))
                 .line_height(gpui_kit::relative(1.))
                 .font_weight(FontWeight::BOLD)
-                .accessibility_label(loki_metris_core::ai_tool_name(candidate))
-                .child(loki_metris_core::ai_tool_name(candidate))
+                .accessibility_label(super::super::monitor_tool_display_name(candidate))
+                .child(super::super::monitor_tool_display_name(candidate))
                 .when(candidate == tool, |button| {
                     button
                         .bg(cx.theme().accent)

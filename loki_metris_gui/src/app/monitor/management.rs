@@ -1,6 +1,14 @@
 //! 管理页映射真实公开档案、十二展示位、四行为和本机图片选择器。
 
+#[cfg(test)]
+#[path = "management_geometry_tests.rs"]
+mod geometry_tests;
+
+#[path = "management_badge.rs"]
+mod badge;
+
 use super::Shell;
+use badge::{BadgeColor, light_badge};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, Window,
     base::TestSupportExt as _,
@@ -11,7 +19,7 @@ use gpui_kit::{
     },
     div,
     prelude::*,
-    px, rgb,
+    px, relative, rgb,
 };
 use loki_metris_core::HookBehavior;
 
@@ -91,8 +99,8 @@ impl Shell {
                 } else {
                     cx.theme().border.opacity(0.)
                 })
-                .accessibility_label(loki_metris_core::ai_tool_name(candidate))
-                .child(loki_metris_core::ai_tool_name(candidate))
+                .accessibility_label(super::monitor_tool_display_name(candidate))
+                .child(super::monitor_tool_display_name(candidate))
                 .when(candidate == tool, |button| {
                     button
                         .bg(cx.theme().accent)
@@ -178,22 +186,21 @@ impl Shell {
                         .justify_between()
                         .child(
                             div()
-                                .font_weight(FontWeight::SEMIBOLD)
+                                .id("monitor-slot-title")
+                                .test_support()
+                                .text_size(px(16.))
+                                .line_height(relative(1.55))
+                                .font_weight(FontWeight::BOLD)
                                 .child(self.t("monitor.slot.title")),
                         )
-                        .child(
-                            div()
-                                .px_3()
-                                .py_1()
-                                .rounded_full()
-                                .bg(cx.theme().accent)
-                                .text_color(cx.theme().accent_foreground)
-                                .text_size(px(12.))
-                                .child(
-                                    self.t("monitor.slot.position")
-                                        .replace("%{slot}", &draft.slot.to_string()),
-                                ),
-                        ),
+                        .child(light_badge(
+                            "monitor-slot-badge",
+                            self.t("monitor.slot.position")
+                                .replace("%{slot}", &draft.slot.to_string()),
+                            BadgeColor::Brand,
+                            true,
+                            cx.theme().mode.is_dark(),
+                        )),
                 )
                 .child(slots),
         );
@@ -219,19 +226,20 @@ impl Shell {
                 .justify_between()
                 .child(
                     div()
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .id("monitor-behaviors-title")
+                        .test_support()
+                        .text_size(px(16.))
+                        .line_height(relative(1.55))
+                        .font_weight(FontWeight::BOLD)
                         .child(self.t("monitor.management.behaviorDisplay")),
                 )
-                .child(
-                    div()
-                        .px_3()
-                        .py_1()
-                        .rounded_full()
-                        .bg(cx.theme().accent)
-                        .text_color(cx.theme().accent_foreground)
-                        .text_size(px(12.))
-                        .child(count_label),
-                ),
+                .child(light_badge(
+                    "monitor-count-badge",
+                    count_label,
+                    BadgeColor::Brand,
+                    true,
+                    cx.theme().mode.is_dark(),
+                )),
         );
         if state.images_loaded && !state.images.iter().any(|image| image.source.is_ok()) {
             page = page.child(
@@ -260,11 +268,6 @@ impl Shell {
                 HookBehavior::Asking => 0xf59f00,
                 _ => 0xf03e3e,
             });
-            let badge_color = if hook.image.is_empty() {
-                color
-            } else {
-                rgb(0x12b886)
-            };
             let mut card = div()
                 .id(format!("monitor-behavior-{key}"))
                 .test_support()
@@ -281,12 +284,14 @@ impl Shell {
                 .bg(cx.theme().secondary)
                 .child(
                     div()
+                        .id(format!("monitor-behavior-header-{key}"))
+                        .test_support()
                         .relative()
                         .w_full()
                         .flex()
                         .items_center()
                         .justify_between()
-                        .gap_3()
+                        .gap(px(16.))
                         .px(px(18.))
                         .pt(px(18.))
                         .pb(px(14.))
@@ -301,26 +306,25 @@ impl Shell {
                                 .child(div().size(px(10.)).rounded_full().bg(color))
                                 .child(
                                     div()
+                                        .id(format!("monitor-behavior-title-{key}"))
+                                        .test_support()
+                                        .text_size(px(16.))
+                                        .line_height(relative(1.55))
                                         .font_weight(FontWeight::BOLD)
                                         .child(self.t(&format!("monitor.behavior.{key}"))),
                                 ),
                         )
-                        .child(
-                            div()
-                                .px_2()
-                                .py_1()
-                                .rounded(px(4.))
-                                .text_size(px(12.))
-                                .text_color(badge_color)
-                                .border_1()
-                                .border_color(badge_color.opacity(0.26))
-                                .bg(badge_color.opacity(0.09))
-                                .child(self.t(if hook.image.is_empty() {
-                                    "monitor.management.notConfigured"
-                                } else {
-                                    "monitor.management.configured"
-                                })),
-                        ),
+                        .child(light_badge(
+                            format!("monitor-state-badge-{key}"),
+                            self.t(if hook.image.is_empty() {
+                                "monitor.management.notConfigured"
+                            } else {
+                                "monitor.management.configured"
+                            }),
+                            BadgeColor::for_behavior(behavior, !hook.image.is_empty()),
+                            false,
+                            cx.theme().mode.is_dark(),
+                        )),
                 );
             let mut content = div()
                 .w_full()
@@ -333,17 +337,23 @@ impl Shell {
                 div()
                     .flex()
                     .flex_col()
-                    .gap_2()
                     .child(
                         div()
+                            .id(format!("monitor-content-label-{key}"))
+                            .test_support()
                             .flex()
-                            .items_center()
-                            .gap_1()
+                            .items_baseline()
                             .text_size(px(14.))
-                            .child(self.t("monitor.management.content"))
+                            .line_height(relative(1.55))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(format!("{} ", self.t("monitor.management.content")))
                             .child(
                                 div()
+                                    .id(format!("monitor-content-optional-{key}"))
+                                    .test_support()
                                     .text_size(px(12.))
+                                    .line_height(relative(1.4))
+                                    .font_weight(FontWeight::NORMAL)
                                     .text_color(cx.theme().muted_foreground)
                                     .child(self.t("monitor.management.optional")),
                             ),
@@ -351,13 +361,19 @@ impl Shell {
                     .when_some(
                         editor.inputs.as_ref().and_then(|inputs| inputs.get(index)),
                         |field, input| {
-                            field.child(Textarea::new(input).w_full().h(px(68.)).aria_label(
-                                format!(
-                                    "{} {}",
-                                    self.t(&format!("monitor.behavior.{key}")),
-                                    self.t("monitor.management.content")
-                                ),
-                            ))
+                            field.child(
+                                div()
+                                    .id(format!("monitor-content-input-{key}"))
+                                    .test_support()
+                                    .w_full()
+                                    .child(Textarea::new(input).w_full().h(px(68.)).aria_label(
+                                        format!(
+                                            "{} {}",
+                                            self.t(&format!("monitor.behavior.{key}")),
+                                            self.t("monitor.management.content")
+                                        ),
+                                    )),
+                            )
                         },
                     ),
             );

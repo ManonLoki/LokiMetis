@@ -14,7 +14,7 @@ use gpui_kit::{
     },
     div,
     prelude::*,
-    px, rgb,
+    px, relative, rgb,
 };
 use loki_metris_core::{AiTool, HookBehavior};
 
@@ -36,16 +36,22 @@ impl Shell {
             .find(|image| image.id == value && image.source.is_ok());
         let opened = state.picker == Some(behavior);
         let disabled = state.images_loading || state.uploading;
-        let mut field = div().w_full().flex().flex_col().gap_2();
+        let mut field = div().w_full().flex().flex_col().gap(px(7.));
         field = field.child(
             div()
+                .id(format!("monitor-image-label-row-{key}"))
+                .test_support()
                 .w_full()
                 .flex()
                 .items_center()
                 .justify_between()
                 .text_size(px(14.))
+                .line_height(relative(1.45))
+                .font_weight(FontWeight::MEDIUM)
                 .child(
                     div()
+                        .id(format!("monitor-image-label-{key}"))
+                        .test_support()
                         .flex()
                         .items_center()
                         .child(self.t("monitor.picker.field"))
@@ -53,9 +59,35 @@ impl Shell {
                 )
                 .when(!value.trim().is_empty(), |row| {
                     row.child(
-                        Button::new(format!("monitor-picker-clear-{key}"))
-                            .label("×")
-                            .ghost()
+                        gpui_kit::base::Button::new(format!("monitor-picker-clear-{key}"))
+                            .size(px(22.))
+                            .p_0()
+                            .rounded(px(12.))
+                            .text_color(rgb(if cx.theme().mode.is_dark() {
+                                0xf8f9fa
+                            } else {
+                                0x212529
+                            }))
+                            .hover(|button| {
+                                button.bg(rgb(if cx.theme().mode.is_dark() {
+                                    0x171a1d
+                                } else {
+                                    0xe9ecef
+                                }))
+                            })
+                            .child(
+                                div()
+                                    .id(format!("monitor-picker-clear-icon-{key}"))
+                                    .test_support()
+                                    .size(px(15.))
+                                    .child(
+                                        gpui_kit::component::Icon::default()
+                                            .data(
+                                                &include_bytes!("../../../assets/icons/x.svg")[..],
+                                            )
+                                            .size(px(15.)),
+                                    ),
+                            )
                             .accessibility_label(self.t("monitor.picker.clearAria"))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.select_monitor_image(tool, behavior, String::new(), cx)
@@ -96,16 +128,44 @@ impl Shell {
                 )
                 .child(
                     div()
+                        .id(format!("monitor-image-change-{key}"))
+                        .test_support()
                         .absolute()
                         .right_2()
                         .bottom_2()
-                        .px_2()
-                        .py_1()
+                        .flex()
+                        .items_center()
+                        .gap(px(6.))
+                        .px(px(9.))
+                        .py(px(6.))
                         .rounded(px(8.))
                         .bg(rgb(0x14141a).opacity(0.84))
                         .text_color(rgb(0xffffff))
                         .text_size(px(12.))
-                        .child(self.t("monitor.picker.change")),
+                        .line_height(relative(1.55))
+                        .font_weight(FontWeight(650.))
+                        .child(
+                            div()
+                                .id(format!("monitor-image-change-icon-{key}"))
+                                .test_support()
+                                .size(px(17.))
+                                .flex_shrink_0()
+                                .child(
+                                    gpui_kit::component::Icon::default()
+                                        .data(
+                                            &include_bytes!(
+                                                "../../../assets/icons/image-square.svg"
+                                            )[..],
+                                        )
+                                        .size(px(17.)),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .id(format!("monitor-image-change-text-{key}"))
+                                .test_support()
+                                .child(self.t("monitor.picker.change")),
+                        ),
                 );
         } else {
             trigger = trigger.child(

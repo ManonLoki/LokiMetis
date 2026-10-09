@@ -9,6 +9,8 @@ mod picker;
 mod images;
 mod hooks;
 #[cfg(test)]
+mod display_name_tests;
+#[cfg(test)]
 mod catalog_tests;
 #[cfg(test)]
 mod behavior_surface_tests;
@@ -24,6 +26,14 @@ pub(super) struct MonitorView {
     status:Option<HookRelayStatus>,
     error:Option<&'static str>,
     last_read:Option<std::time::Instant>,
+}
+
+/// 监控展示名消费唯一公开能力目录；未公开协议工具仍使用既有名称回退。
+fn monitor_tool_display_name(tool: loki_metris_core::AiTool) -> &'static str {
+    loki_metris_core::public_ai_capabilities().iter()
+        .find(|capability| capability.monitor_tool == Some(tool))
+        .map(|capability| capability.name)
+        .unwrap_or_else(|| loki_metris_core::ai_tool_name(tool))
 }
 
 impl Shell {
@@ -59,10 +69,10 @@ impl Shell {
                 .child(self.monitor_metric("monitor-received","monitor.workbench.receivedLabel",status.received_count,cx))
                 .child(self.monitor_metric("monitor-failed","monitor.workbench.failedLabel",status.failed_count,cx)))
             .child(if let Some(event)=&status.last_event {
-                let tool=loki_metris_core::ai_tool_name(event.tool);
+                let tool=monitor_tool_display_name(event.tool);
                 let label=format!("{} {} / {}",self.t("monitor.workbench.lastEventLabel"),tool,event.hook_type);
-                div().id("monitor-last-event").role(Role::Label).aria_label(label.clone()).text_size(px(14.)).child(label)
-            }else{div().id("monitor-last-event").role(Role::Label).aria_label(self.t("monitor.workbench.noEvent")).text_size(px(14.)).text_color(cx.theme().muted_foreground).child(self.t("monitor.workbench.noEvent"))})
+                div().id("monitor-last-event").test_support().role(Role::Label).aria_label(label.clone()).text_size(px(14.)).child(label)
+            }else{div().id("monitor-last-event").test_support().role(Role::Label).aria_label(self.t("monitor.workbench.noEvent")).text_size(px(14.)).text_color(cx.theme().muted_foreground).child(self.t("monitor.workbench.noEvent"))})
             .when_some(status.last_error.as_ref(),|card,error|card.child(div().id("monitor-last-error").role(Role::Alert).aria_label(error.clone()).rounded(px(12.)).p_4().bg(cx.theme().danger.opacity(0.1)).text_color(cx.theme().danger).child(self.t("monitor.workbench.lastError").replace("%{error}",error)))));
         page.into_any_element()
     }
