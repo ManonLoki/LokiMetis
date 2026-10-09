@@ -5,8 +5,8 @@ use gpui_kit::{TestAppContext, test::TestWindowExt};
 
 /// 每个测试的服务和临时文件仅由当前测试拥有。
 pub(super) struct Fixture {
-    root: tempfile::TempDir,
-    service: Arc<UsageService>,
+    pub(super) root: tempfile::TempDir,
+    pub(super) service: Arc<UsageService>,
     pub(super) owner: Entity<Controller>,
     pub(super) overlay: AnyWindowHandle,
 }

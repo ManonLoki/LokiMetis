@@ -6,6 +6,8 @@ mod settings;
 mod size_control;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod first_populated_tests;
 
 use crate::{
     monitor::{images::MonitorGallerySnapshot, settings::MonitorSettings},
@@ -30,6 +32,18 @@ use std::{
 /// 唯一全局句柄拥有controller，窗口内容只订阅这个实体。
 struct Manager(Entity<Controller>);
 impl Global for Manager {}
+/// 首图自动定位只消费成功事实；失败限频重试，后续手动分页结束自动阶段。
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FirstPopulatedFocus {
+    /// 尚未收到可用图片。
+    Waiting,
+    /// 唯一自动偏好事务尚未收到回执。
+    Pending,
+    /// 保存失败后等待下一次允许的轮询。
+    Retry(std::time::Instant),
+    /// 已定位、当前页已有图或用户在尝试后手动选择页面。
+    Done,
+}
 /// 桌宠投影只缓存成功事实，损坏配置的默认值只用于当前展示。
 struct Controller {
     service: Arc<UsageService>,
@@ -46,7 +60,7 @@ struct Controller {
     observed: (u64, u64, u64, u64),
     loading: bool,
     settings_generation: u64,
-    first_populated: bool,
+    first_populated: FirstPopulatedFocus,
     busy: bool,
     pending: VecDeque<PetPreferenceChange>,
     poll: Option<Task<()>>,
@@ -79,7 +93,7 @@ impl Controller {
             observed: (u64::MAX, u64::MAX, u64::MAX, u64::MAX),
             loading: false,
             settings_generation: 0,
-            first_populated: false,
+            first_populated: FirstPopulatedFocus::Waiting,
             busy: false,
             pending: VecDeque::new(),
             poll: None,
@@ -95,6 +109,14 @@ impl Controller {
             position_dirty: None,
         }
     }
+    /// 三类文件快照版本由服务拥有，首图定位须等待与当前版本一致的完整读取。
+    fn snapshot_revisions(&self) -> (u64, u64, u64) {
+        (
+            self.service.agent_settings_revision(),
+            self.service.pet_settings_revision(),
+            self.service.monitor_catalog_revision(),
+        )
+    }
     /// 文件快照只在设置或图库代数变化时读取，事件投影每100ms检查内存版本。
     fn refresh(&mut self, cx: &mut Context<Self>) {
         if let Ok(status) = self.service.monitor_status() {
@@ -105,20 +127,17 @@ impl Controller {
                     .filter(|state| loki_metris_core::is_public_monitor_tool(state.tool))
                     .collect();
                 self.observed.3 = status.revision;
-                self.focus_first_populated(cx);
                 cx.notify();
             }
         }
-        let keys = (
-            self.service.agent_settings_revision(),
-            self.service.pet_settings_revision(),
-            self.service.monitor_catalog_revision(),
-        );
+        self.focus_first_populated(cx);
+        let keys = self.snapshot_revisions();
         if self.loading
             || self
                 .retry_after
                 .is_some_and(|retry| cx.background_executor().now() < retry)
-            || (self.observed.0, self.observed.1, self.observed.2) == keys
+            || ((self.observed.0, self.observed.1, self.observed.2) == keys
+                && self.retry_after.is_none())
         {
             return;
         }
@@ -228,23 +247,46 @@ impl Controller {
             |id| self.images.contains_key(id),
         )
     }
-    /// 生命周期第一次收到可用图时只在当前页无图的情况下自动定位。
+    /// 首图只消费完整且版本仍然一致的快照；在途查询、读取失败和手动事务不能排入旧目标。
     fn focus_first_populated(&mut self, cx: &mut Context<Self>) {
-        if self.first_populated || !self.geometry_restored {
+        if self.quitting
+            || self.loading
+            || self.retry_after.is_some()
+            || self.busy
+            || !self.pending.is_empty()
+            || !self.geometry_restored
+            || (self.observed.0, self.observed.1, self.observed.2) != self.snapshot_revisions()
+        {
             return;
+        }
+        match self.first_populated {
+            FirstPopulatedFocus::Pending | FirstPopulatedFocus::Done => return,
+            FirstPopulatedFocus::Retry(at) if cx.background_executor().now() < at => return,
+            FirstPopulatedFocus::Waiting | FirstPopulatedFocus::Retry(_) => {}
         }
         let page = self.page();
         if !page.has_any_image {
             return;
         }
-        self.first_populated = true;
         if page.page_has_image {
+            self.first_populated = FirstPopulatedFocus::Done;
             return;
         }
         if let Some(slot) = first_populated_pet_slot(&self.drafts, &self.states, |id| {
             self.images.contains_key(id)
         }) {
-            self.change(PetPreferenceChange::FocusedSlot(slot), cx);
+            self.first_populated = FirstPopulatedFocus::Pending;
+            self.enqueue_change(PetPreferenceChange::FocusedSlot(slot), cx);
+        }
+    }
+    /// 旧自动回执不能复活已被手动分页取消的定位；持续写入失败最多每两秒重试一次。
+    fn complete_first_focus(&mut self, success: bool, cx: &Context<Self>) {
+        if self.first_populated == FirstPopulatedFocus::Pending {
+            self.first_populated = if success {
+                FirstPopulatedFocus::Done
+            } else {
+                FirstPopulatedFocus::Retry(cx.background_executor().now() + Duration::from_secs(2))
+            };
         }
     }
     /// 当前屏工作区只属于宿主；尺寸约束由core推导。
@@ -332,8 +374,19 @@ impl Controller {
         }
     }
 
-    /// UI意图有界串行，滑块中间值合并；已接受的服务操作不会随设置窗关闭取消。
+    /// 首图尝试之后接受的手动分页拥有最终选择权，包括仍在途和保存失败的自动请求。
     fn change(&mut self, change: PetPreferenceChange, cx: &mut Context<Self>) {
+        if !self.quitting
+            && (!self.busy || self.pending.len() < 64)
+            && matches!(change, PetPreferenceChange::TurnPage(_) | PetPreferenceChange::FocusedSlot(_))
+            && self.first_populated != FirstPopulatedFocus::Waiting
+        {
+            self.first_populated = FirstPopulatedFocus::Done;
+        }
+        self.enqueue_change(change, cx);
+    }
+    /// UI意图有界串行，滑块中间值合并；已接受的服务操作不会随设置窗关闭取消。
+    fn enqueue_change(&mut self, change: PetPreferenceChange, cx: &mut Context<Self>) {
         if self.quitting {
             return;
         }
@@ -373,11 +426,13 @@ impl Controller {
         };
         let range = self.range(layout, cx);
         let Ok(next) = change_pet_preferences(old, change, range) else {
+            self.complete_first_focus(false, cx);
             self.busy = false;
             self.next_pending(cx);
             return;
         };
         if next == old {
+            self.complete_first_focus(true, cx);
             self.busy = false;
             self.next_pending(cx);
             return;
@@ -397,6 +452,7 @@ impl Controller {
         self.settings.pet_window = next;
         if native_changed {
             if let Err(error) = self.apply_geometry(false, cx) {
+                self.complete_first_focus(false, cx);
                 self.settings.pet_window = old;
                 let _ = self.apply_geometry(false, cx);
                 self.restore_bounds(old_bounds, cx);
@@ -425,6 +481,7 @@ impl Controller {
             };
             let _ = entity.update(cx, |this, cx| {
                 this.busy = false;
+                this.complete_first_focus(result.is_ok(), cx);
                 match result {
                     Ok(settings) => {
                         this.settings = settings;
