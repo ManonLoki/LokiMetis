@@ -1,5 +1,6 @@
 //! 调用页直接消费 core 固定页大小与不透明游标，不对已加载行二次排序。
 
+use crate::app::surface::{BrandTableRow, StaticCard, StaticMaterial};
 use super::{Shell,format};
 use gpui_kit::base::TestSupportExt as _;
 use crate::usage_service::{UsageQuery,UsageResponse};
@@ -79,7 +80,7 @@ impl Shell {
         let mut column=div().w_full().flex().flex_col().gap_8();
         if page.index_state!=LocalIndexState::Ready {column=column.child(self.local_index_notice(page.index_state,cx));}
         if matches!(page.index_state,LocalIndexState::NotScanned|LocalIndexState::NeedsRescan) {return column.into_any_element()}
-        let filters=self.panel(cx).child(div().flex().items_center().justify_between()
+        let filters=StaticCard::new("calls-filters", cx.theme().mode.is_dark(), StaticMaterial::Panel).test_support().gap_4().p_5().child(div().flex().items_center().justify_between()
             .child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("calls.filters")))
             .child(Button::new("calls-clear").ghost().label(self.t("calls.clear")).on_click(cx.listener(|this,_,_,cx|{
                 this.dashboard.calls.queries[this.dashboard.client].filters=UsageCallFilters::default();this.load_calls(false,cx);
@@ -196,7 +197,7 @@ impl Shell {
             header=header.child(self.call_sort_head(&widths,key,field,index,cx));
         }
         let mut body=TableBody::new();
-        if refreshing||failed {body=body.child(TableRow::new().child(TableCell::new().col_span(if all {13}else{12}).px(px(10.)).py_4()
+        if refreshing||failed {body=body.child(BrandTableRow::new("calls-updating-row",cx.theme().mode.is_dark()).child(TableCell::new().col_span(if all {13}else{12}).px(px(10.)).py_4()
             .text_color(if failed {cx.theme().danger}else{cx.theme().muted_foreground}).child(self.t(if failed {"calls.first_failed"}else{"calls.updating"}))));}
         else {body=body.children(page.items.iter().enumerate().map(|(index,item)|self.call_row(item,index,all,&widths,cx)));}
         let table=Table::new().w_full().text_size(px(14.)).font_weight(FontWeight::NORMAL).text_color(cx.theme().foreground)
@@ -210,7 +211,7 @@ impl Shell {
                 row.child(Button::new("calls-load-more").outline().label(self.t("calls.load_more")).loading(self.dashboard.calls.loading_next).disabled(self.dashboard.calls.loading_next)
                     .on_click(cx.listener(|this,_,_,cx|this.load_calls(true,cx))))
             }else{row.child(self.t("calls.all_loaded"))}});
-        self.panel(cx).p_0().gap_0().child(div().id("calls-table-scroll").tab_index(0).role(gpui_kit::Role::Group).aria_label(self.t("calls.table"))
+        StaticCard::new("calls-results", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().p_0().gap_0().child(div().id("calls-table-scroll").tab_index(0).role(gpui_kit::Role::Group).aria_label(self.t("calls.table"))
             .overflow_x_scroll().w_full().min_w_0().child(div().w(px(widths[if all {0}else{1}..].iter().sum())).flex_none().child(table)))
             .when(!refreshing&&!failed&&page.items.is_empty(),|panel|panel.child(div().p_5().text_color(cx.theme().muted_foreground)
                 .child(self.t(if page.index_state==LocalIndexState::ReadyNoCalls {"calls.empty_scanned"}else{"calls.empty_filtered"}))))
@@ -228,14 +229,14 @@ impl Shell {
     }
 
     /// 每条事实的标签与 Token 均按 core 口径展示；Grok 推理保持缺失。
-    fn call_row(&self,item:&UsageCallItem,index:usize,all:bool,widths:&[f32;13],cx:&Context<Self>)->TableRow {
+    fn call_row(&self,item:&UsageCallItem,index:usize,all:bool,widths:&[f32;13],cx:&Context<Self>)->BrandTableRow {
         let text_cell=|field:usize,value:String| {
             let title=value.clone();
             TableCell::new().w(px(widths[field])).min_w(px(widths[field])).flex_none().px(px(10.)).py_4().child(div()
                 .id(SharedString::from(format!("call-{index}-{field}"))).test_support().w_full().min_w_0().truncate().role(gpui_kit::Role::Label).aria_label(value.clone())
                 .tooltip(move|window,cx|gpui_kit::component::tooltip::Tooltip::new(title.clone()).build(window,cx)).child(value))
         };
-        let mut row=TableRow::new();
+        let mut row=BrandTableRow::new(SharedString::from(format!("calls-row-{:?}-{}",item.client,item.id)),cx.theme().mode.is_dark());
         if all {row=row.child(text_cell(0,match item.client {SourceClientKind::Codex=>"Codex",SourceClientKind::ClaudeCode=>"Claude Code",SourceClientKind::GrokBuildCli=>"Grok",SourceClientKind::WorkBuddy=>"WorkBuddy"}.into()));}
         row=row.child(text_cell(1,format::observed(item.occurred_at_epoch_ms,self.locale)))
             .child(text_cell(2,self.display_label(&item.project_label,item.project_label_code)))

@@ -1,6 +1,7 @@
 //! 原生壳层只拥有导航、外观和设备偏好；领域状态始终从直接依赖的共享核心读取。
 
 mod settings;
+mod surface;
 mod monitor;
 mod skins;
 mod dashboard;
@@ -125,10 +126,10 @@ impl Shell {
             theme.font_family = "Geist".into();
             theme.mono_font_family = "Geist Mono".into();
             theme.colors.background = color(0xf7f4ef, 0x131211);
-            theme.colors.foreground = color(0x2d241e, 0xf8f8f8);
+            theme.colors.foreground = color(0x141414, 0xf8f9fa);
             theme.colors.secondary = color(0xfffdf9, 0x1e1c1a);
             theme.colors.muted = color(0xfcfaf7, 0x26272b);
-            theme.colors.muted_foreground = color(0x847b72, 0x8a8784);
+            theme.colors.muted_foreground = color(0x868e96, 0x828282);
             theme.colors.border = color(0xe6ddd1, 0x332f2a);
             theme.colors.primary = color(0xc43b2d, 0xd95a44);
             theme.colors.primary_foreground = color(0xffffff, 0xffffff);
@@ -156,8 +157,9 @@ impl Shell {
             theme.colors.tab_foreground = theme.colors.muted_foreground;
             theme.colors.tab_active = theme.colors.accent;
             theme.colors.tab_active_foreground = theme.colors.accent_foreground;
-            theme.colors.table = theme.colors.secondary;
-            theme.colors.table_head = theme.colors.secondary;
+            // 表格和表头沿用外层品牌材质，方形子层不得遮住面板圆角。
+            theme.colors.table = theme.colors.secondary.opacity(0.);
+            theme.colors.table_head = theme.colors.secondary.opacity(0.);
             theme.colors.table_head_foreground = theme.colors.foreground;
             theme.colors.table_row_border = color(0xe6ddd1, 0x424242);
         });

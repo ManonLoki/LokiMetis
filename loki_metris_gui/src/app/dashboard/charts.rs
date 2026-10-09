@@ -1,10 +1,12 @@
 //! 图表筛选与曲线选择属于视图会话；桶、分组与数值由 core 提供。
 
+use crate::app::surface::{StaticCard, StaticMaterial};
 use super::{Shell,format,plot::{self,Series,Value,Scale}};
 use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px, rgb,
     component::{ActiveTheme, button::{Button,ButtonVariants}, checkbox::Checkbox, menu::{DropdownMenu,PopupMenuItem}}};
 use loki_metris_core::{UsageChartPage,UsageChartDimension,UsageMeasure,UsageGroupDisplay,WorkbuddyStatisticsSnapshot};
 use std::{rc::Rc,cell::Cell};
+use gpui_kit::base::TestSupportExt as _;
 
 /// 各 Agent 的图表筛选和悬浮不改变用量统计页的筛选。
 pub(in crate::app) struct ChartState {
@@ -54,7 +56,7 @@ impl Shell {
             .dropdown_menu(move|mut menu,_,_|{for(index,label)in &labels {let index=*index;let entity=entity.clone();menu=menu.item(PopupMenuItem::new(label.clone()).checked(current==index).on_click(move|_,_,cx|{
                 let _=entity.update(cx,|this,cx|{if this.dashboard.client==client {this.dashboard.chart.dimensions[client]=index;this.reload_usage(false,cx);}});
             }));}menu});
-        self.panel(cx).px_3().py(px(10.)).flex_row().items_center().flex_wrap().gap_4().child(ranges).child(select).into_any_element()
+        StaticCard::new("charts-filter-bar", cx.theme().mode.is_dark(), StaticMaterial::FilterBar).test_support().px_3().py(px(10.)).flex_row().items_center().flex_wrap().gap_x_4().gap_y_3().child(ranges).child(select).into_any_element()
     }
 
     /// 三张原生图分别投影 Token、调用与固定排序的维度分布。
@@ -87,10 +89,10 @@ impl Shell {
                         this.dashboard.chart.visible[this.dashboard.client][index]=*checked;cx.notify();
                     }
                 }))));
-        page=page.child(self.panel(cx).child(self.chart_heading("charts.tokens",cx)).child(checkboxes)
+        page=page.child(self.spot_panel("chart-token-trend", cx).test_support().child(self.chart_heading("charts.tokens",cx)).child(checkboxes)
             .child(self.plot_view("token-trend",labels.clone(),series,0,Scale::Tokens,cx)));
         let calls=vec![Series {label:self.t("statistics.calls"),color:rgb(0x16a34a).into(),values:data.buckets.iter().map(|bucket|Some(Value::Count(bucket.measure.call_count))).collect()}];
-        page=page.child(self.panel(cx).child(self.chart_heading("charts.calls",cx)).child(self.plot_view("calls-trend",labels,calls,1,Scale::Count,cx)));
+        page=page.child(self.spot_panel("chart-calls-trend", cx).test_support().child(self.chart_heading("charts.calls",cx)).child(self.plot_view("calls-trend",labels,calls,1,Scale::Count,cx)));
         let groups=data.groups.iter().chain(data.remainder.iter()).collect();
         page.child(self.distribution(groups,cx)).into_any_element()
     }
@@ -125,7 +127,7 @@ impl Shell {
             display:value.map(|v|if index==6 {format::exact(v)}else{format!("{} · {}",format::compact(v),format::exact(v))}).unwrap_or_else(||self.t("dashboard.not_provided")),
             share:format!("{} {}",self.t("charts.token_share"),self.basis_points(group.total_token_share_basis_points)),remainder:group.remainder,
         }).collect::<Vec<_>>();
-        let mut panel=self.panel(cx).child(div().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("charts.distribution"))).child(select));
+        let mut panel=self.spot_panel("chart-distribution", cx).test_support().child(div().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("charts.distribution"))).child(select));
         if rows.is_empty() {panel=panel.child(self.t("charts.no_distribution"));}
         else {panel=panel.child(div().id("distribution-scroll").overflow_x_scroll().w_full().child(plot::bars("distribution",rows,plot::Palette::new(cx.theme().mode.is_dark()),if index==6 {Scale::Count}else{Scale::Tokens})));}
         panel.into_any_element()

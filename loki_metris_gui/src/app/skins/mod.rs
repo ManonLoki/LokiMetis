@@ -332,4 +332,6 @@ fn skin_reference(skin: &crate::skins::SkinDescriptor) -> SkinReference {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod preview_tests;
+#[cfg(test)]
 mod dialog_tests;

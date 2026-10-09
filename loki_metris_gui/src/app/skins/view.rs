@@ -17,6 +17,21 @@ use gpui_kit::{
 };
 use loki_metris_core::{ColorMode, SkinPackageType, SkinSource};
 
+/// GPUI补入素材比例后，Taffy普通叶子会撑高固定预览；绝对定位保留视口供Cover居中裁剪。
+/// 图片辅助语义由独立Div提供，因为当前Img未转发角色；选择框仍属于外层Sibling。
+pub(super) fn skin_preview(source: gpui_kit::ImageSource, id: gpui_kit::SharedString, label: String) -> AnyElement {
+    div().id(id.clone()).test_support().absolute().inset_0().size_full()
+        .role(Role::Image).aria_label(label).child(
+        img(source)
+            .absolute().inset_0()
+            .size_full()
+            .rounded_t(px(20.))
+            .object_fit(gpui_kit::ObjectFit::Cover)
+            .id(format!("{id}-image"))
+            .test_support(),
+    ).into_any_element()
+}
+
 impl Shell {
     /// 初次读取失败不展示伪造空库，刷新失败保留已确认卡片并提供重试。
     pub(in crate::app) fn skins_page(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -281,18 +296,11 @@ impl Shell {
                     .overflow_hidden()
                     .bg(rgb(0x808b9a));
                 if let Some(image) = &entry.preview {
-                    preview = preview.child(
-                        img(image.clone())
-                            .size_full()
-                            .rounded_t(px(20.))
-                            .object_fit(gpui_kit::ObjectFit::Cover)
-                            .id(format!("skin-preview-{}-{:?}", skin.id, skin.source))
-                            .role(Role::Image)
-                            .aria_label(
-                                self.t("skins.card.preview_alt")
-                                    .replace("%{name}", &skin.name),
-                            ),
-                    );
+                    preview = preview.child(skin_preview(
+                        image.clone().into(),
+                        format!("skin-preview-{}-{:?}", skin.id, skin.source).into(),
+                        self.t("skins.card.preview_alt").replace("%{name}", &skin.name),
+                    ));
                 }
                 if user {
                     let reference = reference.clone();
@@ -426,16 +434,11 @@ impl Shell {
                 } else {
                     "skins.package.legacySkin"
                 });
-                div()
-                    .id(format!("skin-card-{}-{:?}", skin.id, skin.source))
+                crate::app::surface::SpotlightCard::new(format!("skin-card-{}-{:?}", skin.id, skin.source), cx.theme().mode.is_dark())
                     .test_support()
                     .min_w_0()
                     .h_auto()
                     .overflow_hidden()
-                    .rounded(px(20.))
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .bg(cx.theme().secondary)
                     .flex()
                     .flex_col()
                     .child(preview)

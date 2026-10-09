@@ -1,5 +1,6 @@
 //! 来源表格保持历史固定列序、独立行操作与有界横向滚动。
 
+use crate::app::surface::{BrandTableRow, StaticCard, StaticMaterial};
 use super::Shell;
 use crate::usage_service::SourceOperation;
 use gpui_kit::{AnyElement,Context,FontWeight,SharedString,div,prelude::*,px,
@@ -21,9 +22,9 @@ impl Shell {
                     .id(SharedString::from(format!("source-heading-{index}"))).test_support().role(gpui_kit::Role::Label).aria_label(label.clone()).child(label)));
         }
         let roots=self.dashboard.sources.roots.as_deref().unwrap_or_default();
-        let body=if roots.is_empty() {TableBody::new().child(TableRow::new().child(TableCell::new().col_span(8).p_4().child(self.t("sources.table.empty"))))}
+        let body=if roots.is_empty() {TableBody::new().child(BrandTableRow::new("sources-empty-row",cx.theme().mode.is_dark()).child(TableCell::new().col_span(8).p_4().child(self.t("sources.table.empty"))))}
             else {TableBody::new().children(roots.iter().enumerate().map(|(index,root)|self.source_row(index,root,roots,cx)))};
-        div().w_full().min_w_0().rounded(px(20.)).border_1().border_color(cx.theme().border).bg(cx.theme().secondary).overflow_hidden()
+        StaticCard::new("sources-root-table", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().overflow_hidden()
             .child(div().id("sources-table-scroll").test_support().role(gpui_kit::Role::Group).aria_label(self.t("sources.page.title"))
                 .w_full().min_w_0().overflow_x_scroll().child(div().w(px(widths.iter().sum())).min_w(px(widths.iter().sum())).flex_none()
                     .child(Table::new().w_full().text_size(px(14.)).text_color(cx.theme().foreground)
@@ -39,7 +40,7 @@ impl Shell {
     }
 
     /// 行动作捕获稳定根 ID；显示别名变化不会把变更写入另一个根。
-    fn source_row(&self,index:usize,root:&SourceRootSummary,roots:&[SourceRootSummary],cx:&mut Context<Self>)->TableRow {
+    fn source_row(&self,index:usize,root:&SourceRootSummary,roots:&[SourceRootSummary],cx:&mut Context<Self>)->BrandTableRow {
         let alias=self.source_alias(root,roots);let disabled=self.source_writes_disabled();
         let widths=self.source_column_widths();
         let cell=|index:usize|TableCell::new().w(px(widths[index])).min_w(px(widths[index])).flex_none().px_3().py_5();
@@ -78,7 +79,7 @@ impl Shell {
             }
         }
         let text=|column:usize,value:String|div().id(SharedString::from(format!("source-{index}-{column}"))).test_support().role(gpui_kit::Role::Label).aria_label(value.clone()).child(value);
-        let mut row=TableRow::new().child(cell(0).child(div().w_full().min_w_0().flex().items_center().flex_wrap().gap_2()
+        let mut row=BrandTableRow::new(SharedString::from(format!("source-row-{}",root.id)),cx.theme().mode.is_dark()).child(cell(0).child(div().w_full().min_w_0().flex().items_center().flex_wrap().gap_2()
             .child(text(0,alias).max_w_full().truncate().font_weight(FontWeight::BOLD).text_size(px(16.))).child(badges)))
             .child(cell(1).child(text(1,self.t(&format!("sources.discoveryLabels.{discovery}")))));
         for(index,value)in [(2,root.file_count),(3,root.skipped_count),(4,root.error_count),(5,root.duplicate_count)] {

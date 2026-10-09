@@ -162,17 +162,14 @@ impl Shell {
             );
         }
         page = page.child(
-            div()
-                .w_full()
-                .p_6()
+            crate::app::surface::SpotlightCard::new("monitor-slot-card", cx.theme().mode.is_dark())
+                .p_5()
                 .flex()
                 .flex_col()
                 .gap_3()
-                .rounded(px(20.))
-                .border_1()
-                .border_t_3()
-                .border_color(cx.theme().border)
-                .bg(cx.theme().secondary)
+                .radius(px(12.))
+                .top_accent(px(3.), rgb(0xd95a44).into())
+                .test_support()
                 .child(
                     div()
                         .w_full()

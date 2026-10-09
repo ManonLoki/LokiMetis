@@ -1,5 +1,7 @@
 //! 数据源页只保存展示快照与草稿；注册表及索引写入属于应用服务。
 
+use gpui_kit::base::TestSupportExt as _;
+use crate::app::surface::{StaticCard, StaticMaterial};
 mod actions;
 mod dialog;
 mod table;
@@ -130,7 +132,7 @@ impl Shell {
         let options:Vec<_>=roots.iter().filter(|root|root.enabled).map(|root|(root.id.clone(),self.source_alias(root,roots))).collect();
         let client=self.usage_client().unwrap();let generation=self.dashboard.sources.generation;let weak=cx.entity().downgrade();
         let disabled=self.source_writes_disabled();
-        self.panel(cx).child(div().flex().items_center().gap_3()
+        StaticCard::new("sources-primary-panel", cx.theme().mode.is_dark(), StaticMaterial::Panel).test_support().gap_4().p_5().child(div().flex().items_center().gap_3()
             .child(div().text_size(px(19.2)).font_weight(FontWeight::SEMIBOLD).child(self.t("sources.primary.title")))
             .child(self.quality_badge(self.t("sources.primary.badge"),cx.theme().primary)))
             .child(div().w_full().flex().flex_col().gap_4()

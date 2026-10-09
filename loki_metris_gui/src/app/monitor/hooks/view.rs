@@ -19,16 +19,11 @@ impl Shell {
     /// 配置路径全部来自宿主；界面从不以存在marker推断安装成功。
     pub(in crate::app::monitor) fn monitor_hooks(&self, cx: &mut Context<Self>) -> AnyElement {
         let state = &self.monitor.hooks;
-        let mut card = div()
-            .id("monitor-hooks")
+        let mut card = crate::app::surface::SpotlightCard::new("monitor-hooks", cx.theme().mode.is_dark())
             .test_support()
             .w_full()
             .flex_shrink_0()
             .p(px(12.))
-            .rounded(px(20.))
-            .border_1()
-            .border_color(cx.theme().border)
-            .bg(cx.theme().secondary)
             .flex()
             .flex_col()
             .gap(px(12.))

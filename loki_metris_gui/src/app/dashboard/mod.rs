@@ -10,6 +10,8 @@ mod state;
 mod calls;
 mod sources;
 mod usage_settings;
+#[cfg(test)]
+mod material_tests;
 use statistics::DetailState;
 pub(super) use statistics::Route;
 
@@ -301,7 +303,7 @@ impl Shell {
             ("cache_write", tokens.cache_write_input_tokens), ("uncached", tokens.uncached_input_tokens()),
             ("output", Some(tokens.output_tokens)), ("reasoning", tokens.reasoning_output_tokens),
         ];
-        page = page.child(self.panel(cx)
+        page = page.child(self.spot_panel("overview-token-composition", cx).test_support()
             .child(div().flex().items_center().justify_between()
                 .child(div().text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight::SEMIBOLD).child(format!("{} {}", self.t(&format!("dashboard.{}", ["today", "yesterday", "this_week", "last_week", "this_month", "last_month"][selected])), self.t("dashboard.token_composition"))))
                 .child(div().flex().items_center().gap_2()
@@ -316,7 +318,7 @@ impl Shell {
             ("threads", format::exact(value.thread_count)), ("roots", format::exact(value.root_count)),
             ("files", format::exact(value.source_count)), ("duplicates", format::exact(value.cross_root_duplicate_source_count)),
         ];
-        page.child(self.panel(cx)
+        page.child(self.spot_panel("overview-coverage", cx).test_support()
             .child(div().flex().items_center().justify_between().child(div().text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight::SEMIBOLD).child(self.t("dashboard.coverage")))
                 .child(self.quality_badge(self.t("dashboard.enabled_summary"), cx.theme().warning)))
             .child(div().w_full().grid().grid_cols(columns).gap_4().children(coverage.into_iter().map(|(key, value)| {
@@ -330,8 +332,10 @@ impl Shell {
 
     /// 大指标保持调用/Token 等宽和真实精确值复制，父卡片没有复制事件。
     fn hero_metric(&self, label: &str, value: String, precise: Option<u64>, cx: &mut Context<Self>) -> AnyElement {
-        self.panel(cx).relative().overflow_hidden().flex_1().min_w_0().h(px(176.)).gap_0()
-            .bg(gpui_kit::linear_gradient(180., gpui_kit::linear_color_stop(rgb(0xd7952c), 3. / 176.), gpui_kit::linear_color_stop(cx.theme().secondary, 3. / 176.)))
+        self.spot_panel(gpui_kit::SharedString::from(format!("hero-{label}")), cx)
+            .overflow_hidden().flex_1().min_w_0().h(px(176.)).gap_0()
+            .top_accent(px(3.), rgb(0xd7952c).into())
+            .test_support()
             .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).text_color(cx.theme().muted_foreground).child(self.t(label)))
             .child(div().id(gpui_kit::SharedString::from(label.to_owned())).role(gpui_kit::Role::Label)
                 .aria_label(self.t(label)).aria_value(value.clone()).mt_1().text_size(px(44.8))
@@ -380,5 +384,11 @@ impl Shell {
     fn panel(&self, cx: &Context<Self>) -> Div {
         div().w_full().flex().flex_col().gap_4().p_5().rounded(px(20.))
             .border_1().border_color(cx.theme().border).bg(cx.theme().secondary)
+    }
+
+    /// 仅历史spot-panel卡片使用聚光材质；筛选、表格和静态内容保留普通panel。
+    fn spot_panel(&self, id: impl Into<gpui_kit::ElementId>, cx: &Context<Self>) -> super::surface::SpotlightCard {
+        super::surface::SpotlightCard::new(id, cx.theme().mode.is_dark())
+            .gap_4().p_5()
     }
 }

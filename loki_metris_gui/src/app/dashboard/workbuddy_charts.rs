@@ -4,6 +4,7 @@ use super::{Shell,format,plot::{self,Series,Value,Scale}};
 use gpui_kit::{AnyElement,Context,FontWeight,div,prelude::*,px,rgb,
     component::{ActiveTheme,button::{Button,ButtonVariants},menu::{DropdownMenu,PopupMenuItem}}};
 use loki_metris_core::WorkbuddyDailyBucket;
+use gpui_kit::base::TestSupportExt as _;
 
 impl Shell {
     /// 八个摘要和四条独立趋势来自同一 WorkBuddy 查询快照。
@@ -23,7 +24,7 @@ impl Shell {
         let hourly=data.hourly_trends.iter().find(|trend|trend.window==window);
         let labels:Vec<_>=if let Some(trend)=hourly {trend.buckets.iter().map(|bucket|bucket.label.clone()).collect()}
             else {daily.iter().map(|bucket|bucket.date.get(5..).unwrap_or(&bucket.date).to_owned()).collect()};
-        if labels.is_empty() {page=page.child(self.panel(cx).child(self.t("charts.no_daily")));}
+        if labels.is_empty() {page=page.child(self.spot_panel("workbuddy-no-daily", cx).test_support().child(self.t("charts.no_daily")));}
         else {
             for (index,(key,id,color,scale)) in [
                 ("charts.requests","workbuddy-requests",0x7c3aed,Scale::Count),
@@ -39,7 +40,7 @@ impl Shell {
                     2=>Some(Value::Count(bucket.tokens)),_=>bucket.credits.map(Value::Decimal),
                 }).collect()};
                 let series=vec![Series {label:self.t(match index {0=>"workbuddy.requests",1=>"workbuddy.sessions",2=>"charts.legend_tokens",_=>"workbuddy.credits"}),color:rgb(color).into(),values}];
-                page=page.child(self.panel(cx).child(self.chart_heading(key,cx)).child(self.plot_view(id,labels.clone(),series,index,scale,cx)));
+                page=page.child(self.spot_panel(gpui_kit::SharedString::from(format!("chart-{id}")), cx).test_support().child(self.chart_heading(key,cx)).child(self.plot_view(id,labels.clone(),series,index,scale,cx)));
             }
         }
         page.child(self.workbuddy_distribution(daily,selected,cx)).into_any_element()
@@ -74,7 +75,7 @@ impl Shell {
         let controls=div().flex().items_end().gap_4()
             .child(div().flex().flex_col().gap_2().text_sm().child(self.t("statistics.dimension")).child(group_select))
             .child(div().flex().flex_col().gap_2().text_sm().child(self.t("charts.metric")).child(metric_select));
-        let mut panel=self.panel(cx).child(div().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("charts.distribution"))));
+        let mut panel=self.spot_panel("chart-workbuddy-distribution", cx).test_support().child(div().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("charts.distribution"))));
         if rows.is_empty() || (group==1 && window.trace_total_count==0) {panel=panel.child(self.t("charts.no_distribution"));}
         else {panel=panel.child(div().id("workbuddy-distribution-scroll").overflow_x_scroll().child(plot::bars("workbuddy-distribution",rows,plot::Palette::new(cx.theme().mode.is_dark()),if group==0 && selected==7 {Scale::Credits}else{Scale::Count})));}
         div().flex().flex_col().gap_8().child(controls).child(panel).into_any_element()

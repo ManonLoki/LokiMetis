@@ -2,6 +2,7 @@
 
 use super::{Shell, UsageData, format};
 use gpui_kit::{AnyElement, Context, FontWeight, component::ActiveTheme, div, prelude::*, px};
+use gpui_kit::base::TestSupportExt as _;
 
 impl Shell {
     /// 与参考产品一致投影所选六窗口；缺失来源由上层查询门禁处理。
@@ -33,7 +34,7 @@ impl Shell {
         ];
         let range = self.t(&format!("dashboard.{}", ["today", "yesterday", "this_week", "last_week", "this_month", "last_month"][selected]));
         div().w_full().flex().flex_col().gap_4().child(cards)
-            .child(self.panel(cx)
+            .child(self.spot_panel("workbuddy-breakdown", cx).test_support()
                 .child(div().text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight::SEMIBOLD)
                     .child(format!("{range} {}", self.t("workbuddy.breakdown"))))
                 .child(div().w_full().grid().grid_cols(3).gap_4().children(metrics.into_iter().map(|(key, value)| {

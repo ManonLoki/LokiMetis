@@ -2,15 +2,14 @@
 
 use super::super::Shell;
 use gpui_kit::{
-    AnyElement, Context, FontWeight, IntoElement, ObjectFit, Role, base::TestSupportExt as _,
-    component::ActiveTheme, div, img, prelude::*, px,
+    AnyElement, Context, FontWeight, IntoElement, ObjectFit, Role, SharedString, Text,
+    base::TestSupportExt as _, component::ActiveTheme, div, img, prelude::*, px,
 };
 
 impl Shell {
     /// 付款图保留原始比例与字节，双列断点和留白沿用参考设置页。
     pub(super) fn settings_sponsor(&self, cx: &Context<Self>) -> AnyElement {
-        self.settings_surface(32., cx)
-            .id("settings-sponsor")
+        self.settings_surface("settings-sponsor",32., cx)
             .test_support()
             .gap_5()
             .child(
@@ -23,7 +22,10 @@ impl Shell {
                         div()
                             .text_sm()
                             .text_color(cx.theme().muted_foreground)
-                            .child(self.t("settings.sponsor_description")),
+                            .child(Text::new(
+                                "settings-sponsor-description".into(),
+                                self.t("settings.sponsor_description").into(),
+                            )),
                     ),
             )
             .child(
@@ -62,7 +64,10 @@ impl Shell {
                                     div()
                                         .text_size(px(16.))
                                         .font_weight(FontWeight(650.))
-                                        .child(self.t(label)),
+                                        .child(Text::new(
+                                            SharedString::from(format!("{id}-caption")).into(),
+                                            self.t(label).into(),
+                                        )),
                                 )
                                 .child(
                                     div()
