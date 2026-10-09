@@ -260,7 +260,7 @@ impl Render for Shell {
             .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);
         // 原生模态打开时只隔离背景的辅助树，仍保留其绘制和控件身份。
-        let modal_open=self.release_notes_modal.is_some();
+        let modal_open=self.release_notes_modal.is_some() || self.skin_modal_open();
         let underlay=div().id("application-underlay").role(gpui_kit::Role::Group).size_full().min_w_0().min_h_0().flex()
             .a11y_synthetic_children(move|builder| {if modal_open {builder.parent_node().set_hidden();}})
             .child(self.sidebar(cx))

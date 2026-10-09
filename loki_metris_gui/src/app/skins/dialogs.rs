@@ -3,8 +3,8 @@
 use super::state::Modal;
 use super::{ModalKind, Shell};
 use gpui_kit::{
-    AnyElement, Context, Focusable, FontWeight, IntoElement, Window,
-    base::{Dialog, DialogBackdrop, DialogPopup},
+    AnyElement, Context, Focusable, FontWeight, IntoElement, Role, Window,
+    base::{Dialog, DialogBackdrop, DialogPopup, TestSupportExt as _},
     component::{
         ActiveTheme, Disableable,
         button::{Button, ButtonVariants},
@@ -16,6 +16,11 @@ use gpui_kit::{
 };
 
 impl Shell {
+    /// 壳层只读取模态存在性以隔离背景辅助树，不暴露皮肤内部状态类型。
+    pub(in crate::app) fn skin_modal_open(&self) -> bool {
+        self.skins.modal.is_some()
+    }
+
     /// 原生文件面板关闭后仅恢复仍有效的主窗，避免焦点落到桌宠浮窗。
     pub(super) fn restore_skin_picker_focus(&self, cx: &mut Context<Self>) {
         let entity = cx.entity();
@@ -224,7 +229,13 @@ impl Shell {
             ),
         };
         let mut valid = self.skin_writable();
-        let mut popup = DialogPopup::new()
+        // gpui-base 0.7.1的焦点包装器不转发辅助语义，实际Div独立承载模态名称。
+        let mut popup = div()
+            .id("skin-dialog-surface")
+            .role(Role::Dialog)
+            .aria_label(title.clone())
+            .aria_description(description.clone())
+            .test_support()
             .w(px(
                 if matches!(modal.kind, ModalKind::Create(_) | ModalKind::Import) {
                     620.
@@ -250,6 +261,11 @@ impl Shell {
                     .gap_3()
                     .child(
                         div()
+                            .id("skin-dialog-title")
+                            .role(Role::Heading)
+                            .aria_level(1)
+                            .aria_label(title.clone())
+                            .test_support()
                             .font_weight(FontWeight::NORMAL)
                             .text_size(px(16.))
                             .child(title),
@@ -258,19 +274,23 @@ impl Shell {
                         Button::new("skin-dialog-close")
                             .ghost()
                             .label("×")
-                            .accessibility_label(self.t("skins.dialog.cancel"))
+                            .accessibility_label(self.t("about.close"))
                             .disabled(self.skins.busy)
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.close_skin_dialog(window, cx)
                             })),
                     ),
             )
-            .child(
+            .when(!description.is_empty(), |popup| popup.child(
                 div()
+                    .id("skin-dialog-description")
+                    .role(Role::Label)
+                    .aria_label(description.clone())
+                    .test_support()
                     .text_size(px(14.))
                     .text_color(cx.theme().muted_foreground)
                     .child(description),
-            );
+            ));
         if let ModalKind::Create(inputs) = &modal.kind {
             for (index, input) in inputs.iter().enumerate() {
                 valid &=
@@ -409,12 +429,24 @@ impl Shell {
         }
         let confirm = cx.entity().downgrade();
         let close = cx.entity().downgrade();
+        let default_confirm_focus = modal.focus.clone();
+        let input_confirm_focus: Vec<gpui_kit::FocusHandle> = match &modal.kind {
+            ModalKind::Create(inputs) => inputs.iter().map(|input| input.focus_handle(cx)).collect(),
+            _ => Vec::new(),
+        };
         Some(
             Dialog::new(cx)
                 .items_start()
                 .pt(px(45.))
                 .focus_handle(modal.focus.clone())
                 .on_ok(move |_, window, cx| {
+                    // 子按钮拥有Enter；输入框与容器仍保留原有默认确认，失效快照不阻止取消。
+                    if !default_confirm_focus.is_focused(window)
+                        && !input_confirm_focus.iter().any(|focus| focus.is_focused(window))
+                    {
+                        cx.propagate();
+                        return false;
+                    }
                     let _ = confirm.update(cx, |this, cx| {
                         if !this.skin_writable() {
                             return;
@@ -436,7 +468,7 @@ impl Shell {
                         .inset_0()
                         .bg(gpui_kit::black().opacity(0.55)),
                 )
-                .popup(popup)
+                .popup(DialogPopup::new().max_w_full().child(popup))
                 .on_open_change(move |open, _, window, cx| {
                     if !open {
                         let _ = close.update(cx, |this, cx| this.close_skin_dialog(window, cx));
