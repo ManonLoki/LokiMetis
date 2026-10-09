@@ -1,0 +1,7 @@
+    /// 只读真实已绘帧的命中ID，测试可检查分割半开边界无重复；不修改事件状态。
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn hit_test_ids_for_testing(&self, position: Point<Pixels>) -> Vec<HitboxId> {
+        self.rendered_frame.hit_test(position).ids.to_vec()
+    }
+
+    /// Set a hitbox which will act as a control area of the platform window.

@@ -1,0 +1,6 @@
+            preserve_parent_context,
+            parent_a11y,
+            // legacy popup/Dialog不捕获正文临时覆盖区，保留原浮层语义。
+            parent_hitbox_exclusions: if preserve_parent_context {
+                self.hitbox_exclusions.clone()
+            } else { Vec::new() },

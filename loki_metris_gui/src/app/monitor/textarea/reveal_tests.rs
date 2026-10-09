@@ -1,4 +1,4 @@
-//! 真实窗口验证焦点进入的最小滚动；回归不读取 reveal 私有时间线或复制编辑状态。
+//! 真实窗口验证首次焦点滚动与租约；回归不读取 reveal 私有时间线或复制编辑状态。
 
 use crate::app::{Page, Shell, PageScroll, monitor::state::Route};
 use gpui_kit::{
@@ -32,11 +32,11 @@ fn near(window: &Window, actual: Pixels, expected: Pixels) {
     assert!((actual - expected).abs() < px(1. / window.scale_factor()), "{actual:?} vs {expected:?}");
 }
 
-/// 根据公开实际几何计算浏览器式最小滚动目标，拒绝固定跳转或全部顶对齐。
+/// 按已实测的完整视口与原生 caret 中心计算目标，不扣除 sticky 遮挡。
 fn expected_y(target: Bounds<Pixels>, viewport: Bounds<Pixels>, offset: Pixels, maximum: Pixels) -> Pixels {
-    let delta = if target.top() < viewport.top() { viewport.top() - target.top() }
-        else if target.bottom() > viewport.bottom() { viewport.bottom() - target.bottom() }
-        else { px(0.) };
+    let delta = if target.top() < viewport.top() || target.bottom() > viewport.bottom() {
+        viewport.center().y - target.center().y
+    } else { px(0.) };
     (offset + delta).clamp(-maximum, px(0.))
 }
 
@@ -49,7 +49,7 @@ fn tab_to(window: &mut Window, target: &Entity<TextareaState>, reverse: bool, cx
     panic!("原生 Tab 顺序未抵达目标输入");
 }
 
-/// 同排 Tab 不移动页面；下一排首次获焦时最小滚入，Shift+Tab 回上一排。
+/// 同排可见 caret 不移动；下一排首次离屏焦点居中，Shift+Tab 回上一排。
 #[gpui_kit::test]
 fn shell_textarea_tab_reveals_next_field_and_shift_tab_returns(cx: &mut TestAppContext) {
     let (handle, shell, _writer) = setup(cx);
@@ -68,7 +68,7 @@ fn shell_textarea_tab_reveals_next_field_and_shift_tab_returns(cx: &mut TestAppC
         window.render_frame(cx);
         assert_eq!(scroll.offset(), first_row, "同排字段已可见时不能跳转");
         tab_to(window, &asking, false, cx);
-        let target = window.find("monitor-content-input-asking").bounds();
+        let target = input(&shell, 2, cx).read(cx).cursor_layout().unwrap().0;
         let viewport = scroll.bounds();
         let before = scroll.offset();
         assert!(target.bottom() > viewport.bottom(), "矮窗中的下一字段应真实离屏");
@@ -83,7 +83,7 @@ fn shell_textarea_tab_reveals_next_field_and_shift_tab_returns(cx: &mut TestAppC
         assert!(visible.bottom() <= viewport.bottom() + px(0.51));
         let down = scroll.offset();
         tab_to(window, &running, true, cx);
-        let target = window.find("monitor-content-input-running").bounds();
+        let target = input(&shell, 1, cx).read(cx).cursor_layout().unwrap().0;
         assert!(target.top() < viewport.top(), "反向目标应在已滚动视口上方");
         let expected = expected_y(target, viewport, down.y, scroll.max_offset().y);
         window.simulate_next_frame(cx);
@@ -200,7 +200,7 @@ fn shell_textarea_reveal_survives_same_selection_and_render_refresh(cx: &mut Tes
         });
         for _ in 0..3 { window.render_frame(cx); }
         assert_eq!(scroll.offset(), before, "同页重绘只更新几何，不提前滚动");
-        let target = window.find("monitor-content-input-error").bounds();
+        let target = input(&shell, 3, cx).read(cx).cursor_layout().unwrap().0;
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
         window.simulate_next_frame(cx);
@@ -252,7 +252,7 @@ fn shell_textarea_reveal_survives_accepted_settings_with_same_effective_agent(cx
         focused.update(cx, |input, cx| input.focus(window, cx));
         window.render_frame(cx);
         let before = scroll.offset();
-        let target = window.find("monitor-content-input-error").bounds();
+        let target = input(&shell, 3, cx).read(cx).cursor_layout().unwrap().0;
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
         shell.update(cx, |shell, cx| {
@@ -407,7 +407,7 @@ fn shell_textarea_focus_round_trip_between_renders_reveals_manual_offscreen_inpu
         assert!(focused.focus_handle(cx).is_focused(window));
         window.render_frame(cx);
         assert_eq!(scroll.offset(), before, "新焦点只在下一帧滚动");
-        let target = window.find("monitor-content-input-error").bounds();
+        let target = input(&shell, 3, cx).read(cx).cursor_layout().unwrap().0;
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
         window.simulate_next_frame(cx);
@@ -436,7 +436,7 @@ fn shell_textarea_focus_round_trip_discards_pending_then_requeues_after_prepaint
         window.simulate_next_frame(cx);
         assert_eq!(scroll.offset(), before, "旧代数的 callback 不能因同一输入再次获焦而复活");
         window.render_frame(cx);
-        let target = window.find("monitor-content-input-error").bounds();
+        let target = input(&shell, 3, cx).read(cx).cursor_layout().unwrap().0;
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
         assert_eq!(scroll.offset(), before);
@@ -463,10 +463,12 @@ fn shell_textarea_inline_picker_tab_reveals_still_mounted_input(cx: &mut TestApp
         window.click("monitor-picker-trigger-idle", cx);
         assert!(shell.read(cx).monitor.catalog.picker == Some(HookBehavior::Idle));
         assert!(window.try_find("monitor-picker-panel-idle").is_some());
+        // 新中心策略让此低窗中的 caret 原本仍在视口内；真实 wheel 先建立离屏前提。
+        window.scroll("page-content", ScrollDelta::Pixels(point(px(0.), px(120.))), cx);
         tab_to(window, &idle, false, cx);
         assert!(shell.read(cx).monitor.catalog.picker == Some(HookBehavior::Idle));
         let before = scroll.offset();
-        let target = window.find("monitor-content-input-idle").bounds();
+        let target = input(&shell, 0, cx).read(cx).cursor_layout().unwrap().0;
         assert!(target.bottom() > scroll.bounds().bottom(), "内嵌图库必须真实把文本域推到视口下方");
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
@@ -539,7 +541,7 @@ fn geometry_change(cx: &mut TestAppContext, scale_only: bool) {
         let scroll = shell.read(cx).page_scroll.handle.clone();
         let before = scroll.offset();
         assert_eq!(before, delivery.before, "测试框架 fresh draw 只能重新排队");
-        let target = window.find("monitor-content-input-error").bounds();
+        let target = input(&shell, 3, cx).read(cx).cursor_layout().unwrap().0;
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
         window.simulate_next_frame(cx);
@@ -591,7 +593,7 @@ fn shell_textarea_native_resize_clamp_keeps_pending_focus_permission(cx: &mut Te
         let scroll = shell.read(cx).page_scroll.handle.clone();
         let clamped = scroll.offset();
         assert!(clamped.y > delivery.before.y, "fresh Div 必须真实夹紧旧底部偏移");
-        let target = window.find("monitor-content-input-idle").bounds();
+        let target = input(&shell, 0, cx).read(cx).cursor_layout().unwrap().0;
         assert!(target.top() < scroll.bounds().top(), "原生夹紧后新焦点仍须离屏");
         let expected = expected_y(target, scroll.bounds(), clamped.y, scroll.max_offset().y);
         window.simulate_next_frame(cx);

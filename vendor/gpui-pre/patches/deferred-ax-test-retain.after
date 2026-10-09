@@ -1,0 +1,5 @@
+    fn a11y_init(&self, callbacks: crate::A11yCallbacks) {
+        self.0.lock().a11y_callbacks = Some(callbacks);
+    }
+
+    fn capslock(&self) -> crate::Capslock {

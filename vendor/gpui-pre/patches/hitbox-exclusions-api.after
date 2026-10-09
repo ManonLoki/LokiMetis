@@ -1,0 +1,51 @@
+    /// prepaint期间只排除实际覆盖矩形；嵌套追加，结束后恢复此前scope。
+    /// 不改Window.content_mask、完整控件bounds、AX、绘制或图片可见性。
+    /// legacy defer_draw不继承；defer_draw_in_parent显式保存纯几何排除列表。
+    pub fn with_hitbox_exclusions<R>(
+        &mut self,
+        excluded: &[Bounds<Pixels>],
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.invalidator.debug_assert_prepaint();
+        if excluded.is_empty() { return f(self); }
+        let previous = self.hitbox_exclusions.len();
+        self.hitbox_exclusions.extend(excluded.iter().copied().filter(|bounds| !bounds.is_empty()));
+        let result = f(self);
+        self.hitbox_exclusions.truncate(previous);
+        result
+    }
+
+    /// 缓存key比较当前精确排除列表，防止复用旧覆盖位置的已分片输入区域。
+    pub(crate) fn hitbox_exclusions(&self) -> &[Bounds<Pixels>] { &self.hitbox_exclusions }
+
+    /// 把输入可见区域减去覆盖矩形；分片互不重叠且沿用原HitboxId与完整bounds。
+    /// 原生Bounds::contains采用右/下半开区间，因此共享分割边不会重复命中同一ID。
+    fn insert_hitbox_fragments(&mut self, hitbox: &Hitbox) {
+        let visible = hitbox.bounds.intersect(&hitbox.content_mask.bounds);
+        if visible.is_empty() { return; }
+        let mut regions = vec![visible];
+        for excluded in &self.hitbox_exclusions {
+            if regions.is_empty() { break; }
+            let previous = std::mem::take(&mut regions);
+            for region in previous {
+                let overlap = region.intersect(excluded);
+                if overlap.is_empty() { regions.push(region); continue; }
+                let corners = [
+                    (region.origin, point(region.right(), overlap.top())),
+                    (point(region.left(), overlap.bottom()), region.bottom_right()),
+                    (point(region.left(), overlap.top()), point(overlap.left(), overlap.bottom())),
+                    (point(overlap.right(), overlap.top()), point(region.right(), overlap.bottom())),
+                ];
+                regions.extend(corners.into_iter()
+                    .map(|(top_left, bottom_right)| Bounds::from_corners(top_left, bottom_right))
+                    .filter(|bounds| !bounds.is_empty()));
+            }
+        }
+        self.next_frame.hitboxes.extend(regions.into_iter().map(|bounds| Hitbox {
+            content_mask: ContentMask { bounds },
+            ..hitbox.clone()
+        }));
+    }
+
+    /// This method should be called during `prepaint`. You can use
+    /// the returned [Hitbox] during `paint` or in an event handler

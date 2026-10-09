@@ -1,0 +1,2 @@
+    fn finalize(&mut self) -> TreeUpdate {
+        // Stack should contain only the root node

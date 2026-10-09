@@ -1,0 +1,51 @@
+    pub fn defer_draw(
+        &mut self,
+        element: AnyElement,
+        absolute_offset: Point<Pixels>,
+        priority: usize,
+        content_mask: Option<ContentMask<Pixels>>,
+    ) {
+        self.defer_draw_internal(element, absolute_offset, priority, content_mask, false);
+    }
+
+    /// 延后绘制但保留原父AX自然顺序及原mask的prepaint命中范围。
+    /// 不增加辅助节点或提前prepaint；legacy defer_draw的浮层语义保持不变。
+    pub fn defer_draw_in_parent(
+        &mut self,
+        element: AnyElement,
+        absolute_offset: Point<Pixels>,
+        priority: usize,
+        content_mask: Option<ContentMask<Pixels>>,
+    ) {
+        self.defer_draw_internal(element, absolute_offset, priority, content_mask, true);
+    }
+
+    fn defer_draw_internal(
+        &mut self,
+        element: AnyElement,
+        absolute_offset: Point<Pixels>,
+        priority: usize,
+        content_mask: Option<ContentMask<Pixels>>,
+        preserve_parent_context: bool,
+    ) {
+        self.invalidator.debug_assert_prepaint();
+        let parent_node = self.next_frame.dispatch_tree.active_node_id().unwrap();
+        let parent_a11y = (preserve_parent_context && self.a11y.is_active())
+            .then(|| self.a11y.nodes.reserve_deferred_parent());
+        self.next_frame.deferred_draws.push(DeferredDraw {
+            preserve_parent_context,
+            parent_a11y,
+            current_view: self.current_view(),
+            parent_node,
+            element_id_stack: self.element_id_stack.clone(),
+            text_style_stack: self.text_style_stack.clone(),
+            content_mask,
+            rem_size: self.rem_size(),
+            priority,
+            element: Some(element),
+            absolute_offset,
+            prepaint_range: PrepaintStateIndex::default()..PrepaintStateIndex::default(),
+            paint_range: PaintIndex::default()..PaintIndex::default(),
+        });
+    }
+

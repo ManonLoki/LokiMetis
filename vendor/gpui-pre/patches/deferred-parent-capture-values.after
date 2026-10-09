@@ -1,0 +1,4 @@
+                        deferred_draw.prepaint_range.clone(),
+                        deferred_draw.preserve_parent_context.then_some(deferred_draw.content_mask).flatten(),
+                        deferred_draw.parent_a11y.clone(),
+                    )

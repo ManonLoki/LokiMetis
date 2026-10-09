@@ -1,0 +1,3 @@
+    fn begin_frame(&mut self, window_title: Option<&SharedString>) {
+        self.deferred.begin_frame();
+        self.all_nodes.clear();

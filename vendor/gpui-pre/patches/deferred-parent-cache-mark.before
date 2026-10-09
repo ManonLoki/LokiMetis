@@ -1,0 +1,3 @@
+                    ViewElementState {
+                        accessed_entities,
+                        prepaint_range: prepaint_start..prepaint_end,

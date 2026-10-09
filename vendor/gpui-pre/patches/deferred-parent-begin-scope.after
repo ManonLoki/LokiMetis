@@ -1,0 +1,3 @@
+                let prepaint_start = self.prepaint_index();
+                let parent_scope = parent_a11y.as_ref().map(|parent| self.a11y.nodes.begin_deferred_parent(parent));
+                if let Some(mut element) = element {

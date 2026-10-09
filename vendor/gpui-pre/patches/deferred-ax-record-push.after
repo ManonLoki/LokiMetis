@@ -1,0 +1,6 @@
+    pub(crate) fn push(&mut self, id: NodeId, node: accesskit::Node) -> bool {
+        if !self.can_push(id) {
+            return false;
+        }
+
+        self.record_deferred_child(id);

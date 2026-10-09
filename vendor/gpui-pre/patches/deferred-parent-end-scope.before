@@ -1,0 +1,2 @@
+                let prepaint_end = self.prepaint_index();
+                self.next_frame.deferred_draws[deferred_draw_ix].prepaint_range =

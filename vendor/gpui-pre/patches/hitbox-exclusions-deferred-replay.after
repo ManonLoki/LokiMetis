@@ -1,0 +1,3 @@
+                    parent_a11y: None,
+                    // 纯几何scope可跨帧复用；AX预约仍不得跨帧保留。
+                    parent_hitbox_exclusions: deferred_draw.parent_hitbox_exclusions.clone(),

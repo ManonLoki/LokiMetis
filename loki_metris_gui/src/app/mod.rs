@@ -32,6 +32,16 @@ pub(in crate::app) struct PageScroll {
     owner: gpui_kit::WeakEntity<Shell>,
     revision: std::rc::Rc<std::cell::Cell<u64>>,
     manual_revision: std::rc::Rc<std::cell::Cell<u64>>,
+    regions: std::rc::Rc<std::cell::RefCell<PageRegions>>,
+}
+
+/// 当前实际文档及粘滞绘制边界只属于展示，不改变完整视口的原生焦点可见判定。
+#[derive(Default)]
+struct PageRegions {
+    container: Option<gpui_kit::Bounds<gpui_kit::Pixels>>,
+    header: Option<gpui_kit::Bounds<gpui_kit::Pixels>>,
+    footer: Option<gpui_kit::Bounds<gpui_kit::Pixels>>,
+    footer_layout: Option<gpui_kit::LayoutId>,
 }
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
@@ -83,7 +93,7 @@ impl Shell {
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let keyboard_entry = keyboard_entry::install(window.window_handle(), cx);
         let locale = preferences.locale();
-        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default(), regions: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             _keyboard_entry:keyboard_entry,
             release_notes_modal: None,
@@ -258,6 +268,7 @@ impl Render for Shell {
     /// 原生窗口标题与视图元数据由同一身份和当前语言派生。
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.viewport_width = window.viewport_size().width.into();
+        *self.page_scroll.regions.borrow_mut() = PageRegions::default();
         self.sync_usage_setting_inputs(window,cx);
         self.sync_monitor_inputs(window,cx);
         self.sync_monitor_hook_inputs(window,cx);
@@ -285,7 +296,6 @@ impl Render for Shell {
             .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col().child(content));
         div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_size(px(14.)).text_color(cx.theme().foreground)
             .child(underlay)
-            .when_some(self.monitor_profile_overlay(cx),|shell,bar|shell.child(bar))
             .when_some(self.skin_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.release_notes_dialog(window,cx),|shell,dialog|shell.child(dialog))

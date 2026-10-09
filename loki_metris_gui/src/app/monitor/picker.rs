@@ -59,7 +59,7 @@ impl Shell {
                 )
                 .when(!value.trim().is_empty(), |row| {
                     row.child(
-                        gpui_kit::base::Button::new(format!("monitor-picker-clear-{key}"))
+                        super::focus::picker_button(gpui_kit::base::Button::new(format!("monitor-picker-clear-{key}"))
                             .size(px(22.))
                             .p_0()
                             .rounded(px(12.))
@@ -91,7 +91,7 @@ impl Shell {
                             .accessibility_label(self.t("monitor.picker.clearAria"))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.select_monitor_image(tool, behavior, String::new(), cx)
-                            })),
+                            })), self.page_scroll.clone(), tool, behavior, super::textarea::reveal::PickerFocus::Clear, window, cx),
                     )
                 }),
         );
@@ -183,11 +183,11 @@ impl Shell {
                     })),
             );
         }
-        field = field.child(trigger.on_click(cx.listener(move |this, _, _, cx| {
+        field = field.child(super::focus::picker_button(trigger.on_click(cx.listener(move |this, _, _, cx| {
             this.monitor.catalog.picker = if opened { None } else { Some(behavior) };
             this.monitor.catalog.picker_category = Category::All;
             cx.notify();
-        })));
+        })), self.page_scroll.clone(), tool, behavior, super::textarea::reveal::PickerFocus::Trigger, window, cx));
         if !opened {
             return field.into_any_element();
         }

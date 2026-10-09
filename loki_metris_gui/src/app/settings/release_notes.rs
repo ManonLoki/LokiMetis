@@ -57,6 +57,8 @@ impl Shell {
         let content_height = (window.viewport_size().height - px(160.)).max(px(120.));
         let surface = div()
             .id("release-notes-surface")
+            .role(gpui_kit::Role::Dialog)
+            .aria_label(self.t("about.release_notes"))
             .test_support()
             .w_full()
             .max_h(window.viewport_size().height - px(64.))

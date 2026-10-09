@@ -1,0 +1,2 @@
+    parent_a11y: Option<a11y::DeferredA11yParent>,
+    parent_hitbox_exclusions: Vec<Bounds<Pixels>>,

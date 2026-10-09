@@ -1,0 +1,195 @@
+/// 仅opt-in deferred创建自然文档槽；最终辅助树不包含占位节点。
+mod deferred_parent {
+    use super::*;
+
+    /// 单帧祖先路径与独立预约身份，仅由对应 deferred 消费。
+    #[derive(Clone)]
+    pub(crate) struct DeferredA11yParent {
+        ancestors: SmallVec<[NodeId; 16]>,
+        slot: usize,
+        generation: u64,
+    }
+
+    /// 文档顺序项保存真实节点或无节点的后续预约。
+    #[derive(Clone)]
+    enum ChildSlot {
+        Node(NodeId),
+        Deferred(usize),
+    }
+
+    /// 预约只归属一个真实父节点，子预约按文档顺序嵌入。
+    struct Reservation {
+        parent: NodeId,
+        children: Vec<ChildSlot>,
+    }
+
+    /// 每帧排序模型与当前作用域；最终 TreeUpdate 不包含本模型节点。
+    #[derive(Default)]
+    pub(super) struct DeferredA11yState {
+        generation: u64,
+        children: FxHashMap<NodeId, Vec<ChildSlot>>,
+        slots: Vec<Reservation>,
+        active: Option<usize>,
+    }
+
+    /// 临时父链替换前的真实栈，结束后恢复且不复制后代节点。
+    pub(crate) struct DeferredA11yRestore {
+        ids: SmallVec<[NodeId; 16]>,
+        nodes: SmallVec<[accesskit::Node; 16]>,
+        active: Option<usize>,
+        expected: SmallVec<[NodeId; 16]>,
+    }
+
+    impl DeferredA11yState {
+        /// 每帧独立代数，replay不能把上一帧reservation当成当前槽。
+        pub(super) fn begin_frame(&mut self) {
+            self.generation = self.generation.wrapping_add(1);
+            self.children.clear();
+            self.slots.clear();
+            self.active = None;
+        }
+
+        /// 当前scope的直接子节点进入预约槽，其它已预约父节点继续记录自然子序列。
+        fn record(&mut self, parent: NodeId, child: ChildSlot) {
+            if let Some(active) = self.active
+                && self.slots[active].parent == parent
+            {
+                self.slots[active].children.push(child);
+            } else if let Some(children) = self.children.get_mut(&parent) {
+                children.push(child);
+            }
+        }
+    }
+
+    impl A11yNodeBuilder {
+        /// AX节点push仍使用原实现；仅已有预约的父节点额外记排序，不更改legacy树。
+        pub(super) fn record_deferred_child(&mut self, id: NodeId) {
+            if let Some(parent) = self.ids_stack.last().copied() {
+                self.deferred.record(parent, ChildSlot::Node(id));
+            }
+        }
+
+        /// 预约使用独立槽身份，连续兄弟即便children长度相同也不会交换。
+        pub(crate) fn reserve_deferred_parent(&mut self) -> DeferredA11yParent {
+            let parent = *self.ids_stack.last().expect("AX frame has root");
+            let slot = self.deferred.slots.len();
+            self.deferred.slots.push(Reservation {
+                parent,
+                children: Vec::new(),
+            });
+            let inside_slot = self
+                .deferred
+                .active
+                .is_some_and(|active| self.deferred.slots[active].parent == parent);
+            if !inside_slot {
+                let children = self
+                    .nodes_stack
+                    .last()
+                    .unwrap()
+                    .children()
+                    .iter()
+                    .copied()
+                    .map(ChildSlot::Node)
+                    .collect();
+                self.deferred.children.entry(parent).or_insert(children);
+            }
+            self.deferred.record(parent, ChildSlot::Deferred(slot));
+            DeferredA11yParent {
+                ancestors: self.ids_stack.clone(),
+                slot,
+                generation: self.deferred.generation,
+            }
+        }
+
+        /// 恢复真实祖先ID及完成后的属性，保留稍后设置的hidden和active-descendant语义。
+        pub(crate) fn begin_deferred_parent(
+            &mut self,
+            parent: &DeferredA11yParent,
+        ) -> DeferredA11yRestore {
+            assert_eq!(
+                parent.generation, self.deferred.generation,
+                "stale deferred AX reservation"
+            );
+            assert_eq!(
+                self.deferred.slots[parent.slot].parent,
+                *parent.ancestors.last().unwrap()
+            );
+            let nodes = parent
+                .ancestors
+                .iter()
+                .map(|id| {
+                    self.ids_stack
+                        .iter()
+                        .position(|candidate| candidate == id)
+                        .map(|index| self.nodes_stack[index].clone())
+                        .or_else(|| {
+                            self.all_nodes
+                                .iter()
+                                .find(|(candidate, _)| candidate == id)
+                                .map(|(_, node)| node.clone())
+                        })
+                        .expect("deferred AX ancestor must finish in this frame")
+                })
+                .collect::<SmallVec<[accesskit::Node; 16]>>();
+            DeferredA11yRestore {
+                ids: std::mem::replace(&mut self.ids_stack, parent.ancestors.clone()),
+                nodes: std::mem::replace(&mut self.nodes_stack, nodes),
+                active: self.deferred.active.replace(parent.slot),
+                expected: parent.ancestors.clone(),
+            }
+        }
+
+        /// 丢弃scope中祖先克隆的临时children；真实后代节点及预约序列始终只创建一次。
+        pub(crate) fn end_deferred_parent(&mut self, restore: DeferredA11yRestore) {
+            assert_eq!(
+                self.ids_stack, restore.expected,
+                "unbalanced deferred AX scope"
+            );
+            self.ids_stack = restore.ids;
+            self.nodes_stack = restore.nodes;
+            self.deferred.active = restore.active;
+        }
+
+        /// 在最终TreeUpdate前展平自然子序列，空/取消预约没有额外可访问节点。
+        pub(super) fn finish_deferred_children(&mut self) {
+            if self.deferred.children.is_empty() {
+                return;
+            }
+            let mut replacements = Vec::with_capacity(self.deferred.children.len());
+            for (parent, sequence) in &self.deferred.children {
+                let mut result = Vec::new();
+                let mut stack = vec![sequence.iter()];
+                while let Some(iter) = stack.last_mut() {
+                    match iter.next() {
+                        Some(ChildSlot::Node(id)) => result.push(*id),
+                        Some(ChildSlot::Deferred(slot)) => {
+                            // 槽只引用之后新建的子槽，不能形成循环或跨帧引用。
+                            stack.push(self.deferred.slots[*slot].children.iter());
+                        }
+                        None => {
+                            stack.pop();
+                        }
+                    }
+                }
+                replacements.push((*parent, result));
+            }
+            for (parent, children) in replacements {
+                if let Some(index) = self.ids_stack.iter().position(|id| *id == parent) {
+                    self.nodes_stack[index].set_children(children);
+                } else {
+                    self.all_nodes
+                        .iter_mut()
+                        .find(|(id, _)| *id == parent)
+                        .expect("reserved AX parent must exist")
+                        .1
+                        .set_children(children);
+                }
+            }
+        }
+    }
+}
+
+use deferred_parent::DeferredA11yState;
+pub(crate) use deferred_parent::{DeferredA11yParent, DeferredA11yRestore};
+
+pub(crate) struct A11yNodeBuilder {

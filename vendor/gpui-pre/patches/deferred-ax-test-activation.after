@@ -1,0 +1,16 @@
+    /// 经过生产注册的真实activation回调；回调执行时不持平台Mutex。
+    pub fn simulate_accessibility_activation(&self) -> Option<accesskit::TreeUpdate> {
+        let callbacks = self.0.lock().a11y_callbacks.take();
+        let initial = callbacks.as_ref().and_then(|callbacks| (callbacks.activation)());
+        self.0.lock().a11y_callbacks = callbacks;
+        initial
+    }
+
+    /// 使用同一真实适配器回调模拟辅助功能断开。
+    pub fn simulate_accessibility_deactivation(&self) {
+        let callbacks = self.0.lock().a11y_callbacks.take();
+        if let Some(callbacks) = &callbacks { (callbacks.deactivation)(); }
+        self.0.lock().a11y_callbacks = callbacks;
+    }
+
+    pub fn simulate_scheduled_frame(&self) -> bool {

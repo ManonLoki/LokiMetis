@@ -1,0 +1,3 @@
+    aria.insert("role".into(), json!(format!("{:?}", node.role())));
+    // 来自实际TreeUpdate节点的hidden标志，便于检查完整祖先链。
+    aria.insert("hidden".into(), json!(node.is_hidden()));

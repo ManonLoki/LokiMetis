@@ -1,0 +1,3 @@
+    fn finalize(&mut self) -> TreeUpdate {
+        self.finish_deferred_children();
+        // Stack should contain only the root node

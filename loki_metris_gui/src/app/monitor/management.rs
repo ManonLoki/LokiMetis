@@ -399,12 +399,11 @@ impl Shell {
             behaviors = behaviors.child(card);
         }
         page = page.child(behaviors);
-        page = page.pb(px(80.));
         page.into_any_element()
     }
 
-    /// 保存操作保持在窗口底部，滚动四行为或内嵌图库时仍可触达。
-    pub(in crate::app) fn monitor_profile_overlay(
+    /// 保存栏是管理内容后的最后正常流兄弟项，由局部 sticky 负责 bottom12 与页尾回流。
+    pub(super) fn monitor_profile_save_bar(
         &self,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
@@ -414,7 +413,9 @@ impl Shell {
             return None;
         }
         let state = &self.monitor.catalog;
-        if state.profiles_error.is_some()
+        if !state.profiles_loaded
+            || self.agent_settings.loading
+            || state.profiles_error.is_some()
             || state.images_error.is_some()
             || self.agent_settings.error.is_some()
         {
@@ -445,14 +446,9 @@ impl Shell {
                     0x000000
                 }))
                 .test_support()
-                .absolute()
-                .left(px(if self.viewport_width < 992. {
-                    100.
-                } else {
-                    112.
-                }))
-                .right(px(if self.viewport_width < 992. { 20. } else { 32. }))
-                .bottom(px(12.))
+                .block_mouse_except_scroll()
+                .w_full()
+                .flex_shrink_0()
                 .p_3()
                 .rounded(px(16.))
                 .border_1()

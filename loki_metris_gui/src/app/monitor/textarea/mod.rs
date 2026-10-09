@@ -2,7 +2,7 @@
 
 mod editor_style;
 mod motion;
-mod reveal;
+pub(in crate::app::monitor) mod reveal;
 #[cfg(test)]
 mod reveal_tests;
 #[cfg(all(test, target_os = "macos"))]

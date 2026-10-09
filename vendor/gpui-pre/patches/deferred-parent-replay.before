@@ -1,0 +1,2 @@
+                .map(|deferred_draw| DeferredDraw {
+                    current_view: deferred_draw.current_view,

@@ -57,11 +57,231 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/focus-generation.before"),
                 after: include_str!("patches/focus-generation.after"),
             },
+            Patch {
+                name: "deferred-ax-test-field", path: "src/platform/test/window.rs",
+                before: include_str!("patches/deferred-ax-test-field.before"),
+                after: include_str!("patches/deferred-ax-test-field.after"),
+            },
+            Patch {
+                name: "deferred-ax-test-init", path: "src/platform/test/window.rs",
+                before: include_str!("patches/deferred-ax-test-init.before"),
+                after: include_str!("patches/deferred-ax-test-init.after"),
+            },
+            Patch {
+                name: "deferred-ax-test-activation", path: "src/platform/test/window.rs",
+                before: include_str!("patches/deferred-ax-test-activation.before"),
+                after: include_str!("patches/deferred-ax-test-activation.after"),
+            },
+            Patch {
+                name: "deferred-ax-test-retain", path: "src/platform/test/window.rs",
+                before: include_str!("patches/deferred-ax-test-retain.before"),
+                after: include_str!("patches/deferred-ax-test-retain.after"),
+            },
+            Patch {
+                name: "deferred-ax-test-context", path: "src/app/test_context.rs",
+                before: include_str!("patches/deferred-ax-test-context.before"),
+                after: include_str!("patches/deferred-ax-test-context.after"),
+            },
+            Patch {
+                name: "deferred-ax-debug-hidden", path: "src/window/a11y/debug.rs",
+                before: include_str!("patches/deferred-ax-debug-hidden.before"),
+                after: include_str!("patches/deferred-ax-debug-hidden.after"),
+            },
+            Patch {
+                name: "deferred-ax-helper", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-helper.before"),
+                after: include_str!("patches/deferred-ax-helper.after"),
+            },
+            Patch {
+                name: "deferred-ax-builder-field", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-builder-field.before"),
+                after: include_str!("patches/deferred-ax-builder-field.after"),
+            },
+            Patch {
+                name: "deferred-ax-builder-init", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-builder-init.before"),
+                after: include_str!("patches/deferred-ax-builder-init.after"),
+            },
+            Patch {
+                name: "deferred-ax-record-push", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-record-push.before"),
+                after: include_str!("patches/deferred-ax-record-push.after"),
+            },
+            Patch {
+                name: "deferred-ax-record-leaf", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-record-leaf.before"),
+                after: include_str!("patches/deferred-ax-record-leaf.after"),
+            },
+            Patch {
+                name: "deferred-ax-reset", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-reset.before"),
+                after: include_str!("patches/deferred-ax-reset.after"),
+            },
+            Patch {
+                name: "deferred-ax-finalize", path: "src/window/a11y.rs",
+                before: include_str!("patches/deferred-ax-finalize.before"),
+                after: include_str!("patches/deferred-ax-finalize.after"),
+            },
+            Patch {
+                name: "deferred-parent-fields", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-fields.before"),
+                after: include_str!("patches/deferred-parent-fields.after"),
+            },
+            Patch {
+                name: "deferred-parent-capture-tuple", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-capture-tuple.before"),
+                after: include_str!("patches/deferred-parent-capture-tuple.after"),
+            },
+            Patch {
+                name: "deferred-parent-capture-values", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-capture-values.before"),
+                after: include_str!("patches/deferred-parent-capture-values.after"),
+            },
+            Patch {
+                name: "deferred-parent-begin-scope", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-begin-scope.before"),
+                after: include_str!("patches/deferred-parent-begin-scope.after"),
+            },
+            Patch {
+                name: "deferred-parent-prepaint-mask", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-prepaint-mask.before"),
+                after: include_str!("patches/deferred-parent-prepaint-mask.after"),
+            },
+            Patch {
+                name: "deferred-parent-end-scope", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-end-scope.before"),
+                after: include_str!("patches/deferred-parent-end-scope.after"),
+            },
+            Patch {
+                name: "deferred-parent-replay", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-replay.before"),
+                after: include_str!("patches/deferred-parent-replay.after"),
+            },
+            Patch {
+                name: "deferred-parent-range-query", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-range-query.before"),
+                after: include_str!("patches/deferred-parent-range-query.after"),
+            },
+            Patch {
+                name: "deferred-parent-entry", path: "src/window.rs",
+                before: include_str!("patches/deferred-parent-entry.before"),
+                after: include_str!("patches/deferred-parent-entry.after"),
+            },
+            Patch {
+                name: "deferred-parent-cache-field", path: "src/view.rs",
+                before: include_str!("patches/deferred-parent-cache-field.before"),
+                after: include_str!("patches/deferred-parent-cache-field.after"),
+            },
+            Patch {
+                name: "deferred-parent-cache-capture", path: "src/view.rs",
+                before: include_str!("patches/deferred-parent-cache-capture.before"),
+                after: include_str!("patches/deferred-parent-cache-capture.after"),
+            },
+            Patch {
+                name: "deferred-parent-cache-guard", path: "src/view.rs",
+                before: include_str!("patches/deferred-parent-cache-guard.before"),
+                after: include_str!("patches/deferred-parent-cache-guard.after"),
+            },
+            Patch {
+                name: "deferred-parent-cache-replay-mark", path: "src/view.rs",
+                before: include_str!("patches/deferred-parent-cache-replay-mark.before"),
+                after: include_str!("patches/deferred-parent-cache-replay-mark.after"),
+            },
+            Patch {
+                name: "deferred-parent-cache-mark", path: "src/view.rs",
+                before: include_str!("patches/deferred-parent-cache-mark.before"),
+                after: include_str!("patches/deferred-parent-cache-mark.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-field", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-field.before"),
+                after: include_str!("patches/hitbox-exclusions-field.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-init", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-init.before"),
+                after: include_str!("patches/hitbox-exclusions-init.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-deferred-field", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-deferred-field.before"),
+                after: include_str!("patches/hitbox-exclusions-deferred-field.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-deferred-capture", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-deferred-capture.before"),
+                after: include_str!("patches/hitbox-exclusions-deferred-capture.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-deferred-tuple", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-deferred-tuple.before"),
+                after: include_str!("patches/hitbox-exclusions-deferred-tuple.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-deferred-prepaint", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-deferred-prepaint.before"),
+                after: include_str!("patches/hitbox-exclusions-deferred-prepaint.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-deferred-replay", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-deferred-replay.before"),
+                after: include_str!("patches/hitbox-exclusions-deferred-replay.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-deferred-init", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-deferred-init.before"),
+                after: include_str!("patches/hitbox-exclusions-deferred-init.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-api", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-api.before"),
+                after: include_str!("patches/hitbox-exclusions-api.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-insert", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-insert.before"),
+                after: include_str!("patches/hitbox-exclusions-insert.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-mask-doc", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-mask-doc.before"),
+                after: include_str!("patches/hitbox-exclusions-mask-doc.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-test-ids", path: "src/window.rs",
+                before: include_str!("patches/hitbox-exclusions-test-ids.before"),
+                after: include_str!("patches/hitbox-exclusions-test-ids.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-cache-field", path: "src/view.rs",
+                before: include_str!("patches/hitbox-exclusions-cache-field.before"),
+                after: include_str!("patches/hitbox-exclusions-cache-field.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-cache-capture", path: "src/view.rs",
+                before: include_str!("patches/hitbox-exclusions-cache-capture.before"),
+                after: include_str!("patches/hitbox-exclusions-cache-capture.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-cache-compare", path: "src/view.rs",
+                before: include_str!("patches/hitbox-exclusions-cache-compare.before"),
+                after: include_str!("patches/hitbox-exclusions-cache-compare.after"),
+            },
+            Patch {
+                name: "hitbox-exclusions-cache-init", path: "src/view.rs",
+                before: include_str!("patches/hitbox-exclusions-cache-init.before"),
+                after: include_str!("patches/hitbox-exclusions-cache-init.after"),
+            },
         ],
         generated_hashes: &[
+            ("src/app/test_context.rs", "70ad17984b35f317d430b74e0d5763835e78fcee724c2c93126faf6833c1ffda"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
+            ("src/platform/test/window.rs", "5cc6869738c7441976bc036aa469da4521a1a632e4a5805b19bfe2eb28fee303"),
             ("src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
-            ("src/window.rs", "b4ff294d6a21415d16499343be7feac1bf5869a4f4ce43877ee49ca3a11e4ce3"),
+            ("src/view.rs", "039a61d1e94f2c57ace98d14cc13baefbe27ce5118119066ead3d2d248f439f0"),
+            ("src/window.rs", "0faf5c96da0dc88ff368a44216ffb148b1614c8eaa8effe507e718bf0706bcf5"),
+            ("src/window/a11y.rs", "032ccb11a796b6c76e6bf5bafd5b31c1842a136ec7280dcda4e636ded8d83166"),
+            ("src/window/a11y/debug.rs", "6aaf90d1406fc9fd5bb3392275a4c9f19cbc3e2761eb5499de7a65f7ab71ad25"),
         ],
     };
     generator::generate(Path::new(env!("CARGO_MANIFEST_DIR")), &spec)

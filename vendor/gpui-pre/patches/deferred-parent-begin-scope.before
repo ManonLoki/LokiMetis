@@ -1,0 +1,2 @@
+                let prepaint_start = self.prepaint_index();
+                if let Some(mut element) = element {

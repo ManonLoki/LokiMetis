@@ -1,0 +1,5 @@
+    pub(crate) fn push_leaf(&mut self, id: NodeId, node: accesskit::Node) -> bool {
+        if !self.can_push(id) {
+            return false;
+        }
+
