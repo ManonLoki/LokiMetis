@@ -60,9 +60,9 @@ impl Shell {
         else {popup=popup.child(div().flex().flex_col().gap_1().child(self.t("sources.dialog.renameLabel"))
             .child(Input::new(&modal.input).disabled(self.dashboard.sources.refresh_failed)));}
         popup=popup.child(div().flex().justify_end().gap_2()
-            .child(Button::new("sources-dialog-cancel").outline().label(self.t("sources.dialog.cancel"))
+            .child(Button::new("sources-dialog-cancel").outline().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).label(self.t("sources.dialog.cancel"))
                 .on_click(cx.listener(|this,_,window,cx|this.close_source_dialog(window,cx))))
-            .child(Button::new("sources-dialog-confirm").primary().label(label).disabled(disabled)
+            .child(Button::new("sources-dialog-confirm").primary().h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).label(label).disabled(disabled)
                 .when(modal.remove,|button|button.bg(cx.theme().danger))
                 .on_click(cx.listener(|this,_,window,cx|this.confirm_source_dialog(window,cx)))));
         let weak=cx.entity().downgrade();let confirm=weak.clone();

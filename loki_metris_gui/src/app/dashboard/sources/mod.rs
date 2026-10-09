@@ -10,7 +10,7 @@ mod discovery;
 use super::Shell;
 use crate::usage_service::{UsageQuery,UsageResponse};
 use gpui_kit::{AnyElement,Context,Task,div,prelude::*,px,FontWeight,
-    component::{ActiveTheme,Disableable,button::Button,menu::{DropdownMenu,PopupMenuItem}}};
+    component::{ActiveTheme,Disableable,button::{Button,ButtonVariants},menu::{DropdownMenu,PopupMenuItem}}};
 use loki_metris_core::SourceRootSummary;
 
 /// 局部页面状态随卸载丢弃；服务持有已接受的写任务。
@@ -101,7 +101,7 @@ impl Shell {
         if self.dashboard.loading && self.dashboard.sources.roots.is_none() {return self.usage_loading(cx)}
         let mut page=div().w_full().min_w_0().px_2().flex().flex_col().gap_5();
         if self.dashboard.sources.refresh_failed {page=page.child(self.source_notice(true,self.t("sources.page.refreshError"),cx)
-            .child(Button::new("sources-retry").outline().label(self.t("dashboard.retry")).on_click(cx.listener(|this,_,_,cx|this.load_sources(cx)))));}
+            .child(Button::new("sources-retry").outline().h(px(30.)).px(px(14.)).rounded(px(12.)).text_size(px(12.)).font_weight(FontWeight::SEMIBOLD).label(self.t("dashboard.retry")).on_click(cx.listener(|this,_,_,cx|this.load_sources(cx)))));}
         if let Some(feedback)=&self.dashboard.sources.feedback {page=page.child(match feedback {
             Ok(key)=>self.source_notice(false,self.t("sources.page.updatedTitle"),cx).child(self.t(key)),
             Err(_)=>self.source_notice(true,self.t("sources.page.updateErrorTitle"),cx)
@@ -137,7 +137,7 @@ impl Shell {
             .child(self.quality_badge(self.t("sources.primary.badge"),cx.theme().primary)))
             .child(div().w_full().flex().flex_col().gap_4()
                 .child(div().w_full().flex().flex_col().gap_1().child(self.t("sources.primary.label"))
-                    .child(Button::new("sources-primary").outline().w_full().h(px(36.)).disabled(disabled||options.is_empty())
+                    .child(Button::new("sources-primary").outline().w_full().h(px(36.)).rounded(px(12.)).disabled(disabled||options.is_empty())
                         .accessibility_label(self.t("sources.primary.label"))
                         .child(div().w_full().flex().justify_between().child(current.map(|root|self.source_alias(root,roots)).unwrap_or_else(||self.t("sources.primary.placeholder"))).child("⌄"))
                         .dropdown_menu(move|mut menu,_,_| {
@@ -147,7 +147,7 @@ impl Shell {
                                 }});
                             }));}menu
                         })))
-                .child(div().w_full().flex().justify_end().child(Button::new("sources-primary-clear").outline().h(px(28.)).disabled(disabled||current.is_none()).label(self.t("sources.primary.clear"))
+                .child(div().w_full().flex().justify_end().child(Button::new("sources-primary-clear").ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||current.is_none()).label(self.t("sources.primary.clear"))
                     .on_click(cx.listener(|this,_,_,cx|this.change_source(crate::usage_service::SourceOperation::SetPrimary{root_id:None},cx))))))
             .into_any_element()
     }

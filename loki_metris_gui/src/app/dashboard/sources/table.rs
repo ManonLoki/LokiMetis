@@ -60,12 +60,12 @@ impl Shell {
         let mut actions=div().w_full().flex().items_center().justify_end().gap_2();
         if self.dashboard.client!=4 {
             let id=root.id.clone();let enabled=!root.enabled;let action=self.t(if enabled {"sources.table.enable"}else{"sources.table.disable"});
-            actions=actions.child(Button::new(("source-toggle",index)).ghost().h(px(30.)).px_2().disabled(disabled)
+            actions=actions.child(Button::new(("source-toggle",index)).ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled)
                 .accessibility_label(format!("{action}{alias}")).label(action)
                 .on_click(cx.listener(move|this,_,_,cx|this.change_source(SourceOperation::SetEnabled{root_id:id.clone(),enabled},cx))));
         }
         let id=root.id.clone();
-        actions=actions.child(Button::new(("source-reindex",index)).ghost().h(px(30.)).px_2().disabled(disabled||!root.enabled)
+        actions=actions.child(Button::new(("source-reindex",index)).ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!root.enabled)
             .accessibility_label(self.t("sources.table.reindexAria").replace("{{alias}}",&alias)).label(self.t("sources.table.reindex"))
             .on_click(cx.listener(move|this,_,_,cx| {
                 if this.dashboard.client==4 {this.load_sources(cx);}else{this.change_source(SourceOperation::Reindex{root_id:id.clone()},cx);}
@@ -73,7 +73,7 @@ impl Shell {
         if self.dashboard.client!=4 {
             for(remove,key)in [(false,"rename"),(true,"remove")] {
                 let root=root.clone();let label=self.t(&format!("sources.table.{key}"));
-                actions=actions.child(Button::new(SharedString::from(format!("source-{key}-{index}"))).ghost().h(px(30.)).px_2().disabled(disabled)
+                actions=actions.child(Button::new(SharedString::from(format!("source-{key}-{index}"))).ghost().h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled)
                     .accessibility_label(self.t(&format!("sources.table.{key}Aria")).replace("{{alias}}",&alias)).label(label)
                     .on_click(cx.listener(move|this,_,window,cx|this.open_source_dialog(root.clone(),remove,window,cx))));
             }
