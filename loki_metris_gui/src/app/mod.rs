@@ -5,6 +5,7 @@ mod surface;
 mod monitor;
 mod skins;
 mod dashboard;
+mod keyboard_entry;
 
 
 
@@ -42,6 +43,7 @@ pub struct Shell {
     _bounds: Subscription,
     _activation: Subscription,
     _visibility: Subscription,
+    _keyboard_entry: Subscription,
     window_active: bool,
     window_visible: bool,
     release_notes_modal: Option<settings::ReleaseNotesModal>,
@@ -69,9 +71,11 @@ impl Shell {
         let bounds_subscription = cx.observe_window_bounds(window, |this, window, _| { this.remember_window(window); });
         let activation = cx.observe_window_activation(window, |this,window,cx|this.update_window_visibility(window,cx));
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
+        let keyboard_entry = keyboard_entry::install(window.window_handle(), cx);
         let locale = preferences.locale();
         let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
+            _keyboard_entry:keyboard_entry,
             release_notes_modal: None,
         };
         value.remember_window(window);
@@ -286,3 +290,6 @@ fn window_geometry(frame: gpui_kit::Bounds<gpui_kit::Pixels>, viewport: gpui_kit
 #[cfg(test)]
 #[path = "mod_test.rs"]
 mod tests;
+
+#[cfg(test)]
+mod keyboard_entry_tests;
