@@ -7,6 +7,7 @@ mod import_dialog;
 mod imports;
 mod state;
 mod view;
+mod preview;
 
 use super::{Page, Shell};
 use crate::skins::{SkinError, SkinService};

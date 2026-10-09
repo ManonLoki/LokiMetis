@@ -19,12 +19,12 @@ struct PreviewProbe {
 }
 
 impl Render for PreviewProbe {
-    /// 固定176px视口模拟生产预览槽，图片语义不吞并选择框或提交按钮。
+    /// 固定160px可见槽模拟Card.Section负margin后的生产预览，图片语义不吞并选择框或提交按钮。
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity().downgrade();
         div().size_full().p(px(24.)).child(
             div().w(px(self.width)).flex().flex_col().child(
-                div().id("preview-frame").test_support().relative().w_full().h(px(176.))
+                div().id("preview-frame").test_support().relative().w_full().h(px(160.))
                     .flex_shrink_0().overflow_hidden().child(skin_preview(
                         ImageSource::Render(self.image.clone()), "preview".into(), "Pikachu preview".into(),
                     )).child(
@@ -63,9 +63,9 @@ fn open(cx: &mut TestAppContext, width: f32) -> (AnyWindowHandle, Entity<Preview
     })
 }
 
-/// 宽框触发上下Cover裁剪，窄框触发左右裁剪；真实Img须始终等于176px视口。
+/// 原始176px图像视口向外扩32px并上移16px；外层160px负责实际裁切。
 #[gpui_kit::test]
-fn decoded_preview_keeps_cover_element_inside_fixed_viewport(cx: &mut TestAppContext) {
+fn decoded_preview_preserves_section_margin_and_outer_clip(cx: &mut TestAppContext) {
     let (handle, probe) = open(cx, 322.);
     for scale in [1., 2.] {
         cx.simulate_window_scale_factor_change(handle, scale);
@@ -75,8 +75,9 @@ fn decoded_preview_keeps_cover_element_inside_fixed_viewport(cx: &mut TestAppCon
                 window.render_frame(cx);
                 let frame = window.find("preview-frame").bounds();
                 let image = window.find("preview-image").bounds();
-                assert_eq!(frame.size, size(px(width), px(176.)));
-                assert_eq!(image, frame, "Cover必须使用预览框而非被素材比例撑高的Img边界");
+                assert_eq!(frame.size, size(px(width), px(160.)));
+                assert_eq!(image, Bounds::new(frame.origin - point(px(16.), px(16.)), size(px(width + 32.), px(176.))));
+                assert_outer_clip(window, frame);
             }).unwrap();
         }
     }
@@ -107,9 +108,9 @@ fn preview_exposes_image_name_and_keeps_sibling_controls_independent(cx: &mut Te
 }
 
 
-/// 安装0.3.12的实际SkinCard使用176px；生产壳层在四列／两列及1x／2x下都保持此视口。
+/// 安装0.3.12的Card.Section保留md16负margin；h176只留下160px，不能直接当可见高度。
 #[gpui_kit::test]
-fn production_skin_card_preview_matches_installed_height(cx: &mut TestAppContext) {
+fn production_skin_card_preview_matches_installed_section_crop(cx: &mut TestAppContext) {
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1492., 900.);
     let image = Arc::new(Image::from_bytes(
         ImageFormat::Png,
@@ -118,13 +119,62 @@ fn production_skin_card_preview_matches_installed_height(cx: &mut TestAppContext
     let decoded = cx.update(|cx| image.to_image_data(cx.svg_renderer()).expect("解码真实Pikachu原图"));
     assert_eq!(decoded.size(0).width.0, 1920);
     assert_eq!(decoded.size(0).height.0, 1080);
+    populate_catalog(&shell, image, loki_metris_core::SkinSource::Builtin, cx);
+    // 确认真实Arc<Image>走完异步Asset解码后再查绘制图元。
+    for _ in 0..3 {
+        cx.update_window(handle, |_, window, cx| window.render_frame(cx)).unwrap();
+        cx.run_until_parked();
+    }
+    for scale in [1., 2.] {
+        cx.simulate_window_scale_factor_change(handle, scale);
+        for width in [1492., 768.] {
+            cx.simulate_window_resize(handle, size(px(width), px(900.)));
+            cx.update_window(handle, |_, window, cx| {
+                window.render_frame(cx);
+                let preview = window.find("skin-preview-pikachu-Builtin").bounds();
+                let image = window.find("skin-preview-pikachu-Builtin-image").bounds();
+                let metadata = window.find("skin-metadata-pikachu-Builtin").bounds();
+                assert_eq!(preview.size.height, px(160.),
+                    "Card.Section负margin必须在生产壳层真实裁去顶部16px，width={width}, scale={scale}");
+                assert_eq!(image, Bounds::new(preview.origin - point(px(16.), px(16.)),
+                    size(preview.size.width + px(32.), px(176.))), "原图必须仍在扩宽且上移的176px视口内Cover");
+                assert_outer_clip(window, preview);
+                assert_eq!(metadata.origin.y, preview.bottom(), "元信息必须紧随真实预览底边");
+                let card = window.find("skin-card-pikachu-Builtin").bounds();
+                assert_eq!(preview.origin, card.origin + point(px(1.), px(1.)),
+                    "overflow-hidden沿Card的padding edge裁切，不能移到外border-box");
+                assert_eq!(card.size.width - px(2.), preview.size.width,
+                    "外层可见槽沿用真实卡片内宽，不改变响应式列宽");
+            }).unwrap();
+        }
+    }
+}
+
+/// 已完成的真实图片图元以外层顶角为圆心；偏移inner的圆角或仅矩形mask都不能通过。
+fn assert_outer_clip(window: &Window, viewport: Bounds<gpui_kit::Pixels>) {
+    let scale = window.scale_factor();
+    let outer = viewport.scale(scale);
+    let sprites = window.painted_polychrome_sprites();
+    let sprite = sprites.iter().find(|sprite| sprite.rounded_clip_bounds == outer)
+        .expect("真实图元必须保存160px外层圆角视口，不能把inner的偏移圆心当外角");
+    // 安装版Card的外圆角20减去真实1px边框，内缘圆心仍与外卡片一致。
+    assert_eq!(sprite.corner_radii.top_left, px(19.).scale(scale));
+    assert_eq!(sprite.corner_radii.top_right, px(19.).scale(scale));
+    assert_eq!(sprite.corner_radii.bottom_left, px(0.).scale(scale));
+    assert_eq!(sprite.corner_radii.bottom_right, px(0.).scale(scale));
+    assert_eq!(sprite.content_mask.bounds, outer, "矩形可见区仍由外层槽负责，不能只靠移动图片的圆角");
+}
+
+/// 单一成功目录fixture只注入展示输入，真实选择和画布仍由生产Shell建立。
+fn populate_catalog(shell: &Entity<crate::app::Shell>, image: Arc<Image>,
+    source: loki_metris_core::SkinSource, cx: &mut TestAppContext) {
     shell.update(cx, |this, cx| {
         this.page = super::Page::Skins;
         this.skins.host = Some(loki_metris_core::SkinHostKind::Codex);
         this.skins.entries = Some(vec![crate::usage_service::SkinEntry {
             skin: crate::skins::SkinDescriptor {
                 id: "pikachu".into(),
-                source: loki_metris_core::SkinSource::Builtin,
+                source: source,
                 package_type: loki_metris_core::SkinPackageType::LegacySkin,
                 name: "Pikachu".into(),
                 author: "ManonLoki".into(),
@@ -147,22 +197,34 @@ fn production_skin_card_preview_matches_installed_height(cx: &mut TestAppContext
         });
         cx.notify();
     });
+
+}
+
+/// 用户选择框同属负margin的section；可见部分直接调用原生Checkbox，不由整卡代点。
+#[gpui_kit::test]
+fn user_skin_checkbox_keeps_section_offset_and_own_actions(cx: &mut TestAppContext) {
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1492., 900.);
+    let image = Arc::new(Image::from_bytes(ImageFormat::Png,
+        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
+    populate_catalog(&shell, image, loki_metris_core::SkinSource::User, cx);
     for scale in [1., 2.] {
         cx.simulate_window_scale_factor_change(handle, scale);
-        for width in [1492., 768.] {
-            cx.simulate_window_resize(handle, size(px(width), px(900.)));
-            cx.update_window(handle, |_, window, cx| {
-                window.render_frame(cx);
-                let preview = window.find("skin-preview-pikachu-Builtin").bounds();
-                let image = window.find("skin-preview-pikachu-Builtin-image").bounds();
-                let metadata = window.find("skin-metadata-pikachu-Builtin").bounds();
-                assert_eq!(preview.size.height, px(176.),
-                    "生产SkinCard的预览高度必须来自安装版合同，width={width}, scale={scale}");
-                assert_eq!(image, preview, "原图的Cover边界必须使用生产预览视口");
-                assert_eq!(metadata.origin.y, preview.bottom(), "元信息必须紧随真实预览底边");
-                assert_eq!(preview.size.width / preview.size.height > 16. / 9., width == 1492.,
-                    "真实响应式列宽应分别覆盖上下裁剪和左右裁剪");
-            }).unwrap();
-        }
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let outer = window.find("skin-preview-pikachu-User").bounds();
+            let selection = window.find("skin-select-pikachu");
+            let bounds = selection.bounds();
+            assert_eq!(bounds.origin.y, outer.origin.y - px(4.));
+            assert_eq!(bounds.right(), outer.right() + px(4.));
+            assert_eq!(bounds.size, size(px(20.), px(20.)));
+            assert_eq!(selection.label(), Some("Select Pikachu"));
+            window.click_at("skin-select-pikachu", point(px(6.), px(12.)), cx);
+            assert_eq!(shell.read(cx).skins.selected.len(), 1);
+            window.click_at("skin-preview-pikachu-User", point(px(8.), px(80.)), cx);
+            assert_eq!(shell.read(cx).skins.selected.len(), 1, "图片不能代理选择动作");
+            assert!(!shell.read(cx).skins.busy, "选择不能代理应用皮肤动作");
+            window.click_at("skin-select-pikachu", point(px(6.), px(12.)), cx);
+            assert!(shell.read(cx).skins.selected.is_empty());
+        }).unwrap();
     }
 }

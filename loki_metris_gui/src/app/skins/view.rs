@@ -11,26 +11,13 @@ use gpui_kit::{
         input::Input,
         menu::{DropdownMenu, PopupMenuItem},
     },
-    div, img,
+    div,
     prelude::*,
     px, rgb,
 };
 use loki_metris_core::{ColorMode, SkinPackageType, SkinSource};
 
-/// GPUI补入素材比例后，Taffy普通叶子会撑高固定预览；绝对定位保留视口供Cover居中裁剪。
-/// 图片辅助语义由独立Div提供，因为当前Img未转发角色；选择框仍属于外层Sibling。
-pub(super) fn skin_preview(source: gpui_kit::ImageSource, id: gpui_kit::SharedString, label: String) -> AnyElement {
-    div().id(id.clone()).test_support().absolute().inset_0().size_full()
-        .role(Role::Image).aria_label(label).child(
-        img(source)
-            .absolute().inset_0()
-            .size_full()
-            .rounded_t(px(20.))
-            .object_fit(gpui_kit::ObjectFit::Cover)
-            .id(format!("{id}-image"))
-            .test_support(),
-    ).into_any_element()
-}
+pub(super) use super::preview::skin_preview;
 
 impl Shell {
     /// 初次读取失败不展示伪造空库，刷新失败保留已确认卡片并提供重试。
@@ -289,8 +276,8 @@ impl Shell {
                 let current = active.as_ref() == Some(&reference);
                 let mut preview = div()
                     .relative()
-                    .rounded_t(px(20.))
-                    .h(px(176.))
+                    .rounded_t(px(19.))
+                    .h(px(160.))
                     .w_full()
                     .flex_shrink_0()
                     .overflow_hidden()
@@ -313,8 +300,8 @@ impl Shell {
                                 self.t("skins.card.select").replace("%{name}", &skin.name),
                             )
                             .absolute()
-                            .right(px(12.))
-                            .top(px(12.))
+                            .right(px(-4.))
+                            .top(px(-4.))
                             .size(px(20.))
                             .rounded(px(5.))
                             .border_1()
