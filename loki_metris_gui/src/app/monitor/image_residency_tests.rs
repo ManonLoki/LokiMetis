@@ -206,7 +206,7 @@ fn shared_ready_survives_one_window_hidden_and_final_owner_cleans_all_atlases(
 fn shared_pending_survives_gallery_hide_and_remaining_window_actually_paints(
     cx: &mut TestAppContext,
 ) {
-    let permits = hold_decoders_for_test();
+    let permits = cx.update(hold_decoders_for_test);
     let f = windows(cx);
     draw(cx, &[f.main, f.playback]);
     assert_eq!(f.probe.started(), 1);
@@ -412,7 +412,7 @@ fn released_entity_cleans_last_asset_while_its_window_remains_open(cx: &mut Test
 /// 显式刷新只重试失败结果并通知另一实际 owner，预算释放后两窗都绘制同一正常结果。
 #[gpui_kit::test]
 fn refresh_retries_real_budget_error_and_notifies_other_visible_owner(cx: &mut TestAppContext) {
-    let budget = hold_pixel_budget_for_test();
+    let budget = cx.update(hold_pixel_budget_for_test);
     let f = windows(cx);
     draw(cx, &[f.main, f.playback]);
     assert!(cx.update(|app| {
@@ -482,7 +482,7 @@ fn refresh_preserves_healthy_other_window_arc_and_tile(cx: &mut TestAppContext) 
 /// 已共享的 pending 任务在刷新期间保留；同源文件查询回执不能取消另一窗仍在等待的任务。
 #[gpui_kit::test]
 fn refresh_preserves_other_window_pending_asset(cx: &mut TestAppContext) {
-    let permits = hold_decoders_for_test();
+    let permits = cx.update(hold_decoders_for_test);
     let f = windows(cx);
     draw(cx, &[f.main, f.playback]);
     assert_eq!(f.probe.started(), 1);

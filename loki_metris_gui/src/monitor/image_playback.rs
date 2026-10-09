@@ -367,7 +367,9 @@ mod tests {
             image: Arc::new(gpui_kit::RenderImage::new(frames)),
             natural_size: size(gpui_kit::DevicePixels(1), gpui_kit::DevicePixels(1)),
             plays,
-            _memory: super::super::image_memory::ImageMemoryLease::reserve(72).unwrap(),
+            _memory: cx.update(|app| {
+                super::super::image_memory::resources_for_app(app).reserve(72).unwrap()
+            }),
         });
         let handle = cx.add_window(move |window, cx| {
             let source = MonitorImageSource {

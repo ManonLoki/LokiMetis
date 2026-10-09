@@ -37,17 +37,16 @@ pub(crate) struct MonitorImageDecoder;
 
 /// 真实生命周期回归暂占两个解码许可，使生产 Asset 停在 pending 而不替换解码器。
 #[cfg(test)]
-pub(crate) fn hold_decoders_for_test() -> [tokio::sync::SemaphorePermit<'static>; 2] {
-    [
-        super::image_memory::DECODERS.try_acquire().unwrap(),
-        super::image_memory::DECODERS.try_acquire().unwrap(),
-    ]
+pub(crate) fn hold_decoders_for_test(cx: &mut App) -> [tokio::sync::OwnedSemaphorePermit; 2] {
+    super::image_memory::resources_for_app(cx).hold_decoders()
 }
 
 /// 真实失败重试回归用全额租约触发预算错误；释放后仍由原解码器正常加载。
 #[cfg(test)]
-pub(crate) fn hold_pixel_budget_for_test() -> impl Drop {
-    super::image_memory::ImageMemoryLease::reserve(512 * 1024 * 1024).unwrap()
+pub(crate) fn hold_pixel_budget_for_test(cx: &mut App) -> impl Drop + use<> {
+    super::image_memory::resources_for_app(cx)
+        .reserve(512 * 1024 * 1024)
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -110,12 +109,10 @@ impl Asset for MonitorImageDecoder {
     ) -> impl Future<Output = Self::Output> + Send + 'static {
         #[cfg(test)]
         load_observation::started(&source.id);
+        let resources = super::image_memory::resources_for_app(cx);
         cx.background_executor().spawn(async move {
-            let _permit = super::image_memory::DECODERS
-                .acquire()
-                .await
-                .expect("decoder semaphore is never closed");
-            decode(&source).map_err(|_| "error.monitor.imageDecodeFailed")
+            let _permit = resources.acquire().await;
+            decode(&source, &resources).map_err(|_| "error.monitor.imageDecodeFailed")
         })
     }
 }
@@ -130,7 +127,10 @@ fn limits() -> Limits {
 }
 
 /// 逐帧累计保留内存；静态图方向与 GPUI 默认解码一致，最终转换为 BGRA。
-fn decode(source: &MonitorImageSource) -> anyhow::Result<Arc<DecodedMonitorImage>> {
+fn decode(
+    source: &MonitorImageSource,
+    resources: &super::image_memory::DecodeResources,
+) -> anyhow::Result<Arc<DecodedMonitorImage>> {
     let mut plays = Some(1);
     let frames;
     if source.format == ImageFormat::Gif {
@@ -169,7 +169,7 @@ fn decode(source: &MonitorImageSource) -> anyhow::Result<Arc<DecodedMonitorImage
             u64::from(frame.buffer().width() + 2) * u64::from(frame.buffer().height() + 2) * 4
         })
         .sum();
-    let memory = super::image_memory::ImageMemoryLease::reserve(retained)?;
+    let memory = resources.reserve(retained)?;
     let frames = texture_frames(frames)?;
     Ok(Arc::new(DecodedMonitorImage {
         image: Arc::new(RenderImage::new(frames)),
@@ -258,7 +258,7 @@ mod tests {
             format: ImageFormat::Gif,
             bytes: Arc::from(include_bytes!("../../tests/fixtures/monitor-loop.gif").as_slice()),
         };
-        let decoded = decode(&source).unwrap();
+        let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
         assert_eq!(decoded.plays, None);
         let image = &decoded.image;
         assert_eq!(image.frame_count(), 2);
@@ -272,6 +272,7 @@ mod tests {
     /// 超宽 GIF 在解码像素前拒绝；魔数合法但损坏的静态图也明确失败。
     #[test]
     fn oversized_and_corrupt_resources_fail_decoding() {
+        let resources = super::super::image_memory::DecodeResources::new();
         let mut bytes = include_bytes!("../../tests/fixtures/monitor-loop.gif").to_vec();
         bytes[6] = 0xff;
         bytes[7] = 0xff;
@@ -280,7 +281,7 @@ mod tests {
                 id: "large".into(),
                 bytes: Arc::from(bytes),
                 format: ImageFormat::Gif
-            })
+            }, &resources)
             .is_err()
         );
         assert!(
@@ -288,7 +289,7 @@ mod tests {
                 id: "bad".into(),
                 bytes: Arc::from(b"\x89PNG\r\n\x1a\n".as_slice()),
                 format: ImageFormat::Png
-            })
+            }, &resources)
             .is_err()
         );
     }
@@ -300,7 +301,7 @@ mod tests {
             bytes: Arc::from(include_bytes!("../../assets/logo.png").as_slice()),
             format: ImageFormat::Png,
         };
-        let decoded = decode(&source).unwrap();
+        let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
         let image = &decoded.image;
         assert_eq!(
             decoded.natural_size,
@@ -317,7 +318,7 @@ mod tests {
             bytes: Arc::from(include_bytes!("../../tests/fixtures/monitor-finite.png").as_slice()),
             format: ImageFormat::Png,
         };
-        let decoded = decode(&source).unwrap();
+        let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
         assert_eq!(decoded.plays, Some(2));
         assert_eq!(decoded.image.frame_count(), 2);
         assert_eq!(decoded.image.as_bytes(0).unwrap(), [0, 0, 0, 255].repeat(9));
