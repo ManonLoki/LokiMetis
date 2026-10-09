@@ -34,6 +34,61 @@ impl Hash for MonitorImageSource {
 
 /// 自有 Asset 保留未加载/失败/成功三态，成功结果可直接交 img 渲染。
 pub(crate) struct MonitorImageDecoder;
+
+/// 真实生命周期回归暂占两个解码许可，使生产 Asset 停在 pending 而不替换解码器。
+#[cfg(test)]
+pub(crate) fn hold_decoders_for_test() -> [tokio::sync::SemaphorePermit<'static>; 2] {
+    [
+        super::image_memory::DECODERS.try_acquire().unwrap(),
+        super::image_memory::DECODERS.try_acquire().unwrap(),
+    ]
+}
+
+/// 真实失败重试回归用全额租约触发预算错误；释放后仍由原解码器正常加载。
+#[cfg(test)]
+pub(crate) fn hold_pixel_budget_for_test() -> impl Drop {
+    super::image_memory::ImageMemoryLease::reserve(512 * 1024 * 1024).unwrap()
+}
+
+#[cfg(test)]
+pub(crate) use load_observation::LoadProbe;
+
+/// 测试仅计数正式 Asset::load 入口；不改变解码器、许可等待、后台任务或完成通知。
+#[cfg(test)]
+mod load_observation {
+    use std::{collections::HashMap, sync::{Arc, Mutex, OnceLock, Weak, atomic::{AtomicUsize, Ordering}}};
+
+    /// 每个真实图库 ID 独立观察，弱登记不会跨测试保留计数或资源。
+    static PROBES: OnceLock<Mutex<HashMap<String, Weak<AtomicUsize>>>> = OnceLock::new();
+
+    /// 启动次数直接区分同一个 pending Asset 与被取消后立即重建的新任务。
+    pub(crate) struct LoadProbe { id: String, count: Arc<AtomicUsize> }
+    impl LoadProbe {
+        /// 仅为当前测试的实际来源建立唯一观察，不向生产解码注入替代结果。
+        pub(crate) fn new(id: &str) -> Self {
+            let count = Arc::new(AtomicUsize::new(0));
+            let old = PROBES.get_or_init(Mutex::default).lock().unwrap()
+                .insert(id.to_owned(), Arc::downgrade(&count));
+            assert!(old.and_then(|old| old.upgrade()).is_none(), "同 ID 的测试探针不能重叠");
+            Self { id: id.to_owned(), count }
+        }
+        /// 返回真正进入 Asset::load 的次数，不读取资源登记器的内部状态。
+        pub(crate) fn started(&self) -> usize { self.count.load(Ordering::Acquire) }
+    }
+    impl Drop for LoadProbe {
+        /// 失败断言或正常结束都注销当前 ID，避免探针成为进程全局驻留记录。
+        fn drop(&mut self) {
+            if let Some(probes) = PROBES.get() {
+                probes.lock().unwrap().remove(&self.id);
+            }
+        }
+    }
+    /// 生产解码入口在测试配置中旁路记录一次调用，未观察的 ID 无副作用。
+    pub(super) fn started(id: &str) {
+        let count = PROBES.get().and_then(|probes| probes.lock().unwrap().get(id).and_then(Weak::upgrade));
+        if let Some(count) = count { count.fetch_add(1, Ordering::AcqRel); }
+    }
+}
 /// 解码像素与浏览器语义的总播放次数；None 表示无限循环。
 pub(crate) struct DecodedMonitorImage {
     pub image: Arc<RenderImage>,
@@ -53,6 +108,8 @@ impl Asset for MonitorImageDecoder {
         source: Self::Source,
         cx: &mut App,
     ) -> impl Future<Output = Self::Output> + Send + 'static {
+        #[cfg(test)]
+        load_observation::started(&source.id);
         cx.background_executor().spawn(async move {
             let _permit = super::image_memory::DECODERS
                 .acquire()

@@ -1,6 +1,7 @@
 //! 图片时间线与自有原生画布，支持有限循环并在失焦窗口继续播放。
 
 use super::image_decode::{DecodedMonitorImage, MonitorImageDecoder, MonitorImageSource};
+use super::image_residency::{self, ImageOwner};
 use gpui_kit::{
     Bounds, ContentMask, Context, Corners, ImageRoundedClip, ObjectFit, Pixels, Render, Subscription,
     Task, Window, canvas, div, point, prelude::*, size,
@@ -59,6 +60,7 @@ impl Timeline {
 /// 每个挂载位置拥有一个时钟；像素缓存仍按图库ID共享而不复制。
 pub(crate) struct MonitorImageView {
     source: MonitorImageSource,
+    owner: ImageOwner,
     fit: ObjectFit,
     viewport_corners: Corners<Pixels>,
     decoded: Option<Arc<DecodedMonitorImage>>,
@@ -74,6 +76,7 @@ pub(crate) struct MonitorImageView {
     #[cfg(test)]
     painted: std::rc::Rc<std::cell::Cell<usize>>,
     _visibility: Subscription,
+    _closed: Subscription,
 }
 impl MonitorImageView {
     /// 观察可见性而非激活状态；用户切到另一个 App 不会冻结图库 GIF。
@@ -83,16 +86,30 @@ impl MonitorImageView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        let owner = ImageOwner::playback(window, cx);
         let visibility = cx.observe_window_visibility(window, |this, _, window, cx| {
             if !window.is_visible() {
-                this.pause(cx);
+                this.element_visible = false;
+                this.release_resources(Some(window), cx);
             } else {
                 this.start(window, cx);
             }
             cx.notify();
         });
+        let window_id = window.window_handle().window_id();
+        let weak = cx.entity().downgrade();
+        let closed = cx.on_window_closed(move |cx, closed| {
+            if closed == window_id {
+                let _ = weak.update(cx, |this, cx| {
+                    this.mounted = false;
+                    this.element_visible = false;
+                    this.release_resources(None, cx);
+                });
+            }
+        });
         Self {
             source,
+            owner,
             fit,
             viewport_corners: Corners::default(),
             decoded: None,
@@ -108,6 +125,7 @@ impl MonitorImageView {
             #[cfg(test)]
             painted: Default::default(),
             _visibility: visibility,
+            _closed: closed,
         }
     }
     /// 每个挂载位置配置自身视口圆角；默认零角保留桌宠的完整透明轮廓。
@@ -121,7 +139,7 @@ impl MonitorImageView {
     pub fn set_mounted(&mut self, mounted: bool, window: &mut Window, cx: &mut Context<Self>) {
         if self.mounted == mounted {
             if !mounted {
-                self.release_pixels(cx);
+                self.release_resources(Some(window), cx);
             }
             return;
         }
@@ -130,7 +148,7 @@ impl MonitorImageView {
             self.start(window, cx);
         } else {
             self.element_visible = false;
-            self.release_pixels(cx);
+            self.release_resources(Some(window), cx);
         }
     }
     /// 像素释放与时间线分离，离屏后恢复仍使用剩余延时和有限循环终态。
@@ -140,10 +158,20 @@ impl MonitorImageView {
         }
         self.decoded.take()
     }
+    /// 先取消此位置的播放与强像素，再退役共享需求；窗口关闭不依赖有效 Window 句柄。
+    fn release_resources(&mut self, window: Option<&mut Window>, cx: &mut Context<Self>) {
+        let _decoded = self.release_pixels(cx);
+        image_residency::release(&self.source.id, &self.owner, window, cx);
+    }
     /// 只有真实可见画布才请求资源，缓存未命中时由 Asset 完成通知重绘。
     fn ensure_decoded(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.decoded.is_none() {
-            if let Some(Ok(decoded)) = window.use_asset::<MonitorImageDecoder>(&self.source, cx) {
+        image_residency::acquire(&self.source, &self.owner, cx);
+        if let Some(decoded) = &self.decoded {
+            image_residency::remember(&self.source, &Ok(decoded.clone()), cx);
+        } else {
+            let result = window.use_asset::<MonitorImageDecoder>(&self.source, cx);
+            if let Some(result) = &result { image_residency::remember(&self.source, result, cx); }
+            if let Some(Ok(decoded)) = result {
                 if self.timeline.is_none() {
                     self.timeline = Some(Timeline::new(&decoded));
                 }
@@ -252,7 +280,7 @@ impl Render for MonitorImageView {
                                 this.ensure_decoded(window, cx);
                                 this.start(window, cx);
                             } else {
-                                this.release_pixels(cx);
+                                this.release_resources(Some(window), cx);
                             }
                         } else if visible {
                             this.ensure_decoded(window, cx);

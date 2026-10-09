@@ -4,12 +4,15 @@ mod gesture;
 #[cfg(test)]
 mod gesture_tests;
 #[cfg(test)]
+mod image_residency_tests;
+#[cfg(test)]
 mod shared_asset_tests;
 
 use super::{Controller, host};
 use crate::monitor::{
-    image_decode::{DecodedMonitorImage, MonitorImageDecoder, MonitorImageSource},
+    image_decode::MonitorImageSource,
     image_playback::MonitorImageView,
+    image_residency::{self, ImageOwner},
 };
 use gpui_kit::{
     Context, Entity, FocusHandle, FontWeight, IntoElement, MouseButton, ObjectFit, Render, Role,
@@ -19,13 +22,11 @@ use loki_metris_core::{PetOverlaySlot, PetPreferenceChange, pet_size_from_resize
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
-    sync::Arc,
 };
 
 /// 每个绝对位置持有独立时钟，同图片原始字节通过Asset共享。
 struct Player {
     id: String,
-    source: MonitorImageSource,
     view: Entity<MonitorImageView>,
     _observe: Subscription,
 }
@@ -36,8 +37,9 @@ pub(super) struct Overlay {
     hovered: bool,
     keyboard_visible: bool,
     players: HashMap<u8, Player>,
-    /// 本窗口上一帧拥有的可见素材；只在最后位置离开时退役一次共享资源。
+    /// 本窗口上一帧的可见素材；最后位置离开时仅退役本窗聚合需求。
     active_assets: HashSet<String>,
+    image_owner: ImageOwner,
     last_wheel: Option<Instant>,
     double_click: gesture::DoubleClick,
     _controller: Subscription,
@@ -114,6 +116,7 @@ impl Overlay {
             keyboard_visible: false,
             players: HashMap::new(),
             active_assets: HashSet::new(),
+            image_owner: ImageOwner::overlay(window, cx),
             last_wheel: None,
             double_click: gesture::DoubleClick::default(),
             _controller: controller,
@@ -124,37 +127,25 @@ impl Overlay {
             _focus_out: focus_out,
         }
     }
-    /// 位置离屏只释放该位置像素与计时，缓存和图集由窗口级素材退役统一处理。
-    fn release_player(player: &Player, window: &mut Window, cx: &mut Context<Self>)
-        -> Option<Arc<DecodedMonitorImage>> {
+    /// 位置离屏停止像素与计时；App 最后 owner 才退役共享缓存及所有窗口图集。
+    fn release_player(player: &Player, window: &mut Window, cx: &mut Context<Self>) {
         player.view.update(cx, |view, cx| {
-            let decoded = view.release_pixels(cx);
             view.set_mounted(false, window, cx);
-            decoded
-        })
+        });
     }
-    /// 先停止退役位置，再按素材 ID 回收一次；同 ID 的新可见位置继续拥有原资源。
-    fn sync_residency(&mut self, wanted: &HashMap<u8, String>, window: &mut Window,
+    /// 先登记新页的全 App 需求，再停止退役位置；同 ID 跨页与跨窗继续共用原资源。
+    fn sync_residency(&mut self, wanted: &HashMap<u8, MonitorImageSource>, window: &mut Window,
         cx: &mut Context<Self>) {
-        let active_assets = wanted.values().cloned().collect::<HashSet<_>>();
+        let active_assets = wanted.values().map(|source| source.id.clone()).collect::<HashSet<_>>();
         let retired = self.active_assets.difference(&active_assets).cloned().collect::<HashSet<_>>();
-        let mut decoded = HashMap::new();
+        for source in wanted.values() { image_residency::acquire(source, &self.image_owner, cx); }
         for (slot, player) in &self.players {
-            if wanted.get(slot) != Some(&player.id) {
-                if let Some(image) = Self::release_player(player, window, cx) {
-                    if retired.contains(&player.id) {
-                        decoded.entry(player.id.clone()).or_insert(image);
-                    }
-                }
+            if wanted.get(slot).map(|source| &source.id) != Some(&player.id) {
+                Self::release_player(player, window, cx);
             }
         }
         for id in retired {
-            if let Some(image) = decoded.remove(&id) {
-                let _ = window.drop_image(image.image.clone());
-            }
-            if let Some(player) = self.players.values().find(|player| player.id == id) {
-                cx.remove_asset::<MonitorImageDecoder>(&player.source);
-            }
+            image_residency::release(&id, &self.image_owner, Some(window), cx);
         }
         self.active_assets = active_assets;
     }
@@ -217,7 +208,6 @@ impl Overlay {
                     id,
                     Player {
                         id: source.id.clone(),
-                        source,
                         view,
                         _observe: observe,
                     },
@@ -362,7 +352,7 @@ impl Render for Overlay {
         let next = owner.t("monitor.pet.nextPage");
         let wanted = if window.is_visible() {
             page.slots.iter().zip(&sources).filter_map(|(slot, source)| {
-                source.as_ref().map(|source| (slot.slot_index, source.id.clone()))
+                source.as_ref().map(|source| (slot.slot_index, source.clone()))
             }).collect::<HashMap<_, _>>()
         } else {
             HashMap::new()

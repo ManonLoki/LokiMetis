@@ -12,6 +12,7 @@ mod image_memory;
 mod png_animation;
 mod animation_metadata;
 pub(crate) mod image_playback;
+pub(crate) mod image_residency;
 mod catalog;
 mod thread_owner;
 pub(crate) mod store;

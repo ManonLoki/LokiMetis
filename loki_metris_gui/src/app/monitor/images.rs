@@ -4,7 +4,8 @@ use super::{
     Shell,
     state::{Category, ImageEntry},
 };
-use crate::monitor::{image_decode::MonitorImageDecoder, image_playback::MonitorImageView};
+use crate::monitor::{image_decode::MonitorImageDecoder, image_playback::MonitorImageView,
+    image_residency::{self, ImageOwner}};
 use gpui_kit::{
     AnyElement, Bounds, ContentMask, Context, Corners, FontWeight, IntoElement, ObjectFit, Pixels,
     Role, Window,
@@ -190,6 +191,7 @@ impl Shell {
         entry.residency.register(id.clone(), epoch);
         let demand_entry = entry.clone();
         let demand_id = id.clone();
+        let demand_owner = ImageOwner::catalog(&entry.residency, window, cx);
         let mut preview = div()
             .relative()
             .size_full()
@@ -214,7 +216,10 @@ impl Shell {
                     if visible {
                         if let Ok(source) = &demand_entry.source {
                             demand_entry.residency.requested.set(true);
-                            let _ = window.use_asset::<MonitorImageDecoder>(source, cx);
+                            image_residency::acquire(source, &demand_owner, cx);
+                            if let Some(result) = window.use_asset::<MonitorImageDecoder>(source, cx) {
+                                image_residency::remember(source, &result, cx);
+                            }
                         }
                     } else if demand_entry.residency.requested.get()
                         && !demand_entry.residency.cleanup_pending.replace(true)
@@ -343,6 +348,9 @@ impl Shell {
                         )
                         .on_click(cx.listener(|this, _, window, cx| {
                             // 显式刷新也重试此前预算不足或解码失败的缓存结果。
+                            for image in &this.monitor.catalog.images {
+                                if let Ok(source) = &image.source { image_residency::retry_failed(source, cx); }
+                            }
                             this.release_monitor_images(window, cx);
                             this.load_monitor_images(cx);
                         })),
@@ -567,25 +575,18 @@ impl Shell {
 #[path = "image_surface_tests.rs"]
 mod rounded_preview_tests;
 
-/// 最后一个可见挂载位置离开时，同时释放 CPU 资源与所有动画帧的 GPU 图集。
+#[cfg(test)]
+#[path = "image_residency_tests.rs"]
+mod shared_residency_tests;
+
+/// 释放此图库 entry 的挂载需求；App 最后 owner 才回收 CPU 与全部窗口图集。
 pub(super) fn release_image(entry: &ImageEntry, window: &mut Window, cx: &mut gpui_kit::App) {
-    let mut decoded = None;
-    if entry.residency.requested.replace(false) {
-        if let Ok(source) = &entry.source {
-            decoded = window
-                .get_asset::<MonitorImageDecoder>(source, cx)
-                .and_then(Result::ok);
-            cx.remove_asset::<MonitorImageDecoder>(source);
-        }
-    }
+    entry.residency.requested.set(false);
     for (_, view) in entry.views.borrow().values() {
-        let released = view.update(cx, |view, cx| view.release_pixels(cx));
-        if decoded.is_none() {
-            decoded = released;
-        }
+        view.update(cx, |view, cx| view.set_mounted(false, window, cx));
     }
-    if let Some(decoded) = decoded {
-        let _ = window.drop_image(decoded.image.clone());
+    if let Ok(source) = &entry.source {
+        image_residency::release_catalog(&source.id, &entry.residency, window, cx);
     }
 }
 
