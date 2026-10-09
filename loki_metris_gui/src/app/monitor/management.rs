@@ -8,6 +8,10 @@ mod geometry_tests;
 #[path = "management_button_tests.rs"]
 mod button_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+#[path = "management_tabs_tests.rs"]
+mod tabs_tests;
+
 #[path = "management_badge.rs"]
 mod badge;
 
@@ -92,6 +96,7 @@ impl Shell {
                 .role(Role::Tab)
                 .aria_selected(candidate == tool)
                 .px_3()
+                .font_weight(FontWeight::BOLD)
                 .rounded(px(12.))
                 .h(px(32.))
                 .border_b_0()
@@ -383,7 +388,7 @@ impl Shell {
                                             self.t(&format!("monitor.behavior.{key}")),
                                             self.t("monitor.management.content")
                                         ),
-                                    )),
+                                    ).reveal_into(self.page_scroll.clone())),
                             )
                         },
                     ),

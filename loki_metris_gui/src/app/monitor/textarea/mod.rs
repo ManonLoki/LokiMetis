@@ -2,6 +2,9 @@
 
 mod editor_style;
 mod motion;
+mod reveal;
+#[cfg(test)]
+mod reveal_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod projection_tests;
 #[cfg(test)]
@@ -18,12 +21,15 @@ use gpui_kit::{
     px, quad, relative, rgb, transparent_black,
 };
 use motion::BorderTransition;
+use crate::app::PageScroll;
+use reveal::RevealState;
 
 /// 四个真实输入各自保留状态 ID，包装不增加辅助节点或代理动作。
 pub(super) struct MonitorTextarea {
     input: Entity<TextareaState>,
     dark: bool,
     label: SharedString,
+    reveal: Option<PageScroll>,
 }
 
 impl MonitorTextarea {
@@ -37,7 +43,14 @@ impl MonitorTextarea {
             input: input.clone(),
             dark,
             label: label.into(),
+            reveal: None,
         }
+    }
+
+    /// 只关联所属页面的滚动机制，不修改原生输入、辅助树或编辑动作。
+    pub(super) fn reveal_into(mut self, target: PageScroll) -> Self {
+        self.reveal = Some(target);
+        self
     }
 }
 
@@ -49,14 +62,14 @@ impl IntoElement for MonitorTextarea {
     }
 }
 
-/// 预绘制只采样描边，不在绘制过程中修改命中几何或编辑器状态。
+/// 预绘制采样描边和焦点滚动请求，不修改命中几何或编辑器状态。
 pub(super) struct PaintState {
     border: Rgba,
     running: bool,
 }
 
 impl Element for MonitorTextarea {
-    type RequestLayoutState = (AnyElement, Entity<BorderTransition>);
+    type RequestLayoutState = (AnyElement, Entity<BorderTransition>, Option<Entity<RevealState>>);
     type PrepaintState = PaintState;
 
     /// 实体 ID 隔离相邻输入，也使卸载时的动画状态按原生 keyed-state 生命周期释放。
@@ -100,7 +113,10 @@ impl Element for MonitorTextarea {
         let style = editor_style::project(self.dark, cx);
         self.input
             .update(cx, |input, _| input.set_editor_style(style));
-        (layout, (inner, owner))
+        let reveal = self.reveal.as_ref().map(|_| {
+            window.use_keyed_state("monitor-textarea-reveal", cx, |_, _| RevealState::new())
+        });
+        (layout, (inner, owner, reveal))
     }
 
     /// 每帧读取真实输入焦点，避免只有 editor 通知时父 Shell 的边框状态滞后。
@@ -108,7 +124,7 @@ impl Element for MonitorTextarea {
         &mut self,
         _: Option<&GlobalElementId>,
         _: Option<&InspectorElementId>,
-        _bounds: Bounds<Pixels>,
+        bounds: Bounds<Pixels>,
         request: &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
@@ -125,6 +141,9 @@ impl Element for MonitorTextarea {
             .1
             .update(cx, |motion, _| motion.sample(target.into(), now));
         request.0.prepaint(window, cx);
+        if let (Some(target), Some(state)) = (&self.reveal, &request.2) {
+            reveal::observe(state, &self.input, target, bounds, window, cx);
+        }
         PaintState { border, running }
     }
 

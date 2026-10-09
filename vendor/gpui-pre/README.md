@@ -20,3 +20,5 @@ rustc --edition=2024 --test vendor/gpui-patch-support/generator.rs -o /tmp/loki-
 ```
 
 生成验证不是产品候选验收；真实 Window 与 GPU 像素测试须使用相应已启用 test-support 的目标。
+
+焦点只读入口 `Window::focus_generation()` 暴露上游已有代数；真实focus／blur增长，同一目标重复focus保持原值，不创建额外焦点状态。用于识别两帧之间离开后返回的输入，避免仅采样最终bool漏掉新的滚入请求。上游与布局／Scene ABI保持不变。

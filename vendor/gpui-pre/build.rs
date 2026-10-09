@@ -52,11 +52,16 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/painted-image-test-support.before"),
                 after: include_str!("patches/painted-image-test-support.after"),
             },
+            Patch {
+                name: "focus-generation", path: "src/window.rs",
+                before: include_str!("patches/focus-generation.before"),
+                after: include_str!("patches/focus-generation.after"),
+            },
         ],
         generated_hashes: &[
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
             ("src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
-            ("src/window.rs", "8e36ba60d9dfa45ec1833faaa8d3b5daa0b6e921ff282a1be2c781a8fef0509b"),
+            ("src/window.rs", "b4ff294d6a21415d16499343be7feac1bf5869a4f4ce43877ee49ca3a11e4ce3"),
         ],
     };
     generator::generate(Path::new(env!("CARGO_MANIFEST_DIR")), &spec)

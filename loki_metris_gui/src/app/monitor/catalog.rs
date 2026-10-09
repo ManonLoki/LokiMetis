@@ -59,6 +59,7 @@ impl Shell {
     }
     /// 显式子页导航加载真实所需数据，已有未提交档案不会被图库刷新覆盖。
     pub(super) fn select_monitor_route(&mut self, route: Route, cx: &mut Context<Self>) {
+        if self.monitor.route != route { self.page_scroll.invalidate(); }
         self.monitor.route = route;
         if matches!(route,Route::Management|Route::Images) {
             if !self.monitor.catalog.images_loaded && !self.monitor.catalog.images_loading {
@@ -79,7 +80,7 @@ impl Shell {
     }
 
     /// 启用集合和已读档案共同决定当前 Agent，不回退到未启用项。
-    pub(super) fn monitor_tool(&self) -> Option<AiTool> {
+    pub(in crate::app) fn monitor_tool(&self) -> Option<AiTool> {
         let tools = self.monitor_tools();
         self.monitor
             .catalog
@@ -496,6 +497,7 @@ impl Shell {
         if !self.monitor_tools().contains(&tool) {
             return;
         }
+        if self.monitor_tool() != Some(tool) { self.page_scroll.invalidate(); }
         let state = &mut self.monitor.catalog;
         state.selected = Some(tool);
         state.picker = None;

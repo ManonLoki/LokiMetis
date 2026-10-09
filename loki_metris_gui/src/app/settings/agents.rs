@@ -180,7 +180,8 @@ impl Shell {
     }
 
     /// 失效客户端按公开顺序回退；All 的启用集合变化同样重新聚合并清除旧游标。
-    fn accept_agent_settings(&mut self, settings: MonitorSettings, cx: &mut Context<Self>) {
+    pub(in crate::app) fn accept_agent_settings(&mut self, settings: MonitorSettings, cx: &mut Context<Self>) {
+        let monitor_tool = self.monitor_tool();
         let changed = self
             .agent_settings
             .value
@@ -188,6 +189,7 @@ impl Shell {
             .is_none_or(|value| value.enabled_ai_tools != settings.enabled_ai_tools);
         self.agent_settings.value = Some(settings);
         self.agent_settings.error = None;
+        if self.monitor_tool() != monitor_tool { self.page_scroll.invalidate(); }
         if !changed {
             return;
         }

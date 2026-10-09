@@ -25,6 +25,15 @@ pub enum Page {
 
 }
 
+/// 页面滚动只拥有原生 handle 和弱壳层租约，不能形成根视图引用环。
+#[derive(Clone)]
+pub(in crate::app) struct PageScroll {
+    handle: gpui_kit::ScrollHandle,
+    owner: gpui_kit::WeakEntity<Shell>,
+    revision: std::rc::Rc<std::cell::Cell<u64>>,
+    manual_revision: std::rc::Rc<std::cell::Cell<u64>>,
+}
+
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
     monitor:monitor::MonitorView,
@@ -35,6 +44,7 @@ pub struct Shell {
     repository:settings::RepositoryState,
     dashboard: dashboard::Dashboard,
     page: Page,
+    page_scroll: PageScroll,
     viewport_width: f32,
     preferences: Preferences,
     writer: Writer,
@@ -73,7 +83,7 @@ impl Shell {
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let keyboard_entry = keyboard_entry::install(window.window_handle(), cx);
         let locale = preferences.locale();
-        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+        let mut value = Self { skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             _keyboard_entry:keyboard_entry,
             release_notes_modal: None,
@@ -186,7 +196,7 @@ impl Shell {
 
     /// 页面切换不创建新的数据副本或重置设备偏好。
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
-        if self.page != page {self.dashboard.sources.reset();self.dashboard.usage_settings.reset();self.release_notes_modal=None;}
+        if self.page != page {self.page_scroll.invalidate();self.dashboard.sources.reset();self.dashboard.usage_settings.reset();self.release_notes_modal=None;}
         if self.page==Page::Skins&&page!=Page::Skins {self.leave_skins();}
         self.page = page;
         if page==Page::Skins {self.refresh_skins(true,cx);}
@@ -262,7 +272,9 @@ impl Render for Shell {
 
         };
         self.finish_monitor_image_frame(window,cx);
-        let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().flex().flex_col()
+        let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().track_scroll(&self.page_scroll.handle)
+            .on_scroll_wheel({let scroll=self.page_scroll.clone();move|_,_,_|scroll.cancel_pending_reveal()})
+            .flex().flex_col()
             .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);
         // 原生模态打开时只隔离背景的辅助树，仍保留其绘制和控件身份。
