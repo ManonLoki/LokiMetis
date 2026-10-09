@@ -38,3 +38,20 @@ pub(super) fn top_accent(color: Hsla) -> AnyElement {
     .inset_0()
     .into_any_element()
 }
+
+/// 状态点的五像素纯色光环不占布局宽度，保留历史十像素圆心与标题间距。
+pub(super) fn status_dot(color: Hsla) -> AnyElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            window.paint_quad(
+                fill(bounds.dilate(px(5.)), color.opacity(0.14))
+                    .corner_radii(Corners::all(px(10.))),
+            );
+            window.paint_quad(fill(bounds, color).corner_radii(Corners::all(px(5.))));
+        },
+    )
+    .size(px(10.))
+    .flex_shrink_0()
+    .into_any_element()
+}

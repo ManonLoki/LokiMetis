@@ -1,6 +1,10 @@
 //! 皮肤资源卡保持参考的预览高度、响应式列数与受控菜单。
 
 use super::{ModalKind, Shell, skin_reference};
+
+#[path = "badge.rs"]
+mod badge;
+use badge::{SkinBadge, skin_badge};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role,
     assets::IconName,
@@ -286,7 +290,8 @@ impl Shell {
                     preview = preview.child(skin_preview(
                         image.clone().into(),
                         format!("skin-preview-{}-{:?}", skin.id, skin.source).into(),
-                        self.t("skins.card.preview_alt").replace("%{name}", &skin.name),
+                        self.t("skins.card.preview_alt")
+                            .replace("%{name}", &skin.name),
                     ));
                 }
                 if user {
@@ -325,40 +330,32 @@ impl Shell {
                 }
                 let apply = skin.clone();
                 let mut controls = div().w_full().flex().items_center().gap_2().child(
-                    Button::new(format!("skin-apply-{}-{:?}", skin.id, skin.source))
-                        .ghost()
-                        .flex_1()
-                        .h(px(36.))
-                        .rounded(px(12.))
-                        .bg(if current {
-                            cx.theme().danger.opacity(0.12)
+                    crate::app::surface::SurfaceButton::new(
+                        format!("skin-apply-{}-{:?}", skin.id, skin.source),
+                        if current {
+                            crate::app::surface::SurfaceButtonVariant::LightRed
                         } else {
-                            cx.theme().primary.opacity(0.12)
-                        })
-                        .border_1()
-                        .border_color(if current {
-                            cx.theme().danger.opacity(0.25)
+                            crate::app::surface::SurfaceButtonVariant::LightBrand
+                        },
+                        cx.theme().mode.is_dark(),
+                    )
+                    .historical_size(crate::app::surface::HistoricalButtonSize::Small)
+                    .flex_1()
+                    .rounded(px(12.))
+                    .loading(self.skins.busy)
+                    .disabled(!writable)
+                    .label(self.t(if current {
+                        "skins.action.stop"
+                    } else {
+                        "skins.action.apply"
+                    }))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if current {
+                            this.stop_skin(cx)
                         } else {
-                            cx.theme().primary.opacity(0.25)
-                        })
-                        .text_color(if current {
-                            cx.theme().danger
-                        } else {
-                            cx.theme().foreground
-                        })
-                        .disabled(!writable)
-                        .label(self.t(if current {
-                            "skins.action.stop"
-                        } else {
-                            "skins.action.apply"
-                        }))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            if current {
-                                this.stop_skin(cx)
-                            } else {
-                                this.apply_skin(&apply, cx)
-                            }
-                        })),
+                            this.apply_skin(&apply, cx)
+                        }
+                    })),
                 );
                 if user {
                     let entity = cx.entity().downgrade();
@@ -373,6 +370,7 @@ impl Shell {
                         Button::new(format!("skin-actions-{}", skin.id))
                             .outline()
                             .label("···")
+                            .rounded(px(12.))
                             .size(px(36.))
                             .disabled(!writable)
                             .accessibility_label(
@@ -421,163 +419,129 @@ impl Shell {
                 } else {
                     "skins.package.legacySkin"
                 });
-                crate::app::surface::SpotlightCard::new(format!("skin-card-{}-{:?}", skin.id, skin.source), cx.theme().mode.is_dark())
-                    .test_support()
-                    .min_w_0()
-                    .h_auto()
-                    .overflow_hidden()
-                    .flex()
-                    .flex_col()
-                    .child(preview)
-                    .child(
-                        div()
-                            .id(format!("skin-metadata-{}-{:?}", skin.id, skin.source))
-                            .test_support()
-                            .role(Role::Label)
-                            .aria_value(format!(
-                                "{} {} · {} {} {} {}",
-                                skin.name,
-                                self.t("skins.card.by").replace("%{author}", &skin.author),
-                                skin.version,
-                                kind,
-                                source,
-                                skin.supported_color_modes
-                                    .iter()
-                                    .map(|mode| self.t(if *mode == ColorMode::Light {
-                                        "skins.mode.light"
-                                    } else {
-                                        "skins.mode.dark"
-                                    }))
-                                    .collect::<Vec<_>>()
-                                    .join(" ")
-                            ))
-                            .p(px(16.))
-                            .flex()
-                            .flex_col()
-                            .gap(px(12.))
-                            .child(
-                                div()
-                                    .flex()
-                                    .justify_between()
-                                    .items_start()
-                                    .gap_2()
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .min_w_0()
-                                            .flex()
-                                            .flex_col()
-                                            .gap(px(2.))
-                                            .child(
-                                                div()
-                                                    .truncate()
-                                                    .text_size(px(16.))
-                                                    .font_weight(FontWeight::BOLD)
-                                                    .child(skin.name.clone()),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_size(px(12.))
-                                                    .truncate()
-                                                    .text_color(cx.theme().muted_foreground)
-                                                    .child(format!(
-                                                        "{} · {}",
-                                                        self.t("skins.card.by")
-                                                            .replace("%{author}", &skin.author),
-                                                        skin.version
-                                                    )),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex_shrink_0()
-                                            .text_size(px(11.))
-                                            .font_weight(FontWeight::BOLD)
-                                            .px_2()
-                                            .h(px(20.))
-                                            .flex()
-                                            .items_center()
-                                            .rounded_full()
-                                            .border_1()
-                                            .border_color(
-                                                if skin.package_type == SkinPackageType::Theme {
-                                                    cx.theme().primary.opacity(0.25)
-                                                } else {
-                                                    rgb(if cx.theme().mode.is_dark() {
-                                                        0x424242
-                                                    } else {
-                                                        0xd4d4d4
-                                                    })
-                                                    .into()
-                                                },
-                                            )
-                                            .bg(if skin.package_type == SkinPackageType::Theme {
-                                                cx.theme().accent
-                                            } else {
-                                                rgb(if cx.theme().mode.is_dark() {
-                                                    0x282828
-                                                } else {
-                                                    0xf1f1f1
-                                                })
-                                                .into()
-                                            })
-                                            .text_color(cx.theme().foreground)
-                                            .child(kind),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_wrap()
-                                    .gap(px(6.))
-                                    .text_size(px(11.))
-                                    .font_weight(FontWeight::BOLD)
-                                    .child(
-                                        div()
-                                            .px_2()
-                                            .h(px(20.))
-                                            .flex()
-                                            .items_center()
-                                            .gap(px(6.))
-                                            .rounded_full()
-                                            .bg(rgb(if cx.theme().mode.is_dark() {
-                                                0x3b3b3b
-                                            } else {
-                                                0xf0f0f0
-                                            }))
-                                            .child(
-                                                div().size(px(6.)).rounded_full().bg(rgb(
-                                                    if user { 0x20c997 } else { 0x339af0 },
+                crate::app::surface::SpotlightCard::new(
+                    format!("skin-card-{}-{:?}", skin.id, skin.source),
+                    cx.theme().mode.is_dark(),
+                )
+                .text_color(rgb(if cx.theme().mode.is_dark() {
+                    0xc9c9c9
+                } else {
+                    0x000000
+                }))
+                .test_support()
+                .min_w_0()
+                .h_auto()
+                .overflow_hidden()
+                .flex()
+                .flex_col()
+                .child(preview)
+                .child(
+                    div()
+                        .id(format!("skin-metadata-{}-{:?}", skin.id, skin.source))
+                        .test_support()
+                        .role(Role::Label)
+                        .aria_value(format!(
+                            "{} {} · {} {} {} {}",
+                            skin.name,
+                            self.t("skins.card.by").replace("%{author}", &skin.author),
+                            skin.version,
+                            kind,
+                            source,
+                            skin.supported_color_modes
+                                .iter()
+                                .map(|mode| self.t(if *mode == ColorMode::Light {
+                                    "skins.mode.light"
+                                } else {
+                                    "skins.mode.dark"
+                                }))
+                                .collect::<Vec<_>>()
+                                .join(" ")
+                        ))
+                        .p(px(16.))
+                        .flex()
+                        .flex_col()
+                        .gap(px(12.))
+                        .child(
+                            div()
+                                .flex()
+                                .justify_between()
+                                .items_start()
+                                .gap_2()
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .flex()
+                                        .flex_col()
+                                        .gap(px(2.))
+                                        .child(
+                                            div()
+                                                .truncate()
+                                                .text_size(px(16.))
+                                                .line_height(gpui_kit::relative(1.55))
+                                                .font_weight(FontWeight::BOLD)
+                                                .child(skin.name.clone()),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_size(px(12.))
+                                                .line_height(gpui_kit::relative(1.4))
+                                                .truncate()
+                                                .text_color(cx.theme().muted_foreground)
+                                                .child(format!(
+                                                    "{} · {}",
+                                                    self.t("skins.card.by")
+                                                        .replace("%{author}", &skin.author),
+                                                    skin.version
                                                 )),
-                                            )
-                                            .child(source),
+                                        ),
+                                )
+                                .child(skin_badge(
+                                    format!("skin-kind-{}-{:?}", skin.id, skin.source),
+                                    kind,
+                                    if skin.package_type == SkinPackageType::Theme {
+                                        SkinBadge::Theme
+                                    } else {
+                                        SkinBadge::Legacy
+                                    },
+                                    cx.theme().mode.is_dark(),
+                                )),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .flex_wrap()
+                                .gap(px(6.))
+                                .child(skin_badge(
+                                    format!("skin-source-{}-{:?}", skin.id, skin.source),
+                                    source,
+                                    SkinBadge::Source { user },
+                                    cx.theme().mode.is_dark(),
+                                ))
+                                .children(skin.supported_color_modes.iter().map(|mode| {
+                                    skin_badge(
+                                        format!("skin-mode-{}-{:?}-{mode:?}", skin.id, skin.source),
+                                        self.t(if *mode == ColorMode::Light {
+                                            "skins.mode.light"
+                                        } else {
+                                            "skins.mode.dark"
+                                        }),
+                                        SkinBadge::Mode,
+                                        cx.theme().mode.is_dark(),
                                     )
-                                    .children(skin.supported_color_modes.iter().map(|mode| {
-                                        div()
-                                            .px_2()
-                                            .h(px(20.))
-                                            .flex()
-                                            .items_center()
-                                            .rounded_full()
-                                            .border_1()
-                                            .border_color(cx.theme().accent_foreground)
-                                            .text_color(cx.theme().accent_foreground)
-                                            .child(self.t(if *mode == ColorMode::Light {
-                                                "skins.mode.light"
-                                            } else {
-                                                "skins.mode.dark"
-                                            }))
-                                    })),
-                            )
-                            .child(controls),
-                    )
+                                })),
+                        )
+                        .child(controls),
+                )
             }));
         page.child(cards).into_any_element()
     }
     /// 稳定码有专用翻译时优先，未知错误保留服务消息及可重试原因。
     fn skin_error(&self, error: &crate::skins::SkinError) -> String {
         match error.code {
-            "skin.choose_instance" | "skin.host_instance_selection_required" => self.t("skins.error.choose_instance"),
+            "skin.choose_instance" | "skin.host_instance_selection_required" => {
+                self.t("skins.error.choose_instance")
+            }
             "skin.injection_failed" => self.t("skins.error.injection_failed"),
             _ => {
                 if self.locale == "zh-CN" {

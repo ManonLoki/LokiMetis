@@ -12,15 +12,12 @@ mod button_tests;
 mod badge;
 
 use super::Shell;
-use badge::{BadgeColor, light_badge};
 use crate::app::surface::{HistoricalButtonSize, SurfaceButton, SurfaceButtonVariant};
+use badge::{BadgeColor, light_badge};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, Window,
     base::TestSupportExt as _,
-    component::{
-        ActiveTheme, Disableable,
-        input::Textarea,
-    },
+    component::{ActiveTheme, Disableable, input::Textarea},
     div,
     prelude::*,
     px, relative, rgb,
@@ -175,6 +172,11 @@ impl Shell {
         }
         page = page.child(
             crate::app::surface::SpotlightCard::new("monitor-slot-card", cx.theme().mode.is_dark())
+                .text_color(rgb(if cx.theme().mode.is_dark() {
+                    0xc9c9c9
+                } else {
+                    0x000000
+                }))
                 .p_5()
                 .flex()
                 .flex_col()
@@ -274,6 +276,11 @@ impl Shell {
             });
             let mut card = div()
                 .id(format!("monitor-behavior-{key}"))
+                .text_color(rgb(if cx.theme().mode.is_dark() {
+                    0xc9c9c9
+                } else {
+                    0x000000
+                }))
                 .test_support()
                 .relative()
                 .min_w_0()
@@ -307,7 +314,7 @@ impl Shell {
                                 .flex()
                                 .items_center()
                                 .gap_3()
-                                .child(div().size(px(10.)).rounded_full().bg(color))
+                                .child(super::behavior_surface::status_dot(color.into()))
                                 .child(
                                     div()
                                         .id(format!("monitor-behavior-title-{key}"))
@@ -427,6 +434,11 @@ impl Shell {
         Some(
             div()
                 .id("monitor-profile-save-bar")
+                .text_color(rgb(if cx.theme().mode.is_dark() {
+                    0xc9c9c9
+                } else {
+                    0x000000
+                }))
                 .test_support()
                 .absolute()
                 .left(px(if self.viewport_width < 992. {
@@ -491,18 +503,16 @@ impl Shell {
                                 SurfaceButtonVariant::FilledBrand,
                                 cx.theme().mode.is_dark(),
                             )
-                                .historical_size(HistoricalButtonSize::Small)
-                                .left_icon(
-                                    gpui_kit::component::Icon::default().data(include_bytes!(
-                                        "../../../assets/icons/phosphor-check.svg"
-                                    )),
-                                )
-                                .label(self.t("monitor.management.save"))
-                                .loading(state.saving)
-                                .disabled(!state.images_loaded)
-                                .on_click(
-                                    cx.listener(|this, _, _, cx| this.save_monitor_profile(cx)),
-                                ),
+                            .historical_size(HistoricalButtonSize::Small)
+                            .left_icon(
+                                gpui_kit::component::Icon::default().data(include_bytes!(
+                                    "../../../assets/icons/phosphor-check.svg"
+                                )),
+                            )
+                            .label(self.t("monitor.management.save"))
+                            .loading(state.saving)
+                            .disabled(!state.images_loaded)
+                            .on_click(cx.listener(|this, _, _, cx| this.save_monitor_profile(cx))),
                         ),
                 )
                 .into_any_element(),
