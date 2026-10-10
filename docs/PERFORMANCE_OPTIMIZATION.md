@@ -398,6 +398,28 @@ Computer Use 的应用绑定、AXRaise 与 key window 不证明应用位于前�
 
 本轮先前的 5 秒 sample 中，递归 Value 序列化属于 Hook 配置生成，极少采样命中；数据库栈只捕获打开连接。这些证据没有定位索引写库峰值或说明 CPU 高占用由查询造成。后续需在解析结束、调用写入结束、快照写入结束和视图聚合结束分别记录对象数量与当前 footprint，结合相同输入的受控对照再决定是否改为有界流式批次。证据入口为 `release/rollout-snapshot-memory-development-20261011/`；946MB 症状、长期泄漏和公平 Tauri 对照继续待验证。
 
+### 5.25 先定位后台摘要成本，再优化有界 JSONL 切行
+
+通知开启时，`usage_service/notifications.rs` 每次摘要完成后约 30 秒再次调用 `today::load`。该入口也服务 All 概览，包含 SQLite 保留期快照、WorkBuddy project JSONL、跨 Agent 合并和六个日历窗口；通知最终仅使用今日摘要。宠物隐藏不消除这项通知需求。不要把静置页面的 CPU 全部归因于渲染。
+
+2026-10-11 的优化构建同步诊断中，主线程 28,947/29,039 个栈观察点处于 Mach port 等待；后台观察到 WorkBuddy JSONL 2,041 点、SQLite snapshot 1,035 点、combined 合并 793 点、六窗口构建 658 点。这些 inclusive 计数已排除同一链内祖先重复，但不同线程没有查询关联 ID，不能相加成精确占比或换算收益。同期 42.01 秒 GPUI root 消耗 4.325 CPU 秒，约 10.30%；`sample` 自身有观测开销，该轮只用于诊断。
+
+首项修改只替换 [WorkBuddy 切行](../loki_metris_gui/src/backend/workbuddy/jsonl/mod.rs) 的逐字节追加：[有界缓冲读取](../loki_metris_gui/src/backend/workbuddy/jsonl/line_reader.rs) 先在缓冲内寻找 LF，再批量复制内容。每轮仍从原文件读取完整冻结前缀，没有引入历史内容缓存或修改统计规则。
+
+必须保留的边界：
+
+- `Take<File>` 位于 `BufReader` 内，预读不能突破观察长度与总字节预算。
+- 内容缓冲最多 1 MiB，CR 占预算；恰好上限之后的 LF 合法。
+- 只有读到 LF 才提交正常行或超长行警告，末尾半行忽略；超长行跳过后恢复下一行。
+- 所有读取状态直接传播原错误类型。标准库 `read_until` 会重试 `Interrupted`，若旧路径直接失败，直接替换会改变错误语义；本实现使用 `fill_buf`，保留原传播规则。
+- 记录上限、JSON 白名单投影、文件身份/链接校验和 coverage 映射保持原路径。
+
+冻结旧逐字节规则的对照回归覆盖短缓冲、UTF-8、CRLF、边界长度、半行、固定前缀及三类读取错误；WorkBuddy 相关 18 项测试通过。纯切行微基准使用同一 19,981,371 字节合成输入、每轮六遍、八轮 AB/BA 交替；`rustc -O` 的旧/新中位耗时为 0.15056/0.04211 秒，约 3.58 倍。基准直接加载生产行读取文件，但不含 JSON 解析、磁盘、SQLite、渲染或通知提交；这个数值只描述切行成本，不能写成应用 CPU 降幅。
+
+本项分类为 `maintenance`，`change_id=LMMAINT-WORKBUDDY-LINE-READ-001`，`required_version=0.2.9`，版本未提升。原始测试、夹具、输入摘要及八轮结果保存于忽略目录 `release/workbuddy-line-reader-development-20261011/`；同步栈与资源端点位于 `release/optimized-resource-development-20261011/22-notification-background-stack.txt` 和 `23-diagnostic-background-cpu.json`。整应用优化后对照另行取证，不能由微基准替代。
+
+后续优化今日专用摘要时，先保留全量 canonical 去重及跨日冲突语义，再减少展示性分配；不要在 canonicalization 之前仅筛选今日原始行。缓存还需区分“文件 stamp 未变”“本轮资格查询成功”和“完整内容仍可读”：元数据或轻量 SQLite 查询不能证明所有 payload 页及 WorkBuddy 内容读取成功，TTL 也不能冒充原每 30 秒发现读取故障的时效。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

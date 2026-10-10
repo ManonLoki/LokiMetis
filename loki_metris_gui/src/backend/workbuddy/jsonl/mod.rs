@@ -1,8 +1,11 @@
 //! WorkBuddy project JSONL 的有界流式用量投影。
 
+mod line_reader;
+
 use std::fs::{self, File};
-use std::io::{Read, Take};
+use std::io::{BufReader, Read, Take};
 use std::path::Path;
+use line_reader::{LineRead, read_complete_line};
 
 use jiff::Timestamp;
 use loki_metris_core::{
@@ -226,50 +229,36 @@ struct ProjectStreamReport {
     record_budget_exhausted: bool,
 }
 
-/// 固定 16 KiB 缓冲逐字节切行；超长行原地丢弃，末尾半行不提交。
+/// 固定 16 KiB 缓冲按完整行投影；超长行有界跳过，末尾半行不提交。
 fn parse_project_stream(
-    mut reader: Take<File>,
+    reader: Take<File>,
     source: &WorkbuddyProjectFile,
     root_id: &str,
     records: &mut Vec<WorkbuddyUsageEventRecord>,
 ) -> std::io::Result<ProjectStreamReport> {
-    let mut chunk = [0_u8; 16 * 1024];
-    let mut line = Vec::with_capacity(DEFAULT_MAX_JSONL_LINE_BYTES.min(chunk.len()));
-    let mut oversized = false;
+    let mut reader = BufReader::with_capacity(16 * 1024, reader);
+    let mut line = Vec::with_capacity(DEFAULT_MAX_JSONL_LINE_BYTES.min(16 * 1024));
     let mut warnings = ProjectJsonlWarnings::default();
     let mut record_budget_exhausted = false;
 
-    'read: loop {
-        let read = reader.read(&mut chunk)?;
-        if read == 0 {
-            break;
-        }
-        for byte in &chunk[..read] {
-            if *byte == b'\n' {
-                if oversized {
-                    warnings.oversized_lines = warnings.oversized_lines.saturating_add(1);
-                } else {
-                    if line.last() == Some(&b'\r') {
-                        line.pop();
-                    }
-                    apply_line_outcome(
-                        parse_complete_line(&line, source, root_id),
-                        records,
-                        &mut warnings,
-                    );
-                    if records.len() >= MAX_USAGE_RECORDS {
-                        record_budget_exhausted = true;
-                        break 'read;
-                    }
+    loop {
+        match read_complete_line(&mut reader, &mut line, DEFAULT_MAX_JSONL_LINE_BYTES)? {
+            LineRead::End => break,
+            LineRead::Oversized => {
+                warnings.oversized_lines = warnings.oversized_lines.saturating_add(1);
+            }
+            LineRead::Complete => {
+                if line.last() == Some(&b'\r') {
+                    line.pop();
                 }
-                line.clear();
-                oversized = false;
-            } else if !oversized {
-                if line.len() < DEFAULT_MAX_JSONL_LINE_BYTES {
-                    line.push(*byte);
-                } else {
-                    line.clear();
-                    oversized = true;
+                apply_line_outcome(
+                    parse_complete_line(&line, source, root_id),
+                    records,
+                    &mut warnings,
+                );
+                if records.len() >= MAX_USAGE_RECORDS {
+                    record_budget_exhausted = true;
+                    break;
                 }
             }
         }
