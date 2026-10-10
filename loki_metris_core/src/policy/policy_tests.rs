@@ -3,7 +3,7 @@ use super::*;
 /// 锁定各客户端当前 parser generation，避免 GUI writer 单独加一代而读取仍用旧值。
 #[test]
 fn parser_generation_matches_shipped_clients() {
-    assert_eq!(SourceClientKind::Codex.parser_version(), 8);
+    assert_eq!(SourceClientKind::Codex.parser_version(), 9);
     assert_eq!(SourceClientKind::ClaudeCode.parser_version(), 4);
     assert_eq!(SourceClientKind::GrokBuildCli.parser_version(), 3);
 }

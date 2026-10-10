@@ -24,7 +24,7 @@ pub(super) async fn load(
     let mut all_ready = true;
     for client in &selection.0 {
         let snapshot = query::read_snapshot(&context.directory, *client, now, &zone).await?;
-        all_ready &= matches!(
+        all_ready &= snapshot.read_ready && matches!(
             snapshot.index_state,
             LocalIndexState::Ready | LocalIndexState::ReadyNoCalls
         ) && snapshot.roots.iter().any(|r| r.enabled);

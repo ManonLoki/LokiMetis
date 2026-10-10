@@ -177,3 +177,103 @@ fn notification_today_real_index_all_matches_and_sources_reset() {
     let disabled={let runtime=service.runtime.lock().unwrap();runtime.as_ref().unwrap().block_on(today::load(service.context.clone(),now,jiff::tz::TimeZone::UTC,ScanCancellation::new()))};
     assert!(disabled.is_err()||disabled.is_ok_and(|(_,v)|!v.eligible(now,&v.day,&v.source)));service.finish();
 }
+
+/// 新总量与旧 Complete 缓存并存时，数据库最新扫描事实仍必须阻止通知资格。
+#[test]
+fn notification_today_rejects_in_progress_failed_and_partial_index_writes() {
+    use local_index::{ScanConfig, scan_discovered_roots};
+
+    /// 使用真实 Codex last 用量事件，两个不同增量不会互相去重。
+    fn token_line(input: u64, minute: u8) -> String {
+        serde_json::json!({
+            "timestamp":format!("2026-10-09T00:{minute:02}:00Z"), "type":"event_msg",
+            "payload":{"type":"token_count","info":{"last_token_usage":{
+                "input_tokens":input,"cached_input_tokens":0,"output_tokens":0,"total_tokens":input
+            }}}
+        }).to_string() + "\n"
+    }
+    /// 摘要始终从独立只读连接取得，不能复用测试 writer 的内存状态。
+    async fn read_today(context: Arc<ServiceContext>, now: i64) -> TodayUsageSnapshot {
+        today::load(context, now, jiff::tz::TimeZone::UTC, ScanCancellation::new()).await.unwrap().1
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let source = fixture_root(temp.path());
+    let file = source.join("sessions/rollout-source.jsonl");
+    let metadata = std::fs::read_to_string(&file).unwrap().lines().next().unwrap().to_owned();
+    std::fs::write(&file, metadata + "\n" + &token_line(90_000_000, 1)).unwrap();
+    let service = UsageService::in_directory(temp.path().join("data")).unwrap();
+    let root_id = register_fixture(&service, &source);
+    service.save_enabled_ai_tools(vec![AiTool::Codex]).unwrap().blocking_recv().unwrap().unwrap();
+    let now = "2026-10-09T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+    {
+        let runtime = service.runtime.lock().unwrap();
+        runtime.as_ref().unwrap().block_on(async {
+            let _permit = service.context.writer.try_start().unwrap();
+            let directory = source_client_app_data_dir(&service.context.directory, SourceClientKind::Codex);
+            let mut index = LocalIndex::open_in_app_data(&directory, SourceClientKind::Codex.parser_version()).await.unwrap();
+            let roots = local_index::discover_quick(&DiscoveryInputs {home_dir:None, codex_home:Some(source.clone()), registered_roots:Vec::new()}, &ScanCancellation::new()).roots;
+            let baseline = scan_discovered_roots(&mut index, &roots, ScanConfig::default(), &ScanCancellation::new(), |_| {}).await.unwrap();
+            assert_eq!(baseline.coverage.state, CoverageState::Complete);
+            service.context.coverage.lock().unwrap().insert(SourceClientKind::Codex, baseline.coverage);
+            let first = read_today(service.context.clone(), now).await;
+            assert_eq!(first.total_tokens, 90_000_000);
+            assert!(first.eligible(now, &first.day, &first.source));
+
+            let running = index.begin_scan("quick", now).await.unwrap();
+            let mut call = index.canonical_calls().await.unwrap().calls[0].clone();
+            let source_id = call.provenance[0].source_id.clone();
+            let generation = index.stored_source_file(&source_id).await.unwrap().unwrap().generation;
+            call.logical_call_id = "notification-readiness-appended-call".into();
+            call.occurred_at_epoch_ms += 60_000;
+            call.usage = TokenUsage::new(20_000_000, 0, None, 0, 0, Some(20_000_000)).unwrap();
+            // 生产解析器同样在 checkpoint/finish_scan 之前逐批提交当前 generation。
+            assert_eq!(index.insert_usage_batch(&source_id, generation, &mut vec![call]).await.unwrap(), 1);
+            let in_progress = read_today(service.context.clone(), now).await;
+            assert_eq!(in_progress.total_tokens, 110_000_000);
+            assert!(!in_progress.eligible(now, &in_progress.day, &in_progress.source));
+            index.finish_scan(&running, now + 1, "failed", false, 1, 1, 0).await.unwrap();
+            let failed = read_today(service.context.clone(), now).await;
+            assert!(!failed.eligible(now, &failed.day, &failed.source));
+            for (cancelled, warning_count) in [(true, 0), (false, 1)] {
+                let run = index.begin_scan("quick", now).await.unwrap();
+                index.finish_scan(&run, now + 1, "completed", cancelled, 1, 0, warning_count).await.unwrap();
+                let rejected = read_today(service.context.clone(), now).await;
+                assert!(!rejected.eligible(now, &rejected.day, &rejected.source));
+            }
+            let successful = index.begin_scan("quick", now).await.unwrap();
+            index.finish_scan(&successful, now + 1, "completed", false, 1, 0, 0).await.unwrap();
+            index.record_roots_coverage(&[root_id.clone()], CoverageState::Partial).await.unwrap();
+            let partial = read_today(service.context.clone(), now).await;
+            assert!(!partial.eligible(now, &partial.day, &partial.source));
+            index.record_roots_coverage(&[root_id], CoverageState::Complete).await.unwrap();
+            let recovered = read_today(service.context.clone(), now).await;
+            assert_eq!(recovered.total_tokens, 110_000_000);
+            assert_eq!(recovered.source, first.source);
+            assert!(recovered.eligible(now, &recovered.day, &recovered.source));
+        });
+    }
+    service.finish();
+}
+
+/// 外层扫描在 begin_scan 前失败，也不能留下先前 Complete 的通知资格。
+#[test]
+fn failed_scan_invalidates_cached_coverage_before_opening_index() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = UsageService::in_directory(temp.path().join("data")).unwrap();
+    service.save_enabled_ai_tools(vec![AiTool::Codex]).unwrap().blocking_recv().unwrap().unwrap();
+    let directory = source_client_app_data_dir(&service.context.directory, SourceClientKind::Codex);
+    std::fs::create_dir_all(&directory).unwrap();
+    std::fs::write(directory.join(USAGE_INDEX_FILE_NAME), b"invalid sqlite fixture").unwrap();
+    let mut old = empty_coverage();
+    old.state = CoverageState::Complete;
+    service.context.coverage.lock().unwrap().insert(SourceClientKind::Codex, old);
+    {
+        let runtime = service.runtime.lock().unwrap();
+        let result = runtime.as_ref().unwrap().block_on(scan::run(service.context.clone(),
+            Intent {client:Some(SourceClientKind::Codex), origin:ScanStartOrigin::ExplicitUser}, ScanCancellation::new()));
+        assert!(result.is_err());
+    }
+    assert_eq!(service.context.coverage.lock().unwrap()[&SourceClientKind::Codex].state, CoverageState::Partial);
+    assert!(!service.scan_status().running);
+    service.finish();
+}

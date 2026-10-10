@@ -55,6 +55,7 @@ impl AgentUsageSnapshot {
         coverage: CoverageReport,
         source_version: Option<String>,
     ) -> Self {
+        let coverage = snapshot.effective_coverage(coverage);
         Self {
             client,
             snapshot,

@@ -3,7 +3,7 @@
 use sea_orm::{ConnectionTrait, DbBackend, Statement, TransactionTrait};
 
 use crate::{
-    CanonicalUsageSet, LocalIndexState, SessionTokenSnapshot, SourceProvenance,
+    CanonicalUsageSet, CoverageReport, CoverageState, LocalIndexState, SessionTokenSnapshot, SourceProvenance,
     attach_session_snapshots, canonicalize_usage_calls,
 };
 
@@ -25,11 +25,23 @@ pub struct UsageSnapshot {
     pub canonical: CanonicalUsageSet,
     /// 从同一事务中的扫描与 parser 来源事实推导出的本机索引状态。
     pub index_state: LocalIndexState,
+    /// 同一事务确认最近扫描成功且启用来源完整，可作为精确用量的读取资格。
+    pub read_ready: bool,
     /// 与调用读取处于同一数据库快照的数据根安全记录。
     pub roots: Vec<RootRecord>,
 }
 
-/// 在一个事务中读取调用与根记录，读取完成后只提交事务边界；三次查询共享
+impl UsageSnapshot {
+    /// 数据库内的不完整事实优先于宿主缓存；失败与取消的更强状态继续保留。
+    pub fn effective_coverage(&self, mut report: CoverageReport) -> CoverageReport {
+        if !self.read_ready && report.state == CoverageState::Complete {
+            report.state = CoverageState::Partial;
+        }
+        report
+    }
+}
+
+/// 在一个事务中读取调用与根记录，读取完成后只提交事务边界；所有查询共享
 /// 同一数据库快照，避免并发写入让调用记录和数据根信息互相矛盾。
 pub(crate) async fn load_usage_snapshot(
     connection: &sea_orm::DatabaseConnection,
@@ -40,10 +52,12 @@ pub(crate) async fn load_usage_snapshot(
     let index_state =
         load_local_index_state(&transaction, canonical.calls.len(), parser_version).await?;
     let roots = load_root_records(&transaction, parser_version).await?;
+    let read_ready = load_read_ready(&transaction, index_state, &roots, parser_version).await?;
     transaction.commit().await?;
     Ok(UsageSnapshot {
         canonical,
         index_state,
+        read_ready,
         roots,
     })
 }
@@ -60,10 +74,12 @@ pub(crate) async fn load_usage_snapshot_since(
     let index_state =
         load_local_index_state(&transaction, canonical.calls.len(), parser_version).await?;
     let roots = load_root_records(&transaction, parser_version).await?;
+    let read_ready = load_read_ready(&transaction, index_state, &roots, parser_version).await?;
     transaction.commit().await?;
     Ok(UsageSnapshot {
         canonical,
         index_state,
+        read_ready,
         roots,
     })
 }
@@ -83,12 +99,48 @@ pub(crate) async fn load_usage_view_snapshot_since(
     let index_state =
         load_local_index_state(&transaction, canonical.calls.len(), parser_version).await?;
     let roots = load_root_records(&transaction, parser_version).await?;
+    let read_ready = load_read_ready(&transaction, index_state, &roots, parser_version).await?;
     transaction.commit().await?;
     Ok(UsageSnapshot {
         canonical,
         index_state,
+        read_ready,
         roots,
     })
+}
+
+/// 最近一次扫描和全部启用来源必须共同证明完整，旧成功记录不能覆盖新失败。
+async fn load_read_ready<C: ConnectionTrait>(
+    connection: &C,
+    index_state: LocalIndexState,
+    roots: &[RootRecord],
+    parser_version: u32,
+) -> Result<bool, LocalError> {
+    if !matches!(index_state, LocalIndexState::Ready | LocalIndexState::ReadyNoCalls)
+        || !roots.iter().any(|root| root.enabled)
+        || roots.iter().any(|root| root.enabled && root.last_coverage != Some(CoverageState::Complete))
+    {
+        return Ok(false);
+    }
+    let Some(row) = connection.query_one(statement(
+        "SELECT status, cancelled, finished_at_epoch_ms, warning_count,
+                EXISTS(SELECT 1 FROM source_files f
+                       JOIN source_roots r ON r.root_id = f.root_id
+                       WHERE r.enabled = 1
+                         AND (f.ready <> 1 OR f.token_snapshots_ready <> 1
+                              OR f.parser_version <> ?1
+                              OR f.parsed_offset > f.observed_size
+                              OR f.trailing_bytes <> f.observed_size - f.parsed_offset))
+         FROM scan_runs ORDER BY row_id DESC LIMIT 1",
+        vec![i64::from(parser_version).into()],
+    )).await? else {
+        return Ok(false);
+    };
+    Ok(row.try_get_by_index::<String>(0)? == "completed"
+        && !row.try_get_by_index::<bool>(1)?
+        && row.try_get_by_index::<Option<i64>>(2)?.is_some()
+        && from_sql_u64(row.try_get_by_index(3)?)? == 0
+        && !row.try_get_by_index::<bool>(4)?)
 }
 
 /// 从当前数据库快照推导索引四态，旧 parser 来源优先暴露为需要重扫。
@@ -106,13 +158,7 @@ pub(super) async fn load_local_index_state<C: ConnectionTrait>(
                 WHERE f.ready = 1 AND f.parser_version = ?1 AND r.enabled = 1),
                (SELECT COUNT(*) FROM source_files f
                 JOIN source_roots r ON r.root_id = f.root_id
-                WHERE f.ready = 1 AND f.parser_version <> ?1 AND r.enabled = 1
-                  AND NOT EXISTS (
-                    SELECT 1 FROM source_files c
-                    WHERE c.root_id = f.root_id
-                      AND c.ready = 1
-                      AND c.parser_version = ?1
-                  )),
+                WHERE f.ready = 1 AND f.parser_version <> ?1 AND r.enabled = 1),
                (SELECT COUNT(*) FROM source_roots r
                 WHERE r.enabled = 1
                   AND (r.last_coverage_state IS NULL
@@ -147,10 +193,8 @@ pub(super) async fn load_local_index_state<C: ConnectionTrait>(
 // 对应 core 里 `LocalIndexState` 的四态，按优先级从高到低依次判断
 // （一旦命中某个条件立刻返回，不再看后面的）：
 //   1. 没有启用的数据根 -> 肯定是 NotScanned（连范围都没有，谈不上扫描）；
-//   2. 启用根上仍有旧 parser generation 来源、且该根还没有任何当前
-//      generation 来源 -> NeedsRescan。保留窗口外因 mtime 跳过而未重开的
-//      旧行，只要同一根已经完成当前 parser 重建，就不得继续挡住概览；
-//      当前读取仍只取当前 generation，不会把旧调用混进总量；
+//   2. 启用根上仍有旧 parser generation 来源 -> NeedsRescan；同一根中的
+//      新版来源不能掩盖窗口外尚未重建的旧来源；
 //   3. 当前 generation 已经有 canonical 调用 -> Ready（正常可用状态）；
 //   4. 还有启用但从未扫描过的根，或者压根没有任何完成过的扫描记录
 //      也没有任何来源文件 -> NotScanned；

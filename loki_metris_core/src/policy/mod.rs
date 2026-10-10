@@ -34,7 +34,8 @@ pub use source_root_mutation::{
     source_root_primary_outcome, source_root_remove_outcome, source_root_rename_outcome,
     source_root_set_enabled_outcome, source_root_toggle_enabled_outcome,
 };
-pub use source_visit::{SourceFileObservation, retain_ingestable_calls, source_file_needs_visit};
+pub use source_visit::{PersistedSourceQuality, SourceFileObservation, SourceVisitDecision,
+    retain_ingestable_calls, source_file_needs_visit, source_file_visit_decision};
 pub use workbuddy_scan_source::{
     WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_HOME_DIR_NAMES, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME,
     WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyScanSource, discover_workbuddy_scan_sources,
@@ -246,7 +247,7 @@ impl SourceClientKind {
     /// 此处未加，会导致重建后调用已入库、读取仍按旧代当成空索引。
     pub const fn parser_version(self) -> u32 {
         match self {
-            Self::Codex => 8,
+            Self::Codex => 9,
             Self::ClaudeCode => 4,
             Self::GrokBuildCli => 3,
             Self::WorkBuddy => 1,

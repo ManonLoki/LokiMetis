@@ -72,6 +72,7 @@ fn agent_snapshot_with_version(
         UsageSnapshot {
             canonical,
             index_state,
+            read_ready: matches!(index_state, LocalIndexState::Ready | LocalIndexState::ReadyNoCalls),
             roots: vec![RootRecord {
                 root_id: format!("root-{}", agent_wire_label(client)),
                 alias: format!("{} root", agent_wire_label(client)),
@@ -376,7 +377,7 @@ fn globally_sorts_pages_and_keeps_each_call_origin() {
                 assert_eq!(item.fact.provider, ProviderKind::RolloutJsonl);
                 assert_eq!(
                     item.fact.source_version.as_deref(),
-                    Some("rollout-parser-v8")
+                    Some("rollout-parser-v9")
                 );
             }
             SourceClientKind::ClaudeCode => {

@@ -2,7 +2,7 @@
 
 use super::{ServiceContext, queue::Intent};
 use crate::backend::{scan_orchestration, local_index::ScanProgress};
-use loki_metris_core::{ScanCancellation, SourceClientKind, LocalScanProgress, CoverageState, source_client_app_data_dir};
+use loki_metris_core::{ScanCancellation, SourceClientKind, LocalScanProgress, CoverageState, empty_coverage, source_client_app_data_dir};
 use std::sync::Arc;
 
 /// 同一产品全局 writer 许可持有到扫描和覆盖状态提交均完成。
@@ -42,6 +42,9 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
         if cancellation.is_cancelled() { return fail(&context, "usage_scan_cancelled") }
         if automatic {match context.agents.dashboard_selection().await {Ok((enabled,_))=>if !enabled.contains(&client){continue},Err(error)=>return fail(&context,error)}}
         if client == SourceClientKind::WorkBuddy { continue }
+        // 实际 writer 已取得；外层发现和数据库收尾尚未完成时不能沿用旧 Complete。
+        context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(client).or_insert_with(empty_coverage).state = CoverageState::Partial;
         {let mut state=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);state.client=Some(client);state.progress=None;}
         let progress_state = context.clone();
         let output = scan_orchestration::scan(source_client_app_data_dir(&context.directory, client), client,
@@ -69,7 +72,7 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
     Ok(())
 }
 
-/// 错误只保存稳定分类；失败不替换先前可信覆盖报告。
+/// 错误只保存稳定分类；失败继续保留扫描开始时失效的覆盖资格。
 fn fail(context: &ServiceContext, error: &'static str) -> Result<(), &'static str> {
     context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner).error = Some(error);
     Err(error)

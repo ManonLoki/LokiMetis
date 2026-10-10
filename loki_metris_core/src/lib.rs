@@ -158,6 +158,7 @@ pub use policy::{
     local_index_scan_policy_with_retention, merge_coverage_reports, extend_coverage_with_partial_scan, normalize_source_root_alias,
     retain_ingestable_calls, safe_model_label, safe_root_label, safe_short_value,
     safe_technical_label, scan_start_access_error_message, source_file_needs_visit,
+    source_file_visit_decision, PersistedSourceQuality, SourceVisitDecision,
     source_root_add_outcome, source_root_alias_from_path, source_root_mutation_feedback,
     source_root_primary_outcome, source_root_remove_outcome, source_root_rename_outcome,
     source_root_set_enabled_outcome, source_root_toggle_enabled_outcome, validate_source_root_id,

@@ -10,7 +10,7 @@ use sea_orm::{ConnectionTrait, DbBackend, Statement, TransactionTrait};
 
 use super::call_store::{from_sql_u64, to_sql_u64};
 use super::{LocalError, LocalIndex};
-use crate::policy::SourceFileObservation;
+use crate::policy::{PersistedSourceQuality, SourceFileObservation};
 
 /// 为检查点读写构造带绑定值的 SQLite 语句。
 fn statement(sql: &str, values: Vec<sea_orm::Value>) -> Statement {
@@ -116,10 +116,36 @@ impl LocalIndex {
         root_id: &str,
         archived: bool,
     ) -> Result<HashMap<String, SourceFileObservation>, LocalError> {
+        self.source_observations_with_decoder(root_id, archived, |_| None).await
+    }
+
+    /// 批量返回来源事实及 adapter 解码后的通用质量；core 不解释私有格式。
+    pub async fn source_file_observations_for_root_with_quality<F>(
+        &self,
+        root_id: &str,
+        archived: bool,
+        decode_quality: F,
+    ) -> Result<HashMap<String, SourceFileObservation>, LocalError>
+    where F: Fn(Option<&str>) -> PersistedSourceQuality,
+    {
+        self.source_observations_with_decoder(root_id, archived, |state| Some(decode_quality(state))).await
+    }
+
+    /// 一次查询映射全部来源，不过滤旧版本或占位行，避免失去必要的修复入口。
+    async fn source_observations_with_decoder<F>(
+        &self,
+        root_id: &str,
+        archived: bool,
+        decode_quality: F,
+    ) -> Result<HashMap<String, SourceFileObservation>, LocalError>
+    where F: Fn(Option<&str>) -> Option<PersistedSourceQuality>,
+    {
         let rows = self
             .connection
             .query_all(statement(
-                "SELECT relative_label, observed_size, modified_at_epoch_ms
+                "SELECT relative_label, observed_size, modified_at_epoch_ms,
+                        parser_version, ready, token_snapshots_ready, adapter_state,
+                        parsed_offset, trailing_bytes
                  FROM source_files WHERE root_id = ?1 AND archived = ?2",
                 vec![root_id.into(), archived.into()],
             ))
@@ -127,11 +153,21 @@ impl LocalIndex {
         let mut observations = HashMap::with_capacity(rows.len());
         for row in rows {
             let relative_label: String = row.try_get_by_index(0)?;
+            let adapter_state: Option<String> = row.try_get_by_index(6)?;
+            let ready: bool = row.try_get_by_index(4)?;
+            let snapshots_ready: bool = row.try_get_by_index(5)?;
+            let observed_size = from_sql_u64(row.try_get_by_index(1)?)?;
+            let parsed_offset = from_sql_u64(row.try_get_by_index(7)?)?;
+            let trailing_bytes = from_sql_u64(row.try_get_by_index(8)?)?;
             observations.insert(
                 relative_label,
                 SourceFileObservation {
-                    observed_size: from_sql_u64(row.try_get_by_index(1)?)?,
+                    observed_size,
                     modified_at_epoch_ms: row.try_get_by_index(2)?,
+                    parser_compatible: row.try_get_by_index::<i64>(3)? == i64::from(self.parser_version),
+                    checkpoint_complete: ready && snapshots_ready
+                        && parsed_offset.checked_add(trailing_bytes) == Some(observed_size),
+                    persisted_quality: decode_quality(adapter_state.as_deref()),
                 },
             );
         }

@@ -6,6 +6,18 @@
 
 use crate::UsageCall;
 
+/// adapter 对当前 generation 持久质量的解码结果；未知质量不能视为零警告。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PersistedSourceQuality {
+    /// 缺失、损坏或不兼容，必须重新访问来源。
+    Unknown,
+    /// 已验证检查点中的当前有效警告数量。
+    Known {
+        /// 质量损失计数，不包含原始来源内容。
+        warning_count: u64,
+    },
+}
+
 /// 上次成功索引某来源时记录下来的文件事实，用于判断文件是否已变化。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourceFileObservation {
@@ -13,6 +25,56 @@ pub struct SourceFileObservation {
     pub observed_size: u64,
     /// 上次 checkpoint 记录的修改时间毫秒值。
     pub modified_at_epoch_ms: i64,
+    /// 当前索引采用的 parser 是否能读取此 generation。
+    pub parser_compatible: bool,
+    /// 此 generation 的解析检查点与 Token 快照是否均已提交。
+    pub checkpoint_complete: bool,
+    /// 已采用质量合同的 adapter 必须提供；None 仅兼容未采用该合同的 adapter。
+    pub persisted_quality: Option<PersistedSourceQuality>,
+}
+
+/// 候选来源的访问决定；保留来源时同步保留其质量事实。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceVisitDecision {
+    /// 必须打开来源，执行增量解析或重建。
+    Visit,
+    /// 窗口外的已知来源未变化，直接保留当前 generation 及其质量。
+    Retain {
+        /// 保留来源对本轮覆盖质量的贡献。
+        warning_count: u64,
+    },
+    /// 窗口外的未知来源不进入本轮成本范围。
+    SkipUnindexed,
+}
+
+/// 先核实已索引来源的兼容性与质量，再应用扫描窗口，防止升级或坏行被跳过。
+pub fn source_file_visit_decision(
+    modified_at_epoch_ms: i64,
+    observed_size: u64,
+    scan_since_epoch_ms: i64,
+    checkpoint: Option<SourceFileObservation>,
+    force_rebuild: bool,
+) -> SourceVisitDecision {
+    if let Some(checkpoint) = checkpoint
+        && (force_rebuild || !checkpoint.parser_compatible || !checkpoint.checkpoint_complete
+            || checkpoint.persisted_quality == Some(PersistedSourceQuality::Unknown))
+    {
+        return SourceVisitDecision::Visit;
+    }
+    if modified_at_epoch_ms >= scan_since_epoch_ms {
+        return SourceVisitDecision::Visit;
+    }
+    match checkpoint {
+        None => SourceVisitDecision::SkipUnindexed,
+        Some(checkpoint) if checkpoint.observed_size != observed_size
+            || checkpoint.modified_at_epoch_ms != modified_at_epoch_ms => SourceVisitDecision::Visit,
+        Some(checkpoint) => SourceVisitDecision::Retain {
+            warning_count: match checkpoint.persisted_quality {
+                Some(PersistedSourceQuality::Known { warning_count }) => warning_count,
+                _ => 0,
+            },
+        },
+    }
 }
 
 /// 决定枚举阶段是否要打开并解析一个候选来源文件。
@@ -27,16 +89,8 @@ pub fn source_file_needs_visit(
     scan_since_epoch_ms: i64,
     checkpoint: Option<SourceFileObservation>,
 ) -> bool {
-    if modified_at_epoch_ms >= scan_since_epoch_ms {
-        return true;
-    }
-    match checkpoint {
-        None => false,
-        Some(checkpoint) => {
-            checkpoint.observed_size != observed_size
-                || checkpoint.modified_at_epoch_ms != modified_at_epoch_ms
-        }
-    }
+    source_file_visit_decision(modified_at_epoch_ms, observed_size, scan_since_epoch_ms,
+        checkpoint, false) == SourceVisitDecision::Visit
 }
 
 /// 只保留发生时间不早于摄入下界的调用；下界应取派生库的永久保留窗口，
@@ -60,6 +114,9 @@ mod tests {
             Some(SourceFileObservation {
                 observed_size: 10,
                 modified_at_epoch_ms: 1_500,
+                parser_compatible: true,
+                checkpoint_complete: true,
+                persisted_quality: None,
             })
         ));
     }
@@ -80,6 +137,9 @@ mod tests {
             Some(SourceFileObservation {
                 observed_size: 10,
                 modified_at_epoch_ms: 500,
+                parser_compatible: true,
+                checkpoint_complete: true,
+                persisted_quality: None,
             })
         ));
     }
@@ -90,8 +150,44 @@ mod tests {
         let checkpoint = Some(SourceFileObservation {
             observed_size: 10,
             modified_at_epoch_ms: 400,
+            parser_compatible: true,
+            checkpoint_complete: true,
+            persisted_quality: None,
         });
         assert!(source_file_needs_visit(500, 10, 1_000, checkpoint));
         assert!(source_file_needs_visit(400, 12, 1_000, checkpoint));
+    }
+
+    /// 窗口不能掩盖旧 parser、未提交检查点、未知质量或显式重建。
+    #[test]
+    fn unverified_indexed_sources_bypass_the_time_window() {
+        let trusted = SourceFileObservation {
+            observed_size: 10, modified_at_epoch_ms: 400,
+            parser_compatible: true, checkpoint_complete: true,
+            persisted_quality: Some(PersistedSourceQuality::Known { warning_count: 7 }),
+        };
+        for checkpoint in [
+            SourceFileObservation { parser_compatible: false, ..trusted },
+            SourceFileObservation { checkpoint_complete: false, ..trusted },
+            SourceFileObservation { persisted_quality: Some(PersistedSourceQuality::Unknown), ..trusted },
+        ] {
+            assert_eq!(source_file_visit_decision(400, 10, 1_000, Some(checkpoint), false), SourceVisitDecision::Visit);
+        }
+        assert_eq!(source_file_visit_decision(400, 10, 1_000, Some(trusted), true), SourceVisitDecision::Visit);
+        assert_eq!(source_file_visit_decision(400, 10, 1_000, None, true), SourceVisitDecision::SkipUnindexed);
+    }
+
+    /// 未变化的窗口外来源保留原计数，不重复读取也不清除质量损失。
+    #[test]
+    fn retained_sources_preserve_verified_warning_counts() {
+        for warning_count in [0, 1, u64::MAX] {
+            let checkpoint = SourceFileObservation {
+                observed_size: 10, modified_at_epoch_ms: 400,
+                parser_compatible: true, checkpoint_complete: true,
+                persisted_quality: Some(PersistedSourceQuality::Known { warning_count }),
+            };
+            assert_eq!(source_file_visit_decision(400, 10, 1_000, Some(checkpoint), false),
+                SourceVisitDecision::Retain { warning_count });
+        }
     }
 }

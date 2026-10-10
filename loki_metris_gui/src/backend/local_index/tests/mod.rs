@@ -11,6 +11,7 @@ mod codex_ownership_tests; // 验证 fork 复制前缀不会入库且断点续�
 mod codex_remaining_inflation_tests; // 验证 checkpoint restore 后再遇 last-copies/same-last 不重计
 mod incremental_scan_tests; // 验证追加/替换/重建三种增量场景的判定与结果
 mod parser_upgrade_tests; // 验证 parser generation 升级后旧数据的重扫与迁移
+mod quality_checkpoint_tests; // 验证已消费坏行的质量事实随 generation 持久保留
 mod root_lifecycle_tests; // 验证数据根登记、启停、重命名、失效的完整生命周期
 mod scan_state_tests; // 验证扫描四态（未扫描/需重扫/无调用/就绪）判定
 mod signature_budget_tests; // 验证签名探测预算耗尽时的保守回退行为

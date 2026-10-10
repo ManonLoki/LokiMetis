@@ -107,10 +107,12 @@ fn cancelled_force_rebuild_preserves_the_previous_ready_generation() {
         "session-force-cancel",
         &[token_line("2026-07-30T10:01:00Z", "call-a", 10, 2)],
     );
+    append_rollout(&rollout, "{\"type\":\n");
     let roots = discover_registered(&[root_path]);
     let mut index = open_index(app_temp.path());
     let initial = scan(&mut index, &roots, &CancellationToken::new());
     assert_eq!(initial.call_count, 1);
+    assert_eq!(initial.coverage.state, CoverageState::Partial);
 
     let canonical_rollout = roots[0].path.join("sessions/rollout-force-cancel.jsonl");
     let mut budget = RolloutProbeBudget::new(1, u64::MAX);
@@ -144,6 +146,9 @@ fn cancelled_force_rebuild_preserves_the_previous_ready_generation() {
             .call_count,
         1
     );
+    let after_cancel = scan(&mut index, &roots, &CancellationToken::new());
+    assert_eq!(after_cancel.coverage.state, CoverageState::Partial);
+    assert_eq!(after_cancel.coverage.warning_count, 1);
 }
 
 /// 验证重开索引后仍能从持久检查点过滤重放和 compact 估算，只计真实新增调用。

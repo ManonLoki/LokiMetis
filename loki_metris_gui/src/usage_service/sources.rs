@@ -78,6 +78,12 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
         SourceOperation::Reindex{root_id}=>{
             let request=source_root_reindex_request(&catalog,&root_id).await.map_err(|_|"source_update_failed")?;
             let retention=context.settings.snapshot().await?.retention_days;
+            let previous_coverage={
+                let mut reports=context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let previous=reports.get(&client).cloned().unwrap_or_else(empty_coverage);
+                reports.entry(client).or_insert_with(empty_coverage).state=CoverageState::Partial;
+                previous
+            };
             let progress_context=context.clone();
             let output=scan_orchestration::reindex(directory,client,retention,request,cancellation,Box::new(move|progress| {
                 if let LocalScanProgress::Indexing{current_root_id,roots_completed,roots_total,files_scanned,calls_added,..}=progress {
@@ -88,7 +94,7 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
             context.notification_source_epoch.fetch_add(1,std::sync::atomic::Ordering::Release);
             let cancelled=output.coverage.state==CoverageState::Cancelled;
             let mut reports=context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            let coverage=extend_coverage_with_partial_scan(reports.remove(&client).unwrap_or_else(empty_coverage),&output.coverage);
+            let coverage=extend_coverage_with_partial_scan(previous_coverage,&output.coverage);
             reports.insert(client,coverage);
             if cancelled {return Err("source_operation_cancelled")}
             return Ok(SourceOperationResult::Reindexed(output));

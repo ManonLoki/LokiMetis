@@ -76,8 +76,8 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
         } else { Ok(UsageResponse::Workbuddy(snapshot)) };
     }
     if let Some(client) = selected {
-        let coverage = coverage(&context, client);
         let snapshot = read_snapshot(&context.directory, client, now, &zone).await?;
+        let coverage = coverage(&context, client);
         check_cancel(&cancellation)?;
         return tokio::task::spawn_blocking(move || build_single(query, snapshot, coverage, client, now, &zone))
             .await.map_err(|_| "usage_aggregate_failed")?;
@@ -85,10 +85,10 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     let mut jobs = tokio::task::JoinSet::new();
     for client in enabled_clients {
         let context = context.clone();
-        let report = coverage(&context, client);
         let zone = zone.clone();
         jobs.spawn(async move {
             let snapshot = read_snapshot(&context.directory, client, now, &zone).await?;
+            let report = coverage(&context, client);
             Ok::<_, &'static str>(AgentUsageSnapshot::new(client, snapshot, report,
                 Some(provider(client).parser_source_label(client.parser_version()))))
         });
@@ -146,7 +146,7 @@ pub(super) async fn read_snapshot(directory: &std::path::Path, client: SourceCli
     let file = directory.join(USAGE_INDEX_FILE_NAME);
     let exists = tokio::task::spawn_blocking(move || file.try_exists()).await.map_err(|_| "usage_read_failed")?
         .map_err(|_| "usage_read_failed")?;
-    if !exists { return Ok(UsageSnapshot { canonical: canonicalize_usage_calls(Vec::new()), index_state: LocalIndexState::NotScanned, roots: Vec::new() }) }
+    if !exists { return Ok(UsageSnapshot { canonical: canonicalize_usage_calls(Vec::new()), index_state: LocalIndexState::NotScanned, read_ready: false, roots: Vec::new() }) }
     let mut index = LocalIndex::open_read_only_in_app_data(&directory, client.parser_version()).await.map_err(|_| "usage_index_unavailable")?;
     let cutoff = overview_snapshot_start_epoch_ms(now, &TimeStandard::Local, zone).map_err(|_| "usage_time_unavailable")?;
     index.usage_view_snapshot_since(cutoff).await.map_err(|_| "usage_read_failed")
@@ -156,6 +156,7 @@ pub(super) async fn read_snapshot(directory: &std::path::Path, client: SourceCli
 fn build_single(query: UsageQuery, snapshot: UsageSnapshot, coverage: CoverageReport,
     client: SourceClientKind, now: i64, zone: &TimeZone) -> Result<UsageResponse, &'static str>
 {
+    let coverage = snapshot.effective_coverage(coverage);
     let provider = provider(client);
     let source = provider.parser_source_label(client.parser_version());
     let aliases: BTreeMap<_, _> = snapshot.roots.iter().map(|root| (root.root_id.clone(), root.alias.clone())).collect();

@@ -32,7 +32,7 @@ pub(crate) struct FileIndexOutcome {
     pub(crate) rebuilt: bool,
     /// 本次文件没有变化，因而未重新读取。
     pub(crate) unchanged: bool,
-    /// 本次读取中产生的格式和质量警告。
+    /// 当前 generation 已消费完整行及未解决归属边界的质量警告。
     pub(crate) warnings: JsonlWarningCounts,
     /// checkpoint 后仍未闭合的末行字节数。
     pub(crate) trailing_bytes: u64,
@@ -120,14 +120,17 @@ impl IndexRolloutFile for LocalIndex {
         } else {
             None
         };
-        let has_unresolved_owned_boundary = restored_context
+        let previous_warnings = restored_context
             .as_ref()
-            .is_some_and(JsonlParseContext::awaits_owned_start);
+            .map(JsonlParseContext::generation_warnings)
+            .unwrap_or_default();
         let can_append =
             !config.force_rebuild && physically_appendable && restored_context.is_some();
         if let Some(existing) = &existing
             && existing.observed_size == prep.observed_size
             && existing.modified_at_epoch_ms == prep.modified_at_epoch_ms
+            && existing.parsed_offset.checked_add(existing.trailing_bytes)
+                == Some(existing.observed_size)
             && can_append
         {
             return Ok(FileIndexOutcome {
@@ -135,10 +138,7 @@ impl IndexRolloutFile for LocalIndex {
                 added_calls: 0,
                 rebuilt: false,
                 unchanged: true,
-                warnings: JsonlWarningCounts {
-                    unresolved_owned_boundaries: u64::from(has_unresolved_owned_boundary),
-                    ..JsonlWarningCounts::default()
-                },
+                warnings: previous_warnings,
                 trailing_bytes: existing.trailing_bytes,
                 cancelled: false,
             });
@@ -210,8 +210,9 @@ impl IndexRolloutFile for LocalIndex {
         for batch in &mut parsed.batches {
             retain_ingestable_calls(batch, config.ingest_since_epoch_ms);
         }
-        let context = parsed.context;
+        let mut context = parsed.context;
         let mut report = parsed.report;
+        context.record_consumed_line_warnings(report.warnings);
         report
             .snapshots
             .retain(|snapshot| snapshot.occurred_at_epoch_ms >= config.ingest_since_epoch_ms);
@@ -246,6 +247,7 @@ impl IndexRolloutFile for LocalIndex {
             .checked_add(report.checkpoint.committed_bytes)
             .ok_or_else(|| LocalError::new(LocalErrorKind::Overflow, "file offset overflowed"))?;
         let adapter_state = context.adapter_state()?;
+        let generation_warnings = context.generation_warnings();
         self.commit_source_file_checkpoint(
             &prep.source_id,
             &root_id,
@@ -276,7 +278,7 @@ impl IndexRolloutFile for LocalIndex {
             added_calls,
             rebuilt,
             unchanged: false,
-            warnings: report.warnings,
+            warnings: generation_warnings,
             trailing_bytes: report.checkpoint.trailing_bytes,
             cancelled: report.cancelled,
         })

@@ -156,6 +156,16 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 不能为了降低成本把完整 preview 接口的 image 清空。`preview_from_bytes` 仍真正调用 Base64，保留 data URL 和空/非法字节错误；原生元数据测试用线程局部编码计数验证零编码。单图 32MiB、快照 128MiB 是原始字节预算，不包含解码帧、纹理和分配器驻留，后续内存分析必须分别核算。
 
+### 5.5 增量捷径必须保留质量和已读边界
+
+只比较大小与修改时间不足以证明无需读取：取消后的检查点可能已经观察全文件大小，却只消费了前缀。跳过前还须满足 `parsed_offset + trailing_bytes == observed_size`；这里的 trailing 只能是已读取但尚未闭合的末行。使用检查加法，避免溢出把无效检查点误判为完成。
+
+坏行警告属于当前来源 generation，不能因本轮没有重新读取而清零。只持久化有界、内容无关的计数；重复扫描直接恢复计数，合法追加仅合并新消费完整行的警告，真正替换或完整重建才重新计算。可解除的 fork 归属边界由当前状态动态计算，不永久累计。这样保留 unchanged 与窗口外 Retain 的 IO 优势，也保留覆盖结论。
+
+读取新批次调用时不能套用旧 Complete 缓存。快照在同一 SQLite 事务中读取最新扫描与启用来源事实，宿主在取得实际 writer 后先失效覆盖资格，完整收尾才恢复。索引四态仍服务展示，精确读取资格单独表达；避免为了通知而清空可见历史统计。
+
+参考：[来源质量持久化](../loki_metris_gui/src/backend/local_index/jsonl/mod.rs)、[续读边界](../loki_metris_gui/src/backend/local_index/rollout_ingest.rs)、[一致快照](../loki_metris_core/src/local_index/snapshot.rs)、[连续回归](../loki_metris_gui/src/backend/local_index/tests/quality_checkpoint_tests.rs)、[写入期间今日摘要](../loki_metris_gui/src/usage_service/source_tests.rs)。这些回归证明正确性边界；没有测量吞吐、CPU 或内存收益，不能据此宣称性能提升。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

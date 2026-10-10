@@ -100,7 +100,8 @@ where
             let mut rejected_relative_labels = HashSet::new();
             let known_sources = Arc::new(
                 index
-                    .source_file_observations_for_root(&root.root_id, archived)
+                    .source_file_observations_for_root_with_quality(&root.root_id, archived,
+                        crate::backend::local_index::jsonl::persisted_source_quality)
                     .await?,
             );
             let mut stack = vec![root.path.join(area)];
@@ -126,6 +127,7 @@ where
                 let budget = rollout_probe_budget;
                 let window = VisitWindow {
                     scan_since_epoch_ms: config.scan_since_epoch_ms,
+                    force_rebuild: config.force_rebuild,
                     known_sources: Arc::clone(&known_sources),
                 };
                 let visit = spawn_blocking(move || {
@@ -188,6 +190,10 @@ where
                         EntryAction::PushDirectory(path) => stack.push(path),
                         EntryAction::RetainLabel(label) => {
                             retained_relative_labels.insert(label);
+                        }
+                        EntryAction::RetainKnown { relative_label, warning_count: retained_warnings } => {
+                            retained_relative_labels.insert(relative_label);
+                            warning_count = warning_count.saturating_add(retained_warnings);
                         }
                         EntryAction::RejectLabel(label) => {
                             rejected_relative_labels.insert(label);

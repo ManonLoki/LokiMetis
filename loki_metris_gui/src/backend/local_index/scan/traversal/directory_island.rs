@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use loki_metris_core::{SourceFileObservation, source_file_needs_visit};
+use loki_metris_core::{SourceFileObservation, SourceVisitDecision, source_file_visit_decision};
 
 use crate::backend::local_index::discovery::{metadata_is_link_like, path_key};
 use crate::backend::local_index::file_source::{
@@ -22,6 +22,8 @@ pub(super) enum EntryAction {
     PushDirectory(PathBuf),
     /// 仅保留相对标签，不索引。
     RetainLabel(String),
+    /// 已验证未变化的 generation，无需读文件但保留其质量贡献。
+    RetainKnown { relative_label: String, warning_count: u64 },
     /// 确认拒绝的相对标签。
     RejectLabel(String),
     /// 已通过签名探测，交给 async 侧串行索引。
@@ -57,6 +59,8 @@ pub(super) struct DirectoryVisitOutcome {
 pub(super) struct VisitWindow {
     /// 从未索引过的文件只在修改时间不早于该下界时进入解析。
     pub(super) scan_since_epoch_ms: i64,
+    /// 显式重建已索引来源时不受 mtime 窗口限制。
+    pub(super) force_rebuild: bool,
     /// 该根区域下已索引来源上次记录的大小与修改时间，按相对标签索引。
     pub(super) known_sources: Arc<HashMap<String, SourceFileObservation>>,
 }
@@ -158,14 +162,22 @@ pub(super) fn visit_directory(
             continue;
         }
         // 窗口外但被追加/替换过的已索引文件必须重新解析，否则新增字节会永久丢失。
-        if !source_file_needs_visit(
+        match source_file_visit_decision(
             modified_epoch_ms(&metadata),
             metadata.len(),
             window.scan_since_epoch_ms,
             window.known_sources.get(&relative_label).copied(),
+            window.force_rebuild,
         ) {
-            actions.push(EntryAction::RetainLabel(relative_label));
-            continue;
+            SourceVisitDecision::Visit => {}
+            SourceVisitDecision::Retain { warning_count } => {
+                actions.push(EntryAction::RetainKnown { relative_label, warning_count });
+                continue;
+            }
+            SourceVisitDecision::SkipUnindexed => {
+                actions.push(EntryAction::RetainLabel(relative_label));
+                continue;
+            }
         }
         match inspect_rollout_file(&path, cancellation, &mut probe_budget) {
             RolloutFileInspection::Matched(source) => {

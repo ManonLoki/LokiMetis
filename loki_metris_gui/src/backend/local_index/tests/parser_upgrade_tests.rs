@@ -164,7 +164,7 @@ fn force_rebuild_with_mtime_skip_clears_needs_rescan_without_mixing_old_generati
     );
 }
 
-/// 验证完整重扫会清理已删除的旧 parser 来源；同一根上已有当前 generation 时 leftover 旧行不得挡住概览。
+/// 验证混合版本根仍要求重扫，只有完整枚举确认旧来源已删除后才解除。
 #[test]
 fn complete_rescan_prunes_missing_stale_sources() {
     let source_temp = TempDir::new().expect("source temp is available");
@@ -208,7 +208,7 @@ fn complete_rescan_prunes_missing_stale_sources() {
         block_on(index.usage_snapshot())
             .expect("mixed parser snapshot loads")
             .index_state,
-        LocalIndexState::Ready
+        LocalIndexState::NeedsRescan
     );
 
     let rescan = scan(&mut index, &roots, &CancellationToken::new());

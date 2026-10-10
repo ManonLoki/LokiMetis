@@ -26,13 +26,13 @@ use codec::{
 use context::*;
 
 /// 当前最小 rollout 解析器版本，变更语义时必须递增并触发受影响来源重建。
-pub const PARSER_VERSION: u32 = 8;
+pub const PARSER_VERSION: u32 = loki_metris_core::SourceClientKind::Codex.parser_version();
 
 /// Codex adapter 私有累计检查点前缀；固定宽度序号允许 SQLite 直接取最新值。
-const CUMULATIVE_CHECKPOINT_PREFIX: &str = "codex-v8";
+const CUMULATIVE_CHECKPOINT_PREFIX: &str = "codex-v9";
 
 /// adapter 私有 parse checkpoint 的 schema 版本；与 rollout parser generation 分开演进。
-const ADAPTER_STATE_SCHEMA_VERSION: u8 = 1;
+const ADAPTER_STATE_SCHEMA_VERSION: u8 = 2;
 
 /// `task_started.started_at` 与 owner 创建时刻允许的毫秒误差。
 const OWNED_START_TOLERANCE_MS: u64 = 2_000;
@@ -63,7 +63,8 @@ pub struct JsonlCheckpoint {
 }
 
 /// 汇总格式漂移与受控回退计数，不包含任何原始记录内容。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JsonlWarningCounts {
     /// 不能解析为 JSON 对象的完整行数量。
     pub malformed_lines: u64,
@@ -84,6 +85,17 @@ pub struct JsonlWarningCounts {
 }
 
 impl JsonlWarningCounts {
+    /// 累计已经消费完整行的质量损失；所有权边界由当前状态计算，不能永久累加。
+    fn add_consumed_lines(&mut self, warnings: Self) {
+        self.malformed_lines = self.malformed_lines.saturating_add(warnings.malformed_lines);
+        self.oversized_lines = self.oversized_lines.saturating_add(warnings.oversized_lines);
+        self.unknown_events = self.unknown_events.saturating_add(warnings.unknown_events);
+        self.missing_usage = self.missing_usage.saturating_add(warnings.missing_usage);
+        self.invalid_usage = self.invalid_usage.saturating_add(warnings.invalid_usage);
+        self.invalid_timestamps = self.invalid_timestamps.saturating_add(warnings.invalid_timestamps);
+        self.cumulative_fallbacks = self.cumulative_fallbacks.saturating_add(warnings.cumulative_fallbacks);
+    }
+
     /// 返回会降低覆盖完整度的全部警告数量。
     pub fn total(self) -> u64 {
         self.malformed_lines
@@ -118,6 +130,8 @@ enum RolloutOwnershipState {
 struct PersistedJsonlParseState {
     /// 私有状态 schema，未知版本必须触发来源重建。
     schema_version: u8,
+    /// 当前 generation 已消费完整行的质量事实；旧状态缺失时必须重建，不能补零。
+    consumed_line_warnings: JsonlWarningCounts,
     /// rollout 所有权边界状态。
     ownership: RolloutOwnershipState,
     /// 最近一次可信累计基线，包括 fork 复制前缀内的基线。
@@ -126,10 +140,34 @@ struct PersistedJsonlParseState {
     previous_last: Option<TokenUsage>,
 }
 
+impl PersistedJsonlParseState {
+    /// 未知或缺失质量的检查点拒绝恢复，不能把旧数据默认为完整。
+    fn decode(state: Option<&str>) -> Option<Self> {
+        let persisted: Self = serde_json::from_str(state?).ok()?;
+        (persisted.schema_version == ADAPTER_STATE_SCHEMA_VERSION
+            && persisted.consumed_line_warnings.unresolved_owned_boundaries == 0)
+            .then_some(persisted)
+    }
+}
+
+/// 将 adapter 私有检查点映射为 core 访问策略所需的通用质量事实。
+pub(crate) fn persisted_source_quality(state: Option<&str>) -> loki_metris_core::PersistedSourceQuality {
+    let Some(persisted) = PersistedJsonlParseState::decode(state) else {
+        return loki_metris_core::PersistedSourceQuality::Unknown;
+    };
+    let boundary_warning = u64::from(matches!(persisted.ownership,
+        RolloutOwnershipState::AwaitingOwnedStart { .. }));
+    loki_metris_core::PersistedSourceQuality::Known {
+        warning_count: persisted.consumed_line_warnings.total().saturating_add(boundary_warning),
+    }
+}
+
 /// 保存跨增量片段需要的会话上下文；除受控展示的 project_label/thread_label
 /// 外均是哈希或白名单限制过的内容无关字段。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JsonlParseContext {
+    /// 当前 generation 已消费完整行的警告，不包含可解除的所有权边界。
+    consumed_line_warnings: JsonlWarningCounts,
     /// 内容无关的线程键；原始 session ID 不会离开解析器。
     pub thread_key: String,
     /// 从工作目录或项目标识散列得到的匿名项目键。
@@ -156,6 +194,7 @@ impl JsonlParseContext {
     /// 从安全文件标签构造回退线程键，随后可由 session 元数据稳定替换。
     pub fn new(thread_seed: &str) -> Self {
         Self {
+            consumed_line_warnings: JsonlWarningCounts::default(),
             thread_key: stable_id("thread", thread_seed),
             project_key: None,
             project_label: None,
@@ -171,13 +210,9 @@ impl JsonlParseContext {
 
     /// 从 core 原样持久化的安全 checkpoint 恢复完整 adapter 上下文。
     pub(crate) fn from_checkpoint(checkpoint: SourceParseCheckpoint) -> Option<Self> {
-        let persisted =
-            serde_json::from_str::<PersistedJsonlParseState>(checkpoint.adapter_state.as_deref()?)
-                .ok()?;
-        if persisted.schema_version != ADAPTER_STATE_SCHEMA_VERSION {
-            return None;
-        }
+        let persisted = PersistedJsonlParseState::decode(checkpoint.adapter_state.as_deref())?;
         Some(Self {
+            consumed_line_warnings: persisted.consumed_line_warnings,
             thread_key: checkpoint.thread_key,
             project_key: checkpoint.project_key,
             project_label: checkpoint.project_label,
@@ -195,6 +230,7 @@ impl JsonlParseContext {
     pub(crate) fn adapter_state(&self) -> Result<String, LocalError> {
         serde_json::to_string(&PersistedJsonlParseState {
             schema_version: ADAPTER_STATE_SCHEMA_VERSION,
+            consumed_line_warnings: self.consumed_line_warnings,
             ownership: self.ownership.clone(),
             previous_cumulative: self.previous_cumulative.clone(),
             previous_last: self.previous_last.clone(),
@@ -205,6 +241,19 @@ impl JsonlParseContext {
                 "rollout parser state encoding failed",
             )
         })
+    }
+
+    /// 将本轮完整行质量与已提交前缀合并，不累计尚未闭合的尾行或可解除边界。
+    pub(crate) fn record_consumed_line_warnings(&mut self, warnings: JsonlWarningCounts) {
+        self.consumed_line_warnings.add_consumed_lines(warnings);
+    }
+
+    /// 返回当前 generation 的质量事实，重复扫描不得把它清零。
+    pub(crate) fn generation_warnings(&self) -> JsonlWarningCounts {
+        JsonlWarningCounts {
+            unresolved_owned_boundaries: u64::from(self.awaits_owned_start()),
+            ..self.consumed_line_warnings
+        }
     }
 
     /// 返回当前 token_count 是否属于本 rollout 自身区段。

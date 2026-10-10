@@ -147,4 +147,8 @@ fn map_private_sqlite_error(error: PrivateSqliteError) -> LocalError {
 #[cfg(test)]
 mod lightweight_summary_tests;
 #[cfg(test)]
+mod quality_observation_tests;
+#[cfg(test)]
+mod read_readiness_tests;
+#[cfg(test)]
 mod tests;
