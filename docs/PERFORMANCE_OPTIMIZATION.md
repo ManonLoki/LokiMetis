@@ -274,6 +274,18 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 参考：[帧工作集](../loki_metris_gui/src/monitor/image_frame_residency.rs)、[真实 Metal 与缓存重放回归](../loki_metris_gui/src/monitor/image_window_metal_tests.rs)、[单帧清理与查询补丁](../vendor/gpui-pre/patches/image-frame-drop.after)。
 
+### 5.14 稳定标题避免重复请求原生平台
+
+Shell 原先每次 render 都格式化版本和标题并调用 Window.set_window_title；GPUI core、macOS 与 Windows 的 setter 均没有相等值守卫。macOS 路径会构造 NSString、更新窗口菜单并请求 NSWindow.setTitle，Windows 路径会构造 HSTRING 并请求 SetWindowTextW。不能仅凭调用次数推断系统实际重绘次数。
+
+当前完整标题只有有效语言会在进程内变化，版本来自编译期，支持信息为固定文案。每个 Shell 保存最后请求的有效语言，首次仍设置完整标题；成功保存语言后下一次绘制更新，稳定语言的重复绘制跳过格式化和原生请求。缓存不跨窗口，不通过宿主 getter 做逐帧比较。GPUI setter 没有成功回执，字段表示已请求；去重也取消了旧实现逐帧隐式重试失败 setter 的行为。未来标题增加动态字段时必须扩大缓存键。
+
+回归通过真实 TestWindow 写入哨兵标题再强制根视图绘制：旧实现覆盖哨兵而失败，去重后保留；新建 Shell 仍设置完整标题。另验证语言 pending 时保持旧标题、真实内存 Writer 成功回执后更新中文完整标题、稳定中文继续去重，以及实际 Writer 拒绝提交时保持原语言和标题。3项标题与3项既有偏好回归通过。哨兵证明未再次请求覆盖，不是精确宿主成功次数统计。
+
+这是 LMDESK-WINDOW-TITLE-REQUEST-001 内部维护，版本保持0.2.4。初步5秒 sample 没有捕获标题 setter 热栈，不能把它认定为用户报告的高CPU根因；没有公平Tauri CPU对照或量化收益。开发输入与实机记录保留于忽略的 `release/window-title-request-development-20261010/`。
+
+参考：[标题请求及真实平台回归](../loki_metris_gui/src/app/window_title.rs)。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

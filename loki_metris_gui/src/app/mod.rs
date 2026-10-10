@@ -6,6 +6,7 @@ mod monitor;
 mod skins;
 mod dashboard;
 mod keyboard_entry;
+mod window_title;
 #[cfg(target_os="macos")]
 mod window_state;
 
@@ -63,6 +64,7 @@ pub struct Shell {
     preferences: Preferences,
     writer: Writer,
     locale: &'static str,
+    last_requested_title_locale: Option<&'static str>,
     _appearance: Subscription,
     _bounds: Subscription,
     _activation: Subscription,
@@ -108,6 +110,7 @@ impl Shell {
             skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default(), regions: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             _keyboard_entry:keyboard_entry,
+            last_requested_title_locale: None,
             release_notes_modal: None,
         };
         value.remember_window(window, cx);
@@ -302,7 +305,7 @@ impl Render for Shell {
         self.sync_monitor_hook_inputs(window,cx);
         self.sync_skin_inputs(window,cx);
         self.begin_monitor_image_frame();
-        window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
+        self.request_window_title(window);
         let content = match self.page {
             Page::Dashboard => self.dashboard_page(window,cx),
             Page::Monitor => self.monitor_page(window,cx),
