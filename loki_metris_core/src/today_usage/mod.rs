@@ -7,6 +7,12 @@ use crate::{
 use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
 
+/// 今日事实的统一新鲜度上限；读取周期为30秒，允许最多三轮间隔。
+const MAX_OBSERVATION_AGE_MS: i64 = 90_000;
+
+mod display;
+pub use display::{TodayUsageDisplay, project_today_usage_display};
+
 /// 民用日身份使用规则名与实际边界，DST 偏移改变不另建同日身份。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,17 +107,19 @@ impl TodayUsageSnapshot {
             observed_ms,
             availability: if source_failed {
                 TodayAvailability::Unavailable
-            } else if !all_sources_ready
-                || !matches!(
-                    records.index_state,
-                    LocalIndexState::Ready | LocalIndexState::ReadyNoCalls
-                )
-            {
+            } else if !matches!(
+                records.index_state,
+                LocalIndexState::Ready | LocalIndexState::ReadyNoCalls
+            ) {
                 TodayAvailability::NoRecords
             } else {
                 TodayAvailability::Available
             },
-            completeness: fact.completeness,
+            completeness: if !all_sources_ready && fact.completeness == Completeness::Complete {
+                Completeness::Partial
+            } else {
+                fact.completeness
+            },
             confidence: fact.confidence,
         })
     }
@@ -120,7 +128,7 @@ impl TodayUsageSnapshot {
         &self.day == current_day
             && self.day.contains(now_ms)
             && self.source == source
-            && (0..=90_000).contains(&now_ms.saturating_sub(self.observed_ms))
+            && (0..=MAX_OBSERVATION_AGE_MS).contains(&now_ms.saturating_sub(self.observed_ms))
             && self.availability == TodayAvailability::Available
             && self.completeness == Completeness::Complete
             && self.confidence == Confidence::Exact

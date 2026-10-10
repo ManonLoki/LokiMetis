@@ -2,7 +2,10 @@
 
 use super::{ServiceContext, UsageService, today};
 use crate::backend::{local_index::current_epoch_ms, notification_state::Ledger};
-use loki_metris_core::{ScanCancellation, TodayUsageSnapshot, UsageDay, usage_milestones::*};
+use loki_metris_core::{
+    ScanCancellation, TodayUsageDisplay, TodayUsageSnapshot, UsageDay, project_today_usage_display,
+    usage_milestones::*,
+};
 use std::{
     sync::{
         Arc, Mutex,
@@ -22,6 +25,14 @@ pub(crate) struct Control {
     pub retry: u64,
     pub closing: bool,
 }
+/// 摘要读取事实独立于通知账本错误，时区读取只发生在后台 worker。
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct TodayReadStatus {
+    day: Option<UsageDay>,
+    source_epoch: u64,
+    failed: bool,
+    closed: bool,
+}
 /// 仅内存的设置投影，不把 API 接受写成实际系统送达。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Progress {
@@ -36,6 +47,7 @@ pub(crate) struct Progress {
     pub issue: Option<MilestoneIssue>,
     pub error: Option<&'static str>,
     pub snapshot: Option<TodayUsageSnapshot>,
+    today: TodayReadStatus,
     pub revision: u64,
 }
 /// sender 回执与稀疏失败经过一个有界通道回到持久 owner。
@@ -94,7 +106,10 @@ impl Monitor {
             .take();
         if let Some(task) = task {
             if let Err(error) = task.await {
-                tracing::error!(event = "notification_worker_join_failed", panicked = error.is_panic());
+                tracing::error!(
+                    event = "notification_worker_join_failed",
+                    panicked = error.is_panic()
+                );
             }
         }
     }
@@ -103,6 +118,29 @@ impl UsageService {
     /// 设置只读最后真实业务投影，渲染不查询磁盘或 OS。
     pub(crate) fn notification_progress(&self) -> Progress {
         self.notifications.progress.borrow().clone()
+    }
+    /// 单次借用只投影 Copy 状态，不复制来源字符串、不查询时区或磁盘。
+    pub(crate) fn today_display(&self) -> TodayUsageDisplay {
+        if self.notifications.control.borrow().closing
+            || self.notifications.progress.has_changed().is_err()
+        {
+            return TodayUsageDisplay::Unavailable;
+        }
+        let progress = self.notifications.progress.borrow();
+        if progress.today.closed {
+            return TodayUsageDisplay::Unavailable;
+        }
+        project_today_usage_display(
+            progress.snapshot.as_ref(),
+            current_epoch_ms(),
+            progress.today.day.as_ref(),
+            progress.today.source_epoch
+                == self
+                    .context
+                    .notification_source_epoch
+                    .load(Ordering::Acquire),
+            progress.today.failed,
+        )
     }
     /// 保存已确认后改变应用本地意图；不会因权限拒绝偷偷关闭。
     pub(crate) fn configure_notifications(
@@ -146,11 +184,19 @@ impl UsageService {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .try_recv()
             .ok()?;
-        if epoch
-            == self
-                .context
-                .notification_source_epoch
-                .load(Ordering::Acquire)
+        let readable = {
+            let progress = self.notifications.progress.borrow();
+            !progress.today.failed
+                && !progress.today.closed
+                && !self.notifications.control.borrow().closing
+                && self.notifications.progress.has_changed().is_ok()
+        };
+        if readable
+            && epoch
+                == self
+                    .context
+                    .notification_source_epoch
+                    .load(Ordering::Acquire)
         {
             Some(request)
         } else {
@@ -199,6 +245,7 @@ fn publish(
     ledger: &Ledger,
     snapshot: &Option<TodayUsageSnapshot>,
     error: Option<&'static str>,
+    today: &TodayReadStatus,
 ) {
     let day = ledger.state.active();
     let mut next = Progress {
@@ -237,6 +284,7 @@ fn publish(
             None
         }),
         snapshot: snapshot.clone(),
+        today: today.clone(),
         revision: tx.borrow().revision,
     };
     let mut old = tx.borrow().clone();
@@ -271,9 +319,13 @@ async fn run(
     let mut next_refresh = 0_i64;
     let mut retry = 0;
     let mut epoch = context.notification_source_epoch.load(Ordering::Acquire);
+    let mut read = TodayReadStatus {
+        source_epoch: epoch,
+        ..Default::default()
+    };
     loop {
         let control = controls.borrow_and_update().clone();
-        if !control.initialized && !control.closing {
+        if !control.initialized && !control.visible && !control.closing {
             let _ = controls.changed().await;
             continue;
         }
@@ -293,6 +345,9 @@ async fn run(
         if epoch != reset {
             epoch = reset;
             next.source_reset();
+            snapshot = None;
+            read.source_epoch = epoch;
+            read.failed = false;
             next_refresh = 0;
         }
         while let Ok(receipt) = receipts.try_recv() {
@@ -303,18 +358,22 @@ async fn run(
             }
         }
         let day = UsageDay::capture(now, &jiff::tz::TimeZone::system());
+        read.day = day.clone();
+        // 桌宠独立于通知账本；即使通知从未开启，也要撤下旧日快照。
+        if snapshot
+            .as_ref()
+            .is_some_and(|value| day.as_ref() != Some(&value.day))
+        {
+            snapshot = None;
+            read.failed = false;
+            next_refresh = 0;
+        }
         // 不论有无可信新数据，旧日队列都过期；绝不能用昨天快照发送“今天”。
         if next
             .days
             .last()
             .is_some_and(|d| day.as_ref() != Some(&d.day))
         {
-            if snapshot
-                .as_ref()
-                .is_some_and(|s| day.as_ref() != Some(&s.day))
-            {
-                next_refresh = 0;
-            }
             for old in &mut next.days {
                 old.cancel_for_expiry();
             }
@@ -336,12 +395,15 @@ async fn run(
             error = Some(failure);
         }
         if control.closing {
-            publish(&progress, &ledger, &snapshot, error);
+            read.closed = true;
+            publish(&progress, &ledger, &snapshot, error, &read);
             tracing::info!(event = "notification_worker_stopped", issue = error);
             break;
         }
         let demand = control.enabled || control.visible;
         if demand && now >= next_refresh {
+            publish(&progress, &ledger, &snapshot, error, &read);
+            let query_epoch = epoch;
             let zone = jiff::tz::TimeZone::system();
             let cancellation = ScanCancellation::default();
             let loaded = tokio::select! {
@@ -356,17 +418,23 @@ async fn run(
             };
             let after = current_epoch_ms();
             next_refresh = after.saturating_add(30_000);
+            if query_epoch != context.notification_source_epoch.load(Ordering::Acquire) {
+                continue;
+            }
+            read.day = UsageDay::capture(after, &jiff::tz::TimeZone::system());
             match loaded {
-                Ok((_, value))
-                    if UsageDay::capture(after, &jiff::tz::TimeZone::system()).as_ref()
-                        == Some(&value.day) =>
-                {
+                Ok((_, value)) if read.day.as_ref() == Some(&value.day) => {
                     snapshot = Some(value);
+                    read.source_epoch = query_epoch;
+                    read.failed = false;
                     if error == Some("notification_snapshot_unavailable") {
                         error = None;
                     }
                 }
-                _ => error = Some("notification_snapshot_unavailable"),
+                _ => {
+                    read.failed = true;
+                    error = Some("notification_snapshot_unavailable");
+                }
             }
         }
         // 关闭、来源变化在查询期间到来时先处理最新控制，不准预约旧意图。
@@ -407,7 +475,7 @@ async fn run(
             }
             Err(failure) => error = Some(failure),
         }
-        publish(&progress, &ledger, &snapshot, error);
+        publish(&progress, &ledger, &snapshot, error, &read);
         // 空闲最多30秒；活跃预约15秒到期、成功10秒节流，确定失败用core截止。
         let mut due = if demand {
             next_refresh
@@ -472,10 +540,22 @@ mod tests {
             confidence: Confidence::Exact,
         };
         let (tx, rx) = watch::channel(Progress::default());
-        publish(&tx, &ledger, &Some(value.clone()), None);
+        publish(
+            &tx,
+            &ledger,
+            &Some(value.clone()),
+            None,
+            &TodayReadStatus::default(),
+        );
         let revision = rx.borrow().revision;
         value.observed_ms += 120_000;
-        publish(&tx, &ledger, &Some(value.clone()), None);
+        publish(
+            &tx,
+            &ledger,
+            &Some(value.clone()),
+            None,
+            &TodayReadStatus::default(),
+        );
         assert_eq!(rx.borrow().revision, revision);
         assert_eq!(
             rx.borrow().snapshot.as_ref().unwrap().observed_ms,
@@ -492,3 +572,7 @@ mod tests {
 #[cfg(test)]
 #[path = "notification_shutdown_tests.rs"]
 mod shutdown_tests;
+
+#[cfg(test)]
+#[path = "notification_display_tests.rs"]
+mod display_tests;

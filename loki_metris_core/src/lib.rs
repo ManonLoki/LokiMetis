@@ -38,7 +38,7 @@ mod usage;
 pub mod window_placement;
 pub mod today_usage;
 pub mod usage_milestones;
-pub use today_usage::{UsageDay, TodayAvailability, TodayUsageSnapshot};
+pub use today_usage::{UsageDay, TodayAvailability, TodayUsageSnapshot, TodayUsageDisplay, project_today_usage_display};
 mod workbuddy_stats;
 
 pub use agent_hooks::{

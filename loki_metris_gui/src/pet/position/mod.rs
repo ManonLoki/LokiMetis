@@ -105,7 +105,7 @@ impl Controller {
         }
         let position = PetOverlayPosition {
             x: (f32::from(bounds.origin.x) * scale).round() as i32,
-            y: (f32::from(bounds.origin.y) * scale).round() as i32,
+            y: ((f32::from(bounds.origin.y) + super::geometry::HEADER_HEIGHT as f32) * scale).round() as i32,
         };
         self.position.observe(
             self.settings.pet_overlay_position,

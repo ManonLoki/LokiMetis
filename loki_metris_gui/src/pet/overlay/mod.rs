@@ -70,14 +70,11 @@ impl Overlay {
             bounds_owner.update(cx, |owner, cx| {
                 let prefs = owner.settings.pet_window;
                 let area = host::work_area(window);
-                let range = loki_metris_core::PetSizeRange::for_work_area(
-                    f64::from(f32::from(area.size.width.min(area.size.height))),
-                    prefs.layout,
-                );
+                let range = super::geometry::range(area, prefs.layout);
                 let size = pet_size_from_resize(
                     prefs.layout,
                     f64::from(f32::from(bounds.size.width)),
-                    f64::from(f32::from(bounds.size.height)),
+                    f64::from(super::geometry::body_height(f32::from(bounds.size.height))),
                     prefs.pet_size,
                     range,
                 );
@@ -226,12 +223,7 @@ impl Overlay {
                     .as_ref()
                     .and_then(|tile| tile.image_key.as_ref())
                     .is_some());
-        let vmin = f32::from(
-            window
-                .viewport_size()
-                .width
-                .min(window.viewport_size().height),
-        );
+        let vmin = super::geometry::body_vmin(window);
         let radius = f32::from(self.owner.read(cx).settings.pet_window.pet_size) * 0.28;
         let mut tile = div()
             .id(("pet-position", usize::from(id)))
@@ -348,6 +340,7 @@ impl Render for Overlay {
                     .cloned()
             })
             .collect::<Vec<_>>();
+        let (today, today_aria) = super::today::labels(owner.today, &owner.locale, f32::from(window.viewport_size().width) < 200.);
         let previous = owner.t("monitor.pet.previousPage");
         let next = owner.t("monitor.pet.nextPage");
         let wanted = if window.is_visible() {
@@ -370,18 +363,15 @@ impl Render for Overlay {
         let focused = self.focus.contains_focused(window, cx);
         let controls =
             self.hovered || (self.keyboard_visible && focused && window.is_window_active());
-        let vmin = f32::from(
-            window
-                .viewport_size()
-                .width
-                .min(window.viewport_size().height),
-        );
+        let vmin = super::geometry::body_vmin(window);
         let a11y_owner = self.owner.clone();
         let a11y_press_owner = self.owner.clone();
-        div()
+        let body = div()
             .id("pet-overlay")
             .test_support()
-            .size_full()
+            .w_full()
+            .h(px(super::geometry::body_height(f32::from(window.viewport_size().height))))
+            .flex_shrink_0()
             .relative()
             .overflow_hidden()
             .track_focus(&self.focus)
@@ -536,6 +526,19 @@ impl Render for Overlay {
                                 })),
                         ),
                 )
-            })
+            });
+        let tooltip = today_aria.clone();
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .child(div().h(px(super::geometry::HEADER_HEIGHT as f32)).w_full().flex_shrink_0().pb(px(4.))
+                .child(div().id("pet-today-tokens").test_support().size_full().px(px(4.))
+                    .flex().items_center().justify_center().overflow_hidden().rounded(px(7.))
+                    .bg(rgba(0x0f121ad9)).text_color(rgba(0xfffffff2)).text_size(px(11.))
+                    .role(Role::Label).aria_label(today_aria)
+                    .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(tooltip.clone()).build(window, cx))
+                    .child(div().truncate().child(today))))
+            .child(body)
     }
 }

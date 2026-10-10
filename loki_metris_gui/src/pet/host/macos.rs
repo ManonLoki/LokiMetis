@@ -1,7 +1,7 @@
 //! AppKit仅在GPUI主线程借用活窗；坐标使用主显示器顶边统一换算。
 
 use gpui_kit::{Bounds, Window, point, px, size};
-use loki_metris_core::{PetSizeRange, PetWindowPreferences, pet_window_dimensions};
+use loki_metris_core::{ PetWindowPreferences, pet_window_dimensions};
 use objc2::{MainThreadMarker, rc::Retained};
 use objc2_app_kit::{NSScreen, NSView, NSWindow};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
@@ -88,12 +88,9 @@ pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> an
     crate::native::windowing::configure_auxiliary_window(&native, resizable, settings || prefs.always_on_top);
     if !settings {
         let area = work_area(window);
-        let range = PetSizeRange::for_work_area(
-            f64::from(f32::from(area.size.width.min(area.size.height))),
-            prefs.layout,
-        );
-        let (min_w, min_h) = pet_window_dimensions(prefs.layout, range.min);
-        let (max_w, max_h) = pet_window_dimensions(prefs.layout, range.max);
+        let range = super::super::geometry::range(area, prefs.layout);
+        let (min_w, min_h) = super::super::geometry::dimensions(prefs.layout, range.min);
+        let (max_w, max_h) = super::super::geometry::dimensions(prefs.layout, range.max);
         native.setContentMinSize(NSSize::new(min_w, min_h));
         native.setContentMaxSize(NSSize::new(max_w, max_h));
     }
@@ -148,7 +145,7 @@ pub fn restoration_area(
             size(px(rect.size.width as f32), px(rect.size.height as f32)),
         );
         let range =
-            PetSizeRange::for_work_area(rect.size.width.min(rect.size.height), prefs.layout);
+            super::super::geometry::range(area, prefs.layout);
         let (width, height) = pet_window_dimensions(prefs.layout, range.constrain(prefs.pet_size));
         let physical = loki_metris_core::PetOverlayWorkArea {
             x: (rect.origin.x * scale).round() as i32,

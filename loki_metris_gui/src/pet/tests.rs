@@ -24,18 +24,20 @@ pub(super) fn fixture(cx: &mut TestAppContext) -> Fixture {
     let main = cx.add_window(|_, _| gpui_kit::Empty);
     let owner = cx.new(|_| Controller::new(service.clone(), main.into(), "en-US"));
     let controller = owner.clone();
+    let mut overlay_view = None;
     let handle = cx.update(|cx| {
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds::new(
                     point(px(24.), px(24.)),
-                    size(px(128.), px(128.)),
+                    size(px(128.), px(160.)),
                 ))),
                 titlebar: None,
                 ..Default::default()
             },
             |window, cx| {
                 let view = cx.new(|cx| overlay::Overlay::new(controller, window, cx));
+                overlay_view = Some(view.clone());
                 cx.new(|cx| Root::new(view, window, cx))
             },
         )
@@ -43,6 +45,7 @@ pub(super) fn fixture(cx: &mut TestAppContext) -> Fixture {
     });
     owner.update(cx, |this, _| {
         this.overlay = Some(handle.into());
+        this.overlay_view = overlay_view;
         this.geometry_restored = true;
     });
     Fixture {
@@ -93,7 +96,7 @@ fn independent_settings_create_resize_close_and_reopen(cx: &mut TestAppContext) 
         PetLayout::Row3
     );
     cx.update_window(f.overlay, |_, window, _| {
-        assert_eq!(window.bounds().size, size(px(192.), px(64.)))
+        assert_eq!(window.bounds().size, size(px(192.), px(96.)))
     })
     .unwrap();
     let saved =
@@ -129,7 +132,7 @@ fn overlay_event_defers_resize_and_lock_blocks_wheel_size(cx: &mut TestAppContex
     .unwrap();
     settle(cx, &f.owner);
     cx.update_window(f.overlay, |_, window, _| {
-        assert_eq!(window.bounds().size, size(px(176.), px(176.)))
+        assert_eq!(window.bounds().size, size(px(176.), px(208.)))
     })
     .unwrap();
     f.owner.update(cx, |owner, cx| {
@@ -158,7 +161,7 @@ fn shutdown_flushes_staged_pending_and_debounced_position_after_active_write(
             owner.change(PetPreferenceChange::TurnPage(1), cx);
             owner.change(PetPreferenceChange::Locked(true), cx);
             owner.moved(
-                Bounds::new(point(px(-61.5), px(228.)), size(px(128.), px(128.))),
+                Bounds::new(point(px(-61.5), px(196.)), size(px(128.), px(128.))),
                 2.,
                 cx,
             );
@@ -450,7 +453,7 @@ fn keyboard_navigation_preserves_pointer_hover_after_deferred_paint(cx: &mut Tes
         assert!(window.focused(cx).is_some());
         // 稳定焦点本身不显示分页栏；接下来实际移入才建立 hover 来源。
         assert!(window.try_find("pet-pager").is_none());
-        window.dispatch_event(MouseMoveEvent { position: point(px(20.), px(20.)), ..Default::default() }.to_platform_input(), cx);
+        window.dispatch_event(MouseMoveEvent { position: point(px(20.), px(52.)), ..Default::default() }.to_platform_input(), cx);
         window.render_frame(cx);
     }).unwrap();
     cx.run_until_parked();

@@ -235,12 +235,35 @@ fn first_image_query_receipt_rechecks_current_catalog_revision(cx: &mut TestAppC
     settle_catalog(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 0,
         "a completed query from an older catalog version must not commit focus");
-    assert_eq!(f.service.pet_settings_revision(), 0);
+    // 首次原生几何会独立保存画布位置，不能把其时序与首图分页提交混为一次计数。
+    cx.executor().advance_clock(Duration::from_millis(250));
+    let mut position_settled = false;
+    for _ in 0..500 {
+        cx.run_until_parked();
+        if f.owner.read_with(cx, |owner, _| owner.position_task.is_none()) {
+            position_settled = true;
+            break;
+        }
+        cx.executor().advance_clock(Duration::from_millis(1));
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(position_settled, "initial geometry position receipt must settle");
+    let before_focus = f.service.pet_settings_revision();
+    assert!(before_focus <= 1, "initial position must not create a save loop");
+    let initial_saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    assert!(initial_saved.pet_overlay_position.is_some(), "initial position must actually persist");
+    assert_eq!(initial_saved.pet_window.focused_slot, 0,
+        "older catalog receipt must not commit focus even after position persistence");
     f.owner.update(cx, |owner, cx| owner.refresh(cx));
     settle_catalog(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 9);
     assert!(f.owner.read_with(cx, |owner, _| owner.page().page_has_image));
-    assert_eq!(f.service.pet_settings_revision(), 1);
+    assert_eq!(f.service.pet_settings_revision(), before_focus + 1, "current catalog must commit focus exactly once");
+    assert_eq!(crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.focused_slot, 9);
+    f.owner.update(cx, |owner, cx| owner.refresh(cx));
+    settle_catalog(cx, &f.owner);
+    assert_eq!(f.service.pet_settings_revision(), before_focus + 1);
+    assert!(f.owner.read_with(cx, |owner, _| owner.first_populated == FirstPopulatedFocus::Done && owner.pending.is_empty()));
 }
 
 /// 部分查询失败不能消费旧图库；原样修复且图库代数不变，周期刷新仍恢复定位。

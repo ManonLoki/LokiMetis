@@ -660,6 +660,16 @@
       "openClawEnableRequired": "需要在 OpenClaw 中启用扩展并重启"
     },
     "pet": {
+      "todayAria": "今日 Token 总量：%{value}%{quality}",
+      "todayVisible": "今日 Token · %{value}%{quality}",
+      "todayPending": "读取中…",
+      "todayNoRecords": "暂无记录",
+      "todayUnavailable": "不可用",
+      "todayExpired": "已过期",
+      "todayPartial": "部分",
+      "todayUnknownQuality": "完整度未知",
+      "todayDerived": "推算",
+      "todaySuspected": "待确认",
       "shellAria": "桌宠悬浮窗，第 %{page} / %{pages} 页",
       "previousPage": "上一页",
       "nextPage": "下一页",

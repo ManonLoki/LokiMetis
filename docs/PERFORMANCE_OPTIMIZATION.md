@@ -330,6 +330,18 @@ macOS 的主菜单与 Dock 共用动作表。原实现每次重建都追加克�
 
 参考：[动作索引与禁用标记补丁](../vendor/gpui-pre-macos/patches/menu-action-ownership.after)、[命令回调解锁](../vendor/gpui-pre-macos/patches/menu-command-unlock.after)、[校验回调解锁](../vendor/gpui-pre-macos/patches/menu-validation-unlock.after)、[真实原生回归](../vendor/gpui-pre-macos/src/menu_tests.rs)。
 
+### 5.19 展示消费者复用摘要 worker，用 Copy 状态过滤通知
+
+新增今日总量显示时复用既有All摘要worker与30秒刷新，不为每个窗口增加查询和定时器。后台记录本轮查询的来源代次、日界与读取失败；通知账本错误单独表达。前台从同一watch借用投影一个Copy枚举，只携带整数和质量，不克隆来源字符串或账本，不在100ms画布轮询里查询系统时区或磁盘。值、质量、可用性变化才通知，成功的同值观测时间仍在后台更新以保持新鲜度。
+
+回归分别验证真实SQLite读取/失败/恢复、来源重置、关闭，以及真实GPUI Entity观察器、原生bounds通知和GIF解码Arc/播放器实体复用。把条件改成每轮无条件通知时，10次稳定轮询产生10次通知，错误变体被断言拒绝；恢复后64项相关测试通过。顶栏固定高度，数字变化不触发resize，也不扩大图片画布；保存坐标仍属于原画布，避免新增UI引发持久化反馈。
+
+Computer Use随后发现独立资格错误：All已有89,471,909 Token，摘要却无记录。展示复用聚合时还必须保留其质量合同，不能把通知的全来源就绪门槛当成展示门槛。新增领域与真实SQLite worker回归均先复现失败；Ready/ReadyNoCalls改为显示整数，未就绪成员只收紧完整度，通知资格保持关闭。已有Partial/Unknown与Derived/Suspected不能被重新提升；未扫描、需重扫和读取失败仍不能伪装成零。修正后领域7项及GUI/服务65项通过，实机All与桌宠均读回99,257,782；宽窄布局、分页及重启保存值另有开发证据。此修正属于正确性证据，不是性能收益。
+
+这是 `LMDESK-PET-TODAY-TOKENS-001`，required_version `0.2.5`。此证据证明没有新增重复读取和同值UI通知，不给出整机CPU收益；既有100ms轮询和CVDisplayLink仍在。午夜及90秒过期在前台撤值，系统时区变化仍受后台捕获与jiff缓存影响，不能宣称立即识别。相关失败、回归及开发预览证据位于忽略的 `release/pet-today-tokens-development-20261011/`。
+
+参考：[core资格投影](../loki_metris_core/src/today_usage/display.rs)、[后台摘要及读取事实](../loki_metris_gui/src/usage_service/notifications.rs)、[真实服务回归](../loki_metris_gui/src/usage_service/notification_display_tests.rs)、[展示变化与事件隔离回归](../loki_metris_gui/src/pet/today_tests.rs)。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

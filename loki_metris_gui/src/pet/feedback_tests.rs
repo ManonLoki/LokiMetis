@@ -23,7 +23,7 @@ fn repeated_internal_bounds_and_refresh_do_not_restart_pet_save_cycle(cx: &mut T
         .unwrap();
     let position = PetOverlayPosition {
         x: (f32::from(bounds.origin.x) * scale).round() as i32,
-        y: (f32::from(bounds.origin.y) * scale).round() as i32,
+        y: ((f32::from(bounds.origin.y) + geometry::HEADER_HEIGHT as f32) * scale).round() as i32,
     };
     let settings = f
         .service
@@ -70,7 +70,7 @@ fn same_physical_pixel_jitter_keeps_deadline_and_real_motion_still_saves(cx: &mu
     let f = fixture(cx);
     f.owner.update(cx, |owner, cx| {
         owner.moved(
-            Bounds::new(point(px(-40.3), px(60.)), size(px(128.), px(128.))),
+            Bounds::new(point(px(-40.3), px(28.)), size(px(128.), px(128.))),
             2.,
             cx,
         )
@@ -79,7 +79,7 @@ fn same_physical_pixel_jitter_keeps_deadline_and_real_motion_still_saves(cx: &mu
     cx.executor().advance_clock(Duration::from_millis(150));
     f.owner.update(cx, |owner, cx| {
         owner.moved(
-            Bounds::new(point(px(-40.4), px(60.)), size(px(128.), px(128.))),
+            Bounds::new(point(px(-40.4), px(28.)), size(px(128.), px(128.))),
             2.,
             cx,
         )

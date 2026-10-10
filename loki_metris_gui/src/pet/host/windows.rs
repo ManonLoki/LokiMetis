@@ -234,10 +234,7 @@ pub fn restoration_area(
 ) -> (Bounds<gpui_kit::Pixels>, f64, bool) {
     let area = work_area(window);
     let scale = f64::from(window.scale_factor());
-    let range = loki_metris_core::PetSizeRange::for_work_area(
-        f64::from(f32::from(area.size.width.min(area.size.height))),
-        prefs.layout,
-    );
+    let range = super::super::geometry::range(area, prefs.layout);
     let (width, height) =
         loki_metris_core::pet_window_dimensions(prefs.layout, range.constrain(prefs.pet_size));
     let physical = loki_metris_core::PetOverlayWorkArea {

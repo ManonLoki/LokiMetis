@@ -660,6 +660,16 @@
       "openClawEnableRequired": "Enable the extension in OpenClaw and restart"
     },
     "pet": {
+      "todayAria": "Today’s total Tokens: %{value}%{quality}",
+      "todayVisible": "Today · %{value}%{quality}",
+      "todayPending": "Loading…",
+      "todayNoRecords": "No records",
+      "todayUnavailable": "Unavailable",
+      "todayExpired": "Expired",
+      "todayPartial": "Partial",
+      "todayUnknownQuality": "Unknown coverage",
+      "todayDerived": "Derived",
+      "todaySuspected": "Unconfirmed",
       "shellAria": "Desktop pet overlay, page %{page} of %{pages}",
       "previousPage": "Previous page",
       "nextPage": "Next page",

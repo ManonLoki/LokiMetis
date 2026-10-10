@@ -185,3 +185,48 @@ fn last_visible_shared_id_retires_once_and_blank_frames_preserve_new_asset_owner
     })
     .unwrap();
 }
+
+/// 总量与质量重绘保留当前播放器实体、解码 Arc 和实际图片图元。
+#[gpui_kit::test]
+fn today_summary_updates_reuse_player_and_decoded_asset(cx: &mut TestAppContext) {
+    use loki_metris_core::{Completeness, Confidence, TodayUsageDisplay};
+    let (f, source) = shared_fixture(cx);
+    let view = f
+        .owner
+        .read_with(cx, |owner, _| owner.overlay_view.clone().unwrap());
+    let player = view.read_with(cx, |view, _| view.players.get(&0).unwrap().view.entity_id());
+    let original = cx
+        .update_window(f.overlay, |_, window, cx| {
+            window
+                .get_asset::<MonitorImageDecoder>(&source, cx)
+                .unwrap()
+                .unwrap()
+        })
+        .unwrap();
+    for tokens in [0, 110, 100_000_000, u64::MAX] {
+        f.owner.update(cx, |owner, cx| {
+            owner.today = TodayUsageDisplay::Value {
+                total_tokens: tokens,
+                completeness: Completeness::Partial,
+                confidence: Confidence::Derived,
+            };
+            cx.notify();
+        });
+        cx.update_window(f.overlay, |_, window, cx| {
+            window.render_frame(cx);
+            assert!(Arc::ptr_eq(
+                &original,
+                &window
+                    .get_asset::<MonitorImageDecoder>(&source, cx)
+                    .unwrap()
+                    .unwrap()
+            ));
+            assert!(!window.painted_polychrome_sprites().is_empty());
+        })
+        .unwrap();
+        assert_eq!(
+            view.read_with(cx, |view, _| view.players.get(&0).unwrap().view.entity_id()),
+            player
+        );
+    }
+}

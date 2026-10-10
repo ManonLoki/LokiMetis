@@ -23,7 +23,7 @@ fn accepted_b_then_return_a_shutdown_cancels_ui_receipt_but_preserves_final_a(
     let held = crate::usage_service::block_pet_mutations(&f.service);
     let moved = |position: PetOverlayPosition| {
         Bounds::new(
-            point(px(position.x as f32), px(position.y as f32)),
+            point(px(position.x as f32), px(position.y as f32 - geometry::HEADER_HEIGHT as f32)),
             size(px(128.), px(128.)),
         )
     };

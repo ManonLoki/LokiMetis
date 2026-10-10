@@ -2,6 +2,8 @@
 
 pub(crate) mod host;
 mod overlay;
+mod geometry;
+mod today;
 mod settings;
 mod settings_window;
 mod size_control;
@@ -14,6 +16,8 @@ mod shutdown_receipt_tests;
 mod tests;
 #[cfg(test)]
 mod first_populated_tests;
+#[cfg(test)]
+mod today_tests;
 
 use crate::{
     monitor::{images::MonitorGallerySnapshot, settings::MonitorSettings},
@@ -27,7 +31,7 @@ use gpui_kit::{
 use loki_metris_core::{
     AiProfileDraft, HookError, PetLayout, PetOverlayPage, PetOverlayPosition, PetOverlayToolState,
     PetPreferenceChange, PetSizeRange, change_pet_preferences,
-    first_populated_pet_slot, pet_window_dimensions, project_available_pet_overlay_page,
+    first_populated_pet_slot, project_available_pet_overlay_page, TodayUsageDisplay,
 };
 use std::{
     collections::{HashMap, VecDeque},
@@ -61,6 +65,7 @@ struct Controller {
     overlay_view: Option<Entity<overlay::Overlay>>,
     visible: bool,
     locale: String,
+    today: TodayUsageDisplay,
     settings: MonitorSettings,
     drafts: Vec<AiProfileDraft>,
     states: Vec<PetOverlayToolState>,
@@ -95,6 +100,7 @@ impl Controller {
             overlay_view: None,
             visible: true,
             locale: locale.into(),
+            today: TodayUsageDisplay::Pending,
             settings: MonitorSettings::default(),
             drafts: Vec::new(),
             states: Vec::new(),
@@ -128,6 +134,11 @@ impl Controller {
     }
     /// 文件快照只在设置或图库代数变化时读取，事件投影每100ms检查内存版本。
     fn refresh(&mut self, cx: &mut Context<Self>) {
+        let today = self.service.today_display();
+        if self.today != today {
+            self.today = today;
+            cx.notify();
+        }
         if let Ok(status) = self.service.monitor_status() {
             if self.observed.3 != status.revision {
                 self.states = status
@@ -319,19 +330,16 @@ impl Controller {
                             false,
                         )
                     };
-                    let range = PetSizeRange::for_work_area(
-                        f64::from(f32::from(area.size.width.min(area.size.height))),
-                        prefs.layout,
-                    );
+                    let range = geometry::range(area, prefs.layout);
                     let (width, height) =
-                        pet_window_dimensions(prefs.layout, range.constrain(prefs.pet_size));
+                        geometry::dimensions(prefs.layout, range.constrain(prefs.pet_size));
                     host::apply(window, prefs, false)?;
                     let actual = host::bounds(window);
                     let (x, y) = if restore {
                         stored
                             .filter(|_| valid_stored)
                             .map(|position| {
-                                (f64::from(position.x) / scale, f64::from(position.y) / scale)
+                                (f64::from(position.x) / scale, f64::from(position.y) / scale - geometry::HEADER_HEIGHT)
                             })
                             .unwrap_or((
                                 f64::from(f32::from(area.right())) - width - 16.,
@@ -588,9 +596,9 @@ pub fn install(main: AnyWindowHandle, service: Arc<UsageService>, locale: &str, 
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::new(
                 point(px(24.), px(24.)),
-                size(px(128.), px(128.)),
+                size(px(128.), px(128. + geometry::HEADER_HEIGHT as f32)),
             ))),
-            window_min_size: Some(size(px(64.), px(64.))),
+            window_min_size: Some(size(px(64.), px(64. + geometry::HEADER_HEIGHT as f32))),
             titlebar: None,
             window_background: WindowBackgroundAppearance::Transparent,
             focus: false,
@@ -648,10 +656,7 @@ fn range_for(overlay: Option<AnyWindowHandle>, layout: PetLayout, cx: &mut App) 
             handle
                 .update(cx, |_, window, _| {
                     let area = host::work_area(window);
-                    PetSizeRange::for_work_area(
-                        f64::from(f32::from(area.size.width.min(area.size.height))),
-                        layout,
-                    )
+                    geometry::range(area, layout)
                 })
                 .ok()
         })

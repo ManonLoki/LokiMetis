@@ -14,6 +14,7 @@ mod logging;
 mod lifecycle;
 mod release_notes;
 mod fonts;
+mod format_tokens;
 
 mod native;
 mod pet;
