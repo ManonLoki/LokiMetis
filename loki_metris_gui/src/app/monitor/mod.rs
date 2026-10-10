@@ -31,6 +31,8 @@ mod sticky_api_tests;
 mod sticky_exclusions_tests;
 #[cfg(test)]
 mod focus_tests;
+#[cfg(test)]
+mod refresh_tests;
 use crate::monitor::listener::HookRelayStatus;
 use gpui_kit::{AnyElement,Context,FontWeight,IntoElement,Role,base::TestSupportExt as _,component::{ActiveTheme,button::Button},div,prelude::*,px,rgb};
 
@@ -59,8 +61,17 @@ impl Shell {
         if !force&&self.monitor.last_read.is_some_and(|read|read.elapsed()<std::time::Duration::from_secs(3)) {return}
         self.monitor.last_read=Some(std::time::Instant::now());
         let next=self.dashboard.service.as_ref().ok_or("monitor_service_unavailable").and_then(|service|service.monitor_status());
-        match next {Ok(status)=>{self.monitor.status=Some(status);self.monitor.error=None;},Err(error)=>{self.monitor.error=Some(error);}}
-        cx.notify();
+        let changed=match next {
+            Ok(status)=>{
+                let changed=self.monitor.status.as_ref()!=Some(&status)||self.monitor.error.is_some();
+                self.monitor.status=Some(status);self.monitor.error=None;changed
+            },
+            Err(error)=>{
+                let changed=self.monitor.error!=Some(error);
+                self.monitor.error=Some(error);changed
+            },
+        };
+        if changed {cx.notify();}
     }
 
     /// 当前检查点提供真实工作台；其它监控子页在各自闭环接入后增加导航。

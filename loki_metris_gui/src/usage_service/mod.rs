@@ -89,6 +89,11 @@ impl UsageService {
     /// 真实窗口回归显式绑定临时目录，不依赖进程全局环境或真实用户数据。
     #[cfg(test)]
     pub(crate) fn in_test_directory(directory: PathBuf) -> Result<Arc<Self>, &'static str> { Self::in_directory(directory) }
+    /// 窗口回归仅在隔离路径启动真实监听，不写用户端点或 Hook 配置。
+    #[cfg(test)]
+    pub(crate) fn start_test_monitoring_at(&self, path: PathBuf) -> Result<(), &'static str> {
+        self.start_monitoring_at(path)
+    }
     /// 事件循环前建立应用 runtime；所有存储仍限定在产品的独立目录。
     pub fn new() -> Result<Arc<Self>, &'static str> {
         #[cfg(target_os = "macos")]
