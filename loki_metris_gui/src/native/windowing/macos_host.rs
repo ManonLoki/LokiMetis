@@ -158,25 +158,66 @@ impl WindowHost {
     /// 普通外框先应用；最大化另一步执行，以便先读回普通几何。
     pub fn apply_normal(&self, desktop: &DesktopSnapshot, placement: &WindowPlacement) -> anyhow::Result<()> {
         anyhow::ensure!(!self.fullscreen() && !self.transitioning() && !self.maximized(), "window_normal_transition_required");
+        self.apply_frame(desktop, placement)
+    }
+    /// 固定辅助窗在原生全局点边界对齐一次，返回严格读回所需的对齐后目标。
+    /// 不采用主窗 zoom 判据；本机固定无边框窗也可能返回 isZoomed=true。
+    pub fn apply_auxiliary(&self, desktop: &DesktopSnapshot, placement: &WindowPlacement) -> anyhow::Result<WindowPlacement> {
+        anyhow::ensure!(!self.fullscreen() && !self.transitioning(), "window_fullscreen_transition_required");
+        let mut frame = self.target_frame(desktop, placement)?;
+        frame.origin.x = frame.origin.x.round();
+        frame.origin.y = frame.origin.y.round();
+        let display = desktop.display(&placement.display_key).ok_or_else(|| anyhow::anyhow!("window_target_removed"))?;
+        let mut aligned = placement.clone();
+        aligned.origin.x = frame.origin.x - display.global_origin.x;
+        aligned.origin.y = desktop.global_top - display.global_origin.y - frame.origin.y - frame.size.height;
+        self.set_frame(frame);
+        Ok(aligned)
+    }
+    /// 真实外框换算只有一处；调用方按各自窗口样式判断能否定位。
+    fn apply_frame(&self, desktop: &DesktopSnapshot, placement: &WindowPlacement) -> anyhow::Result<()> {
+        self.set_frame(self.target_frame(desktop, placement)?);
+        Ok(())
+    }
+    /// 内容尺寸与屏内位置只在这里转换为 AppKit 全局外框。
+    fn target_frame(&self, desktop: &DesktopSnapshot, placement: &WindowPlacement) -> anyhow::Result<NSRect> {
         let display = desktop.display(&placement.display_key).ok_or_else(|| anyhow::anyhow!("window_target_removed"))?;
         let window = &self.0.window;
         let content = NSRect::new(NSPoint::new(0., 0.), NSSize::new(placement.content_size.width, placement.content_size.height));
         let frame_size = window.frameRectForContentRect(content).size;
-        self.geometry_changed();
-        window.setFrame_display(NSRect::new(NSPoint::new(
+        Ok(NSRect::new(NSPoint::new(
             display.global_origin.x + placement.origin.x,
             desktop.global_top - display.global_origin.y - placement.origin.y - frame_size.height,
-        ), frame_size), true);
-        Ok(())
+        ), frame_size))
+    }
+    /// AppKit 回调可以同步进入 GPUI，故调用方必须已释放所有 GPUI 借用。
+    fn set_frame(&self, frame: NSRect) {
+        self.geometry_changed();
+        self.0.window.setFrame_display(frame, true);
     }
     /// 必须在普通几何读回之后调用，避免保存系统 zoom 矩形作为普通尺寸。
     pub fn maximize(&self) { if !self.0.window.isZoomed() { self.geometry_changed(); self.0.window.zoom(None); } }
     /// 真实 zoom 状态决定最后保存标志，不能乐观宣称系统接受请求。
     pub fn maximized(&self) -> bool { self.0.window.isZoomed() }
+    /// 无边框辅助窗的样式变更也可能同步回调，必须在全部 GPUI 借用之外执行。
+    pub fn configure_auxiliary(&self, resizable: bool, always_on_top: bool) {
+        configure_auxiliary_window(&self.0.window, resizable, always_on_top);
+    }
     /// 原生显示/聚焦会同步回调 GPUI，因此限于借用之外。
     pub fn show(&self) { self.0.window.makeKeyAndOrderFront(None); }
     /// 关闭到托盘也在借用之外执行。
     pub fn hide(&self) { self.0.window.orderOut(None); }
+}
+
+/// 主窗与辅助窗桥接共享原生属性映射，调用者保证当前主线程及活窗引用。
+pub(crate) fn configure_auxiliary_window(window: &NSWindow, resizable: bool, always_on_top: bool) {
+    let style = NSWindowStyleMask::Borderless | NSWindowStyleMask::FullSizeContentView;
+    window.setStyleMask(if resizable { style | NSWindowStyleMask::Resizable } else { style });
+    window.setLevel(if always_on_top { 3 } else { 0 });
+    window.setHasShadow(false);
+    window.setHidesOnDeactivate(false);
+    window.setMovableByWindowBackground(false);
+    window.setCollectionBehavior(NSWindowCollectionBehavior::CanJoinAllSpaces);
 }
 
 /// 将原生全局点矩形复制为纯数值，不把它与 core 的屏内 DIP 混用。

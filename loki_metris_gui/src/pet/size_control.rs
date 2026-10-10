@@ -1,7 +1,7 @@
 //! 桌宠尺寸滑块组合基础轨道与完整的键盘、辅助赋值契约。
 
 use gpui_kit::{
-    AccessibleAction, Entity, FocusHandle, IntoElement, MouseButton, Role, Window,
+    AccessibleAction, Context, Entity, FocusHandle, IntoElement, MouseButton, Role, Window,
     accesskit::{ActionData, Orientation},
     base::{SliderIndicator, SliderThumb, SliderTrack, TestSupportExt as _},
     component::slider::SliderState,
@@ -21,6 +21,14 @@ fn numeric_value(data: Option<&ActionData>) -> Option<f32> {
         .is_finite()
         .then_some(value as f32)
         .filter(|v| v.is_finite())
+}
+
+/// 与原生 range 一致，在输入边界夹紧；无变化不触发偏好回写或控件通知。
+fn set_control_value(state: &mut SliderState, value: f32, window: &mut Window, cx: &mut Context<SliderState>) {
+    let value = value.round().clamp(state.min_value(), state.max_value());
+    if state.value().end() != value {
+        state.set_value(value, window, cx);
+    }
 }
 
 /// 继续使用工具包的拖动和轨道计算，只补齐其缺少的SetValue入口。
@@ -43,7 +51,7 @@ pub(super) fn render(
         .id("pet-size-control")
         .test_support()
         .w_full()
-        .h(px(24.))
+        .h(px(20.))
         .flex()
         .items_center()
         .track_focus(focus)
@@ -57,17 +65,17 @@ pub(super) fn render(
         .capture_any_mouse_down(move |_, window, cx| focus_on_down.focus(window, cx))
         .on_a11y_action(AccessibleAction::SetValue, move |data, window, cx| {
             if let Some(value) = numeric_value(data) {
-                input.update(cx, |state, cx| state.set_value(value.round(), window, cx));
+                input.update(cx, |state, cx| set_control_value(state, value, window, cx));
             }
         })
         .on_a11y_action(AccessibleAction::Increment, move |_, window, cx| {
             up.update(cx, |state, cx| {
-                state.set_value(state.value().end() + 1., window, cx)
+                set_control_value(state, state.value().end() + 1., window, cx)
             });
         })
         .on_a11y_action(AccessibleAction::Decrement, move |_, window, cx| {
             down.update(cx, |state, cx| {
-                state.set_value(state.value().end() - 1., window, cx)
+                set_control_value(state, state.value().end() - 1., window, cx)
             });
         })
         .on_key_down(move |event, window, cx| {
@@ -80,7 +88,7 @@ pub(super) fn render(
                     _ => return,
                 };
                 cx.stop_propagation();
-                state.set_value(value, window, cx);
+                set_control_value(state, value, window, cx);
             });
         })
         .on_mouse_up(
@@ -94,21 +102,24 @@ pub(super) fn render(
         .child(
             SliderTrack::new(state)
                 .w_full()
-                .h(px(24.))
+                .h(px(20.))
+                .ml(px(2.))
                 .flex()
                 .items_center()
                 .child(
                     SliderIndicator::new(state)
                         .relative()
-                        .w_full()
-                        .h(px(4.))
-                        .rounded_full()
-                        .bg(rgb(0x2d3548))
+                        .flex_1()
+                        .min_w_0()
+                        .mx(px(12.))
+                        .h(px(8.))
+                        .child(div().absolute().left(px(-12.)).right(px(-12.))
+                            .h_full().rounded_full().bg(rgb(0x3b3b3b)))
                         .child(
                             div()
                                 .absolute()
                                 .h_full()
-                                .left_0()
+                                .left(px(-12.))
                                 .right(relative(1. - fraction))
                                 .rounded_full()
                                 .bg(rgb(0x5b83e8)),
@@ -116,12 +127,13 @@ pub(super) fn render(
                         .child(
                             SliderThumb::new(state)
                                 .absolute()
-                                .top(px(-6.))
+                                .top(px(-4.))
                                 .left(relative(fraction))
-                                .ml(px(-8.))
-                                .size(px(16.))
+                                .ml(px(-12.))
+                                .w(px(24.))
+                                .h(px(16.))
                                 .rounded_full()
-                                .bg(rgb(0x5b83e8)),
+                                .bg(rgb(0xffffff)),
                         ),
                 ),
         )

@@ -3,6 +3,7 @@
 pub(crate) mod host;
 mod overlay;
 mod settings;
+mod settings_window;
 mod size_control;
 mod position;
 #[cfg(test)]
@@ -25,7 +26,7 @@ use gpui_kit::{
 };
 use loki_metris_core::{
     AiProfileDraft, HookError, PetLayout, PetOverlayPage, PetOverlayPosition, PetOverlayToolState,
-    PetPreferenceChange, PetSizeRange, PetWindowPreferences, change_pet_preferences,
+    PetPreferenceChange, PetSizeRange, change_pet_preferences,
     first_populated_pet_slot, pet_window_dimensions, project_available_pet_overlay_page,
 };
 use std::{
@@ -55,6 +56,8 @@ struct Controller {
     main: AnyWindowHandle,
     overlay: Option<AnyWindowHandle>,
     settings_window: Option<AnyWindowHandle>,
+    /// 配置窗显示意图独立于设置文件读取 generation，关闭也使尚未创建的显示失效。
+    settings_window_generation: u64,
     overlay_view: Option<Entity<overlay::Overlay>>,
     visible: bool,
     locale: String,
@@ -88,6 +91,7 @@ impl Controller {
             main,
             overlay: None,
             settings_window: None,
+            settings_window_generation: 0,
             overlay_view: None,
             visible: true,
             locale: locale.into(),
@@ -539,17 +543,28 @@ impl Controller {
         self.refresh(cx);
         cx.notify();
     }
-    /// 独立设置窗按当前桌宠工作区居中，关闭后下次重新创建。
+    /// 独立设置在入口捕获鼠标屏；创建与原生定位由专属显示事务执行。
     fn open_settings(&mut self, cx: &mut Context<Self>) {
+        if self.quitting { return; }
+        self.settings_window_generation = self.settings_window_generation.wrapping_add(1);
+        let request = settings_window::Request::capture(self.settings_window_generation, cx);
         let owner = cx.entity().clone();
-        cx.defer(move |cx| open_settings_window(owner, cx));
+        cx.defer(move |cx| settings_window::open(owner, request, cx));
     }
     /// 设置窗销毁不会取消controller持有的保存回执。
     fn close_settings(&mut self, cx: &mut App) {
+        self.settings_window_generation = self.settings_window_generation.wrapping_add(1);
         if let Some(handle) = self.settings_window.take() {
             cx.defer(move |cx| {
                 let _ = handle.update(cx, |_, window, _| window.remove_window());
             });
+        }
+    }
+    /// 原生关闭已拥有销毁流程，只撤销显示租约并清除当前句柄。
+    fn settings_window_closed(&mut self, handle: AnyWindowHandle) {
+        if self.settings_window == Some(handle) {
+            self.settings_window_generation = self.settings_window_generation.wrapping_add(1);
+            self.settings_window = None;
         }
     }
     /// 返回主窗口时关闭设置，浮窗继续显示。
@@ -654,63 +669,6 @@ pub fn toggle(cx: &mut App) {
                 this.show(cx)
             }
         });
-    }
-}
-
-/// 新窗首帧会读取controller，创建必须在它的可变借用之外。
-fn open_settings_window(owner: Entity<Controller>, cx: &mut App) {
-    let overlay = owner.read(cx).overlay;
-    let area = overlay
-        .and_then(|handle| {
-            handle
-                .update(cx, |_, window, _| host::work_area(window))
-                .ok()
-        })
-        .unwrap_or_else(|| Bounds::new(point(px(0.), px(0.)), size(px(1440.), px(900.))));
-    let origin = point(
-        area.origin.x + (area.size.width - px(320.)) / 2.,
-        area.origin.y + (area.size.height - px(470.)) / 2.,
-    );
-    if let Some(handle) = owner.read(cx).settings_window {
-        let _ = handle.update(cx, |_, window, cx| {
-            if let Err(error) = host::move_to(
-                window,
-                f64::from(f32::from(origin.x)),
-                f64::from(f32::from(origin.y)),
-            ) {
-                tracing::warn!(%error,"pet settings recenter failed");
-            }
-            window.bounds_changed(cx);
-            window.activate_window();
-        });
-        return;
-    }
-    let controller = owner.clone();
-    let result = cx.open_window(
-        WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(Bounds::new(
-                origin,
-                size(px(320.), px(470.)),
-            ))),
-            window_min_size: Some(size(px(280.), px(440.))),
-            titlebar: None,
-            is_resizable: false,
-            is_minimizable: false,
-            ..Default::default()
-        },
-        |window, cx| {
-            let _ = host::apply(window, PetWindowPreferences::default(), true);
-            let _ = host::move_to(
-                window,
-                f64::from(f32::from(origin.x)),
-                f64::from(f32::from(origin.y)),
-            );
-            let view = cx.new(|cx| settings::Settings::new(controller, window, cx));
-            cx.new(|cx| Root::new(view, window, cx))
-        },
-    );
-    if let Ok(handle) = result {
-        owner.update(cx, |this, _| this.settings_window = Some(handle.into()));
     }
 }
 

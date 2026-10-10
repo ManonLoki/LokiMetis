@@ -10,6 +10,8 @@ mod geometry_settle;
 pub(crate) use macos::{capture_desktop, capture_topology, capture_window, capture_normal, frame_insets, window_display_key};
 #[cfg(target_os = "macos")]
 pub(crate) use macos_host::WindowHost;
+#[cfg(all(target_os = "macos", not(test)))]
+pub(crate) use macos_host::configure_auxiliary_window;
 
 use gpui_kit::DisplayId;
 use loki_metris_core::window_placement::{WindowDipPoint, WindowDisplayArea, WindowStateV2};

@@ -3,7 +3,7 @@
 use gpui_kit::{Bounds, Window, point, px, size};
 use loki_metris_core::{PetSizeRange, PetWindowPreferences, pet_window_dimensions};
 use objc2::{MainThreadMarker, rc::Retained};
-use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowCollectionBehavior, NSWindowStyleMask};
+use objc2_app_kit::{NSScreen, NSView, NSWindow};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -85,21 +85,7 @@ pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
 pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> anyhow::Result<()> {
     let native = native(window)?;
     let resizable = !prefs.locked && !settings;
-    let style = NSWindowStyleMask::Borderless | NSWindowStyleMask::FullSizeContentView;
-    native.setStyleMask(if resizable {
-        style | NSWindowStyleMask::Resizable
-    } else {
-        style
-    });
-    native.setLevel(if settings || prefs.always_on_top {
-        3
-    } else {
-        0
-    });
-    native.setHasShadow(false);
-    native.setHidesOnDeactivate(false);
-    native.setMovableByWindowBackground(false);
-    native.setCollectionBehavior(NSWindowCollectionBehavior::CanJoinAllSpaces);
+    crate::native::windowing::configure_auxiliary_window(&native, resizable, settings || prefs.always_on_top);
     if !settings {
         let area = work_area(window);
         let range = PetSizeRange::for_work_area(

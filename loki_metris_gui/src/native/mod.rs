@@ -113,7 +113,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
 
 /// 主动显示统一捕获入口鼠标屏；原生修改由前台 task 在借用之外执行。
 pub fn show(handle: AnyWindowHandle, cx: &mut App) {
-    #[cfg(target_os="macos")]
+    #[cfg(all(target_os="macos", not(test)))]
     {
         let desktop = windowing::capture_desktop(cx);
         let Some(shell) = cx.try_global::<Services>().map(|service| service.shell.clone()) else { return; };
@@ -130,7 +130,7 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
         }
         return;
     }
-    #[cfg(not(target_os="macos"))]
+    #[cfg(any(not(target_os="macos"), test))]
     {
     #[cfg(windows)]
     let native = cx.try_global::<Services>().and_then(|services| services.window);

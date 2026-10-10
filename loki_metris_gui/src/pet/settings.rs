@@ -4,7 +4,7 @@ use super::{Controller, host};
 use gpui_kit::{
     Context, Entity, FocusHandle, FontWeight, IntoElement, MouseButton, Render, Role, Subscription,
     Window, base::TestSupportExt as _, component::slider::SliderState, div, prelude::*, px, rgb,
-    rgba,
+    relative, rgba,
 };
 use loki_metris_core::{PetLayout, PetPreferenceChange};
 
@@ -31,7 +31,21 @@ impl Settings {
                 .step(1.)
                 .default_value(f32::from(range.constrain(prefs.pet_size)))
         });
-        let owner_observe = cx.observe(&owner, |_, _, cx| cx.notify());
+        let owner_observe = cx.observe_in(&owner, window, |this, owner, window, cx| {
+            let (settled, overlay, prefs) = {
+                let owner = owner.read(cx);
+                (!owner.busy && owner.pending.is_empty(), owner.overlay, owner.settings.pet_window)
+            };
+            // 确认边界才同步滑块；即时绘制不能用旧偏好覆盖尚未派发的指针意图。
+            if settled {
+                let range = super::range_for(overlay, prefs.layout, cx);
+                let value = range.constrain(prefs.pet_size);
+                if this.slider.read(cx).value().end().round() as u16 != value {
+                    this.slider.update(cx, |state, cx| state.set_value(f32::from(value), window, cx));
+                }
+            }
+            cx.notify();
+        });
         let slider_owner = owner.clone();
         let slider_observe = cx.observe(&slider, move |_, slider, cx| {
             let value = slider.read(cx).value().end().round() as u16;
@@ -42,8 +56,9 @@ impl Settings {
             });
         });
         let close_owner = owner.clone();
+        let closing_handle = window.window_handle();
         window.on_window_should_close(cx, move |_, cx| {
-            close_owner.update(cx, |owner, _| owner.settings_window = None);
+            close_owner.update(cx, |owner, _| owner.settings_window_closed(closing_handle));
             true
         });
         Self {
@@ -76,10 +91,6 @@ impl Render for Settings {
                     .default_value(f32::from(value))
             });
             self.range = (range.min, range.max);
-        } else if self.slider.read(cx).value().end().round() as u16 != value {
-            self.slider.update(cx, |state, cx| {
-                state.set_value(f32::from(value), window, cx)
-            });
         }
         let t = |key| self.owner.read(cx).t(key);
         let title = t("monitor.pet.settingsTitle");
@@ -167,6 +178,7 @@ impl Render for Settings {
             .size_full()
             .overflow_y_scroll()
             .p(px(14.))
+            .line_height(relative(1.55))
             .text_color(rgb(0xeef2fb))
             .bg(rgb(0x11151d))
             .flex()
