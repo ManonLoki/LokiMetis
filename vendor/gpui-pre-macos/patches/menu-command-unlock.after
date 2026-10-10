@@ -1,0 +1,6 @@
+            let action = lock.menu_actions.get(index).map(|action| action.boxed_clone());
+            // 无效或显式禁用的 tag 也必须先解锁，随后才能归还回调。
+            drop(lock);
+            if let Some(action) = action {
+                callback(&*action);
+            }

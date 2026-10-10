@@ -1,0 +1,3 @@
+                    let tag = actions.len() as NSInteger;
+                    let _: () = msg_send![item, setTag: tag];
+                    actions.push(action.boxed_clone());

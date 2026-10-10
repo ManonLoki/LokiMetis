@@ -1,0 +1,17 @@
+                    // 主菜单和 Dock 共用稳定索引；按完整动作值复用，旧菜单项仍可分派。
+                    let index = actions
+                        .iter()
+                        .position(|existing| existing.partial_eq(action.as_ref()))
+                        .unwrap_or_else(|| {
+                            let index = actions.len();
+                            actions.push(action.boxed_clone());
+                            index
+                        });
+                    // 负 tag 记录此项显式禁用，防止 AppKit 自动校验将其重新启用。
+                    let tag = if *disabled {
+                        item.setTarget_(delegate);
+                        -(index as NSInteger) - 1
+                    } else {
+                        index as NSInteger
+                    };
+                    let _: () = msg_send![item, setTag: tag];

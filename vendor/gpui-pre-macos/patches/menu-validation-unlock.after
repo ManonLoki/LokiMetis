@@ -1,0 +1,6 @@
+            let action = lock.menu_actions.get(index).map(|action| action.boxed_clone());
+            // 动态可用性与显式禁用分开；负 tag 默认 false，回调始终在锁外。
+            drop(lock);
+            if let Some(action) = action {
+                result = callback(action.as_ref());
+            }

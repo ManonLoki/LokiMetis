@@ -14,6 +14,7 @@ fn main() {
         "src/descriptor_identity.rs",
         "src/variable_font_tests.rs",
         "src/descriptor_identity_tests.rs",
+        "src/menu_tests.rs",
         "fixture_verify.rs",
         "test-fixtures",
         "test-fixtures.sha256",
@@ -26,6 +27,30 @@ fn main() {
         root_prefix: include_str!("patches/root-prefix.before"),
         source_manifest_sha256: "4b29969a342cfbc80229ca6690ec4f29a1954ddd50470a0106d794e669edf406",
         patches: &[
+            Patch {
+                name: "menu-action-ownership",
+                path: "src/platform.rs",
+                before: include_str!("patches/menu-action-ownership.before"),
+                after: include_str!("patches/menu-action-ownership.after"),
+            },
+            Patch {
+                name: "menu-command-unlock",
+                path: "src/platform.rs",
+                before: include_str!("patches/menu-command-unlock.before"),
+                after: include_str!("patches/menu-command-unlock.after"),
+            },
+            Patch {
+                name: "menu-validation-unlock",
+                path: "src/platform.rs",
+                before: include_str!("patches/menu-validation-unlock.before"),
+                after: include_str!("patches/menu-validation-unlock.after"),
+            },
+            Patch {
+                name: "menu-tests",
+                path: "src/platform.rs",
+                before: include_str!("patches/menu-tests.before"),
+                after: include_str!("patches/menu-tests.after"),
+            },
             Patch {
                 name: "reopen-registration",
                 path: "src/platform.rs",
@@ -82,7 +107,7 @@ fn main() {
             },
         ],
         generated_hashes: &[
-            ("src/platform.rs", "9a208b312faca0b9b26e87d43f6cde804849d767757631d7d3cf31d89bffadb8"),
+            ("src/platform.rs", "879ef085b1978afddf3e9b3b4f1269073b93e092c919a5f0648b6cff4bb63e26"),
             ("src/window.rs", "60c8b71a7c63fb7b57867fd3fb1f3c6928694e9f867d31c07958c91b04194b83"),
             ("src/gpui_macos.rs", "5c784ad4ba70a5454f1805cdd3e6ac4a4002bae77c856db8546832683cc7b870"),
             ("src/text_system.rs", "b25ab17aee418545a62ae1d604845ac2a0f5922c4d7fca967d629142fa9f59eb"),

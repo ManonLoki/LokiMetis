@@ -318,6 +318,18 @@ Shell 原先每次 render 都格式化版本和标题并调用 Window.set_window
 
 参考：[生产读取与通知](../loki_metris_gui/src/app/monitor/mod.rs)、[真实宿主和通知回归](../loki_metris_gui/src/app/monitor/refresh_tests.rs)。
 
+### 5.18 原生菜单按动作值复用，保留旧项并在锁外回调
+
+macOS 的主菜单与 Dock 共用动作表。原实现每次重建都追加克隆，即使动作值相同也不复用；直接清空表又会破坏仍存活的旧菜单项。修正按 `Action::partial_eq` 比较完整值，复用稳定索引，只为首次出现的值追加槽位。不能仅按类型去重，携带不同参数的同类动作必须保持独立。
+
+菜单项显式禁用与动态可用性分开保存：私有负 tag 表示该项禁用，原生校验返回 false；启用项仍走动态校验，允许 false 后再变回 true。同一动作值可以同时有禁用项和启用项。无效 tag 查询失败后也必须释放平台锁，再恢复 callback；原先只在成功分支释放锁，会在归还 callback 时再次加锁而死锁。调用业务前克隆动作并解锁，最后 `get_or_insert` 保留重入期间安装的新 callback。
+
+回归运行在真正 macOS 主线程子进程，调用生产注册的 Objective-C selectors 与实际 `NSMenu.update`。原实现三项分别因动作槽增长、禁用项重新启用和无效 tag 超时失败。修正后主菜单/Dock 重建1000次仍只有三个动作值；每轮独立 autoreleasepool，单独 retain 的旧项在替换后继续分派原参数。随后首次追加第四个参数，核对新旧项分派；另覆盖嵌套菜单、禁用系统 Cut、动态 false→true 和回调重入替换。最终 macOS 模块34项、应用原生能力38项相关回归通过；零项匹配的其它测试目标不计为额外通过。
+
+这是 `LMDESK-MACOS-MENU-OWNERSHIP-001`，`required_version: 0.2.5`。当前产品固定三个无参数菜单动作可保持三个槽位，但历史唯一参数值仍被保留，查找为 O(唯一值数)，不能宣称通用菜单对象回收。当前三个动作的旧实现每轮新增约48字节 Vec 元素，不能据此解释用户截图中的946MB，也没有整机内存或CPU收益数值。启用系统 Cut 的完整 first responder 路由未作本轮原生实测，静态路径保持原行为。失败、原生回归及开发对照证据保留于忽略的 `release/macos-menu-ownership-development-20261011/`。
+
+参考：[动作索引与禁用标记补丁](../vendor/gpui-pre-macos/patches/menu-action-ownership.after)、[命令回调解锁](../vendor/gpui-pre-macos/patches/menu-command-unlock.after)、[校验回调解锁](../vendor/gpui-pre-macos/patches/menu-validation-unlock.after)、[真实原生回归](../vendor/gpui-pre-macos/src/menu_tests.rs)。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制
