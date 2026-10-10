@@ -205,6 +205,12 @@ impl WindowHost {
     }
     /// 原生显示/聚焦会同步回调 GPUI，因此限于借用之外。
     pub fn show(&self) { self.0.window.makeKeyAndOrderFront(None); }
+    /// 读取实际键盘焦点，不把 AppKit 的 mainWindow 当作 keyWindow。
+    pub fn is_key(&self) -> bool { self.0.window.isKeyWindow() }
+    /// 排队期间失焦则放弃；原生最小化会同步回调，调用方必须释放全部 GPUI 借用。
+    pub fn minimize_if_key(&self) {
+        if self.is_key() { self.0.window.miniaturize(None); }
+    }
     /// 关闭到托盘也在借用之外执行。
     pub fn hide(&self) { self.0.window.orderOut(None); }
 }

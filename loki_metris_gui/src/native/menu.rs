@@ -7,6 +7,8 @@ mod tests;
 use gpui_kit::{App, Global, KeyBinding, Menu, MenuItem, actions};
 
 actions!(loki_metris, [Quit, ToggleNotification, ToggleAutostart]);
+#[cfg(target_os = "macos")]
+actions!(loki_metris, [Minimize]);
 
 /// 菜单记住本应用显式选择的语言，异步状态刷新不依赖翻译库的进程默认值。
 struct MenuLocale(&'static str);
@@ -15,6 +17,11 @@ impl Global for MenuLocale {}
 /// 标准退出动作进入应用已有的有界保存与扫描收尾钩子。
 pub(super) fn install(locale: &str, cx: &mut App) {
     cx.on_action(|_: &Quit, cx| cx.quit());
+    #[cfg(target_os = "macos")]
+    {
+        cx.on_action(|_: &Minimize, cx| super::minimize_main(cx));
+        cx.bind_keys([KeyBinding::new("cmd-m", Minimize, None)]);
+    }
     cx.on_action(|_: &ToggleNotification, cx| {
         let state = super::notification_state(cx);
         if !state.busy {
@@ -95,7 +102,10 @@ fn apply_menus(
     );
     // GPUI以精确的Window名称注册AppKit系统窗口菜单，系统维护真实窗口列表。
     #[cfg(target_os = "macos")]
-    menus.push(Menu::new("Window"));
+    menus.push(Menu::new("Window").items([MenuItem::action(
+        if chinese { "最小化" } else { "Minimize" },
+        Minimize,
+    )]));
     cx.set_menus(menus);
 }
 

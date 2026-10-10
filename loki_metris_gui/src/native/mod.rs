@@ -157,6 +157,25 @@ pub(crate) fn show_on_desktop(handle: AnyWindowHandle, desktop: windowing::Deskt
     });
 }
 
+/// 仅最小化接收按键的主窗；先取消恢复租约，再于全部 GPUI 借用之外调用 AppKit。
+#[cfg(target_os = "macos")]
+pub(crate) fn minimize_main(cx: &mut App) {
+    let Some((main, shell, host)) = cx.try_global::<Services>().and_then(|services| {
+        services.window_host.clone().map(|host| (services.main, services.shell.clone(), host))
+    }) else { return; };
+    // AppKit 的 mainWindow 可能仍指向失焦主窗，必须按真实 keyWindow 判断。
+    if !host.is_key() { return; }
+    cx.defer(move |cx| {
+        cx.spawn(async move |cx| {
+            if !host.is_key() { return; }
+            let ready = cx.update(|cx| main.update(cx, |_, window, cx| {
+                shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()
+            }).ok().flatten());
+            if let Some(host) = ready { host.minimize_if_key(); }
+        }).detach();
+    });
+}
+
 /// 托盘实际成功才隐藏，失败允许正常关闭，不留下无法恢复的进程。
 pub fn hide_if_available(cx: &mut App) -> bool {
     if !cx.try_global::<Services>().is_some_and(|services| services.tray.is_some()) { return false }

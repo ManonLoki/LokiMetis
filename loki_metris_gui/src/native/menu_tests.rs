@@ -47,7 +47,20 @@ fn selected_language_survives_state_refresh(cx: &mut TestAppContext) {
                 assert_action::<Quit>(&menus[0].items[3], quit, false, false);
                 assert!(matches!(menus[0].items[2], OwnedMenuItem::Separator));
                 #[cfg(target_os = "macos")]
-                assert_eq!(menus[1].name.as_ref(), "Window");
+                {
+                    assert_eq!(menus[1].name.as_ref(), "Window");
+                    assert_eq!(menus[1].items.len(), 1);
+                    assert_action::<Minimize>(&menus[1].items[0],
+                        if locale == "zh-CN" { "最小化" } else { "Minimize" }, false, false);
+                    let bindings = cx.all_bindings_for_input(&[gpui_kit::Keystroke::parse("cmd-m").unwrap()]);
+                    assert_eq!(bindings.len(), 1);
+                    assert!(bindings[0].action().as_any().is::<Minimize>());
+                    assert!(bindings[0].predicate().is_none());
+                    for key in ["m", "ctrl-m"] {
+                        assert!(cx.all_bindings_for_input(&[gpui_kit::Keystroke::parse(key).unwrap()])
+                            .iter().all(|binding| !binding.action().as_any().is::<Minimize>()));
+                    }
+                }
             }
         }
     });
