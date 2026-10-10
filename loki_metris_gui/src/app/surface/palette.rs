@@ -11,6 +11,72 @@ pub(super) struct MaterialMotion {
     top: CssMotion<4>,
     highlight: CssMotion<4>,
     shadow: CssMotion<7>,
+    targets: Option<(TargetInputs, MaterialTargets)>,
+    #[cfg(test)]
+    target_builds: usize,
+}
+
+/// 端点生成只依赖这些输入；Hsla 的完整相等语义保留零符号与 NaN payload。
+#[derive(Clone, Copy, PartialEq)]
+struct TargetInputs {
+    dark: bool,
+    hovered: bool,
+    top_accent: Option<Hsla>,
+}
+
+/// 当前端点是固定大小值，不持有历史主题或额外堆分配。
+#[derive(Clone, Copy)]
+struct MaterialTargets {
+    border: [f64; 4],
+    top: [f64; 4],
+    surface: [f64; 4],
+    highlight: [f64; 4],
+    shadow: [f64; 7],
+}
+
+impl MaterialTargets {
+    /// 保留原 RGB→Hsla→Rgba 往返、预乘及混色顺序，避免颜色位值变化。
+    fn new(inputs: TargetInputs) -> Self {
+        let TargetInputs {
+            dark,
+            hovered,
+            top_accent,
+        } = inputs;
+        let base = rgba(if dark { 0x332f2a } else { 0xe6ddd1 }, 1.);
+        let accent = rgba(if dark { 0xf2a08a } else { 0xa52f25 }, 1.);
+        let border = if hovered {
+            mix(base, accent, 0.30)
+        } else {
+            base
+        };
+        let top = if hovered {
+            border
+        } else {
+            top_accent.map(premultiply).unwrap_or(base)
+        };
+        let surface = rgba(
+            if dark { 0x1e1c1a } else { 0xfffdf9 },
+            if dark { 0.92 } else { 0.90 },
+        );
+        let highlight = rgba(0xffffff, if dark { 0.06 } else { 0.7 });
+        let shadow = ShadowSample::new(dark, f32::from(hovered), 1.);
+        let color = rgba(if dark { 0 } else { 0x5b3f24 }, shadow.alpha);
+        Self {
+            border,
+            top,
+            surface,
+            highlight,
+            shadow: [
+                shadow.sigma,
+                shadow.spread,
+                shadow.dy,
+                color[0],
+                color[1],
+                color[2],
+                color[3],
+            ],
+        }
+    }
 }
 
 /// 单帧完整材质参数；阴影sigma、offset与spread仍是逻辑像素。
@@ -32,6 +98,9 @@ impl MaterialMotion {
             top: CssMotion::new(now),
             highlight: CssMotion::new(now),
             shadow: CssMotion::new(now),
+            targets: None,
+            #[cfg(test)]
+            target_builds: 0,
         }
     }
 
@@ -60,55 +129,29 @@ impl MaterialMotion {
         now: Instant,
         transition: bool,
     ) -> MaterialSample {
-        let base = rgba(if dark { 0x332f2a } else { 0xe6ddd1 }, 1.);
-        let accent = rgba(if dark { 0xf2a08a } else { 0xa52f25 }, 1.);
-        let border = if hovered {
-            mix(base, accent, 0.30)
-        } else {
-            base
+        let inputs = TargetInputs {
+            dark,
+            hovered,
+            top_accent,
         };
-        set(&mut self.border, border, now, transition);
-        set(
-            &mut self.top,
-            if hovered {
-                border
-            } else {
-                top_accent.map(premultiply).unwrap_or(base)
-            },
-            now,
-            transition,
-        );
-        set(
-            &mut self.surface,
-            rgba(
-                if dark { 0x1e1c1a } else { 0xfffdf9 },
-                if dark { 0.92 } else { 0.90 },
-            ),
-            now,
-            transition,
-        );
-        set(
-            &mut self.highlight,
-            rgba(0xffffff, if dark { 0.06 } else { 0.7 }),
-            now,
-            transition,
-        );
-        let shadow = ShadowSample::new(dark, f32::from(hovered), 1.);
-        let color = rgba(if dark { 0 } else { 0x5b3f24 }, shadow.alpha);
-        set(
-            &mut self.shadow,
-            [
-                shadow.sigma,
-                shadow.spread,
-                shadow.dy,
-                color[0],
-                color[1],
-                color[2],
-                color[3],
-            ],
-            now,
-            transition,
-        );
+        let targets = match self.targets {
+            Some((previous, targets)) if previous == inputs => targets,
+            _ => {
+                let targets = MaterialTargets::new(inputs);
+                self.targets = Some((inputs, targets));
+                #[cfg(test)]
+                {
+                    self.target_builds += 1;
+                }
+                targets
+            }
+        };
+        // 每帧保留 set 调用：即时模式须刷新 jump_to，NaN 目标也须沿原规则重定向。
+        set(&mut self.border, targets.border, now, transition);
+        set(&mut self.top, targets.top, now, transition);
+        set(&mut self.surface, targets.surface, now, transition);
+        set(&mut self.highlight, targets.highlight, now, transition);
+        set(&mut self.shadow, targets.shadow, now, transition);
         let (surface, s0) = self.surface.sample(now);
         let (border, s1) = self.border.sample(now);
         let (top, s2) = self.top.sample(now);
@@ -256,3 +299,7 @@ mod tests {
         assert_eq!(end.top, end.border);
     }
 }
+
+#[cfg(test)]
+#[path = "palette_target_tests.rs"]
+mod target_tests;

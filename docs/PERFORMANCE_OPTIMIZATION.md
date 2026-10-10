@@ -220,6 +220,14 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 参考：[描边计划与保序重着色](../loki_metris_gui/src/app/surface/raster/rim.rs)、[独立旧算法与舍入反例](../loki_metris_gui/src/app/surface/raster/rim_geometry_tests.rs)、[真实 owner 及空区域释放](../loki_metris_gui/src/app/surface/rim_owner_tests.rs)、[材质绘制入口](../loki_metris_gui/src/app/surface/state.rs)。
 
+### 5.10 缓存纯颜色端点，继续执行每帧动画合同
+
+固定几何复用后，`MaterialMotion` 每帧仍会按同样输入重新生成五组端点，包括五次 RGB→Hsla→Rgba 往返、预乘和阴影参数。当前实现只缓存当前 `dark/hovered/top_accent` 对应的固定大小端点值，无额外堆分配或历史主题集合；输入变化重算，连续动画采样和静止重绘复用。首次生成成本仍然存在，缓存也增加每个 owner 的固定内存，不能将其写成无成本优化。
+
+缓存范围仅限纯端点生成。每帧仍依原顺序执行 border、top、surface、highlight、shadow 的 setter 与 sample，`transition` 继续作为本帧参数，不能因输入键没变而跳过。即时 `jump_to` 会刷新时间线；`Hsla::PartialEq` 使用 total_cmp，能区分带符号零且相同 NaN payload 自等，但目标数组使用普通浮点比较，NaN 每帧仍可能重定向。甚至所有输入分量有限的极大 hue，也可能在转换中溢出产生 NaN；仅检查输入有限不能证明可以省 setter。
+
+回归冻结原 owner 和颜色 helper，逐项比较四组 Hsla 的字段位值、阴影参数/BGRA 及 running。覆盖明暗、hover、快速反向、过渡开关、hover 期间更换 accent、各字段带符号零、异常颜色和恢复正常颜色。实际生成计数另证明同输入帧不重算；同输入在动画中切换即时模式仍正确落到端点。相关 surface 回归最终 61 项通过。这个结果证明计算复用和行为保持，没有整机 CPU 或帧时间收益测量，不给出速度倍数。变化 `LMDESK-MATERIAL-ENDPOINTS-001` 为 maintenance，版本仍 0.2.1。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

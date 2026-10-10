@@ -328,4 +328,3 @@ fn oracle_slices(actual: u32, before: u32, after: u32, near: u32, far: u32) -> (
         ],
     )
 }
-
