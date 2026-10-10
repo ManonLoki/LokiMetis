@@ -2,6 +2,8 @@
 
 use gpui_kit::RenderImage;
 pub(super) mod rim;
+mod shadow_geometry;
+pub(super) use shadow_geometry::ShadowGeometry;
 use std::sync::{Arc, OnceLock};
 
 /// 纹理使用直通 BGRA 像素；所有尺寸均为物理像素，外围保留一圈采样保护。
@@ -122,69 +124,11 @@ fn slices(actual: u32, before: u32, after: u32, near: u32, far: u32) -> (u32, Ve
     )
 }
 
-/// 创建至多约405×405 logical px的阴影；空投影不留下内部黑色。
-pub(super) fn shadow(
-    width: u32,
-    height: u32,
-    scale: f64,
-    radius: f64,
-    sample: ShadowSample,
-) -> ShadowRaster {
-    let cap = |value: f64| (value * scale).ceil() as u32;
-    let (near_x, near_y) = (cap(76.), cap(52.));
-    let (card_w, x) = slices(width, cap(126.), cap(126.), near_x, cap(76.));
-    let (card_h, y) = slices(height, cap(146.), cap(106.), near_y, cap(100.));
-    let (w, h) = (
-        card_w + near_x + cap(76.) + 2,
-        card_h + near_y + cap(100.) + 2,
-    );
-    let cast = [
-        -sample.spread,
-        sample.dy - sample.spread,
-        f64::from(card_w) + sample.spread,
-        f64::from(card_h) + sample.dy + sample.spread,
-    ];
-    let profile = |position: f64, lo: f64, hi: f64| {
-        if hi <= lo {
-            0.
-        } else {
-            cdf((position - lo) / sample.sigma) - cdf((position - hi) / sample.sigma)
-        }
-    };
-    let ax: Vec<_> = (0..w)
-        .map(|i| profile(f64::from(i) - f64::from(near_x) - 0.5, cast[0], cast[2]))
-        .collect();
-    let ay: Vec<_> = (0..h)
-        .map(|i| profile(f64::from(i) - f64::from(near_y) - 0.5, cast[1], cast[3]))
-        .collect();
-    let mut bytes = vec![0; w as usize * h as usize * 4];
-    // 当前产品radius≤20且所有CSS spread≤-20，负spread后casting radius严格收敛为0。
-    assert!(
-        radius >= 0. && radius <= 20.,
-        "品牌材质半径必须处于当前产品的0..20px范围"
-    );
-    let radius = (radius * scale).min(f64::from(card_w.min(card_h)) / 2.);
-    for row in 1..h - 1 {
-        for column in 1..w - 1 {
-            let px = f64::from(column) - f64::from(near_x) - 0.5;
-            let py = f64::from(row) - f64::from(near_y) - 0.5;
-            let outside =
-                1. - rounded_coverage(px, py, f64::from(card_w), f64::from(card_h), radius);
-            let alpha = sample.alpha * ax[column as usize] * ay[row as usize] * outside;
-            let index = (row as usize * w as usize + column as usize) * 4;
-            bytes[index..index + 3].copy_from_slice(&sample.bgra);
-            bytes[index + 3] = (alpha * 255.).round().clamp(0., 255.) as u8;
-        }
-    }
-    ShadowRaster {
-        pixels: Pixels {
-            width: w,
-            height: h,
-            bytes,
-        },
-        x,
-        y,
-    }
+/// 测试保留单次入口；生产 owner 复用独立于颜色/动画样本的几何计划。
+#[cfg(test)]
+pub(super) fn shadow(width: u32, height: u32, scale: f64, radius: f64, sample: ShadowSample) -> ShadowRaster {
+    let geometry = ShadowGeometry::new(width, height, scale, radius);
+    ShadowRaster { pixels: geometry.render(sample), x: geometry.x, y: geometry.y }
 }
 
 /// 原卡片的圆角覆盖率以物理像素计算，和 GPUI quad 一样保留一像素抗锯齿带。
@@ -256,3 +200,6 @@ pub(super) fn radial_alpha(dx: f64, dy: f64, scale: f64) -> f64 {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod shadow_geometry_tests;

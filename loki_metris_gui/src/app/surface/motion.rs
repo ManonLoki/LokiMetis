@@ -82,9 +82,10 @@ impl<const N: usize> CssMotion<N> {
         if progress >= 1. || self.from == target {
             return (target, false);
         }
+        let eased = f64::from(ease(progress));
         (
             std::array::from_fn(|i| {
-                self.from[i] + (target[i] - self.from[i]) * f64::from(ease(progress))
+                self.from[i] + (target[i] - self.from[i]) * eased
             }),
             true,
         )
@@ -155,5 +156,38 @@ mod tests {
         assert_eq!(row.sample(now + Duration::from_millis(160)), ([1.], false));
         assert_eq!(panel.sample(now + Duration::from_millis(300)), ([1.], false));
         assert_eq!(immediate.sample(now), ([1.], false));
+    }
+
+    /// 原逐属性 easing 表达式作为位值基准，包含提前采样、快速反向和精确端点。
+    #[test]
+    fn shared_easing_sample_preserves_every_property_bit() {
+        let now = Instant::now();
+        for duration in [Duration::ZERO, Duration::from_millis(160), Duration::from_millis(300)] {
+            let mut motion = CssMotion::with_duration(now, duration);
+            motion.set_target([0.0, -38., 0.72, 0.90, 1. / 255.], now);
+            for (at, target) in [
+                (0, [1., -30., 0.85, 0.78, 127. / 255.]),
+                (80, [0., -38., 0.72, 0.90, 1. / 255.]),
+                (100, [1., -30., 0.85, 0.78, 127. / 255.]),
+                (121, [0.5, -22., 0.16, 0.88, 255. / 255.]),
+            ] {
+                let start = now + Duration::from_millis(at);
+                motion.set_target(target, start);
+                for delta in [-1, 0, 1, 16, 80, 159, 160, 299, 300, 400] {
+                    let sample_at = if delta < 0 { start - Duration::from_millis(1) }
+                        else { start + Duration::from_millis(delta as u64) };
+                    let progress = motion.progress(sample_at);
+                    let expected = if progress >= 1. || motion.from == target {
+                        (target, false)
+                    } else {
+                        (std::array::from_fn(|i| motion.from[i]
+                            + (target[i] - motion.from[i]) * f64::from(ease(progress))), true)
+                    };
+                    let actual = motion.sample(sample_at);
+                    assert_eq!(actual.1, expected.1);
+                    assert_eq!(actual.0.map(f64::to_bits), expected.0.map(f64::to_bits));
+                }
+            }
+        }
     }
 }

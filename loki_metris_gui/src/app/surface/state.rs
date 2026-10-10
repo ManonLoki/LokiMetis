@@ -1,5 +1,9 @@
 //! 每张卡片的owner保存当前材质与CSS时间线，关闭、隐藏和卸载都回收图集。
 
+#[cfg(test)]
+#[path = "shadow_owner_tests.rs"]
+mod shadow_owner_tests;
+
 use super::{
     Geometry, MaterialKind, StaticMaterial, palette::MaterialMotion, rim::Rim, shadow::Shadow,
     spotlight::Spotlight, textures::Retired,
