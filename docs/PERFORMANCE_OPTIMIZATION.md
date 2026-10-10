@@ -67,12 +67,18 @@ commit 不能代表 dirty 构建的全部输入；Cargo 产物摘要也不能代
 
 physical footprint 从 footprint JSON 的 process `footprint` 原始字节除以 `1048576` 得到 MiB。记录其每个采样时点，不能用另一时点的 vmmap 最低值替换时间序列。sample、vmmap 与 top/footprint 若不在同一窗口，只能作为独立证据关联；同时采样本身也有观测开销。
 
+macOS `proc_pid_rusage` 的 user/system 原值是 Mach ticks，先用运行时 `mach_timebase_info` 的 `numer/denom` 换成纳秒，再除以各 PID 实际的单调时间差：`CPU% = 100 × Δticks × numer / (denom × Δmonotonic_ns)`。集合百分比为各成员之和，不除核心数，不截断到100%。原始字段明确写 `cpu_mach_ticks`，不能用 `cpu_ns` 隐藏未经转换的单位。先对整数累计值求差，再转换，避免大累计值的浮点相减精度损失。
+
+可复用只读工具为 [macos_resource_sample.py](../scripts/macos_resource_sample.py)，仅依赖 Python 标准库与 macOS 系统库。示例命令：`python3 scripts/macos_resource_sample.py --pid gpui=<真实PID> --pid reference=<真实PID> --coalition --interval 20 --samples 3 --reject-compilers --require-stable-foreground --output release/<本轮目录>/resources.json`。先创建本轮目录并替换占位符；工具拒绝覆盖现有文件。每轮保存 V4 端点、timebase、身份、集合、当前内存及生命周期峰值，读取失败或成员/身份变化使结果无效。端点相同仍不能证明区间内无短命 helper、编译或遮挡变化。窗口和素材状态须另行通过 Computer Use 记录。
+
 ### 3.3 指标的含义与限制
 
 | 指标 | 用于回答 | 不能直接推出 |
 |---|---|---|
 | CPU 百分比 | 该工具口径下的处理器消耗及尖峰 | 主线程延迟、根因或单项优化收益；不按“单进程必在 0–100%”截断原值 |
+| `ps %CPU` / `TIME` | `%CPU` 为最多约一分钟的衰减平均；`TIME/cputime` 为累计 CPU 时间 | `%CPU` 不是整个生命周期平均，也不等于指定采样区间；区间比较使用换算后的累计差分 |
 | physical footprint 当前值 | 系统对进程当前内存负担的记账观察 | Rust 活对象总量、泄漏已消除、全部 GPU/共享资源的精确归属 |
+| macOS `top MEM` | 本机工具手册定义的 physical memory footprint，须同时记录采样时间与显示单位 | 不能当 RSS；不能把不同时间的 top MEM 与 footprint 差异自动归为两种内存口径 |
 | footprint peak | 进程生命周期内记录的高水位 | 当前仍占同样内存；当前值回落而 peak 不降并不矛盾 |
 | RSS / resident | 工具口径下驻留内存页面的观察 | 与 footprint、top MEM 完全相同，或与 allocator 活分配相等 |
 | 虚拟 SIZE | 地址空间映射规模 | 实际物理占用或活对象字节 |
@@ -298,9 +304,9 @@ Shell 原先每次 render 都格式化版本和标题并调用 Window.set_window
 
 ### 5.16 用完整进程集合测 CPU，区分后台、遮挡与静态帧源
 
-跨框架比较必须包含宿主。macOS WebKit helper 可能由 launchd 持有，按 PPID 递归会漏计；使用应用 coalition 获取实际集合，再分别报告主进程、主进程加 WebKit、完整集合。两端都核对 PID、启动时间、UUID 和可执行路径，成员变化、退出或读取失败使该轮无效；不能将失败读数算零。CPU 用每个进程实际单调时间内 user+system 增量计算，集合求和且不除核心数。resident 与 footprint 另报，进程账本相加不等于去重物理内存，也不包含 WindowServer 的间接开销。
+跨框架比较必须包含宿主。macOS WebKit helper 可能由 launchd 持有，按 PPID 递归会漏计；使用应用 coalition 获取实际集合，再分别报告主进程、主进程加 WebKit、完整集合。两端都核对 PID、启动时间、UUID 和可执行路径，成员变化、退出或读取失败使该轮无效；不能将失败读数算零。CPU 用每个进程实际单调时间内 user+system 的 Mach ticks 增量，经运行时 timebase 转换后计算，集合求和且不除核心数。resident 与 footprint 另报，进程账本相加不等于去重物理内存，也不包含 WindowServer 的间接开销。
 
-本次 macOS 本地优化试包与历史0.3.12设置页都为中文、System、通知关闭，原生填充同尺寸。三轮各预热5秒、测20秒，采样期间无 Computer Use 或本项目编译；前台端点始终是Chrome，两版在后台。GPUI完整集合 CPU 中位数约0.045841%，范围0.044977%～0.123659%；参考完整集合含WebKit为0.002001%，范围0.001883%～0.002031%。每轮 interrupt wakeups 分别为5291/4741/4776与72/66/64。数值很小但唤醒差异值得继续定位；不能据此声称前景体验、公平框架倍率或用户高CPU问题已经解决。遮挡时间线、Pet、索引历史和运行时长尚未完全控制，端点前台相同也不能排除区间内变化。
+本次 macOS 本地优化试包与历史0.3.12设置页都为中文、System、通知关闭，原生填充同尺寸。三轮各预热5秒、测20秒，采样期间无 Computer Use 或本项目编译；前台端点始终是Chrome，两版在后台。2026-10-11 从每 PID 原始端点重新计算后，GPUI完整集合 CPU 中位数约1.910043%，范围1.874043%～5.152462%；参考完整集合含WebKit为0.083379%，范围0.078476%～0.084624%。每轮 interrupt wakeups 分别为5291/4741/4776与72/66/64。旧脚本误把 Mach ticks 当纳秒，本机 timebase 为125/3，因此原 CPU 数值低估约41.6667倍；这是旧数据的单位更正，没有重新测量旧产物。旧 JSON 未保存 timebase，更正依据为同宿主比例实证和进程身份核对，原始 JSON、summary 与历史文档快照保留，另附更正摘要。内存与 wakeups 不受此错误影响，第5.22节的 top CPU 也不使用该算法。不能据此声称前景体验、公平框架倍率或用户高CPU问题已经解决。遮挡时间线、Pet、索引历史和运行时长尚未完全控制，端点前台相同也不能排除区间内变化。
 
 当时实现的 macOS 帧源按窗口 occlusion visible 订阅 CVDisplayLink；静态失焦但仍有可见像素时继续接收显示器节拍，完全遮挡时停止。每显示器共享 link，每窗口有独立 main-queue source；core 的 dirty guard 跳过绘制，仍会进入帧回调。应用的40/100/200/500ms循环来自重复安排一次性 timer，名义频率不能直接换算系统唤醒。5秒 sample 捕获了帧回调和业务 timer，但不足以分摊此次CPU或唤醒差异。若要停静态帧源，必须先补齐 dirty、next-frame动画、resize、重新可见及可访问性激活的重新唤醒路径，不能只调用 stop。后续按需派送改动见第5.22节。
 
@@ -374,6 +380,16 @@ Computer Use随后发现独立资格错误：All已有89,471,909 Token，摘要�
 
 稳定标识 `LMDESK-MACOS-DEMAND-FRAMES-001`，bug-fix，版本0.2.6。逐轮命令、生成 SHA、测试二进制摘要、原始数列、截图和未执行范围保存在 `release/macos-frame-demand-development-20261011/`。真实 Windows、跨屏幕/缩放全流程和物理鼠标命中仍未验证。
 
+### 5.23 先验证测量单位与可见性，再给热点归因
+
+本轮维护 `LMMAINT-PERF-CPU-UNITS-001`，required_version `0.2.7`，不改变产品版本。单位核对使用同一0.2.7进程的约20秒端点：340,972,829 Mach ticks 按本机125/3转换为14.207201秒，与系统累计TIME差14.21秒相符；误当纳秒会得到0.340973秒。这只验证单位，场景没有按跨框架实验控制，不能拿71%左右的该区间CPU值当公平对照。第5.16节三轮从各PID原始端点独立重算，原始证据保持不变；更正摘要位于 `release/cpu-idle-render-development-20261010/20-cpu-unit-correction.json`。新版采样工具另做真实2秒读取，以及单位、PID截断、错误路径和ABI回归；没有借此宣称CPU或内存问题解决。
+
+Computer Use 的应用绑定、AXRaise 与 key window 不证明应用位于前台。通知检查中，后台被遮挡窗口的按钮能改变业务状态，AX和画面仍保留旧帧；resize会强制绘制，因此一度看起来像“仅resize恢复”。只读前台身份当时是Finder；通过Finder打开同一已运行应用后，确认前台PID相符，普通按钮立即更新，卡片材质也完整恢复，没有修改帧源。历史版经Finder打开并重新切页后正文恢复；其前台身份未连续采样。由此只能排除这次观察中的已证实前台冻结，不能替代所有唤醒/跨屏生命周期回归。后续交互延迟实验须记录实际前台和可见性，避免拿离屏旧截图测主题卡顿；证据位于 `release/notification-banner-development-20261011/09-after-zoom.png` 至 `15-reference-restored-workbench.png`。
+
+内存分析也要区分上界覆盖的对象。CPU图片预算仅约束保留的解码像素，不能包含压缩字节、解码临时区、Metal纹理、drawable、allocator容量或业务索引。Metal实例缓冲池复用并发租用的高水位；容器清空后保留容量也不等于活对象泄漏。atlas退休队列的逻辑有界不能证明GPU已完成回收，须同时观察完成epoch与退休对象。`vmmap` 的 MALLOC_LARGE、IOSurface、IOAccelerator、IOKit、CoreGraphics 分类能收窄方向，但没有单个类别可自动证明具体owner。皮肤预览的不同内容键是否长期滞留仍是待测假设，不按源码可能性直接认定946MB根因。
+
+长期内存实验先固定二进制、进程身份、显示器/缩放、窗口几何、主题和真实Pet可见性，预热后重复同一素材的进入/离开序列，分别保存当前resident/footprint与生命周期峰值，再留充分空闲并跑同等时长的静置对照。峰值不下降正常；重点是恢复基线是否持续漂移及其owner证据。没有按这些条件完成的长测，继续标为未验证。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制
@@ -422,7 +438,7 @@ Preview17 收据的 `sourceSnapshotSha256` 为 `ac3cafe589165df1e524020c50e1c3c6
 |---|---|---|---|---|
 | O1 Preview16；2026-10-09 23:41:59 | Settings；约30秒/15 | 15.4333%；0.3–19.2% | 6 点均约858.35MiB；生命周期 peak 889.24MiB | 页面经前后 CU 确认；5 工具、中文/System、通知/自启关；同期另一会话 Cargo 编译，Pet 未严格匹配 |
 | O2 Preview17；2026-10-10 00:02:45 | Settings；约50秒/25 | 4.5240%；3.7–5.2% | 10 点约514.50→451.14→427.28MiB；peak 669.19MiB | 页面经前后 CU 确认；仅采样后 Cargo 列表为空，没有全窗口无编译的连续证明 |
-| O3 Preview17；2026-10-10 00:11:29 | Gallery；30秒/15 | 58.6133%；29.3–171.8% | 6 点约221.74→232.96MiB | 实际 GIF 播放；top 后段 MEM 曾显示334M，与 footprint 不是同一时点/口径；采样前后无 Cargo |
+| O3 Preview17；2026-10-10 00:11:29 | Gallery；30秒/15 | 58.6133%；29.3–171.8% | 6 点约221.74→232.96MiB | 实际 GIF 播放；top 后段 MEM 曾显示334M，与 footprint 不是同一采样时点且显示单位不同，不能解释成 RSS 与 footprint 差异；采样前后无 Cargo |
 | O4 同一 Preview17；2026-10-10 00:12:27 | 回 Settings；50秒/25 | 4.0400%；3.5–5.0% | 11 点约318.52→253.19MiB | 页面前后 AX 确认；同 PID/二进制，采样前后无 Cargo；短时回落不排除长期泄漏 |
 
 O1 对应 `E/loki-metris-performance-preview16-settings-before-repeat-{top.txt,footprint.json}`。O2–O4 分别对应 `E/loki-metris-performance-preview17-{settings-after,gallery-playback,after-gallery-settings}-{results.json,top.txt,footprint.json}`；O3/O4 各有 `-measurement.json` 保存命令与前后 PID/SHA。这些大括号表示文件族，不是一个实际文件名。
