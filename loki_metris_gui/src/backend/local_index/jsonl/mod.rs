@@ -38,7 +38,7 @@ pub const PARSER_VERSION: u32 = loki_metris_core::SourceClientKind::Codex.parser
 const CUMULATIVE_CHECKPOINT_PREFIX: &str = "codex-v9";
 
 /// adapter 私有 parse checkpoint 的 schema 版本；与 rollout parser generation 分开演进。
-const ADAPTER_STATE_SCHEMA_VERSION: u8 = 3;
+const ADAPTER_STATE_SCHEMA_VERSION: u8 = 4;
 
 /// `task_started.started_at` 与 owner 创建时刻允许的毫秒误差。
 const OWNED_START_TOLERANCE_MS: u64 = 2_000;
@@ -86,7 +86,7 @@ pub struct JsonlWarningCounts {
     pub invalid_timestamps: u64,
     /// 因缺失 `last_token_usage` 而显式使用累计值的数量。
     pub cumulative_fallbacks: u64,
-    /// fork/subagent 文件尚未找到可证明的自身开始边界。
+    /// fork/subagent 存在尚未找到自身开始边界的旧格式用量，无法排除漏账。
     pub unresolved_owned_boundaries: u64,
 }
 
@@ -123,7 +123,7 @@ enum RolloutOwnershipState {
     AwaitingOwnerMetadata,
     /// 已确认根 rollout 或已经越过 fork 自身开始边界。
     Owned,
-    /// 已确认 fork/subagent，等待与 owner 创建时刻匹配的自身 `task_started`。
+    /// 已确认 fork/subagent，等待匹配的 `task_started` 或有效本线程响应。
     AwaitingOwnedStart {
         /// owner 首条元数据的创建时刻；缺失时无法安全放行。
         owner_created_at_epoch_ms: Option<i64>,
@@ -140,6 +140,8 @@ struct PersistedJsonlParseState {
     consumed_line_warnings: JsonlWarningCounts,
     /// rollout 所有权边界状态。
     ownership: RolloutOwnershipState,
+    /// 有未归属旧用量的前缀；现代响应只证明自身，不能清除先前歧义。
+    unresolved_legacy_prefix: bool,
     /// 最近一次可信累计基线，包括 fork 复制前缀内的基线。
     previous_cumulative: Option<TokenUsage>,
     /// 最近一次可信单次 last，用于识别自身边界后的重放。
@@ -163,8 +165,7 @@ pub(crate) fn persisted_source_quality(state: Option<&str>) -> loki_metris_core:
     let Some(persisted) = PersistedJsonlParseState::decode(state) else {
         return loki_metris_core::PersistedSourceQuality::Unknown;
     };
-    let boundary_warning = u64::from(matches!(persisted.ownership,
-        RolloutOwnershipState::AwaitingOwnedStart { .. }));
+    let boundary_warning = u64::from(persisted.unresolved_legacy_prefix);
     loki_metris_core::PersistedSourceQuality::Known {
         warning_count: persisted.consumed_line_warnings.total().saturating_add(boundary_warning),
     }
@@ -196,6 +197,8 @@ pub struct JsonlParseContext {
     pub previous_last: Option<TokenUsage>,
     /// 当前文件的 owner 初始化与 fork 自身边界状态。
     ownership: RolloutOwnershipState,
+    /// 区分已知零贡献的空 fork 与可能漏记旧用量的前缀，必须跨追加持久化。
+    unresolved_legacy_prefix: bool,
     /// 只有有效且属于自身区段的响应记录才能切换权威来源。
     usage_authority: CodexUsageAuthority,
 }
@@ -215,6 +218,7 @@ impl JsonlParseContext {
             previous_cumulative: None,
             previous_last: None,
             ownership: RolloutOwnershipState::AwaitingOwnerMetadata,
+            unresolved_legacy_prefix: false,
             usage_authority: CodexUsageAuthority::default(),
         }
     }
@@ -234,6 +238,7 @@ impl JsonlParseContext {
             previous_cumulative: persisted.previous_cumulative,
             previous_last: persisted.previous_last,
             ownership: persisted.ownership,
+            unresolved_legacy_prefix: persisted.unresolved_legacy_prefix,
             usage_authority: persisted.usage_authority,
         })
     }
@@ -244,6 +249,7 @@ impl JsonlParseContext {
             schema_version: ADAPTER_STATE_SCHEMA_VERSION,
             consumed_line_warnings: self.consumed_line_warnings,
             ownership: self.ownership.clone(),
+            unresolved_legacy_prefix: self.unresolved_legacy_prefix,
             previous_cumulative: self.previous_cumulative.clone(),
             previous_last: self.previous_last.clone(),
             usage_authority: self.usage_authority,
@@ -264,7 +270,7 @@ impl JsonlParseContext {
     /// 返回当前 generation 的质量事实，重复扫描不得把它清零。
     pub(crate) fn generation_warnings(&self) -> JsonlWarningCounts {
         JsonlWarningCounts {
-            unresolved_owned_boundaries: u64::from(self.awaits_owned_start()),
+            unresolved_owned_boundaries: u64::from(self.unresolved_legacy_prefix),
             ..self.consumed_line_warnings
         }
     }
@@ -432,7 +438,7 @@ where
         }
     }
 
-    if !cancelled && context.awaits_owned_start() {
+    if !cancelled && context.unresolved_legacy_prefix {
         warnings.unresolved_owned_boundaries = 1;
     }
 
@@ -589,6 +595,8 @@ fn parse_complete_line(
         Err(_) => return LineOutcome::MissingUsage,
     };
     if !owned_segment {
+        // 旧协议没有线程身份；有效用量在自身边界确认前仍可能属于 owner。
+        context.unresolved_legacy_prefix = true;
         if matches!(decision, IncrementalTokenUsageDecision::Emit(_)) {
             update_incremental_baseline(context, last, cumulative);
         }

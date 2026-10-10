@@ -195,6 +195,116 @@ fn copied_modern_prefix_does_not_suppress_child_legacy_usage() {
     assert_eq!(calls[0].thread_key, stable_id("thread", "child-owner"));
 }
 
+/// fork 的实际开始可晚于创建；有效响应的本线程身份独立证明自身用量。
+#[test]
+fn modern_owner_identity_opens_fork_without_matching_start_time() {
+    let mut owner = meta("child-owner", "child-owner");
+    owner["payload"]["forked_from_id"] = json!("parent-owner");
+    let mut context = JsonlParseContext::new("fixture");
+    let (calls, report) = parse(
+        &[
+            owner,
+            response("parent-owner", "copied-response", 500, 50),
+            json!({"type":"event_msg","payload":{"type":"task_started",
+                "started_at":"2026-10-11T00:00:14Z"}}),
+            response("child-owner", "own-response", 10, 2),
+            legacy(999, 99),
+        ],
+        &mut context,
+    );
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].usage.total_tokens, 12);
+    assert_eq!(calls[0].thread_key, stable_id("thread", "child-owner"));
+    assert_eq!(context.call_sequence, 1);
+    assert!(!context.awaits_owned_start());
+    assert_eq!(report.warnings.total(), 0);
+}
+
+/// 缺失或无效本线程事实不能开启 fork；父前缀的身份也不能被借用。
+#[test]
+fn invalid_response_does_not_prove_fork_ownership() {
+    for bad_field in ["thread_id", "response_id", "usage", "timestamp"] {
+        let mut owner = meta("child-owner", "child-owner");
+        owner["payload"]["forked_from_id"] = json!("parent-owner");
+        let mut bad = response("child-owner", "invalid-response", 10, 2);
+        if bad_field == "timestamp" {
+            bad[bad_field] = json!("invalid");
+        } else {
+            bad["payload"][bad_field] = Value::Null;
+        }
+        let mut context = JsonlParseContext::new("fixture");
+        let (calls, report) = parse(&[owner, bad], &mut context);
+        assert!(calls.is_empty());
+        assert!(context.awaits_owned_start());
+        assert!(!context.usage_authority.ignores_legacy_shadow());
+        assert!(report.warnings.total() > 0);
+    }
+    for id in ["".to_owned(), " ".to_owned(), "x".repeat(513)] {
+        let mut owner = meta("child-owner", "child-owner");
+        owner["payload"]["forked_from_id"] = json!("parent-owner");
+        let mut bad = response("child-owner", "invalid-response", 10, 2);
+        bad["payload"]["thread_id"] = json!(id);
+        let mut context = JsonlParseContext::new("fixture");
+        let (calls, report) = parse(&[owner, bad], &mut context);
+        assert!(calls.is_empty());
+        assert!(context.awaits_owned_start());
+        assert_eq!(report.warnings.missing_usage, 1);
+    }
+}
+
+/// 尚未执行的空 fork 和可明确归属父线程的现代前缀都是已知零贡献。
+#[test]
+fn empty_fork_and_explicit_foreign_prefix_do_not_degrade_quality() {
+    let mut owner = meta("child-owner", "child-owner");
+    owner["payload"]["forked_from_id"] = json!("parent-owner");
+    let mut context = JsonlParseContext::new("fixture");
+    let (calls, report) = parse(
+        &[
+            owner,
+            json!({"type":"event_msg","payload":{"type":"thread_settings_applied"}}),
+            response("parent-owner", "copied-response", 500, 50),
+        ],
+        &mut context,
+    );
+    assert!(calls.is_empty());
+    assert!(context.awaits_owned_start());
+    assert_eq!(report.warnings.total(), 0);
+    assert_eq!(persisted_source_quality(Some(&context.adapter_state().unwrap())),
+        loki_metris_core::PersistedSourceQuality::Known { warning_count: 0 });
+    let (_, report) = parse(&[legacy(10, 2)], &mut context);
+    assert_eq!(report.warnings.unresolved_owned_boundaries, 1);
+}
+
+/// 后来的明确响应不能反向证明早先无身份旧用量属于父线程；质量继续保留歧义。
+#[test]
+fn modern_fork_response_preserves_prior_legacy_ambiguity() {
+    let mut owner = meta("child-owner", "child-owner");
+    owner["payload"]["forked_from_id"] = json!("parent-owner");
+    let mut context = JsonlParseContext::new("fixture");
+    let (calls, report) = parse(&[
+        owner, legacy(50, 5), response("child-owner", "own-response", 10, 2),
+        legacy(999, 99),
+    ], &mut context);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].usage.total_tokens, 12);
+    assert_eq!(report.warnings.unresolved_owned_boundaries, 1);
+    assert!(!context.awaits_owned_start());
+    assert_eq!(persisted_source_quality(Some(&context.adapter_state().unwrap())),
+        loki_metris_core::PersistedSourceQuality::Known { warning_count: 1 });
+}
+
+/// 旧状态或缺失歧义字段必须重建，不能把未知前缀默认为可信零贡献。
+#[test]
+fn missing_fork_ambiguity_state_requires_rebuild() {
+    let context = JsonlParseContext::new("fixture");
+    let mut persisted: Value = serde_json::from_str(&context.adapter_state().unwrap()).unwrap();
+    persisted["schemaVersion"] = json!(3);
+    assert!(PersistedJsonlParseState::decode(Some(&persisted.to_string())).is_none());
+    persisted["schemaVersion"] = json!(4);
+    persisted.as_object_mut().unwrap().remove("unresolvedLegacyPrefix");
+    assert!(PersistedJsonlParseState::decode(Some(&persisted.to_string())).is_none());
+}
+
 /// 现代格式阶段随检查点恢复，下一批旧影子不会成为新调用。
 #[test]
 fn response_authority_survives_checkpoint_round_trip() {

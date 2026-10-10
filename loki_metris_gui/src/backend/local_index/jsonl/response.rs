@@ -18,9 +18,7 @@ pub(super) fn parse_response_record(
     timestamp: Option<&Value>,
     provenance: &SourceProvenance,
 ) -> LineOutcome {
-    if !context.owns_current_segment() {
-        return LineOutcome::Ignored;
-    }
+    let opens_owned_segment = context.awaits_owned_start();
     let Some(thread_id) = payload
         .thread_id
         .as_deref()
@@ -29,7 +27,8 @@ pub(super) fn parse_response_record(
         return LineOutcome::MissingUsage;
     };
     if stable_id("thread", thread_id) != context.thread_key {
-        return LineOutcome::InvalidUsage;
+        // 只有合法且明确属于其他线程的复制前缀可忽略；缺失身份仍须记质量警告。
+        return if opens_owned_segment { LineOutcome::Ignored } else { LineOutcome::InvalidUsage };
     }
     let Some(response_id) = payload
         .response_id
@@ -53,6 +52,11 @@ pub(super) fn parse_response_record(
     else {
         return LineOutcome::InvalidTimestamp;
     };
+    // 身份、用量和时间全部有效后才开启自身区段；保留先前旧用量归属歧义。
+    if opens_owned_segment {
+        context.ownership = RolloutOwnershipState::Owned;
+        context.call_sequence = 0;
+    }
     let selected = context.usage_authority.observe_response(usage);
     context.call_sequence = context.call_sequence.saturating_add(1);
     let logical_call_id = stable_id(

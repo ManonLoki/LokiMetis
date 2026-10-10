@@ -59,6 +59,75 @@ fn totals(index: &mut LocalIndex) -> (usize, u64) {
     )
 }
 
+/// fork 复制前缀的现代记录明确属于父线程；可选旧记录则缺少归属证据。
+fn fork_prefix(ambiguous_legacy: bool) -> String {
+    let owner = json!({"timestamp":"2026-07-30T10:00:00Z","type":"session_meta",
+        "payload":{"id":"owner","session_id":"owner","forked_from_id":"parent"}});
+    let mut foreign: serde_json::Value = serde_json::from_str(
+        &response("2026-07-30T09:00:00Z", "parent-response", 500),
+    ).unwrap();
+    foreign["payload"]["thread_id"] = json!("parent");
+    let legacy = if ambiguous_legacy {
+        token_line("2026-07-30T10:00:10Z", "unowned-legacy", 50, 0)
+    } else { String::new() };
+    format!("{owner}\n{foreign}\n{legacy}")
+}
+
+/// 空 fork 追加明确本线程响应后成为完整来源，重启与重建不重复计入父前缀。
+#[test]
+fn modern_fork_identity_survives_append_restart_and_rebuild() {
+    check_fork_lifecycle(false);
+}
+
+/// 跨重启后出现明确现代响应，仍不能把先前不确定旧用量的质量抹掉。
+#[test]
+fn modern_fork_keeps_legacy_ambiguity_through_restart_and_rebuild() {
+    check_fork_lifecycle(true);
+}
+
+/// 使用真实 SQLite 检查空前缀和歧义前缀的实际账单及持久质量。
+fn check_fork_lifecycle(ambiguous_legacy: bool) {
+    let source = TempDir::new().unwrap();
+    let app = TempDir::new().unwrap();
+    let root = create_root(source.path(), "root");
+    let path = root.join("sessions/rollout-response.jsonl");
+    std::fs::write(&path, fork_prefix(ambiguous_legacy)).unwrap();
+    let roots = discover_registered(&[root]);
+    let expected_state = if ambiguous_legacy { CoverageState::Partial } else { CoverageState::Complete };
+    let warnings = u64::from(ambiguous_legacy);
+    let mut index = open_index(app.path());
+    let prefix = scan(&mut index, &roots, &CancellationToken::new());
+    assert_eq!((prefix.call_count, prefix.coverage.state, prefix.coverage.warning_count),
+        (0, expected_state, warnings));
+    drop(index);
+    let mut index = open_index(app.path());
+    let own_response = response("2026-07-30T10:00:20Z", "own-response", 20);
+    let split = own_response.len() / 2;
+    append_rollout(&path, &own_response[..split]);
+    let half_line = scan(&mut index, &roots, &CancellationToken::new());
+    assert_eq!((half_line.call_count, half_line.coverage.warning_count), (0, warnings));
+    drop(index);
+    let mut index = open_index(app.path());
+    append_rollout(&path, &own_response[split..]);
+    append_rollout(&path, &token_line("2026-07-30T10:00:21Z", "shadow", 999, 0));
+    let appended = scan(&mut index, &roots, &CancellationToken::new());
+    assert_eq!((appended.call_count, appended.coverage.state, appended.coverage.warning_count),
+        (1, expected_state, warnings));
+    assert_eq!(totals(&mut index), (1, 30));
+    drop(index);
+    let mut index = open_index(app.path());
+    let unchanged = scan(&mut index, &roots, &CancellationToken::new());
+    assert_eq!(unchanged.coverage.warning_count, warnings);
+    let rebuilt = block_on(scan_discovered_roots(
+        &mut index, &roots,
+        ScanConfig { force_rebuild: true, ..ScanConfig::default() },
+        &CancellationToken::new(), |_| {},
+    )).unwrap();
+    assert_eq!((rebuilt.call_count, rebuilt.coverage.state, rebuilt.coverage.warning_count),
+        (1, expected_state, warnings));
+    assert_eq!(totals(&mut index), (1, 30));
+}
+
 /// unchanged、重启、追加重放和强制重建得到同一账单；旧影子始终不新增调用。
 #[test]
 fn response_usage_is_stable_through_restart_append_replay_and_rebuild() {

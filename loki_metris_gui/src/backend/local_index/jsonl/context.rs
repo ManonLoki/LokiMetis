@@ -96,6 +96,7 @@ pub(super) fn open_owned_segment_if_matching(
     };
     if matches_owner {
         context.ownership = RolloutOwnershipState::Owned;
+        context.unresolved_legacy_prefix = false;
         context.call_sequence = 0;
     }
 }
