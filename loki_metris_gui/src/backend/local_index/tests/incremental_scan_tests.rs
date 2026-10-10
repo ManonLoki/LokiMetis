@@ -170,6 +170,13 @@ fn restores_cumulative_checkpoint_across_incremental_scans() {
 
     let first = scan(&mut index, &roots, &CancellationToken::new());
     assert_eq!(first.calls_added, 1);
+    let first_stored = block_on(index.usage_snapshot()).expect("compatibility snapshot loads");
+    assert_eq!(first_stored.canonical.snapshots.len(), 1);
+    let snapshot = &first_stored.canonical.snapshots[0];
+    assert_eq!(snapshot.cumulative_total_tokens, 120);
+    assert_eq!(snapshot.model.as_deref(), Some("gpt-5"));
+    assert_eq!(snapshot.provenance.len(), 1);
+    assert_eq!(snapshot.provenance[0].relative_label, "sessions/rollout-checkpoint.jsonl");
     drop(index);
 
     append_rollout(&rollout, &first_snapshot);
@@ -182,12 +189,32 @@ fn restores_cumulative_checkpoint_across_incremental_scans() {
         &token_snapshot_line("2026-08-14T01:00:03Z", 10, 4, 2, 12, 110, 44, 22, 132),
     );
     let mut reopened = open_index(app_temp.path());
+    assert_eq!(block_on(reopened.usage_snapshot()).unwrap().canonical.snapshots,
+        first_stored.canonical.snapshots);
     let appended = scan(&mut reopened, &roots, &CancellationToken::new());
     let aggregate = codex_aggregate(&mut reopened);
 
     assert_eq!(appended.calls_added, 1);
     assert_eq!(appended.call_count, 2);
     assert_eq!(aggregate.tokens.total_tokens, 132);
+    let stored = block_on(reopened.usage_snapshot()).unwrap().canonical.snapshots;
+    assert_eq!(stored.len(), 4, "replay diagnostics remain separate from billing");
+    assert_eq!(stored.last().unwrap().cumulative_total_tokens, 132);
+    drop(reopened);
+    let mut reopened = open_index(app_temp.path());
+    assert_eq!(block_on(reopened.usage_snapshot()).unwrap().canonical.snapshots, stored);
+    let cutoff = stored.last().unwrap().occurred_at_epoch_ms;
+    block_on(scan_discovered_roots(
+        &mut reopened,
+        &roots,
+        ScanConfig { force_rebuild: true, ingest_since_epoch_ms: cutoff,
+            ..ScanConfig::default() },
+        &CancellationToken::new(),
+        |_| {},
+    )).expect("retention rebuild succeeds");
+    let retained = block_on(reopened.usage_snapshot()).unwrap().canonical.snapshots;
+    assert_eq!(retained, vec![stored.last().unwrap().clone()]);
+    assert_eq!(codex_aggregate(&mut reopened).tokens.total_tokens, 12);
 }
 
 /// 验证连续累计回退只保留会话最新值，出现单次事实后移除累计占位。

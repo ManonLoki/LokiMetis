@@ -239,7 +239,8 @@ impl IndexRolloutFile for LocalIndex {
                 added_calls = added_calls.saturating_add(added);
             }
         }
-        let mut snapshots = report.snapshots.clone();
+        // 转移兼容快照，避免写库期间仍持有全部字符串与 provenance 的深拷贝。
+        let mut snapshots = std::mem::take(&mut report.snapshots);
         self.insert_usage_and_snapshots(
             &prep.source_id,
             generation,
@@ -247,6 +248,7 @@ impl IndexRolloutFile for LocalIndex {
             &mut snapshots,
         )
         .await?;
+        drop(snapshots);
         if report.cancelled && rebuilt && existing.is_some() {
             self.discard_generation(&prep.source_id, generation).await?;
             return Ok(FileIndexOutcome {
