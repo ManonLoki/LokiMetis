@@ -82,7 +82,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                     menu::refresh(cx);last_notification_state=Some(state);cx.refresh_windows();
                 }
                 let current = cx.global::<Services>().autostart.state().revision;
-                if current != revision { revision = current; cx.refresh_windows(); }
+                if current != revision { revision = current; menu::refresh(cx); cx.refresh_windows(); }
                 let handlers = cx.global::<Services>().shortcuts.pending();
                 for dispatch in handlers { dispatch(cx); }
             });
