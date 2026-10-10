@@ -371,20 +371,24 @@ fn globally_sorts_pages_and_keeps_each_call_origin() {
         clients,
         BTreeSet::from([SourceClientKind::Codex, SourceClientKind::ClaudeCode])
     );
+    let codex_source_version =
+        ProviderKind::RolloutJsonl.parser_source_label(SourceClientKind::Codex.parser_version());
+    let claude_source_version = ProviderKind::ClaudeTranscriptJsonl
+        .parser_source_label(SourceClientKind::ClaudeCode.parser_version());
     for item in &first.items {
         match item.client {
             SourceClientKind::Codex => {
                 assert_eq!(item.fact.provider, ProviderKind::RolloutJsonl);
                 assert_eq!(
                     item.fact.source_version.as_deref(),
-                    Some("rollout-parser-v9")
+                    Some(codex_source_version.as_str())
                 );
             }
             SourceClientKind::ClaudeCode => {
                 assert_eq!(item.fact.provider, ProviderKind::ClaudeTranscriptJsonl);
                 assert_eq!(
                     item.fact.source_version.as_deref(),
-                    Some("claude-transcript-parser-v4")
+                    Some(claude_source_version.as_str())
                 );
             }
             SourceClientKind::GrokBuildCli => panic!("unexpected Grok row"),
