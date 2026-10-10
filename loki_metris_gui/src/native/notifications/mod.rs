@@ -10,6 +10,8 @@ mod macos_delivery;
 mod macos_delegate;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod refresh_tests;
 #[cfg(windows)]
 mod windows;
 
@@ -48,6 +50,18 @@ pub struct State {
     pub host_available: bool,
     /// 已持久化的队列与结果计数。
     pub progress: crate::usage_service::NotificationProgress,
+}
+
+/// 高频宿主轮询只比较展示键；业务快照仍由 owner 持有最新读取时间。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RefreshKey {
+    enabled: bool,
+    busy: bool,
+    desired: Option<bool>,
+    error: Option<Error>,
+    permission: loki_metris_core::usage_milestones::NotificationPermission,
+    host_available: bool,
+    progress_revision: u64,
 }
 
 impl State {
@@ -114,6 +128,25 @@ impl Service {
     /// 渲染只复制本地快照，不触发系统查询。
     pub fn state(&self) -> State {
         self.owner.borrow().state.clone()
+    }
+
+    /// 同一次借用先比较 Copy 键，变化时才复制带字符串的完整展示快照。
+    pub(crate) fn state_if_changed(&self, previous: Option<RefreshKey>) -> Option<(RefreshKey, State)> {
+        let owner = self.owner.borrow();
+        let state = &owner.state;
+        let key = RefreshKey {
+            enabled: state.enabled,
+            busy: state.busy,
+            desired: state.desired,
+            error: state.error,
+            permission: state.permission,
+            host_available: state.host_available,
+            progress_revision: state.progress.revision,
+        };
+        if previous == Some(key) {
+            return None;
+        }
+        Some((key, state.clone()))
     }
 
     /// 只有实际开关事件可以授权；关闭与等值操作都不请求系统权限。

@@ -350,6 +350,14 @@ Computer Use随后发现独立资格错误：All已有89,471,909 Token，摘要�
 
 原生状态读回、界面可操作和系统命中是不同观察层。本轮 Computer Use 的覆盖点合成点击在 AppKit 入口已带错误局部坐标，不能据主窗口未导航判断产品穿透失效，也不能据 ignoresMouseEvents=true 宣称实际鼠标命中已通过。临时事件观察代码已移除；真实 WindowServer 与 Windows 宿主交互仍待验证。证据入口为 `release/pet-mouse-passthrough-development-20261011/`，产品改动见同日 changelog 的 `LMDESK-PET-MOUSE-PASSTHROUGH-001`。
 
+### 5.21 在克隆完整状态前比较轻量键，业务新鲜度继续更新
+
+原生服务原先每40ms克隆一次完整通知State，再比较七个展示字段。现在同一次owner借用先构造Copy键：本地开关、忙碌、待保存意图、错误、系统权限、发送器可用性和progress revision；相等直接返回None，变化才复制完整快照供菜单/托盘/窗口消费。不能用 `then_some((key, state.clone()))` 表达这个分支，因为参数会提前求值。普通渲染和发送路径继续按需读取最新完整状态，语言切换也独立刷新菜单。
+
+展示键不拥有业务时间。后台同值读取仍发布新observed_ms，200ms宿主轮询仍无条件替换owner.progress；按revision跳过这个赋值会让发送资格错误过期。新增接口回归证明同键不发刷新且普通state和下次变化快照保留新时间；该测试直接更新owner，不冒充实际驱动宿主轮询。宿主持续赋值由未修改源码核对，后台新鲜度行为另有真实发布器回归。
+
+本轮通知17项、实际测试平台菜单4项、后台时间回归1项通过。漏掉busy字段的错误变体被独立字段回归捕获，恢复后通知17项重跑通过。分类为maintenance，稳定标识 `LMMAINT-NOTIFICATION-REFRESH-KEY-001`，版本保持0.2.5。证据入口 `release/notification-refresh-key-development-20261011/`。这里只确认无变化路径避免完整快照复制，没有测量本轮CPU或内存收益，也不能以这项小型内部优化解释用户的946MB截图或宣称已优于Tauri。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

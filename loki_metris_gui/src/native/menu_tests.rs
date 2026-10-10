@@ -31,10 +31,10 @@ fn assert_action<A: Action>(
 fn selected_language_survives_state_refresh(cx: &mut TestAppContext) {
     cx.update(|cx| {
         install("zh-CN", cx);
-        for (locale, title, autostart, quit) in [
-            ("zh-CN", "诡秘神谕", "开机自启", "退出诡秘神谕"),
-            ("en-US", "LokiMetris", "Start at login", "Quit LokiMetris"),
-            ("zh-CN", "诡秘神谕", "开机自启", "退出诡秘神谕"),
+        for (locale, title, autostart, notification, quit) in [
+            ("zh-CN", "诡秘神谕", "开机自启", "系统通知", "退出诡秘神谕"),
+            ("en-US", "LokiMetris", "Start at login", "System notifications", "Quit LokiMetris"),
+            ("zh-CN", "诡秘神谕", "开机自启", "系统通知", "退出诡秘神谕"),
         ] {
             set_language(locale, cx);
             for _ in 0..2 {
@@ -43,6 +43,7 @@ fn selected_language_survives_state_refresh(cx: &mut TestAppContext) {
                 assert_eq!(menus[0].name.as_ref(), title);
                 assert_eq!(menus[0].items.len(), 4);
                 assert_action::<ToggleAutostart>(&menus[0].items[0], autostart, false, true);
+                assert_action::<ToggleNotification>(&menus[0].items[1], notification, false, false);
                 assert_action::<Quit>(&menus[0].items[3], quit, false, false);
                 assert!(matches!(menus[0].items[2], OwnedMenuItem::Separator));
                 #[cfg(target_os = "macos")]
@@ -105,11 +106,11 @@ fn autostart_menu_uses_confirmed_system_state(cx: &mut TestAppContext) {
 fn notification_menu_keeps_saved_preference(cx: &mut TestAppContext) {
     cx.update(|cx| {
         set_language("en-US", cx);
-        for (enabled, busy, desired) in [
-            (false, false, None),
-            (true, false, None),
-            (false, true, Some(true)),
-            (true, true, Some(false)),
+        for (enabled, busy, desired, label) in [
+            (false, false, None, "System notifications"),
+            (true, false, None, "System status unavailable"),
+            (false, true, Some(true), "Saving notification preference"),
+            (true, true, Some(false), "Saving notification preference"),
         ] {
             let state = super::super::notifications::State {
                 enabled,
@@ -119,8 +120,7 @@ fn notification_menu_keeps_saved_preference(cx: &mut TestAppContext) {
             };
             apply_menus(&super::super::autostart::State::default(), &state, cx);
             let menus = cx.get_menus().unwrap();
-            let label = super::super::notifications::menu_label("en-US", &state);
-            assert_action::<ToggleNotification>(&menus[0].items[1], &label, enabled, busy);
+            assert_action::<ToggleNotification>(&menus[0].items[1], label, enabled, busy);
         }
     });
 }

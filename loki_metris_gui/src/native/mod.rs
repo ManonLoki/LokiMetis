@@ -57,7 +57,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
     if tray.is_none() { tracing::warn!(event = "tray_unavailable"); }
     let autostart = autostart::Service::new();
     let mut revision = 0;
-    let mut last_notification_state=None;
+    let mut last_notification_key=None;
     let mut last_mouse_state=None;
     let poll = cx.spawn(async move |cx| {
         loop {
@@ -82,10 +82,9 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                     if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_mouse_passthrough(mouse_state);}
                     last_mouse_state=Some(mouse_state);
                 }
-                let state=notification_state(cx);
-                if last_notification_state.as_ref().is_none_or(|old:&notifications::State|old.enabled!=state.enabled||old.busy!=state.busy||old.desired!=state.desired||old.error!=state.error||old.permission!=state.permission||old.host_available!=state.host_available||old.progress.revision!=state.progress.revision) {
+                if let Some((key,state))=cx.global::<Services>().notifications.state_if_changed(last_notification_key) {
                     if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_notification(&state);}
-                    menu::refresh(cx);last_notification_state=Some(state);cx.refresh_windows();
+                    menu::refresh(cx);last_notification_key=Some(key);cx.refresh_windows();
                 }
                 let current = cx.global::<Services>().autostart.state().revision;
                 if current != revision { revision = current; menu::refresh(cx); cx.refresh_windows(); }

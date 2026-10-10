@@ -24,7 +24,10 @@ fn settle(cx: &mut TestAppContext, service: &Service) {
 fn notification_authorizes_only_enable_and_uses_real_saved_receipt(cx: &mut TestAppContext) {
     let writer = Writer::in_memory(Preferences::default());
     let service = Service::new(false, writer.clone());
-    assert!(!service.state().enabled);
+    let (mut key, initial) = service.state_if_changed(None).unwrap();
+    assert!(!initial.enabled);
+    assert_eq!(initial.progress.revision, 0);
+    assert!(service.state_if_changed(Some(key)).is_none());
     cx.update(|cx| {
         service.set_using(
             false,
@@ -50,6 +53,11 @@ fn notification_authorizes_only_enable_and_uses_real_saved_receipt(cx: &mut Test
     assert!(service.state().busy);
     assert_eq!(service.state().desired, Some(true));
     assert!(!service.state().enabled);
+    let (busy_key, busy) = service.state_if_changed(Some(key)).unwrap();
+    assert!(busy.busy);
+    assert_eq!(busy.desired, Some(true));
+    assert_eq!(busy.progress.revision, 0);
+    key = busy_key;
     cx.update(|cx| {
         service.set_using(
             true,
@@ -57,9 +65,14 @@ fn notification_authorizes_only_enable_and_uses_real_saved_receipt(cx: &mut Test
             cx,
         )
     });
+    assert!(service.state_if_changed(Some(key)).is_none());
     sender.send(Ok(())).unwrap();
     settle(cx, &service);
-    assert!(service.state().enabled);
+    let (saved_key, saved) = service.state_if_changed(Some(key)).unwrap();
+    assert!(saved.enabled);
+    assert!(!saved.busy);
+    assert_eq!(saved.progress.revision, 0);
+    key = saved_key;
     cx.update(|cx| {
         service.set_using(
             false,
@@ -67,8 +80,16 @@ fn notification_authorizes_only_enable_and_uses_real_saved_receipt(cx: &mut Test
             cx,
         )
     });
+    let (closing_key, closing) = service.state_if_changed(Some(key)).unwrap();
+    assert!(closing.busy);
+    assert_eq!(closing.desired, Some(false));
+    key = closing_key;
     settle(cx, &service);
-    assert!(!service.state().enabled);
+    let (disabled_key, disabled) = service.state_if_changed(Some(key)).unwrap();
+    assert!(!disabled.enabled);
+    assert!(!disabled.busy);
+    assert_eq!(disabled.progress.revision, 0);
+    assert!(service.state_if_changed(Some(disabled_key)).is_none());
     service.stop();
     writer.finish();
 }
