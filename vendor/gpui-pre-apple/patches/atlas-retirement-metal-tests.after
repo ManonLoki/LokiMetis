@@ -1,0 +1,7 @@
+#[cfg(test)]
+mod atlas_retirement_metal_tests {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/atlas_retirement_metal_tests.rs"));
+}
+
+#[repr(C)]
+enum ShadowInputIndex {

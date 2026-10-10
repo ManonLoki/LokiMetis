@@ -1,0 +1,27 @@
+    fn remove(&mut self, tile: AtlasTile) {
+        let id = tile.texture_id;
+
+        let textures = match id.kind {
+            AtlasTextureKind::Monochrome => &mut self.monochrome_textures,
+            AtlasTextureKind::Polychrome => &mut self.polychrome_textures,
+            AtlasTextureKind::Subpixel => unreachable!(),
+        };
+
+        let Some(texture_slot) = textures
+            .textures
+            .iter_mut()
+            .find(|texture| texture.as_ref().is_some_and(|v| v.id == id))
+        else {
+            return;
+        };
+
+        if let Some(mut texture) = texture_slot.take() {
+            texture.allocator.deallocate(tile.tile_id.into());
+            texture.decrement_ref_count();
+            if texture.is_unreferenced() {
+                textures.free_list.push(id.index as usize);
+            } else {
+                *texture_slot = Some(texture);
+            }
+        }
+    }

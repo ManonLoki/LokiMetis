@@ -242,6 +242,20 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 参考：[窗口与全局退役](../loki_metris_gui/src/monitor/image_residency.rs)、[生命周期交错回归](../loki_metris_gui/src/monitor/image_window_residency_tests.rs)、[真实 Metal 多帧回归](../loki_metris_gui/src/monitor/image_window_metal_tests.rs)。
 
+### 5.12 图集区域必须等 GPU 完成后才能复用
+
+删除逻辑 key 和回收物理区域是两件事。Metal command buffer 保留 texture 对象，仍不能阻止 CPU 的 `replace_region` 向过早归还的 allocator 区域上传新图片。GPUI 的 defer、下一次界面更新或固定等待若干帧，都不是 GPU 完成证明。
+
+本次修复在首次纹理查询前登记编码 epoch。逻辑删除立即生效，但完整 AtlasTile、allocator 区域、物理引用计数及 texture slot 保留到当时已有的编码全部完成或取消。活动 epoch 使用有序集合；不能用最大的已完成编号跳过较早的未提交编码。只保存活动编码和退休资源，不累积已完成历史；后来开始的编码不会延长旧资源的等待。
+
+私有 EncodedFrame 包装提交入口，只转发实际需要的 Metal 操作。正常提交把图集 guard 转交完成回调；编码错误或未提交返回值被丢弃时自动取消。完成回调也处理 GPU 错误终态，只操作图集锁，不进入 Window/App。图集 guard 的 Arc 允许窗口退出后独立收尾；图集不持 command buffer，避免引用环。不能持锁提交或等待 GPU。
+
+真实回归用 SharedEvent 阻塞提交队列，以可观察的物理纹理槽证明旧实现提前回收，再核对完成后的释放。另用同页 keeper、700×700 红色区域和同逻辑 key 的蓝色重插，检查尚未提交时也不能复用旧区域，实际像素仍为红色且新分配仍存在。还覆盖丢弃未提交编码与先关闭 renderer 的生命周期。状态测试检查乱序完成、不同退休批次、后续编码和一万次无历史积累。最终 Apple 渲染 27 项、图片 38 项开发回归通过；10 项退休相关回归包含在前者内，不能相加。
+
+此 fence 只保护已经开始编码的读取，不能让未来 Scene 安全重放已逻辑删除的旧 tile；应用仍需保留实际绘制帧的需求并在卸载清理时刷新缓存场景。GPU backlog 也可能保留多个退休帧，本次没有建立严格显存硬上限。可见动画的逐帧工作集、CPU 收益、长期泄漏和 Windows 时序尚需各自验证。变化 LMDESK-METAL-ATLAS-RETIREMENT-001 按 bug-fix 登记为 0.2.3，失败日志及开发预览指纹保存于忽略的 `release/metal-atlas-retirement-development-20261010/`。
+
+参考：[退休状态](../vendor/gpui-pre-apple/src/atlas_retirement.rs)、[真实 Metal 回归](../vendor/gpui-pre-apple/src/atlas_retirement_metal_tests.rs)、[提交包装补丁](../vendor/gpui-pre-apple/patches/atlas-retirement-submit.after)、[图集回收补丁](../vendor/gpui-pre-apple/patches/atlas-retirement-physical.after)。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

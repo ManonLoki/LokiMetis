@@ -13,6 +13,46 @@ fn generated_sources() -> PathBuf {
         source_manifest_sha256: "3a0648847f84019c27d80c8d030a34e709136c4e65c1c69643b1d527cc41c95d",
         patches: &[
             Patch {
+                name: "atlas-retirement-submit", path: "src/metal_renderer.rs",
+                before: include_str!("patches/atlas-retirement-submit.before"),
+                after: include_str!("patches/atlas-retirement-submit.after"),
+            },
+            Patch {
+                name: "atlas-retirement-render-frame", path: "src/metal_renderer.rs",
+                before: include_str!("patches/atlas-retirement-render-frame.before"),
+                after: include_str!("patches/atlas-retirement-render-frame.after"),
+            },
+            Patch {
+                name: "atlas-retirement-frame", path: "src/metal_atlas.rs",
+                before: include_str!("patches/atlas-retirement-frame.before"),
+                after: include_str!("patches/atlas-retirement-frame.after"),
+            },
+            Patch {
+                name: "atlas-retirement-physical", path: "src/metal_atlas.rs",
+                before: include_str!("patches/atlas-retirement-physical.before"),
+                after: include_str!("patches/atlas-retirement-physical.after"),
+            },
+            Patch {
+                name: "atlas-retirement-deallocate", path: "src/metal_atlas.rs",
+                before: include_str!("patches/atlas-retirement-deallocate.before"),
+                after: include_str!("patches/atlas-retirement-deallocate.after"),
+            },
+            Patch {
+                name: "atlas-retirement-state", path: "src/metal_atlas.rs",
+                before: include_str!("patches/atlas-retirement-state.before"),
+                after: include_str!("patches/atlas-retirement-state.after"),
+            },
+            Patch {
+                name: "atlas-retirement-init", path: "src/metal_atlas.rs",
+                before: include_str!("patches/atlas-retirement-init.before"),
+                after: include_str!("patches/atlas-retirement-init.after"),
+            },
+            Patch {
+                name: "atlas-retirement-metal-tests", path: "src/metal_renderer.rs",
+                before: include_str!("patches/atlas-retirement-metal-tests.before"),
+                after: include_str!("patches/atlas-retirement-metal-tests.after"),
+            },
+            Patch {
                 name: "sprite-clip-layout", path: "vendor/gpui/src/scene.rs",
                 before: include_str!("patches/sprite-clip-layout.before"),
                 after: include_str!("patches/sprite-clip-layout.after"),
@@ -24,6 +64,8 @@ fn generated_sources() -> PathBuf {
             },
         ],
         generated_hashes: &[
+            ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
+            ("src/metal_renderer.rs", "fee36c1d4871bc224b05dbaf2d46cebc8f10f201df4270c4202176d4f6d17ebc"),
             ("src/gpui_apple.rs", "13f5d77ff374cd40082f29f20aeb6a2d185643e15d5031bcbe6a8538ad3d2f7f"),
             ("vendor/gpui/src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
             ("src/shaders.metal", "059ffc18b814082e74f484fc3fc27dbba2b1d3bec5d852bbc75342ab1d813ea2"),

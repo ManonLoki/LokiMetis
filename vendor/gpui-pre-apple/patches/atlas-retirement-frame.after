@@ -1,0 +1,24 @@
+/// 在编码开始时保留图集，完成或取消后再归还退休区域。
+impl MetalAtlas {
+    pub(crate) fn begin_frame(self: &std::sync::Arc<Self>) -> MetalAtlasFrame {
+        let epoch = self.0.lock().backend.retirements.begin();
+        MetalAtlasFrame { atlas: self.clone(), epoch }
+    }
+}
+
+pub(crate) struct MetalAtlasFrame {
+    atlas: std::sync::Arc<MetalAtlas>,
+    epoch: u64,
+}
+
+impl Drop for MetalAtlasFrame {
+    fn drop(&mut self) {
+        let mut state = self.atlas.0.lock();
+        let ready = state.backend.retirements.finish(self.epoch);
+        for tile in ready {
+            state.backend.deallocate(tile);
+        }
+    }
+}
+
+impl PlatformAtlas for MetalAtlas {
