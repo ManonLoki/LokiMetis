@@ -299,7 +299,7 @@ impl Shell {
         } else {
             0x212529
         });
-        div().id(gpui_kit::SharedString::from(message.to_owned())).role(Role::Alert).aria_label(self.t(title)).aria_description(self.t(message))
+        div().id(gpui_kit::SharedString::from(message.to_owned())).test_support().role(Role::Alert).aria_label(self.t(title)).aria_description(self.t(message))
             .w_full().flex().items_start().rounded(px(20.)).p_4().border_1().border_color(gray.opacity(0.26)).bg(gray.opacity(0.09))
             .child(div().size(px(20.)).flex_shrink_0().mt(px(1.)).mr_4().flex().items_center().justify_center().text_color(foreground)
                 .child(gpui_kit::component::Icon::default().data(include_bytes!("../../../assets/icons/warning-circle.svg")).size(px(18.))))

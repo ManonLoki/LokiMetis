@@ -806,6 +806,9 @@
     "dismiss": "Dismiss notification"
   },
   "notification": {
+    "details": "System notification details",
+    "show_details": "Show system notification details",
+    "hide_details": "Hide system notification details",
     "paused": "System notifications paused",
     "denied_intent_saved": "Your enabled preference was saved, but the system does not currently allow notifications. Allow them in system notification settings, then refresh permission.",
     "permission_intent_saved": "Your enabled preference was saved, but system notification permission could not be confirmed. Refresh permission and try again.",

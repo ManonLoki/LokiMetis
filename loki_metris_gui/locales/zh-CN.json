@@ -806,6 +806,9 @@
     "dismiss": "关闭通知"
   },
   "notification": {
+    "details": "系统通知详情",
+    "show_details": "展开系统通知详情",
+    "hide_details": "收起系统通知详情",
     "paused": "系统通知已暂停",
     "denied_intent_saved": "开启偏好已保存，但系统当前不允许通知。请在系统通知设置中允许后刷新权限。",
     "permission_intent_saved": "开启偏好已保存，但暂时无法确认系统通知权限。请刷新权限并重试。",

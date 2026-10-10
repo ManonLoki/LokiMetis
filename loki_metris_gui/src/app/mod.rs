@@ -56,6 +56,7 @@ pub struct Shell {
     native_window:gpui_kit::AnyWindowHandle,
     agent_settings:settings::AgentSettingsState,
     preference_save:settings::PreferenceSaveState,
+    notification_details_expanded: bool,
     repository:settings::RepositoryState,
     dashboard: dashboard::Dashboard,
     page: Page,
@@ -111,6 +112,7 @@ impl Shell {
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             _keyboard_entry:keyboard_entry,
             last_requested_title_locale: None,
+            notification_details_expanded: false,
             release_notes_modal: None,
         };
         value.remember_window(window, cx);
