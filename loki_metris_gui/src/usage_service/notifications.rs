@@ -93,7 +93,9 @@ impl Monitor {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
         if let Some(task) = task {
-            let _ = task.await;
+            if let Err(error) = task.await {
+                tracing::error!(event = "notification_worker_join_failed", panicked = error.is_panic());
+            }
         }
     }
 }
@@ -276,6 +278,10 @@ async fn run(
             continue;
         }
         let now = current_epoch_ms();
+        // 关闭后拒收新回执，但已经被有界通道接受的结果必须全部落盘。
+        if control.closing {
+            receipts.close();
+        }
         let mut next = ledger.state.clone();
         next.set_enabled(control.enabled);
         if control.retry != retry {
@@ -331,12 +337,23 @@ async fn run(
         }
         if control.closing {
             publish(&progress, &ledger, &snapshot, error);
+            tracing::info!(event = "notification_worker_stopped", issue = error);
             break;
         }
         let demand = control.enabled || control.visible;
         if demand && now >= next_refresh {
             let zone = jiff::tz::TimeZone::system();
-            let loaded = today::load(context.clone(), now, zone, ScanCancellation::default()).await;
+            let cancellation = ScanCancellation::default();
+            let loaded = tokio::select! {
+                // 只取消只读摘要的等待；persist 不在此 select 内，已接受事务仍由原 owner 收尾。
+                biased;
+                _ = controls.changed() => {
+                    cancellation.cancel();
+                    next_refresh = 0;
+                    continue;
+                },
+                loaded = today::load(context.clone(), now, zone, cancellation.clone()) => loaded,
+            };
             let after = current_epoch_ms();
             next_refresh = after.saturating_add(30_000);
             match loaded {
@@ -471,3 +488,7 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "notification_shutdown_tests.rs"]
+mod shutdown_tests;

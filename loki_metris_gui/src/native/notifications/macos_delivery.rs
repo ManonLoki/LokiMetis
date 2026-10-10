@@ -1,58 +1,19 @@
-//! 应用唯一 UserNotifications delegate；不调用 GPUI 懒初始化 sender，也不覆盖活 owner。
-use block2::{DynBlock, RcBlock};
+//! 有完成回执的直接提交驱动；delegate 租约保留 GPUI Kit 已安装的回调。
+use block2::RcBlock;
 use loki_metris_core::usage_milestones::MilestoneOutcome;
-use objc2::{
-    AnyThread, DefinedClass, define_class, msg_send, rc::Retained, runtime::ProtocolObject,
-};
-use objc2_foundation::{NSArray, NSError, NSObject, NSObjectProtocol, NSString};
+use objc2::rc::Retained;
+use objc2_foundation::{NSArray, NSError, NSString};
 use objc2_user_notifications::*;
 use std::sync::{Arc, Mutex, mpsc::SyncSender};
 use tokio::sync::oneshot;
 
-/// delegate 的跨线程输入只包含有界点击信号，绝不借用 UI。
-struct DelegateIvars {
-    clicked: SyncSender<super::driver::Event>,
-}
-define_class!(
-    // 安全：NSObject 无额外子类不变量；delegate 不实现 Drop，ivars 由 objc2 管理。
-    #[unsafe(super(NSObject))]
-    #[name = "LokiMetrisMilestoneNotificationDelegate"]
-    #[ivars = DelegateIvars]
-    /// 应用唯一通知中心代理。
-    struct NotificationDelegate;
-    unsafe impl NSObjectProtocol for NotificationDelegate {}
-    unsafe impl UNUserNotificationCenterDelegate for NotificationDelegate {
-        /// 点击只送一个恢复信号，真正窗口激活回到 GPUI 主线程。
-        #[unsafe(method(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:))]
-        fn response(
-            &self,
-            _: &UNUserNotificationCenter,
-            _: &UNNotificationResponse,
-            done: &DynBlock<dyn Fn()>,
-        ) {
-            let _ = self.ivars().clicked.try_send(super::driver::Event::Clicked);
-            done.call(());
-        }
-        /// 前台显式选择静音 banner/list，API接受与可见效果仍独立验收。
-        #[unsafe(method(userNotificationCenter:willPresentNotification:withCompletionHandler:))]
-        fn present(
-            &self,
-            _: &UNUserNotificationCenter,
-            _: &UNNotification,
-            done: &DynBlock<dyn Fn(UNNotificationPresentationOptions)>,
-        ) {
-            done.call((
-                UNNotificationPresentationOptions::Banner | UNNotificationPresentationOptions::List,
-            ));
-        }
-    }
-);
-/// 前台持有弱 delegate 属性的真实生命周期，退出只移除自身所有权。
+/// 前台持有中心与桥接租约，退出只恢复仍由自身拥有的槽位。
 pub(super) struct Host {
-    delegate: Retained<NotificationDelegate>,
+    center: Retained<UNUserNotificationCenter>,
+    lease: super::macos_delegate::Lease,
 }
 impl Host {
-    /// GPUI didFinishLaunching 回调返回前建立 owner；裸binary或活delegate冲突时失败关闭。
+    /// GPUI didFinishLaunching 返回前协作桥接已知框架代理；未知代理仍失败关闭。
     pub fn new(clicked: SyncSender<super::driver::Event>) -> Option<Self> {
         if objc2::MainThreadMarker::new().is_none() || !super::macos::bundled() {
             tracing::warn!(
@@ -62,45 +23,21 @@ impl Host {
             return None;
         }
         let center = UNUserNotificationCenter::currentNotificationCenter();
-        if center.delegate().is_some() {
-            tracing::warn!(
-                event = "notification_host_unavailable",
-                reason = "delegate_conflict"
-            );
-            return None;
-        }
-        let allocated = NotificationDelegate::alloc().set_ivars(DelegateIvars { clicked });
-        // 安全：NSObject.init 是指定初始化器，ivars 已完整建立。
-        let delegate: Retained<NotificationDelegate> = unsafe { msg_send![super(allocated), init] };
-        center.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
-        if !center.delegate().is_some_and(|current| {
-            std::ptr::eq(
-                &*current as *const _ as *const (),
-                &*delegate as *const _ as *const (),
-            )
-        }) {
-            tracing::warn!(
-                event = "notification_host_unavailable",
-                reason = "delegate_readback"
-            );
-            return None;
-        }
+        let lease = match super::macos_delegate::Lease::install(&*center, clicked) {
+            Ok(lease) => lease,
+            Err(reason) => {
+                tracing::warn!(event = "notification_host_unavailable", reason);
+                return None;
+            }
+        };
         tracing::info!(event = "notification_host_installed");
-        Some(Self { delegate })
+        Some(Self { center, lease })
     }
 }
 impl Drop for Host {
     /// 不移除其它后来取得的owner，避免退出覆盖外部delegate。
     fn drop(&mut self) {
-        let center = UNUserNotificationCenter::currentNotificationCenter();
-        if center.delegate().is_some_and(|d| {
-            std::ptr::eq(
-                &*d as *const _ as *const (),
-                &*self.delegate as *const _ as *const (),
-            )
-        }) {
-            center.setDelegate(None);
-        }
+        self.lease.release(&*self.center);
     }
 }
 /// 完成块只报告安排请求成功与否，不输出NSError描述或借用宿主对象。

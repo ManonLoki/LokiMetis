@@ -6,6 +6,8 @@ mod host;
 mod macos;
 #[cfg(target_os = "macos")]
 mod macos_delivery;
+#[cfg(target_os = "macos")]
+mod macos_delegate;
 #[cfg(test)]
 mod tests;
 #[cfg(windows)]
