@@ -14,7 +14,8 @@ use super::file_source::{
     ValidatedRolloutFile, file_identity, modified_epoch_ms, validate_rollout_path,
 };
 use super::jsonl::{
-    JsonlParseContext, JsonlParseReport, JsonlWarningCounts, PARSER_VERSION, parse_jsonl_stream,
+    JsonlParseContext, JsonlParseReport, JsonlWarningCounts, PARSER_VERSION, is_response_call,
+    parse_jsonl_stream,
 };
 use super::scan::{CancellationToken, ScanConfig};
 
@@ -186,7 +187,7 @@ impl IndexRolloutFile for LocalIndex {
         let relative_label = prep.relative_label.clone();
         let root_id_for_parse = root_id.clone();
         let parse_cancellation = cancellation.clone();
-        let mut parsed = spawn_blocking(move || {
+        let parsed = spawn_blocking(move || {
             parse_rollout_batches(RolloutParseRequest {
                 file: prep.file,
                 observed_size: prep.observed_size,
@@ -207,9 +208,6 @@ impl IndexRolloutFile for LocalIndex {
                 "rollout parse worker lost",
             )
         })??;
-        for batch in &mut parsed.batches {
-            retain_ingestable_calls(batch, config.ingest_since_epoch_ms);
-        }
         let mut context = parsed.context;
         let mut report = parsed.report;
         context.record_consumed_line_warnings(report.warnings);
@@ -217,11 +215,29 @@ impl IndexRolloutFile for LocalIndex {
             .snapshots
             .retain(|snapshot| snapshot.occurred_at_epoch_ms >= config.ingest_since_epoch_ms);
         let mut added_calls = 0_u64;
-        for mut batch in parsed.batches {
-            added_calls = added_calls.saturating_add(
-                self.insert_usage_batch(&prep.source_id, generation, &mut batch)
-                    .await?,
-            );
+        for batch in parsed.batches {
+            // 保留文件顺序，仅按 adapter 协议标记拆连续批；core 决定各自写入语义。
+            let mut calls = batch.into_iter().peekable();
+            while let Some(first) = calls.peek() {
+                let observed = is_response_call(first);
+                let mut group = Vec::with_capacity(INSERT_BATCH_SIZE);
+                while calls
+                    .peek()
+                    .is_some_and(|call| is_response_call(call) == observed)
+                {
+                    group.push(calls.next().expect("peeked call exists"));
+                }
+                let added = if observed {
+                    // 现代稳定事实由 core 恢复首次时间后过滤，不能先用重放时间丢弃。
+                    self.insert_observed_usage_batch(
+                        &prep.source_id, generation, config.ingest_since_epoch_ms, &mut group,
+                    ).await?
+                } else {
+                    retain_ingestable_calls(&mut group, config.ingest_since_epoch_ms);
+                    self.insert_usage_batch(&prep.source_id, generation, &mut group).await?
+                };
+                added_calls = added_calls.saturating_add(added);
+            }
         }
         let mut snapshots = report.snapshots.clone();
         self.insert_usage_and_snapshots(

@@ -12,6 +12,7 @@ mod codex_remaining_inflation_tests; // 验证 checkpoint restore 后再遇 last
 mod incremental_scan_tests; // 验证追加/替换/重建三种增量场景的判定与结果
 mod parser_upgrade_tests; // 验证 parser generation 升级后旧数据的重扫与迁移
 mod quality_checkpoint_tests; // 验证已消费坏行的质量事实随 generation 持久保留
+mod response_record_tests; // 验证现代响应的真实入库、重启、取消和重建一致性
 mod root_lifecycle_tests; // 验证数据根登记、启停、重命名、失效的完整生命周期
 mod scan_state_tests; // 验证扫描四态（未扫描/需重扫/无调用/就绪）判定
 mod signature_budget_tests; // 验证签名探测预算耗尽时的保守回退行为

@@ -6,7 +6,7 @@ use super::*;
 use crate::{Confidence, TokenUsage, UsageCall};
 
 /// 创建只含调用表的内存 schema，隔离验证批次事务与冲突语义。
-async fn test_connection() -> DatabaseConnection {
+pub(super) async fn test_connection() -> DatabaseConnection {
     let connection = Database::connect(ConnectOptions::new("sqlite::memory:"))
         .await
         .expect("in-memory database opens");
@@ -43,7 +43,7 @@ async fn test_connection() -> DatabaseConnection {
 }
 
 /// 构造不含正文或真实路径的规范化调用。
-fn call(
+pub(super) fn call(
     logical_call_id: &str,
     thread_key: &str,
     confidence: Confidence,

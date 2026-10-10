@@ -42,6 +42,7 @@ pub(super) fn is_known_non_usage_event(
                     | "turn_aborted"
                     | "image_generation_end"
                     | "thread_rolled_back"
+                    | "item_completed"
             )
         )
 }
@@ -63,7 +64,8 @@ pub(super) fn initialize_owner_context(
     ) {
         return;
     }
-    if let Some(session_id) = payload.session_id.as_deref().or(payload.id.as_deref()) {
+    // 当前协议 id 为本线程，session_id 为根会话；旧协议缺 id 时才兼容后者。
+    if let Some(session_id) = payload.id.as_deref().or(payload.session_id.as_deref()) {
         context.thread_key = stable_id("thread", session_id);
     }
     update_dynamic_context(context, payload);

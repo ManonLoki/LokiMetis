@@ -247,7 +247,7 @@ impl SourceClientKind {
     /// 此处未加，会导致重建后调用已入库、读取仍按旧代当成空索引。
     pub const fn parser_version(self) -> u32 {
         match self {
-            Self::Codex => 9,
+            Self::Codex => 10,
             Self::ClaudeCode => 4,
             Self::GrokBuildCli => 3,
             Self::WorkBuddy => 1,

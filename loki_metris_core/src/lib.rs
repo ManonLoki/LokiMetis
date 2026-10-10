@@ -246,7 +246,7 @@ pub use timeline::{
     overview_snapshot_start_epoch_ms, retention_cutoff_epoch_ms,
 };
 pub use usage::{
-    IncrementalTokenUsageDecision, SelectedTokenUsage, TokenUsage, TokenUsageError,
+    CodexUsageAuthority, IncrementalTokenUsageDecision, SelectedTokenUsage, TokenUsage, TokenUsageError,
     TotalTokenAccounting, select_incremental_call_usage, select_single_call_usage,
 };
 pub use workbuddy_stats::{

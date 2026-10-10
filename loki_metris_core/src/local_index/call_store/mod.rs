@@ -14,6 +14,22 @@ use crate::{SessionTokenSnapshot, UsageCall};
 use super::{LocalError, LocalIndex};
 
 impl LocalIndex {
+    /// 按稳定响应身份保存不可覆盖账单，并按首次发生时间过滤保留期。
+    /// 同值幂等，冲突回滚本批并保留既有事实；过滤不改变 adapter 协议阶段。
+    pub async fn insert_observed_usage_batch(
+        &mut self,
+        source_id: &str,
+        generation: u64,
+        ingest_since_epoch_ms: i64,
+        batch: &mut Vec<UsageCall>,
+    ) -> Result<u64, LocalError> {
+        let transaction = self.connection.begin().await?;
+        let added = observed::insert_observed_usage_batch(
+            &transaction, source_id, generation, ingest_since_epoch_ms, batch,
+        ).await?;
+        transaction.commit().await?;
+        Ok(added)
+    }
     /// 返回指定来源 generation 中按适配器内部顺序最新的一致性检查点。
     // 一致性键的编码与解释仍归具体 adapter 所有；core 只提供严格按来源和
     // generation 隔离的只读原语，避免把 Codex 协议细节扩散进持久层。
@@ -92,9 +108,12 @@ pub struct ClaudeBatchOutcome {
 
 mod claude;
 mod codex;
+mod observed;
 mod shared;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod observed_tests;
 
 pub(crate) use claude::insert_claude_usage_batch;
 pub(crate) use codex::insert_usage_batch;

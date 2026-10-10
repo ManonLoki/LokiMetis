@@ -7,6 +7,9 @@ use thiserror::Error;
 
 use crate::Confidence;
 
+mod codex;
+pub use codex::CodexUsageAuthority;
+
 /// 定义用户可见 `total_tokens` 的 provider 级聚合口径。
 ///
 /// ADR-121 后三个本机 provider 都必须保留上游单次总量；

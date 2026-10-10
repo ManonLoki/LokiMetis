@@ -4,8 +4,8 @@ use std::io::Read;
 
 use jiff::Timestamp;
 use loki_metris_core::{
-    IncrementalTokenUsageDecision, SessionTokenSnapshot, SourceParseCheckpoint, SourceProvenance,
-    TokenUsage, UsageCall, safe_path_basename, safe_thread_title, select_incremental_call_usage,
+    CodexUsageAuthority, IncrementalTokenUsageDecision, SessionTokenSnapshot, SourceParseCheckpoint,
+    SourceProvenance, TokenUsage, UsageCall, safe_path_basename, safe_thread_title,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,6 +15,12 @@ use super::{CancellationToken, LocalError, LocalErrorKind};
 
 pub(super) mod codec;
 mod context;
+mod protocol;
+mod response;
+mod non_usage_line;
+
+use protocol::*;
+pub(super) use response::is_response_call;
 
 #[cfg(test)]
 pub(crate) use codec::restore_incremental_checkpoint;
@@ -32,12 +38,12 @@ pub const PARSER_VERSION: u32 = loki_metris_core::SourceClientKind::Codex.parser
 const CUMULATIVE_CHECKPOINT_PREFIX: &str = "codex-v9";
 
 /// adapter 私有 parse checkpoint 的 schema 版本；与 rollout parser generation 分开演进。
-const ADAPTER_STATE_SCHEMA_VERSION: u8 = 2;
+const ADAPTER_STATE_SCHEMA_VERSION: u8 = 3;
 
 /// `task_started.started_at` 与 owner 创建时刻允许的毫秒误差。
 const OWNED_START_TOLERANCE_MS: u64 = 2_000;
 
-/// 单条 JSONL 的默认最大字节数；更大记录会流式丢弃并计入覆盖警告。
+/// 单条 JSONL 的默认缓冲上限；超长行只有完整确认非用量路由才能安全跳过。
 pub const DEFAULT_MAX_JSONL_LINE_BYTES: usize = 1024 * 1024;
 
 /// 数字时间戳只接受四位年份 RFC3339 能表达的 Unix 毫秒范围。
@@ -68,7 +74,7 @@ pub struct JsonlCheckpoint {
 pub struct JsonlWarningCounts {
     /// 不能解析为 JSON 对象的完整行数量。
     pub malformed_lines: u64,
-    /// 超过单行上限并被流式丢弃的完整行数量。
+    /// 超过缓冲上限且无法完整确认非用量路由的完整行数量。
     pub oversized_lines: u64,
     /// 结构有效但不是当前支持事件的行数量。
     pub unknown_events: u64,
@@ -138,6 +144,8 @@ struct PersistedJsonlParseState {
     previous_cumulative: Option<TokenUsage>,
     /// 最近一次可信单次 last，用于识别自身边界后的重放。
     previous_last: Option<TokenUsage>,
+    /// 当前自身区段的事实来源；旧检查点缺此字段必须重建。
+    usage_authority: CodexUsageAuthority,
 }
 
 impl PersistedJsonlParseState {
@@ -188,6 +196,8 @@ pub struct JsonlParseContext {
     pub previous_last: Option<TokenUsage>,
     /// 当前文件的 owner 初始化与 fork 自身边界状态。
     ownership: RolloutOwnershipState,
+    /// 只有有效且属于自身区段的响应记录才能切换权威来源。
+    usage_authority: CodexUsageAuthority,
 }
 
 impl JsonlParseContext {
@@ -205,6 +215,7 @@ impl JsonlParseContext {
             previous_cumulative: None,
             previous_last: None,
             ownership: RolloutOwnershipState::AwaitingOwnerMetadata,
+            usage_authority: CodexUsageAuthority::default(),
         }
     }
 
@@ -223,6 +234,7 @@ impl JsonlParseContext {
             previous_cumulative: persisted.previous_cumulative,
             previous_last: persisted.previous_last,
             ownership: persisted.ownership,
+            usage_authority: persisted.usage_authority,
         })
     }
 
@@ -234,6 +246,7 @@ impl JsonlParseContext {
             ownership: self.ownership.clone(),
             previous_cumulative: self.previous_cumulative.clone(),
             previous_last: self.previous_last.clone(),
+            usage_authority: self.usage_authority,
         })
         .map_err(|_| {
             LocalError::new(
@@ -317,6 +330,7 @@ where
     let mut bytes_consumed = 0_u64; // 本次调用总共读取的字节数（含尚未提交的半行）
     let mut committed_bytes = 0_u64; // 已确认到完整换行为止、可安全写入 checkpoint 的字节数
     let mut oversized = false; // 当前行是否已超过上限、正在被丢弃
+    let mut non_usage_line = None;
     let mut warnings = JsonlWarningCounts::default();
     let mut calls_emitted = 0_u64;
     let mut cancelled = false;
@@ -338,11 +352,13 @@ where
             bytes_consumed = bytes_consumed.saturating_add(1);
             if *byte == b'\n' {
                 // 遇到换行符，说明这一行已经完整：
-                //   - 如果它已经因为超长被标记 oversized，只计一次警告并丢弃，
-                //     不去解析已经被清空的 line 缓冲区；
+                //   - 超长行只有完整通过有界 JSON 语法和非用量路由确认才跳过；
+                //     其余计一次警告，不尝试恢复已丢弃的正文；
                 //   - 否则去掉可能的尾随 `\r`（兼容 CRLF 换行）后真正解析这一行。
                 if oversized {
-                    warnings.oversized_lines = warnings.oversized_lines.saturating_add(1);
+                    if !non_usage_line.take().is_some_and(non_usage_line::NonUsageJsonLine::is_complete_non_usage) {
+                        warnings.oversized_lines = warnings.oversized_lines.saturating_add(1);
+                    }
                 } else {
                     if line.last() == Some(&b'\r') {
                         line.pop();
@@ -402,10 +418,16 @@ where
                     line.push(*byte);
                 } else {
                     // 超过单行上限：清空已缓冲内容释放内存，并标记 oversized，
-                    // 后续字节直接被忽略，直到遇到换行符才重新开始累积下一行。
+                    // 后续只做有界语法/类型验证，完整已知非用量行可安全越过。
+                    let mut classifier = non_usage_line::NonUsageJsonLine::new();
+                    classifier.push(&line);
+                    classifier.push_byte(*byte);
+                    non_usage_line = Some(classifier);
                     line.clear();
                     oversized = true;
                 }
+            } else if let Some(classifier) = &mut non_usage_line {
+                classifier.push_byte(*byte);
             }
         }
     }
@@ -470,7 +492,7 @@ fn parse_complete_line(
     if line.is_empty() {
         return LineOutcome::Unknown;
     }
-    // `RolloutEnvelope`/`RolloutPayload` 结构体（见下文 `#[derive(Deserialize)]`）
+    // `protocol` 模块的 `RolloutEnvelope`/`RolloutPayload` 结构体
     // 只声明了业务需要的少数字段，serde 默认会忽略 JSON 里其余的所有字段
     // （包括提示词、回答正文等敏感内容）——“只反序列化白名单字段”本身
     // 就是本解析器不留存会话正文的关键手段。
@@ -485,10 +507,17 @@ fn parse_complete_line(
         None => return LineOutcome::Unknown,
     };
     let payload_kind = payload.kind.as_deref();
+    if envelope_kind == Some("token_usage_record") {
+        return response::parse_response_record(context, payload, envelope.timestamp.as_ref(), provenance);
+    }
     // 事件类型可能记录在信封层或 payload 层，任一层给出即可。
     let event_kind = payload_kind.or(envelope_kind);
 
     if event_kind == Some("session_meta") {
+        if payload.id.as_deref().or(payload.session_id.as_deref())
+            .is_some_and(|id| id.trim().is_empty() || id.len() > 512) {
+            return LineOutcome::Malformed;
+        }
         initialize_owner_context(
             context,
             &payload,
@@ -520,6 +549,12 @@ fn parse_complete_line(
         return LineOutcome::Unknown;
     }
 
+    // 现代 writer 的 token_count 可被工具执行延迟，也可仅更新额度/上下文。
+    // 可解码影子在 core 数值校验及上下文写入前忽略；无法解码的信封仍记坏行。
+    if context.usage_authority.ignores_legacy_shadow() {
+        return LineOutcome::Ignored;
+    }
+
     let owned_segment = context.owns_current_segment();
     if owned_segment {
         update_dynamic_context(context, &payload);
@@ -527,6 +562,7 @@ fn parse_complete_line(
     }
     let info = match payload.info {
         Some(info) => info,
+        None if payload.rate_limits.is_some() => return LineOutcome::Ignored,
         None => return LineOutcome::MissingUsage,
     };
     let last = match info.last_token_usage.map(normalize_usage).transpose() {
@@ -543,7 +579,7 @@ fn parse_complete_line(
         Some(timestamp) => timestamp,
         None => return LineOutcome::InvalidTimestamp,
     };
-    let decision = match select_incremental_call_usage(
+    let decision = match context.usage_authority.select_legacy(
         last.clone(),
         cumulative.clone(),
         context.previous_cumulative.as_ref(),
@@ -699,121 +735,11 @@ pub(crate) fn is_rollout_signature_line(line: &[u8]) -> bool {
     }
     envelope.payload.is_some_and(|payload| {
         payload
-            .session_id
+            .id
             .as_deref()
-            .or(payload.id.as_deref())
+            .or(payload.session_id.as_deref())
             .is_some_and(|id| !id.trim().is_empty() && id.len() <= 512)
     })
-}
-
-/// 只声明 JSONL 顶层时间、事件类型与最小 payload。
-#[derive(Deserialize)]
-struct RolloutEnvelope {
-    /// 该行事件的时间戳原始值；格式在别处校验。
-    #[serde(default)]
-    timestamp: Option<Value>,
-    /// 事件类型标签。
-    #[serde(rename = "type", default)]
-    kind: Option<String>,
-    /// 事件正文；只解析索引需要的最小字段集合。
-    #[serde(default)]
-    payload: Option<RolloutPayload>,
-}
-
-/// 只声明 session、turn 与 token_count 所需字段，其余正文自动忽略。
-#[derive(Deserialize)]
-struct RolloutPayload {
-    /// 正文的事件子类型。
-    #[serde(rename = "type", default)]
-    kind: Option<String>,
-    /// `token_count` 事件携带的 Token 计数信息。
-    #[serde(default)]
-    info: Option<TokenCountInfo>,
-    /// 会话元数据 ID。
-    #[serde(default)]
-    id: Option<String>,
-    /// 会话 ID。
-    #[serde(default, alias = "sessionId")]
-    session_id: Option<String>,
-    /// fork 来源标记；只判断是否存在，不读取或保存原始 ID。
-    #[serde(default)]
-    forked_from_id: Option<Value>,
-    /// subagent 路径标记；只判断是否存在，不读取或保存原始路径。
-    #[serde(default)]
-    agent_path: Option<Value>,
-    /// 单次调用 ID。
-    #[serde(default, alias = "callId")]
-    call_id: Option<String>,
-    /// 所属回合 ID。
-    #[serde(default, alias = "turnId")]
-    turn_id: Option<String>,
-    /// 底层请求 ID。
-    #[serde(default, alias = "requestId")]
-    request_id: Option<String>,
-    /// 原始项目 ID；仅用于派生稳定项目键，不进入索引展示。
-    #[serde(default, alias = "projectId")]
-    project_id: Option<String>,
-    /// 原始项目键；仅用于派生稳定项目键，不进入索引展示。
-    #[serde(default, alias = "projectKey")]
-    project_key: Option<String>,
-    /// 原始工作目录；仅用于派生稳定项目键，不进入索引展示。
-    #[serde(default)]
-    cwd: Option<String>,
-    /// 智能体昵称。
-    #[serde(default, alias = "agentNickname")]
-    agent_nickname: Option<String>,
-    /// 线程展示名。
-    #[serde(default, alias = "threadName")]
-    thread_name: Option<String>,
-    /// 会话名。
-    #[serde(default)]
-    name: Option<String>,
-    /// 模型名。
-    #[serde(default, alias = "modelName")]
-    model: Option<String>,
-    /// 推理强度标签。
-    #[serde(default, alias = "reasoningEffort", alias = "effort")]
-    reasoning_effort: Option<String>,
-    /// payload 内嵌的时间戳原始值。
-    #[serde(default)]
-    timestamp: Option<Value>,
-    /// `task_started` 声明的任务起点，用于匹配当前 rollout 自身边界。
-    #[serde(default, alias = "startedAt")]
-    started_at: Option<Value>,
-}
-
-/// 只声明单次事实和累计回退两个 Token 对象。
-#[derive(Deserialize)]
-struct TokenCountInfo {
-    /// 本次单条事实的 Token 用量。
-    #[serde(default, alias = "lastTokenUsage")]
-    last_token_usage: Option<RawTokenUsage>,
-    /// 累计回退用的 Token 用量，`last_token_usage` 缺失时使用。
-    #[serde(default, alias = "totalTokenUsage")]
-    total_token_usage: Option<RawTokenUsage>,
-}
-
-/// 只声明允许进入聚合索引的 Token 数值字段。
-#[derive(Deserialize)]
-struct RawTokenUsage {
-    /// 全部输入 Token（含缓存）。
-    #[serde(default, alias = "inputTokens")]
-    input_tokens: Option<u64>,
-    /// 缓存命中的输入 Token。
-    #[serde(default, alias = "cachedInputTokens")]
-    cached_input_tokens: Option<u64>,
-    /// 缓存写入的输入 Token。
-    #[serde(default, alias = "cacheWriteInputTokens")]
-    cache_write_input_tokens: Option<u64>,
-    /// 输出 Token。
-    #[serde(default, alias = "outputTokens")]
-    output_tokens: Option<u64>,
-    /// 推理输出 Token。
-    #[serde(default, alias = "reasoningOutputTokens")]
-    reasoning_output_tokens: Option<u64>,
-    /// 单次总 Token；缺失时由输入输出计算。
-    #[serde(default, alias = "totalTokens")]
-    total_tokens: Option<u64>,
 }
 
 #[cfg(test)]
@@ -824,3 +750,9 @@ mod utc_day_tests;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod response_tests;
+
+#[cfg(test)]
+mod oversized_tests;

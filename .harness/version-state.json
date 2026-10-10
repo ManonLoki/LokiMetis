@@ -6,7 +6,8 @@
     "LMDESK-IMAGE-FRAME-WORKING-SET-001",
     "LMDESK-MACOS-MENU-OWNERSHIP-001",
     "LMDESK-MACOS-DEMAND-FRAMES-001",
-    "LMDESK-NOTIFICATION-CARD-COMPACT-001"
+    "LMDESK-NOTIFICATION-CARD-COMPACT-001",
+    "LMDESK-CODEX-USAGE-RECORD-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -87,8 +88,13 @@
       "change_id": "LMDESK-NOTIFICATION-CARD-COMPACT-001",
       "kind": "bug-fix",
       "required_version": "0.2.7"
+    },
+    {
+      "change_id": "LMDESK-CODEX-USAGE-RECORD-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.8"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.7"
+  "target_version": "0.2.8"
 }
