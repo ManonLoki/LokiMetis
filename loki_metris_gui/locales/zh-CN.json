@@ -48,7 +48,7 @@
     "capability_unknown_title": "当前状态未知",
     "capability_retry": "重新读取实际状态",
     "github_repository_description": "LokiMetis 历史项目源码",
-    "system_notification_error": "无法更新通知设置。开关已回滚为可读取的实际状态；请检查系统通知权限后重试。"
+    "system_notification_error": "无法保存通知开关，已保留上次保存的本地偏好。请重试。"
   },
   "about": {
     "version": "版本",
@@ -792,6 +792,11 @@
     "dismiss": "关闭通知"
   },
   "notification": {
+    "paused": "系统通知已暂停",
+    "denied_intent_saved": "开启偏好已保存，但系统当前不允许通知。请在系统通知设置中允许后刷新权限。",
+    "permission_intent_saved": "开启偏好已保存，但暂时无法确认系统通知权限。请刷新权限并重试。",
+    "host_unavailable": "当前应用无法连接系统通知服务。请重新打开应用后重试。",
+    "menu_unavailable": "系统通知 · 服务不可用",
     "title": "诡秘神谕",
     "milestone": "恭喜您今天已经使用「%{total}」的Token了",
     "permission_allowed": "系统允许通知",

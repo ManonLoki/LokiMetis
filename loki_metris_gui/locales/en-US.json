@@ -48,7 +48,7 @@
     "capability_unknown_title": "Current state unknown",
     "capability_retry": "Reload actual state",
     "github_repository_description": "LokiMetis reference project source",
-    "system_notification_error": "The notification setting could not be updated. The switch was restored to the readable system state. Check system notification permission and try again."
+    "system_notification_error": "The notification preference could not be saved. The previously saved local preference was kept. Try again."
   },
   "about": {
     "version": "Version",
@@ -792,6 +792,11 @@
     "dismiss": "Dismiss notification"
   },
   "notification": {
+    "paused": "System notifications paused",
+    "denied_intent_saved": "Your enabled preference was saved, but the system does not currently allow notifications. Allow them in system notification settings, then refresh permission.",
+    "permission_intent_saved": "Your enabled preference was saved, but system notification permission could not be confirmed. Refresh permission and try again.",
+    "host_unavailable": "The app cannot connect to the system notification service. Reopen the app and try again.",
+    "menu_unavailable": "System notifications · service unavailable",
     "title": "LokiMetris",
     "milestone": "Congratulations! You have used %{total} tokens today.",
     "permission_allowed": "Notifications allowed",

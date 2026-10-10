@@ -1,15 +1,15 @@
 //! 通知开关由应用级 owner 持有；授权回调只传值，落盘回执才更新已确认状态。
 
+mod driver;
+mod host;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
 mod macos_delivery;
-#[cfg(windows)]
-mod windows;
-mod driver;
-mod host;
 #[cfg(test)]
 mod tests;
+#[cfg(windows)]
+mod windows;
 
 use crate::preferences::{PreferencePatch, Writer};
 use futures::{
@@ -24,7 +24,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// 平台权限与保存失败保留稳定类别；设置页统一提示，失败保持原有本地开关。
+/// 平台权限与保存失败分别保留；只有保存失败才保留原有本地开关。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     Denied,
@@ -42,8 +42,21 @@ pub struct State {
     pub error: Option<Error>,
     /// OS 权限与本地开关分别呈现。
     pub permission: loki_metris_core::usage_milestones::NotificationPermission,
+    /// 发送器可用性不冒充 OS 授权状态；缺少 owner 时暂停提交。
+    pub host_available: bool,
     /// 已持久化的队列与结果计数。
     pub progress: crate::usage_service::NotificationProgress,
+}
+
+impl State {
+    /// 系统允许且原生 owner 存活才向领域发送器提供可提交的权限。
+    fn delivery_permission(&self) -> loki_metris_core::usage_milestones::NotificationPermission {
+        if self.host_available {
+            self.permission
+        } else {
+            loki_metris_core::usage_milestones::NotificationPermission::Unavailable
+        }
+    }
 }
 
 /// 唯一前台任务拥有操作代次；退出先失效，再排空已经接受的偏好写入。
@@ -82,8 +95,15 @@ impl Service {
                 generation: 0,
                 closing: false,
                 task: None,
-                host: None, poll: None, permission_task: None, delivery_task: None, reconciliation_task: None,
-                usage: None, locale: "en-US".into(), permission_at: None, checked_unknown: None,
+                host: None,
+                poll: None,
+                permission_task: None,
+                delivery_task: None,
+                reconciliation_task: None,
+                usage: None,
+                locale: "en-US".into(),
+                permission_at: None,
+                checked_unknown: None,
             })),
             writer,
         }
@@ -99,14 +119,12 @@ impl Service {
         let executor = cx.background_executor().clone();
         self.set_using(
             enabled,
-            move |deadline| async move {
-                driver::authorize(executor,deadline).await
-            },
+            move |deadline| async move { driver::authorize(executor, deadline).await },
             cx,
         );
     }
 
-    /// 授权阶段有界；保存一旦接受就等待真实回执，不用超时伪装已取消的写入。
+    /// 授权有界且不决定本地意图；保存成功才确认开关，权限失败仍单独披露并暂停发送。
     fn set_using<F: Future<Output = Result<(), Error>> + 'static>(
         &self,
         enabled: bool,
@@ -129,9 +147,11 @@ impl Service {
         let weak = Rc::downgrade(&self.owner);
         let writer = self.writer.clone();
         let task = cx.spawn(async move |cx| {
-            let permission = if executor.now() >= deadline {
+            let mut permission = if !enabled {
+                Ok(())
+            } else if executor.now() >= deadline {
                 Err(Error::Timeout)
-            } else if enabled {
+            } else {
                 match select(
                     authorize(deadline).boxed_local(),
                     executor
@@ -143,24 +163,27 @@ impl Service {
                     Either::Left((result, _)) => result,
                     Either::Right(_) => Err(Error::Timeout),
                 }
-            } else {
-                Ok(())
             };
             let Some(owner) = weak.upgrade() else { return };
             if !current(&owner.borrow(), generation) {
                 return;
             }
+            if enabled && permission.is_ok() && executor.now() >= deadline {
+                permission = Err(Error::Timeout);
+            }
             if enabled {
                 use loki_metris_core::usage_milestones::NotificationPermission as Permission;
-                owner.borrow_mut().state.permission=match permission {Ok(())=>Permission::Allowed,Err(Error::Denied)=>Permission::Denied,Err(_)=>Permission::Unavailable};
+                owner.borrow_mut().state.permission = match permission {
+                    Ok(()) => Permission::Allowed,
+                    Err(Error::Denied) => Permission::Denied,
+                    Err(_) => Permission::Unavailable,
+                };
+                owner.borrow_mut().permission_at = Some(executor.now());
             }
-            let receipt = match permission {
-                Ok(()) if executor.now() >= deadline => Err(Error::Timeout),
-                Ok(()) => writer
-                    .mutate(PreferencePatch::SystemNotification(enabled))
-                    .map_err(|_| Error::Save),
-                Err(error) => Err(error),
-            };
+            // 授权超时只结束系统操作，不能撤销用户明确提交的本地偏好。
+            let receipt = writer
+                .mutate(PreferencePatch::SystemNotification(enabled))
+                .map_err(|_| Error::Save);
             let result = match receipt {
                 Ok(mut receipt) => loop {
                     match receipt.try_recv() {
@@ -187,14 +210,21 @@ impl Service {
             state.state.busy = false;
             state.state.desired = None;
             match result {
-                Ok(()) => {state.state.enabled = enabled;if enabled {state.state.permission=loki_metris_core::usage_milestones::NotificationPermission::Allowed;}}
-
+                Ok(()) => {
+                    state.state.enabled = enabled;
+                    state.state.error = permission.err();
+                }
                 Err(error) => state.state.error = Some(error),
             }
-            if let Some(usage)=&state.usage {usage.configure_notifications(state.state.enabled,state.state.permission);}
+            if let Some(usage) = &state.usage {
+                usage.configure_notifications(
+                    state.state.enabled,
+                    state.state.delivery_permission(),
+                );
+            }
             drop(state);
             cx.update(|cx| {
-                if result == Err(Error::Denied) {
+                if result.is_ok() && permission == Err(Error::Denied) {
                     open_settings(cx);
                 }
                 cx.refresh_windows();
@@ -209,8 +239,13 @@ impl Service {
         let mut owner = self.owner.borrow_mut();
         owner.closing = true;
         owner.generation += 1;
-        owner.task.take();owner.poll.take();owner.permission_task.take();owner.delivery_task.take();owner.reconciliation_task.take();
+        owner.task.take();
+        owner.poll.take();
+        owner.permission_task.take();
+        owner.delivery_task.take();
+        owner.reconciliation_task.take();
         owner.host.take();
+        owner.state.host_available = false;
         owner.state.busy = false;
         owner.state.desired = None;
     }
@@ -225,22 +260,50 @@ fn current(owner: &Owner, generation: u64) -> bool {
 pub(crate) fn open_settings(cx: &App) {
     #[cfg(all(target_os = "macos",not(test)))]
     cx.open_url("x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.loki-metris.app");
-    #[cfg(all(windows,not(test)))]
+    #[cfg(all(windows, not(test)))]
     cx.open_url("ms-settings:notifications");
-    #[cfg(any(not(any(target_os = "macos",windows)), test))]
+    #[cfg(any(not(any(target_os = "macos", windows)), test))]
     let _ = cx;
 }
 
 /// 权限标签在所有入口复用，未知系统值不会显示“已允许”。
-pub(crate) fn permission_label(locale:&str,permission:loki_metris_core::usage_milestones::NotificationPermission)->String {
+pub(crate) fn permission_label(
+    locale: &str,
+    permission: loki_metris_core::usage_milestones::NotificationPermission,
+) -> String {
     use loki_metris_core::usage_milestones::NotificationPermission::*;
-    rust_i18n::t!(match permission {Allowed=>"notification.permission_allowed",Denied=>"notification.permission_denied",NotDetermined=>"notification.permission_ask",Unavailable=>"notification.permission_unavailable"},locale=locale).to_string()
+    rust_i18n::t!(
+        match permission {
+            Allowed => "notification.permission_allowed",
+            Denied => "notification.permission_denied",
+            NotDetermined => "notification.permission_ask",
+            Unavailable => "notification.permission_unavailable",
+        },
+        locale = locale
+    )
+    .to_string()
 }
 /// 勾选仅表达本地开启，标签单独披露忙碌、权限或积压。
-pub(crate) fn menu_label(locale:&str,state:&State)->String {
-    if state.busy {return rust_i18n::t!("notification.busy",locale=locale).to_string();}
-    if !state.enabled {return rust_i18n::t!("notification.menu_disabled",locale=locale).to_string();}
-    if state.permission!=loki_metris_core::usage_milestones::NotificationPermission::Allowed {return permission_label(locale,state.permission);}
-    if state.progress.unknown_id.is_some() {return rust_i18n::t!("notification.menu_unknown",locale=locale).to_string();}
-    rust_i18n::t!("notification.menu_queue",locale=locale,count=state.progress.pending).to_string()
+pub(crate) fn menu_label(locale: &str, state: &State) -> String {
+    if state.busy {
+        return rust_i18n::t!("notification.busy", locale = locale).to_string();
+    }
+    if !state.enabled {
+        return rust_i18n::t!("notification.menu_disabled", locale = locale).to_string();
+    }
+    if state.permission != loki_metris_core::usage_milestones::NotificationPermission::Allowed {
+        return permission_label(locale, state.permission);
+    }
+    if !state.host_available {
+        return rust_i18n::t!("notification.menu_unavailable", locale = locale).to_string();
+    }
+    if state.progress.unknown_id.is_some() {
+        return rust_i18n::t!("notification.menu_unknown", locale = locale).to_string();
+    }
+    rust_i18n::t!(
+        "notification.menu_queue",
+        locale = locale,
+        count = state.progress.pending
+    )
+    .to_string()
 }

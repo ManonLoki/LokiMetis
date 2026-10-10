@@ -110,12 +110,30 @@ impl Shell {
             )
             .when(state.busy, |card| card.child(self.t("notification.busy")))
             .when(state.error.is_some(), |card| {
-                card.child(self.capability_feedback(
-                    "settings.capability_error_title",
-                    "settings.system_notification_error",
-                    None,
-                    cx,
-                ))
+                use crate::native::notifications::Error;
+                let (title, body) = match state.error {
+                    Some(Error::Save) => (
+                        "settings.capability_error_title",
+                        "settings.system_notification_error",
+                    ),
+                    Some(Error::Denied) => {
+                        ("notification.paused", "notification.denied_intent_saved")
+                    }
+                    _ => (
+                        "notification.paused",
+                        "notification.permission_intent_saved",
+                    ),
+                };
+                card.child(self.capability_feedback(title, body, None, cx))
+            })
+            .when(state.enabled && !state.host_available, |card| {
+                card.child(
+                    div()
+                        .id("notification-host-feedback")
+                        .role(Role::Status)
+                        .text_sm()
+                        .child(self.t("notification.host_unavailable")),
+                )
             })
             .when_some(feedback, |card, key| {
                 card.child(

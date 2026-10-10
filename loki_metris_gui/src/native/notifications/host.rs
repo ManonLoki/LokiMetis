@@ -29,6 +29,7 @@ impl Service {
         {
             let mut owner = self.owner.borrow_mut();
             owner.host = driver::install(events).map(Rc::new);
+            owner.state.host_available = owner.host.is_some();
             owner.usage = Some(usage.clone());
             owner.locale = locale.into();
         }
@@ -86,18 +87,28 @@ impl Service {
     }
     /// 启动、设置页、激活、定时查询均只读且单在途，不触发授权。
     pub(crate) fn refresh_permission(&self, cx: &mut App) {
-        {
+        let executor = cx.background_executor().clone();
+        self.refresh_permission_using(driver::permission(executor), cx);
+    }
+    /// 注入只读响应以覆盖迟到查询；旧操作的状态不能覆盖新授权结果。
+    pub(super) fn refresh_permission_using(
+        &self,
+        permission: impl std::future::Future<Output = NotificationPermission> + 'static,
+        cx: &mut App,
+    ) {
+        let generation = {
             let mut owner = self.owner.borrow_mut();
-            if owner.closing || owner.permission_task.is_some() {
+            if owner.closing || owner.state.busy || owner.permission_task.is_some() {
                 return;
             }
             owner.permission_at = Some(cx.background_executor().now());
-        }
+            owner.generation
+        };
         let service = self.clone();
         let executor = cx.background_executor().clone();
         let task = cx.spawn(async move |cx| {
             let value = match select(
-                driver::permission(executor.clone()).boxed_local(),
+                permission.boxed_local(),
                 executor.timer(Duration::from_secs(10)).boxed_local(),
             )
             .await
@@ -106,19 +117,28 @@ impl Service {
                 Either::Right(_) => NotificationPermission::Unavailable,
             };
             let mut owner = service.owner.borrow_mut();
-            if owner.closing {
+            owner.permission_task = None;
+            if !super::current(&owner, generation) {
                 return;
             }
-            let value = if owner.host.is_some() {
-                value
-            } else {
-                NotificationPermission::Unavailable
-            };
-            let changed = owner.state.permission != value;
+            let clear_error = value == NotificationPermission::Allowed
+                && owner
+                    .state
+                    .error
+                    .is_some_and(|error| error != super::Error::Save);
+            let changed = owner.state.permission != value || clear_error;
             owner.state.permission = value;
-            owner.permission_task = None;
+            if changed {
+                tracing::info!(event = "notification_permission_changed", permission = ?value);
+            }
+            if clear_error {
+                owner.state.error = None;
+            }
             if let Some(usage) = &owner.usage {
-                usage.configure_notifications(owner.state.enabled, value);
+                usage.configure_notifications(
+                    owner.state.enabled,
+                    owner.state.delivery_permission(),
+                );
             }
             drop(owner);
             if changed {
@@ -258,8 +278,12 @@ impl Service {
                 Err(super::Error::Denied) => NotificationPermission::Denied,
                 Err(_) => NotificationPermission::Unavailable,
             };
+            owner.permission_at = Some(executor.now());
             if let Some(usage) = &owner.usage {
-                usage.configure_notifications(owner.state.enabled, owner.state.permission);
+                usage.configure_notifications(
+                    owner.state.enabled,
+                    owner.state.delivery_permission(),
+                );
             }
             drop(owner);
             cx.update(|cx| {

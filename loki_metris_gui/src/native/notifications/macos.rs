@@ -1,4 +1,4 @@
-//! 直接查询 UserNotifications 授权，不替换 GPUI delegate；后台回调只复制状态。
+//! 前台发起 UserNotifications 调用，系统任意队列上的回调只复制状态。
 
 use super::Error;
 use block2::RcBlock;
@@ -18,11 +18,15 @@ use loki_metris_core::usage_milestones::NotificationPermission as Permission;
 
 /// 当前进程必须拥有本产品的正式 bundle 身份。
 pub(super) fn bundled() -> bool {
-    NSBundle::mainBundle().bundleIdentifier().is_some_and(|id| id.to_string()=="com.loki-metris.app")
+    NSBundle::mainBundle()
+        .bundleIdentifier()
+        .is_some_and(|id| id.to_string() == "com.loki-metris.app")
 }
 /// 只读权限查询不会触发首次授权弹窗。
 pub(super) async fn permission() -> Permission {
-    if !bundled() {return Permission::Unavailable;}
+    if objc2::MainThreadMarker::new().is_none() || !bundled() {
+        return Permission::Unavailable;
+    }
     query().await.unwrap_or(Permission::Unavailable)
 }
 
@@ -31,7 +35,9 @@ pub(super) async fn authorize(
     executor: BackgroundExecutor,
     deadline: Instant,
 ) -> Result<(), Error> {
-    if !bundled() {return Err(Error::Unavailable);}
+    if objc2::MainThreadMarker::new().is_none() || !bundled() {
+        return Err(Error::Unavailable);
+    }
     before_request(&executor, deadline)?;
     let mut permission = query().await.map_err(|_| Error::Unavailable)?;
     if permission == Permission::NotDetermined {
@@ -81,26 +87,27 @@ fn query() -> oneshot::Receiver<Permission> {
     receiver
 }
 
-/// 完成回执只确认 API 调用，最终是否可保存开启仍由随后查询的授权状态决定。
+/// 完成回执保留 granted 和错误；随后只读查询才确认系统权限，不决定本地开关。
 fn request() -> oneshot::Receiver<Result<(), Error>> {
     let (sender, receiver) = oneshot::channel();
     let sender = Arc::new(Mutex::new(Some(sender)));
-    let block = RcBlock::new(move |_: objc2::runtime::Bool, error: *mut NSError| {
-        reply(
-            &sender,
-            if error.is_null() {
-                Ok(())
-            } else {
-                // NSError仅在完成块内有效；只记录平台域和数值码，不输出描述或userInfo。
-                let error = unsafe { &*error };
-                tracing::warn!(
-                    event = "notification_authorization_failed",
-                    domain = %error.domain(),
-                    code = error.code(),
-                );
-                Err(Error::Unavailable)
-            },
-        );
+    let block = RcBlock::new(move |granted: objc2::runtime::Bool, error: *mut NSError| {
+        let result = if error.is_null() {
+            authorization_response(granted.as_bool(), None)
+        } else {
+            // NSError仅在完成块内有效；只记录平台域和数值码，不输出描述或userInfo。
+            let error = unsafe { &*error };
+            tracing::warn!(
+                event = "notification_authorization_failed",
+                domain = %error.domain(),
+                code = error.code(),
+            );
+            authorization_response(
+                granted.as_bool(),
+                Some((&error.domain().to_string(), error.code())),
+            )
+        };
+        reply(&sender, result);
     });
     UNUserNotificationCenter::currentNotificationCenter()
         .requestAuthorizationWithOptions_completionHandler(
@@ -108,6 +115,17 @@ fn request() -> oneshot::Receiver<Result<(), Error>> {
             &block,
         );
     receiver
+}
+
+/// SDK UNError.h 的 NotificationsNotAllowed=1 表示系统不允许；不能推断用户拒绝或签名原因。
+/// 官方语义：https://developer.apple.com/documentation/usernotifications/unerror/code/notificationsnotallowed
+fn authorization_response(granted: bool, error: Option<(&str, isize)>) -> Result<(), Error> {
+    match error {
+        Some(("UNErrorDomain", 1)) => Err(Error::Denied),
+        Some(_) => Err(Error::Unavailable),
+        None if granted => Ok(()),
+        None => Err(Error::Denied),
+    }
 }
 
 /// 每个系统完成块最多交付一次；接收方已取消时丢弃纯值即可。
@@ -118,5 +136,33 @@ fn reply<T>(sender: &Mutex<Option<oneshot::Sender<T>>>, value: T) {
         .take()
     {
         let _ = sender.send(value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 系统不允许必须保留拒绝类别；未知域或码失败关闭，不能用 granted 掩盖 NSError。
+    #[test]
+    fn notification_authorization_maps_domain_code_and_granted() {
+        assert_eq!(
+            authorization_response(false, Some(("UNErrorDomain", 1))),
+            Err(Error::Denied)
+        );
+        assert_eq!(
+            authorization_response(true, Some(("UNErrorDomain", 1))),
+            Err(Error::Denied)
+        );
+        assert_eq!(
+            authorization_response(false, Some(("NSCocoaErrorDomain", 1))),
+            Err(Error::Unavailable)
+        );
+        assert_eq!(
+            authorization_response(false, Some(("UNErrorDomain", 99))),
+            Err(Error::Unavailable)
+        );
+        assert_eq!(authorization_response(false, None), Err(Error::Denied));
+        assert_eq!(authorization_response(true, None), Ok(()));
     }
 }

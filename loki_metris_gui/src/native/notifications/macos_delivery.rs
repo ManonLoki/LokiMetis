@@ -52,19 +52,40 @@ pub(super) struct Host {
     delegate: Retained<NotificationDelegate>,
 }
 impl Host {
-    /// 裸binary或活delegate冲突时失败关闭，启动不申请权限。
+    /// GPUI didFinishLaunching 回调返回前建立 owner；裸binary或活delegate冲突时失败关闭。
     pub fn new(clicked: SyncSender<super::driver::Event>) -> Option<Self> {
-        if !super::macos::bundled() {
+        if objc2::MainThreadMarker::new().is_none() || !super::macos::bundled() {
+            tracing::warn!(
+                event = "notification_host_unavailable",
+                reason = "thread_or_bundle"
+            );
             return None;
         }
         let center = UNUserNotificationCenter::currentNotificationCenter();
         if center.delegate().is_some() {
+            tracing::warn!(
+                event = "notification_host_unavailable",
+                reason = "delegate_conflict"
+            );
             return None;
         }
         let allocated = NotificationDelegate::alloc().set_ivars(DelegateIvars { clicked });
         // 安全：NSObject.init 是指定初始化器，ivars 已完整建立。
         let delegate: Retained<NotificationDelegate> = unsafe { msg_send![super(allocated), init] };
         center.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+        if !center.delegate().is_some_and(|current| {
+            std::ptr::eq(
+                &*current as *const _ as *const (),
+                &*delegate as *const _ as *const (),
+            )
+        }) {
+            tracing::warn!(
+                event = "notification_host_unavailable",
+                reason = "delegate_readback"
+            );
+            return None;
+        }
+        tracing::info!(event = "notification_host_installed");
         Some(Self { delegate })
     }
 }
