@@ -35,7 +35,8 @@ fn saved_window_size_uses_content_viewport_without_native_decorations() {
     assert_eq!(next, first);
 }
 
-/// 窗口变化后直接退出应用也必须刷新最新快照，不依赖窗口关闭回调。
+/// 旧几何平台的窗口变化直接保存；macOS 的 AppKit V2 反馈由独立宿主边界验证。
+#[cfg(not(target_os = "macos"))]
 #[gpui_kit::test]
 fn resized_window_is_saved_when_quitting_without_window_close(cx: &mut TestAppContext) {
     let root = std::fs::canonicalize(std::env::temp_dir()).expect("读取真实临时目录");
@@ -60,6 +61,54 @@ fn resized_window_is_saved_when_quitting_without_window_close(cx: &mut TestAppCo
     let saved = std::fs::read_to_string(file).expect("退出已刷新最后快照");
     assert!(saved.lines().any(|line| line == "bounds=0,0,1200,800"), "直接退出不能刷新旧窗口快照：{saved}");
     std::fs::remove_dir_all(directory).expect("清理隔离偏好目录");
+}
+
+/// 不支持原生句柄时，真实退出钩子不得用虚拟 resize 覆盖最后可信的 macOS 状态。
+#[cfg(target_os = "macos")]
+#[gpui_kit::test]
+fn unsupported_native_window_preserves_confirmed_geometry_on_actual_quit(cx: &mut TestAppContext) {
+    use loki_metris_core::window_placement::*;
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join("preferences.txt");
+    let area = WindowDisplayArea {
+        key: "isolated-test-screen".into(), scale: 2., primary: true,
+        work_area: WindowDipRect {
+            origin: WindowDipPoint { x: 0., y: 24. },
+            size: WindowDipSize { width: 2000., height: 1200. },
+        },
+    };
+    let confirmed = capture_window_state(&area, WindowDipPoint { x: 85., y: 119. },
+        WindowDipSize { width: 1320., height: 820. }, WindowFrameInsets::default(), false).unwrap();
+    std::fs::write(&file, format!("theme=light\nlanguage=en-US\nbounds=85,119,1320,820\nwindow_state_v2={}\n",
+        serde_json::to_string(&confirmed).unwrap())).unwrap();
+    let (preferences, writer) = crate::preferences::load_from(Some(file.clone()));
+    let (_, guard) = tracing_appender::non_blocking(std::io::sink());
+    let shutdown = crate::lifecycle::Shutdown::new(writer.clone(), guard);
+    cx.update(gpui_kit::init);
+    let (handle, shell) = cx.update(|cx| {
+        gpui_kit::open_window(WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(Bounds::new(point(px(0.), px(0.)), size(px(1440.), px(900.))))),
+            ..Default::default()
+        }, cx, |window, cx| cx.new(|cx| Shell::new(preferences, writer.clone(), window, cx))).unwrap()
+    });
+    shutdown.borrow_mut().own_window(handle, shell.downgrade());
+    cx.update(|cx| crate::lifecycle::install(cx, shutdown.clone()));
+    cx.simulate_window_resize(handle, size(px(1200.), px(800.)));
+    cx.update_window(handle, |_, window, cx| {
+        assert!(crate::native::windowing::WindowHost::capture(window).is_err(), "夹具确实没有可捕获的原生对象");
+        assert_eq!(window.viewport_size(), size(px(1200.), px(800.)));
+        assert_eq!(shell.read(cx).preferences.window_state_v2.as_ref(), Some(&confirmed));
+    }).unwrap();
+    // 真实异步偏好也必须经同一退出钩子排空，不能只证明预置文件从未被访问。
+    drop(writer.mutate(crate::preferences::PreferencePatch::Theme(ThemeChoice::Dark)).unwrap());
+    cx.quit();
+    assert!(writer.mutate(crate::preferences::PreferencePatch::Theme(ThemeChoice::Light)).is_err(), "退出钩子已关闭实际 Writer");
+    let (saved, finished) = crate::preferences::load_from(Some(file));
+    finished.finish();
+    assert_eq!(saved.theme, ThemeChoice::Dark);
+    assert_eq!(saved.bounds, Some([85., 119., 1320., 820.]));
+    assert!(!saved.maximized);
+    assert_eq!(saved.window_state_v2, Some(confirmed));
 }
 
 /// 固定紧凑侧栏与主区共享高度和边界，Logo 周围不代理导航点击。

@@ -45,6 +45,18 @@ fn setup(
     cx.notify();
 }
 
+/// 逐帧只读真实图集；“全部帧都在”无法证明动画工作集，也不能证明全部释放。
+fn resident_image_frames(window: &gpui_kit::Window, image: &gpui_kit::RenderImage) -> Vec<usize> {
+    (0..image.frame_count())
+        .filter(|&frame_index| {
+            window.has_image_frame_atlas_entry(gpui_kit::RenderImageParams {
+                image_id: image.id,
+                frame_index,
+            })
+        })
+        .collect()
+}
+
 /// 十二位真实按钮、跨 Agent 草稿和图片筛选均由窗口事件驱动。
 #[gpui_kit::test]
 fn management_controls_keep_per_agent_drafts_and_clear_unavailable_reference(
@@ -317,16 +329,16 @@ fn gallery_decodes_visible_entries_and_releases_all_frames_on_leave(cx: &mut Tes
     cx.run_until_parked();
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
-        assert!(
-            window.has_image_atlas_entry(&decoded.image),
-            "both animated frames were actually painted"
-        );
+        let resident = resident_image_frames(window, &decoded.image);
+        assert!(!resident.is_empty(), "可见 GIF 必须实际上传帧");
+        #[cfg(target_os = "macos")]
+        assert_eq!(resident.len(), 1, "单个可见位置仅保留当前实际绘制帧");
     })
     .unwrap();
     cx.simulate_window_visibility_change(handle, gpui_kit::WindowVisibility::Hidden);
     assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
     cx.update_window(handle, |_, window, cx| {
-        assert!(!window.has_image_atlas_entry(&decoded.image));
+        assert!(resident_image_frames(window, &decoded.image).is_empty());
         // 隐藏后仍可能收到已排队绘帧，不得重新请求已释放资源。
         window.render_frame(cx);
     })
@@ -339,18 +351,31 @@ fn gallery_decodes_visible_entries_and_releases_all_frames_on_leave(cx: &mut Tes
         cx.run_until_parked();
     }
     assert!(cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&sources[0])));
+    let restored = cx.update_window(handle, |_, window, cx| {
+        let restored = window.get_asset::<MonitorImageDecoder>(&sources[0], cx).unwrap().unwrap();
+        assert_ne!(restored.image.id, decoded.image.id, "恢复确实产生新一代解码资源");
+        let resident = resident_image_frames(window, &restored.image);
+        assert!(!resident.is_empty(), "恢复后新一代图像实际上传帧");
+        #[cfg(target_os = "macos")]
+        assert_eq!(resident.len(), 1);
+        restored
+    }).unwrap();
+    let restored_weak = Arc::downgrade(&restored);
     cx.update_window(handle, |_, window, cx| {
         shell.update(cx, |this, cx| {
             this.page = crate::app::Page::Settings;
             cx.notify();
         });
         window.render_frame(cx);
-        assert!(!window.has_image_atlas_entry(&decoded.image));
+        assert!(resident_image_frames(window, &decoded.image).is_empty());
+        assert!(resident_image_frames(window, &restored.image).is_empty());
     })
     .unwrap();
     for source in &sources {
         assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(source)));
     }
+    drop(restored);
+    assert!(restored_weak.upgrade().is_none(), "离页后新一代解码资源也必须释放");
     drop(decoded);
     assert!(
         weak.upgrade().is_none(),
@@ -395,6 +420,9 @@ fn hidden_window_releases_retired_image_before_another_frame(cx: &mut TestAppCon
                 .unwrap()
         })
         .unwrap();
+    cx.update_window(handle, |_, window, _| {
+        assert!(!resident_image_frames(window, &decoded.image).is_empty(), "删除前真实图集有可释放的帧");
+    }).unwrap();
     shell.update(cx, |this, _| {
         let old = this.monitor.catalog.images.pop().unwrap();
         this.monitor.catalog.retired_images.push(old);
@@ -403,7 +431,7 @@ fn hidden_window_releases_retired_image_before_another_frame(cx: &mut TestAppCon
     assert!(shell.read_with(cx, |this, _| this.monitor.catalog.retired_images.is_empty()));
     assert!(!cx.read(|cx| cx.has_asset::<MonitorImageDecoder>(&source)));
     cx.update_window(handle, |_, window, _| {
-        assert!(!window.has_image_atlas_entry(&decoded.image))
+        assert!(resident_image_frames(window, &decoded.image).is_empty())
     })
     .unwrap();
 }
