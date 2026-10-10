@@ -2,7 +2,8 @@
   "applied_bug_ids": [
     "LMDESK-SOURCE-QUALITY-001",
     "LMDESK-IMAGE-WINDOW-RESIDENCY-001",
-    "LMDESK-METAL-ATLAS-RETIREMENT-001"
+    "LMDESK-METAL-ATLAS-RETIREMENT-001",
+    "LMDESK-IMAGE-FRAME-WORKING-SET-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -48,8 +49,13 @@
       "change_id": "LMDESK-METAL-ATLAS-RETIREMENT-001",
       "kind": "bug-fix",
       "required_version": "0.2.3"
+    },
+    {
+      "change_id": "LMDESK-IMAGE-FRAME-WORKING-SET-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.4"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.3"
+  "target_version": "0.2.4"
 }

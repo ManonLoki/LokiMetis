@@ -9,7 +9,7 @@ use super::super::{
     image_residency,
 };
 use gpui_kit::{AnyWindowHandle, AppContext, ObjectFit, TestAppContext, test::TestWindowExt};
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 /// 每次使用独立 ID 和真实两帧文件，缓存、许可与完成通知均沿生产 Asset 路径。
 fn source() -> MonitorImageSource {
@@ -50,17 +50,15 @@ fn painted(
         .expect("另一个 App 的真实 Asset 必须完成，不能被外部许可占位阻塞")
         .expect("另一个 App 的真实图片必须解码成功，不能消费外部像素占位预算");
     assert_eq!(decoded.image.frame_count(), 2);
-    // 图集查询要求所有帧已上传；实际推进两次边界后回到初帧，不绕过播放任务。
-    for _ in 0..2 {
-        cx.executor().advance_clock(Duration::from_millis(200));
-        cx.run_until_parked();
-        cx.update_window(window, |_, window, app| window.render_frame(app))
-            .unwrap();
-        cx.run_until_parked();
-    }
+    // 此处验证 App 隔离，不推进本窗自己的动画以免合法换帧改变 tile 身份。
     cx.update_window(window, |_, window, _| {
         assert!(!window.painted_polychrome_sprites().is_empty());
-        assert!(window.has_image_atlas_entry(&decoded.image));
+        assert!(
+            window.has_image_frame_atlas_entry(gpui_kit::RenderImageParams {
+                image_id: decoded.image.id,
+                frame_index: 0,
+            })
+        );
     })
     .unwrap();
     decoded

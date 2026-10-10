@@ -1,5 +1,11 @@
 //! 图片解码以 App 共享，纹理按窗口需求退役；全局最后位置退出才归还 CPU 缓存。
 
+#[cfg(target_os = "macos")]
+#[path = "image_frame_residency.rs"]
+mod frames;
+#[cfg(target_os = "macos")]
+pub(crate) use frames::painted;
+
 use super::image_decode::{DecodedMonitorImage, MonitorImageDecoder, MonitorImageSource};
 use gpui_kit::{App, Context, EntityId, Global, ImageId, Subscription, Window, WindowId};
 use std::{
@@ -116,6 +122,8 @@ impl WindowRetirement {
                             .upgrade()
                             .is_some_and(|decoded| decoded.image.id == self.image_id)
                 });
+        #[cfg(target_os = "macos")]
+        let reacquired = reacquired || frames::has_image(self.window, self.image_id, cx);
         if !reacquired {
             if let Some(decoded) = self.decoded.upgrade() {
                 _ = window.drop_image(decoded.image.clone());
@@ -130,12 +138,14 @@ impl WindowRetirement {
 fn remove_owners(
     entry: &mut Residency,
     mut matches: impl FnMut(&OwnerKey) -> bool,
+    removed_owners: &mut Vec<OwnerKey>,
 ) -> Vec<WindowRetirement> {
     let mut removed_windows = HashSet::new();
     entry.owners.retain(|owner, _| {
         let remove = matches(owner);
         if remove {
             removed_windows.insert(owner.window);
+            removed_owners.push(*owner);
         }
         !remove
     });
@@ -264,11 +274,16 @@ fn retire(
     if !cx.has_global::<Residencies>() {
         return;
     }
+    let mut removed_owners = Vec::new();
     let (retired, local) = {
         let registry = cx.global_mut::<Residencies>();
         let mut local = Vec::new();
         for (id, entry) in &mut registry.images {
-            local.extend(remove_owners(entry, |owner| matches(id, owner)));
+            local.extend(remove_owners(
+                entry,
+                |owner| matches(id, owner),
+                &mut removed_owners,
+            ));
         }
         let empty = registry
             .images
@@ -282,6 +297,8 @@ fn retire(
             .collect::<Vec<_>>();
         (retired, local)
     };
+    #[cfg(target_os = "macos")]
+    frames::release_owners(removed_owners, cx);
     cleanup(retired, window.as_deref_mut(), cx);
     cleanup_windows(local, window, cx);
 }
@@ -296,12 +313,13 @@ fn retire_source(
     if !cx.has_global::<Residencies>() {
         return;
     }
+    let mut removed_owners = Vec::new();
     let (retired, local) = {
         let registry = cx.global_mut::<Residencies>();
         let Some(entry) = registry.images.get_mut(id) else {
             return;
         };
-        let local = remove_owners(entry, |owner| matches(owner));
+        let local = remove_owners(entry, |owner| matches(owner), &mut removed_owners);
         let retired = if entry.owners.is_empty() {
             registry.images.remove(id)
         } else {
@@ -309,6 +327,8 @@ fn retire_source(
         };
         (retired, local)
     };
+    #[cfg(target_os = "macos")]
+    frames::release_owners(removed_owners, cx);
     cleanup(retired, window.as_deref_mut(), cx);
     cleanup_windows(local, window, cx);
 }

@@ -247,9 +247,9 @@ fn entity_release_cleans_only_its_live_window(cx: &mut TestAppContext) {
     assert!(cx.read(|app| app.has_asset::<MonitorImageDecoder>(&source)));
 }
 
-/// 两次真实解码结果模拟同逻辑 ID 的新代回执，旧清理必须按物理身份清旧图而保留新图。
+/// 最新回执不能覆盖仍在绘制的物理身份；不同平台沿各自的纹理生命周期。
 #[gpui_kit::test]
-fn old_cleanup_checks_actual_image_identity_in_current_receipt(cx: &mut TestAppContext) {
+fn cleanup_respects_current_paint_even_after_new_decode_receipt(cx: &mut TestAppContext) {
     let source = static_source();
     let next_source = static_source();
     let old_window = player(cx, source.clone());
@@ -277,10 +277,13 @@ fn old_cleanup_checks_actual_image_identity_in_current_receipt(cx: &mut TestAppC
         // 此处只模拟回执代数交错；像素、图集和两个解码结果仍来自正式 Asset 路径。
         remember(&source, &Ok(next.clone()), app);
         retired.cleanup(window, app);
+        #[cfg(target_os = "macos")]
         assert!(
-            !window.has_image_atlas_entry(&old.image),
-            "新回执已有 owner 也不能保留旧图纹理"
+            window.has_image_atlas_entry(&old.image),
+            "实际 paint claim 仍持有旧图，最新回执不能越过精确帧并集"
         );
+        #[cfg(not(target_os = "macos"))]
+        assert!(!window.has_image_atlas_entry(&old.image));
         assert!(
             app.has_asset::<MonitorImageDecoder>(&source),
             "局部退役不能删除 CPU Asset"

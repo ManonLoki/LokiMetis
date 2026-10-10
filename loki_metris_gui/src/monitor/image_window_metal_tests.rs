@@ -1,4 +1,4 @@
-//! 原生 Metal 多帧图集逐帧查询，证明局部退役实际移除所有纹理且另一窗继续绘制。
+//! 原生 Metal 图集逐帧查询，证明工作集有界、局部退役和跨窗继续绘制。
 
 use super::*;
 use crate::monitor::{image_decode::LoadProbe, image_playback::MonitorImageView};
@@ -102,7 +102,7 @@ fn tiles(
         .collect()
 }
 
-/// 暖机只驱动正式调度器与真实绘制，两个帧都必须经生产播放计时上传。
+/// 暖机只驱动正式调度器与真实绘制，跨过播放边界而不直接注入帧。
 fn warm(cx: &mut HeadlessAppContext, handles: &[AnyWindowHandle]) {
     for _ in 0..4 {
         for &handle in handles {
@@ -141,9 +141,9 @@ fn show(
     cx.run_until_parked();
 }
 
-/// 两窗各已上传全部帧，退出一窗逐帧清空本窗且保留另一窗真实 tile，返回后正常重建。
+/// 两窗各保留当前绘制帧，退出一窗清空本窗且保留另一窗真实 tile，返回后正常重建。
 #[test]
-fn all_metal_frames_retire_per_window_and_reupload_without_redecode() {
+fn resident_metal_frames_retire_per_window_and_reupload_without_redecode() {
     let (mut cx, atlases) = context();
     let source = MonitorImageSource {
         id: uuid::Uuid::new_v4().to_string(),
@@ -164,8 +164,8 @@ fn all_metal_frames_retire_per_window_and_reupload_without_redecode() {
     let pet_atlas = atlases.borrow()[1].clone();
     let main_tiles = tiles(&main_atlas, &decoded);
     let pet_tiles = tiles(&pet_atlas, &decoded);
-    assert!(main_tiles.iter().all(Option::is_some));
-    assert!(pet_tiles.iter().all(Option::is_some));
+    assert_eq!(main_tiles.iter().filter(|tile| tile.is_some()).count(), 1);
+    assert_eq!(pet_tiles.iter().filter(|tile| tile.is_some()).count(), 1);
     show(&mut cx, main, &main_root, 0, false);
     assert_eq!(
         tiles(&main_atlas, &decoded),
@@ -213,4 +213,320 @@ fn all_metal_frames_retire_per_window_and_reupload_without_redecode() {
     drop(decoded);
     assert!(weak.upgrade().is_none());
     assert!(weak_image.upgrade().is_none());
+}
+
+/// 十二帧实际动画经历多个边界后，图集只保留该位置最后成功绘制的一帧。
+#[test]
+fn image_frame_working_set_keeps_only_current_painted_frame() {
+    let (mut cx, atlases) = context();
+    let source = MonitorImageSource {
+        id: uuid::Uuid::new_v4().to_string(),
+        bytes: Arc::from(include_bytes!("../../tests/fixtures/monitor-working-set.png").as_slice()),
+        format: loki_metris_core::ImageFormat::Png,
+    };
+    let probe = LoadProbe::new(&source.id);
+    let (handle, root) = surface(&mut cx, &source, 1);
+    warm(&mut cx, &[handle]);
+    let decoded = cx.update(|app| {
+        app.fetch_asset::<MonitorImageDecoder>(&source)
+            .unwrap()
+            .unwrap()
+    });
+    assert_eq!(decoded.image.frame_count(), 12);
+    let atlas = atlases.borrow()[0].clone();
+    let resident = tiles(&atlas, &decoded);
+    cx.update_window(handle, |_, window, _| {
+        for (frame_index, tile) in resident.iter().enumerate() {
+            assert_eq!(
+                window.has_image_frame_atlas_entry(RenderImageParams {
+                    image_id: decoded.image.id,
+                    frame_index,
+                }),
+                tile.is_some(),
+                "测试查询必须同时适用真实 Metal 的存在与缺失帧"
+            );
+        }
+    })
+    .unwrap();
+    assert_eq!(
+        resident.iter().filter(|tile| tile.is_some()).count(),
+        1,
+        "经历多个真实播放边界后不能累积所有已上传帧"
+    );
+    for _ in 0..30 {
+        cx.advance_clock(Duration::from_millis(100));
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, app| window.render_frame(app))
+            .unwrap();
+        cx.run_until_parked();
+        assert_eq!(
+            tiles(&atlas, &decoded)
+                .iter()
+                .filter(|tile| tile.is_some())
+                .count(),
+            1
+        );
+    }
+    assert_eq!(probe.started(), 1);
+    show(&mut cx, handle, &root, 0, false);
+    assert!(tiles(&atlas, &decoded).iter().all(Option::is_none));
+}
+
+/// 同窗错相位置保留帧并集；图库继续持 CPU 结果也不能固定已卸载播放器的 GPU 页。
+#[test]
+fn phased_players_keep_union_then_release_frames_while_catalog_keeps_decode() {
+    let (mut cx, atlases) = context();
+    let source = MonitorImageSource {
+        id: uuid::Uuid::new_v4().to_string(),
+        bytes: Arc::from(include_bytes!("../../tests/fixtures/monitor-working-set.png").as_slice()),
+        format: loki_metris_core::ImageFormat::Png,
+    };
+    let probe = LoadProbe::new(&source.id);
+    let (handle, root) = surface(&mut cx, &source, 2);
+    show(&mut cx, handle, &root, 1, false);
+    warm(&mut cx, &[handle]);
+    let decoded = cx.update(|app| {
+        app.fetch_asset::<MonitorImageDecoder>(&source)
+            .unwrap()
+            .unwrap()
+    });
+    let atlas = atlases.borrow()[0].clone();
+    assert_eq!(
+        tiles(&atlas, &decoded)
+            .iter()
+            .filter(|tile| tile.is_some())
+            .count(),
+        1
+    );
+    show(&mut cx, handle, &root, 1, true);
+    for _ in 0..3 {
+        cx.update_window(handle, |_, window, app| window.render_frame(app))
+            .unwrap();
+        cx.run_until_parked();
+    }
+    for _ in 0..20 {
+        assert_eq!(
+            tiles(&atlas, &decoded)
+                .iter()
+                .filter(|tile| tile.is_some())
+                .count(),
+            2,
+            "两个错相实际位置必须各保留正在绘制的一帧"
+        );
+        cx.advance_clock(Duration::from_millis(100));
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, app| window.render_frame(app))
+            .unwrap();
+        cx.run_until_parked();
+    }
+    let entry = Rc::new(());
+    cx.update_window(handle, |_, window, app| {
+        let owner = root.update(app, |_, cx| ImageOwner::catalog(&entry, window, cx));
+        acquire(&source, &owner, app);
+    })
+    .unwrap();
+    show(&mut cx, handle, &root, 0, false);
+    assert_eq!(
+        tiles(&atlas, &decoded)
+            .iter()
+            .filter(|tile| tile.is_some())
+            .count(),
+        1
+    );
+    show(&mut cx, handle, &root, 1, false);
+    assert!(tiles(&atlas, &decoded).iter().all(Option::is_none));
+    let ready = cx.update(|app| {
+        app.fetch_asset::<MonitorImageDecoder>(&source)
+            .unwrap()
+            .unwrap()
+    });
+    assert!(Arc::ptr_eq(&ready, &decoded));
+    assert_eq!(probe.started(), 1);
+    drop(ready);
+    cx.update_window(handle, |_, window, app| {
+        release_catalog(&source.id, &entry, window, app)
+    })
+    .unwrap();
+    assert!(!cx.update(|app| app.has_asset::<MonitorImageDecoder>(&source)));
+    let weak = Arc::downgrade(&decoded);
+    drop(decoded);
+    assert!(weak.upgrade().is_none());
+}
+
+/// 独立 cached sibling 的真实 prepaint/paint 计数，不以 Render 计数替代缓存重放。
+struct CachedProbe {
+    player: Entity<MonitorImageView>,
+    prepaint: Rc<std::cell::Cell<usize>>,
+    paint: Rc<std::cell::Cell<usize>>,
+}
+impl Render for CachedProbe {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let prepaint = self.prepaint.clone();
+        let paint = self.paint.clone();
+        div()
+            .relative()
+            .size_full()
+            .child(self.player.clone())
+            .child(
+                gpui_kit::canvas(
+                    move |_, _, _| prepaint.set(prepaint.get() + 1),
+                    move |_, (), _, _| paint.set(paint.get() + 1),
+                )
+                .absolute()
+                .inset_0(),
+            )
+    }
+}
+struct CachedSurface {
+    probe: Entity<CachedProbe>,
+    moving: Entity<MonitorImageView>,
+    visible: bool,
+}
+impl Render for CachedSurface {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let sibling = if self.visible {
+            self.moving.clone().into_any_element()
+        } else {
+            div().size_full().into_any_element()
+        };
+        div()
+            .size_full()
+            .flex()
+            .flex_row()
+            .child(
+                self.probe
+                    .clone()
+                    .cached(gpui_kit::StyleRefinement::default().w(px(50.)).h(px(100.))),
+            )
+            .child(div().w(px(50.)).h(px(100.)).child(sibling))
+    }
+}
+
+/// 正常换帧不能强制刷新无关缓存；终止动画的旧 Scene 必须持续使用有效 tile。
+#[test]
+fn moving_sibling_preserves_cached_terminal_frame_and_lifecycle_refresh() {
+    let (mut cx, atlases) = context();
+    let source = MonitorImageSource {
+        id: uuid::Uuid::new_v4().to_string(),
+        bytes: Arc::from(include_bytes!("../../tests/fixtures/monitor-finite.png").as_slice()),
+        format: loki_metris_core::ImageFormat::Png,
+    };
+    let prepaint = Rc::new(std::cell::Cell::new(0));
+    let paint = Rc::new(std::cell::Cell::new(0));
+    let captured = (prepaint.clone(), paint.clone());
+    let player_source = source.clone();
+    let handle = cx
+        .open_window(size(px(100.), px(100.)), move |window, app| {
+            app.new(|cx| {
+                let first = cx.new(|cx| {
+                    let mut player = MonitorImageView::new(
+                        player_source.clone(),
+                        ObjectFit::Contain,
+                        window,
+                        cx,
+                    );
+                    player.set_mounted(true, window, cx);
+                    player
+                });
+                let probe = cx.new(|_| CachedProbe {
+                    player: first,
+                    prepaint,
+                    paint,
+                });
+                let moving = cx
+                    .new(|cx| MonitorImageView::new(player_source, ObjectFit::Contain, window, cx));
+                CachedSurface {
+                    probe,
+                    moving,
+                    visible: false,
+                }
+            })
+        })
+        .unwrap();
+    let root = handle.update(&mut cx, |_, _, cx| cx.entity()).unwrap();
+    let handle: AnyWindowHandle = handle.into();
+    warm(&mut cx, &[handle]);
+    cx.advance_clock(Duration::from_millis(400));
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, app| window.draw(app).clear(app))
+        .unwrap();
+    let decoded = cx.update(|app| {
+        app.fetch_asset::<MonitorImageDecoder>(&source)
+            .unwrap()
+            .unwrap()
+    });
+    assert_eq!(decoded.plays, Some(2));
+    let atlas = atlases.borrow()[0].clone();
+    let terminal = tiles(&atlas, &decoded)[1].expect("第一位置必须自然停在白色末帧");
+    let counts = (captured.0.get(), captured.1.get());
+    assert!(counts.0 > 0 && counts.1 > 0);
+    cx.update_window(handle, |_, window, app| {
+        root.update(app, |root, cx| {
+            root.moving
+                .update(cx, |view, cx| view.set_mounted(true, window, cx));
+            root.visible = true;
+            cx.notify();
+        });
+        window.draw(app).clear(app);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    for _ in 0..8 {
+        cx.update_window(handle, |_, window, app| {
+            window.draw(app).clear(app);
+            assert!(
+                window
+                    .painted_polychrome_sprites()
+                    .iter()
+                    .any(|sprite| sprite.tile == terminal)
+            );
+        })
+        .unwrap();
+        cx.run_until_parked();
+        assert_eq!(tiles(&atlas, &decoded)[1], Some(terminal));
+        assert_eq!(
+            (captured.0.get(), captured.1.get()),
+            counts,
+            "移动位置的正常换帧不得使无关 cached sibling 重绘"
+        );
+        cx.advance_clock(Duration::from_millis(100));
+        cx.run_until_parked();
+    }
+    cx.update_window(handle, |_, window, app| window.draw(app).clear(app))
+        .unwrap();
+    assert_eq!(
+        tiles(&atlas, &decoded)
+            .iter()
+            .filter(|tile| tile.is_some())
+            .count(),
+        1,
+        "两个位置最终共享末帧"
+    );
+    cx.update_window(handle, |_, window, app| {
+        root.update(app, |root, cx| {
+            root.moving
+                .update(cx, |view, cx| view.set_mounted(false, window, cx));
+            root.visible = false;
+            cx.notify();
+        });
+        window.draw(app).clear(app);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, app| window.draw(app).clear(app))
+        .unwrap();
+    assert_eq!(
+        tiles(&atlas, &decoded)[1],
+        Some(terminal),
+        "另一位置仍持末帧，不能删 key"
+    );
+    assert!(
+        captured.0.get() > counts.0 && captured.1.get() > counts.1,
+        "即使保留同帧，生命周期撤销也必须失效旧 Scene"
+    );
+    let pixels = cx.capture_screenshot(handle).unwrap();
+    assert_eq!(
+        pixels.get_pixel(pixels.width() / 4, pixels.height() / 2).0,
+        [255; 4]
+    );
 }

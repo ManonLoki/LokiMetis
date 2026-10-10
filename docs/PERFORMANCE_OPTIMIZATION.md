@@ -256,6 +256,24 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 参考：[退休状态](../vendor/gpui-pre-apple/src/atlas_retirement.rs)、[真实 Metal 回归](../vendor/gpui-pre-apple/src/atlas_retirement_metal_tests.rs)、[提交包装补丁](../vendor/gpui-pre-apple/patches/atlas-retirement-submit.after)、[图集回收补丁](../vendor/gpui-pre-apple/patches/atlas-retirement-physical.after)。
 
+### 5.13 动画纹理按真实绘制位置保留工作集
+
+同一动画的 CPU 解码结果仍可共享，但每窗无需固定所有已播放帧。macOS 现在为每个 Playback owner 记录最后成功 paint 的实际 ImageId/frame_index，同窗取并集；下一次成功绘制替换旧 claim，失败绘制不提前撤销旧帧，缓存 Scene 没有回调时继续保留其原帧。时间线、预绘制选择和最新 CPU Weak 都不能替代真实 paint 的身份。
+
+收尾队列每窗合并一次，执行前重新检查并集，处理 A→B→A、多个位置同帧和错相播放。队列及 claim 只保存身份值，不强持像素或 Entity。正常换帧只清旧 key，不强制刷新无关缓存；位置卸载和孤立 paint 必须刷新场景，即使其它位置仍持同帧而无需删 key。CPU 登记器在 Catalog/Overlay 仍存活时也撤销退出 Playback 的 GPU claim；旧整图退役检查实际 claim，补充5.11的最新 Weak 判断，不能误删仍在绘制的另一物理图像。
+
+有界的是活跃逻辑帧集合，而非瞬时显存硬上限。物理 AtlasTile、分配器区域和纹理槽继续受5.12的 GPU 完成规则保护；慢 GPU 或在途编码可能暂留多个已退役区域。逐帧重新上传的成本也需要单独测量，不能由内存下降推断 CPU 改善。
+
+回归先以正式12帧 APNG、真实 Metal 证明旧策略暖机累积5帧，随后验证单位置30个边界始终1帧、错相双位置20个边界保持2帧，以及图库持CPU时卸载播放器释放全部GPU帧。有限动画自然结束后，把左侧播放器放入 GPUI cached view，右侧同源动画继续换帧；左侧真实 prepaint/paint 计数不增长、末帧 tile 不变。两个位置最终同帧时撤销右侧，仍须刷新缓存场景并保留左侧纹理，最后读回白色末帧像素。普通 draw 与强制 refresh 的 render_frame 必须区分，否则无法验证缓存重放。
+
+测试查询也要验证后端合同：Metal 未实现的 contains 默认返回false，新增单帧 query 使用 get_or_insert_with(key, || Ok(None))，真实 Metal 测试同时检查存在帧和缺失帧。旧 App 隔离测试要求动画全部帧常驻，已改为当前真实帧检查，并停止该隔离测试自身推进动画，以免合法 tile 重建污染跨 App 身份断言。最终48项相关图片回归通过；编译失败、旧 oracle 失败和各轮 dirty 预览分别保留于忽略的 `release/image-frame-working-set-development-20261010/`，不是正式候选验收。
+
+同一合法512×512、120帧、100ms APNG在图库与真实SessionStart驱动的桌宠双窗播放，配置与素材逐文件SHA一致，两代图库截图均2984×1858像素。对照0.2.3的图形dirty为1,031,159,808B，修复0.2.4两次可见采样均29,343,744B；隐藏主窗后修复版22,675,456B，恢复24,035,328B，再隐藏18,448,384B，桌宠截图与恢复图库均显示持续换色。空图库及未成功取得桌宠图片的早期样本已排除。该结果支持工作集减少纹理驻留；dirty开发输入、进程寿命、GPU完成点及后台用量索引负载仍不完全匹配，不计算公平加速比例，也不据此宣称CPU改善或长期无泄漏。原始支持目录46项、29文件在实验后按字节/权限/链接还原。
+
+变化 LMDESK-IMAGE-FRAME-WORKING-SET-001 按 bug-fix 登记为0.2.4。此策略仅在macOS播放器启用，Windows、优化发布构建、长期泄漏与公平Tauri比较仍需独立验证。
+
+参考：[帧工作集](../loki_metris_gui/src/monitor/image_frame_residency.rs)、[真实 Metal 与缓存重放回归](../loki_metris_gui/src/monitor/image_window_metal_tests.rs)、[单帧清理与查询补丁](../vendor/gpui-pre/patches/image-frame-drop.after)。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

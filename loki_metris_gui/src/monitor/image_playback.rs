@@ -254,6 +254,8 @@ impl Render for MonitorImageView {
     /// Canvas公开选帧避免 Img 内部无限循环及失焦停止逻辑。
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let image = self.decoded.as_ref().map(Arc::downgrade);
+        #[cfg(target_os = "macos")]
+        let residency = (self.source.id.clone(), self.owner.clone());
         let frame = self.frame;
         let viewport_corners = self.viewport_corners.clone();
         let fit = match self.fit {
@@ -290,7 +292,9 @@ impl Render for MonitorImageView {
                     })
                     .unwrap_or_else(|_| visible.then_some(frame))
                 },
-                move |bounds, frame, window, _| {
+                move |bounds, frame, window, cx| {
+                    #[cfg(not(target_os = "macos"))]
+                    let _ = cx;
                     if let (Some(decoded), Some(frame)) = (image.and_then(|image|image.upgrade()), frame) {
                         let natural_size = decoded.natural_size;
                         let image_bounds = fit.get_bounds(bounds, natural_size);
@@ -321,6 +325,11 @@ impl Render for MonitorImageView {
                                 )
                             },
                         );
+                        #[cfg(target_os = "macos")]
+                        if result.is_ok() && padded.size.width > gpui_kit::px(0.) && padded.size.height > gpui_kit::px(0.) {
+                            image_residency::painted(&residency.0, &residency.1,
+                                gpui_kit::RenderImageParams { image_id: decoded.image.id, frame_index: frame }, window, cx);
+                        }
                         #[cfg(test)]
                         if result.is_ok() {
                             painted.set(frame);
