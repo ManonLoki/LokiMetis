@@ -1,7 +1,7 @@
-//! 原生图片以 App 为缓存边界；位置拥有需求，最后一个位置才退役 CPU 与所有窗口图集。
+//! 图片解码以 App 共享，纹理按窗口需求退役；全局最后位置退出才归还 CPU 缓存。
 
 use super::image_decode::{DecodedMonitorImage, MonitorImageDecoder, MonitorImageSource};
-use gpui_kit::{App, Context, EntityId, Global, Subscription, Window, WindowId};
+use gpui_kit::{App, Context, EntityId, Global, ImageId, Subscription, Window, WindowId};
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
@@ -92,6 +92,69 @@ struct Residency {
     owners: HashMap<OwnerKey, Option<RcWeak<dyn Any>>>,
     decoded: Weak<DecodedMonitorImage>,
     failed: bool,
+}
+
+/// 局部退役不延长像素寿命；实际图像身份防止迟到清理混淆同 ID 的新一代。
+struct WindowRetirement {
+    source_id: String,
+    window: WindowId,
+    image_id: ImageId,
+    decoded: Weak<DecodedMonitorImage>,
+}
+impl WindowRetirement {
+    /// 收尾时复核同窗同图是否重新取得需求，再同步删除旧纹理并失效旧场景。
+    fn cleanup(self, window: &mut Window, cx: &mut App) {
+        let reacquired = cx.has_global::<Residencies>()
+            && cx
+                .global::<Residencies>()
+                .images
+                .get(&self.source_id)
+                .is_some_and(|entry| {
+                    entry.owners.keys().any(|owner| owner.window == self.window)
+                        && entry
+                            .decoded
+                            .upgrade()
+                            .is_some_and(|decoded| decoded.image.id == self.image_id)
+                });
+        if !reacquired {
+            if let Some(decoded) = self.decoded.upgrade() {
+                _ = window.drop_image(decoded.image.clone());
+            }
+            // drop_image 不失效旧 Scene；恢复或重放时必须重新生成图元与 AtlasTile。
+            window.refresh();
+        }
+    }
+}
+
+/// 只记录真正失去最后位置的窗口；其它窗口仍持需求时不删除共享 CPU 结果。
+fn remove_owners(
+    entry: &mut Residency,
+    mut matches: impl FnMut(&OwnerKey) -> bool,
+) -> Vec<WindowRetirement> {
+    let mut removed_windows = HashSet::new();
+    entry.owners.retain(|owner, _| {
+        let remove = matches(owner);
+        if remove {
+            removed_windows.insert(owner.window);
+        }
+        !remove
+    });
+    if entry.owners.is_empty() || removed_windows.is_empty() {
+        return Vec::new();
+    }
+    let Some(decoded) = entry.decoded.upgrade() else {
+        return Vec::new();
+    };
+    removed_windows
+        .into_iter()
+        .filter(|window| !entry.owners.keys().any(|owner| owner.window == *window))
+        .map(|window| WindowRetirement {
+            source_id: entry.source.id.clone(),
+            window,
+            image_id: decoded.image.id,
+            decoded: entry.decoded.clone(),
+        })
+        .collect()
 }
 
 /// App 内唯一登记器覆盖 pending 与 ready；订阅本身不持有任何 Entity 强引用。
@@ -192,19 +255,20 @@ pub(crate) fn retry_failed(source: &MonitorImageSource, cx: &mut App) {
     }
 }
 
-/// 最后 owner 先取得弱 GPU 句柄再删 cache；App::drop_image 包含所有仍存活窗及当前借出的窗。
+/// 分离本窗与全局退役；全局最后 owner 在删 cache 前取得弱 GPU 句柄。
 fn retire(
     mut matches: impl FnMut(&str, &OwnerKey) -> bool,
-    window: Option<&mut Window>,
+    mut window: Option<&mut Window>,
     cx: &mut App,
 ) {
     if !cx.has_global::<Residencies>() {
         return;
     }
-    let retired = {
+    let (retired, local) = {
         let registry = cx.global_mut::<Residencies>();
+        let mut local = Vec::new();
         for (id, entry) in &mut registry.images {
-            entry.owners.retain(|owner, _| !matches(id, owner));
+            local.extend(remove_owners(entry, |owner| matches(id, owner)));
         }
         let empty = registry
             .images
@@ -212,37 +276,63 @@ fn retire(
             .filter(|(_, entry)| entry.owners.is_empty())
             .map(|(id, _)| id.clone())
             .collect::<Vec<_>>();
-        empty
+        let retired = empty
             .into_iter()
             .filter_map(|id| registry.images.remove(&id))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        (retired, local)
     };
-    cleanup(retired, window, cx);
+    cleanup(retired, window.as_deref_mut(), cx);
+    cleanup_windows(local, window, cx);
 }
 
 /// 高频位置离屏只查本素材，不因保留的其它图库条目而反复扫描整个登记器。
 fn retire_source(
     id: &str,
     mut matches: impl FnMut(&OwnerKey) -> bool,
-    window: Option<&mut Window>,
+    mut window: Option<&mut Window>,
     cx: &mut App,
 ) {
     if !cx.has_global::<Residencies>() {
         return;
     }
-    let retired = {
+    let (retired, local) = {
         let registry = cx.global_mut::<Residencies>();
         let Some(entry) = registry.images.get_mut(id) else {
             return;
         };
-        entry.owners.retain(|owner, _| !matches(owner));
-        if entry.owners.is_empty() {
+        let local = remove_owners(entry, |owner| matches(owner));
+        let retired = if entry.owners.is_empty() {
             registry.images.remove(id)
         } else {
             None
-        }
+        };
+        (retired, local)
     };
-    cleanup(retired, window, cx);
+    cleanup(retired, window.as_deref_mut(), cx);
+    cleanup_windows(local, window, cx);
+}
+
+/// 当前绘制结束后按精确窗口执行局部删除；关闭或释放实体时不要求原窗仍可借用。
+fn cleanup_windows(retired: Vec<WindowRetirement>, window: Option<&mut Window>, cx: &mut App) {
+    for entry in retired {
+        if let Some(window) = window
+            .as_deref()
+            .filter(|window| window.window_handle().window_id() == entry.window)
+        {
+            window.defer(cx, move |window, cx| entry.cleanup(window, cx));
+        } else {
+            cx.defer(move |cx| {
+                if let Some(handle) = cx
+                    .windows()
+                    .into_iter()
+                    .find(|handle| handle.window_id() == entry.window)
+                {
+                    _ = handle.update(cx, |_, window, cx| entry.cleanup(window, cx));
+                }
+            });
+        }
+    }
 }
 
 /// 全局状态已归还后清理真正退役的 cache 与图集，弱引用升级发生在删除 cache 之前。
@@ -259,3 +349,11 @@ fn cleanup(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "image_window_residency_tests.rs"]
+mod window_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "image_window_metal_tests.rs"]
+mod metal_tests;

@@ -1,6 +1,7 @@
 {
   "applied_bug_ids": [
-    "LMDESK-SOURCE-QUALITY-001"
+    "LMDESK-SOURCE-QUALITY-001",
+    "LMDESK-IMAGE-WINDOW-RESIDENCY-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -31,8 +32,18 @@
       "change_id": "LMDESK-MACOS-WINDOW-STATE-001",
       "kind": "feature",
       "required_version": "0.2.1"
+    },
+    {
+      "change_id": "LMDESK-MACOS-PET-CONFIGURATION-001",
+      "kind": "feature",
+      "required_version": "0.2.1"
+    },
+    {
+      "change_id": "LMDESK-IMAGE-WINDOW-RESIDENCY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.2"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.1"
+  "target_version": "0.2.2"
 }
