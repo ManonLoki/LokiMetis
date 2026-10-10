@@ -342,6 +342,14 @@ Computer Use随后发现独立资格错误：All已有89,471,909 Token，摘要�
 
 参考：[core资格投影](../loki_metris_core/src/today_usage/display.rs)、[后台摘要及读取事实](../loki_metris_gui/src/usage_service/notifications.rs)、[真实服务回归](../loki_metris_gui/src/usage_service/notification_display_tests.rs)、[展示变化与事件隔离回归](../loki_metris_gui/src/pet/today_tests.rs)。
 
+### 5.20 原生开关只修改其拥有的状态，显式恢复不能被同值优化吞掉
+
+桌宠鼠标穿透是独立的输入策略。切换只更新活窗的原生属性与已确认投影，不进入尺寸、位置、动画或图片解码路径；配置窗与主窗口恢复入口独立于被穿透的桌宠。Windows 按当前样式合并本功能拥有的位，回滚也不覆盖其它窗口样式。
+
+“偏好已经是 false”不代表原生窗口已关闭穿透，也不代表在途旧查询会保留这个意图。显式恢复必须重确认原生状态、使旧查询失效并提交字段意图；实际存储值相等时再由存储层避免重复 IO。把 controller 的同值恢复提前返回，新增真实存储和旧加载交错回归会失败。恢复后相关桌宠64项通过；这是行为与生命周期经验，没有本轮 CPU 或内存收益测量。
+
+原生状态读回、界面可操作和系统命中是不同观察层。本轮 Computer Use 的覆盖点合成点击在 AppKit 入口已带错误局部坐标，不能据主窗口未导航判断产品穿透失效，也不能据 ignoresMouseEvents=true 宣称实际鼠标命中已通过。临时事件观察代码已移除；真实 WindowServer 与 Windows 宿主交互仍待验证。证据入口为 `release/pet-mouse-passthrough-development-20261011/`，产品改动见同日 changelog 的 `LMDESK-PET-MOUSE-PASSTHROUGH-001`。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

@@ -101,6 +101,11 @@ impl Render for Settings {
         let size_label = t("monitor.pet.size");
         let top = t("monitor.pet.alwaysOnTop");
         let lock = t("monitor.pet.lockPositionSize");
+        let passthrough = t("monitor.pet.mousePassthrough");
+        let passthrough_hint = t("monitor.pet.mousePassthroughHint");
+        let passthrough_unknown = self.owner.read(cx).mouse_state.confirmed().is_none();
+        let passthrough_recover = t("monitor.pet.mousePassthroughRecover");
+        let passthrough_unknown_hint = t("monitor.pet.mousePassthroughUnknown");
         let main = t("monitor.pet.returnMain");
         let hide = t("monitor.pet.hideToTray");
         let mut segments = div()
@@ -241,6 +246,13 @@ impl Render for Settings {
                         .child(error),
                 )
             })
+            .when(passthrough_unknown, |surface| surface.child(
+                div().mb(px(6.)).text_size(px(11.)).text_color(rgb(0xffc28a))
+                    .child(passthrough_unknown_hint)
+                    .child(gpui_kit::base::Button::new("pet-mouse-recover")
+                        .accessibility_label(passthrough_recover.clone()).child(passthrough_recover)
+                        .on_click(cx.listener(|this, _, _, cx| this.change(PetPreferenceChange::MousePassthrough(false), cx))))
+            ))
             .child(
                 div()
                     .w_full()
@@ -308,6 +320,14 @@ impl Render for Settings {
                         PetPreferenceChange::Locked(!prefs.locked),
                         cx,
                     ))
+                    .child(check(
+                        "pet-mouse-passthrough",
+                        passthrough,
+                        prefs.mouse_passthrough,
+                        PetPreferenceChange::MousePassthrough(!prefs.mouse_passthrough),
+                        cx,
+                    ))
+                    .child(div().px(px(8.)).text_size(px(10.)).text_color(rgb(0x9099aa)).child(passthrough_hint))
                     .child(div().h(px(1.)).my(px(6.)).mx(px(2.)).bg(rgba(0xffffff1a)))
                     .child(
                         gpui_kit::base::Button::new("pet-return-main")

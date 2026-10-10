@@ -58,6 +58,9 @@ impl Shell {
                     .child(self.settings_notifications(cx))
                     .child(self.settings_autostart(cx)),
             )
+            .child(Button::new("settings-pet-settings").outline().h(px(36.)).accessibility_label(self.t("monitor.pet.settingsTitle"))
+                .child(self.t("monitor.pet.settingsTitle"))
+                .on_click(cx.listener(|_, _, _, cx| crate::pet::open_settings(cx))))
             .child(self.settings_sponsor(cx))
             .into_any_element()
     }

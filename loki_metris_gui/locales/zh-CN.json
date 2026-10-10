@@ -682,6 +682,10 @@
       "pixels": "%{size} 像素",
       "alwaysOnTop": "始终置顶",
       "lockPositionSize": "锁定位置和大小",
+      "mousePassthrough": "鼠标穿透",
+      "mousePassthroughHint": "浮窗不接收鼠标；可从系统托盘或主窗口设置恢复。",
+      "mousePassthroughRecover": "鼠标穿透（点击恢复）",
+      "mousePassthroughUnknown": "鼠标穿透状态未确认；关闭穿透可恢复鼠标操作。",
       "returnMain": "返回主界面",
       "hideToTray": "隐藏到系统托盘"
     }

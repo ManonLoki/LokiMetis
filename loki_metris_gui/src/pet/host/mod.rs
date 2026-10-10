@@ -1,5 +1,21 @@
 //! 辅助窗宿主桥接只处理原生属性和工作区，不拥有领域设置。
 
+/// 单一浮窗的原生穿透确认和样式位所有权，不保存跨窗口裸句柄。
+#[derive(Default)]
+pub struct MousePassthroughState {
+    pub(super) confirmed: Option<bool>,
+    #[cfg(all(windows, not(test)))]
+    pub(super) original_bits: Option<isize>,
+    #[cfg(test)]
+    pub(super) calls: usize,
+    #[cfg(test)]
+    pub(super) fail_next: bool,
+}
+impl MousePassthroughState {
+    /// None表示尚未确认或回滚失败，不能在托盘宣称本机已应用。
+    pub fn confirmed(&self) -> Option<bool> { self.confirmed }
+}
+
 #[cfg(all(target_os = "macos", not(test)))]
 mod macos;
 #[cfg(all(target_os = "macos", not(test)))]
@@ -13,6 +29,11 @@ pub use windows::*;
 mod fallback {
     use gpui_kit::{Bounds, Window, point, px, size};
     use loki_metris_core::PetWindowPreferences;
+    /// 未支持平台不得接受并保存虚假的穿透成功。
+    pub fn set_mouse_passthrough(_: &Window, _: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
+        state.confirmed = None;
+        anyhow::bail!("mouse passthrough unsupported")
+    }
     /// 当前产品目标平台之外不假报原生辅助窗能力。
     pub fn set_visible(_: &Window, _: bool) -> anyhow::Result<()> {
         anyhow::bail!("auxiliary windows unsupported")
@@ -57,6 +78,15 @@ pub use fallback::*;
 mod test_host {
     use gpui_kit::{Bounds, Window, point, px, size};
     use loki_metris_core::PetWindowPreferences;
+    /// 显式测试适配器记录事务与可控失败；不代表OS鼠标投递验证。
+    pub fn set_mouse_passthrough(_: &Window, enabled: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
+        state.calls += 1;
+        if std::mem::take(&mut state.fail_next) {
+            anyhow::bail!("injected native mouse passthrough failure")
+        }
+        state.confirmed = Some(enabled);
+        Ok(())
+    }
     /// 假平台只验证GPUI实体/窗口时序，实际原生属性由Computer Use检查。
     pub fn set_visible(_: &Window, _: bool) -> anyhow::Result<()> {
         Ok(())

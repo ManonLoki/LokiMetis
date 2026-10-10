@@ -28,6 +28,9 @@ pub struct PetWindowPreferences {
     /// 是否锁定拖拽和缩放。
     #[serde(default, deserialize_with = "deserialize_default_false")]
     pub locked: bool,
+    /// 整个桌宠浮窗是否把鼠标交给下方窗口；独立于拖动和缩放锁定。
+    #[serde(default, deserialize_with = "deserialize_default_false")]
+    pub mouse_passthrough: bool,
 }
 
 impl Default for PetWindowPreferences {
@@ -39,6 +42,7 @@ impl Default for PetWindowPreferences {
             pet_size: default_pet_size(),
             always_on_top: true,
             locked: false,
+            mouse_passthrough: false,
         }
     }
 }
@@ -160,6 +164,8 @@ pub enum PetPreferenceChange {
     AlwaysOnTop(bool),
     /// 同时锁定拖动与原生缩放。
     Locked(bool),
+    /// 鼠标穿透开关；配置窗口和恢复入口仍可操作。
+    MousePassthrough(bool),
     /// 循环翻页方向。
     TurnPage(isize),
     /// 自动定位有图的绝对位置。
@@ -203,6 +209,7 @@ pub fn change_pet_preferences(
         }
         PetPreferenceChange::AlwaysOnTop(enabled) => value.always_on_top = enabled,
         PetPreferenceChange::Locked(locked) => value.locked = locked,
+        PetPreferenceChange::MousePassthrough(enabled) => value.mouse_passthrough = enabled,
         PetPreferenceChange::TurnPage(delta) => {
             let page = usize::from(value.focused_slot.min(11)) / value.layout.capacity();
             value.focused_slot =
@@ -246,6 +253,31 @@ pub fn pet_size_from_resize(
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// 旧配置和畸形字段默认关闭，合法值往返保留且不连坐其它偏好。
+    #[test]
+    fn mouse_passthrough_legacy_default_and_roundtrip() {
+        for raw in [r#"{}"#, r#"{"mousePassthrough":"true","locked":true}"#, r#"{"mousePassthrough":null}"#] {
+            let prefs: PetWindowPreferences = serde_json::from_str(raw).unwrap();
+            assert!(!prefs.mouse_passthrough);
+            if raw.contains("locked") { assert!(prefs.locked); }
+        }
+        let prefs: PetWindowPreferences = serde_json::from_str(r#"{"mousePassthrough":true,"locked":false,"petSize":80}"#).unwrap();
+        assert!(prefs.mouse_passthrough);
+        assert!(!prefs.locked);
+        assert_eq!(serde_json::from_value::<PetWindowPreferences>(serde_json::to_value(prefs).unwrap()).unwrap(), prefs);
+    }
+    /// 穿透只合并自身字段，锁定也不阻止取消穿透或普通分页。
+    #[test]
+    fn mouse_passthrough_intent_is_independent_of_lock_and_geometry() {
+        let old = PetWindowPreferences { layout: PetLayout::Row3, focused_slot: 6, pet_size: 80, always_on_top: false, locked: true, mouse_passthrough: false };
+        let range = PetSizeRange { min: 64, max: 90 };
+        let enabled = change_pet_preferences(old, PetPreferenceChange::MousePassthrough(true), range).unwrap();
+        assert_eq!(enabled, PetWindowPreferences { mouse_passthrough: true, ..old });
+        assert_eq!(change_pet_preferences(enabled, PetPreferenceChange::MousePassthrough(false), range).unwrap(), old);
+        let paged = change_pet_preferences(enabled, PetPreferenceChange::TurnPage(1), range).unwrap();
+        assert!(paged.mouse_passthrough && paged.locked);
+        assert_eq!(paged.focused_slot, 9);
+    }
     /// 高DPI宿主先换算逻辑尺寸，布局最长轴约束且异常显示器回退。
     #[test]
     fn work_area_ranges_and_native_resize_follow_layout() {

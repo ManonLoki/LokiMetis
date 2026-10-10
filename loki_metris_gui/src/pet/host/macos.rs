@@ -24,6 +24,16 @@ fn native(window: &Window) -> anyhow::Result<Retained<NSWindow>> {
     view.window()
         .ok_or_else(|| anyhow::anyhow!("NSView is not attached to a window"))
 }
+/// AppKit全窗穿透不触碰几何；每次写入后读回真实NSWindow属性。
+pub fn set_mouse_passthrough(window: &Window, enabled: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
+    let native = native(window)?;
+    native.setIgnoresMouseEvents(enabled);
+    let actual = native.ignoresMouseEvents();
+    state.confirmed = Some(actual);
+    anyhow::ensure!(actual == enabled, "AppKit mouse passthrough readback mismatch");
+    tracing::debug!(event="pet_mouse_passthrough_applied", enabled=actual);
+    Ok(())
+}
 /// NSScreen列表首项固定为菜单栏主屏，与GPUI后端使用同一顶边。
 fn top() -> f64 {
     let mtm = MainThreadMarker::new().expect("UI thread");
@@ -85,6 +95,7 @@ pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
 pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> anyhow::Result<()> {
     let native = native(window)?;
     let resizable = !prefs.locked && !settings;
+    if settings { native.setIgnoresMouseEvents(false); }
     crate::native::windowing::configure_auxiliary_window(&native, resizable, settings || prefs.always_on_top);
     if !settings {
         let area = work_area(window);

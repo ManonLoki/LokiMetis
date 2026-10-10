@@ -45,6 +45,8 @@ unsafe extern "system" {
     fn GetWindowRect(window: Handle, rect: *mut Rect) -> i32;
     /// 释放现有鼠标捕获，使系统接管窗口拖动。
     fn ReleaseCapture() -> i32;
+    /// 只释放当前浮窗自己拥有的捕获，不干扰其它窗口。
+    fn GetCapture() -> Handle;
     /// 同步发送左键标题区按下，参数不携带外部指针。
     fn SendMessageW(window: Handle, message: u32, wparam: usize, lparam: isize) -> isize;
     #[cfg(target_pointer_width = "64")]
@@ -59,6 +61,63 @@ unsafe extern "system" {
     #[cfg(target_pointer_width = "32")]
     /// 更新 32 位窗口样式属性。
     fn SetWindowLongW(window: Handle, index: i32, value: i32) -> i32;
+}
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    /// Win32样式API的零返回需要结合线程错误码解释。
+    fn SetLastError(error: u32);
+    /// 读取本次原生调用错误码，不把合法旧样式0误判失败。
+    fn GetLastError() -> u32;
+}
+
+/// 穿透只拥有两个扩展样式位；其它原生属性在每次提交时重新合并。
+const MOUSE_STYLE_BITS: isize = 0x80000 | 0x20;
+
+/// checked样式调用兼容32/64位，返回0本身不代表失败。
+fn checked_style(hwnd: Handle, set: Option<isize>) -> anyhow::Result<isize> {
+    unsafe {
+        SetLastError(0);
+        let value = style(hwnd, -20, set);
+        let error = GetLastError();
+        anyhow::ensure!(value != 0 || error == 0, "mouse passthrough style: {}", std::io::Error::from_raw_os_error(error as i32));
+        Ok(value)
+    }
+}
+
+/// 只刷新样式缓存，不改变位置、尺寸、Z序或激活状态。
+fn write_mouse_bits(hwnd: Handle, bits: isize) -> anyhow::Result<()> {
+    let current = checked_style(hwnd, None)?;
+    checked_style(hwnd, Some((current & !MOUSE_STYLE_BITS) | bits))?;
+    anyhow::ensure!(unsafe { SetWindowPos(hwnd, std::ptr::null_mut(), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020) } != 0,
+        "mouse passthrough style refresh: {}", std::io::Error::last_os_error());
+    anyhow::ensure!(checked_style(hwnd, None)? & MOUSE_STYLE_BITS == bits, "mouse passthrough style readback mismatch");
+    Ok(())
+}
+
+/// 开启时记住原位，关闭只还原自己拥有的位；失败保留恢复凭据。
+pub fn set_mouse_passthrough(window: &Window, enabled: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
+    let hwnd = native(window)?;
+    let before = checked_style(hwnd, None)? & MOUSE_STYLE_BITS;
+    if enabled && state.original_bits.is_none() { state.original_bits = Some(before); }
+    // 显式关闭始终撤销TRANSPARENT；LAYERED恢复首次进入前的所有权。
+    let target = if enabled { MOUSE_STYLE_BITS } else { state.original_bits.unwrap_or(before) & !0x20 };
+    match write_mouse_bits(hwnd, target) {
+        Ok(()) => {
+            state.confirmed = Some(target & 0x20 != 0);
+            anyhow::ensure!(state.confirmed == Some(enabled), "mouse passthrough original style is still transparent");
+            if !enabled { state.original_bits = None; }
+            // SAFETY: HWND是当前所属线程的活窗，只释放本窗捕获。
+            if enabled && unsafe { GetCapture() } == hwnd { unsafe { ReleaseCapture(); } }
+            Ok(())
+        }
+        Err(error) => {
+            // 回滚本次进入前的位，而非首次进入前的位；重新读取保留其它字段的更新。
+            let rollback = write_mouse_bits(hwnd, before);
+            let actual = checked_style(hwnd, None).ok().map(|style| style & MOUSE_STYLE_BITS);
+            state.confirmed = if rollback.is_ok() { actual.map(|bits| bits & 0x20 != 0) } else { None };
+            anyhow::bail!("mouse passthrough apply failed: {error}; rollback={rollback:?}; actual={actual:?}")
+        }
+    }
 }
 /// 不存储HWND，避免已销毁窗口的句柄被另一个原生窗口复用。
 fn native(window: &Window) -> anyhow::Result<Handle> {

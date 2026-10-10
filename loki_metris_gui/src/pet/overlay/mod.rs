@@ -53,7 +53,14 @@ impl Overlay {
     /// 自有观察处理隐藏后的像素回收，失焦仍继续播放。
     pub fn new(owner: Entity<Controller>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         window.set_window_title("LokiMetris Pet");
-        let controller = cx.observe(&owner, |_, _, cx| cx.notify());
+        let controller = cx.observe(&owner, |this, owner, cx| {
+            if owner.read(cx).mouse_state.confirmed() == Some(true) {
+                this.double_click.cancel();
+                this.hovered = false;
+                this.keyboard_visible = false;
+            }
+            cx.notify();
+        });
         let visibility = cx.observe_window_visibility(window, |this, _, window, cx| {
             if !window.is_visible() {
                 this.double_click.cancel();
@@ -154,6 +161,10 @@ impl Overlay {
     fn change(&mut self, change: PetPreferenceChange, cx: &mut Context<Self>) {
         self.owner.update(cx, |owner, cx| owner.change(change, cx));
     }
+    /// 已开启后迟到的鼠标事件也不能恢复hover、拖动或双击候选。
+    fn accepts_mouse(&self, cx: &gpui_kit::App) -> bool {
+        self.owner.read(cx).mouse_state.confirmed() != Some(true)
+    }
     /// Canvas仅在paint注册全窗取消观察，不创建Hitbox或拦截输入，覆盖离窗后返回。
     fn gesture_events(cx: &Context<Self>) -> gpui_kit::AnyElement {
         let down = cx.entity().downgrade();
@@ -231,11 +242,12 @@ impl Overlay {
             .relative()
             .size_full()
             .overflow_hidden()
-            .on_mouse_down(MouseButton::Left, cx.listener(move |this, event, _, _| {
+            .on_mouse_down(MouseButton::Left, cx.listener(move |this, event, _, cx| {
+                if !this.accepts_mouse(cx) { return; }
                 this.double_click.begin(id, event);
             }))
             .on_click(cx.listener(move |this, event, _, cx| {
-                if this.double_click.complete(id, event) {
+                if this.accepts_mouse(cx) && this.double_click.complete(id, event) {
                     this.owner.update(cx, |owner, cx| owner.show_main(cx));
                 }
             }))
@@ -325,6 +337,7 @@ impl Render for Overlay {
         let owner = self.owner.read(cx);
         let page = owner.page();
         let locked = owner.settings.pet_window.locked;
+        let passthrough = owner.mouse_state.confirmed() == Some(true);
         let label = owner
             .t("monitor.pet.shellAria")
             .replace("%{page}", &(page.page_index + 1).to_string())
@@ -362,7 +375,7 @@ impl Render for Overlay {
         }
         let focused = self.focus.contains_focused(window, cx);
         let controls =
-            self.hovered || (self.keyboard_visible && focused && window.is_window_active());
+            !passthrough && (self.hovered || (self.keyboard_visible && focused && window.is_window_active()));
         let vmin = super::geometry::body_vmin(window);
         let a11y_owner = self.owner.clone();
         let a11y_press_owner = self.owner.clone();
@@ -387,6 +400,7 @@ impl Render for Overlay {
             )
             .hover_listener_mode(gpui_kit::HoverListenerMode::InputModalityIndependent)
             .on_hover(cx.listener(|this, hovered, _window, cx| {
+                if !this.accepts_mouse(cx) { return; }
                 this.hovered = *hovered;
                 if !hovered {
                     this.double_click.cancel();
@@ -397,6 +411,7 @@ impl Render for Overlay {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event: &gpui_kit::MouseDownEvent, window, cx| {
+                    if !this.accepts_mouse(cx) { return; }
                     this.focus.focus(window, cx);
                     if event.click_count == 1 && !locked {
                         host::start_drag(window, cx);
@@ -412,6 +427,7 @@ impl Render for Overlay {
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|this, _, _, cx| {
+                    if !this.accepts_mouse(cx) { return; }
                     this.double_click.cancel();
                     cx.stop_propagation();
                     this.owner.update(cx, |owner, cx| owner.open_settings(cx));
@@ -444,6 +460,7 @@ impl Render for Overlay {
             }))
             .on_scroll_wheel(
                 cx.listener(|this, event: &gpui_kit::ScrollWheelEvent, _, cx| {
+                    if !this.accepts_mouse(cx) { return; }
                     let now = cx.background_executor().now();
                     if this.last_wheel.is_some_and(|last| {
                         now.saturating_duration_since(last) < Duration::from_millis(220)

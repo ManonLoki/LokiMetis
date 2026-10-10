@@ -185,6 +185,7 @@ fn pet_window_preferences_round_trip_and_normalize() {
         pet_size: 1,
         always_on_top: false,
         locked: true,
+        mouse_passthrough: true,
     };
     let saved = save_monitor_settings(config, &settings).expect("save");
     assert_eq!(saved.pet_window.focused_slot, 11);
@@ -193,6 +194,7 @@ fn pet_window_preferences_round_trip_and_normalize() {
     assert_eq!(loaded.pet_window.layout, PetLayout::Row3);
     assert!(!loaded.pet_window.always_on_top);
     assert!(loaded.pet_window.locked);
+    assert!(loaded.pet_window.mouse_passthrough);
 }
 
 #[test]

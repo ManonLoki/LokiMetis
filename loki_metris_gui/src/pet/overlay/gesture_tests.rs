@@ -89,7 +89,7 @@ fn completed_double_click_activates_only_after_second_up_once(cx: &mut TestAppCo
 /// 实际移动、离开、失焦、隐藏、替换按下和不匹配释放均取消当前二击。
 #[gpui_kit::test]
 fn moved_or_cancelled_second_press_does_not_activate_main(cx: &mut TestAppContext) {
-    for cancellation in ["move", "out-and-back", "exit", "blur", "deactivate", "hidden", "replace", "count", "button"] {
+    for cancellation in ["move", "out-and-back", "exit", "blur", "deactivate", "hidden", "passthrough", "replace", "count", "button"] {
         let (f, count, _observe) = observed_fixture(cx);
         let position = body_position(&f, cx);
         down(&f, position, 2, cx);
@@ -113,6 +113,12 @@ fn moved_or_cancelled_second_press_does_not_activate_main(cx: &mut TestAppContex
                 cx.run_until_parked();
             }
             "replace" => down(&f, position, 1, cx),
+            "passthrough" => {
+                f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(true), cx));
+                settle(cx, &f.owner);
+                f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(false), cx));
+                settle(cx, &f.owner);
+            }
             _ => {}
         }
         if cancellation == "button" {
@@ -120,6 +126,22 @@ fn moved_or_cancelled_second_press_does_not_activate_main(cx: &mut TestAppContex
         } else { up(&f, release, if cancellation == "count" { 1 } else { 2 }, cx); }
         assert_eq!(count.read_with(cx, |count, _| *count), 0, "{cancellation}不能ShowMain");
     }
+}
+
+/// OS不保证送出MouseExit；即使测试注入迟到hover/双击，穿透仍清除分页和手势。
+#[gpui_kit::test]
+fn mouse_passthrough_ignores_stale_mouse_gestures_without_resetting_page(cx: &mut TestAppContext) {
+    let (f, count, _observe) = observed_fixture(cx);
+    cx.update_window(f.overlay, |_, window, cx| { window.hover("pet-overlay", cx); window.render_frame(cx); assert!(window.try_find("pet-pager").is_some()); }).unwrap();
+    f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(true), cx));
+    settle(cx, &f.owner);
+    let position = body_position(&f, cx);
+    motion(&f, position, cx);
+    down(&f, position, 2, cx);
+    up(&f, position, 2, cx);
+    cx.update_window(f.overlay, |_, window, cx| { window.render_frame(cx); assert!(window.try_find("pet-pager").is_none()); }).unwrap();
+    assert_eq!(count.read_with(cx, |count, _| *count), 0);
+    assert_eq!(f.owner.read_with(cx, |owner, _| owner.page().page_index), 0);
 }
 
 /// 即使位移仅1px，跨实际slot或分页栏边界也不能完成原目标的双击。

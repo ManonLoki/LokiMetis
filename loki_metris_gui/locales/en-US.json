@@ -682,6 +682,10 @@
       "pixels": "%{size} pixels",
       "alwaysOnTop": "Always on top",
       "lockPositionSize": "Lock position and size",
+      "mousePassthrough": "Mouse passthrough",
+      "mousePassthroughHint": "The floating window ignores mouse input. Restore it from the tray or main settings.",
+      "mousePassthroughRecover": "Mouse passthrough (click to restore)",
+      "mousePassthroughUnknown": "Mouse passthrough is unconfirmed. Turn it off to restore mouse interaction.",
       "returnMain": "Return to main window",
       "hideToTray": "Hide to system tray"
     }

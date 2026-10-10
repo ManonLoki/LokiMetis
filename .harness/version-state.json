@@ -70,6 +70,11 @@
       "change_id": "LMDESK-PET-TODAY-TOKENS-001",
       "kind": "feature",
       "required_version": "0.2.5"
+    },
+    {
+      "change_id": "LMDESK-PET-MOUSE-PASSTHROUGH-001",
+      "kind": "feature",
+      "required_version": "0.2.5"
     }
   ],
   "schema_version": 1,

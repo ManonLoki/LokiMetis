@@ -8,6 +8,11 @@ mod settings;
 mod settings_window;
 mod size_control;
 mod position;
+mod passthrough;
+pub(crate) use passthrough::{mouse_passthrough_state, open_settings, toggle_mouse_passthrough};
+pub(crate) use passthrough::State as MousePassthroughState;
+#[cfg(test)]
+mod passthrough_tests;
 #[cfg(test)]
 mod feedback_tests;
 #[cfg(test)]
@@ -82,6 +87,7 @@ struct Controller {
     position_task: Option<Task<()>>,
     applying: bool,
     geometry_restored: bool,
+    mouse_state: host::MousePassthroughState,
     retry_after: Option<std::time::Instant>,
     last_error: Option<HookError>,
     scheduled: Option<PetPreferenceChange>,
@@ -117,6 +123,7 @@ impl Controller {
             position_task: None,
             applying: false,
             geometry_restored: false,
+            mouse_state: Default::default(),
             retry_after: None,
             last_error: None,
             scheduled: None,
@@ -375,6 +382,7 @@ impl Controller {
             Err(anyhow::anyhow!("pet overlay unavailable"))
         };
         self.applying = false;
+        let result = result.and_then(|()| self.apply_mouse_passthrough(cx));
         if result.is_ok() {
             if let Some(handle) = self.overlay {
                 cx.defer(move |cx| {
@@ -448,7 +456,9 @@ impl Controller {
             self.next_pending(cx);
             return;
         };
-        if next == old {
+        let mouse_requested = matches!(change, PetPreferenceChange::MousePassthrough(_));
+        // 显式穿透意图还须合并到真实store，避免首次读取的旧值覆盖恢复。
+        if next == old && !mouse_requested {
             self.complete_first_focus(true, cx);
             self.busy = false;
             self.next_pending(cx);
@@ -467,12 +477,12 @@ impl Controller {
         };
         self.settings_generation = self.settings_generation.wrapping_add(1);
         self.settings.pet_window = next;
-        if native_changed {
-            if let Err(error) = self.apply_geometry(false, cx) {
+        if native_changed || mouse_requested {
+            let applied = if native_changed { self.apply_geometry(false, cx) } else { self.apply_mouse_passthrough(cx) };
+            if let Err(error) = applied {
                 self.complete_first_focus(false, cx);
                 self.settings.pet_window = old;
-                let _ = self.apply_geometry(false, cx);
-                self.restore_bounds(old_bounds, cx);
+                let _ = self.rollback_native(native_changed, old_bounds, cx);
                 self.last_error = Some(HookError::new("error.monitor.petApplyFailed"));
                 tracing::warn!(%error,"pet native preference failed");
                 self.busy = false;
@@ -506,12 +516,9 @@ impl Controller {
                     }
                     Err(error) => {
                         this.settings.pet_window = old;
-                        if native_changed {
-                            let _ = this.apply_geometry(false, cx);
-                            this.restore_bounds(old_bounds, cx);
-                        }
+                        let restored = if native_changed || mouse_requested { this.rollback_native(native_changed, old_bounds, cx) } else { true };
                         tracing::warn!(code = error.code, "pet preference save failed");
-                        this.last_error = Some(error);
+                        this.last_error = Some(if restored { error } else { HookError::new("error.monitor.petApplyFailed") });
                     }
                 }
                 this.next_pending(cx);
