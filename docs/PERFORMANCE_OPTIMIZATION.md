@@ -202,6 +202,24 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 参考：[几何计划](../loki_metris_gui/src/app/surface/raster/shadow_geometry.rs)、[旧算法像素回归](../loki_metris_gui/src/app/surface/raster/shadow_geometry_tests.rs)、[真实 owner 回归](../loki_metris_gui/src/app/surface/shadow_owner_tests.rs)、[属性时间线](../loki_metris_gui/src/app/surface/motion.rs)。
 
+### 5.9 描边几何保存采样程序，不能把累加改成乘法
+
+带粗顶边的 accent 卡片原来每次颜色变化都重复执行 8×8 圆角、椭圆 padding-box 和内高光分类。现在每个 Rim owner 只保留当前几何计划：每个 texel 的非空贡献按原 `sy→sx` 顺序保存为类别和重复次数，连续同类贡献可以压缩，重着色仍逐次执行原 `f64 +=`。类别独立于颜色与 alpha；完全透明首绘不能删掉以后可能可见的类别，零顶边也仍可能有内高光。
+
+这不是可以随意代数化的计数表。有效 f32 颜色的固定反例中，同一 texel 的贡献为 `Top×31, Main×1, Top×6, Main×1, Top×6, Main×2`，原始加法得到蓝通道 127；即便保持连段顺序，仅把每段改成 `sample * repeats` 也会得到 128。回归同时保留错误乘法的 mutant 断言，防止未来优化再次引入这个舍入差异。累加 alpha 大于零、最终 8bit alpha 舍入为零时，原直通 RGB 仍须写入；纯绿内高光案例的精确结果为 `[0,255,0,0]`。
+
+几何键含实际物理宽高及 scale/radius/top 的原始 f32 位值，切片目标轴也属于当前计划。颜色变化和平移复用，物理尺寸或任一原始位值变化重建，包括正负零；回归用物理宽高和 cap 保持不变的相邻比例值，避免尺寸变化恰好掩盖漏键。半径仍先按实际卡片短边收敛，再算 cap 和切片，不能改用压缩后的短边。上/下角不能镜像，因为粗顶边和向上偏移的内高光不对称。
+
+测试冻结原 renderer、颜色预乘、内外圆角函数和切片，完整比较 BGRA 与四个切片字段的位值；另逐 texel 展开连段核对原序，覆盖 64 次整格贡献。真实材质 owner 验证明暗主题关联动画、几何失效、accent 移除、隐藏和卸载。零逻辑尺寸曾在材质入口直接返回，旧图可能继续驻留；像素对齐后才变为零的区域也须统一清空当前和退休图像。本轮在两处空区域入口执行同一 `clear`，用真实图集验证，无须等待后帧。该同步释放成立于 owner 本帧尚未绘制材质的空区域，不能推广到本帧已提交有效材质后随意删除图集。
+
+复用计划增加少量常驻内存：长卡片 2× 的偏移、连段及切片 Vec 实际容量合计 63,504 字节，首次准备平均 2.696ms；隐藏、空区域、accent 移除和 owner 释放都丢弃唯一计划。没有每 texel 独立 Vec、完整 64 样本数组或主题历史字典。相同 cap 下继续拉长卡片不增加计划容量，连续重着色不增长预留。
+
+同样的标准库 CPU 基准用 `rustc -O` 编译，24 个动态颜色样本、8 轮交替运行，计时外先核对全部像素。四组旧算法/缓存重着色每帧中位数分别为 2.655ms/0.046ms、2.657ms/0.046ms、0.416ms/0.010ms、0.710ms/0.012ms；首次准备另计为 0.428–2.696ms。测量开始时 GPUI 和参考应用都已停止，但其它宿主负载没有完全控制。这里的约 40–59 倍仅指复用几何后的 CPU 描边重着色路径，不含 GPU 上传、初次布局或整个界面帧循环，不能乘到应用 CPU 或帧率上。
+
+原始数据、源码提取变换和开发检查保存在忽略的 `release/rim-geometry-development-20261010/`。此处为内部优化 `LMDESK-RIM-GEOMETRY-001`，`required_version: 0.2.1`，版本未提升；尚未关闭整体卡顿、跨框架 CPU 差异或长期内存问题。
+
+参考：[描边计划与保序重着色](../loki_metris_gui/src/app/surface/raster/rim.rs)、[独立旧算法与舍入反例](../loki_metris_gui/src/app/surface/raster/rim_geometry_tests.rs)、[真实 owner 及空区域释放](../loki_metris_gui/src/app/surface/rim_owner_tests.rs)、[材质绘制入口](../loki_metris_gui/src/app/surface/state.rs)。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

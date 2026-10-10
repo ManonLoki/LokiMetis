@@ -32,6 +32,7 @@ pub(super) struct Slice {
 }
 
 /// 紧凑投影与映射同时生成，使短卡片的两端模糊保留真实重叠。
+#[cfg(test)]
 pub(super) struct ShadowRaster {
     pub pixels: Pixels,
     pub x: Vec<Slice>,

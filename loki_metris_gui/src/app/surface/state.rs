@@ -4,6 +4,10 @@
 #[path = "shadow_owner_tests.rs"]
 mod shadow_owner_tests;
 
+#[cfg(test)]
+#[path = "rim_owner_tests.rs"]
+mod rim_owner_tests;
+
 use super::{
     Geometry, MaterialKind, StaticMaterial, palette::MaterialMotion, rim::Rim, shadow::Shadow,
     spotlight::Spotlight, textures::Retired,
@@ -73,7 +77,11 @@ impl MaterialState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.visible || bounds.is_empty() {
+        if bounds.is_empty() {
+            self.clear(window);
+            return;
+        }
+        if !self.visible {
             return;
         }
         let bounds = Bounds::from_corners(
@@ -86,6 +94,10 @@ impl MaterialState {
                 window.pixel_snap(bounds.bottom()),
             ),
         );
+        if bounds.is_empty() {
+            self.clear(window);
+            return;
+        }
         let now = cx.background_executor().now();
         let sample = match material {
             MaterialKind::Spotlight => {

@@ -1,6 +1,8 @@
 //! 不等宽CSS边框保留椭圆内角和3:1角部分界，小纹理切片也包含顶部内高光。
 
-use super::{Pixels, ShadowRaster, slices};
+use super::{Pixels, slices};
+#[cfg(test)]
+use super::ShadowRaster;
 use gpui_kit::Rgba;
 
 /// 直通sRGB颜色；像素覆盖期间先预乘合成，再恢复直通BGRA交给GPUI。
@@ -11,84 +13,135 @@ pub(in crate::app::surface) struct RimColors {
     pub highlight: Rgba,
 }
 
-/// 每个角只需保存原半径范围；长边的恒定条带压缩到一物理像素。
-pub(in crate::app::surface) fn render(
+/// 互斥采样类别独立于颜色和透明度，不能按主题删去透明类别。
+#[derive(Clone, Copy, PartialEq)]
+#[repr(u8)]
+enum SampleKind {
+    Main,
+    Top,
+    Highlight,
+}
+
+/// 连续同类贡献仍逐次累加；单 texel 最多 64 次，可直接存入 u8。
+struct SampleRun {
+    kind: SampleKind,
+    repeats: u8,
+}
+
+/// 每个 owner 仅保存当前圆角、粗顶边和内高光的原序采样计划。
+pub(in crate::app::surface) struct RimGeometry {
     width: u32,
     height: u32,
-    scale: f64,
-    radius: f64,
-    top: f64,
-    colors: RimColors,
-) -> ShadowRaster {
-    let radius = (radius * scale).min(f64::from(width.min(height)) / 2.);
-    let top = top * scale;
-    let cap = (radius.max(top).max(scale) + 1.).ceil() as u32;
-    let (cw, x) = slices(width, cap, cap, 0, 0);
-    let (ch, y) = slices(height, cap, cap, 0, 0);
-    let (w, h) = (cw + 2, ch + 2);
-    let mut bytes = vec![0; w as usize * h as usize * 4];
-    let main = channels(colors.main);
-    let top_color = channels(colors.top);
-    let highlight = channels(colors.highlight);
-    // 固定8×8覆盖采样只在≤约45px的角图中执行，非WebKit光栅器的逐像素等价声明。
-    const SAMPLES: u32 = 8;
-    for row in 1..h - 1 {
-        for col in 1..w - 1 {
-            let mut color = [0.; 4];
-            for sy in 0..SAMPLES {
-                for sx in 0..SAMPLES {
-                    let px = f64::from(col - 1) + (f64::from(sx) + 0.5) / f64::from(SAMPLES);
-                    let py = f64::from(row - 1) + (f64::from(sy) + 0.5) / f64::from(SAMPLES);
-                    if !inside_outer(px, py, f64::from(cw), f64::from(ch), radius) {
-                        continue;
-                    }
-                    let padding =
-                        inside_padding(px, py, f64::from(cw), f64::from(ch), radius, top, scale);
-                    let sample = if !padding {
-                        let at_top = top > 0.
-                            && py / top <= px / scale
-                            && py / top <= (f64::from(cw) - px) / scale
-                            && py / top <= (f64::from(ch) - py) / scale;
-                        if at_top { top_color } else { main }
-                    } else if !inside_padding(
-                        px,
-                        py - scale,
-                        f64::from(cw),
-                        f64::from(ch),
-                        radius,
-                        top,
-                        scale,
-                    ) {
-                        highlight
-                    } else {
-                        continue;
-                    };
-                    for channel in 0..4 {
-                        color[channel] += sample[channel];
+    x: Vec<super::Slice>,
+    y: Vec<super::Slice>,
+    pixel_offsets: Vec<usize>,
+    runs: Vec<SampleRun>,
+}
+
+impl RimGeometry {
+    /// 几何变化时计算 8×8 分类，保留 clamp、cap、切片和 sy→sx 原顺序。
+    pub fn new(width: u32, height: u32, scale: f64, radius: f64, top: f64) -> Self {
+        let radius = (radius * scale).min(f64::from(width.min(height)) / 2.);
+        let top = top * scale;
+        let cap = (radius.max(top).max(scale) + 1.).ceil() as u32;
+        let (cw, x) = slices(width, cap, cap, 0, 0);
+        let (ch, y) = slices(height, cap, cap, 0, 0);
+        let mut pixel_offsets = Vec::with_capacity(cw as usize * ch as usize + 1);
+        let mut runs: Vec<SampleRun> = Vec::new();
+        pixel_offsets.push(0);
+        for row in 0..ch {
+            for col in 0..cw {
+                let start = runs.len();
+                for sy in 0..SAMPLES {
+                    for sx in 0..SAMPLES {
+                        let px = f64::from(col) + (f64::from(sx) + 0.5) / f64::from(SAMPLES);
+                        let py = f64::from(row) + (f64::from(sy) + 0.5) / f64::from(SAMPLES);
+                        let Some(kind) = sample_kind(px, py, f64::from(cw), f64::from(ch), radius, top, scale) else {
+                            continue;
+                        };
+                        if runs.len() > start && runs.last().unwrap().kind == kind {
+                            runs.last_mut().unwrap().repeats += 1;
+                        } else {
+                            runs.push(SampleRun { kind, repeats: 1 });
+                        }
                     }
                 }
-            }
-            let index = (row as usize * w as usize + col as usize) * 4;
-            if color[3] > 0. {
-                for channel in 0..3 {
-                    bytes[index + channel] =
-                        (color[channel] / color[3] * 255.).round().clamp(0., 255.) as u8;
-                }
-                bytes[index + 3] = (color[3] / f64::from(SAMPLES * SAMPLES) * 255.)
-                    .round()
-                    .clamp(0., 255.) as u8;
+                pixel_offsets.push(runs.len());
             }
         }
+        Self { width: cw + 2, height: ch + 2, x, y, pixel_offsets, runs }
     }
-    ShadowRaster {
-        pixels: Pixels {
-            width: w,
-            height: h,
-            bytes,
-        },
-        x,
-        y,
+
+    /// 仅更新颜色；保留逐样本 f64 加法、原归一化及透明保护圈。
+    pub fn render(&self, colors: RimColors) -> Pixels {
+        let colors = [channels(colors.main), channels(colors.top), channels(colors.highlight)];
+        let mut bytes = vec![0; self.width as usize * self.height as usize * 4];
+        for (pixel, offsets) in self.pixel_offsets.windows(2).enumerate() {
+            let color = shade(&self.runs[offsets[0]..offsets[1]], &colors);
+            let row = pixel / (self.width - 2) as usize + 1;
+            let col = pixel % (self.width - 2) as usize + 1;
+            let index = (row * self.width as usize + col) * 4;
+            bytes[index..index + 4].copy_from_slice(&color);
+        }
+        Pixels { width: self.width, height: self.height, bytes }
     }
+
+    /// 目标轴仍使用实际卡片大小，平移或重着色不复制切片。
+    pub fn slices(&self) -> (&[super::Slice], &[super::Slice]) { (&self.x, &self.y) }
+
+    /// 回归与局部基准读取 Vec 实际容量，包含偏移、连段和映射。
+    #[cfg(test)]
+    pub(super) fn allocated_bytes(&self) -> usize {
+        self.pixel_offsets.capacity() * std::mem::size_of::<usize>()
+            + self.runs.capacity() * std::mem::size_of::<SampleRun>()
+            + (self.x.capacity() + self.y.capacity()) * std::mem::size_of::<super::Slice>()
+    }
+}
+
+/// 固定覆盖采样保留既有近似，不宣称与 WebKit 栅格器逐像素相同。
+const SAMPLES: u32 = 8;
+
+/// 圆角内框、高光和顶侧边互斥分类；不镜像不对称顶角，也不依赖颜色。
+fn sample_kind(px: f64, py: f64, width: f64, height: f64, radius: f64, top: f64, side: f64) -> Option<SampleKind> {
+    if !inside_outer(px, py, width, height, radius) { return None; }
+    let padding = inside_padding(px, py, width, height, radius, top, side);
+    if !padding {
+        let at_top = top > 0.
+            && py / top <= px / side
+            && py / top <= (width - px) / side
+            && py / top <= (height - py) / side;
+        Some(if at_top { SampleKind::Top } else { SampleKind::Main })
+    } else if !inside_padding(px, py - side, width, height, radius, top, side) {
+        Some(SampleKind::Highlight)
+    } else {
+        None
+    }
+}
+
+/// 必须逐次相加；计数乘法或按类别聚合会改变半字节处的舍入结果。
+fn shade(runs: &[SampleRun], colors: &[[f64; 4]; 3]) -> [u8; 4] {
+    let mut color = [0.; 4];
+    for run in runs {
+        let sample = colors[run.kind as usize];
+        for _ in 0..run.repeats {
+            for channel in 0..4 { color[channel] += sample[channel]; }
+        }
+    }
+    let mut bytes = [0; 4];
+    if color[3] > 0. {
+        for channel in 0..3 {
+            bytes[channel] = (color[channel] / color[3] * 255.).round().clamp(0., 255.) as u8;
+        }
+        bytes[3] = (color[3] / f64::from(SAMPLES * SAMPLES) * 255.).round().clamp(0., 255.) as u8;
+    }
+    bytes
+}
+
+/// 测试保留旧单次入口，生产 owner 直接复用计划。
+#[cfg(test)]
+pub(in crate::app::surface) fn render(width: u32, height: u32, scale: f64, radius: f64, top: f64, colors: RimColors) -> ShadowRaster {
+    let geometry = RimGeometry::new(width, height, scale, radius, top);
+    ShadowRaster { pixels: geometry.render(colors), x: geometry.x, y: geometry.y }
 }
 
 /// BGRA通道预乘，透明内高光与边框在互斥覆盖区合成一次。
@@ -193,3 +246,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "rim_geometry_tests.rs"]
+mod geometry_tests;
