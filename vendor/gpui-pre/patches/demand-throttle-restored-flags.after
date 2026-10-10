@@ -1,0 +1,2 @@
+                let min_frame_interval = if require_presentation
+                    || (!force_render && next_frame_callbacks.borrow().is_empty())

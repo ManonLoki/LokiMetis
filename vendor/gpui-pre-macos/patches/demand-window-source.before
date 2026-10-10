@@ -1,0 +1,1 @@
+            .get_or_insert_with(|| WindowFrameSource::new(data, step))

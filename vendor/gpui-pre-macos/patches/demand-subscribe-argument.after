@@ -1,0 +1,3 @@
+    signal: Arc<PlatformFrameSignal>,
+    demand: Arc<crate::frame_demand::FrameDemand>,
+) -> Result<SubscriberId> {

@@ -1,0 +1,3 @@
+    fn on_request_frame(&self, callback: Box<dyn FnMut(RequestFrameOptions)>) {
+        self.0.as_ref().lock().request_frame_callback = Some(callback);
+    }

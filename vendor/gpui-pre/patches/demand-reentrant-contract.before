@@ -1,0 +1,15 @@
+                // This must be checked before accessing App: if this request
+                // arrived re-entrantly while a draw is on this thread's stack
+                // (e.g. via a nested message pump in the Windows window
+                // procedure), drawing would nest draws, and even touching the
+                // App would panic on its already-mutable borrow. Skip instead;
+                // the platform leaves the window invalidated (or re-invalidates
+                // it), so a fresh request arrives once the in-progress draw
+                // unwinds. Remember force_render so the deferred frame still
+                // bypasses the view cache.
+                //
+                // Returning here skips `complete_frame`, which on Wayland would
+                // stall the window's frame callbacks (no `surface.commit()`) —
+                // but calling it would hit the App borrow panic above, and this
+                // branch is unreachable there in practice: only Windows pumps
+                // platform events (and thus requests frames) mid-draw.

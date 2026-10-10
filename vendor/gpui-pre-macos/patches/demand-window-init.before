@@ -1,0 +1,2 @@
+                frame_source: None,
+                renderer: renderer::new_renderer(

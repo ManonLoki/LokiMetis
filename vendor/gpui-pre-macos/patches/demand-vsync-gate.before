@@ -1,0 +1,2 @@
+        for subscriber in &entry.subscribers {
+            if let Some(signal_at) = signal_at {

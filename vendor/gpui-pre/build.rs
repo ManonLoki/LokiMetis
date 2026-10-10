@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 /// 所有上游文件和补丁结果有固定 SHA，编译阶段仅生成独立 OUT_DIR 镜像。
 fn generated_sources() -> PathBuf {
+    println!("cargo:rerun-if-changed=src/frame_demand_tests.rs");
     let spec = Spec {
         entry: "src/gpui.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
@@ -277,14 +278,76 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/hitbox-exclusions-cache-init.before"),
                 after: include_str!("patches/hitbox-exclusions-cache-init.after"),
             },
+            Patch {
+                name: "demand-reentrant-waker", path: "src/window.rs",
+                before: include_str!("patches/demand-reentrant-waker.before"),
+                after: include_str!("patches/demand-reentrant-waker.after"),
+            },
+            Patch {
+                name: "demand-deferred-presentation-state", path: "src/window.rs",
+                before: include_str!("patches/demand-deferred-presentation-state.before"),
+                after: include_str!("patches/demand-deferred-presentation-state.after"),
+            },
+            Patch {
+                name: "demand-reentrant-retain", path: "src/window.rs",
+                before: include_str!("patches/demand-reentrant-retain.before"),
+                after: include_str!("patches/demand-reentrant-retain.after"),
+            },
+            Patch {
+                name: "demand-deferred-presentation-take", path: "src/window.rs",
+                before: include_str!("patches/demand-deferred-presentation-take.before"),
+                after: include_str!("patches/demand-deferred-presentation-take.after"),
+            },
+            Patch {
+                name: "demand-throttle-restored-flags", path: "src/window.rs",
+                before: include_str!("patches/demand-throttle-restored-flags.before"),
+                after: include_str!("patches/demand-throttle-restored-flags.after"),
+            },
+            Patch {
+                name: "demand-present-restored-flag", path: "src/window.rs",
+                before: include_str!("patches/demand-present-restored-flag.before"),
+                after: include_str!("patches/demand-present-restored-flag.after"),
+            },
+            Patch {
+                name: "demand-sustain-schedule", path: "src/window.rs",
+                before: include_str!("patches/demand-sustain-schedule.before"),
+                after: include_str!("patches/demand-sustain-schedule.after"),
+            },
+            Patch {
+                name: "demand-sustain-wake", path: "src/window.rs",
+                before: include_str!("patches/demand-sustain-wake.before"),
+                after: include_str!("patches/demand-sustain-wake.after"),
+            },
+            Patch {
+                name: "demand-window-tests", path: "src/window.rs",
+                before: include_str!("patches/demand-window-tests.before"),
+                after: include_str!("patches/demand-window-tests.after"),
+            },
+            Patch {
+                name: "demand-test-isolate-svg", path: "src/svg_renderer.rs",
+                before: include_str!("patches/demand-test-isolate-svg.before"),
+                after: include_str!("patches/demand-test-isolate-svg.after"),
+            },
+            Patch {
+                name: "demand-test-isolate-property", path: "src/randomized_element_tree.rs",
+                before: include_str!("patches/demand-test-isolate-property.before"),
+                after: include_str!("patches/demand-test-isolate-property.after"),
+            },
+            Patch {
+                name: "demand-reentrant-contract", path: "src/window.rs",
+                before: include_str!("patches/demand-reentrant-contract.before"),
+                after: include_str!("patches/demand-reentrant-contract.after"),
+            },
         ],
         generated_hashes: &[
             ("src/app/test_context.rs", "70ad17984b35f317d430b74e0d5763835e78fcee724c2c93126faf6833c1ffda"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
             ("src/platform/test/window.rs", "5cc6869738c7441976bc036aa469da4521a1a632e4a5805b19bfe2eb28fee303"),
+            ("src/randomized_element_tree.rs", "98acecacd50fab2862ae06e4fb01fd41e9290a701b77068809392236a888eea4"),
             ("src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
+            ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
             ("src/view.rs", "039a61d1e94f2c57ace98d14cc13baefbe27ce5118119066ead3d2d248f439f0"),
-            ("src/window.rs", "37bf812351b13cbe3ad4f86ba65a03e6dec2d719463bdc6e12296c9e8d6e296c"),
+            ("src/window.rs", "92e4ab0543ae50134cd4210e2c21e42e4f22358696554cd01d739057cd2520dd"),
             ("src/window/a11y.rs", "032ccb11a796b6c76e6bf5bafd5b31c1842a136ec7280dcda4e636ded8d83166"),
             ("src/window/a11y/debug.rs", "6aaf90d1406fc9fd5bb3392275a4c9f19cbc3e2761eb5499de7a65f7ab71ad25"),
         ],

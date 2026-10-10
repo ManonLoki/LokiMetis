@@ -1,0 +1,5 @@
+    if let Some(mut callback) = lock.request_frame_callback.take() {
+        // 不依赖需求门禁的原生expose仍执行，但先消费已合并的旧需求。
+        lock.frame_demand.take();
+        lock.renderer.set_presents_with_transaction(true);
+        lock.stop_display_link();

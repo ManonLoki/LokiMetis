@@ -15,6 +15,7 @@ fn main() {
         "src/variable_font_tests.rs",
         "src/descriptor_identity_tests.rs",
         "src/menu_tests.rs",
+        "src/frame_demand.rs",
         "fixture_verify.rs",
         "test-fixtures",
         "test-fixtures.sha256",
@@ -105,10 +106,82 @@ fn main() {
                 before: include_str!("patches/font-native-registration-and-runs.before"),
                 after: include_str!("patches/font-native-registration-and-runs.after"),
             },
+            Patch {
+                name: "demand-window-state", path: "src/window.rs",
+                before: include_str!("patches/demand-window-state.before"),
+                after: include_str!("patches/demand-window-state.after"),
+            },
+            Patch {
+                name: "demand-window-init", path: "src/window.rs",
+                before: include_str!("patches/demand-window-init.before"),
+                after: include_str!("patches/demand-window-init.after"),
+            },
+            Patch {
+                name: "demand-window-source", path: "src/window.rs",
+                before: include_str!("patches/demand-window-source.before"),
+                after: include_str!("patches/demand-window-source.after"),
+            },
+            Patch {
+                name: "demand-window-waker", path: "src/window.rs",
+                before: include_str!("patches/demand-window-waker.before"),
+                after: include_str!("patches/demand-window-waker.after"),
+            },
+            Patch {
+                name: "demand-unocclude", path: "src/window.rs",
+                before: include_str!("patches/demand-unocclude.before"),
+                after: include_str!("patches/demand-unocclude.after"),
+            },
+            Patch {
+                name: "demand-screen-change", path: "src/window.rs",
+                before: include_str!("patches/demand-screen-change.before"),
+                after: include_str!("patches/demand-screen-change.after"),
+            },
+            Patch {
+                name: "demand-activation-consume", path: "src/window.rs",
+                before: include_str!("patches/demand-activation-consume.before"),
+                after: include_str!("patches/demand-activation-consume.after"),
+            },
+            Patch {
+                name: "demand-layer-consume", path: "src/window.rs",
+                before: include_str!("patches/demand-layer-consume.before"),
+                after: include_str!("patches/demand-layer-consume.after"),
+            },
+            Patch {
+                name: "demand-main-dispatch", path: "src/window.rs",
+                before: include_str!("patches/demand-main-dispatch.before"),
+                after: include_str!("patches/demand-main-dispatch.after"),
+            },
+            Patch {
+                name: "demand-subscriber", path: "src/display_link.rs",
+                before: include_str!("patches/demand-subscriber.before"),
+                after: include_str!("patches/demand-subscriber.after"),
+            },
+            Patch {
+                name: "demand-vsync-gate", path: "src/display_link.rs",
+                before: include_str!("patches/demand-vsync-gate.before"),
+                after: include_str!("patches/demand-vsync-gate.after"),
+            },
+            Patch {
+                name: "demand-subscribe-argument", path: "src/display_link.rs",
+                before: include_str!("patches/demand-subscribe-argument.before"),
+                after: include_str!("patches/demand-subscribe-argument.after"),
+            },
+            Patch {
+                name: "demand-subscribe-state", path: "src/display_link.rs",
+                before: include_str!("patches/demand-subscribe-state.before"),
+                after: include_str!("patches/demand-subscribe-state.after"),
+            },
+            Patch {
+                name: "demand-frame-source", path: "src/display_link.rs",
+                before: include_str!("patches/demand-frame-source.before"),
+                after: include_str!("patches/demand-frame-source.after"),
+            },
+
         ],
         generated_hashes: &[
+            ("src/display_link.rs", "0250b29688658285c250a340ae13068eb379e0a0b626d17c759a132a5932fadb"),
             ("src/platform.rs", "879ef085b1978afddf3e9b3b4f1269073b93e092c919a5f0648b6cff4bb63e26"),
-            ("src/window.rs", "60c8b71a7c63fb7b57867fd3fb1f3c6928694e9f867d31c07958c91b04194b83"),
+            ("src/window.rs", "879fe244c79cff2ac45a9ca542137594404a9a5a475fa8ae60feff1b1d46ef75"),
             ("src/gpui_macos.rs", "5c784ad4ba70a5454f1805cdd3e6ac4a4002bae77c856db8546832683cc7b870"),
             ("src/text_system.rs", "b25ab17aee418545a62ae1d604845ac2a0f5922c4d7fca967d629142fa9f59eb"),
         ],

@@ -1,0 +1,5 @@
+            if let Some(mut callback) = lock.request_frame_callback.take() {
+                // 同步原生帧服务当前需求；回调内部的新需求留给下一帧。
+                lock.frame_demand.take();
+                lock.renderer.set_presents_with_transaction(true);
+                lock.stop_display_link();

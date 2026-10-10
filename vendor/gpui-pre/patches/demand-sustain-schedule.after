@@ -1,0 +1,4 @@
+                        if window.invalidator.is_dirty()
+                            || !window.next_frame_callbacks.borrow().is_empty()
+                            || window.input_rate_tracker.borrow().is_high_rate()
+                        {

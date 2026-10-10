@@ -1,0 +1,3 @@
+                if invalidator.is_dirty() || !next_frame_callbacks.borrow().is_empty() {
+                    invalidator.wake_platform();
+                }

@@ -1,0 +1,6 @@
+                if invalidator.is_dirty()
+                    || !next_frame_callbacks.borrow().is_empty()
+                    || input_rate_tracker.borrow().is_high_rate()
+                {
+                    invalidator.wake_platform();
+                }

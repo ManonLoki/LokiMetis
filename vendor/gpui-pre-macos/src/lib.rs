@@ -6,3 +6,5 @@
 
 // 根 cfg/doc 属性由 shim 保留；其余原始模块路径来自生成树。
 include!(concat!(env!("OUT_DIR"), "/gpui-patched/src/gpui_macos.rs"));
+
+mod frame_demand;

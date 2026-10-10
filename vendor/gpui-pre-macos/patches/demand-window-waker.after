@@ -1,0 +1,18 @@
+    /// 返回只置需求位的唤醒器；不持有窗口锁或App借用，可在绘制重入期间调用。
+    fn frame_waker(&self) -> Option<Rc<dyn Fn()>> {
+        let demand = self.0.lock().frame_demand.clone();
+        Some(Rc::new(move || demand.request()))
+    }
+
+    /// 下一次可见屏幕刷新时派送帧；隐藏时需求保留，不启动额外计时器。
+    fn schedule_frame(&self) {
+        self.0.lock().frame_demand.request();
+    }
+
+    /// 注册回调后明确申请首帧，避免CV先到或初始不可见时丢失初始绘制。
+    fn on_request_frame(&self, callback: Box<dyn FnMut(RequestFrameOptions)>) {
+        let mut state = self.0.lock();
+        state.request_frame_callback = Some(callback);
+        state.frame_demand.request();
+        state.start_display_link();
+    }

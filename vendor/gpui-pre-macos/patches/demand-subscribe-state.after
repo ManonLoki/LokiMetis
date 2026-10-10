@@ -1,0 +1,5 @@
+            id: subscriber_id,
+            frame_requests,
+            signal,
+            demand,
+        });

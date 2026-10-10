@@ -1,0 +1,6 @@
+        for subscriber in &entry.subscribers {
+            // CV线程只观察需求；回调暂时被取走时，主线程尚未消费的需求仍保留。
+            if !subscriber.demand.is_pending() {
+                continue;
+            }
+            if let Some(signal_at) = signal_at {

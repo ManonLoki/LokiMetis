@@ -1,0 +1,2 @@
+                    deferred_force_render |= request_frame_options.force_render;
+                    #[cfg(feature = "profiler")]

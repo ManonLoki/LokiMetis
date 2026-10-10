@@ -302,7 +302,7 @@ Shell 原先每次 render 都格式化版本和标题并调用 Window.set_window
 
 本次 macOS 本地优化试包与历史0.3.12设置页都为中文、System、通知关闭，原生填充同尺寸。三轮各预热5秒、测20秒，采样期间无 Computer Use 或本项目编译；前台端点始终是Chrome，两版在后台。GPUI完整集合 CPU 中位数约0.045841%，范围0.044977%～0.123659%；参考完整集合含WebKit为0.002001%，范围0.001883%～0.002031%。每轮 interrupt wakeups 分别为5291/4741/4776与72/66/64。数值很小但唤醒差异值得继续定位；不能据此声称前景体验、公平框架倍率或用户高CPU问题已经解决。遮挡时间线、Pet、索引历史和运行时长尚未完全控制，端点前台相同也不能排除区间内变化。
 
-源码核实的 macOS 帧源按窗口 occlusion visible 订阅 CVDisplayLink；静态失焦但仍有可见像素时继续接收显示器节拍，完全遮挡时停止。每显示器共享 link，每窗口有独立 main-queue source；core 的 dirty guard 跳过绘制，仍会进入帧回调。应用的40/100/200/500ms循环来自重复安排一次性 timer，名义频率不能直接换算系统唤醒。5秒 sample 捕获了帧回调和业务 timer，但不足以分摊此次CPU或唤醒差异。若要停静态帧源，必须先补齐 dirty、next-frame动画、resize、重新可见及可访问性激活的重新唤醒路径，不能只调用 stop。
+当时实现的 macOS 帧源按窗口 occlusion visible 订阅 CVDisplayLink；静态失焦但仍有可见像素时继续接收显示器节拍，完全遮挡时停止。每显示器共享 link，每窗口有独立 main-queue source；core 的 dirty guard 跳过绘制，仍会进入帧回调。应用的40/100/200/500ms循环来自重复安排一次性 timer，名义频率不能直接换算系统唤醒。5秒 sample 捕获了帧回调和业务 timer，但不足以分摊此次CPU或唤醒差异。若要停静态帧源，必须先补齐 dirty、next-frame动画、resize、重新可见及可访问性激活的重新唤醒路径，不能只调用 stop。后续按需派送改动见第5.22节。
 
 原始构建、精确二进制、三轮进程身份和采样方法保留在忽略的 `release/cpu-idle-render-development-20261010/`。本轮为开发诊断，仍需前景、动画和长期内存的独立证据。
 
@@ -357,6 +357,22 @@ Computer Use随后发现独立资格错误：All已有89,471,909 Token，摘要�
 展示键不拥有业务时间。后台同值读取仍发布新observed_ms，200ms宿主轮询仍无条件替换owner.progress；按revision跳过这个赋值会让发送资格错误过期。新增接口回归证明同键不发刷新且普通state和下次变化快照保留新时间；该测试直接更新owner，不冒充实际驱动宿主轮询。宿主持续赋值由未修改源码核对，后台新鲜度行为另有真实发布器回归。
 
 本轮通知17项、实际测试平台菜单4项、后台时间回归1项通过。漏掉busy字段的错误变体被独立字段回归捕获，恢复后通知17项重跑通过。分类为maintenance，稳定标识 `LMMAINT-NOTIFICATION-REFRESH-KEY-001`，版本保持0.2.5。证据入口 `release/notification-refresh-key-development-20261011/`。这里只确认无变化路径避免完整快照复制，没有测量本轮CPU或内存收益，也不能以这项小型内部优化解释用户的946MB截图或宣称已优于Tauri。
+
+### 5.22 空闲窗口停止向 Core 派送帧，保留显示器节拍和真实需求
+
+静态窗口的 dirty guard 只能避免绘制，不能避免进入 Core、借用 App 和处理帧回调。macOS 现在为每窗口共享一个原子需求位；CV 线程只观察，有需求才记录时间并合并主队列信号。主线程取得可执行回调后先消费需求、解锁再进入 Core，回调中新申请的下一帧保留。重新订阅本身不制造需求；回调首次注册、Core 失效、重新可见和换屏分别有明确入口。CVDisplayLink 仍按可见性订阅并继续 tick，这项优化没有停止显示器线程或消除全部周期唤醒。
+
+停止无需求派送必须同时保护真实需求：绘制重入分别合并 force 与 presentation，不能只保存重绘标记；纯呈现也要实际调用平台 draw。高频输入的一秒呈现期继续安排帧并按真实截止时间停止；有限动画继续由 request_animation_frame 续帧，结束后静置。消费合并信号的时间戳时持有与 CV record 相同的 registry 锁，避免上一帧晚到的时间戳滞留到空闲后的下一需求；Core 回调执行时不持有 registry 或窗口锁。
+
+参考：[需求位及测试](../vendor/gpui-pre-macos/src/frame_demand.rs)、[Mac 补丁清单](../vendor/gpui-pre-macos/build.rs)、[Core 重入与动画回归](../vendor/gpui-pre/src/frame_demand_tests.rs)。不可变 upstream 保持原样，构建生成镜像仍逐补丁唯一匹配并核对结果 SHA。
+
+共享工作树的 Core frame 定向筛选35项、Mac 需求位3项通过；随后导出本次索引源码，排除另一会话父圆角 WIP，独立编译 Core 同筛选34项通过（少了该 WIP 的一项测试）。故意吞掉 deferred presentation 的错误变体有1项真实行为失败，恢复后重跑通过。Core 专项测试使用默认关闭的 frame-demand-regression feature，隔离上游两个无法在独立包中编译的测试模块：SVG 测试缺少包外字体，随机树 property_test 宏解析失败。它们没有编译或执行；这不是完整 GPUI suite 通过。Mac 三项测原子需求合同，不能替代真实 CV/GCD/AppKit 全生命周期测试。
+
+0.2.6 的 dirty、debug 开发试包经 Computer Use 观察到浅色/深色/跟随系统完成绘制、主窗口最小化恢复、桌宠配置首次显示，后续 Raise 可取得完整交互树。主题截图只确认终态，未测300ms逐帧曲线或输入延迟。参考应用当轮 AX 可读，但内容截图为空，保留失败截图，不据此宣称视觉一致。
+
+两次设置页约30秒 top 观察均按事先规则只丢首样本、保留其余15项。优化前 CPU 均值17.3933%、中位数4.3%、范围2.6–106.0%；优化后均值7.5467%、中位数2.0%、范围1.6–69.1%，仍有69.1%和18.8%尖峰。两轮进程年龄约5分钟，通知/自启关，采样前后无编译进程；原轮未独立捕获 Pet，后台用量扫描和输入未冻结，因此不计算公平加速倍率或单项贡献。top MEM 的354→315→351M与275→307→295→236→194M只是工具记账序列，不证明946MB问题或长期泄漏已解决，也不是 Tauri 对照。
+
+稳定标识 `LMDESK-MACOS-DEMAND-FRAMES-001`，bug-fix，版本0.2.6。逐轮命令、生成 SHA、测试二进制摘要、原始数列、截图和未执行范围保存在 `release/macos-frame-demand-development-20261011/`。真实 Windows、跨屏幕/缩放全流程和物理鼠标命中仍未验证。
 
 ## 6. 历史验证结果及构建指纹限制
 

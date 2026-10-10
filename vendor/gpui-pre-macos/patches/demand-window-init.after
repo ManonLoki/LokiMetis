@@ -1,0 +1,3 @@
+                frame_source: None,
+                frame_demand: Arc::new(crate::frame_demand::FrameDemand::new()),
+                renderer: renderer::new_renderer(
