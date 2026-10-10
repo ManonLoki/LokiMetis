@@ -420,6 +420,27 @@ Computer Use 的应用绑定、AXRaise 与 key window 不证明应用位于前�
 
 后续优化今日专用摘要时，先保留全量 canonical 去重及跨日冲突语义，再减少展示性分配；不要在 canonicalization 之前仅筛选今日原始行。缓存还需区分“文件 stamp 未变”“本轮资格查询成功”和“完整内容仍可读”：元数据或轻量 SQLite 查询不能证明所有 payload 页及 WorkBuddy 内容读取成功，TTL 也不能冒充原每 30 秒发现读取故障的时效。
 
+### 5.26 重叠时间窗口借用调用，避免为每次聚合深拷贝载荷
+
+六个日历窗口此前逐个构造 owned canonical 子集：复制调用中的模型、项目、线程与 provenance 字符串，建立选中 ID 集合，复制告警和兼容快照，再进行聚合。窗口依次处理，但同一调用可能进入多个重叠窗口，造成重复分配。纯整数的 `TokenUsage` 不是主要分配来源。
+
+[窗口装配](../loki_metris_core/src/local_view.rs) 现在仍先计算一次民用日期、按原六窗口顺序执行；每个窗口只收集 `Vec<&UsageCall>`，交给 [共用聚合折叠](../loki_metris_core/src/aggregate/aggregation.rs)。重复来源数仍按唯一选中 ID 从原 map 饱和求和；map 为空时直接取 0。诊断快照和告警原本不参与窗口输出，因而不再建立它们的窗口副本。原公开 owned 筛选 API 保留给其他调用方。
+
+优化必须保持完整业务语义，不能仅检查今日 Token 相同：
+
+- 保留 canonical 顺序及分项 `checked_add` 顺序；`Some(MAX)、Some(1)、None` 的可选分项折叠会失败，换顺序可能成功。
+- 保留 provider accounting、空窗口的未知分项形状、最低 confidence、来源/线程/根计数及跨根重复数。
+- 六窗口仍整体返回成功或失败，只有上月窗口溢出也不能被今日正常结果掩盖。
+- 不在 canonicalization 前按日期裁剪原始记录，跨日重复和冲突继续参与权威去重。
+
+新增五项回归比较借用路径与 owned 筛选、完整六窗口结果，覆盖重复 ID、孤立 duplicate map 项、饱和计数、顺序相关溢出、三时区及 DST、无效时间、index/coverage 状态和巨大兼容快照。core 共 452 项通过。owned 对照也使用抽取后的共用折叠，因此它主要证明筛选与装配等价；折叠主体的保持另由逐项源码对照和既有聚合断言补足。
+
+独立优化构建微基准使用 40,000 条合成调用、空 duplicate map/告警/快照，每轮四遍、八轮 AB/BA 交替；完整结果先在计时外核对相同。原/新中位耗时为 0.15580/0.04865 秒，约 3.20 倍。另一个带 System allocator 包装的诊断二进制测得单次构建分配请求 847,300 → 919 次，累计 requested bytes 103,979,956 → 2,250,432，同时存活 requested bytes 峰值 19,289,382 → 553,264；三次一致、结束存活量为 0、无失败请求或计数溢出。
+
+分配包装的 header 和锁会扰动分配器，因此耗时来自不含包装的独立二进制。requested bytes 不包含包装 header、系统 allocator 元数据、外部 malloc 或 GPU，结束存活为 0 也不证明应用没有泄漏。上述基准不含 SQLite、WorkBuddy 文件读取、跨 Agent 合并、渲染或通知提交，不能换算为整应用 CPU/RSS 降幅；含非空重复 map 的收益也未测量。
+
+本项分类为 `maintenance`，`change_id=LMMAINT-WINDOW-BORROW-AGGREGATE-001`，`required_version=0.2.9`，版本未提升。冻结旧装配、测试日志、八轮耗时、三轮分配统计及源码/二进制摘要位于忽略目录 `release/window-borrow-aggregate-development-20261011/`。整包与 Computer Use 比对结果按各自真实输入另外保存。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

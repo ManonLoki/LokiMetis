@@ -16,3 +16,4 @@ pub use filter::{copy_matching_snapshots, filter_canonical_usage, partition_cano
 pub use fusion::{MetricFusionError, prefer_metric_within_scope};
 
 pub(crate) use canonicalization::lower_confidence;
+pub(crate) use aggregation::aggregate_filtered_canonical_usage;

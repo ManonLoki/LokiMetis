@@ -1,11 +1,11 @@
 //! 本机窗口汇总与来源根聚合的纯业务装配。
 
-use crate::aggregate::copy_matching_snapshots;
+use crate::aggregate::aggregate_filtered_canonical_usage;
 use crate::{
     CanonicalUsageSet, Confidence, CoverageReport, LocalIndexState, LocalUsageAggregate,
     LocalUsageWindow, MetricFact, MetricScope, ProviderKind, SourceClientKind, TimeStandard,
-    aggregate_canonical_usage, civil_date_for_timestamp, empty_local_usage_aggregate_for_provider,
-    filter_canonical_usage, inclusive_calendar_range, local_fact_quality, safe_root_label,
+    civil_date_for_timestamp, empty_local_usage_aggregate_for_provider,
+    inclusive_calendar_range, local_fact_quality, safe_root_label,
 };
 
 /// 一组窗口的可展示事实。
@@ -108,7 +108,7 @@ pub enum SourceDiscoveryMethod {
     MetadataDiscovery,
 }
 
-/// 按已保存时间标准和设备时区组装固定四窗口的本机窗口数据。
+/// 按已保存时间标准和设备时区组装固定六窗口的本机窗口数据。
 #[allow(clippy::too_many_arguments)]
 pub fn build_local_windows_with_standard(
     canonical: &CanonicalUsageSet,
@@ -131,7 +131,7 @@ pub fn build_local_windows_with_standard(
     // `statistics_view::build_usage_statistics_with_window` 那样在聚合后
     // 用 `aggregate.tokens.zero_matching_availability()` 再订正一次，是
     // 因为本函数每个窗口只产出一份扁平事实、不做小时/分组桶分解：
-    // 只要 `window_calls.calls` 非空，`aggregate_canonical_usage` 就直接
+    // 只要所选调用非空，聚合器就直接
     // 从真实调用折叠出形状，压根不读 `empty_tokens`；只有窗口调用为空
     // 时才会退回这里的交集形状，而那正是唯一合理的形状。若未来给窗口
     // 事实加上桶/分组分解，必须补上同样的聚合后订正，否则空桶会重新
@@ -144,10 +144,8 @@ pub fn build_local_windows_with_standard(
 
     const WINDOW_AGGREGATION_ERROR: &str = "本机窗口无法聚合。";
 
-    // 六个日历窗口彼此重叠（例如今日调用同时落在本周与本月里）：逐窗口各自
-    // 重新把每条调用/快照的发生时刻换算成民用日，会让同一条记录被换算最多
-    // 六次。这里先单次遍历换算出每条记录的民用日缓存下来，六个窗口再各自
-    // 按闭区间边界复用同一份结果，时区换算总量与窗口数无关。
+    // 六窗口复用一次民用日换算，只借用调用聚合；兼容快照属于诊断载荷，
+    // 原聚合器不读取它们，因此窗口不再复制调用、告警和兼容快照。
     let today = civil_date_for_timestamp(observed_at_epoch_ms, &time_standard, device_tz)
         .ok_or_else(|| WINDOW_AGGREGATION_ERROR.to_owned())?;
     let call_dates = canonical
@@ -155,38 +153,19 @@ pub fn build_local_windows_with_standard(
         .iter()
         .map(|call| civil_date_for_timestamp(call.occurred_at_epoch_ms, &time_standard, device_tz))
         .collect::<Vec<_>>();
-    let snapshot_dates = canonical
-        .snapshots
-        .iter()
-        .map(|snapshot| {
-            civil_date_for_timestamp(snapshot.occurred_at_epoch_ms, &time_standard, device_tz)
-        })
-        .collect::<Vec<_>>();
-
     let windows = LocalUsageWindow::OVERVIEW_WINDOWS
         .into_iter()
         .map(|window| {
             let (from, to) = inclusive_calendar_range(window, today)
                 .map_err(|_| WINDOW_AGGREGATION_ERROR.to_owned())?;
             let mut call_dates_iter = call_dates.iter();
-            let filtered = filter_canonical_usage(canonical, |_call| {
-                call_dates_iter
-                    .next()
-                    .copied()
-                    .flatten()
-                    .is_some_and(|date| date >= from && date <= to)
-            });
-            let mut snapshot_dates_iter = snapshot_dates.iter();
-            let mut window_calls = copy_matching_snapshots(canonical, filtered, |_snapshot| {
-                snapshot_dates_iter
-                    .next()
-                    .copied()
-                    .flatten()
-                    .is_some_and(|date| date >= from && date <= to)
-            });
-            window_calls.empty_tokens = empty_tokens.clone();
-            window_calls.total_token_accounting = provider.local_total_token_accounting();
-            let aggregate = aggregate_canonical_usage(&window_calls)
+            let aggregate = aggregate_filtered_canonical_usage(
+                canonical,
+                |_call| call_dates_iter.next().copied().flatten()
+                    .is_some_and(|date| date >= from && date <= to),
+                &empty_tokens,
+                provider.local_total_token_accounting(),
+            )
                 .map_err(|_| WINDOW_AGGREGATION_ERROR.to_owned())?;
             let (freshness, completeness, confidence) =
                 local_fact_quality(index_state, coverage.state, aggregate.confidence);
