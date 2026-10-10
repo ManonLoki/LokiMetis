@@ -1,0 +1,1 @@
+                should_handle_reopen as extern "C" fn(&mut Object, Sel, id, BOOL) -> BOOL,

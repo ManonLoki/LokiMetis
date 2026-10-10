@@ -1,5 +1,7 @@
 //! 原生能力统一持有生命周期；平台对象在 UI 线程创建，后台输入通过有界轮询映射。
 
+#[cfg(target_os="macos")]
+pub(crate) mod windowing;
 mod tray;
 mod menu;
 pub mod autostart;
@@ -16,6 +18,12 @@ use std::time::Duration;
 /// 平台窗口与已选服务由唯一 Global 持有，不增加第二条事件循环。
 pub struct Services {
     main:AnyWindowHandle,
+    #[cfg(target_os="macos")]
+    shell: gpui_kit::WeakEntity<crate::app::Shell>,
+    #[cfg(target_os="macos")]
+    window_host: Option<windowing::WindowHost>,
+    #[cfg(target_os="macos")]
+    window_revision: u64,
     _poll: Task<()>,
     #[cfg(windows)]
     window: Option<windows::MainWindow>,
@@ -26,13 +34,21 @@ pub struct Services {
     pub shortcuts: shortcuts::Service,
 }
 impl Global for Services {}
+impl Services {
+    /// Dock/重开复用真实主窗，不新建壳层或丢失当前草稿。
+    pub fn main_window(&self) -> AnyWindowHandle { self.main }
+}
 
 /// 主窗口创建后安装宿主机制；不注册登录项，不申请通知权限，不绑定默认热键。
-pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
+pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::Shell>, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
     menu::install(locale, cx);
+    #[cfg(target_os="macos")]
+    let window_host = shell.update(cx, |shell, _| shell.window_host()).ok().flatten();
     #[cfg(windows)]
     let native_window = handle.update(cx, |_, window, _| windows::MainWindow::capture(window)).ok().and_then(Result::ok);
     let _ = locale;
+    #[cfg(not(target_os="macos"))]
+    let _ = shell;
     #[cfg(windows)]
     let allows_tray = native_window.is_some();
     #[cfg(not(windows))]
@@ -47,6 +63,16 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
             cx.background_executor().timer(Duration::from_millis(40)).await;
             cx.update(|cx| {
                 if !cx.has_global::<Services>() { return }
+                #[cfg(target_os="macos")]
+                {
+                    let service = cx.global_mut::<Services>();
+                    let revision = service.window_host.as_ref().and_then(windowing::WindowHost::settled_revision);
+                    if let Some(revision) = revision.filter(|revision| *revision != service.window_revision) {
+                        service.window_revision = revision;
+                        let shell = service.shell.clone();
+                        let _ = handle.update(cx, |_, window, cx| { let _ = shell.update(cx, |shell, cx| shell.poll_native_window(window, cx)); });
+                    }
+                }
                 if receiver.try_iter().take(64).count() > 0 { show(handle, cx); }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
                 for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);} } }
@@ -64,6 +90,12 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
     });
     cx.set_global(Services {
         main:handle,
+        #[cfg(target_os="macos")]
+        shell,
+        #[cfg(target_os="macos")]
+        window_host,
+        #[cfg(target_os="macos")]
+        window_revision: 0,
         _poll: poll,
         #[cfg(windows)]
         window: native_window,
@@ -79,8 +111,27 @@ pub fn install(handle: AnyWindowHandle, locale: &str, instance: instance::Instan
     }).detach();
 }
 
-/// 恢复在当前 App 更新完成后执行，避免原生窗口回调重入借用。
+/// 主动显示统一捕获入口鼠标屏；原生修改由前台 task 在借用之外执行。
 pub fn show(handle: AnyWindowHandle, cx: &mut App) {
+    #[cfg(target_os="macos")]
+    {
+        let desktop = windowing::capture_desktop(cx);
+        let Some(shell) = cx.try_global::<Services>().map(|service| service.shell.clone()) else { return; };
+        match desktop {
+            Ok(desktop) => show_on_desktop(handle, desktop, cx),
+            Err(_) => {
+                tracing::warn!(event="window_desktop_unavailable");
+                let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
+                cx.spawn(async move |cx| {
+                    let live = cx.update(|cx| handle.update(cx, |_, _, _| ()).is_ok());
+                    if live { if let Some(host) = host { host.show(); } }
+                }).detach();
+            }
+        }
+        return;
+    }
+    #[cfg(not(target_os="macos"))]
+    {
     #[cfg(windows)]
     let native = cx.try_global::<Services>().and_then(|services| services.window);
     cx.defer(move |cx| {
@@ -88,6 +139,16 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
         if let Some(window) = native { window.show(); }
         cx.activate(true);
         let _ = handle.update(cx, |_, window, _| window.activate_window());
+    });
+    }
+}
+
+/// 启动入口已捕获指针时直接传递，避免创建辅助窗之后改变本次选屏。
+#[cfg(target_os="macos")]
+pub(crate) fn show_on_desktop(handle: AnyWindowHandle, desktop: windowing::DesktopSnapshot, cx: &mut App) {
+    let Some(shell) = cx.try_global::<Services>().map(|service| service.shell.clone()) else { return; };
+    let _ = handle.update(cx, |_, window, cx| {
+        let _ = shell.update(cx, |shell, cx| shell.request_window_restore(desktop, window, cx));
     });
 }
 
@@ -97,6 +158,18 @@ pub fn hide_if_available(cx: &mut App) -> bool {
     #[cfg(windows)]
     let native = cx.global::<Services>().window;
     let main=cx.global::<Services>().main;
+    #[cfg(target_os="macos")]
+    {
+        let shell = cx.global::<Services>().shell.clone();
+        let host = shell.update(cx, |shell, _| shell.cancel_window_restore()).ok().flatten();
+        cx.spawn(async move |cx| {
+            let live = cx.update(|cx| main.update(cx, |_, _, _| ()).is_ok());
+            if live { if let Some(host) = host { host.hide(); } }
+        }).detach();
+        true
+    }
+    #[cfg(not(target_os="macos"))]
+    {
     cx.defer(move |cx| {
         #[cfg(windows)]
         if let Some(window) = native { window.hide(); }
@@ -104,6 +177,7 @@ pub fn hide_if_available(cx: &mut App) -> bool {
         let _=main.update(cx,|_,window,_|crate::pet::host::set_visible(window,false));
     });
     true
+    }
 }
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {

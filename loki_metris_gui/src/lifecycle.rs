@@ -7,6 +7,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 
 /// 同一状态在原生退出回调与事件循环返回回退间共享，日志 worker 只刷新一次。
 pub struct Shutdown {
+    capture_window: Option<Box<dyn FnMut(&mut App)>>,
     writer: Writer,
     notifications:Option<crate::native::notifications::Service>,
     log_guard: Option<WorkerGuard>,
@@ -16,11 +17,18 @@ pub struct Shutdown {
 impl Shutdown {
     /// 接管主入口的偏好 worker 和日志 guard，所有克隆只共享同一个收尾状态。
     pub fn new(writer: Writer, log_guard: WorkerGuard) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self { writer, notifications:None, log_guard: Some(log_guard), usage: None }))
+        Rc::new(RefCell::new(Self { capture_window: None, writer, notifications:None, log_guard: Some(log_guard), usage: None }))
     }
 
     /// 通知授权必须在统一收尾点失效，不能依赖独立退出钩子的执行顺序。
     pub fn own_notifications(&mut self,service:crate::native::notifications::Service) {self.notifications=Some(service);}
+
+    /// 捕获闭包由统一退出钩子先执行，不依赖 Services 的退出/移除顺序。
+    pub fn own_window(&mut self, handle: gpui_kit::AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::Shell>) {
+        self.capture_window = Some(Box::new(move |cx| {
+            let _ = handle.update(cx, |_, window, cx| { let _ = shell.update(cx, |shell, cx| shell.save_window_before_shutdown(window, cx)); });
+        }));
+    }
 
     /// 应用退出钩子拥有业务运行时，窗口隐藏不会停止扫描或销毁服务。
     pub fn own_usage(&mut self, usage: std::sync::Arc<crate::usage_service::UsageService>) {
@@ -44,6 +52,7 @@ impl Shutdown {
 /// AppKit 终止进程前会调用此钩子；同步收尾不受 GPUI 短期异步退出超时取消。
 pub fn install(cx: &App, shutdown: Rc<RefCell<Shutdown>>) {
     cx.on_app_quit(move |cx| {
+        if let Some(capture) = shutdown.borrow_mut().capture_window.as_mut() { capture(cx); }
         let plan=crate::pet::take_shutdown_plan(cx);
         shutdown.borrow_mut().finish_with_pet(plan);
         std::future::ready(())

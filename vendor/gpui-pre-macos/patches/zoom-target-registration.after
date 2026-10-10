@@ -1,0 +1,8 @@
+        decl.add_method(
+            sel!(windowShouldZoom:toFrame:),
+            window_should_zoom as extern "C" fn(&Object, Sel, id, NSRect) -> BOOL,
+        );
+        decl.add_method(
+            sel!(windowDidResize:),
+            window_did_resize as extern "C" fn(&Object, Sel, id),
+        );

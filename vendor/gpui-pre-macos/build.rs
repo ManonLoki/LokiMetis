@@ -27,6 +27,42 @@ fn main() {
         source_manifest_sha256: "4b29969a342cfbc80229ca6690ec4f29a1954ddd50470a0106d794e669edf406",
         patches: &[
             Patch {
+                name: "reopen-registration",
+                path: "src/platform.rs",
+                before: include_str!("patches/reopen-registration.before"),
+                after: include_str!("patches/reopen-registration.after"),
+            },
+            Patch {
+                name: "reopen-event",
+                path: "src/platform.rs",
+                before: include_str!("patches/reopen-event.before"),
+                after: include_str!("patches/reopen-event.after"),
+            },
+            Patch {
+                name: "zoom-target-registration",
+                path: "src/window.rs",
+                before: include_str!("patches/zoom-target-registration.before"),
+                after: include_str!("patches/zoom-target-registration.after"),
+            },
+            Patch {
+                name: "zoom-target-event",
+                path: "src/window.rs",
+                before: include_str!("patches/zoom-target-event.before"),
+                after: include_str!("patches/zoom-target-event.after"),
+            },
+            Patch {
+                name: "fullscreen-failure-registration",
+                path: "src/window.rs",
+                before: include_str!("patches/fullscreen-failure-registration.before"),
+                after: include_str!("patches/fullscreen-failure-registration.after"),
+            },
+            Patch {
+                name: "fullscreen-failure-event",
+                path: "src/window.rs",
+                before: include_str!("patches/fullscreen-failure-event.before"),
+                after: include_str!("patches/fullscreen-failure-event.after"),
+            },
+            Patch {
                 name: "font-native-identity-state",
                 path: "src/text_system.rs",
                 before: include_str!("patches/font-native-identity-state.before"),
@@ -46,6 +82,8 @@ fn main() {
             },
         ],
         generated_hashes: &[
+            ("src/platform.rs", "9a208b312faca0b9b26e87d43f6cde804849d767757631d7d3cf31d89bffadb8"),
+            ("src/window.rs", "60c8b71a7c63fb7b57867fd3fb1f3c6928694e9f867d31c07958c91b04194b83"),
             ("src/gpui_macos.rs", "5c784ad4ba70a5454f1805cdd3e6ac4a4002bae77c856db8546832683cc7b870"),
             ("src/text_system.rs", "b25ab17aee418545a62ae1d604845ac2a0f5922c4d7fca967d629142fa9f59eb"),
         ],

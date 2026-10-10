@@ -1,6 +1,7 @@
 //! 设备偏好只保存有限展示字段；有界后台队列合并写入，窗口线程没有磁盘 I/O。
 
 use gpui_kit::{App, Bounds, WindowBounds, point, px, size};
+use loki_metris_core::window_placement::WindowStateV2;
 use std::{fs, io::{Read, Write}, path::PathBuf, sync::{Arc, Mutex, mpsc}, thread};
 
 /// 设置页支持浅色、深色与随系统变化三种明确选择。
@@ -30,7 +31,8 @@ pub struct Preferences {
     pub bounds: Option<[f32; 4]>,
     pub maximized: bool,
     pub system_notification: bool,
-
+    /// 有身份的屏内 DIP 状态；旧 bounds/maximized 继续保留供旧版本回退。
+    pub window_state_v2: Option<WindowStateV2>,
 }
 
 impl Preferences {
@@ -75,7 +77,8 @@ impl Preferences {
                 "collapsed" => value.collapsed = field == "true",
                 "maximized" => value.maximized = field == "true",
                 "system_notification" => value.system_notification = field == "true",
-
+                "window_state_v2" => value.window_state_v2 = serde_json::from_str::<WindowStateV2>(field)
+                    .ok().filter(WindowStateV2::is_valid),
                 "bounds" => {
                     let fields: Vec<_> = field.split(',').map(str::parse::<f32>).collect();
                     if let [Ok(x), Ok(y), Ok(width), Ok(height)] = fields.as_slice() {
@@ -93,8 +96,12 @@ impl Preferences {
         let theme = match self.theme { ThemeChoice::System => "system", ThemeChoice::Light => "light", ThemeChoice::Dark => "dark" };
         let language = match self.language { LanguageChoice::System => "system", LanguageChoice::Chinese => "zh-CN", LanguageChoice::English => "en-US" };
         let bounds = self.bounds.map(|b| format!("{},{},{},{}", b[0], b[1], b[2], b[3])).unwrap_or_default();
-        let text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\nsystem_notification={}\n", self.collapsed, self.maximized, self.system_notification);
-
+        let mut text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\nsystem_notification={}\n", self.collapsed, self.maximized, self.system_notification);
+        if let Some(state) = self.window_state_v2.as_ref().filter(|state| state.is_valid()) {
+            if let Ok(json) = serde_json::to_string(state) {
+                text.push_str("window_state_v2="); text.push_str(&json); text.push('\n');
+            }
+        }
         text
     }
 }
@@ -104,8 +111,12 @@ impl Preferences {
 pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice), SystemNotification(bool) }
 
 /// 几何属于可合并高频事件，不拥有主题与语言字段。
-#[derive(Clone, Copy)]
-struct WindowGeometry {bounds:Option<[f32;4]>,maximized:bool}
+#[derive(Clone)]
+struct WindowGeometry {
+    bounds: Option<[f32; 4]>,
+    maximized: bool,
+    window_state_v2: Option<WindowStateV2>,
+}
 
 /// 几何只占一个待处理信号，不能挤满明确偏好命令的队列。
 #[derive(Default)]
@@ -139,12 +150,23 @@ impl Writer {
         self.sender.try_send(Command::Mutate(patch,tx)).map_err(|_|"preference_writer_unavailable")?;Ok(rx)
     }
 
-    /// 高频窗口变化只合并几何；最后退出命令仍会刷新最新值。
+    /// 旧几何没有可信屏幕身份，提交时清除新记录，仍保留有效尺寸用于居中恢复。
+    #[cfg(any(test, not(target_os="macos")))]
     pub fn save_window(&self,bounds:Option<[f32;4]>,maximized:bool) {
+        self.queue_window(bounds, maximized, None);
+    }
+
+    /// 最终原生读回同时提交新状态和兼容旧字段；同一合并槽不丢失屏幕身份。
+    pub fn save_window_v2(&self, bounds: Option<[f32; 4]>, maximized: bool, state: WindowStateV2) {
+        if state.is_valid() { self.queue_window(bounds, maximized, Some(state)); }
+    }
+
+    /// 高频事件合并完整几何；明确偏好命令不拥有任何窗口字段。
+    fn queue_window(&self, bounds: Option<[f32; 4]>, maximized: bool, state: Option<WindowStateV2>) {
         let closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if *closing {return}
         let mut updates=self.geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        updates.latest=Some(WindowGeometry{bounds,maximized});
+        updates.latest=Some(WindowGeometry{bounds,maximized,window_state_v2:state});
         if !updates.queued {updates.queued=true;if self.sender.try_send(Command::Window).is_err() {updates.queued=false;}}
     }
 
@@ -216,9 +238,11 @@ fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
     let thread = thread::spawn(move || {
         while let Ok(command) = receiver.recv() {
             let mut next=committed.clone();
-            let geometry={let mut updates=worker_geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);if matches!(&command,Command::Window) {updates.queued=false;}updates.latest};
+            let geometry={let mut updates=worker_geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);if matches!(&command,Command::Window) {updates.queued=false;}updates.latest.clone()};
             if let Some(geometry)=geometry {
                 next.bounds=geometry.bounds;next.maximized=geometry.maximized;
+                next.window_state_v2 = geometry.window_state_v2;
+                if let Some(state) = next.window_state_v2.as_mut() { state.maximized = geometry.maximized; }
             }
             if let Command::Mutate(patch,_)=&command {match patch {
                 PreferencePatch::Theme(theme)=>next.theme=*theme,PreferencePatch::Language(language)=>next.language=*language,PreferencePatch::SystemNotification(enabled)=>next.system_notification=*enabled,

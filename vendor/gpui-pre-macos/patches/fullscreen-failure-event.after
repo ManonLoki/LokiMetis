@@ -1,0 +1,27 @@
+/// 退出全屏失败先完成原生状态修复，再在锁外公布失败终态。
+extern "C" fn window_did_fail_to_exit_fullscreen(this: &Object, _: Sel, window: id) {
+    // 安全：当前 GPUIWindow delegate 的 ivar 在窗口存活期间持有 WindowState。
+    let window_state = unsafe { get_window_state(this) };
+    let mut lock = window_state.as_ref().lock();
+    lock.is_exiting_fullscreen = false;
+    lock.restore_traffic_light();
+    // 默认通知中心同步派发；释放 GPUI 原生锁后才通知观察者。
+    drop(lock);
+    post_fullscreen_transition_failed(window);
+}
+
+/// AppKit 失败参数是 NSWindow，不是 NSNotification；不伪发成功终态。
+extern "C" fn window_did_fail_to_enter_fullscreen(_: &Object, _: Sel, window: id) {
+    post_fullscreen_transition_failed(window);
+}
+
+/// 只公布原生过渡失败，不替换现有 delegate 或执行任何应用业务。
+fn post_fullscreen_transition_failed(window: id) {
+    if window.is_null() { return; }
+    // 安全：AppKit 主线程 delegate 提供有效 NSWindow；同步投递时没有 GPUI 原生锁。
+    unsafe {
+        let center: id = msg_send![class!(NSNotificationCenter), defaultCenter];
+        let name = ns_string("LokiMetrisGPUIWindowFullScreenTransitionFailedNotification");
+        let _: () = msg_send![center, postNotificationName: name object: window];
+    }
+}

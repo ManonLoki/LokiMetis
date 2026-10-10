@@ -166,6 +166,16 @@ bounds 通知 → 位置保存 → pet_revision 变化
 
 参考：[来源质量持久化](../loki_metris_gui/src/backend/local_index/jsonl/mod.rs)、[续读边界](../loki_metris_gui/src/backend/local_index/rollout_ingest.rs)、[一致快照](../loki_metris_core/src/local_index/snapshot.rs)、[连续回归](../loki_metris_gui/src/backend/local_index/tests/quality_checkpoint_tests.rs)、[写入期间今日摘要](../loki_metris_gui/src/usage_service/source_tests.rs)。这些回归证明正确性边界；没有测量吞吐、CPU 或内存收益，不能据此宣称性能提升。
 
+### 5.6 原生窗口反馈只驱动变更，动画终点与防抖分别处理
+
+主窗的 NSWindow 通知只更新 revision、单调时间和按值复制的 zoom 目标，不进入 GPUI 或借用壳层。复用已有原生调度：无新 revision 不进入窗口更新栈；无待处理 zoom 目标不读取原生 frame；只在最终读回后合并一份完整几何偏好。不能为了保存位置在每个渲染帧枚举屏幕或写文件。
+
+静默 250ms 只负责合并，不能独自证明动画完成。实机曾把普通宽度 961 保存成缩放中间值 1383；修正后以系统 delegate 提供的目标矩形与实际外框比较，容差为半个当前 backing 像素，未知目标保持保护。关闭/退出可跳过合并等待，但不能跳过缩放、全屏或 live-resize 的保护。最大化时系统迁屏只映射最后可信普通锚点，不能拿最大化外框代替普通尺寸。
+
+原生变更可能同步回调 GPUI，因此恢复 task 先检查活窗及 generation，再释放 App/Window 借用后调用 AppKit。等待期间携带入口捕获的指针屏，不重新追随鼠标；拓扑变化只刷新可用屏幕。观察者最后引用释放时注销，任务隐藏/退出时失效，避免把多窗口恢复变成长期轮询或悬挂 owner。
+
+参考：[纯放置规则](../loki_metris_core/src/window_placement/mod.rs)、[原生信号与终点](../loki_metris_gui/src/native/windowing/macos_host.rs)、[几何回归](../loki_metris_gui/src/native/windowing/geometry_settle.rs)、[恢复事务](../loki_metris_gui/src/app/window_state.rs)。本轮证明了几何正确性与调用边界，没有测量 CPU、内存或跨框架收益；不能据此认定用户报告的性能问题已解决。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

@@ -53,36 +53,55 @@ fn main() -> std::process::ExitCode {
     if let Err(error)=usage_service.start_monitoring() {tracing::error!(event=error);}
     shutdown.borrow_mut().own_usage(usage_service.clone());
     let native_shutdown = shutdown.clone();
-    gpui_kit::application().with_assets(assets::Assets).run(move |cx: &mut App| {
+    let application = gpui_kit::application().with_assets(assets::Assets);
+    application.on_reopen(|cx| {
+        if let Some(handle) = cx.try_global::<native::Services>().map(native::Services::main_window) { native::show(handle, cx); }
+    });
+    application.run(move |cx: &mut App| {
         use gpui_kit::component as gpui_component;
         rust_i18n::extend!(gpui_component);
         gpui_kit::init(cx);
         fonts::install(cx);
         cx.set_app_identity("com.loki-metris.app", "LokiMetris");
-        lifecycle::install(cx, native_shutdown);
+        lifecycle::install(cx, native_shutdown.clone());
         cx.set_quit_mode(QuitMode::Explicit);
         let fallback = Bounds::centered(None, size(px(1440.), px(900.)), cx);
         let bounds = preferences.window_bounds(cx).unwrap_or(WindowBounds::Windowed(fallback));
-        let (handle, _shell) = gpui_kit::open_window(WindowOptions {
+        let mut options = WindowOptions {
             window_bounds: Some(bounds),
             window_min_size: Some(size(px(960.), px(640.))),
             titlebar: Some(TitlebarOptions { title: Some("LokiMetris".into()), ..Default::default() }),
             app_id: Some("com.loki-metris.app".into()),
             ..Default::default()
-        }, cx, |window, cx| cx.new(|cx| {
+        };
+        #[cfg(target_os="macos")]
+        let startup_desktop = native::windowing::capture_desktop(cx).ok().and_then(|desktop| {
+            let (bounds, id) = native::windowing::initial_main_bounds(&preferences, &desktop)?;
+            options.window_bounds = Some(bounds); options.display_id = Some(id);
+            options.show = false; options.focus = false; Some(desktop)
+        });
+        let (handle, shell) = gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| {
             let mut shell = app::Shell::new(preferences, writer, window, cx);
             shell.attach_usage(usage_service.clone(), cx);
             shell
         }))
         .expect("无法创建 GPUI 窗口");
+        #[cfg(target_os="macos")]
+        if startup_desktop.is_none() {
+            let _ = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.release_initial_window_restore(window, cx)));
+        }
+        native_shutdown.borrow_mut().own_window(handle, shell.downgrade());
         let main_id=handle.window_id();
         cx.on_window_closed(move|cx,closed| {
             // 主窗确实被销毁表示托盘恢复不可用；辅助窗不能留下无入口进程。
             if closed==main_id||cx.windows().is_empty() {cx.quit();}
         }).detach();
         notifications.attach(usage_service.clone(),locale,handle.into(),cx);
-        native::install(handle, locale, instance, instance_receiver, notifications, cx);
+        native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
+        #[cfg(target_os="macos")]
+        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { cx.activate(true); }
+        #[cfg(not(target_os="macos"))]
         cx.activate(true);
     });
     shutdown.borrow_mut().finish();

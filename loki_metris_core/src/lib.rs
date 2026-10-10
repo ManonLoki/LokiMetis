@@ -35,6 +35,7 @@ mod statistics_view;
 mod time_standard;
 mod timeline;
 mod usage;
+pub mod window_placement;
 pub mod today_usage;
 pub mod usage_milestones;
 pub use today_usage::{UsageDay, TodayAvailability, TodayUsageSnapshot};

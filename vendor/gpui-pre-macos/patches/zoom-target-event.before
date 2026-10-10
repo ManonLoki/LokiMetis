@@ -1,0 +1,1 @@
+extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
