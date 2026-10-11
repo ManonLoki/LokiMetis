@@ -1,3 +1,5 @@
+//! 本文件收纳：Codex 的无状态 Hook 协议适配器；返回 Codex 的统一工具标识；返回用于界面展示的 Codex 名称。
+
 // 引入 serde_json 的 Value 与 json! 宏，用于构造 Hook 配置 JSON
 use serde_json::{Value, json};
 

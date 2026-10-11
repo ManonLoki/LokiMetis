@@ -169,11 +169,11 @@ impl LocalIndex {
     }
 
     /// 清空本产品派生调用、checkpoint、扫描与 provider 快照，保留用户根登记。
-    // “清空索引”只删除本产品从原始文件派生出来的数据（调用记录、文件
-    // checkpoint、扫描历史、缓存的 provider 快照），`source_roots` 表本身
-    // （用户登记了哪些数据根、启用状态、别名）完全不动——对应产品语义
-    // “清空索引不等于清空数据源设置”，用户下次扫描会重新从头解析原始
-    // 文件，但不需要重新登记数据根。
+    /// “清空索引”只删除本产品从原始文件派生出来的数据（调用记录、文件
+    /// checkpoint、扫描历史、缓存的 provider 快照），`source_roots` 表本身
+    /// （用户登记了哪些数据根、启用状态、别名）完全不动——对应产品语义
+    /// “清空索引不等于清空数据源设置”，用户下次扫描会重新从头解析原始
+    /// 文件，但不需要重新登记数据根。
     pub async fn clear_index(&mut self) -> Result<(), LocalError> {
         let transaction = self.connection.begin().await?;
         transaction
@@ -199,10 +199,10 @@ impl LocalIndex {
     }
 
     /// 创建一条扫描运行记录并返回稳定扫描 ID。
-    // 先插入一行 `scan_id = NULL` 再回填，是因为 scan_id 的生成依赖
-    // SQLite 自动分配的自增行 ID——插入前还不知道这一行会拿到哪个
-    // 行 ID，所以只能“先插入占位、拿到自增 ID 后再用它计算出确定性
-    // scan_id、回写”，这是利用数据库自增主键生成稳定业务 ID 的常见两步写法。
+    /// 先插入一行 `scan_id = NULL` 再回填，是因为 scan_id 的生成依赖
+    /// SQLite 自动分配的自增行 ID——插入前还不知道这一行会拿到哪个
+    /// 行 ID，所以只能“先插入占位、拿到自增 ID 后再用它计算出确定性
+    /// scan_id、回写”，这是利用数据库自增主键生成稳定业务 ID 的常见两步写法。
     pub async fn begin_scan(
         &mut self,
         mode: &str,

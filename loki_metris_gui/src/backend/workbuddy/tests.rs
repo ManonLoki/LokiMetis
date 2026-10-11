@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：把 RFC 3339 测试时刻转换为 Unix 毫秒，避免依赖测试宿主时区；在夹具根下创建指定 WorkBuddy 版本的固定目录及其 `projects` 子目录；创建 WorkBuddy 国内版夹具根及其固定 `projects` 目录。
+
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};

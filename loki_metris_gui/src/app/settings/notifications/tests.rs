@@ -84,6 +84,7 @@ struct CardProbe {
     _subscription: Subscription,
 }
 impl Render for CardProbe {
+    /// 把通知卡片放进一个空容器渲染，供测试读取它的真实布局与交互。
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div().size_full().flex().flex_col().items_start().child(
             self.shell.update(cx, |shell, cx| {

@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：固定观测时刻 2026-07-27T12:00:00Z；观测日内的请求时刻；构造一条实际模型明确的 usage 事件。
+
 use super::*;
 use crate::workbuddy_stats::{WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin};
 

@@ -1,5 +1,5 @@
 // 本文件是 root_lifecycle_tests.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：验证历史路径后来变成指向新候选的链接时不能参与物理去重或保留不安全路径。；验证同一物理 Claude Code 目录也在独立客户端 registry 内幂等登记。；验证主根重绑到字节级不同的路径（即使物理上是同一目录的词法别名）会
+// 与主文件共用作用域，因此无需额外导入。收纳内容：验证历史路径后来变成指向新候选的链接时不能参与物理去重或保留不安全路径。；验证同一物理 Claude Code 目录也在独立客户端 registry 内幂等登记。；验证主根重绑到字节级不同的路径（即使物理上是同一目…
 
 /// 验证历史路径后来变成指向新候选的链接时不能参与物理去重或保留不安全路径。
 #[cfg(unix)]
@@ -87,12 +87,12 @@ fn physical_claude_directory_registration_is_idempotent() {
 
 /// 验证主根重绑到字节级不同的路径（即使物理上是同一目录的词法别名）会
 /// 保守清除主标记与官方快照。
-// `register_root_fields`（core）判断“主根路径是否变了”只做字节级比较，
-// 不再像旧实现那样识别“同一物理目录的不同词法路径”——那部分模糊比较
-// 依赖平台卷分类，故意没有跟着存储层一起搬进 runtime-neutral 的 core，
-// 留在 GUI adapter。方向仍然是安全的：宁可多清一次缓存，也不让旧账号
-// 事实带着新路径继续展示。细节见
-// `loki_metris_core::local_index::root_registry` 的模块文档。
+/// `register_root_fields`（core）判断“主根路径是否变了”只做字节级比较，
+/// 不再像旧实现那样识别“同一物理目录的不同词法路径”——那部分模糊比较
+/// 依赖平台卷分类，故意没有跟着存储层一起搬进 runtime-neutral 的 core，
+/// 留在 GUI adapter。方向仍然是安全的：宁可多清一次缓存，也不让旧账号
+/// 事实带着新路径继续展示。细节见
+/// `loki_metris_core::local_index::root_registry` 的模块文档。
 #[test]
 fn byte_different_primary_path_clears_primary_and_provider_snapshot() {
     let source_temp = TempDir::new().expect("source temp is available");

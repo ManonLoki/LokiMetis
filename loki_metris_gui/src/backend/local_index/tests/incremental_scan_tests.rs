@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：在隔离 app-data 内按测试固定 parser 版本打开索引；验证无变化二次扫描不新增调用，随后 append 只增加一个调用；验证显式强制重建会为未变化来源生成新 generation，且 canonical 聚合不重复。
+
 // 本文件验证的正是 index/rollout_ingest.rs 里 `index_rollout_file` 的
 // “unchanged / append / rebuild”三选一判定（详细算法说明见那个函数的
 // 注释）：多数用例都遵循“扫描一次 -> 不改文件再扫一次 -> 追加内容后
@@ -218,10 +220,10 @@ fn restores_cumulative_checkpoint_across_incremental_scans() {
 }
 
 /// 验证连续累计回退只保留会话最新值，出现单次事实后移除累计占位。
-// 对应 call_store.rs 里 `insert_usage_batch` 的置信度替换规则：先写入
-// 两条 Derived（推算）事件应该合并成一条最新值，一旦后面出现 Exact
-// （精确）事件，之前的 Derived 占位记录必须被清除，不能继续和精确值
-// 并存误导统计。
+/// 对应 call_store.rs 里 `insert_usage_batch` 的置信度替换规则：先写入
+/// 两条 Derived（推算）事件应该合并成一条最新值，一旦后面出现 Exact
+/// （精确）事件，之前的 Derived 占位记录必须被清除，不能继续和精确值
+/// 并存误导统计。
 #[test]
 fn keeps_only_latest_cumulative_fallback_and_prefers_exact_calls() {
     let source_temp = TempDir::new().expect("source temp is available");

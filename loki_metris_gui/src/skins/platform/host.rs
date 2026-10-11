@@ -1,3 +1,6 @@
+// 本文件收纳：按宿主类型路由到经过应用身份验证的平台进程适配器；读取指定宿主已验证进程的命令行，用于发现其显式 CDP 端口；列出指定宿主的可信主进程及其启动参数。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 按宿主类型路由到经过应用身份验证的平台进程适配器。
 async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> {
     match host {

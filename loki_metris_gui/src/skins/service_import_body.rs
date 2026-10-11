@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `prepare_import_batch` 步骤；执行换皮宿主内部的 `prepare_import_batch_with_progress` 步骤；执行换皮宿主内部的 `commit_import_batch` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 impl SkinService {
     #[cfg(test)]
     /// 执行换皮宿主内部的 `prepare_import_batch` 步骤。

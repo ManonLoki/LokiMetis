@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `normalizes_only_hex_theme_colors` 回归场景；验证换皮迁移中的 `converted_identity_stays_within_length_limits` 回归场景；验证换皮迁移中的 `conver…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
     #[test]
     /// 验证换皮迁移中的 `normalizes_only_hex_theme_colors` 回归场景。
     fn normalizes_only_hex_theme_colors() {

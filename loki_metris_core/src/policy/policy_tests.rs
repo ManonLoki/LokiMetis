@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：锁定各客户端当前 parser generation，避免 GUI writer 单独加一代而读取仍用旧值；验证首次初始化与后续启动都不会声称完整覆盖；验证扫描门禁只允许显式用户触发绕过初始化。
+
 use super::*;
 
 /// 锁定各客户端当前 parser generation，避免 GUI writer 单独加一代而读取仍用旧值。

@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：测试 guard：底层 handler future 析构时发送一次可观察信号；在测试 handler 析构时发布完成信号；外层总截止取消 endpoint cleanup future 时，guard 必须中止并回收已启动的 CDP handler。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 测试 guard：底层 handler future 析构时发送一次可观察信号。
 struct WatchHandlerDropSignal(Option<tokio::sync::oneshot::Sender<()>>);
 
@@ -414,5 +417,5 @@ fn every_completed_cleanup_error_branch_retains_ownership() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - lifecycle_more_tests.rs：runtime 插入前的 watcher 也必须被 shutdown 取消，并在 active 登记清零后才允许返回。；区分取消到达时仍在注入，以及取消后已进入回滚的两个关键安装窗口。；在模拟的安装阶段被显式释放前，验证 shutdown 始终持有 completion 等待责任。
+// - lifecycle_more_tests.rs：runtime 插入前的 watcher 也必须被 shutdown 取消，并在 active 登记清零后才允许返回。；区分取消到达时仍在注入，以及取消后已进入回滚的两个关键安装窗口。；在模拟的安装阶段被显式释放前…
 include!("lifecycle_more_tests.rs");

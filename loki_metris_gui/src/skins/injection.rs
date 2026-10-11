@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `watch_pages` 步骤；执行换皮宿主内部的 `inject_pages` 步骤；在写入皮肤资源前给页面登记本次事务标记，供失败补偿精确回滚。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 执行换皮宿主内部的 `watch_pages` 步骤。
 async fn watch_pages(
     host: SkinHostKind,
@@ -421,5 +424,5 @@ fn injection_failed_error() -> AppError {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - injection_cleanup.rs：执行换皮宿主内部的 `remove_from_browser` 步骤。；新注入与停用复用同一清理确认，防止旧状态冒充新载荷的成功结果。；汇总跨页面清理结果；任一页面失败都拒绝伪报完整成功。
+// - injection_cleanup.rs：执行换皮宿主内部的 `remove_from_browser` 步骤。；新注入与停用复用同一清理确认，防止旧状态冒充新载荷的成功结果。；汇总跨页面清理结果…
 include!("injection_cleanup.rs");

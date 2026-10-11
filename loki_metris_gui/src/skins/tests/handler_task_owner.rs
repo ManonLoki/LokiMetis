@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：handler owner 在 spawn 前按 active + retained 总数施加固定上限背压；退出 gate 在同一短锁内拒绝新 reservation，并取消已登记的 active handler；生产 shutdown 在独立进程关闭全…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 #[test]
 /// handler owner 在 spawn 前按 active + retained 总数施加固定上限背压。
 fn handler_owner_capacity_is_bounded() {

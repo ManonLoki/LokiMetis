@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：创建只含调用表的内存 schema，隔离验证批次事务与冲突语义；构造不含正文或真实路径的规范化调用；在独立事务中插入 Codex 测试批次，模拟并发提交边界。
+
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection};
 
 use super::super::LocalErrorKind;

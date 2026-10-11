@@ -3,6 +3,7 @@
 use super::{tests::fixture, *};
 use gpui_kit::TestAppContext;
 
+/// 位置先被接受为 B、随后又回到 A 时退出：界面回执被取消，但最终落盘的仍是 A。
 #[gpui_kit::test]
 fn accepted_b_then_return_a_shutdown_cancels_ui_receipt_but_preserves_final_a(
     cx: &mut TestAppContext,

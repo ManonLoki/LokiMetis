@@ -118,12 +118,12 @@ pub fn summarize_usage(canonical: &CanonicalUsageSet) -> Result<UsageMeasure, To
 }
 
 /// 按固定维度生成确定性 Top-N 与其余项，不接受任意字段或表达式。
-// 步骤拆解（前端“按模型/项目/线程等维度统计”功能的核心实现）：
-//   1. 按 dimension 把每条调用分到一个 key（如模型名）下的桶；
-//   2. 对每个桶调用 measure_calls 算出可加总的统计量；
-//   3. 按总 Token 降序、调用数降序、key 字典序做稳定排序；
-//   4. 只保留前 top_limit 组，其余全部合并成一个 “remainder”（其余项），
-//      这样前端只需要渲染有限行数，又能通过 remainder 对账总量不丢失。
+/// 步骤拆解（前端“按模型/项目/线程等维度统计”功能的核心实现）：
+///   1. 按 dimension 把每条调用分到一个 key（如模型名）下的桶；
+///   2. 对每个桶调用 measure_calls 算出可加总的统计量；
+///   3. 按总 Token 降序、调用数降序、key 字典序做稳定排序；
+///   4. 只保留前 top_limit 组，其余全部合并成一个 “remainder”（其余项），
+///      这样前端只需要渲染有限行数，又能通过 remainder 对账总量不丢失。
 pub fn group_usage(
     canonical: &CanonicalUsageSet,
     dimension: UsageDimension,
@@ -188,9 +188,9 @@ pub fn group_usage(
 }
 
 /// 为单个调用选择固定维度键；空白上游值与缺失值都归为未知。
-// UsageDimension::Root 分支比其他维度复杂：一条调用可能有多个 provenance
-// （多个来源观察到它），这里选“排序最靠前”的那个 provenance 的 root_id
-// 作为该调用归属的根，保证同一条调用在重复统计时永远归到同一个根（确定性）。
+/// UsageDimension::Root 分支比其他维度复杂：一条调用可能有多个 provenance
+/// （多个来源观察到它），这里选“排序最靠前”的那个 provenance 的 root_id
+/// 作为该调用归属的根，保证同一条调用在重复统计时永远归到同一个根（确定性）。
 fn group_key(call: &UsageCall, dimension: UsageDimension) -> Option<String> {
     match dimension {
         UsageDimension::Model => normalized_optional_key(call.model.as_deref()),

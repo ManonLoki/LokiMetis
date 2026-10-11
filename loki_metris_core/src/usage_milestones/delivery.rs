@@ -1,3 +1,5 @@
+//! 本文件收纳：平台查询和本地开关分离；Denied 不会把本地 enabled 改成 false；OS 明确允许提交；OS 明确拒绝。
+
 use super::{BucketRetry, MilestoneIssue, MilestoneState, Reservation};
 use crate::{TodayUsageSnapshot, stable_id};
 use serde::{Deserialize, Serialize};

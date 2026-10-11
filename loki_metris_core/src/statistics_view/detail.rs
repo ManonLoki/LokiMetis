@@ -1,3 +1,5 @@
+//! 本文件收纳：保存统计分组的稳定键、安全标签与完整度量；当多个分组消毒后的展示标签重复时，标记该分组在重复集合内从 1；开始的消歧序号；标签唯一时为 `None`。
+
 use std::collections::BTreeMap;
 
 use crate::display_label::DisplayLabelCode;

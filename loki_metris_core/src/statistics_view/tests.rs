@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：将测试民用日期时间转换为本地毫秒时间戳；构造带模型、数据根和时间的统计测试调用；返回统计测试使用的完整覆盖报告。
+
 use std::collections::BTreeMap;
 
 use jiff::{civil::Date, tz::TimeZone};

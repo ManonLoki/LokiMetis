@@ -1,3 +1,6 @@
+// 本文件收纳：在读取自由注入脚本或持久化兼容皮肤前校验本次操作的显式信任确认；执行换皮宿主内部的 `build_payload` 步骤；与 `build_payload` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 在读取自由注入脚本或持久化兼容皮肤前校验本次操作的显式信任确认。
 fn validate_code_execution_consent(
     package_type: SkinPackageType,

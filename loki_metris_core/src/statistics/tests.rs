@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：构造不含正文和主机路径的统计测试调用；验证 Top-N、其余项与总计对全部可加字段严格对账；验证跨根副本只归属稳定排序后的一个 canonical 数据根。
+
 use super::*;
 use crate::{SourceProvenance, canonicalize_usage_calls};
 

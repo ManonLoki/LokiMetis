@@ -1,3 +1,6 @@
+// 本文件收纳：同时存在的活跃或待回收 CDP handler 上限；达到上限后在 spawn 前施加背压；进程级持有全部 handler 容量令牌，以及已取消但尚未确认终态的任务；spawn 前取得的容量令牌；未绑定任务就析构时自动归还名额。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 同时存在的活跃或待回收 CDP handler 上限；达到上限后在 spawn 前施加背压。
 const MAX_OWNED_HANDLER_TASKS: usize = 256;
 

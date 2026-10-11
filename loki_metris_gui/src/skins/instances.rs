@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `resolve_skin_host_instance` 步骤；解析指定宿主的实例，并只把经过页面与 owner 验证的端点关联到对应进程树根；使用服务刚验证过的端点作为首选候选，避免动态端口因命令行读取降级而短暂丢失。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 执行换皮宿主内部的 `resolve_skin_host_instance` 步骤。
 #[cfg(target_os = "macos")]
 async fn resolve_skin_host_instance(id: &str) -> Result<ResolvedSkinHostInstance, AppError> {

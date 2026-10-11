@@ -1,3 +1,5 @@
+//! 本文件收纳：WorkBuddy 的无状态 Hook 协议适配器；返回 WorkBuddy 的统一工具标识；返回用于界面展示的 WorkBuddy 名称。
+
 // serde_json 的通用值类型，handler 用它拼装 JSON 片段
 use serde_json::Value;
 

@@ -1,3 +1,5 @@
+//! 本文件收纳：持久化失败分类不含系统消息、路径或业务载荷；首次状态或损坏历史只能明确建立当前值基线；已确认的本地关闭取消未提交项。
+
 use super::{MilestoneOutcome, TOKEN_MILESTONE};
 use crate::{TodayUsageSnapshot, UsageDay};
 use serde::{Deserialize, Serialize};

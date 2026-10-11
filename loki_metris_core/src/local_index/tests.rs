@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：验证空 app-data 路径与符号链接路径被拒绝，不会创建数据库文件；验证全新目录可以打开数据库、迁移到当前 schema，并对外暴露稳定路径；验证重新打开同一目录复用既有 schema，不因重复迁移报错。
+
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DbBackend, Statement};
 
 use crate::{

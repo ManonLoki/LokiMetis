@@ -31,8 +31,8 @@ impl LocalIndex {
         Ok(added)
     }
     /// 返回指定来源 generation 中按适配器内部顺序最新的一致性检查点。
-    // 一致性键的编码与解释仍归具体 adapter 所有；core 只提供严格按来源和
-    // generation 隔离的只读原语，避免把 Codex 协议细节扩散进持久层。
+    /// 一致性键的编码与解释仍归具体 adapter 所有；core 只提供严格按来源和
+    /// generation 隔离的只读原语，避免把 Codex 协议细节扩散进持久层。
     pub async fn latest_adapter_consistency_key(
         &self,
         source_id: &str,

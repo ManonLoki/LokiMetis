@@ -271,14 +271,14 @@ where
 }
 
 /// 合并相邻同一逻辑调用的连续观察，只在遇到不同调用时才真正 emit 前一条。
-// `pending` 是一个只装“最多一条”的前瞻缓冲区，不是无界的去重 Map：
-// Claude transcript 文件里，同一条 assistant 消息在流式生成过程中会
-// 被连续写入多行、一行比一行更完整。merge_or_emit 每次只跟“刚缓存的
-// 上一条”比较——如果新记录和上一条是同一个 logical_call_id，就地合并
-// （保留其中数值更完整/单调的那份，不立即向下游发送）；一旦遇到不同
-// 的 logical_call_id，说明连续重复观察已经结束，才把缓存的那条真正
-// emit 出去。这样只用 O(1) 额外内存就能压掉“连续相邻重复”的绝大多数
-// 冗余，真正跨行、跨文件的重复交给 call_store.rs 里的单调 upsert 兜底。
+/// `pending` 是一个只装“最多一条”的前瞻缓冲区，不是无界的去重 Map：
+/// Claude transcript 文件里，同一条 assistant 消息在流式生成过程中会
+/// 被连续写入多行、一行比一行更完整。merge_or_emit 每次只跟“刚缓存的
+/// 上一条”比较——如果新记录和上一条是同一个 logical_call_id，就地合并
+/// （保留其中数值更完整/单调的那份，不立即向下游发送）；一旦遇到不同
+/// 的 logical_call_id，说明连续重复观察已经结束，才把缓存的那条真正
+/// emit 出去。这样只用 O(1) 额外内存就能压掉“连续相邻重复”的绝大多数
+/// 冗余，真正跨行、跨文件的重复交给 call_store.rs 里的单调 upsert 兜底。
 fn merge_or_emit<F>(
     call: UsageCall,
     pending: &mut Option<UsageCall>,
@@ -309,10 +309,10 @@ where
 }
 
 /// 判定两次相邻观察在各 Token 计数上是否逐项非递减（即单调增长）。
-// 任一侧缺少 cached_input_tokens 时直接判定非单调；merge_or_emit 遇到
-// 非单调结果会整体丢弃更新的观察（既不合并也不单独 emit），只保留仍在
-// pending 中的上一条，靠 regressed_observations 计数暴露这种丢弃，
-// 而不是把字段更少的观察当新调用写入。
+/// 任一侧缺少 cached_input_tokens 时直接判定非单调；merge_or_emit 遇到
+/// 非单调结果会整体丢弃更新的观察（既不合并也不单独 emit），只保留仍在
+/// pending 中的上一条，靠 regressed_observations 计数暴露这种丢弃，
+/// 而不是把字段更少的观察当新调用写入。
 fn usage_is_monotonic(previous: &UsageCall, next: &UsageCall) -> bool {
     let (Some(previous_cached), Some(next_cached)) = (
         previous.usage.cached_input_tokens,

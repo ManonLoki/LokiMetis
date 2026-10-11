@@ -146,6 +146,7 @@ impl LoadingPaint {
     pub(super) fn veil_opacity(self) -> f32 {
         1. - self.opacity
     }
+    /// 遮罩当前的滑动进度：0 表示还在起点，1 表示已经滑到终点。
     pub(super) fn veil_slide(self) -> f32 {
         self.slide
     }

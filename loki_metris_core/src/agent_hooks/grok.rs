@@ -1,3 +1,5 @@
+//! 本文件收纳：Grok Build 的无状态 Hook 协议适配器；返回 Grok Build 的统一工具标识；返回用于界面展示的 Grok Build 名称。
+
 // 引入 serde_json 的 Value，用于构造 Hook 配置 JSON
 use serde_json::Value;
 

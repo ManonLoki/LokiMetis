@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：验证缓存读取占比使用 Token 子集口径，并在零输入时返回不适用；验证 provider 口径保留上游总量，缓存只作输入子集；验证上游总量小于输入加输出时保守拒绝，不让矛盾事实进入聚合或 wire。
+
 use super::*;
 
 /// 验证缓存读取占比使用 Token 子集口径，并在零输入时返回不适用。
@@ -205,9 +207,9 @@ fn last_copies_total_snapshot(
 }
 
 /// 未修复时会把每个 running total 当作新调用：5 回合合计 1900，相对最新 700 虚高 2.71 倍。
-// 根因：Codex 部分 `token_count` 把 `last_token_usage` 写成当前
-// `total_token_usage` 的拷贝。选择器在累计变化时仍 emit 整个 `last`，
-// 于是 100+220+360+520+700=1900，而会话最新非估算 total 只有 700。
+/// 根因：Codex 部分 `token_count` 把 `last_token_usage` 写成当前
+/// `total_token_usage` 的拷贝。选择器在累计变化时仍 emit 整个 `last`，
+/// 于是 100+220+360+520+700=1900，而会话最新非估算 total 只有 700。
 #[test]
 fn last_copying_running_total_sums_to_latest_non_estimate_total() {
     let snapshots = [
@@ -335,8 +337,8 @@ fn replay_and_estimate_then_real_turn_keep_existing_v6_behavior() {
 }
 
 /// last 复制 total 中间插入 same-last 与 compact 估算时，增量必须相对上次已计费累计。
-// 若把 50000 估算写进 previous_cumulative，后续 last=total=112 会因 112<50000 被丢掉，
-// 合计停在 100，对不上最新非估算 total 112。
+/// 若把 50000 估算写进 previous_cumulative，后续 last=total=112 会因 112<50000 被丢掉，
+/// 合计停在 100，对不上最新非估算 total 112。
 #[test]
 fn last_copying_total_after_estimate_and_same_last_matches_latest_non_estimate() {
     let first = last_copies_total_snapshot(80, 20, 20, 100);

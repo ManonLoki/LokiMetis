@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `page_probe_requires_codex_markers_and_app_protocol` 回归场景；验证换皮迁移中的 `existing_and_cold_codex_use_the_aggressive_page_re…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
     #[test]
     /// 验证换皮迁移中的 `page_probe_requires_codex_markers_and_app_protocol` 回归场景。
     fn page_probe_requires_codex_markers_and_app_protocol() {
@@ -433,5 +436,5 @@
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - host_more_tests.rs：Codex 声明端口与候选不一致时不能借“唯一进程”回退冒认端点。；首次注入提交前 owner 根 PID 消失或换成其它进程时必须拒绝提交。；已验证 CDP 只在 WorkBuddy 恰有一个可信树根时复用，零根和多根都须恢复。
+// - host_more_tests.rs：Codex 声明端口与候选不一致时不能借“唯一进程”回退冒认端点。；首次注入提交前 owner 根 PID 消失或换成其它进程时必须拒绝提交。；已验证 CDP 只在 WorkBuddy 恰有一个可信树根时复用，零根…
 include!("host_more_tests.rs");

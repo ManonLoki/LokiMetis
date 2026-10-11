@@ -48,11 +48,11 @@ pub(super) fn is_known_non_usage_event(
 }
 
 /// 用首条 session 元数据固定 rollout owner；后续复制元数据不得覆盖身份。
-// `stable_id`（定义在 discovery.rs）对原始 session id / 项目路径做单向哈希，
-// 生成一个内容无关的稳定标识：同一个 session/项目每次都会得到同一个哈希值
-// （所以可以用来去重、分组），但哈希值本身不能反推出原始工作目录路径或
-// 真实 session id——这是本索引“不保存真实文件路径”这条隐私边界的具体实现。
-// 例外是 `project_label`/`thread_label`：保存的是受控消毒后的路径末段/短标题。
+/// `stable_id`（定义在 discovery.rs）对原始 session id / 项目路径做单向哈希，
+/// 生成一个内容无关的稳定标识：同一个 session/项目每次都会得到同一个哈希值
+/// （所以可以用来去重、分组），但哈希值本身不能反推出原始工作目录路径或
+/// 真实 session id——这是本索引“不保存真实文件路径”这条隐私边界的具体实现。
+/// 例外是 `project_label`/`thread_label`：保存的是受控消毒后的路径末段/短标题。
 pub(super) fn initialize_owner_context(
     context: &mut JsonlParseContext,
     payload: &RolloutPayload,

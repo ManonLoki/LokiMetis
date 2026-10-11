@@ -1,3 +1,6 @@
+// 本文件收纳：验证浏览器包含目标宿主页面，并把端口 owner 绑定到可信进程根；验证浏览器与可选的宿主根进程精确绑定；验证宿主页和 CDP listener owner，并返回本次绑定的可信根 PID。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 验证浏览器包含目标宿主页面，并把端口 owner 绑定到可信进程根。
 async fn browser_matches_host(
     host: SkinHostKind,

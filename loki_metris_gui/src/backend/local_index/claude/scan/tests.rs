@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：writer 写入的 generation 必须等于 core 打开索引、概览和派生聚合使用的值；在隔离 app-data 内按指定 parser 版本打开索引；显式读取 Claude provider 的完整聚合，轻量扫描摘要只承载调用数。
+
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 

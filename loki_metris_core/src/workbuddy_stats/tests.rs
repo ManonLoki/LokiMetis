@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：固定观测时刻 2026-07-27T12:00:00Z；观测日 10 时内的事件时刻；构造一条已投影的 WorkBuddy usage 事件。
+
 use super::*;
 
 /// 固定观测时刻 2026-07-27T12:00:00Z。
@@ -431,5 +433,5 @@ fn empty_root_id_is_omitted_from_usage_statistics() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：Trace 只能影响状态与耗时诊断，不能产生 Token、请求或模型行。；「全部」必须合并 WorkBuddy 的精确输入/缓存/输出/总量与请求数。；WorkBuddy 读取失败时不得丢掉其他 Agent 的已确认数字，也不得把联合结果标成完整。
+// - tests_more.rs：Trace 只能影响状态与耗时诊断，不能产生 Token、请求或模型行。；「全部」必须合并 WorkBuddy 的精确输入/缓存/输出/总量与请求数。；WorkBuddy 读取失败时不得丢掉其他 Agent 的已确…
 include!("tests_more.rs");

@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：登记一个隔离测试根；路径只用于满足 registry 的真实持久化约束；提交一个 ready 来源，并把其当前 generation 固定为测试指定值；构造不含正文或真实路径的规范化调用。
+
 use std::path::Path;
 
 use sea_orm::ConnectionTrait;

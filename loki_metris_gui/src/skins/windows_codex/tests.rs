@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `foreground_window_selection_requires_exact_visible_unowned_pid` 回归场景；Store 宿主必须位于 WindowsApps 精确包目录与固定 app 可执行位置；模糊包前…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 use super::install_identity::{
     STORE_PACKAGE_FAMILY, TrustedPublisher, package_identity_matches_store_path,
     publisher_subject_matches, store_path_matches_root,

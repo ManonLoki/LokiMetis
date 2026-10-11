@@ -35,8 +35,8 @@ fn provenance() -> SourceProvenance {
 }
 
 /// 根因夹具：五回合 `last_token_usage` 逐字复制增长中的 `total_token_usage`。
-// 未修复的选择器会把 100+220+360+520+700 都当成新调用（三角数 1900），
-// 相对会话最新非估算 total 700 虚高 2.71 倍。
+/// 未修复的选择器会把 100+220+360+520+700 都当成新调用（三角数 1900），
+/// 相对会话最新非估算 total 700 虚高 2.71 倍。
 fn last_copies_running_total_lines() -> Vec<String> {
     vec![
         token_snapshot_line("2026-08-17T01:00:00Z", 80, 20, 20, 100, 80, 20, 20, 100),
@@ -171,7 +171,7 @@ fn jsonl_stream_same_last_changed_total_then_real_turn() {
 }
 
 /// 验证 last 复制 total 中间插入 same-last 与 compact 估算后，合计仍等于最新非估算 total。
-// 估算 50000 若被写成增量基线，后续 last=total=112 会因小于 50000 被丢掉。
+/// 估算 50000 若被写成增量基线，后续 last=total=112 会因小于 50000 被丢掉。
 #[test]
 fn jsonl_stream_last_copying_total_after_estimate_keeps_billed_baseline() {
     let lines = vec![

@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：验证 worker 少于卷数量时，轮转游标仍依次服务后续卷；单卷存在足够目录时也能填满 worker，不会退化成串行扫描；高优先级目录在用户根之前入队，且缺失的可选目录不会制造扫描错误。
+
 use super::*;
 use crate::backend::local_index::{LocalPathStatus, classify_local_path};
 use tempfile::tempdir;

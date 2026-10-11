@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：在隔离 app-data 内按测试固定 parser 版本打开索引；验证升级后旧 parser generation 在用户重扫前不可读，防止历史不安全标签展示；测试手法：先正常扫描写入一条记录，再绕开正常写入路径，直接用裸。
+
 use std::fs;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -19,13 +21,13 @@ fn open_index(app_data_dir: &std::path::Path) -> LocalIndex {
 }
 
 /// 验证升级后旧 parser generation 在用户重扫前不可读，防止历史不安全标签展示。
-// 测试手法：先正常扫描写入一条记录，再绕开正常写入路径，直接用裸
-// SQL 把这条记录的 parser_version 强行改成一个更旧的版本号，同时把
-// model/reasoning_effort 字段改写成看起来像绝对路径的字符串——这样
-// 一旦查询代码有 bug、错误地把“旧 generation”的记录也读出来展示，
-// 断言就能立刻通过内容检测到路径泄露；如果查询代码正确地按
-// `parser_version = 当前版本` 过滤，这条被人为改旧的记录应该完全不出现
-// 在任何当前读取结果里。
+/// 测试手法：先正常扫描写入一条记录，再绕开正常写入路径，直接用裸
+/// SQL 把这条记录的 parser_version 强行改成一个更旧的版本号，同时把
+/// model/reasoning_effort 字段改写成看起来像绝对路径的字符串——这样
+/// 一旦查询代码有 bug、错误地把“旧 generation”的记录也读出来展示，
+/// 断言就能立刻通过内容检测到路径泄露；如果查询代码正确地按
+/// `parser_version = 当前版本` 过滤，这条被人为改旧的记录应该完全不出现
+/// 在任何当前读取结果里。
 #[test]
 fn excludes_older_parser_generations_from_all_current_reads() {
     let source_temp = TempDir::new().expect("source temp is available");

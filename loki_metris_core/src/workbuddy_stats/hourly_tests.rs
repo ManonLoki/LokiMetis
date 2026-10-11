@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：固定观测时刻 2026-07-27T12:00:00Z；当天 UTC 10 时的事件；前一天 UTC 23:30 的事件。
+
 use super::*;
 use crate::workbuddy_stats::{
     WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin, complete_workbuddy_coverage,

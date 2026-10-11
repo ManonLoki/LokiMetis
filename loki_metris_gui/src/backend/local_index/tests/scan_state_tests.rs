@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：在隔离 app-data 内按测试固定 parser 版本打开索引；验证冷库与完成空扫描使用不同索引状态，不能把“从未扫描”冒充已确认零用量；验证历史扫描不能让当前唯一启用但从未扫描的数据根冒充“已扫描空结果”。
+
 use std::fs;
 
 use loki_metris_core::{Confidence, CoverageReport, CoverageState, LocalIndexState};

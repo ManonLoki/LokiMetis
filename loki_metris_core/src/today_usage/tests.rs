@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：用真实窗口事实形状验证可展示性与通知资格，不能依赖总量是否大于零；保持生产聚合的质量字段及整数总量，隔离索引状态与来源就绪状态；DST 日界来自日历，23/25小时均保持一天，且时区往返身份稳定。
+
 use super::*;
 use crate::{
     Freshness, MetricFact, MetricScope, ProviderKind, WindowUsage,

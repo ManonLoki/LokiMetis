@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：验证快速发现只检查三个明确候选，并按规范化路径去重；验证从未登记过的默认 `.codex` 也会进入首次与周期 Quick；验证位于默认目录之外、仅由 `CODEX_HOME` 指定的根可被精确发现。
+
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};

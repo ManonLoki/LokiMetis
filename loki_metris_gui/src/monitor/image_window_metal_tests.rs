@@ -16,6 +16,7 @@ struct Surface {
 }
 impl Render for Surface {
     /// 每个真实播放器各有自己的 Entity owner，不用替代缓存或伪造图元。
+    /// 渲染一个会统计 prepaint / paint 次数的缓存视图，用来证明缓存场景有没有被重复绘制。
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div().size_full().flex().flex_row().children(
             self.images
@@ -360,6 +361,7 @@ struct CachedProbe {
     paint: Rc<std::cell::Cell<usize>>,
 }
 impl Render for CachedProbe {
+    /// 按 visible 决定是否把正在移动的兄弟视图放进缓存面，用来验证换帧时旧缓存场景仍然有效。
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         let prepaint = self.prepaint.clone();
         let paint = self.paint.clone();

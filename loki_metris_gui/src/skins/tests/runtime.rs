@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `empty_dual_source_library_is_valid` 回归场景；验证换皮迁移中的 `creation_prompt_uses_exact_user_and_bundled_skill_paths` 回归场景；验证换皮…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 #[test]
 /// 验证换皮迁移中的 `empty_dual_source_library_is_valid` 回归场景。
 fn empty_dual_source_library_is_valid() {
@@ -416,5 +419,5 @@ fn account_avatar_accepts_only_small_raster_data_urls() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - runtime_more_tests.rs：验证换皮迁移中的 `codex_instance_serializes_avatar_and_exact_active_skin` 回归场景。；Windows WorkBuddy 恢复后，新 PID 安装必须回收该宿主全部旧监视任务并保留 Codex 状态。；枚举结果不再包含旧 PID 时，应删除已结束任务，但仍保留尚在清理中的任务。
+// - runtime_more_tests.rs：验证换皮迁移中的 `codex_instance_serializes_avatar_and_exact_active_skin` 回归场景。；Windows WorkBuddy 恢复后，新 PID 安装必须回收该…
 include!("runtime_more_tests.rs");

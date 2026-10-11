@@ -7,6 +7,7 @@ use std::{cell::Cell, io::{Read, Write}, net::TcpStream, path::Path, rc::Rc, syn
 /// 先回收隔离宿主的监听和工作线程，再销毁临时目录。
 struct Finish(Arc<crate::usage_service::UsageService>);
 impl Drop for Finish {
+    /// 测试结束（含断言失败）时一定回收宿主，避免残留线程占住临时目录。
     fn drop(&mut self) {self.0.finish();}
 }
 

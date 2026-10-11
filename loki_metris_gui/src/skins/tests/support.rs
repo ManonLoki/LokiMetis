@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `temp_directory` 回归场景；验证换皮迁移中的 `instance_skin_name_is_exposed_for_live_recovered_state` 回归场景；验证换皮迁移中的 `create_fixture`…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
     use std::collections::HashSet;
     use std::io::Write;
     use std::path::{Path, PathBuf};

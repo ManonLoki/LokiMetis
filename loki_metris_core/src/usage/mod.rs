@@ -172,8 +172,8 @@ impl TokenUsage {
     }
 
     /// 返回未由缓存读取覆盖的输入 Token；上游未提供缓存分项时保持未知。
-    // Option::map：有值时对内部值做变换并保持 Some 包装，None 则原样传递；
-    // 这里因为 new() 已校验过 cached <= input，减法不会下溢。
+    /// Option::map：有值时对内部值做变换并保持 Some 包装，None 则原样传递；
+    /// 这里因为 new() 已校验过 cached <= input，减法不会下溢。
     pub fn uncached_input_tokens(&self) -> Option<u64> {
         self.cached_input_tokens
             .map(|cached| self.input_tokens - cached)
@@ -187,8 +187,8 @@ impl TokenUsage {
     }
 
     /// 返回缓存读取占比的基点数；输入为零时返回“不适用”。
-    // “基点”(basis point) = 万分之一，10_000 基点等于 100%；
-    // 用整数而不是浮点数表示百分比，避免浮点精度问题，前端展示时再除以 100 转成百分数。
+    /// “基点”(basis point) = 万分之一，10_000 基点等于 100%；
+    /// 用整数而不是浮点数表示百分比，避免浮点精度问题，前端展示时再除以 100 转成百分数。
     pub fn cache_read_basis_points(&self) -> Option<u16> {
         if self.input_tokens == 0 {
             return None;
@@ -209,8 +209,8 @@ impl TokenUsage {
     }
 
     /// 对两个已校验用量执行逐字段安全求和，供 canonical 聚合使用。
-    // 逐字段调用下面的 checked_sum / optional_checked_sum 辅助函数，
-    // 任意一个字段溢出都会通过 `?` 让整个方法提前返回 Overflow 错误。
+    /// 逐字段调用下面的 checked_sum / optional_checked_sum 辅助函数，
+    /// 任意一个字段溢出都会通过 `?` 让整个方法提前返回 Overflow 错误。
     pub fn checked_add(&self, other: &Self) -> Result<Self, TokenUsageError> {
         Ok(Self {
             input_tokens: checked_sum(self.input_tokens, other.input_tokens)?,
@@ -254,18 +254,18 @@ pub enum IncrementalTokenUsageDecision {
 }
 
 /// 根据前后累计快照识别真实新增调用，并过滤 Codex 的重放与上下文估算。
-// Codex 的持久 `token_count` 不是逐次调用专用事件：额度更新会原样重发
-// 当前累计快照，compact 后也会用“只有 total、没有输入输出”的快照表达
-// 上下文占用估算。ADR-085 已忽略完全相同的累计重放和 total-only 估算，
-// 但仍会把两种非增量快照写成新调用，导致本机合计相对会话最新
-// `total_token_usage` 虚高约 2–10 倍：
-//   1. `last_token_usage` 只是当前 running `total` 的拷贝，每回合发出
-//      整个会话累计而不是本回合增量；多回合求和是三角数；
-//   2. `last` 未变而 `total` 因额度/compact 快照变化，相同 `last` 被再计一次。
-// `last` 等于当前累计且存在上一已计费累计时，只在必填字段未下降时采用累计正增量；
-// `last` 与上一已计费 `last` 相同则忽略。调用方不得把被忽略的估算或 same-last
-// 快照写进 previous_cumulative / previous_last，否则增量会减到非账单基线。
-// 缺少 `last` 的旧记录仍沿用显式累计回退。
+/// Codex 的持久 `token_count` 不是逐次调用专用事件：额度更新会原样重发
+/// 当前累计快照，compact 后也会用“只有 total、没有输入输出”的快照表达
+/// 上下文占用估算。ADR-085 已忽略完全相同的累计重放和 total-only 估算，
+/// 但仍会把两种非增量快照写成新调用，导致本机合计相对会话最新
+/// `total_token_usage` 虚高约 2–10 倍：
+///   1. `last_token_usage` 只是当前 running `total` 的拷贝，每回合发出
+///      整个会话累计而不是本回合增量；多回合求和是三角数；
+///   2. `last` 未变而 `total` 因额度/compact 快照变化，相同 `last` 被再计一次。
+/// `last` 等于当前累计且存在上一已计费累计时，只在必填字段未下降时采用累计正增量；
+/// `last` 与上一已计费 `last` 相同则忽略。调用方不得把被忽略的估算或 same-last
+/// 快照写进 previous_cumulative / previous_last，否则增量会减到非账单基线。
+/// 缺少 `last` 的旧记录仍沿用显式累计回退。
 pub fn select_incremental_call_usage(
     last: Option<TokenUsage>,
     cumulative: Option<TokenUsage>,
@@ -323,9 +323,9 @@ fn is_total_only_context_estimate(usage: &TokenUsage) -> bool {
 }
 
 /// 当 `last` 只是当前会话累计的拷贝时，用前后累计正差值作为本次账单增量。
-// 仅在 `last == current total` 这一已证明的误标模式下做减法：必填字段下降
-// 视为 compact/回滚，差值为零则不是新账单。可选分项无法构成合法子集时保持未知，
-// 不得为了凑字段去夹紧或伪造。这是对 ADR-085「不得用下降累计伪造调用」的窄例外。
+/// 仅在 `last == current total` 这一已证明的误标模式下做减法：必填字段下降
+/// 视为 compact/回滚，差值为零则不是新账单。可选分项无法构成合法子集时保持未知，
+/// 不得为了凑字段去夹紧或伪造。这是对 ADR-085「不得用下降累计伪造调用」的窄例外。
 fn billed_increment_when_last_copies_session_total(
     current: &TokenUsage,
     previous: &TokenUsage,
@@ -394,9 +394,9 @@ fn optional_token_increment(
 }
 
 /// 优先选择单次 `last` 事实，仅在缺失时显式回退累计值。
-// 这是本文件的核心业务规则：上游日志有时只提供“累计用量”而没有单次用量，
-// 此函数保证调用方总是优先拿到精确的单次数据，只有在缺失时才降级使用
-// 推算值，并且必须显式标记 confidence/used_cumulative_fallback 供 UI 提示用户。
+/// 这是本文件的核心业务规则：上游日志有时只提供“累计用量”而没有单次用量，
+/// 此函数保证调用方总是优先拿到精确的单次数据，只有在缺失时才降级使用
+/// 推算值，并且必须显式标记 confidence/used_cumulative_fallback 供 UI 提示用户。
 pub fn select_single_call_usage(
     last: Option<TokenUsage>,
     cumulative: Option<TokenUsage>,
@@ -426,9 +426,9 @@ fn checked_sum(left: u64, right: u64) -> Result<u64, TokenUsageError> {
 }
 
 /// 只有两侧都提供字段时才求和，避免把部分可见误报为完整总量。
-// zip：两个 Option 都是 Some 时才组合成 Some((left, right))，任一为 None 则整体 None；
-// 这里的设计意图是——如果只有一侧知道某个可选分项，直接相加会给出一个
-// “看似精确实则遗漏了另一侧”的假总量，所以宁可保持 None（未知）也不瞎加。
+/// zip：两个 Option 都是 Some 时才组合成 Some((left, right))，任一为 None 则整体 None；
+/// 这里的设计意图是——如果只有一侧知道某个可选分项，直接相加会给出一个
+/// “看似精确实则遗漏了另一侧”的假总量，所以宁可保持 None（未知）也不瞎加。
 fn optional_checked_sum(
     left: Option<u64>,
     right: Option<u64>,

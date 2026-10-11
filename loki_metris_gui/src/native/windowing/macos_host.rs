@@ -41,6 +41,7 @@ struct Owner {
 }
 
 impl Drop for Owner {
+    /// Owner 销毁时注销它登记过的全部系统通知观察者，避免窗口关闭后还有回调打到已释放的对象。
     fn drop(&mut self) {
         let center = NSNotificationCenter::defaultCenter();
         for observer in &self.observers {

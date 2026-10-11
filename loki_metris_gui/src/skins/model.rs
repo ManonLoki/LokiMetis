@@ -1,3 +1,6 @@
+// 本文件收纳：定义换皮宿主 `SkinDescriptor` 使用的内部数据；定义换皮宿主 `AppearanceDifference` 使用的内部数据；定义换皮宿主 `SkinAppearanceCheck` 使用的内部数据。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 /// 定义换皮宿主 `SkinDescriptor` 使用的内部数据。

@@ -1,3 +1,6 @@
+// 本文件收纳：强制中止 watcher 后留给 Tokio 确认 future 已到终态的预算；端点清理继续受同一总截止约束；描述 watcher 合作停止、总截止和 abort 终态确认的预算；从产品常量构造生产环境预算。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 强制中止 watcher 后留给 Tokio 确认 future 已到终态的预算；端点清理继续受同一总截止约束。
 const WATCH_ABORT_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -40,6 +43,6 @@ enum EndpointCleanupOutcome {
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
 // - lifecycle_watchers.rs：取得 watcher 回收器短临界区；即使测试污染锁，也不能遗失真实任务句柄。
-// - lifecycle_reaping.rs：回收上一轮因最终期限耗尽而保存的任务；锁内只移交所有权，不跨 await 持锁。；执行换皮宿主内部的 `drop` 步骤。；在共同截止前等待 watcher 终态；超时保留原 JoinHandle 给调用方继续持有。
+// - lifecycle_reaping.rs：回收上一轮因最终期限耗尽而保存的任务；锁内只移交所有权，不跨 await 持锁。；执行换皮宿主内部的 `drop` 步骤。…
 include!("lifecycle_watchers.rs");
 include!("lifecycle_reaping.rs");

@@ -1,3 +1,6 @@
+// 本文件收纳：把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner；执行换皮宿主内部的 `connect_or_launch` 步骤；执行换皮宿主内部的 `poll_until_cdp_ready` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner。
 fn hold_connected_handler_during<T, Operation>(
     handler_task: HandlerTaskGuard,
@@ -427,5 +430,5 @@ fn should_request_workbuddy_recovery(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - cdp_connect_workbuddy_recovery.rs：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射为前端可确认的恢复请求。
+// - cdp_connect_workbuddy_recovery.rs：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射…
 include!("cdp_connect_workbuddy_recovery.rs");

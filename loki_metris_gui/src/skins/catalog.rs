@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `catalog_cache_error` 步骤；执行换皮宿主内部的 `import_state_error` 步骤；执行换皮宿主内部的 `catalog_fingerprint` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 执行换皮宿主内部的 `catalog_cache_error` 步骤。
 fn catalog_cache_error() -> AppError {
     AppError::new("skin.library_unavailable", "皮肤资源缓存不可用。")

@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：构造不包含主机路径的合成 provenance；验证根签名只接受有时间和会话标识的首条 session 元数据；验证解析器优先使用单次事实，并且正文诱饵不会进入规范化调用。
+
 use super::*;
 
 /// 构造不包含主机路径的合成 provenance。
@@ -392,5 +394,5 @@ fn ignores_replayed_and_total_only_snapshots_before_next_real_call() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：验证 IgnoreNonIncremental 仍写出 cumulative 快照，且不推进增量基线。；验证累计检查点仅恢复合法当前版本，不接受截断、旧版或矛盾总量。；验证缺失或畸形时间戳会被跳过并单独计数，不能落到 Unix epoch 0。
+// - tests_more.rs：验证 IgnoreNonIncremental 仍写出 cumulative 快照，且不推进增量基线。；验证累计检查点仅恢复合法当前版本，不接受截断、旧版或矛盾总量。；验证缺失或畸形时间戳会被跳过并单独计数，不能落…
 include!("tests_more.rs");

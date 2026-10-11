@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：全部夹具共用的固定合法 session UUID；Claude Desktop 只允许三层固定 ID 容器内的 `.claude` 根；验证默认、环境与已登记根同时命中签名时，各自只贡献一次确认结果。
+
 use std::fs;
 use std::path::{Path, PathBuf};
 

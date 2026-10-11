@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `builtin_and_user_skin_with_same_id_coexist` 回归场景；验证换皮迁移中的 `schema_v2_theme_is_rejected_with_conversion_guidance` 回归场景…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
     #[test]
     /// 验证换皮迁移中的 `builtin_and_user_skin_with_same_id_coexist` 回归场景。
     fn builtin_and_user_skin_with_same_id_coexist() {
@@ -423,5 +426,5 @@
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - themes_more_tests.rs：验证换皮迁移中的 `batch_prepare_can_be_cancelled_from_the_started_event` 回归场景。；验证换皮迁移中的 `batch_commit_keeps_selected_items_and_expires_the_batch` 回归场景。；验证换皮迁移中的 `batch_commit_preserves_success_when_another_destination_conflicts` 回归场景。
+// - themes_more_tests.rs：验证换皮迁移中的 `batch_prepare_can_be_cancelled_from_the_started_event` 回归场景。；验证换皮迁移中的 `batch_commit_keeps_selecte…
 include!("themes_more_tests.rs");

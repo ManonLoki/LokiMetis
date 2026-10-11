@@ -190,17 +190,17 @@ pub(super) async fn load_local_index_state<C: ConnectionTrait>(
 }
 
 /// 按覆盖优先级把计数事实归一为稳定状态，供数据库 fixture 锁定边界。
-// 对应 core 里 `LocalIndexState` 的四态，按优先级从高到低依次判断
-// （一旦命中某个条件立刻返回，不再看后面的）：
-//   1. 没有启用的数据根 -> 肯定是 NotScanned（连范围都没有，谈不上扫描）；
-//   2. 启用根上仍有旧 parser generation 来源 -> NeedsRescan；同一根中的
-//      新版来源不能掩盖窗口外尚未重建的旧来源；
-//   3. 当前 generation 已经有 canonical 调用 -> Ready（正常可用状态）；
-//   4. 还有启用但从未扫描过的根，或者压根没有任何完成过的扫描记录
-//      也没有任何来源文件 -> NotScanned；
-//   5. 排除以上情况，说明确实扫描过、数据也是最新版本，只是恰好没有
-//      调用记录 -> ReadyNoCalls（区别于 NotScanned，这是“扫描确认过、
-//      结果真的是空”，前端可以放心显示零用量而不是提示去扫描）。
+/// 对应 core 里 `LocalIndexState` 的四态，按优先级从高到低依次判断
+/// （一旦命中某个条件立刻返回，不再看后面的）：
+///   1. 没有启用的数据根 -> 肯定是 NotScanned（连范围都没有，谈不上扫描）；
+///   2. 启用根上仍有旧 parser generation 来源 -> NeedsRescan；同一根中的
+///      新版来源不能掩盖窗口外尚未重建的旧来源；
+///   3. 当前 generation 已经有 canonical 调用 -> Ready（正常可用状态）；
+///   4. 还有启用但从未扫描过的根，或者压根没有任何完成过的扫描记录
+///      也没有任何来源文件 -> NotScanned；
+///   5. 排除以上情况，说明确实扫描过、数据也是最新版本，只是恰好没有
+///      调用记录 -> ReadyNoCalls（区别于 NotScanned，这是“扫描确认过、
+///      结果真的是空”，前端可以放心显示零用量而不是提示去扫描）。
 fn determine_local_index_state(
     completed_scan_count: u64,
     current_source_count: u64,
@@ -355,5 +355,5 @@ pub(super) async fn load_canonical_call_count<C: ConnectionTrait>(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - snapshot_usage_reads.rs：用有界聚合与 EXISTS 查询保持已覆盖持久化不变量的 fail-closed 边界，；从指定数据库快照读取当前 generation 调用并由 core 执行 canonical 去重。；从指定时间下界读取当前 generation 调用，避免视图装载窗口外全历史。
+// - snapshot_usage_reads.rs：用有界聚合与 EXISTS 查询保持已覆盖持久化不变量的 fail-closed 边界，；从指定数据库快照读取当前 generation 调用并由 core 执行 canonical 去重。；从指定时间下界读取当前…
 include!("snapshot_usage_reads.rs");

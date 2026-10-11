@@ -64,10 +64,10 @@ pub(super) async fn invalidate_primary_snapshot_cache(
 impl LocalIndex {
     /// 原子登记根的内部访问路径；若唯一主根的同一稳定 ID 被重绑到另一物理路径，
     /// 同一事务会清除主标记与遗留快照，避免旧行继续关联到新路径。
-    // root_id 由路径规范化生成。用户重装或移动挂载点后，同一 root_id
-    // 可能被重新绑定到另一个物理目录。若该根仍是主数据目录，继续保留
-    // 旧 is_primary 标记和缓存快照会把旧路径的数据误绑到新路径。路径
-    // 变化时同一事务清掉 primary 标记并清空 provider_snapshots。
+    /// root_id 由路径规范化生成。用户重装或移动挂载点后，同一 root_id
+    /// 可能被重新绑定到另一个物理目录。若该根仍是主数据目录，继续保留
+    /// 旧 is_primary 标记和缓存快照会把旧路径的数据误绑到新路径。路径
+    /// 变化时同一事务清掉 primary 标记并清空 provider_snapshots。
     pub async fn register_root_fields(
         &mut self,
         root_id: &str,

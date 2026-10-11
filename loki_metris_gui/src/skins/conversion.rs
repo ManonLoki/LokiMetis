@@ -1,3 +1,6 @@
+// 本文件收纳：旧皮肤配色角色到 v3 变量的映射，第三项是回退提示中使用的中文名称；执行换皮宿主内部的 `converted_theme_id` 步骤；执行换皮宿主内部的 `converted_theme_name` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 旧皮肤配色角色到 v3 变量的映射，第三项是回退提示中使用的中文名称。
 const CONVERTED_COLOR_ROLES: [(&str, &str, &str); 8] = [
     ("background", "--skin-bg", "背景"),

@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：验证 Windows canonicalize 产生的扩展盘符路径不会被误判为 UNC 网络路径；验证两个隔离起点都能发现未知位置中的有效 rollout 结构签名；验证相同文件系统快照在单 worker 与四 worker 下返回完全一致的根与覆盖事实。
+
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -413,5 +415,5 @@ fn full_discovery_rejects_false_positive_session_directories() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：验证发现真实 Codex 根后立即停止下钻，根内 logs 即使伪造会话结构也不会成为第二数据源。；验证主动发现会剪枝独立 logs 子树，即使其中伪造完整 rollout 签名也不能登记。；验证未知候选的会话区域是符号链接时不会穿越到目标 rollout。
+// - tests_more.rs：验证发现真实 Codex 根后立即停止下钻，根内 logs 即使伪造会话结构也不会成为第二数据源。；验证主动发现会剪枝独立 logs 子树，即使其中伪造完整 rollout 签名也不能登记。；验证未知候选的会话区域…
 include!("tests_more.rs");

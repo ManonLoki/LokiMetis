@@ -1,3 +1,5 @@
+//! 本文件的测试覆盖：在隔离 app-data 内按测试固定 parser 版本打开索引；验证有效根内只有通过首记录签名的同名文件会进入来源与调用索引；验证已索引来源确认失去 Codex 首记录签名后只清理派生来源与调用。
+
 use std::fs;
 
 use loki_metris_core::{CoverageState, LocalIndexState};

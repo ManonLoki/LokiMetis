@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `creates_valid_user_theme_with_safe_unique_id` 回归场景；验证换皮迁移中的 `theme_creation_validates_unicode_input` 回归场景；验证换皮迁移中的 `e…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
     #[test]
     /// 验证换皮迁移中的 `creates_valid_user_theme_with_safe_unique_id` 回归场景。
     fn creates_valid_user_theme_with_safe_unique_id() {

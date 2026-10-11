@@ -110,6 +110,7 @@ impl Veil {
     pub(super) fn needs_cleanup(&self) -> bool {
         !self.retired.is_empty()
     }
+    /// 释放已经退役的旧遮罩纹理（动画换新图后，旧图不必再保留）。
     pub(super) fn clear_retired(&mut self, window: &mut Window) {
         self.retired.clear(window);
     }
@@ -119,6 +120,7 @@ impl Veil {
         self.retired.clear(window);
         self.geometry = None;
     }
+    /// 取出当前遮罩的位图副本，只给测试核对像素用。
     #[cfg(test)]
     pub(super) fn image(&self) -> Option<std::sync::Arc<gpui_kit::RenderImage>> {
         self.texture.image.clone()

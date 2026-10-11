@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `new` 步骤；执行换皮宿主内部的 `initialize` 步骤；执行换皮宿主内部的 `list_skins` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 impl SkinService {
     /// 执行换皮宿主内部的 `new` 步骤。
     pub fn new(builtin_root: PathBuf, user_root: PathBuf) -> Self {

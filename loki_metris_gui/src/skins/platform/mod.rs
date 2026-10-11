@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `fetch_targets` 步骤；激活与已验证调试端点对应的宿主窗口；执行换皮宿主内部的 `exactly_one` 步骤：迭代器恰好只有一个匹配项时返回该项。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 执行换皮宿主内部的 `fetch_targets` 步骤。
 async fn fetch_targets(browser: &mut Browser) -> Result<(), AppError> {
     tokio::time::timeout(CDP_REQUEST_TIMEOUT, browser.fetch_targets())

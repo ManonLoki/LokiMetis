@@ -16,6 +16,7 @@ impl MutationBlocker {
     pub(crate) fn release(mut self) {
         self.unblock();
     }
+    /// 放行被卡住的保存并等持锁线程退出，保证后续断言看到的是确定状态。
     fn unblock(&mut self) {
         if let Some(release) = self.release.take() {
             let _ = release.send(());
@@ -26,6 +27,7 @@ impl MutationBlocker {
     }
 }
 impl Drop for MutationBlocker {
+    /// 测试结束时无论成败都放行并回收线程，避免锁一直被占住。
     fn drop(&mut self) {
         self.unblock();
     }
@@ -63,6 +65,7 @@ struct DelayedPosition {
     receipt: Option<mpsc::Receiver<Result<MonitorSettings, HookError>>>,
 }
 impl DelayedPosition {
+    /// 放行延迟的位置写入，并等待它的最终回执（成功或失败）返回。
     fn release_and_wait(mut self) -> Result<MonitorSettings, HookError> {
         if let Some(release) = self.release.take() {
             let _ = release.send(());
@@ -75,6 +78,7 @@ impl DelayedPosition {
     }
 }
 impl Drop for DelayedPosition {
+    /// 测试结束时放行未完成的写入并有界等待回执，避免后台线程泄漏到别的测试。
     fn drop(&mut self) {
         if let Some(release) = self.release.take() {
             let _ = release.send(());

@@ -109,8 +109,8 @@ pub(super) fn cumulative_line(timestamp: &str, input: u64) -> String {
 }
 
 /// 将完整合成 rollout 写入指定位置。
-// 一次性写入完整文件（session_meta 行 + 若干调用行拼接），
-// 模拟"文件已经存在、内容不再变化"的稳定状态，用于测试首次索引路径。
+/// 一次性写入完整文件（session_meta 行 + 若干调用行拼接），
+/// 模拟"文件已经存在、内容不再变化"的稳定状态，用于测试首次索引路径。
 pub(super) fn write_rollout(path: &Path, session_id: &str, calls: &[String]) {
     let mut content = session_line(session_id);
     for call in calls {
@@ -120,9 +120,9 @@ pub(super) fn write_rollout(path: &Path, session_id: &str, calls: &[String]) {
 }
 
 /// 追加字节到活动 rollout，模拟 Codex 进程持续写入。
-// 用 `OpenOptions::new().append(true)` 而不是覆盖写：真实 Codex 进程
-// 写 rollout 文件的方式就是不断在文件末尾追加新行，这个辅助函数专门
-// 配合"增量扫描应该只解析新追加内容，不重新处理已提交部分"这类测试。
+/// 用 `OpenOptions::new().append(true)` 而不是覆盖写：真实 Codex 进程
+/// 写 rollout 文件的方式就是不断在文件末尾追加新行，这个辅助函数专门
+/// 配合"增量扫描应该只解析新追加内容，不重新处理已提交部分"这类测试。
 pub(super) fn append_rollout(path: &Path, content: &str) {
     let mut file = OpenOptions::new()
         .append(true)
@@ -133,10 +133,10 @@ pub(super) fn append_rollout(path: &Path, content: &str) {
 }
 
 /// 用显式登记输入发现测试根，确保测试不读取 HOME 或当前 CODEX_HOME。
-// 只填 `registered_roots`，把 `home_dir`/`codex_home` 都留空——这样
-// discover_quick 内部完全不会去检查执行测试的这台机器上真实存在的
-// 用户主目录或环境变量，测试结果 100% 由测试代码自己控制的路径决定，
-// 不会因为在不同开发者机器或 CI 环境上运行而产生不同行为。
+/// 只填 `registered_roots`，把 `home_dir`/`codex_home` 都留空——这样
+/// discover_quick 内部完全不会去检查执行测试的这台机器上真实存在的
+/// 用户主目录或环境变量，测试结果 100% 由测试代码自己控制的路径决定，
+/// 不会因为在不同开发者机器或 CI 环境上运行而产生不同行为。
 pub(super) fn discover_registered(paths: &[PathBuf]) -> Vec<DiscoveredRoot> {
     let inputs = DiscoveryInputs {
         home_dir: None,

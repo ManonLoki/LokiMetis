@@ -1,3 +1,6 @@
+// 本文件的测试覆盖：验证换皮迁移中的 `batch_prepare_rejects_more_than_one_hundred_files` 回归场景；未确认第三方代码时不得把兼容皮肤移入用户资源库，批次仍可取消并完整清理；验证换皮迁移中的 `batch_total_siz…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 #[test]
 /// 验证换皮迁移中的 `batch_prepare_rejects_more_than_one_hundred_files` 回归场景。
 fn batch_prepare_rejects_more_than_one_hundred_files() {
@@ -420,5 +423,5 @@ fn repository_builtin_skin_folders_all_pass_native_validation() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - imports_more_tests.rs：验证换皮迁移中的 `imports_zip_with_one_wrapper_directory` 回归场景。；验证换皮迁移中的 `imports_manifestless_legacy_zip_and_generates_stable_manifest` 回归场景。；验证换皮迁移中的 `manifestless_legacy_zip_reports_every_missing_runtime_file` 回归场景。
+// - imports_more_tests.rs：验证换皮迁移中的 `imports_zip_with_one_wrapper_directory` 回归场景。；验证换皮迁移中的 `imports_manifestless_legacy_zip_and_gener…
 include!("imports_more_tests.rs");

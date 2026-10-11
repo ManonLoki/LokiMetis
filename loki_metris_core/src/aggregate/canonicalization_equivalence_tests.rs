@@ -88,6 +88,7 @@ fn canonicalize_reference(calls: Vec<UsageCall>) -> CanonicalUsageSet {
 /// 小型确定性伪随机数，避免引入测试依赖。
 struct Lcg(u64);
 impl Lcg {
+    /// 取下一个 0..bound 之间的数；同一个种子永远产出同一串数，测试失败时可原样复现。
     fn next(&mut self, bound: u64) -> u64 {
         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         (self.0 >> 33) % bound

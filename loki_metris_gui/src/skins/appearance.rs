@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `build_appearance_check` 步骤；执行换皮宿主内部的 `compare_appearance_requirement` 步骤；执行换皮宿主内部的 `compare_optional_value` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 执行换皮宿主内部的 `build_appearance_check` 步骤。
 fn build_appearance_check(
     policy: &AppearancePolicy,

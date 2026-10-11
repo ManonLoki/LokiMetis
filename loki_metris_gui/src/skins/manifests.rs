@@ -1,3 +1,6 @@
+// 本文件收纳：定义换皮宿主 `LegacyManifest` 使用的内部数据；定义换皮宿主 `FriendCards` 使用的内部数据；定义换皮宿主 `PureThemeCssManifest` 使用的内部数据。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 /// 定义换皮宿主 `LegacyManifest` 使用的内部数据。

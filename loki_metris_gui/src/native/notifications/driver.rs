@@ -18,6 +18,7 @@ pub(super) use super::windows::Host;
 pub(super) struct Host;
 #[cfg(not(any(target_os = "macos", windows)))]
 impl Host {
+    /// 当前平台没有原生通知实现，直接返回 None，上层据此把通知功能显示为不可用。
     pub fn new(_: SyncSender<Event>) -> Option<Self> {
         None
     }

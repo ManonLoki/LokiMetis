@@ -1,3 +1,6 @@
+// 本文件收纳：在完整安装事务退出前持续占用 shutdown completion 登记；Windows WorkBuddy 的恢复会关闭全部旧进程，因此新 PID 必须接管该宿主的全部旧运行态；构造恢复期间实例或端点漂移的稳定错误，阻止继续提交皮肤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 在完整安装事务退出前持续占用 shutdown completion 登记。
 struct InstallCompletionGuard {
     _registration: ActiveWatchRegistration,

@@ -1,3 +1,5 @@
+//! 本文件收纳：按当前平台卷发现约束组装全设备主动发现边界（仅应在 spawn_blocking 岛内调用）；不限目录数量时返回零，让进度保持不确定而不是伪造百分比上限；Claude 全盘进度上限：Default 预算目录数（卷枚举不改预算数字）。
+
 use crate::backend::local_index::{
     FullDiscoveryOptions, LocalError, LocalVolumeRoots, enumerate_local_volume_roots,
 };

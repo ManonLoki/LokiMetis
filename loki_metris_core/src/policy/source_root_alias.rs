@@ -1,3 +1,5 @@
+//! 本文件收纳：仅用于展示的来源根别名：优先取目录名，缺失时回退客户端默认别名。
+
 use std::path::Path;
 
 use super::SourceClientKind;

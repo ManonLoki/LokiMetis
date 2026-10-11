@@ -1,3 +1,6 @@
+// 本文件收纳：执行换皮宿主内部的 `read_manifest` 步骤；执行换皮宿主内部的 `validate_manifest` 步骤；执行换皮宿主内部的 `validate_legacy_manifest` 步骤。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 执行换皮宿主内部的 `read_manifest` 步骤。
 fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
     let text = read_text(&directory.join("theme.json"))?;
@@ -420,5 +423,5 @@ fn parse_theme_css(css: &str, explicit_appearance: bool) -> Result<ThemeCssConfi
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - validation_theme_css.rs：执行换皮宿主内部的 `parse_mode_theme_css` 步骤。；执行换皮宿主内部的 `is_allowed_mode_property` 步骤。；执行换皮宿主内部的 `is_valid_mode_property_value` 步骤。
+// - validation_theme_css.rs：执行换皮宿主内部的 `parse_mode_theme_css` 步骤。；执行换皮宿主内部的 `is_allowed_mode_property` 步骤。；执行换皮宿主内部的 `is_valid_mode_prop…
 include!("validation_theme_css.rs");

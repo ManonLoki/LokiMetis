@@ -1,3 +1,6 @@
+// 本文件收纳：取得应用生命周期结束后仍需持有 watcher 句柄的进程级最终 owner；把已中止但尚未确认终态的 watcher 交给进程级 owner，禁止丢弃 JoinHandle；优先把取消中的 watcher 归还仍存活的 service；最终析构后转交进…。
+// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+
 /// 取得应用生命周期结束后仍需持有 watcher 句柄的进程级最终 owner。
 fn process_watch_task_owner() -> &'static StdMutex<Vec<RetainedWatchTask>> {
     static OWNER: std::sync::OnceLock<StdMutex<Vec<RetainedWatchTask>>> =
