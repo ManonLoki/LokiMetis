@@ -75,7 +75,7 @@ fn main() -> std::process::ExitCode {
             app_id: Some("com.loki-metris.app".into()),
             ..Default::default()
         };
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         let startup_desktop = native::windowing::capture_desktop(cx).ok().and_then(|desktop| {
             let (bounds, id) = native::windowing::initial_main_bounds(&preferences, &desktop)?;
             options.window_bounds = Some(bounds); options.display_id = Some(id);
@@ -87,7 +87,7 @@ fn main() -> std::process::ExitCode {
             shell
         }))
         .expect("无法创建 GPUI 窗口");
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         if startup_desktop.is_none() {
             let _ = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.release_initial_window_restore(window, cx)));
         }
@@ -100,9 +100,9 @@ fn main() -> std::process::ExitCode {
         notifications.attach(usage_service.clone(),locale,handle.into(),cx);
         native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { cx.activate(true); }
-        #[cfg(not(target_os="macos"))]
+        #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
         cx.activate(true);
     });
     shutdown.borrow_mut().finish();

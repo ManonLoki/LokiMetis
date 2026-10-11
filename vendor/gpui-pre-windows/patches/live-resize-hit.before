@@ -1,0 +1,2 @@
+        if self.is_resizable
+            && !self.state.is_maximized()

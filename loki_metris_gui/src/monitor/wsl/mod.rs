@@ -220,6 +220,13 @@ impl Drop for WslTemporaryFile<'_> {
 }
 
 impl WslDirectory {
+    /// WSL authority 即使正文非法也不能降级成本机目录；扩展 UNC 显式拒绝。
+    pub(super) fn has_authority(directory: &str) -> bool {
+        let normalized = directory.replace('/', "\\").to_ascii_lowercase();
+        ["\\\\wsl.localhost", "\\\\wsl$", "\\\\?\\unc\\wsl.localhost", "\\\\?\\unc\\wsl$"]
+            .iter().any(|prefix| normalized == *prefix || normalized.strip_prefix(prefix).is_some_and(|rest| rest.starts_with('\\')))
+    }
+
     /// 识别 `\\wsl.localhost\发行版\...` 与 `\\wsl$\发行版\...`，并拒绝路径穿越。
     pub(super) fn parse(directory: &str) -> Option<Self> {
         let normalized = directory.replace('/', "\\");

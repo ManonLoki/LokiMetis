@@ -121,7 +121,7 @@ fn monitor_sticky_covered_textarea_retains_native_cursor_and_selection(cx: &mut 
         window.scroll("page-content", ScrollDelta::Pixels(point(px(0.), footer.center().y - caret.center().y)), cx);
         let before = editor.read(cx).cursor_layout().expect("真实原生光标布局必须保留");
         assert!(window.find("monitor-profile-save-bar").bounds().contains(&before.0.center()));
-        window.press("cmd-a", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-a" } else { "ctrl-a" }, cx);
         assert_eq!(editor.read(cx).selected_range(), 0..editor.read(cx).value().len());
         assert_eq!(editor.read(cx).selected_value(), editor.read(cx).value());
         assert_eq!(editor.read(cx).cursor_layout(), Some(before), "仅排除命中不能改变原生光标的实际位置/行高");

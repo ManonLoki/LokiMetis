@@ -89,6 +89,33 @@ impl Drop for Instance {
 
 /// Windows 不把未读输出转交 interprocess 的 detached limbo flush 线程。
 struct Socket(Stream);
+impl Socket {
+    /// Windows 空管道读会被依赖降为 EOF，先查询可用字节保留真正的非阻塞语义。
+    fn read_available(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            #[link(name = "kernel32")]
+            unsafe extern "system" {
+                /// 只查询本连接的缓冲字节，不消费输入也不等待对端。
+                fn PeekNamedPipe(pipe: *mut std::ffi::c_void, buffer: *mut std::ffi::c_void,
+                    size: u32, read: *mut u32, available: *mut u32, left: *mut u32) -> i32;
+            }
+            let Stream::NamedPipe(pipe) = &self.0;
+            let mut available = 0;
+            // SAFETY: 当前 Socket 持有有效管道，输出只指向本栈 u32，空缓冲不会被读取。
+            if unsafe { PeekNamedPipe(pipe.inner().as_raw_handle(), std::ptr::null_mut(), 0,
+                std::ptr::null_mut(), &mut available, std::ptr::null_mut()) } == 0 {
+                return Err(io::Error::last_os_error());
+            }
+            if available == 0 { return Err(io::ErrorKind::WouldBlock.into()); }
+            let count = bytes.len().min(available as usize);
+            return self.0.read(&mut bytes[..count]);
+        }
+        #[cfg(not(windows))]
+        self.0.read(bytes)
+    }
+}
 impl Drop for Socket {
     /// 每条连接的缓冲区由本模块有界协议管理。
     fn drop(&mut self) {
@@ -104,7 +131,7 @@ impl Client {
     fn poll(&mut self, sender: &SyncSender<()>) -> bool {
         if Instant::now() >= self.deadline { return false }
         if self.sent.is_none() {
-            match self.socket.0.read(&mut self.input[self.received..]) {
+            match self.socket.read_available(&mut self.input[self.received..]) {
                 Ok(0) => return false,
                 Ok(count) => self.received += count,
                 Err(error) if retryable(&error) => return true,
@@ -128,7 +155,7 @@ impl Client {
         }
         if *sent == 3 {
             let mut extra = [0; 1];
-            match self.socket.0.read(&mut extra) { Err(error) if retryable(&error) => {}, _ => return false }
+            match self.socket.read_available(&mut extra) { Err(error) if retryable(&error) => {}, _ => return false }
         }
         true
     }
@@ -159,7 +186,7 @@ fn notify(directory: &Path) -> io::Result<()> {
     let mut ack = [0; 3];
     while Instant::now() < deadline {
         let result = if sent < 5 { socket.0.write(&b"show\n"[sent..]).map(|count| { sent += count; count }) }
-            else { socket.0.read(&mut ack[received..]).map(|count| { received += count; count }) };
+            else { socket.read_available(&mut ack[received..]).map(|count| { received += count; count }) };
         match result { Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()), Ok(_) => {}, Err(error) if retryable(&error) => {}, Err(error) => return Err(error) }
         if received == 3 { return if ack == *b"ok\n" { Ok(()) } else { Err(io::ErrorKind::InvalidData.into()) } }
         thread::sleep(POLL);

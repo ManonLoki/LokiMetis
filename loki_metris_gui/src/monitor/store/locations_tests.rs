@@ -215,3 +215,13 @@ fn other_tools_keep_a_single_fixed_config_root() {
         );
     }
 }
+/// WSL 路径解析失败必须在任何文件操作前拒绝，不能回退生成本机 Windows 命令。
+#[cfg(windows)]
+#[test]
+fn malformed_wsl_authorities_cannot_be_local_hook_directories() {
+    for directory in [r"\\wsl$\Ubuntu\home\..\user\.codex", r"\\wsl.localhost\Ubuntu\home\.\user",
+        r"\\?\UNC\wsl.localhost\Ubuntu\home\user\.codex", r"\\?\UNC\wsl$\Ubuntu\home\user\.codex", r"\\wsl$"] {
+        assert!(validate_hook_config_directory(directory).is_err(), "{directory}");
+    }
+    assert!(validate_hook_config_directory(r"\\wsl.localhost\Ubuntu\home\user\.codex").is_ok());
+}

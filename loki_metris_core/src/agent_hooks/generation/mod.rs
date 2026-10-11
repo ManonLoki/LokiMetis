@@ -297,7 +297,7 @@ fn managed_commands(
         shell_quote(&marker),
     );
     // 拼装 Windows CMD 命令：用 cmd.exe /d /s /c 包裹，参数按 CMD 双引号规则转义
-    let windows = format!(
+    let mut windows = format!(
         "cmd.exe /d /s /c \"{} --loki-metris-hook-relay {} {} --managed-by {}\"",
         windows_quote(&executable),
         windows_quote(protocol.slug()),
@@ -306,13 +306,20 @@ fn managed_commands(
     );
     // 拼装经 PowerShell 宿主转发到 CMD 的命令：需要额外的反引号转义，
     // 用于同时保住含空格路径和参数边界
-    let windows_powershell_host = format!(
+    let mut windows_powershell_host = format!(
         "cmd.exe /d /s /c \"{} --loki-metris-hook-relay {} {} --managed-by {}\"",
         powershell_host_quote(&executable),
         powershell_host_quote(protocol.slug()),
         powershell_host_quote(event),
         powershell_host_quote(&marker),
     );
+    // 保留普通安装路径的现役格式；含 shell 展开字符时通过编码字面量绕过双层解释。
+    if executable.contains(['$', '%', '!', '`', '\r', '\n', '\u{2018}', '\u{2019}', '\u{201a}', '\u{201b}', '\u{201c}', '\u{201d}', '\u{201e}']) {
+        windows = windows_command::invocation(&executable, &[
+            "--loki-metris-hook-relay", protocol.slug(), event, "--managed-by", &marker,
+        ]);
+        windows_powershell_host = windows.clone();
+    }
     ManagedCommands {
         // POSIX/WSL 场景使用的命令
         posix,
@@ -345,6 +352,9 @@ fn powershell_host_quote(value: &str) -> String {
 /// Windows PowerShell 宿主可能保留保护双引号的反引号，因此比较前仅归一化
 /// 这一种现役转义形式。
 pub(super) fn command_has_marker(command: &str, marker: &str) -> bool {
+    if command.starts_with(windows_command::PREFIX) {
+        return windows_command::has_marker(command, marker);
+    }
     // 闭包：判断给定字符串是否包含 `marker'` 或 `marker"`，
     // 即标识后紧跟命令引号收尾，避免误判成标识的前缀子串
     let contains_marker = |value: &str| {
@@ -353,6 +363,8 @@ pub(super) fn command_has_marker(command: &str, marker: &str) -> bool {
     // 先按原始字符串判断；再把 PowerShell 宿主转义的反引号双引号还原成普通双引号后再判断一次
     contains_marker(command) || contains_marker(&command.replace("`\"", "\""))
 }
+
+mod windows_command;
 
 // 以下四个测试子模块分别覆盖：通用生成/协议契约、Kimi Code 专属场景、
 // 合并逻辑、以及第二批新增工具（Qwen/Qoder/Gemini/Copilot 等）

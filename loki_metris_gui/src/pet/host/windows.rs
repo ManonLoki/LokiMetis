@@ -15,6 +15,31 @@ struct Rect {
     right: i32,
     bottom: i32,
 }
+/// Win32 客户区原点转换所需的物理点。
+#[repr(C)]
+#[derive(Default)]
+struct NativePoint { x: i32, y: i32 }
+
+/// 同一活窗读回的内容区与四边框，避免将画布尺寸当作外框尺寸。
+struct ClientFrame { frame: Rect, client: Rect, origin: NativePoint }
+impl ClientFrame {
+    /// 同步读取客户区和屏幕原点，所有指针仅在当前栈有效。
+    fn read(hwnd: Handle) -> anyhow::Result<Self> {
+        let mut value = Self { frame: Rect::default(), client: Rect::default(), origin: NativePoint::default() };
+        // SAFETY: 调用方持有本线程活窗，三个输出为正确 C 布局的独占可写对象。
+        anyhow::ensure!(unsafe { GetWindowRect(hwnd, &mut value.frame) != 0
+            && GetClientRect(hwnd, &mut value.client) != 0 && ClientToScreen(hwnd, &mut value.origin) != 0 },
+            "read auxiliary client geometry: {}", std::io::Error::last_os_error());
+        Ok(value)
+    }
+
+    /// 输入为物理内容矩形；当前实际四边框只在这个原生边界加回一次。
+    fn outer(&self, x: i32, y: i32, width: i32, height: i32) -> (i32, i32, i32, i32) {
+        (x - (self.origin.x - self.frame.left), y - (self.origin.y - self.frame.top),
+            width + (self.frame.right - self.frame.left) - (self.client.right - self.client.left),
+            height + (self.frame.bottom - self.frame.top) - (self.client.bottom - self.client.top))
+    }
+}
 /// Win32工作区查询的固定C布局。
 #[repr(C)]
 struct MonitorInfo {
@@ -43,6 +68,10 @@ unsafe extern "system" {
     fn GetMonitorInfoW(monitor: Handle, info: *mut MonitorInfo) -> i32;
     /// 查询活窗全局物理外框。
     fn GetWindowRect(window: Handle, rect: *mut Rect) -> i32;
+    /// 返回客户区尺寸，坐标原点为零。
+    fn GetClientRect(window: Handle, rect: *mut Rect) -> i32;
+    /// 把客户区左上角转换为桌面物理坐标。
+    fn ClientToScreen(window: Handle, point: *mut NativePoint) -> i32;
     /// 释放现有鼠标捕获，使系统接管窗口拖动。
     fn ReleaseCapture() -> i32;
     /// 只释放当前浮窗自己拥有的捕获，不干扰其它窗口。
@@ -175,16 +204,15 @@ pub fn work_area(window: &Window) -> Bounds<gpui_kit::Pixels> {
         Bounds::new(point(px(0.), px(0.)), size(px(1440.), px(900.)))
     }
 }
-/// 活窗外框转换为全局逻辑单位。
+/// 客户区位置与画布尺寸转换为全局逻辑单位，避免锁定边框被计入持久尺寸。
 pub fn bounds(window: &Window) -> Bounds<gpui_kit::Pixels> {
-    let mut rect = Rect::default();
-    if native(window).is_ok_and(|window| unsafe { GetWindowRect(window, &mut rect) != 0 }) {
+    if let Ok(frame) = native(window).and_then(ClientFrame::read) {
         let scale = window.scale_factor();
         Bounds::new(
-            point(px(rect.left as f32 / scale), px(rect.top as f32 / scale)),
+            point(px(frame.origin.x as f32 / scale), px(frame.origin.y as f32 / scale)),
             size(
-                px((rect.right - rect.left) as f32 / scale),
-                px((rect.bottom - rect.top) as f32 / scale),
+                px((frame.client.right - frame.client.left) as f32 / scale),
+                px((frame.client.bottom - frame.client.top) as f32 / scale),
             ),
         )
     } else {
@@ -201,12 +229,15 @@ pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
 /// 只修改位置，保持尺寸、Z序和焦点。
 pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
     let scale = f64::from(window.scale_factor());
+    let hwnd = native(window)?;
+    let frame = ClientFrame::read(hwnd)?;
+    let (x, y, _, _) = frame.outer((x * scale).round() as i32, (y * scale).round() as i32, 0, 0);
     let ok = unsafe {
         SetWindowPos(
-            native(window)?,
+            hwnd,
             std::ptr::null_mut(),
-            (x * scale).round() as i32,
-            (y * scale).round() as i32,
+            x,
+            y,
             0,
             0,
             0x0001 | 0x0004 | 0x0010,
@@ -231,9 +262,9 @@ pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> an
             hwnd,
             -16,
             Some(if prefs.locked || settings {
-                old & !0x40000
+                old & !(0x40000 | 0x10000)
             } else {
-                old | 0x40000
+                old | 0x40000 | 0x10000
             }),
         );
         let after = if prefs.always_on_top || settings {
@@ -266,14 +297,18 @@ pub fn start_drag(window: &Window, cx: &gpui_kit::App) {
 /// 原子提交位置和尺寸，不激活、不改变Z序，避免单独resize晚到。
 pub fn set_geometry(window: &mut Window, bounds: Bounds<gpui_kit::Pixels>) -> anyhow::Result<()> {
     let scale = window.scale_factor();
+    let hwnd = native(window)?;
+    let frame = ClientFrame::read(hwnd)?;
+    let (x, y, width, height) = frame.outer(
+        (f32::from(bounds.origin.x) * scale).round() as i32,
+        (f32::from(bounds.origin.y) * scale).round() as i32,
+        (f32::from(bounds.size.width) * scale).round() as i32,
+        (f32::from(bounds.size.height) * scale).round() as i32);
     let ok = unsafe {
         SetWindowPos(
-            native(window)?,
+            hwnd,
             std::ptr::null_mut(),
-            (f32::from(bounds.origin.x) * scale).round() as i32,
-            (f32::from(bounds.origin.y) * scale).round() as i32,
-            (f32::from(bounds.size.width) * scale).round() as i32,
-            (f32::from(bounds.size.height) * scale).round() as i32,
+            x, y, width, height,
             0x0004 | 0x0010,
         )
     };
@@ -315,4 +350,33 @@ pub fn restoration_area(
         )
         .is_some(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows::{core::w, Win32::UI::WindowsAndMessaging::{CreateWindowExW, DestroyWindow,
+        WINDOW_EX_STYLE, WS_OVERLAPPEDWINDOW}};
+
+    /// 真实 Win32 边框切换后内容原点和画布尺寸保持一致，不能累计非客户区。
+    #[test]
+    fn client_size_survives_lock_style_changes() {
+        // SAFETY: 测试窗口归当前线程独占，隐藏创建，所有调用在销毁前同步完成。
+        unsafe {
+            let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("STATIC"), w!("LokiMetris client geometry"),
+                WS_OVERLAPPEDWINDOW, 100, 100, 180, 200, None, None, None, None).unwrap();
+            for locked in [false, true, false] {
+                let old = style(hwnd.0, -16, None);
+                style(hwnd.0, -16, Some(if locked { old & !0x40000 } else { old | 0x40000 }));
+                assert_ne!(SetWindowPos(hwnd.0, std::ptr::null_mut(), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020), 0);
+                let frame = ClientFrame::read(hwnd.0).unwrap();
+                let (x, y, width, height) = frame.outer(120, 130, 128, 160);
+                assert_ne!(SetWindowPos(hwnd.0, std::ptr::null_mut(), x, y, width, height, 0x0004 | 0x0010), 0);
+                let actual = ClientFrame::read(hwnd.0).unwrap();
+                assert_eq!((actual.origin.x, actual.origin.y), (120, 130));
+                assert_eq!((actual.client.right, actual.client.bottom), (128, 160));
+            }
+            DestroyWindow(hwnd).unwrap();
+        }
+    }
 }

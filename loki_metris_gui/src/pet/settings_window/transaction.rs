@@ -1,4 +1,4 @@
-//! AppKit 定位与显示在全部 GPUI 借用之外执行；首帧显式选择入口屏。
+//! 原生定位与显示在全部 GPUI 借用之外执行；首帧显式选择入口屏。
 
 use super::{Controller, Request, current};
 use crate::native::windowing::{self, DesktopSnapshot, WindowHost};
@@ -10,7 +10,7 @@ pub(super) fn open(owner: Entity<Controller>, request: Request, cx: &mut App) {
     let initial = request.desktop.as_ref().and_then(|desktop| {
         let placement = placement(desktop, None, WindowFrameInsets::default())?;
         let display = desktop.display(&placement.display_key)?;
-        Some((WindowBounds::Windowed(bounds(&placement)), display.id))
+        Some((WindowBounds::Windowed(windowing::placement_bounds(desktop, &placement)?), display.id))
     });
     let existing = owner.read(cx).settings_window.filter(|handle| handle.update(cx, |_, _, _| ()).is_ok());
     let handle = if let Some(handle) = existing { handle } else {
@@ -45,7 +45,12 @@ pub(super) fn open(owner: Entity<Controller>, request: Request, cx: &mut App) {
             tracing::warn!(event = "pet_settings_window_host_unavailable");
             discard_unavailable(&owner, generation, handle, cx); return;
         };
+        #[cfg(target_os = "macos")]
         host.configure_auxiliary(false, true);
+        #[cfg(windows)]
+        if host.configure_auxiliary(false, true).is_err() {
+            discard_unavailable(&owner, generation, handle, cx); return;
+        }
         if !live(cx) { return; }
         let prepared = cx.update(|cx| handle.update(cx, |_, window, cx| {
             let mut desktop = windowing::capture_topology(cx).ok()?;
@@ -61,6 +66,27 @@ pub(super) fn open(owner: Entity<Controller>, request: Request, cx: &mut App) {
             if live(cx) { cx.update(|cx| cx.activate(true)); }
             return;
         };
+        #[cfg(windows)]
+        let (desktop, plan) = {
+            if host.prime_display(&desktop, &plan).is_err() {
+                tracing::warn!(event = "pet_settings_window_prime_failed");
+                discard_unavailable(&owner, generation, handle, cx); return;
+            }
+            if !live(cx) { return; }
+            let corrected = cx.update(|cx| handle.update(cx, |_, window, cx| {
+                let mut refreshed = windowing::capture_topology(cx).ok()?;
+                refreshed.pointer = desktop.pointer.clone();
+                let current = windowing::window_display_key(window, &refreshed).ok();
+                let corrected = placement(&refreshed, current.as_deref(), windowing::frame_insets(window).ok()?)?;
+                Some((refreshed, corrected))
+            }).ok().flatten());
+            let Some(corrected) = corrected else {
+                tracing::warn!(event = "pet_settings_window_replan_failed");
+                discard_unavailable(&owner, generation, handle, cx); return;
+            };
+            corrected
+        };
+        if !live(cx) { return; }
         let native_zoomed = host.maximized();
         let applied_plan = host.apply_auxiliary(&desktop, &plan).ok();
         let applied = applied_plan.is_some();
@@ -107,12 +133,6 @@ fn placement(desktop: &DesktopSnapshot, current: Option<&str>, frame_insets: Win
         role: WindowPlacementRole::PetConfiguration, saved: None, legacy_content_size: None,
         legacy_maximized: false, frame_insets,
     })
-}
-
-/// GPUI 初始 bounds 使用目标屏内 DIP，原生外框由创建后的真实样式再次定位。
-fn bounds(placement: &WindowPlacement) -> Bounds<gpui_kit::Pixels> {
-    Bounds::new(gpui_kit::point(px(placement.origin.x as f32), px(placement.origin.y as f32)),
-        size(px(placement.content_size.width as f32), px(placement.content_size.height as f32)))
 }
 
 /// 无法取得原生对象时撤销本窗，保留桌宠入口供重试；不排入无法复核租约的二次激活。

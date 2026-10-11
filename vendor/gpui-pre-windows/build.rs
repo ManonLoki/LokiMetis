@@ -27,8 +27,40 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/debug-generated-shader-path.before"),
                 after: include_str!("patches/debug-generated-shader-path.after"),
             },
+            Patch {
+                name: "live-resize-state", path: "src/events.rs",
+                before: include_str!("patches/live-resize-state.before"),
+                after: include_str!("patches/live-resize-state.after"),
+            },
+            Patch {
+                name: "live-resize-hit", path: "src/events.rs",
+                before: include_str!("patches/live-resize-hit.before"),
+                after: include_str!("patches/live-resize-hit.after"),
+            },
+            Patch {
+                name: "live-maximize-hit", path: "src/events.rs",
+                before: include_str!("patches/live-maximize-hit.before"),
+                after: include_str!("patches/live-maximize-hit.after"),
+            },
+            Patch {
+                name: "live-maximize-click", path: "src/events.rs",
+                before: include_str!("patches/live-maximize-click.before"),
+                after: include_str!("patches/live-maximize-click.after"),
+            },
+            Patch {
+                name: "external-show-state", path: "src/window.rs",
+                before: include_str!("patches/external-show-state.before"),
+                after: include_str!("patches/external-show-state.after"),
+            },
+            Patch {
+                name: "external-show-observe", path: "src/events.rs",
+                before: include_str!("patches/external-show-observe.before"),
+                after: include_str!("patches/external-show-observe.after"),
+            },
         ],
         generated_hashes: &[
+            ("src/window.rs", "349b2db6a53dc61b0b47ca674428d428ea48e4cbe73521f5eaf59eb436b71b0c"),
+            ("src/events.rs", "d106eb3a386b955916c3a6ba01751e98302ca0551dd3748cc4dc4440c737e03f"),
             ("src/gpui_windows.rs", "a4dbf8bbefd89e8ac5996a143e82c8e2eef65e1675c25ab6d27607329c041a67"),
             ("src/shaders.hlsl", "59adbdaecff01b34b45744ed80afd5c27fd1a54b2a1d9b6143d05fc3a9fd8c62"),
             ("src/directx_renderer.rs", "905ef643a4893207b4252d2572229534febff8781d6caa3a5f7a3eb820e2a387"),

@@ -1,0 +1,5 @@
+    /// 外部原生显示已决定当前几何，后续激活不能重放隐藏创建时的旧位置。
+    pub(crate) fn discard_initial_placement(&self) { self.initial_placement.take(); }
+
+    #[inline]
+    pub(crate) fn is_fullscreen(&self) -> bool {

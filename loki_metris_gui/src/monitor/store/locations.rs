@@ -158,6 +158,9 @@ pub fn validate_hook_config_directory(directory: &str) -> Result<String, HookErr
     }
     let path = Path::new(directory);
     let is_wsl_unc = cfg!(target_os = "windows") && WslDirectory::parse(directory).is_some();
+    if cfg!(target_os = "windows") && WslDirectory::has_authority(directory) && !is_wsl_unc {
+        return Err(HookError::new("error.hooks.directoryNotAbsolute"));
+    }
     if !path.is_absolute() && !is_wsl_unc {
         return Err(HookError::new("error.hooks.directoryNotAbsolute"));
     }

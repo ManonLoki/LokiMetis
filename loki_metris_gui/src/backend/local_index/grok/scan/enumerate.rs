@@ -180,8 +180,8 @@ fn walk(
         };
         if is_grok_updates_path(relative) {
             let relative_label = path_key(relative);
-            // 窗口外但被追加/替换过的已索引文件必须重新解析，否则新增字节会永久丢失。
-            if source_file_needs_visit(
+            // 已知文件打开后核验真实身份，不能仅凭长度/mtime跳过保留时间窗外的改写。
+            if window.known_sources.contains_key(&relative_label) || source_file_needs_visit(
                 modified_epoch_ms(&metadata),
                 metadata.len(),
                 window.scan_since_epoch_ms,

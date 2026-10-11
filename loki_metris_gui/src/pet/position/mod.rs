@@ -158,6 +158,7 @@ impl Controller {
                     .update(cx, |this, _| {
                         if let Ok(settings) = &result {
                             this.settings.pet_overlay_position = settings.pet_overlay_position;
+                            this.settings.pet_overlay_position_version = settings.pet_overlay_position_version;
                         }
                         let committed = result
                             .as_ref()

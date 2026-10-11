@@ -219,11 +219,24 @@ fn frozen_pointer_maps_pet_anchor_without_scaling_negative_desktop_origin() {
 fn legacy_pet_position_requires_unique_screen_and_removes_header_once() {
     let desktop = desktop();
     let saved = super::plan::legacy_state(&desktop, PetWindowPreferences::default(),
-        Some(PetOverlayPosition { x: -1000, y: 300 }), WindowFrameInsets::default()).unwrap();
+        Some(PetOverlayPosition { x: -1000, y: 300 }), 1, WindowFrameInsets::default()).unwrap();
     assert_eq!(saved.display_key, "external");
     assert_eq!(saved.origin, WindowDipPoint { x: 920., y: 268. });
     let mut ambiguous = desktop.clone();
     ambiguous.displays.push(ambiguous.displays[1].clone());
     assert!(super::plan::legacy_state(&ambiguous, PetWindowPreferences::default(),
-        Some(PetOverlayPosition { x: -1000, y: 300 }), WindowFrameInsets::default()).is_none());
+        Some(PetOverlayPosition { x: -1000, y: 300 }), 1, WindowFrameInsets::default()).is_none());
+}
+
+/// Windows 历史外框位置与新客户区位置恢复到同一画布，重复启动不能累积边框偏移。
+#[cfg(windows)]
+#[test]
+fn legacy_and_client_position_versions_resolve_to_the_same_outer_origin() {
+    let desktop = desktop();
+    let insets = WindowFrameInsets { left: 8., top: 8., right: 8., bottom: 8. };
+    let old = super::plan::legacy_state(&desktop, PetWindowPreferences::default(),
+        Some(PetOverlayPosition { x: -1000, y: 300 }), 1, insets).unwrap();
+    let new = super::plan::legacy_state(&desktop, PetWindowPreferences::default(),
+        Some(PetOverlayPosition { x: -992, y: 308 }), 2, insets).unwrap();
+    assert_eq!(old, new);
 }

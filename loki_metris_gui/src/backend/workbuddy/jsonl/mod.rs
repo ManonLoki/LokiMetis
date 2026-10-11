@@ -276,7 +276,8 @@ fn open_fixed_prefix_stamped(path: &Path) -> std::io::Result<(File, FileStamp)> 
             "WorkBuddy source changed during inspection",
         ));
     }
-    Ok((file, FileStamp::of(&opened_metadata)))
+    let stamp = FileStamp::of(&file, &opened_metadata);
+    Ok((file, stamp))
 }
 
 /// 单文件解析报告。

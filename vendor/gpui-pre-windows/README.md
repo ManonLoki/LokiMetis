@@ -7,6 +7,9 @@
 共享标准库生成器同时验证固定清单 SHA、每个原文件 SHA、完整文件集、唯一替换片段和生成结果 SHA。
 补丁仅写入 Cargo OUT_DIR/gpui-patched，不编辑 upstream，也不把整个 vendor 目录排除于工程门禁。
 
+Windows 原生命中同时核对当前 `WS_THICKFRAME`，动态锁定桌宠后顶部和最大化区域不能沿用创建期缓存。
+首次外部原生显示会消费隐藏创建的初始位置，后续 GPUI 激活不重放过期几何；生成文件均由固定 SHA 校验。
+
 `PolychromeSprite` 末尾新增 16 字节圆角视口 bounds；原图片矩形、祖先矩形 mask、UV、透明度和图集键保持独立。
 原 paint_image 与 emoji 沿用原几何，新入口 ImageRoundedClip/paint_image_with_rounded_clip 显式保存原始 viewport。
 Metal、HLSL、WGSL/WebGL 必须同时使用这一 ABI；macOS 验证不能替代 Windows 实际渲染验证。

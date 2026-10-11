@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+base64.workspace = true
 encoding_rs.workspace = true
 jiff.workspace = true
 sea-orm.workspace = true

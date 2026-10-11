@@ -343,8 +343,8 @@ async fn appended_grok_updates_outside_the_scan_window_are_still_indexed() {
     .await
     .expect("settled scan completes");
     assert_eq!(
-        settled.files_scanned, 0,
-        "unchanged source outside the window stays closed"
+        settled.files_scanned, 1,
+        "known source outside the window rechecks its host identity"
     );
     assert_eq!(settled.call_count, 4, "retained source keeps its calls");
 }

@@ -1,6 +1,5 @@
 //! 原生能力统一持有生命周期；平台对象在 UI 线程创建，后台输入通过有界轮询映射。
 
-#[cfg(target_os="macos")]
 pub(crate) mod windowing;
 mod tray;
 mod menu;
@@ -11,6 +10,8 @@ pub mod instance;
 pub mod shortcuts;
 #[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+pub(crate) use windows::allows_geometry_save;
 
 use gpui_kit::{AnyWindowHandle, App, Global, Task};
 use std::time::Duration;
@@ -18,12 +19,14 @@ use std::time::Duration;
 /// 平台窗口与已选服务由唯一 Global 持有，不增加第二条事件循环。
 pub struct Services {
     main:AnyWindowHandle,
-    #[cfg(target_os="macos")]
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
     shell: gpui_kit::WeakEntity<crate::app::Shell>,
-    #[cfg(target_os="macos")]
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_host: Option<windowing::WindowHost>,
-    #[cfg(target_os="macos")]
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_revision: u64,
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    window_action_generation: u64,
     _poll: Task<()>,
     #[cfg(windows)]
     window: Option<windows::MainWindow>,
@@ -42,12 +45,12 @@ impl Services {
 /// 主窗口创建后安装宿主机制；不注册登录项，不申请通知权限，不绑定默认热键。
 pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::Shell>, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
     menu::install(locale, cx);
-    #[cfg(target_os="macos")]
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
     let window_host = shell.update(cx, |shell, _| shell.window_host()).ok().flatten();
     #[cfg(windows)]
     let native_window = handle.update(cx, |_, window, _| windows::MainWindow::capture(window)).ok().and_then(Result::ok);
     let _ = locale;
-    #[cfg(not(target_os="macos"))]
+    #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
     let _ = shell;
     #[cfg(windows)]
     let allows_tray = native_window.is_some();
@@ -66,13 +69,16 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
             cx.background_executor().timer(Duration::from_millis(40)).await;
             cx.update(|cx| {
                 if !cx.has_global::<Services>() { return }
-                #[cfg(target_os="macos")]
+                #[cfg(any(target_os="macos", all(windows, not(test))))]
                 {
+                    #[cfg(target_os="macos")]
+                    {
                     let focus_revision = cx.global::<Services>().window_host.as_ref().map(windowing::WindowHost::focus_revision);
                     if let Some(revision) = focus_revision.filter(|revision| *revision != last_focus_revision) {
                         // 确认本轮先读取的版本；刷新期间的新通知必须留到下一轮。
                         last_focus_revision = revision;
                         menu::refresh(cx);
+                    }
                     }
                     let service = cx.global_mut::<Services>();
                     let revision = service.window_host.as_ref().and_then(windowing::WindowHost::settled_revision);
@@ -103,12 +109,14 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
     });
     cx.set_global(Services {
         main:handle,
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         shell,
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         window_host,
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         window_revision: 0,
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
+        window_action_generation: 0,
         _poll: poll,
         #[cfg(windows)]
         window: native_window,
@@ -140,7 +148,7 @@ pub(crate) fn refresh_menu_after_activation(cx: &mut App) {
 
 /// 主动显示统一捕获入口鼠标屏；原生修改由前台 task 在借用之外执行。
 pub fn show(handle: AnyWindowHandle, cx: &mut App) {
-    #[cfg(all(target_os="macos", not(test)))]
+    #[cfg(all(any(target_os="macos", windows), not(test)))]
     {
         let desktop = windowing::capture_desktop(cx);
         let Some(shell) = cx.try_global::<Services>().map(|service| service.shell.clone()) else { return; };
@@ -148,16 +156,17 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
             Ok(desktop) => show_on_desktop(handle, desktop, cx),
             Err(_) => {
                 tracing::warn!(event="window_desktop_unavailable");
+                let generation = next_window_action(cx);
                 let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
                 cx.spawn(async move |cx| {
-                    let live = cx.update(|cx| handle.update(cx, |_, _, _| ()).is_ok());
+                    let live = cx.update(|cx| window_action_current(generation, cx) && handle.update(cx, |_, _, _| ()).is_ok());
                     if live { if let Some(host) = host { host.show(); } }
                 }).detach();
             }
         }
         return;
     }
-    #[cfg(any(not(target_os="macos"), test))]
+    #[cfg(any(not(any(target_os="macos", windows)), test))]
     {
     #[cfg(windows)]
     let native = cx.try_global::<Services>().and_then(|services| services.window);
@@ -171,8 +180,9 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
 }
 
 /// 启动入口已捕获指针时直接传递，避免创建辅助窗之后改变本次选屏。
-#[cfg(target_os="macos")]
+#[cfg(any(target_os="macos", all(windows, not(test))))]
 pub(crate) fn show_on_desktop(handle: AnyWindowHandle, desktop: windowing::DesktopSnapshot, cx: &mut App) {
+    next_window_action(cx);
     let Some(shell) = cx.try_global::<Services>().map(|service| service.shell.clone()) else { return; };
     let _ = handle.update(cx, |_, window, cx| {
         let _ = shell.update(cx, |shell, cx| shell.request_window_restore(desktop, window, cx));
@@ -201,22 +211,26 @@ pub(crate) fn minimize_main(cx: &mut App) {
 /// 托盘实际成功才隐藏，失败允许正常关闭，不留下无法恢复的进程。
 pub fn hide_if_available(cx: &mut App) -> bool {
     if !cx.try_global::<Services>().is_some_and(|services| services.tray.is_some()) { return false }
-    #[cfg(windows)]
+    #[cfg(all(windows, test))]
     let native = cx.global::<Services>().window;
+    #[cfg(not(all(windows, test)))]
     let main=cx.global::<Services>().main;
-    #[cfg(target_os="macos")]
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
     {
+        let generation = next_window_action(cx);
         let shell = cx.global::<Services>().shell.clone();
         let host = shell.update(cx, |shell, _| shell.cancel_window_restore()).ok().flatten();
         cx.spawn(async move |cx| {
-            let live = cx.update(|cx| main.update(cx, |_, _, _| ()).is_ok());
+            let live = cx.update(|cx| window_action_current(generation, cx) && main.update(cx, |_, _, _| ()).is_ok());
             if live { if let Some(host) = host { host.hide(); } }
         }).detach();
         true
     }
-    #[cfg(not(target_os="macos"))]
+    #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
     {
     cx.defer(move |cx| {
+        #[cfg(windows)]
+        let _ = cx;
         #[cfg(windows)]
         if let Some(window) = native { window.hide(); }
         #[cfg(not(windows))]
@@ -224,6 +238,20 @@ pub fn hide_if_available(cx: &mut App) -> bool {
     });
     true
     }
+}
+
+/// 服务级显示代次约束延迟 fallback show/hide，后来的相反意图撤销旧命令。
+#[cfg(any(target_os="macos", all(windows, not(test))))]
+fn next_window_action(cx: &mut App) -> u64 {
+    let service = cx.global_mut::<Services>();
+    service.window_action_generation = service.window_action_generation.wrapping_add(1);
+    service.window_action_generation
+}
+
+/// 退出移除服务或代次变化时，迟到原生命令保持零副作用。
+#[cfg(any(target_os="macos", all(windows, not(test))))]
+fn window_action_current(generation: u64, cx: &App) -> bool {
+    cx.try_global::<Services>().is_some_and(|service| service.window_action_generation == generation)
 }
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {

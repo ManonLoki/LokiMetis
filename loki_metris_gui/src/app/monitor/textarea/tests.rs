@@ -257,16 +257,16 @@ fn shell_textarea_keeps_native_editing_selection_caret_and_registry(cx: &mut Tes
             input.read(cx).cursor_layout().is_some(),
             "原生 caret 布局必须继续存在"
         );
-        window.press("cmd-a", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-a" } else { "ctrl-a" }, cx);
         assert_eq!(input.read(cx).selected_range(), 0.."Hello 中文\nTail".len());
-        window.press("cmd-c", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-c" } else { "ctrl-c" }, cx);
         window.press("backspace", cx);
         assert_eq!(input.read(cx).value().as_ref(), "");
-        window.press("cmd-v", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-v" } else { "ctrl-v" }, cx);
         assert_eq!(input.read(cx).value().as_ref(), "Hello 中文\nTail");
-        window.press("cmd-z", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-z" } else { "ctrl-z" }, cx);
         assert_eq!(input.read(cx).value().as_ref(), "");
-        window.press("cmd-shift-z", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-shift-z" } else { "ctrl-y" }, cx);
         assert_eq!(input.read(cx).value().as_ref(), "Hello 中文\nTail");
         window.render_frame(cx);
         assert_eq!(window.find(native_id).value(), Some("Hello 中文\nTail"));

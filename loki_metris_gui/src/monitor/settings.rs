@@ -64,6 +64,9 @@ pub struct MonitorSettings {
     /// 最近一次合法的桌宠浮窗位置；缺失表示使用默认几何。
     #[serde(default)]
     pub pet_overlay_position: Option<PetOverlayPosition>,
+    /// 版本1兼容 Windows 历史外框坐标；版本2统一为真实客户区画布物理原点。
+    #[serde(default = "legacy_position_version", deserialize_with = "deserialize_position_version")]
+    pub pet_overlay_position_version: u8,
     /// 桌宠布局、分页、大小、置顶与锁定偏好。
     #[serde(default, deserialize_with = "deserialize_pet_window_preferences")]
     pub pet_window: PetWindowPreferences,
@@ -76,9 +79,18 @@ impl Default for MonitorSettings {
             enabled_ai_tools: default_enabled_ai_tools(),
             hook_directories: HookConfigDirectories::default(),
             pet_overlay_position: None,
+            pet_overlay_position_version: 1,
             pet_window: PetWindowPreferences::default(),
         }
     }
+}
+
+/// 缺失标记的历史文件不能按新的客户区语义再减一次边框。
+fn legacy_position_version() -> u8 { 1 }
+
+/// 损坏或未来版本只回退坐标语义，不让整个监控设置无法读取。
+fn deserialize_position_version<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u8, D::Error> {
+    Ok(if serde_json::Value::deserialize(deserializer)?.as_u64() == Some(2) { 2 } else { 1 })
 }
 
 /// 首次启动或旧设置缺失字段时，与源程序一致默认启用 Codex、Claude Code、Cursor。
@@ -123,6 +135,7 @@ fn load_monitor_settings_unlocked(config_dir: &Path) -> Result<MonitorSettings, 
     })?;
     settings.enabled_ai_tools = normalize_enabled_ai_tools(&settings.enabled_ai_tools);
     settings.pet_window = normalize_pet_window_preferences(settings.pet_window);
+    if settings.pet_overlay_position_version != 2 { settings.pet_overlay_position_version = 1; }
     Ok(settings)
 }
 
@@ -151,6 +164,7 @@ fn save_monitor_settings_unlocked(
         enabled_ai_tools: normalize_enabled_ai_tools(&settings.enabled_ai_tools),
         hook_directories: settings.hook_directories.clone(),
         pet_overlay_position: settings.pet_overlay_position,
+        pet_overlay_position_version: settings.pet_overlay_position_version,
         pet_window: normalize_pet_window_preferences(settings.pet_window),
     };
     let raw = serde_json::to_string_pretty(&normalized).map_err(|error| {
@@ -200,11 +214,13 @@ pub(crate) fn update_pet_settings_if_changed(
         }
         None => current.pet_window,
     };
+    let version = if position.is_some() { 2 } else { current.pet_overlay_position_version };
     let position = position.or(current.pet_overlay_position);
-    if preferences == current.pet_window && position == current.pet_overlay_position {
+    if preferences == current.pet_window && position == current.pet_overlay_position && version == current.pet_overlay_position_version {
         return Ok((current, false));
     }
     current.pet_window = preferences;
     current.pet_overlay_position = position;
+    current.pet_overlay_position_version = version;
     save_monitor_settings_unlocked(config_dir, &current).map(|settings| (settings, true))
 }

@@ -161,7 +161,7 @@ pub(super) fn visit_directory(
             actions.push(EntryAction::RejectLabel(relative_label));
             continue;
         }
-        // 窗口外但被追加/替换过的已索引文件必须重新解析，否则新增字节会永久丢失。
+        // 已知文件必须打开核验可靠身份；仅 len/mtime 相同不能证明正文未被替换。
         match source_file_visit_decision(
             modified_epoch_ms(&metadata),
             metadata.len(),
@@ -169,11 +169,7 @@ pub(super) fn visit_directory(
             window.known_sources.get(&relative_label).copied(),
             window.force_rebuild,
         ) {
-            SourceVisitDecision::Visit => {}
-            SourceVisitDecision::Retain { warning_count } => {
-                actions.push(EntryAction::RetainKnown { relative_label, warning_count });
-                continue;
-            }
+            SourceVisitDecision::Visit | SourceVisitDecision::Retain { .. } => {}
             SourceVisitDecision::SkipUnindexed => {
                 actions.push(EntryAction::RetainLabel(relative_label));
                 continue;

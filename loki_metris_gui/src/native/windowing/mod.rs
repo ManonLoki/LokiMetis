@@ -4,6 +4,16 @@
 mod macos;
 #[cfg(target_os = "macos")]
 mod macos_host;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+mod windows_host;
+#[cfg(windows)]
+pub(crate) use windows::{capture_desktop, capture_topology, capture_window, capture_normal, frame_insets, window_display_key};
+#[cfg(windows)]
+pub(crate) use windows_host::WindowHost;
+#[cfg(windows)]
+pub(crate) use windows::legacy_main;
 #[cfg(target_os = "macos")]
 mod geometry_settle;
 #[cfg(target_os = "macos")]
@@ -23,7 +33,7 @@ pub(crate) struct NativeDisplay {
     pub id: DisplayId,
     /// 已转换成屏内 DIP 的工作区、实际 scale 和持久身份。
     pub area: WindowDisplayArea,
-    /// 统一左上角坐标中的原生全局原点；macOS 单位为 AppKit 点。
+    /// 原生全局原点；macOS 单位为 AppKit 点，Windows 单位为物理像素。
     pub global_origin: WindowDipPoint,
 }
 
@@ -62,11 +72,21 @@ pub(crate) fn initial_main_bounds(preferences: &crate::preferences::Preferences,
         legacy_maximized: preferences.maximized, frame_insets: WindowFrameInsets::default(),
     })?;
     let display = desktop.display(&placement.display_key)?;
-    let bounds = gpui_kit::Bounds::new(gpui_kit::point(
-        gpui_kit::px(placement.origin.x as f32),
-        gpui_kit::px(placement.origin.y as f32),
-    ), gpui_kit::size(gpui_kit::px(placement.content_size.width as f32), gpui_kit::px(placement.content_size.height as f32)));
+    let bounds = placement_bounds(desktop, &placement)?;
     Some((gpui_kit::WindowBounds::Windowed(bounds), display.id))
+}
+
+/// Windows GPUI 初始 bounds 使用全局物理坐标除以目标屏 scale，AppKit 使用屏内点。
+pub(crate) fn placement_bounds(desktop: &DesktopSnapshot, placement: &loki_metris_core::window_placement::WindowPlacement)
+    -> Option<gpui_kit::Bounds<gpui_kit::Pixels>> {
+    let display = desktop.display(&placement.display_key)?;
+    #[cfg(windows)]
+    let origin = WindowDipPoint { x: display.global_origin.x / display.area.scale + placement.origin.x,
+        y: display.global_origin.y / display.area.scale + placement.origin.y };
+    #[cfg(not(windows))]
+    let origin = { let _ = display; placement.origin };
+    Some(gpui_kit::Bounds::new(gpui_kit::point(gpui_kit::px(origin.x as f32), gpui_kit::px(origin.y as f32)),
+        gpui_kit::size(gpui_kit::px(placement.content_size.width as f32), gpui_kit::px(placement.content_size.height as f32))))
 }
 
 /// 窗口的最终原生读回；最大化期间仅更新状态，普通几何由已有有效记录保留。

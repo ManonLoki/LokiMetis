@@ -21,6 +21,7 @@
 mod claude; // Claude Code 专属的发现、扫描与 transcript 解析（内部再拆分子模块）
 mod discovery; // Codex rollout 数据根发现（默认路径/环境变量/用户登记/全设备）
 mod file_source; // 文件系统层的只读会话文件抽象
+mod source_fingerprint; // 同句柄可靠戳及已解析内容摘要，区分追加与前段改写
 mod grok; // Grok Build CLI 专属的发现、扫描与 updates.jsonl 解析
 mod jsonl; // Codex rollout JSONL 的流式解析器
 pub(crate) mod metadata_discovery;

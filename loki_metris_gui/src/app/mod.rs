@@ -9,6 +9,9 @@ mod keyboard_entry;
 mod window_title;
 #[cfg(target_os="macos")]
 mod window_state;
+#[cfg(all(windows, not(test)))]
+#[path = "window_state_windows.rs"]
+mod window_state;
 
 
 
@@ -49,7 +52,7 @@ struct PageRegions {
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
-    #[cfg(target_os="macos")]
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_state: window_state::MainWindowState,
     monitor:monitor::MonitorView,
     skins:skins::Skins,
@@ -96,9 +99,9 @@ impl Shell {
             !crate::native::hide_if_available(cx)
         });
         let bounds_subscription = cx.observe_window_bounds(window, |this, window, cx| {
-            #[cfg(target_os="macos")]
+            #[cfg(any(target_os="macos", all(windows, not(test))))]
             { let _ = (window, cx); this.note_native_geometry_change(); }
-            #[cfg(not(target_os="macos"))]
+            #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
             { this.remember_window(window, cx); }
         });
         let activation = cx.observe_window_activation(window, |this,window,cx| {
@@ -111,7 +114,7 @@ impl Shell {
         let keyboard_entry = keyboard_entry::install(window.window_handle(), cx);
         let locale = preferences.locale();
         let mut value = Self {
-            #[cfg(target_os="macos")]
+            #[cfg(any(target_os="macos", all(windows, not(test))))]
             window_state: window_state::MainWindowState::capture(window),
             skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default(), regions: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
@@ -136,14 +139,16 @@ impl Shell {
 
     /// 保存内容尺寸与有界后台快照，直接退出也能恢复最新状态且不叠加原生标题栏。
     pub(crate) fn remember_window(&mut self, window: &Window, cx: &mut Context<Self>) {
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         { self.remember_native_window_at_boundary(window, cx); }
-        #[cfg(not(target_os="macos"))]
+        #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
         {
         let _ = cx;
         // 原生 v2 尚未支持的平台保留完整可信状态，不能用占位反馈覆盖它。
         if self.preferences.window_state_v2.is_some() { return; }
-        if window.is_fullscreen() { return }
+        if window.is_fullscreen() || !window.is_visible() { return }
+        #[cfg(windows)]
+        if !crate::native::allows_geometry_save(window) { return; }
         self.preferences.maximized = window.is_maximized();
         if !self.preferences.maximized {
             self.preferences.bounds = Some(window_geometry(window.bounds(), window.viewport_size()));
@@ -155,7 +160,7 @@ impl Shell {
     /// 退出先保存已稳定状态，再撤销所有迟到的原生显示动作；恢复中保留最后可信几何。
     pub(crate) fn save_window_before_shutdown(&mut self, window: &Window, cx: &mut Context<Self>) {
         self.remember_window(window, cx);
-        #[cfg(target_os="macos")]
+        #[cfg(any(target_os="macos", all(windows, not(test))))]
         { self.cancel_window_restore(); }
     }
 
@@ -333,7 +338,7 @@ impl Render for Shell {
 
 
 /// 保留原生窗口左上角，尺寸统一采用内容视口而不是含装饰的外框。
-#[cfg(any(test, not(target_os="macos")))]
+#[cfg(any(test, not(any(target_os="macos", windows))))]
 fn window_geometry(frame: gpui_kit::Bounds<gpui_kit::Pixels>, viewport: gpui_kit::Size<gpui_kit::Pixels>) -> [f32; 4] {
     [frame.origin.x.into(), frame.origin.y.into(), viewport.width.into(), viewport.height.into()]
 }

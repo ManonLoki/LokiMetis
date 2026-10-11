@@ -1,14 +1,14 @@
 //! 显示意图冻结入口屏，原生迁屏读回前不把中间矩形当作用户调整。
 
-#[cfg(all(target_os = "macos", not(test)))]
-mod macos;
-#[cfg(any(all(target_os = "macos", not(test)), test))]
+#[cfg(all(any(target_os = "macos", windows), not(test)))]
+mod transaction;
+#[cfg(any(all(any(target_os = "macos", windows), not(test)), test))]
 mod plan;
 #[cfg(test)]
 mod tests;
 
 use super::Controller;
-#[cfg(any(not(target_os = "macos"), test))]
+#[cfg(any(not(any(target_os = "macos", windows)), test))]
 use super::host;
 use gpui_kit::{AnyWindowHandle, App, Context, Entity};
 
@@ -16,7 +16,7 @@ use gpui_kit::{AnyWindowHandle, App, Context, Entity};
 #[derive(Clone)]
 pub(super) struct Request {
     generation: u64,
-    #[cfg(all(target_os = "macos", not(test)))]
+    #[cfg(all(any(target_os = "macos", windows), not(test)))]
     pointer: Option<String>,
     revisions: Option<(u64, u64)>,
     visible: bool,
@@ -26,11 +26,11 @@ pub(super) struct Request {
 impl Request {
     /// 捕获失败保留确定回退，不把当前窗口屏冒充真实鼠标屏。
     fn capture(generation: u64, cx: &App) -> Self {
-        #[cfg(any(not(target_os = "macos"), test))]
+        #[cfg(any(not(any(target_os = "macos", windows)), test))]
         let _ = cx;
         Self {
             generation,
-            #[cfg(all(target_os = "macos", not(test)))]
+            #[cfg(all(any(target_os = "macos", windows), not(test)))]
             pointer: crate::native::windowing::capture_desktop(cx).ok().and_then(|desktop| desktop.pointer),
             revisions: None,
             visible: true,
@@ -86,7 +86,7 @@ impl Controller {
         self.display_request = Some(Request {
             generation: self.display_generation, revisions: Some(revisions),
             visible: self.visible, reveal: false,
-            #[cfg(all(target_os = "macos", not(test)))]
+            #[cfg(all(any(target_os = "macos", windows), not(test)))]
             pointer: None,
         });
         self.launch_display(cx);
@@ -103,9 +103,9 @@ fn current(owner: &Entity<Controller>, generation: u64, handle: Option<AnyWindow
 /// 延迟入口过期时零原生操作；虚拟宿主与 Windows 保持现有几何桥接。
 fn begin(owner: Entity<Controller>, request: Request, handle: Option<AnyWindowHandle>, cx: &mut App) {
     if !current(&owner, request.generation, handle, request.visible, cx) { return; }
-    #[cfg(all(target_os = "macos", not(test)))]
-    macos::begin(owner, request, handle.unwrap(), cx);
-    #[cfg(any(not(target_os = "macos"), test))]
+    #[cfg(all(any(target_os = "macos", windows), not(test)))]
+    transaction::begin(owner, request, handle.unwrap(), cx);
+    #[cfg(any(not(any(target_os = "macos", windows)), test))]
     {
         let applied = owner.update(cx, |owner, cx| owner.apply_geometry(!owner.geometry_restored, cx).is_ok());
         if !current(&owner, request.generation, handle, request.visible, cx) { return; }
@@ -150,12 +150,12 @@ fn finish(owner: &Entity<Controller>, request: &Request, handle: AnyWindowHandle
 
 /// 普通用户拖动的原生读回更新可信锚点；调用方已排除未确认的程序迁屏。
 pub(super) fn observed_state(window: &gpui_kit::Window, cx: &App) -> Option<loki_metris_core::window_placement::WindowStateV2> {
-    #[cfg(all(target_os = "macos", not(test)))]
+    #[cfg(all(any(target_os = "macos", windows), not(test)))]
     {
         let desktop = crate::native::windowing::capture_topology(cx).ok()?;
         crate::native::windowing::capture_normal(window, &desktop).ok()
     }
-    #[cfg(any(not(target_os = "macos"), test))]
+    #[cfg(any(not(any(target_os = "macos", windows)), test))]
     { let _ = (window, cx); None }
 }
 
@@ -163,12 +163,12 @@ pub(super) fn observed_state(window: &gpui_kit::Window, cx: &App) -> Option<loki
 pub(super) fn hide(owner: Entity<Controller>, generation: u64, handle: Option<AnyWindowHandle>, cx: &mut App) {
     if !current(&owner, generation, handle, false, cx) { return; }
     let handle = handle.unwrap();
-    #[cfg(all(target_os = "macos", not(test)))]
+    #[cfg(all(any(target_os = "macos", windows), not(test)))]
     {
         let host = handle.update(cx, |_, window, _| crate::native::windowing::WindowHost::capture(window)).ok().and_then(Result::ok);
         if !current(&owner, generation, Some(handle), false, cx) { return; }
         if let Some(host) = host { host.hide(); }
     }
-    #[cfg(any(not(target_os = "macos"), test))]
+    #[cfg(any(not(any(target_os = "macos", windows)), test))]
     { let _ = handle.update(cx, |_, window, _| host::set_visible(window, false)); }
 }

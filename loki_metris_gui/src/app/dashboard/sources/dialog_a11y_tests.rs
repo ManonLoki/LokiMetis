@@ -171,7 +171,7 @@ fn sources_dialog_a11y_keeps_input_and_traps_keyboard_focus(cx: &mut TestAppCont
                 .input
                 .clone();
             assert!(input.focus_handle(cx).is_focused(window));
-            window.press("cmd-a", cx);
+            window.press(if cfg!(target_os = "macos") { "cmd-a" } else { "ctrl-a" }, cx);
             window.input("Codex renamed", cx);
             assert_eq!(input.read(cx).value().as_ref(), "Codex renamed");
             window.render_frame(cx);
@@ -282,8 +282,9 @@ fn sources_dialog_a11y_input_enter_retains_default_confirm(cx: &mut TestAppConte
     cx.update_window(handle, |_, window, cx| {
         window.press("enter", cx);
         assert!(shell.read(cx).dashboard.sources.modal.is_some());
-        window.press("cmd-a", cx);
+        window.press(if cfg!(target_os = "macos") { "cmd-a" } else { "ctrl-a" }, cx);
         window.input("Codex renamed", cx);
+        assert_eq!(shell.read(cx).dashboard.sources.modal.as_ref().unwrap().input.read(cx).value().as_ref(), "Codex renamed");
         window.press("enter", cx);
         assert!(shell.read(cx).dashboard.sources.modal.is_none());
         assert_eq!(window.focused(cx), Some(previous));

@@ -1,0 +1,3 @@
+        if wparam.0 == 1 {
+            self.state.discard_initial_placement();
+            self.draw_window(handle, false);

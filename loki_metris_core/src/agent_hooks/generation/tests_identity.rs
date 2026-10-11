@@ -2,6 +2,25 @@
 
 use super::*;
 
+/// 每种展开字符都经真实生成入口选用编码命令，更新、幂等合并与删除只处理本应用。
+#[cfg(windows)]
+#[test]
+fn special_windows_installation_paths_generate_replace_and_remove_owned_hooks() {
+    let tool = AiTool::ClaudeCode;
+    let old = generate_hook_config(tool, Path::new(r"C:\ordinary\relay.exe")).unwrap();
+    for character in ['$', '%', '!', '`', '‘', '’', '‚', '‛', '“', '”', '„'] {
+        let path = format!(r"C:\special{character}\relay.exe");
+        let generated = generate_hook_config(tool, Path::new(&path)).unwrap();
+        assert!(generated.content.contains(windows_command::PREFIX), "{character}");
+        let merged = merge_hook_config(Some(&old.content), &generated, tool).unwrap();
+        let repeated = merge_hook_config(Some(&merged.content), &generated, tool).unwrap();
+        assert_eq!(merged.content, repeated.content);
+        assert!(!merged.content.contains("ordinary"));
+        let cleaned = remove_managed_hook_entries(tool, &merged.content).unwrap();
+        assert!(cleaned.is_none_or(|cleaned| !cleaned.contains(windows_command::PREFIX)));
+    }
+}
+
 /// 旧 LokiMetis 条目在合并和清理后完整保留，新条目仍可独立移除。
 #[test]
 fn old_application_json_hooks_are_preserved() {

@@ -1,0 +1,2 @@
+        if native_resize_allowed(handle, self.is_resizable)
+            && !self.state.is_maximized()

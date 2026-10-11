@@ -2,8 +2,48 @@
 
 use std::{env, fs, path::PathBuf};
 
+/// Windows 使用已有 SDK 的资源编译器，把产品 ICO 写入 GPUI 读取的资源 #1。
+fn embed_windows_icon() {
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") { return; }
+    let icon = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../packaging/icons/app.ico");
+    println!("cargo:rerun-if-changed={}", icon.display());
+    for variable in ["RC", "WindowsSdkDir", "ProgramFiles(x86)", "PATH"] {
+        println!("cargo:rerun-if-env-changed={variable}");
+    }
+    let output = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    fs::copy(icon, output.join("app.ico")).expect("无法复制 Windows 应用图标");
+    fs::write(output.join("app-icon.rc"), "1 ICON \"app.ico\"\n").unwrap();
+    let resource = output.join("app-icon.res");
+    let compiler = resource_compiler().expect("Windows SDK rc.exe 不可用，不能构建缺失正式图标的应用");
+    let status = std::process::Command::new(compiler).current_dir(&output)
+        .arg("/nologo").arg("/fo").arg(&resource).arg("app-icon.rc").status()
+        .expect("无法运行 Windows SDK 资源编译器");
+    assert!(status.success(), "Windows 应用图标编译失败");
+    println!("cargo:rustc-link-arg-bin=loki_metris_gui={}", resource.display());
+}
+
+/// 优先尊重显式工具及 PATH，其后从现有 SDK 中按数值版本寻找本宿主的 rc.exe。
+fn resource_compiler() -> Option<PathBuf> {
+    if let Some(path) = env::var_os("RC") { return Some(path.into()); }
+    if let Some(paths) = env::var_os("PATH") {
+        if let Some(path) = env::split_paths(&paths).map(|path| path.join("rc.exe")).find(|path| path.is_file()) { return Some(path); }
+    }
+    let root = env::var_os("WindowsSdkDir").map(PathBuf::from).or_else(||
+        env::var_os("ProgramFiles(x86)").map(|path| PathBuf::from(path).join("Windows Kits/10")))?;
+    let architecture = if cfg!(target_arch = "aarch64") { "arm64" } else { "x64" };
+    let mut versions = fs::read_dir(root.join("bin")).ok()?.filter_map(Result::ok).filter_map(|entry| {
+        let name = entry.file_name().into_string().ok()?;
+        let version = name.split('.').map(str::parse::<u32>).collect::<Result<Vec<_>, _>>().ok()?;
+        let path = entry.path().join(architecture).join("rc.exe");
+        path.is_file().then_some((version, path))
+    }).collect::<Vec<_>>();
+    versions.sort_by(|a, b| b.0.cmp(&a.0));
+    versions.into_iter().next().map(|(_, path)| path)
+}
+
 /// Cargo 在选择或内容变化时重新编译，更新日志不写回源码也不在窗口线程读取。
 fn main() {
+    embed_windows_icon();
     const INPUT: &str = "HARNESS_GPUI_RELEASE_NOTES_RS";
     println!("cargo:rerun-if-env-changed={INPUT}");
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo 必须提供 OUT_DIR")).join("release_notes.rs");

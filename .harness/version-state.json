@@ -15,7 +15,18 @@
     "LMDESK-SKINS-TOOLBAR-COLORS-001",
     "LMDESK-NATIVE-CONTROL-DISABLED-AX-001",
     "LMDESK-PET-POINTER-DISPLAY-001",
-    "LMGUI-BUTTON-PRESS-SCALE-001"
+    "LMGUI-BUTTON-PRESS-SCALE-001",
+    "LMWIN-PREFERENCES-PATH-001",
+    "LMWIN-INSTANCE-PIPE-001",
+    "LMWIN-USAGE-CACHE-001",
+    "LMWIN-WINDOW-PLACEMENT-001",
+    "LMWIN-HOOK-SHELL-PATH-001",
+    "LMWIN-PET-CLIENT-FRAME-001",
+    "LMWIN-WSL-NO-CONSOLE-001",
+    "LMWIN-APPLICATION-ICON-001",
+    "LMWIN-WSL-PATH-ROUTING-001",
+    "LM-INDEX-CONTENT-IDENTITY-001",
+    "LMWIN-PET-LOCKED-RESIZE-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -141,8 +152,63 @@
       "change_id": "LMGUI-BUTTON-PRESS-SCALE-001",
       "kind": "bug-fix",
       "required_version": "0.2.16"
+    },
+    {
+      "change_id": "LMWIN-PREFERENCES-PATH-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.17"
+    },
+    {
+      "change_id": "LMWIN-INSTANCE-PIPE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.18"
+    },
+    {
+      "change_id": "LMWIN-USAGE-CACHE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.19"
+    },
+    {
+      "change_id": "LMWIN-WINDOW-PLACEMENT-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.20"
+    },
+    {
+      "change_id": "LMWIN-HOOK-SHELL-PATH-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.21"
+    },
+    {
+      "change_id": "LMWIN-PET-CLIENT-FRAME-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.22"
+    },
+    {
+      "change_id": "LMWIN-WSL-NO-CONSOLE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.23"
+    },
+    {
+      "change_id": "LMWIN-APPLICATION-ICON-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.24"
+    },
+    {
+      "change_id": "LMWIN-WSL-PATH-ROUTING-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.25"
+    },
+    {
+      "change_id": "LM-INDEX-CONTENT-IDENTITY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.26"
+    },
+    {
+      "change_id": "LMWIN-PET-LOCKED-RESIZE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.27"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.16"
+  "target_version": "0.2.27"
 }

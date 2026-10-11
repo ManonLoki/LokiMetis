@@ -96,7 +96,7 @@ fn missing_persisted_quality_forces_rebuild_instead_of_assuming_clean() {
 
 /// 文件不进入时间窗口时仍保留已验证的警告，显式重建则必须重新访问。
 #[test]
-fn retained_window_excluded_source_preserves_quality_without_reopening() {
+fn retained_window_excluded_source_rechecks_identity_and_preserves_quality() {
     let source = TempDir::new().expect("source temp");
     let app = TempDir::new().expect("app temp");
     let root = create_root(source.path(), "root");
@@ -113,7 +113,8 @@ fn retained_window_excluded_source_preserves_quality_without_reopening() {
         let retained = block_on(scan_discovered_roots(&mut index, &roots,
             ScanConfig { scan_since_epoch_ms: 1_700_000_000_000, ..ScanConfig::default() },
             &CancellationToken::new(), |_| {})).expect("window scan retains known quality");
-        assert_eq!(retained.files_scanned, 0);
+        assert_eq!(retained.files_scanned, 1, "known source identity must be checked even outside the window");
+        assert_eq!(retained.unchanged_files, 1);
         assert_eq!(retained.call_count, 1);
         assert_eq!(retained.coverage.state, CoverageState::Partial);
         assert_eq!(retained.coverage.warning_count, 1);
@@ -207,7 +208,7 @@ fn cancelled_append_resumes_unread_suffix_with_unchanged_size_and_mtime() {
     assert_eq!(checkpoint.parsed_offset, checkpoint.observed_size);
     let retained = block_on(scan_discovered_roots(&mut index, &roots, config,
         &CancellationToken::new(), |_| {})).expect("fully read source retains quality");
-    assert_eq!((retained.files_scanned, retained.coverage.warning_count), (0, 1));
+    assert_eq!((retained.files_scanned, retained.unchanged_files, retained.coverage.warning_count), (1, 1, 1));
     let unchanged = scan(&mut index, &roots, &CancellationToken::new());
     assert_eq!((unchanged.unchanged_files, unchanged.call_count, unchanged.coverage.warning_count), (1, 3, 1));
 }

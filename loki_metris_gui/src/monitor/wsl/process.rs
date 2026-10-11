@@ -144,6 +144,11 @@ pub(super) fn run_wsl_process<const N: usize>(
     let capture_stdout = input.is_none();
     let executable = windows_system_wsl_executable(distribution, error_code)?;
     let mut process = Command::new(executable);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        process.creation_flags(0x0800_0000);
+    }
     process
         .args(["-d", distribution, "--"])
         .args(command)

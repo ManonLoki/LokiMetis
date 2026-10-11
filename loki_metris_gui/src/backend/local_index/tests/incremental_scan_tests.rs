@@ -26,6 +26,33 @@ fn open_index(app_data_dir: &std::path::Path) -> LocalIndex {
     block_on(LocalIndex::open_in_app_data(app_data_dir, PARSER_VERSION)).expect("index opens")
 }
 
+/// 相同会话头下的等长改写和更长替换必须重建，真正追加及未变快速路径仍可复用。
+#[test]
+fn same_header_body_rewrites_rebuild_usage_even_with_preserved_modified_time() {
+    let source = TempDir::new().unwrap();
+    let app = TempDir::new().unwrap();
+    let root = create_root(source.path(), "root");
+    let path = root.join("sessions/rollout-rewrite.jsonl");
+    write_rollout(&path, "same-header", &[token_line("2026-07-30T10:01:00Z", "call-a", 10, 2)]);
+    let before = std::fs::read(&path).unwrap();
+    let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
+    let roots = discover_registered(&[root]);
+    let mut index = open_index(app.path());
+    assert_eq!(scan(&mut index, &roots, &CancellationToken::new()).call_count, 1);
+    write_rollout(&path, "same-header", &[token_line("2026-07-30T10:01:00Z", "call-a", 20, 2)]);
+    let after = std::fs::read(&path).unwrap();
+    assert_eq!(before.len(), after.len());
+    assert_eq!(&before[..64], &after[..64]);
+    std::fs::OpenOptions::new().write(true).open(&path).unwrap().set_modified(modified).unwrap();
+    assert_eq!(scan(&mut index, &roots, &CancellationToken::new()).rebuilt_files, 1);
+    assert_eq!(codex_aggregate(&mut index).tokens.input_tokens, 20);
+    write_rollout(&path, "same-header", &[token_line("2026-07-30T10:01:00Z", "call-a", 30, 2),
+        token_line("2026-07-30T10:02:00Z", "call-b", 40, 2)]);
+    assert_eq!(scan(&mut index, &roots, &CancellationToken::new()).rebuilt_files, 1);
+    assert_eq!(codex_aggregate(&mut index).tokens.input_tokens, 70);
+    assert_eq!(scan(&mut index, &roots, &CancellationToken::new()).unchanged_files, 1);
+}
+
 /// 验证无变化二次扫描不新增调用，随后 append 只增加一个调用。
 #[test]
 fn skips_unchanged_files_and_indexes_only_appended_call() {

@@ -1,7 +1,7 @@
 //! 在 GUI backend 内验证 rollout 来源边界并生成增量替换检测所需文件摘要。
 
 use std::fs::{self, File, Metadata};
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -28,11 +28,6 @@ impl ValidatedRolloutFile {
     /// 返回从已打开句柄读取的元数据，避免依赖验证后的路径状态。
     pub(crate) fn metadata(&self) -> &Metadata {
         &self.metadata
-    }
-
-    /// 返回已验证句柄的可变借用，供摘要计算回到文件开头。
-    pub(crate) fn file_mut(&mut self) -> &mut File {
-        &mut self.file
     }
 
     /// 把已验证句柄交给流式解析器继续读取。
@@ -249,24 +244,6 @@ fn identity_from_metadata(_opened: &Metadata, _current: &Metadata) -> Option<boo
 #[cfg(not(any(unix, windows)))]
 fn identity_from_metadata(_opened: &Metadata, _current: &Metadata) -> Option<bool> {
     None
-}
-
-/// 对已验证句柄开头固定窗口求稳定摘要，用于区分正常追加与替换。
-/// 只对文件“开头 64 字节”做 FNV-1a 哈希：session 文件一旦创建，
-/// 开头内容（首条 session_meta 记录）在正常追加写入场景下永远不变；
-/// 如果下次扫描发现同一路径的“开头指纹”变了，就说明文件被整体替换/
-/// 截断重写过（而不是简单追加了新行），索引层据此判断是否需要重建
-/// 该来源的全部 checkpoint，而不是继续假设可以从旧偏移量继续增量读取。
-pub(crate) fn file_identity(file: &mut File) -> Result<String, LocalError> {
-    file.seek(SeekFrom::Start(0))?;
-    let mut prefix = [0_u8; 64];
-    let read = file.read(&mut prefix)?;
-    let mut hash = 0xcbf29ce484222325_u64;
-    for byte in &prefix[..read] {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    Ok(format!("file-{read}-{hash:016x}"))
 }
 
 /// 把文件修改时间转换为 Unix 毫秒，无法表达时使用零作为未知值。

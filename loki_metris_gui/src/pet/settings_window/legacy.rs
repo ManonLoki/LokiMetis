@@ -1,4 +1,4 @@
-//! Windows 与虚拟测试沿用既有坐标桥接；尚未宣称 Windows 指针选屏已完成。
+//! 虚拟测试保留同回合创建时序；真实目标平台由独立原生事务定位。
 
 use super::super::{Controller, host, settings};
 use gpui_kit::{App, AppContext, Bounds, Entity, WindowBounds, WindowOptions, base::Root, point, px, size};

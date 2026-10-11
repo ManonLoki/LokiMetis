@@ -1,0 +1,2 @@
+        if wparam.0 == 1 {
+            self.draw_window(handle, false);

@@ -353,8 +353,8 @@ impl Controller {
                     let range = geometry::range(area, prefs.layout);
                     let (width, height) =
                         geometry::dimensions(prefs.layout, range.constrain(prefs.pet_size));
-                    host::apply(window, prefs, false)?;
                     let actual = host::bounds(window);
+                    host::apply(window, prefs, false)?;
                     let (x, y) = if restore {
                         stored
                             .filter(|_| valid_stored)

@@ -1,0 +1,1 @@
+WindowControlArea::Max if self.is_resizable =>

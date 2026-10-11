@@ -206,7 +206,7 @@ fn retain_or_queue(
     let checkpoint = relative_label
         .as_ref()
         .and_then(|label| window.known_sources.get(label).copied());
-    if source_file_needs_visit(
+    if checkpoint.is_some() || source_file_needs_visit(
         modified_epoch_ms(metadata),
         metadata.len(),
         window.scan_since_epoch_ms,

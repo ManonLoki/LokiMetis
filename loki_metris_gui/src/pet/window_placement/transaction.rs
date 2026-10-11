@@ -1,4 +1,4 @@
-//! AppKit 外框和显示操作在全部 GPUI 借用之外执行，只接受匹配目标的最终读回。
+//! 原生外框和显示操作在全部 GPUI 借用之外执行，只接受匹配目标的最终读回。
 
 use super::{Controller, Request, current, finish};
 use crate::native::windowing::{self, WindowHost};
@@ -15,12 +15,18 @@ pub(super) fn begin(owner: Entity<Controller>, request: Request, handle: AnyWind
         let owner = task_owner;
         let live = |cx: &mut gpui_kit::AsyncApp| cx.update(|cx| current(&owner, generation, Some(handle), request.visible, cx));
         if !live(cx) { return; }
-        let (prefs, stored, restored, confirmed) = cx.update(|cx| {
+        let (prefs, stored, position_version, restored, confirmed) = cx.update(|cx| {
             let owner = owner.read(cx);
-            (owner.settings.pet_window, owner.settings.pet_overlay_position, owner.geometry_restored, owner.display_state.clone())
+            (owner.settings.pet_window, owner.settings.pet_overlay_position, owner.settings.pet_overlay_position_version,
+                owner.geometry_restored, owner.display_state.clone())
         });
         // 先应用真实无边框样式，再读取边距；初始 GPUI style 可能仍带标题栏位。
+        #[cfg(target_os = "macos")]
         host.configure_auxiliary(!prefs.locked, prefs.always_on_top);
+        #[cfg(windows)]
+        if host.configure_auxiliary(!prefs.locked, prefs.always_on_top).is_err() {
+            cx.update(|cx| finish(&owner, &request, handle, false, false, cx)); return;
+        }
         if !live(cx) { return; }
         if !request.visible { host.hide(); }
         if !live(cx) { return; }
@@ -28,7 +34,7 @@ pub(super) fn begin(owner: Entity<Controller>, request: Request, handle: AnyWind
             let mut desktop = windowing::capture_topology(cx).ok()?;
             desktop.pointer = request.pointer.clone();
             let insets = windowing::frame_insets(window).ok()?;
-            let saved = confirmed.or_else(|| (!restored).then(|| legacy_state(&desktop, prefs, stored, insets)).flatten());
+            let saved = confirmed.clone().or_else(|| (!restored).then(|| legacy_state(&desktop, prefs, stored, position_version, insets)).flatten());
             let current = windowing::window_display_key(window, &desktop).ok();
             let (plan, range) = placement(&desktop, prefs, saved.as_ref(), current.as_deref(), insets)?;
             Some((desktop, plan, range))
@@ -40,9 +46,34 @@ pub(super) fn begin(owner: Entity<Controller>, request: Request, handle: AnyWind
             cx.update(|cx| finish(&owner, &request, handle, false, request.reveal, cx));
             return;
         };
+        #[cfg(windows)]
+        let _ = range;
+        #[cfg(windows)]
+        let (desktop, plan, range) = {
+            if host.prime_display(&desktop, &plan).is_err() {
+                cx.update(|cx| finish(&owner, &request, handle, false, false, cx)); return;
+            }
+            if !live(cx) { return; }
+            let corrected = cx.update(|cx| handle.update(cx, |_, window, cx| {
+                let mut refreshed = windowing::capture_topology(cx).ok()?;
+                refreshed.pointer = desktop.pointer.clone();
+                let insets = windowing::frame_insets(window).ok()?;
+                let saved = confirmed.or_else(|| (!restored).then(|| legacy_state(&refreshed, prefs, stored, position_version, insets)).flatten());
+                let current = windowing::window_display_key(window, &refreshed).ok();
+                let (plan, range) = placement(&refreshed, prefs, saved.as_ref(), current.as_deref(), insets)?;
+                Some((refreshed, plan, range))
+            }).ok().flatten());
+            let Some(corrected) = corrected else {
+                cx.update(|cx| finish(&owner, &request, handle, false, false, cx)); return;
+            };
+            corrected
+        };
         // 设置回执或退出可在原生回调中进入，因此每个操作之前均重新验证。
+        #[cfg(target_os = "macos")]
         host.auxiliary_size_limits(super::super::geometry::dimensions(prefs.layout, range.min),
             super::super::geometry::dimensions(prefs.layout, range.max));
+        #[cfg(windows)]
+        let _ = range;
         if !live(cx) { return; }
         let applied = host.apply_auxiliary(&desktop, &plan).ok();
         let plan = applied.as_ref().unwrap_or(&plan);

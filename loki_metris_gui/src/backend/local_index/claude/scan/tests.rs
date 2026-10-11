@@ -227,8 +227,8 @@ fn appended_transcript_outside_the_scan_window_is_still_indexed() {
     ))
     .expect("settled scan succeeds");
     assert_eq!(
-        settled.files_scanned, 0,
-        "unchanged source outside the window stays closed"
+        settled.files_scanned, 1,
+        "known source outside the window rechecks its host identity"
     );
     assert_eq!(settled.call_count, 2, "retained source keeps its calls");
 }

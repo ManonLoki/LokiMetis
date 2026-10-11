@@ -290,7 +290,10 @@ fn write(path: &PathBuf, text: &str) -> std::io::Result<()> {
 fn safe_parent(path: &std::path::Path) -> std::io::Result<()> {
     let mut current = PathBuf::new();
     for component in path.parent().expect("偏好文件具有父目录").components() {
+        if component == std::path::Component::ParentDir { return Err(std::io::ErrorKind::InvalidInput.into()); }
         current.push(component.as_os_str());
+        // Windows verbatim 前缀单独的 \\?\C: 不是可查询目录，必须等完整根拼好。
+        if matches!(component, std::path::Component::Prefix(_)) { continue; }
         match fs::metadata(&current) {
             Ok(metadata) if !metadata.is_dir() => return Err(std::io::Error::other("preference ancestors must be real directories")),
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),

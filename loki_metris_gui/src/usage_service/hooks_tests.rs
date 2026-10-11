@@ -270,7 +270,8 @@ fn ephemeral_executable_paths_are_rejected_for_hook_commands() {
 /// 安装位置含中文与空格时，写入真实配置的命令必须带引号、使用本产品的中继参数与管理标识。
 #[test]
 fn installed_app_path_is_written_as_quoted_relay_command() {
-    let executable = "/Applications/诡秘 神谕.app/Contents/MacOS/loki_metris_gui";
+    let executable = if cfg!(windows) { r"C:\Program Files\诡秘 神谕\loki_metris_gui.exe" }
+        else { "/Applications/诡秘 神谕.app/Contents/MacOS/loki_metris_gui" };
     let fixture = Fixture::with_executable(executable);
     let service = &fixture.service;
     let receipt = service.write_monitor_hook_config(AiTool::ClaudeCode).unwrap();
@@ -289,8 +290,13 @@ fn installed_app_path_is_written_as_quoted_relay_command() {
         .collect();
     assert!(!commands.is_empty());
     for command in commands {
-        assert!(command.starts_with(&format!("'{executable}' --loki-metris-hook-relay 'claude-code' ")), "{command}");
-        assert!(command.ends_with("--managed-by 'LokiMetris:tool=claude-code'"), "{command}");
+        if cfg!(windows) {
+            assert!(command.starts_with(&format!("cmd.exe /d /s /c \"\"{executable}\" --loki-metris-hook-relay \"claude-code\" ")), "{command}");
+            assert!(command.ends_with("--managed-by \"LokiMetris:tool=claude-code\"\""), "{command}");
+        } else {
+            assert!(command.starts_with(&format!("'{executable}' --loki-metris-hook-relay 'claude-code' ")), "{command}");
+            assert!(command.ends_with("--managed-by 'LokiMetris:tool=claude-code'"), "{command}");
+        }
         assert!(!command.contains("/Volumes/"), "{command}");
     }
 }

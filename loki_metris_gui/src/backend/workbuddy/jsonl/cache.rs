@@ -48,7 +48,7 @@ impl ParsedFile {
 
     /// 仅当文件戳与路径派生属性都相同才视为同一份解析输入。
     fn matches(&self, stamp: &FileStamp, source: &WorkbuddyProjectFile) -> bool {
-        self.stamp == *stamp
+        self.stamp.is_cacheable() && stamp.is_cacheable() && self.stamp == *stamp
             && self.origin == source.origin
             && self.relative_key == source.relative_key
             && self.project_key_material == source.project_key_material
@@ -99,7 +99,7 @@ pub(super) fn store(root_id: &str, path: &Path, parsed: ParsedFile) {
         .filter(|(existing, _)| **existing != key)
         .map(|(_, parsed)| parsed.records.len())
         .sum();
-    if others.saturating_add(parsed.records.len()) <= MAX_CACHED_RECORDS {
+    if parsed.stamp.is_cacheable() && others.saturating_add(parsed.records.len()) <= MAX_CACHED_RECORDS {
         entries.insert(key, Arc::new(parsed));
     } else {
         entries.remove(&key);

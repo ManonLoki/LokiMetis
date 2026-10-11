@@ -21,7 +21,7 @@ use crate::backend::local_index::discovery::{
     metadata_is_link_like, path_key, stable_id, walk_ancestors_for_link_component,
 };
 use crate::backend::local_index::file_source::{
-    file_identity, modified_epoch_ms, same_opened_file,
+    modified_epoch_ms, same_opened_file,
 };
 use crate::backend::local_index::rollout_ingest::INSERT_BATCH_SIZE;
 use crate::backend::local_index::scan::CancellationToken;
@@ -114,7 +114,16 @@ impl IndexClaudeTranscript for LocalIndex {
                     )
                 })??;
         let existing = self.stored_source_file(&prep.source_id).await?;
-        if !force_rebuild
+        let previous = existing.as_ref().map(|old| (old.file_identity.clone(), old.parsed_offset.saturating_add(old.trailing_bytes)));
+        let probe_cancellation = cancellation.clone();
+        let (prep, prefix_matches) = spawn_blocking(move || {
+            let mut prep = prep;
+            let (identity, matches) = super::super::source_fingerprint::probe(&mut prep.file, prep.observed_size,
+                previous.as_ref().map(|(identity, size)| (identity.as_str(), *size)), &probe_cancellation)?;
+            prep.identity = identity;
+            Ok::<_, LocalError>((prep, matches))
+        }).await.map_err(|_| LocalError::new(LocalErrorKind::SourceUnavailable, "Claude fingerprint worker lost"))??;
+        if !force_rebuild && !cancellation.is_cancelled()
             && let Some(existing) = &existing
             && existing.observed_size == prep.observed_size
             && existing.modified_at_epoch_ms == prep.modified_at_epoch_ms
@@ -139,7 +148,7 @@ impl IndexClaudeTranscript for LocalIndex {
             && existing.as_ref().is_some_and(|checkpoint| {
                 checkpoint.parser_version == CLAUDE_PARSER_VERSION
                     && prep.observed_size > checkpoint.observed_size
-                    && checkpoint.file_identity == prep.identity
+                    && prefix_matches
             });
         let rebuilt = existing.is_some() && !can_append;
         let generation = match (&existing, can_append) {
@@ -194,10 +203,12 @@ impl IndexClaudeTranscript for LocalIndex {
         let relative_label = prep.relative_label.clone();
         let root_id_for_parse = root_id.clone();
         let parse_cancellation = cancellation.clone();
+        let fingerprint = prep.identity.clone();
         let observed_size = prep.observed_size;
         let mut parsed = spawn_blocking(move || {
             parse_claude_batches(ClaudeParseRequest {
                 file: prep.file,
+                fingerprint,
                 observed_size,
                 parse_start,
                 max_line_bytes,
@@ -300,7 +311,7 @@ fn prepare_claude_identity(
     root_path: PathBuf,
     root_id: String,
 ) -> Result<ClaudeIdentityPrep, LocalError> {
-    let mut file = File::open(&file_path)?;
+    let file = File::open(&file_path)?;
     let metadata = file.metadata()?;
     let current_metadata = fs::symlink_metadata(&file_path)?;
     if !metadata.is_file()
@@ -326,7 +337,6 @@ fn prepare_claude_identity(
     })?;
     let relative_label = path_key(relative);
     let source_id = stable_id("claude-source", &format!("{root_id}\u{0}{relative_label}"));
-    let identity = file_identity(&mut file)?;
     let project_seed = relative
         .components()
         .nth(1)
@@ -334,7 +344,7 @@ fn prepare_claude_identity(
     Ok(ClaudeIdentityPrep {
         source_id,
         relative_label,
-        identity,
+        identity: String::new(),
         observed_size,
         modified_at_epoch_ms,
         project_seed,
@@ -347,6 +357,8 @@ fn prepare_claude_identity(
 struct ClaudeParseRequest {
     /// 已打开、已定位到续读起点的文件句柄。
     file: File,
+    /// 来源在提交批次前必须仍符合解析前完整身份。
+    fingerprint: String,
     /// 打开时观测到的文件字节数。
     observed_size: u64,
     /// 本次续读的起始字节偏移。
@@ -369,6 +381,7 @@ struct ClaudeParseRequest {
 fn parse_claude_batches(request: ClaudeParseRequest) -> Result<ParsedClaudeBatches, LocalError> {
     let ClaudeParseRequest {
         mut file,
+        fingerprint,
         observed_size,
         parse_start,
         max_line_bytes,
@@ -389,7 +402,7 @@ fn parse_claude_batches(request: ClaudeParseRequest) -> Result<ParsedClaudeBatch
     let mut batch = Vec::<UsageCall>::with_capacity(INSERT_BATCH_SIZE);
     let mut batches = Vec::new();
     let report = parse_claude_jsonl_stream(
-        file.take(readable_bytes),
+        (&mut file).take(readable_bytes),
         max_line_bytes,
         &mut context,
         &provenance,
@@ -403,6 +416,9 @@ fn parse_claude_batches(request: ClaudeParseRequest) -> Result<ParsedClaudeBatch
             Ok(())
         },
     )?;
+    if !report.cancelled || report.bytes_consumed != 0 {
+        super::super::source_fingerprint::verify(&mut file, &fingerprint)?;
+    }
     if !batch.is_empty() {
         batches.push(batch);
     }

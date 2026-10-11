@@ -55,6 +55,8 @@ unsafe extern "system" {
     fn ShowWindow(window: Handle, command: i32) -> i32;
     /// 查询窗口是否最小化；非零表示最小化，零表示未最小化。
     fn IsIconic(window: Handle) -> i32;
+    /// 隐藏主窗不产生可保存的普通几何。
+    fn IsWindowVisible(window: Handle) -> i32;
     /// 查询句柄当前是否标识窗口；结果不能保证其后仍有效，也不能证明进程或线程归属。
     fn IsWindow(window: Handle) -> i32;
     /// 返回创建窗口的线程标识，失败返回零；非空 process 指针须可写，用于接收所属进程标识。
@@ -69,6 +71,11 @@ pub(crate) struct MainWindow {
 }
 
 impl MainWindow {
+    /// 最小化的 iconic 坐标及隐藏反馈不能覆盖最后可信的普通位置。
+    pub(crate) fn allows_geometry_save(&self) -> bool {
+        // SAFETY: 句柄先确认属于当前 UI 线程和进程，查询不转移所有权。
+        self.is_valid() && unsafe { IsIconic(self.window) == 0 && IsWindowVisible(self.window) != 0 }
+    }
     /// 从仍然存活的 GPUI 窗口提取 HWND，不依赖后端的窗口类名。
     pub(crate) fn capture(window: &Window) -> io::Result<Self> {
         let handle = HasWindowHandle::window_handle(window)
@@ -81,7 +88,11 @@ impl MainWindow {
         };
         // SAFETY: 窗口仍由 GPUI 持有；保存的 HWND 仅在 UI 线程上使用，
         // 每次操作前均重新校验线程、进程与句柄有效性。
-        let window = handle.hwnd.get() as Handle;
+        Self::from_handle(handle.hwnd.get() as Handle)
+    }
+
+    /// 原生事务与真实 HWND 回归共用所属线程验证，不转移窗口销毁所有权。
+    pub(super) fn from_handle(window: Handle) -> io::Result<Self> {
         let thread = unsafe { GetCurrentThreadId() };
         let native = Self { window, thread };
         if !native.is_valid() {
@@ -148,6 +159,39 @@ impl MainWindow {
             let mut process = 0;
             GetWindowThreadProcessId(self.window, &mut process) == self.thread
                 && process == GetCurrentProcessId()
+        }
+    }
+}
+
+/// 活窗无法识别时生产路径拒绝保存；虚拟测试窗沿用 GPUI 的可见性合同。
+pub(crate) fn allows_geometry_save(window: &Window) -> bool {
+    MainWindow::capture(window).map(|host| host.allows_geometry_save()).unwrap_or(cfg!(test) && window.is_visible())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows::{core::w, Win32::UI::WindowsAndMessaging::{CreateWindowExW, DestroyWindow,
+        WINDOW_EX_STYLE, WS_OVERLAPPEDWINDOW}};
+
+    /// 同一真实 HWND 显示、最小化、恢复及隐藏，只有普通可见状态允许持久化。
+    #[test]
+    fn iconic_and_hidden_windows_cannot_overwrite_normal_geometry() {
+        // SAFETY: 使用系统 STATIC 类创建本线程独有测试窗口，结束前销毁且不保存用户数据。
+        unsafe {
+            let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("STATIC"), w!("LokiMetris geometry regression"),
+                WS_OVERLAPPEDWINDOW, 100, 100, 180, 140, None, None, None, None).unwrap();
+            let host = MainWindow { window: hwnd.0, thread: GetCurrentThreadId() };
+            assert!(!host.allows_geometry_save());
+            ShowWindow(host.window, 4);
+            assert!(host.allows_geometry_save());
+            ShowWindow(host.window, 6);
+            assert!(!host.allows_geometry_save());
+            ShowWindow(host.window, SW_RESTORE);
+            assert!(host.allows_geometry_save());
+            host.hide();
+            assert!(!host.allows_geometry_save());
+            DestroyWindow(hwnd).unwrap();
         }
     }
 }

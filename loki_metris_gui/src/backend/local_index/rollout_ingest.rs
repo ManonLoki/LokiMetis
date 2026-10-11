@@ -11,7 +11,7 @@ use tokio::task::spawn_blocking;
 
 use super::discovery::{DiscoveredRoot, path_key, stable_id};
 use super::file_source::{
-    ValidatedRolloutFile, file_identity, modified_epoch_ms, validate_rollout_path,
+    ValidatedRolloutFile, modified_epoch_ms, validate_rollout_path,
 };
 use super::jsonl::{
     JsonlParseContext, JsonlParseReport, JsonlWarningCounts, PARSER_VERSION, is_response_call,
@@ -108,10 +108,19 @@ impl IndexRolloutFile for LocalIndex {
             )
         })??;
         let existing = self.stored_source_file(&prep.source_id).await?;
+        let previous = existing.as_ref().map(|old| (old.file_identity.clone(), old.parsed_offset.saturating_add(old.trailing_bytes)));
+        let probe_cancellation = cancellation.clone();
+        let (prep, prefix_matches) = spawn_blocking(move || {
+            let mut prep = prep;
+            let (identity, matches) = super::source_fingerprint::probe(&mut prep.file, prep.observed_size,
+                previous.as_ref().map(|(identity, size)| (identity.as_str(), *size)), &probe_cancellation)?;
+            prep.file_identity = identity;
+            Ok::<_, LocalError>((prep, matches))
+        }).await.map_err(|_| LocalError::new(LocalErrorKind::SourceUnavailable, "rollout fingerprint worker lost"))??;
         let physically_appendable = existing.as_ref().is_some_and(|checkpoint| {
             checkpoint.parser_version == PARSER_VERSION
                 && prep.observed_size >= checkpoint.observed_size
-                && checkpoint.file_identity == prep.file_identity
+                && prefix_matches
                 && checkpoint.token_snapshots_ready
         });
         let restored_context = if physically_appendable {
@@ -127,9 +136,10 @@ impl IndexRolloutFile for LocalIndex {
             .unwrap_or_default();
         let can_append =
             !config.force_rebuild && physically_appendable && restored_context.is_some();
-        if let Some(existing) = &existing
+        if !cancellation.is_cancelled() && let Some(existing) = &existing
             && existing.observed_size == prep.observed_size
             && existing.modified_at_epoch_ms == prep.modified_at_epoch_ms
+            && existing.file_identity == prep.file_identity
             && existing.parsed_offset.checked_add(existing.trailing_bytes)
                 == Some(existing.observed_size)
             && can_append
@@ -187,9 +197,11 @@ impl IndexRolloutFile for LocalIndex {
         let relative_label = prep.relative_label.clone();
         let root_id_for_parse = root_id.clone();
         let parse_cancellation = cancellation.clone();
+        let fingerprint = prep.file_identity.clone();
         let parsed = spawn_blocking(move || {
             parse_rollout_batches(RolloutParseRequest {
                 file: prep.file,
+                fingerprint,
                 observed_size: prep.observed_size,
                 parse_start,
                 max_line_bytes: config.max_line_bytes,
@@ -305,7 +317,7 @@ impl IndexRolloutFile for LocalIndex {
 
 /// 在 blocking 岛内完成相对路径、指纹与打开句柄移交。
 fn prepare_rollout_identity(
-    mut source: ValidatedRolloutFile,
+    source: ValidatedRolloutFile,
     root_path: PathBuf,
     file_path: PathBuf,
     root_id: String,
@@ -320,11 +332,10 @@ fn prepare_rollout_identity(
     })?;
     let relative_label = path_key(relative);
     let source_id = stable_id("source", &format!("{root_id}\u{0}{relative_label}"));
-    let file_identity = file_identity(source.file_mut())?;
     Ok(RolloutIdentityPrep {
         source_id,
         relative_label,
-        file_identity,
+        file_identity: String::new(),
         observed_size,
         modified_at_epoch_ms,
         file: source.into_file(),
@@ -336,6 +347,8 @@ fn prepare_rollout_identity(
 struct RolloutParseRequest {
     /// 已打开、已定位到续读起点的文件句柄。
     file: std::fs::File,
+    /// 同句柄解析前的完整身份，提交批次前必须保持一致。
+    fingerprint: String,
     /// 打开时观测到的文件字节数。
     observed_size: u64,
     /// 本次续读的起始字节偏移。
@@ -360,6 +373,7 @@ struct RolloutParseRequest {
 fn parse_rollout_batches(request: RolloutParseRequest) -> Result<ParsedRolloutBatches, LocalError> {
     let RolloutParseRequest {
         mut file,
+        fingerprint,
         observed_size,
         parse_start,
         max_line_bytes,
@@ -381,7 +395,7 @@ fn parse_rollout_batches(request: RolloutParseRequest) -> Result<ParsedRolloutBa
     let mut batch = Vec::<UsageCall>::with_capacity(INSERT_BATCH_SIZE);
     let mut batches = Vec::new();
     let report = parse_jsonl_stream(
-        file.take(readable_bytes),
+        (&mut file).take(readable_bytes),
         max_line_bytes,
         &mut context,
         &provenance,
@@ -395,6 +409,9 @@ fn parse_rollout_batches(request: RolloutParseRequest) -> Result<ParsedRolloutBa
             Ok(())
         },
     )?;
+    if !report.cancelled || report.bytes_consumed != 0 {
+        super::source_fingerprint::verify(&mut file, &fingerprint)?;
+    }
     if !batch.is_empty() {
         batches.push(batch);
     }

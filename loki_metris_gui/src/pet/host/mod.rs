@@ -4,7 +4,7 @@
 #[derive(Default)]
 pub struct MousePassthroughState {
     pub(super) confirmed: Option<bool>,
-    #[cfg(all(windows, not(test)))]
+    #[cfg(windows)]
     pub(super) original_bits: Option<isize>,
     #[cfg(test)]
     pub(super) calls: usize,
@@ -20,7 +20,7 @@ impl MousePassthroughState {
 mod macos;
 #[cfg(all(target_os = "macos", not(test)))]
 pub use macos::*;
-#[cfg(all(windows, not(test)))]
+#[cfg(windows)]
 mod windows;
 #[cfg(all(windows, not(test)))]
 pub use windows::*;

@@ -1,0 +1,7 @@
+const SIZE_MOVE_LOOP_TIMER_ID: usize = 1;
+
+/// 动态锁定以当前厚边框样式为准，创建时的可缩放缓存只作为能力上限。
+fn native_resize_allowed(handle: HWND, configured: bool) -> bool {
+    // SAFETY: handle来自当前事件的活窗，仅同步读取原生样式。
+    configured && unsafe { get_window_long(handle, GWL_STYLE) } & WS_THICKFRAME.0 as isize != 0
+}

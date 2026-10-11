@@ -20,16 +20,25 @@ pub(super) fn placement(desktop: &DesktopSnapshot, prefs: PetWindowPreferences, 
 
 /// 旧位置缺少屏幕身份，仅接受完整落在唯一屏工作区的物理像素解释。
 pub(super) fn legacy_state(desktop: &DesktopSnapshot, prefs: PetWindowPreferences, stored: Option<PetOverlayPosition>,
-    insets: WindowFrameInsets) -> Option<WindowStateV2> {
+    position_version: u8, insets: WindowFrameInsets) -> Option<WindowStateV2> {
     let stored = stored?;
     let candidates = desktop.displays.iter().filter_map(|display| {
         let area = &display.area;
         let range = PetSizeRange::for_work_area(area.work_area.size.width.min(area.work_area.size.height), prefs.layout);
         let (width, height) = super::super::geometry::dimensions(prefs.layout, range.constrain(prefs.pet_size));
+        #[cfg(not(windows))]
         let origin = WindowDipPoint {
             x: f64::from(stored.x) / area.scale - display.global_origin.x,
             y: f64::from(stored.y) / area.scale - super::super::geometry::HEADER_HEIGHT - display.global_origin.y,
         };
+        #[cfg(windows)]
+        let origin = WindowDipPoint {
+            x: (f64::from(stored.x) - display.global_origin.x) / area.scale - if position_version == 2 { insets.left } else { 0. },
+            y: (f64::from(stored.y) - display.global_origin.y) / area.scale - super::super::geometry::HEADER_HEIGHT
+                - if position_version == 2 { insets.top } else { 0. },
+        };
+        #[cfg(not(windows))]
+        let _ = position_version;
         let work = area.work_area;
         (origin.x >= work.origin.x && origin.y >= work.origin.y
             && origin.x + width + insets.left + insets.right <= work.origin.x + work.size.width

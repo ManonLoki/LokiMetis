@@ -4,6 +4,26 @@ use super::*;
 use loki_metris_core::PetLayout;
 use tempfile::tempdir;
 
+/// 坐标版本字段损坏不能连带丢失已启用工具、目录及桌宠偏好。
+#[test]
+fn malformed_position_version_falls_back_without_losing_other_settings() {
+    let root = tempdir().unwrap();
+    for version in [serde_json::Value::Null, serde_json::json!("2"), serde_json::json!(-1),
+        serde_json::json!(256), serde_json::json!({}), serde_json::json!(2)] {
+        let raw = serde_json::json!({"enabledAiTools":["codex"], "hookDirectories":{"codex":"D:/agent"},
+            "petOverlayPositionVersion":version, "petWindow":{"locked":true}});
+        std::fs::write(settings_path(root.path()), serde_json::to_vec(&raw).unwrap()).unwrap();
+        let settings = load_monitor_settings(root.path()).unwrap();
+        assert_eq!(settings.enabled_ai_tools, vec![AiTool::Codex]);
+        assert_eq!(settings.hook_directories.codex, "D:/agent");
+        assert!(settings.pet_window.locked);
+        assert_eq!(settings.pet_overlay_position_version, if version == serde_json::json!(2) { 2 } else { 1 });
+        let saved = save_monitor_settings(root.path(), &settings).unwrap();
+        assert_eq!(load_monitor_settings(root.path()).unwrap().pet_overlay_position_version,
+            saved.pet_overlay_position_version);
+    }
+}
+
 /// 超大配置和目标符号链接必须拒绝，不能误读为合法默认配置或覆盖外部文件。
 #[test]
 fn oversized_or_nonregular_settings_are_rejected_without_overwrite() {
