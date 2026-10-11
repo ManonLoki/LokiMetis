@@ -28,6 +28,8 @@ fn tile(renderer: &MetalHeadlessRenderer, data: &RenderImage, frame: usize) -> A
 fn scene(tile: AtlasTile, viewport: Bounds<ScaledPixels>, image: Bounds<ScaledPixels>, radius: f32, mask: Bounds<ScaledPixels>) -> Scene {
     let mut scene = Scene::default();
     scene.insert_primitive(PolychromeSprite {
+        #[cfg(feature = "parent-rounded-clip")]
+        parent_clip: Default::default(),
         order: 0, pad: 0, grayscale: false.into(), opacity: 1.,
         bounds: image, content_mask: ContentMask { bounds: mask },
         corner_radii: Corners::all(ScaledPixels(radius)), tile, rounded_clip_bounds: viewport,

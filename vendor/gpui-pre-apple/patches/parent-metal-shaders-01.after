@@ -1,0 +1,43 @@
+                   float2 half_size);
+float4 over(float4 below, float4 above);
+float radians(float degrees);
+float4 fill_color(Background background, float2 position, Bounds_ScaledPixels bounds,
+  float4 solid_color, float4 color0, float4 color1);
+
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+// 原始父圆角链helper草案；ParentClipNode由同步生成的scene.h声明。
+// fragment必须传真实屏幕scaled pixel坐标，并在其原有alpha合同处使用coverage。
+float parent_round_distance(float2 p, Bounds_ScaledPixels b,
+                            Corners_ScaledPixels r) {
+  if (b.size.width <= 0.0 || b.size.height <= 0.0) return INFINITY;
+  float left = b.origin.x, top = b.origin.y;
+  float right = left + b.size.width, bottom = top + b.size.height;
+  float d = max(max(left - p.x, p.x - right), max(top - p.y, p.y - bottom));
+  if (r.top_left > 0.0 && p.x < left + r.top_left && p.y < top + r.top_left)
+    d = max(d, length(p - float2(left + r.top_left, top + r.top_left)) - r.top_left);
+  if (r.top_right > 0.0 && p.x > right - r.top_right && p.y < top + r.top_right)
+    d = max(d, length(p - float2(right - r.top_right, top + r.top_right)) - r.top_right);
+  if (r.bottom_right > 0.0 && p.x > right - r.bottom_right && p.y > bottom - r.bottom_right)
+    d = max(d, length(p - float2(right - r.bottom_right, bottom - r.bottom_right)) - r.bottom_right);
+  if (r.bottom_left > 0.0 && p.x < left + r.bottom_left && p.y > bottom - r.bottom_left)
+    d = max(d, length(p - float2(left + r.bottom_left, bottom - r.bottom_left)) - r.bottom_left);
+  return d;
+}
+
+float parent_clip_coverage(float2 position, uint head,
+                          constant ParentClipNode *nodes) {
+  if (head == 0u) return 1.0;
+  float distance = -INFINITY;
+  while (head != 0u) {
+    ParentClipNode node = nodes[head];
+    distance = max(distance, parent_round_distance(position, node.bounds, node.corner_radii));
+    head = node.parent;
+  }
+  return saturate(0.5 - distance);
+}
+#endif
+
+struct GradientColor {
+  float4 solid;
+  float4 color0;
+  float4 color1;

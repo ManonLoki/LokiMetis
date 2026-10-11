@@ -1,0 +1,10 @@
+e| size.ceil());
+
+        self.next_frame.scene.insert_primitive(MonochromeSprite {
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: Default::default(),
+            order: 0,
+            pad: 0,
+            bounds: final_bounds,
+            content_mask,
+            colo

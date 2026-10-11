@@ -1,0 +1,2 @@
+    /// Updates the global element offset relative to the current offset. This is used to implement
+    /// scrolling. This method should only be called during the prepaint phase of element drawing.

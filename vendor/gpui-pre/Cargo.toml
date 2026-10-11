@@ -52,6 +52,8 @@ zed-rev = "279fe070bb389b79652e52065b2f001edcc0b11b"
 [features]
 # 仅用于帧调度专项回归；隔离发布包外字体和既有属性宏阻断，不改变生产代码。
 frame-demand-regression = []
+# 当前临时实现仅Apple后端，默认关闭，不改变其它backend ABI。
+parent-rounded-clip = []
 bench = ["bench-support"]
 bench-support = [
     "profiler",

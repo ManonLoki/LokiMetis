@@ -1,0 +1,13 @@
+      color,
+      underline_id,
+      {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}};
+}
+
+fragment float4 underline_fragment(UnderlineFragmentInput input [[stage_in]],
+                                   constant Underline *underlines
+                                   [[buffer(UnderlineInputIndex_Underlines)]]) {
+  const float WAVE_FREQUENCY = 2.0;
+  const float WAVE_HEIGHT_RATIO = 0.8;
+
+  Underline underline = underlines[input.underline_id];
+  if (underline.wavy) {

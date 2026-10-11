@@ -1,0 +1,2 @@
+    /// 已used逻辑圆角；外角只归一一次，内缘允许大于padding-box宽高，不重新定位圆心。
+    pub corner_radii: Corners<Pixels>,

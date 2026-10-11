@@ -1,0 +1,22 @@
+                let mut prepaint = |window: &mut Window| {
+                    if let Some(mut element) = element {
+                        window.with_rendered_view(current_view, |window| {
+                            window.with_rem_size(Some(rem_size), |window| {
+                                window.with_hitbox_exclusions(&parent_hitbox_exclusions, |window| {
+                                    window.with_content_mask(parent_mask, |window| {
+                                        window.with_absolute_element_offset(absolute_offset, |window| {
+                                            element.prepaint(window, cx);
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                        window.next_frame.deferred_draws[deferred_draw_ix].element = Some(element);
+                    } else {
+                        window.reuse_prepaint(prepaint_range);
+                    }
+                };
+                #[cfg(feature = "parent-rounded-clip")]
+                self.with_parent_clip_chain(parent_clips, prepaint);
+                #[cfg(not(feature = "parent-rounded-clip"))]
+                prepaint(self);

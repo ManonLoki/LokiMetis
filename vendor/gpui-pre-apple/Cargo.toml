@@ -32,6 +32,7 @@ zed-version = "0.1.0"
 zed-rev = "279fe070bb389b79652e52065b2f001edcc0b11b"
 
 [features]
+parent-rounded-clip = ["gpui/parent-rounded-clip"]
 bench-support = ["gpui/bench-support"]
 default = []
 runtime_shaders = []

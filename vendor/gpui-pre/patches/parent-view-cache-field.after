@@ -1,0 +1,5 @@
+    content_mask: ContentMask<Pixels>,
+    hitbox_exclusions: Vec<Bounds<Pixels>>,
+    #[cfg(feature = "parent-rounded-clip")]
+    parent_clips: crate::ParentClipChain,
+    text_style: TextStyle,

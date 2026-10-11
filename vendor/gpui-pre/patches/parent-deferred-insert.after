@@ -1,0 +1,4 @@
+            text_style_stack: self.text_style_stack.clone(),
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clips: self.parent_rounded_clips(),
+            content_mask,

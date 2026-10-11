@@ -1,0 +1,20 @@
+  // to the current vertex of the unit triangle.
+  float2 texture_position = unit_vertex;
+  return SurfaceVertexOutput{
+      device_position,
+      texture_position,
+      {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+      , surface.parent_clip.head
+#endif
+};
+}
+
+float4 surface_fragment_unclipped(SurfaceFragmentInput input,
+                                 texture2d<float> y_texture,
+                                 texture2d<float> cb_cr_texture) {
+  constexpr sampler texture_sampler(mag_filter::linear, min_filter::linear);
+  const float4x4 ycbcrToRGBTransform =
+      float4x4(float4(+1.0000f, +1.0000f, +1.0000f, +0.0000f),
+               float4(+0.0000f, -0.3441f, +1.7720f, +0.0000f),
+               float4(+1.4020f, -0.7141f, +0.0000f, +0.0000f),

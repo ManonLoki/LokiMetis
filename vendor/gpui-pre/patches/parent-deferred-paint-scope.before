@@ -1,0 +1,11 @@
+            if let Some(element) = deferred_draw.element.as_mut() {
+                self.with_rendered_view(deferred_draw.current_view, |window| {
+                    window.with_content_mask(content_mask, |window| {
+                        window.with_rem_size(Some(deferred_draw.rem_size), |window| {
+                            element.paint(window, cx);
+                        });
+                    })
+                })
+            } else {
+                self.reuse_paint(deferred_draw.paint_range.clone());
+            }

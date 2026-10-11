@@ -1,0 +1,34 @@
+        /// 已used内缘只净化非法输入，不能再按更小padding-box做第二次overlap缩放。
+        /// 均匀边框缩进后，单个used半径可以合法大于内缘宽高，圆心仍与外角同心。
+        pub(crate) fn from_used_radii(
+            bounds: Bounds<Pixels>,
+            corner_radii: Corners<Pixels>,
+        ) -> Self {
+            let x = f32::from(bounds.origin.x);
+            let y = f32::from(bounds.origin.y);
+            let width = f32::from(bounds.size.width);
+            let height = f32::from(bounds.size.height);
+            if ![x, y, width, height, x + width, y + height]
+                .into_iter()
+                .all(f32::is_finite)
+                || width <= 0.
+                || height <= 0.
+            {
+                return Self::default();
+            }
+            let sanitize = |radius: Pixels| {
+                let value = f32::from(radius);
+                crate::px(if value.is_finite() && value > 0. { value } else { 0. })
+            };
+            Self {
+                bounds,
+                corner_radii: Corners {
+                    top_left: sanitize(corner_radii.top_left),
+                    top_right: sanitize(corner_radii.top_right),
+                    bottom_right: sanitize(corner_radii.bottom_right),
+                    bottom_left: sanitize(corner_radii.bottom_left),
+                },
+            }
+        }
+
+        /// 命中沿用矩形右/下开区间，并检查真实四角圆心，不能按元素中线挑选半径。

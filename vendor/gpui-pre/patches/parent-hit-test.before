@@ -1,0 +1,2 @@
+            if bounds.contains(&position) {
+                hit_test.ids.push(hitbox.id);

@@ -12,3 +12,12 @@ include!(concat!(env!("OUT_DIR"), "/gpui-patched/src/gpui_apple.rs"));
 
 #[cfg(test)]
 mod rounded_clip_tests;
+
+#[cfg(all(test,feature = "parent-rounded-clip"))]
+mod parent_clip_tests;
+
+#[cfg(all(test, feature = "parent-rounded-clip"))]
+mod geometry_metal_tests;
+
+#[cfg(all(test, feature = "parent-rounded-clip"))]
+mod skin_parent_only_metal_tests;

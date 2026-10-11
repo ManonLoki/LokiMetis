@@ -1,0 +1,375 @@
+pub type PathVertex_ScaledPixels = PathVertex<ScaledPixels>;
+
+#[cfg(all(test, feature = "parent-rounded-clip"))]
+mod parent_clip_tests {
+    //! 使用真实 Scene/Primitive 的待编译回归，不以模型或字符串检查冒充 GPU 结果。
+
+    use super::*;
+    use crate::{AtlasTextureKind, TileId, px, size};
+
+    fn clip(x: f32, y: f32, width: f32, height: f32, radius: f32) -> ParentRoundedClip {
+        ParentRoundedClip::new(
+            Bounds::new(point(px(x), px(y)), size(px(width), px(height))),
+            Corners::all(px(radius)),
+        )
+    }
+
+    fn chain() -> ParentClipChain {
+        ParentClipChain::default()
+            .push(clip(10., 20., 100., 60., 20.))
+            .push(clip(30., 25., 70., 45., 12.))
+    }
+
+    fn bounds() -> Bounds<ScaledPixels> {
+        Bounds::new(
+            point(ScaledPixels(20.), ScaledPixels(40.)),
+            size(ScaledPixels(200.), ScaledPixels(120.)),
+        )
+    }
+
+    fn quad() -> Quad {
+        Quad {
+            bounds: bounds(),
+            content_mask: ContentMask { bounds: bounds() },
+            ..Default::default()
+        }
+    }
+
+    fn path() -> Path<ScaledPixels> {
+        let mut path = Path::new(point(px(10.), px(20.))).scale(2.);
+        path.bounds = bounds();
+        path.content_mask = ContentMask { bounds: bounds() };
+        path
+    }
+
+    fn tile() -> AtlasTile {
+        AtlasTile {
+            texture_id: AtlasTextureId {
+                index: 0,
+                kind: AtlasTextureKind::Monochrome,
+            },
+            tile_id: TileId(7),
+            padding: 0,
+            bounds: Default::default(),
+        }
+    }
+
+    fn geometry(scene: &Scene, id: ParentClipId) -> Vec<ParentClipNode> {
+        let mut head = id.head as usize;
+        let mut nodes = Vec::new();
+        while head != 0 {
+            let node = scene.parent_clip_nodes[head];
+            assert!((node.parent as usize) < head);
+            nodes.push(ParentClipNode { parent: 0, ..node });
+            head = node.parent as usize;
+        }
+        nodes.reverse();
+        nodes
+    }
+
+    fn operations(scene: &Scene) -> Vec<&Primitive> {
+        scene
+            .paint_operations
+            .iter()
+            .filter_map(|operation| match operation {
+                PaintOperation::Primitive(primitive) => Some(primitive),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// 节点格式没有隐式对齐空洞，保留字即使不使用也必须全部初始化。
+    #[test]
+    fn parent_clip_abi_has_explicit_zero_padding_and_sentinel() {
+        use std::mem::{align_of, offset_of, size_of};
+        assert_eq!(size_of::<ParentClipId>(), 16);
+        assert_eq!(align_of::<ParentClipId>(), 4);
+        assert_eq!(offset_of!(ParentClipId, head), 0);
+        assert_eq!(offset_of!(ParentClipId, padding), 4);
+        assert_eq!(size_of::<ParentClipNode>(), 48);
+        assert_eq!(align_of::<ParentClipNode>(), 4);
+        assert_eq!(offset_of!(ParentClipNode, bounds), 0);
+        assert_eq!(offset_of!(ParentClipNode, corner_radii), 16);
+        assert_eq!(offset_of!(ParentClipNode, parent), 32);
+        assert_eq!(offset_of!(ParentClipNode, padding), 36);
+        let scene = Scene::default();
+        assert_eq!(scene.parent_clip_nodes, vec![ParentClipNode::default()]);
+        assert_eq!(scene.active_parent_clip, ParentClipId::default());
+    }
+
+    /// 半径不是逐角截到半宽；单个大角可跨中线，四边约束采用同一缩放比例。
+    #[test]
+    fn normalized_corners_use_css_adjacent_edges_and_real_corner_regions() {
+        let bounds = Bounds::new(point(px(0.), px(0.)), size(px(100.), px(100.)));
+        let large = ParentRoundedClip::new(
+            bounds,
+            Corners {
+                top_left: px(80.),
+                top_right: px(0.),
+                bottom_right: px(0.),
+                bottom_left: px(0.),
+            },
+        );
+        assert_eq!(large.corner_radii.top_left, px(80.));
+        assert!(!large.contains(&point(px(10.), px(10.))));
+        assert!(large.contains(&point(px(80.), px(10.))));
+        assert!(!large.contains(&point(px(100.), px(50.))));
+        let normalized = ParentRoundedClip::new(bounds, Corners::all(px(f32::MAX)));
+        assert_eq!(normalized.corner_radii, Corners::all(px(50.)));
+        let scaled = normalized.scale(2.);
+        assert_eq!(scaled.bounds, bounds.scale(2.));
+        assert_eq!(scaled.corner_radii, Corners::all(ScaledPixels(100.)));
+    }
+
+    /// 非法矩形永远不能命中，也不得退化为 head0 的无裁切语义。
+    #[test]
+    fn invalid_geometry_remains_a_nonzero_empty_clip() {
+        let mut scene = Scene::default();
+        for bad in [
+            clip(f32::NAN, 0., 100., 100., 20.),
+            clip(0., 0., -1., 100., 20.),
+            clip(f32::MAX, 0., f32::MAX, 1., 0.),
+        ] {
+            assert!(!bad.contains(&point(px(0.), px(0.))));
+            let id = scene.intern_parent_clip_chain(&ParentClipChain::default().push(bad), 2.);
+            assert_ne!(id.head, 0);
+            assert_eq!(
+                scene.parent_clip_nodes[id.head as usize].bounds,
+                Bounds::default()
+            );
+        }
+        let normal = clip(0., 0., 100., 100., 10.);
+        for factor in [f32::NAN, f32::INFINITY, 0., -1., f32::MAX] {
+            assert_eq!(normal.scale(factor), ParentClipNode::default());
+        }
+    }
+
+    /// 节点存原 viewport，图元和粗矩形内容裁切交集不能重新定位圆心。
+    #[test]
+    fn original_geometry_is_preserved_and_exact_chains_are_interned() {
+        let mut scene = Scene::default();
+        let chain = chain();
+        let first = scene.intern_parent_clip_chain(&chain, 2.);
+        assert_eq!(first, scene.intern_parent_clip_chain(&chain, 2.));
+        assert_eq!(scene.parent_clip_nodes.len(), 3);
+        scene.active_parent_clip = first;
+        let mut child = quad();
+        child.content_mask.bounds.origin.x = ScaledPixels(80.);
+        child.content_mask.bounds.size.width = ScaledPixels(20.);
+        scene.insert_primitive(child);
+        assert_eq!(
+            geometry(&scene, scene.quads[0].parent_clip),
+            chain
+                .as_slice()
+                .iter()
+                .map(|clip| clip.scale(2.))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            scene.quads[0].content_mask.bounds,
+            child.content_mask.bounds
+        );
+        assert_eq!(scene.quads[0].bounds, child.bounds);
+        assert!(
+            scene
+                .parent_clip_nodes
+                .iter()
+                .all(|node| node.padding == [0; 3])
+        );
+    }
+
+    /// 八种真实图元都由同一 Scene 入口赋值，图片自己的独立 rounded_clip_bounds 不变。
+    #[test]
+    fn every_primitive_variant_gets_the_same_active_parent_chain() {
+        let mut scene = Scene::default();
+        let head = scene.intern_parent_clip_chain(&chain(), 2.);
+        scene.active_parent_clip = head;
+        let mask = ContentMask { bounds: bounds() };
+        let color = Hsla::default();
+        let mut primitives = vec![
+            Primitive::Quad(quad()),
+            Primitive::Shadow(Shadow {
+                order: 0,
+                blur_radius: ScaledPixels(1.),
+                bounds: bounds(),
+                corner_radii: Default::default(),
+                content_mask: mask,
+                color,
+                element_bounds: bounds(),
+                element_corner_radii: Default::default(),
+                inset: 0,
+                pad: 0,
+                parent_clip: Default::default(),
+            }),
+            Primitive::Underline(Underline {
+                order: 0,
+                pad: 0,
+                bounds: bounds(),
+                content_mask: mask,
+                color,
+                thickness: ScaledPixels(1.),
+                wavy: false.into(),
+                parent_clip: Default::default(),
+            }),
+            Primitive::MonochromeSprite(MonochromeSprite {
+                order: 0,
+                pad: 0,
+                bounds: bounds(),
+                content_mask: mask,
+                color,
+                tile: tile(),
+                transformation: Default::default(),
+                parent_clip: Default::default(),
+            }),
+            Primitive::SubpixelSprite(SubpixelSprite {
+                order: 0,
+                pad: 0,
+                bounds: bounds(),
+                content_mask: mask,
+                color,
+                tile: tile(),
+                transformation: Default::default(),
+                parent_clip: Default::default(),
+            }),
+            Primitive::PolychromeSprite(PolychromeSprite {
+                order: 0,
+                pad: 0,
+                grayscale: false.into(),
+                opacity: 1.,
+                bounds: bounds(),
+                content_mask: mask,
+                corner_radii: Default::default(),
+                tile: tile(),
+                rounded_clip_bounds: bounds(),
+                parent_clip: Default::default(),
+            }),
+            Primitive::Path(path()),
+        ];
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        {
+            use core_video::pixel_buffer::{CVPixelBuffer, kCVPixelFormatType_32BGRA};
+            primitives.push(Primitive::Surface(PaintSurface {
+                order: 0,
+                bounds: bounds(),
+                content_mask: mask,
+                image_buffer: CVPixelBuffer::new(kCVPixelFormatType_32BGRA, 1, 1, None)
+                    .expect("真实一像素 Surface 夹具"),
+                parent_clip: Default::default(),
+            }));
+        }
+        for mut primitive in primitives {
+            primitive.set_parent_clip(ParentClipId {
+                head: 0,
+                padding: [9; 3],
+            });
+            assert_eq!(primitive.parent_clip(), ParentClipId::default());
+            scene.insert_primitive(primitive);
+        }
+        assert!(
+            operations(&scene)
+                .iter()
+                .all(|primitive| primitive.parent_clip() == head)
+        );
+        assert_eq!(scene.polychrome_sprites[0].rounded_clip_bounds, bounds());
+        assert_eq!(scene.paths[0].parent_clip, head);
+        assert_eq!(scene.surfaces.len(), 1);
+        scene.finish();
+        assert_eq!(scene.quads[0].parent_clip, head);
+        assert_eq!(scene.monochrome_sprites[0].parent_clip, head);
+    }
+
+    /// 新场景先插入无关节点，旧 head 不能直接复用，更不能被当前 active 覆盖。
+    #[test]
+    fn replay_remaps_ancestors_and_preserves_zero_clip_without_changing_active() {
+        let mut old = Scene::default();
+        old.insert_primitive(quad());
+        let old_id = old.intern_parent_clip_chain(&chain(), 2.);
+        old.active_parent_clip = old_id;
+        old.push_layer(bounds());
+        old.insert_primitive(path());
+        old.insert_primitive(quad());
+        old.pop_layer();
+        let mut new = Scene::default();
+        let unrelated = ParentClipChain::default().push(clip(1., 2., 9., 8., 1.));
+        let current_id = new.intern_parent_clip_chain(&unrelated, 1.);
+        new.active_parent_clip = current_id;
+        new.insert_primitive(path());
+        new.replay(0..old.len(), &old);
+        assert_eq!(new.active_parent_clip, current_id);
+        assert_eq!(new.quads[0].parent_clip, ParentClipId::default());
+        assert_ne!(new.paths[1].parent_clip, old_id);
+        assert_eq!(new.paths[1].id, PathId(1));
+        assert_eq!(new.paths[1].parent_clip, new.quads[1].parent_clip);
+        assert_eq!(
+            geometry(&new, new.paths[1].parent_clip),
+            geometry(&old, old_id)
+        );
+        assert_eq!(new.parent_clip_nodes.len(), 4);
+        assert!(new.layer_stack.is_empty());
+        new.insert_primitive(quad());
+        assert_eq!(new.quads.last().unwrap().parent_clip, current_id);
+    }
+
+    /// 回放区间只导入实际图元使用的链，不把上帧全部节点无条件复制。
+    #[test]
+    fn replay_imports_only_referenced_chains_and_reuses_shared_ancestors() {
+        let mut old = Scene::default();
+        old.intern_parent_clip_chain(
+            &ParentClipChain::default().push(clip(500., 500., 50., 50., 1.)),
+            1.,
+        );
+        let parent = ParentClipChain::default().push(clip(0., 0., 100., 100., 20.));
+        for child in [clip(5., 5., 40., 40., 3.), clip(50., 50., 40., 40., 4.)] {
+            old.active_parent_clip = old.intern_parent_clip_chain(&parent.push(child), 1.);
+            old.insert_primitive(quad());
+        }
+        let mut new = Scene::default();
+        new.replay(0..old.len(), &old);
+        assert_eq!(new.parent_clip_nodes.len(), 4);
+        let a = new.parent_clip_nodes[new.quads[0].parent_clip.head as usize];
+        let b = new.parent_clip_nodes[new.quads[1].parent_clip.head as usize];
+        assert_eq!(a.parent, b.parent);
+        assert_ne!(a.parent, 0);
+        let count = new.parent_clip_nodes.len();
+        new.replay(0..old.len(), &old);
+        assert_eq!(new.parent_clip_nodes.len(), count);
+    }
+
+    /// 深链采用迭代导入；clear 后不积累节点，也不保留逻辑 Arc 快照。
+    #[test]
+    fn deep_replay_clear_and_cpu_snapshot_release_are_bounded() {
+        let mut chain = ParentClipChain::default();
+        for index in 0..256 {
+            chain = chain.push(clip(index as f32, 0., 300., 200., 20.));
+        }
+        let weak = std::sync::Arc::downgrade(&chain.0);
+        let mut old = Scene::default();
+        old.active_parent_clip = old.intern_parent_clip_chain(&chain, 1.);
+        old.insert_primitive(quad());
+        drop(chain);
+        assert!(weak.upgrade().is_none());
+        let mut new = Scene::default();
+        for _ in 0..16 {
+            new.replay(0..old.len(), &old);
+            assert_eq!(geometry(&new, new.quads[0].parent_clip).len(), 256);
+            assert_eq!(new.parent_clip_nodes.len(), 257);
+            new.clear();
+            assert_eq!(new.parent_clip_nodes, vec![ParentClipNode::default()]);
+            assert_eq!(new.active_parent_clip, ParentClipId::default());
+            assert!(new.parent_clip_cache.is_empty());
+        }
+    }
+
+    /// 非法上帧索引应明确失败，不能静默当成无裁切后把圆角外内容放行。
+    #[test]
+    #[should_panic(expected = "上帧裁切引用超出节点范围")]
+    fn malformed_replay_index_is_not_silently_unclipped() {
+        let mut old = Scene::default();
+        old.active_parent_clip = ParentClipId {
+            head: 500,
+            padding: [0; 3],
+        };
+        old.insert_primitive(quad());
+        Scene::default().replay(0..old.len(), &old);
+    }
+}

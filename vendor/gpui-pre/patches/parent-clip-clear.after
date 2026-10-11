@@ -1,0 +1,8 @@
+        self.surfaces.clear();
+        #[cfg(feature = "parent-rounded-clip")]
+        {
+            self.parent_clip_nodes.clear();
+            self.parent_clip_nodes.push(ParentClipNode::default());
+            self.parent_clip_cache.clear();
+            self.active_parent_clip = ParentClipId::default();
+        }

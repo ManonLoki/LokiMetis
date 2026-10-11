@@ -62,13 +62,258 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/metal-clip-distance.before"),
                 after: include_str!("patches/metal-clip-distance.after"),
             },
+            Patch {
+                name: "parent-clip-types", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-types.before"),
+                after: include_str!("patches/parent-clip-types.after"),
+            },
+            Patch {
+                name: "parent-clip-scene-fields", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-scene-fields.before"),
+                after: include_str!("patches/parent-clip-scene-fields.after"),
+            },
+            Patch {
+                name: "parent-clip-clear", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-clear.before"),
+                after: include_str!("patches/parent-clip-clear.after"),
+            },
+            Patch {
+                name: "parent-clip-insert", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-insert.before"),
+                after: include_str!("patches/parent-clip-insert.after"),
+            },
+            Patch {
+                name: "parent-clip-replay", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-replay.before"),
+                after: include_str!("patches/parent-clip-replay.after"),
+            },
+            Patch {
+                name: "parent-clip-quad-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-quad-field.before"),
+                after: include_str!("patches/parent-clip-quad-field.after"),
+            },
+            Patch {
+                name: "parent-clip-shadow-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-shadow-field.before"),
+                after: include_str!("patches/parent-clip-shadow-field.after"),
+            },
+            Patch {
+                name: "parent-clip-underline-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-underline-field.before"),
+                after: include_str!("patches/parent-clip-underline-field.after"),
+            },
+            Patch {
+                name: "parent-clip-monochromesprite-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-monochromesprite-field.before"),
+                after: include_str!("patches/parent-clip-monochromesprite-field.after"),
+            },
+            Patch {
+                name: "parent-clip-subpixelsprite-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-subpixelsprite-field.before"),
+                after: include_str!("patches/parent-clip-subpixelsprite-field.after"),
+            },
+            Patch {
+                name: "parent-clip-polychromesprite-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-polychromesprite-field.before"),
+                after: include_str!("patches/parent-clip-polychromesprite-field.after"),
+            },
+            Patch {
+                name: "parent-clip-paintsurface-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-paintsurface-field.before"),
+                after: include_str!("patches/parent-clip-paintsurface-field.after"),
+            },
+            Patch {
+                name: "parent-clip-path-field", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-path-field.before"),
+                after: include_str!("patches/parent-clip-path-field.after"),
+            },
+            Patch {
+                name: "parent-clip-path-new", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-path-new.before"),
+                after: include_str!("patches/parent-clip-path-new.after"),
+            },
+            Patch {
+                name: "parent-clip-path-scale", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-path-scale.before"),
+                after: include_str!("patches/parent-clip-path-scale.after"),
+            },
+            Patch {
+                name: "parent-clip-helpers", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-helpers.before"),
+                after: include_str!("patches/parent-clip-helpers.after"),
+            },
+            Patch {
+                name: "parent-clip-tests", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-clip-tests.before"),
+                after: include_str!("patches/parent-clip-tests.after"),
+            },
+            Patch {
+                name: "parent-scene-import-visibility", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-scene-import-visibility.before"),
+                after: include_str!("patches/parent-scene-import-visibility.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-01", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-01.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-01.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-02", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-02.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-02.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-03", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-03.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-03.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-04", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-04.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-04.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-05", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-05.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-05.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-06", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-06.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-06.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-07", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-07.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-07.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-08", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-08.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-08.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-09", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-09.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-09.after"),
+            },
+            Patch {
+                name: "parent-metal-metal-renderer-10", path: "src/metal_renderer.rs",
+                before: include_str!("patches/parent-metal-metal-renderer-10.before"),
+                after: include_str!("patches/parent-metal-metal-renderer-10.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-01", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-01.before"),
+                after: include_str!("patches/parent-metal-shaders-01.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-02", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-02.before"),
+                after: include_str!("patches/parent-metal-shaders-02.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-03", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-03.before"),
+                after: include_str!("patches/parent-metal-shaders-03.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-04", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-04.before"),
+                after: include_str!("patches/parent-metal-shaders-04.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-05", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-05.before"),
+                after: include_str!("patches/parent-metal-shaders-05.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-06", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-06.before"),
+                after: include_str!("patches/parent-metal-shaders-06.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-07", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-07.before"),
+                after: include_str!("patches/parent-metal-shaders-07.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-08", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-08.before"),
+                after: include_str!("patches/parent-metal-shaders-08.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-09", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-09.before"),
+                after: include_str!("patches/parent-metal-shaders-09.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-10", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-10.before"),
+                after: include_str!("patches/parent-metal-shaders-10.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-11", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-11.before"),
+                after: include_str!("patches/parent-metal-shaders-11.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-12", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-12.before"),
+                after: include_str!("patches/parent-metal-shaders-12.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-13", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-13.before"),
+                after: include_str!("patches/parent-metal-shaders-13.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-14", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-14.before"),
+                after: include_str!("patches/parent-metal-shaders-14.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-15", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-15.before"),
+                after: include_str!("patches/parent-metal-shaders-15.after"),
+            },
+            Patch {
+                name: "parent-metal-shaders-16", path: "src/shaders.metal",
+                before: include_str!("patches/parent-metal-shaders-16.before"),
+                after: include_str!("patches/parent-metal-shaders-16.after"),
+            },
+            Patch {
+                name: "parent-used-radii-constructor", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-used-radii-constructor.before"),
+                after: include_str!("patches/parent-used-radii-constructor.after"),
+            },
+            Patch {
+                name: "parent-used-radii-contains", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-used-radii-contains.before"),
+                after: include_str!("patches/parent-used-radii-contains.after"),
+            },
+            Patch {
+                name: "parent-used-radii-scale", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-used-radii-scale.before"),
+                after: include_str!("patches/parent-used-radii-scale.after"),
+            },
+            Patch {
+                name: "parent-used-radii-chain-push", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-used-radii-chain-push.before"),
+                after: include_str!("patches/parent-used-radii-chain-push.after"),
+            },
+            Patch {
+                name: "parent-used-radii-doc", path: "vendor/gpui/src/scene.rs",
+                before: include_str!("patches/parent-used-radii-doc.before"),
+                after: include_str!("patches/parent-used-radii-doc.after"),
+            },
         ],
         generated_hashes: &[
             ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
-            ("src/metal_renderer.rs", "fee36c1d4871bc224b05dbaf2d46cebc8f10f201df4270c4202176d4f6d17ebc"),
+            ("src/metal_renderer.rs", "91e4b5cde950223e8c8c2d11e4e4b17803b6d5bc4e0c911cdc8e908adfe34f5c"),
             ("src/gpui_apple.rs", "13f5d77ff374cd40082f29f20aeb6a2d185643e15d5031bcbe6a8538ad3d2f7f"),
-            ("vendor/gpui/src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
-            ("src/shaders.metal", "059ffc18b814082e74f484fc3fc27dbba2b1d3bec5d852bbc75342ab1d813ea2"),
+            ("vendor/gpui/src/scene.rs", "f8e1a899071e298bed53c7eb10f0e65a8039e1663048033ab6f5e79a1a434af4"),
+            ("src/shaders.metal", "0293a36fef5f5bbde11fcad44ac903c6d70bb6c83c9db86c26a831f6ae53da3c"),
         ],
     };
     generator::generate(Path::new(env!("CARGO_MANIFEST_DIR")), &spec)
@@ -121,6 +366,8 @@ mod apple_build {
             "PointF".into(),
             "Hsla".into(),
             "ContentMask".into(),
+            "ParentClipId".into(),
+            "ParentClipNode".into(),
             "Uniforms".into(),
             "AtlasTile".into(),
             "PathRasterizationInputIndex".into(),
@@ -141,6 +388,7 @@ mod apple_build {
             "SurfaceBounds".into(),
             "TransformationMatrix".into(),
         ]);
+        config.defines.insert("feature = parent-rounded-clip".into(), "GPUI_PARENT_ROUNDED_CLIP".into());
         config.no_includes = true;
         config.enumeration.prefix_with_name = true;
 
@@ -170,6 +418,12 @@ mod apple_build {
             .expect("Unable to generate bindings")
             .write_to_file(&output_path);
 
+        // C头与Rust功能开关共用明确宏，预编译/运行时shader都读此同一文件。
+        #[cfg(feature = "parent-rounded-clip")]
+        {
+            let contents = std::fs::read_to_string(&output_path).unwrap();
+            std::fs::write(&output_path, format!("#define GPUI_PARENT_ROUNDED_CLIP 1\n{contents}")).unwrap();
+        }
         output_path
     }
 

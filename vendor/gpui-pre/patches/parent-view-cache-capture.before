@@ -1,0 +1,3 @@
+                let text_style = window.text_style();
+
+                if let Some(mut element_state)

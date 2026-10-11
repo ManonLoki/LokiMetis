@@ -1,0 +1,40 @@
+    /// 读取原始父圆角链，用于Hitbox、延迟绘制和缓存key不可变快照。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub fn parent_rounded_clips(&self) -> ParentClipChain {
+        self.parent_clips.clone()
+    }
+
+    /// 仅裁切后代；不产生额外布局、焦点或命中节点，也不改变矩形ContentMask。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub fn with_parent_rounded_clip<R>(
+        &mut self,
+        clip: Option<ParentRoundedClip>,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        if let Some(clip) = clip {
+            self.with_parent_clip_chain(self.parent_clips.push(clip), f)
+        } else {
+            f(self)
+        }
+    }
+
+    /// 延迟绘制恢复完整CPU快照；每帧重新intern，不能沿用旧Scene索引。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub(crate) fn with_parent_clip_chain<R>(
+        &mut self,
+        chain: ParentClipChain,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.invalidator.debug_assert_paint_or_prepaint();
+        let scale = self.scale_factor();
+        let id = self.next_frame.scene.intern_parent_clip_chain(&chain, scale);
+        let old_id = mem::replace(&mut self.next_frame.scene.active_parent_clip, id);
+        let old_chain = mem::replace(&mut self.parent_clips, chain);
+        let result = f(self);
+        self.parent_clips = old_chain;
+        self.next_frame.scene.active_parent_clip = old_id;
+        result
+    }
+
+    /// Updates the global element offset relative to the current offset. This is used to implement
+    /// scrolling. This method should only be called during the prepaint phase of element drawing.

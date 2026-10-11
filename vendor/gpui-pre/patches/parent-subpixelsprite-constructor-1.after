@@ -1,0 +1,9 @@
+ndering {
+                self.next_frame.scene.insert_primitive(SubpixelSprite {
+                    #[cfg(feature = "parent-rounded-clip")]
+                    parent_clip: Default::default(),
+                    order: 0,
+                    pad: 0,
+                    bounds,
+                    content_mask,
+      

@@ -1,0 +1,2 @@
+        pub fn contains(&self, point: &Point<Pixels>) -> bool {
+            let clip = Self::from_used_radii(self.bounds, self.corner_radii);

@@ -1,0 +1,5 @@
+    pub content_mask: ContentMask<Pixels>,
+    /// 原始父圆角链快照；不能保存帧内GPU索引。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub parent_clips: ParentClipChain,
+    /// Flags that specify hitbox behavior.

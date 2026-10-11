@@ -1,0 +1,6 @@
+= self.snap_border_widths(quad.border_widths);
+        let quad = Quad {
+            order: 0,
+            bounds: snapped_bounds,
+            content_mask: self.snapped_content_mask(),
+     

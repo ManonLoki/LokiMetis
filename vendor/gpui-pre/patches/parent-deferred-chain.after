@@ -1,0 +1,4 @@
+    content_mask: Option<ContentMask<Pixels>>,
+    #[cfg(feature = "parent-rounded-clip")]
+    parent_clips: ParentClipChain,
+    rem_size: Pixels,

@@ -1,0 +1,9 @@
+pub struct MonochromeSprite {
+    pub order: DrawOrder,
+    pub pad: u32,
+    pub bounds: Bounds<ScaledPixels>,
+    pub content_mask: ContentMask<ScaledPixels>,
+    pub color: Hsla,
+    pub tile: AtlasTile,
+    pub transformation: TransformationMatrix,
+}

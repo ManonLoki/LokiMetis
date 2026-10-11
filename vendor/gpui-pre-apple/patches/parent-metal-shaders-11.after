@@ -1,0 +1,27 @@
+    color.g = grayscale;
+    color.b = grayscale;
+  }
+  color.a *= sprite.opacity * saturate(0.5 - distance);
+  return color;
+}
+
+fragment float4 polychrome_sprite_fragment(
+    PolychromeSpriteFragmentInput input [[stage_in]],
+    constant PolychromeSprite *sprites [[buffer(SpriteInputIndex_Sprites)]],
+    texture2d<float> atlas_texture [[texture(SpriteInputIndex_AtlasTexture)]]
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+    , constant ParentClipNode *parent_clips [[buffer(7)]]
+#endif
+) {
+  float4 color = polychrome_sprite_fragment_unclipped(input, sprites, atlas_texture);
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  float coverage = parent_clip_coverage(input.position.xy, sprites[input.sprite_id].parent_clip.head, parent_clips);
+  return float4(color.rgb, color.a * coverage);
+#else
+  return color;
+#endif
+}
+
+struct PathRasterizationVertexOutput {
+  float4 position [[position]];
+  float2 st_position;

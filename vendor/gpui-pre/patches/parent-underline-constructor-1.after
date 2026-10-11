@@ -1,0 +1,8 @@
+t<Pixels>, width: Pixels, style: &UnderlineStyle) -> Underline {
+        Underline {
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: Default::default(),
+            order: 0,
+            pad: 0,
+            bounds: self.underline_bounds(origin, width, style),
+           

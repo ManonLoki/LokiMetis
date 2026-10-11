@@ -1,0 +1,10 @@
+                   float2 half_size);
+float4 over(float4 below, float4 above);
+float radians(float degrees);
+float4 fill_color(Background background, float2 position, Bounds_ScaledPixels bounds,
+  float4 solid_color, float4 color0, float4 color1);
+
+struct GradientColor {
+  float4 solid;
+  float4 color0;
+  float4 color1;

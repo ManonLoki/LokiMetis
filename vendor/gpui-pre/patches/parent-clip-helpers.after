@@ -1,0 +1,296 @@
+pub type DrawOrder = u32;
+
+#[cfg(feature = "parent-rounded-clip")]
+mod parent_clip {
+    //! 父圆角链只拥有几何与帧内编号；图元、纹理和原矩形 ContentMask 均保留原职责。
+
+    use super::*;
+
+    impl ParentRoundedClip {
+        /// 非法矩形收敛为空裁切；有限非负半径按 CSS 四条相邻边统一缩放。
+        pub fn new(bounds: Bounds<Pixels>, corner_radii: Corners<Pixels>) -> Self {
+            let x = f32::from(bounds.origin.x);
+            let y = f32::from(bounds.origin.y);
+            let width = f32::from(bounds.size.width);
+            let height = f32::from(bounds.size.height);
+            if ![x, y, width, height, x + width, y + height]
+                .into_iter()
+                .all(f32::is_finite)
+                || width <= 0.
+                || height <= 0.
+            {
+                return Self::default();
+            }
+            let mut radii = [
+                corner_radii.top_left,
+                corner_radii.top_right,
+                corner_radii.bottom_right,
+                corner_radii.bottom_left,
+            ]
+            .map(|radius| {
+                let value = f32::from(radius);
+                if value.is_finite() && value > 0. {
+                    f64::from(value)
+                } else {
+                    0.
+                }
+            });
+            // 用 f64 求和，避免两枚有限的大半径先在 f32 加法中溢出。
+            let mut ratio = 1_f64;
+            for (edge, sum) in [
+                (width, radii[0] + radii[1]),
+                (width, radii[3] + radii[2]),
+                (height, radii[0] + radii[3]),
+                (height, radii[1] + radii[2]),
+            ] {
+                if sum > 0. {
+                    ratio = ratio.min(f64::from(edge) / sum);
+                }
+            }
+            for radius in &mut radii {
+                *radius *= ratio;
+            }
+            Self {
+                bounds,
+                corner_radii: Corners {
+                    top_left: crate::px(radii[0] as f32),
+                    top_right: crate::px(radii[1] as f32),
+                    bottom_right: crate::px(radii[2] as f32),
+                    bottom_left: crate::px(radii[3] as f32),
+                },
+            }
+        }
+
+        /// 命中沿用矩形右/下开区间，并检查真实四角圆心，不能按元素中线挑选半径。
+        pub fn contains(&self, point: &Point<Pixels>) -> bool {
+            let clip = Self::new(self.bounds, self.corner_radii);
+            let x = f32::from(point.x);
+            let y = f32::from(point.y);
+            if !x.is_finite() || !y.is_finite() || !clip.bounds.contains(point) {
+                return false;
+            }
+            let left = f64::from(f32::from(clip.bounds.origin.x));
+            let top = f64::from(f32::from(clip.bounds.origin.y));
+            let right = left + f64::from(f32::from(clip.bounds.size.width));
+            let bottom = top + f64::from(f32::from(clip.bounds.size.height));
+            let x = f64::from(x);
+            let y = f64::from(y);
+            for (radius, is_left, is_top) in [
+                (clip.corner_radii.top_left, true, true),
+                (clip.corner_radii.top_right, false, true),
+                (clip.corner_radii.bottom_right, false, false),
+                (clip.corner_radii.bottom_left, true, false),
+            ] {
+                let radius = f64::from(f32::from(radius));
+                let center_x = if is_left {
+                    left + radius
+                } else {
+                    right - radius
+                };
+                let center_y = if is_top {
+                    top + radius
+                } else {
+                    bottom - radius
+                };
+                let in_x = if is_left { x < center_x } else { x > center_x };
+                let in_y = if is_top { y < center_y } else { y > center_y };
+                if radius > 0. && in_x && in_y && (x - center_x).hypot(y - center_y) > radius {
+                    return false;
+                }
+            }
+            true
+        }
+
+        /// 几何只乘设备缩放；帧内 parent 由 Scene 统一赋值，不携带旧场景编号。
+        pub fn scale(&self, factor: f32) -> ParentClipNode {
+            if !factor.is_finite() || factor <= 0. {
+                return ParentClipNode::default();
+            }
+            let clip = Self::new(self.bounds, self.corner_radii);
+            let node = ParentClipNode {
+                bounds: clip.bounds.scale(factor),
+                corner_radii: clip.corner_radii.scale(factor),
+                parent: 0,
+                padding: [0; 3],
+            };
+            if node.key()[..8]
+                .iter()
+                .all(|word| f32::from_bits(*word).is_finite())
+                && (node.bounds.origin.x.0 + node.bounds.size.width.0).is_finite()
+                && (node.bounds.origin.y.0 + node.bounds.size.height.0).is_finite()
+            {
+                node
+            } else {
+                ParentClipNode::default()
+            }
+        }
+    }
+
+    impl ParentClipChain {
+        /// 快照不可变，新增一层只建立新的 Arc，不修改已经捕获的 Hitbox/DeferredDraw。
+        pub fn push(&self, clip: ParentRoundedClip) -> Self {
+            let mut clips = self.0.to_vec();
+            clips.push(ParentRoundedClip::new(clip.bounds, clip.corner_radii));
+            Self(clips.into())
+        }
+        /// 任一祖先的原始圆角区域拒绝时，后代也不能命中。
+        pub fn contains(&self, point: &Point<Pixels>) -> bool {
+            self.0.iter().all(|clip| clip.contains(point))
+        }
+        /// 只读原始逻辑几何，供 Scene 导入本帧节点。
+        pub fn as_slice(&self) -> &[ParentRoundedClip] {
+            &self.0
+        }
+        /// 无祖先的默认链沿用原来的矩形内容裁切。
+        pub fn is_empty(&self) -> bool {
+            self.0.is_empty()
+        }
+    }
+
+    impl ParentClipNode {
+        /// 精确浮点位模式与 parent 构成身份；正负零规范相同，缓存不使用近似或摘要碰撞。
+        fn key(&self) -> [u32; 9] {
+            let word = |value: ScaledPixels| if value.0 == 0. { 0 } else { value.0.to_bits() };
+            [
+                word(self.bounds.origin.x),
+                word(self.bounds.origin.y),
+                word(self.bounds.size.width),
+                word(self.bounds.size.height),
+                word(self.corner_radii.top_left),
+                word(self.corner_radii.top_right),
+                word(self.corner_radii.bottom_right),
+                word(self.corner_radii.bottom_left),
+                self.parent,
+            ]
+        }
+    }
+
+    impl Default for Scene {
+        /// 0 号必须实际存在，默认图元和空场景都能绑定合法的节点缓冲。
+        fn default() -> Self {
+            Self {
+                paint_operations: Default::default(),
+                primitive_bounds: Default::default(),
+                layer_stack: Default::default(),
+                shadows: Default::default(),
+                quads: Default::default(),
+                paths: Default::default(),
+                underlines: Default::default(),
+                monochrome_sprites: Default::default(),
+                subpixel_sprites: Default::default(),
+                polychrome_sprites: Default::default(),
+                surfaces: Default::default(),
+                parent_clip_nodes: vec![ParentClipNode::default()],
+                active_parent_clip: ParentClipId::default(),
+                parent_clip_cache: Default::default(),
+            }
+        }
+    }
+
+    impl Scene {
+        /// 依祖先顺序生成本帧节点；同 parent 和相同几何复用节点，不设固定层数上限。
+        pub fn intern_parent_clip_chain(
+            &mut self,
+            chain: &ParentClipChain,
+            scale: f32,
+        ) -> ParentClipId {
+            let mut head = ParentClipId::default();
+            for clip in chain.as_slice() {
+                let mut node = clip.scale(scale);
+                node.parent = head.head;
+                head = self.intern_parent_clip_node(node);
+            }
+            head
+        }
+
+        /// 只读 renderer 消费公开节点；所有写入必须经此入口，保证 parent 先于 child。
+        fn intern_parent_clip_node(&mut self, mut node: ParentClipNode) -> ParentClipId {
+            node.padding = [0; 3];
+            assert!(
+                (node.parent as usize) < self.parent_clip_nodes.len(),
+                "父裁切引用必须先存在"
+            );
+            let key = node.key();
+            if let Some(id) = self.parent_clip_cache.get(&key) {
+                return *id;
+            }
+            let head =
+                u32::try_from(self.parent_clip_nodes.len()).expect("父裁切节点超过 GPU u32 索引范围");
+            let id = ParentClipId {
+                head,
+                padding: [0; 3],
+            };
+            self.parent_clip_nodes.push(node);
+            self.parent_clip_cache.insert(key, id);
+            id
+        }
+
+        /// 回放只导入被实际引用的祖先，迭代展开避免深链递归；memo 限于一次回放。
+        fn import_parent_clip(
+            &mut self,
+            id: ParentClipId,
+            previous: &Scene,
+            memo: &mut [Option<ParentClipId>],
+        ) -> ParentClipId {
+            if id.head == 0 {
+                return ParentClipId::default();
+            }
+            let mut pending = Vec::new();
+            let mut cursor = id.head as usize;
+            loop {
+                let mapped = memo.get(cursor).expect("上帧裁切引用超出节点范围");
+                if mapped.is_some() {
+                    break;
+                }
+                let node = previous
+                    .parent_clip_nodes
+                    .get(cursor)
+                    .expect("上帧裁切节点缺失");
+                assert!((node.parent as usize) < cursor, "上帧裁切必须为无环祖先链");
+                pending.push(cursor);
+                cursor = node.parent as usize;
+            }
+            let mut mapped = memo[cursor].expect("回放须初始化 0 号无裁切映射");
+            for index in pending.into_iter().rev() {
+                let mut node = previous.parent_clip_nodes[index];
+                node.parent = mapped.head;
+                mapped = self.intern_parent_clip_node(node);
+                memo[index] = Some(mapped);
+            }
+            mapped
+        }
+    }
+
+    impl Primitive {
+        /// 八种真实图元共享同一个父链入口，Path 的最终中间纹理由后端继续转发。
+        pub fn parent_clip(&self) -> ParentClipId {
+            match self {
+                Self::Shadow(p) => p.parent_clip,
+                Self::Quad(p) => p.parent_clip,
+                Self::Path(p) => p.parent_clip,
+                Self::Underline(p) => p.parent_clip,
+                Self::MonochromeSprite(p) => p.parent_clip,
+                Self::SubpixelSprite(p) => p.parent_clip,
+                Self::PolychromeSprite(p) => p.parent_clip,
+                Self::Surface(p) => p.parent_clip,
+            }
+        }
+        /// 新绘制采用 active head；缓存回放先 remap 后调用不覆写入口。
+        pub fn set_parent_clip(&mut self, id: ParentClipId) {
+            let id = ParentClipId {
+                head: id.head,
+                padding: [0; 3],
+            };
+            match self {
+                Self::Shadow(p) => p.parent_clip = id,
+                Self::Quad(p) => p.parent_clip = id,
+                Self::Path(p) => p.parent_clip = id,
+                Self::Underline(p) => p.parent_clip = id,
+                Self::MonochromeSprite(p) => p.parent_clip = id,
+                Self::SubpixelSprite(p) => p.parent_clip = id,
+                Self::PolychromeSprite(p) => p.parent_clip = id,
+                Self::Surface(p) => p.parent_clip = id,
+            }
+        }
+    }
+}

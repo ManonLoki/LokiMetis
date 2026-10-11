@@ -1,0 +1,8 @@
+ement_opacity();
+
+        self.next_frame.scene.insert_primitive(Underline {
+            order: 0,
+            pad: 0,
+            bounds,
+            content_mask: self.snapped_content_mask(),
+ 

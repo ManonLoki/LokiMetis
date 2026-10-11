@@ -1,0 +1,6 @@
+rt_eq!(frame.inspector_hitboxes.capacity(), 0);
+            }
+        })
+        .expect("closed inspector has no bookkeeping and no style overrides");
+    }
+}

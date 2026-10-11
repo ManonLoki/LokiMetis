@@ -1,0 +1,26 @@
+    pub fn replay(&mut self, range: Range<usize>, prev_scene: &Scene) {
+        #[cfg(feature = "parent-rounded-clip")]
+        let mut parent_clip_remap = {
+            let mut remap = vec![None; prev_scene.parent_clip_nodes.len()];
+            remap[0] = Some(ParentClipId::default());
+            remap
+        };
+        for operation in &prev_scene.paint_operations[range] {
+            match operation {
+                PaintOperation::Primitive(primitive) => {
+                    #[cfg(not(feature = "parent-rounded-clip"))]
+                    self.insert_primitive(primitive.clone());
+                    #[cfg(feature = "parent-rounded-clip")]
+                    {
+                        let mut primitive = primitive.clone();
+                        let id = self.import_parent_clip(primitive.parent_clip(), prev_scene,
+                            &mut parent_clip_remap);
+                        primitive.set_parent_clip(id);
+                        self.insert_primitive_preserving_parent_clip(primitive);
+                    }
+                }
+                PaintOperation::StartLayer(bounds) => self.push_layer(*bounds),
+                PaintOperation::EndLayer => self.pop_layer(),
+            }
+        }
+    }

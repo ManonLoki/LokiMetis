@@ -1,0 +1,13 @@
+      color,
+      shadow_id,
+      {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}};
+}
+
+fragment float4 shadow_fragment(ShadowFragmentInput input [[stage_in]],
+                                constant Shadow *shadows
+                                [[buffer(ShadowInputIndex_Shadows)]]) {
+  Shadow shadow = shadows[input.shadow_id];
+
+  float2 origin = float2(shadow.bounds.origin.x, shadow.bounds.origin.y);
+  float2 size = float2(shadow.bounds.size.width, shadow.bounds.size.height);
+  float2 half_size = size / 2.;

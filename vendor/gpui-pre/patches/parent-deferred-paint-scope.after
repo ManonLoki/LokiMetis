@@ -1,0 +1,19 @@
+            #[cfg(feature = "parent-rounded-clip")]
+            let parent_clips = deferred_draw.parent_clips.clone();
+            let mut paint = |window: &mut Window| {
+                if let Some(element) = deferred_draw.element.as_mut() {
+                    window.with_rendered_view(deferred_draw.current_view, |window| {
+                        window.with_content_mask(content_mask, |window| {
+                            window.with_rem_size(Some(deferred_draw.rem_size), |window| {
+                                element.paint(window, cx);
+                            });
+                        })
+                    })
+                } else {
+                    window.reuse_paint(deferred_draw.paint_range.clone());
+                }
+            };
+            #[cfg(feature = "parent-rounded-clip")]
+            self.with_parent_clip_chain(parent_clips, paint);
+            #[cfg(not(feature = "parent-rounded-clip"))]
+            paint(self);

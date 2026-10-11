@@ -306,6 +306,317 @@ fn generated_sources() -> PathBuf {
                 after: include_str!("patches/hitbox-exclusions-cache-init.after"),
             },
             Patch {
+                name: "parent-clip-types", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-types.before"),
+                after: include_str!("patches/parent-clip-types.after"),
+            },
+            Patch {
+                name: "parent-clip-scene-fields", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-scene-fields.before"),
+                after: include_str!("patches/parent-clip-scene-fields.after"),
+            },
+            Patch {
+                name: "parent-clip-clear", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-clear.before"),
+                after: include_str!("patches/parent-clip-clear.after"),
+            },
+            Patch {
+                name: "parent-clip-insert", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-insert.before"),
+                after: include_str!("patches/parent-clip-insert.after"),
+            },
+            Patch {
+                name: "parent-clip-replay", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-replay.before"),
+                after: include_str!("patches/parent-clip-replay.after"),
+            },
+            Patch {
+                name: "parent-clip-quad-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-quad-field.before"),
+                after: include_str!("patches/parent-clip-quad-field.after"),
+            },
+            Patch {
+                name: "parent-clip-shadow-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-shadow-field.before"),
+                after: include_str!("patches/parent-clip-shadow-field.after"),
+            },
+            Patch {
+                name: "parent-clip-underline-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-underline-field.before"),
+                after: include_str!("patches/parent-clip-underline-field.after"),
+            },
+            Patch {
+                name: "parent-clip-monochromesprite-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-monochromesprite-field.before"),
+                after: include_str!("patches/parent-clip-monochromesprite-field.after"),
+            },
+            Patch {
+                name: "parent-clip-subpixelsprite-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-subpixelsprite-field.before"),
+                after: include_str!("patches/parent-clip-subpixelsprite-field.after"),
+            },
+            Patch {
+                name: "parent-clip-polychromesprite-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-polychromesprite-field.before"),
+                after: include_str!("patches/parent-clip-polychromesprite-field.after"),
+            },
+            Patch {
+                name: "parent-clip-paintsurface-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-paintsurface-field.before"),
+                after: include_str!("patches/parent-clip-paintsurface-field.after"),
+            },
+            Patch {
+                name: "parent-clip-path-field", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-path-field.before"),
+                after: include_str!("patches/parent-clip-path-field.after"),
+            },
+            Patch {
+                name: "parent-clip-path-new", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-path-new.before"),
+                after: include_str!("patches/parent-clip-path-new.after"),
+            },
+            Patch {
+                name: "parent-clip-path-scale", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-path-scale.before"),
+                after: include_str!("patches/parent-clip-path-scale.after"),
+            },
+            Patch {
+                name: "parent-clip-helpers", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-helpers.before"),
+                after: include_str!("patches/parent-clip-helpers.after"),
+            },
+            Patch {
+                name: "parent-clip-tests", path: "src/scene.rs",
+                before: include_str!("patches/parent-clip-tests.before"),
+                after: include_str!("patches/parent-clip-tests.after"),
+            },
+            Patch {
+                name: "parent-scene-import-visibility", path: "src/scene.rs",
+                before: include_str!("patches/parent-scene-import-visibility.before"),
+                after: include_str!("patches/parent-scene-import-visibility.after"),
+            },
+            Patch {
+                name: "parent-painted-monochrome-test-support", path: "src/window.rs",
+                before: include_str!("patches/parent-painted-monochrome-test-support.before"),
+                after: include_str!("patches/parent-painted-monochrome-test-support.after"),
+            },
+            Patch {
+                name: "parent-window-imports", path: "src/window.rs",
+                before: include_str!("patches/parent-window-imports.before"),
+                after: include_str!("patches/parent-window-imports.after"),
+            },
+            Patch {
+                name: "parent-hitbox-chain", path: "src/window.rs",
+                before: include_str!("patches/parent-hitbox-chain.before"),
+                after: include_str!("patches/parent-hitbox-chain.after"),
+            },
+            Patch {
+                name: "parent-deferred-chain", path: "src/window.rs",
+                before: include_str!("patches/parent-deferred-chain.before"),
+                after: include_str!("patches/parent-deferred-chain.after"),
+            },
+            Patch {
+                name: "parent-hit-test", path: "src/window.rs",
+                before: include_str!("patches/parent-hit-test.before"),
+                after: include_str!("patches/parent-hit-test.after"),
+            },
+            Patch {
+                name: "parent-window-field", path: "src/window.rs",
+                before: include_str!("patches/parent-window-field.before"),
+                after: include_str!("patches/parent-window-field.after"),
+            },
+            Patch {
+                name: "parent-window-init", path: "src/window.rs",
+                before: include_str!("patches/parent-window-init.before"),
+                after: include_str!("patches/parent-window-init.after"),
+            },
+            Patch {
+                name: "parent-deferred-prepaint-capture", path: "src/window.rs",
+                before: include_str!("patches/parent-deferred-prepaint-capture.before"),
+                after: include_str!("patches/parent-deferred-prepaint-capture.after"),
+            },
+            Patch {
+                name: "parent-deferred-prepaint-scope", path: "src/window.rs",
+                before: include_str!("patches/parent-deferred-prepaint-scope.before"),
+                after: include_str!("patches/parent-deferred-prepaint-scope.after"),
+            },
+            Patch {
+                name: "parent-deferred-paint-scope", path: "src/window.rs",
+                before: include_str!("patches/parent-deferred-paint-scope.before"),
+                after: include_str!("patches/parent-deferred-paint-scope.after"),
+            },
+            Patch {
+                name: "parent-deferred-reuse", path: "src/window.rs",
+                before: include_str!("patches/parent-deferred-reuse.before"),
+                after: include_str!("patches/parent-deferred-reuse.after"),
+            },
+            Patch {
+                name: "parent-window-scope", path: "src/window.rs",
+                before: include_str!("patches/parent-window-scope.before"),
+                after: include_str!("patches/parent-window-scope.after"),
+            },
+            Patch {
+                name: "parent-deferred-insert", path: "src/window.rs",
+                before: include_str!("patches/parent-deferred-insert.before"),
+                after: include_str!("patches/parent-deferred-insert.after"),
+            },
+            Patch {
+                name: "parent-hitbox-insert", path: "src/window.rs",
+                before: include_str!("patches/parent-hitbox-insert.before"),
+                after: include_str!("patches/parent-hitbox-insert.after"),
+            },
+            Patch {
+                name: "parent-underline-constructor-2", path: "src/window.rs",
+                before: include_str!("patches/parent-underline-constructor-2.before"),
+                after: include_str!("patches/parent-underline-constructor-2.after"),
+            },
+            Patch {
+                name: "parent-underline-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-underline-constructor-1.before"),
+                after: include_str!("patches/parent-underline-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-shadow-constructor-2", path: "src/window.rs",
+                before: include_str!("patches/parent-shadow-constructor-2.before"),
+                after: include_str!("patches/parent-shadow-constructor-2.after"),
+            },
+            Patch {
+                name: "parent-shadow-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-shadow-constructor-1.before"),
+                after: include_str!("patches/parent-shadow-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-quad-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-quad-constructor-1.before"),
+                after: include_str!("patches/parent-quad-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-subpixelsprite-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-subpixelsprite-constructor-1.before"),
+                after: include_str!("patches/parent-subpixelsprite-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-monochromesprite-constructor-2", path: "src/window.rs",
+                before: include_str!("patches/parent-monochromesprite-constructor-2.before"),
+                after: include_str!("patches/parent-monochromesprite-constructor-2.after"),
+            },
+            Patch {
+                name: "parent-monochromesprite-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-monochromesprite-constructor-1.before"),
+                after: include_str!("patches/parent-monochromesprite-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-polychromesprite-constructor-2", path: "src/window.rs",
+                before: include_str!("patches/parent-polychromesprite-constructor-2.before"),
+                after: include_str!("patches/parent-polychromesprite-constructor-2.after"),
+            },
+            Patch {
+                name: "parent-polychromesprite-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-polychromesprite-constructor-1.before"),
+                after: include_str!("patches/parent-polychromesprite-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-paintsurface-constructor-1", path: "src/window.rs",
+                before: include_str!("patches/parent-paintsurface-constructor-1.before"),
+                after: include_str!("patches/parent-paintsurface-constructor-1.after"),
+            },
+            Patch {
+                name: "parent-window-tests", path: "src/window.rs",
+                before: include_str!("patches/parent-window-tests.before"),
+                after: include_str!("patches/parent-window-tests.after"),
+            },
+            Patch {
+                name: "parent-view-cache-field", path: "src/view.rs",
+                before: include_str!("patches/parent-view-cache-field.before"),
+                after: include_str!("patches/parent-view-cache-field.after"),
+            },
+            Patch {
+                name: "parent-view-cache-capture", path: "src/view.rs",
+                before: include_str!("patches/parent-view-cache-capture.before"),
+                after: include_str!("patches/parent-view-cache-capture.after"),
+            },
+            Patch {
+                name: "parent-view-cache-compare", path: "src/view.rs",
+                before: include_str!("patches/parent-view-cache-compare.before"),
+                after: include_str!("patches/parent-view-cache-compare.after"),
+            },
+            Patch {
+                name: "parent-view-cache-init", path: "src/view.rs",
+                before: include_str!("patches/parent-view-cache-init.before"),
+                after: include_str!("patches/parent-view-cache-init.after"),
+            },
+            Patch {
+                name: "parent-style-field", path: "src/style.rs",
+                before: include_str!("patches/parent-style-field.before"),
+                after: include_str!("patches/parent-style-field.after"),
+            },
+            Patch {
+                name: "parent-style-default", path: "src/style.rs",
+                before: include_str!("patches/parent-style-default.before"),
+                after: include_str!("patches/parent-style-default.after"),
+            },
+            Patch {
+                name: "parent-style-geometry", path: "src/style.rs",
+                before: include_str!("patches/parent-style-geometry.before"),
+                after: include_str!("patches/parent-style-geometry.after"),
+            },
+            Patch {
+                name: "parent-styled-opt-in", path: "src/styled.rs",
+                before: include_str!("patches/parent-styled-opt-in.before"),
+                after: include_str!("patches/parent-styled-opt-in.after"),
+            },
+            Patch {
+                name: "parent-div-prepaint", path: "src/elements/div.rs",
+                before: include_str!("patches/parent-div-prepaint.before"),
+                after: include_str!("patches/parent-div-prepaint.after"),
+            },
+            Patch {
+                name: "parent-div-paint", path: "src/elements/div.rs",
+                before: include_str!("patches/parent-div-paint.before"),
+                after: include_str!("patches/parent-div-paint.after"),
+            },
+            Patch {
+                name: "parent-debug-quad", path: "src/debug_overlay.rs",
+                before: include_str!("patches/parent-debug-quad.before"),
+                after: include_str!("patches/parent-debug-quad.after"),
+            },
+            Patch {
+                name: "parent-native-renderer-test-context", path: "src/app/test_context.rs",
+                before: include_str!("patches/parent-native-renderer-test-context.before"),
+                after: include_str!("patches/parent-native-renderer-test-context.after"),
+            },
+            Patch {
+                name: "parent-used-radii-constructor", path: "src/scene.rs",
+                before: include_str!("patches/parent-used-radii-constructor.before"),
+                after: include_str!("patches/parent-used-radii-constructor.after"),
+            },
+            Patch {
+                name: "parent-used-radii-contains", path: "src/scene.rs",
+                before: include_str!("patches/parent-used-radii-contains.before"),
+                after: include_str!("patches/parent-used-radii-contains.after"),
+            },
+            Patch {
+                name: "parent-used-radii-scale", path: "src/scene.rs",
+                before: include_str!("patches/parent-used-radii-scale.before"),
+                after: include_str!("patches/parent-used-radii-scale.after"),
+            },
+            Patch {
+                name: "parent-used-radii-chain-push", path: "src/scene.rs",
+                before: include_str!("patches/parent-used-radii-chain-push.before"),
+                after: include_str!("patches/parent-used-radii-chain-push.after"),
+            },
+            Patch {
+                name: "parent-used-radii-doc", path: "src/scene.rs",
+                before: include_str!("patches/parent-used-radii-doc.before"),
+                after: include_str!("patches/parent-used-radii-doc.after"),
+            },
+            Patch {
+                name: "parent-padding-box-geometry", path: "src/style.rs",
+                before: include_str!("patches/parent-padding-box-geometry.before"),
+                after: include_str!("patches/parent-padding-box-geometry.after"),
+            },
+
+            Patch {
                 name: "demand-reentrant-waker", path: "src/window.rs",
                 before: include_str!("patches/demand-reentrant-waker.before"),
                 after: include_str!("patches/demand-reentrant-waker.after"),
@@ -350,6 +661,7 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/demand-window-tests.before"),
                 after: include_str!("patches/demand-window-tests.after"),
             },
+
             Patch {
                 name: "demand-test-isolate-svg", path: "src/svg_renderer.rs",
                 before: include_str!("patches/demand-test-isolate-svg.before"),
@@ -360,22 +672,28 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/demand-test-isolate-property.before"),
                 after: include_str!("patches/demand-test-isolate-property.after"),
             },
+
             Patch {
                 name: "demand-reentrant-contract", path: "src/window.rs",
                 before: include_str!("patches/demand-reentrant-contract.before"),
                 after: include_str!("patches/demand-reentrant-contract.after"),
             },
+
         ],
         generated_hashes: &[
-            ("src/app/test_context.rs", "70ad17984b35f317d430b74e0d5763835e78fcee724c2c93126faf6833c1ffda"),
             ("src/element.rs", "db7ed5023c5ea130fea117fbe98b00dd0f401f2caa701864f22f180c677bd9c4"),
+            ("src/randomized_element_tree.rs", "98acecacd50fab2862ae06e4fb01fd41e9290a701b77068809392236a888eea4"),
+            ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
+            ("src/app/test_context.rs", "5fc9f53e680a1020dc810ec184a02a6a7bfe97626fef0a8aed6ec1ea4858730d"),
+            ("src/debug_overlay.rs", "35ed7c2918c601c298fe1eea0e7fa679763768016cfdc99f10f1ae6bffa4a622"),
+            ("src/elements/div.rs", "989a5e69c8b7ad0155d1994ad65d8a6e10faad5a03f61a59fc5ab38d6ac481d9"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
             ("src/platform/test/window.rs", "5cc6869738c7441976bc036aa469da4521a1a632e4a5805b19bfe2eb28fee303"),
-            ("src/randomized_element_tree.rs", "98acecacd50fab2862ae06e4fb01fd41e9290a701b77068809392236a888eea4"),
-            ("src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
-            ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
-            ("src/view.rs", "18bc272b416bb3fc55d7a66a5e263d00847fa9b307154f6c5342b500ed6c1cd2"),
-            ("src/window.rs", "0d8b4e21eec64559717e0ebef8f5e737bbb03c4bc010d34cdc064b005456872f"),
+            ("src/scene.rs", "f8e1a899071e298bed53c7eb10f0e65a8039e1663048033ab6f5e79a1a434af4"),
+            ("src/style.rs", "770fa179edebbf8f5d79b93f850e002159dec9396a55e1a8d3f178221f341444"),
+            ("src/styled.rs", "d7a9d0e6b52885c428ecab1bed2cb6c2141c6fcf55f2b2b6a242f1483723c50d"),
+            ("src/view.rs", "04225139881aa7ee457fb8ac7fed4bdd83e261ce486807e808ba22165df31e96"),
+            ("src/window.rs", "f5e53fd347fa48c6118c29fef0791dcf0b9e986b815ae65e9745b5d54bcda20d"),
             ("src/window/a11y.rs", "032ccb11a796b6c76e6bf5bafd5b31c1842a136ec7280dcda4e636ded8d83166"),
             ("src/window/a11y/debug.rs", "7bf5c18e3de0fe2e9e459aec0fe67bcce64731a8f86e9ea35dc9345ca05bac49"),
         ],

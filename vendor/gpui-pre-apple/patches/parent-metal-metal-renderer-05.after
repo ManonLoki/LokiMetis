@@ -1,0 +1,13 @@
+                        command_buffer,
+                        texture,
+                        viewport_size,
+                        None,
+                    );
+                    #[cfg(feature = "parent-rounded-clip")]
+                    // 路径中间pass结束后重建主encoder，所有fragment绑定必须恢复。
+                    bind_parent_clips(command_encoder, &instance_bindings.parent_clip_nodes);
+
+                    if did_draw {
+                        if let Err(error) = self.draw_paths_from_intermediate(
+                            paths,
+                            writer,

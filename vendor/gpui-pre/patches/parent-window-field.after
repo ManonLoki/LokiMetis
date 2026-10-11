@@ -1,0 +1,3 @@
+    pub(crate) content_mask_stack: Vec<ContentMask<Pixels>>,
+    #[cfg(feature = "parent-rounded-clip")]
+    parent_clips: ParentClipChain,

@@ -1,0 +1,21 @@
+
+struct SurfaceVertexOutput {
+  float4 position [[position]];
+  float2 texture_position;
+  float clip_distance [[clip_distance]][4];
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  uint parent_clip_head [[flat]];
+#endif
+};
+
+struct SurfaceFragmentInput {
+  float4 position [[position]];
+  float2 texture_position;
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  uint parent_clip_head [[flat]];
+#endif
+};
+
+vertex SurfaceVertexOutput surface_vertex(
+    uint unit_vertex_id [[vertex_id]], uint surface_id [[instance_id]],
+    constant float2 *unit_vertices [[buffer(SurfaceInputIndex_Vertices)]],

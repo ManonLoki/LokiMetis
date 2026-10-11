@@ -1,0 +1,15 @@
+pub struct PolychromeSprite {
+    pub order: DrawOrder,
+    pub pad: u32,
+    pub grayscale: PaddedBool32,
+    pub opacity: f32,
+    pub bounds: Bounds<ScaledPixels>,
+    pub content_mask: ContentMask<ScaledPixels>,
+    pub corner_radii: Corners<ScaledPixels>,
+    pub tile: AtlasTile,
+    /// 独立圆角视口；图元几何和纹理坐标仍由 bounds 决定。
+    pub rounded_clip_bounds: Bounds<ScaledPixels>,
+    /// 本帧父圆角链，与图元自身几何及原 ContentMask 独立。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub parent_clip: ParentClipId,
+}

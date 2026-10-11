@@ -1,0 +1,2 @@
+                    && element_state.cache_key.text_style == text_style
+                    && !window.dirty_views

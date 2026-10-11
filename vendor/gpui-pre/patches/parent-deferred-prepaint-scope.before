@@ -1,0 +1,16 @@
+                if let Some(mut element) = element {
+                    self.with_rendered_view(current_view, |window| {
+                        window.with_rem_size(Some(rem_size), |window| {
+                            window.with_hitbox_exclusions(&parent_hitbox_exclusions, |window| {
+                                window.with_content_mask(parent_mask, |window| {
+                                    window.with_absolute_element_offset(absolute_offset, |window| {
+                                        element.prepaint(window, cx);
+                                    });
+                                });
+                            });
+                        });
+                    });
+                    self.next_frame.deferred_draws[deferred_draw_ix].element = Some(element);
+                } else {
+                    self.reuse_prepaint(prepaint_range);
+                }

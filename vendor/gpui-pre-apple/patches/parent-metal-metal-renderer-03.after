@@ -1,0 +1,12 @@
+            texture,
+            viewport_size,
+            Some(metal::MTLClearColor::new(0., 0., 0., alpha)),
+        );
+
+        #[cfg(feature = "parent-rounded-clip")]
+        bind_parent_clips(command_encoder, &instance_bindings.parent_clip_nodes);
+        for batch in scene.batches() {
+            match batch {
+                PrimitiveBatch::Shadows(range) => {
+                    self.draw_shadows(range, instance_bindings, viewport_size, command_encoder)
+                }

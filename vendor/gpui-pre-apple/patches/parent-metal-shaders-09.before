@@ -1,0 +1,10 @@
+  float4 sample =
+      atlas_texture.sample(atlas_texture_sampler, input.tile_position);
+  float4 color = input.color;
+  color.a *= sample.a;
+  return color;
+}
+
+struct PolychromeSpriteVertexOutput {
+  float4 position [[position]];
+  float2 tile_position;

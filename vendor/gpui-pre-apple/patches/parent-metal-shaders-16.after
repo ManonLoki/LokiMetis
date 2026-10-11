@@ -1,0 +1,28 @@
+  float4 ycbcr = float4(
+      y_texture.sample(texture_sampler, input.texture_position).r,
+      cb_cr_texture.sample(texture_sampler, input.texture_position).rg, 1.0);
+
+  return ycbcrToRGBTransform * ycbcr;
+}
+
+fragment float4 surface_fragment(SurfaceFragmentInput input [[stage_in]],
+                                 texture2d<float> y_texture
+                                 [[texture(SurfaceInputIndex_YTexture)]],
+                                 texture2d<float> cb_cr_texture
+                                 [[texture(SurfaceInputIndex_CbCrTexture)]]
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+    , constant ParentClipNode *parent_clips [[buffer(7)]]
+#endif
+) {
+  float4 color = surface_fragment_unclipped(input, y_texture, cb_cr_texture);
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  float coverage = parent_clip_coverage(input.position.xy, input.parent_clip_head, parent_clips);
+  return float4(color.rgb, color.a * coverage);
+#else
+  return color;
+#endif
+}
+
+float4 hsla_to_rgba(Hsla hsla) {
+  float h = hsla.h * 6.0; // Now, it's an angle but scaled in [0, 6) range
+  float s = hsla.s;

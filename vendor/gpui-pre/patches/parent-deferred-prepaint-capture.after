@@ -1,0 +1,4 @@
+            for deferred_draw_ix in traversal_order {
+                #[cfg(feature = "parent-rounded-clip")]
+                let parent_clips = self.next_frame.deferred_draws[deferred_draw_ix].parent_clips.clone();
+                let (element, parent_node, current_view, rem_size, absolute_offset, prepaint_range, parent_mask, parent_a11y, parent_hitbox_exclusions) = {

@@ -1,0 +1,31 @@
+    /// 从元素原始padding-box构造圆角；不从已相交的祖先ContentMask重算圆心。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub fn parent_rounded_clip(
+        &self,
+        bounds: Bounds<Pixels>,
+        rem_size: Pixels,
+    ) -> Option<crate::ParentRoundedClip> {
+        if !self.clip_rounded_children
+            || self.overflow.x == Overflow::Visible
+            || self.overflow.y == Overflow::Visible
+        {
+            return None;
+        }
+        let mut bounds = bounds;
+        let mut radii = self.corner_radii.to_pixels(rem_size);
+        if self.border_color.is_some_and(|color| !color.is_transparent()) {
+            let borders = self.border_widths.to_pixels(rem_size);
+            bounds.origin.x += borders.left;
+            bounds.origin.y += borders.top;
+            bounds.size.width = (bounds.size.width - borders.left - borders.right).max(px(0.));
+            bounds.size.height = (bounds.size.height - borders.top - borders.bottom).max(px(0.));
+            // GPUI只支持每角一个圆半径；本次Skin使用均匀1px边框。
+            radii.top_left = (radii.top_left - borders.top.max(borders.left)).max(px(0.));
+            radii.top_right = (radii.top_right - borders.top.max(borders.right)).max(px(0.));
+            radii.bottom_right = (radii.bottom_right - borders.bottom.max(borders.right)).max(px(0.));
+            radii.bottom_left = (radii.bottom_left - borders.bottom.max(borders.left)).max(px(0.));
+        }
+        Some(crate::ParentRoundedClip::new(bounds, radii))
+    }
+
+    /// Paints the background of an element styled with this style.

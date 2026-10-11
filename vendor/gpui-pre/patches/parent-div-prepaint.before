@@ -1,0 +1,1 @@
+                            let result = f(&style, scroll_offset, hitbox, window, cx);

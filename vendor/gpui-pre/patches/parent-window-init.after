@@ -1,0 +1,3 @@
+            content_mask_stack: Vec::new(),
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clips: ParentClipChain::default(),

@@ -1,0 +1,3 @@
+#[derive(Default)]
+#[expect(missing_docs)]
+pub struct Scene {

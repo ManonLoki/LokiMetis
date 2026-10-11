@@ -1,0 +1,4 @@
+            content_mask: Default::default(),
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: ParentClipId::default(),
+            color: Default::default(),

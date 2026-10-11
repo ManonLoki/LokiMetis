@@ -1,0 +1,10 @@
+  }
+
+  return color * float4(1.0, 1.0, 1.0, saturate(antialias_threshold - outer_sdf));
+}
+
+// Returns the dash velocity of a corner given the dash velocity of the two
+// sides, by returning the slower velocity (larger dashes).
+//
+// Since 0 is used for dash velocity when the border width is 0 (instead of
+// +inf), this returns the other dash velocity in that case.
