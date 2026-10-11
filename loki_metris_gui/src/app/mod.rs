@@ -102,12 +102,10 @@ impl Shell {
             { this.remember_window(window, cx); }
         });
         let activation = cx.observe_window_activation(window, |this,window,cx| {
-            let was_active = this.window_active;
             this.update_window_visibility(window,cx);
+            // 可见性回调也会更新window_active；原生激活事件不能再按该缓存去重。
             #[cfg(target_os="macos")]
-            if was_active != this.window_active { crate::native::refresh_menu_after_activation(cx); }
-            #[cfg(not(target_os="macos"))]
-            let _ = was_active;
+            crate::native::refresh_menu_after_activation(cx);
         });
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
         let keyboard_entry = keyboard_entry::install(window.window_handle(), cx);
