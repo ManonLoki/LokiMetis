@@ -71,7 +71,7 @@ impl Shell {
             loop {
                 let status = service.scan_status();
                 let discovery=service.discovery_view();
-                if entity.update(cx, |this, cx| {
+                let visible = match entity.update(cx, |this, cx| {
                     let changed=this.dashboard.scanning!=status.running || this.dashboard.scanning_client!=status.client || this.dashboard.progress!=status.progress || this.dashboard.sources.discovery!=discovery;
                     this.dashboard.sources.discovery=discovery;
                     this.dashboard.scanning = status.running;
@@ -90,8 +90,11 @@ impl Shell {
                     if this.page==super::Page::Monitor && this.window_visible {this.refresh_monitor(false,cx);}
                     if this.page==super::Page::Skins && this.window_visible {this.refresh_skins(false,cx);}
                     if changed {cx.notify();}
-                }).is_err() { return }
-                cx.background_executor().timer(std::time::Duration::from_millis(500)).await;
+                    this.window_visible
+                }) { Ok(visible) => visible, Err(_) => return };
+                // 窗口不可见时没有界面等待这些状态，降低主线程唤醒频率。
+                let period = if visible { 500 } else { 2_000 };
+                cx.background_executor().timer(std::time::Duration::from_millis(period)).await;
             }
         }));
         self.reload_usage(false, cx);
