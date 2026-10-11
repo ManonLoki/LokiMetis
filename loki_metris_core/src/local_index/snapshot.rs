@@ -534,10 +534,10 @@ async fn load_canonical_usage_calls_since<C: ConnectionTrait>(
         ))
         .await?;
     let mut calls = Vec::with_capacity(rows.len());
-    for row in &rows {
-        calls.push(row_to_usage_call(row)?);
+    // 解码后释放该行列值载荷，避免整批原始行与领域调用同时保留。
+    for row in rows {
+        calls.push(row_to_usage_call(&row)?);
     }
-    drop(rows);
     Ok(canonicalize_usage_calls(calls))
 }
 
