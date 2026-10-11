@@ -242,7 +242,7 @@ fn static_theme_contracts_keep_input_and_table_transition_continuous(cx: &mut Te
     .unwrap();
 }
 
-/// 真实GPU图集在隐藏时立即清空，恢复后卸载一张卡不释放另一个owner的当前图。
+/// 真实 atlas 在隐藏时立即清空，共享阴影只有最后一个 owner 卸载才释放。
 #[gpui_kit::test]
 fn static_cards_release_atlas_on_hide_and_independent_unmount(cx: &mut TestAppContext) {
     let (handle, probe, owners) = open(cx);
@@ -277,7 +277,7 @@ fn static_cards_release_atlas_on_hide_and_independent_unmount(cx: &mut TestAppCo
             let removed_owner = owners.borrow()[0].clone().unwrap();
             let removed = images(0, &owners, cx)[0].clone();
             let kept = images(1, &owners, cx)[0].clone();
-            assert_ne!(removed.id, kept.id);
+            assert_eq!(removed.id, kept.id);
             probe.update(cx, |state, cx| {
                 state.shown[0] = false;
                 cx.notify();
@@ -289,10 +289,16 @@ fn static_cards_release_atlas_on_hide_and_independent_unmount(cx: &mut TestAppCo
         .unwrap();
     cx.update_window(handle, |_, window, cx| {
         assert!(removed_owner.upgrade().is_none());
-        assert!(!window.has_image_atlas_entry(&removed));
+        assert!(window.has_image_atlas_entry(&removed));
         assert!(window.has_image_atlas_entry(&kept));
         assert_eq!(images(1, &owners, cx)[0].id, kept.id);
         assert!(images(2, &owners, cx).is_empty());
+        probe.update(cx, |state, cx| { state.shown[1] = false; cx.notify(); });
+        window.render_frame(cx);
+        window.render_frame(cx);
     })
     .unwrap();
+    cx.update_window(handle, |_, window, _| {
+        assert!(!window.has_image_atlas_entry(&kept));
+    }).unwrap();
 }

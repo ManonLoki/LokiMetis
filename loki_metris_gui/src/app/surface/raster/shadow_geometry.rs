@@ -130,6 +130,9 @@ impl ShadowGeometry {
     /// 切片仍携带实际长轴目标，绘制不复制或累计历史映射。
     pub fn slices(&self) -> (&[Slice], &[Slice]) { (&self.x, &self.y) }
 
+    /// 共享键使用生成像素的真实卡片尺寸；目标长轴仍由每个 owner 的切片独立保存。
+    pub fn canonical_dimensions(&self) -> (u32, u32) { (self.card_width, self.card_height) }
+
     /// 回归读取实际计划占用，包含 Vec 容量而非仅有效元素数。
     #[cfg(test)]
     pub(super) fn allocated_bytes(&self) -> usize {

@@ -17,6 +17,7 @@ type Owners = Rc<RefCell<[Option<gpui_kit::WeakEntity<MaterialState>>; 2]>>;
 struct MultiProbe {
     shown: [bool; 2],
     owners: Owners,
+    dark: bool,
 }
 
 impl Render for MultiProbe {
@@ -32,7 +33,7 @@ impl Render for MultiProbe {
                     }
                     let owners = self.owners.clone();
                     Some(
-                        SpotlightCard::new(id, false)
+                        SpotlightCard::new(id, self.dark)
                             .observe_material(move |owner| {
                                 owners.borrow_mut()[index] = Some(owner.downgrade());
                             })
@@ -151,7 +152,7 @@ fn card_material_keeps_semantics_geometry_and_child_input(cx: &mut TestAppContex
     .unwrap();
 }
 
-/// 完整组件的keyed owner隔离hover、图像ID及释放，另一张卡片在邻居卸载后继续复用静态图。
+/// 独立 owner 共享相同阴影，hover 仍隔离，邻居卸载不删除保留卡片的当前图。
 #[gpui_kit::test]
 fn sibling_cards_isolate_hover_textures_and_component_release(cx: &mut TestAppContext) {
     cx.update(gpui_kit::init);
@@ -170,6 +171,7 @@ fn sibling_cards_isolate_hover_textures_and_component_release(cx: &mut TestAppCo
                 cx.new(|_| MultiProbe {
                     shown: [true, true],
                     owners: owners.clone(),
+                    dark: false,
                 })
             },
         )
@@ -186,7 +188,7 @@ fn sibling_cards_isolate_hover_textures_and_component_release(cx: &mut TestAppCo
             let (_, images_a) = a.read(cx).audit();
             let (_, images_b) = b.read(cx).audit();
             assert_eq!((images_a.len(), images_b.len()), (1, 1));
-            assert_ne!(images_a[0].id, images_b[0].id);
+            assert_eq!(images_a[0].id, images_b[0].id);
             window.hover("surface-a", cx);
             assert!(a.read(cx).audit().0);
             assert!(!b.read(cx).audit().0);
@@ -229,4 +231,47 @@ fn sibling_cards_isolate_hover_textures_and_component_release(cx: &mut TestAppCo
         assert!(window.has_image_atlas_entry(&kept));
     })
     .unwrap();
+}
+
+/// 两个真实卡片在中间主题帧同步共享，反转和终点仍保持原300ms时间线。
+#[gpui_kit::test]
+fn sibling_theme_frames_share_exact_shadow_samples(cx: &mut TestAppContext) {
+    cx.update(gpui_kit::init);
+    let owners: Owners = Rc::new(RefCell::new([None, None]));
+    let (handle, probe) = cx.update(|cx| gpui_kit::open_window(WindowOptions {
+        window_bounds: Some(WindowBounds::Windowed(Bounds::new(point(px(0.), px(0.)), size(px(600.), px(350.))))),
+        ..Default::default()
+    }, cx, |_, cx| cx.new(|_| MultiProbe { shown: [true, true], owners: owners.clone(), dark: false })).unwrap());
+    let images = |cx: &App| {
+        std::array::from_fn::<_, 2, _>(|index| owners.borrow()[index].as_ref().unwrap().upgrade().unwrap().read(cx).audit().1[0].clone())
+    };
+    let first = cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        let first = images(cx);
+        assert_eq!(first[0].id, first[1].id);
+        probe.update(cx, |probe, cx| { probe.dark = true; cx.notify(); });
+        window.render_frame(cx);
+        assert_eq!(images(cx)[0].id, first[0].id, "切换起点保留原完整CSS参数");
+        first[0].clone()
+    }).unwrap();
+    for millis in [75, 75] {
+        cx.executor().advance_clock(std::time::Duration::from_millis(millis));
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let frame = images(cx);
+            assert_eq!(frame[0].id, frame[1].id, "同一真实draw必须共享完整中间样本");
+            assert_ne!(frame[0].id, first.id);
+        }).unwrap();
+    }
+    cx.update_window(handle, |_, window, cx| {
+        probe.update(cx, |probe, cx| { probe.dark = false; cx.notify(); });
+        window.render_frame(cx);
+    }).unwrap();
+    cx.executor().advance_clock(std::time::Duration::from_millis(40));
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        let reversed = images(cx);
+        assert_eq!(reversed[0].id, reversed[1].id);
+        assert_ne!(reversed[0].id, first.id);
+    }).unwrap();
 }

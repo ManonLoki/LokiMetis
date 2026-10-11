@@ -98,7 +98,7 @@ impl MaterialState {
             self.clear(window);
             return;
         }
-        let now = cx.background_executor().now();
+        let now = window.frame_animation_time();
         let sample = match material {
             MaterialKind::Spotlight => {
                 self.motion
@@ -118,6 +118,7 @@ impl MaterialState {
                 sample.shadow,
                 &mut self.retired,
                 window,
+                cx,
             );
         } else {
             self.shadow.retire(&mut self.retired, window);

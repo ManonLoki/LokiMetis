@@ -3,6 +3,23 @@
 use super::raster::Pixels;
 use gpui_kit::{Bounds, Corners, Pixels as LogicalPixels, RenderImage, Window, point, px, size};
 use std::sync::Arc;
+use std::rc::Rc;
+use super::shadow_shared::Lease;
+
+/// 普通纹理由单个 owner 释放，共享阴影由最后一个当前或退休 lease 释放。
+enum RetiredImage {
+    Owned(Arc<RenderImage>),
+    Shared(Rc<Lease>),
+}
+impl RetiredImage {
+    /// 同一角色的固定槽统一走对应所有权合同，不把绘制 Arc 当成材质需求。
+    fn release(self, window: &mut Window) {
+        match self {
+            Self::Owned(image) => { let _ = window.drop_image(image); }
+            Self::Shared(lease) => lease.release(window),
+        }
+    }
+}
 
 /// 固定角色的纹理槽使上一代待回收资源数量始终有界。
 #[derive(Clone, Copy)]
@@ -26,7 +43,7 @@ impl TextureRole {
 /// 回收队列每种角色最多一张；后帧回调只捕获owner弱引用，不捕获纹理历史。
 #[derive(Default)]
 pub(super) struct Retired {
-    images: [Option<Arc<RenderImage>>; 7],
+    images: [Option<RetiredImage>; 7],
 }
 
 /// 共用九切片图片绘制：UV保留完整源图，矩形片段只决定目标裁切范围。
@@ -70,8 +87,15 @@ pub(super) fn paint_sliced(
 impl Retired {
     /// 同一角色在回调之前再次更新时，先释放更早的退休图，避免连续重绘累计。
     pub fn push(&mut self, role: TextureRole, image: Arc<RenderImage>, window: &mut Window) {
-        if let Some(previous) = self.images[role as usize].replace(image) {
-            let _ = window.drop_image(previous);
+        if let Some(previous) = self.images[role as usize].replace(RetiredImage::Owned(image)) {
+            previous.release(window);
+        }
+    }
+
+    /// 共享阴影同样只退休一代，但其它卡片仍持需求时不能删除它们的图集条目。
+    pub fn push_shared_shadow(&mut self, lease: Rc<Lease>, window: &mut Window) {
+        if let Some(previous) = self.images[TextureRole::Shadow as usize].replace(RetiredImage::Shared(lease)) {
+            previous.release(window);
         }
     }
 
@@ -79,7 +103,7 @@ impl Retired {
     pub fn clear(&mut self, window: &mut Window) {
         for image in &mut self.images {
             if let Some(image) = image.take() {
-                let _ = window.drop_image(image);
+                image.release(window);
             }
         }
     }

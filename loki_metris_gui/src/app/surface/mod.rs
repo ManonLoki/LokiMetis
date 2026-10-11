@@ -5,6 +5,7 @@ mod palette;
 mod raster;
 mod rim;
 mod shadow;
+mod shadow_shared;
 mod spotlight;
 mod state;
 mod textures;

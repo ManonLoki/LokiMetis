@@ -16,6 +16,26 @@ fn generated_sources() -> PathBuf {
         source_manifest_sha256: "6740789276091f55b305d15d7db9d3e81dd79909879869bdc0cc2a77134c8dd7",
         patches: &[
             Patch {
+                name: "frame-animation-time-field", path: "src/window.rs",
+                before: include_str!("patches/frame-animation-time-field.before"),
+                after: include_str!("patches/frame-animation-time-field.after"),
+            },
+            Patch {
+                name: "frame-animation-time-init", path: "src/window.rs",
+                before: include_str!("patches/frame-animation-time-init.before"),
+                after: include_str!("patches/frame-animation-time-init.after"),
+            },
+            Patch {
+                name: "frame-animation-time-draw", path: "src/window.rs",
+                before: include_str!("patches/frame-animation-time-draw.before"),
+                after: include_str!("patches/frame-animation-time-draw.after"),
+            },
+            Patch {
+                name: "frame-animation-time-api", path: "src/window.rs",
+                before: include_str!("patches/frame-animation-time-api.before"),
+                after: include_str!("patches/frame-animation-time-api.after"),
+            },
+            Patch {
                 name: "image-frame-drop", path: "src/window.rs",
                 before: include_str!("patches/image-frame-drop.before"),
                 after: include_str!("patches/image-frame-drop.after"),
@@ -355,7 +375,7 @@ fn generated_sources() -> PathBuf {
             ("src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
             ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
             ("src/view.rs", "18bc272b416bb3fc55d7a66a5e263d00847fa9b307154f6c5342b500ed6c1cd2"),
-            ("src/window.rs", "89e45b98fac863acbe81f4abb1e4923d5147727e20e916da9d52e58807e90805"),
+            ("src/window.rs", "0d8b4e21eec64559717e0ebef8f5e737bbb03c4bc010d34cdc064b005456872f"),
             ("src/window/a11y.rs", "032ccb11a796b6c76e6bf5bafd5b31c1842a136ec7280dcda4e636ded8d83166"),
             ("src/window/a11y/debug.rs", "7bf5c18e3de0fe2e9e459aec0fe67bcce64731a8f86e9ea35dc9345ca05bac49"),
         ],
