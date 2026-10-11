@@ -62,6 +62,7 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/metal-clip-distance.before"),
                 after: include_str!("patches/metal-clip-distance.after"),
             },
+            // 父圆角裁剪补丁组：scene 图元新增 parent_clip 字段，Metal renderer/shader 按 GPUI_PARENT_ROUNDED_CLIP 读取；仅 macOS。
             Patch {
                 name: "parent-clip-types", path: "vendor/gpui/src/scene.rs",
                 before: include_str!("patches/parent-clip-types.before"),
@@ -366,6 +367,7 @@ mod apple_build {
             "PointF".into(),
             "Hsla".into(),
             "ContentMask".into(),
+            // 导出父裁剪类型，使 Metal 头文件可见。
             "ParentClipId".into(),
             "ParentClipNode".into(),
             "Uniforms".into(),
@@ -388,6 +390,7 @@ mod apple_build {
             "SurfaceBounds".into(),
             "TransformationMatrix".into(),
         ]);
+        // 让 cbindgen 把 Rust feature 映射为 C 宏，头文件内 #if 受其控制。
         config.defines.insert("feature = parent-rounded-clip".into(), "GPUI_PARENT_ROUNDED_CLIP".into());
         config.no_includes = true;
         config.enumeration.prefix_with_name = true;

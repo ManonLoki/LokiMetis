@@ -305,6 +305,7 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/hitbox-exclusions-cache-init.before"),
                 after: include_str!("patches/hitbox-exclusions-cache-init.after"),
             },
+            // 父圆角裁剪补丁组：scene 图元新增 parent_clip 字段；window 维护父裁剪链，view 缓存与 style/div 提供 clip_rounded_children 入口。
             Patch {
                 name: "parent-clip-types", path: "src/scene.rs",
                 before: include_str!("patches/parent-clip-types.before"),
