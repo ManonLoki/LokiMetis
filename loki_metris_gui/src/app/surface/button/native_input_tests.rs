@@ -25,8 +25,19 @@ impl Render for Probe {
                 .disabled(self.disabled)
                 .loading(self.loading)
                 .on_click(cx.listener(|this, _, _, _| this.clicks += 1)),
-        )
+        ).child(SurfaceButton::new("neighbor", SurfaceButtonVariant::Default, false).label("相邻按钮"))
     }
+}
+
+/// 读取绘制后唯一真实节点，避免初始空树或仅动作缺失冒充原生disabled状态。
+fn button_node(window: &Window, id: &str) -> serde_json::Value {
+    let tree: serde_json::Value =
+        serde_json::from_str(&window.debug_a11y_tree_json().unwrap()).unwrap();
+    let nodes: Vec<_> = tree["nodes"].as_object().unwrap().values()
+        .filter(|node| node["element_id"] == format!("Name({id:?})")).collect();
+    assert_eq!(nodes.len(), 1, "原按钮必须只有一个真实节点：{id}");
+    assert_eq!(nodes[0]["aria"]["role"], "Button");
+    nodes[0].clone()
 }
 
 /// 单独派发按下或松开，保留原生pending状态而非直接调用动作回调。
@@ -82,6 +93,8 @@ fn shared_button_disable_or_loading_cancels_pending_keyboard_and_a11y_actions(
                 window.render_frame(cx);
                 window.focus_next(cx);
                 window.render_frame(cx);
+                let original = button_node(window, "action");
+                assert_eq!(original["aria"]["disabled"], false);
                 key(window, cx, true);
                 assert_eq!(probe.read(cx).clicks, 0);
                 probe.update(cx, |probe, cx| {
@@ -90,16 +103,11 @@ fn shared_button_disable_or_loading_cancels_pending_keyboard_and_a11y_actions(
                     cx.notify();
                 });
                 window.render_frame(cx);
-                let tree: serde_json::Value =
-                    serde_json::from_str(&window.debug_a11y_tree_json().unwrap()).unwrap();
-                let nodes: Vec<_> = tree["nodes"]
-                    .as_object()
-                    .unwrap()
-                    .values()
-                    .filter(|node| node["element_id"] == "Name(\"action\")")
-                    .collect();
-                assert_eq!(nodes.len(), 1);
-                if let Some(actions) = nodes[0]["aria"]["on_action"].as_array() {
+                let disabled = button_node(window, "action");
+                assert_eq!(disabled["accesskit_id"], original["accesskit_id"]);
+                assert_eq!(disabled["aria"]["disabled"], true, "禁用和加载都应标记真实节点");
+                assert_eq!(button_node(window, "neighbor")["aria"]["disabled"], false);
+                if let Some(actions) = disabled["aria"]["on_action"].as_array() {
                     assert!(
                         !actions
                             .iter()
@@ -112,6 +120,9 @@ fn shared_button_disable_or_loading_cancels_pending_keyboard_and_a11y_actions(
                     cx.notify();
                 });
                 window.render_frame(cx);
+                let restored = button_node(window, "action");
+                assert_eq!(restored["accesskit_id"], original["accesskit_id"]);
+                assert_eq!(restored["aria"]["disabled"], false);
                 window.focus_next(cx);
                 window.render_frame(cx);
                 key(window, cx, false);

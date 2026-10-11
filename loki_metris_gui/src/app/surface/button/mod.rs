@@ -396,6 +396,9 @@ impl Element for SurfaceButton {
             });
         }
         let interactive = !(self.disabled || self.loading);
+        if !interactive {
+            super::native_control::mark_render_once_disabled(button.interactivity());
+        }
         button = if interactive {
             button.cursor_pointer()
         } else {
@@ -450,10 +453,7 @@ impl Element for SurfaceButton {
                 let _ = weak.update(cx, |state, cx| state.keyboard(None, cx));
             });
         }
-        let mut inner = super::native_control::NativeControl::new(
-            button.render(window, cx).into_element(),
-            !interactive,
-        ).into_any_element();
+        let mut inner = button.render(window, cx).into_any_element();
         let layout = inner.request_layout(window, cx);
         (layout, (inner, owner, veil_element))
     }

@@ -2,9 +2,26 @@
 
 use gpui_kit::{
     A11ySubtreeBuilder, App, BorderStyle, Bounds, Edges, Element, ElementId, FocusHandle,
-    GlobalElementId, InspectorElementId, IntoElement, LayoutId, Pixels, Rgba, Window, accesskit,
-    quad, transparent_black,
+    GlobalElementId, InspectorElementId, Interactivity, InteractiveElement, IntoElement, LayoutId,
+    Pixels, Rgba, StatefulInteractiveElement, Window, accesskit, quad, transparent_black,
 };
+
+/// 只借用已有交互对象来使用状态化辅助回调，不参与绘制或创建代理节点。
+struct StatefulControl<'a>(&'a mut Interactivity);
+impl InteractiveElement for StatefulControl<'_> {
+    /// 回调仍写入Kit向内层原生Div转交的同一个交互对象。
+    fn interactivity(&mut self) -> &mut Interactivity {
+        self.0
+    }
+}
+impl StatefulInteractiveElement for StatefulControl<'_> {}
+
+/// RenderOnce包装不转发辅助角色；在实际原节点构建后补充禁用位。
+/// 仅用于尚未提供合成辅助回调的控件；既有回调须先组合，避免替换。
+pub(in crate::app) fn mark_render_once_disabled(interactivity: &mut Interactivity) {
+    StatefulControl(interactivity)
+        .a11y_synthetic_children(|builder| builder.parent_node().set_disabled());
+}
 
 /// 焦点线沿实际控件边缘向外绘制，透明中心保留原背景及其alpha。
 pub(in crate::app) struct FocusRing {
@@ -22,7 +39,7 @@ pub(in crate::app) struct NativeControl<E> {
     ring: Option<FocusRing>,
 }
 impl<E: Element> NativeControl<E> {
-    /// 禁用位补在原节点上；原控件继续负责拒绝输入及移出焦点序列。
+    /// 适配拥有辅助角色的具体Element；RenderOnce控件改用原交互对象回调。
     pub fn new(inner: E, disabled: bool) -> Self {
         Self {
             inner,

@@ -96,6 +96,11 @@ fn generated_sources() -> PathBuf {
                 after: include_str!("patches/deferred-ax-debug-hidden.after"),
             },
             Patch {
+                name: "native-control-ax-debug-disabled", path: "src/window/a11y/debug.rs",
+                before: include_str!("patches/native-control-ax-debug-disabled.before"),
+                after: include_str!("patches/native-control-ax-debug-disabled.after"),
+            },
+            Patch {
                 name: "deferred-ax-helper", path: "src/window/a11y.rs",
                 before: include_str!("patches/deferred-ax-helper.before"),
                 after: include_str!("patches/deferred-ax-helper.after"),
@@ -352,7 +357,7 @@ fn generated_sources() -> PathBuf {
             ("src/view.rs", "18bc272b416bb3fc55d7a66a5e263d00847fa9b307154f6c5342b500ed6c1cd2"),
             ("src/window.rs", "89e45b98fac863acbe81f4abb1e4923d5147727e20e916da9d52e58807e90805"),
             ("src/window/a11y.rs", "032ccb11a796b6c76e6bf5bafd5b31c1842a136ec7280dcda4e636ded8d83166"),
-            ("src/window/a11y/debug.rs", "70d3f863eb49cda2638231f163c15d769352b25d1fec14ed409ad6b61f1cfe8d"),
+            ("src/window/a11y/debug.rs", "7bf5c18e3de0fe2e9e459aec0fe67bcce64731a8f86e9ea35dc9345ca05bac49"),
         ],
     };
     let patches: Vec<_> = spec.patches.iter().chain(element_transform_patches::PATCHES).map(|patch| Patch {

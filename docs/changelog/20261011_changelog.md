@@ -1,5 +1,13 @@
 # 2026-10-11 开发变更
 
+## LMDESK-NATIVE-CONTROL-DISABLED-AX-001 · 补齐 RenderOnce 按钮的原生禁用状态
+
+同一缺陷的后续修复，沿用required_version `0.2.14`；版本门禁幂等保持当前 `0.2.16`，未发布。
+
+实际v0.2.16窗口发现Sources按钮已灰显并拒绝操作，但辅助树缺少disabled。原因是透明适配器包在RenderOnce的ViewElement外，辅助角色及节点位于更内层，外层写入没有生效。现借用原按钮的交互对象，在实际节点构建后补禁用位；不新增节点或动作代理，也不修改Kit全局默认行为。加载同样不可交互，恢复后重新生成可用节点。
+
+新增真实节点断言先复现false/true不符，再验证历史/普通内容及禁用/加载四种组合：唯一原Button、稳定ID、禁用位、无Click/Focus动作、相邻按钮保持可用、恢复后一次新激活。共享13项、Sources5项通过。调试JSON只增加实际disabled事实字段；试包Computer Use复查待执行，Windows及完整体验仍未验证。
+
 ## LMGUI-BUTTON-PRESS-SCALE-001 · 按钮按压整体缩放并取消隐藏前的旧动作
 
 分类：bug-fix。required_version：`0.2.16`，未发布。
