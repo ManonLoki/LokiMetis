@@ -74,7 +74,12 @@ impl Overlay {
         let bounds = cx.observe_window_bounds(window, move |_, window, cx| {
             let bounds = host::bounds(window);
             let scale = window.scale_factor();
+            let trusted = bounds_owner.read(cx);
+            let actual = if !trusted.applying && !trusted.display_geometry_unconfirmed && trusted.geometry_restored {
+                super::window_placement::observed_state(window, cx)
+            } else { None };
             bounds_owner.update(cx, |owner, cx| {
+                if let Some(actual) = actual { owner.display_state = Some(actual); }
                 let prefs = owner.settings.pet_window;
                 let area = host::work_area(window);
                 let range = super::geometry::range(area, prefs.layout);
@@ -85,7 +90,7 @@ impl Overlay {
                     prefs.pet_size,
                     range,
                 );
-                if !owner.applying && !owner.busy && !prefs.locked && size != prefs.pet_size {
+                if !owner.applying && !owner.display_geometry_unconfirmed && !owner.busy && !prefs.locked && size != prefs.pet_size {
                     owner.change(PetPreferenceChange::NativeSize(size), cx);
                 }
                 owner.moved(bounds, scale, cx);

@@ -184,7 +184,7 @@ fn service_catalog_fixture(cx: &mut TestAppContext) -> (Fixture, AiProfileDraft)
 fn settle_catalog(cx: &mut TestAppContext, owner: &Entity<Controller>) {
     for _ in 0..500 {
         cx.run_until_parked();
-        if owner.read_with(cx, |owner, _| !owner.loading && !owner.busy && owner.pending.is_empty()) {
+        if owner.read_with(cx, |owner, _| !owner.loading && !owner.display_applying && !owner.busy && owner.pending.is_empty()) {
             return;
         }
         cx.executor().advance_clock(Duration::from_millis(30));

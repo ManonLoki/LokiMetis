@@ -8,6 +8,7 @@ mod settings;
 mod settings_window;
 mod size_control;
 mod position;
+mod window_placement;
 mod passthrough;
 pub(crate) use passthrough::{mouse_passthrough_state, open_settings, toggle_mouse_passthrough};
 pub(crate) use passthrough::State as MousePassthroughState;
@@ -87,6 +88,17 @@ struct Controller {
     position_task: Option<Task<()>>,
     applying: bool,
     geometry_restored: bool,
+    /// 显示租约同时约束显隐和迁屏，旧 defer 不能覆盖较新的用户意图。
+    display_generation: u64,
+    display_request: Option<window_placement::Request>,
+    display_task: Option<Task<()>>,
+    /// 原生迁屏尚未读回时屏蔽中间 bounds 的尺寸推导及位置保存。
+    display_applying: bool,
+    /// 取消或失败不能把已移动但未确认的原生矩形当作用户拖动保存。
+    display_geometry_unconfirmed: bool,
+    /// 已确认的迁屏或用户拖动几何，不从被取消的原生迁屏中间帧恢复锚点。
+    display_state: Option<loki_metris_core::window_placement::WindowStateV2>,
+    settings_ready: bool,
     mouse_state: host::MousePassthroughState,
     retry_after: Option<std::time::Instant>,
     last_error: Option<HookError>,
@@ -123,6 +135,13 @@ impl Controller {
             position_task: None,
             applying: false,
             geometry_restored: false,
+            display_generation: 0,
+            display_request: None,
+            display_task: None,
+            display_applying: false,
+            display_geometry_unconfirmed: false,
+            display_state: None,
+            settings_ready: false,
             mouse_state: Default::default(),
             retry_after: None,
             last_error: None,
@@ -160,6 +179,7 @@ impl Controller {
         self.focus_first_populated(cx);
         let keys = self.snapshot_revisions();
         if self.loading
+            || self.display_applying
             || self
                 .retry_after
                 .is_some_and(|retry| cx.background_executor().now() < retry)
@@ -215,18 +235,8 @@ impl Controller {
                 if generation == this.settings_generation && !this.busy {
                     if let Some(settings) = settings {
                         this.settings = settings;
-                        match this.apply_geometry(!this.geometry_restored, cx) {
-                            Ok(()) => {
-                                this.geometry_restored = true;
-                                this.observed.0 = keys.0;
-                                this.observed.1 = keys.1;
-                            }
-                            Err(error) => {
-                                tracing::warn!(%error,"pet geometry restore failed");
-                                this.retry_after =
-                                    Some(cx.background_executor().now() + Duration::from_secs(2));
-                            }
-                        }
+                        this.settings_ready = true;
+                        this.accept_loaded_geometry((keys.0, keys.1), cx);
                     }
                 }
                 if let Some(drafts) = drafts {
@@ -280,6 +290,7 @@ impl Controller {
             || self.loading
             || self.retry_after.is_some()
             || self.busy
+            || self.display_applying
             || !self.pending.is_empty()
             || !self.geometry_restored
             || (self.observed.0, self.observed.1, self.observed.2) != self.snapshot_revisions()
@@ -415,7 +426,7 @@ impl Controller {
         if self.quitting {
             return;
         }
-        if self.busy {
+        if self.busy || self.display_applying {
             if matches!(
                 change,
                 PetPreferenceChange::Size(_) | PetPreferenceChange::NativeSize(_)
@@ -512,6 +523,7 @@ impl Controller {
                 match result {
                     Ok(settings) => {
                         this.settings = settings;
+                        this.settings_ready = true;
                         this.observed.1 = this.service.pet_settings_revision();
                     }
                     Err(error) => {
@@ -529,6 +541,7 @@ impl Controller {
     }
     /// 成功、失败和无效意图都继续处理已经排队的后续字段修改。
     fn next_pending(&mut self, cx: &mut Context<Self>) {
+        if self.busy || self.display_applying || self.quitting { return; }
         if let Some(next) = self.pending.pop_front() {
             self.change(next, cx);
         }
@@ -539,22 +552,21 @@ impl Controller {
         self.visible = false;
         self.service.today_visible(false);
         crate::native::set_pet_visibility(false, cx);
-        if let Some(handle) = self.overlay {
-            cx.defer(move |cx| {
-                let _ = handle.update(cx, |_, window, _| host::set_visible(window, false));
-            });
-        }
+        self.cancel_display();
+        let owner = cx.entity().clone();
+        let generation = self.display_generation;
+        let handle = self.overlay;
+        cx.defer(move |cx| window_placement::hide(owner, generation, handle, cx));
+        if !self.busy { self.next_pending(cx); }
         cx.notify();
     }
     /// 复用当前桌宠，显示时不激活主窗口。
     fn show(&mut self, cx: &mut Context<Self>) {
+        if self.quitting { return; }
         self.visible = true;
         self.service.today_visible(true);
         crate::native::set_pet_visibility(true, cx);
-        let _ = self.apply_geometry(false, cx);
-        if let Some(handle) = self.overlay {
-            let _ = handle.update(cx, |_, window, _| host::set_visible(window, true));
-        }
+        self.request_display(cx);
         self.refresh(cx);
         cx.notify();
     }
@@ -627,8 +639,7 @@ pub fn install(main: AnyWindowHandle, service: Arc<UsageService>, locale: &str, 
             this.service.today_visible(true);
             this.overlay = Some(handle.into());
             this.overlay_view = view;
-            let _ = this.apply_geometry(true, cx);
-            let _ = handle.update(cx, |_, window, _| host::set_visible(window, true));
+            this.request_display(cx);
             this.refresh(cx);
         });
     }
@@ -692,6 +703,7 @@ pub(crate) fn take_shutdown_plan(cx: &mut App) -> crate::usage_service::PetShutd
     let owner = manager.0.clone();
     owner.update(cx, |this, cx| {
         this.quitting = true;
+        this.cancel_display();
         this.poll.take();
         this.query.take();
         this.position_task.take();

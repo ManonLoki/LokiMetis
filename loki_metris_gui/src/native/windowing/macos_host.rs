@@ -215,6 +215,11 @@ impl WindowHost {
     pub fn configure_auxiliary(&self, resizable: bool, always_on_top: bool) {
         configure_auxiliary_window(&self.0.window, resizable, always_on_top);
     }
+    /// 桌宠目标屏的内容尺寸上下限在迁屏前设置，调用方必须释放全部 GPUI 借用。
+    pub fn auxiliary_size_limits(&self, min: (f64, f64), max: (f64, f64)) {
+        self.0.window.setContentMinSize(NSSize::new(min.0, min.1));
+        self.0.window.setContentMaxSize(NSSize::new(max.0, max.1));
+    }
     /// 原生显示/聚焦会同步回调 GPUI，因此限于借用之外。
     pub fn show(&self) { self.0.window.makeKeyAndOrderFront(None); }
     /// 读取实际键盘焦点，不把 AppKit 的 mainWindow 当作 keyWindow。

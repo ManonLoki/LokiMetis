@@ -74,17 +74,6 @@ pub fn bounds(window: &Window) -> Bounds<gpui_kit::Pixels> {
         })
         .unwrap_or_else(|_| window.bounds())
 }
-/// 显示只激活桌宠本窗；GPUI延迟makeKeyAndOrderFront并检查活窗，避免同步焦点回调重借用。
-/// 与历史TAO 0.35.3的set_visible(true)一致，隐藏不影响同应用其它窗口。
-pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
-    let native = native(window)?;
-    if visible {
-        window.activate_window()
-    } else {
-        native.orderOut(None)
-    }
-    Ok(())
-}
 /// 只移动左上角，不借用当前鼠标屏幕高度。
 pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
     let native = native(window)?;

@@ -78,6 +78,19 @@ pub use fallback::*;
 mod test_host {
     use gpui_kit::{Bounds, Window, point, px, size};
     use loki_metris_core::PetWindowPreferences;
+    std::thread_local! {
+        /// 仅虚拟宿主记录原生显隐命令，不代表真实操作系统可见性。
+        static VISIBILITY: std::cell::RefCell<std::collections::VecDeque<(gpui_kit::AnyWindowHandle, bool)>> = Default::default();
+    }
+    /// 取出当前测试活窗的命令记录，有界缓存防止其它用例无限累积。
+    pub fn take_visibility_events(handle: gpui_kit::AnyWindowHandle) -> Vec<bool> {
+        VISIBILITY.with(|events| {
+            let mut events = events.borrow_mut();
+            let found = events.iter().filter(|(window, _)| *window == handle).map(|(_, visible)| *visible).collect();
+            events.retain(|(window, _)| *window != handle);
+            found
+        })
+    }
     /// 显式测试适配器记录事务与可控失败；不代表OS鼠标投递验证。
     pub fn set_mouse_passthrough(_: &Window, enabled: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
         state.calls += 1;
@@ -88,7 +101,12 @@ mod test_host {
         Ok(())
     }
     /// 假平台只验证GPUI实体/窗口时序，实际原生属性由Computer Use检查。
-    pub fn set_visible(_: &Window, _: bool) -> anyhow::Result<()> {
+    pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
+        VISIBILITY.with(|events| {
+            let mut events = events.borrow_mut();
+            if events.len() >= 64 { events.pop_front(); }
+            events.push_back((window.window_handle(), visible));
+        });
         Ok(())
     }
     /// 测试平台没有OS句柄，属性调用由显式测试适配器接收。
