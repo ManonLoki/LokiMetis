@@ -1,0 +1,2 @@
+            let paint_end = self.paint_index();
+            deferred_draw.paint_range =

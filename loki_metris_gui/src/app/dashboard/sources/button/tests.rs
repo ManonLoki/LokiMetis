@@ -88,12 +88,38 @@ fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Probe>) {
     })
 }
 
+/// 从实际Scene读取按钮背景矩形，布局测试记录有意保持未缩放占位。
+fn visual_bounds(window: &Window, index: usize) -> Bounds<Pixels> {
+    let layout = window.find(("source-probe", index)).bounds();
+    let scale = window.scale_factor();
+    let actual = window.painted_quads().into_iter().find(|quad| {
+        quad.background.as_solid().is_some_and(|color| color.a > 0.)
+            && quad.bounds.size.width.0 > 100. * scale
+            && quad.bounds.size.height.0 > 20. * scale
+            && (quad.bounds.center().x.0 / scale - f32::from(layout.center().x)).abs() < 2.
+    }).expect("读取真实按钮背景图元");
+    Bounds::new(actual.bounds.origin.map(|v| px(v.0 / scale)),
+        actual.bounds.size.map(|v| px(v.0 / scale)))
+}
+
+/// 按压几何来自Scene而非控件布局，中心下移1px、宽高缩至98.5%。
+fn assert_pressed(window: &Window, original: Bounds<Pixels>) {
+    assert_eq!(window.find(("source-probe", 0usize)).bounds(), original,
+        "按压变换不得改布局占位");
+    let actual = visual_bounds(window, 0);
+    for (actual, expected) in [
+        (f32::from(actual.center().x), f32::from(original.center().x)),
+        (f32::from(actual.center().y), f32::from(original.center().y) + 1.),
+        (f32::from(actual.size.width), f32::from(original.size.width) * 0.985),
+        (f32::from(actual.size.height), f32::from(original.size.height) * 0.985),
+    ] {
+        assert!((actual - expected).abs() < 0.0001, "实际图元{actual} != {expected}");
+    }
+}
+
 /// 只读取按钮真实border-box上的填充，不能用文字或其它按钮的quad冒充反馈。
 fn background(window: &Window, index: usize) -> Rgba {
-    let bounds = window
-        .find(("source-probe", index))
-        .bounds()
-        .scale(window.scale_factor());
+    let bounds = visual_bounds(window, index).scale(window.scale_factor());
     window
         .painted_quads()
         .into_iter()
@@ -240,7 +266,7 @@ fn source_button_hover_is_continuous_reversible_and_owned(cx: &mut TestAppContex
     .unwrap();
 }
 
-/// 鼠标按住只改变实际按钮位置，松开一次激活；禁用/加载与周围留白保持无动作。
+/// 鼠标按住整体缩放而不改布局，松开一次激活；禁用/加载与留白保持无动作。
 #[gpui_kit::test]
 fn source_button_pointer_press_disabled_and_loading_preserve_native_actions(
     cx: &mut TestAppContext,
@@ -258,11 +284,7 @@ fn source_button_pointer_press_disabled_and_loading_preserve_native_actions(
     cx.executor().advance_clock(Duration::from_millis(200));
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
-        assert_eq!(
-            window.find(("source-probe", 0usize)).bounds().origin.y,
-            bounds.origin.y + px(1.),
-            "按住200ms后真实按钮及命中区域应下移1px"
-        );
+        assert_pressed(window, bounds);
         assert_eq!(
             window.find(("source-probe", 1usize)).bounds().origin.y,
             bounds.origin.y
@@ -320,10 +342,7 @@ fn source_button_keyboard_keeps_focus_and_single_release_activation(cx: &mut Tes
         cx.executor().advance_clock(Duration::from_millis(200));
         cx.update_window(handle, |_, window, cx| {
             window.render_frame(cx);
-            assert_eq!(
-                window.find(("source-probe", 0usize)).bounds().origin.y,
-                original.origin.y + px(1.)
-            );
+            assert_pressed(window, original);
         })
         .unwrap();
         key(handle, name, false, cx);
@@ -332,6 +351,7 @@ fn source_button_keyboard_keeps_focus_and_single_release_activation(cx: &mut Tes
         cx.update_window(handle, |_, window, cx| {
             window.render_frame(cx);
             assert_eq!(window.find(("source-probe", 0usize)).bounds(), original);
+            assert_eq!(visual_bounds(window, 0), original);
         })
         .unwrap();
     }
@@ -346,6 +366,7 @@ fn source_button_keyboard_keeps_focus_and_single_release_activation(cx: &mut Tes
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(window.find(("source-probe", 0usize)).bounds(), original);
+        assert_eq!(visual_bounds(window, 0), original);
     })
     .unwrap();
     key(handle, "space", false, cx);
@@ -377,10 +398,7 @@ fn source_button_cancelled_pointer_does_not_stick_or_activate(cx: &mut TestAppCo
     cx.executor().advance_clock(Duration::from_millis(200));
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
-        assert_eq!(
-            window.find(("source-probe", 0usize)).bounds().origin.y,
-            original.origin.y + px(1.)
-        );
+        assert_pressed(window, original);
         window.hover("source-button-outside", cx);
         let outside = window.find("source-button-outside").bounds().center();
         mouse(window, cx, outside, false);
@@ -391,6 +409,7 @@ fn source_button_cancelled_pointer_does_not_stick_or_activate(cx: &mut TestAppCo
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(window.find(("source-probe", 0usize)).bounds(), original);
+        assert_eq!(visual_bounds(window, 0), original);
         mouse(window, cx, original.center(), true);
         probe.update(cx, |this, cx| {
             this.disabled = true;
@@ -403,6 +422,7 @@ fn source_button_cancelled_pointer_does_not_stick_or_activate(cx: &mut TestAppCo
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(window.find(("source-probe", 0usize)).bounds(), original);
+        assert_eq!(visual_bounds(window, 0), original);
         mouse(window, cx, original.center(), false);
         assert_eq!(probe.read(cx).clicks, [0, 0]);
         probe.update(cx, |this, cx| {
@@ -435,10 +455,7 @@ fn source_button_keyboard_focus_change_cancels_old_press(cx: &mut TestAppContext
     cx.executor().advance_clock(Duration::from_millis(200));
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
-        assert_eq!(
-            window.find(("source-probe", 0usize)).bounds().origin.y,
-            original.origin.y + px(1.)
-        );
+        assert_pressed(window, original);
     })
     .unwrap();
     key(handle, "tab", true, cx);
@@ -448,6 +465,7 @@ fn source_button_keyboard_focus_change_cancels_old_press(cx: &mut TestAppContext
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(window.find(("source-probe", 0usize)).bounds(), original);
+        assert_eq!(visual_bounds(window, 0), original);
         assert_eq!(window.find(("source-probe", 1usize)).focused(), Some(true));
         assert_eq!(probe.read(cx).clicks, [0, 0]);
     })

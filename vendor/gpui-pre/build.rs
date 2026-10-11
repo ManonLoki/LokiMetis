@@ -3,12 +3,14 @@
 #[path = "../gpui-patch-support/generator.rs"]
 mod generator;
 use generator::{Patch, Spec};
+#[path = "src/element_transform_patches.rs"]
+mod element_transform_patches;
 use std::path::{Path, PathBuf};
 
 /// 所有上游文件和补丁结果有固定 SHA，编译阶段仅生成独立 OUT_DIR 镜像。
 fn generated_sources() -> PathBuf {
     println!("cargo:rerun-if-changed=src/frame_demand_tests.rs");
-    let spec = Spec {
+    let mut spec = Spec {
         entry: "src/gpui.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
         source_manifest_sha256: "6740789276091f55b305d15d7db9d3e81dd79909879869bdc0cc2a77134c8dd7",
@@ -341,17 +343,22 @@ fn generated_sources() -> PathBuf {
         ],
         generated_hashes: &[
             ("src/app/test_context.rs", "70ad17984b35f317d430b74e0d5763835e78fcee724c2c93126faf6833c1ffda"),
+            ("src/element.rs", "db7ed5023c5ea130fea117fbe98b00dd0f401f2caa701864f22f180c677bd9c4"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
             ("src/platform/test/window.rs", "5cc6869738c7441976bc036aa469da4521a1a632e4a5805b19bfe2eb28fee303"),
             ("src/randomized_element_tree.rs", "98acecacd50fab2862ae06e4fb01fd41e9290a701b77068809392236a888eea4"),
             ("src/scene.rs", "30e96981faabefeed0f63e04d1011c7a7864aa6c9826484eea67e9313ea14baf"),
             ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
-            ("src/view.rs", "039a61d1e94f2c57ace98d14cc13baefbe27ce5118119066ead3d2d248f439f0"),
-            ("src/window.rs", "92e4ab0543ae50134cd4210e2c21e42e4f22358696554cd01d739057cd2520dd"),
+            ("src/view.rs", "18bc272b416bb3fc55d7a66a5e263d00847fa9b307154f6c5342b500ed6c1cd2"),
+            ("src/window.rs", "89e45b98fac863acbe81f4abb1e4923d5147727e20e916da9d52e58807e90805"),
             ("src/window/a11y.rs", "032ccb11a796b6c76e6bf5bafd5b31c1842a136ec7280dcda4e636ded8d83166"),
-            ("src/window/a11y/debug.rs", "6aaf90d1406fc9fd5bb3392275a4c9f19cbc3e2761eb5499de7a65f7ab71ad25"),
+            ("src/window/a11y/debug.rs", "70d3f863eb49cda2638231f163c15d769352b25d1fec14ed409ad6b61f1cfe8d"),
         ],
     };
+    let patches: Vec<_> = spec.patches.iter().chain(element_transform_patches::PATCHES).map(|patch| Patch {
+        name: patch.name, path: patch.path, before: patch.before, after: patch.after,
+    }).collect();
+    spec.patches = &patches;
     generator::generate(Path::new(env!("CARGO_MANIFEST_DIR")), &spec)
 }
 

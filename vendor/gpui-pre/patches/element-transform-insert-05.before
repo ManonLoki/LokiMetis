@@ -1,0 +1,2 @@
+        if !quad.background.is_transparent() {
+            self.next_frame.scene.insert_primitive(quad);

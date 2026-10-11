@@ -1,0 +1,2 @@
+            let paint_start = self.paint_index();
+            let content_mask = deferred_draw.content_mask;

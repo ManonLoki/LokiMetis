@@ -14,11 +14,11 @@ pub struct Patch {
 }
 
 /// 清单摘要和生成摘要固定在维护代码中，来源与补丁任意漂移均失败关闭。
-pub struct Spec {
+pub struct Spec<'a> {
     pub entry: &'static str,
     pub root_prefix: &'static str,
     pub source_manifest_sha256: &'static str,
-    pub patches: &'static [Patch],
+    pub patches: &'a [Patch],
     pub generated_hashes: &'static [(&'static str, &'static str)],
 }
 
@@ -158,7 +158,7 @@ mod tests {
             Self(path)
         }
         /// 为测试提供独立固定值；泄露几个短字符串只持续到测试进程退出。
-        fn spec(&self, before: &'static str, after: &'static str) -> Spec {
+        fn spec(&self, before: &'static str, after: &'static str) -> Spec<'static> {
             let digest = sha256::hex(&fs::read(self.0.join("source-content.sha256")).unwrap());
             Spec {
                 entry: "src/lib.rs", root_prefix: "#![allow(dead_code)]\n",

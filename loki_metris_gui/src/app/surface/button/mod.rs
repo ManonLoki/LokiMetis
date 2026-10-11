@@ -12,7 +12,7 @@ use crate::app::surface::motion::CssMotion;
 use gpui_kit::{
     AnyElement, App, AvailableSpace, BorderStyle, Bounds, ClickEvent, Context, Edges, Element,
     ElementId, Entity, FocusHandle, GlobalElementId, HoverListenerMode, InspectorElementId,
-    InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement, Pixels, RenderOnce,
+    InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement, Pixels, Point, RenderOnce,
     Rgba, SharedString, StyleRefinement, Styled, Subscription, Window,
     component::{
         Disableable, Icon, Sizable, Size,
@@ -26,6 +26,8 @@ use std::time::Duration;
 mod content_tests;
 #[cfg(test)]
 mod native_input_tests;
+#[cfg(test)]
+mod press_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod loading_metal_tests;
 #[cfg(all(test, target_os = "macos"))]
@@ -47,11 +49,13 @@ pub(in crate::app) enum SurfaceButtonVariant {
 pub(in crate::app) struct ButtonMotion {
     hovered: bool,
     mouse_pressed: bool,
+    mouse_activation_cancelled: bool,
+    keyboard_activation_cancelled: bool,
     keyboard_focus: Option<FocusHandle>,
     was_active: bool,
     background: CssMotion<4>,
     border: CssMotion<4>,
-    translation: CssMotion<1>,
+    transform: CssMotion<2>,
     content: content::LoadingMotion,
     content_running: bool,
     veil: veil::Veil,
@@ -68,6 +72,11 @@ impl ButtonMotion {
         let release = cx.on_release_in(window, |state, window, _| state.veil.clear(window));
         let visibility = cx.observe_window_visibility(window, |state, visibility, window, cx| {
             if !visibility.is_visible() {
+                state.mouse_activation_cancelled = true;
+                state.keyboard_activation_cancelled = true;
+                state.mouse_pressed = false;
+                state.keyboard_focus = None;
+                state.transform.jump_to([0., 1.], cx.background_executor().now());
                 state.veil_geometry = None;
                 state.veil.clear(window);
             } else {
@@ -77,11 +86,13 @@ impl ButtonMotion {
         Self {
             hovered: false,
             mouse_pressed: false,
+            mouse_activation_cancelled: false,
+            keyboard_activation_cancelled: false,
             keyboard_focus: None,
             was_active: window.is_window_active(),
             background: CssMotion::with_duration(now, duration),
             border: CssMotion::with_duration(now, duration),
-            translation: CssMotion::with_duration(now, duration),
+            transform: CssMotion::with_duration(now, duration),
             content: content::LoadingMotion::new(),
             content_running: false,
             veil: veil::Veil::default(),
@@ -114,6 +125,7 @@ impl ButtonMotion {
     }
     /// 指针按住与松开仅影响位置反馈，实际激活仍完全属于原生Button。
     fn pointer(&mut self, value: bool, cx: &mut Context<Self>) {
+        if value { self.mouse_activation_cancelled = false; }
         if self.mouse_pressed != value {
             self.mouse_pressed = value;
             cx.notify();
@@ -133,6 +145,7 @@ pub(in crate::app) struct SurfaceButton {
     button: Option<Button>,
     label: Option<SharedString>,
     explicit_name: bool,
+    click_handler: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>>,
     historical_size: Option<HistoricalButtonSize>,
     left_icon: Option<Icon>,
     left_icon_size: Pixels,
@@ -153,6 +166,7 @@ impl SurfaceButton {
             button: Some(Button::new(id.clone())),
             label: None,
             explicit_name: false,
+            click_handler: None,
             historical_size: None,
             left_icon: None,
             left_icon_size: px(17.),
@@ -197,7 +211,7 @@ impl SurfaceButton {
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.button = self.button.map(|button| button.on_click(handler));
+        self.click_handler = Some(Box::new(handler));
         self
     }
     /// 原生组件阻止重复输入；历史模式绘制本地Loader，其余模式保留原指示器。
@@ -254,11 +268,13 @@ impl IntoElement for SurfaceButton {
     }
 }
 
-/// 预绘制缓存连续颜色和实际位移，绘制阶段不再改变命中几何。
+/// 预绘制缓存连续颜色和中心仿射，绘制及命中共享同一时间线。
 pub(in crate::app) struct PaintState {
     background: Rgba,
     border: Rgba,
     bounds: Bounds<Pixels>,
+    scale: f32,
+    translation: Point<Pixels>,
     running: bool,
 }
 
@@ -363,6 +379,22 @@ impl Element for SurfaceButton {
         } else if let Some(label) = self.label.take() {
             button = button.label(label);
         }
+        if let Some(handler) = self.click_handler.take() {
+            let weak = owner.downgrade();
+            button = button.on_click(move |event, window, cx| {
+                // 隐藏期间取消原生旧pending；新的真实down会恢复动作，AX仍走同一Button。
+                if weak.upgrade().is_some_and(|owner| {
+                    let state = owner.read(cx);
+                    match event {
+                        ClickEvent::Mouse(_) => !state.mouse_activation_cancelled,
+                        ClickEvent::Keyboard(_) => !state.keyboard_activation_cancelled,
+                        ClickEvent::Touch(_) => true,
+                    }
+                }) {
+                    handler(event, window, cx);
+                }
+            });
+        }
         let interactive = !(self.disabled || self.loading);
         button = if interactive {
             button.cursor_pointer()
@@ -406,7 +438,12 @@ impl Element for SurfaceButton {
                     let activation = matches!(event.keystroke.key.as_str(), "enter" | "space")
                         && !event.keystroke.modifiers.modified();
                     let focus = activation.then(|| window.focused(cx)).flatten();
-                    let _ = weak.update(cx, |state, cx| state.keyboard(focus, cx));
+                    let _ = weak.update(cx, |state, cx| {
+                        // OS重复持键不能复活隐藏前的序列；只有新的真实按下解除键盘取消。
+                        if event.is_held && state.keyboard_activation_cancelled { return; }
+                        if focus.is_some() && !event.is_held { state.keyboard_activation_cancelled = false; }
+                        state.keyboard(focus, cx);
+                    });
                 });
             let weak = owner.downgrade();
             button.interactivity().capture_key_up(move |_, _, cx| {
@@ -455,24 +492,23 @@ impl Element for SurfaceButton {
             let now = cx.background_executor().now();
             state.background.set_target(premultiply(background), now);
             state.border.set_target(premultiply(border), now);
-            state.translation.set_target(
-                [if state.mouse_pressed || state.keyboard_focus.is_some() {
-                    1.
+            state.transform.set_target(
+                if state.mouse_pressed || state.keyboard_focus.is_some() {
+                    [1., 0.985]
                 } else {
-                    0.
-                }],
+                    [0., 1.]
+                },
                 now,
             );
             let (background, bg_running) = state.background.sample(now);
             let (border, border_running) = state.border.sample(now);
-            let (translation, moving) = state.translation.sample(now);
+            let (transform, moving) = state.transform.sample(now);
             let paint = PaintState {
                 background: unpremultiply(background),
                 border: unpremultiply(border),
-                bounds: Bounds::new(
-                    bounds.origin + point(px(0.), px(translation[0] as f32)),
-                    bounds.size,
-                ),
+                bounds,
+                scale: transform[1] as f32,
+                translation: point(px(0.), px(transform[0] as f32)),
                 running: bg_running
                     || border_running
                     || moving
@@ -498,20 +534,19 @@ impl Element for SurfaceButton {
             }
             paint
         });
-        if let Some(veil) = &mut request.2 {
-            // 遮罩位于Kit content的overflow外，尺寸来自同一个实际border-box，不参与父布局。
-            veil.prepaint_as_root(
-                paint.bounds.origin,
-                size(
-                    AvailableSpace::Definite(paint.bounds.size.width),
-                    AvailableSpace::Definite(paint.bounds.size.height),
-                ),
-                window,
-                cx,
-            );
-        }
-        let offset = paint.bounds.origin - bounds.origin;
-        window.with_element_offset(offset, |window| {
+        window.with_element_transform(paint.bounds.center(), paint.scale, paint.translation, |window| {
+            if let Some(veil) = &mut request.2 {
+                // 遮罩保持原border-box纹理，整棵子树共用同一变换，按压不生成新尺寸纹理。
+                veil.prepaint_as_root(
+                    paint.bounds.origin,
+                    size(
+                        AvailableSpace::Definite(paint.bounds.size.width),
+                        AvailableSpace::Definite(paint.bounds.size.height),
+                    ),
+                    window,
+                    cx,
+                );
+            }
             request.0.prepaint(window, cx);
         });
         paint
@@ -527,39 +562,41 @@ impl Element for SurfaceButton {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let radius = self
-            .radius
-            .min(paint.bounds.size.height / 2.)
-            .min(paint.bounds.size.width / 2.);
-        let opacity = if self.historical_size.is_none() && self.loading && !self.disabled {
-            0.8
-        } else {
-            1.
-        };
-        let mut background = paint.background;
-        let mut border = paint.border;
-        background.a *= opacity;
-        border.a *= opacity;
-        window.paint_quad(quad(
-            paint.bounds,
-            radius,
-            background,
-            Edges::all(px(1.)),
-            border,
-            BorderStyle::Solid,
-        ));
-        if let Some(veil) = &mut request.2 {
-            veil.paint(window, cx);
-        }
-        if paint.running
-            && window.is_visible()
-            && !paint
-                .bounds
-                .intersect(&window.content_mask().bounds)
-                .is_empty()
-        {
-            window.request_animation_frame();
-        }
-        request.0.paint(window, cx);
+        window.with_element_transform(paint.bounds.center(), paint.scale, paint.translation, |window| {
+            let radius = self
+                .radius
+                .min(paint.bounds.size.height / 2.)
+                .min(paint.bounds.size.width / 2.);
+            let opacity = if self.historical_size.is_none() && self.loading && !self.disabled {
+                0.8
+            } else {
+                1.
+            };
+            let mut background = paint.background;
+            let mut border = paint.border;
+            background.a *= opacity;
+            border.a *= opacity;
+            window.paint_quad(quad(
+                paint.bounds,
+                radius,
+                background,
+                Edges::all(px(1.)),
+                border,
+                BorderStyle::Solid,
+            ));
+            if let Some(veil) = &mut request.2 {
+                veil.paint(window, cx);
+            }
+            if paint.running
+                && window.is_visible()
+                && !paint
+                    .bounds
+                    .intersect(&window.content_mask().bounds)
+                    .is_empty()
+            {
+                window.request_animation_frame();
+            }
+            request.0.paint(window, cx);
+        });
     }
 }

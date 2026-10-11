@@ -1,0 +1,7 @@
+    map.insert("accesskit_id".into(), json!(id.0.to_string()));
+    if let Some(bounds) = node.bounds() {
+        map.insert("bounds".into(), json!({
+            "x0": bounds.x0, "y0": bounds.y0,
+            "x1": bounds.x1, "y1": bounds.y1,
+        }));
+    }

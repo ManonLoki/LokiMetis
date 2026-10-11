@@ -1,0 +1,2 @@
+                            let scale = window.scale_factor();
+                            node.set_bounds

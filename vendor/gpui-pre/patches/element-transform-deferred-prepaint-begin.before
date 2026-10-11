@@ -1,0 +1,1 @@
+                self.next_frame.dispatch_tree.set_active_node(parent_node);

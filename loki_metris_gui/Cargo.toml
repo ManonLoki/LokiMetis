@@ -51,3 +51,8 @@ objc2-user-notifications.workspace = true
 [dev-dependencies]
 sea-orm.workspace = true
 gpui-kit = { workspace = true, features = ["test-support"] }
+
+[[test]]
+name = "element_transform_metal"
+path = "tests/element_transform_metal.rs"
+harness = false

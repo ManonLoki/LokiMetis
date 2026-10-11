@@ -1,0 +1,3 @@
+    text_style: TextStyle,
+    element_transform: (f32, crate::Point<Pixels>),
+}

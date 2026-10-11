@@ -1,0 +1,2 @@
+        if !quad.background.is_transparent() {
+            self.insert_transformed_primitive(quad);

@@ -1,0 +1,5 @@
+    fn snapped_content_mask(&self) -> ContentMask<ScaledPixels> {
+        ContentMask {
+            bounds: self.cover_bounds(self.content_mask().bounds),
+        }
+    }

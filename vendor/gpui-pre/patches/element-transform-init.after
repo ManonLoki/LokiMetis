@@ -1,0 +1,2 @@
+            element_transform: ElementTransform::default(),
+            element_offset_stack: Vec::new(),
