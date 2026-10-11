@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "package": "gpui-pre-macos",
+  "version": "0.3.8",
+  "source": "https://crates.io/api/v1/crates/gpui-pre-macos/0.3.8/download",
+  "archive_sha256": "0d756813ff1cd741a502af60fd18869e0677795936d7349642b41c49f43120c0",
+  "source_manifest_sha256": "4b29969a342cfbc80229ca6690ec4f29a1954ddd50470a0106d794e669edf406",
+  "upstream_file_count": 17,
+  "upstream_bytes": 554980,
+  "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched",
+  "official_repository": "https://github.com/zed-industries/zed",
+  "source_revision": "279fe070bb389b79652e52065b2f001edcc0b11b",
+  "manifest_definition": "Sorted UTF-8 SHA-256 lines, two ASCII spaces, upstream-relative path, LF; every archive regular file is unchanged."
+}

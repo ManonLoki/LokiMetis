@@ -1,0 +1,2 @@
+            let shader_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join(&format!("src/{}", shader_name))

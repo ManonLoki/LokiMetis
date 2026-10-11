@@ -1,0 +1,3 @@
+            #[cfg(feature = "parent-rounded-clip")]
+            clip_rounded_children: false,
+            allow_concurrent_scroll: false,

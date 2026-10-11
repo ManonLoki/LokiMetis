@@ -1,0 +1,59 @@
+pub struct WindowFrameSource {
+    frame_requests: DispatchRetained<DispatchSource>,
+    registration: Option<(CGDirectDisplayID, SubscriberId)>,
+    signal: Arc<PlatformFrameSignal>,
+    demand: Arc<crate::frame_demand::FrameDemand>,
+}
+
+impl WindowFrameSource {
+    /// 一份GCD源伴随窗口存活；共享需求位独立于可见性订阅，不改变CV安全释放合同。
+    pub(crate) fn new(
+        data: *mut c_void,
+        callback: extern "C" fn(*mut c_void),
+        demand: Arc<crate::frame_demand::FrameDemand>,
+    ) -> Self {
+        let frame_requests = unsafe {
+            let frame_requests = DispatchSource::new(
+                &raw const _dispatch_source_type_data_add as *mut _,
+                0,
+                0,
+                Some(DispatchQueue::main()),
+            );
+            frame_requests.set_context(data);
+            frame_requests.set_event_handler_f(callback);
+            // Resume before this source can ever be dropped: destroying a
+            // suspended dispatch source is undefined behavior (#50875).
+            frame_requests.resume();
+            frame_requests
+        };
+        Self {
+            frame_requests,
+            registration: None,
+            signal: Arc::new(PlatformFrameSignal::new()),
+            demand,
+        }
+    }
+
+    pub fn start(&mut self, display_id: CGDirectDisplayID) -> Result<()> {
+        self.stop();
+        // 只恢复订阅，不产生新需求；同步expose后的重订阅不能让静态窗口永远重绘。
+        let subscriber_id = subscribe(
+            display_id, self.frame_requests.clone(), self.signal.clone(), self.demand.clone(),
+        )?;
+        self.registration = Some((display_id, subscriber_id));
+        Ok(())
+    }
+
+    /// 需求已在主线程消费；与CV生产者串行清空时间戳，防止旧信号跨越静态期残留。
+    pub fn take_signal(&self) -> Option<(Instant, FrameRequestSource)> {
+        let _registry = lock_registry();
+        self.signal.take()
+    }
+
+    pub fn stop(&mut self) {
+        if let Some((display_id, subscriber_id)) = self.registration.take() {
+            unsubscribe(display_id, subscriber_id);
+        }
+        self.signal.take();
+    }
+}

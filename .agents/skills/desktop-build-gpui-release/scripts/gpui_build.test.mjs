@@ -11,12 +11,14 @@ import { relativePath, safePath, sha256, isolateRelease, publishDirectory } from
 import { candidateSelection, containsBytes, renderReleaseNotesRust } from './gpui_evidence.mjs';
 import { packagerConfig, signingChoice, finalizeSigning, verifyResources, verifyNsis } from './gpui_packager.mjs';
 import { encodePng, decodePng, renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
+import { collectResources, assertResourcesStable } from './gpui_resources.mjs';
 
 /** 临时根使用 canonical 路径，避免 macOS /var 别名误入路径门禁。 */
-function fixture(t, { systemNotification = 'disabled' } = {}) {
+function fixture(t, { systemNotification = 'disabled', withResources = false } = {}) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-build-test-'));
   t.after(() => fs.rmSync(root,{ recursive: true, force: true }));
   const config = renderDefaultConfig({ projectId: 'sample', nameZh: '测试应用', nameEn: 'Test App', owner: 'Owner' });
+  if (withResources) config.resources = [{source:'assets/skins',macos:'skins',windows:'resources/skins'}];
   const files = {
     'Cargo.toml': '[workspace]\nmembers = ["sample_gui"]\n[workspace.metadata.agent-first-harness]\nproject-id = "sample"\ninterfaces = ["gui"]\ngui-framework = "gpui"\ntarget-platforms = ["macos", "windows"]\n',
     'sample_gui/Cargo.toml': '[package]\nname = "sample_gui"\nversion = "0.1.0"\nedition = "2024"\n',
@@ -29,6 +31,7 @@ function fixture(t, { systemNotification = 'disabled' } = {}) {
     'docs/GUI_APP_PROFILE.md': `\`\`\`gui-initialization-config\nsystem_tray: disabled\nsystem_notification: ${systemNotification}\nautostart: disabled\nabout_page: enabled\nsponsor_page: disabled\nsingle_instance: disabled\ndeep_link: disabled\nglobal_shortcut: disabled\nsidebar_mode: detailed\n\`\`\`\n`,
     '.agents/skills/desktop-manage-version/scripts/version_gate.mjs': '// fixture version entry\n',
     'release-notes.json': JSON.stringify({ schemaVersion: 2, releases: [{ releaseDate: '2026-10-08', version: 'v0.1.0', featureOptimizations: [{ 'zh-CN': '新增 "日志"\n第二行', 'en-US': 'Added log\nSecond line' }], bugFixes: [] }] }),
+    ...(withResources ? {'assets/skins/builtin/theme/manifest.toml':'name = "theme"','assets/skins/builtin/theme/preview.png':Buffer.from([0,1,127,255]),'assets/skins/generator/assets/template/theme.json':'{"tokens":{}}'} : {}),
   };
   for (const [relative,bytes] of Object.entries(files)) { const file = path.join(root,relative); fs.mkdirSync(path.dirname(file),{ recursive: true }); fs.writeFileSync(file,bytes); }
   for (const args of [['init','-b','main'],['config','user.name','Fixture'],['config','user.email','fixture@example.invalid'],['add','.'],['commit','-qm','fixture']]) {
@@ -65,12 +68,12 @@ function fakeRun(f, overrides = {}) {
       fs.mkdirSync(path.join(app,'Contents/Resources'),{ recursive: true }); fs.mkdirSync(path.join(app,'Contents/MacOS'),{ recursive: true });
       fs.writeFileSync(path.join(app,'Contents/Info.plist'),'fixture plist');
       fs.copyFileSync(path.join(config.binariesDir,'sample_gui'),path.join(app,'Contents/MacOS/sample_gui'));
-      for (const file of config.resources) fs.copyFileSync(file.src,path.join(app,'Contents/Resources',file.target));
+      for (const file of config.resources) { const target=path.join(app,'Contents/Resources',file.target);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(file.src,target); }
       if (overrides.resourceTamper) fs.writeFileSync(path.join(app,'Contents/Resources/LICENSE.en.md'),'different');
       return response;
     }
     if (program === 'ditto' && args.includes('-c')) { const source = args.at(-2), destination = args.at(-1); appByZip.set(destination,source); fs.writeFileSync(destination,'unit-test-archive'); return response; }
-    if (program === 'ditto' && args.includes('-x')) { const source = appByZip.get(args.at(-2)); fs.cpSync(source,path.join(args.at(-1),path.basename(source)),{ recursive: true }); return response; }
+    if (program === 'ditto' && args.includes('-x')) { const source = appByZip.get(args.at(-2)); const target=path.join(args.at(-1),path.basename(source));fs.cpSync(source,target,{ recursive: true });if(overrides.finalResourceTamper)fs.writeFileSync(path.join(target,'Contents/Resources/skins/builtin/theme/preview.png'),'tampered');if(overrides.finalResourceRootLink){const resources=path.join(target,'Contents/Resources');fs.renameSync(resources,`${resources}.original`);fs.symlinkSync(`${resources}.original`,resources,'junction');}return response; }
     if (program === process.execPath) return response;
     if (program === 'plutil') return { ...response,stdout: ({ CFBundleIdentifier: f.config.identifier,CFBundleExecutable: f.config.binary,CFBundleShortVersionString: '0.1.0' })[args[1]] + '\n' };
     throw new Error(`unexpected test command ${program} ${args.join(' ')}`);
@@ -82,6 +85,74 @@ function fakeRun(f, overrides = {}) {
 function hooks(f, fake) { return { run: fake.run, platform: 'darwin', arch: 'arm64', env: { APPLE_SIGNING_IDENTITY: 'must-not-inherit' }, locks: () => {}, context: () => f.context }; }
 function localOptions(root) { return { command: 'build', root, mode: 'local', target: 'aarch64-apple-darwin', format: 'app' }; }
 function candidateOptions(root) { return { ...localOptions(root), mode: 'candidate', e2e: 'disabled', e2eReason: 'User selected no E2E', e2eRisk: 'Installation remains unverified' }; }
+
+/** 真实嵌套字节贯穿暂存、app与最终归档核对，源码路径不冒充安装路径。 */
+test('mapped nested resources survive the final application archive', t => {
+  const f=fixture(t,{withResources:true}),fake=fakeRun(f);
+  const output=executeBuild(localOptions(f.root),hooks(f,fake));
+  assert.equal(output.bundledResources.length,5);
+  const generated=JSON.parse(fs.readFileSync(fake.calls.find(call=>call.program===f.tool&&call.args[0]==='--config').args[1]));
+  const preview=generated.resources.find(file=>file.target==='skins/builtin/theme/preview.png');
+  assert.ok(preview);assert.deepEqual(fs.readFileSync(preview.src),Buffer.from([0,1,127,255]));
+  const windows=collectResources(f.root,f.config,'windows',false);
+  assert.ok(windows.some(file=>file.target==='resources/skins/builtin/theme/preview.png'));
+  assert.ok(windows.some(file=>file.target==='LICENSE.en.md'));
+  assert.throws(()=>executeBuild(localOptions(f.root),hooks(f,fakeRun(f,{finalResourceTamper:true}))),/bytes differ/);
+  assert.throws(()=>executeBuild(localOptions(f.root),hooks(f,fakeRun(f,{finalResourceRootLink:true}))),/symbolic link/);
+});
+
+/** 缺失、符号链接、平台目标冲突和未知字段必须在编译前拒绝。 */
+test('invalid resource mappings fail before compilation', t => {
+  for (const mutation of [
+    f=>{f.config.resources[0].source='absent';},
+    f=>{fs.symlinkSync(path.join(f.root,'LICENSE.en.md'),path.join(f.root,'assets/skins/linked'));},
+    f=>{f.config.resources.push({source:'LICENSE.en.md',macos:'SKINS/builtin/theme/preview.png',windows:'resources/skins/builtin/theme/preview.png'});},
+    f=>{f.config.resources.push({source:'LICENSE.en.md',macos:'skins/builtin',windows:'resources/skins/builtin'});},
+    f=>{f.config.resources[0].macos='LICENSE.en.md';},
+    f=>{f.config.resources.push({source:'LICENSE.en.md',macos:'app.icns',windows:'extra.txt'});},
+    f=>{f.config.resources[0].macos='unsafe/${name}';},
+    f=>{f.config.resources[0].hook='forbidden';},
+  ]) {
+    const f=fixture(t,{withResources:true});mutation(f);fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify(f.config));
+    const fake=fakeRun(f);assert.throws(()=>executeBuild(localOptions(f.root),hooks(f,fake)));
+    assert.equal(fake.calls.some(call=>call.program==='cargo'&&call.args[0]==='build'),false);
+    assert.equal(fs.existsSync(path.join(f.root,'release')),false);
+  }
+});
+
+/** Git忽略的资源变化也不能绕过构建前后的清单和摘要复读。 */
+test('ignored resource additions removals and byte changes invalidate the snapshot', t => {
+  for (const mutation of [
+    root=>fs.writeFileSync(path.join(root,'assets/skins/new.txt'),'new'),
+    root=>fs.unlinkSync(path.join(root,'assets/skins/builtin/theme/preview.png')),
+    root=>fs.writeFileSync(path.join(root,'assets/skins/builtin/theme/preview.png'),'changed'),
+  ]) {
+    const f=fixture(t,{withResources:true});
+    spawnSync('git',['rm','-r','--cached','assets/skins'],{cwd:f.root});
+    fs.appendFileSync(path.join(f.root,'.gitignore'),'/assets/skins/\n');
+    spawnSync('git',['add','.gitignore'],{cwd:f.root});spawnSync('git',['commit','-qm','ignore fixture resources'],{cwd:f.root});
+    const snapshot=collectResources(f.root,f.config,'macos',false);assertResourcesStable(f.root,f.config,'macos',false,snapshot);
+    let changed=false;
+    const fake=fakeRun(f,{before(program,args){if(!changed&&program==='cargo'&&args[0]==='test'&&!args.includes('--list')){changed=true;mutation(f.root);}}});
+    assert.throws(()=>executeBuild(localOptions(f.root),hooks(f,fake)),/resources changed/);
+    assert.equal(fake.calls.some(call=>call.program==='cargo'&&call.args[0]==='build'),false);
+  }
+});
+
+/** NSIS最终解包的安装根和嵌套资源分别校验，篡改不能被源目录正确所掩盖。 */
+test('final NSIS resources verify explicit Windows targets and reject nested tampering', t => {
+  for (const tamper of [false,true]) for (const nestedBinary of ['different binary','binary']) {
+    const f=fixture(t,{withResources:true});f.config.windows.extractor='tools/7zr.exe';
+    fs.writeFileSync(path.join(f.root,'assets/skins/generator/release-notes.json'),'nested generator log');
+    fs.writeFileSync(path.join(f.root,'assets/skins/generator/sample_gui.exe'),nestedBinary);
+    fs.mkdirSync(path.join(f.root,'tools'));fs.writeFileSync(path.join(f.root,'tools/7zr.exe'),'test extractor');
+    const resources=collectResources(f.root,f.config,'windows',true),binary=path.join(f.root,'binary.exe');fs.writeFileSync(binary,'binary');
+    const destination=path.join(f.root,`extract-${tamper}`);
+    const run=()=>{const install=path.join(destination,'$INSTDIR');fs.mkdirSync(install);for(const file of resources){const target=path.join(install,file.target);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(path.join(f.root,file.source),target);}fs.copyFileSync(binary,path.join(install,'sample_gui.exe'));if(tamper)fs.writeFileSync(path.join(install,'resources/skins/builtin/theme/preview.png'),'changed');};
+    const verify=()=>verifyNsis({run,root:f.root,config:f.config,artifact:'fixture.exe',destination,resources,binarySha256:sha256(binary)});
+    if(tamper)assert.throws(verify,/bytes differ/);else assert.equal(verify(),'final-installer-byte-identical');
+  }
+});
 
 test('Node runtime requires complete stable >=24.21.0 and accepts newer release lines', () => {
   for (const version of ['24.21.0','24.21.1','24.22.0','25.0.0','26.0.0']) assert.doesNotThrow(() => assertNodeRuntime(version));
@@ -245,9 +316,9 @@ test('PNG conversion creates valid multi-size ICNS/ICO and rejects corrupt sourc
 
 test('unsigned packager config has no signing hook and Windows signing failure cannot downgrade', t => {
   const f = fixture(t), facts = projectFacts(f.root,f.metadata,f.config), signing = signingChoice('disabled');
-  const generated = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'aarch64-apple-darwin',format: 'app',resources: ['LICENSE.en.md'],signing });
+  const generated = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'aarch64-apple-darwin',format: 'app',resources: [{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}],signing });
   assert.equal('signingIdentity' in generated.macos,false); assert.equal('beforePackagingCommand' in generated,false);
-  const dmg = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'aarch64-apple-darwin',format: 'dmg',resources: ['LICENSE.en.md'],signing });
+  const dmg = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'aarch64-apple-darwin',format: 'dmg',resources: [{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}],signing });
   assert.deepEqual(dmg.dmg.appFolderPosition,{ x: 480,y: 220 }); assert.equal('applicationFolderPosition' in dmg.dmg,false);
   const configured = { ...f.config,windows: { signing: { certificateThumbprint: '1'.repeat(40),timestampUrl: 'https://example.invalid' },extractor: null } };
   assert.throws(() => finalizeSigning({ run: () => { throw new Error('signing failed'); },config: configured,signing: signingChoice('enabled','configured'),format: 'nsis',artifact: 'installer.exe',env: {} }),/signing failed/);
@@ -256,8 +327,8 @@ test('unsigned packager config has no signing hook and Windows signing failure c
 
 test('resource verification compares final bytes and rejects linked resources', t => {
   const f = fixture(t), copied = path.join(f.root,'copied'); fs.mkdirSync(copied); fs.copyFileSync(path.join(f.root,'LICENSE.en.md'),path.join(copied,'LICENSE.en.md'));
-  assert.equal(verifyResources(copied,f.root,['LICENSE.en.md']),'byte-identical'); fs.unlinkSync(path.join(copied,'LICENSE.en.md')); fs.symlinkSync(path.join(f.root,'LICENSE.en.md'),path.join(copied,'LICENSE.en.md'));
-  assert.throws(() => verifyResources(copied,f.root,['LICENSE.en.md']),/link/);
+  assert.equal(verifyResources(copied,f.root,[{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}]),'byte-identical'); fs.unlinkSync(path.join(copied,'LICENSE.en.md')); fs.symlinkSync(path.join(f.root,'LICENSE.en.md'),path.join(copied,'LICENSE.en.md'));
+  assert.throws(() => verifyResources(copied,f.root,[{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}]),/link/);
 });
 
 test('nonignored local build and tool directories fail before writing', t => {
@@ -282,4 +353,25 @@ test('about-disabled candidate keeps packaged log without requiring UI or embedd
   const fake = fakeRun(f,{ missingNotes: true }); const output = executeBuild(candidateOptions(f.root),hooks(f,fake));
   assert.equal(output.milestoneAcceptance,'pending'); assert.equal(output.releaseNotesResourceVerification,'byte-identical');
   assert.equal(fake.calls.find(item => item.program === 'cargo' && item.args[0] === 'build').settings.env.HARNESS_GPUI_RELEASE_NOTES_RS,undefined);
+});
+
+/** 设置页日志入口不依赖独立关于页，缺少二进制真实日志字节仍须阻断。 */
+test('settings release-notes UI embeds and verifies logs with the about page disabled', t => {
+  for (const missingNotes of [false,true]) {
+    const f=fixture(t),profile=path.join(f.root,'docs/GUI_APP_PROFILE.md');
+    fs.writeFileSync(profile,fs.readFileSync(profile,'utf8').replace('about_page: enabled','about_page: disabled'));
+    f.config.releaseNotesUi=true;
+    fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify(f.config));
+    spawnSync('git',['add','.'],{cwd:f.root});spawnSync('git',['commit','-qm','test: settings release notes'],{cwd:f.root});
+    const fake=fakeRun(f,{missingNotes});
+    if(missingNotes) assert.throws(()=>executeBuild(candidateOptions(f.root),hooks(f,fake)),/lacks.*update-log bytes/);
+    else {
+      const output=executeBuild(candidateOptions(f.root),hooks(f,fake));
+      assert.equal(output.releaseNotesResourceVerification,'byte-identical');
+    }
+    assert.ok(fake.calls.find(item=>item.program==='cargo'&&item.args[0]==='build').settings.env.HARNESS_GPUI_RELEASE_NOTES_RS);
+  }
+  const f=fixture(t);
+  fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify({...f.config,releaseNotesUi:'true'}));
+  assert.throws(()=>readConfig(f.root),/must be a boolean/);
 });

@@ -1,0 +1,3 @@
+            lock.move_traffic_light();
+            lock.frame_demand.request();
+            lock.start_display_link();

@@ -1,0 +1,6 @@
+        let hitbox = Hitbox {
+            id,
+            bounds,
+            content_mask,
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clips: self.parent_rounded_clips(),

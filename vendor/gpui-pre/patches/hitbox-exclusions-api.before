@@ -1,0 +1,2 @@
+    /// This method should be called during `prepaint`. You can use
+    /// the returned [Hitbox] during `paint` or in an event handler

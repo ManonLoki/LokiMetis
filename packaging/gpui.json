@@ -6,6 +6,7 @@
   "productNameEn": "LokiMetris",
   "identifier": "com.loki-metris.app",
   "publisher": "ManonLoki",
+  "releaseNotesUi": true,
   "icons": {
     "source": "loki_metris_gui/assets/logo.png",
     "macos": "packaging/icons/app.icns",
@@ -20,6 +21,12 @@
     "signing": null,
     "extractor": null
   },
+  "resources": [
+    {"source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins"},
+    {"source": "vendor/accesskit_macos/licenses", "macos": "third-party/accesskit_macos", "windows": "resources/third-party/accesskit_macos"},
+    {"source": "vendor/gpui-pre-macos/licenses", "macos": "third-party/gpui-pre-macos", "windows": "resources/third-party/gpui-pre-macos"},
+    {"source": "loki_metris_gui/assets/fonts/licenses", "macos": "third-party/geist", "windows": "resources/third-party/geist"}
+  ],
   "nsis": {
     "installMode": "currentUser",
     "languages": [

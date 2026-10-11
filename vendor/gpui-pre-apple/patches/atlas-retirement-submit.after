@@ -1,0 +1,32 @@
+/// 编码与提交具有不同生命周期；丢弃尚未提交的返回值会取消图集保留。
+struct EncodedFrame {
+    command_buffer: metal::CommandBuffer,
+    atlas_frame: Cell<Option<crate::metal_atlas::MetalAtlasFrame>>,
+}
+
+impl EncodedFrame {
+    fn present_drawable(&self, drawable: &metal::DrawableRef) {
+        self.command_buffer.present_drawable(drawable);
+    }
+    fn wait_until_scheduled(&self) { self.command_buffer.wait_until_scheduled(); }
+    #[cfg(any(test, feature = "bench-support", feature = "test-support"))]
+    fn wait_until_completed(&self) { self.command_buffer.wait_until_completed(); }
+    #[cfg(any(test, feature = "bench-support", feature = "test-support"))]
+    fn new_blit_command_encoder(&self) -> &metal::BlitCommandEncoderRef {
+        self.command_buffer.new_blit_command_encoder()
+    }
+
+    fn commit(&self) {
+        let atlas_frame = Cell::new(Some(self.atlas_frame.take().expect("Metal frame committed twice")));
+        let block = RcBlock::new(move |_: ptr::NonNull<AnyObject>| {
+            // 所有 GPU 终态都已停止读取；回调只访问图集锁，不进入 UI。
+            drop(atlas_frame.take());
+        });
+        // SAFETY: 与同文件现有完成回调一致，两种指针表示同一个 Objective-C block ABI。
+        unsafe { self.command_buffer.add_completed_handler(&*RcBlock::as_ptr(&block).cast()); }
+        self.command_buffer.commit();
+    }
+}
+
+#[repr(C)]
+enum ShadowInputIndex {

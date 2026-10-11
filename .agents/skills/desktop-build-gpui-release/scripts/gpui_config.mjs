@@ -20,6 +20,7 @@ export function renderDefaultConfig({ projectId, nameZh, nameEn, owner, logoPath
     macos: { minimumSystemVersion: '12.0', signingIdentity: null, background: 'packaging/macos/background.png' },
     windows: { signing: null, extractor: null },
     nsis: { installMode: 'currentUser', languages: ['SimpChinese', 'English'], displayLanguageSelector: true },
+    resources: [],
   };
 }
 
@@ -37,8 +38,9 @@ function keys(object, expected, label) {
 
 /** 单一严格 schema 防止残留 Tauri 配置、hook 或未知签名字段进入工具。 */
 export function validateConfig(value) {
-  keys(value, ['schemaVersion','package','binary','productName','productNameEn','identifier','publisher','icons','macos','windows','nsis'], 'GPUI config');
+  keys(value, ['schemaVersion','package','binary','productName','productNameEn','identifier','publisher','icons','macos','windows','nsis',...(Object.hasOwn(value ?? {},'resources')?['resources']:[]),...(Object.hasOwn(value ?? {},'releaseNotesUi')?['releaseNotesUi']:[])], 'GPUI config');
   if (value.schemaVersion !== 1) throw new Error('unsupported GPUI config schema');
+  if (value.releaseNotesUi !== undefined && typeof value.releaseNotesUi !== 'boolean') throw new Error('releaseNotesUi must be a boolean');
   for (const key of ['package','binary']) if (!/^[A-Za-z][A-Za-z0-9_-]*$/u.test(value[key])) throw new Error(`invalid ${key}`);
   for (const key of ['productName','productNameEn','publisher']) text(value[key], key, key.startsWith('product'));
   if (!/^[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/u.test(value.identifier)) throw new Error('invalid application identifier');
@@ -58,6 +60,13 @@ export function validateConfig(value) {
   keys(value.nsis, ['installMode','languages','displayLanguageSelector'], 'nsis');
   if (!['currentUser','perMachine','both'].includes(value.nsis.installMode) || typeof value.nsis.displayLanguageSelector !== 'boolean'
       || !Array.isArray(value.nsis.languages) || !value.nsis.languages.length || value.nsis.languages.some(item => !['SimpChinese','English'].includes(item)) || new Set(value.nsis.languages).size !== value.nsis.languages.length) throw new Error('invalid NSIS options');
+  if (value.resources !== undefined) {
+    if (!Array.isArray(value.resources)) throw new Error('resources must be an array');
+    for (const resource of value.resources) {
+      keys(resource,['source','macos','windows'],'resource');
+      for (const [key,item] of Object.entries(resource)) { text(item,`resource ${key}`); relativePath(item); }
+    }
+  }
   return value;
 }
 

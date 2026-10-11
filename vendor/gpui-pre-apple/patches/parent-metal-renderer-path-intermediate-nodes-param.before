@@ -1,0 +1,10 @@
+    }
+
+    fn draw_paths_to_intermediate(
+        &self,
+        paths: &[Path<ScaledPixels>],
+        writer: &mut InstanceBufferWriter,
+        viewport_size: Size<DevicePixels>,
+        command_buffer: &metal::CommandBufferRef,
+    ) -> Result<bool> {
+        if paths.is_empty() {

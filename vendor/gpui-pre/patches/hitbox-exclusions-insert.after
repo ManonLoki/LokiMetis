@@ -1,0 +1,6 @@
+        if self.hitbox_exclusions.is_empty() {
+            // 默认路径O(1)，无分割或额外区域分配，完全保持原Hitbox结构。
+            self.next_frame.hitboxes.push(hitbox.clone());
+        } else { self.insert_hitbox_fragments(&hitbox); }
+        hitbox
+    }

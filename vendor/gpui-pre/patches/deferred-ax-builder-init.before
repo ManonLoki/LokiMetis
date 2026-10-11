@@ -1,0 +1,3 @@
+            active_descendant: None,
+            #[cfg(debug_assertions)]
+            node_info: FxHashMap::default(),

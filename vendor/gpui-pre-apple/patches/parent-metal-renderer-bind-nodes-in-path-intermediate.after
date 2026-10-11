@@ -1,0 +1,12 @@
+            color_attachment.set_store_action(metal::MTLStoreAction::Store);
+        }
+
+        let command_encoder = command_buffer.new_render_command_encoder(render_pass_descriptor);
+        command_encoder.set_render_pipeline_state(&self.paths_rasterization_pipeline_state);
+        #[cfg(feature = "parent-rounded-clip")]
+        bind_parent_clips(command_encoder, parent_clip_nodes);
+        command_encoder.set_vertex_buffer(
+            PathRasterizationInputIndex::Vertices as u64,
+            Some(&vertex_instance_bindings.buffer),
+            vertex_instance_bindings.offset as u64,
+        );

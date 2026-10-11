@@ -1,7 +1,10 @@
 {
   "navigation": {
     "settings": "设置",
-    "about": "关于"
+    "about": "关于",
+    "dashboard": "用量看板",
+    "monitor": "AI监控",
+    "skins": "应用换肤"
   },
   "settings": {
     "application": "应用信息",
@@ -17,9 +20,35 @@
     "english": "English",
     "autostart": "开机自启",
     "autostart_detail": "登录系统后正常显示应用，实际状态以操作系统登录项为准。",
-    "autostart_error": "操作失败；可读取时已显示系统实际状态。",
-    "autostart_unknown": "当前无法读取系统登录项，请重试。",
-    "reload": "重新读取"
+    "autostart_error": "无法更新开机自启。开关已回滚为可读取的实际状态；请检查系统登录项后重试。",
+    "autostart_unknown": "当前无法读取操作系统登录项，请稍后重新读取。",
+    "reload": "重新读取",
+    "agent_panel_title": "启用的 Agent",
+    "agent_panel_badge": "全局设置",
+    "localized_name": "中文名",
+    "application_description": "应用名称和版本来自当前安装包。",
+    "version": "版本",
+    "release_notes_action": "查看更新日志",
+    "theme_title": "外观主题",
+    "language_error": "无法同步原生界面语言。请确认应用状态后重试。",
+    "theme_error": "无法保存外观主题，原主题仍然生效。",
+    "system_notification": "系统通知",
+    "sponsor_title": "赞助支持",
+    "sponsor_description": "如果 LokiMetris 对你有帮助，可以使用微信支付或支付宝扫码赞助。",
+    "sponsor_wechat_label": "微信支付",
+    "sponsor_wechat_alt": "LokiMetris 微信支付赞助收款码",
+    "sponsor_alipay_label": "支付宝",
+    "sponsor_alipay_alt": "LokiMetris 支付宝赞助收款码",
+    "github_repository_action": "GitHub 仓库",
+    "github_repository_error": "系统默认浏览器未能打开项目仓库，请稍后重试。",
+    "github_repository_error_title": "无法打开 GitHub",
+    "capability_loading": "正在读取实际状态…",
+    "capability_pending": "正在更新系统设置…",
+    "capability_error_title": "设置未更改",
+    "capability_unknown_title": "当前状态未知",
+    "capability_retry": "重新读取实际状态",
+    "github_repository_description": "LokiMetis 历史项目源码",
+    "system_notification_error": "无法保存通知开关，已保留上次保存的本地偏好。请重试。"
   },
   "about": {
     "version": "版本",
@@ -35,7 +64,7 @@
     "disclaimer_2": "用户在使用本软件/服务过程中的所有行为及其后果由用户自行承担全部法律责任，与开发者、运营方无关",
     "disclaimer_3": "您下载、安装、使用本软件/服务即视为已充分阅读、理解并同意接受本声明的全部内容",
     "application": "关于应用",
-    "description": "这是中性桌面脚手架，产品功能尚未定义。",
+    "description": "本机 AI 用量、监控与应用换肤工作台。",
     "author": "项目负责人",
     "check_updates": "检查更新",
     "release_features": "功能优化",
@@ -44,13 +73,771 @@
     "updater_unavailable": "当前 GPUI 基线未提供更新服务，不会发起网络请求。",
     "no_releases": "当前构建未嵌入发布记录。",
     "local_first": "本地运行",
-    "local_first_detail": "设置、语言和静态支持页可离线使用。"
+    "local_first_detail": "设置、语言和静态支持页可离线使用。",
+    "close": "关闭"
   },
   "application": {
     "name": "诡秘神谕"
   },
   "tray": {
     "show_window": "显示窗口",
-    "quit": "退出"
+    "quit": "退出",
+    "hide_pet_overlay": "隐藏浮窗",
+    "show_pet_overlay": "显示浮窗"
+  },
+  "dashboard": {
+    "overview": "概览",
+    "sources": "数据源",
+    "all": "全部",
+    "loading": "正在更新本机记录…",
+    "not_scanned": "尚未完成本机索引。请扫描数据源后查看可信用量。",
+    "error": "本机用量读取失败，请重试。",
+    "retry": "重试",
+    "scan": "快速发现并扫描",
+    "cancel": "取消",
+    "today": "今日",
+    "yesterday": "昨日",
+    "this_week": "本周",
+    "last_week": "上周",
+    "this_month": "本月",
+    "last_month": "上月",
+    "calls": "调用",
+    "tokens": "Token 总量",
+    "token_composition": "Token 构成",
+    "local_fact": "直接事实",
+    "input": "输入",
+    "cache_read": "缓存输入",
+    "cache_write": "缓存写入",
+    "uncached": "未缓存输入",
+    "output": "输出",
+    "reasoning": "推理输出",
+    "not_provided": "未提供",
+    "coverage": "缓存与数据覆盖",
+    "cache_ratio": "缓存读取占比",
+    "cache_calls": "缓存读取调用",
+    "threads": "线程",
+    "roots": "汇总数据目录",
+    "files": "来源文件",
+    "duplicates": "跨根重复观察",
+    "exact": "精确值",
+    "copy": "复制精确数值",
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "provider_0": "全部本机 AGENT",
+    "provider_1": "CODEX 本机 ROLLOUT",
+    "provider_2": "CLAUDE CODE 本机 TRANSCRIPT",
+    "provider_3": "GROK 本机 SESSION",
+    "provider_4": "WORKBUDDY 本机 PROJECT",
+    "fresh": "新鲜",
+    "stale": "陈旧",
+    "expired": "已过期",
+    "unknown": "未知",
+    "complete": "完整覆盖",
+    "partial": "部分覆盖",
+    "derived": "受控推算",
+    "suspected": "需要复核",
+    "enabled_summary": "启用根汇总",
+    "copied": "已复制",
+    "workbuddy_absent": "未找到 WorkBuddy 本机 project JSONL 用量数据。",
+    "partial_title": "部分数据暂不可用",
+    "workbuddy_unavailable": "WorkBuddy 用量暂时无法读取。“全部”仅显示其他已开启的 Agent，并标记为不完整，请重试。",
+    "cancelled": "扫描已取消。已索引的记录会保留。",
+    "usage": "用量",
+    "charts": "图表",
+    "settings": "设置"
+  },
+  "workbuddy": {
+    "sessions": "会话总数",
+    "requests": "请求总数",
+    "credits": "积分总量",
+    "breakdown": "请求用量与 Trace 诊断",
+    "top_level": "顶层请求",
+    "subagent": "子代理请求",
+    "average_session": "平均会话时长",
+    "traces": "Trace 总数",
+    "trace_error_rate": "Trace 错误率",
+    "trace_cancelled": "已取消 Trace",
+    "trace_duration": "Trace 平均耗时",
+    "minutes": "分钟",
+    "milliseconds": "毫秒",
+    "not_applicable": "不适用"
+  },
+  "statistics": {
+    "dimension": "分组维度",
+    "model": "模型",
+    "reasoning": "推理强度",
+    "project": "项目",
+    "thread": "线程",
+    "root": "数据目录",
+    "updating": "正在更新…",
+    "observed": "观测于",
+    "unique_calls": "去重调用",
+    "unique_threads": "去重线程",
+    "date": "当地日期",
+    "total": "总 Token",
+    "input": "输入",
+    "cached": "缓存输入",
+    "output": "输出",
+    "calls": "调用数",
+    "credits": "积分",
+    "in_progress": "进行中",
+    "daily": "逐日趋势",
+    "share": "Token 占比",
+    "quality": "质量",
+    "groups": "分组统计",
+    "actual_models": "实际模型用量明细",
+    "unknown_model": "未知模型",
+    "unknown_reasoning": "未知推理强度",
+    "reasoning_none": "无",
+    "reasoning_minimal": "最低",
+    "reasoning_low": "低",
+    "reasoning_medium": "中",
+    "reasoning_high": "高",
+    "reasoning_xhigh": "极高",
+    "uncategorized": "未分类项目",
+    "unknown_thread": "未知线程",
+    "unnamed_root": "未命名数据目录",
+    "remainder": "其他",
+    "actual_model": "实际模型",
+    "uncached": "未缓存输入",
+    "requests": "请求数",
+    "top_level": "顶层请求",
+    "subagent": "子代理请求",
+    "unassigned": "未归属",
+    "no_models": "当前窗口没有有效的 project JSONL 模型用量。",
+    "model_basis": "Project JSONL 口径",
+    "agent": "Agent",
+    "cache_write": "缓存写入",
+    "reasoning_output": "推理输出",
+    "complete": "覆盖完整",
+    "unknown_coverage": "覆盖未知"
+  },
+  "charts": {
+    "tokens": "Token 趋势",
+    "calls": "调用趋势",
+    "distribution": "多维用量分布",
+    "metric": "图表指标",
+    "hourly": "按小时",
+    "daily": "按日",
+    "requests": "请求趋势",
+    "sessions": "会话趋势",
+    "credits": "积分趋势",
+    "no_daily": "暂无每日用量记录",
+    "civil_day": "民用日",
+    "trace_status": "Trace 状态",
+    "trace_ok": "已完成 Trace",
+    "trace_error": "错误 Trace",
+    "trace_cancelled": "已取消 Trace",
+    "token_share": "总 Token 占比",
+    "no_distribution": "当前窗口没有可分组的本机调用记录。",
+    "requests_hourly": "每小时请求数量",
+    "requests_daily": "每日请求数量",
+    "sessions_hourly": "每小时会话数量",
+    "sessions_daily": "每日会话数量",
+    "tokens_hourly": "每小时 Token 用量趋势",
+    "tokens_daily": "每日 Token 用量趋势",
+    "credits_hourly": "每小时积分消耗趋势",
+    "credits_daily": "每日积分消耗趋势",
+    "window_share": "窗口占比",
+    "legend_tokens": "Token 总量",
+    "summary_sessions": "会话"
+  },
+  "usage_state": {
+    "loading": "正在读取用量数据…",
+    "not_scanned_title": "尚未建立本机用量索引",
+    "not_scanned_body": "尚未扫描所选客户端，零值不代表没有用量。请先运行扫描。",
+    "not_scanned_action": "前往数据源快速扫描",
+    "needs_rescan_title": "本机索引需要重新扫描",
+    "needs_rescan_body": "本机索引来自旧版解析器，请运行快速扫描重建。",
+    "needs_rescan_action": "前往数据源重新扫描",
+    "no_calls_title": "已扫描范围内没有可用调用",
+    "no_calls_body": "扫描已完成，但没有可统计的调用。可查看覆盖报告或重新扫描。",
+    "no_calls_action": "前往数据源重新扫描"
+  },
+  "calls": {
+    "filters": "调用筛选",
+    "clear": "清除筛选",
+    "time": "时间",
+    "input": "输入 Token",
+    "table": "本机调用结果",
+    "updating": "正在更新筛选与排序结果…",
+    "first_failed": "新的首屏结果读取失败",
+    "reading_first": "正在读取新的首屏结果",
+    "loaded": "已加载 {loaded} / {total} 条调用",
+    "retry_above": "可在上方重试",
+    "controls_available": "筛选与排序控件保持可用",
+    "load_more": "加载更多",
+    "all_loaded": "已浏览全部调用",
+    "empty_scanned": "已扫描范围内没有可用本机调用记录。",
+    "empty_filtered": "当前筛选下没有本机调用记录。",
+    "next_failed": "下一页加载失败",
+    "refresh_failed": "调用结果刷新失败",
+    "next_retained": "已加载的调用仍保留；可重试当前下一页。",
+    "refresh_retained": "页面结构已保留，旧结果已隐藏；可重试当前筛选与排序。",
+    "retry_next": "重试下一页",
+    "retry_refresh": "重试刷新"
+  },
+  "sources": {
+    "page": {
+      "title": "数据源",
+      "description": "检查本机数据目录与扫描覆盖。",
+      "addRoot": "添加数据目录",
+      "loading": "正在读取数据源状态",
+      "updatedTitle": "数据目录已更新",
+      "updateErrorTitle": "无法更新数据目录索引",
+      "updateErrorBody": "数据目录更新失败；{{client}} 原始文件未修改。",
+      "refreshError": "数据源状态刷新失败；已显示的目录保留，请重试。"
+    },
+    "background": {
+      "runningTitle": "后台 Token 统计中",
+      "runningBody": "正在更新 {{client}} 的本机用量，完成后页面会自动刷新。",
+      "failedTitle": "后台 Token 统计未完成",
+      "failedBody": "{{client}} 将在下一轮周期任务中重试。"
+    },
+    "empty": {
+      "title": "尚未发现本机 {{client}} 数据目录",
+      "action": "发现数据目录"
+    },
+    "primary": {
+      "title": "Codex 主数据目录",
+      "badge": "本机主目录",
+      "description": "通过验证的 Codex 数据目录可设为唯一主目录；不会读取 auth.json。",
+      "label": "Codex 主数据目录",
+      "duplicate": "{{alias}}（标识 {{id}}）",
+      "empty": "没有已启用的数据目录",
+      "placeholder": "沿用当前进程的 Codex 上下文",
+      "clear": "清除主目录选择"
+    },
+    "scan": {
+      "title": "扫描控制",
+      "state": {
+        "cancelled": "已取消",
+        "completed": "已完成",
+        "failed": "失败",
+        "idle": "空闲",
+        "running": "扫描中"
+      },
+      "quick": "快速扫描",
+      "fullDevice": "全设备发现",
+      "cancel": "取消扫描",
+      "filesVisited": "已访问文件：{{count}}",
+      "callsIndexed": "已索引调用：{{count}}"
+    },
+    "discovery": {
+      "title": "数据源发现",
+      "description": "只检查本地卷、目录名和文件名，确认前不会打开 JSONL。",
+      "startUser": "快速扫描",
+      "startFull": "全盘扫描",
+      "cancel": "取消扫描",
+      "add": "添加",
+      "volumes": "已完成卷：{{completed}} / {{total}}",
+      "directories": "已检查目录：{{count}}",
+      "fileNames": "已检查文件名：{{count}}",
+      "candidates": "候选：{{count}}",
+      "partialTitle": "发现覆盖不完整",
+      "failedTitle": "发现失败",
+      "failedBody": "稳定错误码：{{code}}。可修复环境后重新开始发现。",
+      "strategy": {
+        "windowsSearch": "Windows Search",
+        "macOsSpotlight": "Spotlight",
+        "metadataTraversal": "普通文件名遍历"
+      },
+      "platform": {
+        "other": "当前平台使用可确认本地目录的数据源发现策略。"
+      },
+      "scope": {
+        "userPriority": "当前范围：平台优先目录",
+        "fullLocalVolumes": "当前范围：全部可确认本地卷",
+        "manualSubtree": "当前范围：手动选择的目录及其子树"
+      },
+      "addManualClient": "添加 {{client}} 数据目录",
+      "evidence": {
+        "codexRollout": "Codex rollout",
+        "claudeTranscript": "Claude transcript",
+        "claudeSubagent": "Claude subagent",
+        "grokSessionUpdates": "Grok updates.jsonl"
+      },
+      "state": {
+        "idle": "空闲",
+        "running": "发现中",
+        "complete": "扫描完成",
+        "partial": "部分完成",
+        "cancelled": "已取消",
+        "failed": "失败"
+      }
+    },
+    "dialog": {
+      "renameTitle": "重命名数据目录",
+      "renameLabel": "新的数据目录别名",
+      "removeTitle": "移除数据目录索引",
+      "removeBody": "只移除“{{alias}}”的本产品索引；不会删除 {{client}} 原始文件。",
+      "removeConfirm": "移除索引",
+      "cancel": "取消",
+      "save": "保存"
+    },
+    "table": {
+      "alias": "数据目录别名",
+      "discovery": "发现方式",
+      "files": "文件",
+      "skipped": "跳过",
+      "errors": "错误",
+      "duplicates": "重复来源",
+      "lastScan": "最近扫描",
+      "actions": "操作",
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "primary": "主数据目录",
+      "activation": {
+        "confirmedUnindexed": "等待后台统计",
+        "indexing": "统计中",
+        "validationFailed": "候选验证失败"
+      },
+      "enable": "启用",
+      "disable": "停用",
+      "reindex": "重新索引",
+      "rename": "重命名",
+      "remove": "移除索引",
+      "toggleAria": "{{action}}{{alias}}",
+      "reindexAria": "重新索引{{alias}}",
+      "renameAria": "重命名{{alias}}",
+      "removeAria": "移除{{alias}}索引",
+      "empty": "当前没有已登记数据目录。",
+      "neverScanned": "尚无记录"
+    },
+    "messages": {
+      "sourceAddCancelled": "已取消添加数据目录。",
+      "sourceRegistered": "数据目录已登记；可通过快速扫描建立本产品索引。",
+      "sourceAlreadyRegistered": "该目录已在数据源中；已保留现有别名、启停和主目录设置。",
+      "sourceManualDeepSearchStarted": "所选目录本身不是合格数据根；已开始在该目录下深度查找。",
+      "sourceManualDeepSearchEmpty": "在所选目录下未发现通过当前客户端结构验证的数据根。",
+      "sourceEnabled": "数据目录已启用；下次快速扫描将纳入该范围。",
+      "sourceDisabled": "数据目录已停用；已有索引保留，客户端原始文件未修改。",
+      "sourceRenamed": "数据目录别名已更新。",
+      "sourceRemoved": "已移除该根的本产品索引；客户端原始文件未修改。",
+      "primaryChanged": "已切换 Codex 主数据目录。",
+      "primaryAlreadySelected": "该目录已经是 Codex 主数据目录。",
+      "primaryCleared": "已清除主数据目录选择。",
+      "primaryNotSet": "当前未设置 Codex 主数据目录。",
+      "reindexed": "本机索引已更新。"
+    },
+    "discoveryLabels": {
+      "defaultRoot": "默认数据目录",
+      "codexEnvironment": "当前 CODEX_HOME",
+      "claudeEnvironment": "当前 CLAUDE_CONFIG_DIR",
+      "userRegistered": "用户登记",
+      "fullDevice": "全设备发现",
+      "metadataDiscovery": "数据源发现",
+      "grokEnvironment": "当前 GROK_BUILD_HOME"
+    }
+  },
+  "privacy": {
+    "page": {
+      "title": "用量设置",
+      "description": "管理用量数据的后台扫描节奏与派生数据保留范围。",
+      "loading": "正在读取隐私设置"
+    },
+    "retentionDays": {
+      "title": "自动清理",
+      "badge": "默认 90 天",
+      "label": "自动清理多少天前的数据",
+      "error": "自动清理天数必须是 1 至 3650 天。",
+      "save": "保存自动清理天数",
+      "successTitle": "自动清理天数已保存",
+      "successBody": "已保存 {{days}} 天；下次打开应用时后台清理更早的派生用量。",
+      "errorTitle": "无法保存自动清理天数"
+    },
+    "scanInterval": {
+      "title": "扫描间隔",
+      "badge": "默认 5 分钟",
+      "label": "扫描间隔（分钟）",
+      "error": "扫描间隔必须是 1 至 1440 分钟。",
+      "save": "保存扫描间隔",
+      "successTitle": "扫描间隔已保存",
+      "successBody": "已保存 {{minutes}} 分钟扫描间隔；各客户端共用同一触发器。",
+      "errorTitle": "无法保存扫描间隔"
+    },
+    "increase": "增加",
+    "decrease": "减少"
+  },
+  "common": {
+    "unknownError": "操作未完成，请重试。"
+  },
+  "ui": {
+    "failureTitle": "暂时无法读取数据",
+    "retry": "重试"
+  },
+  "error": {
+    "monitor": {
+      "settingsInvalid": "已保存的监控设置格式无效。",
+      "settingsReadFailed": "无法读取监控设置。",
+      "settingsWriteFailed": "无法保存监控设置。",
+      "behaviorDuplicate": "同一种行为不能重复配置。",
+      "behaviorsIncomplete": "四种行为必须各配置一次。",
+      "imageEmpty": "图片内容为空。",
+      "imageInUse": "该图片正在被展示配置使用，无法删除。",
+      "imageNotFound": "找不到所选的本机图片。",
+      "imageUnsupportedType": "不支持的图片类型，请使用 JPEG、PNG 或 GIF。",
+      "imagesInvalid": "本机图片索引格式无效。",
+      "imagesReadFailed": "无法读取本机图片库。",
+      "imagesWriteFailed": "无法更新本机图片库。",
+      "profilesInvalid": "监控展示配置格式无效。",
+      "profilesReadFailed": "无法读取监控展示配置。",
+      "profilesWriteFailed": "无法保存监控展示配置。",
+      "relayStatusUnavailable": "无法获取本机 Hook 中继状态。",
+      "slotOutOfRange": "展示位置超出支持范围。",
+      "unknownImage": "所选图片不在本机图库中。",
+      "imagesTooLarge": "图片资源超过本机图库容量限制。请先移除部分图片。",
+      "imageDecodeFailed": "图片无法解码。",
+      "petSizeInvalid": "桌宠尺寸须在 %{min} 至 %{max} 像素之间。",
+      "petApplyFailed": "无法应用浮窗设置，请重试。"
+    },
+    "hooks": {
+      "cleanupUnsupported": "无法自动清理这种格式的 Hook 配置。",
+      "directoryNotAFolder": "Hooks 配置路径不是文件夹。",
+      "directoryNotAbsolute": "Hooks 配置目录必须使用绝对路径。",
+      "existingConfigInvalid": "现有 Hooks 配置格式无效。",
+      "existingConfigRootNotObject": "现有 Hooks 配置的根节点必须是 JSON 对象。",
+      "existingEventNotArray": "现有 Hooks 配置中有事件条目不是数组。",
+      "existingHooksNotObject": "现有配置中的 hooks 条目不是对象。",
+      "existingReadFailed": "无法读取现有 Hooks 配置。",
+      "foreignFileRejected": "现有插件文件不由 LokiMetris 管理，因此没有覆盖。",
+      "generatedConfigInvalid": "LokiMetris 生成了无效的 Hooks 配置。",
+      "generatedConfigRootNotObject": "生成的 Hooks 配置根节点不是 JSON 对象。",
+      "generatedEventNotArray": "生成的 Hooks 配置中有事件条目不是数组。",
+      "generatedHooksMissing": "生成的配置缺少 hooks 条目。",
+      "homeDirectoryUnavailable": "无法定位当前用户的主目录。",
+      "kimiManagedBlockCorrupted": "Kimi Code 配置中的 LokiMetris 托管区块不完整或重复。",
+      "kimiMissingCommand": "生成的 Kimi Code Hook 缺少命令。",
+      "kimiMissingHandler": "生成的 Kimi Code Hook 缺少处理器。",
+      "kimiSerializeFailed": "无法序列化 Kimi Code Hooks 配置。",
+      "locationNotFound": "无法定位 Hooks 配置位置。",
+      "mergeFailed": "无法把 Hooks 配置与现有文件合并。",
+      "renderFailed": "无法生成 Hooks 配置。",
+      "toolUnavailable": "该 AI 工具当前暂不可用。",
+      "writeFailed": "无法写入 Hooks 配置，请检查所选路径及其权限。",
+      "wslUnsupportedByWindowsHost": "Windows 宿主暂不支持此工具的 WSL 原生插件，请选择 Windows 客户端配置目录。",
+      "wslWindowsHostOnly": "只有 Windows 宿主可以访问 WSL 配置路径。"
+    }
+  },
+  "shell": {
+    "noEnabledAgents": {
+      "title": "尚未开放任何 AI Agent",
+      "body": "在设置的 Agent 配置中启用要使用的 Agent。"
+    }
+  },
+  "monitor": {
+    "workbench": {
+      "title": "本机 Hook 中继",
+      "listening": "正在监听 %{address}",
+      "offline": "中继未监听",
+      "receivedLabel": "已接收事件",
+      "failedLabel": "失败事件",
+      "lastEventLabel": "最近事件：",
+      "noEvent": "尚未收到 Hook 事件",
+      "lastError": "最近错误：%{error}"
+    },
+    "navigation": {
+      "pagesAria": "监控页面",
+      "itemAria": "{{label}}：{{description}}",
+      "workbench": {
+        "label": "工作台",
+        "description": "查看本机 Hook 中继状态"
+      },
+      "management": {
+        "label": "监控管理",
+        "description": "为已启用 Agent 配置展示位与行为图片"
+      },
+      "images": {
+        "label": "图片管理",
+        "description": "管理本机监控图片"
+      },
+      "settings": {
+        "label": "Hooks 设置",
+        "description": "为统一启用的 Agent 定位并写入本机 Hooks 配置"
+      }
+    },
+    "management": {
+      "title": "监控管理",
+      "description": "为已启用 Agent 配置展示位与各行为图片、文案。",
+      "noClient": "暂未启用任何 Agent，请先到公共设置的「Agent 配置」中勾选需要管理的客户端。",
+      "behaviorDisplay": "行为展示",
+      "configuredCount": "已配置 %{configured} / %{total}",
+      "noImages": "暂无可选图片，可在当前图片选择器里直接上传一张图片并继续配置。",
+      "content": "内容",
+      "contentPlaceholder": "输入可选的补充内容",
+      "displayConfig": "展示配置",
+      "ready": "所有状态均已配置，可以保存。",
+      "remaining": "还需为 %{count} 种状态选择图片。",
+      "save": "保存展示配置",
+      "saved": "已保存",
+      "configured": "已配置",
+      "notConfigured": "待选择图片",
+      "optional": "可选"
+    },
+    "behavior": {
+      "idle": "空闲",
+      "running": "运行中",
+      "asking": "询问",
+      "error": "异常"
+    },
+    "slot": {
+      "title": "显示位置",
+      "position": "位置 %{slot}",
+      "groupAria": "选择显示位置",
+      "cellAria": "位置 %{slot}，第 %{row} 行第 %{column} 列"
+    },
+    "picker": {
+      "field": "展示图片",
+      "clear": "清除选择",
+      "clearAria": "清除已选图片",
+      "change": "更换图片",
+      "loading": "正在加载图片",
+      "clickChoose": "点击选择图片",
+      "chooseTitle": "选择展示图片",
+      "closeAria": "关闭图片选择",
+      "selectAria": "选择图片 %{filename}",
+      "uploadSingle": "直接上传",
+      "uploadSingleAria": "上传一张新图片",
+      "uploading": "上传中…",
+      "uploadedAndSelected": "已上传并自动选中 %{filename}",
+      "emptyCategory": "该分类暂无图片",
+      "imagesTotal": "共 %{count} 张图片",
+      "imagesFiltered": "显示 %{visible} / 共 %{total} 张",
+      "allCount": "全部 %{count}"
+    },
+    "images": {
+      "title": "本机图片",
+      "description": "图片保存在本机应用数据目录，不转发到局域网设备。",
+      "empty": "还没有本机监控图片。",
+      "emptyTitle": "还没有本机图片",
+      "emptyDescription": "可一次选择多张 JPEG、PNG 或 GIF 图片，上传后直接分配给 Agent。",
+      "chooseMultiple": "批量选择图片",
+      "upload": "批量上传",
+      "uploaded": "已成功上传 %{count} 张图片。",
+      "delete": "删除图片",
+      "refresh": "刷新",
+      "filterAria": "按图片格式筛选",
+      "reading": "读取中…",
+      "actions": "图片操作：%{name}",
+      "localLibrary": "本机图库",
+      "emptyCategory": "该分类暂无图片",
+      "imagesTotal": "共 %{count} 张图片",
+      "imagesFiltered": "显示 %{visible} / 共 %{total} 张",
+      "allCount": "全部 %{count}",
+      "unavailable": "图片资源不可用"
+    },
+    "settings": {
+      "title": "Hooks 设置",
+      "description": "在设置中选择要启用 Hooks 的 Agent，并写入本机配置。",
+      "enabled": "启用的 Agent",
+      "managementTitle": "Hooks 管理",
+      "managementDescription": "按已启用的 Agent 查看本机配置位置并写入 Hooks。",
+      "chooseAgentFirst": "请先在上方启用至少一个 Agent。",
+      "directory": "配置目录",
+      "directoryPlaceholder": "请输入绝对路径或 WSL UNC 路径",
+      "directoryDialogTitle": "选择 Hooks 配置目录",
+      "chooseDirectory": "选择目录",
+      "saveDirectory": "保存路径",
+      "restoreDirectory": "恢复默认",
+      "configFile": "配置文件",
+      "additionalConfigFiles": "同时写入的其它配置文件",
+      "write": "写入 Hooks",
+      "written": "已写入 %{file}（%{outcome}）",
+      "activation": {
+        "hermesEnableRequired": "运行以下命令，然后重启 Hermes 或创建新会话。",
+        "openClawEnableRequired": "依次运行以下命令。",
+        "copy": "复制",
+        "copied": "已复制",
+        "copyCommandAria": "复制命令：%{command}"
+      }
+    },
+    "outcome": {
+      "unchanged": "配置未变化",
+      "active": "已生效",
+      "restartRequired": "需要重启或新建会话",
+      "codexReviewRequired": "需要在 Codex 中审核",
+      "workBuddyReviewRequired": "需要在 WorkBuddy 中审核",
+      "codeBuddyReviewRequired": "需要在 CodeBuddy 中审核",
+      "hermesEnableRequired": "需要在 Hermes 中启用插件并重启",
+      "openClawEnableRequired": "需要在 OpenClaw 中启用扩展并重启"
+    },
+    "pet": {
+      "todayAria": "今日 Token 总量：%{value}%{quality}",
+      "todayVisible": "今日 Token · %{value}%{quality}",
+      "todayPending": "读取中…",
+      "todayNoRecords": "暂无记录",
+      "todayUnavailable": "不可用",
+      "todayExpired": "已过期",
+      "todayPartial": "部分",
+      "todayUnknownQuality": "完整度未知",
+      "todayDerived": "推算",
+      "todaySuspected": "待确认",
+      "shellAria": "桌宠悬浮窗，第 %{page} / %{pages} 页",
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "settingsTitle": "桌宠设置",
+      "settingsHint": "尺寸按当前显示器自动限制",
+      "settingsClose": "关闭桌宠设置",
+      "displayCount": "显示数量",
+      "layout": "桌宠布局",
+      "size": "桌宠大小",
+      "pixels": "%{size} 像素",
+      "alwaysOnTop": "始终置顶",
+      "lockPositionSize": "锁定位置和大小",
+      "mousePassthrough": "鼠标穿透",
+      "mousePassthroughHint": "浮窗不接收鼠标；可从系统托盘或主窗口设置恢复。",
+      "mousePassthroughRecover": "鼠标穿透（点击恢复）",
+      "mousePassthroughUnknown": "鼠标穿透状态未确认；关闭穿透可恢复鼠标操作。",
+      "returnMain": "返回主界面",
+      "hideToTray": "隐藏到系统托盘"
+    }
+  },
+  "monitor_service_unavailable": "监控服务不可用",
+  "skins": {
+    "host": {
+      "tabs": "换皮宿主",
+      "empty_title": "没有已启用的换皮宿主",
+      "empty_description": "请到设置中的统一 Agent 面板启用 Codex 或 WorkBuddy。"
+    },
+    "browser": {
+      "title": "需要桌面宿主",
+      "description": "浏览器预览不会读取本机资源、进程或调试端口；请在 LokiMetris 桌面应用中使用换皮功能。"
+    },
+    "search": {
+      "label": "搜索皮肤",
+      "placeholder": "按名称、作者或 ID 搜索"
+    },
+    "catalog": {
+      "empty": "没有符合当前筛选的皮肤。"
+    },
+    "source": {
+      "builtin": "内置",
+      "user": "用户"
+    },
+    "package": {
+      "theme": "纯主题",
+      "legacySkin": "兼容皮肤"
+    },
+    "mode": {
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "card": {
+      "preview_alt": "%{name} 皮肤预览",
+      "by": "作者 %{author}",
+      "select": "选择 %{name}",
+      "actions": "%{name} 的资源操作"
+    },
+    "action": {
+      "apply": "应用",
+      "stop": "停止",
+      "open": "打开目录",
+      "export": "导出 ZIP",
+      "convert": "转换为纯主题",
+      "delete": "删除",
+      "delete_selected": "删除所选（%{count}）",
+      "import": "导入",
+      "create": "创建主题",
+      "refresh": "刷新"
+    },
+    "dialog": {
+      "cancel": "取消",
+      "confirm": "确认"
+    },
+    "appearance": {
+      "title": "确认外观差异",
+      "description": "当前宿主的 %{mode} 外观与主题声明存在差异。确认后仅对所选实例继续应用。",
+      "unreadable": "无法读取",
+      "continue": "仍然应用"
+    },
+    "code_trust": {
+      "not_safety_proof": "LokiMetris 只检查皮肤包结构和资源限制；这些检查不会审查脚本，也不能证明脚本安全。",
+      "import_title": "所选皮肤包含第三方代码",
+      "import_description": "所选项目中有 %{count} 个兼容皮肤包含 renderer-inject.js。导入会将其保存在本机，应用皮肤时会在受支持宿主内执行。",
+      "import_acknowledgement": "我明白这些文件包含第三方代码，并信任它们的来源。"
+    },
+    "import": {
+      "title": "确认导入皮肤",
+      "summary": "%{total} 个压缩包中有 %{ready} 个可导入。",
+      "commit": "导入所选（%{count}）"
+    },
+    "create": {
+      "title": "创建用户主题",
+      "description": "创建可编辑的本机主题，或复制带资源路径的提示词交给 Codex 完成设计。",
+      "name": "主题名称",
+      "author": "作者",
+      "scaffold": "创建脚手架",
+      "codex_prompt": "生成 Codex 提示词",
+      "prompt_title": "动态生成提示词",
+      "copy": "复制"
+    },
+    "restart": {
+      "title": "重启所选宿主实例？",
+      "description": "%{name} 尚未开放本机调试连接。继续将只重启这个实例，未保存内容可能受影响。",
+      "workbuddy_title": "重新启动 WorkBuddy 并挂载调试端口？",
+      "workbuddy_description": "继续前会重新检查本机调试连接；仍不可用或存在多个旧实例时，将关闭官方安装路径下所有 WorkBuddy 进程，未保存内容可能丢失，随后只启动一个带调试端口的新实例。"
+    },
+    "convert": {
+      "title": "有损转换为纯主题？",
+      "description": "%{name} 的脚本、自由选择器与扩展组件不会保留；将按其配色创建新的用户主题，原皮肤不变。"
+    },
+    "delete": {
+      "title": "删除用户皮肤？",
+      "description": "将永久删除所选的 %{count} 个用户皮肤目录；内置皮肤不会受影响。"
+    },
+    "notice": {
+      "applied": "已把 %{name} 应用到所选宿主实例。",
+      "stopped": "已停止所选实例中的皮肤并完成清理。",
+      "created": "已创建用户主题 %{name}。",
+      "imported": "已导入 %{count} 个皮肤。",
+      "exported": "皮肤 ZIP 已保存到所选位置。",
+      "converted": "已创建纯主题 %{name}。",
+      "deleted": "已删除 %{count} 个用户皮肤。"
+    },
+    "error": {
+      "title": "操作未完成",
+      "unknown": "换皮操作失败，请刷新宿主状态后重试。",
+      "injection_failed": "未能确认全部宿主页面的皮肤已生效，请刷新后重试。",
+      "choose_instance": "发现多个宿主实例；请先关闭多余实例，仅保留一个后刷新重试。"
+    },
+    "progress": {
+      "preparing": "正在预检皮肤包（%{processed}/%{total}）"
+    },
+    "loading": "正在读取皮肤资源…",
+    "copied": "已复制",
+    "dismiss": "关闭通知"
+  },
+  "notification": {
+    "details": "系统通知详情",
+    "show_details": "展开系统通知详情",
+    "hide_details": "收起系统通知详情",
+    "paused": "系统通知已暂停",
+    "denied_intent_saved": "开启偏好已保存，但系统当前不允许通知。请在系统通知设置中允许后刷新权限。",
+    "permission_intent_saved": "开启偏好已保存，但暂时无法确认系统通知权限。请刷新权限并重试。",
+    "host_unavailable": "当前应用无法连接系统通知服务。请重新打开应用后重试。",
+    "menu_unavailable": "系统通知 · 服务不可用",
+    "title": "诡秘神谕",
+    "milestone": "恭喜您今天已经使用「%{total}」的Token了",
+    "permission_allowed": "系统允许通知",
+    "permission_denied": "系统不允许通知",
+    "permission_ask": "需要主动授权",
+    "permission_unavailable": "系统状态不可用",
+    "permission_label": "系统权限：%{status}",
+    "summary": "待提交 %{pending} · API已接受 %{submitted} · 结果不明 %{unknown}",
+    "history": "基线跳过 %{baseline} · 已抑制 %{suppressed} · 已过期 %{expired}",
+    "baseline": "已用当前可信总量建立基线，已有档位不会补发。",
+    "waiting": "今日数据不完整、不可用或已过期，通知已暂停；恢复可信数据后继续。",
+    "unknown": "部分请求结果不明，自动发送已暂停。手动重试可能重复显示通知。",
+    "rejected": "系统提交失败，按30秒、120秒、600秒重试；用尽后等待手动重试。",
+    "storage": "通知历史读取、保存或容量出现问题，已暂停发送。",
+    "rebuilt": "通知历史缺失或损坏，使用首个可信当前总量重建基线；已有档位不补发。",
+    "retry": "刷新权限并重试",
+    "retry_unknown": "重试结果不明的请求（可能重复）",
+    "open_settings": "打开系统通知设置",
+    "busy": "正在保存通知开关",
+    "menu_queue": "系统通知 · 待提交 %{count}",
+    "menu_unknown": "系统通知 · 结果不明",
+    "menu_disabled": "系统通知",
+    "source_rebuilt": "来源集合或索引已改变，旧队列已抑制，并以可信当前总量重建基线。"
   }
 }

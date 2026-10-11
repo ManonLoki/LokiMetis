@@ -1,0 +1,2 @@
+                    return node.has_braille_label() || node.has_braille_role_description()
+                        || (node.role() == Role::Heading && node.level().is_some_and(|level| level > 0))

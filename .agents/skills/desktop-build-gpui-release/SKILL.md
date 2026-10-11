@@ -56,13 +56,13 @@ pnpm run gpui:package build --root . --mode candidate --format dmg --e2e disable
 
 helper 在测试前验证独立 Git 根、clean 默认主分支/tag、发布上下文、base-100 版本、锁策略及资源；原子隔离旧 `release/`，拒绝链接/重解析、路径越界和覆盖。所有实际 Rust workspaces 分别列出非空全量测试并运行 `cargo test --workspace --all-targets --all-features`；`tracked` 的 metadata、测试、构建全部传 `--locked`，同时核对受跟踪且未被忽略的实际 Cargo.lock。pnpm 只提供 Node 工程命令入口；不触发 React、前端安装/测试或前端锁门禁。
 
-关于页启用时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，关于页直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。关于页禁用时不注入日志 UI。两种情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选关于页的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
+关于页启用，或包装配置明确 `releaseNotesUi: true`（例如日志位于设置页）时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，日志界面直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。两种入口均关闭时不注入日志 UI。所有情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选日志界面的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
 
 macOS 默认 `disabled/not-requested`、unsigned，不探测身份/凭据；当前 Skill 未实现完整 macOS 签名公证，任何启用请求或渠道要求在测试前失败关闭。不能关闭渠道要求继续构建。Windows 有批准的证书指纹与 HTTPS 时间戳配置时，显式 `--signing enabled --signing-source configured|requested|channel-required` 才执行 `signtool sign` 与 `verify /pa /all`，任何失败停止；不创建或输出凭据。机器恰有工具/环境变量不改变选择。
 
 macOS `.app.zip` 用系统 `ditto` 打包，DMG 用 cargo-packager 固定原生配置；Finder 布局阶段有十分钟上限。候选 DMG 在最终字节上只读挂载，核对 `.DS_Store`、项目背景、唯一 `.app`、`/Applications` 拖拽目标与全部资源；headless 无可用 Finder 布局时阻断，不能把缺布局的 DMG 记为通过。Windows NSIS 候选要求项目内显式批准且已声明的 `7z/7zr` 解包器，以只读解包核对最终包内日志、许可证与二进制；缺少时阻断，不自动增加第三方工具。local NSIS 可打出试包，其最终资源/安装/运行保持 `Unverified`。
 
-测试后、打包前及写 manifest 前再次核对源码和配置；源码、上下文或选择漂移均停止。最终安装包或 app 归档、相邻 SHA-256、manifest 在同根暂存区形成精确普通文件集合，再目录级原子提交到忽略的 `release/`。manifest 保留通用字段、实际 packager/GPUI 身份和 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`；不伪造 updater/Tauri 版本，也不写 tracked 项目记忆。
+测试后、打包前及写 manifest 前再次核对源码、配置和显式平台资源清单；资源包含Git忽略文件，按捕获摘要逐字节验证。源码、资源、上下文或选择漂移均停止。最终安装包或 app 归档、相邻 SHA-256、manifest 在同根暂存区形成精确普通文件集合，再目录级原子提交到忽略的 `release/`。manifest 保留通用字段、实际 packager/GPUI 身份和 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`；不伪造 updater/Tauri 版本，也不写 tracked 项目记忆。
 
 E2E 为 `enabled` 或硬要求时，最终候选形成后调用 `$desktop-verify-delivery`；编译/打包期间不混跑安装、启动或 E2E。关闭时准确报告 `Not run` 与风险。构建通过只证明真实产物已生成，不能称已验收或发布就绪。
 

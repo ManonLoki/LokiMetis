@@ -1,0 +1,3 @@
+                grayscale: false.into(),
+                bounds,
+                corner_radii: Default::default(),

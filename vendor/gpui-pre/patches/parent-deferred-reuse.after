@@ -1,0 +1,3 @@
+                    content_mask: deferred_draw.content_mask,
+                    #[cfg(feature = "parent-rounded-clip")]
+                    parent_clips: deferred_draw.parent_clips.clone(),

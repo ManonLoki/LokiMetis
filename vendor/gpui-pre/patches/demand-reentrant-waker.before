@@ -1,0 +1,2 @@
+        platform_window.on_request_frame(Box::new({
+            let mut cx = cx.to_async();

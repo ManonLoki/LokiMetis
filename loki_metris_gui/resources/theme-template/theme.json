@@ -1,0 +1,9 @@
+{
+  "$comment": "这是毕方 CodeX 皮肤工坊创建的 CSS 变量主题。请不要修改 id；名称、作者和说明可编辑。颜色、图片和有限视觉参数统一在 theme.css 中修改，不允许加入普通 CSS 属性、其他选择器、脚本或网络资源。",
+  "schemaVersion": 3,
+  "type": "theme",
+  "id": "theme-template",
+  "name": "我的纯主题",
+  "description": "工程蓝图风格的纯主题，可继续替换图片与调整变量。",
+  "author": "请填写作者名称"
+}

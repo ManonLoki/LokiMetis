@@ -1,0 +1,7 @@
+                            window.with_hitbox_exclusions(&parent_hitbox_exclusions, |window| {
+                                window.with_content_mask(parent_mask, |window| {
+                                    window.with_absolute_element_offset(absolute_offset, |window| {
+                                        element.prepaint(window, cx);
+                                    });
+                                });
+                            });

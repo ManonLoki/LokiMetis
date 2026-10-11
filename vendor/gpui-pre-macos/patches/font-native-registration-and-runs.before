@@ -1,0 +1,54 @@
+            // Dedup is scoped to this single `load_family` call (issue #55472).
+            // The same family can be reloaded later under a different `FontKey`
+            // (different features/fallbacks); a global check against
+            // `font_ids_by_postscript_name` would skip every already-registered
+            // font and leave the second call's `font_ids` empty.
+            if !postscript_names_seen.insert(postscript_name.clone()) {
+                log::warn!(
+                    "skipping duplicate font {:?} with PostScript name {:?} \
+                     in family {:?}",
+                    font.full_name(),
+                    postscript_name,
+                    name,
+                );
+                continue;
+            }
+            let font_id = FontId(self.fonts.len());
+            font_ids.push(font_id);
+            self.font_ids_by_postscript_name
+                .insert(postscript_name.clone(), font_id);
+            self.postscript_names_by_font_id
+                .insert(font_id, postscript_name);
+            self.fonts.push(font);
+        }
+        Ok(font_ids)
+    }
+
+    fn advance(&self, font_id: FontId, glyph_id: GlyphId) -> Result<Size<f32>> {
+        Ok(size_from_vector2f(
+            self.fonts[font_id.0].advance(glyph_id.0)?,
+        ))
+    }
+
+    fn glyph_for_char(&self, font_id: FontId, ch: char) -> Option<GlyphId> {
+        self.fonts[font_id.0].glyph_for_char(ch).map(GlyphId)
+    }
+
+    fn id_for_native_font(&mut self, requested_font: CTFont) -> FontId {
+        let postscript_name = requested_font.postscript_name();
+        if let Some(font_id) = self.font_ids_by_postscript_name.get(&postscript_name) {
+            *font_id
+        } else {
+            let font_id = FontId(self.fonts.len());
+            self.font_ids_by_postscript_name
+                .insert(postscript_name.clone(), font_id);
+            self.postscript_names_by_font_id
+                .insert(font_id, postscript_name);
+            self.fonts
+                .push(font_kit::font::Font::from_core_graphics_font(
+                    requested_font.copy_to_CGFont(),
+                ));
+            font_id
+        }
+    }
+

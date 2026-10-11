@@ -1,0 +1,2 @@
+            text_style_stack: self.text_style_stack.clone(),
+            content_mask,

@@ -1,0 +1,17 @@
+  float4 color = hsla_to_rgba(sprite.color);
+  return MonochromeSpriteVertexOutput{
+      device_position,
+      tile_position,
+      color,
+      {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}};
+}
+
+fragment float4 monochrome_sprite_fragment(
+    MonochromeSpriteFragmentInput input [[stage_in]],
+    constant MonochromeSprite *sprites [[buffer(SpriteInputIndex_Sprites)]],
+    texture2d<float> atlas_texture [[texture(SpriteInputIndex_AtlasTexture)]]) {
+  if (any(input.clip_distance < float4(0.0))) {
+    return float4(0.0);
+  }
+
+  constexpr sampler atlas_texture_sampler(mag_filter::linear,

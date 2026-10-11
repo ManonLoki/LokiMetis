@@ -1,0 +1,47 @@
+    fn render_frame(
+        &mut self,
+        scene: &Scene,
+        texture: &metal::TextureRef,
+        viewport_size: Size<DevicePixels>,
+    ) -> Result<EncodedFrame> {
+        let atlas_frame = self.sprite_atlas.begin_frame();
+        let mut writer = InstanceBufferWriter::new(
+            &self.device,
+            &self.instance_buffer_pool,
+            self.is_unified_memory,
+        );
+        let instance_bindings = write_instances(scene, &mut writer).with_context(|| {
+            format!(
+                "scene too large: {} paths, {} shadows, {} quads, {} underlines, {} mono, {} poly, {} surfaces",
+                scene.paths.len(),
+                scene.shadows.len(),
+                scene.quads.len(),
+                scene.underlines.len(),
+                scene.monochrome_sprites.len(),
+                scene.polychrome_sprites.len(),
+                scene.surfaces.len(),
+            )
+        })?;
+        let command_buffer = self.draw_primitives_to_texture(
+            scene,
+            &instance_bindings,
+            &mut writer,
+            texture,
+            viewport_size,
+        )?;
+
+        let instance_buffer_pool = self.instance_buffer_pool.clone();
+        let instance_buffer = Cell::new(Some(writer.finish()));
+        let block = RcBlock::new(move |_: ptr::NonNull<AnyObject>| {
+            if let Some(instance_buffer) = instance_buffer.take() {
+                instance_buffer_pool.lock().release(instance_buffer);
+            }
+        });
+        // SAFETY: Both pointee types are opaque views of the same Objective-C block pointer ABI.
+        unsafe {
+            command_buffer.add_completed_handler(&*RcBlock::as_ptr(&block).cast());
+        }
+
+        Ok(EncodedFrame { command_buffer, atlas_frame: Cell::new(Some(atlas_frame)) })
+    }
+

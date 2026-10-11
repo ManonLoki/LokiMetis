@@ -1,0 +1,2 @@
+    aria.insert("role".into(), json!(format!("{:?}", node.role())));
+    aria.insert("disabled".into(), json!(node.is_disabled()));

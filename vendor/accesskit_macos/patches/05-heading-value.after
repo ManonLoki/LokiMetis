@@ -1,0 +1,10 @@
+        if let Some(value) = self.0.numeric_value() {
+            return Some(Value::Number(value));
+        }
+        // 标题层级遵循 WebKit 的 AXValue 约定；显式值仍保留上游优先级。
+        if self.0.role() == Role::Heading {
+            if let Some(level) = self.0.level().filter(|level| *level > 0) {
+                return Some(Value::HeadingLevel(level));
+            }
+        }
+        None

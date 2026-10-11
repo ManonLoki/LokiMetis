@@ -1,0 +1,12 @@
+    }
+
+    fn draw_paths_to_intermediate(
+        &self,
+        paths: &[Path<ScaledPixels>],
+        #[cfg(feature = "parent-rounded-clip")]
+        parent_clip_nodes: &InstanceBinding,
+        writer: &mut InstanceBufferWriter,
+        viewport_size: Size<DevicePixels>,
+        command_buffer: &metal::CommandBufferRef,
+    ) -> Result<bool> {
+        if paths.is_empty() {

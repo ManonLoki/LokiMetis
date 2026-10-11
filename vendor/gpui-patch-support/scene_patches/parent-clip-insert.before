@@ -1,0 +1,2 @@
+    pub fn insert_primitive(&mut self, primitive: impl Into<Primitive>) {
+        let mut primitive = primitive.into();

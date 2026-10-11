@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { parseThirdPartyManifest } from "./verified_third_party.mjs";
 
 import {
   DEFAULT_HARD_LINE_LIMIT,
@@ -30,6 +32,19 @@ function write(relative, payload) {
 
 function track(...relative) {
   assert.equal(run("git", ["add", "--", ...relative], { cwd: root }).status, 0);
+}
+
+function installThirdPartySource() {
+  const source = fileURLToPath(new URL("../../../../vendor/accesskit_macos/", import.meta.url));
+  const directory = "vendor/accesskit_macos";
+  const manifest = readFileSync(path.join(source, "source-content.sha256"));
+  const files = parseThirdPartyManifest(manifest).map((entry) => entry.relative);
+  for (const relative of ["source-content.sha256", ...files]) {
+    const target = path.join(root, directory, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(path.join(source, relative), target);
+  }
+  return files.map((relative) => `${directory}/${relative}`).sort();
 }
 
 function captureOutput(callback) {
@@ -179,6 +194,48 @@ test("excludes only root Harness generated lock path", () => {
   const report = inspectRepository(root);
   assert.deepEqual(report.excludedGeneratedFiles, [".harness/upstream-lock.json"]);
   assert.deepEqual(report.violations.map((item) => item.path), ["docs/upstream-lock.json", "nested/.harness/upstream-lock.json"]);
+});
+
+test("verified original third-party files are explicitly reported and excluded", () => {
+  const expected = installThirdPartySource();
+  write("Cargo.lock", "generated\n".repeat(DEFAULT_HARD_LINE_LIMIT + 1));
+  const report = inspectRepository(root);
+  assert.equal(report.ok, true, JSON.stringify(report));
+  assert.deepEqual(report.excludedThirdPartyFiles, expected);
+  assert.equal(report.excludedThirdPartyFiles.length, 18);
+  assert.deepEqual(report.excludedGeneratedFiles, ["Cargo.lock"]);
+  assert.equal(report.checkedTextFiles, 1); // 来源清单仍属于维护范围。
+  assert.deepEqual(report.violations, []);
+});
+
+test("additional handwritten files beside registered originals retain their own limits", () => {
+  const expected = installThirdPartySource();
+  const extras = ["build.rs", "patches/handwritten.rs", "upstream/src/extra.rs"];
+  extras.forEach((relative) => write(`vendor/accesskit_macos/${relative}`, "x\n".repeat(RUST_HARD_LINE_LIMIT + 1)));
+  write("vendor/other/src/node.rs", "x\n".repeat(RUST_HARD_LINE_LIMIT + 1));
+  const report = inspectRepository(root);
+  assert.equal(report.ok, false);
+  assert.deepEqual(report.errors, []);
+  assert.deepEqual(report.excludedThirdPartyFiles, expected);
+  assert.deepEqual(report.violations.map((item) => item.path), [
+    "vendor/accesskit_macos/build.rs",
+    "vendor/accesskit_macos/patches/handwritten.rs",
+    "vendor/accesskit_macos/upstream/src/extra.rs",
+    "vendor/other/src/node.rs",
+  ]);
+});
+
+test("a corrupted registration fails closed and does not suppress source violations", () => {
+  installThirdPartySource();
+  write("vendor/accesskit_macos/upstream/src/node.rs", "x\n".repeat(RUST_HARD_LINE_LIMIT + 1));
+  const report = inspectRepository(root);
+  assert.equal(report.ok, false);
+  assert.deepEqual(report.excludedThirdPartyFiles, []);
+  assert.ok(report.errors.some((error) => error.includes("原样文件 SHA256 不符")), JSON.stringify(report));
+  assert.ok(report.violations.some((item) => item.path === "vendor/accesskit_macos/upstream/src/node.rs"));
+  const output = captureOutput(() => main(["--json"], () => report));
+  assert.equal(output.result, 2);
+  assert.deepEqual(JSON.parse(output.stdout).excludedThirdPartyFiles, []);
 });
 
 test("invalid UTF-8 text candidate fails closed", () => {

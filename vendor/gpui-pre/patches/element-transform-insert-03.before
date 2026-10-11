@@ -1,0 +1,2 @@
+            let shadow_bounds = (bounds + shadow.offset).dilate(shadow.spread_radius);
+            self.next_frame.scene.insert_primitive(Shadow {

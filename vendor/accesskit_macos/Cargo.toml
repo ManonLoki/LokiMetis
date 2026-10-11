@@ -1,0 +1,38 @@
+[package]
+name = "accesskit_macos"
+version = "0.26.3"
+edition = "2024"
+rust-version = "1.85"
+authors = ["The AccessKit contributors"]
+license = "MIT OR Apache-2.0"
+description = "AccessKit macOS adapter with the LokiMetris Heading compatibility patch"
+repository = "https://github.com/AccessKit/accesskit"
+readme = "README.md"
+publish = false
+build = "build.rs"
+autotests = false
+
+[lib]
+path = "src/lib.rs"
+
+[[test]]
+name = "heading"
+path = "tests/heading.rs"
+harness = false
+
+[[test]]
+name = "generation"
+path = "tests/generation.rs"
+
+[[test]]
+name = "readonly_probe"
+path = "tests/readonly_probe.rs"
+harness = false
+
+[dependencies]
+accesskit = "0.24.1"
+accesskit_consumer = "0.38.0"
+hashbrown = { version = "0.16", default-features = false, features = ["default-hasher"] }
+objc2 = "0.5.1"
+objc2-foundation = { version = "0.2.0", features = ["NSArray", "NSDictionary", "NSValue", "NSThread"] }
+objc2-app-kit = { version = "0.2.0", features = ["NSAccessibility", "NSAccessibilityConstants", "NSAccessibilityElement", "NSAccessibilityProtocols", "NSColor", "NSResponder", "NSText", "NSView", "NSWindow"] }

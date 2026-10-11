@@ -1,0 +1,2 @@
+    /// The content mask when the hitbox was inserted.
+    pub content_mask: ContentMask<Pixels>,

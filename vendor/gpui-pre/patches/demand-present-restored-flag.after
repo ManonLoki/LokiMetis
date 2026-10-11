@@ -1,0 +1,2 @@
+                let needs_present = require_presentation
+                    || needs_present.get()

@@ -1,0 +1,6 @@
+    /// 当前 draw 开始时的执行器时刻；同帧 render、prepaint 和 paint 共用，支持测试时钟。
+    pub fn frame_animation_time(&self) -> Instant {
+        self.frame_animation_time
+    }
+
+    /// Produces a new frame and assigns it to `rendered_frame`. To actually show

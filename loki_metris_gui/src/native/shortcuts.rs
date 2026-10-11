@@ -6,6 +6,7 @@ use std::collections::HashSet;
 
 /// 每项明确绑定一个编译期函数；不解析脚本或使用 wildcard/no-op 动作兜底。
 pub struct Binding {
+#[allow(dead_code, reason = "预留给下游登记 typed handler 的扩展点，中性初始化暂无调用者")]
     pub id: &'static str,
     pub chord: HotKey,
     pub dispatch: fn(&mut App),
@@ -23,6 +24,7 @@ impl Service {
     pub fn new() -> Self { Self::default() }
 
     /// 一次登记一组此前不存在的绑定，任何失败都只回滚本次成功项。
+#[allow(dead_code, reason = "预留给下游登记 typed handler 的扩展点，中性初始化暂无调用者")]
     pub fn register(&mut self, bindings: Vec<Binding>) -> Result<(), &'static str> {
         let mut ids: HashSet<_> = self.owned.iter().map(|binding| binding.id).collect();
         let mut keys: HashSet<_> = self.owned.iter().map(|binding| binding.chord.id()).collect();
@@ -56,6 +58,7 @@ impl Service {
 }
 
 /// 部分失败时保留回滚未释放项，以便继续分派并在退出重试注销。
+#[allow(dead_code, reason = "预留给下游登记 typed handler 的扩展点，中性初始化暂无调用者")]
 fn register_group(bindings: Vec<Binding>, mut register: impl FnMut(HotKey) -> bool, mut unregister: impl FnMut(HotKey) -> bool) -> (Vec<Binding>, Option<&'static str>) {
     let mut owned: Vec<Binding> = Vec::new();
     for binding in bindings {
@@ -70,6 +73,7 @@ fn register_group(bindings: Vec<Binding>, mut register: impl FnMut(HotKey) -> bo
 }
 
 /// 中性动作 ID 采用稳定 ASCII snake_case，产品动作仍由下游合同决定。
+#[allow(dead_code, reason = "预留给下游登记 typed handler 的扩展点，中性初始化暂无调用者")]
 fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.len() <= 64 && id.as_bytes()[0].is_ascii_lowercase()
         && id.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')

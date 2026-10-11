@@ -1,0 +1,10 @@
+  float4 ycbcr = float4(
+      y_texture.sample(texture_sampler, input.texture_position).r,
+      cb_cr_texture.sample(texture_sampler, input.texture_position).rg, 1.0);
+
+  return ycbcrToRGBTransform * ycbcr;
+}
+
+float4 hsla_to_rgba(Hsla hsla) {
+  float h = hsla.h * 6.0; // Now, it's an angle but scaled in [0, 6) range
+  float s = hsla.s;

@@ -1,0 +1,2 @@
+                let text_style = window.text_style();
+                let element_transform = window.element_transform_key();

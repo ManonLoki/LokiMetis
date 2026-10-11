@@ -1,0 +1,10 @@
+                        command_buffer,
+                        texture,
+                        viewport_size,
+                        None,
+                    );
+
+                    if did_draw {
+                        if let Err(error) = self.draw_paths_from_intermediate(
+                            paths,
+                            writer,

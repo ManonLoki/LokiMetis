@@ -1,0 +1,2 @@
+    content_mask: Option<ContentMask<Pixels>>,
+    rem_size: Pixels,

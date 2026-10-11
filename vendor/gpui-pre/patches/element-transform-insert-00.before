@@ -1,0 +1,3 @@
+        let underline = self.underline(origin, width, style);
+        if exclusions.is_empty() {
+            self.next_frame.scene.insert_primitive(underline);

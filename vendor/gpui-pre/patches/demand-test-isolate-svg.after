@@ -1,0 +1,3 @@
+// 仅帧调度专项测试隔离发布包缺失夹具/宏阻断；默认测试合同保持原样。
+#[cfg(all(test, not(feature = "frame-demand-regression")))]
+mod tests {

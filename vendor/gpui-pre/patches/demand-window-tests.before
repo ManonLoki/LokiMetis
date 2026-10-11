@@ -1,0 +1,22 @@
+    fn assert_closed_inspector(window: AnyWindowHandle, cx: &mut TestAppContext) {
+        cx.update_window(window, |root, window, cx| {
+            window.draw(cx).clear(cx);
+            window.draw(cx).clear(cx);
+            let root = root.downcast::<InspectorTestRoot>().expect("test root");
+            assert_eq!(
+                root.read(cx)
+                    .child
+                    .read(cx)
+                    .child_widths
+                    .borrow()
+                    .as_slice(),
+                &[px(10.); 3]
+            );
+            for frame in [&window.rendered_frame, &window.next_frame] {
+                assert_eq!(frame.next_inspector_instance_ids.capacity(), 0);
+                assert_eq!(frame.inspector_hitboxes.capacity(), 0);
+            }
+        })
+        .expect("closed inspector has no bookkeeping and no style overrides");
+    }
+}

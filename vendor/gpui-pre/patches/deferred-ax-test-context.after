@@ -1,0 +1,12 @@
+    /// 使用TestWindow保留的真实辅助功能activation回调。
+    pub fn simulate_accessibility_activation(&self, window_handle: AnyWindowHandle) -> Option<accesskit::TreeUpdate> {
+        self.test_window(window_handle).simulate_accessibility_activation()
+    }
+
+    /// 使用TestWindow保留的真实辅助功能deactivation回调。
+    pub fn simulate_accessibility_deactivation(&self, window_handle: AnyWindowHandle) {
+        self.test_window(window_handle).simulate_accessibility_deactivation();
+    }
+
+    /// Simulates the user resizing the window to the new size.
+    pub fn simulate_window_resize(&self, window_handle: AnyWindowHandle, size: Size<Pixels>) {

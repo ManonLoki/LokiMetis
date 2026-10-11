@@ -1,0 +1,8 @@
+t_opacity();
+
+            self.next_frame.scene.insert_primitive(PolychromeSprite {
+                order: 0,
+                pad: 0,
+                grayscale: false.into(),
+                bounds,
+       

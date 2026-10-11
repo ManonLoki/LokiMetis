@@ -1,0 +1,8 @@
+                                        #[cfg(feature = "parent-rounded-clip")]
+                                        let parent_clip = style.parent_rounded_clip(bounds, window.rem_size());
+                                        #[cfg(feature = "parent-rounded-clip")]
+                                        window.with_parent_rounded_clip(parent_clip, |window| {
+                                            f(&style, window, cx);
+                                        });
+                                        #[cfg(not(feature = "parent-rounded-clip"))]
+                                        f(&style, window, cx);

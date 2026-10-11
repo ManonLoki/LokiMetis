@@ -1,0 +1,136 @@
+rt_eq!(frame.inspector_hitboxes.capacity(), 0);
+            }
+        })
+        .expect("closed inspector has no bookkeeping and no style overrides");
+    }
+}
+
+// 真实GPUI Frame、Entity缓存及DeferredDraw回归；仅启用临时Apple裁切feature。
+#[cfg(all(test, feature = "parent-rounded-clip"))]
+mod parent_clip_window_tests {
+    use super::*;
+    use crate::{Context, Entity, IntoElement, ParentElement, Render, StyleRefinement, TestAppContext, deferred, div};
+    use std::{cell::Cell, rc::Rc};
+
+    struct Empty;
+    impl Render for Empty {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement { div() }
+    }
+
+    fn outer() -> ParentRoundedClip {
+        ParentRoundedClip::new(Bounds::new(point(px(24.), px(37.)), size(px(322.), px(160.))),
+            Corners { top_left:px(20.), top_right:px(20.), bottom_left:px(0.), bottom_right:px(0.) })
+    }
+
+    /// 真Frame命中和cursor lookup共用圆角，不代理控件本地点击。
+    #[gpui::test]
+    fn parent_clip_native_frame_hit_test_and_cursor(cx: &mut TestAppContext) {
+        let handle=cx.add_window(|_,_| Empty);
+        cx.update_window(handle.into(), |_,window,_| {
+            let clip=outer(); let bounds=clip.bounds;
+            let child=Hitbox { id:HitboxId(991), bounds:Bounds::new(point(px(330.),px(33.)),size(px(20.),px(20.))),
+                content_mask:ContentMask { bounds },parent_clips:ParentClipChain::default().push(clip),
+                behavior:HitboxBehavior::Normal };
+            let mut bottom=child.clone(); bottom.id=HitboxId(990); bottom.parent_clips=ParentClipChain::default();
+            window.rendered_frame.hitboxes=vec![bottom,child.clone()];
+            window.rendered_frame.cursor_styles=vec![CursorStyleRequest { hitbox_id:Some(child.id),style:CursorStyle::PointingHand }];
+            for (p,expected) in [(point(px(345.),px(38.)),false),(point(px(336.),px(45.)),true)] {
+                window.mouse_hit_test=window.rendered_frame.hit_test(p);
+                assert_eq!(window.mouse_hit_test.ids.contains(&child.id),expected);
+                assert_eq!(child.should_handle_scroll(window),expected);
+                assert_eq!(window.rendered_frame.cursor_style(window),expected.then_some(CursorStyle::PointingHand));
+                assert!(window.mouse_hit_test.ids.contains(&HitboxId(990)));
+            }
+            let mut blocker=child;blocker.behavior=HitboxBehavior::BlockMouse;
+            window.rendered_frame.hitboxes[1]=blocker;
+            assert_eq!(window.rendered_frame.hit_test(point(px(336.),px(45.))).ids.as_slice(), &[HitboxId(991)]);
+            assert_eq!(window.rendered_frame.hit_test(point(px(345.),px(38.))).ids.as_slice(), &[HitboxId(990)]);
+        }).unwrap();
+    }
+
+    struct CachedChild { renders:Rc<Cell<usize>>, deferred:bool }
+    impl Render for CachedChild {
+        fn render(&mut self,_:&mut Window,_:&mut Context<Self>)->impl IntoElement {
+            self.renders.set(self.renders.get()+1);
+            let visual=div().id("actual-mark").size_full().bg(crate::white()).border_1().border_color(crate::black())
+                .cursor_pointer().child("✓");
+            if self.deferred { deferred(visual).into_any_element() } else { visual.into_any_element() }
+        }
+    }
+    struct Parent { child:Entity<CachedChild>, radius:f32, nested:bool }
+    impl Render for Parent {
+        fn render(&mut self,_:&mut Window,_:&mut Context<Self>)->impl IntoElement {
+            let child=self.child.clone().cached(StyleRefinement::default().absolute().right(px(-4.)).top(px(-4.)).size(px(20.)));
+            let body=if self.nested {
+                div().size_full().overflow_hidden().rounded(px(10.)).clip_rounded_children().child(child).into_any_element()
+            } else { child.into_any_element() };
+            div().size_full().child(div().relative().left(px(24.)).top(px(37.)).w(px(322.)).h(px(160.))
+                .overflow_hidden().rounded_tl(px(self.radius)).rounded_tr(px(self.radius)).clip_rounded_children().child(body))
+        }
+    }
+    fn open(cx:&mut TestAppContext,is_deferred:bool,nested:bool)->(AnyWindowHandle,Entity<Parent>,Rc<Cell<usize>>) {
+        let renders=Rc::new(Cell::new(0));
+        let handle=cx.add_window({let renders=renders.clone();move |_,cx| Parent {
+            child:cx.new(|_|CachedChild{renders,deferred:is_deferred}),radius:20.,nested,
+        }});
+        let root=handle.root(cx).unwrap();
+        cx.simulate_window_scale_factor_change(handle.into(),1.);
+        (handle.into(),root,renders)
+    }
+    fn draw(handle:AnyWindowHandle,cx:&mut TestAppContext) {
+        cx.update_window(handle,|_,window,cx|window.draw(cx).clear(cx)).unwrap();
+    }
+    fn heads(window:&Window,expected_depth:usize) {
+        let scene=&window.rendered_frame.scene;
+        let quad=scene.quads.iter().find(|q|q.bounds.size==size(ScaledPixels(20.),ScaledPixels(20.))).expect("实际视觉quad");
+        assert_ne!(quad.parent_clip.head,0);
+        let mut head=quad.parent_clip.head;let mut depth=0;
+        while head!=0 { let node=scene.parent_clip_nodes[head as usize];head=node.parent;depth+=1; }
+        assert_eq!(depth,expected_depth);
+        let hitboxes=window.rendered_frame.hitboxes.iter().filter(|h|h.bounds.size==size(px(20.),px(20.))).collect::<Vec<_>>();
+        assert!(!hitboxes.is_empty(),"真实子控件必须插入Hitbox");
+        assert!(hitboxes.iter().all(|h|h.parent_clips.as_slice().len()==expected_depth));
+    }
+
+    /// 真实quad/border与背景共享父链；真实✓另由CoreText+Metal probe验证；不改已固定的原始viewport圆心。
+    #[gpui::test]
+    fn parent_clip_actual_quad_border_and_nested_scope(cx:&mut TestAppContext) {
+        for nested in [false,true] {
+            let (handle,_,_)=open(cx,false,nested);draw(handle,cx);
+            cx.update_window(handle,|_,window,_| {
+                heads(window,if nested {2}else{1});
+                assert_eq!(window.parent_rounded_clips(),ParentClipChain::default());
+                let node=window.rendered_frame.scene.parent_clip_nodes[1];
+                assert_eq!(node.bounds,outer().bounds.scale(window.scale_factor()));
+            }).unwrap();
+        }
+    }
+
+    /// 只改父radius仍必须失效缓存；后续无变化则复用真正子Entity。
+    #[gpui::test]
+    fn parent_clip_radius_only_invalidates_cached_prepaint_and_scene(cx:&mut TestAppContext) {
+        let (handle,root,renders)=open(cx,false,false);draw(handle,cx);let first=renders.get();
+        draw(handle,cx);assert_eq!(renders.get(),first);
+        root.update(cx,|this,cx|{this.radius=30.;cx.notify();});cx.run_until_parked();
+        draw(handle,cx);assert!(renders.get()>first);
+        cx.update_window(handle,|_,window,_|{
+            heads(window,1);
+            let quad=window.rendered_frame.scene.quads.iter().find(|q|q.bounds.size==size(ScaledPixels(20.),ScaledPixels(20.))).unwrap();
+            assert_eq!(window.rendered_frame.scene.parent_clip_nodes[quad.parent_clip.head as usize].corner_radii.top_right,ScaledPixels(30.));
+        }).unwrap();
+    }
+
+    /// 延迟元素prepaint、paint和下帧缓存重放都恢复相同CPU链，不仅paint生效。
+    #[gpui::test]
+    fn parent_clip_deferred_prepaint_paint_and_cache_replay(cx:&mut TestAppContext) {
+        let (handle,_,renders)=open(cx,true,true);draw(handle,cx);let first=renders.get();
+        for _ in 0..3 {
+            draw(handle,cx);
+            cx.update_window(handle,|_,window,_| {
+                heads(window,2);
+                assert!(window.rendered_frame.deferred_draws.iter().all(|d|d.parent_clips.as_slice().len()==2));
+            }).unwrap();
+        }
+        assert_eq!(renders.get(),first);
+    }
+}

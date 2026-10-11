@@ -1,0 +1,6 @@
+                    Value::Number(value) => {
+                        Id::into_super(Id::into_super(NSNumber::new_f64(value)))
+                    }
+                    Value::HeadingLevel(level) => {
+                        Id::into_super(Id::into_super(NSNumber::new_usize(level)))
+                    }

@@ -1,0 +1,232 @@
+html.codex-dream-skin {
+  --skin-bg: #111318;
+  --skin-panel: #1a1d24;
+  --skin-panel-alt: #232833;
+  --skin-accent: #8ab4ff;
+  --skin-accent-alt: #74d8c4;
+  --skin-text: #f3f5f8;
+  --skin-muted: #aeb6c4;
+  --skin-line: #465064;
+  --skin-preview-image: none;
+  --skin-background-image: none;
+  --skin-background-size: cover;
+  --skin-background-position-x: 50%;
+  --skin-background-position-y: 50%;
+  --skin-radius: 12px;
+  --skin-blur: 18px;
+  --skin-sidebar-opacity: 92%;
+  --skin-main-opacity: 78%;
+  --skin-header-opacity: 88%;
+  --skin-composer-opacity: 94%;
+  --skin-card-opacity: 90%;
+  --skin-border-width: 1px;
+  --skin-shadow-opacity: 68%;
+  --skin-texture-opacity: 14%;
+  color: var(--skin-text);
+  background: var(--skin-bg) var(--skin-background-image) var(--skin-background-position-x) var(--skin-background-position-y) / var(--skin-background-size) fixed no-repeat;
+}
+
+html.codex-dream-skin body,
+html.codex-dream-skin #root {
+  color: var(--skin-text);
+  background: transparent;
+}
+
+html.codex-dream-skin .app-shell-left-panel {
+  color: var(--skin-text);
+  border-color: var(--skin-line);
+  background: color-mix(in srgb, var(--skin-panel) var(--skin-sidebar-opacity), transparent);
+  backdrop-filter: blur(var(--skin-blur));
+}
+
+html.codex-dream-skin main.main-surface,
+html.codex-dream-skin [role="main"] {
+  color: var(--skin-text);
+  background: color-mix(in srgb, var(--skin-bg) var(--skin-main-opacity), transparent);
+}
+
+html.codex-dream-skin main.main-surface > header.app-header-tint {
+  color: var(--skin-text);
+  border-color: var(--skin-line);
+  background: color-mix(in srgb, var(--skin-panel) var(--skin-header-opacity), transparent);
+  backdrop-filter: blur(var(--skin-blur));
+}
+
+html.codex-dream-skin :is(
+  [data-app-shell-application-menu-bar],
+  #root :where(div):has(> [role="menubar"])
+) {
+  color: var(--skin-text);
+  border-top: var(--skin-border-width) solid color-mix(in srgb, var(--skin-accent) 34%, var(--skin-line));
+  border-bottom: var(--skin-border-width) solid color-mix(in srgb, var(--skin-accent) 56%, var(--skin-line));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--skin-panel-alt) 88%, transparent), color-mix(in srgb, var(--skin-panel) 94%, transparent)),
+    repeating-linear-gradient(90deg, transparent 0 31px, color-mix(in srgb, var(--skin-accent) var(--skin-texture-opacity), transparent) 31px 32px);
+  box-shadow:
+    inset 0 1px color-mix(in srgb, var(--skin-text) 12%, transparent),
+    inset 0 -1px color-mix(in srgb, var(--skin-bg) 46%, transparent),
+    0 4px 14px color-mix(in srgb, var(--skin-bg) var(--skin-shadow-opacity), transparent);
+  backdrop-filter: blur(var(--skin-blur)) saturate(118%);
+}
+
+html.codex-dream-skin :is(
+  [data-app-shell-application-menu-bar],
+  #root :where(div):has(> [role="menubar"])
+) :where(button, [role="button"], [role="menuitem"]) {
+  min-height: 30px;
+  border: var(--skin-border-width) solid color-mix(in srgb, var(--skin-line) 82%, var(--skin-accent));
+  border-radius: var(--skin-radius);
+  color: var(--skin-text);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--skin-panel-alt) 82%, transparent), color-mix(in srgb, var(--skin-panel) 90%, transparent)),
+    repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, var(--skin-accent) var(--skin-texture-opacity), transparent) 7px 8px);
+  box-shadow: inset 0 1px color-mix(in srgb, var(--skin-text) 12%, transparent);
+}
+
+html.codex-dream-skin :is(
+  [data-app-shell-application-menu-bar],
+  #root :where(div):has(> [role="menubar"])
+) :where(button, [role="button"], [role="menuitem"]):hover:not(:disabled, [aria-disabled="true"]) {
+  border-color: var(--skin-accent);
+  background: color-mix(in srgb, var(--skin-accent) 18%, var(--skin-panel-alt));
+}
+
+html.codex-dream-skin :is(
+  [data-app-shell-application-menu-bar],
+  #root :where(div):has(> [role="menubar"])
+) :where(button, [role="button"], [role="menuitem"]):active:not(:disabled, [aria-disabled="true"]) {
+  transform: translateY(1px);
+  background: color-mix(in srgb, var(--skin-accent) 26%, var(--skin-panel));
+  box-shadow: inset 0 2px 4px color-mix(in srgb, var(--skin-bg) 46%, transparent);
+}
+
+html.codex-dream-skin :is(
+  [data-app-shell-application-menu-bar],
+  #root :where(div):has(> [role="menubar"])
+) :where(button, [role="button"], [role="menuitem"]):is(:disabled, [aria-disabled="true"]) {
+  opacity: 0.48;
+  box-shadow: none;
+}
+
+html.codex-dream-skin .composer-surface-chrome {
+  color: var(--skin-text);
+  border: var(--skin-border-width) solid var(--skin-line);
+  border-radius: var(--skin-radius);
+  background: color-mix(in srgb, var(--skin-panel) var(--skin-composer-opacity), transparent);
+  box-shadow: 0 16px 42px color-mix(in srgb, var(--skin-bg) var(--skin-shadow-opacity), transparent);
+  backdrop-filter: blur(var(--skin-blur));
+}
+
+html.codex-dream-skin :where(button, [role="button"], input:not([type="hidden"]), textarea, select, [contenteditable="true"]) {
+  color: var(--skin-text);
+  border-color: var(--skin-line);
+}
+
+html.codex-dream-skin :where(input:not([type="hidden"]), textarea, select, [contenteditable="true"]) {
+  background: color-mix(in srgb, var(--skin-panel-alt) var(--skin-card-opacity), transparent);
+}
+
+html.codex-dream-skin :where(button, [role="button"], a[href], input, textarea, select, [contenteditable="true"]):focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 2px;
+}
+
+html.codex-dream-skin :where([aria-current="page"], [aria-selected="true"], [data-state="checked"], [aria-checked="true"]) {
+  color: var(--skin-text);
+  background: color-mix(in srgb, var(--skin-accent) 24%, var(--skin-panel));
+}
+
+html.codex-dream-skin :where([role="dialog"], [role="menu"], [role="listbox"], [role="tooltip"], [data-sonner-toast], [data-radix-toast-viewport] > li) {
+  color: var(--skin-text);
+  border-color: var(--skin-line);
+  background: var(--skin-panel);
+}
+
+html.codex-dream-skin :where(pre, blockquote, table, [role="tabpanel"]) {
+  border-color: var(--skin-line);
+  background: color-mix(in srgb, var(--skin-panel) 92%, transparent);
+}
+
+html.codex-dream-skin :where(code, th, td, hr, [role="separator"]) {
+  border-color: var(--skin-line);
+}
+
+html.codex-dream-skin .thread-scroll-container [data-message-author-role] {
+  color: var(--skin-text);
+  border-color: var(--skin-line);
+}
+
+html.codex-dream-skin .thread-scroll-container [data-message-author-role="user"] {
+  background: color-mix(in srgb, var(--skin-panel-alt) 90%, transparent);
+}
+
+html.codex-dream-skin[data-dream-surface="home"] .group\/home-suggestions > *,
+html.codex-dream-skin[data-dream-surface="sites"] [role="listitem"],
+html.codex-dream-skin[data-dream-surface="automations"] .automation-row,
+html.codex-dream-skin[data-dream-surface="plugins"] :where([id^="plugins-search-"], [id^="plugins-marketplace-"]) [role="listitem"] {
+  border-color: var(--skin-line);
+  border-radius: var(--skin-radius);
+  background: color-mix(in srgb, var(--skin-panel) var(--skin-card-opacity), transparent);
+}
+
+html.codex-dream-skin[data-dream-surface="pull-requests"] :where([role="tab"], [role="tabpanel"]),
+html.codex-dream-skin[data-dream-surface="settings"] :where([data-settings-panel-slug], input[role="searchbox"]) {
+  border-color: var(--skin-line);
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] [data-app-shell-focus-area="main"] > div > div {
+  color: var(--skin-text);
+  background: color-mix(in srgb, var(--skin-bg) var(--skin-main-opacity), transparent);
+  backdrop-filter: blur(var(--skin-blur));
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] section div.border-default:has([role="switch"]) {
+  color: var(--skin-text);
+  border-color: var(--skin-line);
+  background: color-mix(in srgb, var(--skin-panel) var(--skin-card-opacity), transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--skin-bg) 28%, transparent);
+  backdrop-filter: blur(var(--skin-blur));
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] section div.border-default:has([role="switch"]) > :not(:last-child)::after {
+  background: var(--skin-line);
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] [role="switch"] {
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] [role="switch"] > span:first-child {
+  border: var(--skin-border-width) solid var(--skin-line);
+  background: color-mix(in srgb, var(--skin-line) 58%, var(--skin-panel-alt));
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--skin-bg) 34%, transparent);
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] [role="switch"]:is([aria-checked="true"], [data-state="checked"]) > span:first-child {
+  border-color: color-mix(in srgb, var(--skin-accent) 78%, var(--skin-line));
+  background: var(--skin-accent);
+}
+
+html.codex-dream-skin[data-dream-surface="settings"] [role="switch"] > span:first-child > span {
+  border-color: color-mix(in srgb, var(--skin-text) 54%, var(--skin-line));
+  background: var(--skin-panel);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--skin-bg) 52%, transparent);
+}
+
+html.codex-dream-skin [data-testid="library-file-thumbnail"] {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.codex-dream-skin *,
+  html.codex-dream-skin *::before,
+  html.codex-dream-skin *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

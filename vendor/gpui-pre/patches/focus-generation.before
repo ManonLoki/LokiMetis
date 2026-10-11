@@ -1,0 +1,5 @@
+    /// Obtain the currently focused [`FocusHandle`]. If no elements are focused, returns `None`.
+    pub fn focused(&self, cx: &App) -> Option<FocusHandle> {
+        self.focus
+            .and_then(|id| FocusHandle::for_id(id, &cx.focus_handles))
+    }

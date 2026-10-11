@@ -1,0 +1,12 @@
+                    let paths = &scene.paths[range];
+                    command_encoder.end_encoding();
+
+                    let did_draw = self.draw_paths_to_intermediate(
+                        paths,
+                        #[cfg(feature = "parent-rounded-clip")]
+                        &instance_bindings.parent_clip_nodes,
+                        writer,
+                        viewport_size,
+                        command_buffer,
+                    )?;
+

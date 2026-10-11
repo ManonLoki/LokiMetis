@@ -1,0 +1,3 @@
+            let mut deferred_force_render = false;
+            let mut deferred_require_presentation = false;
+            move |request_frame_options| {

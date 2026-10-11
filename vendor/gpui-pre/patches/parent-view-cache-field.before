@@ -1,0 +1,3 @@
+    content_mask: ContentMask<Pixels>,
+    hitbox_exclusions: Vec<Bounds<Pixels>>,
+    text_style: TextStyle,

@@ -1,0 +1,5 @@
+                .map(|deferred_draw| DeferredDraw {
+                    preserve_parent_context: deferred_draw.preserve_parent_context,
+                    // AX-active的相关cached view会重建，离线replay不能保留旧帧预约。
+                    parent_a11y: None,
+                    current_view: deferred_draw.current_view,

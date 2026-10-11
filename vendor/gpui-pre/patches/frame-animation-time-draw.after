@@ -1,0 +1,2 @@
+    pub fn draw(&mut self, cx: &mut App) -> ArenaClearNeeded {
+        self.frame_animation_time = cx.background_executor().now();

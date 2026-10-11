@@ -1,0 +1,36 @@
+{
+  "package": "accesskit_macos",
+  "version": "0.26.3",
+  "official_repository": "https://github.com/AccessKit/accesskit",
+  "source_revision": "c88605b96d04431f9c3c792464a0f2f253480e94",
+  "source_path_in_vcs": "platforms/macos",
+  "crate_source_url": "https://static.crates.io/crates/accesskit_macos/accesskit_macos-0.26.3.crate",
+  "crate_archive_sha256": "ce02dc63b43f0c9296af9ac946312a2dc8814427d7a64d2d600971dac55b6076",
+  "crate_archive_regular_file_count": 15,
+  "crate_content_manifest": "crate-content.sha256",
+  "crate_content_manifest_sha256": "0de448f138e1b3285dce4a341fb6af97933b26f9912bcb2ce111daafeb479b22",
+  "manifest_definition": "Sorted UTF-8 lines: lowercase sha256(file bytes), two ASCII spaces, relative path, LF. crate-content paths are relative to upstream/ and cover all 15 archive files; source-content paths are relative to this package and additionally cover the three exact-commit license texts under licenses/. The official archive omitted those licenses.",
+  "original_node_sha256": "7fcbb84ed76e25d1ba4f69ef646a5b0cd83f96aaccfa7a0b500518da1ef43e91",
+  "original_node_bytes": 58078,
+  "original_node_fnv1a64": "b2e27c320f51a135",
+  "fnv_purpose": "Non-cryptographic maintenance drift detection in the standard-library-only build script. The separate SHA-256 manifests establish content provenance.",
+  "supplemental_licenses": {
+    "LICENSE-APACHE": {
+      "source_url": "https://raw.githubusercontent.com/AccessKit/accesskit/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-APACHE",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "local_path": "licenses/LICENSE-APACHE"
+    },
+    "LICENSE-MIT": {
+      "source_url": "https://raw.githubusercontent.com/AccessKit/accesskit/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "local_path": "licenses/LICENSE-MIT"
+    },
+    "LICENSE.chromium": {
+      "source_url": "https://raw.githubusercontent.com/AccessKit/accesskit/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE.chromium",
+      "sha256": "845022e0c1db1abb41a6ba4cd3c4b674ec290f3359d9d3c78ae558d4c0ed9308",
+      "local_path": "licenses/LICENSE.chromium"
+    }
+  },
+  "source_manifest": "source-content.sha256",
+  "source_manifest_sha256": "f4bc40427a5db1b6acf7262cf8d4bcdfe25c19b6a16499302252a3942e86ffda"
+}

@@ -1,0 +1,12 @@
+d_content_mask();
+        self.next_frame.scene.insert_primitive(PaintSurface {
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: Default::default(),
+            order: 0,
+            bounds,
+            content_mask,
+            image_buffer,
+        });
+    }
+
+    /

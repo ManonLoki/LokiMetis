@@ -1,0 +1,27 @@
+    gradient_color.solid,
+    gradient_color.color0,
+    gradient_color.color1
+  );
+  return float4(color.rgb * color.a * alpha, alpha * color.a);
+}
+
+fragment float4 path_rasterization_fragment(
+  PathRasterizationFragmentInput input [[stage_in]],
+  constant PathRasterizationVertex *vertices [[buffer(PathRasterizationInputIndex_Vertices)]]
+
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+    , constant ParentClipNode *parent_clips [[buffer(7)]]
+#endif
+) {
+  float4 color = path_rasterization_fragment_unclipped(input, vertices);
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  float coverage = parent_clip_coverage(input.position.xy, vertices[input.vertex_id].parent_clip.head, parent_clips);
+  return color * coverage;
+#else
+  return color;
+#endif
+}
+
+struct PathSpriteVertexOutput {
+  float4 position [[position]];
+  float2 texture_coords;

@@ -5,6 +5,10 @@ use std::borrow::Cow;
 
 /// 窗口内共享的已选择应用图标路径。
 pub const LOGO: &str = "app-identity/logo.png";
+/// 原样迁入的本地微信收款图，只用于显示。
+pub const SPONSOR_WECHAT:&str="app-support/wechat-pay.png";
+/// 原样迁入的本地支付宝收款图，只用于显示。
+pub const SPONSOR_ALIPAY:&str="app-support/alipay.jpg";
 
 /// 固定本地资源源不接受任意文件路径或远程 URL。
 pub struct Assets;
@@ -16,15 +20,17 @@ impl AssetSource for Assets {
             return Ok(Some(Cow::Borrowed(include_bytes!("../assets/logo.png"))));
         }
 
-        gpui_kit::assets::Assets.load(path)
+        match path {
+            SPONSOR_WECHAT=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/wechat-pay.png")))),
+            SPONSOR_ALIPAY=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/alipay.jpg")))),
+            _=>gpui_kit::assets::Assets.load(path),
+        }
     }
 
     /// 只枚举当前编译包实际含有的资源。
     fn list(&self, prefix: &str) -> Result<Vec<SharedString>> {
         let mut paths = gpui_kit::assets::Assets.list(prefix)?;
-        if LOGO.starts_with(prefix) {
-            paths.push(LOGO.into());
-        }
+        for path in [LOGO,SPONSOR_WECHAT,SPONSOR_ALIPAY] {if path.starts_with(prefix) {paths.push(path.into());}}
 
         Ok(paths)
     }

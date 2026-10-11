@@ -1,0 +1,4 @@
+        let hitbox = Hitbox {
+            id,
+            bounds,
+            content_mask,

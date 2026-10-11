@@ -1,0 +1,4 @@
+                    element_state.prepaint_range = prepaint_start..prepaint_end;
+                    element_state.parent_context_sensitive = parent_context_sensitive;
+
+                    return (None, element_state);

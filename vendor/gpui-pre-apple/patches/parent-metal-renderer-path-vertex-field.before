@@ -1,0 +1,10 @@
+pub struct PathRasterizationVertex {
+    pub xy_position: Point<ScaledPixels>,
+    pub st_position: Point<f32>,
+    pub color: Background,
+    pub bounds: Bounds<ScaledPixels>,
+}
+
+impl MetalRenderer {
+    /// Creates a new MetalRenderer with a CAMetalLayer for window-based rendering.
+    pub fn new(instance_buffer_pool: Arc<Mutex<InstanceBufferPool>>, transparent: bool) -> Self {

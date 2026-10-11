@@ -1,0 +1,2 @@
+            for deferred_draw_ix in traversal_order {
+                let (element, parent_node, current_view, rem_size, absolute_offset, prepaint_range, parent_mask, parent_a11y, parent_hitbox_exclusions) = {

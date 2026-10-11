@@ -1,0 +1,3 @@
+        self.next_frame.hitboxes.push(hitbox.clone());
+        hitbox
+    }

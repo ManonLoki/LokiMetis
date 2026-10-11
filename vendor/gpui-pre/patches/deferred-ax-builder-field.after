@@ -1,0 +1,4 @@
+    active_descendant: Option<NodeId>,
+    deferred: DeferredA11yState,
+    #[cfg(debug_assertions)]
+    node_info: FxHashMap<NodeId, debug::NodeDebugInfo>,

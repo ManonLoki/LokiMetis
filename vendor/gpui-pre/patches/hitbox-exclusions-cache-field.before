@@ -1,0 +1,2 @@
+    content_mask: ContentMask<Pixels>,
+    text_style: TextStyle,

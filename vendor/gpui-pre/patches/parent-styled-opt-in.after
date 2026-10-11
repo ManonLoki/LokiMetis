@@ -1,0 +1,8 @@
+    /// 明确让overflow-hidden后代接受父圆角绘制和命中裁切。
+    #[cfg(feature = "parent-rounded-clip")]
+    fn clip_rounded_children(mut self) -> Self {
+        self.style().clip_rounded_children = Some(true);
+        self
+    }
+
+    /// Sets the display type of the element to `block`.

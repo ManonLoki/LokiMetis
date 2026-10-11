@@ -1,0 +1,8 @@
+    pub surfaces: Vec<PaintSurface>,
+#[cfg(feature = "parent-rounded-clip")]
+    pub parent_clip_nodes: Vec<ParentClipNode>,
+#[cfg(feature = "parent-rounded-clip")]
+    pub(crate) active_parent_clip: ParentClipId,
+#[cfg(feature = "parent-rounded-clip")]
+    parent_clip_cache: std::collections::HashMap<[u32; 9], ParentClipId>,
+}

@@ -1,0 +1,6 @@
+            // 矩形仍负责粗判；可见圆角与hover/cursor/down/up共用同一入口。
+            let contains = bounds.contains(&position);
+            #[cfg(feature = "parent-rounded-clip")]
+            let contains = contains && hitbox.parent_clips.contains(&position);
+            if contains {
+                hit_test.ids.push(hitbox.id);

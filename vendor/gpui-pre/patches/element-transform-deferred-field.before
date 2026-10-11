@@ -1,0 +1,2 @@
+    priority: usize,
+    parent_node: DispatchNodeId,

@@ -1,0 +1,3 @@
+            self.end_element_transform(old_transform);
+            let paint_end = self.paint_index();
+            deferred_draw.paint_range =

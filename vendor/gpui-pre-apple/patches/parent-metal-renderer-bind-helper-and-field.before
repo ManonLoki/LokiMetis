@@ -1,0 +1,35 @@
+    device
+        .new_render_pipeline_state(&descriptor)
+        .expect("could not create render pipeline state")
+}
+
+#[derive(Clone)]
+struct InstanceBinding {
+    buffer: metal::Buffer,
+    offset: usize,
+}
+
+struct InstanceBindings {
+    quads: InstanceBinding,
+    shadows: InstanceBinding,
+    underlines: InstanceBinding,
+    monochrome_sprites: InstanceBinding,
+    polychrome_sprites: InstanceBinding,
+    surfaces: InstanceBinding,
+}
+
+fn write_instances(scene: &Scene, writer: &mut InstanceBufferWriter) -> Result<InstanceBindings> {
+    Ok(InstanceBindings {
+        quads: writer.write(&scene.quads)?,
+        shadows: writer.write(&scene.shadows)?,
+        underlines: writer.write(&scene.underlines)?,
+        monochrome_sprites: writer.write(&scene.monochrome_sprites)?,
+        polychrome_sprites: writer.write(&scene.polychrome_sprites)?,
+        surfaces: writer.write_iter(scene.surfaces.iter().map(|surface| SurfaceBounds {
+            bounds: surface.bounds,
+            content_mask: surface.content_mask,
+        }))?,
+    })
+}
+
+struct InstanceBufferWriter {

@@ -1,0 +1,2 @@
+        let content_mask = self.content_mask();
+        let mut id = self.next_hitbox_id;

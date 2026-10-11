@@ -1,0 +1,8 @@
+    fn snapped_content_mask(&self) -> ContentMask<ScaledPixels> {
+        // 先沿窗口设备网格取整，再回局部坐标；避免缩放后的父裁切越界。
+        let world = self.element_transform_bounds(self.content_mask().bounds);
+        let covered = self.cover_bounds(world);
+        ContentMask {
+            bounds: self.element_transform.inverse().scaled_bounds(covered, self.scale_factor()),
+        }
+    }

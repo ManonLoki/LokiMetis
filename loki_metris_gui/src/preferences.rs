@@ -1,6 +1,7 @@
 //! 设备偏好只保存有限展示字段；有界后台队列合并写入，窗口线程没有磁盘 I/O。
 
 use gpui_kit::{App, Bounds, WindowBounds, point, px, size};
+use loki_metris_core::window_placement::WindowStateV2;
 use std::{fs, io::{Read, Write}, path::PathBuf, sync::{Arc, Mutex, mpsc}, thread};
 
 /// 设置页支持浅色、深色与随系统变化三种明确选择。
@@ -29,7 +30,9 @@ pub struct Preferences {
     pub collapsed: bool,
     pub bounds: Option<[f32; 4]>,
     pub maximized: bool,
-
+    pub system_notification: bool,
+    /// 有身份的屏内 DIP 状态；旧 bounds/maximized 继续保留供旧版本回退。
+    pub window_state_v2: Option<WindowStateV2>,
 }
 
 impl Preferences {
@@ -73,7 +76,9 @@ impl Preferences {
                 "language" => value.language = match field { "zh-CN" => LanguageChoice::Chinese, "en-US" => LanguageChoice::English, _ => LanguageChoice::System },
                 "collapsed" => value.collapsed = field == "true",
                 "maximized" => value.maximized = field == "true",
-
+                "system_notification" => value.system_notification = field == "true",
+                "window_state_v2" => value.window_state_v2 = serde_json::from_str::<WindowStateV2>(field)
+                    .ok().filter(WindowStateV2::is_valid),
                 "bounds" => {
                     let fields: Vec<_> = field.split(',').map(str::parse::<f32>).collect();
                     if let [Ok(x), Ok(y), Ok(width), Ok(height)] = fields.as_slice() {
@@ -91,33 +96,102 @@ impl Preferences {
         let theme = match self.theme { ThemeChoice::System => "system", ThemeChoice::Light => "light", ThemeChoice::Dark => "dark" };
         let language = match self.language { LanguageChoice::System => "system", LanguageChoice::Chinese => "zh-CN", LanguageChoice::English => "en-US" };
         let bounds = self.bounds.map(|b| format!("{},{},{},{}", b[0], b[1], b[2], b[3])).unwrap_or_default();
-        let text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\n", self.collapsed, self.maximized);
-
+        let mut text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\nsystem_notification={}\n", self.collapsed, self.maximized, self.system_notification);
+        if let Some(state) = self.window_state_v2.as_ref().filter(|state| state.is_valid()) {
+            if let Ok(json) = serde_json::to_string(state) {
+                text.push_str("window_state_v2="); text.push_str(&json); text.push('\n');
+            }
+        }
         text
     }
 }
 
-/// 工作线程只收到合并信号，始终从内存读取最新快照，磁盘写入不持有 UI 状态锁。
+/// 明确偏好逐字段提交，不能携带可能过时的窗口或其他偏好快照。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice), SystemNotification(bool) }
+
+/// 几何属于可合并高频事件，不拥有主题与语言字段。
+#[derive(Clone)]
+struct WindowGeometry {
+    bounds: Option<[f32; 4]>,
+    maximized: bool,
+    window_state_v2: Option<WindowStateV2>,
+}
+
+/// 几何只占一个待处理信号，不能挤满明确偏好命令的队列。
+#[derive(Default)]
+struct WindowUpdates { latest:Option<WindowGeometry>, queued:bool }
+
+/// 有界命令队列保留真实回执；窗口事件仅发送合并信号。
+enum Command {
+    Window,
+    Mutate(PreferencePatch,tokio::sync::oneshot::Sender<Result<PreferencePatch,&'static str>>),
+    Stop,
+}
+
+/// 只有测试可使用显式内存存储，生产缺路径不能报告落盘成功。
+enum Storage { File(PathBuf), Unavailable, #[cfg(test)] Memory }
+
+/// 工作线程拥有唯一已提交快照，写入成功后才更新基线并通知 UI。
 #[derive(Clone)]
 pub struct Writer {
-    value: Arc<Mutex<Preferences>>,
-    sender: mpsc::SyncSender<Option<()>>,
+    geometry: Arc<Mutex<WindowUpdates>>,
+    sender: mpsc::SyncSender<Command>,
+    closing: Arc<Mutex<bool>>,
     thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 impl Writer {
-    /// 极短内存更新后非阻塞通知后台；已有信号时自动合并为最新快照。
-    pub fn save(&self, value: &Preferences) {
-        *self.value.lock().expect("偏好内存锁损坏") = value.clone();
-        let _ = self.sender.try_send(Some(()));
+    /// 明确提交要么获得独立回执，要么同步报告队列不可用，绝不静默丢弃。
+    pub fn mutate(&self,patch:PreferencePatch)->Result<tokio::sync::oneshot::Receiver<Result<PreferencePatch,&'static str>>,&'static str> {
+        let closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *closing {return Err("preference_writer_unavailable")}
+        let (tx,rx)=tokio::sync::oneshot::channel();
+        self.sender.try_send(Command::Mutate(patch,tx)).map_err(|_|"preference_writer_unavailable")?;Ok(rx)
+    }
+
+    /// 旧几何没有可信屏幕身份，提交时清除新记录，仍保留有效尺寸用于居中恢复。
+    #[cfg(any(test, not(target_os="macos")))]
+    pub fn save_window(&self,bounds:Option<[f32;4]>,maximized:bool) {
+        self.queue_window(bounds, maximized, None);
+    }
+
+    /// 最终原生读回同时提交新状态和兼容旧字段；同一合并槽不丢失屏幕身份。
+    pub fn save_window_v2(&self, bounds: Option<[f32; 4]>, maximized: bool, state: WindowStateV2) {
+        if state.is_valid() { self.queue_window(bounds, maximized, Some(state)); }
+    }
+
+    /// 高频事件合并完整几何；明确偏好命令不拥有任何窗口字段。
+    fn queue_window(&self, bounds: Option<[f32; 4]>, maximized: bool, state: Option<WindowStateV2>) {
+        let closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *closing {return}
+        let mut updates=self.geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        updates.latest=Some(WindowGeometry{bounds,maximized,window_state_v2:state});
+        if !updates.queued {updates.queued=true;if self.sender.try_send(Command::Window).is_err() {updates.queued=false;}}
     }
 
     /// 原生应用进入不可取消退出阶段后，发送结束信号并等待最后快照完成写入。
     pub fn finish(&self) {
-        let _ = self.sender.send(None);
         if let Some(thread) = self.thread.lock().expect("偏好线程锁损坏").take() {
+            {
+                let mut closing=self.closing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                *closing=true;
+                let _ = self.sender.send(Command::Stop);
+            }
             let _ = thread.join();
         }
+    }
+
+    /// 测试明确注入初始偏好，与 Shell 的已确认基线保持一致。
+    #[cfg(test)]
+    pub(crate) fn in_memory(preferences:Preferences)->Self {start_writer(Storage::Memory,preferences)}
+
+    /// 测试持有既有几何锁，确定性阻止 worker 写入及发送回执，释放后恢复原有流程。
+    #[cfg(test)]
+    pub(crate) fn pause_worker_for_test(&self) -> impl Drop + '_ {
+        self.geometry
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 
@@ -153,21 +227,40 @@ pub(crate) fn load_from(path: Option<PathBuf>) -> (Preferences, Writer) {
         fs::File::open(path).ok()?.take(4097).read_to_string(&mut text).ok()?;
         (text.len() <= 4096).then(|| Preferences::decode(&text))
     }).unwrap_or_default();
-    let value = Arc::new(Mutex::new(preferences.clone()));
-    let worker_value = value.clone();
-    let (sender, receiver) = mpsc::sync_channel::<Option<()>>(1);
+    let writer=start_writer(path.map(Storage::File).unwrap_or(Storage::Unavailable),preferences.clone());
+    (preferences,writer)
+}
+
+/// 单线程读改写字段与几何，失败不修改已提交偏好，不会让后续命令继承失败值。
+fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
+    let geometry=Arc::new(Mutex::new(WindowUpdates::default()));let worker_geometry=geometry.clone();
+    let (sender, receiver) = mpsc::sync_channel::<Command>(16);
     let thread = thread::spawn(move || {
-        while let Ok(signal) = receiver.recv() {
-            let latest = worker_value.lock().expect("偏好内存锁损坏").clone();
-            if let Some(path) = &path {
-                if let Err(error) = write(path, &latest.encode()) {
-                    tracing::warn!(event = "preference_save_failed", error_kind = ?error.kind());
-                }
+        while let Ok(command) = receiver.recv() {
+            let mut next=committed.clone();
+            let geometry={let mut updates=worker_geometry.lock().unwrap_or_else(std::sync::PoisonError::into_inner);if matches!(&command,Command::Window) {updates.queued=false;}updates.latest.clone()};
+            if let Some(geometry)=geometry {
+                next.bounds=geometry.bounds;next.maximized=geometry.maximized;
+                next.window_state_v2 = geometry.window_state_v2;
+                if let Some(state) = next.window_state_v2.as_mut() { state.maximized = geometry.maximized; }
             }
-            if signal.is_none() { break }
+            if let Command::Mutate(patch,_)=&command {match patch {
+                PreferencePatch::Theme(theme)=>next.theme=*theme,PreferencePatch::Language(language)=>next.language=*language,PreferencePatch::SystemNotification(enabled)=>next.system_notification=*enabled,
+            }}
+            let result=match &storage {
+                Storage::File(path)=>write(path,&next.encode()),
+                Storage::Unavailable=>Err(std::io::ErrorKind::NotFound.into()),
+                #[cfg(test)] Storage::Memory=>Ok(()),
+            };
+            if result.is_ok() {committed=next;}
+            match command {
+                Command::Mutate(patch,reply)=>{let _=reply.send(result.map(|_|patch).map_err(|_|"preference_save_failed"));},
+                Command::Stop=>break,
+                Command::Window=>{if let Err(error)=result {if matches!(storage,Storage::File(_)) {tracing::warn!(event="preference_save_failed",error_kind=?error.kind());}}},
+            }
         }
     });
-    (preferences, Writer { value, sender, thread: Arc::new(Mutex::new(Some(thread))) })
+    Writer { geometry, sender, closing:Arc::new(Mutex::new(false)), thread: Arc::new(Mutex::new(Some(thread))) }
 }
 
 /// 同目录临时文件原子替换，拒绝目标符号链接并清理失败临时文件。
@@ -193,12 +286,12 @@ fn write(path: &PathBuf, text: &str) -> std::io::Result<()> {
     result
 }
 
-/// 拒绝任何已存在的符号链接或非目录祖先，不跟随外部路径读写偏好。
+/// 父路径必须解析为目录，允许 macOS /var 系统别名；目标文件仍单独拒绝链接。
 fn safe_parent(path: &std::path::Path) -> std::io::Result<()> {
     let mut current = PathBuf::new();
     for component in path.parent().expect("偏好文件具有父目录").components() {
         current.push(component.as_os_str());
-        match fs::symlink_metadata(&current) {
+        match fs::metadata(&current) {
             Ok(metadata) if !metadata.is_dir() => return Err(std::io::Error::other("preference ancestors must be real directories")),
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),
             _ => {}

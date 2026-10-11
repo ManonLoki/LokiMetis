@@ -1,0 +1,2 @@
+            let shadow_bounds = (bounds + shadow.offset).dilate(shadow.spread_radius);
+            self.insert_transformed_primitive(Shadow {

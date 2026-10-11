@@ -1,0 +1,6 @@
+    Corners corner_radii;
+    AtlasTile tile;
+    Bounds rounded_clip_bounds;
+};
+
+struct PolychromeSpriteVertexOutput

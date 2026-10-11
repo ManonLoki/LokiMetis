@@ -1,0 +1,8 @@
+= self.snap_border_widths(quad.border_widths);
+        let quad = Quad {
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: Default::default(),
+            order: 0,
+            bounds: snapped_bounds,
+            content_mask: self.snapped_content_mask(),
+     

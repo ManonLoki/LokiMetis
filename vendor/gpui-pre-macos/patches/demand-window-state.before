@@ -1,0 +1,2 @@
+    frame_source: Option<WindowFrameSource>,
+    renderer: renderer::Renderer,

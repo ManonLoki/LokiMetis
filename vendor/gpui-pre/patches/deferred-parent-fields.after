@@ -1,0 +1,4 @@
+pub(crate) struct DeferredDraw {
+    preserve_parent_context: bool,
+    parent_a11y: Option<a11y::DeferredA11yParent>,
+    current_view: EntityId,

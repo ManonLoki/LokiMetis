@@ -1,0 +1,27 @@
+  float4 sample =
+      atlas_texture.sample(atlas_texture_sampler, input.tile_position);
+  float4 color = input.color;
+  color.a *= sample.a;
+  return color;
+}
+
+fragment float4 monochrome_sprite_fragment(
+    MonochromeSpriteFragmentInput input [[stage_in]],
+    constant MonochromeSprite *sprites [[buffer(SpriteInputIndex_Sprites)]],
+    texture2d<float> atlas_texture [[texture(SpriteInputIndex_AtlasTexture)]]
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+    , constant ParentClipNode *parent_clips [[buffer(7)]]
+#endif
+) {
+  float4 color = monochrome_sprite_fragment_unclipped(input, sprites, atlas_texture);
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  float coverage = parent_clip_coverage(input.position.xy, input.parent_clip_head, parent_clips);
+  return float4(color.rgb, color.a * coverage);
+#else
+  return color;
+#endif
+}
+
+struct PolychromeSpriteVertexOutput {
+  float4 position [[position]];
+  float2 tile_position;

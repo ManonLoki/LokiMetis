@@ -1,0 +1,3 @@
+                    priority: deferred_draw.priority,
+                    element_transform: deferred_draw.element_transform,
+                    element: None,

@@ -1,0 +1,2 @@
+                    && element_state.cache_key.content_mask == content_mask
+                    && element_state.cache_key.hitbox_exclusions == hitbox_exclusions

@@ -1,0 +1,4 @@
+    frame_requests: DispatchRetained<DispatchSource>,
+    signal: Arc<PlatformFrameSignal>,
+    demand: Arc<crate::frame_demand::FrameDemand>,
+}

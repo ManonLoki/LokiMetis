@@ -1,0 +1,2 @@
+    /// Simulates the user resizing the window to the new size.
+    pub fn simulate_window_resize(&self, window_handle: AnyWindowHandle, size: Size<Pixels>) {

@@ -1,0 +1,4 @@
+    accessed_entities: FxHashSet<EntityId>,
+    // 仅含/曾含opt-in父上下文的cache在AX active时重建，卸载后状态自然释放。
+    parent_context_sensitive: bool,
+}

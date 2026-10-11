@@ -1,0 +1,10 @@
+  }
+
+  return input.color * float4(1., 1., 1., alpha);
+}
+
+struct UnderlineVertexOutput {
+  float4 position [[position]];
+  float4 color [[flat]];
+  uint underline_id [[flat]];
+  float clip_distance [[clip_distance]][4];

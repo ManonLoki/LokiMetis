@@ -1,0 +1,1 @@
+/// Indicates which region of the window is visible. Content falling outside of this mask will not be

@@ -1,0 +1,2 @@
+                    && !window.dirty_views.contains(&entity_id)
+                    && !window.refreshing

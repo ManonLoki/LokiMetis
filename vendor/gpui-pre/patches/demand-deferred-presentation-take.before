@@ -1,0 +1,2 @@
+                let force_render =
+                    mem::take(&mut deferred_force_render) || request_frame_options.force_render;

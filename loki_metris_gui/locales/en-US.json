@@ -1,7 +1,10 @@
 {
   "navigation": {
     "settings": "Settings",
-    "about": "About"
+    "about": "About",
+    "dashboard": "Usage Dashboard",
+    "monitor": "AI Monitor",
+    "skins": "App Skins"
   },
   "settings": {
     "application": "Application",
@@ -17,9 +20,35 @@
     "english": "English",
     "autostart": "Start at login",
     "autostart_detail": "Show this app normally after sign-in. The operating system registration is authoritative.",
-    "autostart_error": "The operation failed. The actual system state is shown when readable.",
-    "autostart_unknown": "The system login item is unavailable. Retry reading it.",
-    "reload": "Reload"
+    "autostart_error": "The login item could not be updated. The switch was restored to the readable system state. Check system login items and try again.",
+    "autostart_unknown": "The operating system login item cannot be read right now. Reload it later.",
+    "reload": "Reload",
+    "agent_panel_title": "Enabled Agents",
+    "agent_panel_badge": "Global setting",
+    "localized_name": "Chinese name",
+    "application_description": "The application name and version come from the current package.",
+    "version": "Version",
+    "release_notes_action": "View release notes",
+    "theme_title": "Appearance",
+    "language_error": "The native interface language could not be synchronized. Check the app state and try again.",
+    "theme_error": "The theme could not be saved. The previous theme is still active.",
+    "system_notification": "System notifications",
+    "sponsor_title": "Sponsor LokiMetris",
+    "sponsor_description": "If LokiMetris is useful to you, scan either payment code to sponsor the project.",
+    "sponsor_wechat_label": "WeChat Pay",
+    "sponsor_wechat_alt": "LokiMetris WeChat Pay sponsorship payment code",
+    "sponsor_alipay_label": "Alipay",
+    "sponsor_alipay_alt": "LokiMetris Alipay sponsorship payment code",
+    "github_repository_action": "GitHub repository",
+    "github_repository_error": "The system browser could not open the project repository. Try again later.",
+    "github_repository_error_title": "GitHub could not be opened",
+    "capability_loading": "Reading the actual state…",
+    "capability_pending": "Updating the system setting…",
+    "capability_error_title": "Setting not changed",
+    "capability_unknown_title": "Current state unknown",
+    "capability_retry": "Reload actual state",
+    "github_repository_description": "LokiMetis reference project source",
+    "system_notification_error": "The notification preference could not be saved. The previously saved local preference was kept. Try again."
   },
   "about": {
     "version": "Version",
@@ -35,7 +64,7 @@
     "disclaimer_2": "Users are solely responsible for all actions taken while using this software/service and their consequences. The developers and operators bear no legal liability.",
     "disclaimer_3": "Downloading, installing, or using this software/service means you have read, understood, and accepted this disclaimer in full.",
     "application": "About this application",
-    "description": "This is a neutral desktop scaffold. Product features have not been defined.",
+    "description": "A local AI usage, monitoring and app skins workspace.",
     "author": "Project owner",
     "check_updates": "Check for updates",
     "release_features": "Feature improvements",
@@ -44,13 +73,771 @@
     "updater_unavailable": "The current GPUI baseline has no update service and makes no network request.",
     "no_releases": "This build has no embedded release notes.",
     "local_first": "Runs locally",
-    "local_first_detail": "Settings, languages and static support pages work offline."
+    "local_first_detail": "Settings, languages and static support pages work offline.",
+    "close": "Close"
   },
   "application": {
     "name": "LokiMetris"
   },
   "tray": {
     "show_window": "Show Window",
-    "quit": "Quit"
+    "quit": "Quit",
+    "hide_pet_overlay": "Hide Floating Window",
+    "show_pet_overlay": "Show Floating Window"
+  },
+  "dashboard": {
+    "overview": "Overview",
+    "sources": "Data Sources",
+    "all": "All",
+    "loading": "Updating local records…",
+    "not_scanned": "The local index is not ready. Scan data sources to view usage.",
+    "error": "Could not read local usage. Please retry.",
+    "retry": "Retry",
+    "scan": "Quick discovery and scan",
+    "cancel": "Cancel",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "this_week": "This Week",
+    "last_week": "Last Week",
+    "this_month": "This Month",
+    "last_month": "Last Month",
+    "calls": "Calls",
+    "tokens": "Total Tokens",
+    "token_composition": "Token Composition",
+    "local_fact": "Direct facts",
+    "input": "Input",
+    "cache_read": "Cached Input",
+    "cache_write": "Cache Write",
+    "uncached": "Uncached Input",
+    "output": "Output",
+    "reasoning": "Reasoning Output",
+    "not_provided": "Not provided",
+    "coverage": "Cache and Data Coverage",
+    "cache_ratio": "Cache Read Share",
+    "cache_calls": "Cache Read Calls",
+    "threads": "Threads",
+    "roots": "Data Roots",
+    "files": "Source Files",
+    "duplicates": "Cross-root Duplicates",
+    "exact": "Exact",
+    "copy": "Copy exact value",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "provider_0": "ALL LOCAL AGENTS",
+    "provider_1": "CODEX LOCAL ROLLOUT",
+    "provider_2": "CLAUDE CODE LOCAL TRANSCRIPT",
+    "provider_3": "GROK LOCAL SESSION",
+    "provider_4": "WORKBUDDY LOCAL PROJECT",
+    "fresh": "Fresh",
+    "stale": "Stale",
+    "expired": "Expired",
+    "unknown": "Unknown",
+    "complete": "Complete",
+    "partial": "Partial",
+    "derived": "Derived",
+    "suspected": "Needs review",
+    "enabled_summary": "Enabled roots",
+    "copied": "Copied",
+    "workbuddy_absent": "No local WorkBuddy project JSONL usage data was found.",
+    "partial_title": "Some data is temporarily unavailable",
+    "workbuddy_unavailable": "WorkBuddy usage is unavailable. All shows only the other enabled agents and is marked partial. Try again.",
+    "cancelled": "Scan cancelled. Indexed records are preserved.",
+    "usage": "Usage",
+    "charts": "Charts",
+    "settings": "Settings"
+  },
+  "workbuddy": {
+    "sessions": "Total Sessions",
+    "requests": "Total Requests",
+    "credits": "Total Credits",
+    "breakdown": "Request Usage and Trace Diagnostics",
+    "top_level": "Top-level Requests",
+    "subagent": "Subagent Requests",
+    "average_session": "Average Session Duration",
+    "traces": "Total Traces",
+    "trace_error_rate": "Trace Error Rate",
+    "trace_cancelled": "Cancelled Traces",
+    "trace_duration": "Average Trace Duration",
+    "minutes": "minutes",
+    "milliseconds": "ms",
+    "not_applicable": "N/A"
+  },
+  "statistics": {
+    "dimension": "Group By",
+    "model": "Model",
+    "reasoning": "Reasoning Effort",
+    "project": "Project",
+    "thread": "Thread",
+    "root": "Data Root",
+    "updating": "Updating…",
+    "observed": "Observed at",
+    "unique_calls": "Unique Calls",
+    "unique_threads": "Unique Threads",
+    "date": "Local Date",
+    "total": "Total Tokens",
+    "input": "Input",
+    "cached": "Cached Input",
+    "output": "Output",
+    "calls": "Calls",
+    "credits": "Credits",
+    "in_progress": "In Progress",
+    "daily": "Daily Trend",
+    "share": "Token Share",
+    "quality": "Quality",
+    "groups": "Grouped Statistics",
+    "actual_models": "Actual Model Usage Details",
+    "unknown_model": "Unknown Model",
+    "unknown_reasoning": "Unknown Reasoning Effort",
+    "reasoning_none": "None",
+    "reasoning_minimal": "Minimal",
+    "reasoning_low": "Low",
+    "reasoning_medium": "Medium",
+    "reasoning_high": "High",
+    "reasoning_xhigh": "Extra High",
+    "uncategorized": "Uncategorized Project",
+    "unknown_thread": "Unknown Thread",
+    "unnamed_root": "Unnamed Data Root",
+    "remainder": "Other",
+    "actual_model": "Actual Model",
+    "uncached": "Uncached Input",
+    "requests": "Requests",
+    "top_level": "Top-level Requests",
+    "subagent": "Subagent Requests",
+    "unassigned": "Unassigned",
+    "no_models": "No valid project JSONL model usage in this window.",
+    "model_basis": "Project JSONL basis",
+    "agent": "Agent",
+    "cache_write": "Cache Write",
+    "reasoning_output": "Reasoning Output",
+    "complete": "Complete",
+    "unknown_coverage": "Unknown Coverage"
+  },
+  "charts": {
+    "tokens": "Token Trend",
+    "calls": "Call Trend",
+    "distribution": "Usage Distribution",
+    "metric": "Chart metric",
+    "hourly": "By Hour",
+    "daily": "By Day",
+    "requests": "Request Trend",
+    "sessions": "Session Trend",
+    "credits": "Credits Trend",
+    "no_daily": "No daily usage records yet",
+    "civil_day": "Calendar Day",
+    "trace_status": "Trace Status",
+    "trace_ok": "Completed traces",
+    "trace_error": "Error traces",
+    "trace_cancelled": "Cancelled traces",
+    "token_share": "Total Token Share",
+    "no_distribution": "No local calls can be grouped in this window.",
+    "requests_hourly": "Hourly request count",
+    "requests_daily": "Daily request count",
+    "sessions_hourly": "Hourly session count",
+    "sessions_daily": "Daily session count",
+    "tokens_hourly": "Hourly token usage trend",
+    "tokens_daily": "Daily token usage trend",
+    "credits_hourly": "Hourly credit usage trend",
+    "credits_daily": "Daily credit usage trend",
+    "window_share": "Window Share",
+    "legend_tokens": "Total tokens",
+    "summary_sessions": "Sessions"
+  },
+  "usage_state": {
+    "loading": "Loading usage data…",
+    "not_scanned_title": "Local usage index has not been created",
+    "not_scanned_body": "The selected client has not been scanned, so zeros do not mean zero usage. Run a scan first.",
+    "not_scanned_action": "Go to Data Sources for a quick scan",
+    "needs_rescan_title": "Local index needs to be rescanned",
+    "needs_rescan_body": "This index came from an older parser. Run a quick scan to rebuild it.",
+    "needs_rescan_action": "Go to Data Sources to rescan",
+    "no_calls_title": "No usable calls in the scanned scope",
+    "no_calls_body": "The scan finished, but no calls could be counted. Check the coverage report or scan again.",
+    "no_calls_action": "Go to Data Sources to rescan"
+  },
+  "calls": {
+    "filters": "Call filters",
+    "clear": "Clear filters",
+    "time": "Time",
+    "input": "Input tokens",
+    "table": "Local call results",
+    "updating": "Updating filtered and sorted results…",
+    "first_failed": "Unable to read the new first page",
+    "reading_first": "Reading the new first page",
+    "loaded": "{loaded} / {total} calls loaded",
+    "retry_above": "Retry above",
+    "controls_available": "Filter and sort controls remain available",
+    "load_more": "Load more",
+    "all_loaded": "All calls have been loaded",
+    "empty_scanned": "No usable local calls were found in the scanned scope.",
+    "empty_filtered": "No local calls match the current filters.",
+    "next_failed": "Unable to load the next page",
+    "refresh_failed": "Unable to refresh call results",
+    "next_retained": "Previously loaded calls remain visible. Retry the current next page.",
+    "refresh_retained": "Old results are hidden. Retry with the current filters and sort.",
+    "retry_next": "Retry next page",
+    "retry_refresh": "Retry refresh"
+  },
+  "sources": {
+    "page": {
+      "title": "Data sources",
+      "description": "Check local data directories and scan coverage.",
+      "addRoot": "Add data directory",
+      "loading": "Loading data-source status",
+      "updatedTitle": "Data directory updated",
+      "updateErrorTitle": "Unable to update the data-root index",
+      "updateErrorBody": "The data-root update failed. Original {{client}} files were not modified.",
+      "refreshError": "Source refresh failed. The previous directories remain visible; please retry."
+    },
+    "background": {
+      "runningTitle": "Background Token statistics running",
+      "runningBody": "Updating local {{client}} usage. The page refreshes automatically when done.",
+      "failedTitle": "Background Token statistics did not finish",
+      "failedBody": "{{client}} will retry during the next scheduled cycle."
+    },
+    "empty": {
+      "title": "No local {{client}} data directory found",
+      "action": "Discover data directories"
+    },
+    "primary": {
+      "title": "Codex primary data directory",
+      "badge": "Local primary directory",
+      "description": "A verified Codex data directory can be the primary directory. auth.json is never read.",
+      "label": "Codex primary data directory",
+      "duplicate": "{{alias}} (ID {{id}})",
+      "empty": "No enabled data directories",
+      "placeholder": "Use this process’s Codex context",
+      "clear": "Clear primary directory selection"
+    },
+    "scan": {
+      "title": "Scan controls",
+      "state": {
+        "cancelled": "Cancelled",
+        "completed": "Completed",
+        "failed": "Failed",
+        "idle": "Idle",
+        "running": "Scanning"
+      },
+      "quick": "Quick scan",
+      "fullDevice": "Full-device discovery",
+      "cancel": "Cancel scan",
+      "filesVisited": "Files visited: {{count}}",
+      "callsIndexed": "Calls indexed: {{count}}"
+    },
+    "discovery": {
+      "title": "Data source discovery",
+      "description": "Checks local volumes, directory names, and file names only. JSONL is not opened before you confirm.",
+      "startUser": "Quick scan",
+      "startFull": "Full-disk scan",
+      "cancel": "Cancel scan",
+      "add": "Add",
+      "volumes": "Volumes completed: {{completed}} / {{total}}",
+      "directories": "Directories checked: {{count}}",
+      "fileNames": "File names checked: {{count}}",
+      "candidates": "Candidates: {{count}}",
+      "partialTitle": "Discovery coverage is partial",
+      "failedTitle": "Discovery failed",
+      "failedBody": "Stable error code: {{code}}. Fix the environment and start discovery again.",
+      "strategy": {
+        "windowsSearch": "Windows Search",
+        "macOsSpotlight": "Spotlight",
+        "metadataTraversal": "File-name traversal"
+      },
+      "platform": {
+        "other": "This platform uses data source discovery across confirmed local directories."
+      },
+      "scope": {
+        "userPriority": "Current scope: platform priority directories",
+        "fullLocalVolumes": "Current scope: all confirmed local volumes",
+        "manualSubtree": "Current scope: manually selected folder and its subtree"
+      },
+      "addManualClient": "Add {{client}} data directory",
+      "evidence": {
+        "codexRollout": "Codex rollout",
+        "claudeTranscript": "Claude transcript",
+        "claudeSubagent": "Claude subagent",
+        "grokSessionUpdates": "Grok updates.jsonl"
+      },
+      "state": {
+        "idle": "Idle",
+        "running": "Running",
+        "complete": "Scan complete",
+        "partial": "Partial",
+        "cancelled": "Cancelled",
+        "failed": "Failed"
+      }
+    },
+    "dialog": {
+      "renameTitle": "Rename data directory",
+      "renameLabel": "New data-root alias",
+      "removeTitle": "Remove data-root index",
+      "removeBody": "Only this app’s index for “{{alias}}” will be removed. Original {{client}} files will not be deleted.",
+      "removeConfirm": "Remove index",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "table": {
+      "alias": "Data-root alias",
+      "discovery": "Discovery method",
+      "files": "Files",
+      "skipped": "Skipped",
+      "errors": "Errors",
+      "duplicates": "Duplicate sources",
+      "lastScan": "Last scan",
+      "actions": "Actions",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "primary": "Primary data directory",
+      "activation": {
+        "confirmedUnindexed": "Waiting for background statistics",
+        "indexing": "Computing statistics",
+        "validationFailed": "Candidate validation failed"
+      },
+      "enable": "Enable",
+      "disable": "Disable",
+      "reindex": "Reindex",
+      "rename": "Rename",
+      "remove": "Remove index",
+      "toggleAria": "{{action}} {{alias}}",
+      "reindexAria": "Reindex {{alias}}",
+      "renameAria": "Rename {{alias}}",
+      "removeAria": "Remove the index for {{alias}}",
+      "empty": "No data directories are registered.",
+      "neverScanned": "No records yet"
+    },
+    "messages": {
+      "sourceAddCancelled": "Adding a data directory was cancelled.",
+      "sourceRegistered": "The data directory was registered. Run a quick scan to build its index.",
+      "sourceAlreadyRegistered": "This directory is already a data source. Its alias, enabled state, and primary selection were preserved.",
+      "sourceManualDeepSearchStarted": "The selected folder is not a valid data root; a deep search under it has started.",
+      "sourceManualDeepSearchEmpty": "No data roots matching the current client signature were found under the selected folder.",
+      "sourceEnabled": "The data directory is enabled and will be included in the next quick scan.",
+      "sourceDisabled": "The data directory is disabled. Its current index is kept and original files were not modified.",
+      "sourceRenamed": "The data-root alias was updated.",
+      "sourceRemoved": "The data directory was removed from this app’s index. Original files were not modified.",
+      "primaryChanged": "The Codex primary data directory changed.",
+      "primaryAlreadySelected": "This directory is already the Codex primary data directory.",
+      "primaryCleared": "The primary data directory selection was cleared.",
+      "primaryNotSet": "No Codex primary data directory is selected.",
+      "reindexed": "The local index was updated."
+    },
+    "discoveryLabels": {
+      "defaultRoot": "Default data directory",
+      "codexEnvironment": "Current CODEX_HOME",
+      "claudeEnvironment": "Current CLAUDE_CONFIG_DIR",
+      "userRegistered": "Registered by user",
+      "fullDevice": "Full-device discovery",
+      "metadataDiscovery": "Data source discovery",
+      "grokEnvironment": "Current GROK_BUILD_HOME"
+    }
+  },
+  "privacy": {
+    "page": {
+      "title": "Usage settings",
+      "description": "Manage the background scan cadence and retention window for derived usage data.",
+      "loading": "Loading privacy settings"
+    },
+    "retentionDays": {
+      "title": "Automatic cleanup",
+      "badge": "Default: 90 days",
+      "label": "Delete derived usage older than (days)",
+      "error": "Automatic cleanup must be from 1 to 3,650 days.",
+      "save": "Save cleanup window",
+      "successTitle": "Cleanup window saved",
+      "successBody": "{{days}} days were saved. The next launch will clean older derived usage in the background.",
+      "errorTitle": "Unable to save the cleanup window"
+    },
+    "scanInterval": {
+      "title": "Scan interval",
+      "badge": "Default: 5 minutes",
+      "label": "Scan interval (minutes)",
+      "error": "The scan interval must be from 1 to 1,440 minutes.",
+      "save": "Save scan interval",
+      "successTitle": "Scan interval saved",
+      "successBody": "The {{minutes}}-minute scan interval was saved. All clients share this trigger.",
+      "errorTitle": "Unable to save the scan interval"
+    },
+    "increase": "Increase",
+    "decrease": "Decrease"
+  },
+  "common": {
+    "unknownError": "The operation could not be completed. Try again."
+  },
+  "ui": {
+    "failureTitle": "Unable to load data right now",
+    "retry": "Retry"
+  },
+  "error": {
+    "monitor": {
+      "settingsInvalid": "The saved monitor settings are not valid.",
+      "settingsReadFailed": "The monitor settings could not be read.",
+      "settingsWriteFailed": "The monitor settings could not be saved.",
+      "behaviorDuplicate": "The same behavior cannot be configured twice.",
+      "behaviorsIncomplete": "Each of the four behaviors must be configured once.",
+      "imageEmpty": "The image is empty.",
+      "imageInUse": "This image is used by a display configuration and cannot be deleted.",
+      "imageNotFound": "The selected local image was not found.",
+      "imageUnsupportedType": "This image type is not supported. Use JPEG, PNG, or GIF.",
+      "imagesInvalid": "The local image index is not valid.",
+      "imagesReadFailed": "The local image library could not be read.",
+      "imagesWriteFailed": "The local image library could not be updated.",
+      "profilesInvalid": "The monitor display configuration is not valid.",
+      "profilesReadFailed": "The monitor display configuration could not be read.",
+      "profilesWriteFailed": "The monitor display configuration could not be saved.",
+      "relayStatusUnavailable": "The local Hook relay status is unavailable.",
+      "slotOutOfRange": "The display position is outside the supported range.",
+      "unknownImage": "The selected image is not in the local library.",
+      "imagesTooLarge": "Image resources exceed the local library limit. Remove some images first.",
+      "imageDecodeFailed": "The image could not be decoded.",
+      "petSizeInvalid": "Pet size must be between %{min} and %{max} pixels.",
+      "petApplyFailed": "Could not apply floating window settings. Please try again."
+    },
+    "hooks": {
+      "cleanupUnsupported": "This Hook configuration format cannot be cleaned up automatically.",
+      "directoryNotAFolder": "The Hooks configuration path is not a folder.",
+      "directoryNotAbsolute": "The Hooks configuration directory must be an absolute path.",
+      "existingConfigInvalid": "The existing Hooks configuration is not valid.",
+      "existingConfigRootNotObject": "The existing Hooks configuration must contain a JSON object at its root.",
+      "existingEventNotArray": "An event entry in the existing Hooks configuration is not an array.",
+      "existingHooksNotObject": "The hooks entry in the existing configuration is not an object.",
+      "existingReadFailed": "The existing Hooks configuration could not be read.",
+      "foreignFileRejected": "The existing plugin file is not managed by LokiMetris, so it was not overwritten.",
+      "generatedConfigInvalid": "LokiMetris generated an invalid Hooks configuration.",
+      "generatedConfigRootNotObject": "The generated Hooks configuration does not contain a JSON object at its root.",
+      "generatedEventNotArray": "An event entry in the generated Hooks configuration is not an array.",
+      "generatedHooksMissing": "The generated configuration is missing its hooks entry.",
+      "homeDirectoryUnavailable": "The current user home directory could not be located.",
+      "kimiManagedBlockCorrupted": "The LokiMetris-managed block in the Kimi Code configuration is incomplete or duplicated.",
+      "kimiMissingCommand": "A generated Kimi Code Hook is missing its command.",
+      "kimiMissingHandler": "A generated Kimi Code Hook is missing its handler.",
+      "kimiSerializeFailed": "The Kimi Code Hooks configuration could not be serialized.",
+      "locationNotFound": "The Hooks configuration location could not be found.",
+      "mergeFailed": "The Hooks configuration could not be merged with the existing file.",
+      "renderFailed": "The Hooks configuration could not be generated.",
+      "toolUnavailable": "This AI tool is not currently available.",
+      "writeFailed": "The Hooks configuration could not be written. Check the selected path and its permissions.",
+      "wslUnsupportedByWindowsHost": "This tool's WSL-native plugin is not supported from the Windows host. Choose a Windows client configuration directory.",
+      "wslWindowsHostOnly": "WSL configuration paths can only be accessed from the Windows host."
+    }
+  },
+  "shell": {
+    "noEnabledAgents": {
+      "title": "No AI agents are enabled",
+      "body": "Enable the agents you want to use under Agent configuration in Settings."
+    }
+  },
+  "monitor": {
+    "workbench": {
+      "title": "Local Hook relay",
+      "listening": "Listening on %{address}",
+      "offline": "Relay is not listening",
+      "receivedLabel": "Received events",
+      "failedLabel": "Failed events",
+      "lastEventLabel": "Last event:",
+      "noEvent": "No Hook events yet",
+      "lastError": "Last error: %{error}"
+    },
+    "navigation": {
+      "pagesAria": "Monitor pages",
+      "itemAria": "{{label}}: {{description}}",
+      "workbench": {
+        "label": "Workbench",
+        "description": "View the local Hook relay status"
+      },
+      "management": {
+        "label": "Monitor management",
+        "description": "Configure display slots and behavior images for enabled agents"
+      },
+      "images": {
+        "label": "Image management",
+        "description": "Manage local monitor images"
+      },
+      "settings": {
+        "label": "Hooks settings",
+        "description": "Locate and write local Hooks configs for globally enabled agents"
+      }
+    },
+    "management": {
+      "title": "Monitor management",
+      "description": "Configure display slots, behavior images, and optional text for enabled agents.",
+      "noClient": "No agent is enabled. Select the clients you want to manage under Agent configuration in Settings.",
+      "behaviorDisplay": "Behavior display",
+      "configuredCount": "%{configured} / %{total} configured",
+      "noImages": "No images yet. Upload one from this picker to continue.",
+      "content": "Content",
+      "contentPlaceholder": "Enter optional extra content",
+      "displayConfig": "Display configuration",
+      "ready": "All states are configured and ready to save.",
+      "remaining": "Choose images for %{count} more states.",
+      "save": "Save display configuration",
+      "saved": "Saved",
+      "configured": "Configured",
+      "notConfigured": "Choose an image",
+      "optional": "Optional"
+    },
+    "behavior": {
+      "idle": "Idle",
+      "running": "Running",
+      "asking": "Asking",
+      "error": "Error"
+    },
+    "slot": {
+      "title": "Display position",
+      "position": "Position %{slot}",
+      "groupAria": "Choose display position",
+      "cellAria": "Position %{slot}, row %{row}, column %{column}"
+    },
+    "picker": {
+      "field": "Display image",
+      "clear": "Clear selection",
+      "clearAria": "Clear selected image",
+      "change": "Change image",
+      "loading": "Loading images",
+      "clickChoose": "Click to choose an image",
+      "chooseTitle": "Choose display image",
+      "closeAria": "Close image picker",
+      "selectAria": "Choose image %{filename}",
+      "uploadSingle": "Upload directly",
+      "uploadSingleAria": "Upload one new image",
+      "uploading": "Uploading…",
+      "uploadedAndSelected": "Uploaded and automatically selected %{filename}",
+      "emptyCategory": "No images in this category",
+      "imagesTotal": "%{count} images",
+      "imagesFiltered": "Showing %{visible} of %{total} images",
+      "allCount": "All %{count}"
+    },
+    "images": {
+      "title": "Local images",
+      "description": "Images stay in this app's data directory and are not sent to LAN devices.",
+      "empty": "No local monitor images yet.",
+      "emptyTitle": "No local images yet",
+      "emptyDescription": "Select multiple JPEG, PNG, or GIF images at once, then assign them to agents.",
+      "chooseMultiple": "Choose images",
+      "upload": "Upload multiple",
+      "uploaded": "Successfully uploaded %{count} images.",
+      "delete": "Delete image",
+      "refresh": "Refresh",
+      "filterAria": "Filter images by format",
+      "reading": "Reading…",
+      "actions": "Image actions: %{name}",
+      "localLibrary": "Local library",
+      "emptyCategory": "No images in this category",
+      "imagesTotal": "%{count} images",
+      "imagesFiltered": "Showing %{visible} of %{total} images",
+      "allCount": "All %{count}",
+      "unavailable": "Image unavailable"
+    },
+    "settings": {
+      "title": "Hooks settings",
+      "description": "Choose which agents receive Hooks. Configuration is written locally from Settings.",
+      "enabled": "Enabled agents",
+      "managementTitle": "Hooks management",
+      "managementDescription": "Review local config locations and write Hooks for each enabled agent.",
+      "chooseAgentFirst": "Enable at least one agent in the card above.",
+      "directory": "Config directory",
+      "directoryPlaceholder": "Use an absolute path or a WSL UNC path",
+      "directoryDialogTitle": "Choose Hooks configuration directory",
+      "chooseDirectory": "Choose directory",
+      "saveDirectory": "Save path",
+      "restoreDirectory": "Restore default",
+      "configFile": "Configuration file",
+      "additionalConfigFiles": "Additional configuration files",
+      "write": "Write Hooks",
+      "written": "Wrote %{file} (%{outcome})",
+      "activation": {
+        "hermesEnableRequired": "Run the command below, then restart Hermes or start a new session.",
+        "openClawEnableRequired": "Run the following commands in order.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyCommandAria": "Copy command: %{command}"
+      }
+    },
+    "outcome": {
+      "unchanged": "No config change",
+      "active": "Active",
+      "restartRequired": "Restart or start a new session",
+      "codexReviewRequired": "Review required in Codex",
+      "workBuddyReviewRequired": "Review required in WorkBuddy",
+      "codeBuddyReviewRequired": "Review required in CodeBuddy",
+      "hermesEnableRequired": "Enable the plugin in Hermes and restart",
+      "openClawEnableRequired": "Enable the extension in OpenClaw and restart"
+    },
+    "pet": {
+      "todayAria": "Today’s total Tokens: %{value}%{quality}",
+      "todayVisible": "Today · %{value}%{quality}",
+      "todayPending": "Loading…",
+      "todayNoRecords": "No records",
+      "todayUnavailable": "Unavailable",
+      "todayExpired": "Expired",
+      "todayPartial": "Partial",
+      "todayUnknownQuality": "Unknown coverage",
+      "todayDerived": "Derived",
+      "todaySuspected": "Unconfirmed",
+      "shellAria": "Desktop pet overlay, page %{page} of %{pages}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "settingsTitle": "Desktop pet settings",
+      "settingsHint": "Size is limited automatically for the current display",
+      "settingsClose": "Close desktop pet settings",
+      "displayCount": "Display count",
+      "layout": "Desktop pet layout",
+      "size": "Desktop pet size",
+      "pixels": "%{size} pixels",
+      "alwaysOnTop": "Always on top",
+      "lockPositionSize": "Lock position and size",
+      "mousePassthrough": "Mouse passthrough",
+      "mousePassthroughHint": "The floating window ignores mouse input. Restore it from the tray or main settings.",
+      "mousePassthroughRecover": "Mouse passthrough (click to restore)",
+      "mousePassthroughUnknown": "Mouse passthrough is unconfirmed. Turn it off to restore mouse interaction.",
+      "returnMain": "Return to main window",
+      "hideToTray": "Hide to system tray"
+    }
+  },
+  "monitor_service_unavailable": "Monitor service unavailable",
+  "skins": {
+    "host": {
+      "tabs": "Skin hosts",
+      "empty_title": "No skin host is enabled",
+      "empty_description": "Enable Codex or WorkBuddy in the unified Agent panel in Settings."
+    },
+    "browser": {
+      "title": "Desktop host required",
+      "description": "The browser preview does not read local resources, processes, or debug ports. Use skins in the LokiMetris desktop app."
+    },
+    "search": {
+      "label": "Search skins",
+      "placeholder": "Search by name, author, or ID"
+    },
+    "catalog": {
+      "empty": "No skins match the current filters."
+    },
+    "source": {
+      "builtin": "Built in",
+      "user": "User"
+    },
+    "package": {
+      "theme": "Theme",
+      "legacySkin": "Compatible skin"
+    },
+    "mode": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "card": {
+      "preview_alt": "%{name} skin preview",
+      "by": "By %{author}",
+      "select": "Select %{name}",
+      "actions": "Resource actions for %{name}"
+    },
+    "action": {
+      "apply": "Apply",
+      "stop": "Stop",
+      "open": "Open folder",
+      "export": "Export ZIP",
+      "convert": "Convert to theme",
+      "delete": "Delete",
+      "delete_selected": "Delete selected (%{count})",
+      "import": "Import",
+      "create": "Create theme",
+      "refresh": "Refresh"
+    },
+    "dialog": {
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "appearance": {
+      "title": "Confirm appearance differences",
+      "description": "The current host's %{mode} appearance differs from this theme declaration. Continuing applies only to the selected instance.",
+      "unreadable": "Unavailable",
+      "continue": "Apply anyway"
+    },
+    "code_trust": {
+      "not_safety_proof": "LokiMetris checks package structure and resource limits only. These checks do not review or prove the script is safe.",
+      "import_title": "Selected skins contain third-party code",
+      "import_description": "%{count} selected skin packages contain renderer-inject.js. Importing stores it on this device, and applying the skin runs it inside a supported host.",
+      "import_acknowledgement": "I understand these files contain third-party code and I trust their sources."
+    },
+    "import": {
+      "title": "Confirm skin import",
+      "summary": "%{ready} of %{total} archives can be imported.",
+      "commit": "Import selected (%{count})"
+    },
+    "create": {
+      "title": "Create a user theme",
+      "description": "Create an editable local theme, or copy a prompt with real resource paths for Codex to finish the design.",
+      "name": "Theme name",
+      "author": "Author",
+      "scaffold": "Create scaffold",
+      "codex_prompt": "Generate Codex prompt",
+      "prompt_title": "Generated prompt",
+      "copy": "Copy"
+    },
+    "restart": {
+      "title": "Restart the selected host instance?",
+      "description": "%{name} does not expose a local debug connection. Continuing restarts only this instance and may affect unsaved work.",
+      "workbuddy_title": "Restart WorkBuddy with a debug port?",
+      "workbuddy_description": "Continuing rechecks the local debug connection. If it is still unavailable or several old instances remain, every WorkBuddy process under the official install path is closed and unsaved work may be lost. One new instance then starts with a debug port."
+    },
+    "convert": {
+      "title": "Convert to a theme with data loss?",
+      "description": "Scripts, unrestricted selectors, and extension components from %{name} are dropped. A new user theme is built from its colors; the original is unchanged."
+    },
+    "delete": {
+      "title": "Delete user skins?",
+      "description": "This permanently deletes %{count} selected user skin directories. Built-in skins are unaffected."
+    },
+    "notice": {
+      "applied": "Applied %{name} to the selected host instance.",
+      "stopped": "Stopped and cleaned up the skin in the selected instance.",
+      "created": "Created user theme %{name}.",
+      "imported": "Imported %{count} skins.",
+      "exported": "Saved the skin ZIP to the selected location.",
+      "converted": "Created theme %{name}.",
+      "deleted": "Deleted %{count} user skins."
+    },
+    "error": {
+      "title": "Operation not completed",
+      "unknown": "The skin operation failed. Refresh the host state and try again.",
+      "injection_failed": "Could not verify the skin on every host page. Refresh and try again.",
+      "choose_instance": "Multiple host instances were found. Close the extras, leave one running, then refresh and try again."
+    },
+    "progress": {
+      "preparing": "Checking skin archives (%{processed}/%{total})"
+    },
+    "loading": "Loading skins…",
+    "copied": "Copied",
+    "dismiss": "Dismiss notification"
+  },
+  "notification": {
+    "details": "System notification details",
+    "show_details": "Show system notification details",
+    "hide_details": "Hide system notification details",
+    "paused": "System notifications paused",
+    "denied_intent_saved": "Your enabled preference was saved, but the system does not currently allow notifications. Allow them in system notification settings, then refresh permission.",
+    "permission_intent_saved": "Your enabled preference was saved, but system notification permission could not be confirmed. Refresh permission and try again.",
+    "host_unavailable": "The app cannot connect to the system notification service. Reopen the app and try again.",
+    "menu_unavailable": "System notifications · service unavailable",
+    "title": "LokiMetris",
+    "milestone": "Congratulations! You have used %{total} tokens today.",
+    "permission_allowed": "Notifications allowed",
+    "permission_denied": "Notifications denied by system",
+    "permission_ask": "Authorization needed",
+    "permission_unavailable": "System status unavailable",
+    "permission_label": "System permission: %{status}",
+    "summary": "Pending %{pending} · API accepted %{submitted} · Unknown %{unknown}",
+    "history": "Baseline skipped %{baseline} · Suppressed %{suppressed} · Expired %{expired}",
+    "baseline": "A baseline was established from the current trusted total. Existing milestones are skipped.",
+    "waiting": "Today’s data is incomplete, unavailable or stale. Notifications pause until trusted data returns.",
+    "unknown": "Some submission results are unknown. Automatic sending is paused. Manual retry may show duplicate notifications.",
+    "rejected": "System submission failed. Retries wait 30, 120 and 600 seconds, then pause for manual retry.",
+    "storage": "Notification history could not be read or saved, or reached its capacity. Sending is paused.",
+    "rebuilt": "Notification history was missing or damaged. The first trusted current total establishes a baseline; existing milestones are skipped.",
+    "retry": "Refresh permission and retry",
+    "retry_unknown": "Retry unknown requests (may duplicate)",
+    "open_settings": "Open system notification settings",
+    "busy": "Saving notification preference",
+    "menu_queue": "System notifications · %{count} pending",
+    "menu_unknown": "System notifications · unknown result",
+    "menu_disabled": "System notifications",
+    "source_rebuilt": "Sources or index changed. Old pending events were suppressed and a baseline uses the trusted current total."
   }
 }

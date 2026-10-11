@@ -11,6 +11,7 @@
     "release:notes": "node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs",
     "release:context": "node .agents/skills/desktop-prepare-release/scripts/release_context.mjs",
     "release:git": "node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs release --project-root .",
-    "gpui:package": "node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs"
+    "gpui:package": "node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs",
+    "gpui:preview": "node scripts/gpui_preview.mjs"
   }
 }

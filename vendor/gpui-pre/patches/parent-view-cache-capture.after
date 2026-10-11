@@ -1,0 +1,5 @@
+                let text_style = window.text_style();
+                #[cfg(feature = "parent-rounded-clip")]
+                let parent_clips = window.parent_rounded_clips();
+
+                if let Some(mut element_state)

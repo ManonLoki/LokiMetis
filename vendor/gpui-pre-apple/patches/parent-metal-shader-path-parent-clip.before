@@ -1,0 +1,10 @@
+    gradient_color.solid,
+    gradient_color.color0,
+    gradient_color.color1
+  );
+  return float4(color.rgb * color.a * alpha, alpha * color.a);
+}
+
+struct PathSpriteVertexOutput {
+  float4 position [[position]];
+  float2 texture_coords;

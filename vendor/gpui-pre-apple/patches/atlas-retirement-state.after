@@ -1,0 +1,2 @@
+    polychrome_textures: AtlasTextureList<MetalAtlasTexture>,
+    retirements: crate::atlas_retirement::RetirementQueue<AtlasTile>,

@@ -8,8 +8,11 @@ use interprocess::local_socket::GenericNamespaced;
 use std::{fs::{self, File, OpenOptions, TryLockError}, io::{self, Read, Write}, path::{Component, Path, PathBuf},
     sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc::{SyncSender, TrySendError}}, thread::{self, JoinHandle}, time::{Duration, Instant}};
 
-/// 单轮等待有界，停止信号不依赖额外唤醒连接。
+/// 有在途客户端时的单轮等待，保证握手快速完成；停止信号靠 unpark 立即唤醒。
 const POLL: Duration = Duration::from_millis(10);
+/// 没有在途客户端时的等待：每秒仅 10 次唤醒，新连接最多延迟一个周期才被接受，
+/// 仍远小于客户端 800ms 的握手期限。
+const IDLE_POLL: Duration = Duration::from_millis(100);
 /// 慢客户在此期限后被关闭，不占用永久线程或句柄。
 const TIMEOUT: Duration = Duration::from_millis(800);
 /// 最多八个在途连接，输入风暴不阻塞退出。
@@ -144,7 +147,7 @@ fn serve(listener: Listener, sender: SyncSender<()>, stop: Arc<AtomicBool>) {
             }
         }
         clients.retain_mut(|client| client.poll(&sender));
-        thread::park_timeout(POLL);
+        thread::park_timeout(if clients.is_empty() { IDLE_POLL } else { POLL });
     }
 }
 

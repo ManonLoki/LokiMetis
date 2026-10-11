@@ -1,0 +1,3 @@
+                let content_mask = window.content_mask();
+                let hitbox_exclusions = window.hitbox_exclusions().to_vec();
+                let text_style = window.text_style();

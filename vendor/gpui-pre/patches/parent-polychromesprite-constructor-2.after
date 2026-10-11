@@ -1,0 +1,9 @@
+ement_opacity();
+
+        self.next_frame.scene.insert_primitive(PolychromeSprite {
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: Default::default(),
+            order: 0,
+            pad: 0,
+            grayscale: grayscale.into(),
+            bounds: visible_bounds_

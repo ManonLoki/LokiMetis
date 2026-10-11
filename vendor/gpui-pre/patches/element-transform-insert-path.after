@@ -1,0 +1,1 @@
+        self.insert_transformed_primitive(path.scale(scale_factor));

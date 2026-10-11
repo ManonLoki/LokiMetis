@@ -1,0 +1,29 @@
+    /// 标记真实range内的opt-in条目，包含nested或inactive replay后的后代。
+    pub(crate) fn parent_context_sensitive_since(&self, start: &PrepaintStateIndex) -> bool {
+        self.next_frame.deferred_draws[start.deferred_draws_index..].iter()
+            .any(|draw| draw.preserve_parent_context)
+    }
+
+    /// 上帧普通deferred内部可能稍后创建opt-in，沿已完成range查询后代再决定cache复用。
+    /// 只扫描本cache可达条目；visited与帧长度防止重复range或内部自引用无限遍历。
+    pub(crate) fn rendered_parent_context_sensitive(&self, range: &Range<PrepaintStateIndex>) -> bool {
+        let draws = &self.rendered_frame.deferred_draws;
+        let first = range.start.deferred_draws_index..range.end.deferred_draws_index;
+        if first.is_empty() { return false; }
+        let mut pending = vec![first];
+        let mut visited = FxHashSet::default();
+        while let Some(range) = pending.pop() {
+            assert!(range.start <= range.end && range.end <= draws.len(), "invalid deferred cache range");
+            for index in range {
+                if !visited.insert(index) { continue; }
+                let draw = &draws[index];
+                if draw.preserve_parent_context { return true; }
+                let nested = draw.prepaint_range.start.deferred_draws_index
+                    ..draw.prepaint_range.end.deferred_draws_index;
+                if !nested.is_empty() { pending.push(nested); }
+            }
+        }
+        false
+    }
+
+    pub(crate) fn reuse_prepaint(&mut self, range: Range<PrepaintStateIndex>) {

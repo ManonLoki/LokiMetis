@@ -5,6 +5,22 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+base64.workspace = true
+chromiumoxide.workspace = true
+futures.workspace = true
+zip.workspace = true
+anyhow.workspace = true
+uuid.workspace = true
+image.workspace = true
+png.workspace = true
+thiserror.workspace = true
+jiff.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tempfile.workspace = true
+same-file.workspace = true
+whichdisk.workspace = true
 loki_metris_core.workspace = true
 gpui-kit.workspace = true
 rust-i18n.workspace = true
@@ -19,9 +35,30 @@ global-hotkey.workspace = true
 
 [target.'cfg(any(windows, target_os = "macos"))'.dependencies]
 tray-icon.workspace = true
-
-[target.'cfg(windows)'.dependencies]
 raw-window-handle.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# 仅macOS Metal启用；其它目标仍使用原图元ABI。
+gpui_apple = { workspace = true, features = ["parent-rounded-clip"] }
+objc2-foundation.workspace = true
+objc2-app-kit.workspace = true
+objc2.workspace = true
+block2.workspace = true
+objc2-user-notifications.workspace = true
+
+
 [dev-dependencies]
+sea-orm.workspace = true
 gpui-kit = { workspace = true, features = ["test-support"] }
+
+[[test]]
+name = "element_transform_metal"
+path = "tests/element_transform_metal.rs"
+harness = false
+
+[features]
+# 仅性能测量使用：LOKI_METRIS_MEASURE_HOME 重定向用户主目录；默认关闭，不进入发布构建。
+isolated-measurement = []

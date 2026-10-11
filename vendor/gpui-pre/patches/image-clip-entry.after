@@ -1,0 +1,40 @@
+    pub fn paint_image(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        image_bounds: Bounds<Pixels>,
+        corner_radii: Corners<Pixels>,
+        data: Arc<RenderImage>,
+        frame_index: usize,
+        grayscale: bool,
+    ) -> Result<()> {
+        self.paint_image_internal(bounds, image_bounds, corner_radii, None, data, frame_index, grayscale)
+    }
+
+    /// 在完整圆角视口中绘制图片，保留图片几何、UV 和现有图集缓存键。
+    ///
+    /// Contain 留白小于圆角半径时，圆心仍属于 clip.bounds，不能随图片交集移动。
+    /// 该接口只允许在 Element 的 paint 阶段调用，frame_index 必须有效。
+    pub fn paint_image_with_rounded_clip(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        image_bounds: Bounds<Pixels>,
+        clip: ImageRoundedClip,
+        data: Arc<RenderImage>,
+        frame_index: usize,
+        grayscale: bool,
+    ) -> Result<()> {
+        self.paint_image_internal(bounds, image_bounds, clip.corner_radii, Some(clip.bounds), data, frame_index, grayscale)
+    }
+
+    /// 两个公开入口共享唯一的图集上传与子纹理逻辑，避免为裁切复制帧。
+    fn paint_image_internal(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        image_bounds: Bounds<Pixels>,
+        corner_radii: Corners<Pixels>,
+        rounded_clip_bounds: Option<Bounds<Pixels>>,
+        data: Arc<RenderImage>,
+        frame_index: usize,
+        grayscale: bool,
+    ) -> Result<()> {
+        self.invalidator.debug_assert_paint();

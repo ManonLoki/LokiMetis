@@ -1,0 +1,16 @@
+/// 已注册应用回调负责主窗恢复；辅助窗口可见时仍转发真实重开动作。
+extern "C" fn should_handle_reopen(this: &mut Object, _: Sel, _: id, _: BOOL) -> BOOL {
+    // 辅助窗可见不能吞掉主窗唤起；应用回调负责选择主窗及入口指针屏。
+    // 安全：本 delegate 由 MacPlatform 注册，ivar 持有当前主线程平台引用。
+    let platform = unsafe { get_mac_platform(this) };
+    let mut lock = platform.0.lock();
+    if let Some(mut callback) = lock.reopen.take() {
+        drop(lock);
+        callback();
+        platform.0.lock().reopen.get_or_insert(callback);
+        // 已注册回调接管显示，避免 AppKit 默认恢复与异步几何事务并发。
+        NO
+    } else {
+        YES
+    }
+}

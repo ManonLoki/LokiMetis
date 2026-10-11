@@ -1,0 +1,26 @@
+  }
+
+  return color * float4(1.0, 1.0, 1.0, saturate(antialias_threshold - outer_sdf));
+}
+
+fragment float4 quad_fragment(QuadFragmentInput input [[stage_in]],
+                              constant Quad *quads
+                              [[buffer(QuadInputIndex_Quads)]]
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+    , constant ParentClipNode *parent_clips [[buffer(7)]]
+#endif
+) {
+  float4 color = quad_fragment_unclipped(input, quads);
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  float coverage = parent_clip_coverage(input.position.xy, quads[input.quad_id].parent_clip.head, parent_clips);
+  return float4(color.rgb, color.a * coverage);
+#else
+  return color;
+#endif
+}
+
+// Returns the dash velocity of a corner given the dash velocity of the two
+// sides, by returning the slower velocity (larger dashes).
+//
+// Since 0 is used for dash velocity when the border width is 0 (instead of
+// +inf), this returns the other dash velocity in that case.

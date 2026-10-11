@@ -1,0 +1,2 @@
+                    || selector == sel!(accessibilityAttributeNames)
+                    || selector == sel!(accessibilityActionNames)

@@ -1,0 +1,4 @@
+                grayscale: false.into(),
+                bounds,
+                rounded_clip_bounds: bounds,
+                corner_radii: Default::default(),

@@ -1,0 +1,297 @@
+//! 本机 Agent 展示草稿：默认四行为、槽位范围与保存校验。
+//!
+//! 草稿绑定本机图库 ID，不引入设备归属。
+
+use std::collections::HashSet;
+
+use serde::{Deserialize, Serialize};
+
+use crate::{AiTool, HookBehavior, HookError};
+
+/// 新草稿默认使用的展示位。
+pub const DEFAULT_PROFILE_SLOT: u8 = 1;
+/// 展示位闭区间最小值。
+pub const MIN_PROFILE_SLOT: u8 = 1;
+/// 展示位闭区间最大值（最多 12 槽）。
+pub const MAX_PROFILE_SLOT: u8 = 12;
+
+/// 前端控件使用的闭区间能力。
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorCapabilityRange {
+    /// 默认值。
+    pub default: u8,
+    /// 最小值。
+    pub min: u8,
+    /// 最大值。
+    pub max: u8,
+}
+
+/// 返回展示位取值范围。
+pub fn profile_slot_range() -> MonitorCapabilityRange {
+    MonitorCapabilityRange {
+        default: DEFAULT_PROFILE_SLOT,
+        min: MIN_PROFILE_SLOT,
+        max: MAX_PROFILE_SLOT,
+    }
+}
+
+/// 某一展示行为的文案与本机图片 ID。
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct HookContent {
+    /// 行为。
+    pub behavior: HookBehavior,
+    /// 可选文案。
+    #[serde(default)]
+    pub content: String,
+    /// 本机图库 ID；空字符串表示未选图。
+    #[serde(default)]
+    pub image: String,
+}
+
+/// 一个 Agent 的可编辑展示草稿。
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AiProfileDraft {
+    /// 绑定的 Agent。
+    pub tool: AiTool,
+    /// 展示位，取值范围见 [`profile_slot_range`]。
+    pub slot: u8,
+    /// 四种行为的配置。
+    #[serde(default)]
+    pub hooks: Vec<HookContent>,
+}
+
+impl AiProfileDraft {
+    /// 按默认槽位和固定行为顺序生成空白草稿。
+    pub fn default_for(tool: AiTool) -> Self {
+        Self {
+            tool,
+            slot: DEFAULT_PROFILE_SLOT,
+            hooks: HookBehavior::DISPLAY_BEHAVIORS
+                .into_iter()
+                .map(|behavior| HookContent {
+                    behavior,
+                    content: String::new(),
+                    image: String::new(),
+                })
+                .collect(),
+        }
+    }
+
+    /// 已选择图片的行为数量，仅用于完成度展示。
+    pub fn configured_behavior_count(&self) -> usize {
+        self.hooks
+            .iter()
+            .filter(|hook| !hook.image.trim().is_empty())
+            .count()
+    }
+}
+
+/// 一次读取得到的完整草稿集合。
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AiProfileDraftSet {
+    /// 全部受支持 Agent 的草稿，缺项由 [`merge_profile_drafts`] 补齐。
+    pub drafts: Vec<AiProfileDraft>,
+}
+
+/// 把展示位夹紧到当前闭区间。
+pub fn clamp_profile_slot(slot: u8) -> u8 {
+    slot.clamp(MIN_PROFILE_SLOT, MAX_PROFILE_SLOT)
+}
+
+/// 按固定工具顺序合并已保存草稿；未知工具丢弃，缺项用默认草稿补齐。
+pub fn merge_profile_drafts(saved: Vec<AiProfileDraft>) -> Vec<AiProfileDraft> {
+    AiTool::ALL
+        .into_iter()
+        .map(|tool| {
+            let mut draft = saved
+                .iter()
+                .find(|draft| draft.tool == tool)
+                .cloned()
+                .unwrap_or_else(|| AiProfileDraft::default_for(tool));
+            draft.slot = clamp_profile_slot(draft.slot);
+            draft
+        })
+        .collect()
+}
+
+/// 保存前校验槽位、四行为完整性，以及所选图片必须存在于本机图库。
+pub fn validate_profile_draft(
+    mut draft: AiProfileDraft,
+    known_image_ids: &HashSet<String>,
+) -> Result<AiProfileDraft, HookError> {
+    if !(MIN_PROFILE_SLOT..=MAX_PROFILE_SLOT).contains(&draft.slot) {
+        return Err(HookError::new("error.monitor.slotOutOfRange")
+            .param("min", MIN_PROFILE_SLOT.to_string())
+            .param("max", MAX_PROFILE_SLOT.to_string()));
+    }
+    validate_profile_behaviors(&draft.hooks)?;
+    for hook in &mut draft.hooks {
+        hook.content = hook.content.trim().to_owned();
+        hook.image = hook.image.trim().to_owned();
+        if !hook.image.is_empty() && !known_image_ids.contains(&hook.image) {
+            return Err(HookError::new("error.monitor.unknownImage"));
+        }
+    }
+    Ok(draft)
+}
+
+/// 读取与保存共用四行为结构约束，不依赖图库当前是否可读取。
+pub fn validate_profile_behaviors(hooks: &[HookContent]) -> Result<(), HookError> {
+    if hooks.len() != HookBehavior::DISPLAY_BEHAVIORS.len() {
+        return Err(HookError::new("error.monitor.behaviorsIncomplete"));
+    }
+    let mut behaviors = HashSet::new();
+    for hook in hooks {
+        if !behaviors.insert(hook.behavior) {
+            return Err(HookError::new("error.monitor.behaviorDuplicate"));
+        }
+    }
+    Ok(())
+}
+
+/// 已保存档案仍引用图片时拒绝删除，内部暂未公开 Agent 的引用同样有效。
+pub fn ensure_monitor_image_unused(
+    profiles: &AiProfileDraftSet,
+    image_id: &str,
+) -> Result<(), HookError> {
+    if profiles
+        .drafts
+        .iter()
+        .flat_map(|draft| &draft.hooks)
+        .any(|hook| hook.image == image_id)
+    {
+        Err(HookError::new("error.monitor.imageInUse"))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::{
+        AiProfileDraft, DEFAULT_PROFILE_SLOT, MAX_PROFILE_SLOT, MIN_PROFILE_SLOT,
+        clamp_profile_slot, merge_profile_drafts, profile_slot_range, validate_profile_draft,
+    };
+    use crate::{AiTool, HookBehavior};
+
+    /// 隐藏工具引用与公开工具具有相同约束，解除引用后才允许删除。
+    #[test]
+    fn image_reference_guard_includes_hidden_agents() {
+        let mut hidden = AiProfileDraft::default_for(AiTool::OpenCode);
+        hidden.hooks[0].image = "image-one".into();
+        let mut profiles = super::AiProfileDraftSet {
+            drafts: vec![hidden],
+        };
+        assert_eq!(
+            super::ensure_monitor_image_unused(&profiles, "image-one")
+                .unwrap_err()
+                .code,
+            "error.monitor.imageInUse"
+        );
+        assert!(super::ensure_monitor_image_unused(&profiles, "image-two").is_ok());
+        profiles.drafts[0].hooks[0].image.clear();
+        assert!(super::ensure_monitor_image_unused(&profiles, "image-one").is_ok());
+    }
+
+    /// 把测试图片 ID 切片转换为校验器使用的已知集合。
+    fn known(ids: &[&str]) -> HashSet<String> {
+        ids.iter().map(|id| (*id).to_owned()).collect()
+    }
+
+    /// 构造四种展示行为都绑定唯一图片的完整测试草稿。
+    fn complete_draft(tool: AiTool) -> AiProfileDraft {
+        let mut draft = AiProfileDraft::default_for(tool);
+        for (index, hook) in draft.hooks.iter_mut().enumerate() {
+            hook.image = format!("img-{index}");
+        }
+        draft
+    }
+
+    /// 验证默认草稿覆盖固定四种行为且内容与图片均为空。
+    #[test]
+    fn default_draft_covers_four_empty_behaviors() {
+        let draft = AiProfileDraft::default_for(AiTool::Codex);
+        assert_eq!(draft.slot, DEFAULT_PROFILE_SLOT);
+        assert_eq!(
+            draft
+                .hooks
+                .iter()
+                .map(|hook| hook.behavior)
+                .collect::<Vec<_>>(),
+            HookBehavior::DISPLAY_BEHAVIORS
+        );
+        assert_eq!(draft.configured_behavior_count(), 0);
+        assert!(
+            draft
+                .hooks
+                .iter()
+                .all(|hook| hook.content.is_empty() && hook.image.is_empty())
+        );
+    }
+
+    /// 验证合并结果按工具目录顺序补齐所有受支持 Agent。
+    #[test]
+    fn merge_fills_every_supported_tool_in_catalog_order() {
+        let mut saved = AiProfileDraft::default_for(AiTool::Grok);
+        saved.slot = 3;
+        let merged = merge_profile_drafts(vec![saved]);
+        let tools: Vec<_> = merged.iter().map(|draft| draft.tool).collect();
+        assert_eq!(tools, AiTool::ALL);
+        let grok = merged
+            .iter()
+            .find(|draft| draft.tool == AiTool::Grok)
+            .expect("Grok draft");
+        assert_eq!(grok.slot, 3);
+        assert_eq!(merged[0].slot, DEFAULT_PROFILE_SLOT);
+    }
+
+    /// 验证合并及显式夹紧都会把槽位限制在十二个展示位内。
+    #[test]
+    fn merge_clamps_saved_slot_into_the_twelve_slot_range() {
+        let mut saved = AiProfileDraft::default_for(AiTool::Codex);
+        saved.slot = 25;
+        let merged = merge_profile_drafts(vec![saved]);
+        assert_eq!(merged[0].slot, MAX_PROFILE_SLOT);
+        assert_eq!(profile_slot_range().max, 12);
+        assert_eq!(clamp_profile_slot(0), MIN_PROFILE_SLOT);
+        assert_eq!(clamp_profile_slot(12), MAX_PROFILE_SLOT);
+        assert_eq!(clamp_profile_slot(13), MAX_PROFILE_SLOT);
+    }
+
+    /// 验证保存校验拒绝越界槽位和图库中不存在的图片 ID。
+    #[test]
+    fn validate_rejects_slot_out_of_range_and_unknown_image() {
+        let mut draft = complete_draft(AiTool::Codex);
+        let all_images = known(&["img-0", "img-1", "img-2", "img-3"]);
+
+        draft.slot = MAX_PROFILE_SLOT;
+        validate_profile_draft(draft.clone(), &all_images).expect("slot 12");
+
+        draft.slot = 13;
+        let slot_error = validate_profile_draft(draft.clone(), &all_images).expect_err("slot 13");
+        assert_eq!(slot_error.code, "error.monitor.slotOutOfRange");
+
+        draft.slot = 2;
+        let unknown = validate_profile_draft(draft, &known(&["img-0"])).expect_err("unknown");
+        assert_eq!(unknown.code, "error.monitor.unknownImage");
+    }
+
+    /// 验证图片可为空，非空图片存在时完整草稿能够保存。
+    #[test]
+    fn validate_accepts_incomplete_images_when_ids_exist_or_empty() {
+        let draft = AiProfileDraft::default_for(AiTool::WorkBuddy);
+        let saved = validate_profile_draft(draft, &known(&[])).expect("empty images allowed");
+        assert_eq!(saved.configured_behavior_count(), 0);
+
+        let complete = complete_draft(AiTool::ClaudeCode);
+        let ids = known(&["img-0", "img-1", "img-2", "img-3"]);
+        let saved = validate_profile_draft(complete, &ids).expect("complete");
+        assert_eq!(saved.configured_behavior_count(), 4);
+    }
+}

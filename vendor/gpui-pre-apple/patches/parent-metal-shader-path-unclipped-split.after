@@ -1,0 +1,13 @@
+        v.bounds.origin.y + v.bounds.size.height - v.xy_position.y
+      }
+  };
+}
+
+float4 path_rasterization_fragment_unclipped(
+  PathRasterizationFragmentInput input,
+  constant PathRasterizationVertex *vertices
+) {
+  float2 dx = dfdx(input.st_position);
+  float2 dy = dfdy(input.st_position);
+
+  PathRasterizationVertex v = vertices[input.vertex_id];

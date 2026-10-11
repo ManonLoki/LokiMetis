@@ -1,0 +1,3 @@
+            let old_transform = self.begin_element_transform(deferred_draw.element_transform);
+            let paint_start = self.paint_index();
+            let content_mask = deferred_draw.content_mask;

@@ -1,0 +1,2 @@
+                let needs_present = request_frame_options.require_presentation
+                    || needs_present.get()

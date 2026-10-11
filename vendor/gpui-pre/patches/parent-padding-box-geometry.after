@@ -1,0 +1,16 @@
+        // 先约束外border-box的used radii，再缩进padding-box；顺序不能反过来。
+        let outer = crate::ParentRoundedClip::new(bounds, self.corner_radii.to_pixels(rem_size));
+        let mut bounds = outer.bounds;
+        let mut radii = outer.corner_radii;
+        let borders = self.border_widths.to_pixels(rem_size);
+        // 透明border同样占据布局border-width，后代裁切不取决于border颜色。
+        bounds.origin.x += borders.left;
+        bounds.origin.y += borders.top;
+        bounds.size.width = (bounds.size.width - borders.left - borders.right).max(px(0.));
+        bounds.size.height = (bounds.size.height - borders.top - borders.bottom).max(px(0.));
+        // 当前支持均匀border；非均匀CSS椭圆内缘仍只保留原标量近似。
+        radii.top_left = (radii.top_left - borders.top.max(borders.left)).max(px(0.));
+        radii.top_right = (radii.top_right - borders.top.max(borders.right)).max(px(0.));
+        radii.bottom_right = (radii.bottom_right - borders.bottom.max(borders.right)).max(px(0.));
+        radii.bottom_left = (radii.bottom_left - borders.bottom.max(borders.left)).max(px(0.));
+        Some(crate::ParentRoundedClip::from_used_radii(bounds, radii))

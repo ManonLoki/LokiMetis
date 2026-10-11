@@ -1,0 +1,2 @@
+                let content_mask = window.content_mask();
+                let text_style = window.text_style();

@@ -1,0 +1,4 @@
+    Number(f64),
+    // 原生标题层级保持整数，不改变其它数值控件的浮点类型。
+    HeadingLevel(usize),
+    String(String),

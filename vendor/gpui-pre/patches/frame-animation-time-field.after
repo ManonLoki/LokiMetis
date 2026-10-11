@@ -1,0 +1,3 @@
+    pub(crate) invalidator: WindowInvalidator,
+    /// 同一次真实 draw 共享执行器时刻，避免逐元素采样漂移。
+    frame_animation_time: Instant,

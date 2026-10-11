@@ -1,0 +1,3 @@
+                    && !window.dirty_views.contains(&entity_id)
+                    && !window.refreshing
+                    && !(parent_context_sensitive && window.is_a11y_active())

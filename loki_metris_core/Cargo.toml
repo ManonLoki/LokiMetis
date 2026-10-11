@@ -3,3 +3,18 @@ name = "loki_metris_core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+
+[dependencies]
+encoding_rs.workspace = true
+jiff.workspace = true
+sea-orm.workspace = true
+sea-orm-migration.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

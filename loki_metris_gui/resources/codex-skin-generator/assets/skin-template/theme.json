@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "__SKIN_ID__",
+  "name": "__SKIN_NAME__",
+  "description": "__SKIN_DESCRIPTION__",
+  "author": "__SKIN_AUTHOR__",
+  "image": "qq2007-sky.png",
+  "friendCards": {
+    "profileImage": "avatar.png",
+    "listImage": "qqshow.jpg"
+  },
+  "previewContent": {
+    "navNewTask": "新任务",
+    "navPullRequests": "拉取请求",
+    "navSites": "站点",
+    "navAutomations": "已安排",
+    "navPlugins": "插件",
+    "navProjects": "项目",
+    "navSettings": "设置",
+    "homeTitle": "今天想完成什么？",
+    "homeSubtitle": "__SKIN_DESCRIPTION__",
+    "suggestionOne": "分析项目结构",
+    "suggestionTwo": "实现一个功能",
+    "projectName": "示例项目",
+    "userMessage": "请帮我梳理这个项目的关键路径。",
+    "assistantMessage": "我会先检查结构，再给出可执行的下一步。",
+    "composerPlaceholder": "向 Codex 描述任务",
+    "pullRequestsTitle": "拉取请求",
+    "sitesTitle": "站点",
+    "automationsTitle": "已安排",
+    "pluginsTitle": "插件",
+    "settingsTitle": "设置",
+    "emptyStateTitle": "暂无内容",
+    "emptyStateAction": "重新检查"
+  },
+  "colors": {
+    "dark": {
+      "background": "#101418",
+      "panel": "#171d22",
+      "panelAlt": "#20282f",
+      "accent": "#46c2a8",
+      "accentAlt": "#f0b35a",
+      "text": "#f3f7f6",
+      "muted": "#a9b7b3",
+      "line": "#3c5b54"
+    },
+    "light": {
+      "background": "#edf2f0",
+      "panel": "#ffffff",
+      "panelAlt": "#e2ebe8",
+      "accent": "#176d5b",
+      "accentAlt": "#9a5c08",
+      "text": "#18211f",
+      "muted": "#52635f",
+      "line": "#9bb2ac"
+    }
+  },
+  "extensions": {
+    "photoPanels": [
+      {
+        "id": "profile",
+        "enabled": false,
+        "assetSlot": "profile",
+        "title": "",
+        "caption": "",
+        "anchor": "left-top",
+        "offset": { "x": 24, "y": 48 },
+        "size": { "width": 304, "height": 360 },
+        "fit": "contain",
+        "visibleOn": ["chat"],
+        "minViewportWidth": 1450
+      },
+      {
+        "id": "gallery",
+        "enabled": false,
+        "assetSlot": "gallery",
+        "title": "",
+        "caption": "",
+        "anchor": "left-bottom",
+        "offset": { "x": 24, "y": 24 },
+        "size": { "width": 304, "height": 360 },
+        "fit": "contain",
+        "visibleOn": ["chat"],
+        "minViewportWidth": 1450
+      }
+    ]
+  }
+}

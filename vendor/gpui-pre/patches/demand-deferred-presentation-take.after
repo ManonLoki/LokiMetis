@@ -1,0 +1,4 @@
+                let force_render =
+                    mem::take(&mut deferred_force_render) || request_frame_options.force_render;
+                let require_presentation = mem::take(&mut deferred_require_presentation)
+                    || request_frame_options.require_presentation;

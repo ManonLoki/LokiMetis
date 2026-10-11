@@ -1,0 +1,8 @@
+                    && element_state.cache_key.text_style == text_style
+                    && {
+                        #[cfg(feature = "parent-rounded-clip")]
+                        { element_state.cache_key.parent_clips == parent_clips }
+                        #[cfg(not(feature = "parent-rounded-clip"))]
+                        { true }
+                    }
+                    && !window.dirty_views

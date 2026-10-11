@@ -1,0 +1,5 @@
+            if let Some(action) = lock.menu_actions.get(index) {
+                let action = action.boxed_clone();
+                drop(lock);
+                callback(&*action);
+            }

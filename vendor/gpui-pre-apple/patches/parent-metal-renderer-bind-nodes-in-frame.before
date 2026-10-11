@@ -1,0 +1,10 @@
+            texture,
+            viewport_size,
+            Some(metal::MTLClearColor::new(0., 0., 0., alpha)),
+        );
+
+        for batch in scene.batches() {
+            match batch {
+                PrimitiveBatch::Shadows(range) => {
+                    self.draw_shadows(range, instance_bindings, viewport_size, command_encoder)
+                }

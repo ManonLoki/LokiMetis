@@ -1,0 +1,14 @@
+      tile_position,
+      sprite_id,
+      {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}};
+}
+
+float4 polychrome_sprite_fragment_unclipped(
+    PolychromeSpriteFragmentInput input,
+    constant PolychromeSprite *sprites,
+    texture2d<float> atlas_texture) {
+  PolychromeSprite sprite = sprites[input.sprite_id];
+  constexpr sampler atlas_texture_sampler(mag_filter::linear,
+                                          min_filter::linear);
+  float4 sample =
+      atlas_texture.sample(atlas_texture_sampler, input.tile_position);

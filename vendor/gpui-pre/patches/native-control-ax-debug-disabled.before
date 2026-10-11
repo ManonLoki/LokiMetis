@@ -1,0 +1,1 @@
+    aria.insert("role".into(), json!(format!("{:?}", node.role())));

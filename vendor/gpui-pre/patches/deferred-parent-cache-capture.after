@@ -1,0 +1,7 @@
+            |element_state, window| {
+                let parent_context_sensitive = element_state.as_ref().is_some_and(|state| {
+                    state.parent_context_sensitive
+                        || window.rendered_parent_context_sensitive(&state.prepaint_range)
+                });
+                let content_mask = window.content_mask();
+                let text_style = window.text_style();

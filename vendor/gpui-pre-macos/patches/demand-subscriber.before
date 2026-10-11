@@ -1,0 +1,3 @@
+    frame_requests: DispatchRetained<DispatchSource>,
+    signal: Arc<PlatformFrameSignal>,
+}

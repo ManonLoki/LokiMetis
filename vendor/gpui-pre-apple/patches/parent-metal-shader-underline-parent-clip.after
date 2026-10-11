@@ -1,0 +1,44 @@
+  } else {
+    return input.color;
+  }
+}
+
+fragment float4 underline_fragment(UnderlineFragmentInput input [[stage_in]],
+                                   constant Underline *underlines
+                                   [[buffer(UnderlineInputIndex_Underlines)]]
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+    , constant ParentClipNode *parent_clips [[buffer(7)]]
+#endif
+) {
+  float4 color = underline_fragment_unclipped(input, underlines);
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  float coverage = parent_clip_coverage(input.position.xy, underlines[input.underline_id].parent_clip.head, parent_clips);
+  return float4(color.rgb, color.a * coverage);
+#else
+  return color;
+#endif
+}
+
+struct MonochromeSpriteVertexOutput {
+  float4 position [[position]];
+  float2 tile_position;
+  float4 color [[flat]];
+  float4 clip_distance;
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  uint parent_clip_head [[flat]];
+#endif
+};
+
+struct MonochromeSpriteFragmentInput {
+  float4 position [[position]];
+  float2 tile_position;
+  float4 color [[flat]];
+  float4 clip_distance;
+#if defined(GPUI_PARENT_ROUNDED_CLIP)
+  uint parent_clip_head [[flat]];
+#endif
+};
+
+vertex MonochromeSpriteVertexOutput monochrome_sprite_vertex(
+    uint unit_vertex_id [[vertex_id]], uint sprite_id [[instance_id]],
+    constant float2 *unit_vertices [[buffer(SpriteInputIndex_Vertices)]],

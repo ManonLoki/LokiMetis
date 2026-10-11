@@ -1,0 +1,7 @@
+#[cfg(test)]
+mod menu_tests {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/menu_tests.rs"));
+}
+
+use crate::{
+    AppleActivity, AppleDispatcher, BoolExt, MacDisplay, MacKeyboardLayout, MacKeyboardMapper,

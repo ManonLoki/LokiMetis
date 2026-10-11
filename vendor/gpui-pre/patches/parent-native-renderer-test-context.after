@@ -1,0 +1,18 @@
+    /// 实际平台文字系统和离屏renderer组合，仍只创建TestWindow，不创建系统窗口。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub fn build_with_text_system_and_renderer(
+        dispatcher: TestDispatcher,
+        fn_name: Option<&'static str>,
+        platform_text_system: Arc<dyn PlatformTextSystem>,
+        renderer: Box<dyn Fn() -> anyhow::Result<Option<Box<dyn crate::PlatformHeadlessRenderer>>>>,
+    ) -> Self {
+        let arc_dispatcher = Arc::new(dispatcher.clone());
+        let background_executor = BackgroundExecutor::new(arc_dispatcher.clone());
+        let foreground_executor = ForegroundExecutor::new(arc_dispatcher);
+        let platform = TestPlatform::with_platform(
+            background_executor.clone(), foreground_executor.clone(), platform_text_system, Some(renderer),
+        );
+        Self::build_with_platform(dispatcher, fn_name, background_executor, foreground_executor, platform)
+    }
+
+    fn build_with_platform(

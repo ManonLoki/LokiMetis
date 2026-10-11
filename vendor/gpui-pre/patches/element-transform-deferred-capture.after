@@ -1,0 +1,3 @@
+            priority,
+            element_transform: self.element_transform,
+            element: Some(element),

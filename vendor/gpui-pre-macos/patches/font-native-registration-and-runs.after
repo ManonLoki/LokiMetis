@@ -1,0 +1,61 @@
+            // Dedup is scoped to this single `load_family` call (issue #55472).
+            // The same family can be reloaded later under a different `FontKey`
+            // (different features/fallbacks); a global check against
+            // `font_ids_by_native_identity` would skip every already-registered
+            // font and leave the second call's `font_ids` empty.
+            if !postscript_names_seen.insert(postscript_name.clone()) {
+                log::warn!(
+                    "skipping duplicate font {:?} with PostScript name {:?} \
+                     in family {:?}",
+                    font.full_name(),
+                    postscript_name,
+                    name,
+                );
+                continue;
+            }
+            // 候选始终加入本次 family 列表；全局去重仅复用 FontId，不过滤候选。
+            let font_id = self.register_native_font(font);
+            font_ids.push(font_id);
+        }
+        Ok(font_ids)
+    }
+
+    fn advance(&self, font_id: FontId, glyph_id: GlyphId) -> Result<Size<f32>> {
+        Ok(size_from_vector2f(
+            self.fonts[font_id.0].advance(glyph_id.0)?,
+        ))
+    }
+
+    fn glyph_for_char(&self, font_id: FontId, ch: char) -> Option<GlyphId> {
+        self.fonts[font_id.0].glyph_for_char(ch).map(GlyphId)
+    }
+
+    /// 注册选择/CTRun 共用实际 native 身份，未知值临时扫描，不持久保存 CFType。
+    fn register_native_font(&mut self, font: FontKitFont) -> FontId {
+        let native = font.native_font();
+        let identity = native_identity(&native);
+        if let Some(key) = identity.as_ref()
+            && let Some(font_id) = self.font_ids_by_native_identity.get(key)
+        {
+            return *font_id;
+        }
+        // 精确原生比较也允许未知类型的 32pt 复制复用旧 FontId；不使用 CFHash。
+        let existing = self.fonts.iter().enumerate().find_map(|(index, existing)| {
+            native_equivalent(&existing.native_font(), &native).then_some(FontId(index))
+        });
+        let font_id = existing.unwrap_or(FontId(self.fonts.len()));
+        if let Some(key) = identity {
+            self.font_ids_by_native_identity.insert(key, font_id);
+        }
+        if existing.is_none() {
+            self.postscript_names_by_font_id.insert(font_id, native.postscript_name());
+            self.fonts.push(font);
+        }
+        font_id
+    }
+
+    /// from_native_font 直接 clone CTFont，保留轴/特性/级联/矩阵；不经 CGFont 丢属性。
+    fn id_for_native_font(&mut self, requested_font: CTFont) -> FontId {
+        self.register_native_font(unsafe { FontKitFont::from_native_font(&requested_font) })
+    }
+

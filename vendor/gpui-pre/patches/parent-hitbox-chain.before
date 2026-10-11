@@ -1,0 +1,2 @@
+    pub content_mask: ContentMask<Pixels>,
+    /// Flags that specify hitbox behavior.

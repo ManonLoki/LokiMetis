@@ -1,0 +1,12 @@
+            vertices.extend(path.vertices.iter().map(|v| PathRasterizationVertex {
+                xy_position: v.xy_position,
+                st_position: v.st_position,
+                color: path.color,
+                bounds: path.bounds.intersect(&path.content_mask.bounds),
+                #[cfg(feature = "parent-rounded-clip")]
+                parent_clip: path.parent_clip,
+            }));
+        }
+        let vertex_instance_bindings = writer.write(&vertices)?;
+
+        let render_pass_descriptor = metal::RenderPassDescriptor::new();

@@ -1,0 +1,14 @@
+            let candidate_id = candidates[ix];
+            let font_id = if let Some(mut instance) =
+                weight_instance(&lock.fonts[candidate_id.0].native_font(), font.weight.0)?
+            {
+                // 原 fallback 描述符读取主字体 trait，设置 wght 后按原算法重建。
+                apply_features_and_fallbacks(
+                    &mut instance, &font.features, font.fallbacks.as_ref(),
+                )?;
+                lock.register_native_font(instance)
+            } else {
+                candidate_id
+            };
+            lock.font_selections.insert(font.clone(), font_id);
+            Ok(font_id)

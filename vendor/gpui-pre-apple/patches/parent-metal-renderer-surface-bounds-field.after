@@ -1,0 +1,12 @@
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[repr(C)]
+pub struct SurfaceBounds {
+    pub bounds: Bounds<ScaledPixels>,
+    pub content_mask: ContentMask<ScaledPixels>,
+    #[cfg(feature = "parent-rounded-clip")]
+    pub parent_clip: ParentClipId,
+}
+
+#[cfg(any(test, feature = "bench-support", feature = "test-support"))]
+pub struct MetalHeadlessRenderer {
+    renderer: MetalRenderer,

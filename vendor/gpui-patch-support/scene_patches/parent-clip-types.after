@@ -1,0 +1,44 @@
+/// 父圆角图元的帧内链表头；0 表示无父裁切，保留字始终为零。
+#[cfg(feature = "parent-rounded-clip")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(C)]
+pub struct ParentClipId {
+    /// 节点数组中的有效编号。
+    pub head: u32,
+    /// GPU 显式对齐，禁止使用未初始化字节。
+    pub padding: [u32; 3],
+}
+
+/// 真实原始 viewport 几何；祖先节点总是先于后代节点。
+#[cfg(feature = "parent-rounded-clip")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct ParentClipNode {
+    /// 原始设备像素矩形，不替换成与内容 mask 的交集。
+    pub bounds: Bounds<ScaledPixels>,
+    /// 左上、右上、右下、左下的规范化设备像素半径。
+    pub corner_radii: Corners<ScaledPixels>,
+    /// 上一层节点；0 结束祖先链。
+    pub parent: u32,
+    /// GPU 显式对齐，禁止使用未初始化字节。
+    pub padding: [u32; 3],
+}
+
+/// 逻辑像素的父圆角；命中与 GPU 使用同一份原始几何。
+#[cfg(feature = "parent-rounded-clip")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ParentRoundedClip {
+    /// 原始逻辑 viewport。
+    pub bounds: Bounds<Pixels>,
+    /// 规范化逻辑圆角，不使用祖先矩形交集定位圆心。
+    pub corner_radii: Corners<Pixels>,
+}
+
+/// 可复制且不可变的 CPU 快照，供 Hitbox、DeferredDraw 与 View 缓存保存。
+#[cfg(feature = "parent-rounded-clip")]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ParentClipChain(std::sync::Arc<[ParentRoundedClip]>);
+
+#[cfg_attr(not(feature = "parent-rounded-clip"), derive(Default))]
+#[expect(missing_docs)]
+pub struct Scene {

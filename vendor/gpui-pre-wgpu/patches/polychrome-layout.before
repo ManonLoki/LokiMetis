@@ -1,0 +1,10 @@
+struct PolychromeSprite {
+    order: u32,
+    pad: u32,
+    grayscale: u32,
+    opacity: f32,
+    bounds: Bounds,
+    content_mask: Bounds,
+    corner_radii: Corners,
+    tile: AtlasTile,
+}

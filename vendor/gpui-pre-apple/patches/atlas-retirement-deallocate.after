@@ -1,0 +1,5 @@
+    fn remove(&mut self, tile: AtlasTile) {
+        if let Some(tile) = self.retirements.retire(tile) {
+            self.deallocate(tile);
+        }
+    }

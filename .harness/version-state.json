@@ -1,10 +1,148 @@
 {
-  "applied_bug_ids": [],
+  "applied_bug_ids": [
+    "LMDESK-SOURCE-QUALITY-001",
+    "LMDESK-IMAGE-WINDOW-RESIDENCY-001",
+    "LMDESK-METAL-ATLAS-RETIREMENT-001",
+    "LMDESK-IMAGE-FRAME-WORKING-SET-001",
+    "LMDESK-MACOS-MENU-OWNERSHIP-001",
+    "LMDESK-MACOS-DEMAND-FRAMES-001",
+    "LMDESK-NOTIFICATION-CARD-COMPACT-001",
+    "LMDESK-CODEX-USAGE-RECORD-001",
+    "LMDESK-CODEX-FORK-OWNER-001",
+    "LMDESK-MACOS-MINIMIZE-001",
+    "LMDESK-SKINS-PREVIEW-RETIRE-001",
+    "LMDESK-SKINS-TOOLBAR-GEOMETRY-001",
+    "LMDESK-SKINS-TOOLBAR-COLORS-001",
+    "LMDESK-NATIVE-CONTROL-DISABLED-AX-001",
+    "LMDESK-PET-POINTER-DISPLAY-001",
+    "LMGUI-BUTTON-PRESS-SCALE-001"
+  ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": null,
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "GPUI-CORE-001",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "GPUI-USAGE-001",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "LMDESK-100M-001",
+      "kind": "feature",
+      "required_version": "0.2.0"
+    },
+    {
+      "change_id": "LMDESK-SOURCE-QUALITY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.1"
+    },
+    {
+      "change_id": "LMDESK-MACOS-WINDOW-STATE-001",
+      "kind": "feature",
+      "required_version": "0.2.1"
+    },
+    {
+      "change_id": "LMDESK-MACOS-PET-CONFIGURATION-001",
+      "kind": "feature",
+      "required_version": "0.2.1"
+    },
+    {
+      "change_id": "LMDESK-IMAGE-WINDOW-RESIDENCY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.2"
+    },
+    {
+      "change_id": "LMDESK-METAL-ATLAS-RETIREMENT-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.3"
+    },
+    {
+      "change_id": "LMDESK-IMAGE-FRAME-WORKING-SET-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.4"
+    },
+    {
+      "change_id": "LMDESK-NATIVE-MENU-AUTOSTART-001",
+      "kind": "feature",
+      "required_version": "0.2.4"
+    },
+    {
+      "change_id": "LMDESK-MACOS-MENU-OWNERSHIP-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.5"
+    },
+    {
+      "change_id": "LMDESK-PET-TODAY-TOKENS-001",
+      "kind": "feature",
+      "required_version": "0.2.5"
+    },
+    {
+      "change_id": "LMDESK-PET-MOUSE-PASSTHROUGH-001",
+      "kind": "feature",
+      "required_version": "0.2.5"
+    },
+    {
+      "change_id": "LMDESK-MACOS-DEMAND-FRAMES-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.6"
+    },
+    {
+      "change_id": "LMDESK-NOTIFICATION-CARD-COMPACT-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.7"
+    },
+    {
+      "change_id": "LMDESK-CODEX-USAGE-RECORD-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.8"
+    },
+    {
+      "change_id": "LMDESK-CODEX-FORK-OWNER-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.9"
+    },
+    {
+      "change_id": "LMDESK-MACOS-MINIMIZE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.10"
+    },
+    {
+      "change_id": "LMDESK-SKINS-PREVIEW-RETIRE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.11"
+    },
+    {
+      "change_id": "LMDESK-SKINS-TOOLBAR-GEOMETRY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.12"
+    },
+    {
+      "change_id": "LMDESK-SKINS-TOOLBAR-COLORS-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.13"
+    },
+    {
+      "change_id": "LMDESK-NATIVE-CONTROL-DISABLED-AX-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.14"
+    },
+    {
+      "change_id": "LMDESK-PET-POINTER-DISPLAY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.15"
+    },
+    {
+      "change_id": "LMGUI-BUTTON-PRESS-SCALE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.16"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.1.0"
+  "target_version": "0.2.16"
 }

@@ -1,0 +1,2 @@
+    /// 登记时的渲染mask；Frame输入分片可进一步收窄它，不改变Window渲染mask。
+    pub content_mask: ContentMask<Pixels>,

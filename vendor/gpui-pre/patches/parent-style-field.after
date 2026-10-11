@@ -1,0 +1,4 @@
+    pub overflow: Point<Overflow>,
+    /// 明确启用后代圆角裁切；默认保留既有矩形overflow行为。
+    #[cfg(feature = "parent-rounded-clip")]
+    pub clip_rounded_children: bool,

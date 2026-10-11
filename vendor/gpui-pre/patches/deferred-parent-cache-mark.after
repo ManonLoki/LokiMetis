@@ -1,0 +1,5 @@
+                    ViewElementState {
+                        accessed_entities,
+                        parent_context_sensitive: parent_context_sensitive
+                            || window.parent_context_sensitive_since(&prepaint_start),
+                        prepaint_range: prepaint_start..prepaint_end,

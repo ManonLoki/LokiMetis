@@ -1,0 +1,13 @@
+      gradient.color0,
+      gradient.color1,
+      {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}};
+}
+
+fragment float4 quad_fragment(QuadFragmentInput input [[stage_in]],
+                              constant Quad *quads
+                              [[buffer(QuadInputIndex_Quads)]]) {
+  Quad quad = quads[input.quad_id];
+  float4 background_color = fill_color(quad.background, input.position.xy, quad.bounds,
+    input.background_solid, input.background_color0, input.background_color1);
+
+  bool unrounded = quad.corner_radii.top_left == 0.0 &&

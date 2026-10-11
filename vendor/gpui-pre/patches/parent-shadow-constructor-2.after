@@ -1,0 +1,7 @@
+           };
+            self.next_frame.scene.insert_primitive(Shadow {
+                #[cfg(feature = "parent-rounded-clip")]
+                parent_clip: Default::default(),
+                order: 0,
+                blur_radius: shadow.blur_radius.scale(scale_factor),
+                bounds: sel

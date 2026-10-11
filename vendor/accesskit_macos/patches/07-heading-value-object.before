@@ -1,0 +1,3 @@
+                    Value::Number(value) => {
+                        Id::into_super(Id::into_super(NSNumber::new_f64(value)))
+                    }
