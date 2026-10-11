@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "50311a26-c313-4d51-8508-5de7b678210d",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/manonloki/Documents/my-work/ai/loki_metris/.archify/architecture-lokimetris-20261011-2240/candidate.json",
+  "output": "/Users/manonloki/Documents/my-work/ai/loki_metris/.archify/architecture-lokimetris-20261011-2240/lokimetris.html",
+  "specification": {
+    "sha256": "f90285f4151701357456360802984e9513568d015f5eaa79814ddae66f437997",
+    "bytes": 8955
+  },
+  "artifact": {
+    "sha256": "bb76374b3cbbec041c220999955ba8345e1b88705c10015dc8969a8612da5f36",
+    "bytes": 773026
+  }
+}

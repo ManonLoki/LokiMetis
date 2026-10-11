@@ -1,0 +1,449 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "LokiMetris 系统架构",
+    "locale": "zh-CN",
+    "output": ".archify/architecture-lokimetris-20261011-2240/lokimetris.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/ManonLoki/LokiMetis.git",
+      "link_mode": "local-only",
+      "revision": "6917ba1638aa2c70659403e98ca2af7415341c9e"
+    }
+  },
+  "components": [
+    {
+      "id": "aitools",
+      "type": "external",
+      "label": "AI 工具",
+      "sublabel": "Claude Code / Codex 等",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_core/src/agent_hooks/claude_code.rs",
+          "line": 118
+        }
+      ]
+    },
+    {
+      "id": "relay",
+      "type": "backend",
+      "label": "Hook 中继",
+      "sublabel": "本程序 --relay 子进程",
+      "pos": [
+        300,
+        60
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/monitor/relay.rs",
+          "line": 1
+        },
+        {
+          "path": "loki_metris_gui/src/main.rs",
+          "line": 27
+        }
+      ]
+    },
+    {
+      "id": "listener",
+      "type": "backend",
+      "label": "环回监听",
+      "sublabel": "127.0.0.1 · 会合文件",
+      "pos": [
+        560,
+        60
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/monitor/listener/mod.rs",
+          "line": 106
+        },
+        {
+          "path": "loki_metris_gui/src/monitor/listener/loopback_server.rs",
+          "line": 35
+        }
+      ]
+    },
+    {
+      "id": "pet",
+      "type": "frontend",
+      "label": "桌宠与监控",
+      "sublabel": "HookStateMachine 驱动",
+      "pos": [
+        820,
+        60
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui+core",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/monitor/listener/lifecycle.rs",
+          "line": 10
+        },
+        {
+          "path": "loki_metris_gui/src/pet/mod.rs",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "hookcfg",
+      "type": "backend",
+      "label": "Hook 配置写入",
+      "sublabel": "托管条目合并",
+      "pos": [
+        40,
+        210
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/monitor/hook_config_io.rs",
+          "line": 80
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/mod.rs",
+          "line": 139
+        }
+      ]
+    },
+    {
+      "id": "usage",
+      "type": "backend",
+      "label": "UsageService",
+      "sublabel": "tokio · 单 writer 队列",
+      "pos": [
+        560,
+        210
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/usage_service/mod.rs",
+          "line": 79
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/mod.rs",
+          "line": 101
+        }
+      ]
+    },
+    {
+      "id": "shell",
+      "type": "frontend",
+      "label": "GPUI 壳层",
+      "sublabel": "仪表盘/监控/皮肤/设置",
+      "pos": [
+        820,
+        210
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/app/mod.rs",
+          "line": 1
+        },
+        {
+          "path": "loki_metris_gui/src/main.rs",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "id": "gpui",
+      "type": "cloud",
+      "label": "GPUI（vendor 补丁）",
+      "sublabel": "Metal / wgpu 渲染",
+      "pos": [
+        1080,
+        210
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "Cargo.toml",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "external",
+      "label": "Agent 会话文件",
+      "sublabel": "Codex/Claude/Grok/WorkBuddy",
+      "pos": [
+        40,
+        360
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/backend/workbuddy/mod.rs",
+          "line": 1
+        },
+        {
+          "path": "loki_metris_gui/src/backend/source_catalog.rs",
+          "line": 104
+        }
+      ]
+    },
+    {
+      "id": "scanner",
+      "type": "backend",
+      "label": "扫描编排",
+      "sublabel": "只读解析 · 增量/重建",
+      "pos": [
+        300,
+        360
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/backend/scan_orchestration/mod.rs",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "index",
+      "type": "database",
+      "label": "派生 SQLite 索引",
+      "sublabel": "usage-index.sqlite3",
+      "pos": [
+        560,
+        360
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "core",
+      "sources": [
+        {
+          "path": "loki_metris_core/src/client_ports.rs",
+          "line": 59
+        },
+        {
+          "path": "loki_metris_core/src/private_sqlite.rs",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "id": "skins",
+      "type": "backend",
+      "label": "换肤服务",
+      "sublabel": "资源库 · CDP 连接",
+      "pos": [
+        820,
+        360
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "gui",
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/skins/mod.rs",
+          "line": 1
+        },
+        {
+          "path": "loki_metris_gui/src/skins/cdp_connect.rs",
+          "line": 36
+        }
+      ]
+    },
+    {
+      "id": "hostapps",
+      "type": "external",
+      "label": "Codex / WorkBuddy",
+      "sublabel": "被换肤的桌面应用",
+      "pos": [
+        1080,
+        360
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/skins/mod.rs",
+          "line": 1
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "tools-hook",
+      "from": "aitools",
+      "to": "relay",
+      "label": "Hook 事件",
+      "variant": "emphasis"
+    },
+    {
+      "id": "relay-http",
+      "from": "relay",
+      "to": "listener",
+      "label": "环回 HTTP"
+    },
+    {
+      "id": "listener-pet",
+      "from": "listener",
+      "to": "pet",
+      "label": "状态"
+    },
+    {
+      "id": "usage-listener",
+      "from": "usage",
+      "to": "listener",
+      "label": "启动监听",
+      "variant": "dashed"
+    },
+    {
+      "id": "usage-hookcfg",
+      "from": "usage",
+      "to": "hookcfg",
+      "label": "启动时写入",
+      "variant": "dashed"
+    },
+    {
+      "id": "hookcfg-tools",
+      "from": "hookcfg",
+      "to": "aitools",
+      "label": "托管配置"
+    },
+    {
+      "id": "agents-scan",
+      "from": "agents",
+      "to": "scanner",
+      "label": "只读",
+      "variant": "emphasis"
+    },
+    {
+      "id": "scan-index",
+      "from": "scanner",
+      "to": "index",
+      "label": "写入"
+    },
+    {
+      "id": "usage-scan",
+      "from": "usage",
+      "to": "scanner",
+      "label": "调度扫描",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "top",
+      "via": [
+        [
+          385,
+          242
+        ]
+      ]
+    },
+    {
+      "id": "usage-index",
+      "from": "usage",
+      "to": "index",
+      "label": "查询"
+    },
+    {
+      "id": "shell-usage",
+      "from": "shell",
+      "to": "usage",
+      "label": "查询/命令",
+      "variant": "emphasis"
+    },
+    {
+      "id": "shell-gpui",
+      "from": "shell",
+      "to": "gpui",
+      "label": "渲染"
+    },
+    {
+      "id": "shell-skins",
+      "from": "shell",
+      "to": "skins",
+      "label": "换肤操作"
+    },
+    {
+      "id": "skins-apps",
+      "from": "skins",
+      "to": "hostapps",
+      "label": "CDP 注入",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "分层",
+      "items": [
+        "loki_metris_core：平台无关的领域规则、SQLite 索引、Hook 状态机",
+        "loki_metris_gui：GPUI 壳层与全部本机 I/O、进程、CDP"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "用量链路",
+      "items": [
+        "扫描只读 Agent 会话，写入产品独立的派生库",
+        "查询与扫描分属两条队列，查询不等待扫描"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "监控与换肤",
+      "items": [
+        "Hook 经本程序子进程中继到环回监听",
+        "换肤经 CDP 注入宿主应用，需显式同意"
+      ]
+    }
+  ]
+}
