@@ -165,26 +165,22 @@ fn explicit_hook_write_merges_and_reports_real_outcome() {
     );
 }
 
-/// 绑定后启用与改目录都发布完整快照；未提交路径不会被自动writer看到。
+/// 启用与改目录发布完整快照，但自动维护只修复各自已有的受管注册。
 #[test]
 fn automatic_hook_writer_observes_committed_directory_and_enabled_snapshot() {
     let fixture = Fixture::new();
     let service = &fixture.service;
-    fixture
-        .receive(
-            service
-                .save_enabled_ai_tools(vec![AiTool::ClaudeCode])
-                .unwrap(),
-        )
-        .unwrap();
     let location = fixture
         .receive(service.list_monitor_hook_locations().unwrap())
         .unwrap()
         .into_iter()
         .find(|location| location.tool == AiTool::ClaudeCode)
         .unwrap();
-    wait_file(Path::new(&location.config_path));
+    seed_previous_hook(AiTool::ClaudeCode, Path::new(&location.directory));
+    fixture.receive(service.save_enabled_ai_tools(vec![AiTool::ClaudeCode]).unwrap()).unwrap();
+    wait_file_containing(Path::new(&location.config_path), "/fixture/LokiMetris");
     let next = fixture.root.path().join("new-claude");
+    seed_previous_hook(AiTool::ClaudeCode, &next);
     let saved = fixture
         .receive(
             service
@@ -192,7 +188,7 @@ fn automatic_hook_writer_observes_committed_directory_and_enabled_snapshot() {
                 .unwrap(),
         )
         .unwrap();
-    wait_file(Path::new(&saved.config_path));
+    wait_file_containing(Path::new(&saved.config_path), "/fixture/LokiMetris");
     let settings = fixture
         .receive(service.monitor_settings().unwrap())
         .unwrap();
@@ -209,6 +205,23 @@ fn automatic_hook_writer_observes_committed_directory_and_enabled_snapshot() {
             .join(hook_config_filename(AiTool::Codex))
             .exists()
     );
+    let unregistered = fixture.root.path().join("unregistered-claude");
+    fixture.receive(service.save_hook_config_directory(AiTool::ClaudeCode, unregistered.to_string_lossy().into()).unwrap()).unwrap();
+    // Grok 在 Claude 之后修复，真实成功回执证明同一批次已处理未注册 Claude 根。
+    let grok = fixture.root.path().join(loki_metris_core::ai_tool_name(AiTool::Grok));
+    seed_previous_hook(AiTool::Grok, &grok);
+    fixture.receive(service.save_enabled_ai_tools(vec![AiTool::ClaudeCode, AiTool::Grok]).unwrap()).unwrap();
+    wait_file_containing(&grok.join(hook_config_filename(AiTool::Grok)), "/fixture/LokiMetris");
+    service.finish();
+    assert!(!unregistered.exists());
+}
+
+/// 种入旧受管配置，避免把首次自动注册当成维护成功。
+fn seed_previous_hook(tool: AiTool, directory: &Path) {
+    let path = directory.join(hook_config_filename(tool));
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let generated = loki_metris_core::generate_hook_config(tool, Path::new("/previous/LokiMetris")).unwrap();
+    std::fs::write(path, generated.content).unwrap();
 }
 
 /// 接受后立即退出仍由writer返回终态，不等待35秒期限或留下未登记写入。
@@ -240,9 +253,14 @@ fn hook_write_followed_by_shutdown_has_owned_terminal_receipt() {
 
 /// 最多等待真实文件工作五秒，超时必须失败。
 fn wait_file(file: &Path) {
+    wait_file_containing(file, "LokiMetris:tool=");
+}
+
+/// 等待旧注册被真实替换，不能仅凭夹具文件已存在而通过。
+fn wait_file_containing(file: &Path, command: &str) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        if std::fs::read_to_string(file).is_ok_and(|value| value.hook_command_text().contains("LokiMetris:tool=")) {
+        if std::fs::read_to_string(file).is_ok_and(|value| value.hook_command_text().contains(command)) {
             return;
         }
         std::thread::sleep(Duration::from_millis(10));
