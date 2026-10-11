@@ -59,6 +59,8 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
     let mut revision = 0;
     let mut last_notification_key=None;
     let mut last_mouse_state=None;
+    #[cfg(target_os="macos")]
+    let mut last_focus_revision = 0;
     let poll = cx.spawn(async move |cx| {
         loop {
             cx.background_executor().timer(Duration::from_millis(40)).await;
@@ -66,6 +68,12 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                 if !cx.has_global::<Services>() { return }
                 #[cfg(target_os="macos")]
                 {
+                    let focus_revision = cx.global::<Services>().window_host.as_ref().map(windowing::WindowHost::focus_revision);
+                    if let Some(revision) = focus_revision.filter(|revision| *revision != last_focus_revision) {
+                        // 确认本轮先读取的版本；刷新期间的新通知必须留到下一轮。
+                        last_focus_revision = revision;
+                        menu::refresh(cx);
+                    }
                     let service = cx.global_mut::<Services>();
                     let revision = service.window_host.as_ref().and_then(windowing::WindowHost::settled_revision);
                     if let Some(revision) = revision.filter(|revision| *revision != service.window_revision) {

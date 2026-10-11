@@ -13,6 +13,7 @@ use std::{ptr::NonNull, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU6
 #[derive(Default)]
 struct Signals {
     revision: AtomicU64,
+    focus_revision: AtomicU64,
     failure_revision: AtomicU64,
     transition: AtomicBool,
     live_resize: AtomicBool,
@@ -81,6 +82,17 @@ impl WindowHost {
                 signals.changed();
             });
             // 安全：block 仅捕获 Send+Sync 信号与短期值锁；通知中心复制 block 并保留 token。
+            observers.push(unsafe { center.addObserverForName_object_queue_usingBlock(
+                Some(name), Some(&window), None, &block,
+            ) });
+        }
+        // 焦点失效独立于几何静默窗口；原生回调只递增计数，不能同步借用GPUI。
+        for name in unsafe { [NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification] } {
+            let signals = signals.clone();
+            let block = RcBlock::new(move |_: NonNull<NSNotification>| {
+                signals.focus_revision.fetch_add(1, Ordering::Relaxed);
+            });
+            // 安全：通知名来自AppKit，object精确限定当前保留主窗，token由Owner统一注销。
             observers.push(unsafe { center.addObserverForName_object_queue_usingBlock(
                 Some(name), Some(&window), None, &block,
             ) });
@@ -207,6 +219,8 @@ impl WindowHost {
     pub fn show(&self) { self.0.window.makeKeyAndOrderFront(None); }
     /// 读取实际键盘焦点，不把 AppKit 的 mainWindow 当作 keyWindow。
     pub fn is_key(&self) -> bool { self.0.window.isKeyWindow() }
+    /// 原生焦点变化只作为失效信号；消费时仍重读真实key状态。
+    pub fn focus_revision(&self) -> u64 { self.0.signals.focus_revision.load(Ordering::Relaxed) }
     /// 排队期间失焦则放弃；原生最小化会同步回调，调用方必须释放全部 GPUI 借用。
     pub fn minimize_if_key(&self) {
         if self.is_key() { self.0.window.miniaturize(None); }
