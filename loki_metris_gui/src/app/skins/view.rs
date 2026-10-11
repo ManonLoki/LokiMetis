@@ -6,7 +6,7 @@ use super::{ModalKind, Shell, skin_reference};
 mod badge;
 use badge::{SkinBadge, skin_badge};
 use gpui_kit::{
-    AnyElement, Context, FontWeight, IntoElement, Role,
+    AnyElement, BoxShadow, Context, FontWeight, IntoElement, Role,
     assets::IconName,
     base::{Checkbox, CheckboxState, TestSupportExt as _},
     component::{
@@ -17,7 +17,7 @@ use gpui_kit::{
     },
     div,
     prelude::*,
-    px, rgb,
+    px, rems, rgb,
 };
 use loki_metris_core::{ColorMode, SkinPackageType, SkinSource};
 
@@ -55,9 +55,13 @@ impl Shell {
             .items_center()
             .gap_2()
             .px(px(20.))
-            .py(px(10.))
-            .border_y_1()
-            .border_color(cx.theme().border)
+            .pt(rems(0.65))
+            .pb(rems(0.55))
+            .border_b_1()
+            .border_color(rgb(if cx.theme().mode.is_dark() { 0x38332e } else { 0xeadfd0 }))
+            // 历史顶部为不占布局的 inset 高光，不能用上边框撑高整组卡片。
+            .shadow(vec![BoxShadow::new(px(0.), px(1.), rgb(0xffffff)
+                .opacity(if cx.theme().mode.is_dark() { 0.07 } else { 0.75 }).into()).inset()])
             .bg(rgb(if cx.theme().mode.is_dark() {
                 0x191a1b
             } else {
