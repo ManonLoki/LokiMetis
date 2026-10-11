@@ -420,5 +420,5 @@ fn post_local_hook(slug: &str, hook_type: &str, body: &[u8]) -> anyhow::Result<(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - relay_more_tests.rs：可注入文件与等待策略的可靠投递实现，确保测试不触碰真实 temp 文件。；向一个已验证描述执行单次 HTTP 投递并校验响应实例身份。；使用单一 wall-clock 截止时间执行连接、写入与完整响应读取。
-include!("relay_more_tests.rs");
+// - relay_delivery.rs：可注入文件与等待策略的可靠投递实现，确保测试不触碰真实 temp 文件。；向一个已验证描述执行单次 HTTP 投递并校验响应实例身份。；使用单一 wall-clock 截止时间执行连接、写入与完整响应读取。
+include!("relay_delivery.rs");

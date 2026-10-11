@@ -438,5 +438,5 @@ fn indexed_candidate_must_stay_inside_selected_scope() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：验证 C/D/E 等价多卷按轮次推进且均能产生候选。；验证普通 JSONL 与 logs 根不会成为候选。；验证 Codex、Claude 主 transcript 与 subagent 只凭合法文件名层级命中。
-include!("tests_more.rs");
+// - tests_candidates.rs：验证 C/D/E 等价多卷按轮次推进且均能产生候选。；验证普通 JSONL 与 logs 根不会成为候选。；验证 Codex、Claude 主 transcript 与 subagent 只凭合法文件名层级命中。
+include!("tests_candidates.rs");

@@ -424,5 +424,5 @@ fn only_transient_source_errors_preserve_previous_claude_sources() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：验证扫描被取消后保存的检查点，下次能从断点续扫而不是被判定为无变化。；测试辅助：把单个路径作为已登记根跑一次快速发现，返回确认结果。；测试辅助：写入一条（或追加一条）合成 assistant 用量观察记录。
-include!("tests_more.rs");
+// - tests_cancel_checkpoint.rs：验证扫描被取消后保存的检查点，下次能从断点续扫而不是被判定为无变化。；测试辅助：把单个路径作为已登记根跑一次快速发现，返回确认结果。；测试辅助：写入一条（或追加一条）合成 assistant 用量观察记录。
+include!("tests_cancel_checkpoint.rs");

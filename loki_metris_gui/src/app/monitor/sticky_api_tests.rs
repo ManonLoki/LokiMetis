@@ -405,5 +405,5 @@ fn cache_setup(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - sticky_api_tests_more.rs：真实激活/停用回调跨帧切换，相关缓存重建、其它缓存仍复用，且无旧帧 token。；最小直接 opt-in 缓存必须覆盖 inactive→active→inactive→reactive 完整循环。；旧帧可达范围必须发现稍后 legacy deferred 内创建的 opt-in，而不是只扫描直接条目。
-include!("sticky_api_tests_more.rs");
+// - sticky_api_tests_cache_cycle.rs：真实激活/停用回调跨帧切换，相关缓存重建、其它缓存仍复用，且无旧帧 token。；最小直接 opt-in 缓存必须覆盖 inactive→active→inactive→reactive 完整循环。；旧帧可达范围必须发现稍后 legacy deferred 内创建的 opt-in，而不是只扫描直接条目。
+include!("sticky_api_tests_cache_cycle.rs");

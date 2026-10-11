@@ -366,5 +366,5 @@ fn discover_metadata_roots_in_with_callback(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - metadata_discovery_more_tests.rs：使用给定总预算执行兜底遍历，供生产固定预算与 deadline 合同测试复用。；Spotlight 等系统索引结果必须服从当前用户目录或本地卷边界。；全盘策略：排除名单前缀或任意祖先目录名命中跳过名单。
-include!("metadata_discovery_more_tests.rs");
+// - metadata_discovery_fallback_walk.rs：使用给定总预算执行兜底遍历，供生产固定预算与 deadline 合同测试复用。；Spotlight 等系统索引结果必须服从当前用户目录或本地卷边界。；全盘策略：排除名单前缀或任意祖先目录名命中跳过名单。
+include!("metadata_discovery_fallback_walk.rs");

@@ -426,5 +426,5 @@ fn hook_listener_reaper_loop(shared: &Arc<(Mutex<RetainedHookListenerState>, Con
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - control_more_tests.rs：返回进程级 owner 是否仍持有指定测试任务。；清空被禁用工具当前占用的槽位；没有活跃槽位时不制造虚假 revision。；读取启用策略；锁污染时保留现状并记录诊断，避免静默放宽门禁。
-include!("control_more_tests.rs");
+// - control_slots_and_policy.rs：返回进程级 owner 是否仍持有指定测试任务。；清空被禁用工具当前占用的槽位；没有活跃槽位时不制造虚假 revision。；读取启用策略；锁污染时保留现状并记录诊断，避免静默放宽门禁。
+include!("control_slots_and_policy.rs");

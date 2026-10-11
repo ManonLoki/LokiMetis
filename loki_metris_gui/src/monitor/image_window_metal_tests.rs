@@ -406,5 +406,5 @@ impl Render for CachedSurface {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - image_window_metal_tests_more.rs：正常换帧不能强制刷新无关缓存；终止动画的旧 Scene 必须持续使用有效 tile。
-include!("image_window_metal_tests_more.rs");
+// - image_window_metal_tests_scene_cache.rs：正常换帧不能强制刷新无关缓存；终止动画的旧 Scene 必须持续使用有效 tile。
+include!("image_window_metal_tests_scene_cache.rs");

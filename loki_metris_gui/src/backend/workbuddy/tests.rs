@@ -400,5 +400,5 @@ async fn merges_domestic_and_international_roots_into_one_snapshot() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：统计页和模型表必须由同一批 project JSONL 事件构造并相互对账。；活跃文件末尾没有换行的半条记录必须留待下次读取，不产生错误或虚假用量。；损坏行与超长完整行要降级覆盖，但不得阻断其后的正常记录。
-include!("tests_more.rs");
+// - tests_usage_reconcile.rs：统计页和模型表必须由同一批 project JSONL 事件构造并相互对账。；活跃文件末尾没有换行的半条记录必须留待下次读取，不产生错误或虚假用量。；损坏行与超长完整行要降级覆盖，但不得阻断其后的正常记录。
+include!("tests_usage_reconcile.rs");

@@ -394,5 +394,5 @@ fn ignores_replayed_and_total_only_snapshots_before_next_real_call() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：验证 IgnoreNonIncremental 仍写出 cumulative 快照，且不推进增量基线。；验证累计检查点仅恢复合法当前版本，不接受截断、旧版或矛盾总量。；验证缺失或畸形时间戳会被跳过并单独计数，不能落…
-include!("tests_more.rs");
+// - tests_checkpoint_and_timestamp.rs：验证 IgnoreNonIncremental 仍写出 cumulative 快照，且不推进增量基线。；验证累计检查点仅恢复合法当前版本，不接受截断、旧版或矛盾总量。；验证缺失或畸形时间戳会被跳过并单独计数，不能落…
+include!("tests_checkpoint_and_timestamp.rs");

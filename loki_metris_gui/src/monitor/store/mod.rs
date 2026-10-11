@@ -407,5 +407,5 @@ fn begin_hook_writer_shutdown(state: &mut HookWriterState) {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - store_more_tests.rs：消费自动补写请求，直到应用生命周期明确关闭。；在具名 worker 中读取设置并完成显式写入，不占用 GPUI 异步执行线程。；串行化一次显式或后台写入；后台路径额外携带应用退出取消令牌。
-include!("store_more_tests.rs");
+// - store_config_writer.rs：消费自动补写请求，直到应用生命周期明确关闭。；在具名 worker 中读取设置并完成显式写入，不占用 GPUI 异步执行线程。；串行化一次显式或后台写入；后台路径额外携带应用退出取消令牌。
+include!("store_config_writer.rs");

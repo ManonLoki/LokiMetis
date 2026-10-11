@@ -425,5 +425,5 @@ fn local_device_and_custom_zone_split_the_same_instant_across_days() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - timeline_tests_more.rs：观测为当日 15:00 时当地 23:59:59 仍属当地当天；UTC 下界是 UTC 午夜，同一瞬间按 UTC 民用日判定。；下一自然日起点必须按民用日推进，不能把“明天”简化为固定增加 24 小时。
-include!("timeline_tests_more.rs");
+// - timeline_tests_civil_day.rs：观测为当日 15:00 时当地 23:59:59 仍属当地当天；UTC 下界是 UTC 午夜，同一瞬间按 UTC 民用日判定。；下一自然日起点必须按民用日推进，不能把“明天”简化为固定增加 24 小时。
+include!("timeline_tests_civil_day.rs");

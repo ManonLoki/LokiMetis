@@ -411,5 +411,5 @@ fn released_entity_cleans_last_asset_while_its_window_remains_open(cx: &mut Test
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - image_residency_tests_more.rs：显式刷新只重试失败结果并通知另一实际 owner，预算释放后两窗都绘制同一正常结果。；健康共享结果在一窗显式刷新期间保持同 Arc 和另一窗的真实 tile。；已共享的 pending 任务在刷新期间保留；同源文件查询回执不能取消另一窗仍在等待的任务。
-include!("image_residency_tests_more.rs");
+// - image_residency_tests_refresh.rs：显式刷新只重试失败结果并通知另一实际 owner，预算释放后两窗都绘制同一正常结果。；健康共享结果在一窗显式刷新期间保持同 Arc 和另一窗的真实 tile。；已共享的 pending 任务在刷新期间保留；同源文件查询回执不能取消另一窗仍在等待的任务。
+include!("image_residency_tests_refresh.rs");

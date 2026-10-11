@@ -417,5 +417,5 @@ fn every_completed_cleanup_error_branch_retains_ownership() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - lifecycle_more_tests.rs：runtime 插入前的 watcher 也必须被 shutdown 取消，并在 active 登记清零后才允许返回。；区分取消到达时仍在注入，以及取消后已进入回滚的两个关键安装窗口。；在模拟的安装阶段被显式释放前…
-include!("lifecycle_more_tests.rs");
+// - lifecycle_tests_shutdown.rs：runtime 插入前的 watcher 也必须被 shutdown 取消，并在 active 登记清零后才允许返回。；区分取消到达时仍在注入，以及取消后已进入回滚的两个关键安装窗口。；在模拟的安装阶段被显式释放前…
+include!("lifecycle_tests_shutdown.rs");

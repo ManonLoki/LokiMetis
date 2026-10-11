@@ -430,5 +430,5 @@ fn overlay_arrow_keys_consume_once_and_leave_unrelated_keys(cx: &mut TestAppCont
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：指针在桌宠内时切换键盘输入模式不能伪装为离开并清空分页栏。；设置滑块键盘步长为1；观察值更新会保存辅助增减而程序同步相同值不重复提交。
-include!("tests_more.rs");
+// - tests_keyboard.rs：指针在桌宠内时切换键盘输入模式不能伪装为离开并清空分页栏。；设置滑块键盘步长为1；观察值更新会保存辅助增减而程序同步相同值不重复提交。
+include!("tests_keyboard.rs");

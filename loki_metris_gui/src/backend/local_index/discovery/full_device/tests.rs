@@ -415,5 +415,5 @@ fn full_discovery_rejects_false_positive_session_directories() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：验证发现真实 Codex 根后立即停止下钻，根内 logs 即使伪造会话结构也不会成为第二数据源。；验证主动发现会剪枝独立 logs 子树，即使其中伪造完整 rollout 签名也不能登记。；验证未知候选的会话区域…
-include!("tests_more.rs");
+// - tests_logs_pruning.rs：验证发现真实 Codex 根后立即停止下钻，根内 logs 即使伪造会话结构也不会成为第二数据源。；验证主动发现会剪枝独立 logs 子树，即使其中伪造完整 rollout 签名也不能登记。；验证未知候选的会话区域…
+include!("tests_logs_pruning.rs");

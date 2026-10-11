@@ -423,5 +423,5 @@ fn repository_builtin_skin_folders_all_pass_native_validation() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - imports_more_tests.rs：验证换皮迁移中的 `imports_zip_with_one_wrapper_directory` 回归场景。；验证换皮迁移中的 `imports_manifestless_legacy_zip_and_gener…
-include!("imports_more_tests.rs");
+// - imports_tests_zip.rs：验证换皮迁移中的 `imports_zip_with_one_wrapper_directory` 回归场景。；验证换皮迁移中的 `imports_manifestless_legacy_zip_and_gener…
+include!("imports_tests_zip.rs");

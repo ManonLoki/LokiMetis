@@ -399,5 +399,5 @@ fn phase2_tools_use_expected_mapping_and_latest_turn_wins() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_lifecycle_more.rs：验证 Grok 会话轮次覆盖开始、进度、停止和会话结束。；验证会话跟踪保持有界并按预定优先级淘汰。
-include!("tests_lifecycle_more.rs");
+// - tests_lifecycle_grok_and_tracking.rs：验证 Grok 会话轮次覆盖开始、进度、停止和会话结束。；验证会话跟踪保持有界并按预定优先级淘汰。
+include!("tests_lifecycle_grok_and_tracking.rs");

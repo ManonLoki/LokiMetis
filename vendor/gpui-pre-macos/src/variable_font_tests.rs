@@ -423,5 +423,5 @@ fn font_with_unknown_cascade_value(font: &CTFont, date: f64) -> CTFont {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - variable_font_tests_more.rs：未知值不进入哈希键，相等的实际属性尺寸复制稳定复用，不同未知值不能错误合并。；缺字由原 CoreText cascade 解析；实际 fallback FontId 反查和重复 shaping 必须稳定。；不同 feature FontKey 再次 load_family 不得因全局已有 PS 名而产生空候选集。
-include!("variable_font_tests_more.rs");
+// - variable_font_tests_fallback.rs：未知值不进入哈希键，相等的实际属性尺寸复制稳定复用，不同未知值不能错误合并。；缺字由原 CoreText cascade 解析；实际 fallback FontId 反查和重复 shaping 必须稳定。；不同 feature FontKey 再次 load_family 不得因全局已有 PS 名而产生空候选集。
+include!("variable_font_tests_fallback.rs");

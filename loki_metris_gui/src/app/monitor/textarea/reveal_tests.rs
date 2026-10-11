@@ -421,5 +421,5 @@ fn shell_textarea_focus_round_trip_between_renders_reveals_manual_offscreen_inpu
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - reveal_tests_more.rs：已有请求后发生原生焦点往返，旧回调立即过期，下一次 prepaint 才登记新请求。；图库是同一文档内嵌面板；展开后真实 Tab 到其下文本域仍需滚入。；单独测试实体接收真实 bounds 事件，避免持有 Shell 可变借用时执行租约校验。
-include!("reveal_tests_more.rs");
+// - reveal_tests_focus.rs：已有请求后发生原生焦点往返，旧回调立即过期，下一次 prepaint 才登记新请求。；图库是同一文档内嵌面板；展开后真实 Tab 到其下文本域仍需滚入。；单独测试实体接收真实 bounds 事件，避免持有 Shell 可变借用时执行租约校验。
+include!("reveal_tests_focus.rs");

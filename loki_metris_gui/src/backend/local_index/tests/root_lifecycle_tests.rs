@@ -392,5 +392,5 @@ fn manual_registration_rejects_candidate_identity_failure() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - root_lifecycle_tests_more.rs：验证历史路径后来变成指向新候选的链接时不能参与物理去重或保留不安全路径。；验证同一物理 Claude Code 目录也在独立客户端 registry 内幂等登记。；验证主根重绑到字节级不同的路径（即使物理上是同一目…
-include!("root_lifecycle_tests_more.rs");
+// - root_lifecycle_tests_symlink_and_rebind.rs：验证历史路径后来变成指向新候选的链接时不能参与物理去重或保留不安全路径。；验证同一物理 Claude Code 目录也在独立客户端 registry 内幂等登记。；验证主根重绑到字节级不同的路径（即使物理上是同一目…
+include!("root_lifecycle_tests_symlink_and_rebind.rs");

@@ -51,7 +51,7 @@ fn hook_writer_join_respects_shutdown_deadline() {
     worker.join().expect("测试 worker 最终必须回收");
 
     // 源码已拆成同目录分片，契约检查要看到完整文本。
-    let source = [include_str!("mod.rs"), include_str!("store_more_tests.rs")].join("\n");
+    let source = [include_str!("mod.rs"), include_str!("store_config_writer.rs")].join("\n");
     assert!(source.contains("retained_hook_writer_owner().retain(worker_handle)"));
 }
 

@@ -418,5 +418,5 @@ fn cancelled_append_and_rebuild_restore_the_correct_authority() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - response_record_tests_more.rs：旧 parser/schema 与旧警告只能通过重读原始文件解除，不能靠缺字段补零。；重建先按首次发生时间决定保留窗口，重放时间变化既不能丢账也不能延长保留期。
-include!("response_record_tests_more.rs");
+// - response_record_tests_rebuild.rs：旧 parser/schema 与旧警告只能通过重读原始文件解除，不能靠缺字段补零。；重建先按首次发生时间决定保留窗口，重放时间变化既不能丢账也不能延长保留期。
+include!("response_record_tests_rebuild.rs");

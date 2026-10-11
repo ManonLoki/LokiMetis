@@ -433,5 +433,5 @@ fn empty_root_id_is_omitted_from_usage_statistics() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_more.rs：Trace 只能影响状态与耗时诊断，不能产生 Token、请求或模型行。；「全部」必须合并 WorkBuddy 的精确输入/缓存/输出/总量与请求数。；WorkBuddy 读取失败时不得丢掉其他 Agent 的已确…
-include!("tests_more.rs");
+// - tests_trace_and_merge.rs：Trace 只能影响状态与耗时诊断，不能产生 Token、请求或模型行。；「全部」必须合并 WorkBuddy 的精确输入/缓存/输出/总量与请求数。；WorkBuddy 读取失败时不得丢掉其他 Agent 的已确…
+include!("tests_trace_and_merge.rs");

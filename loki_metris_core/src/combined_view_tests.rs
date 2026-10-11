@@ -410,5 +410,5 @@ fn globally_sorts_pages_and_keeps_each_call_origin() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - combined_view_tests_more.rs：联合游标绑定完整成员与 parser 来源，只有来源版本变化也必须拒绝旧游标。；联合装配必须拒绝空输入和重复物理 Agent。；联合概览窗口只有 Codex 有调用时，Today 事实必须反映实际观测到的分项，
-include!("combined_view_tests_more.rs");
+// - combined_view_tests_cursor_and_empty.rs：联合游标绑定完整成员与 parser 来源，只有来源版本变化也必须拒绝旧游标。；联合装配必须拒绝空输入和重复物理 Agent。；联合概览窗口只有 Codex 有调用时，Today 事实必须反映实际观测到的分项，
+include!("combined_view_tests_cursor_and_empty.rs");

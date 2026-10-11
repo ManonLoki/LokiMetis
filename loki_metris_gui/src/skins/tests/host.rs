@@ -436,5 +436,5 @@
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - host_more_tests.rs：Codex 声明端口与候选不一致时不能借“唯一进程”回退冒认端点。；首次注入提交前 owner 根 PID 消失或换成其它进程时必须拒绝提交。；已验证 CDP 只在 WorkBuddy 恰有一个可信树根时复用，零根…
-include!("host_more_tests.rs");
+// - host_tests_ports_and_roots.rs：Codex 声明端口与候选不一致时不能借“唯一进程”回退冒认端点。；首次注入提交前 owner 根 PID 消失或换成其它进程时必须拒绝提交。；已验证 CDP 只在 WorkBuddy 恰有一个可信树根时复用，零根…
+include!("host_tests_ports_and_roots.rs");

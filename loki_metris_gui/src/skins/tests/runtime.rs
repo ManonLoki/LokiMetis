@@ -419,5 +419,5 @@ fn account_avatar_accepts_only_small_raster_data_urls() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - runtime_more_tests.rs：验证换皮迁移中的 `codex_instance_serializes_avatar_and_exact_active_skin` 回归场景。；Windows WorkBuddy 恢复后，新 PID 安装必须回收该…
-include!("runtime_more_tests.rs");
+// - runtime_tests_instances.rs：验证换皮迁移中的 `codex_instance_serializes_avatar_and_exact_active_skin` 回归场景。；Windows WorkBuddy 恢复后，新 PID 安装必须回收该…
+include!("runtime_tests_instances.rs");

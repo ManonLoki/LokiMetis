@@ -430,5 +430,5 @@ fn hidden_tool_cannot_be_admitted_by_direct_policy_inputs() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - protocol_tests_more.rs：禁用工具会立即释放它占用的位置，并使旧代数事件失效。；重新启用会分配新代数，旧会话状态和旧排队事件不得复活。；旧 Hook 文件仍投递时返回成功以保持插件 fail-open，但不进入队列或状态计数。
-include!("protocol_tests_more.rs");
+// - protocol_tests_disable_tool.rs：禁用工具会立即释放它占用的位置，并使旧代数事件失效。；重新启用会分配新代数，旧会话状态和旧排队事件不得复活。；旧 Hook 文件仍投递时返回成功以保持插件 fail-open，但不进入队列或状态计数。
+include!("protocol_tests_disable_tool.rs");

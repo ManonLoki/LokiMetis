@@ -220,5 +220,5 @@ fn cursor_alone_declares_release_handoff_and_tombstone_rules() {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - tests_contract_more.rs：验证每个工具适配器暴露完整且精确的原生事件表。；验证带 matcher 的事件与各上游协议子类型契约一致。
-include!("tests_contract_more.rs");
+// - tests_contract_event_tables.rs：验证每个工具适配器暴露完整且精确的原生事件表。；验证带 matcher 的事件与各上游协议子类型契约一致。
+include!("tests_contract_event_tables.rs");

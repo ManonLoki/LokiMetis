@@ -104,7 +104,7 @@ fn discovers_an_exclusively_locked_jsonl_without_opening_it() {
 #[test]
 fn discovery_adapter_has_no_content_open_primitive() {
     // 源码已拆成同目录分片，契约检查要看到完整文本（含兜底遍历实现）。
-    let source = [include_str!("mod.rs"), include_str!("metadata_discovery_more_tests.rs")].join("\n");
+    let source = [include_str!("mod.rs"), include_str!("metadata_discovery_fallback_walk.rs")].join("\n");
     for parts in [
         ["File", "::open"],
         ["read_to", "_string"],
