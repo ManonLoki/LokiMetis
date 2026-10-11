@@ -147,6 +147,28 @@ pub(crate) struct UsageCallOrigin {
     pub(crate) source_version: Option<String>,
 }
 
+/// 逐调用原始来源的紧凑表示：不为每条调用保存 id 与来源副本。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CallOrigins {
+    /// 单一物理 Agent：全部调用共用同一来源。
+    Uniform(UsageCallOrigin),
+    /// 联合视图：调用 ID 带 `all-<agent>-call-` 命名空间前缀，据此还原所属来源。
+    ByNamespace(Vec<(String, UsageCallOrigin)>),
+}
+
+impl CallOrigins {
+    /// 命名空间 ID 的哈希后缀固定为 16 位十六进制，前缀相同但后缀形状不符的 ID 不属于任何来源。
+    pub(crate) fn get(&self, logical_call_id: &str) -> Option<&UsageCallOrigin> {
+        match self {
+            Self::Uniform(origin) => Some(origin),
+            Self::ByNamespace(entries) => entries.iter().find_map(|(prefix, origin)| {
+                let rest = logical_call_id.strip_prefix(prefix.as_str())?;
+                (rest.len() == 16 && rest.bytes().all(|byte| byte.is_ascii_hexdigit())).then_some(origin)
+            }),
+        }
+    }
+}
+
 /// 描述调用筛选选项。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UsageFilterOption {
@@ -205,19 +227,11 @@ pub fn build_usage_calls_page(
     source_version: Option<&str>,
 ) -> Result<UsageCallsPage, String> {
     let source_version = source_version.map(str::to_string);
-    let origins = canonical
-        .iter()
-        .map(|call| {
-            (
-                call.logical_call_id.clone(),
-                UsageCallOrigin {
-                    client,
-                    provider,
-                    source_version: source_version.clone(),
-                },
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
+    let origins = CallOrigins::Uniform(UsageCallOrigin {
+        client,
+        provider,
+        source_version: source_version.clone(),
+    });
     let snapshot_context = vec![
         agent_wire_label(client).to_owned(),
         provider_fingerprint_label(provider).to_owned(),
@@ -241,7 +255,7 @@ pub(crate) fn build_usage_calls_page_with_origins(
     root_aliases: &BTreeMap<String, String>,
     query: &UsageCallsQuery,
     observed_at_epoch_ms: i64,
-    origins: &BTreeMap<String, UsageCallOrigin>,
+    origins: &CallOrigins,
     snapshot_context: &[String],
 ) -> Result<UsageCallsPage, String> {
     validate_filters(&query.filters)?;

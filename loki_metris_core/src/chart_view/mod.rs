@@ -138,7 +138,7 @@ pub fn build_usage_chart_with_standard(
 pub(crate) fn build_combined_chart_with_standard(
     canonical: &CanonicalUsageSet,
     root_aliases: &BTreeMap<String, String>,
-    origins: &BTreeMap<String, SourceClientKind>,
+    origins: &dyn Fn(&str) -> Option<SourceClientKind>,
     index_state: LocalIndexState,
     coverage: &CoverageReport,
     window: LocalUsageWindow,
@@ -169,7 +169,7 @@ pub(crate) fn build_combined_chart_with_standard(
 fn build_chart(
     canonical: &CanonicalUsageSet,
     root_aliases: &BTreeMap<String, String>,
-    origins: Option<&BTreeMap<String, SourceClientKind>>,
+    origins: Option<&dyn Fn(&str) -> Option<SourceClientKind>>,
     index_state: LocalIndexState,
     coverage: &CoverageReport,
     window: LocalUsageWindow,
@@ -325,15 +325,12 @@ fn reconcile_buckets(buckets: &[UsageChartBucket], expected: &UsageMeasure) -> R
 /// 为“全部”联合视图按物理 Agent 分组并生成可对账的 Top 10。
 fn build_agent_groups(
     canonical: &CanonicalUsageSet,
-    origins: &BTreeMap<String, SourceClientKind>,
+    origins: &dyn Fn(&str) -> Option<SourceClientKind>,
     total: &UsageMeasure,
 ) -> Result<(Vec<UsageGroupDisplay>, Option<UsageGroupDisplay>), String> {
     let mut calls_by_client = BTreeMap::<SourceClientKind, Vec<&crate::UsageCall>>::new();
     for call in &canonical.calls {
-        let client = origins
-            .get(&call.logical_call_id)
-            .copied()
-            .ok_or_else(chart_read_error)?;
+        let client = origins(&call.logical_call_id).ok_or_else(chart_read_error)?;
         calls_by_client.entry(client).or_default().push(call);
     }
 

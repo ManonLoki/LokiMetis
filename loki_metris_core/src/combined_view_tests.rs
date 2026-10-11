@@ -282,7 +282,7 @@ fn combines_index_states_conservatively_and_hides_partial_usage() {
         .expect("state combination");
         assert_eq!(combined.index_state, expected);
         assert_eq!(combined.canonical.calls.len(), expected_calls);
-        assert_eq!(combined.origins.len(), expected_calls);
+        assert!(combined.canonical.calls.iter().all(|call| combined.origins.get(&call.logical_call_id).is_some()));
     }
 }
 
@@ -302,7 +302,7 @@ fn ignores_unconfigured_agents_without_hiding_other_usage() {
 
     assert_eq!(combined.index_state, LocalIndexState::Ready);
     assert_eq!(combined.canonical.calls.len(), 1);
-    assert_eq!(combined.origins.len(), 1);
+    assert!(combined.canonical.calls.iter().all(|call| combined.origins.get(&call.logical_call_id).is_some()));
 }
 
 /// 仍有启用数据源但尚未扫描的 Agent 必须继续阻断部分联合结果，不能被误判为未配置。
@@ -325,7 +325,7 @@ fn keeps_configured_unscanned_agents_in_combined_state() {
 
     assert_eq!(combined.index_state, LocalIndexState::NotScanned);
     assert!(combined.canonical.calls.is_empty());
-    assert!(combined.origins.is_empty());
+    assert!(combined.canonical.calls.is_empty());
 }
 
 /// 联合调用页必须全局排序分页，并为每行保留具体 Agent、provider 与 parser 版本。

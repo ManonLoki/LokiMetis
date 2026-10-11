@@ -1,6 +1,6 @@
 //! 调用级去重与可见性衍生。
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use crate::{
     Confidence, SessionTokenSnapshot, SourceProvenance, TokenUsage, TotalTokenAccounting, UsageCall,
@@ -44,82 +44,88 @@ pub struct CanonicalUsageSet {
 }
 
 /// 统一去重结果并保持 provenance。
+///
+/// 按逻辑调用指纹排序后逐组折叠，不再为每条调用建立带键副本的 BTreeMap：
+/// 同组内保持输入顺序，因此首条、冲突选择、置信度与 provenance 合并结果和逐条
+/// 插入完全一致；警告按触发它的输入位置回到原来的出现顺序。
 pub fn canonicalize_usage_calls(calls: Vec<UsageCall>) -> CanonicalUsageSet {
     let empty_tokens = empty_tokens_for_calls(&calls);
-    let mut canonical = BTreeMap::<String, UsageCall>::new();
+    let mut order: Vec<usize> = (0..calls.len()).collect();
+    order.sort_by(|&left, &right| {
+        calls[left]
+            .logical_call_id
+            .cmp(&calls[right].logical_call_id)
+            .then(left.cmp(&right))
+    });
+    let mut slots: Vec<Option<UsageCall>> = calls.into_iter().map(Some).collect();
+    let mut canonical = Vec::with_capacity(slots.len());
     let mut duplicate_source_count = 0_u64;
     let mut duplicate_counts_by_call = BTreeMap::<String, u64>::new();
-    let mut selected_confidence_by_call = BTreeMap::<String, Confidence>::new();
-    let mut conflicted_calls = BTreeSet::<String>::new();
-    let mut warnings = Vec::new();
+    let mut warnings = Vec::<(usize, CanonicalizationWarning)>::new();
 
-    for call in calls {
-        let logical_call_id = call.logical_call_id.clone();
-        let incoming_confidence = call.confidence;
-
-        match canonical.get_mut(&logical_call_id) {
-            None => {
-                selected_confidence_by_call.insert(logical_call_id.clone(), incoming_confidence);
-                canonical.insert(logical_call_id, call);
-            }
-            Some(existing) => {
-                duplicate_source_count = duplicate_source_count.saturating_add(1);
-                let call_duplicate_count = duplicate_counts_by_call
-                    .entry(logical_call_id.clone())
-                    .or_default();
-                *call_duplicate_count = call_duplicate_count.saturating_add(1);
-
-                let selected_confidence = selected_confidence_by_call
-                    .get(&logical_call_id)
-                    .copied()
-                    .unwrap_or(existing.confidence);
-                let conflict = existing.usage != call.usage;
-                if conflict {
-                    conflicted_calls.insert(logical_call_id.clone());
-                    warnings.push(CanonicalizationWarning {
-                        logical_call_id: logical_call_id.clone(),
+    let mut cursor = 0;
+    while cursor < order.len() {
+        let mut existing = slots[order[cursor]].take().expect("每个输入位置只取一次");
+        let mut selected_confidence = existing.confidence;
+        let mut conflicted = false;
+        let mut duplicates = 0_u64;
+        cursor += 1;
+        while cursor < order.len()
+            && slots[order[cursor]]
+                .as_ref()
+                .is_some_and(|next| next.logical_call_id == existing.logical_call_id)
+        {
+            let position = order[cursor];
+            let call = slots[position].take().expect("每个输入位置只取一次");
+            cursor += 1;
+            duplicate_source_count = duplicate_source_count.saturating_add(1);
+            duplicates = duplicates.saturating_add(1);
+            let incoming_confidence = call.confidence;
+            if existing.usage != call.usage {
+                conflicted = true;
+                warnings.push((
+                    position,
+                    CanonicalizationWarning {
+                        logical_call_id: existing.logical_call_id.clone(),
                         kind: CanonicalizationWarningKind::ConflictingDuplicate,
-                    });
-                    if confidence_rank(incoming_confidence) > confidence_rank(selected_confidence) {
-                        let mut replacement = call.clone();
-                        replacement.provenance = existing.provenance.clone();
-                        *existing = replacement;
-                        selected_confidence_by_call
-                            .insert(logical_call_id.clone(), incoming_confidence);
-                    }
-                    existing.confidence = Confidence::Suspected;
-                } else if confidence_rank(incoming_confidence)
-                    > confidence_rank(selected_confidence)
-                {
-                    selected_confidence_by_call
-                        .insert(logical_call_id.clone(), incoming_confidence);
-                    if !conflicted_calls.contains(&logical_call_id) {
-                        existing.confidence = incoming_confidence;
-                    }
+                    },
+                ));
+                if confidence_rank(incoming_confidence) > confidence_rank(selected_confidence) {
+                    let mut replacement = call.clone();
+                    replacement.provenance = existing.provenance.clone();
+                    existing = replacement;
+                    selected_confidence = incoming_confidence;
                 }
-
-                merge_provenance(&mut existing.provenance, call.provenance);
+                existing.confidence = Confidence::Suspected;
+            } else if confidence_rank(incoming_confidence) > confidence_rank(selected_confidence) {
+                selected_confidence = incoming_confidence;
+                if !conflicted {
+                    existing.confidence = incoming_confidence;
+                }
             }
+            merge_provenance(&mut existing.provenance, call.provenance);
         }
-    }
-
-    for call in canonical.values_mut() {
-        call.provenance.sort_by(|left, right| {
+        if duplicates > 0 {
+            duplicate_counts_by_call.insert(existing.logical_call_id.clone(), duplicates);
+        }
+        existing.provenance.sort_by(|left, right| {
             left.root_id
                 .cmp(&right.root_id)
                 .then_with(|| left.source_id.cmp(&right.source_id))
                 .then_with(|| left.relative_label.cmp(&right.relative_label))
                 .then_with(|| left.archived.cmp(&right.archived))
         });
+        canonical.push(existing);
     }
+    warnings.sort_by_key(|(position, _)| *position);
 
     CanonicalUsageSet {
         total_token_accounting: TotalTokenAccounting::Observed,
         empty_tokens,
-        calls: canonical.into_values().collect(),
+        calls: canonical,
         duplicate_source_count,
         duplicate_counts_by_call,
-        warnings,
+        warnings: warnings.into_iter().map(|(_, warning)| warning).collect(),
         snapshots: Vec::new(),
     }
 }
@@ -222,6 +228,10 @@ pub(crate) fn lower_confidence(left: Confidence, right: Confidence) -> Confidenc
         right
     }
 }
+
+#[cfg(test)]
+#[path = "canonicalization_equivalence_tests.rs"]
+mod equivalence_tests;
 
 #[cfg(test)]
 mod tests {

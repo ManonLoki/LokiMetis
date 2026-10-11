@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use thiserror::Error;
 
-use crate::calls_view::{UsageCallOrigin, build_usage_calls_page_with_origins};
+use crate::calls_view::{CallOrigins, UsageCallOrigin, build_usage_calls_page_with_origins};
 use crate::{
     CanonicalUsageSet, CanonicalizationWarning, CoverageReport, CoverageState, EnabledAgents,
     LocalIndexState, LocalRecordsSummary, ProviderKind, SessionTokenSnapshot, SourceClientKind,
@@ -72,7 +72,7 @@ pub struct CombinedUsageSnapshot {
     index_state: LocalIndexState,
     coverage: CoverageReport,
     root_aliases: BTreeMap<String, String>,
-    origins: BTreeMap<String, UsageCallOrigin>,
+    origins: CallOrigins,
     source_version: String,
 }
 
@@ -123,7 +123,7 @@ pub fn combine_agent_usage_snapshots(
         snapshots: Vec::new(),
     };
     let mut root_aliases = BTreeMap::new();
-    let mut origins = BTreeMap::new();
+    let mut origins = Vec::new();
 
     for input in inputs {
         let client_key = agent_wire_label(input.client);
@@ -164,17 +164,17 @@ pub fn combine_agent_usage_snapshots(
         );
 
         let provider = provider_for_client(input.client);
+        // 命名空间前缀即所属 Agent，来源只按 Agent 保存一份，不再逐调用复制。
+        origins.push((
+            format!("all-{client_key}-call-"),
+            UsageCallOrigin {
+                client: input.client,
+                provider,
+                source_version: input.source_version.clone(),
+            },
+        ));
         for call in input.snapshot.canonical.calls {
-            let call = namespace_call(input.client, call);
-            origins.insert(
-                call.logical_call_id.clone(),
-                UsageCallOrigin {
-                    client: input.client,
-                    provider,
-                    source_version: input.source_version.clone(),
-                },
-            );
-            canonical.calls.push(call);
+            canonical.calls.push(namespace_call(input.client, call));
         }
     }
 
@@ -206,7 +206,7 @@ pub fn combine_agent_usage_snapshots(
         index_state,
         coverage,
         root_aliases,
-        origins,
+        origins: CallOrigins::ByNamespace(origins),
         source_version,
     })
 }
@@ -256,15 +256,11 @@ pub fn build_combined_usage_chart_with_standard(
     time_standard: TimeStandard,
     device_tz: &jiff::tz::TimeZone,
 ) -> Result<crate::UsageChartPage, String> {
-    let clients = combined
-        .origins
-        .iter()
-        .map(|(call_id, origin)| (call_id.clone(), origin.client))
-        .collect();
+    let client_of = |call_id: &str| combined.origins.get(call_id).map(|origin| origin.client);
     crate::chart_view::build_combined_chart_with_standard(
         &combined.canonical,
         &combined.root_aliases,
-        &clients,
+        &client_of,
         combined.index_state,
         &combined.coverage,
         window,
@@ -456,7 +452,7 @@ fn combined_index_state(states: &[LocalIndexState], calls_empty: bool) -> LocalI
 /// 未扫描或待重扫时清除其余成员的部分事实，避免把部分和冒充「全部」。
 fn clear_partial_usage(
     canonical: &mut CanonicalUsageSet,
-    origins: &mut BTreeMap<String, UsageCallOrigin>,
+    origins: &mut Vec<(String, UsageCallOrigin)>,
 ) {
     canonical.calls.clear();
     canonical.duplicate_source_count = 0;

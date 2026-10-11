@@ -252,10 +252,11 @@ fn agent_dimension_groups_combined_calls_and_rejects_missing_origin() {
         .expect("Claude fixture omits reasoning tokens");
     let mut canonical = canonicalize_usage_calls(vec![codex, claude]);
     canonical.empty_tokens = TokenUsage::zero_with_component_availability(true, true, false);
-    let origins = BTreeMap::from([
+    let origin_map = BTreeMap::from([
         ("codex".to_owned(), SourceClientKind::Codex),
         ("claude".to_owned(), SourceClientKind::ClaudeCode),
     ]);
+    let origins = |id: &str| origin_map.get(id).copied();
     let page = build_combined_chart_with_standard(
         &canonical,
         &BTreeMap::new(),
@@ -278,7 +279,7 @@ fn agent_dimension_groups_combined_calls_and_rejects_missing_origin() {
     let missing = build_combined_chart_with_standard(
         &canonical,
         &BTreeMap::new(),
-        &BTreeMap::new(),
+        &|_: &str| None,
         LocalIndexState::Ready,
         &coverage(),
         LocalUsageWindow::Today,
