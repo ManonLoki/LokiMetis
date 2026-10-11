@@ -70,6 +70,71 @@ fn setup(
     this.skins.last_read = Some(Instant::now());
     cx.notify();
 }
+
+/// 真实失败目录回执保留已绘制预览及缓存，不把失败误当成空库退役。
+#[gpui_kit::test]
+fn failed_catalog_receipt_keeps_preview_assets_and_entries(cx: &mut TestAppContext) {
+    if isolated("failed_catalog_receipt_keeps_preview_assets_and_entries") { return; }
+    let root = tempfile::tempdir().unwrap();
+    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let _finish = Finish(service.clone());
+    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let preview = entries[0].preview.clone().unwrap();
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
+    for _ in 0..4 {
+        cx.update_window(handle, |_, window, app| window.render_frame(app)).unwrap();
+        cx.run_until_parked();
+    }
+    assert!(cx.read(|app| app.has_asset::<super::preview::PreviewImageDecoder>(&preview)));
+    service.finish();
+    shell.update(cx, |this, cx| this.refresh_skins(true, cx));
+    settle(cx, &shell, |this| !this.skins.loading);
+    shell.read_with(cx, |this, _| {
+        assert!(Arc::ptr_eq(this.skins.entries.as_ref().unwrap()[0].preview.as_ref().unwrap(), &preview));
+        assert_eq!(this.skins.catalog_error.as_ref().unwrap().code, "usage_service_closed");
+        assert_eq!(this.skins.host_error.as_ref().unwrap().code, "usage_service_closed");
+        assert!(this.skins.status.is_none());
+        assert!(!this.skin_writable());
+    });
+    assert!(cx.read(|app| app.has_asset::<super::preview::PreviewImageDecoder>(&preview)));
+}
+
+/// 已排队回执随后generation失效时，原目录、缓存、错误和读取时间均不可被迟到结果改写。
+#[gpui_kit::test]
+fn stale_catalog_receipt_does_not_retire_preview_or_update_state(cx: &mut TestAppContext) {
+    if isolated("stale_catalog_receipt_does_not_retire_preview_or_update_state") { return; }
+    let root = tempfile::tempdir().unwrap();
+    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let _finish = Finish(service.clone());
+    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let preview = entries[0].preview.clone().unwrap();
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
+    for _ in 0..4 {
+        cx.update_window(handle, |_, window, app| window.render_frame(app)).unwrap();
+        cx.run_until_parked();
+    }
+    service.finish();
+    shell.update(cx, |this, cx| {
+        this.refresh_skins(true, cx);
+        assert!(this.skins.query.is_some());
+        this.skins.generation = this.skins.generation.wrapping_add(1);
+        this.skins.last_read = None;
+    });
+    // 已关闭服务同步返回错误；正式task仍保留并由前台调度器完整执行。
+    cx.run_until_parked();
+    shell.read_with(cx, |this, _| {
+        assert!(this.skins.query.is_some());
+        assert!(this.skins.loading);
+        assert!(this.skins.last_read.is_none());
+        assert!(this.skins.catalog_error.is_none());
+        assert!(this.skins.host_error.is_none());
+        assert!(this.skins.status.is_some());
+        assert!(Arc::ptr_eq(this.skins.entries.as_ref().unwrap()[0].preview.as_ref().unwrap(), &preview));
+    });
+    assert!(cx.read(|app| app.has_asset::<super::preview::PreviewImageDecoder>(&preview)));
+}
 #[gpui_kit::test]
 /// 四列卡片高度有限，实时搜索筛选真实库，离页返回仍保留搜索实体。
 fn catalog_search_keeps_native_input_and_card_height(cx: &mut TestAppContext) {

@@ -27,6 +27,7 @@ impl Render for PreviewProbe {
                 div().id("preview-frame").test_support().relative().w_full().h(px(160.))
                     .flex_shrink_0().overflow_hidden().child(skin_preview(
                         ImageSource::Render(self.image.clone()), "preview".into(), "Pikachu preview".into(),
+                        Default::default(),
                     )).child(
                         Checkbox::new("preview-select").checked(self.selected).accessibility_label("Select Pikachu")
                             .absolute().right(px(12.)).top(px(12.)).size(px(20.))

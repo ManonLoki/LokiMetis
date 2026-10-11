@@ -127,17 +127,11 @@ fn catalog_only_shutdown_keeps_process_runtime_gate_open() {
     let root = tempfile::tempdir().unwrap();
     for index in 0..2 {
         let service = UsageService::in_test_directory(root.path().join(index.to_string())).unwrap();
-        assert_eq!(
-            service
-                .skin_catalog()
-                .unwrap()
-                .blocking_recv()
-                .unwrap()
-                .unwrap()
-                .entries
-                .len(),
-            6
-        );
+        let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+        assert_eq!(entries.len(), 6);
+        assert!(entries.iter().all(|entry| entry.skin.preview_data_url.capacity() == 0),
+            "原生目录快照不得保留已清空Base64字段的分配容量");
+        assert!(entries.iter().all(|entry| entry.preview.is_some()), "释放编码容量不能丢失原始预览");
         assert!(
             !service
                 .context

@@ -292,6 +292,7 @@ impl Shell {
                         format!("skin-preview-{}-{:?}", skin.id, skin.source).into(),
                         self.t("skins.card.preview_alt")
                             .replace("%{name}", &skin.name),
+                        self.skins.preview_residencies.clone(),
                     ));
                 }
                 if user {

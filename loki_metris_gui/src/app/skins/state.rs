@@ -45,6 +45,7 @@ pub(super) enum RestartMode {
 pub(in crate::app) struct Skins {
     pub host: Option<SkinHostKind>,
     pub entries: Option<Vec<SkinEntry>>,
+    pub preview_residencies: super::preview_residency::PreviewResidencies,
     pub catalog_error: Option<SkinError>,
     pub host_error: Option<SkinError>,
     pub instances: Vec<SkinHostInstance>,
@@ -73,6 +74,7 @@ impl Default for Skins {
         Self {
             host: None,
             entries: None,
+            preview_residencies: Default::default(),
             catalog_error: None,
             host_error: None,
             instances: Vec::new(),

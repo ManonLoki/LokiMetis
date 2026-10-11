@@ -8,6 +8,7 @@ mod imports;
 mod state;
 mod view;
 mod preview;
+mod preview_residency;
 
 use super::{Page, Shell};
 use crate::skins::{SkinError, SkinService};
@@ -124,7 +125,7 @@ impl Shell {
                 this.skins.last_read = Some(std::time::Instant::now());
                 match catalog {
                     Ok(catalog) => {
-                        this.skins.entries = Some(catalog.entries);
+                        this.adopt_skin_catalog(catalog.entries, cx);
                         this.skins.catalog_error = None;
                     }
                     Err(error) => this.skins.catalog_error = Some(error),

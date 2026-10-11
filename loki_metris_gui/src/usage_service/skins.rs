@@ -156,7 +156,8 @@ impl UsageService {
                                     Arc::new(gpui_kit::Image::from_bytes(format, bytes))
                                 })
                             });
-                    skin.preview_data_url.clear();
+                    // 描述快照不再携带Base64；释放容量，避免每个目录同时保留两份原图编码。
+                    skin.preview_data_url = String::new();
                     SkinEntry { skin, preview }
                 })
                 .collect();

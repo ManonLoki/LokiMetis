@@ -441,6 +441,22 @@ Computer Use 的应用绑定、AXRaise 与 key window 不证明应用位于前�
 
 本项分类为 `maintenance`，`change_id=LMMAINT-WINDOW-BORROW-AGGREGATE-001`，`required_version=0.2.9`，版本未提升。冻结旧装配、测试日志、八轮耗时、三轮分配统计及源码/二进制摘要位于忽略目录 `release/window-borrow-aggregate-development-20261011/`。整包与 Computer Use 比对结果按各自真实输入另外保存。
 
+### 5.27 按目录内容退役历史预览，分别验证缓存、像素和图集
+
+预览的编码字节、解码像素、窗口图集和旧 Scene 有不同的所有者。仅替换目录中的 `Arc<Image>`，不能证明 GPUI Asset 已删除；仅删除 Asset，也不能证明窗口图集不再引用旧输出。资源回收应围绕正式目录采用入口建立闭环，而不是每次离页清空全部缓存。
+
+[目录采用与退役](../loki_metris_gui/src/app/skins/preview_residency.rs) 只接收当前 generation 的成功回执，以新目录所有内容 ID 为保留集合。相同字节的新 Arc、元数据变化和多卡共享继续复用；最后一个目录引用消失才同步移除对应的 Ready、Pending 或 Failed Asset。失败和过期回执保持原目录及资源。
+
+预览在首次绘制前登记解码输出的弱引用，不增加源字节或像素的长期强所有者。退役先升级弱引用，再移除 Asset，结束内部借用后延迟清理原窗口中旧 `RenderImage.id` 的图集条目，并刷新窗口使旧 Scene 失效。延迟步骤不能按源 ID 删除：A→B→A 可能已经建立同源的新输出，旧清理只能针对旧输出身份。若未来其他窗口也使用此 Decoder，需重新审查跨窗口共享所有权。
+
+另一个容易忽略的分配是 `String::clear()`：长度为零仍保留原 Base64 容量。[GUI 目录快照](../loki_metris_gui/src/usage_service/skins.rs) 完成原字节转换后改用 `String::new()` 交付空字段，并验证原预览仍存在。这只释放 GUI 快照的空 String 容量；服务侧当前目录缓存和刷新时的临时 Base64 副本仍存在。
+
+相关皮肤回归 26 项、目录容量回归 1 项通过。另以当前真实 Metal renderer 连续采用 16 份不同内容，经过生产 render/prepaint/paint，逐份检查历史 Asset 键不存在、解码弱引用无法升级、旧输出第 0 帧的实际图集键不存在；最后清空目录时窗口仍存活。测试还覆盖共享内容、A→B→A、Pending/后台完成但尚未发布、Failed、Ready 尚未绘制，以及失败/过期异步回执。探针不上传新图像，不通过清空整个图集制造通过结果。
+
+图集键退役不等于驱动立即归还全部 GPU 物理页，也不能据此宣称截图中的 946 MB 根因已全部修复。仍需用相同输入、页面、窗口可见性和运行时间采集整应用 footprint，并与 Tauri 对照；当前目录资源驻留及分配器高水位要与历史内容持续增长分开判断。
+
+本项为 `bug-fix`，`change_id=LMDESK-SKINS-PREVIEW-RETIRE-001`，`required_version=0.2.11`。开发测试及实际 Metal 结果保存在忽略目录 `release/skins-preview-residency-development-20261011/`；试包 UI 比对和长时间资源对照仍待完成。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制
