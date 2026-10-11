@@ -46,7 +46,7 @@ pub use agent_hooks::{
     AiTool, AiToolDescriptor, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
     HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
     HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigDirectories, HookConfigLocation,
-    HookConfigPreview, HookConfigWriteResult, HookError, HookEventDecision, HookStateMachine,
+    HookConfigPreview, HookConfigWriteResult, HookError, HookEventDecision, HookRegistrationMode, HookStateMachine,
     HookTransition, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
     PreparedNativeHook, ai_tool_descriptors, ai_tool_name, generate_hook_auxiliary_configs,
     generate_hook_config, generate_wsl_hook_config, hook_config_filename, hook_config_write_result,

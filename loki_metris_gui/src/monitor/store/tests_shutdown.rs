@@ -73,11 +73,17 @@ fn hook_writer_drop_reaps_idle_worker() {
 }
 
 #[test]
-/// 外部 writer 在一次校正完全结束后最终覆盖时，低频自愈仍会恢复 marker 并保留外部内容。
-fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
+/// 外部 writer 完整撤销本应用注册后，跨多个真实维护周期也不得重新加入。
+fn owned_worker_preserves_explicit_external_removal() {
     let root = tempdir().expect("temp");
     let config_path = root.path().join(hook_config_filename(AiTool::Codex));
-    let settings = settings_for(AiTool::Codex, root.path());
+    let mut settings = settings_for(AiTool::Codex, root.path());
+    seed_owned_config(AiTool::Codex, root.path(), "/old/LokiMetris");
+    let claude = root.path().join("claude");
+    seed_owned_config(AiTool::ClaudeCode, &claude, "/old/LokiMetris");
+    settings.enabled_ai_tools.push(AiTool::ClaudeCode);
+    settings.hook_directories.set(AiTool::ClaudeCode, claude.to_string_lossy().into_owned());
+    let sentinel = claude.join(hook_config_filename(AiTool::ClaudeCode));
     let writer = HookConfigWriter::start_with_interval(
         PathBuf::from("/opt/LokiMetris"),
         root.path().to_owned(),
@@ -85,19 +91,9 @@ fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
     );
 
     writer.request_enabled(settings);
-    for _ in 0..200 {
-        let initial_completed = std::fs::read_to_string(&config_path)
-            .is_ok_and(|content| content.hook_command_text().contains("LokiMetris:tool=codex"))
-            && hook_config_lock_is_available(root.path());
-        if initial_completed {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    assert!(
-        hook_config_lock_is_available(root.path()),
-        "initial repair must release its file lock"
-    );
+    wait_for_repaired_hook(&config_path, "/opt/LokiMetris");
+    wait_for_repaired_hook(&sentinel, "/opt/LokiMetris");
+    wait_for_hook_unlock(root.path());
 
     let external = r#"{
       "hooks": {
@@ -111,21 +107,14 @@ fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
             .hook_command_text().contains("LokiMetris:tool=codex")
     );
 
-    for _ in 0..400 {
-        if std::fs::read_to_string(&config_path).is_ok_and(|content| {
-            content.hook_command_text().contains("LokiMetris:tool=codex")
-                && content.contains("external-final-write")
-                && hook_config_lock_is_available(root.path())
-        }) {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
+    for _ in 0..2 {
+        wait_for_hook_unlock(&claude);
+        seed_owned_config(AiTool::ClaudeCode, &claude, "/older/LokiMetris");
+        wait_for_repaired_hook(&sentinel, "/opt/LokiMetris");
     }
     writer.shutdown();
 
-    let repaired = std::fs::read_to_string(config_path).expect("periodically repaired config");
-    assert!(repaired.hook_command_text().contains("LokiMetris:tool=codex"));
-    assert!(repaired.contains("external-final-write"));
+    assert_eq!(std::fs::read_to_string(config_path).expect("external removal preserved"), external);
 }
 
 #[test]
@@ -136,6 +125,8 @@ fn owned_worker_replaces_the_previous_directory_snapshot() {
     let new_directory = root.path().join("new");
     let old_path = old_directory.join(hook_config_filename(AiTool::Codex));
     let new_path = new_directory.join(hook_config_filename(AiTool::Codex));
+    seed_owned_config(AiTool::Codex, &old_directory, "/old/LokiMetris");
+    seed_owned_config(AiTool::Codex, &new_directory, "/old/LokiMetris");
     let writer = HookConfigWriter::start_with_interval(
         PathBuf::from("/opt/LokiMetris"),
         root.path().to_owned(),
@@ -143,25 +134,10 @@ fn owned_worker_replaces_the_previous_directory_snapshot() {
     );
 
     writer.request_enabled(settings_for(AiTool::Codex, &old_directory));
-    for _ in 0..200 {
-        if old_path.exists() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    assert!(old_path.exists(), "old snapshot should be processed first");
+    wait_for_repaired_hook(&old_path, "/opt/LokiMetris");
 
     writer.request_enabled(settings_for(AiTool::Codex, &new_directory));
-    for _ in 0..200 {
-        if new_path.exists() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    assert!(
-        new_path.exists(),
-        "new snapshot should be processed immediately"
-    );
+    wait_for_repaired_hook(&new_path, "/opt/LokiMetris");
 
     let external_only = r#"{"hooks":{"SessionStart":[]},"owner":"external"}"#;
     std::fs::write(&old_path, external_only).expect("replace old config");

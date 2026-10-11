@@ -72,11 +72,13 @@ fn managed_config_repairs_stale_executable_and_missing_event() {
     )
     .expect("write stale config");
 
-    let repaired = write_hook_config(
+    let repaired = write_hook_config_in_mode(
         &settings,
         AiTool::Codex,
         Path::new("/new/LokiMetris"),
         root.path(),
+        None,
+        HookRegistrationMode::RepairOwnedOnly,
     )
     .expect("repair");
     assert!(repaired.config_changed);
@@ -89,7 +91,7 @@ fn managed_config_repairs_stale_executable_and_missing_event() {
 }
 
 #[test]
-/// 自动补写只处理启用项，并保留已取消选择工具的现有文件。
+/// 自动维护只处理已注册启用项，并保留已取消选择工具的现有文件。
 fn automatic_repair_only_touches_enabled_tools_and_never_deletes_disabled_config() {
     let root = tempdir().expect("temp");
     let codex_dir = root.path().join("codex");
@@ -102,10 +104,11 @@ fn automatic_repair_only_touches_enabled_tools_and_never_deletes_disabled_config
     std::fs::create_dir_all(&claude_dir).expect("claude dir");
     let claude_path = claude_dir.join(hook_config_filename(AiTool::ClaudeCode));
     std::fs::write(&claude_path, "user-owned-disabled-config").expect("claude config");
+    seed_owned_config(AiTool::Codex, &codex_dir, "/old/LokiMetris");
 
     repair_enabled_hook_configs(&settings, Path::new("/opt/LokiMetris"), root.path());
 
-    assert!(codex_dir.join(hook_config_filename(AiTool::Codex)).exists());
+    assert!(std::fs::read_to_string(codex_dir.join(hook_config_filename(AiTool::Codex))).unwrap().hook_command_text().contains("/opt/LokiMetris"));
     assert_eq!(
         std::fs::read_to_string(claude_path).expect("disabled config"),
         "user-owned-disabled-config"
@@ -190,11 +193,12 @@ fn owned_worker_processes_enabled_request_and_shuts_down() {
     let root = tempdir().expect("temp");
     let config_path = root.path().join(hook_config_filename(AiTool::Codex));
     let settings = settings_for(AiTool::Codex, root.path());
+    seed_owned_config(AiTool::Codex, root.path(), "/old/LokiMetris");
     let writer = HookConfigWriter::start(PathBuf::from("/opt/LokiMetris"), root.path().to_owned());
 
     writer.request_enabled(settings);
     for _ in 0..100 {
-        if config_path.exists() {
+        if std::fs::read_to_string(&config_path).is_ok_and(|text| text.hook_command_text().contains("/opt/LokiMetris")) {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -424,3 +428,5 @@ fn explicit_write_guard_propagates_future_cancellation() {
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
 // - tests_shutdown.rs：应用退出必须同时取消在途与排队显式写入，并立即答复尚未执行的调用。；不可中断的本机 I/O worker 超过期限时不得继续阻塞应用退出回调。；未显式 shutdown 的空闲 writer 在 Drop 后也必须让线程终态并释放共享状态。
 include!("tests_shutdown.rs");
+// - tests_registration.rs：自动维护的首次注册权限、多固定根和目录切换边界。
+include!("tests_registration.rs");

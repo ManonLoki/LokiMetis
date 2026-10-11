@@ -18,7 +18,7 @@ use std::{
 use tokio::sync::oneshot;
 
 use loki_metris_core::{
-    AiTool, HookConfigPreview, HookConfigWriteResult, HookError, ai_tool_name,
+    AiTool, HookConfigPreview, HookConfigWriteResult, HookError, HookRegistrationMode, ai_tool_name,
     generate_hook_auxiliary_configs, generate_hook_config, generate_wsl_hook_config,
     hook_config_filename, hook_config_write_result, hook_supports_wsl, normalize_enabled_ai_tools,
 };

@@ -99,3 +99,20 @@ fn operating_system_lock_is_exclusive_and_recovers_on_drop() {
     second.unlock().expect("explicit test unlock");
     assert!(lock_path.exists());
 }
+
+/// 自动校正写后遇到完整撤销即停止；显式校正的旧测试仍验证允许恢复注册。
+#[test]
+fn automatic_reconciliation_stops_after_external_registration_removal() {
+    let root = tempdir().unwrap();
+    let generated = generated_set(AiTool::Codex, root.path());
+    let target = generated[0].0.clone();
+    let old = generate_hook_config(AiTool::Codex, Path::new("/old/LokiMetris")).unwrap();
+    fs::write(&target, old.content).unwrap();
+    let external = r#"{"hooks":{"SessionStart":[{"command":"external-only"}]}}"#;
+    let changed = reconcile_local_config_set_with_cancellation_and_observer(
+        root.path(), AiTool::Codex, generated, None, HookRegistrationMode::RepairOwnedOnly,
+        |_, written| { assert!(!written.is_empty()); fs::write(&target, external).unwrap(); },
+    ).unwrap();
+    assert!(changed);
+    assert_eq!(fs::read_to_string(target).unwrap(), external);
+}

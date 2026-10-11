@@ -88,13 +88,25 @@ fn execute_explicit_hook_write(
     )
 }
 
-/// 串行化一次显式或后台写入；后台路径额外携带应用退出取消令牌。
+/// 显式请求允许首次注册；后台维护使用独立的已拥有条目门禁。
 fn write_hook_config_with_cancellation(
     settings: &MonitorSettings,
     tool: AiTool,
     relay_executable: &Path,
     home_directory: &Path,
     cancellation: Option<Arc<AtomicBool>>,
+) -> Result<HookConfigWriteResult, HookError> {
+    write_hook_config_in_mode(settings, tool, relay_executable, home_directory, cancellation, HookRegistrationMode::RegisterOrRepair)
+}
+
+/// 串行化一次写入并把授权模式传入每个配置根；取消令牌贯穿后台及显式路径。
+fn write_hook_config_in_mode(
+    settings: &MonitorSettings,
+    tool: AiTool,
+    relay_executable: &Path,
+    home_directory: &Path,
+    cancellation: Option<Arc<AtomicBool>>,
+    mode: HookRegistrationMode,
 ) -> Result<HookConfigWriteResult, HookError> {
     ensure_hook_write_not_cancelled(cancellation.as_deref())?;
     let _guard = lock_hook_config_writes(cancellation.as_deref())?;
@@ -105,6 +117,7 @@ fn write_hook_config_with_cancellation(
         relay_executable,
         home_directory,
         cancellation,
+        mode,
     )
 }
 
@@ -145,6 +158,7 @@ fn write_hook_config_unlocked(
     relay_executable: &Path,
     home_directory: &Path,
     cancellation: Option<Arc<AtomicBool>>,
+    mode: HookRegistrationMode,
 ) -> Result<HookConfigWriteResult, HookError> {
     let custom_directory = settings.hook_directories.get(tool);
     if !custom_directory.trim().is_empty() {
@@ -157,6 +171,14 @@ fn write_hook_config_unlocked(
     if wsl_directory.is_some() && !hook_supports_wsl(tool) {
         return Err(HookError::new("error.hooks.wslUnsupportedByWindowsHost")
             .param("tool", ai_tool_name(tool)));
+    }
+    if mode == HookRegistrationMode::RepairOwnedOnly {
+        if let Some(directory) = &wsl_directory {
+            let primary = directory.join(hook_config_filename(tool)).read_optional()?;
+            if !mode.permits_primary(tool, primary.as_deref())? {
+                return Ok(hook_config_write_result(tool, config_path.to_string_lossy().into_owned(), false));
+            }
+        }
     }
     let generated = if let Some(wsl_directory) = &wsl_directory {
         let wsl_executable = wsl_directory.translate_windows_executable(relay_executable)?;
@@ -173,6 +195,7 @@ fn write_hook_config_unlocked(
             &wsl_directory,
             generated,
             cancellation.as_deref(),
+            mode,
         );
     }
 
@@ -188,6 +211,7 @@ fn write_hook_config_unlocked(
             &directory,
             generated.clone(),
             cancellation.as_deref(),
+            mode,
         );
         match result {
             Ok(result) => config_changed |= result.config_changed,
@@ -218,6 +242,7 @@ fn write_local_configs(
     directory: &Path,
     generated: HookConfigPreview,
     cancellation: Option<&AtomicBool>,
+    mode: HookRegistrationMode,
 ) -> Result<HookConfigWriteResult, HookError> {
     ensure_hook_write_not_cancelled(cancellation)?;
     let mut generated_files = vec![(config_path.to_owned(), generated)];
@@ -231,6 +256,7 @@ fn write_local_configs(
         tool,
         generated_files,
         cancellation,
+        mode,
     )?;
     ensure_hook_write_not_cancelled(cancellation)?;
     Ok(hook_config_write_result(
@@ -247,6 +273,7 @@ fn write_wsl_configs(
     directory: &WslDirectory,
     generated: HookConfigPreview,
     cancellation: Option<&AtomicBool>,
+    mode: HookRegistrationMode,
 ) -> Result<HookConfigWriteResult, HookError> {
     ensure_hook_write_not_cancelled(cancellation)?;
     let mut generated_files = vec![(directory.join(hook_config_filename(tool)), generated)];
@@ -255,7 +282,7 @@ fn write_wsl_configs(
             .into_iter()
             .map(|preview| (directory.join(&preview.filename), preview)),
     );
-    let config_changed = super::hook_config_io::reconcile_wsl_config_set(tool, generated_files)?;
+    let config_changed = super::hook_config_io::reconcile_wsl_config_set(tool, generated_files, mode)?;
     ensure_hook_write_not_cancelled(cancellation)?;
     Ok(hook_config_write_result(
         tool,
@@ -264,7 +291,7 @@ fn write_wsl_configs(
     ))
 }
 
-/// 对所有已启用工具运行完整合并，因此管理标识存在时也会修复旧路径和缺失事件。
+/// 对已启用且已注册的工具运行完整合并，修复旧路径和缺失事件但不首次注册。
 #[cfg(test)]
 fn repair_enabled_hook_configs(
     settings: &MonitorSettings,
@@ -290,12 +317,13 @@ fn repair_enabled_hook_configs_with_cancellation(
         if cancellation.load(Ordering::Acquire) {
             return;
         }
-        if let Err(error) = write_hook_config_with_cancellation(
+        if let Err(error) = write_hook_config_in_mode(
             settings,
             tool,
             relay_executable,
             home_directory,
             Some(Arc::clone(&cancellation)),
+            HookRegistrationMode::RepairOwnedOnly,
         ) {
             tracing::warn!(
                 tool = ai_tool_name(tool),

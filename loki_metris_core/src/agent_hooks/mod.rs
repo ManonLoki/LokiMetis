@@ -40,7 +40,7 @@ use generation::command_has_marker;
 // 对外重新导出配置生成、WSL 配置生成、配置合并三个公开入口
 pub use error::HookError;
 pub use generation::{
-    generate_hook_config, generate_wsl_hook_config, merge_hook_config, remove_managed_hook_entries,
+    HookRegistrationMode, generate_hook_config, generate_wsl_hook_config, merge_hook_config, remove_managed_hook_entries,
 };
 pub use payload::{MinimalHookPayload, PreparedNativeHook, prepare_native_hook};
 pub use state_machine::{HookEventDecision, HookStateMachine};

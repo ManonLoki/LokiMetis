@@ -33,7 +33,8 @@
     "LMWIN-TRAY-RESTORE-001",
     "LMWIN-INSTALLER-PROCESS-001",
     "LMWIN-UNINSTALL-AUTOSTART-001",
-    "LMWIN-INSTALLER-SHORTCUT-001"
+    "LMWIN-INSTALLER-SHORTCUT-001",
+    "LM-HOOK-EXPLICIT-REGISTRATION-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -249,8 +250,13 @@
       "change_id": "LMWIN-INSTALLER-SHORTCUT-001",
       "kind": "bug-fix",
       "required_version": "0.2.34"
+    },
+    {
+      "change_id": "LM-HOOK-EXPLICIT-REGISTRATION-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.35"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.34"
+  "target_version": "0.2.35"
 }

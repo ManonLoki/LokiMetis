@@ -202,6 +202,24 @@ pub fn merge_hook_config(
     })
 }
 
+/// 显式操作可首次注册；自动维护只拥有当前主配置中已存在的本应用条目。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HookRegistrationMode {
+    /// 用户主动写入允许首次注册，也允许修复已有注册。
+    RegisterOrRepair,
+    /// 周期维护不重新注册已删除、外部或缺失的主配置。
+    RepairOwnedOnly,
+}
+
+impl HookRegistrationMode {
+    /// 复用领域清理器的精确所有权判定；无受管条目逐字返回原文，损坏协议失败关闭。
+    pub fn permits_primary(self, tool: AiTool, content: Option<&str>) -> Result<bool, HookError> {
+        if self == Self::RegisterOrRepair { return Ok(true); }
+        let Some(content) = content else { return Ok(false); };
+        Ok(remove_managed_hook_entries(tool, content)?.as_deref() != Some(content))
+    }
+}
+
 /// 从现有公共 JSON Hook 配置中只移除指定工具的 LokiMetris 受管条目。
 ///
 /// 没有受管条目时逐字返回原文；清理后仍有用户、其它工具或根级内容时返回

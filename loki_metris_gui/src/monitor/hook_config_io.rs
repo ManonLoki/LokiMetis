@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use loki_metris_core::{AiTool, HookConfigPreview, HookError, merge_hook_config};
+use loki_metris_core::{AiTool, HookConfigPreview, HookError, HookRegistrationMode, merge_hook_config};
 
 use super::wsl::WslFile;
 
@@ -82,7 +82,7 @@ pub(super) fn reconcile_local_config_set(
     tool: AiTool,
     generated_files: Vec<(PathBuf, HookConfigPreview)>,
 ) -> Result<bool, HookError> {
-    reconcile_local_config_set_with_cancellation(directory, tool, generated_files, None)
+    reconcile_local_config_set_with_cancellation(directory, tool, generated_files, None, HookRegistrationMode::RegisterOrRepair)
 }
 
 /// 本机校正的每个阻塞和提交边界都观察同一请求取消令牌。
@@ -91,12 +91,14 @@ pub(super) fn reconcile_local_config_set_with_cancellation(
     tool: AiTool,
     generated_files: Vec<(PathBuf, HookConfigPreview)>,
     cancellation: Option<&AtomicBool>,
+    mode: HookRegistrationMode,
 ) -> Result<bool, HookError> {
     if generated_files.is_empty() {
         return Ok(false);
     }
     ensure_reconcile_not_cancelled(cancellation)?;
     let current = read_config_set_with_cancellation(&generated_files, cancellation)?;
+    if !mode.permits_primary(tool, current[0].as_deref())? { return Ok(false); }
     if config_set_matches(
         &merge_config_set(tool, &generated_files, &current)?,
         &current,
@@ -108,6 +110,7 @@ pub(super) fn reconcile_local_config_set_with_cancellation(
         tool,
         generated_files,
         cancellation,
+        mode,
         |_, _| {},
     )
 }
@@ -116,11 +119,13 @@ pub(super) fn reconcile_local_config_set_with_cancellation(
 pub(super) fn reconcile_wsl_config_set(
     tool: AiTool,
     generated_files: Vec<(WslFile, HookConfigPreview)>,
+    mode: HookRegistrationMode,
 ) -> Result<bool, HookError> {
     if generated_files.is_empty() {
         return Ok(false);
     }
     let current = read_wsl_config_set(&generated_files)?;
+    if !mode.permits_primary(tool, current[0].as_deref())? { return Ok(false); }
     if config_set_matches(
         &merge_wsl_config_set(tool, &generated_files, &current)?,
         &current,
@@ -130,6 +135,7 @@ pub(super) fn reconcile_wsl_config_set(
     let mut wrote_any = false;
     for _ in 0..RECONCILIATION_ROUNDS {
         let before = read_wsl_config_set(&generated_files)?;
+        if !mode.permits_primary(tool, before[0].as_deref())? { return Ok(wrote_any); }
         let desired = merge_wsl_config_set(tool, &generated_files, &before)?;
         thread::sleep(RECONCILIATION_SETTLE);
         if read_wsl_config_set(&generated_files)? != before {
@@ -149,6 +155,7 @@ pub(super) fn reconcile_wsl_config_set(
         thread::sleep(RECONCILIATION_SETTLE);
 
         let after = read_wsl_config_set(&generated_files)?;
+        if !mode.permits_primary(tool, after[0].as_deref())? { return Ok(wrote_any); }
         if config_set_matches(
             &merge_wsl_config_set(tool, &generated_files, &after)?,
             &after,
@@ -175,6 +182,7 @@ fn reconcile_local_config_set_with_observer(
         tool,
         generated_files,
         None,
+        HookRegistrationMode::RegisterOrRepair,
         observer,
     )
 }
@@ -185,16 +193,20 @@ fn reconcile_local_config_set_with_cancellation_and_observer(
     tool: AiTool,
     generated_files: Vec<(PathBuf, HookConfigPreview)>,
     cancellation: Option<&AtomicBool>,
+    mode: HookRegistrationMode,
     mut observer: impl FnMut(usize, &[PathBuf]),
 ) -> Result<bool, HookError> {
     if generated_files.is_empty() {
         return Ok(false);
     }
+    let current = read_config_set_with_cancellation(&generated_files, cancellation)?;
+    if !mode.permits_primary(tool, current[0].as_deref())? { return Ok(false); }
     let _lock = HookConfigFileLock::acquire_with_cancellation(directory, cancellation)?;
     let mut wrote_any = false;
     for round in 0..RECONCILIATION_ROUNDS {
         ensure_reconcile_not_cancelled(cancellation)?;
         let before = read_config_set_with_cancellation(&generated_files, cancellation)?;
+        if !mode.permits_primary(tool, before[0].as_deref())? { return Ok(wrote_any); }
         let desired = merge_config_set(tool, &generated_files, &before)?;
         settle_with_cancellation(cancellation)?;
         if read_config_set_with_cancellation(&generated_files, cancellation)? != before {
@@ -226,6 +238,7 @@ fn reconcile_local_config_set_with_cancellation_and_observer(
         settle_with_cancellation(cancellation)?;
 
         let after = read_config_set_with_cancellation(&generated_files, cancellation)?;
+        if !mode.permits_primary(tool, after[0].as_deref())? { return Ok(wrote_any); }
         if config_set_matches(&merge_config_set(tool, &generated_files, &after)?, &after) {
             return Ok(wrote_any);
         }

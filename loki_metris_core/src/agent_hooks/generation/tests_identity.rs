@@ -2,6 +2,21 @@
 
 use super::*;
 
+/// 自动维护仅认领五个公开工具的真实受管条目，缺失、外部和伪造标识均不授权首次写入。
+#[test]
+fn automatic_registration_requires_owned_primary_entries() {
+    for tool in [AiTool::Codex, AiTool::ClaudeCode, AiTool::Cursor, AiTool::Grok, AiTool::WorkBuddy] {
+        let automatic = HookRegistrationMode::RepairOwnedOnly;
+        assert!(!automatic.permits_primary(tool, None).unwrap());
+        let foreign = r#"{"owner":"LokiMetris:tool=codex","hooks":{"SessionStart":[{"command":"user-event"}]}}"#;
+        assert!(!automatic.permits_primary(tool, Some(foreign)).unwrap());
+        let owned = generate_hook_config(tool, Path::new("/old/LokiMetris")).unwrap();
+        assert!(automatic.permits_primary(tool, Some(&owned.content)).unwrap(), "{tool:?}");
+        assert!(automatic.permits_primary(tool, Some("invalid JSON")).is_err());
+        assert!(HookRegistrationMode::RegisterOrRepair.permits_primary(tool, None).unwrap());
+    }
+}
+
 /// 升级时继续认领旧 CMD/PowerShell 宿主格式，只替换本产品而保留用户命令。
 #[cfg(windows)]
 #[test]
