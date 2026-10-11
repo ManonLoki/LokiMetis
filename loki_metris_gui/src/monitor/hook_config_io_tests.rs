@@ -1,5 +1,6 @@
 //! Hook 配置跨进程锁和外部 writer 校正的隔离回归测试。
 
+use crate::monitor::hook_test_support::HookCommandText as _;
 use std::sync::mpsc;
 
 use super::*;
@@ -43,8 +44,8 @@ fn two_writers_coexist_without_losing_managed_entries() {
     second.join().expect("second thread");
 
     let content = fs::read_to_string(root.path().join("hooks.json")).expect("shared config");
-    assert!(content.contains("LokiMetris:tool=codex"));
-    assert!(content.contains("LokiMetris:tool=cursor"));
+    assert!(content.hook_command_text().contains("LokiMetris:tool=codex"));
+    assert!(content.hook_command_text().contains("LokiMetris:tool=cursor"));
 }
 
 #[test]

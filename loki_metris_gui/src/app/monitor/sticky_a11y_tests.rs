@@ -7,6 +7,39 @@ use serde_json::Value;
 /// 仅读取 GPUI 已构造的真实树，不从 test-support 元素属性推导辅助树。
 struct ActualTree(Value);
 
+/// Windows Label 名称来自真实 value；计数和事件变化不能只更新不可朗读的 label。
+#[gpui_kit::test]
+fn monitor_actual_a11y_labels_publish_dynamic_values(cx: &mut TestAppContext) {
+    use crate::monitor::listener::{HookRelayLastEvent, HookRelayStatus};
+    let (handle, shell, _writer) = setup(cx, 900.);
+    assert!(cx.simulate_accessibility_activation(handle).is_some());
+    for (locale, received, failed) in [("zh-CN", 5, 0), ("en-US", 42, 3)] {
+        shell.update(cx, |this, cx| {
+            this.locale = locale;
+            this.monitor.route = super::state::Route::Workbench;
+            this.monitor.status = Some(HookRelayStatus {
+                received_count: received,
+                failed_count: failed,
+                last_event: Some(HookRelayLastEvent { tool: loki_metris_core::AiTool::Codex, hook_type: "SessionEnd".into() }),
+                ..Default::default()
+            });
+            cx.notify();
+        });
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let tree = ActualTree::capture(window);
+            for (element, suffix) in [("monitor-received", received.to_string()), ("monitor-failed", failed.to_string()), ("monitor-last-event", "Codex / SessionEnd".into())] {
+                let aria = &tree.0["nodes"][tree.id(element)]["aria"];
+                assert_eq!(aria["role"], "Label");
+                let label = aria["label"].as_str().unwrap();
+                assert!(!label.is_empty());
+                assert!(label.ends_with(&suffix));
+                assert_eq!(aria["value"].as_str(), Some(label), "{element} 的 Windows UIA Name 不能为空");
+            }
+        }).unwrap();
+    }
+}
+
 impl ActualTree {
     /// 节点来自当前已完成的原生 Window 帧。
     fn capture(window: &Window) -> Self {

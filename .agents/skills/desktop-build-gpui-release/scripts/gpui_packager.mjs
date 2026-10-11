@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { safePath, safeRoot, relativePath, sha256 } from './gpui_filesystem.mjs';
 import { TARGETS } from './gpui_config.mjs';
+import { writeNsisTemplate } from './gpui_nsis.mjs';
 
 /** 生成工具配置而不运行用户 hook，不继承未批准的自动签名配置。 */
 export function packagerConfig({ root, work, config, facts, target, format, resources, signing }) {
@@ -17,7 +18,7 @@ export function packagerConfig({ root, work, config, facts, target, format, reso
   };
   if (format === 'nsis') {
     result.windows = { allowDowngrades: false };
-    result.nsis = { ...config.nsis, installerIcon: result.icons[0] };
+    result.nsis = { ...config.nsis, installerIcon: result.icons[0], template: writeNsisTemplate(work, config.productNameEn) };
   } else {
     result.macos = { minimumSystemVersion: config.macos.minimumSystemVersion };
     if (signing.selection === 'enabled') result.macos.signingIdentity = config.macos.signingIdentity;

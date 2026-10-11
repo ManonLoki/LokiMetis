@@ -124,3 +124,11 @@ pub(super) fn overflow(host: &Host) -> bool {
         false
     }
 }
+
+/// Windows 点击不与失败回执争抢队列容量；其他平台保留其原生点击事件。
+pub(super) fn take_click(host: &Host) -> bool {
+    #[cfg(windows)]
+    { host.take_click() }
+    #[cfg(not(windows))]
+    { let _ = host; false }
+}

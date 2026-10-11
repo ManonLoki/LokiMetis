@@ -1,5 +1,6 @@
 //! Hook 配置生命周期的定向回归测试。
 
+use crate::monitor::hook_test_support::HookCommandText as _;
 use super::*;
 use tempfile::tempdir;
 
@@ -80,8 +81,8 @@ fn managed_config_repairs_stale_executable_and_missing_event() {
     .expect("repair");
     assert!(repaired.config_changed);
     let repaired_content = std::fs::read_to_string(config_path).expect("read repaired");
-    assert!(repaired_content.contains("/new/LokiMetris"));
-    assert!(!repaired_content.contains("/old/LokiMetris"));
+    assert!(repaired_content.hook_command_text().contains("/new/LokiMetris"));
+    assert!(!repaired_content.hook_command_text().contains("/old/LokiMetris"));
     let repaired_value: serde_json::Value =
         serde_json::from_str(&repaired_content).expect("repaired JSON");
     assert!(repaired_value["hooks"].get("Stop").is_some());
@@ -204,7 +205,7 @@ fn owned_worker_processes_enabled_request_and_shuts_down() {
     assert!(
         std::fs::read_to_string(config_path)
             .expect("worker config")
-            .contains("/opt/LokiMetris")
+            .hook_command_text().contains("/opt/LokiMetris")
     );
 }
 
@@ -246,7 +247,7 @@ fn owned_worker_executes_explicit_write_and_returns_result() {
     assert!(
         std::fs::read_to_string(hook_directory.join("hooks.json"))
             .expect("explicit config")
-            .contains("/opt/LokiMetris")
+            .hook_command_text().contains("/opt/LokiMetris")
     );
 }
 

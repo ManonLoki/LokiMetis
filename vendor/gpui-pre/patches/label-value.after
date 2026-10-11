@@ -1,0 +1,10 @@
+        if let Some(label) = &self.aria.label {
+            node.set_label(label.to_string());
+            // Windows AccessKit 的 Label 名称来自 value，显式值与已有文本仍优先。
+            if node.role() == accesskit::Role::Label
+                && self.aria.value.is_none()
+                && node.value().is_none()
+            {
+                node.set_value(label.to_string());
+            }
+        }

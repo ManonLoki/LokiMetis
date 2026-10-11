@@ -1,5 +1,6 @@
 //! 隔离Hooks宿主回归；所有工具都使用测试自定义目录，不依赖真实用户环境。
 
+use crate::monitor::hook_test_support::HookCommandText as _;
 use super::*;
 use crate::monitor::settings::{load_monitor_settings, update_monitor_settings};
 use loki_metris_core::{HookWriteOutcome, hook_config_filename, public_monitor_ai_tools};
@@ -145,7 +146,7 @@ fn explicit_hook_write_merges_and_reports_real_outcome() {
     assert_eq!(result.outcome, HookWriteOutcome::CodexReviewRequired);
     let content = std::fs::read_to_string(file).unwrap();
     assert!(content.contains("LokiMetis:tool=codex"));
-    assert!(content.contains("LokiMetris:tool=codex"));
+    assert!(content.hook_command_text().contains("LokiMetris:tool=codex"));
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&content).unwrap()["user"],
         true
@@ -241,7 +242,7 @@ fn hook_write_followed_by_shutdown_has_owned_terminal_receipt() {
 fn wait_file(file: &Path) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        if std::fs::read_to_string(file).is_ok_and(|value| value.contains("LokiMetris:tool=")) {
+        if std::fs::read_to_string(file).is_ok_and(|value| value.hook_command_text().contains("LokiMetris:tool=")) {
             return;
         }
         std::thread::sleep(Duration::from_millis(10));
@@ -291,8 +292,13 @@ fn installed_app_path_is_written_as_quoted_relay_command() {
     assert!(!commands.is_empty());
     for command in commands {
         if cfg!(windows) {
-            assert!(command.starts_with(&format!("cmd.exe /d /s /c \"\"{executable}\" --loki-metris-hook-relay \"claude-code\" ")), "{command}");
-            assert!(command.ends_with("--managed-by \"LokiMetris:tool=claude-code\"\""), "{command}");
+            assert!(command.starts_with("powershell.exe -NoProfile -NonInteractive -EncodedCommand "), "{command}");
+            let decoded = command.hook_command_text();
+            assert!(decoded.contains(&format!("$s.FileName='{executable}';")), "{decoded}");
+            assert!(decoded.contains("'\"--loki-metris-hook-relay\"', '\"claude-code\"'"), "{decoded}");
+            assert!(decoded.contains("'\"--managed-by\"', '\"LokiMetris:tool=claude-code\"'"), "{decoded}");
+            assert!(decoded.contains("$p.WaitForExit();") && decoded.contains("exit $p.ExitCode } catch"), "{decoded}");
+            assert!(decoded.contains("$s.RedirectStandardInput=$true;") && decoded.contains("$p.StandardInput.Close();"), "{decoded}");
         } else {
             assert!(command.starts_with(&format!("'{executable}' --loki-metris-hook-relay 'claude-code' ")), "{command}");
             assert!(command.ends_with("--managed-by 'LokiMetris:tool=claude-code'"), "{command}");

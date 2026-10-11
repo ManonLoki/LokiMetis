@@ -57,6 +57,7 @@ pub(super) struct Host {
     events: SyncSender<Event>,
     live: Arc<Mutex<VecDeque<Live>>>,
     overflow: Arc<AtomicBool>,
+    pending_click: Arc<AtomicBool>,
 }
 impl Host {
     /// 建立进程内所有权，不写注册表、不申请权限。
@@ -65,11 +66,16 @@ impl Host {
             events,
             live: Default::default(),
             overflow: Default::default(),
+            pending_click: Default::default(),
         })
     }
     /// 有界回调队列溢出由应用显式披露并暂停。
     pub fn overflow(&self) -> bool {
         self.overflow.swap(false, Ordering::AcqRel)
+    }
+    /// 点击独立合并，不因失败回执占满有界队列而遗失恢复主窗的唯一请求。
+    pub fn take_click(&self) -> bool {
+        self.pending_click.swap(false, Ordering::AcqRel)
     }
     /// Show 返回成功才确认 API 接受，Failed 事件以后只重排同档。
     pub fn send(&self, id: &str, title: &str, body: &str) -> MilestoneOutcome {
@@ -83,32 +89,8 @@ impl Host {
             if notifier.Setting()? != NotificationSetting::Enabled {
                 return Err(windows::core::Error::from_win32());
             }
-            let document = XmlDocument::new()?;
-            let toast_node = document.CreateElement(h!("toast"))?;
-            document.AppendChild(&toast_node)?;
-            let visual = document.CreateElement(h!("visual"))?;
-            toast_node.AppendChild(&visual)?;
-            let binding = document.CreateElement(h!("binding"))?;
-            binding.SetAttribute(h!("template"), h!("ToastGeneric"))?;
-            visual.AppendChild(&binding)?;
-            for text in [title, body] {
-                let element = document.CreateElement(h!("text"))?;
-                element.SetInnerText(&HSTRING::from(text))?;
-                binding.AppendChild(&element)?;
-            }
-            let audio = document.CreateElement(h!("audio"))?;
-            audio.SetAttribute(h!("silent"), h!("true"))?;
-            toast_node.AppendChild(&audio)?;
-            let toast = ToastNotification::CreateToastNotification(&document)?;
-            toast.SetTag(&HSTRING::from(id))?;
-            toast.SetGroup(h!("LokiMetris"))?;
-            let events = self.events.clone();
-            let activated = toast.Activated(
-                &TypedEventHandler::<ToastNotification, IInspectable>::new(move |_, _| {
-                    let _ = events.try_send(Event::Clicked);
-                    Ok(())
-                }),
-            )?;
+            let toast = build_toast(id, title, body)?;
+            let activated = toast.Activated(&activation_handler(self.pending_click.clone()))?;
             let events = self.events.clone();
             let id = id.to_owned();
             let overflow = self.overflow.clone();
@@ -149,6 +131,36 @@ impl Host {
             MilestoneOutcome::Rejected
         }
     }
+}
+/// 只构造 WinRT 通知对象；正文经 DOM 文本节点转义，不提交系统通知。
+fn build_toast(id: &str, title: &str, body: &str) -> windows::core::Result<ToastNotification> {
+    let document = XmlDocument::new()?;
+    let toast_node = document.CreateElement(h!("toast"))?;
+    document.AppendChild(&toast_node)?;
+    let visual = document.CreateElement(h!("visual"))?;
+    toast_node.AppendChild(&visual)?;
+    let binding = document.CreateElement(h!("binding"))?;
+    binding.SetAttribute(h!("template"), h!("ToastGeneric"))?;
+    visual.AppendChild(&binding)?;
+    for text in [title, body] {
+        let element = document.CreateElement(h!("text"))?;
+        element.SetInnerText(&HSTRING::from(text))?;
+        binding.AppendChild(&element)?;
+    }
+    let audio = document.CreateElement(h!("audio"))?;
+    audio.SetAttribute(h!("silent"), h!("true"))?;
+    toast_node.AppendChild(&audio)?;
+    let toast = ToastNotification::CreateToastNotification(&document)?;
+    toast.SetTag(&HSTRING::from(id))?;
+    toast.SetGroup(h!("LokiMetris"))?;
+    Ok(toast)
+}
+/// COM 回调仅置纯值位，重复点击合并；前台每次消费一次并负责恢复窗口。
+fn activation_handler(pending: Arc<AtomicBool>) -> TypedEventHandler<ToastNotification, IInspectable> {
+    TypedEventHandler::new(move |_, _| {
+        pending.store(true, Ordering::Release);
+        Ok(())
+    })
 }
 /// 读取本产品 DisplayName，拒绝登记不完整或身份漂移；不改系统状态。
 fn registered() -> bool {
@@ -238,3 +250,7 @@ pub(super) fn accepted(id: &str) -> bool {
             })
         })
 }
+
+#[cfg(test)]
+#[path = "windows_tests.rs"]
+mod tests;

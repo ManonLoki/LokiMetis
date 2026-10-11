@@ -5,13 +5,20 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { assertNodeRuntime, executeBuild, runWorkspaceTests, setupPackager } from './build_gpui_release.mjs';
+import { assertNodeRuntime, commandRunner, executeBuild, runWorkspaceTests, setupPackager } from './build_gpui_release.mjs';
 import { renderDefaultConfig, projectFacts, readConfig } from './gpui_config.mjs';
 import { relativePath, safePath, sha256, isolateRelease, publishDirectory } from './gpui_filesystem.mjs';
 import { candidateSelection, containsBytes, renderReleaseNotesRust } from './gpui_evidence.mjs';
 import { packagerConfig, signingChoice, finalizeSigning, verifyResources, verifyNsis } from './gpui_packager.mjs';
 import { encodePng, decodePng, renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable } from './gpui_resources.mjs';
+
+test('failed real subprocess retains captured test stdout alongside compiler stderr and quiet remains private', () => {
+  const run = commandRunner(fs.realpathSync(os.tmpdir()));
+  const args = ['-e', 'process.stdout.write("FAILED regression case"); process.stderr.write("error: test failed"); process.exitCode=1'];
+  assert.throws(() => run(process.execPath,args), error => error.message.includes('FAILED regression case') && error.message.includes('error: test failed'));
+  assert.throws(() => run(process.execPath,args,{quiet:true}), error => error.message === `${path.basename(process.execPath)} failed`);
+});
 
 /** 临时根使用 canonical 路径，避免 macOS /var 别名误入路径门禁。 */
 function fixture(t, { systemNotification = 'disabled', withResources = false } = {}) {
@@ -105,7 +112,7 @@ test('mapped nested resources survive the final application archive', t => {
 test('invalid resource mappings fail before compilation', t => {
   for (const mutation of [
     f=>{f.config.resources[0].source='absent';},
-    f=>{fs.symlinkSync(path.join(f.root,'LICENSE.en.md'),path.join(f.root,'assets/skins/linked'));},
+    f=>{fs.symlinkSync(f.root,path.join(f.root,'assets/skins/linked'),'junction');},
     f=>{f.config.resources.push({source:'LICENSE.en.md',macos:'SKINS/builtin/theme/preview.png',windows:'resources/skins/builtin/theme/preview.png'});},
     f=>{f.config.resources.push({source:'LICENSE.en.md',macos:'skins/builtin',windows:'resources/skins/builtin'});},
     f=>{f.config.resources[0].macos='LICENSE.en.md';},
@@ -320,6 +327,9 @@ test('unsigned packager config has no signing hook and Windows signing failure c
   assert.equal('signingIdentity' in generated.macos,false); assert.equal('beforePackagingCommand' in generated,false);
   const dmg = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'aarch64-apple-darwin',format: 'dmg',resources: [{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}],signing });
   assert.deepEqual(dmg.dmg.appFolderPosition,{ x: 480,y: 220 }); assert.equal('applicationFolderPosition' in dmg.dmg,false);
+  const nsis = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'x86_64-pc-windows-msvc',format: 'nsis',resources: [],signing });
+  assert.equal(nsis.productName, f.config.productName);
+  assert.match(fs.readFileSync(nsis.nsis.template,'utf8'), /!define SHORTCUTNAME "Test App"/u);
   const configured = { ...f.config,windows: { signing: { certificateThumbprint: '1'.repeat(40),timestampUrl: 'https://example.invalid' },extractor: null } };
   assert.throws(() => finalizeSigning({ run: () => { throw new Error('signing failed'); },config: configured,signing: signingChoice('enabled','configured'),format: 'nsis',artifact: 'installer.exe',env: {} }),/signing failed/);
   assert.throws(() => verifyNsis({ run: () => {},root: f.root,config: f.config,artifact: 'installer.exe',destination: path.join(f.root,'extract'),resources: [] }),/project-local/);
@@ -327,7 +337,7 @@ test('unsigned packager config has no signing hook and Windows signing failure c
 
 test('resource verification compares final bytes and rejects linked resources', t => {
   const f = fixture(t), copied = path.join(f.root,'copied'); fs.mkdirSync(copied); fs.copyFileSync(path.join(f.root,'LICENSE.en.md'),path.join(copied,'LICENSE.en.md'));
-  assert.equal(verifyResources(copied,f.root,[{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}]),'byte-identical'); fs.unlinkSync(path.join(copied,'LICENSE.en.md')); fs.symlinkSync(path.join(f.root,'LICENSE.en.md'),path.join(copied,'LICENSE.en.md'));
+  assert.equal(verifyResources(copied,f.root,[{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}]),'byte-identical'); fs.renameSync(copied,`${copied}.original`); fs.symlinkSync(`${copied}.original`,copied,'junction');
   assert.throws(() => verifyResources(copied,f.root,[{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}]),/link/);
 });
 

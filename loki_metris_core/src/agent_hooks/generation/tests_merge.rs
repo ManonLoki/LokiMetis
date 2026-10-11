@@ -3,11 +3,21 @@
 use serde_json::Value;
 
 use super::super::{hook_transition, managed_hook_marker};
-use super::{command_has_marker, tests::generate_test_hook_config};
+use super::{command_has_marker, tests::{generate_test_hook_config, contract_text}};
 use crate::agent_hooks::{
     AiTool, HookBehavior, HookConfigPreview, HookTransition, merge_hook_config,
     remove_managed_hook_entries,
 };
+
+/// 统计结构中的真正受管命令，而不依赖路径和标识是否以编码形式存储。
+fn managed_count(value: &Value, tool: AiTool) -> usize {
+    match value {
+        Value::String(command) => usize::from(command_has_marker(command, &managed_hook_marker(tool))),
+        Value::Array(values) => values.iter().map(|value| managed_count(value, tool)).sum(),
+        Value::Object(values) => values.values().map(|value| managed_count(value, tool)).sum(),
+        _ => 0,
+    }
+}
 
 /// Codex 合并幂等，并保留用户其它命令。
 #[test]
@@ -29,9 +39,7 @@ fn codex_merge_is_idempotent_and_preserves_other_commands() {
     let serialized = serde_json::to_string(stop).unwrap();
     assert_eq!(serialized.matches("other-app notify").count(), 1);
     assert_eq!(
-        serialized
-            .matches(&managed_hook_marker(AiTool::Codex))
-            .count(),
+        managed_count(&value["hooks"]["Stop"], AiTool::Codex),
         1
     );
     assert_eq!(value["permissions"]["allow"][0], "Bash");
@@ -82,7 +90,7 @@ fn merge_rejects_an_invalid_existing_config() {
 #[test]
 fn hook_commands_use_the_embedded_minimizing_relay() {
     let preview = generate_test_hook_config(AiTool::Codex).unwrap();
-    assert!(preview.content.contains("--loki-metris-hook-relay"));
+    assert!(contract_text(&preview).contains("--loki-metris-hook-relay"));
     assert!(preview.content.contains("SessionStart"));
     assert!(!preview.content.contains("Invoke-RestMethod"));
     assert!(!preview.content.contains("curl"));
@@ -117,7 +125,7 @@ fn grok_merge_is_idempotent_and_preserves_other_commands() {
     let value: Value = serde_json::from_str(&first.content).unwrap();
     let stop = serde_json::to_string(&value["hooks"]["Stop"]).unwrap();
     assert_eq!(stop.matches("other-stop").count(), 1);
-    assert_eq!(stop.matches("LokiMetris:tool=grok").count(), 1);
+    assert_eq!(managed_count(&value["hooks"]["Stop"], AiTool::Grok), 1);
     let second = merge_hook_config(Some(&first.content), &generated, AiTool::Grok).unwrap();
     assert_eq!(first.content, second.content);
 }
@@ -213,7 +221,7 @@ fn cursor_merge_is_idempotent_and_preserves_other_commands() {
     let value: Value = serde_json::from_str(&second.content).unwrap();
     let stop = serde_json::to_string(&value["hooks"]["stop"]).unwrap();
     assert_eq!(stop.matches("other-app stop").count(), 1);
-    assert_eq!(stop.matches("LokiMetris:tool=cursor").count(), 1);
+    assert_eq!(managed_count(&value["hooks"]["stop"], AiTool::Cursor), 1);
 }
 
 /// 验证 Claude 分组型协议保留用户条目且重复合并幂等。
@@ -235,7 +243,7 @@ fn assert_grouped_merge_is_idempotent(tool: AiTool, event: &str, other_command: 
     let value: Value = serde_json::from_str(&second.content).unwrap();
     let serialized = serde_json::to_string(&value["hooks"][event]).unwrap();
     assert_eq!(serialized.matches(other_command).count(), 1);
-    assert_eq!(serialized.matches(&managed_hook_marker(tool)).count(), 1);
+    assert_eq!(managed_count(&value["hooks"][event], tool), 1);
 }
 
 #[test]
@@ -267,7 +275,7 @@ fn github_copilot_merge_is_idempotent_and_preserves_other_handlers() {
     let prompt = serde_json::to_string(&value["hooks"]["userPromptSubmitted"]).unwrap();
     assert_eq!(value["version"], 1);
     assert_eq!(prompt.matches("other-user-prompt").count(), 1);
-    assert_eq!(prompt.matches("LokiMetris:tool=github-copilot").count(), 1);
+    assert_eq!(managed_count(&value["hooks"]["userPromptSubmitted"], AiTool::GitHubCopilot), 1);
 }
 
 #[test]

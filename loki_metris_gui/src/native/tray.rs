@@ -10,6 +10,13 @@ pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, 
 pub enum Event { Show, Quit, TogglePet, OpenPetSettings, ToggleMousePassthrough, ToggleNotification }
 
 impl Tray {
+    /// Windows 对象创建成功不保证 Explorer 已登记图标；关窗时查询真实恢复入口。
+    pub fn restore_entry_available(&self) -> bool {
+        #[cfg(windows)]
+        { self.icon.rect().is_some() }
+        #[cfg(not(windows))]
+        { true }
+    }
     /// 必须在运行中的原生 UI loop 创建，图标来自用户选择的应用 Logo。
     pub fn new(locale: &str) -> io::Result<Self> {
         let (show, quit, name) = labels(locale);

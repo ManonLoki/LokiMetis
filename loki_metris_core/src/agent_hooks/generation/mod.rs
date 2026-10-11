@@ -296,30 +296,11 @@ fn managed_commands(
         shell_quote(event),
         shell_quote(&marker),
     );
-    // 拼装 Windows CMD 命令：用 cmd.exe /d /s /c 包裹，参数按 CMD 双引号规则转义
-    let mut windows = format!(
-        "cmd.exe /d /s /c \"{} --loki-metris-hook-relay {} {} --managed-by {}\"",
-        windows_quote(&executable),
-        windows_quote(protocol.slug()),
-        windows_quote(event),
-        windows_quote(&marker),
-    );
-    // 拼装经 PowerShell 宿主转发到 CMD 的命令：需要额外的反引号转义，
-    // 用于同时保住含空格路径和参数边界
-    let mut windows_powershell_host = format!(
-        "cmd.exe /d /s /c \"{} --loki-metris-hook-relay {} {} --managed-by {}\"",
-        powershell_host_quote(&executable),
-        powershell_host_quote(protocol.slug()),
-        powershell_host_quote(event),
-        powershell_host_quote(&marker),
-    );
-    // 保留普通安装路径的现役格式；含 shell 展开字符时通过编码字面量绕过双层解释。
-    if executable.contains(['$', '%', '!', '`', '\r', '\n', '\u{2018}', '\u{2019}', '\u{201a}', '\u{201b}', '\u{201c}', '\u{201d}', '\u{201e}']) {
-        windows = windows_command::invocation(&executable, &[
-            "--loki-metris-hook-relay", protocol.slug(), event, "--managed-by", &marker,
-        ]);
-        windows_powershell_host = windows.clone();
-    }
+    // Agent 可选择 CMD、PowerShell 或 Git Bash；编码字面量避免依赖外层宿主的引号规则。
+    let windows = windows_command::invocation(&executable, &[
+        "--loki-metris-hook-relay", protocol.slug(), event, "--managed-by", &marker,
+    ]);
+    let windows_powershell_host = windows.clone();
     ManagedCommands {
         // POSIX/WSL 场景使用的命令
         posix,
@@ -330,21 +311,6 @@ fn managed_commands(
         // 经 PowerShell 宿主转发到 CMD 的命令变体
         windows_powershell_host,
     }
-}
-
-/// 按 Windows CMD 双引号规则转义单个参数。
-fn windows_quote(value: &str) -> String {
-    // 用双引号包裹整体，内部已有的双引号按 CMD 规则转义为两个双引号
-    format!("\"{}\"", value.replace('"', "\"\""))
-}
-
-/// 按 PowerShell 到 CMD 的双层解析规则保护参数边界。
-///
-/// 反引号保护内层双引号，确保含空格的安装路径仍作为单个参数传递。
-fn powershell_host_quote(value: &str) -> String {
-    // 先转义值内部已有的反引号，避免与后续转义规则冲突；
-    // 再把双引号转义为反引号+双引号，交由 PowerShell 解析后仍保留给 CMD 的双引号
-    format!("`\"{}`\"", value.replace('`', "``").replace('"', "`\""))
 }
 
 /// 判断当前格式的命令是否携带精确管理标识。

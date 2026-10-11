@@ -26,7 +26,10 @@ export function assertNodeRuntime(version = process.versions.node) {
 export function commandRunner(root) {
   return (program, args, { env = process.env, quiet = false, timeout = 30 * 60 * 1000 } = {}) => {
     const result = spawnSync(program,args,{ cwd: root, env, encoding: 'utf8', input: '', maxBuffer: 64 * 1024 * 1024, timeout, windowsHide: true });
-    if (result.error || result.status !== 0) throw new Error(`${path.basename(program)} failed${quiet ? '' : `: ${(result.error?.message || result.stderr?.trim() || result.stdout?.trim() || String(result.status)).slice(-8000)}`}`);
+    if (result.error || result.status !== 0) {
+      const diagnostic = [result.error?.message,result.stderr?.trim(),result.stdout?.trim()].filter(Boolean).join('\n') || String(result.status);
+      throw new Error(`${path.basename(program)} failed${quiet ? '' : `: ${diagnostic.slice(-8000)}`}`);
+    }
     if (!quiet && result.stderr) process.stderr.write(result.stderr);
     return result;
   };

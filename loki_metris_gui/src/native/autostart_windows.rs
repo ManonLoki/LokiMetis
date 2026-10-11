@@ -49,9 +49,10 @@ fn value(path: &str, id: &str) -> io::Result<Option<(u32, Vec<u8>)>> {
     }
 }
 /// 系统事实来自 HKCU Run 和现有任务管理器开关；不读取 HKLM。
-pub(super) fn is_enabled(id: &str) -> io::Result<bool> {
+pub(super) fn is_enabled(id: &str, expected: &str) -> io::Result<bool> {
     let Some((kind, bytes)) = value(RUN, id)? else { return Ok(false) };
-    if kind != 1 || !super::valid_windows_command(&bytes) { return Err(io::ErrorKind::InvalidData.into()) }
+    if kind != 1 { return Err(io::ErrorKind::InvalidData.into()) }
+    if !super::windows_command_matches(&bytes, expected)? { return Ok(false) }
     match value(APPROVED, id)? {
         None => Ok(true),
         Some((3, bytes)) => super::windows_override(&bytes),

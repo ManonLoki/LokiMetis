@@ -1,6 +1,7 @@
 // 本文件是 tests.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
 // 与主文件共用作用域，因此无需额外导入。收纳内容：应用退出必须同时取消在途与排队显式写入，并立即答复尚未执行的调用。；不可中断的本机 I/O worker 超过期限时不得继续阻塞应用退出回调。；未显式 shutdown 的空闲 writer 在 Drop 后也必须让线程终态并释放共享状态。
 
+use crate::monitor::hook_test_support::HookCommandText as _;
 #[test]
 /// 应用退出必须同时取消在途与排队显式写入，并立即答复尚未执行的调用。
 fn shutdown_cancels_active_and_pending_explicit_writes() {
@@ -86,7 +87,7 @@ fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
     writer.request_enabled(settings);
     for _ in 0..200 {
         let initial_completed = std::fs::read_to_string(&config_path)
-            .is_ok_and(|content| content.contains("LokiMetris:tool=codex"))
+            .is_ok_and(|content| content.hook_command_text().contains("LokiMetris:tool=codex"))
             && hook_config_lock_is_available(root.path());
         if initial_completed {
             break;
@@ -107,12 +108,12 @@ fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
     assert!(
         !std::fs::read_to_string(&config_path)
             .expect("external config")
-            .contains("LokiMetris:tool=codex")
+            .hook_command_text().contains("LokiMetris:tool=codex")
     );
 
     for _ in 0..400 {
         if std::fs::read_to_string(&config_path).is_ok_and(|content| {
-            content.contains("LokiMetris:tool=codex")
+            content.hook_command_text().contains("LokiMetris:tool=codex")
                 && content.contains("external-final-write")
                 && hook_config_lock_is_available(root.path())
         }) {
@@ -123,7 +124,7 @@ fn owned_worker_eventually_repairs_a_post_verification_external_overwrite() {
     writer.shutdown();
 
     let repaired = std::fs::read_to_string(config_path).expect("periodically repaired config");
-    assert!(repaired.contains("LokiMetris:tool=codex"));
+    assert!(repaired.hook_command_text().contains("LokiMetris:tool=codex"));
     assert!(repaired.contains("external-final-write"));
 }
 
@@ -174,7 +175,7 @@ fn owned_worker_replaces_the_previous_directory_snapshot() {
     assert!(
         std::fs::read_to_string(new_path)
             .expect("new config remains managed")
-            .contains("LokiMetris:tool=codex")
+            .hook_command_text().contains("LokiMetris:tool=codex")
     );
 }
 

@@ -131,7 +131,7 @@ impl Shell {
 
     /// 后台或完全不可见窗口暂停页面轮询；恢复前台后由既有计时器补读。
     fn update_window_visibility(&mut self,window:&mut Window,cx:&mut Context<Self>) {
-        if !self.window_active && window.is_window_active() {crate::native::refresh_notification_permission(cx);if let Some(service)=&self.dashboard.service {service.refresh_today();}}
+        if !self.window_active && window.is_window_active() {crate::native::refresh_notification_permission(cx);crate::native::reload_autostart(cx);if let Some(service)=&self.dashboard.service {service.refresh_today();}}
         self.window_active=window.is_window_active();self.window_visible=window.is_visible();
         if !self.window_visible {self.release_monitor_images(window,cx);}
         cx.notify();
@@ -244,7 +244,7 @@ impl Shell {
         self.page = page;
         if page==Page::Skins {self.refresh_skins(true,cx);}
         if page==Page::Monitor {self.refresh_monitor(true,cx);}
-        if page==Page::Settings {self.load_agent_settings(cx);crate::native::refresh_notification_permission(cx);}
+        if page==Page::Settings {self.load_agent_settings(cx);crate::native::refresh_notification_permission(cx);crate::native::reload_autostart(cx);}
         if page==Page::Dashboard {self.reload_usage(false,cx);}
         cx.notify();
     }

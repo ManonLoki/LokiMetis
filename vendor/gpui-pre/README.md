@@ -21,6 +21,10 @@ rustc --edition=2024 --test vendor/gpui-patch-support/generator.rs -o /tmp/loki-
 
 生成验证不是产品候选验收；真实 Window 与 GPU 像素测试须使用相应已启用 test-support 的目标。
 
+`Label` 的 `aria_label` 在未指定 `aria_value`、且节点尚无 value 时同时填入 value，
+供 Windows AccessKit 的静态文本名称读取。显式值（包括空字符串）、已有节点文本、
+其他角色以及原 label 保持其优先级；真实工作台 AX 树回归覆盖动态计数与最近事件。
+
 焦点只读入口 `Window::focus_generation()` 暴露上游已有代数；真实focus／blur增长，同一目标重复focus保持原值，不创建额外焦点状态。用于识别两帧之间离开后返回的输入，避免仅采样最终bool漏掉新的滚入请求。上游与布局／Scene ABI保持不变。
 
 

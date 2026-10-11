@@ -26,6 +26,12 @@ fn generated_sources() -> PathBuf {
         parent_clip_patches::PATCHES,
         demand_patches::PATCHES,
         element_transform_patches::PATCHES,
+        &[Patch {
+            name: "label-value",
+            path: "src/elements/div.rs",
+            before: include_str!("patches/label-value.before"),
+            after: include_str!("patches/label-value.after"),
+        }],
     ].concat();
     let spec = Spec {
         entry: "src/gpui.rs",
@@ -38,7 +44,7 @@ fn generated_sources() -> PathBuf {
             ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
             ("src/app/test_context.rs", "5fc9f53e680a1020dc810ec184a02a6a7bfe97626fef0a8aed6ec1ea4858730d"),
             ("src/debug_overlay.rs", "35ed7c2918c601c298fe1eea0e7fa679763768016cfdc99f10f1ae6bffa4a622"),
-            ("src/elements/div.rs", "989a5e69c8b7ad0155d1994ad65d8a6e10faad5a03f61a59fc5ab38d6ac481d9"),
+            ("src/elements/div.rs", "1eade4ee979ab0e9c4a1d275f4730ac8f4a598baa2b3e079fe5e8189b627ef07"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
             ("src/platform/test/window.rs", "5cc6869738c7441976bc036aa469da4521a1a632e4a5805b19bfe2eb28fee303"),
             ("src/scene.rs", "f8e1a899071e298bed53c7eb10f0e65a8039e1663048033ab6f5e79a1a434af4"),

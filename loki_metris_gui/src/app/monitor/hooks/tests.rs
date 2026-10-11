@@ -1,5 +1,6 @@
 //! 真实GPUI窗口验证Hooks路径草稿、禁用边界与原生选择器回执。
 
+use crate::monitor::hook_test_support::HookCommandText as _;
 use super::*;
 use gpui_kit::{AppContext, Entity, TestAppContext, test::TestWindowExt};
 use std::{sync::Arc, time::Duration};
@@ -322,7 +323,7 @@ fn edited_path_hides_old_write_receipt_without_cancelling_owned_write(cx: &mut T
     assert!(
         std::fs::read_to_string(hook_directory.join("hooks.json"))
             .unwrap()
-            .contains("LokiMetris:tool=codex")
+            .hook_command_text().contains("LokiMetris:tool=codex")
     );
 }
 

@@ -61,7 +61,7 @@ impl Service {
     /// 实际开关拥有 mutation；执行期间不接受第二次修改。
     pub fn set(&self, enabled: bool) { self.enqueue(Command::Set(enabled)); }
 
-    /// 读取失败后可重试，不把 unknown 伪装成 false。
+    /// 进入设置、激活窗口或失败重试时重新读取 OS；不写入注册表或把 unknown 伪装成 false。
     pub fn reload(&self) { self.enqueue(Command::Read); }
 
     /// 有界发送不会阻塞 UI，关闭的 worker 立即表现为可观察错误。
@@ -109,7 +109,7 @@ fn encoded_path(path: &str) -> Result<String, String> {
 /// Windows 只查询当前用户；上游跨用户查询和删除不能作为本模块的系统事实。
 fn read(handle: &AutoLaunch) -> Result<bool, String> {
     #[cfg(windows)]
-    { let _ = handle; windows::is_enabled("com.loki-metris.app").map_err(|_| "autostart_read_failed".into()) }
+    { windows::is_enabled("com.loki-metris.app", handle.get_app_path()).map_err(|_| "autostart_read_failed".into()) }
     #[cfg(not(windows))]
     { handle.is_enabled().map_err(|_| "autostart_read_failed".into()) }
 }
@@ -124,6 +124,8 @@ fn write(handle: &AutoLaunch, enabled: bool) -> Result<(), String> {
 /// 写入后复读必须匹配请求，OS 拒绝生效和读取失败都保留实际状态并显示错误。
 fn apply<E>(desired: Option<bool>, mut read: impl FnMut() -> Result<bool, E>, mut write: impl FnMut(bool) -> Result<(), E>) -> (Option<bool>, bool) {
     let result = match desired {
+        // 显式关闭也清理同名旧路径；false 只表示当前命令未启用，不能证明 Run 值不存在。
+        Some(false) if cfg!(windows) => write(false),
         Some(desired) => read().and_then(|actual| if actual == desired { Ok(()) } else { write(desired) }),
         None => Ok(()),
     };
@@ -134,12 +136,24 @@ fn apply<E>(desired: Option<bool>, mut read: impl FnMut() -> Result<bool, E>, mu
 }
 
 /// REG_SZ 必须是有终止符的非空有效命令，损坏值不能冒充开启。
-#[cfg(any(windows, test))]
+#[cfg(test)]
 fn valid_windows_command(bytes: &[u8]) -> bool {
-    if bytes.len() < 4 || bytes.len() % 2 != 0 { return false }
+    windows_command(bytes).is_ok()
+}
+/// 解码当前用户 Run 命令；字节损坏与已不存在的旧路径不是同一种状态。
+#[cfg(any(windows, test))]
+fn windows_command(bytes: &[u8]) -> std::io::Result<String> {
+    if bytes.len() < 4 || bytes.len() % 2 != 0 { return Err(std::io::ErrorKind::InvalidData.into()) }
     let mut words: Vec<u16> = bytes.chunks_exact(2).map(|part| u16::from_le_bytes([part[0], part[1]])).collect();
-    if words.pop() != Some(0) || words.contains(&0) { return false }
-    String::from_utf16(&words).is_ok_and(|value| !value.trim().is_empty() && !value.chars().any(char::is_control))
+    if words.pop() != Some(0) || words.contains(&0) { return Err(std::io::ErrorKind::InvalidData.into()) }
+    let value = String::from_utf16(&words).map_err(|_| std::io::ErrorKind::InvalidData)?;
+    if value.trim().is_empty() || value.chars().any(char::is_control) { return Err(std::io::ErrorKind::InvalidData.into()) }
+    Ok(value)
+}
+/// 只认可当前无参数的受引号保护命令；旧副本和额外参数均要求显式重新开启。
+#[cfg(any(windows, test))]
+fn windows_command_matches(bytes: &[u8], expected: &str) -> std::io::Result<bool> {
+    Ok(windows_command(bytes)?.trim_end_matches(' ').eq_ignore_ascii_case(expected))
 }
 /// 按完整 DWORD 识别已知开关；未知/损坏值返回失败，不猜测 OS 状态。
 #[cfg(any(windows, test))]
@@ -160,7 +174,65 @@ impl Drop for Service {
 
 #[cfg(test)]
 mod tests {
-    use super::{State, apply, encoded_path, valid_windows_command, windows_override};
+    use super::{State, apply, encoded_path, valid_windows_command, windows_command_matches, windows_override};
+    /// 实际 HKCU 读取与后台线程只读初始化；不创建、修改或删除任何系统值。
+    #[cfg(windows)]
+    #[test]
+    fn native_autostart_bridge_reads_and_joins_without_registration() {
+        let id = format!("com.loki-metris.audit-missing-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+        assert!(!super::windows::is_enabled(&id, r#""C:\unused.exe""#).unwrap());
+        let service = super::Service::new();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        while service.state().busy && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let state = service.state();
+        assert!(!state.busy);
+        assert!(!state.error);
+        assert!(state.enabled.is_some());
+        service.reload();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        while service.state().busy && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let refreshed = service.state();
+        assert!(!refreshed.busy);
+        assert!(!refreshed.error);
+        assert_eq!(refreshed.enabled, state.enabled);
+        assert!(refreshed.revision > state.revision);
+        drop(service);
+    }
+    /// 安装位置迁移后旧 Run 项不冒充当前自启；显式开启必须改写并验证当前命令。
+    #[test]
+    fn stale_windows_run_command_is_repaired_only_on_explicit_enable() {
+        let bytes = |value: &str| value.encode_utf16().chain(Some(0)).flat_map(u16::to_le_bytes).collect::<Vec<_>>();
+        let expected = r#""C:\Program Files\LokiMetris\app.exe""#;
+        let registered = std::cell::RefCell::new(Some(bytes(r#""C:\Old LokiMetris\app.exe" "#)));
+        let writes = std::cell::Cell::new(0);
+        let read = || registered.borrow().as_ref().map(|bytes| windows_command_matches(bytes, expected)).unwrap_or(Ok(false));
+        assert_eq!(apply(None, read, |_| -> std::io::Result<()> { panic!("查询不能修复旧路径") }), (Some(false), false));
+        #[cfg(windows)]
+        {
+            assert_eq!(apply(Some(false), read, |enabled| {
+                assert!(!enabled);
+                *registered.borrow_mut() = None;
+                Ok(())
+            }), (Some(false), false));
+            assert!(registered.borrow().is_none());
+            *registered.borrow_mut() = Some(bytes(r#""C:\Old LokiMetris\app.exe" "#));
+        }
+        assert_eq!(apply(Some(true), read, |enabled| {
+            assert!(enabled);
+            writes.set(writes.get() + 1);
+            *registered.borrow_mut() = Some(bytes(&format!("{expected} ")));
+            Ok(())
+        }), (Some(true), false));
+        assert_eq!(writes.get(), 1);
+        assert_eq!(apply(Some(true), read, |_| -> std::io::Result<()> { panic!("已匹配命令不能重复写入") }), (Some(true), false));
+        assert!(!windows_command_matches(&bytes(&format!("{expected} --other")), expected).unwrap());
+        assert!(windows_command_matches(&bytes(&format!("{} ", expected.to_ascii_lowercase())), expected).unwrap());
+        assert!(windows_command_matches(&[65, 0], expected).is_err());
+    }
     /// 未读取的系统状态不能冒充已开启或已关闭，也不授权注册。
     #[test]
     fn initial_autostart_state_is_unknown_and_has_no_registration() {

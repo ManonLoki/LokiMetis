@@ -18,3 +18,5 @@ mod thread_owner;
 pub(crate) mod store;
 mod hook_config_io;
 mod wsl;
+#[cfg(test)]
+pub(crate) mod hook_test_support;

@@ -2,6 +2,7 @@
 
 pub(crate) mod windowing;
 mod tray;
+mod tray_hide;
 mod menu;
 pub mod autostart;
 pub mod notifications;
@@ -210,7 +211,7 @@ pub(crate) fn minimize_main(cx: &mut App) {
 
 /// 托盘实际成功才隐藏，失败允许正常关闭，不留下无法恢复的进程。
 pub fn hide_if_available(cx: &mut App) -> bool {
-    if !cx.try_global::<Services>().is_some_and(|services| services.tray.is_some()) { return false }
+    let Some(request) = tray_hide::Request::begin(|| tray_restore_available(cx)) else { return false };
     #[cfg(all(windows, test))]
     let native = cx.global::<Services>().window;
     #[cfg(not(all(windows, test)))]
@@ -221,23 +222,32 @@ pub fn hide_if_available(cx: &mut App) -> bool {
         let shell = cx.global::<Services>().shell.clone();
         let host = shell.update(cx, |shell, _| shell.cancel_window_restore()).ok().flatten();
         cx.spawn(async move |cx| {
-            let live = cx.update(|cx| window_action_current(generation, cx) && main.update(cx, |_, _, _| ()).is_ok());
-            if live { if let Some(host) = host { host.hide(); } }
+            let (live, available) = cx.update(|cx| {
+                let live = window_action_current(generation, cx) && main.update(cx, |_, _, _| ()).is_ok();
+                (live, live && tray_restore_available(cx))
+            });
+            request.finish(live, || available, || { if let Some(host) = host { host.hide(); } });
         }).detach();
         true
     }
     #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
     {
     cx.defer(move |cx| {
-        #[cfg(windows)]
-        let _ = cx;
+        let available = tray_restore_available(cx);
+        request.finish(true, || available, || {
         #[cfg(windows)]
         if let Some(window) = native { window.hide(); }
         #[cfg(not(windows))]
         let _=main.update(cx,|_,window,_|crate::pet::host::set_visible(window,false));
+        });
     });
     true
     }
+}
+
+/// 只在关闭边界读取系统托盘位置，不增加后台轮询或第二份托盘状态。
+fn tray_restore_available(cx: &App) -> bool {
+    cx.try_global::<Services>().and_then(|services| services.tray.as_ref()).is_some_and(tray::Tray::restore_entry_available)
 }
 
 /// 服务级显示代次约束延迟 fallback show/hide，后来的相反意图撤销旧命令。

@@ -26,7 +26,14 @@
     "LMWIN-APPLICATION-ICON-001",
     "LMWIN-WSL-PATH-ROUTING-001",
     "LM-INDEX-CONTENT-IDENTITY-001",
-    "LMWIN-PET-LOCKED-RESIZE-001"
+    "LMWIN-PET-LOCKED-RESIZE-001",
+    "LMWIN-AUTOSTART-CURRENT-PATH-001",
+    "LMWIN-NOTIFICATION-CLICK-001",
+    "LMWIN-ACCESSIBLE-LABEL-001",
+    "LMWIN-TRAY-RESTORE-001",
+    "LMWIN-INSTALLER-PROCESS-001",
+    "LMWIN-UNINSTALL-AUTOSTART-001",
+    "LMWIN-INSTALLER-SHORTCUT-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -207,8 +214,43 @@
       "change_id": "LMWIN-PET-LOCKED-RESIZE-001",
       "kind": "bug-fix",
       "required_version": "0.2.27"
+    },
+    {
+      "change_id": "LMWIN-AUTOSTART-CURRENT-PATH-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.28"
+    },
+    {
+      "change_id": "LMWIN-NOTIFICATION-CLICK-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.29"
+    },
+    {
+      "change_id": "LMWIN-ACCESSIBLE-LABEL-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.30"
+    },
+    {
+      "change_id": "LMWIN-TRAY-RESTORE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.31"
+    },
+    {
+      "change_id": "LMWIN-INSTALLER-PROCESS-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.32"
+    },
+    {
+      "change_id": "LMWIN-UNINSTALL-AUTOSTART-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.33"
+    },
+    {
+      "change_id": "LMWIN-INSTALLER-SHORTCUT-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.34"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.27"
+  "target_version": "0.2.34"
 }

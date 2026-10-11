@@ -50,6 +50,8 @@ impl Service {
                             driver::Event::LateFailure(id) => usage.notification_late_failure(id),
                         }
                     }
+                    let clicked = service.owner.borrow().host.as_ref().is_some_and(|host| driver::take_click(host));
+                    if clicked { crate::native::show(main, cx); }
                     let progress = usage.notification_progress();
                     let mut owner = service.owner.borrow_mut();
                     let changed = owner.state.progress.revision != progress.revision;
