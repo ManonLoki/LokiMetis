@@ -64,13 +64,6 @@ impl<I, O> Queue<I, O> {
         Ok(receiver)
     }
 
-    /// 清空尚未启动的请求；已启动任务继续执行扫描收尾。
-    pub fn cancel(&self) {
-        let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.pending.take();
-        if let Some(active) = &state.active { active.cancel(); }
-    }
-
     /// 禁止新提交后唤醒 worker，等待活动扫描完成取消收尾。
     pub fn stop(&self, timeout: Duration) -> bool {
         let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);

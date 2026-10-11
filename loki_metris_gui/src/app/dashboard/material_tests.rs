@@ -27,7 +27,7 @@ fn overview() -> UsageData {
         .collect();
     UsageData {
         records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
-        roots: Vec::new(), observed_at_epoch_ms: 0, workbuddy: None, workbuddy_read_failed: false,
+        workbuddy: None,
     }
 }
 

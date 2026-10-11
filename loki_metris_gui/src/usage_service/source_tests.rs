@@ -63,7 +63,9 @@ fn reindex_activates_exact_target_and_cancel_preserves_previous_generation() {
     let bytes=std::fs::read(&file).unwrap();
     let service=UsageService::in_directory(temp.path().join("data")).unwrap();let id=register_fixture(&service,&source);
     let outcome=service.mutate_source(SourceClientKind::Codex,SourceOperation::Reindex{root_id:id.clone()}).unwrap().blocking_recv().unwrap().unwrap();
-    assert!(matches!(outcome,SourceOperationResult::Reindexed(output) if output.roots.iter().any(|root|root.id==id&&root.activation_state==RootActivationState::Ready)));
+    assert!(matches!(outcome,SourceOperationResult::Reindexed));
+    let rows=service.query(UsageQuery::Sources(SourceClientKind::Codex)).unwrap().blocking_recv().unwrap().unwrap();
+    assert!(matches!(rows,UsageResponse::Sources(roots) if roots.iter().any(|root|root.id==id&&root.activation_state==RootActivationState::Ready)));
     // 无先前 coverage 缓存的单根重建不能把整个客户端未知范围报告成完整。
     assert_eq!(service.context.coverage.lock().unwrap()[&SourceClientKind::Codex].state,CoverageState::Partial);
     {

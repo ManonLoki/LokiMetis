@@ -116,28 +116,6 @@ impl SkinService {
         Ok(instances)
     }
 
-    /// 执行换皮宿主内部的 `probe_codex_instance` 步骤。
-    pub async fn probe_host_instance(
-        &self,
-        host: SkinHostKind,
-        instance_id: &str,
-    ) -> Result<SkinHostInstance, AppError> {
-        let resolved = resolve_host_instance_with_preferred(
-            host,
-            instance_id,
-            self.verified_endpoint_hint(host)?,
-        )
-        .await?;
-        let mut instances = vec![self.cached_host_instance(host, resolved).await?];
-        self.annotate_host_instances(host, &mut instances).await;
-        instances.pop().ok_or_else(|| {
-            AppError::new(
-                "skin.codex_instance_changed",
-                "所选 Codex 实例已退出或身份发生变化，请重新选择。",
-            )
-        })
-    }
-
     /// 执行换皮宿主内部的 `account_profile_probe_cell` 步骤。
     fn account_profile_probe_cell(
         &self,
@@ -379,19 +357,6 @@ impl SkinService {
         }
     }
 
-    /// 返回指定换皮宿主的运行状态。
-    pub async fn host_runtime_status(
-        &self,
-        host: SkinHostKind,
-    ) -> Result<CodexRuntimeStatus, AppError> {
-        let (status, endpoint) =
-            host_runtime_status(host, self.verified_endpoint_hint(host)?).await?;
-        if let Some(endpoint) = endpoint {
-            self.remember_verified_endpoint(host, endpoint)?;
-        }
-        Ok(status)
-    }
-
     /// 启动指定换皮宿主并等待本机调试通道就绪。
     pub async fn launch_host(&self, host: SkinHostKind) -> Result<CodexRuntimeStatus, AppError> {
         let _operation = self.operation.lock().await;
@@ -407,6 +372,7 @@ impl SkinService {
     }
 
     /// 关闭未开放调试通道的指定宿主后重新启动。
+    #[cfg(test)]
     pub async fn force_launch_host(
         &self,
         host: SkinHostKind,
@@ -513,6 +479,7 @@ impl SkinService {
     }
 
     /// 执行换皮宿主内部的 `begin_codex_operation` 步骤。
+    #[cfg(test)]
     fn begin_codex_operation(
         &self,
     ) -> Result<(CodexOperationGuard<'_>, watch::Receiver<bool>), AppError> {

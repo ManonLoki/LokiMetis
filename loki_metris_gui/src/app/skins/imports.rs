@@ -1,7 +1,7 @@
 //! ZIP选择、预检进度与确认提交，token的生命周期由应用级租约负责。
 
 use super::{ModalKind, Shell, SkinError, state::ImportDraft};
-use gpui_kit::{AppContext, Context, Window};
+use gpui_kit::{Context, Window};
 use std::{
     path::PathBuf,
     sync::{Arc, atomic::Ordering},

@@ -71,8 +71,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
         check_cancel(&cancellation)?;
         return if matches!(query, UsageQuery::Overview(..)) {
             let records = build_workbuddy_only_local_windows(&snapshot.windows, &snapshot.coverage, now, ProviderKind::WorkbuddyProjectJsonl);
-            Ok(UsageResponse::Overview(UsageData { records, roots: Vec::new(), observed_at_epoch_ms: now,
-                workbuddy: Some(snapshot), workbuddy_read_failed: false }))
+            Ok(UsageResponse::Overview(UsageData { records, workbuddy: Some(snapshot) }))
         } else { Ok(UsageResponse::Workbuddy(snapshot)) };
     }
     if let Some(client) = selected {
@@ -124,7 +123,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
                     }
                     Err(_) => return Err("usage_aggregate_failed"),
                 };
-                Ok(UsageResponse::Overview(UsageData { records, roots: Vec::new(), observed_at_epoch_ms: now, workbuddy, workbuddy_read_failed: failed }))
+                Ok(UsageResponse::Overview(UsageData { records, workbuddy }))
             }
             UsageQuery::Chart(_, window, dimension) => Ok(UsageResponse::Chart(build_combined_usage_chart_with_standard(
                 &combined.map_err(combined_error)?, window, dimension, now, TimeStandard::Local, &zone).map_err(|_| "usage_aggregate_failed")?)),
@@ -164,8 +163,7 @@ fn build_single(query: UsageQuery, snapshot: UsageSnapshot, coverage: CoverageRe
         UsageQuery::Overview(..) => {
             let records = build_local_windows_with_standard(&snapshot.canonical, &coverage, snapshot.index_state, now,
                 provider, Some(&source), TimeStandard::Local, zone).map_err(|_| "usage_aggregate_failed")?;
-            Ok(UsageResponse::Overview(UsageData { records, roots: snapshot.roots, observed_at_epoch_ms: now,
-                workbuddy: None, workbuddy_read_failed: false }))
+            Ok(UsageResponse::Overview(UsageData { records, workbuddy: None }))
         }
         UsageQuery::Statistics(_, window, dimension) => Ok(UsageResponse::Statistics(build_usage_statistics_with_standard(
             &snapshot.canonical, &aliases, snapshot.index_state, &coverage, window, dimension, now,

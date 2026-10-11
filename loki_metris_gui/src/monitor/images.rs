@@ -306,6 +306,7 @@ pub(crate) fn delete_monitor_image(
 }
 
 /// 桌宠单图读取通过已校验索引，不接受外部路径。
+#[cfg(test)]
 pub(crate) fn read_monitor_image(data: &Path, id: &str) -> Result<Arc<[u8]>, HookError> {
     let _guard = super::catalog::read_lock()?;
     let records = load_index(data)?;

@@ -218,6 +218,7 @@ impl ScanCoordinator {
     }
 
     /// 请求当前活动扫描取消；没有活动扫描时返回 false。
+    #[cfg(test)]
     pub fn cancel_active(&self) -> bool {
         let state = self.inner.lock_state();
         if let Some(cancellation) = state.current.as_ref() {
@@ -229,6 +230,7 @@ impl ScanCoordinator {
     }
 
     /// 返回当前是否有 writer 持有扫描许可。
+    #[cfg(test)]
     pub fn is_running(&self) -> bool {
         self.inner.slot.available_permits() == 0
     }

@@ -118,10 +118,7 @@ pub(super) async fn load(
         Ok((
             UsageData {
                 records,
-                roots: vec![],
-                observed_at_epoch_ms: now,
                 workbuddy,
-                workbuddy_read_failed: failed,
             },
             today,
         ))

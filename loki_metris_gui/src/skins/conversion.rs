@@ -238,12 +238,6 @@ fn build_skin_archive(directory: &Path, file_names: &[String]) -> Result<Vec<u8>
         .map_err(|_| AppError::new("skin.export_failed", "无法完成皮肤导出压缩包。"))
 }
 
-/// 执行换皮宿主内部的 `save_export_archive` 步骤。
-pub fn save_export_archive(destination: &Path, archive: &[u8]) -> Result<(), AppError> {
-    std::fs::write(destination, archive)
-        .map_err(|_| AppError::new("skin.export_failed", "无法保存皮肤导出压缩包。"))
-}
-
 /// 执行换皮宿主内部的 `extract_zip` 步骤。
 fn extract_zip(source: &Path, destination: &Path, cancelled: &AtomicBool) -> Result<u64, AppError> {
     ensure_import_not_cancelled(cancelled)?;

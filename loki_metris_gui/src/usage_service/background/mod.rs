@@ -118,6 +118,7 @@ impl Drop for ShutdownTaskBatchGuard<'_> {
 
 impl BackgroundTaskOwner {
     /// 绑定发现协调器，使退出可先发出业务取消再等待任务。
+    #[cfg(test)]
     pub(crate) fn new(root_discovery: Arc<RootDiscoveryCoordinator>) -> Self {
         Self::with_runtime(root_discovery,tokio::runtime::Handle::current())
     }

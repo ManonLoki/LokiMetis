@@ -22,10 +22,13 @@ impl Render for PreviewProbe {
     /// 固定160px可见槽模拟Card.Section负margin后的生产预览，图片语义不吞并选择框或提交按钮。
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity().downgrade();
+        let frame = div().id("preview-frame").test_support().relative().w_full().h(px(160.))
+            .flex_shrink_0().overflow_hidden().rounded_t(px(19.));
+        #[cfg(target_os = "macos")]
+        let frame = frame.clip_rounded_children();
         div().size_full().p(px(24.)).child(
             div().w(px(self.width)).flex().flex_col().child(
-                div().id("preview-frame").test_support().relative().w_full().h(px(160.))
-                    .flex_shrink_0().overflow_hidden().child(skin_preview(
+                frame.child(skin_preview(
                         ImageSource::Render(self.image.clone()), "preview".into(), "Pikachu preview".into(),
                         Default::default(),
                     )).child(
@@ -151,19 +154,29 @@ fn production_skin_card_preview_matches_installed_section_crop(cx: &mut TestAppC
     }
 }
 
-/// 已完成的真实图片图元以外层顶角为圆心；偏移inner的圆角或仅矩形mask都不能通过。
+/// 实际macOS图片自身无圆角且由父R19链裁切；其它平台继续检查独立原viewport。
 fn assert_outer_clip(window: &Window, viewport: Bounds<gpui_kit::Pixels>) {
     let scale = window.scale_factor();
     let outer = viewport.scale(scale);
     let sprites = window.painted_polychrome_sprites();
-    let sprite = sprites.iter().find(|sprite| sprite.rounded_clip_bounds == outer)
-        .expect("真实图元必须保存160px外层圆角视口，不能把inner的偏移圆心当外角");
-    // 安装版Card的外圆角20减去真实1px边框，内缘圆心仍与外卡片一致。
-    assert_eq!(sprite.corner_radii.top_left, px(19.).scale(scale));
-    assert_eq!(sprite.corner_radii.top_right, px(19.).scale(scale));
-    assert_eq!(sprite.corner_radii.bottom_left, px(0.).scale(scale));
-    assert_eq!(sprite.corner_radii.bottom_right, px(0.).scale(scale));
-    assert_eq!(sprite.content_mask.bounds, outer, "矩形可见区仍由外层槽负责，不能只靠移动图片的圆角");
+    #[cfg(target_os = "macos")]
+    {
+        let sprite = sprites.iter().find(|sprite| sprite.content_mask.bounds == outer)
+            .expect("真实图片必须仍使用原160px矩形viewport");
+        assert_ne!(sprite.parent_clip.head, 0, "图片必须继承实际父圆角链，不能只用矩形mask");
+        assert_eq!(sprite.corner_radii, gpui_kit::Corners::all(px(0.).scale(scale)),
+            "图片自身不得再乘同一R19，否则AA边缘会平方");
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let sprite = sprites.iter().find(|sprite| sprite.rounded_clip_bounds == outer)
+            .expect("独立图片圆角必须保存160px原viewport");
+        assert_eq!(sprite.corner_radii.top_left, px(19.).scale(scale));
+        assert_eq!(sprite.corner_radii.top_right, px(19.).scale(scale));
+        assert_eq!(sprite.corner_radii.bottom_left, px(0.).scale(scale));
+        assert_eq!(sprite.corner_radii.bottom_right, px(0.).scale(scale));
+        assert_eq!(sprite.content_mask.bounds, outer);
+    }
 }
 
 /// 单一成功目录fixture只注入展示输入，真实选择和画布仍由生产Shell建立。
@@ -219,6 +232,12 @@ fn user_skin_checkbox_keeps_section_offset_and_own_actions(cx: &mut TestAppConte
             assert_eq!(bounds.right(), outer.right() + px(4.));
             assert_eq!(bounds.size, size(px(20.), px(20.)));
             assert_eq!(selection.label(), Some("Select Pikachu"));
+            #[cfg(target_os = "macos")]
+            {
+                // top/right -4的圆角外点仍在Checkbox矩形内，真实父Hitbox必须拒绝。
+                window.click_at("skin-select-pikachu", point(px(15.), px(5.)), cx);
+                assert!(shell.read(cx).skins.selected.is_empty(), "父R19外不能选择用户皮肤");
+            }
             window.click_at("skin-select-pikachu", point(px(6.), px(12.)), cx);
             assert_eq!(shell.read(cx).skins.selected.len(), 1);
             window.click_at("skin-preview-pikachu-User", point(px(8.), px(80.)), cx);

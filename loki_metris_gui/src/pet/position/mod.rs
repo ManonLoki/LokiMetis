@@ -1,7 +1,7 @@
 //! 桌宠几何写入只拥有最后用户意图与在途回执；权威保存值仍由 MonitorSettings 持有。
 
 use super::Controller;
-use gpui_kit::{Bounds, Context, Pixels, prelude::*};
+use gpui_kit::{Bounds, Context, Pixels};
 use loki_metris_core::PetOverlayPosition;
 use std::time::{Duration, Instant};
 

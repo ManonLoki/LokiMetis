@@ -126,6 +126,7 @@ fn try_reserve_handler_task_capacity_locked(owner: &mut HandlerTaskReaper) -> bo
 }
 
 /// 在 spawn 前原子保留一个 handler 容量名额；满额时拒绝继续创建任务。
+#[cfg(test)]
 fn reserve_handler_task_capacity() -> Result<HandlerTaskReservation, AppError> {
     reserve_handler_task_for_purpose(false)
 }

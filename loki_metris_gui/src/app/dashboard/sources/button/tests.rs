@@ -331,7 +331,7 @@ fn source_button_keyboard_keeps_focus_and_single_release_activation(cx: &mut Tes
     })
     .unwrap();
     let original = cx
-        .update_window(handle, |_, window, cx| {
+        .update_window(handle, |_, window, _cx| {
             assert_eq!(window.find(("source-probe", 0usize)).focused(), Some(true));
             window.find(("source-probe", 0usize)).bounds()
         })

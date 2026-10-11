@@ -3,7 +3,7 @@
 use super::*;
 use gpui_kit::{
     AppContext, HeadlessAppContext, NoopTextSystem, Render, TestAppContext, WindowOptions, div,
-    prelude::*, size, test::TestWindowExt,
+    size, test::TestWindowExt,
 };
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 

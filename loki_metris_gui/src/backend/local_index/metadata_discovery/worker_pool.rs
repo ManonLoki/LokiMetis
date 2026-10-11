@@ -292,7 +292,7 @@ impl Drop for LiveWorkerSlot {
 /// 原子预留一个全进程元数据 worker 名额，避免反复取消累积卡住线程。
 fn reserve_worker_slot() -> bool {
     LIVE_METADATA_WORKERS
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+        .try_update(Ordering::AcqRel, Ordering::Acquire, |current| {
             (current < LIVE_METADATA_WORKER_LIMIT).then_some(current + 1)
         })
         .is_ok()

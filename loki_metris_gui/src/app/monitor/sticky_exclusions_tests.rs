@@ -406,21 +406,27 @@ fn actual_ids(window: &Window, point: Point<Pixels>) -> Vec<HitboxId> {
 }
 
 /// owner几何、实际quad/图片和真实AX范围应均不受输入覆盖排除影响。
-fn assert_paint_owner_and_ax(window: &Window, state: &TargetState) {
+fn assert_paint_owner_and_ax(
+    window: &Window,
+    state: &TargetState,
+    expected_prepaint_mask: ContentMask<Pixels>,
+    expected_paint_mask: ContentMask<Pixels>,
+) {
     let record = state.latest();
     let scale = window.scale_factor();
     assert_eq!(record.bounds, rect(0., 0., 100., 100.));
     assert_eq!(record.hitbox.bounds, record.bounds);
+    assert_eq!(record.mask, expected_prepaint_mask);
     assert_eq!(record.hitbox.content_mask, record.mask);
     let quads = window.painted_quads();
     assert_eq!(quads.len(), 1);
     assert_eq!(quads[0].bounds, record.bounds.scale(scale));
-    assert_eq!(quads[0].content_mask, record.mask.scale(scale));
+    assert_eq!(quads[0].content_mask, expected_paint_mask.scale(scale));
     assert_eq!(quads[0].background.as_solid().unwrap().a, 128. / 255.);
     let images = window.painted_polychrome_sprites();
     assert_eq!(images.len(), 1);
     assert_eq!(images[0].bounds, record.bounds.scale(scale));
-    assert_eq!(images[0].content_mask, record.mask.scale(scale));
+    assert_eq!(images[0].content_mask, expected_paint_mask.scale(scale));
     if window.is_a11y_active() {
         let bounds = state
             .ax_bounds
@@ -461,7 +467,10 @@ fn monitor_sticky_exclusions_exact_half_open_gaps_nested_and_scope_restore(
     assert!(cx.simulate_accessibility_activation(handle).is_some());
     cx.update_window(handle, |_, window, cx| {
         window.draw(cx).clear(cx);
-        assert_paint_owner_and_ax(window, &state);
+        let mask = ContentMask {
+            bounds: Bounds::new(Point::default(), window.viewport_size()),
+        };
+        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
         let target = state.latest().hitbox.id;
         let restored = outside.borrow().last().unwrap().hitbox.id;
         let parents = actual_ids(window, point(px(10.), px(10.)))
@@ -556,7 +565,10 @@ fn monitor_sticky_exclusions_cache_key_same_changed_removed_and_replay(cx: &mut 
         let id = state.latest().hitbox.id;
         assert!(actual_ids(window, point(px(50.), px(50.))).contains(&id));
         assert!(!actual_ids(window, point(px(50.), px(70.))).contains(&id));
-        assert_paint_owner_and_ax(window, &state);
+        let mask = ContentMask {
+            bounds: Bounds::new(Point::default(), window.viewport_size()),
+        };
+        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
         window.draw(cx).clear(cx);
         assert_eq!(state.renders.get(), renders + 1);
         exclusions.borrow_mut().clear();
@@ -587,7 +599,11 @@ fn monitor_sticky_exclusions_parent_deferred_replay_and_legacy_escape(cx: &mut T
                     mode == 2
                 );
                 assert!(actual_ids(window, point(px(50.), px(90.))).contains(&id));
-                assert_paint_owner_and_ax(window, &state);
+                // 本 fixture 没有父矩形裁剪，两种 deferred 在两个阶段均使用窗口视口。
+                let mask = ContentMask {
+                    bounds: Bounds::new(Point::default(), window.viewport_size()),
+                };
+                assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
             }
         })
         .unwrap();

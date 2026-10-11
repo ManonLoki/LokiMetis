@@ -1,10 +1,12 @@
 //! Mantine Card.Section的负margin与图片视口圆角；静态皮肤原图沿用GPUI异步解码。
 
 use gpui_kit::{
-    AnyElement, App, Asset, Bounds, Corners, Image, ImageCacheError, ImageRoundedClip, ImageSource,
+    AnyElement, App, Asset, Corners, Image, ImageCacheError, ImageSource,
     ImgResourceLoader, IntoElement, ObjectFit, RenderImage, Role, SharedString, Window,
-    base::TestSupportExt as _, canvas, div, point, prelude::*, px, size,
+    base::TestSupportExt as _, canvas, div, prelude::*, px,
 };
+#[cfg(not(target_os = "macos"))]
+use gpui_kit::{Bounds, ImageRoundedClip, point, size};
 use std::{future::Future, sync::Arc};
 use super::preview_residency::PreviewResidencies;
 
@@ -46,14 +48,20 @@ pub(super) fn skin_preview(source: ImageSource, id: SharedString, label: String,
                     move |_, window, cx| use_data(&source, &residencies, window, cx).and_then(Result::ok),
                     |inner, image, window, _| {
                         let Some(image) = image.filter(|image| image.frame_count() > 0) else { return; };
-                        let outer = Bounds::new(inner.origin + point(px(16.), px(16.)),
-                            size(inner.size.width - px(32.), px(160.)));
                         let fitted = ObjectFit::Cover.get_bounds(inner, image.size(0));
-                        let _ = window.paint_image_with_rounded_clip(inner, fitted, ImageRoundedClip {
-                            bounds: outer,
-                            corner_radii: Corners { top_left: px(19.), top_right: px(19.),
-                                bottom_left: px(0.), bottom_right: px(0.) },
-                        }, image, 0, false);
+                        // 父R19已负责真实裁切；同一图片再乘自身R19会把AA边缘平方。
+                        #[cfg(target_os = "macos")]
+                        let _ = window.paint_image(inner, fitted, Corners::all(px(0.)), image, 0, false);
+                        #[cfg(not(target_os = "macos"))]
+                        {
+                            let outer = Bounds::new(inner.origin + point(px(16.), px(16.)),
+                                size(inner.size.width - px(32.), px(160.)));
+                            let _ = window.paint_image_with_rounded_clip(inner, fitted, ImageRoundedClip {
+                                bounds: outer,
+                                corner_radii: Corners { top_left: px(19.), top_right: px(19.),
+                                    bottom_left: px(0.), bottom_right: px(0.) },
+                            }, image, 0, false);
+                        }
                     },
                 ).size_full()),
         ).into_any_element()

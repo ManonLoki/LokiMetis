@@ -254,3 +254,53 @@ fn monitor_sticky_toolbar_does_not_cover_or_pierce_native_modal(cx: &mut TestApp
         assert!(shell.read(cx).monitor.route == Route::Management, "modal 覆盖期间不能命中背景 sticky tab");
     }).unwrap();
 }
+
+/// AX 默认回退连续分发按下与抬起，粘滞层不能要求中间绘帧才能导航。
+#[gpui_kit::test]
+fn monitor_sticky_sidebar_navigation_without_intermediate_frame(cx: &mut TestAppContext) {
+    let (handle, shell, _writer) = setup(cx, 700.);
+    let draft = "未保存的侧栏命中检查\n返回监控后应保留";
+    cx.update_window(handle, |_, window, cx| {
+        input(&shell, 0, cx).update(cx, |input, cx| input.replace_all(draft, window, cx));
+        window.render_frame(cx);
+    }).unwrap();
+    for (scale, height) in [(1., 700.), (2., 700.), (1., 929.), (2., 929.)] {
+        cx.simulate_window_scale_factor_change(handle, scale);
+        cx.simulate_window_resize(handle, gpui_kit::size(px(1440.), px(height)));
+        cx.update_window(handle, |_, window, cx| {
+            for delta in [0., -120., -10000.] {
+                window.scroll("page-content", ScrollDelta::Pixels(point(px(0.), px(delta))), cx);
+                window.render_frame(cx);
+                let settings = window.find("nav-settings");
+                assert_eq!(settings.role(), Some(Role::Button));
+                assert!(settings.label().is_some());
+                let sidebar = window.find("sidebar").bounds();
+                let main = window.find("main-content").bounds();
+                let footer = window.find("monitor-profile-save-bar").bounds();
+                let at = settings.bounds().center();
+                assert!(sidebar.contains(&at));
+                assert!(at.x < main.left());
+                assert!(!footer.contains(&at));
+                // 与默认 AX Click 同样连续派发，不用 click helper 的移入和中间绘帧。
+                for event in [
+                    gpui_kit::PlatformInput::MouseDown(gpui_kit::MouseDownEvent {
+                        button: gpui_kit::MouseButton::Left, position: at,
+                        modifiers: Default::default(), click_count: 1, first_mouse: false,
+                    }),
+                    gpui_kit::PlatformInput::MouseUp(gpui_kit::MouseUpEvent {
+                        button: gpui_kit::MouseButton::Left, position: at,
+                        modifiers: Default::default(), click_count: 1,
+                    }),
+                ] { window.dispatch_event(event, cx); }
+                assert_eq!(shell.read(cx).page, Page::Settings,
+                    "scale={scale}, height={height}, scroll={delta}, center={at:?}");
+                window.render_frame(cx);
+                window.click("nav-monitor", cx);
+                assert_eq!(shell.read(cx).page, Page::Monitor);
+                assert!(shell.read(cx).monitor.route == Route::Management);
+                assert_eq!(input(&shell, 0, cx).read(cx).value().as_ref(), draft);
+                assert_eq!(shell.read(cx).monitor.catalog.editors[0].draft.hooks[2].image, "sticky-gif");
+            }
+        }).unwrap();
+    }
+}

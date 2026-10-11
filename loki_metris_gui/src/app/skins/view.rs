@@ -315,6 +315,11 @@ impl Shell {
                     .flex_shrink_0()
                     .overflow_hidden()
                     .bg(rgb(0x808b9a));
+                // 原160px padding-box的R19同时裁切后代绘制与真实Hitbox。
+                #[cfg(target_os = "macos")]
+                {
+                    preview = preview.clip_rounded_children();
+                }
                 if let Some(image) = &entry.preview {
                     preview = preview.child(skin_preview(
                         image.clone().into(),

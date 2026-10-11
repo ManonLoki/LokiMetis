@@ -294,6 +294,7 @@ impl SkinService {
     }
 
     /// 执行换皮宿主内部的 `delete` 步骤。
+    #[cfg(test)]
     pub async fn delete(&self, skin: &SkinReference) -> Result<(), AppError> {
         let result = self.delete_many(std::slice::from_ref(skin)).await?;
         if result.deleted.len() == 1 {

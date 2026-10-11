@@ -1,4 +1,5 @@
 //! 真正的后台全局热键；中性初始化没有绑定，直到下游明确登记 typed handler。
+#![allow(dead_code)] // 预留给下游登记 typed handler 的扩展点，中性初始化暂无调用者。
 
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui_kit::App;

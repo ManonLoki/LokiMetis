@@ -13,7 +13,9 @@ mod window_state;
 
 
 
-use crate::{assets, preferences::{LanguageChoice, Preferences, ThemeChoice, Writer}};
+use crate::{assets, preferences::{Preferences, ThemeChoice, Writer}};
+#[cfg(test)]
+use crate::preferences::LanguageChoice;
 use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode}, div, img, prelude::*, px};
 
 /// 侧栏内边距同时确定顶部 Logo 与边界控件的垂直原点。
@@ -233,11 +235,13 @@ impl Shell {
     }
 
     /// 主题只有收到真实落盘回执后才应用当前窗口外观。
+    #[cfg(test)]
     fn select_theme(&mut self, theme: ThemeChoice, window: &Window, cx: &mut Context<Self>) {
         if self.preferences.theme!=theme {self.save_preference(crate::preferences::PreferencePatch::Theme(theme),window,cx);}
     }
 
     /// 语言切换同步应用和组件词典，同时保留当前页面。
+    #[cfg(test)]
     fn select_language(&mut self, language: LanguageChoice, window:&Window,cx: &mut Context<Self>) {
         if self.preferences.language!=language {self.save_preference(crate::preferences::PreferencePatch::Language(language),window,cx);}
     }

@@ -61,14 +61,6 @@ impl TimeStandard {
         }
     }
 
-    /// 写回磁盘的模式标签；旧 `remote` 不再写出。
-    pub fn stored_label(&self) -> &'static str {
-        match self {
-            Self::Local => "local",
-            Self::Custom { .. } => "custom",
-        }
-    }
-
     /// UTC 模式才写出时区名；当地时间不保存时区字段。
     pub fn stored_custom_time_zone(&self) -> Option<&str> {
         match self {

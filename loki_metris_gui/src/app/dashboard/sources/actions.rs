@@ -26,7 +26,7 @@ impl Shell {
                 if this.dashboard.sources.generation!=generation || this.usage_client()!=Some(client) {return}
                 this.dashboard.sources.pending=false;
                 this.dashboard.sources.feedback=Some(result.map(|result|match result {
-                    SourceOperationResult::Reindexed(_)=>"sources.messages.reindexed".into(),
+                    SourceOperationResult::Reindexed=>"sources.messages.reindexed".into(),
                     SourceOperationResult::Mutation(outcome)=>format!("sources.messages.{}",match outcome.kind {
                         Kind::SourceRootRegistered=>"sourceRegistered",Kind::SourceRootAlreadyRegistered=>"sourceAlreadyRegistered",
                         Kind::SourceRootEnabled=>"sourceEnabled",Kind::SourceRootDisabled=>"sourceDisabled",

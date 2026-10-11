@@ -192,6 +192,7 @@ impl SkinService {
     }
 
     /// 使用可注入预算和清理器关闭服务，供生产路径与生命周期回归共用。
+    #[cfg(test)]
     async fn shutdown_with_budget_and_cleanup<Cleanup, CleanupFuture>(
         &self,
         budget: WatchStopBudget,

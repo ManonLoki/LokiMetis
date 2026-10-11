@@ -10,7 +10,7 @@ use loki_metris_core::{
 };
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, atomic::Ordering},
+    sync::atomic::Ordering,
 };
 use tokio::sync::oneshot;
 
@@ -99,14 +99,6 @@ impl UsageService {
         self.monitor_catalog_work(true, move |config, data| {
             images::delete_monitor_image(config, data, &id)
         })
-    }
-
-    /// 桌宠只可通过图库 ID 请求资源，不能任意读取用户路径。
-    pub fn get_monitor_image_bytes(
-        &self,
-        id: String,
-    ) -> Result<oneshot::Receiver<Result<Arc<[u8]>, HookError>>, &'static str> {
-        self.monitor_catalog_work(false, move |_, data| images::read_monitor_image(data, &id))
     }
 }
 

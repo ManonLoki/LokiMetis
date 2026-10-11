@@ -2,7 +2,7 @@
 
 use super::{Shell,format,plot::{self,Series,Value,Scale}};
 use gpui_kit::{AnyElement,Context,FontWeight,div,prelude::*,px,rgb,
-    component::{ActiveTheme,button::{Button,ButtonVariants},menu::{DropdownMenu,PopupMenuItem}}};
+    component::{ActiveTheme,button::Button,menu::{DropdownMenu,PopupMenuItem}}};
 use loki_metris_core::WorkbuddyDailyBucket;
 use gpui_kit::base::TestSupportExt as _;
 

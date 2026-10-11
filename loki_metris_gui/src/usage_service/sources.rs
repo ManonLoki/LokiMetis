@@ -18,7 +18,7 @@ pub enum SourceOperation {
 /// 已提交的变更结果保持独立，后续刷新失败不能把已发生的修改说成未执行。
 pub enum SourceOperationResult {
     Mutation(SourceRootMutationOutcome),
-    Reindexed(LocalScanOutput),
+    Reindexed,
 }
 
 impl SourceOperation {
@@ -97,7 +97,7 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
             let coverage=extend_coverage_with_partial_scan(previous_coverage,&output.coverage);
             reports.insert(client,coverage);
             if cancelled {return Err("source_operation_cancelled")}
-            return Ok(SourceOperationResult::Reindexed(output));
+            return Ok(SourceOperationResult::Reindexed);
         }
     }.map_err(|_|if cancellation.is_cancelled(){"source_operation_cancelled"}else{"source_update_failed"})?;
     if outcome.changed {

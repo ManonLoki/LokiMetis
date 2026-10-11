@@ -154,7 +154,7 @@ fn overview_copies_exact_value_and_preserves_window_across_navigation(cx: &mut T
     shell.update(cx, |shell, cx| {
         shell.dashboard.data = Some(crate::usage_service::UsageData {
             records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
-            roots: Vec::new(), observed_at_epoch_ms: 0, workbuddy: None, workbuddy_read_failed: false,
+            workbuddy: None,
         });
         cx.notify();
     });

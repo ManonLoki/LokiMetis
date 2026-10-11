@@ -102,6 +102,7 @@ pub fn load_monitor_settings(config_dir: &Path) -> Result<MonitorSettings, HookE
 
 /// 桌宠运行时读取失败时使用安全默认偏好，保证损坏设置不会阻断默认显示与托盘恢复。
 /// 主界面继续调用 [`load_monitor_settings`]，因此仍会明确暴露原始设置错误。
+#[cfg(test)]
 pub fn load_pet_runtime_settings(config_dir: &Path) -> MonitorSettings {
     load_monitor_settings(config_dir).unwrap_or_else(|error| {
         tracing::warn!(

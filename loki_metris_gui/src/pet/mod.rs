@@ -35,10 +35,12 @@ use gpui_kit::{
     size,
 };
 use loki_metris_core::{
-    AiProfileDraft, HookError, PetLayout, PetOverlayPage, PetOverlayPosition, PetOverlayToolState,
+    AiProfileDraft, HookError, PetLayout, PetOverlayPage, PetOverlayToolState,
     PetPreferenceChange, PetSizeRange, change_pet_preferences,
     first_populated_pet_slot, project_available_pet_overlay_page, TodayUsageDisplay,
 };
+#[cfg(test)]
+use loki_metris_core::PetOverlayPosition;
 use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,

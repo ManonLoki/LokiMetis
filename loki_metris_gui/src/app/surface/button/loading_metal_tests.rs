@@ -2,7 +2,7 @@
 
 use super::*;
 use gpui_kit::{
-    AppContext, Context, HeadlessAppContext, NoopTextSystem, Render, div, prelude::*, size,
+    AppContext, Context, HeadlessAppContext, NoopTextSystem, Render, div, size,
     test::TestWindowExt,
 };
 use std::{sync::Arc, time::Duration};

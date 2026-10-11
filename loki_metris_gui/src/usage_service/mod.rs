@@ -32,7 +32,7 @@ pub use query::{UsageQuery, UsageResponse};
 pub use sources::{SourceOperation,SourceOperationResult};
 pub use discovery::{DiscoveryView,ManualAddResult};
 use crate::backend::local_index::{current_user_home, ScanCoordinator, ScanProgress};
-use loki_metris_core::{CoverageReport, LocalRecordsSummary, RootRecord, SourceClientKind,
+use loki_metris_core::{CoverageReport, LocalRecordsSummary, SourceClientKind,
     WorkbuddyStatisticsSnapshot, ScanStartOrigin};
 use queue::{Intent, Queue};
 use std::{collections::BTreeMap, path::PathBuf, sync::{Arc, Mutex}, time::Duration};
@@ -42,10 +42,7 @@ use tokio::{runtime::Runtime, sync::oneshot};
 #[derive(Clone)]
 pub struct UsageData {
     pub records: LocalRecordsSummary,
-    pub roots: Vec<RootRecord>,
-    pub observed_at_epoch_ms: i64,
     pub workbuddy: Option<WorkbuddyStatisticsSnapshot>,
-    pub workbuddy_read_failed: bool,
 }
 
 /// 后台扫描的展示投影；revision 只在一轮完成/失败/取消收尾后增加。
@@ -176,10 +173,8 @@ impl UsageService {
         self.context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
-    /// 明确取消当前扫描与待处理扫描；普通查询不受影响。
-    pub fn cancel(&self) { self.scans.cancel(); self.context.writer.cancel_active(); }
-
     /// 停止新 writer 并有界等待合作收尾；不能强停的blocking仍由原owner保留。
+    #[cfg(test)]
     pub fn finish(&self) { self.finish_with_pet(PetShutdownPlan::default()); }
 
     /// 退出先拥有最终位置屏障，有界回收后台，再提交前台尚未派发的桌宠最终意图。
