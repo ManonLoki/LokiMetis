@@ -491,6 +491,29 @@ WorkBuddy 每轮今日用量读取仍会扫描捕获的JSONL前缀；普通消�
 
 这一变化只减少当前行的临时字符串分配，没有增加内容缓存，也没有改变路径身份、冻结前缀、读取预算、覆盖质量或通知资格。有效usage的Box、行内usage明细Vec、最终权威记录及完整前缀扫描仍存在；尚未隔离测量整轮CPU、footprint或分配总量，不能宣称百分比收益。本项为内部优化 `maintenance`，稳定ID `LMMAINT-WORKBUDDY-BORROWED-STRINGS-001`，`required_version=0.2.12`。
 
+### 5.30 静止主线程等待不等于后台没有开销，短时回落也不证明没有泄漏
+
+为追踪5.29的借用路径，在同一台macOS设备上保留了两份约40秒的静止Settings栈：`release/theme-transition-development-20261011/47-before-borrow-static-settings-sample.txt` 为v0.2.12、PID25377；`65-after-borrow-static-settings-sample.txt` 为包含该实现的v0.2.13、PID38543。两者都是优化构建；新栈确实出现 `JsonString → borrow_cow_str::CowStrVisitor`。以下是绝对采样计数，累计项包含子调用，不能相加或换算CPU时间：
+
+| 路径 | 旧样本 | 新样本 |
+|---|---:|---:|
+| 主线程总数 / 显式等待 | 26371 / 26298 | 28143 / 28038 |
+| WorkBuddy阻塞输入 | 537 | 172 |
+| 完整行读取累计 / 自身 | 208 / 144 | 74 / 52 |
+| serde字符串跳过自身 | 139 | 39 |
+| 今日用量阻塞聚合 | 595 | 195 |
+| SQLite snapshot读取 | 569 | 550 |
+| 其中结果行释放 | 226 | 176 |
+| SQLite VDBE累计 / 自身 | 586 / 158 | 883 / 140 |
+
+两轮均未采到draw、paint或阴影栅格化；这只说明有限窗口内未观察到，不证明整段零绘制。新栈SQLite的一个`pread`叶子有301 samples，可能包含I/O等待。通知仍读取完整snapshot并进行canonical联合装配，不能因为主线程大多等待就结束后台调查，也不能把所有WorkBuddy阻塞调用都归给通知发起者。
+
+资源文件`48-before-borrow-static-settings-resources.json`整体无效：第三端点前台PID的libproc读取无权限。只能引用已保留的前20.083秒完整差分，GPUI集合CPU为1.939%；不能补成40秒结果。`66-after-borrow-static-settings-resources.json`完整有效，新两个区间分别约20.099和20.080秒，GPUI集合CPU为9.686%和1.815%。新root footprint三个端点为761.720→554.049→553.986MiB，末端集合账目和为603.144MiB。这是先回落、后短时稳定的观察，尚不足以证明946MB问题消失或计算Cow收益。
+
+新端点前台均为ChatGPT，旧有效端点为Chrome；新一轮刚从皮肤页和临时浅色主题回到System/Settings，预热为0秒，旧进程寿命更长。两应用桌宠可见，但动画、素材、历史操作及年龄未匹配；GPUI通知开启、参考Tauri关闭。新参考集合还枚举到一个CPU增量为0的系统`MTLCompilerService`，不能认定它为独占helper。采样脚本在端点未发现其识别的编译进程，没有全区间无编译证明。故这些数据不能给GPUI/Tauri排名，也不能把栈计数下降直接写成优化比例。
+
+后续先重复充分预热后的同页窗口，再检查SQLite结果行的物化、复制与释放。任何减少扫描或聚合的方案都要保留完整内容校验、跨日重复身份冲突、晚到更新、覆盖质量及六窗口错误合同；不能先筛Today换取一个失真的快路径。优先消除有证据的重复分配，收益仍由固定输入的运行测量确认。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制
