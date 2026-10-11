@@ -1,0 +1,1 @@
+        layer.set_maximum_drawable_count(3);

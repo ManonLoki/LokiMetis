@@ -8,7 +8,6 @@ pub mod autostart;
 pub mod notifications;
 pub mod links;
 pub mod instance;
-pub(crate) mod memory;
 pub mod shortcuts;
 #[cfg(windows)]
 mod windows;

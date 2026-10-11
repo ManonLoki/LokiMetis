@@ -117,8 +117,9 @@ fn patched_sources(manifest: &Path, spec: &Spec) -> Result<BTreeMap<String, Vec<
     for &(name, digest) in spec.generated_hashes {
         relative(name)?;
         if !checked.insert(name) { return Err(format!("duplicate generated digest: {name}")); }
-        if sha256::hex(sources.get(name).ok_or("missing generated digest target")?) != digest {
-            return Err(format!("reviewed generated output drift: {name}"));
+        let actual = sha256::hex(sources.get(name).ok_or("missing generated digest target")?);
+        if actual != digest {
+            return Err(format!("reviewed generated output drift: {name} (actual {actual})"));
         }
     }
     if changed != checked { return Err("generated digests must cover exactly every changed file and crate entry".into()); }
