@@ -1,6 +1,7 @@
 //! 发现换代回归制造真实的迟到回执，验证新批次候选与忙态不被旧任务污染。
 
 use super::*;
+use crate::usage_service::{SourceOperation,UsageQuery,UsageResponse};
 
 /// coordinator 候选由固定元数据证据构造，不访问真实用户目录。
 fn candidate(id:&str)->RootCandidate {
@@ -35,4 +36,39 @@ fn rejected_start_preserves_existing_batch_identity_and_candidates() {
     coordinator.submit_candidate(candidate("existing"));
     assert_eq!(batch.begin_discovery(&coordinator,RootDiscoveryStrategy::MetadataTraversal,RootDiscoveryScope::FullLocalVolumes,1),Err("source_discovery_busy"));
     assert!(batch.current(generation));assert_eq!(coordinator.candidates(),vec![candidate("existing")]);
+}
+
+/// 每批走真实目录验证和 SQLite 登记，不启动用户目录发现或原生通知。
+fn register_fixture_candidate(service:&UsageService,path:&std::path::Path,id:&str) {
+    let generation=service.discovery_batch.begin_discovery(&service.discovery,RootDiscoveryStrategy::MetadataTraversal,RootDiscoveryScope::UserPriority,1).unwrap();
+    let mut value=candidate(id);value.absolute_path=path.to_string_lossy().into_owned();
+    service.discovery.submit_candidate(value);service.discovery.finish(false,false);
+    service.runtime.lock().unwrap().as_ref().unwrap().block_on(register_candidate(
+        &service.context,&service.background,&service.discovery,&service.discovery_batch,generation,id)).unwrap();
+}
+
+/// 同根再次发现仍推进扫描批次，但不能重建通知基线；新增来源才推进来源代。
+#[test]
+fn repeated_root_discovery_preserves_notification_epoch_and_ready_root() {
+    let temp=tempfile::tempdir().unwrap();
+    let source=crate::usage_service::source_tests::fixture_root(temp.path());
+    let other=crate::usage_service::source_tests::fixture_root(&temp.path().join("other"));
+    let service=UsageService::in_test_directory(temp.path().join("data")).unwrap();
+    register_fixture_candidate(&service,&source,"first");
+    assert_eq!(service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire),1);
+    let id=stable_id(SourceClientKind::Codex.root_id_namespace(),&path_key(&source));
+    service.mutate_source(SourceClientKind::Codex,SourceOperation::Reindex{root_id:id.clone()}).unwrap().blocking_recv().unwrap().unwrap();
+    let epoch=service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire);
+    let revision=service.scan_status().revision;
+    register_fixture_candidate(&service,&source,"duplicate");
+    assert_eq!(service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire),epoch);
+    assert!(service.scan_status().revision>revision);
+    assert!(service.discovery.candidates().is_empty());
+    let rows=service.query(UsageQuery::Sources(SourceClientKind::Codex)).unwrap().blocking_recv().unwrap().unwrap();
+    assert!(matches!(rows,UsageResponse::Sources(roots) if roots.len()==1&&roots[0].id==id&&roots[0].activation_state==RootActivationState::Ready));
+    register_fixture_candidate(&service,&other,"new-source");
+    assert_eq!(service.context.notification_source_epoch.load(std::sync::atomic::Ordering::Acquire),epoch+1);
+    let rows=service.query(UsageQuery::Sources(SourceClientKind::Codex)).unwrap().blocking_recv().unwrap().unwrap();
+    assert!(matches!(rows,UsageResponse::Sources(roots) if roots.len()==2));
+    service.finish();
 }

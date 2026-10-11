@@ -82,13 +82,14 @@ async fn register_candidate(context:&Arc<ServiceContext>,owner:&Arc<BackgroundTa
     let mut index=LocalIndex::open_in_app_data(&directory,candidate.client.parser_version()).await.map_err(|_|"source_update_failed")?;
     if permit.cancellation_token().is_cancelled()||!batch.current(generation) {return Err("source_operation_cancelled")}
     let root_id=stable_id(candidate.client.root_id_namespace(),&path_key(&path));
-    index.register_confirmed_root_fields(&root_id,&path,&source_root_alias_from_path(&path,candidate.client),DiscoveryMethod::MetadataDiscovery)
+    let inserted=index.register_confirmed_root_fields(&root_id,&path,&source_root_alias_from_path(&path,candidate.client),DiscoveryMethod::MetadataDiscovery)
         .await.map_err(|_|"source_update_failed")?;
-    context.notification_source_epoch.fetch_add(1,std::sync::atomic::Ordering::Release);
-    context.today_refresh.notify_one();
-    // 首次登记已提交，立即更新覆盖和可见代数；后续取消不能掩盖已经发生的变更。
+    // 同根重复发现仍扫描新用量；只有新增来源才让通知抑制待发项并重建基线。
+    if inserted {context.notification_source_epoch.fetch_add(1,std::sync::atomic::Ordering::Release);}
+    // 登记已提交，立即更新覆盖和可见代数；后续取消不能掩盖已经发生的变更。
     context.coverage.lock().unwrap_or_else(std::sync::PoisonError::into_inner).entry(candidate.client).or_insert_with(empty_coverage).state=CoverageState::Partial;
     {let mut status=context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner);status.revision=status.revision.wrapping_add(1);}
+    context.today_refresh.notify_one();
     if permit.cancellation_token().is_cancelled()||!batch.current(generation) {return Err("source_operation_cancelled")}
     index.queue_confirmed_root_for_background_scan(&root_id).await.map_err(|_|"source_update_failed")?;
     // 新批次可在 SQLite 提交期间开始，旧回执不能清理新批次同 ID 候选。
