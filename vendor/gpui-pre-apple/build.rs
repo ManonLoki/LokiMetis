@@ -24,7 +24,7 @@ fn generated_sources() -> PathBuf {
         patches: &patches,
         generated_hashes: &[
             ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
-            ("src/metal_renderer.rs", "257b4d61567ed4e483c0bd794e7a89e1da3189be52d227a3860f2672f70a7d72"),
+            ("src/metal_renderer.rs", "91e4b5cde950223e8c8c2d11e4e4b17803b6d5bc4e0c911cdc8e908adfe34f5c"),
             ("src/gpui_apple.rs", "13f5d77ff374cd40082f29f20aeb6a2d185643e15d5031bcbe6a8538ad3d2f7f"),
             ("vendor/gpui/src/scene.rs", "f8e1a899071e298bed53c7eb10f0e65a8039e1663048033ab6f5e79a1a434af4"),
             ("src/shaders.metal", "0293a36fef5f5bbde11fcad44ac903c6d70bb6c83c9db86c26a831f6ae53da3c"),

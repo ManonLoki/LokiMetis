@@ -5,8 +5,6 @@ use crate::generator::Patch;
 /// scene 图元补丁由两个后端共用，见 gpui-patch-support；此处只登记 Metal 专属片段。
 pub const PATCHES: &[Patch] = &[
     patch!("../patches/", "atlas-retirement-submit", "src/metal_renderer.rs"),
-    // 双缓冲可绘制纹理：每个 CAMetalLayer 少持有一块整窗 IOSurface。
-    patch!("../patches/", "metal-drawable-count", "src/metal_renderer.rs"),
     patch!("../patches/", "atlas-retirement-render-frame", "src/metal_renderer.rs"),
     patch!("../patches/", "atlas-retirement-frame", "src/metal_atlas.rs"),
     patch!("../patches/", "atlas-retirement-physical", "src/metal_atlas.rs"),

@@ -53,6 +53,11 @@ pub(super) struct TodayCache(Mutex<Vec<Arc<Cached>>>);
 impl TodayCache {
     /// 键相同才返回缓存；任何不一致都按未命中处理。
     pub(super) fn lookup(&self, key: &IndexKey) -> Option<Arc<Cached>> {
+        // 仅测量构建：关闭缓存做受控 A/B，用于归因缓存对 CPU 与内存的贡献。
+        #[cfg(feature = "isolated-measurement")]
+        if std::env::var_os("LOKI_METRIS_DISABLE_INDEX_CACHE").is_some() {
+            return None;
+        }
         let entries = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         entries.iter().find(|cached| cached.key == *key).cloned()
     }
