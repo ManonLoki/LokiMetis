@@ -75,11 +75,30 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
         } else { Ok(UsageResponse::Workbuddy(snapshot)) };
     }
     if let Some(client) = selected {
+        // 概览每 10 秒由页面刷新；索引与覆盖未变且仍是同一民用日时直接复用窗口汇总。
+        let day = if matches!(query, UsageQuery::Overview(_)) { UsageDay::capture(now, &zone) } else { None };
+        let key = match &day {
+            Some(day) => super::today_cache::key_for(&context, super::today_cache::Scope::Single, &[client], day).await,
+            None => None,
+        };
+        if let Some(cached) = key.as_ref().and_then(|key| context.today_cache.lookup(key)) {
+            let mut records = cached.records.clone();
+            super::today_cache::restamp(&mut records, now);
+            return Ok(UsageResponse::Overview(UsageData { records, workbuddy: None }));
+        }
         let snapshot = read_snapshot(&context.directory, client, now, &zone).await?;
         let coverage = coverage(&context, client);
         check_cancel(&cancellation)?;
-        return tokio::task::spawn_blocking(move || build_single(query, snapshot, coverage, client, now, &zone))
-            .await.map_err(|_| "usage_aggregate_failed")?;
+        let response = tokio::task::spawn_blocking(move || build_single(query, snapshot, coverage, client, now, &zone))
+            .await.map_err(|_| "usage_aggregate_failed")??;
+        // 读取期间索引文件未变化才保存，避免把并发写入中途的数据当作稳定结果。
+        if let (Some(key), Some(day), UsageResponse::Overview(data)) = (key, day, &response) {
+            let after = super::today_cache::key_for(&context, super::today_cache::Scope::Single, &[client], &day).await;
+            if after.as_ref() == Some(&key) {
+                context.today_cache.store(key, Vec::new(), false, data.records.clone());
+            }
+        }
+        return Ok(response);
     }
     let mut jobs = tokio::task::JoinSet::new();
     for client in enabled_clients {

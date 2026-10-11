@@ -5,7 +5,7 @@ use crate::backend::local_index::{self,LocalIndex,DiscoveryInputs,DiscoveryMetho
 use loki_metris_core::*;
 
 /// 合成来源仅含固定、无敏感字段的 Codex 签名；不依赖测试当天是否仍保留其调用。
-fn fixture_root(directory:&std::path::Path)->std::path::PathBuf {
+pub(super) fn fixture_root(directory:&std::path::Path)->std::path::PathBuf {
     let root=directory.join("source");std::fs::create_dir_all(root.join("sessions")).unwrap();
     let bytes=concat!("{\"timestamp\":\"2026-10-09T00:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"source-test-session\"}}\n",
         "{\"timestamp\":\"2026-10-09T00:01:00Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":0,\"output_tokens\":10,\"total_tokens\":110}}}}\n");
@@ -13,7 +13,7 @@ fn fixture_root(directory:&std::path::Path)->std::path::PathBuf {
 }
 
 /// 通过生产签名发现生成真实稳定 ID，再登记为待首次索引状态。
-fn register_fixture(service:&UsageService,root:&std::path::Path)->String {
+pub(super) fn register_fixture(service:&UsageService,root:&std::path::Path)->String {
     let discovered=local_index::discover_quick(&DiscoveryInputs{home_dir:None,codex_home:Some(root.to_path_buf()),registered_roots:Vec::new()},&ScanCancellation::new());
     let id=discovered.roots.first().expect("合成签名可被发现").root_id.clone();
     let runtime=service.runtime.lock().unwrap();

@@ -2,6 +2,9 @@
 
 mod queue;
 mod today;
+mod today_cache;
+#[cfg(test)]
+mod today_cache_tests;
 mod notifications;
 pub(crate) use notifications::Progress as NotificationProgress;
 mod query;
@@ -67,6 +70,7 @@ struct ServiceContext {
     settings:Arc<settings::SettingsStore>,
     agents:Arc<agents::AgentSettingsStore>,
     monitor_revision:std::sync::atomic::AtomicU64,
+    today_cache: today_cache::TodayCache,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -118,7 +122,7 @@ impl UsageService {
         let skins=Arc::new(skins::OwnedSkins::new(&directory));
         let context = Arc::new(ServiceContext { directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            settings, agents,monitor_revision:Default::default() });
+            settings, agents,monitor_revision:Default::default(),today_cache:Default::default() });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();
