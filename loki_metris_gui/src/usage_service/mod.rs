@@ -140,6 +140,8 @@ impl UsageService {
         let rendezvous=crate::monitor::relay::hook_relay_rendezvous_path().map_err(|_|"monitor_rendezvous_unavailable")?;
         self.start_monitoring_at(rendezvous)?;
         let executable=std::env::current_exe().map_err(|_|"hook_executable_unavailable")?;
+        // 从磁盘映像或临时转移目录运行时不写入 Hook，避免在其它工具配置里留下之后失效的命令。
+        if hooks::is_ephemeral_executable(&executable) {return Err("hook_executable_ephemeral")}
         let home=current_user_home().ok_or("hook_home_unavailable")?;
         self.start_hook_writer_at(executable,home)
     }

@@ -14,6 +14,13 @@ pub(super) struct HookHost {
     pub home: PathBuf,
 }
 
+/// 判断可执行文件是否位于重启或卸载后会消失的位置：挂载的磁盘映像卷，或 Gatekeeper 的临时转移目录。
+/// Hook 命令会被写进其它工具的配置并长期保留，写入这类路径只会在之后留下失效命令。
+pub(super) fn is_ephemeral_executable(path: &std::path::Path) -> bool {
+    let text = path.to_string_lossy();
+    text.starts_with("/Volumes/") || text.contains("/AppTranslocation/")
+}
+
 impl UsageService {
     /// 窗口回归明确注入隔离目录和relay，普通测试构造仍不安装Hooks。
     #[cfg(test)]

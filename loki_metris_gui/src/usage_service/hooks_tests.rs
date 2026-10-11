@@ -22,6 +22,10 @@ impl Drop for Fixture {
 impl Fixture {
     /// 先关闭启用集合并覆盖全部公开根，再绑定真实串行writer。
     fn new() -> Self {
+        Self::with_executable("/fixture/LokiMetris")
+    }
+    /// 以指定中继可执行路径绑定writer，用于核对写入配置里的命令形态。
+    fn with_executable(executable: &str) -> Self {
         let root = tempfile::tempdir().unwrap();
         let directory = root.path().join("data");
         update_monitor_settings(&directory.join("monitor"), |settings| {
@@ -41,7 +45,7 @@ impl Fixture {
         let service = UsageService::in_directory(directory).unwrap();
         service
             .start_hook_writer_at(
-                PathBuf::from("/fixture/LokiMetris"),
+                PathBuf::from(executable),
                 root.path().join("home"),
             )
             .unwrap();
@@ -243,4 +247,50 @@ fn wait_file(file: &Path) {
         std::thread::sleep(Duration::from_millis(10));
     }
     panic!("hook file did not commit: {}", file.display());
+}
+
+/// 磁盘映像卷与 Gatekeeper 临时目录不能作为长期 Hook 命令的可执行路径。
+#[test]
+fn ephemeral_executable_paths_are_rejected_for_hook_commands() {
+    for path in [
+        "/Volumes/LokiMetris/LokiMetris.app/Contents/MacOS/loki_metris_gui",
+        "/private/var/folders/ab/T/AppTranslocation/1234/d/LokiMetris.app/Contents/MacOS/loki_metris_gui",
+    ] {
+        assert!(is_ephemeral_executable(Path::new(path)), "{path}");
+    }
+    for path in [
+        "/Applications/LokiMetris.app/Contents/MacOS/loki_metris_gui",
+        "/Users/someone/Applications/LokiMetris.app/Contents/MacOS/loki_metris_gui",
+        "C:\\Program Files\\LokiMetris\\loki_metris_gui.exe",
+    ] {
+        assert!(!is_ephemeral_executable(Path::new(path)), "{path}");
+    }
+}
+
+/// 安装位置含中文与空格时，写入真实配置的命令必须带引号、使用本产品的中继参数与管理标识。
+#[test]
+fn installed_app_path_is_written_as_quoted_relay_command() {
+    let executable = "/Applications/诡秘 神谕.app/Contents/MacOS/loki_metris_gui";
+    let fixture = Fixture::with_executable(executable);
+    let service = &fixture.service;
+    let receipt = service.write_monitor_hook_config(AiTool::ClaudeCode).unwrap();
+    fixture.receive(receipt).unwrap();
+    let file = fixture.root.path().join(loki_metris_core::ai_tool_name(AiTool::ClaudeCode)).join(hook_config_filename(AiTool::ClaudeCode));
+    wait_file(&file);
+    let content = std::fs::read_to_string(&file).unwrap();
+    let settings: serde_json::Value = serde_json::from_str(&content).unwrap();
+    let commands: Vec<&str> = settings["hooks"]
+        .as_object()
+        .unwrap()
+        .values()
+        .flat_map(|groups| groups.as_array().unwrap())
+        .flat_map(|group| group["hooks"].as_array().unwrap())
+        .filter_map(|hook| hook["command"].as_str())
+        .collect();
+    assert!(!commands.is_empty());
+    for command in commands {
+        assert!(command.starts_with(&format!("'{executable}' --loki-metris-hook-relay 'claude-code' ")), "{command}");
+        assert!(command.ends_with("--managed-by 'LokiMetris:tool=claude-code'"), "{command}");
+        assert!(!command.contains("/Volumes/"), "{command}");
+    }
 }
