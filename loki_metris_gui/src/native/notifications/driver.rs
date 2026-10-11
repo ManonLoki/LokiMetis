@@ -6,6 +6,8 @@ use std::{sync::mpsc::SyncSender, time::Instant};
 /// 有界平台回调，点击必须在 UI 线程恢复主窗口。
 pub(super) enum Event {
     Clicked,
+    /// 只有 Windows 的晚到失败回调会产生；其它平台不会构造，但事件处理对所有平台统一。
+    #[cfg_attr(not(windows), allow(dead_code))]
     LateFailure(String),
 }
 #[cfg(target_os = "macos")]

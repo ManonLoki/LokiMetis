@@ -74,12 +74,6 @@ pub fn bounds(window: &Window) -> Bounds<gpui_kit::Pixels> {
         })
         .unwrap_or_else(|_| window.bounds())
 }
-/// 只移动左上角，不借用当前鼠标屏幕高度。
-pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
-    let native = native(window)?;
-    native.setFrameOrigin(NSPoint::new(x, top() - y - native.frame().size.height));
-    Ok(())
-}
 /// 无边框／置顶／锁定在原窗口动态应用，不重建播放实体。
 pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> anyhow::Result<()> {
     let native = native(window)?;

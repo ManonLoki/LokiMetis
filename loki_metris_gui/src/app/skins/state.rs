@@ -9,14 +9,14 @@ use loki_metris_core::{SkinHostKind, SkinReference};
 use std::sync::{Arc, atomic::AtomicU64};
 
 /// 模态保留打开前的焦点与稳定输入实体。
-pub(super) struct Modal {
+pub(crate) struct Modal {
     pub kind: ModalKind,
     pub focus: FocusHandle,
     pub previous: Option<FocusHandle>,
 }
 /// 资源确认均携带联合身份，不能把同ID的内置与用户包混为一项。
 #[derive(Clone)]
-pub(super) enum ModalKind {
+pub(crate) enum ModalKind {
     Create([Entity<InputState>; 2]),
     Delete(Vec<SkinReference>),
     Convert(SkinDescriptor),
@@ -26,7 +26,7 @@ pub(super) enum ModalKind {
 }
 /// 一次应用意图绑定宿主与资源；确认后重新检查原生实例身份。
 #[derive(Clone)]
-pub(super) struct PendingApply {
+pub(crate) struct PendingApply {
     pub host: SkinHostKind,
     pub skin: SkinReference,
     pub instance: Option<String>,
@@ -37,7 +37,7 @@ pub(super) struct PendingApply {
 }
 /// 单实例重启与Windows整宿主恢复具有不同确认文案和执行入口。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum RestartMode {
+pub(crate) enum RestartMode {
     RestartSelected,
     RecoverWindowsWorkBuddy,
 }
@@ -101,7 +101,7 @@ impl Default for Skins {
 }
 
 /// 单一UI租约持有预检token；选择改变时只重置所选脚本集合的信任。
-pub(super) struct ImportDraft {
+pub(crate) struct ImportDraft {
     pub lease: crate::usage_service::SkinImportLease,
     pub batch: Option<crate::skins::PreparedSkinImportBatch>,
     pub selected: Vec<String>,

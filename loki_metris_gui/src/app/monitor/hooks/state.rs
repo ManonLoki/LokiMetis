@@ -4,13 +4,13 @@ use gpui_kit::{Entity, Subscription, Task, component::input::InputState};
 use loki_metris_core::{AiTool, HookConfigLocation, HookConfigWriteResult, HookError};
 
 /// 成功只来自实际writer回执，错误直接映射稳定领域码。
-pub(super) enum Feedback {
+pub(crate) enum Feedback {
     Written(HookConfigWriteResult),
     Failed(HookError),
 }
 
 /// 一个工具的草稿在切换标签后保留，文件路径输入为可复制的只读投影。
-pub(super) struct Editor {
+pub(crate) struct Editor {
     pub saved: HookConfigLocation,
     pub draft: String,
     pub inputs: Option<Vec<Entity<InputState>>>,

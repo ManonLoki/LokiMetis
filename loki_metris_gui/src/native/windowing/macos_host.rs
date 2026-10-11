@@ -174,6 +174,7 @@ impl WindowHost {
     }
     /// 固定辅助窗在原生全局点边界对齐一次，返回严格读回所需的对齐后目标。
     /// 不采用主窗 zoom 判据；本机固定无边框窗也可能返回 isZoomed=true。
+    #[cfg_attr(test, allow(dead_code, reason = "只有桌宠真实窗口路径调用，测试窗口没有原生宿主"))]
     pub fn apply_auxiliary(&self, desktop: &DesktopSnapshot, placement: &WindowPlacement) -> anyhow::Result<WindowPlacement> {
         anyhow::ensure!(!self.fullscreen() && !self.transitioning(), "window_fullscreen_transition_required");
         let mut frame = self.target_frame(desktop, placement)?;
@@ -212,10 +213,12 @@ impl WindowHost {
     /// 真实 zoom 状态决定最后保存标志，不能乐观宣称系统接受请求。
     pub fn maximized(&self) -> bool { self.0.window.isZoomed() }
     /// 无边框辅助窗的样式变更也可能同步回调，必须在全部 GPUI 借用之外执行。
+    #[cfg_attr(test, allow(dead_code, reason = "只有桌宠真实窗口路径调用，测试窗口没有原生宿主"))]
     pub fn configure_auxiliary(&self, resizable: bool, always_on_top: bool) {
         configure_auxiliary_window(&self.0.window, resizable, always_on_top);
     }
     /// 桌宠目标屏的内容尺寸上下限在迁屏前设置，调用方必须释放全部 GPUI 借用。
+    #[cfg_attr(test, allow(dead_code, reason = "只有桌宠真实窗口路径调用，测试窗口没有原生宿主"))]
     pub fn auxiliary_size_limits(&self, min: (f64, f64), max: (f64, f64)) {
         self.0.window.setContentMinSize(NSSize::new(min.0, min.1));
         self.0.window.setContentMaxSize(NSSize::new(max.0, max.1));
@@ -235,6 +238,7 @@ impl WindowHost {
 }
 
 /// 主窗与辅助窗桥接共享原生属性映射，调用者保证当前主线程及活窗引用。
+#[cfg_attr(test, allow(dead_code, reason = "只有桌宠真实窗口路径调用，测试窗口没有原生宿主"))]
 pub(crate) fn configure_auxiliary_window(window: &NSWindow, resizable: bool, always_on_top: bool) {
     let style = NSWindowStyleMask::Borderless | NSWindowStyleMask::FullSizeContentView;
     window.setStyleMask(if resizable { style | NSWindowStyleMask::Resizable } else { style });

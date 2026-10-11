@@ -12,7 +12,7 @@ use std::{
 
 /// 仅记录实际预览过的解码结果弱引用，不额外保留源字节或像素。
 #[derive(Clone, Default)]
-pub(super) struct PreviewResidencies(Rc<RefCell<HashMap<u64, Weak<RenderImage>>>>);
+pub(crate) struct PreviewResidencies(Rc<RefCell<HashMap<u64, Weak<RenderImage>>>>);
 
 impl PreviewResidencies {
     /// 首次可绘制前记录输出身份；同内容的不同卡片共享同一Asset和图集。

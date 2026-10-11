@@ -15,6 +15,7 @@ const SECTION_BLEED: f32 = 16.;
 /// 预览视口露出的高度（h176 扣除顶部上移后）。
 const SECTION_HEIGHT: f32 = 160.;
 /// 外卡片 r20 减 border 1 后的内缘圆角。
+#[cfg(not(target_os = "macos"))]
 const SECTION_RADIUS: f32 = 19.;
 
 /// 皮肤预览外层容器的统一入口：macOS 由父级圆角裁切后代绘制与 Hitbox，
