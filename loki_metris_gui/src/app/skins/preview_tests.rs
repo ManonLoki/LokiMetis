@@ -248,3 +248,42 @@ fn user_skin_checkbox_keeps_section_offset_and_own_actions(cx: &mut TestAppConte
         }).unwrap();
     }
 }
+
+/// 真实主窗从工具栏继续Tab进入用户卡片，不能漏掉选择、应用与资源菜单。
+#[gpui_kit::test]
+fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let image = Arc::new(Image::from_bytes(ImageFormat::Png,
+        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
+    populate_catalog(&shell, image, loki_metris_core::SkinSource::User, cx);
+    assert!(shell.read_with(cx, |this, _| this.skin_writable()));
+    for (width, height, feedback) in [(1440., 900., false), (1440., 900., true), (800., 300., true)] {
+        cx.simulate_window_resize(handle, size(px(width), px(height)));
+        shell.update(cx, |this, cx| {
+            this.skins.feedback = feedback.then(|| Ok("Theme created".into()));
+            cx.notify();
+        });
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            for _ in 0..16 {
+                if window.find("skin-refresh").focused() == Some(true) { break; }
+                window.press("tab", cx);
+                window.render_frame(cx);
+            }
+            assert_eq!(window.find("skin-refresh").focused(), Some(true));
+            let mut controls = Vec::new();
+            if feedback { controls.push("skins-dismiss-feedback"); }
+            controls.extend(["skin-select-pikachu", "skin-apply-pikachu-User", "skin-actions-pikachu"]);
+            for id in &controls {
+                window.press("tab", cx);
+                window.render_frame(cx);
+                assert_eq!(window.find(*id).focused(), Some(true), "Tab必须进入{id}，{width}×{height}");
+            }
+            for id in controls.iter().rev().skip(1).copied().chain(["skin-refresh"]) {
+                window.press("shift-tab", cx);
+                window.render_frame(cx);
+                assert_eq!(window.find(id).focused(), Some(true), "Shift+Tab必须进入{id}，{width}×{height}");
+            }
+        }).unwrap();
+    }
+}
