@@ -327,9 +327,12 @@ test('unsigned packager config has no signing hook and Windows signing failure c
   assert.equal('signingIdentity' in generated.macos,false); assert.equal('beforePackagingCommand' in generated,false);
   const dmg = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'aarch64-apple-darwin',format: 'dmg',resources: [{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}],signing });
   assert.deepEqual(dmg.dmg.appFolderPosition,{ x: 480,y: 220 }); assert.equal('applicationFolderPosition' in dmg.dmg,false);
-  const nsis = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'x86_64-pc-windows-msvc',format: 'nsis',resources: [],signing });
+  const nsis = packagerConfig({ root: f.root,work: f.root,config: f.config,facts,target: 'x86_64-pc-windows-msvc',format: 'nsis',resources: [{ source: 'source-only/license.txt', target: 'resources/windows/nested/license.txt' }],signing });
   assert.equal(nsis.productName, f.config.productName);
   assert.match(fs.readFileSync(nsis.nsis.template,'utf8'), /!define SHORTCUTNAME "Test App"/u);
+  const uninstall = fs.readFileSync(nsis.nsis.template,'utf8').split('Section Uninstall\n')[1];
+  assert.ok(uninstall.includes('  RMDir "$INSTDIR\\resources\\windows\\nested"'));
+  assert.equal(uninstall.includes('source-only'), false);
   const configured = { ...f.config,windows: { signing: { certificateThumbprint: '1'.repeat(40),timestampUrl: 'https://example.invalid' },extractor: null } };
   assert.throws(() => finalizeSigning({ run: () => { throw new Error('signing failed'); },config: configured,signing: signingChoice('enabled','configured'),format: 'nsis',artifact: 'installer.exe',env: {} }),/signing failed/);
   assert.throws(() => verifyNsis({ run: () => {},root: f.root,config: f.config,artifact: 'installer.exe',destination: path.join(f.root,'extract'),resources: [] }),/project-local/);

@@ -18,7 +18,7 @@ export function packagerConfig({ root, work, config, facts, target, format, reso
   };
   if (format === 'nsis') {
     result.windows = { allowDowngrades: false };
-    result.nsis = { ...config.nsis, installerIcon: result.icons[0], template: writeNsisTemplate(work, config.productNameEn) };
+    result.nsis = { ...config.nsis, installerIcon: result.icons[0], template: writeNsisTemplate(work, config.productNameEn, result.resources.map(file => file.target)) };
   } else {
     result.macos = { minimumSystemVersion: config.macos.minimumSystemVersion };
     if (signing.selection === 'enabled') result.macos.signingIdentity = config.macos.signingIdentity;

@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { safeRoot, safePath } from './gpui_filesystem.mjs';
+import { safeRoot, safePath, relativePath } from './gpui_filesystem.mjs';
 
 const TEMPLATE = new URL('../assets/nsis/cargo-packager-0.11.8.nsi', import.meta.url);
 export const TEMPLATE_SHA256 = '3ff5fde09ae24dfc031ab91f939b290f394e2c6d3549f2c43c37414716a47b7a';
@@ -82,10 +82,31 @@ function isolateShortcuts(original, name) {
     .replaceAll(links, '${SHORTCUTNAME}.lnk').replace(page, `${settings}\n${page}`).replace(block, create);
 }
 
+/** 上游只列直接父目录且按字典序删除；从实际文件目标补齐祖先，普通 RMDir 保留用户文件。 */
+function resourceCleanup(original, targets) {
+  const anchor = '  {{#each resources_dirs}}\n  RMDir /REBOOTOK "$INSTDIR\\\\{{this}}"\n  {{/each}}\n';
+  if (original.split(anchor).length !== 2) throw new Error('NSIS resource cleanup anchor differs');
+  if (!Array.isArray(targets)) throw new Error('invalid NSIS resource targets');
+  const directories = new Map();
+  for (const target of targets) {
+    relativePath(target);
+    if (!target.isWellFormed() || /["{}]/u.test(target)) throw new Error('invalid NSIS resource target');
+    const parts = target.split('/'); parts.pop();
+    while (parts.length) {
+      const directory = parts.join('/'), key = directory.normalize('NFC').toLowerCase();
+      if (!directories.has(key)) directories.set(key, directory);
+      parts.pop();
+    }
+  }
+  const ordered = [...directories.values()].sort((left, right) => right.split('/').length - left.split('/').length || (left < right ? -1 : left > right ? 1 : 0));
+  const commands = ordered.map(directory => `  RMDir "$INSTDIR\\${directory.replaceAll('$', () => '$$').replaceAll('/', '\\')}"\n`).join('');
+  return original.replace(anchor, () => commands);
+}
+
 /** 摘要及唯一锚点任一漂移均零输出；保留原始模板其余全部安装行为。 */
-export function renderNsisTemplate(shortcutName, bytes = fs.readFileSync(TEMPLATE)) {
+export function renderNsisTemplate(shortcutName, resourceTargets = [], bytes = fs.readFileSync(TEMPLATE)) {
   if (createHash('sha256').update(bytes).digest('hex') !== TEMPLATE_SHA256) throw new Error('fixed NSIS template digest differs');
-  const original = isolateShortcuts(bytes.toString('utf8'), shortcutName);
+  const original = resourceCleanup(isolateShortcuts(bytes.toString('utf8'), shortcutName), resourceTargets);
   const matches = [...original.matchAll(/!macro CheckIfAppIsRunning\n[\s\S]*?\n!macroend/gu)];
   if (matches.length !== 1) throw new Error('NSIS process macro anchor differs');
   const anchor = 'Section Uninstall\n  !insertmacro CheckIfAppIsRunning\n';
@@ -104,10 +125,10 @@ export function renderNsisTemplate(shortcutName, bytes = fs.readFileSync(TEMPLAT
 }
 
 /** 本次暂存目录内创建唯一普通模板，不接受项目提供的任意安装脚本。 */
-export function writeNsisTemplate(work, shortcutName) {
+export function writeNsisTemplate(work, shortcutName, resourceTargets = []) {
   safeRoot(work);
   const destination = safePath(work, 'installer.nsi', { missing: true });
-  fs.writeFileSync(destination, renderNsisTemplate(shortcutName), { flag: 'wx' });
+  fs.writeFileSync(destination, renderNsisTemplate(shortcutName, resourceTargets), { flag: 'wx' });
   if (path.dirname(destination) !== path.resolve(work)) throw new Error('NSIS template escaped staging directory');
   return destination;
 }
