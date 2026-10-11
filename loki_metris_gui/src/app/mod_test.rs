@@ -155,6 +155,7 @@ fn overview_copies_exact_value_and_preserves_window_across_navigation(cx: &mut T
         shell.dashboard.data = Some(crate::usage_service::UsageData {
             records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
             workbuddy: None,
+            workbuddy_unavailable: false,
         });
         cx.notify();
     });
@@ -353,4 +354,35 @@ impl Shell {
     pub(in crate::app) fn select_language(&mut self, language: LanguageChoice, window:&Window,cx: &mut Context<Self>) {
         if self.preferences.language!=language {self.save_preference(crate::preferences::PreferencePatch::Language(language),window,cx);}
     }
+}
+
+/// “全部”概览在 WorkBuddy 读取失败时明示总量不完整，恢复后提示消失。
+#[gpui_kit::test]
+fn all_overview_flags_unavailable_workbuddy_and_clears_after_recovery(cx: &mut TestAppContext) {
+    use loki_metris_core::{LocalIndexState, LocalRecordsSummary, LocalUsageWindow, MetricFact,
+        MetricScope, ProviderKind, Freshness, Completeness, Confidence, WindowUsage,
+        empty_local_usage_aggregate_for_provider};
+    let (handle, shell, _finish) = open_shell(cx, 1440., 900.);
+    let aggregate = empty_local_usage_aggregate_for_provider(ProviderKind::CombinedLocalAgents);
+    let build = |unavailable: bool| {
+        let windows = LocalUsageWindow::OVERVIEW_WINDOWS.into_iter().map(|window| WindowUsage {
+            window, fact: MetricFact::new(aggregate.clone(), ProviderKind::CombinedLocalAgents,
+                MetricScope::DeviceObserved, 0, Freshness::Fresh, Completeness::Partial, Confidence::Exact, None),
+        }).collect();
+        crate::usage_service::UsageData {
+            records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
+            workbuddy: None,
+            workbuddy_unavailable: unavailable,
+        }
+    };
+    shell.update(cx, |shell, cx| { shell.dashboard.client = 0; shell.dashboard.data = Some(build(true)); cx.notify(); });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(window.try_find("overview-partial-notice").is_some(), "读取失败时必须提示不完整");
+    }).expect("检查失败提示");
+    shell.update(cx, |shell, cx| { shell.dashboard.data = Some(build(false)); cx.notify(); });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(window.try_find("overview-partial-notice").is_none(), "恢复后提示必须消失");
+    }).expect("检查恢复");
 }

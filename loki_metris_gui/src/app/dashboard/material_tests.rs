@@ -28,6 +28,7 @@ fn overview() -> UsageData {
     UsageData {
         records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
         workbuddy: None,
+        workbuddy_unavailable: false,
     }
 }
 

@@ -46,6 +46,8 @@ use tokio::{runtime::Runtime, sync::oneshot};
 pub struct UsageData {
     pub records: LocalRecordsSummary,
     pub workbuddy: Option<WorkbuddyStatisticsSnapshot>,
+    /// “全部”概览中 WorkBuddy 读取失败：结果只含其他 Agent，界面必须明示不完整，不能静默少算。
+    pub workbuddy_unavailable: bool,
 }
 
 /// 后台扫描的展示投影；revision 只在一轮完成/失败/取消收尾后增加。

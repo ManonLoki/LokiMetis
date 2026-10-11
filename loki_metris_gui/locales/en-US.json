@@ -139,6 +139,8 @@
     "enabled_summary": "Enabled roots",
     "copied": "Copied",
     "workbuddy_absent": "No local WorkBuddy project JSONL usage data was found.",
+    "partial_title": "Some data is temporarily unavailable",
+    "workbuddy_unavailable": "WorkBuddy usage is unavailable. All shows only the other enabled agents and is marked partial. Try again.",
     "cancelled": "Scan cancelled. Indexed records are preserved.",
     "usage": "Usage",
     "charts": "Charts",

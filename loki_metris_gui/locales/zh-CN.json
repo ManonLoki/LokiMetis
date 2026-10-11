@@ -139,6 +139,8 @@
     "enabled_summary": "启用根汇总",
     "copied": "已复制",
     "workbuddy_absent": "未找到 WorkBuddy 本机 project JSONL 用量数据。",
+    "partial_title": "部分数据暂不可用",
+    "workbuddy_unavailable": "WorkBuddy 用量暂时无法读取。“全部”仅显示其他已开启的 Agent，并标记为不完整，请重试。",
     "cancelled": "扫描已取消。已索引的记录会保留。",
     "usage": "用量",
     "charts": "图表",

@@ -269,6 +269,19 @@ impl Shell {
             .into_any_element()
     }
 
+    /// “全部”概览里某个来源暂时读不到时的黄色提示：标题说明部分数据缺失，正文说明总量不含它并给出重试。
+    fn partial_data_notice(&self, cx: &mut Context<Self>) -> AnyElement {
+        div().id("overview-partial-notice").test_support().role(gpui_kit::Role::Alert).w_full().p_4().rounded_lg()
+            .border_1().border_color(cx.theme().warning.opacity(0.4)).bg(cx.theme().warning.opacity(0.1))
+            .flex().items_center().justify_between().gap_3()
+            .child(div().flex().flex_col().gap_1()
+                .child(div().font_weight(FontWeight::BOLD).child(self.t("dashboard.partial_title")))
+                .child(div().text_color(cx.theme().muted_foreground).child(self.t("dashboard.workbuddy_unavailable"))))
+            .child(Button::new("overview-partial-retry").outline().label(self.t("dashboard.retry"))
+                .on_click(cx.listener(|this, _, _, cx| this.reload_usage(false, cx))))
+            .into_any_element()
+    }
+
     /// 六个自然日窗口仅选择已有 core 事实；没有可信索引时不伪造零指标。
     fn usage_overview(&self, cx: &mut Context<Self>) -> AnyElement {
         let selected = self.dashboard.ranges[self.dashboard.client];
@@ -286,6 +299,10 @@ impl Shell {
                 }));
         let mut page = div().w_full().px_2().flex().flex_col().gap_4().child(ranges);
         let Some(data) = &self.dashboard.data else { return page.into_any_element() };
+        if self.dashboard.client == 0 && data.workbuddy_unavailable {
+            // “全部”缺少 WorkBuddy 时必须明示，避免把少算的总量当成完整结果。
+            page = page.child(self.partial_data_notice(cx));
+        }
         if self.dashboard.client == 4 { return page.child(self.workbuddy_overview(data, selected, cx)).into_any_element(); }
         if matches!(data.records.index_state, LocalIndexState::NotScanned | LocalIndexState::NeedsRescan) {
             return page.child(self.panel(cx).child(self.t("dashboard.not_scanned"))

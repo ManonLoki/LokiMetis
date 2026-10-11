@@ -151,6 +151,7 @@ pub(super) async fn load(
             UsageData {
                 records,
                 workbuddy,
+                workbuddy_unavailable: failed,
             },
             today,
             index_records,
