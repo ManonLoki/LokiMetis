@@ -110,10 +110,24 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         _instance: instance,
         shortcuts: shortcuts::Service::new(),
     });
+    menu::refresh(cx);
     cx.on_app_quit(|cx| {
         let services = cx.remove_global::<Services>();
         async move { drop(services); }
     }).detach();
+}
+
+/// 原生主窗的 key 状态是菜单可用性的唯一依据，尚未安装宿主时保持禁用。
+#[cfg(target_os = "macos")]
+fn main_window_is_key(cx: &App) -> bool {
+    cx.try_global::<Services>().and_then(|services| services.window_host.as_ref())
+        .is_some_and(windowing::WindowHost::is_key)
+}
+
+/// 激活回调先释放窗口借用，再读取最新 key 状态刷新菜单，避免排队期间焦点失效。
+#[cfg(target_os = "macos")]
+pub(crate) fn refresh_menu_after_activation(cx: &mut App) {
+    cx.defer(menu::refresh);
 }
 
 /// 主动显示统一捕获入口鼠标屏；原生修改由前台 task 在借用之外执行。

@@ -102,11 +102,17 @@ fn apply_menus(
     );
     // GPUI以精确的Window名称注册AppKit系统窗口菜单，系统维护真实窗口列表。
     #[cfg(target_os = "macos")]
-    menus.push(Menu::new("Window").items([MenuItem::action(
+    menus.push(window_menu(chinese, super::main_window_is_key(cx)));
+    cx.set_menus(menus);
+}
+
+/// 辅助窗口拥有键盘焦点时禁用主窗最小化；系统仍维护同一窗口恢复列表。
+#[cfg(target_os = "macos")]
+fn window_menu(chinese: bool, main_is_key: bool) -> Menu {
+    Menu::new("Window").items([MenuItem::action(
         if chinese { "最小化" } else { "Minimize" },
         Minimize,
-    )]));
-    cx.set_menus(menus);
+    ).disabled(!main_is_key)])
 }
 
 /// 状态变化只重建内存菜单，不读取系统权限或写偏好。

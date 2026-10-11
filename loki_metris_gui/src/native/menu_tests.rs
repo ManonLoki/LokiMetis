@@ -51,7 +51,7 @@ fn selected_language_survives_state_refresh(cx: &mut TestAppContext) {
                     assert_eq!(menus[1].name.as_ref(), "Window");
                     assert_eq!(menus[1].items.len(), 1);
                     assert_action::<Minimize>(&menus[1].items[0],
-                        if locale == "zh-CN" { "最小化" } else { "Minimize" }, false, false);
+                        if locale == "zh-CN" { "最小化" } else { "Minimize" }, false, true);
                     let bindings = cx.all_bindings_for_input(&[gpui_kit::Keystroke::parse("cmd-m").unwrap()]);
                     assert_eq!(bindings.len(), 1);
                     assert!(bindings[0].action().as_any().is::<Minimize>());
@@ -61,6 +61,25 @@ fn selected_language_survives_state_refresh(cx: &mut TestAppContext) {
                             .iter().all(|binding| !binding.action().as_any().is::<Minimize>()));
                     }
                 }
+            }
+        }
+    });
+}
+
+/// 真实菜单属性跟随主窗 key 状态，往返辅助窗口后恢复可用且不影响系统窗口菜单名。
+#[cfg(target_os = "macos")]
+#[gpui_kit::test]
+fn minimize_menu_tracks_main_window_key_state(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        for chinese in [true, false] {
+            for main_is_key in [true, false, false, true] {
+                cx.set_menus(vec![window_menu(chinese, main_is_key)]);
+                let menus = cx.get_menus().unwrap();
+                assert_eq!(menus.len(), 1);
+                assert_eq!(menus[0].name.as_ref(), "Window");
+                assert_eq!(menus[0].items.len(), 1);
+                assert_action::<Minimize>(&menus[0].items[0],
+                    if chinese { "最小化" } else { "Minimize" }, false, !main_is_key);
             }
         }
     });
