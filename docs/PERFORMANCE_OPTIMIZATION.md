@@ -469,6 +469,28 @@ Computer Use 的应用绑定、AXRaise 与 key window 不证明应用位于前�
 
 复用顺序：实际交互采样 → 找到逐帧重复工作 → 保留像素与动画合同 → 局部等价优化 → 独立 oracle → 分 profile 微基准 → 新试包 Computer Use 和运行复测。原始样本、生产源码快照、测试与 ABBA 数据保存在 `release/theme-transition-development-20261011/`。本项按内部优化 `maintenance` 处理，稳定 ID `LMMAINT-SHADOW-RASTER-TRANSPARENT-001`，`required_version=0.2.11`；新试包实测结论另按实际观察记录。
 
+后续 v0.2.12 本机试包再次经 Computer Use 六次选择主题。主线程完整叶节点求和如下；`cumulative` 对目标符号去重，事件等待只合计主线程 `__CFRunLoopServiceMachPort → mach_msg2_trap` 分支，不包含 GPU 或辅助功能调用中的 Mach 同步。
+
+| 样本 | 主线程总数 | 阴影 self / cumulative | 事件等待 |
+|---|---:|---:|---:|
+| v0.2.11 切换主题 | 5452 | 348 / 359（6.38% / 6.58%） | 4587（84.13%） |
+| v0.2.11 静态设置页 | 3360 | 0 / 0 | 3344（99.52%） |
+| v0.2.12 切换主题 | 6312 | 178 / 197（2.82% / 3.12%） | 5288（83.78%） |
+
+本次只能说明切换样本中阴影栅格化占比下降，优化后仍能观察到该热点。两轮进程、运行年龄及操作节奏不同，不能把占比差当成延迟或 FPS 改善。新试包还包含工具栏几何及其他会话的未提交变化，不能只靠这一对样本分离单项收益。原始文件为 `01-before-toggle-sample.txt`、`02-before-idle-sample.txt`、`26-after-toggle-sample.txt`。
+
+另一份 `34-gpui-front-skins-resources.json` 的实际前台在四个端点均为 Finder；不能相信文件名而写成 GPUI 前台测量。09:20:32.471–09:21:32.735 的约60秒后台共存窗口，GPUI六进程 coalition CPU 平均4.691%，参考 Tauri九进程为2.030%；主进程 footprint 分别413.2→406.3MiB与269.0→170.9MiB。CPU按单核100%计，内存只是各进程账目求和，没有共享页去重及WindowServer成本。进程成员、前台和编译状态仅在端点检查；应用年龄与先前操作未匹配。这不是公平性能排名，也不足以判断946MB问题是否消失；它保留了后台CPU仍需继续追踪的证据。
+
+### 5.29 借用JSON字符串必须证明实际借用，并保留完整行校验
+
+WorkBuddy 每轮今日用量读取仍会扫描捕获的JSONL前缀；普通消息也先反序列化白名单字段，再判断是否含直接usage。原来的 `sessionId`、`cwd`、`messageId` 和 `model` 每次都生成String，包括最终被忽略的行。[生产投影](../loki_metris_gui/src/backend/workbuddy/jsonl/mod.rs) 现在以私有 `JsonString<'a>(Cow<'a, str>)` 借用无转义文本，合法转义则保留serde的拥有型解码；只有输出记录需要保留的model转为独立String。输出身份、标签和模型都不会借用可复用行缓冲。
+
+一个容易误判的细节是 `Option<Cow<str>>`：当前serde 1.0.229即使添加 `borrow`，仍不能据类型名认定它实际借用。直接Cow字段的借用visitor放进newtype，再在外层Option传播生命周期；[回归](../loki_metris_gui/src/backend/workbuddy/jsonl/borrow_tests.rs) 明确断言无转义四字段为Borrowed、转义字段为Owned。只改类型而不检查实际变体，可能完全没有减少分配。
+
+继续使用一次完整的 `serde_json::from_slice`；不能先读取usage存在性就返回，也不能先转Value而折叠重复键。测试保留缺失/null、错误字符串类型、已声明字段重复、转义后等价键重复、未知嵌套语法损坏和尾随值的分类及警告计数；另对照普通与转义编码得到的完整权威记录，并在复用输入缓冲后检查输出仍有效。本次WorkBuddy相关21项回归通过，其中新增3项，日志为 `release/theme-transition-development-20261011/41-workbuddy-borrow-tests.log`。
+
+这一变化只减少当前行的临时字符串分配，没有增加内容缓存，也没有改变路径身份、冻结前缀、读取预算、覆盖质量或通知资格。有效usage的Box、行内usage明细Vec、最终权威记录及完整前缀扫描仍存在；尚未隔离测量整轮CPU、footprint或分配总量，不能宣称百分比收益。本项为内部优化 `maintenance`，稳定ID `LMMAINT-WORKBUDDY-BORROWED-STRINGS-001`，`required_version=0.2.12`。
+
 ## 6. 历史验证结果及构建指纹限制
 
 ### 6.1 保留失败、修正与不同二进制

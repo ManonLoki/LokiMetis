@@ -1,11 +1,14 @@
 //! WorkBuddy project JSONL 的有界流式用量投影。
 
+#[cfg(test)]
+mod borrow_tests;
 mod line_reader;
 
+use line_reader::{LineRead, read_complete_line};
+use std::borrow::Cow;
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Take};
 use std::path::Path;
-use line_reader::{LineRead, read_complete_line};
 
 use jiff::Timestamp;
 use loki_metris_core::{
@@ -34,21 +37,34 @@ pub(super) struct WorkbuddyProjectUsageRead {
 
 /// 只反序列化顶层事件中统计必需的白名单字段。
 #[derive(Deserialize)]
-struct ProjectEvent {
+struct ProjectEvent<'a> {
     timestamp: Option<i64>,
-    #[serde(rename = "sessionId")]
-    session_id: Option<String>,
-    cwd: Option<String>,
-    #[serde(rename = "providerData")]
-    provider_data: Option<ProviderData>,
+    #[serde(borrow, rename = "sessionId")]
+    session_id: Option<JsonString<'a>>,
+    #[serde(borrow)]
+    cwd: Option<JsonString<'a>>,
+    #[serde(borrow, rename = "providerData")]
+    provider_data: Option<ProviderData<'a>>,
+}
+
+/// 无转义字符串直接借用当前行，合法转义仍由serde解码为独立拥有的字符串。
+#[derive(Deserialize)]
+struct JsonString<'a>(#[serde(borrow)] Cow<'a, str>);
+impl std::ops::Deref for JsonString<'_> {
+    type Target = str;
+    /// 下游只读取字符串视图；输出记录需要保留的模型另行取得所有权。
+    fn deref(&self) -> &str {
+        self.0.as_ref()
+    }
 }
 
 /// WorkBuddy provider 层的实际模型、调用 ID 与直接 usage。
 #[derive(Deserialize)]
-struct ProviderData {
-    #[serde(rename = "messageId")]
-    message_id: Option<String>,
-    model: Option<String>,
+struct ProviderData<'a> {
+    #[serde(borrow, rename = "messageId")]
+    message_id: Option<JsonString<'a>>,
+    #[serde(borrow)]
+    model: Option<JsonString<'a>>,
     usage: Option<ProviderUsage>,
     #[serde(rename = "rawUsage")]
     raw_usage: Option<RawUsage>,
@@ -298,7 +314,7 @@ fn parse_complete_line(line: &[u8], source: &WorkbuddyProjectFile, root_id: &str
     if line.is_empty() {
         return LineOutcome::Ignored;
     }
-    let event = match serde_json::from_slice::<ProjectEvent>(line) {
+    let event = match serde_json::from_slice::<ProjectEvent<'_>>(line) {
         Ok(event) => event,
         Err(_) => return LineOutcome::Malformed,
     };
@@ -343,7 +359,7 @@ fn parse_complete_line(line: &[u8], source: &WorkbuddyProjectFile, root_id: &str
         source_id,
         root_id: root_id.to_owned(),
         occurred_at_epoch_ms: timestamp,
-        model: provider.model,
+        model: provider.model.map(|value| value.0.into_owned()),
         project_key: Some(stable_id("workbuddy-project", project_seed)),
         project_label,
         request_count: requests,
