@@ -173,10 +173,6 @@ impl UsageService {
         self.context.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
-    /// 停止新 writer 并有界等待合作收尾；不能强停的blocking仍由原owner保留。
-    #[cfg(test)]
-    pub fn finish(&self) { self.finish_with_pet(PetShutdownPlan::default()); }
-
     /// 退出先拥有最终位置屏障，有界回收后台，再提交前台尚未派发的桌宠最终意图。
     pub(crate) fn finish_with_pet(&self, plan:PetShutdownPlan) {
         if let Some(runtime) = self.runtime.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take() {
@@ -201,3 +197,6 @@ impl UsageService {
 
 #[cfg(test)]
 mod monitor_tests;
+
+#[cfg(test)]
+mod test_seams;

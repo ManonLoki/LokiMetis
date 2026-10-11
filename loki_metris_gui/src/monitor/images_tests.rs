@@ -308,3 +308,19 @@ fn native_gallery_snapshot_has_metadata_and_raw_bytes_without_encoded_payload() 
     assert!(entry.get("image").is_none(), "native metadata cannot contain full Base64 payload");
     assert!(serde_json::to_string(&json).unwrap().len() < 512);
 }
+
+/// 桌宠单图读取通过已校验索引，不接受外部路径。
+pub(crate) fn read_monitor_image(data: &Path, id: &str) -> Result<Arc<[u8]>, HookError> {
+    let _guard = crate::monitor::catalog::read_lock()?;
+    let records = load_index(data)?;
+    let record = records
+        .iter()
+        .find(|record| record.id == id)
+        .ok_or_else(|| HookError::new("error.monitor.imageNotFound"))?;
+    crate::monitor::catalog::read_regular(
+        &images_dir(data).join(&record.stored_name),
+        MAX_IMAGE_BYTES,
+        "error.monitor.imagesReadFailed",
+    )
+    .map(Arc::from)
+}

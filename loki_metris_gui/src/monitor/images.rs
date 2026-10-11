@@ -305,23 +305,6 @@ pub(crate) fn delete_monitor_image(
     Ok(snapshot)
 }
 
-/// 桌宠单图读取通过已校验索引，不接受外部路径。
-#[cfg(test)]
-pub(crate) fn read_monitor_image(data: &Path, id: &str) -> Result<Arc<[u8]>, HookError> {
-    let _guard = super::catalog::read_lock()?;
-    let records = load_index(data)?;
-    let record = records
-        .iter()
-        .find(|record| record.id == id)
-        .ok_or_else(|| HookError::new("error.monitor.imageNotFound"))?;
-    super::catalog::read_regular(
-        &images_dir(data).join(&record.stored_name),
-        MAX_IMAGE_BYTES,
-        "error.monitor.imagesReadFailed",
-    )
-    .map(Arc::from)
-}
-
 #[cfg(test)]
 #[path = "images_tests.rs"]
 mod tests;

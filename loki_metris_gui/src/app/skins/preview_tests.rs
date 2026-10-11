@@ -22,10 +22,10 @@ impl Render for PreviewProbe {
     /// 固定160px可见槽模拟Card.Section负margin后的生产预览，图片语义不吞并选择框或提交按钮。
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity().downgrade();
-        let frame = div().id("preview-frame").test_support().relative().w_full().h(px(160.))
-            .flex_shrink_0().overflow_hidden().rounded_t(px(19.));
-        #[cfg(target_os = "macos")]
-        let frame = frame.clip_rounded_children();
+        let frame = super::preview::section_frame(
+            div().id("preview-frame").test_support().relative().w_full().h(px(160.))
+                .flex_shrink_0().overflow_hidden().rounded_t(px(19.)),
+        );
         div().size_full().p(px(24.)).child(
             div().w(px(self.width)).flex().flex_col().child(
                 frame.child(skin_preview(

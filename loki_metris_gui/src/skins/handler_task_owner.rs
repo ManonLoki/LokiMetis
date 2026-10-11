@@ -125,12 +125,6 @@ fn try_reserve_handler_task_capacity_locked(owner: &mut HandlerTaskReaper) -> bo
     true
 }
 
-/// 在 spawn 前原子保留一个 handler 容量名额；满额时拒绝继续创建任务。
-#[cfg(test)]
-fn reserve_handler_task_capacity() -> Result<HandlerTaskReservation, AppError> {
-    reserve_handler_task_for_purpose(false)
-}
-
 /// Draining阶段只允许有限容量的专用清理连接。
 fn reserve_handler_task_for_purpose(cleanup: bool) -> Result<HandlerTaskReservation, AppError> {
     let mut owner = lock_handler_task_reaper();

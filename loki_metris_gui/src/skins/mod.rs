@@ -58,6 +58,8 @@ include!("watch_task_owner.rs");
 include!("lifecycle.rs");
 include!("catalog.rs");
 include!("validation.rs");
+#[cfg(test)]
+include!("test_seams.rs");
 include!("conversion.rs");
 include!("file_manager.rs");
 include!("payload.rs");

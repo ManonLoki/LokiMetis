@@ -1,5 +1,12 @@
 //! 后台任务真实终态与异常关闭回归。
 use super::*;
+
+impl BackgroundTaskOwner {
+    /// 绑定发现协调器，使退出可先发出业务取消再等待任务。
+    pub(crate) fn new(root_discovery: Arc<RootDiscoveryCoordinator>) -> Self {
+        Self::with_runtime(root_discovery,tokio::runtime::Handle::current())
+    }
+}
     use loki_metris_core::{RootDiscoveryPlatform, RootDiscoveryScope, RootDiscoveryStrategy};
 
     /// future 真正销毁时发信，证明 abort 之后 owner 等到了 JoinHandle 终态。

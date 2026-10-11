@@ -217,24 +217,6 @@ impl ScanCoordinator {
         })
     }
 
-    /// 请求当前活动扫描取消；没有活动扫描时返回 false。
-    #[cfg(test)]
-    pub fn cancel_active(&self) -> bool {
-        let state = self.inner.lock_state();
-        if let Some(cancellation) = state.current.as_ref() {
-            cancellation.cancel();
-            true
-        } else {
-            false
-        }
-    }
-
-    /// 返回当前是否有 writer 持有扫描许可。
-    #[cfg(test)]
-    pub fn is_running(&self) -> bool {
-        self.inner.slot.available_permits() == 0
-    }
-
     /// 关闭 writer 入口并请求当前扫描取消；等待中的显式批次会立即失败。
     pub fn shutdown(&self) {
         let mut state = self.inner.lock_state();
@@ -265,6 +247,24 @@ impl Drop for ScanPermit {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl ScanCoordinator {
+        /// 请求当前活动扫描取消；没有活动扫描时返回 false。
+        pub fn cancel_active(&self) -> bool {
+            let state = self.inner.lock_state();
+            if let Some(cancellation) = state.current.as_ref() {
+                cancellation.cancel();
+                true
+            } else {
+                false
+            }
+        }
+
+        /// 返回当前是否有 writer 持有扫描许可。
+        pub fn is_running(&self) -> bool {
+            self.inner.slot.available_permits() == 0
+        }
+    }
 
     /// 验证 coordinator 拒绝第二个 writer，并能取消当前扫描。
     #[test]

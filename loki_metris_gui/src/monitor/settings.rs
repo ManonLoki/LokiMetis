@@ -100,19 +100,6 @@ pub fn load_monitor_settings(config_dir: &Path) -> Result<MonitorSettings, HookE
     load_monitor_settings_unlocked(config_dir)
 }
 
-/// 桌宠运行时读取失败时使用安全默认偏好，保证损坏设置不会阻断默认显示与托盘恢复。
-/// 主界面继续调用 [`load_monitor_settings`]，因此仍会明确暴露原始设置错误。
-#[cfg(test)]
-pub fn load_pet_runtime_settings(config_dir: &Path) -> MonitorSettings {
-    load_monitor_settings(config_dir).unwrap_or_else(|error| {
-        tracing::warn!(
-            code = error.code,
-            "invalid monitor settings; using pet runtime defaults"
-        );
-        MonitorSettings::default()
-    })
-}
-
 /// 在调用方已持有读锁或写锁时读取并规范化监控设置。
 fn load_monitor_settings_unlocked(config_dir: &Path) -> Result<MonitorSettings, HookError> {
     let path = settings_path(config_dir);

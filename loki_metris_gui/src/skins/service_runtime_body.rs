@@ -371,45 +371,6 @@ impl SkinService {
         Ok(status)
     }
 
-    /// 关闭未开放调试通道的指定宿主后重新启动。
-    #[cfg(test)]
-    pub async fn force_launch_host(
-        &self,
-        host: SkinHostKind,
-    ) -> Result<CodexRuntimeStatus, AppError> {
-        if host == SkinHostKind::WorkBuddy && !cfg!(target_os = "windows") {
-            return Err(AppError::new(
-                "skin.workbuddy_close_all_unsupported",
-                "关闭全部 WorkBuddy 的恢复流程仅在 Windows 上可用。",
-            ));
-        }
-        let _operation = self.operation.lock().await;
-        let _runtime_mutation = self.begin_host_runtime_mutation(host);
-        let (_completion, cancel_sender, mut cancel) = self.begin_install_completion()?;
-        let _guard = self.bind_install_codex_operation(cancel_sender)?;
-        let preferred_endpoint = self.verified_endpoint_hint(host)?;
-        if host == SkinHostKind::WorkBuddy && cfg!(target_os = "windows") {
-            let (_, endpoint) = self
-                .recover_windows_workbuddy_target(&mut cancel, preferred_endpoint)
-                .await?;
-            self.remember_verified_endpoint(host, endpoint)?;
-            return Ok(CodexRuntimeStatus::new(CodexRuntimeState::Ready));
-        }
-        let mut attempted_endpoint = None;
-        let (status, endpoint) = force_launch_and_wait_for_cdp(
-            host,
-            &mut cancel,
-            preferred_endpoint,
-            &[],
-            &mut attempted_endpoint,
-        )
-        .await?;
-        if let Some(endpoint) = endpoint {
-            self.remember_verified_endpoint(host, endpoint)?;
-        }
-        Ok(status)
-    }
-
     /// 使用受控调试端口重启指定宿主实例。
     pub async fn restart_host_instance(
         &self,
@@ -478,26 +439,4 @@ impl SkinService {
             .is_some_and(|operation| operation.cancel.send(true).is_ok())
     }
 
-    /// 执行换皮宿主内部的 `begin_codex_operation` 步骤。
-    #[cfg(test)]
-    fn begin_codex_operation(
-        &self,
-    ) -> Result<(CodexOperationGuard<'_>, watch::Receiver<bool>), AppError> {
-        let id = self.next_codex_operation_id.fetch_add(1, Ordering::Relaxed);
-        let (cancel, receiver) = watch::channel(false);
-        let mut active = self.codex_operation.lock().map_err(|_| {
-            AppError::new(
-                "skin.operation_state_failed",
-                "无法准备 Codex 操作状态，请重启应用后重试。",
-            )
-        })?;
-        *active = Some(CodexOperation { id, cancel });
-        Ok((
-            CodexOperationGuard {
-                id,
-                active: &self.codex_operation,
-            },
-            receiver,
-        ))
-    }
 }

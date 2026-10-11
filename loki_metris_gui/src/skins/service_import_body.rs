@@ -293,21 +293,6 @@ impl SkinService {
         })
     }
 
-    /// 执行换皮宿主内部的 `delete` 步骤。
-    #[cfg(test)]
-    pub async fn delete(&self, skin: &SkinReference) -> Result<(), AppError> {
-        let result = self.delete_many(std::slice::from_ref(skin)).await?;
-        if result.deleted.len() == 1 {
-            return Ok(());
-        }
-        let failure = result
-            .failed
-            .into_iter()
-            .next()
-            .ok_or_else(|| AppError::new("skin.delete_failed", "无法删除皮肤资源。"))?;
-        Err(AppError::new(failure.code, failure.message))
-    }
-
     /// 执行换皮宿主内部的 `delete_many` 步骤。
     pub async fn delete_many(
         &self,

@@ -191,20 +191,6 @@ impl SkinService {
         }
     }
 
-    /// 使用可注入预算和清理器关闭服务，供生产路径与生命周期回归共用。
-    #[cfg(test)]
-    async fn shutdown_with_budget_and_cleanup<Cleanup, CleanupFuture>(
-        &self,
-        budget: WatchStopBudget,
-        cleanup: &mut Cleanup,
-    ) -> Result<usize, AppError>
-    where
-        Cleanup: FnMut(SkinHostKind, CdpEndpoint) -> CleanupFuture,
-        CleanupFuture: Future<Output = Result<usize, AppError>>,
-    {
-        self.shutdown_with_budget_cleanup_and_tail(budget, cleanup, false)
-            .await
-    }
     /// 生产退出在同一总预算内给最终handler abort与终态确认保留尾部。
     async fn shutdown_with_budget_cleanup_and_tail<Cleanup, CleanupFuture>(
         &self,

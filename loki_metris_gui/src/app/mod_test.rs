@@ -340,3 +340,17 @@ fn usage_settings_keeps_native_editor_and_invalid_draft_across_render(cx:&mut Te
         window.click(("usage-settings-save",0usize),cx);assert!(!shell.read(cx).dashboard.usage_settings.pending[0]);
     }).unwrap();
 }
+
+use crate::preferences::LanguageChoice;
+
+impl Shell {
+    /// 主题只有收到真实落盘回执后才应用当前窗口外观。
+    pub(in crate::app) fn select_theme(&mut self, theme: ThemeChoice, window: &Window, cx: &mut Context<Self>) {
+        if self.preferences.theme!=theme {self.save_preference(crate::preferences::PreferencePatch::Theme(theme),window,cx);}
+    }
+
+    /// 语言切换同步应用和组件词典，同时保留当前页面。
+    pub(in crate::app) fn select_language(&mut self, language: LanguageChoice, window:&Window,cx: &mut Context<Self>) {
+        if self.preferences.language!=language {self.save_preference(crate::preferences::PreferencePatch::Language(language),window,cx);}
+    }
+}

@@ -61,19 +61,6 @@ impl SkinService {
         self.refresh_catalog()
     }
 
-    /// 执行换皮宿主内部的 `catalog_changed` 步骤。
-    #[cfg(test)]
-    pub fn catalog_changed(&self) -> Result<bool, AppError> {
-        std::fs::create_dir_all(&self.user_root)
-            .map_err(|_| AppError::new("skin.library_unavailable", "无法准备用户皮肤资源库。"))?;
-        let fingerprint = catalog_fingerprint(&self.builtin_root, &self.user_root)?;
-        let catalog = self.catalog.read().map_err(|_| catalog_cache_error())?;
-        Ok(match catalog.as_ref() {
-            Some(cached) => cached.fingerprint != fingerprint,
-            None => true,
-        })
-    }
-
     /// 执行换皮宿主内部的 `skin_creation_prompt` 步骤。
     pub fn skin_creation_prompt(
         &self,
