@@ -2,6 +2,7 @@
 #![warn(missing_docs)]
 #![allow(clippy::type_complexity)] // Not useful, GPUI makes heavy use of callbacks
 #![allow(clippy::collapsible_else_if)] // False positives in platform specific code
+#![allow(unused_imports)] // 生成树中 a11y 的未用导入属上游代码
 #![allow(unused_mut)] // False positives in platform specific code
 
 // 根属性由 shim 保留；完整模块、相对资源与 crate:: 路径来自生成树。
