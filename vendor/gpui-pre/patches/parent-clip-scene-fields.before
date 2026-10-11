@@ -1,2 +1,0 @@
-    pub surfaces: Vec<PaintSurface>,
-}

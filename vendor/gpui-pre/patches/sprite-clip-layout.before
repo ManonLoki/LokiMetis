@@ -1,5 +1,0 @@
-    pub corner_radii: Corners<ScaledPixels>,
-    pub tile: AtlasTile,
-}
-
-impl From<PolychromeSprite>

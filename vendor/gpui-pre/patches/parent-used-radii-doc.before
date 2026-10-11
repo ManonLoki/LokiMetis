@@ -1,2 +1,0 @@
-    /// 规范化逻辑圆角，不使用祖先矩形交集定位圆心。
-    pub corner_radii: Corners<Pixels>,

@@ -1,5 +1,0 @@
-        pub fn scale(&self, factor: f32) -> ParentClipNode {
-            if !factor.is_finite() || factor <= 0. {
-                return ParentClipNode::default();
-            }
-            let clip = Self::new(self.bounds, self.corner_radii);

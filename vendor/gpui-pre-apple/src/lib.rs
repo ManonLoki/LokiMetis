@@ -13,8 +13,11 @@ include!(concat!(env!("OUT_DIR"), "/gpui-patched/src/gpui_apple.rs"));
 #[cfg(test)]
 mod rounded_clip_tests;
 
-// 父圆角裁剪的 Metal 实物测试，仅在开启该特性时编译：
+// 父圆角裁剪的 Metal 实物测试，仅在开启该特性时编译（共用渲染入口见 metal_test_support）：
 // parent_clip 语义、geometry 几何、skin 仅父裁剪回归。
+#[cfg(all(test, feature = "parent-rounded-clip"))]
+mod metal_test_support;
+
 #[cfg(all(test, feature = "parent-rounded-clip"))]
 mod parent_clip_tests;
 

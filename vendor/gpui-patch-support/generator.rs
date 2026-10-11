@@ -5,7 +5,21 @@ use std::{collections::{BTreeMap, BTreeSet}, env, fs, path::{Component, Path, Pa
 #[path = "sha256.rs"]
 mod sha256;
 
+/// 按 `目录/名称.before|after` 约定登记补丁，名称同时用于文件与错误信息；路径相对调用处源文件。
+#[allow(unused_macros, reason = "部分后端不使用补丁登记宏")]
+macro_rules! patch {
+    ($dir:literal, $name:literal, $path:expr) => {
+        $crate::generator::Patch {
+            name: $name,
+            path: $path,
+            before: include_str!(concat!($dir, $name, ".before")),
+            after: include_str!(concat!($dir, $name, ".after")),
+        }
+    };
+}
+
 /// 每个维护片段必须在指定原文件中恰好出现一次，不接受模糊匹配。
+#[derive(Clone, Copy)]
 pub struct Patch {
     pub name: &'static str,
     pub path: &'static str,

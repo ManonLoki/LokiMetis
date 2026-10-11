@@ -1,4 +1,0 @@
-            content_mask: self.content_mask.scale(factor),
-            #[cfg(feature = "parent-rounded-clip")]
-            parent_clip: self.parent_clip,
-            vertices:

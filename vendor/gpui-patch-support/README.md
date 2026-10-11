@@ -8,3 +8,5 @@ Node 验证器使用 Node 自带 crypto/fs/path；Rust 生成器使用标准库 
 来源清单的相对路径以各包 upstream 目录为根，工程原样内容登记须使用同一根及固定清单摘要。
 
 四个后端维护入口、模板和测试照常接受行数与中文注释规则；只有经过完整 SHA 核验的 upstream 原文件属于原样内容。
+
+`scene_patches.rs` 与 `scene_patches/` 登记 gpui-pre 与 gpui-pre-apple 共用的 scene.rs 补丁（上游 scene.rs 相同，仅包内路径不同），只维护一份；各包专属补丁放在包内 `src/*_patches.rs`，用 `patch!` 宏按 `名称.before|after` 约定登记。同一文件上的补丁组顺序不可调换，生成摘要不符会失败关闭。

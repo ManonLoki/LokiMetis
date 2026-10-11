@@ -92,15 +92,7 @@ fn quad_scene(factor: f32) -> Scene {
 }
 
 fn render(renderer: &mut MetalHeadlessRenderer, scene: &Scene, factor: f32) -> image::RgbaImage {
-    renderer
-        .render_scene_to_image(
-            scene,
-            size(
-                DevicePixels((140. * factor) as i32),
-                DevicePixels((100. * factor) as i32),
-            ),
-        )
-        .unwrap()
+    crate::metal_test_support::render_scene(renderer, scene, (140., 100.), factor)
 }
 
 #[test]

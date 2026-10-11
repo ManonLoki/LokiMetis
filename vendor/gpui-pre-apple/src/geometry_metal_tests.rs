@@ -2,8 +2,8 @@
 //! 不构造App/NSApplication/原生窗口，不修改冻结包的shader或ABI。
 use crate::metal_renderer::MetalHeadlessRenderer;
 use gpui::{
-    Bounds, ContentMask, Corners, DevicePixels, Edges, Hsla, Overflow, ParentClipChain,
-    ParentRoundedClip, PathBuilder, Pixels, PlatformHeadlessRenderer, Quad, Scene, Style, point,
+    Bounds, ContentMask, Corners, Edges, Hsla, Overflow, ParentClipChain,
+    ParentRoundedClip, PathBuilder, Pixels, Quad, Scene, Style, point,
     px, size,
 };
 
@@ -70,15 +70,7 @@ fn scene(clip: Option<ParentRoundedClip>, factor: f32, path: bool) -> Scene {
 }
 
 fn render(renderer: &mut MetalHeadlessRenderer, scene: &Scene, factor: f32) -> image::RgbaImage {
-    renderer
-        .render_scene_to_image(
-            scene,
-            size(
-                DevicePixels((240. * factor) as i32),
-                DevicePixels((160. * factor) as i32),
-            ),
-        )
-        .unwrap()
+    crate::metal_test_support::render_scene(renderer, scene, (240., 160.), factor)
 }
 
 /// outside/inside是逻辑像素左上角；按实际factor取对应设备像素中心，同时检查CPU判定。

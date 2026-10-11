@@ -262,15 +262,7 @@ fn set_head(scene: &mut Scene, id: ParentClipId) {
 }
 fn render(renderer: &mut MetalHeadlessRenderer, mut scene: Scene, f: f32) -> image::RgbaImage {
     scene.finish();
-    renderer
-        .render_scene_to_image(
-            &scene,
-            size(
-                DevicePixels((400. * f) as i32),
-                DevicePixels((240. * f) as i32),
-            ),
-        )
-        .unwrap()
+    crate::metal_test_support::render_scene(renderer, &scene, (400., 240.), f)
 }
 fn sample(img: &image::RgbaImage, x: f32, y: f32, f: f32) -> u8 {
     img.get_pixel((x * f) as u32, (y * f) as u32)[0]
