@@ -168,7 +168,8 @@ fn host_discovery_and_command_line_query_have_no_environment_or_wmi_fallback() {
     assert!(identity_source.contains("GetPackageFamilyName"));
     assert!(identity_source.contains("GetPackageFullName"));
     assert!(identity_source.contains("szOID_ORGANIZATION_NAME"));
-    assert!(include_str!("workbuddy.rs").contains("TrustedPublisher::Tencent"));
+    let workbuddy = [include_str!("workbuddy.rs"), include_str!("workbuddy_tests.rs")].join("\n");
+    assert!(workbuddy.contains("TrustedPublisher::Tencent"));
 }
 
 #[test]
@@ -243,7 +244,8 @@ fn process_wait_requires_observed_signaled_terminal_state() {
 #[test]
 /// Store 激活不得回退到 runtime 无法拥有的 Tokio blocking pool。
 fn store_activation_has_explicit_native_thread_owner() {
-    let source = include_str!("store_activation.rs");
+    // 源码已拆成同目录分片，契约检查要看到完整文本。
+    let source = [include_str!("store_activation.rs"), include_str!("store_activation_tests.rs")].join("\n");
     assert!(!source.contains("spawn_blocking"));
     assert!(source.contains("StoreActivationOwner"));
     assert!(source.contains("CoCancelCall"));
