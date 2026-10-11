@@ -5,7 +5,8 @@ mod palette;
 mod veil;
 mod veil_raster;
 pub(in crate::app) use content::HistoricalButtonSize;
-use palette::{colors, premultiply, unpremultiply};
+pub(in crate::app) use palette::colors;
+use palette::{premultiply, unpremultiply};
 
 use crate::app::surface::motion::CssMotion;
 use gpui_kit::{
@@ -132,6 +133,7 @@ pub(in crate::app) struct SurfaceButton {
     explicit_name: bool,
     historical_size: Option<HistoricalButtonSize>,
     left_icon: Option<Icon>,
+    left_icon_size: Pixels,
     id: ElementId,
     variant: SurfaceButtonVariant,
     dark: bool,
@@ -151,6 +153,7 @@ impl SurfaceButton {
             explicit_name: false,
             historical_size: None,
             left_icon: None,
+            left_icon_size: px(17.),
             id,
             variant,
             dark,
@@ -174,6 +177,11 @@ impl SurfaceButton {
     /// 左图标参与真实布局；不通过字符或缺失资源占位。
     pub fn left_icon(mut self, icon: Icon) -> Self {
         self.left_icon = Some(icon);
+        self
+    }
+    /// 个别历史工具栏图标为16px；默认17px保持已有来源页按钮尺寸。
+    pub fn left_icon_size(mut self, size: Pixels) -> Self {
+        self.left_icon_size = size;
         self
     }
     /// 行动作的完整名称仍包含真实脱敏别名。
@@ -335,6 +343,7 @@ impl Element for SurfaceButton {
                 .child(content::element(
                     label,
                     self.left_icon.take(),
+                    self.left_icon_size,
                     size,
                     self.loading,
                     foreground,

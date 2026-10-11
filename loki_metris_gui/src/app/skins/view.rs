@@ -5,8 +5,11 @@ use super::{ModalKind, Shell, skin_reference};
 #[path = "badge.rs"]
 mod badge;
 use badge::{SkinBadge, skin_badge};
+#[path = "toolbar.rs"]
+mod toolbar;
+use crate::app::surface::{HistoricalButtonSize, SurfaceButton, SurfaceButtonVariant};
 use gpui_kit::{
-    AnyElement, BoxShadow, Context, FontWeight, IntoElement, Role,
+    AnyElement, BoxShadow, Context, FontWeight, IntoElement, Role, Window,
     assets::IconName,
     base::{Checkbox, CheckboxState, TestSupportExt as _},
     component::{
@@ -19,13 +22,28 @@ use gpui_kit::{
     prelude::*,
     px, rems, rgb,
 };
-use loki_metris_core::{ColorMode, SkinPackageType, SkinSource};
+use loki_metris_core::{ColorMode, SkinHostKind, SkinPackageType, SkinSource};
 
 pub(super) use super::preview::skin_preview;
 
 impl Shell {
+    /// 宿主选择共用同一查询交接；同值不失效查询，保持历史受控Tabs的查询键语义。
+    fn select_skin_host(&mut self, host: SkinHostKind, cx: &mut Context<Self>) {
+        if self.skins.busy || self.skins.modal.is_some() || self.skins.host == Some(host) { return; }
+        self.skins.generation = self.skins.generation.wrapping_add(1);
+        self.skins.query.take();
+        self.skins.loading = false;
+        self.skins.authority.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        self.skins.host = Some(host);
+        self.skins.status = None;
+        self.skins.instances.clear();
+        self.skins.host_error = None;
+        self.skins.last_read = None;
+        self.refresh_skins(true, cx);
+        cx.notify();
+    }
     /// 初次读取失败不展示伪造空库，刷新失败保留已确认卡片并提供重试。
-    pub(in crate::app) fn skins_page(&self, cx: &mut Context<Self>) -> AnyElement {
+    pub(in crate::app) fn skins_page(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let hosts = self.skin_hosts();
         let mut page = div()
             .id("skins-page")
@@ -67,44 +85,51 @@ impl Shell {
             } else {
                 0xf5f5f5
             }));
+        let focuses: Vec<_> = hosts.iter().map(|host| {
+            window.use_keyed_state(format!("skin-host-focus-{host:?}"), cx, |_, cx| cx.focus_handle())
+                .read(cx).clone()
+        }).collect();
+        let keyboard_hosts = hosts.clone();
+        let keyboard_focuses = focuses.clone();
         let mut tabs = div()
             .id("skin-host-tabs")
             .flex()
             .items_center()
             .gap_1()
             .role(Role::TabList)
-            .aria_label(self.t("skins.host.tabs"));
-        for host in hosts {
+            .aria_label(self.t("skins.host.tabs"))
+            .on_key_down(cx.listener(move |this, event: &gpui_kit::KeyDownEvent, window, cx| {
+                if this.skins.busy || this.skins.modal.is_some() { return; }
+                let Some(index) = keyboard_focuses.iter().position(|focus| focus.is_focused(window)) else { return; };
+                let (next, activate) = match event.keystroke.key.as_str() {
+                    "left" => ((index + keyboard_hosts.len() - 1) % keyboard_hosts.len(), true),
+                    "right" => ((index + 1) % keyboard_hosts.len(), true),
+                    "home" => (0, false),
+                    "end" => (keyboard_hosts.len() - 1, false),
+                    _ => return,
+                };
+                window.prevent_default();
+                keyboard_focuses[next].focus(window, cx);
+                if activate { this.select_skin_host(keyboard_hosts[next], cx); }
+                cx.stop_propagation();
+            }));
+        for (index, host) in hosts.into_iter().enumerate() {
             tabs = tabs.child(
-                Button::new(format!("skin-host-{host:?}"))
-                    .ghost()
-                    .label(host.display_name())
-                    .h(px(32.))
-                    .font_weight(FontWeight::BOLD)
-                    .disabled(self.skins.busy || self.skins.modal.is_some())
-                    .rounded(px(12.))
-                    .when(self.skins.host == Some(host), |button| {
-                        button
-                            .bg(cx.theme().accent)
-                            .text_color(cx.theme().accent_foreground)
-                    })
+                toolbar::host_tab(
+                gpui_kit::base::Button::new(format!("skin-host-{host:?}"))
+                    .role(Role::Tab)
+                    .aria_selected(self.skins.host == Some(host))
+                    .tab_index(if self.skins.host == Some(host) { 0 } else { -1 })
+                    .track_focus(&focuses[index])
+                    .accessibility_label(host.display_name())
+                    .child(host.display_name())
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        if this.skins.busy || this.skins.modal.is_some() {
-                            return;
-                        }
-                        this.skins.generation = this.skins.generation.wrapping_add(1);
-                        this.skins.query.take();
-                        this.skins.loading = false;
-                        this.skins
-                            .authority
-                            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-                        this.skins.host = Some(host);
-                        this.skins.status = None;
-                        this.skins.instances.clear();
-                        this.skins.host_error = None;
-                        this.skins.last_read = None;
-                        this.refresh_skins(true, cx);
+                        this.select_skin_host(host, cx);
                     })),
+                    format!("skin-host-color-{host:?}"),
+                    self.skins.host == Some(host),
+                    self.skins.busy || self.skins.modal.is_some(),
+                ),
             );
         }
         toolbar = toolbar.child(tabs).child(div().flex_1().min_w(px(12.)));
@@ -112,7 +137,10 @@ impl Shell {
             toolbar = toolbar.child(
                 Input::new(input)
                     .aria_label(self.t("skins.search.label"))
-                    .prefix(Icon::new(IconName::Search).size(px(16.)))
+                    .prefix(Icon::new(IconName::Search).size(px(16.))
+                        .text_color(rgb(if cx.theme().mode.is_dark() { 0x828282 } else { 0x868e96 })))
+                    .bg(rgb(if cx.theme().mode.is_dark() { 0x2e2e2e } else { 0xffffff }))
+                    .border_color(rgb(if cx.theme().mode.is_dark() { 0x424242 } else { 0xced4da }))
                     .h(px(36.))
                     .rounded(px(12.))
                     .w(px(320.))
@@ -121,9 +149,10 @@ impl Shell {
         }
         toolbar = toolbar
             .child(
-                Button::new("skin-import")
-                    .outline()
-                    .icon(Icon::new(IconName::ArrowUp).size(px(18.)).data(&b"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15V3m-4 4 4-4 4 4M4 15v6h16v-6'/></svg>"[..]))
+                SurfaceButton::new("skin-import", SurfaceButtonVariant::Default, cx.theme().mode.is_dark())
+                    .historical_size(HistoricalButtonSize::Small)
+                    .left_icon(Icon::new(IconName::ArrowUp).size(px(18.)).data(&b"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15V3m-4 4 4-4 4 4M4 15v6h16v-6'/></svg>"[..]))
+                    .left_icon_size(px(16.))
                     .w(px(86.))
                     .h(px(36.))
                     .rounded(px(12.))
@@ -143,13 +172,11 @@ impl Shell {
                     .on_click(cx.listener(|this, _, window, cx| this.open_skin_create(window, cx))),
             )
             .child(
-                Button::new("skin-refresh")
-                    .outline()
-                    .icon(Icon::new(IconName::RefreshCw).size(px(18.)))
+                toolbar::default_icon_button("skin-refresh", self.skins.busy || self.skins.loading, cx)
+                    .child(Icon::new(IconName::RefreshCw).size(px(18.)))
                     .rounded(px(12.))
                     .accessibility_label(self.t("skins.action.refresh"))
                     .size(px(36.))
-                    .disabled(self.skins.busy || self.skins.loading)
                     .on_click(cx.listener(|this, _, _, cx| this.refresh_skins(true, cx))),
             );
         page = page.child(toolbar);

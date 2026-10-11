@@ -4,7 +4,7 @@ use super::SurfaceButtonVariant;
 use gpui_kit::Rgba;
 
 /// 复刻历史AppThemeProvider与其实际Mantine 9.6解析；light混色值未传scheme，亮暗均取色阶6。
-pub(super) fn colors(
+pub(in crate::app) fn colors(
     variant: SurfaceButtonVariant,
     dark: bool,
     disabled: bool,

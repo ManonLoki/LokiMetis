@@ -11,7 +11,8 @@
     "LMDESK-CODEX-FORK-OWNER-001",
     "LMDESK-MACOS-MINIMIZE-001",
     "LMDESK-SKINS-PREVIEW-RETIRE-001",
-    "LMDESK-SKINS-TOOLBAR-GEOMETRY-001"
+    "LMDESK-SKINS-TOOLBAR-GEOMETRY-001",
+    "LMDESK-SKINS-TOOLBAR-COLORS-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -117,8 +118,13 @@
       "change_id": "LMDESK-SKINS-TOOLBAR-GEOMETRY-001",
       "kind": "bug-fix",
       "required_version": "0.2.12"
+    },
+    {
+      "change_id": "LMDESK-SKINS-TOOLBAR-COLORS-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.13"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.12"
+  "target_version": "0.2.13"
 }

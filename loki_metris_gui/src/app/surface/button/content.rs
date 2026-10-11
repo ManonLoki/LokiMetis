@@ -1,7 +1,7 @@
 //! 明确历史尺寸的内容层与加载时间线；文字始终参与布局，加载不改变固有宽度。
 
 use gpui_kit::{
-    AnyElement, Bounds, FontWeight, PathBuilder, Rgba, SharedString, Window,
+    AnyElement, Bounds, FontWeight, PathBuilder, Pixels, Rgba, SharedString, Window,
     base::{Easing, TestSupportExt as _},
     canvas,
     component::Icon,
@@ -192,6 +192,7 @@ impl LoadingMotion {
 pub(super) fn element(
     label: SharedString,
     icon: Option<Icon>,
+    icon_size: Pixels,
     size: HistoricalButtonSize,
     loading: bool,
     foreground: Rgba,
@@ -217,9 +218,9 @@ pub(super) fn element(
             div()
                 .id("historical-button-icon")
                 .test_support()
-                .size(px(17.))
+                .size(icon_size)
                 .flex_shrink_0()
-                .child(icon.size(px(17.))),
+                .child(icon.size(icon_size)),
         );
     }
     inner = inner.child(

@@ -316,7 +316,7 @@ impl Render for Shell {
         let content = match self.page {
             Page::Dashboard => self.dashboard_page(window,cx),
             Page::Monitor => self.monitor_page(window,cx),
-            Page::Skins => self.skins_page(cx),
+            Page::Skins => self.skins_page(window,cx),
             Page::Settings => self.settings_page(cx),
 
         };
