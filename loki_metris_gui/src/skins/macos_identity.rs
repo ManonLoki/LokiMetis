@@ -31,7 +31,6 @@ const SECURITY_DISCOVERY_FLAGS: u32 =
 const SECURITY_MUTATION_FLAGS: u32 =
     SECURITY_CHECK_ALL_ARCHITECTURES | SECURITY_CHECK_NESTED_CODE | SECURITY_STRICT_VALIDATE;
 const PROCESS_PATH_BUFFER_BYTES: usize = 4096;
-const SIGTERM: c_int = 15;
 
 #[link(name = "CoreFoundation", kind = "framework")]
 unsafe extern "C" {
@@ -72,17 +71,6 @@ unsafe extern "C" {
         flags: u32,
         requirement: SecurityRequirementRef,
     ) -> i32;
-}
-
-#[link(name = "proc")]
-unsafe extern "C" {
-    /// 读取指定 PID 当前映射的可执行文件绝对路径。
-    fn proc_pidpath(pid: c_int, buffer: *mut c_void, buffer_size: u32) -> c_int;
-}
-
-unsafe extern "C" {
-    /// 向已经再次绑定可执行路径的进程发送信号。
-    fn kill(pid: c_int, signal: c_int) -> c_int;
 }
 
 /// 描述一个受支持宿主不可由运行时覆盖的签名身份。
@@ -219,7 +207,7 @@ pub(crate) fn process_matches_executable(pid: u32, executable: &Path) -> bool {
     let mut buffer = [0_u8; PROCESS_PATH_BUFFER_BYTES];
     // SAFETY: buffer 在调用期间保持有效且长度精确传入；proc_pidpath 只写入该缓冲区。
     let length = unsafe {
-        proc_pidpath(
+        libc::proc_pidpath(
             pid,
             buffer.as_mut_ptr().cast::<c_void>(),
             buffer.len() as u32,
@@ -244,7 +232,7 @@ pub(crate) fn terminate_verified_process(pid: u32, executable: &Path) -> bool {
         return false;
     };
     // SAFETY: PID 已通过 proc_pidpath 与预期主程序再次绑定，信号值为 POSIX SIGTERM。
-    unsafe { kill(pid, SIGTERM) == 0 }
+    unsafe { libc::kill(pid, libc::SIGTERM) == 0 }
 }
 
 /// 返回不受 HOME/PATH 环境变量影响的系统与当前用户 Applications 根。

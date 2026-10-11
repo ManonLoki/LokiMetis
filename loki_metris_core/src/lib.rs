@@ -2,6 +2,7 @@
 //! GUI adapter 只负责本机 I/O、IPC 与展示；本 crate 不依赖 Tauri 或 WebView。
 
 #![deny(missing_docs)]
+#![forbid(unsafe_code)]
 
 mod agent_hooks;
 mod aggregate;
