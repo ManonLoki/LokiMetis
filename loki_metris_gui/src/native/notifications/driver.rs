@@ -3,6 +3,35 @@ use super::Error;
 use gpui_kit::BackgroundExecutor;
 use loki_metris_core::usage_milestones::{MilestoneOutcome, NotificationPermission};
 use std::{sync::mpsc::SyncSender, time::Instant};
+/// 每次显式授权独占取消位；外层超时或退出丢弃 future 时阻止迟到的系统写入。
+#[cfg(windows)]
+#[derive(Clone)]
+pub(super) struct Authorization {
+    deadline:Instant,
+    cancelled:std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+/// 只由等待该授权的 future 持有，不能移入无法中断的同步 WinRT worker。
+#[cfg(windows)]
+pub(super) struct AuthorizationGuard(std::sync::Arc<std::sync::atomic::AtomicBool>);
+#[cfg(windows)]
+impl Authorization {
+    /// 创建独立操作控制，重试不复用已取消的前一代标志。
+    pub(super) fn new(deadline:Instant)->(Self,AuthorizationGuard) {
+        let cancelled=std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        (Self{deadline,cancelled:cancelled.clone()},AuthorizationGuard(cancelled))
+    }
+    /// 同步宿主边界前后检查，已经开始的系统清理不受此检查阻断。
+    pub(super) fn check(&self)->Result<(),Error> {
+        if Instant::now()>=self.deadline {return Err(Error::Timeout)}
+        if self.cancelled.load(std::sync::atomic::Ordering::Acquire) {return Err(Error::Unavailable)}
+        Ok(())
+    }
+}
+#[cfg(windows)]
+impl Drop for AuthorizationGuard {
+    /// 外层 future 完成、超时或取消均撤销之后尚未开始的系统动作。
+    fn drop(&mut self) {self.0.store(true,std::sync::atomic::Ordering::Release);}
+}
 /// 有界平台回调，点击必须在 UI 线程恢复主窗口。
 pub(super) enum Event {
     Clicked,
@@ -55,8 +84,8 @@ pub(super) async fn authorize(
     }
     #[cfg(windows)]
     {
-        let _ = deadline;
-        executor.spawn(async { super::windows::authorize() }).await
+        let (control,_guard)=Authorization::new(deadline);
+        executor.spawn(async move { super::windows::authorize(&control) }).await
     }
     #[cfg(not(any(target_os = "macos", windows)))]
     {

@@ -36,7 +36,8 @@
     "LMWIN-INSTALLER-SHORTCUT-001",
     "LM-HOOK-EXPLICIT-REGISTRATION-001",
     "LM-NOTIFICATION-DISCOVERY-EPOCH-001",
-    "LMWIN-UNINSTALL-RESOURCE-DIRECTORIES-001"
+    "LMWIN-UNINSTALL-RESOURCE-DIRECTORIES-001",
+    "LMWIN-NOTIFICATION-FIRST-PERMISSION-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -267,8 +268,13 @@
       "change_id": "LMWIN-UNINSTALL-RESOURCE-DIRECTORIES-001",
       "kind": "bug-fix",
       "required_version": "0.2.37"
+    },
+    {
+      "change_id": "LMWIN-NOTIFICATION-FIRST-PERMISSION-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.38"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.37"
+  "target_version": "0.2.38"
 }

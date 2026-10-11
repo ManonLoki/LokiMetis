@@ -23,6 +23,8 @@ use windows::{
 };
 const AUMID: &str = "com.loki-metris.app";
 const KEY: PCWSTR = w!(r"Software\Classes\AppUserModelId\com.loki-metris.app");
+#[path="windows_authorization.rs"]
+mod authorization;
 /// 每个后台岛平衡 WinRT 初始化；线程已初始化时不擅自改变 apartment。
 struct Apartment;
 impl Apartment {
@@ -183,16 +185,14 @@ fn registered() -> bool {
         && length as usize <= std::mem::size_of_val(&bytes)
         && String::from_utf16_lossy(&bytes[..length as usize / 2 - 1]) == "LokiMetris"
 }
-/// 仅开启动作调用，登记失败或读回不一致时不开启本地偏好。
-pub(super) fn authorize() -> Result<(), Error> {
+/// 仅显式开启动作登记身份并初始化首次权限；错误返回给上层独立呈现。
+pub(super) fn authorize(control:&super::driver::Authorization) -> Result<(), Error> {
+    control.check()?;
     let _apartment = Apartment::new().map_err(|_| Error::Unavailable)?;
     if registered() {
-        return match permission() {
-            NotificationPermission::Allowed => Ok(()),
-            NotificationPermission::Denied => Err(Error::Denied),
-            _ => Err(Error::Unavailable),
-        };
+        return authorized_permission(control);
     }
+    control.check()?;
     let mut key = HKEY::default();
     unsafe {
         RegCreateKeyExW(
@@ -209,16 +209,25 @@ pub(super) fn authorize() -> Result<(), Error> {
     }
     .ok()
     .map_err(|_| Error::Unavailable)?;
+    if let Err(error)=control.check() {let _=unsafe {RegCloseKey(key)};return Err(error)}
     let name: Vec<u16> = "LokiMetris\0".encode_utf16().collect();
     // 安全：REG_SZ 读取当前活 Vec 的完整UTF-16字节，调用期间内存不变。
     let bytes = unsafe { std::slice::from_raw_parts(name.as_ptr().cast(), name.len() * 2) };
     let result = unsafe { RegSetValueExW(key, w!("DisplayName"), None, REG_SZ, Some(bytes)) }.ok();
     let _ = unsafe { RegCloseKey(key) };
     result.map_err(|_| Error::Unavailable)?;
-    match permission() {
-        NotificationPermission::Allowed => Ok(()),
-        NotificationPermission::Denied => Err(Error::Denied),
-        _ => Err(Error::Unavailable),
+    if !registered() {return Err(Error::Unavailable)}
+    authorized_permission(control)
+}
+/// 显式授权可初始化尚无系统记录的身份，始终以实际查询结果区分拒绝和不可用。
+fn authorized_permission(control:&super::driver::Authorization)->Result<(),Error> {
+    let result=authorization::setting(&HSTRING::from(AUMID),||control.check()
+        .map_err(|_|windows::core::Error::from_hresult(windows::core::HRESULT::from_win32(1223))));
+    control.check()?;
+    match result {
+        Ok(NotificationSetting::Enabled)=>Ok(()),
+        Ok(_)=>Err(Error::Denied),
+        Err(_)=>Err(Error::Unavailable),
     }
 }
 /// 启动与恢复只查询当前设置，缺登记不会偷偷写 HKCU。
