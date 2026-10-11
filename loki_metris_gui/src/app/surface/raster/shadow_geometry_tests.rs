@@ -55,6 +55,58 @@ fn repeated_recolor_keeps_transparent_rgb_and_does_not_grow_geometry() {
     }
 }
 
+/// 真正主题时间线及80ms反向保留混合颜色、Gaussian参数与结束端点的完整像素。
+#[test]
+fn theme_transition_and_reversal_match_old_pixels() {
+    use crate::app::surface::palette::MaterialMotion;
+    use std::time::{Duration, Instant};
+
+    let now = Instant::now();
+    for scale in [1., 1.125, 1.5, 2.] {
+        let geometry = ShadowGeometry::new(480, 360, scale, 20.);
+        let (x, y) = geometry.slices();
+        for initial_dark in [false, true] {
+            for reversing in [false, true] {
+                let mut motion = MaterialMotion::new(now);
+                motion.sample_static(initial_dark, true, now);
+                for at in [0, 1, 16, 79, 80, 81, 99, 100, 116, 299, 300, 399, 400] {
+                    let dark = if reversing && (80..100).contains(&at) {
+                        initial_dark
+                    } else { !initial_dark };
+                    let frame = motion.sample_static(dark, true,
+                        now + Duration::from_millis(at));
+                    if at == 400 || (!reversing && at == 300) { assert!(!frame.running); }
+                    let sample = frame.shadow.scaled(scale);
+                    assert_same(&geometry.render(sample), x, y,
+                        shadow_oracle(480, 360, scale, 20., sample));
+                }
+            }
+        }
+    }
+}
+
+/// 零透明度和空投影均保留内部非零RGB，四边保护圈保持全零。
+#[test]
+fn zero_alpha_and_empty_projection_keep_rgb_and_clear_border() {
+    for (width, height) in [(1, 1), (43, 29), (480, 360)] {
+        let geometry = ShadowGeometry::new(width, height, 1.5, 20.);
+        let (x, y) = geometry.slices();
+        for alpha in [0., -0.] {
+            let sample = ShadowSample { alpha, bgra: [19, 87, 243],
+                ..ShadowSample::new(false, 0.5, 1.5) };
+            let pixels = geometry.render(sample);
+            assert_same(&pixels, x, y, shadow_oracle(width, height, 1.5, 20., sample));
+            for (row, bytes) in pixels.bytes.chunks_exact(pixels.width as usize * 4).enumerate() {
+                for (column, pixel) in bytes.chunks_exact(4).enumerate() {
+                    let border = row == 0 || row == pixels.height as usize - 1
+                        || column == 0 || column == pixels.width as usize - 1;
+                    assert_eq!(pixel, if border { &[0, 0, 0, 0] } else { &[19, 87, 243, 0] });
+                }
+            }
+        }
+    }
+}
+
 /// 用实际 Vec 容量核验常驻计划，避免把大 f64 遮罩换成隐藏的同量级预留。
 #[test]
 fn resident_geometry_stays_compact_for_large_cards() {

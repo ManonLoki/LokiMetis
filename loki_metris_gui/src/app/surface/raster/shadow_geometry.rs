@@ -99,17 +99,27 @@ impl ShadowGeometry {
                 cdf((position - lo) / sample.sigma) - cdf((position - hi) / sample.sigma)
             }
         };
-        let ax: Vec<_> = (0..self.width).map(|i| profile(f64::from(i) - f64::from(self.near_x) - 0.5, cast[0], cast[2])).collect();
+        // 只提前原式的第一乘法，保留每一步 f64 舍入及最终 alpha 量化顺序。
+        let ax: Vec<_> = (0..self.width).map(|i| sample.alpha * profile(f64::from(i) - f64::from(self.near_x) - 0.5, cast[0], cast[2])).collect();
         let ay: Vec<_> = (0..self.height).map(|i| profile(f64::from(i) - f64::from(self.near_y) - 0.5, cast[1], cast[3])).collect();
         let mut bytes = vec![0; self.width as usize * self.height as usize * 4];
+        let stride = self.width as usize * 4;
         for (row, offsets) in (1..self.height - 1).zip(self.row_offsets.windows(2)) {
+            let row_bytes = &mut bytes[row as usize * stride..(row as usize + 1) * stride];
+            // 挖空区仍保留直通 RGB；只省略其 alpha 运算，不改动外围保护圈。
+            if sample.bgra != [0; 3] {
+                row_bytes[4..stride - 4].as_chunks_mut::<4>().0.fill([
+                    sample.bgra[0], sample.bgra[1], sample.bgra[2], 0,
+                ]);
+            }
+            if ay[row as usize] == 0. { continue; }
             let mut start = 1;
             for run in &self.runs[offsets[0]..offsets[1]] {
-                for column in start..run.end {
-                    let alpha = sample.alpha * ax[column as usize] * ay[row as usize] * run.outside;
-                    let index = (row as usize * self.width as usize + column as usize) * 4;
-                    bytes[index..index + 3].copy_from_slice(&sample.bgra);
-                    bytes[index + 3] = (alpha * 255.).round().clamp(0., 255.) as u8;
+                if run.outside != 0. {
+                    for column in start..run.end {
+                        let alpha = ax[column as usize] * ay[row as usize] * run.outside;
+                        row_bytes[column as usize * 4 + 3] = (alpha * 255.).round().clamp(0., 255.) as u8;
+                    }
                 }
                 start = run.end;
             }
