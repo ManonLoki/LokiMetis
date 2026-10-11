@@ -2,6 +2,9 @@
 
 #[cfg(test)]
 mod borrow_tests;
+mod cache;
+#[cfg(test)]
+mod cache_tests;
 mod line_reader;
 
 use line_reader::{LineRead, read_complete_line};
@@ -16,6 +19,7 @@ use loki_metris_core::{
 };
 use serde::Deserialize;
 
+use crate::backend::file_stamp::FileStamp;
 use crate::backend::local_index::{
     DEFAULT_MAX_JSONL_LINE_BYTES, metadata_is_link_like, same_opened_file,
     walk_ancestors_for_link_component,
@@ -109,7 +113,7 @@ where
 }
 
 /// 流式解析质量计数，不携带文件名或记录正文。
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct ProjectJsonlWarnings {
     malformed_lines: u64,
     oversized_lines: u64,
@@ -167,20 +171,45 @@ pub(super) fn read_project_usage(
             budget_exhausted = true;
             break;
         }
-        let (reader, observed_len) = match open_fixed_prefix(&source.path) {
+        let (reader, stamp) = match open_fixed_prefix_stamped(&source.path) {
             Ok(value) => value,
             Err(_) => {
                 io_skipped_count = io_skipped_count.saturating_add(1);
                 continue;
             }
         };
+        let observed_len = stamp.len();
         let allowed_len = observed_len.min(remaining_bytes);
         if allowed_len < observed_len {
             budget_exhausted = true;
         }
         remaining_bytes = remaining_bytes.saturating_sub(allowed_len);
+        // 只有文件完整落入字节与记录预算时才复用：命中后的结果与重新解析逐项相同。
+        let complete = allowed_len == observed_len;
+        if complete {
+            if let Some(parsed) = cache::lookup(root_id, &stamp, source) {
+                if records.len().saturating_add(parsed.records.len()) < MAX_USAGE_RECORDS {
+                    records.extend(parsed.records.iter().cloned());
+                    warnings.merge(parsed.warnings);
+                    continue;
+                }
+            }
+        }
+        let first_record = records.len();
         match parse_project_stream(reader.take(allowed_len), source, root_id, &mut records) {
             Ok(report) => {
+                if complete && !report.record_budget_exhausted {
+                    cache::store(
+                        root_id,
+                        &source.path,
+                        cache::ParsedFile::new(
+                            stamp,
+                            source,
+                            records[first_record..].to_vec(),
+                            report.warnings,
+                        ),
+                    );
+                }
                 warnings.merge(report.warnings);
                 budget_exhausted |= report.record_budget_exhausted;
             }
@@ -191,6 +220,12 @@ pub(super) fn read_project_usage(
         if budget_exhausted && (remaining_bytes == 0 || records.len() >= MAX_USAGE_RECORDS) {
             break;
         }
+    }
+
+    // 仅在整根读取完整结束时清理；预算中途停止的轮次可能没有访问到后面的文件。
+    if !budget_exhausted {
+        let seen: Vec<&Path> = files.files.iter().map(|source| source.path.as_path()).collect();
+        cache::retain_seen(root_id, &seen);
     }
 
     let skipped_count = files
@@ -218,6 +253,11 @@ pub(super) fn read_project_usage(
 
 /// 打开普通文件、复核链接与句柄身份，并冻结本轮只读长度。
 pub(super) fn open_fixed_prefix(path: &Path) -> std::io::Result<(File, u64)> {
+    open_fixed_prefix_stamped(path).map(|(file, stamp)| (file, stamp.len()))
+}
+
+/// 同 [`open_fixed_prefix`]，另返回打开时刻的文件戳，供解析结果复用判断。
+fn open_fixed_prefix_stamped(path: &Path) -> std::io::Result<(File, FileStamp)> {
     let file = File::open(path)?;
     let opened_metadata = file.metadata()?;
     if !opened_metadata.is_file() || walk_ancestors_for_link_component(path)? {
@@ -236,7 +276,7 @@ pub(super) fn open_fixed_prefix(path: &Path) -> std::io::Result<(File, u64)> {
             "WorkBuddy source changed during inspection",
         ));
     }
-    Ok((file, opened_metadata.len()))
+    Ok((file, FileStamp::of(&opened_metadata)))
 }
 
 /// 单文件解析报告。
