@@ -24,6 +24,8 @@ use std::time::Duration;
 
 #[cfg(test)]
 mod content_tests;
+#[cfg(test)]
+mod native_input_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod loading_metal_tests;
 #[cfg(all(test, target_os = "macos"))]
@@ -284,6 +286,14 @@ impl Element for SurfaceButton {
         if let Some(observer) = self.motion_observer.take() {
             observer(&owner);
         }
+        if self.disabled || self.loading {
+            // 先取消真实持键焦点，再清视觉记录，避免重新启用后keyup复活旧动作。
+            let focus = owner.read(cx).keyboard_focus.clone();
+            if focus.as_ref().is_some_and(|focus| focus.is_focused(window)) {
+                window.blur(cx);
+            }
+            owner.update(cx, |state, cx| state.keyboard(None, cx));
+        }
         let foreground = colors(
             self.variant,
             self.dark,
@@ -297,6 +307,7 @@ impl Element for SurfaceButton {
             .button
             .take()
             .expect("原生组件仅布局一次")
+            .disabled(self.disabled || self.loading)
             .custom(
                 ButtonCustomVariant::new(cx)
                     .color(transparent)
@@ -402,7 +413,10 @@ impl Element for SurfaceButton {
                 let _ = weak.update(cx, |state, cx| state.keyboard(None, cx));
             });
         }
-        let mut inner = button.render(window, cx).into_any_element();
+        let mut inner = super::native_control::NativeControl::new(
+            button.render(window, cx).into_element(),
+            !interactive,
+        ).into_any_element();
         let layout = inner.request_layout(window, cx);
         (layout, (inner, owner, veil_element))
     }

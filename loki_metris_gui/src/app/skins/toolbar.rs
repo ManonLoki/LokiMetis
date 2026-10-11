@@ -1,13 +1,23 @@
 //! 工具栏复用原生输入语义，颜色与瞬时下压按历史 Tabs / ActionIcon 分别处理。
 
+use crate::app::surface::native_control::{FocusRing, NativeControl};
 use crate::app::surface::{
     SurfaceButtonVariant, motion::CssMotion, surface_button_colors as colors,
 };
 use gpui_kit::{
-    App, BoxShadow, HoverListenerMode, IntoElement, RenderOnce, Rgba, Window, base::Button,
+    App, FocusHandle, HoverListenerMode, IntoElement, RenderOnce, Rgba, Window, base::Button,
     component::ActiveTheme, prelude::*, px, rgb, transparent_black,
 };
 use std::time::Duration;
+
+#[path = "icon_action.rs"]
+mod icon_action;
+pub(super) use icon_action::icon_action;
+
+/// 与历史主题变量保持同一颜色及透明度，不能用普通页面灰底替换。
+pub(super) fn background(dark: bool) -> Rgba {
+    rgb(if dark { 0x18191b } else { 0xfffcf7 }).opacity(if dark { 0.94 } else { 0.92 })
+}
 
 /// ActionIcon没有Button的200ms缩放过渡；原生Button仍独占点击、焦点与禁用。
 pub(super) fn default_icon_button(id: &'static str, disabled: bool, cx: &App) -> Button {
@@ -15,8 +25,6 @@ pub(super) fn default_icon_button(id: &'static str, disabled: bool, cx: &App) ->
     let (background, border, foreground) =
         colors(SurfaceButtonVariant::Default, dark, disabled, false);
     let hovered = colors(SurfaceButtonVariant::Default, dark, false, true).0;
-    let ring = rgb(if dark { 0xd95a44 } else { 0xc43b2d });
-    let gap = rgb(if dark { 0x191a1b } else { 0xf5f5f5 });
     Button::new(id)
         .relative()
         .flex_shrink_0()
@@ -29,12 +37,6 @@ pub(super) fn default_icon_button(id: &'static str, disabled: bool, cx: &App) ->
             button
                 .hover(move |style| style.bg(hovered))
                 .active(|style| style.top(px(1.)))
-                .focus_visible(move |style| {
-                    style.shadow(vec![
-                        BoxShadow::new(px(0.), px(0.), ring.into()).spread_radius(px(4.)),
-                        BoxShadow::new(px(0.), px(0.), gap.into()).spread_radius(px(2.)),
-                    ])
-                })
         })
         .when(disabled, |button| button.cursor_not_allowed())
         .disabled(disabled)
@@ -54,15 +56,23 @@ pub(super) struct HostTab {
     key: String,
     selected: bool,
     disabled: bool,
+    focus: FocusHandle,
 }
 
 /// 由调用处提供唯一按钮ID和业务回调，适配器只拥有短暂绘制状态。
-pub(super) fn host_tab(button: Button, key: String, selected: bool, disabled: bool) -> HostTab {
+pub(super) fn host_tab(
+    button: Button,
+    key: String,
+    focus: FocusHandle,
+    selected: bool,
+    disabled: bool,
+) -> HostTab {
     HostTab {
         button,
         key,
         selected,
         disabled,
+        focus,
     }
 }
 
@@ -149,7 +159,8 @@ impl RenderOnce for HostTab {
         }
         let ring =
             rgb(if dark { 0xff9b6f } else { 0xc43b2d }).opacity(if dark { 0.35 } else { 0.24 });
-        self.button
+        let button = self
+            .button
             .bg(background)
             .text_color(foreground)
             .font_weight(gpui_kit::FontWeight::BOLD)
@@ -160,19 +171,26 @@ impl RenderOnce for HostTab {
             .rounded(px(10.4))
             .flex_shrink_0()
             .cursor_pointer()
-            .focus_visible(move |style| {
-                style.shadow(vec![
-                    BoxShadow::new(px(0.), px(0.), ring.into()).spread_radius(px(3.)),
-                ])
-            })
             .when(self.disabled, |button| {
                 button.opacity(0.5).cursor_not_allowed()
             })
             .disabled(self.disabled)
             .render(window, cx)
+            .into_element();
+        NativeControl::new(button, self.disabled).focus_ring(FocusRing {
+            focus: self.focus,
+            radius: px(10.4),
+            gap: px(0.),
+            width: px(3.),
+            color: ring,
+        })
     }
 }
 
 #[cfg(test)]
 #[path = "toolbar_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "toolbar_input_tests.rs"]
+mod input_tests;

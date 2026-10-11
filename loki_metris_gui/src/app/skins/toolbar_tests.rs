@@ -11,15 +11,20 @@ use gpui_kit::{
 };
 
 /// 独立工具栏夹具，只记录真实按钮激活，不启动后台服务。
-struct Probe {
-    disabled: bool,
-    clicks: [usize; 2],
+pub(super) struct Probe {
+    pub(super) disabled: bool,
+    pub(super) clicks: [usize; 2],
 }
 impl Render for Probe {
     /// 同时绘制宿主标签、刷新和导入，以实际元素验证状态和内容布局。
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let focus = window
+            .use_keyed_state("host-focus", cx, |_, cx| cx.focus_handle())
+            .read(cx)
+            .clone();
         div()
             .id("toolbar-probe")
+            .tab_group()
             .size_full()
             .flex()
             .items_start()
@@ -28,20 +33,24 @@ impl Render for Probe {
             .child(host_tab(
                 Button::new("host")
                     .role(Role::Tab)
+                    .track_focus(&focus)
                     .child("WorkBuddy")
                     .on_click(cx.listener(|this, _, _, _| this.clicks[0] += 1)),
                 "host-motion".into(),
+                focus,
                 false,
                 self.disabled,
             ))
-            .child(
+            .child(icon_action(
                 default_icon_button("refresh", self.disabled, cx)
                     .size(px(36.))
                     .rounded(px(12.))
                     .accessibility_label("Refresh")
                     .child(Icon::default())
                     .on_click(cx.listener(|this, _, _, _| this.clicks[1] += 1)),
-            )
+                "refresh-press",
+                self.disabled,
+            ))
             .child(
                 SurfaceButton::new(
                     "import",
@@ -58,7 +67,7 @@ impl Render for Probe {
 }
 
 /// 创建固定尺寸的内存测试窗口，不接触宿主偏好。
-fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Probe>) {
+pub(super) fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Probe>) {
     cx.update(gpui_kit::init);
     cx.update(|cx| {
         gpui_kit::open_window(

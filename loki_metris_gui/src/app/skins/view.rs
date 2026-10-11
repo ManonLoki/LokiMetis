@@ -80,11 +80,7 @@ impl Shell {
             // 历史顶部为不占布局的 inset 高光，不能用上边框撑高整组卡片。
             .shadow(vec![BoxShadow::new(px(0.), px(1.), rgb(0xffffff)
                 .opacity(if cx.theme().mode.is_dark() { 0.07 } else { 0.75 }).into()).inset()])
-            .bg(rgb(if cx.theme().mode.is_dark() {
-                0x191a1b
-            } else {
-                0xf5f5f5
-            }));
+            .bg(toolbar::background(cx.theme().mode.is_dark()));
         let focuses: Vec<_> = hosts.iter().map(|host| {
             window.use_keyed_state(format!("skin-host-focus-{host:?}"), cx, |_, cx| cx.focus_handle())
                 .read(cx).clone()
@@ -127,6 +123,7 @@ impl Shell {
                         this.select_skin_host(host, cx);
                     })),
                     format!("skin-host-color-{host:?}"),
+                    focuses[index].clone(),
                     self.skins.host == Some(host),
                     self.skins.busy || self.skins.modal.is_some(),
                 ),
@@ -172,12 +169,13 @@ impl Shell {
                     .on_click(cx.listener(|this, _, window, cx| this.open_skin_create(window, cx))),
             )
             .child(
-                toolbar::default_icon_button("skin-refresh", self.skins.busy || self.skins.loading, cx)
+                toolbar::icon_action(toolbar::default_icon_button("skin-refresh", self.skins.busy || self.skins.loading, cx)
                     .child(Icon::new(IconName::RefreshCw).size(px(18.)))
                     .rounded(px(12.))
                     .accessibility_label(self.t("skins.action.refresh"))
                     .size(px(36.))
                     .on_click(cx.listener(|this, _, _, cx| this.refresh_skins(true, cx))),
+                    "skin-refresh-press", self.skins.busy || self.skins.loading),
             );
         page = page.child(toolbar);
         if let Some(draft) = &self.skins.import {
