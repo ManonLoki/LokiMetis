@@ -32,4 +32,4 @@
 ## 相关代码
 
 - `loki_metris_gui/src/monitor/image_frame_residency.rs`
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.13
+- 详情：[案例 5.13](案例-1-写入图库与动画缓存.md)

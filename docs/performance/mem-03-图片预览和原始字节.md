@@ -37,4 +37,4 @@
 
 - `loki_metris_core/src/monitor_gallery.rs`、`loki_metris_gui/src/monitor/images.rs`
 - `loki_metris_gui/src/app/skins/preview_residency.rs`
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.4、§5.27
+- 详情：[案例 5.4](案例-1-写入图库与动画缓存.md)、[案例 5.27](案例-2-帧调度索引与内存.md)

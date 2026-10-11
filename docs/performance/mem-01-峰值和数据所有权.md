@@ -57,4 +57,4 @@ cargo run --release -p loki_metris_core --example alloc_peak
 - `loki_metris_core/src/aggregate/canonicalization.rs`
 - `loki_metris_core/src/combined_view.rs`、`calls_view/mod.rs`
 - `loki_metris_core/examples/alloc_peak.rs`
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.24、§5.26、§5.31、§5.32、§5.34
+- 详情：[案例 5.24](案例-2-帧调度索引与内存.md)、[案例 5.26](案例-2-帧调度索引与内存.md)、[案例 5.31](案例-2-帧调度索引与内存.md)、[案例 5.32](案例-2-帧调度索引与内存.md)、[案例 5.34](案例-2-帧调度索引与内存.md)

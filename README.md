@@ -29,7 +29,7 @@ LOKI_METRIS_DATA_DIR="$PWD/target/parity-data" LOKI_METRIS_DEV_SKIN_RESOURCES="$
 
 ## 工程边界
 
-本仓库是独立终端下游，不再派生项目。[批准规格](docs/product_spec/20261009_product_spec.md)、[GUI 资料](docs/GUI_APP_PROFILE.md)、[Agent Policy](docs/AGENT_POLICY.md) 为当前事实入口。工程由 Harness 提交 `970448cb6e5da05e6ece9c9317f8c951f57b5911` 的选择性文件快照初始化，未迁入上游 Git 历史；首次升级需按既有规则审计基线，不能伪造溯源锁。
+本仓库是独立终端下游，不再派生项目。[批准规格](docs/product_spec/20261011_product_spec.md)、[GUI 资料](docs/GUI_APP_PROFILE.md)、[Agent Policy](docs/AGENT_POLICY.md) 为当前事实入口。工程由 Harness 提交 `970448cb6e5da05e6ece9c9317f8c951f57b5911` 的选择性文件快照初始化，未迁入上游 Git 历史；首次升级需按既有规则审计基线，不能伪造溯源锁。
 
 阶段 Computer Use 对照记录保存在忽略的 `release/gpui-parity/`。调试预览不构成安装包或最终候选验收；Windows 运行与安装包尚无本次证据。发布、推送和分发遵守独立流程。
 

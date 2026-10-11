@@ -41,4 +41,4 @@
 
 - `loki_metris_gui/src/backend/workbuddy/jsonl/`（`line_reader.rs`、`mod.rs`、`borrow_tests.rs`）
 - `loki_metris_gui/src/backend/local_index/rollout_ingest.rs`
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.5、§5.25、§5.29
+- 详情：[案例 5.5](案例-1-写入图库与动画缓存.md)、[案例 5.25](案例-2-帧调度索引与内存.md)、[案例 5.29](案例-2-帧调度索引与内存.md)

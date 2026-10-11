@@ -38,4 +38,4 @@
 
 - `loki_metris_gui/src/pet/position/`、`usage_service/pet.rs`
 - `loki_metris_gui/src/app/monitor/mod.rs`
-- 更多细节：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.1、§5.2、§5.17、§5.19、§5.21
+- 更多细节：[案例 5.1](案例-1-写入图库与动画缓存.md)、[案例 5.2](案例-1-写入图库与动画缓存.md)、[案例 5.17](案例-1-写入图库与动画缓存.md)、[案例 5.19](案例-2-帧调度索引与内存.md)、[案例 5.21](案例-2-帧调度索引与内存.md)

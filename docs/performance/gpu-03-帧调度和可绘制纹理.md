@@ -45,4 +45,4 @@ macOS 上每个窗口按显示器刷新率收到"该画下一帧了"的回调。
 
 - `vendor/gpui-pre-macos/src/frame_demand.rs`
 - `vendor/gpui-pre-apple/upstream/src/metal_renderer.rs`（`set_maximum_drawable_count`，现为 3）
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.16、§5.22、§5.34
+- 详情：[案例 5.16](案例-1-写入图库与动画缓存.md)、[案例 5.22](案例-2-帧调度索引与内存.md)、[案例 5.34](案例-2-帧调度索引与内存.md)

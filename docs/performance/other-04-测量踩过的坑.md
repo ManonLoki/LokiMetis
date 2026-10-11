@@ -63,4 +63,4 @@ WebView 的辅助进程（WebKit helper）可能归 launchd 管，按父进程�
 
 - `loki_metris_gui/src/backend/local_index/user_paths.rs`（`isolated-measurement` 特性）
 - 采样脚本：`scripts/macos_resource_sample.py`
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §3、§5.16、§5.23、§5.34
+- 详情：[性能优化参考 §3](../PERFORMANCE_OPTIMIZATION.md)、[案例 5.16](案例-1-写入图库与动画缓存.md)、[案例 5.23](案例-2-帧调度索引与内存.md)、[案例 5.34](案例-2-帧调度索引与内存.md)

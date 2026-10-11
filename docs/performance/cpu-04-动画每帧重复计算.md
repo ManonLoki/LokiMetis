@@ -47,4 +47,4 @@
 
 - `loki_metris_gui/src/app/surface/raster/shadow_geometry.rs`、`rim.rs`
 - `loki_metris_gui/src/app/surface/motion.rs`
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §5.8、§5.9、§5.10、§5.28
+- 详情：[案例 5.8](案例-1-写入图库与动画缓存.md)、[案例 5.9](案例-1-写入图库与动画缓存.md)、[案例 5.10](案例-1-写入图库与动画缓存.md)、[案例 5.28](案例-2-帧调度索引与内存.md)

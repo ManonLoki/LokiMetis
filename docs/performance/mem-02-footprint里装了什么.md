@@ -49,4 +49,4 @@
 
 ## 相关
 
-- 详情：[../PERFORMANCE_OPTIMIZATION.md](../PERFORMANCE_OPTIMIZATION.md) §3.3、§5.30、§5.34
+- 详情：[性能优化参考 §3.3](../PERFORMANCE_OPTIMIZATION.md)、[案例 5.30](案例-2-帧调度索引与内存.md)、[案例 5.34](案例-2-帧调度索引与内存.md)
