@@ -6,7 +6,9 @@
 
 实际v0.2.16窗口发现Sources按钮已灰显并拒绝操作，但辅助树缺少disabled。原因是透明适配器包在RenderOnce的ViewElement外，辅助角色及节点位于更内层，外层写入没有生效。现借用原按钮的交互对象，在实际节点构建后补禁用位；不新增节点或动作代理，也不修改Kit全局默认行为。加载同样不可交互，恢复后重新生成可用节点。
 
-新增真实节点断言先复现false/true不符，再验证历史/普通内容及禁用/加载四种组合：唯一原Button、稳定ID、禁用位、无Click/Focus动作、相邻按钮保持可用、恢复后一次新激活。共享13项、Sources5项通过。调试JSON只增加实际disabled事实字段；试包Computer Use复查待执行，Windows及完整体验仍未验证。
+新增真实节点断言先复现false/true不符，再验证历史/普通内容及禁用/加载四种组合：唯一原Button、稳定ID、禁用位、无Click/Focus动作、相邻按钮保持可用、恢复后一次新激活。共享13项、Sources5项通过。调试JSON只增加实际disabled事实字段。
+
+同版本本地试包Computer Use已确认取消扫描、清除主目录选择及未改名的保存按钮均带原生disabled。通过Tab聚焦重命名、Enter打开、Tab/Space取消，再直接Enter重新打开同一行，验证键盘触发器焦点恢复；Escape收尾，来源仍为.codex、373文件，新旧偏好字节及权限保持。两窗口尺寸不同，此轮只对照语义和交互，不声明像素一致；Windows及完整体验仍未验证。
 
 ## LMGUI-BUTTON-PRESS-SCALE-001 · 按钮按压整体缩放并取消隐藏前的旧动作
 
