@@ -16,7 +16,7 @@ ManonLoki 的 Windows / macOS 原生 Rust 桌面项目，使用 GPUI。当前目
 Rust >= 1.98.1、Node.js >= 24.21.0、pnpm >= 12.4.1。根工程入口无 npm 第三方依赖。版本以根 Cargo 为准；当前忽略本地生成锁文件。
 
 ```sh
-LOKI_METRIS_DEV_SKIN_RESOURCES="$PWD/loki_metris_gui/resources" cargo run -p loki_metris_gui
+pnpm run dev
 cargo test -p loki_metris_core --lib
 cargo test -p loki_metris_gui --bin loki_metris_gui
 ```
