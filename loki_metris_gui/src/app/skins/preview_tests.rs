@@ -287,3 +287,50 @@ fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
         }).unwrap();
     }
 }
+
+/// 周期目录查询不能夺走刷新按钮焦点；无预览纯主题仍可直接Tab选择并继续操作。
+#[gpui_kit::test]
+fn background_skin_refresh_preserves_keyboard_focus(cx: &mut TestAppContext) {
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let image = Arc::new(Image::from_bytes(ImageFormat::Png,
+        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
+    populate_catalog(&shell, image, loki_metris_core::SkinSource::User, cx);
+    shell.update(cx, |this, cx| {
+        let entry = &mut this.skins.entries.as_mut().unwrap()[0];
+        entry.skin.package_type = loki_metris_core::SkinPackageType::Theme;
+        entry.preview = None;
+        cx.notify();
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        for _ in 0..16 {
+            if window.find("skin-refresh").focused() == Some(true) { break; }
+            window.press("tab", cx);
+            window.render_frame(cx);
+        }
+        assert_eq!(window.find("skin-refresh").focused(), Some(true));
+    }).unwrap();
+    // 实际周期查询唯一的瞬时展示状态；不触发文件、宿主或定时器副作用。
+    shell.update(cx, |this, cx| { this.skins.loading = true; cx.notify(); });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert_eq!(window.find("skin-refresh").focused(), Some(true),
+            "后台刷新不能清除键盘焦点并把下一次Tab送回侧栏");
+        window.press("tab", cx);
+        window.render_frame(cx);
+        assert_eq!(window.find("skin-select-pikachu").focused(), Some(true));
+        window.press("space", cx);
+        window.render_frame(cx);
+        assert_eq!(shell.read(cx).skins.selected.len(), 1);
+    }).unwrap();
+    shell.update(cx, |this, cx| { this.skins.loading = false; cx.notify(); });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert_eq!(window.find("skin-select-pikachu").focused(), Some(true));
+        for id in ["skin-apply-pikachu-User", "skin-actions-pikachu"] {
+            window.press("tab", cx);
+            window.render_frame(cx);
+            assert_eq!(window.find(id).focused(), Some(true));
+        }
+    }).unwrap();
+}

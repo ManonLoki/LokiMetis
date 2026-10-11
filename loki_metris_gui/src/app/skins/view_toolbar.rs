@@ -109,13 +109,14 @@ impl Shell {
                     .on_click(cx.listener(|this, _, window, cx| this.open_skin_create(window, cx))),
             )
             .child(
-                toolbar::icon_action(toolbar::default_icon_button("skin-refresh", self.skins.busy || self.skins.loading, cx)
+                // 周期查询由refresh_skins的loading守卫合并；临时禁用会夺走键盘焦点。
+                toolbar::icon_action(toolbar::default_icon_button("skin-refresh", self.skins.busy, cx)
                     .child(Icon::new(IconName::RefreshCw).size(px(18.)))
                     .rounded(px(12.))
                     .accessibility_label(self.t("skins.action.refresh"))
                     .size(px(36.))
                     .on_click(cx.listener(|this, _, _, cx| this.refresh_skins(true, cx))),
-                    "skin-refresh-press", self.skins.busy || self.skins.loading),
+                    "skin-refresh-press", self.skins.busy),
             );
         toolbar
     }
