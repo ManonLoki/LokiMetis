@@ -58,3 +58,7 @@ gpui-kit = { workspace = true, features = ["test-support"] }
 name = "element_transform_metal"
 path = "tests/element_transform_metal.rs"
 harness = false
+
+[features]
+# 仅性能测量使用：LOKI_METRIS_MEASURE_HOME 重定向用户主目录；默认关闭，不进入发布构建。
+isolated-measurement = []

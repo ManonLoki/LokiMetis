@@ -126,9 +126,15 @@ impl UsageService {
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();
-        runtime.spawn(async move { worker.run(move |intent, token| scan::run(state.clone(), intent, token)).await; });
+        runtime.spawn(async move { worker.run(move |intent, token| {
+            let state = state.clone();
+            async move { let result = scan::run(state, intent, token).await; crate::native::memory::release_free_pages(); result }
+        }).await; });
         let worker = queries.clone(); let state = context.clone();
-        runtime.spawn(async move { worker.run(move |query, token| query::load(state.clone(), query, token)).await; });
+        runtime.spawn(async move { worker.run(move |query, token| {
+            let state = state.clone();
+            async move { let result = query::load(state, query, token).await; crate::native::memory::release_free_pages(); result }
+        }).await; });
         let notifications=notifications::Monitor::start(&runtime,context.clone());
         Ok(Arc::new(Self { notifications, runtime: Mutex::new(Some(runtime)), scans, queries, context,background,discovery,discovery_batch:Default::default(),lifecycle_started:Default::default() }))
     }

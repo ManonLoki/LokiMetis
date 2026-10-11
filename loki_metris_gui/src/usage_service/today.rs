@@ -159,6 +159,7 @@ pub(super) async fn load(
     .await
     .map_err(|_| "usage_aggregate_failed")??;
     let (data, today, index_records) = result;
+    let index_ready_fresh = index_records.is_some();
     if selection != context.agents.dashboard_selection().await?
         || generation != context.notification_source_epoch.load(Ordering::Acquire)
     {
@@ -170,6 +171,10 @@ pub(super) async fn load(
         if after.as_ref() == Some(&key) {
             context.today_cache.store(key, index_signature, index_ready, records);
         }
+    }
+    // 后台摘要不经查询邮箱；全量读取之后同样归还分配器空闲页。
+    if index_ready_fresh {
+        crate::native::memory::release_free_pages();
     }
     Ok((data, today))
 }
