@@ -58,13 +58,25 @@ impl Shell {
         }
         if let Some(feedback) = &self.skins.feedback {
             let (message, color) = match feedback {
-                Ok(message) => (message.clone(), rgb(0x12b886)),
+                Ok(success) => (
+                    match success {
+                        SkinSuccess::Created { name } => self.t("skins.notice.created").replace("%{name}", name),
+                        SkinSuccess::Converted { name } => self.t("skins.notice.converted").replace("%{name}", name),
+                        SkinSuccess::Deleted { count } => self.t("skins.notice.deleted").replace("%{count}", &count.to_string()),
+                        SkinSuccess::Exported => self.t("skins.notice.exported"),
+                        SkinSuccess::Stopped => self.t("skins.notice.stopped"),
+                        SkinSuccess::Applied { name } => self.t("skins.notice.applied").replace("%{name}", name),
+                        SkinSuccess::Imported { count } => self.t("skins.notice.imported").replace("%{count}", &count.to_string()),
+                    },
+                    rgb(0x12b886),
+                ),
                 Err(error) => (self.skin_error(error), rgb(0xfa5252)),
             };
             page = page.child(
                 div()
                     .id("skins-feedback")
                     .role(Role::Alert)
+                    .aria_label(message.clone())
                     .p_4()
                     .rounded(px(16.))
                     .border_1()

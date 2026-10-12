@@ -1,6 +1,6 @@
 //! ZIP选择、预检进度与确认提交，token的生命周期由应用级租约负责。
 
-use super::{ModalKind, Shell, SkinError, state::ImportDraft};
+use super::{ModalKind, Shell, SkinError, SkinSuccess, state::ImportDraft};
 use gpui_kit::{Context, Window};
 use std::{
     path::PathBuf,
@@ -246,9 +246,7 @@ impl Shell {
                         this.defer_close_skin_dialog(cx);
                         this.skins.feedback = Some(match result.failed.first() {
                             Some(error) => Err(SkinError::new(error.code, error.message.clone())),
-                            None => Ok(this
-                                .t("skins.notice.imported")
-                                .replace("%{count}", &result.installed.len().to_string())),
+                            None => Ok(SkinSuccess::Imported { count: result.installed.len() }),
                         });
                     }
                     Err(error) => this.skins.feedback = Some(Err(error)),

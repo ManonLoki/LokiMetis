@@ -64,7 +64,7 @@ pub(in crate::app) struct Skins {
     pub authority: Arc<AtomicU64>,
     pub query: Option<Task<()>>,
     pub mutation: Option<Task<()>>,
-    pub feedback: Option<Result<String, SkinError>>,
+    pub feedback: Option<Result<SkinSuccess, SkinError>>,
     pub import: Option<ImportDraft>,
     pub picking: bool,
 }
@@ -108,7 +108,19 @@ pub(crate) struct ImportDraft {
     pub trusted: bool,
 }
 
-/// 资源操作的实际终态，通知由当前语言在回执后生成。
+/// 成功回执保留实际资源参数，展示时才使用当前语言生成通知。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::app) enum SkinSuccess {
+    Created { name: String },
+    Converted { name: String },
+    Deleted { count: usize },
+    Exported,
+    Stopped,
+    Applied { name: String },
+    Imported { count: usize },
+}
+
+/// 资源操作的实际终态，回执不固化当前语言的译文。
 pub(super) enum Outcome {
     Created(SkinDescriptor),
     Converted(crate::skins::ThemeConversionResult),

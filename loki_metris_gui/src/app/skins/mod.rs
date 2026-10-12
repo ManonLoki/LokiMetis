@@ -18,7 +18,7 @@ use gpui_kit::{
 };
 use loki_metris_core::{SkinHostKind, SkinReference, public_ai_capabilities};
 pub(in crate::app) use state::Skins;
-use state::{ModalKind, Outcome};
+use state::{ModalKind, Outcome, SkinSuccess};
 use std::{
     future::Future,
     sync::{Arc, atomic::Ordering},
@@ -259,13 +259,9 @@ impl Shell {
     }
     /// 通知只引用成功事务的实际资源名称与数量。
     fn accept_skin_outcome(&mut self, outcome: Outcome, cx: &mut Context<Self>) {
-        let message = match outcome {
-            Outcome::Created(skin) => self
-                .t("skins.notice.created")
-                .replace("%{name}", &skin.name),
-            Outcome::Converted(result) => self
-                .t("skins.notice.converted")
-                .replace("%{name}", &result.theme.name),
+        let success = match outcome {
+            Outcome::Created(skin) => SkinSuccess::Created { name: skin.name },
+            Outcome::Converted(result) => SkinSuccess::Converted { name: result.theme.name },
             Outcome::Deleted(result) => {
                 self.skins.selected.clear();
                 if let Some(error) = result.failed.first() {
@@ -273,8 +269,7 @@ impl Shell {
                         Some(Err(SkinError::new(error.code, error.message.clone())));
                     return;
                 }
-                self.t("skins.notice.deleted")
-                    .replace("%{count}", &result.deleted.len().to_string())
+                SkinSuccess::Deleted { count: result.deleted.len() }
             }
             Outcome::Prompt(prompt) => {
                 self.skins.prompt = Some(prompt);
@@ -283,12 +278,11 @@ impl Shell {
                 return;
             }
             Outcome::Opened => return,
-            Outcome::Exported => self.t("skins.notice.exported"),
-            Outcome::Stopped => self.t("skins.notice.stopped"),
+            Outcome::Exported => SkinSuccess::Exported,
+            Outcome::Stopped => SkinSuccess::Stopped,
             Outcome::Applied(crate::skins::InstallSkinResult::Installed { .. }, intent) => {
-                self.t("skins.notice.applied").replace(
-                    "%{name}",
-                    &self
+                SkinSuccess::Applied {
+                    name: self
                         .skins
                         .entries
                         .as_ref()
@@ -299,7 +293,7 @@ impl Shell {
                         })
                         .map(|entry| entry.skin.name.clone())
                         .unwrap_or(intent.skin.id),
-                )
+                }
             }
             Outcome::Applied(
                 crate::skins::InstallSkinResult::NeedsConfirmation { check },
@@ -319,7 +313,7 @@ impl Shell {
         ) {
             self.defer_close_skin_dialog(cx);
         }
-        self.skins.feedback = Some(Ok(message));
+        self.skins.feedback = Some(Ok(success));
     }
 }
 

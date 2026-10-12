@@ -2,7 +2,7 @@
 
 use super::{
     Shell,
-    state::{Category, Route},
+    state::{CatalogSuccess, Category, Route},
 };
 use gpui_kit::{
     Context, Window,
@@ -431,13 +431,11 @@ impl Shell {
                     this.monitor.catalog.accept_images(imported.snapshot);
                     if let Some((tool, behavior)) = target {
                         this.bind_monitor_image(tool, behavior, id, cx);
-                        this.monitor.catalog.feedback = Some(Ok(this
-                            .t("monitor.picker.uploadedAndSelected")
-                            .replace("%{filename}", &filename)));
+                        this.monitor.catalog.feedback =
+                            Some(Ok(CatalogSuccess::UploadedAndSelected { filename }));
                     } else {
-                        this.monitor.catalog.feedback = Some(Ok(this
-                            .t("monitor.images.uploaded")
-                            .replace("%{count}", &count.to_string())));
+                        this.monitor.catalog.feedback =
+                            Some(Ok(CatalogSuccess::ImagesUploaded { count }));
                     }
                 }
                 if let Some(error) = failure {

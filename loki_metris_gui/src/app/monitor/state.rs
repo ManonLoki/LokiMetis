@@ -104,6 +104,13 @@ impl Editor {
     }
 }
 
+/// 成功提示只保留展示参数，避免跨页保留的回执冻结旧语言译文。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum CatalogSuccess {
+    ImagesUploaded { count: usize },
+    UploadedAndSelected { filename: String },
+}
+
 /// 页面保留查询、保存与导入任务直到回执，页面切换不撤销已接受写入。
 #[derive(Default)]
 pub(super) struct Catalog {
@@ -121,7 +128,7 @@ pub(super) struct Catalog {
     pub category: Category,
     pub picker: Option<HookBehavior>,
     pub picker_category: Category,
-    pub feedback: Option<Result<String, HookError>>,
+    pub feedback: Option<Result<CatalogSuccess, HookError>>,
     pub saved_tool: Option<AiTool>,
     pub saving: bool,
     pub uploading: bool,

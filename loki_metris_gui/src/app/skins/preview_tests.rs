@@ -1,6 +1,6 @@
 //! 真实已解码内置素材验证预览框、Cover布局与独立辅助语义，不启动资源服务。
 
-use super::view::skin_preview;
+use super::{SkinSuccess, view::skin_preview};
 use gpui_kit::{
     AnyWindowHandle, AppContext, Bounds, Context, Entity, Image, ImageFormat, ImageSource,
     IntoElement, Render, RenderImage, Role, TestAppContext, Window, WindowBounds, WindowOptions,
@@ -260,7 +260,7 @@ fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
     for (width, height, feedback) in [(1440., 900., false), (1440., 900., true), (800., 300., true)] {
         cx.simulate_window_resize(handle, size(px(width), px(height)));
         shell.update(cx, |this, cx| {
-            this.skins.feedback = feedback.then(|| Ok("Theme created".into()));
+            this.skins.feedback = feedback.then(|| Ok(SkinSuccess::Created { name: "Fixture".into() }));
             cx.notify();
         });
         cx.update_window(handle, |_, window, cx| {

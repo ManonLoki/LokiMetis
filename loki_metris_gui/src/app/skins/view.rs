@@ -1,6 +1,6 @@
 //! 皮肤资源卡保持参考的预览高度、响应式列数与受控菜单。
 
-use super::{ModalKind, Shell, skin_reference};
+use super::{ModalKind, Shell, SkinSuccess, skin_reference};
 
 #[path = "badge.rs"]
 mod badge;

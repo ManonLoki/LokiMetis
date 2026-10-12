@@ -282,3 +282,42 @@ fn late_export_picker_does_not_write_after_leaving_skins(cx: &mut TestAppContext
     settle(cx, &shell, |this| !this.skins.picking);
     assert!(shell.read_with(cx, |this, _| this.skins.feedback.is_none()));
 }
+
+/// 成功回执保留原始名称，跨设置页切换语言后实际提示树必须同步译文。
+#[gpui_kit::test]
+fn skin_success_feedback_follows_language_changes(cx: &mut TestAppContext) {
+    use crate::preferences::LanguageChoice;
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let name = "审计 %{count} theme";
+    shell.update(cx, |this, cx| {
+        this.page = Page::Skins;
+        this.skins.host = Some(SkinHostKind::Codex);
+        this.skins.entries = Some(Vec::new());
+        this.accept_skin_outcome(Outcome::Created(crate::skins::SkinDescriptor {
+            id: "locale-fixture".into(), source: loki_metris_core::SkinSource::User,
+            package_type: loki_metris_core::SkinPackageType::Theme,
+            name: name.into(), author: "Fixture".into(), version: "1.0.0".into(),
+            preview_data_url: String::new(), supported_color_modes: Vec::new(),
+        }), cx);
+        cx.notify();
+    });
+    assert!(cx.simulate_accessibility_activation(handle).is_some());
+    for (language, expected) in [
+        (LanguageChoice::English, format!("Created user theme {name}.")),
+        (LanguageChoice::Chinese, format!("已创建用户主题 {name}。")),
+        (LanguageChoice::English, format!("Created user theme {name}.")),
+    ] {
+        cx.update_window(handle, |_, window, cx| shell.update(cx, |this, cx| {
+            this.navigate(Page::Settings, cx);
+            this.select_language(language, window, cx);
+        })).unwrap();
+        settle(cx, &shell, |this| this.preference_save.pending.is_none());
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| this.navigate(Page::Skins, cx));
+            window.render_frame(cx);
+            let tree = window.debug_a11y_tree_json().expect("实际皮肤提示树缺失");
+            assert!(tree.contains(&expected), "提示未使用当前语言: {expected}\n{tree}");
+        }).unwrap();
+        shell.read_with(cx, |this, _| assert_eq!(this.preferences.language, language));
+    }
+}

@@ -1,6 +1,6 @@
 //! 使用真实窗口、原生事件、选择器响应和隔离文件服务覆盖监控编辑闭环。
 
-use super::{Shell, state::Route};
+use super::{Shell, state::{CatalogSuccess, Route}};
 use gpui_kit::{AppContext, Context, Entity, TestAppContext, test::TestWindowExt};
 use loki_metris_core::{AiProfileDraft, AiTool, HookBehavior, public_monitor_ai_tools};
 use std::{sync::Arc, time::Duration};
@@ -166,7 +166,7 @@ fn native_picker_cancel_and_import_receipt_follow_captured_agent(cx: &mut TestAp
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
         setup(this, service.clone(), cx);
-        this.monitor.catalog.feedback = Some(Ok("previous completed upload".into()));
+        this.monitor.catalog.feedback = Some(Ok(CatalogSuccess::ImagesUploaded { count: 4 }));
         this.upload_monitor_images(None, cx);
     });
     cx.simulate_path_prompt_response(|options| {
@@ -183,7 +183,7 @@ fn native_picker_cancel_and_import_receipt_follow_captured_agent(cx: &mut TestAp
                 .unwrap()
                 .as_ref()
                 .unwrap(),
-            "previous completed upload"
+            &CatalogSuccess::ImagesUploaded { count: 4 }
         )
     });
     assert!(
@@ -223,6 +223,61 @@ fn native_picker_cancel_and_import_receipt_follow_captured_agent(cx: &mut TestAp
         });
     })
     .unwrap();
+}
+
+/// 上传回执跨页保留，切换语言后按当前词典重绘数量和原始文件名。
+#[gpui_kit::test]
+fn upload_feedback_follows_language_changes_without_reimport(cx: &mut TestAppContext) {
+    use crate::preferences::LanguageChoice;
+    for target in [None, Some((AiTool::Codex, HookBehavior::Idle))] {
+        let root = tempfile::tempdir().unwrap();
+        let filename = "审计 %{count} image.gif";
+        let path = root.path().join(filename);
+        std::fs::write(&path, include_bytes!("../../../tests/fixtures/monitor-loop.gif")).unwrap();
+        let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        let _finish = FinishService(service.clone());
+        let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+        shell.update(cx, |this, cx| {
+            setup(this, service.clone(), cx);
+            this.monitor.route = if target.is_some() { Route::Management } else { Route::Images };
+            this.upload_monitor_images(target, cx);
+        });
+        cx.simulate_path_prompt_response(move |_| Some(vec![path]));
+        settle(cx, &shell, |this| !this.monitor.catalog.uploading);
+        let image_id = shell.read_with(cx, |this, _| this.monitor.catalog.images[0].id.clone());
+        for (language, expected) in [
+            (LanguageChoice::English, if target.is_some() {
+                format!("Uploaded and automatically selected {filename}")
+            } else { "Successfully uploaded 1 images.".into() }),
+            (LanguageChoice::Chinese, if target.is_some() {
+                format!("已上传并自动选中 {filename}")
+            } else { "已成功上传 1 张图片。".into() }),
+            (LanguageChoice::English, if target.is_some() {
+                format!("Uploaded and automatically selected {filename}")
+            } else { "Successfully uploaded 1 images.".into() }),
+        ] {
+            cx.update_window(handle, |_, window, cx| {
+                shell.update(cx, |this, cx| {
+                    this.navigate(crate::app::Page::Settings, cx);
+                    this.select_language(language, window, cx);
+                });
+            }).unwrap();
+            settle(cx, &shell, |this| this.preference_save.pending.is_none());
+            cx.update_window(handle, |_, window, cx| {
+                shell.update(cx, |this, cx| this.navigate(crate::app::Page::Monitor, cx));
+                window.render_frame(cx);
+                assert_eq!(window.find("monitor-catalog-feedback").label(), Some(expected.as_str()));
+            }).unwrap();
+            shell.read_with(cx, |this, _| {
+                assert_eq!(this.preferences.language, language);
+                assert_eq!(this.monitor.catalog.images.len(), 1);
+                assert_eq!(this.monitor.catalog.images[0].id, image_id);
+                if target.is_some() {
+                    assert_eq!(this.monitor.catalog.editors[0].draft.hooks[0].image, image_id);
+                }
+            });
+        }
+    }
 }
 
 /// 有图片时格式区与右侧操作必须同处视口，不能仅存在于辅助树中。

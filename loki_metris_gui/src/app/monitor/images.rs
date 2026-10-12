@@ -2,7 +2,7 @@
 
 use super::{
     Shell,
-    state::{Category, ImageEntry},
+    state::{CatalogSuccess, Category, ImageEntry},
 };
 use crate::monitor::{image_decode::MonitorImageDecoder, image_playback::MonitorImageView,
     image_residency::{self, ImageOwner}};
@@ -69,7 +69,18 @@ impl Shell {
     pub(super) fn monitor_feedback(&self, cx: &Context<Self>) -> Option<AnyElement> {
         self.monitor.catalog.feedback.as_ref().map(|feedback| {
             let (label, color, role) = match feedback {
-                Ok(label) => (label.clone(), rgb(0x20c997), Role::Status),
+                Ok(success) => (
+                    match success {
+                        CatalogSuccess::ImagesUploaded { count } => self
+                            .t("monitor.images.uploaded")
+                            .replace("%{count}", &count.to_string()),
+                        CatalogSuccess::UploadedAndSelected { filename } => self
+                            .t("monitor.picker.uploadedAndSelected")
+                            .replace("%{filename}", filename),
+                    },
+                    rgb(0x20c997),
+                    Role::Status,
+                ),
                 Err(error) => (
                     self.monitor_error_text(error),
                     cx.theme().danger.into(),
