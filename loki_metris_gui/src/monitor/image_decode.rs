@@ -310,6 +310,30 @@ mod tests {
         assert_eq!(image.frame_count(), 1);
     }
 
+    /// 六套内置兼容皮肤的辅助 JPEG 必须完整解码；魔数不能掩盖错误的渐进帧头。
+    #[test]
+    fn builtin_skin_auxiliary_jpegs_decode_without_changing_placeholder_dimensions() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("resources/builtin-skins");
+        let resources = super::super::image_memory::DecodeResources::new();
+        for id in [
+            "minecraft", "pikachu", "pastoral-landscape", "misty-meadow-dawn",
+            "silver-core-voyage", "woodland-dawn",
+        ] {
+            let source = MonitorImageSource {
+                id: format!("builtin-{id}-auxiliary"),
+                bytes: Arc::from(std::fs::read(root.join(id).join("qqshow.jpg"))
+                    .expect("内置辅助图必须存在")),
+                format: ImageFormat::Jpeg,
+            };
+            let decoded = decode(&source, &resources)
+                .unwrap_or_else(|error| panic!("内置皮肤 {id} 的辅助 JPEG 解码失败：{error}"));
+            assert_eq!(decoded.natural_size, size(DevicePixels(1), DevicePixels(1)));
+            assert_eq!(decoded.image.frame_count(), 1);
+            assert_eq!(decoded.image.as_bytes(0).unwrap().len(), 3 * 3 * 4);
+        }
+    }
+
     /// APNG 是实际 PNG 动画，保留总播放次数、两帧像素和延迟。
     #[test]
     fn apng_fixture_preserves_animation_and_finite_plays() {

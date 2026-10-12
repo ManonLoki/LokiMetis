@@ -13,8 +13,7 @@ import { validateSkin } from "./validate_skin.mjs";
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const skillDirectory = path.resolve(scriptsDirectory, "..");
-const repositoryDirectory = path.resolve(skillDirectory, "../../..");
-const resourceDirectory = path.join(repositoryDirectory, "loki_metis_gui/resources");
+const resourceDirectory = path.dirname(skillDirectory);
 const backgroundPath = path.join(resourceDirectory, "theme-template/background.png");
 const runtimeDirectory = path.join(resourceDirectory, "theme-runtime");
 

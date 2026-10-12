@@ -4,7 +4,7 @@ members = ["loki_metris_core","loki_metris_gui"]
 exclude = ["vendor/accesskit_macos", "vendor/gpui-pre", "vendor/gpui-pre-apple", "vendor/gpui-pre-macos", "vendor/gpui-pre-windows", "vendor/gpui-pre-wgpu", "vendor/tray-icon"]
 
 [workspace.package]
-version = "0.2.41"
+version = "0.2.42"
 edition = "2024"
 rust-version = "1.98.1"
 authors = ["ManonLoki"]

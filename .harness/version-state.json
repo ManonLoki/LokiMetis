@@ -40,7 +40,8 @@
     "LMWIN-NOTIFICATION-FIRST-PERMISSION-001",
     "LM-SKIN-REFRESH-KEYBOARD-FOCUS-001",
     "WINDOWS-PET-SETTINGS-FIRST-TAB-20261012",
-    "WINDOWS-TRAY-HRESULT-SUCCESS-20261012"
+    "WINDOWS-TRAY-HRESULT-SUCCESS-20261012",
+    "LM-SKIN-JPEG-PLACEHOLDER-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -291,8 +292,13 @@
       "change_id": "WINDOWS-TRAY-HRESULT-SUCCESS-20261012",
       "kind": "bug-fix",
       "required_version": "0.2.41"
+    },
+    {
+      "change_id": "LM-SKIN-JPEG-PLACEHOLDER-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.42"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.41"
+  "target_version": "0.2.42"
 }
