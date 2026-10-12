@@ -1,6 +1,7 @@
 //! 原生能力统一持有生命周期；平台对象在 UI 线程创建，后台输入通过有界轮询映射。
 
 pub(crate) mod windowing;
+pub(crate) mod keyboard_entry;
 mod tray;
 mod tray_hide;
 mod menu;

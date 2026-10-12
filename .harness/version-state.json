@@ -38,7 +38,8 @@
     "LM-NOTIFICATION-DISCOVERY-EPOCH-001",
     "LMWIN-UNINSTALL-RESOURCE-DIRECTORIES-001",
     "LMWIN-NOTIFICATION-FIRST-PERMISSION-001",
-    "LM-SKIN-REFRESH-KEYBOARD-FOCUS-001"
+    "LM-SKIN-REFRESH-KEYBOARD-FOCUS-001",
+    "WINDOWS-PET-SETTINGS-FIRST-TAB-20261012"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -279,8 +280,13 @@
       "change_id": "LM-SKIN-REFRESH-KEYBOARD-FOCUS-001",
       "kind": "bug-fix",
       "required_version": "0.2.39"
+    },
+    {
+      "change_id": "WINDOWS-PET-SETTINGS-FIRST-TAB-20261012",
+      "kind": "bug-fix",
+      "required_version": "0.2.40"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.39"
+  "target_version": "0.2.40"
 }

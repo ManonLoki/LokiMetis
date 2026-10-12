@@ -1,14 +1,14 @@
-//! Kit的Root键盘上下文位于WindowBorder内侧；无焦点时由主窗补上首次Tab入口。
+//! Kit根视图无焦点时补上首次Tab入口，每个订阅只处理其所属窗口。
 
 use gpui_kit::{AnyWindowHandle, App, Subscription};
 
-/// 订阅由Shell持有并随其释放；只在目标主窗无焦点时交给原生tab stop遍历。
-pub(super) fn install(main: AnyWindowHandle, cx: &mut App) -> Subscription {
-    let main_id = main.window_id();
+/// 订阅由窗口内容实体持有并随其释放；已有焦点继续使用原生控件分发。
+pub(crate) fn install(handle: AnyWindowHandle, cx: &mut App) -> Subscription {
+    let window_id = handle.window_id();
     cx.intercept_keystrokes(move |event, window, cx| {
         let key = &event.keystroke;
         let modifiers = key.modifiers;
-        if window.window_handle().window_id() != main_id
+        if window.window_handle().window_id() != window_id
             || window.focused(cx).is_some()
             || key.key != "tab"
             || modifiers.control

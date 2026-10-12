@@ -16,6 +16,7 @@ pub(super) struct Settings {
     range: (u16, u16),
     _owner: Subscription,
     _slider: Subscription,
+    _keyboard_entry: Subscription,
 }
 impl Settings {
     /// 首次创建读取已确认偏好，输入状态跨同窗重绘保持。
@@ -63,11 +64,12 @@ impl Settings {
         });
         Self {
             owner,
-            slider_focus: cx.focus_handle(),
+            slider_focus: cx.focus_handle().tab_stop(true),
             slider,
             range: (range.min, range.max),
             _owner: owner_observe,
             _slider: slider_observe,
+            _keyboard_entry: crate::native::keyboard_entry::install(window.window_handle(), cx),
         }
     }
     /// 操作期间控件继续发字段意图，界面不复制另一份偏好。

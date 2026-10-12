@@ -5,7 +5,6 @@ mod surface;
 mod monitor;
 mod skins;
 mod dashboard;
-mod keyboard_entry;
 mod window_title;
 #[cfg(target_os="macos")]
 mod window_state;
@@ -111,7 +110,7 @@ impl Shell {
             crate::native::refresh_menu_after_activation(cx);
         });
         let visibility = cx.observe_window_visibility(window, |this,_,window,cx|this.update_window_visibility(window,cx));
-        let keyboard_entry = keyboard_entry::install(window.window_handle(), cx);
+        let keyboard_entry = crate::native::keyboard_entry::install(window.window_handle(), cx);
         let locale = preferences.locale();
         let mut value = Self {
             #[cfg(any(target_os="macos", all(windows, not(test))))]
