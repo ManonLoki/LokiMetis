@@ -87,6 +87,11 @@ impl Shell {
                 editor.inputs = Some(inputs);
                 editor.reset = true;
             }
+            // 原位换译文不触发目录变更事件，也不清除草稿、选区和撤销记录。
+            let directory_input = &editor.inputs.as_ref().unwrap()[0];
+            if directory_input.read(cx).presentation().placeholder().as_str() != placeholder.as_str() {
+                directory_input.update(cx, |input, cx| input.set_placeholder(placeholder.clone(), window, cx));
+            }
             if editor.reset {
                 let values = std::iter::once(editor.draft.clone())
                     .chain(std::iter::once(editor.saved.config_path.clone()))

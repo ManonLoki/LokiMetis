@@ -148,6 +148,14 @@ impl Shell {
                 }
                 editor.inputs = Some(inputs);
             }
+            // 占位译文不属于草稿；仅变化时更新原实体，避免每帧通知或重置编辑态。
+            if let Some(inputs) = &editor.inputs {
+                for input in inputs {
+                    if input.read(cx).presentation().placeholder().as_str() != placeholder.as_str() {
+                        input.update(cx, |input, cx| input.set_placeholder(placeholder.clone(), window, cx));
+                    }
+                }
+            }
             if editor.reset_inputs {
                 if let Some(inputs) = &editor.inputs {
                     for (input, hook) in inputs.iter().zip(&editor.draft.hooks) {

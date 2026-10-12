@@ -321,3 +321,42 @@ fn skin_success_feedback_follows_language_changes(cx: &mut TestAppContext) {
         shell.read_with(cx, |this, _| assert_eq!(this.preferences.language, language));
     }
 }
+
+/// 搜索提示随生产语言回执刷新，搜索值、选区和原生焦点实体跨页保留。
+#[gpui_kit::test]
+fn search_placeholder_follows_language_without_resetting_input(cx: &mut TestAppContext) {
+    use crate::preferences::LanguageChoice;
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let search = cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, _| { this.page = Page::Skins; this.skins.entries = Some(Vec::new()); });
+        window.render_frame(cx);
+        let search = shell.read(cx).skins.search.clone().unwrap();
+        search.update(cx, |input, cx| {
+            input.replace_all("unsaved search", window, cx);
+            input.set_selected_range(1..3, cx);
+        });
+        search
+    }).unwrap();
+    let focus = search.read_with(cx, |input, _| input.presentation().focus_handle().clone());
+    for (language, expected) in [
+        (LanguageChoice::English, "Search by name, author, or ID"),
+        (LanguageChoice::Chinese, "按名称、作者或 ID 搜索"),
+        (LanguageChoice::English, "Search by name, author, or ID"),
+    ] {
+        cx.update_window(handle, |_, window, cx| shell.update(cx, |this, cx| {
+            this.navigate(Page::Settings, cx);
+            this.select_language(language, window, cx);
+        })).unwrap();
+        settle(cx, &shell, |this| this.preference_save.pending.is_none());
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| this.navigate(Page::Skins, cx));
+            window.render_frame(cx);
+            assert_eq!(shell.read(cx).skins.search.as_ref().unwrap(), &search);
+            let input = search.read(cx);
+            assert_eq!(input.presentation().placeholder().as_str(), expected);
+            assert_eq!(input.value().as_str(), "unsaved search");
+            assert_eq!(input.selected_range(), 1..3);
+            assert_eq!(input.presentation().focus_handle(), &focus);
+        }).unwrap();
+    }
+}

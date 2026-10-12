@@ -45,6 +45,61 @@ fn setup(
     cx.notify();
 }
 
+#[gpui_kit::test]
+/// 所有Agent的四个内容框原位换译文，不覆盖草稿、修订号、选区或实体。
+fn content_placeholder_follows_language_without_resetting_input(cx: &mut TestAppContext) {
+    use crate::{app::Page, preferences::LanguageChoice};
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let inputs = cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, _| {
+            this.page = Page::Monitor;
+            this.monitor.route = Route::Management;
+            this.monitor.catalog.accept_profiles(public_monitor_ai_tools().map(AiProfileDraft::default_for).collect());
+            this.monitor.catalog.images_loaded = true;
+        });
+        window.render_frame(cx);
+        let inputs: Vec<_> = shell.read(cx).monitor.catalog.editors.iter()
+            .flat_map(|editor| editor.inputs.as_ref().unwrap().iter().cloned()).collect();
+        for (index, input) in inputs.iter().enumerate() {
+            input.update(cx, |input, cx| {
+                input.replace_all(format!("unsaved content {index}"), window, cx);
+                input.set_selected_range(1..3, cx);
+            });
+        }
+        inputs
+    }).unwrap();
+    cx.run_until_parked();
+    let focuses: Vec<_> = inputs.iter().map(|input| input.read_with(cx, |input, _| input.presentation().focus_handle().clone())).collect();
+    let drafts = shell.read_with(cx, |this, _| this.monitor.catalog.editors.iter().map(|editor| (editor.draft.clone(), editor.revision)).collect::<Vec<_>>());
+    for (language, expected) in [
+        (LanguageChoice::English, "Enter optional extra content"),
+        (LanguageChoice::Chinese, "输入可选的补充内容"),
+        (LanguageChoice::English, "Enter optional extra content"),
+    ] {
+        cx.update_window(handle, |_, window, cx| shell.update(cx, |this, cx| {
+            this.navigate(Page::Settings, cx);
+            this.select_language(language, window, cx);
+        })).unwrap();
+        settle(cx, &shell, |this| this.preference_save.pending.is_none());
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| this.navigate(Page::Monitor, cx));
+            window.render_frame(cx);
+            let current: Vec<_> = shell.read(cx).monitor.catalog.editors.iter()
+                .flat_map(|editor| editor.inputs.as_ref().unwrap().iter().cloned()).collect();
+            assert_eq!(current, inputs);
+            for (index, input) in inputs.iter().enumerate() {
+                let input = input.read(cx);
+                assert_eq!(input.presentation().placeholder().as_str(), expected);
+                assert_eq!(input.value().as_str(), format!("unsaved content {index}"));
+                assert_eq!(input.selected_range(), 1..3);
+                assert_eq!(input.presentation().focus_handle(), &focuses[index]);
+            }
+        }).unwrap();
+        cx.run_until_parked();
+        shell.read_with(cx, |this, _| assert_eq!(this.monitor.catalog.editors.iter().map(|editor| (editor.draft.clone(), editor.revision)).collect::<Vec<_>>(), drafts));
+    }
+}
+
 /// 逐帧只读真实图集；“全部帧都在”无法证明动画工作集，也不能证明全部释放。
 fn resident_image_frames(window: &gpui_kit::Window, image: &gpui_kit::RenderImage) -> Vec<usize> {
     (0..image.frame_count())

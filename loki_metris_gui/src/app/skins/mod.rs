@@ -48,12 +48,18 @@ impl Shell {
         self.skins.selected.clear();
         self.skins.import.take();
     }
-    /// 搜索实体只创建一次，输入法与搜索值跨页面保持。
+    /// 搜索实体只创建一次；语言变化原位更新提示，保留输入法与搜索值。
     pub(in crate::app) fn sync_skin_inputs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.page != Page::Skins || self.skins.search.is_some() {
+        if self.page != Page::Skins {
             return;
         }
         let placeholder = self.t("skins.search.placeholder");
+        if let Some(input) = &self.skins.search {
+            if input.read(cx).presentation().placeholder().as_str() != placeholder.as_str() {
+                input.update(cx, |input, cx| input.set_placeholder(placeholder, window, cx));
+            }
+            return;
+        }
         let input = cx.new(|cx| InputState::new(window, cx).placeholder(placeholder));
         self.skins.search_subscription = Some(cx.subscribe(&input, |_, _, event, cx| {
             if matches!(event, InputEvent::Change) {

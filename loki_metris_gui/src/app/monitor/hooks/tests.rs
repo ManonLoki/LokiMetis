@@ -27,6 +27,63 @@ fn settle(cx: &mut TestAppContext, shell: &Entity<Shell>, done: impl Fn(&Shell) 
     panic!("hook UI receipt did not settle");
 }
 
+#[gpui_kit::test]
+/// 目录提示换语言不保存或重建输入，不清除未保存目录与选区。
+fn directory_placeholder_follows_language_without_resetting_input(cx: &mut TestAppContext) {
+    use crate::{app::Page, preferences::LanguageChoice};
+    let root = tempfile::tempdir().unwrap();
+    let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    let inputs = cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, _| {
+            this.page = Page::Monitor;
+            this.monitor.route = Route::Hooks;
+            this.monitor.hooks.accept_locations(crate::monitor::store::list_hook_config_locations(
+                &crate::monitor::settings::MonitorSettings::default(), root.path()));
+        });
+        window.render_frame(cx);
+        let inputs: Vec<_> = shell.read(cx).monitor.hooks.editors.iter()
+            .map(|editor| editor.inputs.as_ref().unwrap()[0].clone()).collect();
+        for (index, input) in inputs.iter().enumerate() {
+            input.update(cx, |input, cx| {
+                input.replace_all(format!("unsaved directory {index}"), window, cx);
+                input.set_selected_range(1..3, cx);
+            });
+        }
+        inputs
+    }).unwrap();
+    cx.run_until_parked();
+    let focuses: Vec<_> = inputs.iter().map(|input| input.read_with(cx, |input, _| input.presentation().focus_handle().clone())).collect();
+    let revision = shell.read_with(cx, |this, _| this.monitor.hooks.feedback_revision);
+    for (language, expected) in [
+        (LanguageChoice::English, "Use an absolute path or a WSL UNC path"),
+        (LanguageChoice::Chinese, "请输入绝对路径或 WSL UNC 路径"),
+        (LanguageChoice::English, "Use an absolute path or a WSL UNC path"),
+    ] {
+        cx.update_window(handle, |_, window, cx| shell.update(cx, |this, cx| {
+            this.navigate(Page::Settings, cx);
+            this.select_language(language, window, cx);
+        })).unwrap();
+        settle(cx, &shell, |this| this.preference_save.pending.is_none());
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| this.navigate(Page::Monitor, cx));
+            window.render_frame(cx);
+            for (index, editor) in shell.read(cx).monitor.hooks.editors.iter().enumerate() {
+                assert_eq!(&editor.inputs.as_ref().unwrap()[0], &inputs[index]);
+                assert_eq!(editor.draft, format!("unsaved directory {index}"));
+                assert!(editor.dirty());
+                let input = inputs[index].read(cx);
+                assert_eq!(input.presentation().placeholder().as_str(), expected);
+                assert_eq!(input.value().as_str(), editor.draft);
+                assert_eq!(input.selected_range(), 1..3);
+                assert_eq!(input.presentation().focus_handle(), &focuses[index]);
+            }
+        }).unwrap();
+        cx.run_until_parked();
+        shell.read_with(cx, |this, _| assert_eq!(this.monitor.hooks.feedback_revision, revision));
+    }
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0, "仅翻译提示不得写Hooks");
+}
+
 /// 保存路径只写被捕获工具，未保存路径阻止写入，切换标签保留其它草稿。
 #[gpui_kit::test]
 fn hook_directory_controls_preserve_tool_drafts_and_disable_unsaved_write(cx: &mut TestAppContext) {
