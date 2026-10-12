@@ -1,0 +1,46 @@
+/// 使用真实 Shell 查询；局部标识和输出矩形在调用期间始终有效。
+#[inline]
+fn get_tray_rect(id: u32, guid: Option<GUID>, hwnd: HWND) -> Option<RECT> {
+    get_tray_rect_with_query(id, guid, hwnd, |identifier, rect| {
+        // 安全性：引用指向完整、有效的标识结构及独占可写 RECT，API 不保留这些指针。
+        unsafe { Shell_NotifyIconGetRect(identifier, rect) }
+    })
+}
+
+/// 完整保留托盘身份与矩形；查询边界可注入，不依赖真实桌面执行回归。
+fn get_tray_rect_with_query(
+    id: u32,
+    guid: Option<GUID>,
+    hwnd: HWND,
+    query: impl FnOnce(&NOTIFYICONIDENTIFIER, &mut RECT) -> i32,
+) -> Option<RECT> {
+    let mut nid = NOTIFYICONIDENTIFIER {
+        hWnd: hwnd,
+        cbSize: size_of::<NOTIFYICONIDENTIFIER>() as _,
+        uID: id,
+        // 安全性：此 Win32 POD 结构的空 GUID 及保留字段允许全零初始化。
+        ..unsafe { std::mem::zeroed() }
+    };
+    if let Some(guid) = guid {
+        nid.guidItem = guid;
+    }
+
+    let mut rect = RECT {
+        left: 0,
+        bottom: 0,
+        right: 0,
+        top: 0,
+    };
+    // 与微软通知图标示例的 SUCCEEDED 一致，实测 S_FALSE=1 也返回有效托盘矩形。
+    // https://learn.microsoft.com/en-us/windows/win32/api/winerror/nf-winerror-succeeded
+    if query(&nid, &mut rect) >= 0 {
+        Some(rect)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod rect_query_tests {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/windows_rect_tests.rs"));
+}

@@ -32,7 +32,7 @@ function assertRejected(pattern) {
   assert.ok(result.errors.some((error) => pattern.test(error)), JSON.stringify(result));
 }
 
-/** GPUI 清单相对 immutable upstream；shim 和补丁绝不进入排除集合。 */
+/** GPUI 与托盘包清单相对 immutable upstream；shim 和补丁绝不进入排除集合。 */
 function installGpuiSource(component = "vendor/gpui-pre") {
   const sourceRoot = fileURLToPath(new URL(`../../../../${component}/`, import.meta.url));
   const payload = readFileSync(path.join(sourceRoot, "source-content.sha256"));
@@ -52,6 +52,23 @@ function installGpuiSource(component = "vendor/gpui-pre") {
 beforeEach(() => { root = mkdtempSync(path.join(tmpdir(), "afh-third-party-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
+/** Windows 使用真实目录 junction 验证重解析点拒绝，不要求提升符号链接权限。 */
+function linkDirectory(original, target) {
+  symlinkSync(original, target, process.platform === "win32" ? "junction" : "dir");
+}
+
+/** 文件符号链接确无权限时明确跳过；其它创建错误仍使测试失败。 */
+function linkFileOrSkip(context, original, target) {
+  try {
+    symlinkSync(original, target, "file");
+    return true;
+  } catch (error) {
+    if (process.platform !== "win32" || error.code !== "EPERM") throw error;
+    context.skip("Windows 当前用户无文件符号链接创建权限，此用例未执行");
+    return false;
+  }
+}
+
 test("an absent registered component yields no exclusions or errors", () => {
   mkdirSync(path.join(root, "vendor/another_component"), { recursive: true });
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: [], errors: [] });
@@ -69,6 +86,26 @@ test("GPUI registration verifies its nested source root and excludes no maintain
   writeFileSync(path.join(root, "vendor/gpui-pre/src/lib.rs"), "// maintained shim\n");
   assert.equal(expected.length, 160);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
+});
+
+test("tray registration verifies all 26 originals and excludes no maintained patch or test", () => {
+  const expected = installGpuiSource("vendor/tray-icon");
+  for (const relative of ["src/windows_rect_tests.rs", "patches/hresult-query.after"]) {
+    const target = path.join(root, "vendor/tray-icon", relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, "maintained content\n");
+  }
+  assert.equal(expected.length, 26);
+  assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
+});
+
+test("tray source drift rejects its whole registration while preserving other sources", () => {
+  const expected = installSource();
+  installGpuiSource("vendor/tray-icon");
+  writeFileSync(path.join(root, "vendor/tray-icon/upstream/src/lib.rs"), "// changed\n");
+  const result = verifyRegisteredThirdParty(root);
+  assert.deepEqual(result.files, expected);
+  assert.ok(result.errors.some((error) => /原样文件 SHA256 不符.*tray-icon.*lib\.rs/u.test(error)));
 });
 
 test("macOS font registration verifies all 17 originals and excludes no helper or fixture", () => {
@@ -105,7 +142,7 @@ test("a symlink replacing GPUI upstream is rejected before source exclusion", ()
   const target = path.join(root, "vendor/gpui-pre/upstream");
   const original = path.join(root, "original-gpui-upstream");
   renameSync(target, original);
-  symlinkSync(original, target, "dir");
+  linkDirectory(original, target);
   assertRejected(/父目录不得是符号链接.*upstream/);
 });
 
@@ -146,12 +183,12 @@ test("an original file replaced by a directory is rejected before reading", () =
   assertRejected(/不是普通文件.*node\.rs/);
 });
 
-test("file symlinks are rejected even when their target contains original bytes", () => {
+test("file symlinks are rejected even when their target contains original bytes", (context) => {
   installSource();
   const target = path.join(root, directory, "upstream/src/node.rs");
   const original = path.join(root, "original-node.rs");
   renameSync(target, original);
-  symlinkSync(original, target);
+  if (!linkFileOrSkip(context, original, target)) return;
   assertRejected(/符号链接.*node\.rs/);
 });
 
@@ -160,7 +197,7 @@ test("a symlink in an original file parent directory is rejected", () => {
   const target = path.join(root, directory, "upstream");
   const original = path.join(root, "original-upstream");
   renameSync(target, original);
-  symlinkSync(original, target, "dir");
+  linkDirectory(original, target);
   assertRejected(/父目录不得是符号链接.*upstream/);
 });
 
@@ -169,16 +206,16 @@ test("a symlink in the registered component parent is rejected", () => {
   const target = path.join(root, "vendor");
   const original = path.join(root, "original-vendor");
   renameSync(target, original);
-  symlinkSync(original, target, "dir");
+  linkDirectory(original, target);
   assertRejected(/父目录不得是符号链接/);
 });
 
-test("the manifest itself cannot be a symlink", () => {
+test("the manifest itself cannot be a symlink", (context) => {
   installSource();
   const target = path.join(root, manifest);
   const original = path.join(root, "original-manifest");
   renameSync(target, original);
-  symlinkSync(original, target);
+  if (!linkFileOrSkip(context, original, target)) return;
   assertRejected(/符号链接.*source-content\.sha256/);
 });
 

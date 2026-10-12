@@ -6,6 +6,12 @@ import path from "node:path";
 
 const REGISTERED_SOURCES = Object.freeze([
   Object.freeze({
+    manifest: "vendor/tray-icon/source-content.sha256",
+    root: "vendor/tray-icon/upstream",
+    sha256: "43d8cea392f1ebe242cb4845548343384739e07fe43f35de7c09b07ed4bbbdc9",
+    entries: 26,
+  }),
+  Object.freeze({
     manifest: "vendor/accesskit_macos/source-content.sha256",
     sha256: "f4bc40427a5db1b6acf7262cf8d4bcdfe25c19b6a16499302252a3942e86ffda",
     entries: 18,

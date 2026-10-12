@@ -1,0 +1,24 @@
+#[inline]
+fn get_tray_rect(id: u32, guid: Option<GUID>, hwnd: HWND) -> Option<RECT> {
+    let mut nid = NOTIFYICONIDENTIFIER {
+        hWnd: hwnd,
+        cbSize: size_of::<NOTIFYICONIDENTIFIER>() as _,
+        uID: id,
+        ..unsafe { std::mem::zeroed() }
+    };
+    if let Some(guid) = guid {
+        nid.guidItem = guid;
+    }
+
+    let mut rect = RECT {
+        left: 0,
+        bottom: 0,
+        right: 0,
+        top: 0,
+    };
+    if unsafe { Shell_NotifyIconGetRect(&nid, &mut rect) } == S_OK {
+        Some(rect)
+    } else {
+        None
+    }
+}

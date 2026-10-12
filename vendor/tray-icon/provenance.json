@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "package": "tray-icon",
+  "version": "0.26.1",
+  "source": "https://crates.io/api/v1/crates/tray-icon/0.26.1/download",
+  "archive_sha256": "4f5cc5858ecf9574ddd8f0032a2ff7ffd6f7724d2b81e48b9374984b3fd6ddc9",
+  "source_manifest_sha256": "43d8cea392f1ebe242cb4845548343384739e07fe43f35de7c09b07ed4bbbdc9",
+  "upstream_file_count": 26,
+  "upstream_bytes": 283139,
+  "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched",
+  "official_repository": "https://github.com/tauri-apps/tray-icon",
+  "source_revision": "17e3196a15aa6174a21588ac4c5a52e322878479",
+  "manifest_definition": "Sorted UTF-8 SHA-256 lines, two ASCII spaces, upstream-relative path, LF; every archive regular file is unchanged."
+}
