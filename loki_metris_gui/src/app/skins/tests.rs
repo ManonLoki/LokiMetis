@@ -45,6 +45,36 @@ fn settle(cx: &mut TestAppContext, shell: &Entity<Shell>, done: impl Fn(&Shell) 
     }
     panic!("skin UI operation did not settle");
 }
+/// 单步越过保存面板门禁后离页，真实文件事务继续完成且不刷新外部宿主。
+fn finish_export_away(
+    cx: &mut TestAppContext,
+    shell: &Entity<Shell>,
+    reference: loki_metris_core::SkinReference,
+    chosen: std::path::PathBuf,
+) {
+    shell.update(cx, |this, cx| this.export_skin(reference, cx));
+    assert!(shell.read_with(cx, |this, _| this.skins.picking));
+    cx.simulate_new_path_selection(|_| Some(chosen.clone()));
+    let mut accepted = false;
+    for _ in 0..500 {
+        cx.executor().tick();
+        if shell.read_with(cx, |this, _| this.skins.busy) {
+            accepted = true;
+            break;
+        }
+    }
+    assert!(accepted, "保存面板必须真实提交后台导出");
+    shell.update(cx, |this, _| {
+        this.leave_skins();
+        this.page = Page::Settings;
+    });
+    settle(cx, shell, |this| !this.skins.picking && !this.skins.busy);
+    shell.read_with(cx, |this, _| {
+        assert_eq!(this.page, Page::Settings);
+        assert!(this.skins.query.is_none(), "导出回归不得刷新外部宿主");
+        assert!(!this.skins.loading);
+    });
+}
 /// 成功宿主快照是fixture，生产文件操作仍使用隔离UsageService。
 fn setup(
     this: &mut Shell,
@@ -281,6 +311,72 @@ fn late_export_picker_does_not_write_after_leaving_skins(cx: &mut TestAppContext
     cx.simulate_new_path_selection(|_| None);
     settle(cx, &shell, |this| !this.skins.picking);
     assert!(shell.read_with(cx, |this, _| this.skins.feedback.is_none()));
+}
+
+/// 保存面板未确认补出的ZIP路径，不能覆盖同名已有文件。
+#[gpui_kit::test]
+fn export_without_extension_preserves_existing_zip(cx: &mut TestAppContext) {
+    if isolated("export_without_extension_preserves_existing_zip") { return; }
+    let root = tempfile::tempdir().unwrap();
+    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let _finish = Finish(service.clone());
+    let skin = service.skin_work(|service| async move {
+        service.create_user_theme("Export fixture", "Fixture").await
+    }).unwrap().blocking_recv().unwrap().unwrap();
+    let reference = skin_reference(&skin);
+    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let (_, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    shell.update(cx, |this, cx| setup(this, service, entries, cx));
+    let chosen = root.path().join("导出 中文 空格");
+    let existing = chosen.with_extension("zip");
+    let sentinel = b"Existing archive must survive an unapproved destination";
+    std::fs::write(&existing, sentinel).unwrap();
+    finish_export_away(cx, &shell, reference, chosen.clone());
+    assert!(std::fs::read(&existing).unwrap() == sentinel, "补出的ZIP路径不得覆盖原文件");
+    assert!(!chosen.exists());
+    shell.read_with(cx, |this, _| {
+        let Some(Err(error)) = &this.skins.feedback else { panic!("导出冲突必须返回失败回执") };
+        assert_eq!(error.code, "skin.export_failed");
+    });
+}
+
+/// 裸名和大写ZIP导出内容有效；无效后缀保留原文件并返回具体失败。
+#[gpui_kit::test]
+fn export_new_basename_and_explicit_zip_write_valid_archive(cx: &mut TestAppContext) {
+    if isolated("export_new_basename_and_explicit_zip_write_valid_archive") { return; }
+    let root = tempfile::tempdir().unwrap();
+    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let _finish = Finish(service.clone());
+    let skin = service.skin_work(|service| async move {
+        service.create_user_theme("Export fixture", "Fixture").await
+    }).unwrap().blocking_recv().unwrap().unwrap();
+    let reference = skin_reference(&skin);
+    let (_, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
+    for (filename, explicit) in [("新增 中文 空格", false), ("明确 中文 空格.ZIP", true)] {
+        let chosen = root.path().join(filename);
+        if explicit { std::fs::write(&chosen, b"Existing explicitly selected archive").unwrap(); }
+        let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+        shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
+        finish_export_away(cx, &shell, reference.clone(), chosen.clone());
+        let destination = if explicit { chosen.clone() } else { chosen.with_extension("zip") };
+        let bytes = std::fs::read(&destination).unwrap();
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        assert!(archive.by_name("theme.json").is_ok(), "真实导出ZIP必须包含主题清单");
+        if !explicit { assert!(!chosen.exists()); }
+        shell.read_with(cx, |this, _| assert!(matches!(this.skins.feedback, Some(Ok(SkinSuccess::Exported)))));
+    }
+    let invalid = root.path().join("无效 中文 空格.txt");
+    let sentinel = b"Invalid extension must not change this file";
+    std::fs::write(&invalid, sentinel).unwrap();
+    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
+    finish_export_away(cx, &shell, reference, invalid.clone());
+    assert!(std::fs::read(&invalid).unwrap() == sentinel);
+    assert!(!invalid.with_extension("zip").exists());
+    shell.read_with(cx, |this, _| {
+        let Some(Err(error)) = &this.skins.feedback else { panic!("无效后缀必须返回失败回执") };
+        assert_eq!(error.code, "skin.export_invalid");
+    });
 }
 
 /// 成功回执保留原始名称，跨设置页切换语言后实际提示树必须同步译文。

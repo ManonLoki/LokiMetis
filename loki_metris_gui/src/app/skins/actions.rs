@@ -5,7 +5,7 @@ use super::state::{PendingApply, RestartMode};
 use super::{ModalKind, Outcome, Shell, SkinError, skin_reference};
 use gpui_kit::{Context, Window};
 use loki_metris_core::SkinReference;
-use std::{path::PathBuf, sync::atomic::Ordering};
+use std::{io::Write, path::PathBuf, sync::atomic::Ordering};
 
 impl Shell {
     /// 菜单中的目录打开也在后台等待launcher终态。
@@ -56,19 +56,22 @@ impl Shell {
                     move |service| async move {
                         let bytes = service.build_export_archive(&reference)?;
                         let mut path = path;
-                        match path.extension() {
+                        let saved = match path.extension() {
                             None => {
                                 path.set_extension("zip");
+                                // 面板未确认补名后的目标，原子创建避免覆盖已有ZIP或竞态文件。
+                                std::fs::OpenOptions::new().write(true).create_new(true)
+                                    .open(&path).and_then(|mut output| output.write_all(&bytes))
                             }
-                            Some(ext) if ext.eq_ignore_ascii_case("zip") => {}
+                            Some(ext) if ext.eq_ignore_ascii_case("zip") => std::fs::write(path, bytes),
                             _ => {
                                 return Err(SkinError::new(
                                     "skin.export_invalid",
                                     "请选择 ZIP 文件名。",
                                 ));
                             }
-                        }
-                        std::fs::write(path, bytes).map_err(|_| {
+                        };
+                        saved.map_err(|_| {
                             SkinError::new("skin.export_failed", "无法保存皮肤压缩包。")
                         })?;
                         Ok(Outcome::Exported)

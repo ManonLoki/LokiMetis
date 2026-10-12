@@ -43,7 +43,8 @@
     "WINDOWS-TRAY-HRESULT-SUCCESS-20261012",
     "LM-SKIN-JPEG-PLACEHOLDER-001",
     "LM-GUI-FEEDBACK-LOCALE-001",
-    "LM-GUI-INPUT-LOCALE-001"
+    "LM-GUI-INPUT-LOCALE-001",
+    "LM-SKIN-EXPORT-SUFFIX-OVERWRITE-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -309,8 +310,13 @@
       "change_id": "LM-GUI-INPUT-LOCALE-001",
       "kind": "bug-fix",
       "required_version": "0.2.44"
+    },
+    {
+      "change_id": "LM-SKIN-EXPORT-SUFFIX-OVERWRITE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.45"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.44"
+  "target_version": "0.2.45"
 }
