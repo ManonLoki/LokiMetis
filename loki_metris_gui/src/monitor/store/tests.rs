@@ -197,12 +197,8 @@ fn owned_worker_processes_enabled_request_and_shuts_down() {
     let writer = HookConfigWriter::start(PathBuf::from("/opt/LokiMetris"), root.path().to_owned());
 
     writer.request_enabled(settings);
-    for _ in 0..100 {
-        if std::fs::read_to_string(&config_path).is_ok_and(|text| text.hook_command_text().contains("/opt/LokiMetris")) {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    // 并发套件共用配置写锁；复用有界真实回执等待，再发出退出取消。
+    wait_for_repaired_hook(&config_path, "/opt/LokiMetris");
     writer.shutdown();
 
     assert!(config_path.exists());
