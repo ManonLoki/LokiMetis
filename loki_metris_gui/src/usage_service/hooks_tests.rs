@@ -188,7 +188,6 @@ fn automatic_hook_writer_observes_committed_directory_and_enabled_snapshot() {
                 .unwrap(),
         )
         .unwrap();
-    wait_file_containing(Path::new(&saved.config_path), "/fixture/LokiMetris");
     let settings = fixture
         .receive(service.monitor_settings().unwrap())
         .unwrap();
@@ -197,6 +196,7 @@ fn automatic_hook_writer_observes_committed_directory_and_enabled_snapshot() {
         saved.directory
     );
     assert_eq!(settings.enabled_ai_tools, vec![AiTool::ClaudeCode]);
+    wait_file_containing(Path::new(&saved.config_path), "/fixture/LokiMetris");
     assert!(
         !fixture
             .root
@@ -251,21 +251,33 @@ fn hook_write_followed_by_shutdown_has_owned_terminal_receipt() {
     assert!(service.list_monitor_hook_locations().is_err());
 }
 
-/// 最多等待真实文件工作五秒，超时必须失败。
+/// 有界等待真实文件工作，超时必须失败。
 fn wait_file(file: &Path) {
     wait_file_containing(file, "LokiMetris:tool=");
 }
 
-/// 等待旧注册被真实替换，不能仅凭夹具文件已存在而通过。
+/// 覆盖两个完整的五秒维护重试周期和并发写锁排队，仍要求旧注册被真实替换。
 fn wait_file_containing(file: &Path, command: &str) {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(15);
+    let mut last_read = Err("no read attempted".to_owned());
     while Instant::now() < deadline {
-        if std::fs::read_to_string(file).is_ok_and(|value| value.hook_command_text().contains(command)) {
-            return;
+        match std::fs::read_to_string(file) {
+            Ok(value) => {
+                let commands = value.hook_command_text();
+                if commands.contains(command) {
+                    return;
+                }
+                last_read = Ok((value, commands));
+            }
+            Err(error) => last_read = Err(format!("{:?}: {error}", error.kind())),
         }
         std::thread::sleep(Duration::from_millis(10));
     }
-    panic!("hook file did not commit: {}", file.display());
+    panic!(
+        "hook file did not commit: {}; expected={command:?}; elapsed={:?}; last_read={last_read:?}",
+        file.display(), started.elapsed(),
+    );
 }
 
 /// 磁盘映像卷与 Gatekeeper 临时目录不能作为长期 Hook 命令的可执行路径。
