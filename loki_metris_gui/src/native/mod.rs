@@ -212,7 +212,11 @@ pub(crate) fn minimize_main(cx: &mut App) {
 
 /// 托盘实际成功才隐藏，失败允许正常关闭，不留下无法恢复的进程。
 pub fn hide_if_available(cx: &mut App) -> bool {
-    let Some(request) = tray_hide::Request::begin(|| tray_restore_available(cx)) else { return false };
+    let available = tray_restore_available(cx);
+    tracing::info!(event="tray_hide_requested", services_present=cx.has_global::<Services>(),
+        tray_present=cx.try_global::<Services>().is_some_and(|service| service.tray.is_some()),
+        restore_entry_available=available);
+    let Some(request) = tray_hide::Request::begin(|| available) else { return false };
     #[cfg(all(windows, test))]
     let native = cx.global::<Services>().window;
     #[cfg(not(all(windows, test)))]

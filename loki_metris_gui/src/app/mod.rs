@@ -92,10 +92,13 @@ impl Shell {
             });
         });
         window.on_window_should_close(cx, move |window, cx| {
+            tracing::info!(event="main_window_close_requested");
             let _ = weak.update(cx, |this, cx| {
                 this.remember_window(window, cx);
             });
-            !crate::native::hide_if_available(cx)
+            let should_close = !crate::native::hide_if_available(cx);
+            tracing::info!(event="main_window_close_decision", should_close);
+            should_close
         });
         let bounds_subscription = cx.observe_window_bounds(window, |this, window, cx| {
             #[cfg(any(target_os="macos", all(windows, not(test))))]
