@@ -1,6 +1,6 @@
 //! 顶栏只改变原生外框；持久位置和大小继续描述历史宠物画布。
 
-use gpui_kit::{Bounds, Pixels};
+use gpui_kit::{Bounds, Pixels, Size};
 use loki_metris_core::{PetLayout, PetSizeRange, pet_window_dimensions};
 
 /// 包含顶栏与间距的固定逻辑高度，数值或质量变化不触发原生 resize。
@@ -18,6 +18,14 @@ pub(super) fn range(area: Bounds<Pixels>, layout: PetLayout) -> PetSizeRange {
 pub(super) fn dimensions(layout: PetLayout, pet_size: u16) -> (f64, f64) {
     let (width, height) = pet_window_dimensions(layout, pet_size);
     (width, height + HEADER_HEIGHT)
+}
+
+/// 与原生setter按物理像素取整后比较，兼容非整数DPI且不反复修正量化误差。
+pub(super) fn matches_dimensions(layout: PetLayout, pet_size: u16, actual: Size<Pixels>, scale: f32) -> bool {
+    let (width, height) = dimensions(layout, pet_size);
+    // Windows setter使用f32乘法；提升到f64会改变恰在半像素附近的取整结果。
+    (f32::from(actual.width) * scale).round() == (width as f32 * scale).round()
+        && (f32::from(actual.height) * scale).round() == (height as f32 * scale).round()
 }
 
 /// 原生手动 resize 和视图都从完整高度中扣除同一顶栏。

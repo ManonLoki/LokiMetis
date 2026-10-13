@@ -21,6 +21,8 @@ mod shutdown_receipt_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod resize_tests;
+#[cfg(test)]
 mod first_populated_tests;
 #[cfg(test)]
 mod today_tests;

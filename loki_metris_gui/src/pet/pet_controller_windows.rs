@@ -62,9 +62,22 @@ impl Controller {
         let mouse_requested = matches!(change, PetPreferenceChange::MousePassthrough(_));
         // 显式穿透意图还须合并到真实store，避免首次读取的旧值覆盖恢复。
         if next == old && !mouse_requested {
-            self.complete_first_focus(true, cx);
+            // 原生拖边在上下限或整数化后可能同值，只纠正真实几何而不重复提交配置。
+            let applied = if matches!(change, PetPreferenceChange::NativeSize(_)) && !old.locked {
+                match self.apply_geometry(false, cx) {
+                    Ok(()) => { self.last_error = None; true }
+                    Err(error) => {
+                        self.last_error = Some(HookError::new("error.monitor.petApplyFailed"));
+                        tracing::warn!(%error, "pet native resize correction failed");
+                        false
+                    }
+                }
+            } else { true };
+            self.complete_first_focus(applied, cx);
             self.busy = false;
             self.next_pending(cx);
+            if applied { self.recheck_native_resize(cx); }
+            cx.notify();
             return;
         }
         // 页码只改变内容；重复宿主事务会刷新 bounds 并使原生指针坐标失效。
@@ -111,7 +124,8 @@ impl Controller {
             };
             let _ = entity.update(cx, |this, cx| {
                 this.busy = false;
-                this.complete_first_focus(result.is_ok(), cx);
+                let saved = result.is_ok();
+                this.complete_first_focus(saved, cx);
                 match result {
                     Ok(settings) => {
                         this.settings = settings;
@@ -126,10 +140,29 @@ impl Controller {
                     }
                 }
                 this.next_pending(cx);
+                if saved { this.recheck_native_resize(cx); }
                 cx.notify();
             });
         }));
         cx.notify();
+    }
+    /// 成功或同值队列结束后补采样最后一次拖边；规范尺寸和未确认事务不制造bounds事件。
+    fn recheck_native_resize(&self, cx: &mut Context<Self>) {
+        let Some(handle) = self.overlay else { return; };
+        let owner = cx.entity().clone();
+        cx.defer(move |cx| {
+            let current = owner.read(cx);
+            if current.quitting || current.busy || current.overlay != Some(handle)
+                || current.display_applying || current.display_geometry_unconfirmed { return; }
+            let prefs = current.settings.pet_window;
+            let _ = handle.update(cx, |_, window, cx| {
+                let range = geometry::range(host::work_area(window), prefs.layout);
+                if !geometry::matches_dimensions(prefs.layout, range.constrain(prefs.pet_size),
+                    host::bounds(window).size, window.scale_factor()) {
+                    window.bounds_changed(cx);
+                }
+            });
+        });
     }
     /// 成功、失败和无效意图都继续处理已经排队的后续字段修改。
     fn next_pending(&mut self, cx: &mut Context<Self>) {
