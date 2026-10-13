@@ -55,7 +55,9 @@ impl Shell {
                 gpui_kit::base::Button::new(format!("skin-host-{host:?}"))
                     .role(Role::Tab)
                     .aria_selected(self.skins.host == Some(host))
-                    .tab_index(if self.skins.host == Some(host) { 0 } else { -1 })
+                    // GPUI的负序号仍参与Tab排序，未选标签必须显式排除。
+                    .tab_index(0)
+                    .tab_stop(self.skins.host == Some(host))
                     .track_focus(&focuses[index])
                     .accessibility_label(host.display_name())
                     .child(host.display_name())

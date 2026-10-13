@@ -249,7 +249,7 @@ fn user_skin_checkbox_keeps_section_offset_and_own_actions(cx: &mut TestAppConte
     }
 }
 
-/// 真实主窗从工具栏继续Tab进入用户卡片，不能漏掉选择、应用与资源菜单。
+/// 真实主窗Tab覆盖用户卡片并完整回绕，不能漏掉控件或进入未选宿主。
 #[gpui_kit::test]
 fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
@@ -279,6 +279,14 @@ fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
                 window.render_frame(cx);
                 assert_eq!(window.find(*id).focused(), Some(true), "Tab必须进入{id}，{width}×{height}");
             }
+            window.press("tab", cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("nav-dashboard").focused(), Some(true),
+                "末项Tab必须回绕到导航首项，跳过未选宿主，{width}×{height}");
+            window.press("shift-tab", cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("skin-actions-pikachu").focused(), Some(true),
+                "首项Shift+Tab必须回绕到资源菜单，跳过未选宿主，{width}×{height}");
             for id in controls.iter().rev().skip(1).copied().chain(["skin-refresh"]) {
                 window.press("shift-tab", cx);
                 window.render_frame(cx);
