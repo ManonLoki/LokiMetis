@@ -85,7 +85,8 @@ impl Controller {
             || old.pet_size != next.pet_size
             || old.always_on_top != next.always_on_top
             || old.locked != next.locked;
-        let old_bounds = if native_changed {
+        // 拖边后的矩形是未提交输入；失败时由旧偏好按当前屏幕重算，不能再次恢复该矩形。
+        let old_bounds = if native_changed && !matches!(change, PetPreferenceChange::NativeSize(_)) {
             self.overlay
                 .and_then(|handle| handle.update(cx, |_, window, _| host::bounds(window)).ok())
         } else {

@@ -91,9 +91,9 @@ impl Overlay {
                     range,
                 );
                 let geometry_matches = super::geometry::matches_dimensions(prefs.layout, size, bounds.size, scale);
-                // 夹紧或整数化后单格值可能未变，实际原生矩形仍须恢复布局比例。
+                // 比较当前屏幕的有效尺寸，运行态夹紧不能改写历史偏好；比例偏差仍须纠正。
                 if !owner.applying && !owner.display_applying && !owner.display_geometry_unconfirmed
-                    && !owner.busy && !prefs.locked && (size != prefs.pet_size || !geometry_matches) {
+                    && !owner.busy && !prefs.locked && (size != range.constrain(prefs.pet_size) || !geometry_matches) {
                     owner.change(PetPreferenceChange::NativeSize(size), cx);
                 }
                 owner.moved(bounds, scale, cx);

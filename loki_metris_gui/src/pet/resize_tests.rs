@@ -36,6 +36,18 @@ fn assert_geometry(f: &Fixture, before: loki_metris_core::PetWindowPreferences, 
     assert_eq!(std::fs::read(path).unwrap(), bytes);
 }
 
+/// 监听公开窗口事件设定回归上限，防止连续defer反馈在单次调度内挂死测试。
+fn bound_resize_feedback(f: &Fixture, cx: &mut TestAppContext) -> (Entity<usize>, gpui_kit::Subscription) {
+    let count = cx.new(|_| 0_usize);
+    let subscription = cx.update_window(f.overlay, |_, window, cx| {
+        count.update(cx, |_, cx| cx.observe_window_bounds(window, |count, _, _| {
+            *count += 1;
+            assert!(*count < 32, "native resize failure repeatedly refreshed window bounds");
+        }))
+    }).unwrap();
+    (count, subscription)
+}
+
 /// 最小单格值未变时，多格布局仍须回正被压小的窗口，单格保留合法最小值。
 #[gpui_kit::test]
 fn native_resize_at_minimum_restores_layout_without_changing_preferences(cx: &mut TestAppContext) {
@@ -126,6 +138,79 @@ fn native_resize_same_value_avoids_store_and_reports_native_failure(cx: &mut Tes
     settle(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.last_error.as_ref().map(|error| error.code)),
         Some("error.monitor.petApplyFailed"));
+    assert!(!f.owner.read_with(cx, |owner, _| owner.busy || !owner.pending.is_empty()));
+    assert_eq!(f.service.pet_settings_revision(), revision);
+    assert_eq!(std::fs::read(path).unwrap(), b"[");
+}
+
+/// 尺寸写入失败回到旧偏好的规范画布，不能恢复拖边后的矩形并无限重试。
+#[gpui_kit::test]
+fn native_resize_save_failure_restores_old_geometry_without_retry(cx: &mut TestAppContext) {
+    let f = fixture(cx);
+    save_current_position(&f, cx);
+    let before = f.owner.read_with(cx, |owner, _| owner.settings.pet_window);
+    let origin = cx.update_window(f.overlay, |_, window, _| window.bounds().origin).unwrap();
+    let path = f.root.path().join("monitor/monitor-settings.json");
+    let valid_bytes = std::fs::read(&path).unwrap();
+    std::fs::write(&path, b"[").unwrap();
+    let revision = f.service.pet_settings_revision();
+    let _feedback_limit = bound_resize_feedback(&f, cx);
+    cx.simulate_window_resize(f.overlay, size(px(200.), px(232.)));
+    settle(cx, &f.owner);
+    cx.update_window(f.overlay, |_, window, cx| {
+        assert_eq!(window.bounds(), Bounds::new(origin, size(px(128.), px(160.))));
+        for _ in 0..4 { window.bounds_changed(cx); }
+    }).unwrap();
+    settle(cx, &f.owner);
+    assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window), before);
+    assert_eq!(f.owner.read_with(cx, |owner, _| owner.last_error.as_ref().map(|error| error.code)),
+        Some("error.monitor.settingsInvalid"));
+    assert!(!f.owner.read_with(cx, |owner, _| owner.busy || !owner.pending.is_empty()));
+    assert_eq!(f.service.pet_settings_revision(), revision);
+    assert_eq!(std::fs::read(&path).unwrap(), b"[");
+    // 修复配置后显式重试仍可成功，不能用永久错误门禁掩盖反馈循环。
+    std::fs::write(&path, valid_bytes).unwrap();
+    cx.simulate_window_resize(f.overlay, size(px(200.), px(232.)));
+    settle(cx, &f.owner);
+    assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.pet_size), 100);
+    assert!(f.owner.read_with(cx, |owner, _| owner.last_error.is_none()));
+    assert_eq!(f.service.pet_settings_revision(), revision + 1);
+}
+
+/// 当前工作区只夹紧运行尺寸；回滚不能把历史尺寸超过当前上限视为新拖边。
+#[gpui_kit::test]
+fn native_resize_save_failure_preserves_larger_historical_size(cx: &mut TestAppContext) {
+    let f = fixture(cx);
+    let range = PetSizeRange::for_work_area(2400., PetLayout::Grid);
+    let settings = f.service.change_pet_preferences(PetPreferenceChange::Size(200), range)
+        .unwrap().blocking_recv().unwrap().unwrap();
+    f.owner.update(cx, |owner, cx| {
+        owner.settings = settings;
+        owner.display_geometry_unconfirmed = true;
+        owner.apply_geometry(false, cx).unwrap();
+    });
+    cx.run_until_parked();
+    f.owner.update(cx, |owner, _| owner.display_geometry_unconfirmed = false);
+    save_current_position(&f, cx);
+    let before = f.owner.read_with(cx, |owner, _| owner.settings.pet_window);
+    let expected = f.owner.update(cx, |owner, cx| {
+        geometry::dimensions(before.layout, owner.range(before.layout, cx).constrain(before.pet_size))
+    });
+    let path = f.root.path().join("monitor/monitor-settings.json");
+    std::fs::write(&path, b"[").unwrap();
+    let revision = f.service.pet_settings_revision();
+    let _feedback_limit = bound_resize_feedback(&f, cx);
+    cx.simulate_window_resize(f.overlay, size(px(200.), px(232.)));
+    settle(cx, &f.owner);
+    cx.update_window(f.overlay, |_, window, cx| {
+        assert_eq!(window.bounds().size, size(px(expected.0 as f32), px(expected.1 as f32)));
+        for _ in 0..4 { window.bounds_changed(cx); }
+    }).unwrap();
+    settle(cx, &f.owner);
+    assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window), before);
+    assert_eq!(before.pet_size, 200);
+    assert_eq!(f.owner.read_with(cx, |owner, _| owner.last_error.as_ref().map(|error| error.code)),
+        Some("error.monitor.settingsInvalid"));
     assert!(!f.owner.read_with(cx, |owner, _| owner.busy || !owner.pending.is_empty()));
     assert_eq!(f.service.pet_settings_revision(), revision);
     assert_eq!(std::fs::read(path).unwrap(), b"[");
