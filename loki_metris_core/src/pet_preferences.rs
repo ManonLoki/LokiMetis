@@ -241,7 +241,8 @@ pub fn pet_size_from_resize(
         return range.constrain(previous);
     }
     let (rows, columns) = layout.dimensions();
-    let (old_width, old_height) = pet_window_dimensions(layout, previous);
+    // 历史偏好可能大于当前工作区上限；拖动轴须以实际可见的旧画布为基准。
+    let (old_width, old_height) = pet_window_dimensions(layout, range.constrain(previous));
     let cell = if (width - old_width).abs() >= (height - old_height).abs() {
         width / columns as f64
     } else {
@@ -298,6 +299,9 @@ mod tests {
             90
         );
         assert_eq!(pet_window_dimensions(PetLayout::Column3, 80), (80., 240.));
+        let narrow = PetSizeRange::for_work_area(1080., PetLayout::Row3);
+        assert_eq!(pet_size_from_resize(PetLayout::Row3, 270., 80., 200, narrow), 80);
+        assert_eq!(pet_size_from_resize(PetLayout::Column3, 80., 270., 200, narrow), 80);
     }
     /// 分页保留绝对位置，锁定只阻止原生／滚轮缩放，非法滑块值不提交。
     #[test]

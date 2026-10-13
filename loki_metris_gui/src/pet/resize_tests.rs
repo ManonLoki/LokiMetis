@@ -216,6 +216,42 @@ fn native_resize_save_failure_preserves_larger_historical_size(cx: &mut TestAppC
     assert_eq!(std::fs::read(path).unwrap(), b"[");
 }
 
+/// 历史偏好在当前屏幕被夹紧后，缩短排布局的短轴仍须按可见旧画布判断。
+#[gpui_kit::test]
+fn native_resize_from_clamped_history_uses_visible_axis(cx: &mut TestAppContext) {
+    for layout in [PetLayout::Row3, PetLayout::Column3] {
+        let f = fixture(cx);
+        let range = PetSizeRange::for_work_area(4800., layout);
+        f.service.change_pet_preferences(PetPreferenceChange::Layout(layout), range)
+            .unwrap().blocking_recv().unwrap().unwrap();
+        let settings = f.service.change_pet_preferences(PetPreferenceChange::Size(200), range)
+            .unwrap().blocking_recv().unwrap().unwrap();
+        f.owner.update(cx, |owner, cx| {
+            owner.settings = settings;
+            owner.display_geometry_unconfirmed = true;
+            owner.apply_geometry(false, cx).unwrap();
+        });
+        cx.run_until_parked();
+        f.owner.update(cx, |owner, _| owner.display_geometry_unconfirmed = false);
+        save_current_position(&f, cx);
+        let _feedback_limit = bound_resize_feedback(&f, cx);
+        let dragged = match layout {
+            PetLayout::Row3 => size(px(270.), px(112.)),
+            PetLayout::Column3 => size(px(80.), px(302.)),
+            _ => unreachable!(),
+        };
+        cx.simulate_window_resize(f.overlay, dragged);
+        settle(cx, &f.owner);
+        assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.pet_size), 80,
+            "{layout:?}应保留用户缩短短轴的意图");
+        let (width, height) = geometry::dimensions(layout, 80);
+        cx.update_window(f.overlay, |_, window, _| {
+            assert_eq!(window.bounds().size, size(px(width as f32), px(height as f32)));
+        }).unwrap();
+        assert!(f.owner.read_with(cx, |owner, _| owner.last_error.is_none()));
+    }
+}
+
 /// 非整数DPI的宿主量化结果是稳定终点，相差一个真实像素才需要修正。
 #[test]
 fn native_resize_comparison_uses_physical_pixel_quantization() {
