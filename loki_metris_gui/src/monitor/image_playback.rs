@@ -257,7 +257,7 @@ impl Render for MonitorImageView {
         #[cfg(target_os = "macos")]
         let residency = (self.source.id.clone(), self.owner.clone());
         let frame = self.frame;
-        let viewport_corners = self.viewport_corners.clone();
+        let viewport_corners = self.viewport_corners;
         let fit = match self.fit {
             ObjectFit::Fill => ObjectFit::Fill,
             ObjectFit::Contain => ObjectFit::Contain,
@@ -317,7 +317,7 @@ impl Render for MonitorImageView {
                                     padded,
                                     ImageRoundedClip {
                                         bounds,
-                                        corner_radii: viewport_corners.clone(),
+                                        corner_radii: viewport_corners,
                                     },
                                     decoded.image.clone(),
                                     frame,

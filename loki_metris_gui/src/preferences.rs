@@ -97,11 +97,10 @@ impl Preferences {
         let language = match self.language { LanguageChoice::System => "system", LanguageChoice::Chinese => "zh-CN", LanguageChoice::English => "en-US" };
         let bounds = self.bounds.map(|b| format!("{},{},{},{}", b[0], b[1], b[2], b[3])).unwrap_or_default();
         let mut text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\nsystem_notification={}\n", self.collapsed, self.maximized, self.system_notification);
-        if let Some(state) = self.window_state_v2.as_ref().filter(|state| state.is_valid()) {
-            if let Ok(json) = serde_json::to_string(state) {
+        if let Some(state) = self.window_state_v2.as_ref().filter(|state| state.is_valid())
+            && let Ok(json) = serde_json::to_string(state) {
                 text.push_str("window_state_v2="); text.push_str(&json); text.push('\n');
             }
-        }
         text
     }
 }
@@ -256,7 +255,7 @@ fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
             match command {
                 Command::Mutate(patch,reply)=>{let _=reply.send(result.map(|_|patch).map_err(|_|"preference_save_failed"));},
                 Command::Stop=>break,
-                Command::Window=>{if let Err(error)=result {if matches!(storage,Storage::File(_)) {tracing::warn!(event="preference_save_failed",error_kind=?error.kind());}}},
+                Command::Window=>{if let Err(error)=result&& matches!(storage,Storage::File(_)) {tracing::warn!(event="preference_save_failed",error_kind=?error.kind());}},
             }
         }
     });

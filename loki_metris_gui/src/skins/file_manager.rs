@@ -29,7 +29,7 @@ async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
     {
         let mut command = tokio::process::Command::new("/usr/bin/open");
         command.arg(&directory);
-        return run_file_manager_command(command).await;
+        run_file_manager_command(command).await
     }
     #[cfg(target_os = "windows")]
     {

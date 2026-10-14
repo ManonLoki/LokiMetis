@@ -78,7 +78,7 @@ fn host_endpoint_candidates_from_commands(
     let mut endpoints = explicit_endpoint_candidates_from_commands(commands);
     if host == SkinHostKind::WorkBuddy {
         let default = CdpEndpoint::default_for(host);
-        if !endpoints.iter().any(|endpoint| *endpoint == default) {
+        if !endpoints.contains(&default) {
             endpoints.push(default);
         }
     }

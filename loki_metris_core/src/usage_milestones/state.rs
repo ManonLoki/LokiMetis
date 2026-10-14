@@ -138,12 +138,11 @@ impl MilestoneDay {
         }
         self.pending.clear();
         self.retries.clear();
-        if let Some(r) = self.reservation.as_mut() {
-            if !r.unknown {
+        if let Some(r) = self.reservation.as_mut()
+            && !r.unknown {
                 r.unknown = true;
                 self.unknown_count = self.unknown_count.saturating_add(1);
             }
-        }
         if expired {
             self.reservation = None;
         }
@@ -344,13 +343,12 @@ impl MilestoneState {
     /// 崩溃恢复把已保存预约转为 Unknown；需要平台核对或人类明确重试。
     pub fn recover(&mut self) {
         for d in &mut self.days {
-            if let Some(r) = d.reservation.as_mut() {
-                if !r.unknown {
+            if let Some(r) = d.reservation.as_mut()
+                && !r.unknown {
                     r.unknown = true;
                     d.unknown_count = d.unknown_count.saturating_add(1);
                     self.issue = Some(MilestoneIssue::Unknown);
                 }
-            }
         }
     }
     /// 结果落盘前不能对外声明成功；驱动以事务克隆调用此方法。

@@ -109,11 +109,10 @@ impl AgentSettingsStore {
 
     /// 首次读取失败不缓存默认值，后续显式重试仍可恢复真实配置。
     pub(super) async fn snapshot(self: &Arc<Self>) -> Result<MonitorSettings, HookError> {
-        if let Ok(value) = self.value.try_lock() {
-            if let Some(settings) = &*value {
+        if let Ok(value) = self.value.try_lock()
+            && let Some(settings) = &*value {
                 return Ok(settings.clone());
             }
-        }
         let store = self.clone();
         let (tx, rx) = oneshot::channel();
         self.owner

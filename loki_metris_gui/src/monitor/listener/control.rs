@@ -291,14 +291,14 @@ async fn wait_for_hook_listener_task(
     task: &mut OwnedHookListenerTask,
     deadline: tokio::time::Instant,
 ) -> Option<Result<(), tokio::task::JoinError>> {
-    let result = if task.handle.is_finished() {
+    
+    if task.handle.is_finished() {
         Some((&mut task.handle).await)
     } else {
         tokio::time::timeout_at(deadline, &mut task.handle)
             .await
             .ok()
-    };
-    result
+    }
 }
 
 /// 记录 listener 任务终态；取消属于预期回收，panic 与其他错误保持可观察。
@@ -334,7 +334,7 @@ impl Drop for HookListenerControl {
         write_hook_listener_policy(&self.policy).closing=true;
         self.replace_enabled_tools(&[]);
         let _ = self.shutdown.send(true);
-        let tasks = self.lock_tasks().tasks.drain(..).collect::<Vec<_>>();
+        let tasks = std::mem::take(&mut self.lock_tasks().tasks);
         for task in &tasks {
             task.handle.abort();
         }

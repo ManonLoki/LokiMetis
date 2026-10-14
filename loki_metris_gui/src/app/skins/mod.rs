@@ -176,11 +176,10 @@ impl Shell {
     }
     /// 当前活跃项优先唯一实例报告，比较来源与ID的完整身份。
     fn active_skin(&self) -> Option<SkinReference> {
-        if self.skins.instances.len() == 1 {
-            if let Some(reference) = &self.skins.instances[0].active_skin {
+        if self.skins.instances.len() == 1
+            && let Some(reference) = &self.skins.instances[0].active_skin {
                 return Some(reference.clone());
             }
-        }
         self.skins
             .status
             .as_ref()

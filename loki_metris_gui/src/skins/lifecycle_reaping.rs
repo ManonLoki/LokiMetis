@@ -99,16 +99,14 @@ impl Drop for SkinService {
                 task.abort();
             }
         }
-        if let Ok(active) = self.import_preparation.get_mut() {
-            if let Some(active) = active.take() {
+        if let Ok(active) = self.import_preparation.get_mut()
+            && let Some(active) = active.take() {
                 active.cancelled.store(true, Ordering::Release);
             }
-        }
-        if let Ok(state) = self.pending_import.get_mut() {
-            if let Some(pending) = state.take() {
+        if let Ok(state) = self.pending_import.get_mut()
+            && let Some(pending) = state.take() {
                 let _ = std::fs::remove_dir_all(pending.staging_root);
             }
-        }
     }
 }
 

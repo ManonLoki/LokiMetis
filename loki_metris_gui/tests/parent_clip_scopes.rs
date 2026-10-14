@@ -261,7 +261,7 @@ fn parent_clip_exclusions_exact_half_open_gaps_nested_and_scope_restore(cx: &mut
     cx.update_window(handle, |_, window, cx| {
         window.draw(cx).clear(cx);
         let mask = ContentMask { bounds: rect(0., 0., 100., 100.) };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         let target = state.latest().hitbox.id;
         let restored = outside.borrow().last().unwrap().hitbox.id;
         let parents = actual_ids(window, point(px(10.), px(10.)))
@@ -360,7 +360,7 @@ fn parent_clip_exclusions_cache_key_same_changed_removed_and_replay(cx: &mut Tes
         assert!(actual_ids(window, point(px(50.), px(50.))).contains(&id));
         assert!(!actual_ids(window, point(px(50.), px(70.))).contains(&id));
         let mask = ContentMask { bounds: rect(0., 0., 100., 100.) };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         window.draw(cx).clear(cx);
         assert_eq!(state.renders.get(), renders + 1);
         exclusions.borrow_mut().clear();
@@ -397,7 +397,7 @@ fn parent_clip_exclusions_parent_deferred_replay_and_legacy_escape(cx: &mut Test
                 let prepaint_mask = if mode == 2 {
                     ContentMask { bounds: Bounds::new(Point::default(), window.viewport_size()) }
                 } else {
-                    paint_mask.clone()
+                    paint_mask
                 };
                 assert_paint_owner_and_ax(window, &state, prepaint_mask, paint_mask);
             }
@@ -427,7 +427,7 @@ fn parent_clip_exclusions_cache_radius_change_restores_and_retains_exclusions(
         assert!(!actual_ids(window, point(px(50.), px(50.))).contains(&id));
         assert!(actual_ids(window, point(px(50.), px(10.))).contains(&id));
         let mask = ContentMask { bounds: rect(0., 0., 100., 100.) };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         for _ in 0..3 {
             window.draw(cx).clear(cx);
             assert_eq!(state.renders.get(), initial + 1);

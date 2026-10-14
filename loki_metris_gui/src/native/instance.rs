@@ -186,8 +186,8 @@ fn notify(directory: &Path) -> io::Result<()> {
     let (mut sent, mut received) = (0, 0);
     let mut ack = [0; 3];
     while Instant::now() < deadline {
-        let result = if sent < 5 { socket.0.write(&b"show\n"[sent..]).map(|count| { sent += count; count }) }
-            else { socket.read_available(&mut ack[received..]).map(|count| { received += count; count }) };
+        let result = if sent < 5 { socket.0.write(&b"show\n"[sent..]).inspect(|&count| { sent += count; }) }
+            else { socket.read_available(&mut ack[received..]).inspect(|&count| { received += count; }) };
         match result { Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()), Ok(_) => {}, Err(error) if retryable(&error) => {}, Err(error) => return Err(error) }
         if received == 3 { return if ack == *b"ok\n" { Ok(()) } else { Err(io::ErrorKind::InvalidData.into()) } }
         thread::sleep(POLL);
@@ -237,9 +237,8 @@ fn private_directory(directory: &Path) -> io::Result<PathBuf> {
                 let mut builder = fs::DirBuilder::new();
                 #[cfg(unix)]
                 { use std::os::unix::fs::DirBuilderExt; builder.mode(0o700); }
-                if let Err(error) = builder.create(&current) {
-                    if error.kind() != io::ErrorKind::AlreadyExists { return Err(error) }
-                }
+                if let Err(error) = builder.create(&current)
+                    && error.kind() != io::ErrorKind::AlreadyExists { return Err(error) }
                 let metadata = fs::symlink_metadata(&current)?;
                 if linked(&metadata) || !metadata.is_dir() { return Err(io::ErrorKind::InvalidInput.into()) }
             }

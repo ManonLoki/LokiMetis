@@ -61,11 +61,10 @@ impl Shell {
     pub(super) fn select_monitor_route(&mut self, route: Route, cx: &mut Context<Self>) {
         if self.monitor.route != route { self.page_scroll.invalidate(); }
         self.monitor.route = route;
-        if matches!(route,Route::Management|Route::Images) {
-            if !self.monitor.catalog.images_loaded && !self.monitor.catalog.images_loading {
+        if matches!(route,Route::Management|Route::Images)
+            && !self.monitor.catalog.images_loaded && !self.monitor.catalog.images_loading {
                 self.load_monitor_images(cx);
             }
-        }
         if route == Route::Management {
             self.load_agent_settings(cx);
             if !self.monitor.catalog.profiles_loaded && !self.monitor.catalog.profiles_loading {
@@ -136,11 +135,10 @@ impl Shell {
                                 return;
                             }
                             let value = input.read(cx).value().to_string();
-                            if let Some(editor) = this.monitor.catalog.editor_mut(tool) {
-                                if let Some(hook) = editor.draft.hooks.get_mut(index) {
+                            if let Some(editor) = this.monitor.catalog.editor_mut(tool)
+                                && let Some(hook) = editor.draft.hooks.get_mut(index) {
                                     hook.content = value;
                                 }
-                            }
                             this.monitor.catalog.changed(tool);
                             cx.notify();
                         },
@@ -288,8 +286,8 @@ impl Shell {
         id: String,
         cx: &mut Context<Self>,
     ) {
-        if let Some(editor) = self.monitor.catalog.editor_mut(tool) {
-            if let Some(hook) = editor
+        if let Some(editor) = self.monitor.catalog.editor_mut(tool)
+            && let Some(hook) = editor
                 .draft
                 .hooks
                 .iter_mut()
@@ -297,7 +295,6 @@ impl Shell {
             {
                 hook.image = id;
             }
-        }
         self.monitor.catalog.changed(tool);
         if self.monitor_tool() == Some(tool) {
             self.monitor.catalog.picker = None;
@@ -344,13 +341,12 @@ impl Shell {
                 state.saving = false;
                 match result {
                     Ok(draft) => {
-                        if let Some(editor) = state.editor_mut(tool) {
-                            if editor.revision == revision {
+                        if let Some(editor) = state.editor_mut(tool)
+                            && editor.revision == revision {
                                 editor.draft = draft;
                                 editor.reset_inputs = true;
                                 state.saved_tool = Some(tool);
                             }
-                        }
                     }
                     Err(error) => state.feedback = Some(Err(error)),
                 }

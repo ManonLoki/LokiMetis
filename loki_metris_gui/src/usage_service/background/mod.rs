@@ -445,14 +445,14 @@ async fn wait_for_owned_task(
     task: &mut OwnedBackgroundTask,
     deadline: tokio::time::Instant,
 ) -> Option<Result<(),tokio::task::JoinError>> {
-    let result = if task.handle.is_finished() {
+    
+    if task.handle.is_finished() {
         Some((&mut task.handle).await)
     } else {
         tokio::time::timeout_at(deadline, &mut task.handle)
             .await
             .ok()
-    };
-    result
+    }
 }
 
 /// 在共享截止时间前逐一观察终态，并立即移除已完成句柄，保证 guard 可安全恢复余项。

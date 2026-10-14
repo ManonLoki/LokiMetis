@@ -157,7 +157,7 @@ fn shadow_oracle(
     let mut bytes = vec![0; w as usize * h as usize * 4];
     // 当前产品radius≤20且所有CSS spread≤-20，负spread后casting radius严格收敛为0。
     assert!(
-        radius >= 0. && radius <= 20.,
+        (0. ..=20.).contains(&radius),
         "品牌材质半径必须处于当前产品的0..20px范围"
     );
     let radius = (radius * scale).min(f64::from(card_w.min(card_h)) / 2.);

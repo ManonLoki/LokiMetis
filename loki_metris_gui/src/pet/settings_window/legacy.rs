@@ -11,15 +11,14 @@ pub(super) fn open(owner: Entity<Controller>, cx: &mut App) {
     }).unwrap_or_else(|| Bounds::new(point(px(0.), px(0.)), size(px(1440.), px(900.))));
     let origin = point(area.origin.x + (area.size.width - px(320.)) / 2.,
         area.origin.y + (area.size.height - px(470.)) / 2.);
-    if let Some(handle) = owner.read(cx).settings_window {
-        if handle.update(cx, |_, window, cx| {
+    if let Some(handle) = owner.read(cx).settings_window
+        && handle.update(cx, |_, window, cx| {
             if let Err(error) = host::move_to(window, f64::from(f32::from(origin.x)), f64::from(f32::from(origin.y))) {
                 tracing::warn!(%error, "pet settings recenter failed");
             }
             window.bounds_changed(cx);
             window.activate_window();
         }).is_ok() { return; }
-    }
     let controller = owner.clone();
     let result = cx.open_window(WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds::new(origin, size(px(320.), px(470.))))),

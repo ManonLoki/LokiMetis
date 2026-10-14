@@ -214,8 +214,8 @@ impl Overlay {
         {
             self.players.remove(&id);
         }
-        if let Some(source) = source {
-            if !self.players.contains_key(&id) {
+        if let Some(source) = source
+            && !self.players.contains_key(&id) {
                 let view = cx.new(|cx| {
                     MonitorImageView::new(source.clone(), ObjectFit::Contain, window, cx)
                 });
@@ -229,7 +229,6 @@ impl Overlay {
                     },
                 );
             }
-        }
         let decoded = self
             .players
             .get(&id)
@@ -305,8 +304,8 @@ impl Overlay {
                     .child(player.view.clone()),
             );
         }
-        if let Some(content) = &slot.tile {
-            if self.hovered {
+        if let Some(content) = &slot.tile
+            && self.hovered {
                 tile = tile.child(
                     div()
                         .id(("pet-labels", usize::from(id)))
@@ -335,7 +334,6 @@ impl Overlay {
                         ),
                 );
             }
-        }
         tile.into_any_element()
     }
 }

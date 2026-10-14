@@ -101,9 +101,8 @@ impl Shell {
                 .child(SourceButton::new("sources-discovery-cancel",SourceButtonVariant::LightRed,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!running||self.dashboard.client==4)
                     .label(self.t("sources.discovery.cancel"))
                     .on_click(cx.listener(|this,_,_,cx| {
-                        if let Some(service)=&this.dashboard.service {
-                            if let Err(error)=service.cancel_discovery(){this.dashboard.sources.feedback=Some(Err(error));}
-                        }cx.notify();
+                        if let Some(service)=&this.dashboard.service
+                            && let Err(error)=service.cancel_discovery(){this.dashboard.sources.feedback=Some(Err(error));}cx.notify();
                     })))));
         let candidates:Vec<_>=view.candidates.iter().filter(|candidate|Some(candidate.client)==self.usage_client()&&view.failed_ids.contains(&candidate.id)).collect();
         let progress=status.progress;

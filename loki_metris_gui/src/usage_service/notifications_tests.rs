@@ -156,13 +156,12 @@ async fn run(
         if overflow.swap(false, Ordering::AcqRel) {
             error = Some("notification_callback_capacity");
         }
-        if let Some(reservation) = next.days.last().and_then(|d| d.reservation.as_ref()) {
-            if !reservation.unknown && now.saturating_sub(reservation.started_ms) >= 15_000 {
+        if let Some(reservation) = next.days.last().and_then(|d| d.reservation.as_ref())
+            && !reservation.unknown && now.saturating_sub(reservation.started_ms) >= 15_000 {
                 let id =
                     milestone_request_id(&next.days.last().unwrap().day.key(), reservation.bucket);
                 next.complete(&id, MilestoneOutcome::Unknown, now);
             }
-        }
         let (saved, result) = persist(ledger, next).await;
         ledger = saved;
         if let Err(failure) = result {
@@ -218,11 +217,10 @@ async fn run(
         let now = current_epoch_ms();
         let mut next = ledger.state.clone();
         let value = snapshot.as_ref().filter(|s| day.as_ref() == Some(&s.day));
-        if let Some(value) = value {
-            if error.is_none() {
+        if let Some(value) = value
+            && error.is_none() {
                 next.observe(value, now);
             }
-        }
         // 先持久入队，再单独持久预约；前一步失败绝不能派发系统调用。
         let (saved, result) = persist(ledger, next).await;
         ledger = saved;
@@ -237,15 +235,14 @@ async fn run(
         ledger = saved;
         match result {
             Ok(_) => {
-                if let Some(request) = request {
-                    if requests.try_send((epoch, request.clone())).is_err() {
+                if let Some(request) = request
+                    && requests.try_send((epoch, request.clone())).is_err() {
                         let mut next = ledger.state.clone();
                         next.complete(&request.id, MilestoneOutcome::Unknown, now);
                         let (saved, result) = persist(ledger, next).await;
                         ledger = saved;
                         error = result.err();
                     }
-                }
             }
             Err(failure) => error = Some(failure),
         }

@@ -172,14 +172,13 @@ fn write_hook_config_unlocked(
         return Err(HookError::new("error.hooks.wslUnsupportedByWindowsHost")
             .param("tool", ai_tool_name(tool)));
     }
-    if mode == HookRegistrationMode::RepairOwnedOnly {
-        if let Some(directory) = &wsl_directory {
+    if mode == HookRegistrationMode::RepairOwnedOnly
+        && let Some(directory) = &wsl_directory {
             let primary = directory.join(hook_config_filename(tool)).read_optional()?;
             if !mode.permits_primary(tool, primary.as_deref())? {
                 return Ok(hook_config_write_result(tool, config_path.to_string_lossy().into_owned(), false));
             }
         }
-    }
     let generated = if let Some(wsl_directory) = &wsl_directory {
         let wsl_executable = wsl_directory.translate_windows_executable(relay_executable)?;
         generate_wsl_hook_config(tool, relay_executable, &wsl_executable)?

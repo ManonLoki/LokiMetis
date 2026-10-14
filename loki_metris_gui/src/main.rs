@@ -106,7 +106,7 @@ fn main() -> std::process::ExitCode {
                 cx.quit();
             }
         }).detach();
-        notifications.attach(usage_service.clone(),locale,handle.into(),cx);
+        notifications.attach(usage_service.clone(),locale,handle,cx);
         native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
         if !native::startup::show_main(starts_hidden, native::tray_restore_available(cx)) {
@@ -117,7 +117,7 @@ fn main() -> std::process::ExitCode {
         #[cfg(target_os = "macos")]
         if !native::tray_restore_available(cx) { cx.set_activation_policy(gpui_kit::ActivationPolicy::Regular); }
         #[cfg(any(target_os="macos", all(windows, not(test))))]
-        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle.into(), cx); }
+        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle, cx); }
         #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
         cx.activate(true);
     });

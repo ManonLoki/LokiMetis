@@ -207,7 +207,7 @@ impl Shell {
             .relative()
             .size_full()
             .overflow_hidden()
-            .child(checkerboard(checker, corners.clone(), cx));
+            .child(checkerboard(checker, corners, cx));
         // 独立画布先按实际布局决定需求，未进入视口的格子不会启动任何解码。
         preview = preview.child(
             canvas(
@@ -263,7 +263,7 @@ impl Shell {
                             epoch,
                             cx.new(|cx| {
                                 MonitorImageView::new(source, fit, window, cx)
-                                    .with_viewport_corners(corners.clone())
+                                    .with_viewport_corners(corners)
                             }),
                         )
                     });

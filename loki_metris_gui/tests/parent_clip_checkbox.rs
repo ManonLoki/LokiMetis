@@ -97,7 +97,7 @@ fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Probe>) {
             )
         })
         .unwrap();
-    (handle.into(), entity)
+    (handle, entity)
 }
 
 fn event(handle: AnyWindowHandle, event: impl InputEvent, cx: &mut TestAppContext) {

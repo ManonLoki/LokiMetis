@@ -62,9 +62,8 @@ impl Shell {
                         }
                         this.dashboard.sources.roots=Some(roots);this.dashboard.sources.refresh_failed=false;
                         // 只有权威来源查询成功才允许恢复当前客户端的候选登记。
-                        if let Some(service)=&this.dashboard.service {
-                            if let Err(error)=service.resume_discovery(client) {this.dashboard.sources.feedback=Some(Err(error));}
-                        }
+                        if let Some(service)=&this.dashboard.service
+                            && let Err(error)=service.resume_discovery(client) {this.dashboard.sources.feedback=Some(Err(error));}
                     },
                     Err(error)=>this.sources_query_failed(error),_=>this.sources_query_failed("usage_query_failed"),
                 }cx.notify();

@@ -30,11 +30,10 @@ pub(super) fn install(locale: &str, cx: &mut App) {
     });
     cx.on_action(|_: &ToggleAutostart, cx| {
         let state = super::autostart_state(cx);
-        if !state.busy {
-            if let Some(enabled) = state.enabled {
+        if !state.busy
+            && let Some(enabled) = state.enabled {
                 super::set_autostart(!enabled, cx);
             }
-        }
     });
     cx.bind_keys([KeyBinding::new(
         if cfg!(target_os = "macos") {

@@ -115,18 +115,18 @@ impl RenderOnce for HostTab {
         let (background, foreground, running) = owner.update(cx, |state, cx| {
             let (background, foreground) = if self.selected {
                 (
-                    rgb(if dark { 0x3c241d } else { 0xfbe2d6 }).into(),
-                    rgb(if dark { 0xffb18e } else { 0x94291f }).into(),
+                    rgb(if dark { 0x3c241d } else { 0xfbe2d6 }),
+                    rgb(if dark { 0xffb18e } else { 0x94291f }),
                 )
             } else if state.hovered {
                 (
-                    rgb(if dark { 0x2a2622 } else { 0xf0e9de }).into(),
-                    rgb(if dark { 0xf1ede8 } else { 0x2f2922 }).into(),
+                    rgb(if dark { 0x2a2622 } else { 0xf0e9de }),
+                    rgb(if dark { 0xf1ede8 } else { 0x2f2922 }),
                 )
             } else {
                 (
                     transparent_black().into(),
-                    rgb(if dark { 0xbdb7af } else { 0x655d54 }).into(),
+                    rgb(if dark { 0xbdb7af } else { 0x655d54 }),
                 )
             };
             let now = cx.background_executor().now();

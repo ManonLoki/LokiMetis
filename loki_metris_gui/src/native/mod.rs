@@ -163,11 +163,10 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
                 let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
                 cx.spawn(async move |cx| {
                     let live = cx.update(|cx| window_action_current(generation, cx) && handle.update(cx, |_, _, _| ()).is_ok());
-                    if live { if let Some(host) = host { host.show(); cx.update(|cx| cx.activate(true)); } }
+                    if live && let Some(host) = host { host.show(); cx.update(|cx| cx.activate(true)); }
                 }).detach();
             }
         }
-        return;
     }
     #[cfg(any(not(any(target_os="macos", windows)), test))]
     {
@@ -274,7 +273,7 @@ pub fn set_language(locale: &str, cx: &mut App) {
     menu::set_language(locale, cx);
     if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.set_language(locale);}
     crate::pet::set_language(locale,cx);
-    if cx.has_global::<Services>() { if let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); } }
+    if cx.has_global::<Services>() && let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); }
 }
 /// 设置视图仅读取内存快照，实际 OS 状态由后台 worker 更新。
 pub fn autostart_state(cx: &App) -> autostart::State {
@@ -305,7 +304,7 @@ pub(crate) fn configure_font_smoothing() {
 }
 
 /// 托盘只按用户会话可见性改标签，不把系统遮挡误当作隐藏。
-pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services>() {if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_pet_visibility(visible);}}}
+pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services>()&& let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_pet_visibility(visible);}}
 
 /// 设置页只读取应用级通知偏好，离页不丢失真实保存结果。
 pub fn notification_state(cx:&App)->notifications::State {cx.try_global::<Services>().map(|services|services.notifications.state()).unwrap_or_default()}

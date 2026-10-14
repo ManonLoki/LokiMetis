@@ -169,8 +169,8 @@ impl Controller {
             self.today = today;
             cx.notify();
         }
-        if let Ok(status) = self.service.monitor_status() {
-            if self.observed.3 != status.revision {
+        if let Ok(status) = self.service.monitor_status()
+            && self.observed.3 != status.revision {
                 self.states = status
                     .pet_states
                     .into_iter()
@@ -179,7 +179,6 @@ impl Controller {
                 self.observed.3 = status.revision;
                 cx.notify();
             }
-        }
         self.focus_first_populated(cx);
         let keys = self.snapshot_revisions();
         if self.loading
@@ -236,13 +235,12 @@ impl Controller {
                 let complete = settings.is_some() && catalog_complete;
                 this.retry_after =
                     (!complete).then(|| cx.background_executor().now() + Duration::from_secs(2));
-                if generation == this.settings_generation && !this.busy {
-                    if let Some(settings) = settings {
+                if generation == this.settings_generation && !this.busy
+                    && let Some(settings) = settings {
                         this.settings = settings;
                         this.settings_ready = true;
                         this.accept_loaded_geometry((keys.0, keys.1), cx);
                     }
-                }
                 if let Some(drafts) = drafts {
                     this.drafts = drafts.drafts;
                 }
@@ -398,13 +396,12 @@ impl Controller {
         };
         self.applying = false;
         let result = result.and_then(|()| self.apply_mouse_passthrough(cx));
-        if result.is_ok() {
-            if let Some(handle) = self.overlay {
+        if result.is_ok()
+            && let Some(handle) = self.overlay {
                 cx.defer(move |cx| {
                     let _ = handle.update(cx, |_, window, cx| window.bounds_changed(cx));
                 });
             }
-        }
         result
     }
     /// 属性或落盘失败时恢复此前原点和尺寸，不能保留夹紧后的新位置。

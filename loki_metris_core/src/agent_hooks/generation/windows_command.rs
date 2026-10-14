@@ -64,7 +64,7 @@ pub(super) fn has_marker(command: &str, marker: &str) -> bool {
     let Some(encoded) = command.strip_prefix(PREFIX) else { return false; };
     let Ok(bytes) = STANDARD.decode(encoded) else { return false; };
     if bytes.len() % 2 != 0 { return false; }
-    let units: Vec<_> = bytes.chunks_exact(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect();
+    let units: Vec<_> = bytes.as_chunks::<2>().0.iter().map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect();
     let Ok(script) = String::from_utf16(&units) else { return false; };
     let Some(arguments) = relay_arguments(&script) else { return false; };
     !arguments[0].is_empty()

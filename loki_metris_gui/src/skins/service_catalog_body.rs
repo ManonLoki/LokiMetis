@@ -56,11 +56,10 @@ impl SkinService {
             .read()
             .map_err(|_| catalog_cache_error())?
             .clone();
-        if let Some(cached) = cached {
-            if cached.fingerprint == fingerprint {
+        if let Some(cached) = cached
+            && cached.fingerprint == fingerprint {
                 return Ok(cached.skins);
             }
-        }
         self.refresh_catalog()
     }
 

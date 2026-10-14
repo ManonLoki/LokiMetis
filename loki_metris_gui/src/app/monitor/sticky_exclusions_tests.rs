@@ -235,7 +235,7 @@ fn monitor_sticky_exclusions_exact_half_open_gaps_nested_and_scope_restore(
         let mask = ContentMask {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
         };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         let target = state.latest().hitbox.id;
         let restored = outside.borrow().last().unwrap().hitbox.id;
         let parents = actual_ids(window, point(px(10.), px(10.)))
@@ -333,7 +333,7 @@ fn monitor_sticky_exclusions_cache_key_same_changed_removed_and_replay(cx: &mut 
         let mask = ContentMask {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
         };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         window.draw(cx).clear(cx);
         assert_eq!(state.renders.get(), renders + 1);
         exclusions.borrow_mut().clear();
@@ -368,7 +368,7 @@ fn monitor_sticky_exclusions_parent_deferred_replay_and_legacy_escape(cx: &mut T
                 let mask = ContentMask {
                     bounds: Bounds::new(Point::default(), window.viewport_size()),
                 };
-                assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+                assert_paint_owner_and_ax(window, &state, mask, mask);
             }
         })
         .unwrap();

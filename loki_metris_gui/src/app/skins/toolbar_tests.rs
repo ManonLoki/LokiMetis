@@ -239,7 +239,7 @@ fn host_hover_finishes_and_disabled_toolbar_blocks_native_activation(cx: &mut Te
     cx.executor().advance_clock(Duration::from_millis(80));
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
-        near_color(background(window, "host"), rgb(0xf0e9de).into());
+        near_color(background(window, "host"), rgb(0xf0e9de));
         window.simulate_next_frame(cx);
         window.render_frame(cx);
         assert_eq!(
@@ -252,7 +252,7 @@ fn host_hover_finishes_and_disabled_toolbar_blocks_native_activation(cx: &mut Te
             cx.notify();
         });
         window.render_frame(cx);
-        near_color(background(window, "refresh"), rgb(0xe9ecef).into());
+        near_color(background(window, "refresh"), rgb(0xe9ecef));
         window.click("host", cx);
         window.click("refresh", cx);
         window.press("tab", cx);

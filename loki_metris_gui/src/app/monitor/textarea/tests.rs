@@ -56,14 +56,13 @@ fn near(window: &Window, actual: Pixels, expected: f32) {
 /// 填充和边框可由 Kit 分成两个图元；都必须来自同一个真实输入边界。
 fn material(window: &Window, bounds: Bounds<Pixels>) -> (gpui_kit::Quad, gpui_kit::Quad) {
     let quads = window.painted_quads();
-    let background = quads
+    let background = *quads
         .iter()
         .find(|quad| {
             quad.bounds == bounds.scale(window.scale_factor())
                 && quad.background.as_solid().is_some_and(|color| color.a > 0.)
         })
-        .expect("真实输入必须绘制背景")
-        .clone();
+        .expect("真实输入必须绘制背景");
     let border = quads
         .into_iter()
         .find(|quad| {
@@ -178,8 +177,8 @@ fn shell_textarea_focus_eases_without_ring_or_sibling_state(cx: &mut TestAppCont
         y2: 1.,
     }
     .sample(0.5);
-    let from = gpui_kit::Rgba::from(rgb(0xced4da));
-    let to = gpui_kit::Rgba::from(rgb(0xc43b2d));
+    let from = rgb(0xced4da);
+    let to = rgb(0xc43b2d);
     let expected = Hsla::from(gpui_kit::Rgba {
         r: from.r + (to.r - from.r) * easing,
         g: from.g + (to.g - from.g) * easing,

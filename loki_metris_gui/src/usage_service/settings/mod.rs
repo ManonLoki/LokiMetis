@@ -24,7 +24,7 @@ impl SettingsStore {
 
     /// 首次有界读取失败保持未加载；后续显式重试可重新读取，不伪造默认成功。
     pub(super) async fn snapshot(self:&Arc<Self>)->Result<UsageSettings,&'static str> {
-        if let Ok(value)=self.value.try_lock() {if let Some(settings)=*value {return Ok(settings)}}
+        if let Ok(value)=self.value.try_lock()&& let Some(settings)=*value {return Ok(settings)}
         let store=self.clone();let(tx,rx)=oneshot::channel();
         self.owner.spawn_blocking("usage-settings-read",move|_|{let _=tx.send(store.snapshot_blocking());})?;
         rx.await.map_err(|_|"usage_settings_unavailable")?

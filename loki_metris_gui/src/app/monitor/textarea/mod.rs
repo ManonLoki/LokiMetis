@@ -139,7 +139,7 @@ impl Element for MonitorTextarea {
         let now = cx.background_executor().now();
         let (border, running) = request
             .1
-            .update(cx, |motion, _| motion.sample(target.into(), now));
+            .update(cx, |motion, _| motion.sample(target, now));
         request.0.prepaint(window, cx);
         if let (Some(target), Some(state)) = (&self.reveal, &request.2) {
             reveal::observe(state, &self.input, target, bounds, window, cx);

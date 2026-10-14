@@ -76,11 +76,10 @@ impl Shell {
 
     /// 取消、遮罩和 Escape 统一恢复最初触发控件焦点。
     fn close_source_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(dialog) = self.dashboard.sources.modal.take() {
-            if let Some(focus) = dialog.previous_focus {
+        if let Some(dialog) = self.dashboard.sources.modal.take()
+            && let Some(focus) = dialog.previous_focus {
                 window.focus(&focus, cx);
             }
-        }
         cx.notify();
     }
 

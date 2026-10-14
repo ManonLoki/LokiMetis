@@ -293,13 +293,13 @@ pub(crate) fn hook_relay_rendezvous_path() -> anyhow::Result<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         let home = std::env::var_os("HOME").map(PathBuf::from);
-        return select_hook_relay_rendezvous_path(
+        select_hook_relay_rendezvous_path(
             HookRelayHostPlatform::Macos,
             None,
             home.as_deref(),
             None,
             None,
-        );
+        )
     }
     #[cfg(target_os = "windows")]
     {

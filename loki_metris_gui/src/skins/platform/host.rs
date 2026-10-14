@@ -64,8 +64,8 @@ async fn platform_workbuddy_endpoint_owned_by_root(
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_process::host_endpoint_owned_by_root(SkinHostKind::WorkBuddy, port, root_pid)
-            .await;
+        macos_process::host_endpoint_owned_by_root(SkinHostKind::WorkBuddy, port, root_pid)
+            .await
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
@@ -91,8 +91,8 @@ async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Resu
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_process::host_endpoint_owned_by_root(SkinHostKind::Codex, port, root_pid)
-            .await;
+        macos_process::host_endpoint_owned_by_root(SkinHostKind::Codex, port, root_pid)
+            .await
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {

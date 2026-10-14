@@ -10,7 +10,7 @@ pub(in crate::app) fn colors(
     disabled: bool,
     hovered: bool,
 ) -> (Rgba, Rgba, Rgba) {
-    let rgb = |hex| Rgba::from(gpui_kit::rgb(hex));
+    let rgb = |hex| gpui_kit::rgb(hex);
     let transparent = rgb(0).opacity(0.);
     if disabled {
         return (

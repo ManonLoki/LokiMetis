@@ -267,7 +267,7 @@ impl Drop for MetadataWorkerPool {
     fn drop(&mut self) {
         self.sender.take();
         let deadline = Instant::now() + WORKER_SHUTDOWN_GRACE;
-        let mut pending = self.workers.drain(..).collect::<Vec<_>>();
+        let mut pending = std::mem::take(&mut self.workers);
         while !pending.is_empty() {
             join_finished_workers(&mut pending);
             if pending.is_empty() || Instant::now() >= deadline {

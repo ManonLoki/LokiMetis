@@ -171,7 +171,7 @@ impl UsageService {
         let registered = self.background.spawn("skin-import-owner", move |mut shutdown| async move {
             loop {
                 if shutdown.is_cancelled() { observer.abandon(); }
-                if observer.abandoned() { if let Err(error) = observer.cancel(&owner.service) { if shutdown.is_cancelled() { tracing::warn!(code=error.code, "skin import shutdown cleanup failed"); break; } } }
+                if observer.abandoned() && let Err(error) = observer.cancel(&owner.service) && shutdown.is_cancelled() { tracing::warn!(code=error.code, "skin import shutdown cleanup failed"); break; }
                 if observer.finished() { break; }
                 tokio::select! { _ = shutdown.cancelled(), if !shutdown.is_cancelled() => {}, _ = tokio::time::sleep(std::time::Duration::from_millis(30)) => {} }
             }

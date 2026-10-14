@@ -19,8 +19,8 @@ impl Shell {
     /// 初次读取失败不展示伪造空库，刷新失败保留已确认卡片并提供重试。
     pub(super) fn skins_notices(&self, writable: bool, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let mut page = Notices::default();
-        if let Some(draft) = &self.skins.import {
-            if draft.batch.is_none() {
+        if let Some(draft) = &self.skins.import
+            && draft.batch.is_none() {
                 let (processed, total) = draft.lease.session.progress();
                 page = page.child(
                     div().id("skin-import-progress").role(Role::Status).child(
@@ -30,7 +30,6 @@ impl Shell {
                     ),
                 );
             }
-        }
         if let Some(error) = self
             .skins
             .catalog_error

@@ -29,7 +29,7 @@ impl SkinService {
         host: SkinHostKind,
         observed_generation: u64,
     ) -> bool {
-        observed_generation % 2 == 0 && self.host_runtime_generation(host) == observed_generation
+        observed_generation.is_multiple_of(2) && self.host_runtime_generation(host) == observed_generation
     }
 
     /// 读取同一应用生命周期内最近一次经过宿主页验证的调试端点。

@@ -195,7 +195,7 @@ impl UsageService {
             for change in plan.changes {
                 if let Err(error)=self.context.agents.save_pet_blocking(Some(change),None) {tracing::warn!(code=error.code,"pet shutdown preference failed");}
             }
-            if let Some(position)=plan.position {if let Err(error)=self.context.agents.save_pet_blocking(None,Some(position)) {tracing::warn!(code=error.code,"pet shutdown position failed");}}
+            if let Some(position)=plan.position&& let Err(error)=self.context.agents.save_pet_blocking(None,Some(position)) {tracing::warn!(code=error.code,"pet shutdown position failed");}
             if !self.scans.stop(Duration::from_secs(10)) { tracing::warn!(event = "usage_shutdown_drain_timeout"); }
             if !self.queries.stop(Duration::from_secs(5)) { tracing::warn!(event = "usage_query_drain_timeout"); }
             runtime.shutdown_timeout(Duration::from_secs(1));

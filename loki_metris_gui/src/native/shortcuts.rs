@@ -47,11 +47,10 @@ impl Service {
     pub fn pending(&self) -> Vec<fn(&mut App)> {
         let mut handlers = Vec::new();
         for event in GlobalHotKeyEvent::receiver().try_iter().take(64) {
-            if event.state == HotKeyState::Pressed {
-                if let Some(binding) = self.owned.iter().find(|binding| binding.chord.id() == event.id) {
+            if event.state == HotKeyState::Pressed
+                && let Some(binding) = self.owned.iter().find(|binding| binding.chord.id() == event.id) {
                     handlers.push(binding.dispatch);
                 }
-            }
         }
         handlers
     }

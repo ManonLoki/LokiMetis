@@ -68,7 +68,7 @@ impl ShadowGeometry {
         let (card_height, y) = slices(height, cap(146.), cap(106.), near_y, cap(100.));
         let width = card_width + near_x + cap(76.) + 2;
         let height = card_height + near_y + cap(100.) + 2;
-        assert!(radius >= 0. && radius <= 20., "品牌材质半径必须处于当前产品的0..20px范围");
+        assert!((0. ..=20.).contains(&radius), "品牌材质半径必须处于当前产品的0..20px范围");
         let radius = (radius * scale).min(f64::from(card_width.min(card_height)) / 2.);
         let mut runs: Vec<MaskRun> = Vec::new();
         let mut row_offsets = vec![0];

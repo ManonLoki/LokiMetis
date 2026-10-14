@@ -76,7 +76,8 @@ pub(super) async fn run_listener(
         current.bind_address = bind_address;
     }
     let connection_slots = Arc::new(Semaphore::new(HOOK_CONNECTION_TASK_LIMIT));
-    let listener_result = run_connection_loop(
+    
+    run_connection_loop(
         listener,
         Arc::clone(&status),
         sender,
@@ -85,8 +86,7 @@ pub(super) async fn run_listener(
         shutdown,
         connection_slots,
     )
-    .await;
-    listener_result
+    .await
 }
 
 /// 接受连接并在固定并发槽内持有全部连接任务，关闭前中止并回收每个任务与许可。

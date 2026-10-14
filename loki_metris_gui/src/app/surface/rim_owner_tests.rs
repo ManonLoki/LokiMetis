@@ -164,7 +164,7 @@ fn accent_removal_zero_dimensions_and_hiding_release_geometry(cx: &mut TestAppCo
             assert_eq!(audit(&probe, cx).0, (expected - 1, false));
             let owner = probe.read(cx).owner.as_ref().unwrap().read(cx);
             assert!(owner.audit().1.is_empty());
-            assert_eq!(owner.shadow.geometry_audit().1, false);
+            assert!(!owner.shadow.geometry_audit().1);
             assert!(images.iter().all(|image| !window.has_image_atlas_entry(image)));
             probe.update(cx, |probe, cx| { probe.width = px(320.); probe.height = px(180.); cx.notify(); });
             window.render_frame(cx);
@@ -224,7 +224,7 @@ fn pixel_snapped_empty_bounds_release_current_and_retired_materials(cx: &mut Tes
         let owner = probe.read(cx).owner.as_ref().unwrap().read(cx);
         assert!(owner.audit().1.is_empty());
         assert_eq!(owner.rim.geometry_audit(), (2, false));
-        assert_eq!(owner.shadow.geometry_audit().1, false);
+        assert!(!owner.shadow.geometry_audit().1);
         assert!(owner.retired.is_empty());
         assert!(images.iter().all(|image| !window.has_image_atlas_entry(image)));
     }).unwrap();

@@ -123,11 +123,10 @@ impl Shell {
             4 => Some(SourceClientKind::WorkBuddy),
             _ => None,
         };
-        if scan {
-            if let Err(error) = service.request_scan(client, loki_metris_core::ScanStartOrigin::ExplicitUser) {
+        if scan
+            && let Err(error) = service.request_scan(client, loki_metris_core::ScanStartOrigin::ExplicitUser) {
                 self.dashboard.scan_error = Some(error);
             }
-        }
         let query = match self.dashboard.route {
             Route::Statistics => {
                 let dimension = self.statistics_dimension();

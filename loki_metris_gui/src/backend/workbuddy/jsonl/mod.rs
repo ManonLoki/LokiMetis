@@ -186,15 +186,13 @@ pub(super) fn read_project_usage(
         remaining_bytes = remaining_bytes.saturating_sub(allowed_len);
         // 只有文件完整落入字节与记录预算时才复用：命中后的结果与重新解析逐项相同。
         let complete = allowed_len == observed_len;
-        if complete {
-            if let Some(parsed) = cache::lookup(root_id, &stamp, source) {
-                if records.len().saturating_add(parsed.records.len()) < MAX_USAGE_RECORDS {
+        if complete
+            && let Some(parsed) = cache::lookup(root_id, &stamp, source)
+                && records.len().saturating_add(parsed.records.len()) < MAX_USAGE_RECORDS {
                     records.extend(parsed.records.iter().cloned());
                     warnings.merge(parsed.warnings);
                     continue;
                 }
-            }
-        }
         let first_record = records.len();
         match parse_project_stream(reader.take(allowed_len), source, root_id, &mut records) {
             Ok(report) => {

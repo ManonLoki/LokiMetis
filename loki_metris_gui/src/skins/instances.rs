@@ -84,7 +84,7 @@ fn runtime_instance_belongs_to_host(host: SkinHostKind, key: &str) -> bool {
 }
 
 /// 从宿主命名空间键中恢复原始实例 ID，并兼容旧的无前缀键。
-fn runtime_instance_id<'a>(host: SkinHostKind, key: &'a str) -> &'a str {
+fn runtime_instance_id(host: SkinHostKind, key: &str) -> &str {
     key.strip_prefix(match host {
         SkinHostKind::Codex => "codex:",
         SkinHostKind::WorkBuddy => "workBuddy:",
@@ -399,11 +399,10 @@ fn recovered_skin_identity(probe: Option<ActiveSkinProbe>) -> Option<RecoveredSk
             && value.chars().count() <= 80
             && !value.chars().any(char::is_control)
     })?;
-    if let (Some(source), Some(id)) = (probe.source, probe.id) {
-        if is_valid_skin_id(&id) {
+    if let (Some(source), Some(id)) = (probe.source, probe.id)
+        && is_valid_skin_id(&id) {
             return Some(RecoveredSkinIdentity::Exact(SkinReference { source, id }));
         }
-    }
     probe
         .legacy_theme_id
         .filter(|id| is_valid_skin_id(id))

@@ -99,7 +99,7 @@
         let root_a = resolved_instance_for_host(SkinHostKind::WorkBuddy, process(70));
         let root_b = resolved_instance_for_host(SkinHostKind::WorkBuddy, process(71));
 
-        let bound = unique_workbuddy_target_for_endpoint(&[root_a.clone()], endpoint)
+        let bound = unique_workbuddy_target_for_endpoint(std::slice::from_ref(&root_a), endpoint)
             .expect("唯一根应绑定到已验证端点");
         assert!(workbuddy_target_binding_matches(
             &root_a, &bound, endpoint

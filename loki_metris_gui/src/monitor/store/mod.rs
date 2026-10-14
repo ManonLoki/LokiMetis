@@ -273,8 +273,8 @@ impl HookConfigWriter {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
-        if let Some(worker_handle) = worker_handle {
-            if let Err(worker_handle) =
+        if let Some(worker_handle) = worker_handle
+            && let Err(worker_handle) =
                 join_worker_until(worker_handle, HOOK_WRITER_SHUTDOWN_TIMEOUT)
             {
                 retained_hook_writer_owner().retain(worker_handle);
@@ -283,7 +283,6 @@ impl HookConfigWriter {
                     "hook config writer exceeded shutdown deadline and was transferred to the retained owner"
                 );
             }
-        }
         retained_hook_writer_owner().reap_finished();
         #[cfg(target_os = "windows")]
         super::wsl::shutdown_wsl_owners(HOOK_WRITER_SHUTDOWN_TIMEOUT);
