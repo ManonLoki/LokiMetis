@@ -90,7 +90,7 @@ export function renderPreviewPlist(config, facts) {
     LSMinimumSystemVersion: config.macos.minimumSystemVersion, NSPrincipalClass: 'NSApplication',
   };
   const fields = Object.entries(values).map(([key, value]) => `  <key>${key}</key><string>${xml(value)}</string>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n${fields.join('\n')}\n  <key>NSHighResolutionCapable</key><true/>\n  <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>\n</dict></plist>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n${fields.join('\n')}\n  <key>LSUIElement</key><${config.macos.agent ? 'true' : 'false'}/>\n  <key>NSHighResolutionCapable</key><true/>\n  <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>\n</dict></plist>\n`;
 }
 
 /** Cargo 的绝对目标目录可在项目外，但所有现存组件必须是真实普通目录。 */

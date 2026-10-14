@@ -12,6 +12,7 @@ import { candidateSelection, containsBytes, renderReleaseNotesRust } from './gpu
 import { packagerConfig, signingChoice, finalizeSigning, verifyResources, verifyNsis } from './gpui_packager.mjs';
 import { encodePng, decodePng, renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable } from './gpui_resources.mjs';
+import { localDmgSigningHook, signLocalDmgApp, verifyLocalBundle } from './gpui_macos_identity.mjs';
 
 test('failed real subprocess retains captured test stdout alongside compiler stderr and quiet remains private', () => {
   const run = commandRunner(fs.realpathSync(os.tmpdir()));
@@ -77,12 +78,34 @@ function fakeRun(f, overrides = {}) {
       fs.copyFileSync(path.join(config.binariesDir,'sample_gui'),path.join(app,'Contents/MacOS/sample_gui'));
       for (const file of config.resources) { const target=path.join(app,'Contents/Resources',file.target);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(file.src,target); }
       if (overrides.resourceTamper) fs.writeFileSync(path.join(app,'Contents/Resources/LICENSE.en.md'),'different');
+      if (config.formats.includes('dmg')) {
+        assert.ok(config.beforeEachPackageCommand, 'DMG must sign before sealing');
+        const binary = path.join(app, 'Contents/MacOS/sample_gui');
+        const work = path.dirname(args[1]);
+        signLocalDmgApp(run, app, f.config.identifier, binary, sha256(binary), path.join(work, 'local-dmg-identity.json'), settings.env);
+        fs.writeFileSync(path.join(config.outDir, `${config.productName}_0.1.0_aarch64.dmg`), 'unit-test-dmg');
+      }
       return response;
     }
     if (program === 'ditto' && args.includes('-c')) { const source = args.at(-2), destination = args.at(-1); appByZip.set(destination,source); fs.writeFileSync(destination,'unit-test-archive'); return response; }
     if (program === 'ditto' && args.includes('-x')) { const source = appByZip.get(args.at(-2)); const target=path.join(args.at(-1),path.basename(source));fs.cpSync(source,target,{ recursive: true });if(overrides.finalResourceTamper)fs.writeFileSync(path.join(target,'Contents/Resources/skins/builtin/theme/preview.png'),'tampered');if(overrides.finalResourceRootLink){const resources=path.join(target,'Contents/Resources');fs.renameSync(resources,`${resources}.original`);fs.symlinkSync(`${resources}.original`,resources,'junction');}return response; }
     if (program === process.execPath) return response;
-    if (program === 'plutil') return { ...response,stdout: ({ CFBundleIdentifier: f.config.identifier,CFBundleExecutable: f.config.binary,CFBundleShortVersionString: '0.1.0' })[args[1]] + '\n' };
+    if (program === 'plutil') return { ...response,stdout: ({ CFBundleIdentifier: f.config.identifier,CFBundleExecutable: f.config.binary,CFBundleShortVersionString: '0.1.0',LSUIElement: f.config.macos.agent ? 'true' : 'false' })[args[1]] + '\n' };
+    if (program === '/usr/bin/codesign') {
+      if (overrides.signingFailure) throw new Error('local signing failed');
+      if (args[0] === '--force') fs.appendFileSync(path.join(args.at(-1), 'Contents/MacOS/sample_gui'), '-signed');
+      return { ...response, stderr: `Identifier=${overrides.wrongIdentity ? 'foreign.app' : f.config.identifier}\nSignature=adhoc\nInfo.plist entries=14\nSealed Resources version=2\n` };
+    }
+    if (program === 'hdiutil') {
+      if (args[0] === 'detach') return response;
+      const mount = args.at(-2), work = path.dirname(mount), source = path.join(work, 'packages', `${f.config.productName}.app`);
+      fs.cpSync(source, path.join(mount, path.basename(source)), { recursive: true });
+      fs.writeFileSync(path.join(mount, '.DS_Store'), 'fixture layout');
+      fs.mkdirSync(path.join(mount, '.background'));
+      fs.copyFileSync(path.join(f.root, f.config.macos.background), path.join(mount, '.background', path.basename(f.config.macos.background)));
+      fs.symlinkSync('/Applications', path.join(mount, 'Applications'));
+      return response;
+    }
     throw new Error(`unexpected test command ${program} ${args.join(' ')}`);
   };
   return { run,calls };
@@ -178,6 +201,8 @@ test('strict configuration rejects duplicate, missing and unsafe fields', t => {
   }
   fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify({ ...f.config, nsis: { ...f.config.nsis, hook: 'bad' } }));
   assert.throws(() => readConfig(f.root),/fields/);
+  fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify({ ...f.config, macos: { ...f.config.macos, agent: 'true' } }));
+  assert.throws(() => readConfig(f.root),/macos.agent must be a boolean/);
 });
 
 test('Cargo facts reject Tauri, absent GUI, unsafe version and mismatched GUI member', t => {
@@ -278,13 +303,69 @@ test('macos_notification_candidate_enabled_signing_still_fails_closed', t => {
   assert.equal(fs.existsSync(path.join(f.root,'release')),false);
 });
 
-/** 本机开发试包仍可按原契约生成 unsigned 产物，不取得通知运行或候选验收结论。 */
-test('local_macos_notification_package_remains_unsigned_and_unverified', t => {
+/** 本机试包绑定完整本地身份，但不把本地签名当成通知运行或候选验收。 */
+test('local_macos_notification_package_binds_adhoc_identity_and_remains_unverified', t => {
   const f = fixture(t,{ systemNotification: 'enabled' }), fake = fakeRun(f);
+  f.config.macos.agent = true;
+  fs.writeFileSync(path.join(f.root, 'packaging/gpui.json'), JSON.stringify(f.config));
   const output = executeBuild(localOptions(f.root),hooks(f,fake));
-  assert.equal(output.distribution,'local-test-only'); assert.equal(output.signingStatus,'unsigned');
+  assert.equal(output.distribution,'local-test-only'); assert.equal(output.signingStatus,'ad-hoc');
   assert.equal(output.runtimeVerification,'Unverified'); assert.equal(output.unitTests.passed,1);
   assert.equal(fs.existsSync(path.join(f.root,'release')),false);
+  const calls = fake.calls.filter(call => call.program === '/usr/bin/codesign');
+  assert.equal(calls.filter(call => call.args[0] === '--force').length, 1);
+  assert.ok(calls.some(call => call.args[0] === '--verify' && call.args.at(-1).includes('zip-resources')));
+  const generated = JSON.parse(fs.readFileSync(fake.calls.find(call => call.program === f.tool && call.args[0] === '--config').args[1]));
+  assert.match(fs.readFileSync(generated.macos.infoPlistPath, 'utf8'), /<key>LSUIElement<\/key><true\/>/);
+  for (const overrides of [{ signingFailure: true }, { wrongIdentity: true }]) {
+    assert.throws(() => executeBuild(localOptions(f.root), hooks(f, fakeRun(f, overrides))), /signing|identity/);
+  }
+});
+
+/** DMG 封盘前签名产生新字节，封盘后的挂载校验只能验证，不能补签旁边 App。 */
+test('local_dmg_signs_before_sealing_and_verifies_the_mounted_bundle', t => {
+  const f = fixture(t), fake = fakeRun(f);
+  const output = executeBuild({ ...localOptions(f.root), format: 'dmg' }, hooks(f, fake));
+  assert.equal(output.signingStatus, 'ad-hoc');
+  assert.equal(output.resourceVerification, 'final-volume-byte-identical');
+  const sign = fake.calls.findIndex(call => call.program === '/usr/bin/codesign' && call.args[0] === '--force');
+  const mount = fake.calls.findIndex(call => call.program === 'hdiutil' && call.args[0] === 'attach');
+  assert.ok(sign >= 0 && sign < mount);
+  assert.equal(fake.calls.filter(call => call.program === '/usr/bin/codesign' && call.args[0] === '--force').length, 1);
+  assert.ok(fake.calls.some(call => call.program === '/usr/bin/codesign' && call.args[0] === '--verify' && call.args.at(-1).includes('/mount/')));
+});
+
+/** 缺少 plist/资源封印或身份不符都不能通过；签名前篡改也不得被重新签名掩盖。 */
+test('local_bundle_identity_rejects_unbound_signature_and_presigning_tamper', t => {
+  const f = fixture(t), good = `Identifier=${f.config.identifier}\nSignature=adhoc\nInfo.plist entries=14\nSealed Resources version=2\n`;
+  for (const details of [good.replace('Info.plist entries=14', 'Info.plist=not bound'), good.replace('Sealed Resources version=2', 'Sealed Resources=none'), good.replace('Signature=adhoc', 'Signature=none')]) {
+    assert.throws(() => verifyLocalBundle(() => ({ stdout: '', stderr: details }), f.root, f.config.identifier, {}), /bound ad-hoc identity/);
+  }
+  const binary = path.join(f.root, 'binary'); fs.writeFileSync(binary, 'before');
+  assert.throws(() => signLocalDmgApp(() => assert.fail('tampered binary must not be signed'), f.root, f.config.identifier, binary, '0'.repeat(64), path.join(f.root, 'receipt.json'), {}), /differs before/);
+});
+
+/** 真实codesign只处理临时系统工具副本，验证生成hook和特殊路径，不启动应用或操作通知权限。 */
+test('generated_dmg_hook_signs_a_complete_temporary_bundle_on_macos', { skip: process.platform !== 'darwin' }, t => {
+  const f = fixture(t), work = path.join(f.root, "签名 ' $() space"), app = path.join(work, 'Sample.app');
+  fs.mkdirSync(path.join(app, 'Contents/MacOS'), { recursive: true });
+  fs.mkdirSync(path.join(app, 'Contents/Resources'));
+  const binary = path.join(app, 'Contents/MacOS/sample_gui');
+  fs.copyFileSync('/usr/bin/true', binary);
+  fs.writeFileSync(path.join(app, 'Contents/Resources/resource.txt'), 'sealed fixture');
+  fs.writeFileSync(path.join(app, 'Contents/Info.plist'), `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${f.config.identifier}</string><key>CFBundleExecutable</key><string>sample_gui</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>`);
+  const before = sha256(binary), script = localDmgSigningHook(work, app, f.config.identifier, 'sample_gui', before);
+  const env = { ...process.env, CARGO_PACKAGER_FORMAT: 'app' };
+  for (const key of Object.keys(env)) if (key.startsWith('APPLE_')) delete env[key];
+  const run = commandRunner(f.root);
+  run('/bin/sh', ['-c', script], { env });
+  assert.equal(fs.existsSync(path.join(work, 'local-dmg-identity.json')), false);
+  run('/bin/sh', ['-c', script], { env: { ...env, CARGO_PACKAGER_FORMAT: 'dmg' } });
+  const receipt = JSON.parse(fs.readFileSync(path.join(work, 'local-dmg-identity.json')));
+  assert.equal(receipt.before, before); assert.equal(receipt.after, sha256(binary));
+  verifyLocalBundle(run, app, f.config.identifier, env);
+  fs.appendFileSync(path.join(app, 'Contents/Resources/resource.txt'), 'tampered');
+  assert.throws(() => verifyLocalBundle(run, app, f.config.identifier, env), /codesign failed/);
 });
 
 test('release-context drift after test execution prevents a candidate', t => {

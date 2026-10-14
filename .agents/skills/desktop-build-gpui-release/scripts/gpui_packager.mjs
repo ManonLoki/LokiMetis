@@ -4,9 +4,10 @@ import path from 'node:path';
 import { safePath, safeRoot, relativePath, sha256 } from './gpui_filesystem.mjs';
 import { TARGETS } from './gpui_config.mjs';
 import { writeNsisTemplate } from './gpui_nsis.mjs';
+import { localDmgSigningHook, macosAgentPlist, verifyLocalBundle } from './gpui_macos_identity.mjs';
 
 /** 生成工具配置而不运行用户 hook，不继承未批准的自动签名配置。 */
-export function packagerConfig({ root, work, config, facts, target, format, resources, signing }) {
+export function packagerConfig({ root, work, config, facts, target, format, resources, signing, localAdhoc = false, binarySha256 }) {
   const result = {
     name: config.package, productName: config.productName, version: facts.version,
     identifier: config.identifier, publisher: config.publisher,
@@ -21,6 +22,8 @@ export function packagerConfig({ root, work, config, facts, target, format, reso
     result.nsis = { ...config.nsis, installerIcon: result.icons[0], template: writeNsisTemplate(work, config.productNameEn, result.resources.map(file => file.target)) };
   } else {
     result.macos = { minimumSystemVersion: config.macos.minimumSystemVersion };
+    result.macos.infoPlistPath = macosAgentPlist(work, config.macos.agent === true);
+    if (localAdhoc && format === 'dmg') result.beforeEachPackageCommand = localDmgSigningHook(work, path.join(result.outDir, `${config.productName}.app`), config.identifier, config.binary, binarySha256);
     if (signing.selection === 'enabled') result.macos.signingIdentity = config.macos.signingIdentity;
     if (format === 'dmg') result.dmg = {
       background: safePath(root, config.macos.background, { type: 'file' }),
@@ -46,7 +49,11 @@ export function signingChoice(selection, source = 'not-requested') {
 }
 
 /** macOS 签名后只有完整公证、stapling 和验证成功才产生候选。 */
-export function finalizeSigning({ run, config, signing, format, artifact, app, env }) {
+export function finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc = false }) {
+  if (localAdhoc) {
+    verifyLocalBundle(run, app, config.identifier, env);
+    return { signingStatus: 'ad-hoc', notarizationStatus: 'not-run', signingEvidence: { ...signing, status: 'verified-local-adhoc', remainingRisk: 'Local bundle identity only; notification permission, delivery and distribution trust remain unverified.' } };
+  }
   if (signing.selection === 'disabled') return { signingStatus: 'unsigned', notarizationStatus: format === 'nsis' ? 'not-applicable' : 'not-run', signingEvidence: { ...signing, status: 'unsigned', remainingRisk: 'Operating-system trust and distribution requirements remain unverified.' } };
   if (format === 'nsis') {
     const settings = config.windows.signing;
@@ -72,14 +79,14 @@ export function verifyResources(resourceRoot, sourceRoot, files) {
 /** 读取最终应用 plist，核对显示壳层以外的稳定安装身份与版本。 */
 export function verifyMacIdentity(run, app, config, facts) {
   const plist = safePath(app,'Contents/Info.plist',{ type: 'file' });
-  for (const [field,expected] of [['CFBundleIdentifier',config.identifier],['CFBundleExecutable',config.binary],['CFBundleShortVersionString',facts.version]]) {
+  for (const [field,expected] of [['CFBundleIdentifier',config.identifier],['CFBundleExecutable',config.binary],['CFBundleShortVersionString',facts.version],['LSUIElement',config.macos.agent ? 'true' : 'false']]) {
     if (run('plutil',['-extract',field,'raw','-o','-',plist],{ quiet: true }).stdout.trim() !== expected) throw new Error(`macOS bundle identity differs: ${field}`);
   }
   return 'verified';
 }
 
 /** 最终 DMG 只读挂载；不接受 SLA、不修改布局或候选字节。 */
-export function verifyDmg({ run, artifact, mount, root, config, facts, resources, binarySha256 }) {
+export function verifyDmg({ run, artifact, mount, root, config, facts, resources, binarySha256, localAdhoc = false, env }) {
   fs.mkdirSync(mount);
   let attached = false;
   try {
@@ -89,6 +96,7 @@ export function verifyDmg({ run, artifact, mount, root, config, facts, resources
     if (apps.length !== 1) throw new Error('DMG must contain exactly one application bundle');
     const app = safePath(mount, apps[0], { type: 'directory' });
     verifyMacIdentity(run,app,config,facts);
+    if (localAdhoc) verifyLocalBundle(run, app, config.identifier, env);
     const store = safePath(mount, '.DS_Store', { type: 'file' });
     if (!fs.statSync(store).size) throw new Error('DMG Finder layout is missing');
     const background = safePath(mount, `.background/${path.basename(config.macos.background)}`, { type: 'file' });

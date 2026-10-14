@@ -14,6 +14,7 @@ import { candidateSelection, releasedContext, releaseNotes, aboutPageEnabled, re
 import { packagerConfig, packagePath, signingChoice, finalizeSigning, verifyResources, verifyMacIdentity, verifyDmg, verifyNsis } from './gpui_packager.mjs';
 import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable, stageResources } from './gpui_resources.mjs';
+import { signLocalBundle, verifyLocalBundle } from './gpui_macos_identity.mjs';
 
 /** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
 export function assertNodeRuntime(version = process.versions.node) {
@@ -160,6 +161,7 @@ export function executeBuild(options, hooks = {}) {
   if (!info || !info.formats.includes(format) || info.host !== platform || !facts.platforms.includes(info.platform)) throw new Error('unsupported/unselected native GPUI target or format; Linux and cross-system packaging are unavailable');
   if (format === 'nsis' && (hooks.arch ?? process.arch) !== 'x64') throw new Error('Windows NSIS currently requires a native x64 host');
   const candidate = options.mode === 'candidate';
+  const localAdhoc = !candidate && info.platform === 'macos';
   if (!['candidate','local'].includes(options.mode)) throw new Error('--mode must be local or candidate');
   const signing = signingChoice(options.signing ?? 'disabled',options.signingSource ?? 'not-requested');
   if (!candidate && signing.selection !== 'disabled') throw new Error('local packages must be explicitly unsigned');
@@ -217,9 +219,9 @@ export function executeBuild(options, hooks = {}) {
   const packagedBinary = path.join(work,'binaries',config.binary + (format === 'nsis' ? '.exe' : ''));
   fs.copyFileSync(binary,packagedBinary);
   if (format === 'nsis' && signing.selection === 'enabled') finalizeSigning({ run, config, signing, format, artifact: packagedBinary, app: null, env });
-  const binarySha256 = sha256(packagedBinary);
+  let binarySha256 = sha256(packagedBinary);
   stageResources(root,path.join(work,'resources'),resources);
-  const generated = packagerConfig({ root, work, config, facts, target, format, resources, signing });
+  const generated = packagerConfig({ root, work, config, facts, target, format, resources, signing, localAdhoc, binarySha256 });
   const packagerFile = path.join(work,'packager.json'); fs.writeFileSync(packagerFile,JSON.stringify(generated,null,2) + '\n',{ flag: 'wx' });
   // Finder 布局受打包超时限制，避免 CI 开关静默删除已要求的布局。
   const packageEnv = { ...env }; if (format === 'dmg') delete packageEnv.CI; else packageEnv.CI = 'true';
@@ -232,11 +234,18 @@ export function executeBuild(options, hooks = {}) {
   if (app) {
     verifyMacIdentity(run,app,config,facts);
     verifyResources(path.join(app,'Contents','Resources'),root,resources);
-    if (sha256(safePath(app,`Contents/MacOS/${config.binary}`,{ type: 'file' })) !== binarySha256) throw new Error('app bundle binary differs from this build');
+    const bundledBinary = safePath(app,`Contents/MacOS/${config.binary}`,{ type: 'file' });
+    // DMG hook 已签名，codesign 可以重写 Mach-O 签名区；使用最终签名后字节核验封盘内容。
+    if (localAdhoc && format === 'dmg') {
+      const receipt = JSON.parse(fs.readFileSync(safePath(work, 'local-dmg-identity.json', { type: 'file' }), 'utf8'));
+      if (receipt.before !== binarySha256 || receipt.after !== sha256(bundledBinary)) throw new Error('DMG bundle differs from the local signing receipt');
+    } else if (sha256(bundledBinary) !== binarySha256) throw new Error('app bundle binary differs from this build');
+    if (localAdhoc && format === 'app') signLocalBundle(run, app, config.identifier, env);
+    binarySha256 = sha256(bundledBinary);
   }
-  const signingResult = finalizeSigning({ run, config, signing, format, artifact, app, env });
+  const signingResult = finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc });
   let resourceVerification = format === 'nsis' ? 'Unverified' : 'app-bundle-byte-identical';
-  if (format === 'dmg') resourceVerification = verifyDmg({ run, artifact, mount: path.join(work,'mount'), root, config, facts, resources, binarySha256 });
+  if (format === 'dmg') resourceVerification = verifyDmg({ run, artifact, mount: path.join(work,'mount'), root, config, facts, resources, binarySha256, localAdhoc, env });
   if (candidate && format === 'nsis') resourceVerification = verifyNsis({ run, root, config, artifact, destination: path.join(work,'extracted'), resources, binarySha256 });
   const extension = format === 'app' ? 'app.zip' : format === 'dmg' ? 'dmg' : 'exe';
   const filename = `${facts.project.replaceAll('_','-')}-v${facts.version}-${info.platform}-${info.arch}.${extension}`;
@@ -246,6 +255,7 @@ export function executeBuild(options, hooks = {}) {
     run('ditto',['-x','-k',zip,extracted]);
     const extractedApp = safePath(extracted,`${config.productName}.app`,{ type: 'directory' });
     verifyMacIdentity(run,extractedApp,config,facts);
+    if (localAdhoc) verifyLocalBundle(run, extractedApp, config.identifier, env);
     verifyResources(path.join(extractedApp,'Contents','Resources'),root,resources);
     if (sha256(safePath(extractedApp,`Contents/MacOS/${config.binary}`,{ type: 'file' })) !== binarySha256) throw new Error('app archive binary differs from this build');
     resourceVerification = 'final-app-archive-byte-identical';

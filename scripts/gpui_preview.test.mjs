@@ -252,6 +252,7 @@ test('plist_escapes_identity_text_and_non_macos_never_runs_commands', t => {
   const plist = renderPreviewPlist({ ...f.config, productName: '中&文', productNameEn: 'A "B"' }, { version: '0.2.0' });
   assert.ok(plist.includes('中&amp;文'));
   assert.ok(plist.includes('A &quot;B&quot;'));
+  assert.ok(renderPreviewPlist({ ...f.config, macos: { ...f.config.macos, agent: true } }, { version: '0.2.0' }).includes('<key>LSUIElement</key><true/>'));
   const fake = fakeCommands(f);
   assert.throws(() => prepare(f, fake, 'win32'), /requires macOS/u);
   assert.equal(fake.calls.length, 0);

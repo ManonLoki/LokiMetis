@@ -79,7 +79,7 @@ impl Service {
     }
 }
 
-/// 登录项只指向当前可执行文件；无隐藏或最小化参数，下次登录正常显示主窗口。
+/// 登录项指向当前可执行文件；macOS 显式传入登录标记并关联本产品 bundle。
 fn handle() -> Result<AutoLaunch, String> {
     let executable = std::env::current_exe().map_err(|_| "executable_unavailable")?;
     let executable = executable.to_str().ok_or("executable_not_utf8")?;
@@ -87,6 +87,8 @@ fn handle() -> Result<AutoLaunch, String> {
     let mut builder = AutoLaunchBuilder::new();
     builder.set_app_name("com.loki-metris.app").set_app_path(&executable)
         .set_macos_launch_mode(MacOSLaunchMode::LaunchAgent).set_args(&[] as &[&str]);
+    #[cfg(target_os = "macos")]
+    builder.set_args(&[super::startup::AUTOSTART_ARGUMENT]).set_bundle_identifiers(&["com.loki-metris.app"]);
     #[cfg(windows)]
     builder.set_windows_enable_mode(auto_launch::WindowsEnableMode::CurrentUser);
     builder.build().map_err(|_| "autostart_unavailable".into())
@@ -175,6 +177,12 @@ impl Drop for Service {
 #[cfg(test)]
 mod tests {
     use super::{State, apply, encoded_path, valid_windows_command, windows_command_matches, windows_override};
+    /// 构造macOS登录项只声明后台标记，不注册或改写真实登录项。
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_autostart_configuration_launches_in_background() {
+        assert_eq!(super::handle().unwrap().get_args(), &[super::super::startup::AUTOSTART_ARGUMENT]);
+    }
     /// 实际 HKCU 读取与后台线程只读初始化；不创建、修改或删除任何系统值。
     #[cfg(windows)]
     #[test]

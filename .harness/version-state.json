@@ -48,7 +48,10 @@
     "LM-SKIN-HOST-TAB-STOP-001",
     "LMWIN-PET-RESIZE-CONVERGENCE-001",
     "LMWIN-PET-NATIVE-RESIZE-ROLLBACK-001",
-    "LMWIN-PET-CLAMPED-RESIZE-AXIS-001"
+    "LMWIN-PET-CLAMPED-RESIZE-AXIS-001",
+    "LMMAC-DOCK-ACCESSORY-001",
+    "LMMAC-AUTOSTART-HIDDEN-001",
+    "LMMAC-NOTIFICATION-AUTHORIZATION-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.1.0",
@@ -339,8 +342,23 @@
       "change_id": "LMWIN-PET-CLAMPED-RESIZE-AXIS-001",
       "kind": "bug-fix",
       "required_version": "0.2.49"
+    },
+    {
+      "change_id": "LMMAC-DOCK-ACCESSORY-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.50"
+    },
+    {
+      "change_id": "LMMAC-AUTOSTART-HIDDEN-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.51"
+    },
+    {
+      "change_id": "LMMAC-NOTIFICATION-AUTHORIZATION-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.52"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.49"
+  "target_version": "0.2.52"
 }

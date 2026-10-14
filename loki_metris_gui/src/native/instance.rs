@@ -25,8 +25,8 @@ pub enum Launch { Primary(Instance), Activated }
 pub struct Instance { _lock: File, stop: Arc<AtomicBool>, worker: Option<JoinHandle<()>> }
 
 impl Instance {
-    /// 仅应用私有目录可建立实例锁；锁竞争期间有限等待旧监听器就绪。
-    pub fn acquire(directory: &Path, sender: SyncSender<()>) -> io::Result<Launch> {
+    /// 仅应用私有目录可建立实例锁；手动重开恢复旧窗，登录重启不打扰旧实例。
+    pub fn acquire(directory: &Path, sender: SyncSender<()>, activate: bool) -> io::Result<Launch> {
         let directory = private_directory(directory)?;
         let directory = directory.as_path();
         let lock_path = directory.join("instance.lock");
@@ -53,6 +53,7 @@ impl Instance {
             match lock.try_lock() {
                 Ok(()) => break,
                 Err(TryLockError::WouldBlock) => {
+                    if !activate { return Ok(Launch::Activated); }
                     if notify(directory).is_ok() { return Ok(Launch::Activated) }
                     if Instant::now() >= deadline { return Err(io::ErrorKind::TimedOut.into()) }
                     thread::sleep(POLL);

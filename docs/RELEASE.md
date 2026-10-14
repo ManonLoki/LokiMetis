@@ -20,6 +20,8 @@ Minor/Patch 为 0..99 base-100，自动进位不等同显式 Major 授权，Majo
 
 普通构建/试包使用 $desktop-build-gpui-release 的 local 模式，不要求 release-notes、不生成 release/ 或发布元数据、不提交、不询问候选 E2E，不升级解释为发布请求。
 
+macOS local 试包对完整 App 进行无证书 ad-hoc 签名并验证稳定身份、Info.plist 与资源封印；DMG 在封盘前完成签名，最终归档/挂载卷再次核验。该本地身份不代表 Developer ID、公证、通知授权或实际横幅通过，candidate 的签名门禁仍独立执行。
+
 candidate 模式只接受 clean 已发布默认主分支/tag，构建前及写 manifest 前复核上下文摘要/提交/tag/审查选择一致。每次先单独解析当前 E2E；产品/渠道硬要求优先，否则复用请求或以 e2e_hint 建议询问。全 workspace/all-targets/all-features 非空测试失败即阻断。依赖锁 ignored 不冻结，tracked 先核对跟踪与清单一致后冻结。
 
 macOS 在原生宿主形成 app/DMG，Windows x64 NSIS 在真实 Windows 宿主形成；GPUI 不复用 Tauri/xwin 管线。签名缺省 disabled/not-requested，不主动探测本机身份；仅已批准配置/当次主动要求/渠道硬要求启用，来源优先级 channel-required > requested > configured。启用后签名、公证、stapling 完整执行，不降级。渠道资格、商店、签名与第三方 NOTICE 依据当次明确要求核对，不虚构凭据或渠道授权。

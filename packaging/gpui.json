@@ -13,6 +13,7 @@
     "windows": "packaging/icons/app.ico"
   },
   "macos": {
+    "agent": true,
     "minimumSystemVersion": "12.0",
     "signingIdentity": null,
     "background": "packaging/macos/background.png"

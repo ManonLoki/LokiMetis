@@ -27,9 +27,10 @@ fn main() -> std::process::ExitCode {
     if let Some(code)=monitor::relay::run_hook_relay_if_requested() {return std::process::ExitCode::from(code as u8)}
     #[cfg(target_os="macos")]
     native::configure_font_smoothing();
+    let starts_hidden = native::startup::starts_hidden();
     let (instance_sender, instance_receiver) = std::sync::mpsc::sync_channel(1);
     let directory = match preferences::instance_directory() { Ok(path) => path, Err(_) => return std::process::ExitCode::FAILURE };
-    let instance = match native::instance::Instance::acquire(&directory, instance_sender) {
+    let instance = match native::instance::Instance::acquire(&directory, instance_sender, !starts_hidden) {
         Ok(native::instance::Launch::Primary(instance)) => instance,
         Ok(native::instance::Launch::Activated) => return std::process::ExitCode::SUCCESS,
         Err(_) => { eprintln!("single_instance_unavailable"); return std::process::ExitCode::FAILURE; }
@@ -55,6 +56,9 @@ fn main() -> std::process::ExitCode {
     shutdown.borrow_mut().own_usage(usage_service.clone());
     let native_shutdown = shutdown.clone();
     let application = gpui_kit::application().with_assets(assets::Assets);
+    // macOS 的 Headless 仅选择 Accessory 激活策略，仍可显示原生窗口；在事件循环前避免 Dock 闪现。
+    #[cfg(target_os = "macos")]
+    let application = application.with_windowing(gpui_kit::WindowingRequest::Headless);
     application.on_reopen(|cx| {
         if let Some(handle) = cx.try_global::<native::Services>().map(native::Services::main_window) { native::show(handle, cx); }
     });
@@ -69,6 +73,8 @@ fn main() -> std::process::ExitCode {
         let fallback = Bounds::centered(None, size(px(1440.), px(900.)), cx);
         let bounds = preferences.window_bounds(cx).unwrap_or(WindowBounds::Windowed(fallback));
         let mut options = WindowOptions {
+            show: !starts_hidden,
+            focus: !starts_hidden,
             window_bounds: Some(bounds),
             window_min_size: Some(size(px(960.), px(640.))),
             titlebar: Some(TitlebarOptions { title: Some("LokiMetris".into()), ..Default::default() }),
@@ -103,8 +109,15 @@ fn main() -> std::process::ExitCode {
         notifications.attach(usage_service.clone(),locale,handle.into(),cx);
         native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
+        if !native::startup::show_main(starts_hidden, native::tray_restore_available(cx)) {
+            tracing::info!(event = "application_started_hidden");
+            return;
+        }
+        // 托盘创建失败时恢复普通应用身份，保证可见主窗仍有 Dock/退出入口。
+        #[cfg(target_os = "macos")]
+        if !native::tray_restore_available(cx) { cx.set_activation_policy(gpui_kit::ActivationPolicy::Regular); }
         #[cfg(any(target_os="macos", all(windows, not(test))))]
-        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { cx.activate(true); }
+        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle.into(), cx); }
         #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
         cx.activate(true);
     });

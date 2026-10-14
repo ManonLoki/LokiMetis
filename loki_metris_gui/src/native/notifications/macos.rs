@@ -39,19 +39,25 @@ pub(super) async fn authorize(
         return Err(Error::Unavailable);
     }
     before_request(&executor, deadline)?;
-    let mut permission = query().await.map_err(|_| Error::Unavailable)?;
+    let permission = query().await.map_err(|_| Error::Unavailable)?;
     if permission == Permission::NotDetermined {
         before_request(&executor, deadline)?;
-        request().await.map_err(|_| Error::Unavailable)??;
+        let response = request().await.map_err(|_| Error::Unavailable)?;
         before_request(&executor, deadline)?;
-        permission = query().await.map_err(|_| Error::Unavailable)?;
+        let permission = query().await.map_err(|_| Error::Unavailable)?;
+        return authorization_result(permission, response);
     }
+    authorization_result(permission, Ok(()))
+}
+
+/// 系统设置才是授权权威；请求错误不能把未登记应用伪装成用户已拒绝。
+fn authorization_result(permission: Permission, response: Result<(), Error>) -> Result<(), Error> {
     match permission {
         Permission::Allowed => Ok(()),
         Permission::Denied => Err(Error::Denied),
         _ => {
             tracing::warn!(event = "notification_permission_unknown");
-            Err(Error::Unavailable)
+            Err(response.err().filter(|error| *error != Error::Denied).unwrap_or(Error::Unavailable))
         }
     }
 }
@@ -117,11 +123,10 @@ fn request() -> oneshot::Receiver<Result<(), Error>> {
     receiver
 }
 
-/// SDK UNError.h 的 NotificationsNotAllowed=1 表示系统不允许；不能推断用户拒绝或签名原因。
+/// 请求的 NSError 仅表示系统操作失败；拒绝类别必须由随后读取的真实授权状态确认。
 /// 官方语义：https://developer.apple.com/documentation/usernotifications/unerror/code/notificationsnotallowed
 fn authorization_response(granted: bool, error: Option<(&str, isize)>) -> Result<(), Error> {
     match error {
-        Some(("UNErrorDomain", 1)) => Err(Error::Denied),
         Some(_) => Err(Error::Unavailable),
         None if granted => Ok(()),
         None => Err(Error::Denied),
@@ -143,16 +148,16 @@ fn reply<T>(sender: &Mutex<Option<oneshot::Sender<T>>>, value: T) {
 mod tests {
     use super::*;
 
-    /// 系统不允许必须保留拒绝类别；未知域或码失败关闭，不能用 granted 掩盖 NSError。
+    /// 系统不允许不等于用户拒绝；未知域或码失败关闭，不能用 granted 掩盖 NSError。
     #[test]
     fn notification_authorization_maps_domain_code_and_granted() {
         assert_eq!(
             authorization_response(false, Some(("UNErrorDomain", 1))),
-            Err(Error::Denied)
+            Err(Error::Unavailable)
         );
         assert_eq!(
             authorization_response(true, Some(("UNErrorDomain", 1))),
-            Err(Error::Denied)
+            Err(Error::Unavailable)
         );
         assert_eq!(
             authorization_response(false, Some(("NSCocoaErrorDomain", 1))),
@@ -164,5 +169,15 @@ mod tests {
         );
         assert_eq!(authorization_response(false, None), Err(Error::Denied));
         assert_eq!(authorization_response(true, None), Ok(()));
+    }
+
+    /// 请求返回Code1或granted=false后仍未登记时不能跳转“已拒绝”；真实Allowed/Denied优先。
+    #[test]
+    fn notification_authorization_uses_readback_instead_of_request_error() {
+        for response in [authorization_response(false, Some(("UNErrorDomain", 1))), authorization_response(false, None), Ok(())] {
+            assert_eq!(authorization_result(Permission::NotDetermined, response), Err(Error::Unavailable));
+            assert_eq!(authorization_result(Permission::Allowed, response), Ok(()));
+            assert_eq!(authorization_result(Permission::Denied, response), Err(Error::Denied));
+        }
     }
 }

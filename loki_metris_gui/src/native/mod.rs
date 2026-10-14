@@ -9,6 +9,7 @@ pub mod autostart;
 pub mod notifications;
 pub mod links;
 pub mod instance;
+pub(crate) mod startup;
 pub mod shortcuts;
 #[cfg(windows)]
 mod windows;
@@ -162,7 +163,7 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
                 let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
                 cx.spawn(async move |cx| {
                     let live = cx.update(|cx| window_action_current(generation, cx) && handle.update(cx, |_, _, _| ()).is_ok());
-                    if live { if let Some(host) = host { host.show(); } }
+                    if live { if let Some(host) = host { host.show(); cx.update(|cx| cx.activate(true)); } }
                 }).detach();
             }
         }
@@ -251,7 +252,7 @@ pub fn hide_if_available(cx: &mut App) -> bool {
 }
 
 /// 只在关闭边界读取系统托盘位置，不增加后台轮询或第二份托盘状态。
-fn tray_restore_available(cx: &App) -> bool {
+pub(crate) fn tray_restore_available(cx: &App) -> bool {
     cx.try_global::<Services>().and_then(|services| services.tray.as_ref()).is_some_and(tray::Tray::restore_entry_available)
 }
 

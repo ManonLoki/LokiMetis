@@ -17,7 +17,7 @@ impl Drop for Directory {
 }
 /// 确认当前测试取得锁，不把第二实例结果伪装为 owner。
 fn primary(directory: &Path, sender: SyncSender<()>) -> Instance {
-    match Instance::acquire(directory, sender).unwrap() { Launch::Primary(owner) => owner, Launch::Activated => panic!("应取得独立测试锁") }
+    match Instance::acquire(directory, sender, true).unwrap() { Launch::Primary(owner) => owner, Launch::Activated => panic!("应取得独立测试锁") }
 }
 /// 第二启动只恢复旧窗口；关闭后可以重新取得同一锁和 socket。
 #[test]
@@ -25,7 +25,7 @@ fn second_launch_restores_and_shutdown_releases_lock() {
     let directory = Directory::new();
     let (sender, receiver) = mpsc::sync_channel(1);
     let owner = primary(&directory.0, sender.clone());
-    assert!(matches!(Instance::acquire(&directory.0, sender.clone()).unwrap(), Launch::Activated));
+    assert!(matches!(Instance::acquire(&directory.0, sender.clone(), true).unwrap(), Launch::Activated));
     receiver.recv_timeout(Duration::from_secs(1)).unwrap();
     drop(owner);
     drop(primary(&directory.0, sender));
@@ -39,7 +39,7 @@ fn slow_client_and_full_queue_do_not_block_shutdown() {
     let owner = primary(&directory.0, sender.clone());
     let mut slow = Socket(connect(&directory.0).unwrap());
     slow.0.write_all(b"s").unwrap();
-    assert!(matches!(Instance::acquire(&directory.0, sender).unwrap(), Launch::Activated));
+    assert!(matches!(Instance::acquire(&directory.0, sender, true).unwrap(), Launch::Activated));
     let started = Instant::now();
     drop(owner);
     assert!(started.elapsed() < Duration::from_secs(1));
@@ -61,7 +61,7 @@ fn malformed_payload_is_rejected_and_listener_can_restart() {
 #[test]
 fn relative_directory_is_rejected() {
     let (sender, _receiver) = mpsc::sync_channel(1);
-    assert!(Instance::acquire(Path::new("relative"), sender).is_err());
+    assert!(Instance::acquire(Path::new("relative"), sender, true).is_err());
 }
 
 /// 同时首次建立私有目录不能因 mkdir 竞争把第二实例判为失败。
@@ -72,7 +72,7 @@ fn concurrent_first_launch_has_one_primary_and_one_activation() {
     let (sender, receiver) = mpsc::sync_channel(1);
     let tasks: Vec<_> = (0..2).map(|_| {
         let path = directory.0.clone(); let sender = sender.clone(); let barrier = barrier.clone();
-        thread::spawn(move || { barrier.wait(); Instance::acquire(&path, sender).unwrap() })
+        thread::spawn(move || { barrier.wait(); Instance::acquire(&path, sender, true).unwrap() })
     }).collect();
     let results: Vec<_> = tasks.into_iter().map(|task| task.join().unwrap()).collect();
     assert_eq!(results.iter().filter(|launch| matches!(launch, Launch::Primary(_))).count(), 1);
@@ -92,13 +92,24 @@ fn rejects_symlink_directory_lock_and_non_socket_placeholder() {
     let outside = directory.0.join("unrelated");
     fs::write(&outside, b"keep").unwrap();
     std::os::unix::fs::symlink(&outside, &lock).unwrap();
-    assert!(Instance::acquire(&directory.0, sender.clone()).is_err());
+    assert!(Instance::acquire(&directory.0, sender.clone(), true).is_err());
     assert_eq!(fs::read(&outside).unwrap(), b"keep");
     fs::remove_file(lock).unwrap();
     fs::write(directory.0.join("instance.sock"), b"keep").unwrap();
-    assert!(Instance::acquire(&directory.0, sender.clone()).is_err());
+    assert!(Instance::acquire(&directory.0, sender.clone(), true).is_err());
     assert_eq!(fs::read(directory.0.join("instance.sock")).unwrap(), b"keep");
     let link = directory.0.join("link");
     std::os::unix::fs::symlink(&directory.0, &link).unwrap();
-    assert!(Instance::acquire(&link, sender).is_err());
+    assert!(Instance::acquire(&link, sender, true).is_err());
+}
+
+/// 已有实例时登录启动直接退出，不向其发送显示窗口信号。
+#[test]
+fn login_launch_does_not_activate_existing_instance() {
+    let directory = Directory::new();
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let owner = primary(&directory.0, sender.clone());
+    assert!(matches!(Instance::acquire(&directory.0, sender, false).unwrap(), Launch::Activated));
+    assert!(receiver.recv_timeout(Duration::from_millis(150)).is_err());
+    drop(owner);
 }

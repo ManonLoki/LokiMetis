@@ -47,7 +47,8 @@ export function validateConfig(value) {
   keys(value.icons, ['source','macos','windows'], 'icons');
   for (const icon of Object.values(value.icons)) relativePath(icon);
   if (!value.icons.source.endsWith('.png') || !value.icons.macos.endsWith('.icns') || !value.icons.windows.endsWith('.ico')) throw new Error('icons require PNG/ICNS/ICO paths');
-  keys(value.macos, ['minimumSystemVersion','signingIdentity','background'], 'macos');
+  keys(value.macos, ['minimumSystemVersion','signingIdentity','background',...(Object.hasOwn(value.macos ?? {},'agent')?['agent']:[])], 'macos');
+  if (value.macos.agent !== undefined && typeof value.macos.agent !== 'boolean') throw new Error('macos.agent must be a boolean');
   if (!/^\d+\.\d+(?:\.\d+)?$/u.test(value.macos.minimumSystemVersion) || Number(value.macos.minimumSystemVersion.split('.')[0]) < 11) throw new Error('GPUI macOS minimum must be >= 11.0');
   relativePath(value.macos.background);
   if (value.macos.signingIdentity !== null && !text(value.macos.signingIdentity,'signingIdentity').startsWith('Developer ID Application: ')) throw new Error('macOS candidate signing needs Developer ID Application');
