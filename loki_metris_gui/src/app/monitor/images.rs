@@ -181,6 +181,7 @@ impl Shell {
     }
 
     /// 按实际解码结果渲染图片；加载中与损坏状态不伪装为可用缩略图。
+    #[expect(clippy::too_many_arguments, reason = "预览的条目、标识、适配方式与圆角都是独立几何输入，另加 GPUI 窗口与上下文")]
     pub(super) fn monitor_image_preview(
         &self,
         entry: &ImageEntry,

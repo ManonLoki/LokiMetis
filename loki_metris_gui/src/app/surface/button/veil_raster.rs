@@ -102,7 +102,7 @@ mod tests {
         assert_eq!(at(49, 17), 33, "sigma12、36px短轴中心约为0.15×0.8664");
         assert_eq!(at(49, 17), at(50, 18));
         assert!((17..=22).contains(&at(1, 17)), "近边保留Gaussian衰减");
-        assert!(image.pixels.bytes.chunks_exact(4).all(|p| p[3] <= 38));
+        assert!(image.pixels.bytes.as_chunks::<4>().0.iter().all(|p| p[3] <= 38));
     }
 
     /// 主题只改变直通RGB，长轴纹理有界且透明采样保护不泄漏白边。
@@ -116,8 +116,8 @@ mod tests {
         for (a, b) in light
             .pixels
             .bytes
-            .chunks_exact(4)
-            .zip(dark.pixels.bytes.chunks_exact(4))
+            .as_chunks::<4>().0.iter()
+            .zip(dark.pixels.bytes.as_chunks::<4>().0)
         {
             assert_eq!(a[3], b[3]);
             if a[3] > 0 {

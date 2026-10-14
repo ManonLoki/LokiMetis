@@ -112,7 +112,7 @@ impl Socket {
             }
             if available == 0 { return Err(io::ErrorKind::WouldBlock.into()); }
             let count = bytes.len().min(available as usize);
-            return self.0.read(&mut bytes[..count]);
+            self.0.read(&mut bytes[..count])
         }
         #[cfg(not(windows))]
         self.0.read(bytes)

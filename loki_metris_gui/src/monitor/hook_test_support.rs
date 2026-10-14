@@ -14,7 +14,7 @@ impl HookCommandText for str {
         if let Some(encoded) = self.strip_prefix(PREFIX)
             && let Ok(bytes) = STANDARD.decode(encoded)
             && bytes.len() % 2 == 0
-            && let Ok(script) = String::from_utf16(&bytes.chunks_exact(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect::<Vec<_>>())
+            && let Ok(script) = String::from_utf16(&bytes.as_chunks::<2>().0.iter().map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect::<Vec<_>>())
         { return script; }
         let mut content = self.to_owned();
         if let Ok(value) = serde_json::from_str::<Value>(self) { append(&value, &mut content); }

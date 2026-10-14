@@ -146,7 +146,7 @@ fn valid_windows_command(bytes: &[u8]) -> bool {
 #[cfg(any(windows, test))]
 fn windows_command(bytes: &[u8]) -> std::io::Result<String> {
     if bytes.len() < 4 || !bytes.len().is_multiple_of(2) { return Err(std::io::ErrorKind::InvalidData.into()) }
-    let mut words: Vec<u16> = bytes.chunks_exact(2).map(|part| u16::from_le_bytes([part[0], part[1]])).collect();
+    let mut words: Vec<u16> = bytes.as_chunks::<2>().0.iter().map(|part| u16::from_le_bytes([part[0], part[1]])).collect();
     if words.pop() != Some(0) || words.contains(&0) { return Err(std::io::ErrorKind::InvalidData.into()) }
     let value = String::from_utf16(&words).map_err(|_| std::io::ErrorKind::InvalidData)?;
     if value.trim().is_empty() || value.chars().any(char::is_control) { return Err(std::io::ErrorKind::InvalidData.into()) }

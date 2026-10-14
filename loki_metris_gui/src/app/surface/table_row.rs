@@ -46,7 +46,7 @@ pub(in crate::app) struct BrandTableRow {
     bottom_corner_radius: Pixels,
     children: Vec<AnyChildElement>,
     #[cfg(test)]
-    owner_observer: Option<Box<dyn FnOnce(&Entity<RowState>)>>,
+    owner_observer: Option<super::OwnerObserver<RowState>>,
 }
 
 impl BrandTableRow {

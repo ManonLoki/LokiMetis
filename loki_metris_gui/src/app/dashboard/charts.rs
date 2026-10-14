@@ -86,7 +86,7 @@ impl Shell {
             Checkbox::new(("chart-series",index)).label(self.t(&format!("statistics.{key}"))).checked(self.dashboard.chart.visible[self.dashboard.client][index]).text_xs()
                 .on_click(cx.listener(move|this,checked,_,cx|{
                     if *checked || this.dashboard.chart.visible[this.dashboard.client].iter().filter(|v|**v).count()>1 {
-                        this.dashboard.chart.visible[this.dashboard.client][index]=*checked;cx.notify();
+                        this.dashboard.chart.visible[this.dashboard.client][index] = *checked;cx.notify();
                     }
                 }))));
         page=page.child(self.spot_panel("chart-token-trend", cx).test_support().child(self.chart_heading("charts.tokens",cx)).child(checkboxes)

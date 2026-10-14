@@ -15,6 +15,8 @@ impl MousePassthroughState {
     /// None表示尚未确认或回滚失败，不能在托盘宣称本机已应用。
     pub fn confirmed(&self) -> Option<bool> { self.confirmed }
 }
+#[cfg(test)]
+pub use test_host::*;
 
 #[cfg(all(target_os = "macos", not(test)))]
 mod macos;
@@ -148,5 +150,3 @@ mod test_host {
     /// 单元测试不进入原生模态拖动，实际行为由Computer Use检查。
     pub fn start_drag(_: &Window, _: &gpui_kit::App) {}
 }
-#[cfg(test)]
-pub use test_host::*;

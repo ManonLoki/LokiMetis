@@ -2,17 +2,15 @@
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 /// 把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner。
-fn hold_connected_handler_during<T, Operation>(
+async fn hold_connected_handler_during<T, Operation>(
     handler_task: HandlerTaskGuard,
     operation: Operation,
-) -> impl Future<Output = (HandlerTaskGuard, T)>
+) -> (HandlerTaskGuard, T)
 where
     Operation: Future<Output = T>,
 {
-    async move {
-        let result = operation.await;
-        (handler_task, result)
-    }
+    let result = operation.await;
+    (handler_task, result)
 }
 
 /// 取得宿主的可信 CDP 连接：指定实例时只连接其调试端口并核对进程根；否则优先复用已运行宿主的端点，宿主运行却无调试端口时要求用户先退出，未运行时以空闲端口启动并等待就绪。

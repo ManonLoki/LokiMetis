@@ -89,7 +89,7 @@ mod tests {
     /// 回执乱序到达不能把另一张卡较新的值回退到旧完整快照。
     #[test]
     fn save_receipts_merge_the_submitted_field_only() {
-        let mut state=UsageSettingsState::default();state.saved=Some(UsageSettings::default());
+        let mut state=UsageSettingsState{saved:Some(UsageSettings::default()),..Default::default()};
         let earlier=UsageSettings::default().updated(UsageSettingField::ScanInterval,7).unwrap();
         let later=earlier.updated(UsageSettingField::RetentionDays,120).unwrap();
         state.accept_save(1,later);state.accept_save(0,earlier);

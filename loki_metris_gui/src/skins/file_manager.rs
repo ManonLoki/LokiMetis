@@ -33,7 +33,7 @@ async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
     }
     #[cfg(target_os = "windows")]
     {
-        return open_with_windows_shell(&directory);
+        open_with_windows_shell(&directory)
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {

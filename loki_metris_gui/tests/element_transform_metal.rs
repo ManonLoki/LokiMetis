@@ -129,18 +129,18 @@ mod native {
             cx.update_window(handle, |_, w, app| w.render_frame(app)).unwrap();
             let image = cx.capture_screenshot(handle).expect("真实Metal缩放");
             assert_ne!(image.as_raw(), first.as_raw());
-            for channel in 0..3 {
+            for (channel, base) in baseline.iter().enumerate().take(3) {
                 let actual = color_bounds(&image, channel);
                 for edge in 0..4 {
                     let axis = edge % 2;
-                    let expected = (baseline[channel][edge] as f64 + 0.5 - center[axis])
+                    let expected = (base[edge] as f64 + 0.5 - center[axis])
                         * scale as f64 + center[axis]
                         + if axis == 1 { device_scale } else { 0. } - 0.5;
                     assert!((actual[edge] as f64 - expected).abs() <= 2.,
                         "文字/图标/背景必须共同变换：scale={scale}, channel={channel}, edge={edge}, actual={}, expected={expected}", actual[edge]);
                 }
                 if scale == 0.5 {
-                    assert!(actual[2] - actual[0] < (baseline[channel][2] - baseline[channel][0]) * 3 / 5,
+                    assert!(actual[2] - actual[0] < (base[2] - base[0]) * 3 / 5,
                         "半比例负对照必须检测出内容仍按原尺寸绘制");
                 }
             }

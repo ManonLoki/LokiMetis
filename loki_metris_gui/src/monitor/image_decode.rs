@@ -216,7 +216,7 @@ fn static_frame(mut decoder: impl ImageDecoder) -> anyhow::Result<image::Frame> 
 
 /// GPUI 纹理使用 BGRA，保留原 alpha 不做背景合成。
 pub(super) fn bgra(rgba: &mut image::RgbaImage) {
-    for pixel in rgba.chunks_exact_mut(4) {
+    for pixel in rgba.as_chunks_mut::<4>().0 {
         pixel.swap(0, 2);
     }
 }

@@ -116,6 +116,8 @@ fn wsl_child_reaper_loop(shared: &Arc<(Mutex<RetainedWslChildState>, Condvar)>) 
             let _ = child.kill();
             match child.try_wait() {
                 Ok(Some(_)) => {
+                    // try_wait 已取得退出状态，子进程已被回收，移出表不会留下僵尸进程。
+                    #[expect(clippy::zombie_processes, reason = "try_wait 返回退出状态即已完成 wait")]
                     state.children.swap_remove(index);
                 }
                 Ok(None) => index += 1,

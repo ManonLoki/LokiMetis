@@ -11,8 +11,10 @@ fn accepted_b_then_return_a_shutdown_cancels_ui_receipt_but_preserves_final_a(
     let f = fixture(cx);
     let a = PetOverlayPosition { x: -10, y: 20 };
     let b = PetOverlayPosition { x: 30, y: 40 };
-    let mut initial = crate::monitor::settings::MonitorSettings::default();
-    initial.pet_overlay_position = Some(a);
+    let initial = crate::monitor::settings::MonitorSettings {
+        pet_overlay_position: Some(a),
+        ..Default::default()
+    };
     crate::monitor::settings::save_monitor_settings(&f.root.path().join("monitor"), &initial)
         .unwrap();
     f.owner.update(cx, |owner, _| owner.settings = initial);

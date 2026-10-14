@@ -258,7 +258,8 @@ impl Render for MonitorImageView {
         let residency = (self.source.id.clone(), self.owner.clone());
         let frame = self.frame;
         let viewport_corners = self.viewport_corners;
-        let fit = match self.fit {
+        // 上游 ObjectFit 未实现 Clone/Copy，只能逐变体复制给绘制闭包。
+        let fit = match &self.fit {
             ObjectFit::Fill => ObjectFit::Fill,
             ObjectFit::Contain => ObjectFit::Contain,
             ObjectFit::Cover => ObjectFit::Cover,

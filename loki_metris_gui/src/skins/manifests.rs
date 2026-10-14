@@ -141,7 +141,7 @@ struct ThemeCssConfig {
 
 /// 两种受支持的皮肤包清单。
 enum SkinManifest {
-    Legacy(LegacyManifest),
+    Legacy(Box<LegacyManifest>),
     ThemeCss(Box<PureThemeCssManifest>),
 }
 

@@ -140,6 +140,7 @@ pub(super) fn observe(
 }
 
 /// 图片字段复用同一租约与下一帧机制，原生 Button 保留键盘、点击和辅助树。
+#[expect(clippy::too_many_arguments, reason = "图片字段身份的三个组成部分与滚动目标、边界和 GPUI 上下文彼此独立")]
 pub(in crate::app::monitor) fn observe_picker(
     state: &Entity<RevealState>, tool: AiTool, behavior: HookBehavior, kind: PickerFocus,
     target: &PageScroll, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App,

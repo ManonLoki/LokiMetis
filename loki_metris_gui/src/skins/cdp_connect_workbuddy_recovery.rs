@@ -167,19 +167,32 @@ async fn connect_browser_for_purpose(
     Ok((browser, reservation.bind(handler_task)))
 }
 
+/// 首批注入在整个等待期间保持不变的输入：注入载荷、皮肤身份、页面就绪期限，
+/// 以及必须始终绑定的调试端点与宿主根进程。
+#[derive(Clone, Copy)]
+struct InitialInjection<'a> {
+    /// 注入脚本正文。
+    payload: &'a Arc<str>,
+    /// 待生效的皮肤身份。
+    skin: &'a SkinReference,
+    /// 等待宿主页面就绪的期限。
+    page_ready_timeout: Duration,
+    /// 已验证的调试端点。
+    endpoint: CdpEndpoint,
+    /// 端点必须归属的宿主根进程 PID。
+    expected_host_root_pid: u32,
+}
+
 /// 先复核端点仍绑定预期宿主根进程，再在页面就绪期限内完成首批注入；期间响应取消，失败时由调用方回收 handler。
 async fn wait_for_initial_injection(
     host: SkinHostKind,
     browser: Browser,
     handler_task: HandlerTaskGuard,
-    payload: &Arc<str>,
-    skin: &SkinReference,
-    page_ready_timeout: Duration,
-    endpoint: CdpEndpoint,
-    expected_host_root_pid: u32,
+    target: InitialInjection<'_>,
     transaction_id: &str,
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(Browser, HandlerTaskGuard, InjectionReport), AppError> {
+    let InitialInjection { page_ready_timeout, endpoint, expected_host_root_pid, .. } = target;
     let mut browser = browser;
     let mut handler_task = handler_task;
     let transaction = InjectionTransaction::new(transaction_id);
@@ -193,11 +206,7 @@ async fn wait_for_initial_injection(
                     host,
                     &mut browser,
                     &mut handler_task,
-                    payload,
-                    skin,
-                    page_ready_timeout,
-                    endpoint,
-                    expected_host_root_pid,
+                    target,
                     &transaction,
                 ),
             )

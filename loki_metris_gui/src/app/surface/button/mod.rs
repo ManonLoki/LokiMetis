@@ -140,12 +140,15 @@ impl ButtonMotion {
     }
 }
 
+/// 按钮点击回调，由按钮自身持有并在语义控件上触发。
+type ClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
+
 /// 元素无额外辅助节点，内层继续使用原始控件ID与原生Button行为。
 pub(in crate::app) struct SurfaceButton {
     button: Option<Button>,
     label: Option<SharedString>,
     explicit_name: bool,
-    click_handler: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>>,
+    click_handler: Option<ClickHandler>,
     historical_size: Option<HistoricalButtonSize>,
     left_icon: Option<Icon>,
     left_icon_size: Pixels,
@@ -156,7 +159,7 @@ pub(in crate::app) struct SurfaceButton {
     disabled: bool,
     loading: bool,
     #[cfg(test)]
-    motion_observer: Option<Box<dyn FnOnce(&Entity<ButtonMotion>)>>,
+    motion_observer: Option<crate::app::surface::OwnerObserver<ButtonMotion>>,
 }
 impl SurfaceButton {
     /// 控件ID须稳定且在父作用域唯一；状态由该原生元素生命周期限定。

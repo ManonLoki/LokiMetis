@@ -266,11 +266,13 @@ impl SkinService {
             host,
             browser,
             handler_task,
-            &loaded.payload,
-            skin,
-            connection_source.page_ready_timeout(),
-            endpoint,
-            verified_root_pid,
+            InitialInjection {
+                payload: &loaded.payload,
+                skin,
+                page_ready_timeout: connection_source.page_ready_timeout(),
+                endpoint,
+                expected_host_root_pid: verified_root_pid,
+            },
             &transaction_id,
             &mut cancel,
         )

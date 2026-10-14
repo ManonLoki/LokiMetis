@@ -28,11 +28,11 @@ impl Render for Surface {
     }
 }
 
+/// 测试旁路保存的弱 atlas 句柄列表。
+type CapturedAtlases = Rc<RefCell<Vec<Weak<dyn PlatformAtlas>>>>;
+
 /// 原生测试平台仅旁路保存弱 atlas 句柄，不替换 renderer、不延长窗口 GPU 寿命。
-fn context() -> (
-    HeadlessAppContext,
-    Rc<RefCell<Vec<Weak<dyn PlatformAtlas>>>>,
-) {
+fn context() -> (HeadlessAppContext, CapturedAtlases) {
     let atlases = Rc::new(RefCell::new(Vec::new()));
     let captured = atlases.clone();
     let cx = HeadlessAppContext::with_platform(Arc::new(NoopTextSystem), Arc::new(()), move || {

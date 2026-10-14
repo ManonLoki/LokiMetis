@@ -70,7 +70,7 @@ enum HookWriterWork {
     /// 必须返回结构化结果的显式写入。
     Explicit(ExplicitHookWriteRequest),
     /// 无需阻塞 UI 的最新设置自愈。
-    AutomaticRepair(MonitorSettings),
+    AutomaticRepair(Box<MonitorSettings>),
 }
 
 /// 异步等待被取消时同步标记对应请求，避免 worker 变成 detached 写入。

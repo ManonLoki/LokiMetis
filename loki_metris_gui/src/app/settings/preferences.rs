@@ -14,6 +14,31 @@ pub(in crate::app) struct PreferenceSaveState {
     pub theme_focus:std::cell::OnceCell<[gpui_kit::FocusHandle;3]>,
 }
 
+impl Shell {
+    /// 显式字段 patch 与高频窗口几何分开提交，成功只应用回执对应的字段。
+    pub(in crate::app) fn save_preference(&mut self,patch:PreferencePatch,window:&Window,cx:&mut Context<Self>) {
+        // 通知必须通过应用级授权 owner，禁止绕过权限门禁直接提交展示偏好。
+        if matches!(patch,PreferencePatch::SystemNotification(_))||self.preference_save.pending.is_some() {return}
+        if match patch {PreferencePatch::Theme(theme)=>self.preferences.theme==theme,PreferencePatch::Language(language)=>self.preferences.language==language,PreferencePatch::SystemNotification(_)=>return} {return}
+        let work=match self.writer.mutate(patch) {Ok(work)=>work,Err(_)=>{self.preference_save.failed=Some(patch);cx.notify();return}};
+        self.preference_save.pending=Some(patch);self.preference_save.failed=None;
+        self.preference_save.task=Some(cx.spawn_in(window,async move|entity,cx| {
+            let result=crate::usage_service::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(20)).await;
+            let _=entity.update_in(cx,|this,window,cx| {
+                this.preference_save.pending=None;
+                match result {
+                    Some(Ok(PreferencePatch::Theme(theme)))=>{this.preferences.theme=theme;this.apply_theme(window,cx);},
+                    Some(Ok(PreferencePatch::Language(language)))=>{
+                        this.preferences.language=language;this.locale=this.preferences.locale();
+                        crate::native::set_language(this.locale,cx);this.apply_language();cx.refresh_windows();
+                    },
+                    _=>this.preference_save.failed=Some(patch),
+                }cx.notify();
+            });
+        }));cx.notify();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,30 +89,5 @@ mod tests {
                 assert!(window.try_find("page-heading").is_none());
             }).unwrap();
         }
-    }
-}
-
-impl Shell {
-    /// 显式字段 patch 与高频窗口几何分开提交，成功只应用回执对应的字段。
-    pub(in crate::app) fn save_preference(&mut self,patch:PreferencePatch,window:&Window,cx:&mut Context<Self>) {
-        // 通知必须通过应用级授权 owner，禁止绕过权限门禁直接提交展示偏好。
-        if matches!(patch,PreferencePatch::SystemNotification(_))||self.preference_save.pending.is_some() {return}
-        if match patch {PreferencePatch::Theme(theme)=>self.preferences.theme==theme,PreferencePatch::Language(language)=>self.preferences.language==language,PreferencePatch::SystemNotification(_)=>return} {return}
-        let work=match self.writer.mutate(patch) {Ok(work)=>work,Err(_)=>{self.preference_save.failed=Some(patch);cx.notify();return}};
-        self.preference_save.pending=Some(patch);self.preference_save.failed=None;
-        self.preference_save.task=Some(cx.spawn_in(window,async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(20)).await;
-            let _=entity.update_in(cx,|this,window,cx| {
-                this.preference_save.pending=None;
-                match result {
-                    Some(Ok(PreferencePatch::Theme(theme)))=>{this.preferences.theme=theme;this.apply_theme(window,cx);},
-                    Some(Ok(PreferencePatch::Language(language)))=>{
-                        this.preferences.language=language;this.locale=this.preferences.locale();
-                        crate::native::set_language(this.locale,cx);this.apply_language();cx.refresh_windows();
-                    },
-                    _=>this.preference_save.failed=Some(patch),
-                }cx.notify();
-            });
-        }));cx.notify();
     }
 }

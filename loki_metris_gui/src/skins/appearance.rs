@@ -208,13 +208,10 @@ async fn wait_for_initial_injection_inner(
     host: SkinHostKind,
     browser: &mut Browser,
     handler_task: &mut HandlerTaskGuard,
-    payload: &Arc<str>,
-    skin: &SkinReference,
-    page_ready_timeout: Duration,
-    endpoint: CdpEndpoint,
-    expected_host_root_pid: u32,
+    target: InitialInjection<'_>,
     transaction: &InjectionTransaction,
 ) -> Result<InjectionReport, AppError> {
+    let InitialInjection { payload, skin, page_ready_timeout, endpoint, expected_host_root_pid } = target;
     let deadline = tokio::time::Instant::now() + page_ready_timeout;
     let mut last_session_error = None;
 

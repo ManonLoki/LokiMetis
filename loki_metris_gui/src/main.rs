@@ -100,6 +100,8 @@ fn main() -> std::process::ExitCode {
         cx.set_quit_mode(QuitMode::Explicit);
         let fallback = Bounds::centered(None, size(px(1440.), px(900.)), cx);
         let bounds = preferences.window_bounds(cx).unwrap_or(WindowBounds::Windowed(fallback));
+        // 只有原生显示器选择路径会改写初始窗口参数。
+        #[cfg_attr(not(any(target_os="macos", all(windows, not(test)))), allow(unused_mut))]
         let mut options = WindowOptions {
             show: !starts_hidden,
             focus: !starts_hidden,

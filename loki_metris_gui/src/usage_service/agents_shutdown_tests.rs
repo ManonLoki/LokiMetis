@@ -122,8 +122,10 @@ fn late_accepted_position_cannot_overwrite_final_position_after_shutdown_budget(
     let a = PetOverlayPosition { x: -10, y: 20 };
     let b = PetOverlayPosition { x: 30, y: 40 };
     let c = PetOverlayPosition { x: 50, y: 60 };
-    let mut initial = MonitorSettings::default();
-    initial.pet_overlay_position = Some(c);
+    let initial = MonitorSettings {
+        pet_overlay_position: Some(c),
+        ..Default::default()
+    };
     crate::monitor::settings::save_monitor_settings(&config, &initial).unwrap();
     let service = UsageService::in_test_directory(root.path().to_owned()).unwrap();
     let late = accept_delayed_position(&service, b);

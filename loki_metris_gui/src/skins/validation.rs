@@ -11,6 +11,7 @@ fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
         .and_then(serde_json::Value::as_u64)
     {
         Some(1) => serde_json::from_value(value)
+            .map(Box::new)
             .map(SkinManifest::Legacy)
             .map_err(|_| AppError::new("skin.assets_invalid", "旧版皮肤配置字段无效。")),
         Some(2) => Err(AppError::with_details(

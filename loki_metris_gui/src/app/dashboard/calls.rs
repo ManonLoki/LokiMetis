@@ -68,7 +68,7 @@ impl Shell {
             }
         };
         let revision=self.dashboard.revision;
-        self.dashboard.loading=!next;self.dashboard.calls.loading_next=next;
+        self.dashboard.loading = !next;self.dashboard.calls.loading_next=next;
         self.dashboard.task=Some(cx.spawn(async move|entity,cx| {
             let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
             let _=entity.update(cx,|this,cx| {

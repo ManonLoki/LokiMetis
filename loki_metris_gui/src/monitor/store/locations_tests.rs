@@ -25,8 +25,10 @@ fn write_hook_config(
 
 /// 构造把指定工具隔离到临时目录的监控设置。
 fn settings_for(tool: AiTool, directory: &Path) -> MonitorSettings {
-    let mut settings = MonitorSettings::default();
-    settings.enabled_ai_tools = vec![tool];
+    let mut settings = MonitorSettings {
+        enabled_ai_tools: vec![tool],
+        ..Default::default()
+    };
     settings
         .hook_directories
         .set(tool, directory.to_string_lossy().into_owned());

@@ -350,17 +350,15 @@ impl Render for CacheRoot {
     }
 }
 
+/// 共享的重绘计数器。
+type Counter = Rc<Cell<usize>>;
+
 /// 新窗口在实际 inactive 帧先形成缓存；后续不能用强制 refresh 的 render_frame。
 fn cache_setup(
     cx: &mut TestAppContext,
     kind: usize,
     nested: bool,
-) -> (
-    gpui_kit::AnyWindowHandle,
-    Rc<Cell<usize>>,
-    Rc<Cell<usize>>,
-    Rc<Cell<usize>>,
-) {
+) -> (gpui_kit::AnyWindowHandle, Counter, Counter, Counter) {
     let relevant = Rc::new(Cell::new(0));
     let outer = Rc::new(Cell::new(0));
     let unrelated = Rc::new(Cell::new(0));

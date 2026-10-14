@@ -121,18 +121,18 @@ fn rect(x: f32, y: f32, w: f32, h: f32) -> Bounds<Pixels> {
     Bounds::new(point(px(x), px(y)), size(px(w), px(h)))
 }
 
+/// 测试与元素共享的排除区域列表。
+type SharedBounds = Rc<RefCell<Vec<Bounds<Pixels>>>>;
+/// 测试与元素共享的观察记录。
+type SharedObservations = Rc<RefCell<Vec<Observation>>>;
+
 /// 返回真实窗口与外部观测，不启用native Services或操作OS。
 fn setup(
     cx: &mut TestAppContext,
     excluded: Vec<Bounds<Pixels>>,
     nested: Vec<Bounds<Pixels>>,
     cached: Option<usize>,
-) -> (
-    gpui_kit::AnyWindowHandle,
-    TargetState,
-    Rc<RefCell<Vec<Bounds<Pixels>>>>,
-    Rc<RefCell<Vec<Observation>>>,
-) {
+) -> (gpui_kit::AnyWindowHandle, TargetState, SharedBounds, SharedObservations) {
     let state = TargetState::new();
     let returned = state.clone();
     let excluded = Rc::new(RefCell::new(excluded));

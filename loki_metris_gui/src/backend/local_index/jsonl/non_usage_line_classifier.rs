@@ -92,8 +92,8 @@ impl NonUsageJsonLine {
         }
     }
 
-    /// 仅在整行闭合、语法有效且最外层为已知非用量记录时解除超长警告。
-    pub(super) fn is_complete_non_usage(mut self) -> bool {
+    /// 收尾未闭合的原子值后判定：仅在整行闭合、语法有效且最外层为已知非用量记录时解除超长警告。
+    pub(super) fn finish_and_check_complete(mut self) -> bool {
         if matches!(self.mode, Mode::Atom) {
             self.finish_atom();
         }

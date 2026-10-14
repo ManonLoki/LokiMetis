@@ -423,7 +423,7 @@ impl WslFile {
             ));
         }
 
-        if let Err(error) = run_wsl(
+        run_wsl(
             &self.distribution,
             [
                 "mv",
@@ -434,9 +434,7 @@ impl WslFile {
             ],
             &self.cancellation,
             &self.deadline,
-        ) {
-            return Err(error);
-        }
+        )?;
         temporary.disarm();
         Ok(())
     }

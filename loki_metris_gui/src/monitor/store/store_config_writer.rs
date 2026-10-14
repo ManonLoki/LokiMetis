@@ -27,7 +27,7 @@ fn hook_config_writer_loop(
                 if state.repair_requested {
                     state.repair_requested = false;
                     if let Some(settings) = state.settings.clone() {
-                        break HookWriterWork::AutomaticRepair(settings);
+                        break HookWriterWork::AutomaticRepair(Box::new(settings));
                     }
                 }
                 let Ok((next, wait)) = wake.wait_timeout(state, repair_interval) else {

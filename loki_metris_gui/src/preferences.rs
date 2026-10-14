@@ -244,7 +244,7 @@ fn start_writer(storage:Storage,mut committed:Preferences)->Writer {
                 if let Some(state) = next.window_state_v2.as_mut() { state.maximized = geometry.maximized; }
             }
             if let Command::Mutate(patch,_)=&command {match patch {
-                PreferencePatch::Theme(theme)=>next.theme=*theme,PreferencePatch::Language(language)=>next.language=*language,PreferencePatch::SystemNotification(enabled)=>next.system_notification=*enabled,
+                PreferencePatch::Theme(theme)=>next.theme = *theme,PreferencePatch::Language(language)=>next.language = *language,PreferencePatch::SystemNotification(enabled)=>next.system_notification = *enabled,
             }}
             let result=match &storage {
                 Storage::File(path)=>write(path,&next.encode()),

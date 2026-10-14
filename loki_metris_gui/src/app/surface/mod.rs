@@ -1,6 +1,10 @@
 //! 历史品牌卡片的原生材质容器；布局、子控件及辅助语义仍交给 GPUI Div。
 
 pub(in crate::app) mod motion;
+
+/// 测试注入的一次性回调，用于取得控件内部 keyed-state owner 实体。
+#[cfg(test)]
+pub(in crate::app) type OwnerObserver<T> = Box<dyn FnOnce(&gpui_kit::Entity<T>)>;
 mod palette;
 mod raster;
 mod rim;
@@ -55,7 +59,7 @@ pub(in crate::app) struct MaterialCard<const SPOTLIGHT: bool> {
     geometry: Geometry,
     material: MaterialKind,
     #[cfg(test)]
-    owner_observer: Option<Box<dyn FnOnce(&Entity<MaterialState>)>>,
+    owner_observer: Option<OwnerObserver<MaterialState>>,
 }
 
 /// 需要历史hover光斑的卡片使用同一原生容器与完整材质。

@@ -183,7 +183,7 @@ fn registered() -> bool {
         )
     };
     result.is_ok()
-        && length % 2 == 0
+        && length.is_multiple_of(2)
         && length >= 2
         && length as usize <= std::mem::size_of_val(&bytes)
         && String::from_utf16_lossy(&bytes[..length as usize / 2 - 1]) == "LokiMetris"

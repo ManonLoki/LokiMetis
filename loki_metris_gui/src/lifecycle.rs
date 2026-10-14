@@ -5,9 +5,12 @@ use gpui_kit::App;
 use std::{cell::RefCell, rc::Rc};
 use tracing_appender::non_blocking::WorkerGuard;
 
+/// 退出前捕获主窗口最终几何的回调。
+type WindowCapture = Box<dyn FnMut(&mut App)>;
+
 /// 同一状态在原生退出回调与事件循环返回回退间共享，日志 worker 只刷新一次。
 pub struct Shutdown {
-    capture_window: Option<Box<dyn FnMut(&mut App)>>,
+    capture_window: Option<WindowCapture>,
     writer: Writer,
     notifications:Option<crate::native::notifications::Service>,
     log_guard: Option<WorkerGuard>,

@@ -28,7 +28,7 @@ impl Shell {
     fn start_source_discovery(&mut self,scope:Scope,cx:&mut Context<Self>) {
         self.dashboard.sources.feedback=None;
         if self.dashboard.client==4 {
-            let mut status=RootDiscoveryStatus::default();status.lifecycle=State::Complete;status.scope=scope;
+            let mut status=RootDiscoveryStatus{lifecycle:State::Complete,scope,..Default::default()};
             status.progress.volumes_completed=1;status.progress.volumes_total=1;
             self.dashboard.sources.workbuddy_discovery=Some(status);self.load_sources(cx);return
         }

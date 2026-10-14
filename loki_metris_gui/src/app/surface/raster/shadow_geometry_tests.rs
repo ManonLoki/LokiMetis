@@ -97,7 +97,7 @@ fn zero_alpha_and_empty_projection_keep_rgb_and_clear_border() {
             let pixels = geometry.render(sample);
             assert_same(&pixels, x, y, shadow_oracle(width, height, 1.5, 20., sample));
             for (row, bytes) in pixels.bytes.chunks_exact(pixels.width as usize * 4).enumerate() {
-                for (column, pixel) in bytes.chunks_exact(4).enumerate() {
+                for (column, pixel) in bytes.as_chunks::<4>().0.iter().enumerate() {
                     let border = row == 0 || row == pixels.height as usize - 1
                         || column == 0 || column == pixels.width as usize - 1;
                     assert_eq!(pixel, if border { &[0, 0, 0, 0] } else { &[19, 87, 243, 0] });

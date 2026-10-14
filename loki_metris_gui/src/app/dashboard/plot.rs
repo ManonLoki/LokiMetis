@@ -58,24 +58,25 @@ pub(super) fn bars(id:&'static str,rows:Vec<Bar>,palette:Palette,scale_kind:Scal
             for step in 0..=4 {
                 let x=220.+550.*step as f32/4.;
                 stroke(window,[position(x,20.),position(x,height-44.)],px(scale),grid,false);
-                text(window,cx,&axis(maximum*step as f64/4.,scale_kind),position(x,height-15.),11.*scale,FontWeight::NORMAL,muted,
+                text(window,cx,&axis(maximum*step as f64/4.,scale_kind),position(x,height-15.),TextStyle {size:11.*scale,weight:FontWeight::NORMAL,color:muted},
                     if step==0 {0.}else if step==4 {1.}else{0.5});
             }
             for (index,row) in rows.iter().enumerate() {
                 let top=20.+52.*index as f32;
                 let label=if row.label.chars().count()>24 {format!("{}…",row.label.chars().take(23).collect::<String>())}else{row.label.clone()};
-                text(window,cx,&label,position(208.,top+20.),12.*scale,if row.remainder{FontWeight::BOLD}else{FontWeight::SEMIBOLD},muted,1.);
-                text(window,cx,&row.share,position(208.,top+38.),11.*scale,FontWeight::NORMAL,muted,1.);
+                text(window,cx,&label,position(208.,top+20.),TextStyle {size:12.*scale,weight:if row.remainder{FontWeight::BOLD}else{FontWeight::SEMIBOLD},color:muted},1.);
+                text(window,cx,&row.share,position(208.,top+38.),TextStyle {size:11.*scale,weight:FontWeight::NORMAL,color:muted},1.);
                 window.paint_quad(fill(Bounds::new(position(220.,top+8.),size(px(550.*scale),px(22.*scale))),track).corner_radii(px(11.*scale)));
                 if let Some(value)=row.value {
                     window.paint_quad(fill(Bounds::new(position(220.,top+8.),size(px((550.*value.number()/maximum) as f32*scale),px(22.*scale))),if row.remainder{remainder}else{bar}).corner_radii(px(11.*scale)));
                 }
-                text(window,cx,&row.display,position(904.,top+23.),12.*scale,FontWeight::BOLD,muted,1.);
+                text(window,cx,&row.display,position(904.,top+23.),TextStyle {size:12.*scale,weight:FontWeight::BOLD,color:muted},1.);
             }
         }).w_full().aspect_ratio(920./height)).child(overlays).into_any_element()
 }
 
 /// 绘制与交互共用同一桶序列，hover 仅属于当前原生视图。
+#[expect(clippy::too_many_arguments, reason = "图表组件的标识、数据、悬停状态与配色彼此独立，由唯一调用方一次性传入")]
 pub(super) fn line(id: &'static str, label:String, labels: Vec<String>, series: Vec<Series>, hover: Rc<Cell<Option<usize>>>,
     palette:Palette, absent: String, axis_scale:Scale) -> AnyElement
 {
@@ -110,11 +111,11 @@ pub(super) fn line(id: &'static str, label:String, labels: Vec<String>, series: 
             for step in 0..=4 {
                 let grid_y=252.-234.*step as f32/4.;
                 stroke(window,[position(72.,grid_y),position(898.,grid_y)],px(scale),grid,false);
-                text(window,cx,&axis(maximum*step as f64/4.,axis_scale),position(62.,grid_y+4.),12.*scale,FontWeight::NORMAL,muted,1.);
+                text(window,cx,&axis(maximum*step as f64/4.,axis_scale),position(62.,grid_y+4.),TextStyle {size:12.*scale,weight:FontWeight::NORMAL,color:muted},1.);
             }
             for index in ticks(labels.len()) {
                 let anchor=if index==0 {0.}else if index+1==labels.len(){1.}else{0.5};
-                text(window,cx,&labels[index],position(x(index),282.),12.*scale,FontWeight::NORMAL,muted,anchor);
+                text(window,cx,&labels[index],position(x(index),282.),TextStyle {size:12.*scale,weight:FontWeight::NORMAL,color:muted},anchor);
             }
             for series in series.iter() {
                 let mut previous=None;
@@ -140,13 +141,13 @@ pub(super) fn line(id: &'static str, label:String, labels: Vec<String>, series: 
                 let height=32.+20.*series.len() as f32;
                 window.paint_quad(fill(Bounds::new(position(left-0.5,25.5),size(px(241.*scale),px((height+1.)*scale))),tooltip_border).corner_radii(px(8.5*scale)));
                 window.paint_quad(fill(Bounds::new(position(left,26.),size(px(240.*scale),px(height*scale))),background).corner_radii(px(8.*scale)));
-                text(window,cx,&labels[index],position(left+12.,47.),13.*scale,FontWeight::BOLD,foreground,0.);
+                text(window,cx,&labels[index],position(left+12.,47.),TextStyle {size:13.*scale,weight:FontWeight::BOLD,color:foreground},0.);
                 for (row,series) in series.iter().enumerate() {
                     let baseline=66.+20.*row as f32;
                     dot(window,position(left+15.,baseline-4.),px(3.5*scale),series.color);
-                    text(window,cx,&series.label,position(left+25.,baseline),12.*scale,FontWeight::NORMAL,foreground,0.);
+                    text(window,cx,&series.label,position(left+25.,baseline),TextStyle {size:12.*scale,weight:FontWeight::NORMAL,color:foreground},0.);
                     let value=series.values.get(index).copied().flatten().map(Value::display).unwrap_or_else(||absent.clone());
-                    text(window,cx,&value,position(left+228.,baseline),12.*scale,FontWeight::BOLD,foreground,1.);
+                    text(window,cx,&value,position(left+228.,baseline),TextStyle {size:12.*scale,weight:FontWeight::BOLD,color:foreground},1.);
                 }
             }
         }).w_full().aspect_ratio(920./300.)).child(legend).into_any_element()
@@ -176,8 +177,20 @@ fn dot(window:&mut Window,center:Point<Pixels>,radius:Pixels,color:Hsla) {
     window.paint_quad(fill(Bounds::new(center-point(radius,radius),size(radius*2.,radius*2.)),color).corner_radii(radius));
 }
 
+/// 绘图标签的字号、字重与颜色。
+#[derive(Clone,Copy)]
+struct TextStyle {
+    /// 已乘以显示比例的字号。
+    size:f32,
+    /// 字重。
+    weight:FontWeight,
+    /// 文字颜色。
+    color:Hsla,
+}
+
 /// TextRun 明确字重和等宽数字；避免绘图标签丢失字体权重。
-fn text(window:&mut Window,cx:&mut App,value:&str,anchor:Point<Pixels>,font_size:f32,weight:FontWeight,color:Hsla,align:f32) {
+fn text(window:&mut Window,cx:&mut App,value:&str,anchor:Point<Pixels>,style:TextStyle,align:f32) {
+    let TextStyle {size:font_size,weight,color}=style;
     let mut font=gpui_kit::font("Geist");font.weight=weight;
     font.features=FontFeatures(Arc::new(vec![("tnum".into(),1)]));
     let value=SharedString::from(value.to_owned());

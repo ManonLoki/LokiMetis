@@ -111,7 +111,7 @@ fn query_process_command_line_from_handle(handle: HANDLE) -> Option<String> {
     let buffer_end = buffer_start.checked_add(byte_length)?;
     if buffer_start < allocation_start
         || buffer_end > allocation_end
-        || buffer_start % std::mem::align_of::<u16>() != 0
+        || !buffer_start.is_multiple_of(std::mem::align_of::<u16>())
     {
         return None;
     }

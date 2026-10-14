@@ -124,9 +124,7 @@ fn background(window: &Window, index: usize) -> Rgba {
         .painted_quads()
         .into_iter()
         .filter(|quad| quad.bounds == bounds)
-        .filter_map(|quad| quad.background.as_solid().map(Rgba::from))
-        .filter(|color| color.a > 0.)
-        .next_back()
+        .filter_map(|quad| quad.background.as_solid().map(Rgba::from)).rfind(|color| color.a > 0.)
         .expect("真实按钮必须绘制可见背景")
 }
 

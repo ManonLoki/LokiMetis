@@ -260,6 +260,7 @@ pub enum IncrementalTokenUsageDecision {
 ///   1. `last_token_usage` 只是当前 running `total` 的拷贝，每回合发出
 ///      整个会话累计而不是本回合增量；多回合求和是三角数；
 ///   2. `last` 未变而 `total` 因额度/compact 快照变化，相同 `last` 被再计一次。
+///
 /// `last` 等于当前累计且存在上一已计费累计时，只在必填字段未下降时采用累计正增量；
 /// `last` 与上一已计费 `last` 相同则忽略。调用方不得把被忽略的估算或 same-last
 /// 快照写进 previous_cumulative / previous_last，否则增量会减到非账单基线。

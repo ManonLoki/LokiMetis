@@ -139,18 +139,15 @@ impl Drop for SkinImportLease {
         self.session.abandon();
     }
 }
+/// 导入预检的最终回执：预检通过的批次或换肤错误。
+type PreparationReceipt = oneshot::Receiver<Result<PreparedSkinImportBatch, SkinError>>;
+
 impl UsageService {
     /// ZIP选择已确定后才建立资源租约；后台接管迟到token的回收责任。
     pub(crate) fn prepare_skin_import(
         self: &Arc<Self>,
         paths: Vec<PathBuf>,
-    ) -> Result<
-        (
-            SkinImportLease,
-            oneshot::Receiver<Result<PreparedSkinImportBatch, SkinError>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<(SkinImportLease, PreparationReceipt), &'static str> {
         let session = Arc::new(ImportSession {
             state: Mutex::new(ImportState::default()),
         });

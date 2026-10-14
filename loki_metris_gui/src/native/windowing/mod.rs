@@ -8,11 +8,12 @@ mod macos_host;
 mod windows;
 #[cfg(windows)]
 mod windows_host;
-#[cfg(windows)]
+// 测试构建用测试宿主替换原生窗口事务，这些出口只服务真实 Windows 构建。
+#[cfg(all(windows, not(test)))]
 pub(crate) use windows::{capture_desktop, capture_topology, capture_window, capture_normal, frame_insets, window_display_key};
-#[cfg(windows)]
+#[cfg(all(windows, not(test)))]
 pub(crate) use windows_host::WindowHost;
-#[cfg(windows)]
+#[cfg(all(windows, not(test)))]
 pub(crate) use windows::legacy_main;
 #[cfg(target_os = "macos")]
 mod geometry_settle;
