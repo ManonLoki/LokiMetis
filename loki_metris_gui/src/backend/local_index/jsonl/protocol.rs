@@ -100,6 +100,7 @@ impl<'de> Deserialize<'de> for RateLimitsMarker {
         /// 以 IgnoredAny 有界跳过普通行中的额度内容。
         struct MarkerVisitor;
         impl<'de> serde::de::Visitor<'de> for MarkerVisitor {
+            /// 访问器产出的额度字段存在标记。
             type Value = RateLimitsMarker;
             /// 为非对象额度给出协议类型错误。
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

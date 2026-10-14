@@ -5,10 +5,12 @@ use gpui_kit::{
     Bounds, Corners, Edges, Hsla, Overflow, ParentRoundedClip, Pixels, Style, hsla, point, px, size,
 };
 
+/// 受测父容器的固定外边界。
 fn outer_bounds() -> Bounds<Pixels> {
     Bounds::new(point(px(112.), px(37.)), size(px(100.), px(80.)))
 }
 
+/// 构造双轴 hidden、显式启用父圆角裁切的样式，圆角、边框宽度与颜色由参数给定。
 fn style(radii: [f32; 4], border: f32, color: Option<Hsla>) -> Style {
     Style {
         clip_rounded_children: true,
@@ -25,12 +27,14 @@ fn style(radii: [f32; 4], border: f32, color: Option<Hsla>) -> Style {
     }
 }
 
+/// 由样式计算父圆角裁切；测试样式必定产生裁切。
 fn clip(style: Style) -> ParentRoundedClip {
     style
         .parent_rounded_clip(outer_bounds(), px(16.))
         .expect("明确opt-in且双轴hidden必须生成真实父裁切")
 }
 
+/// 断言裁切边界正好是外边界扣除 10px 边框后的 padding-box。
 fn assert_inner_bounds(clip: &ParentRoundedClip) {
     assert_eq!(
         clip.bounds,

@@ -13,12 +13,15 @@ mod native {
     /// 只包装绘制与命中，不改变祖先布局或字体参数。
     struct Scaled<E: Element> { inner: E, scale: f32, shift: Point<Pixels> }
     impl<E: Element> IntoElement for Scaled<E> {
+        /// 自身即参与布局与绘制的元素，不再额外包装。
         type Element = Self;
         /// 包装层自身进入元素生命周期。
         fn into_element(self) -> Self { self }
     }
     impl<E: Element> Element for Scaled<E> {
+        /// 沿用内层元素的布局状态。
         type RequestLayoutState = E::RequestLayoutState;
+        /// 沿用内层元素的预绘制状态。
         type PrepaintState = E::PrepaintState;
         /// 真实控件ID继续由内部元素拥有。
         fn id(&self) -> Option<ElementId> { self.inner.id() }

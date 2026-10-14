@@ -29,7 +29,9 @@ pub(super) fn section_frame<T: Styled>(frame: T) -> T {
 /// GPUI内部ImageDecoder未公开，薄Asset直接复用Image::to_image_data，render不执行解码。
 pub(super) struct PreviewImageDecoder;
 impl Asset for PreviewImageDecoder {
+    /// 待解码的原始图片资源。
     type Source = Arc<Image>;
+    /// 解码后的可渲染图片，失败时为缓存错误。
     type Output = Result<Arc<RenderImage>, ImageCacheError>;
     /// 由原生Asset owner在后台执行，和原生Img同样保留Loading／Failed／Ready三态。
     fn load(source: Self::Source, cx: &mut App) -> impl Future<Output = Self::Output> + Send + 'static {

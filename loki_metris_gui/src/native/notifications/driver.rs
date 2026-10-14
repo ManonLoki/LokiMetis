@@ -44,6 +44,7 @@ pub(super) use super::macos_delivery::Host;
 #[cfg(windows)]
 pub(super) use super::windows::Host;
 #[cfg(not(any(target_os = "macos", windows)))]
+/// 不支持原生通知平台的占位宿主，构造总是失败。
 pub(super) struct Host;
 #[cfg(not(any(target_os = "macos", windows)))]
 impl Host {

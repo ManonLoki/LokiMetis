@@ -64,13 +64,16 @@ impl MonitorFlow {
 }
 
 impl IntoElement for MonitorFlow {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 包装没有额外样式盒，始终采用内部原生控件的 LayoutId。
     fn into_element(self) -> Self { self }
 }
 
 impl Element for MonitorFlow {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段无需向绘制阶段传递状态。
     type PrepaintState = ();
     /// 不插入新的 keyed 或可访问身份，原生子控件仍拥有自己的稳定 ID。
     fn id(&self) -> Option<gpui_kit::ElementId> { None }

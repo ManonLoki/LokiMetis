@@ -4,6 +4,7 @@ use serde_json::Value;
 
 /// 只扩展断言用的正文，原配置和命令从不被修改或执行。
 pub(crate) trait HookCommandText {
+    /// 返回 Hook 配置中命令的完整正文，仅供断言比较。
     fn hook_command_text(&self) -> String;
 }
 impl HookCommandText for str {

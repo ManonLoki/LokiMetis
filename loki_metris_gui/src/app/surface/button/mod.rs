@@ -261,6 +261,7 @@ impl ParentElement for SurfaceButton {
     }
 }
 impl IntoElement for SurfaceButton {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 直接进入原生元素生命周期，不增加代理容器或辅助节点。
     fn into_element(self) -> Self {

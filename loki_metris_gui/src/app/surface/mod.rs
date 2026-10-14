@@ -161,6 +161,7 @@ impl<const SPOTLIGHT: bool> InteractiveElement for MaterialCard<SPOTLIGHT> {
 impl<const SPOTLIGHT: bool> StatefulInteractiveElement for MaterialCard<SPOTLIGHT> {}
 
 impl<const SPOTLIGHT: bool> IntoElement for MaterialCard<SPOTLIGHT> {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 容器本身就是实际参与布局和绘制的元素。
     fn into_element(self) -> Self {
@@ -169,10 +170,12 @@ impl<const SPOTLIGHT: bool> IntoElement for MaterialCard<SPOTLIGHT> {
 }
 
 impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
+    /// 内部容器的布局状态与材质动效实体。
     type RequestLayoutState = (
         <Stateful<Div> as Element>::RequestLayoutState,
         Entity<MaterialState>,
     );
+    /// 指针命中区域；未注册命中区时为空。
     type PrepaintState = Option<Hitbox>;
 
     /// 材质和子控件共享外层稳定ID，测试支持与辅助树仍识别真实卡片。

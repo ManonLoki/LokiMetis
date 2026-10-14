@@ -54,6 +54,7 @@ impl<E: Element> NativeControl<E> {
     }
 }
 impl<E: Element> IntoElement for NativeControl<E> {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 直接进入元素生命周期，避免再增加一层AnyElement作用域。
     fn into_element(self) -> Self {
@@ -61,7 +62,9 @@ impl<E: Element> IntoElement for NativeControl<E> {
     }
 }
 impl<E: Element> Element for NativeControl<E> {
+    /// 沿用内层控件的布局状态，包装不新增状态。
     type RequestLayoutState = E::RequestLayoutState;
+    /// 沿用内层控件的预绘制状态。
     type PrepaintState = E::PrepaintState;
     /// 使用内层ID，测试和辅助技术仍定位原控件。
     fn id(&self) -> Option<ElementId> {

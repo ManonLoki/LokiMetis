@@ -55,6 +55,7 @@ impl ParsedFile {
     }
 }
 
+/// 按（根 ID，文件路径）索引的已解析 WorkBuddy 文件缓存表。
 type Entries = HashMap<(String, PathBuf), Arc<ParsedFile>>;
 
 /// 全局缓存；键含固定根 ID，使国内版与国际版互不串用。

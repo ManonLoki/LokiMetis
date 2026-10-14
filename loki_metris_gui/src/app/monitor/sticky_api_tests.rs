@@ -32,6 +32,7 @@ impl DeferredProbe {
 }
 
 impl IntoElement for DeferredProbe {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 包装本身不增加原生节点或样式盒。
     fn into_element(self) -> Self {
@@ -40,7 +41,9 @@ impl IntoElement for DeferredProbe {
 }
 
 impl Element for DeferredProbe {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段无需向绘制阶段传递状态。
     type PrepaintState = ();
     /// 不给预约创建额外可访问身份。
     fn id(&self) -> Option<gpui_kit::ElementId> {

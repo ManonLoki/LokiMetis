@@ -55,6 +55,7 @@ struct ProjectEvent<'a> {
 #[derive(Deserialize)]
 struct JsonString<'a>(#[serde(borrow)] Cow<'a, str>);
 impl std::ops::Deref for JsonString<'_> {
+    /// 解引用为借用或已解码的字符串视图。
     type Target = str;
     /// 下游只读取字符串视图；输出记录需要保留的模型另行取得所有权。
     fn deref(&self) -> &str {
