@@ -27,51 +27,6 @@ pub(in crate::app) struct AgentSettingsState {
     save_task: Option<Task<()>>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    /// Cursor 在统一选择中保留，但不能伪装成看板物理来源。
-    #[test]
-    fn selection_indices_keep_stable_client_identity_and_ignore_cursor() {
-        let state = AgentSettingsState {
-            value: Some(MonitorSettings {
-                enabled_ai_tools: vec![AiTool::Cursor, AiTool::Grok, AiTool::WorkBuddy],
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-        assert_eq!(state.dashboard_indices(), vec![3, 4]);
-    }
-
-    /// 保存后的能力收缩自动回退并清除不支持路由，旧控件回调不能重选停用项。
-    #[gpui_kit::test]
-    fn disabled_selection_falls_back_and_stale_selector_is_ignored(
-        cx: &mut gpui_kit::TestAppContext,
-    ) {
-        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
-        cx.update_window(handle, |_, _, cx| {
-            shell.update(cx, |this, cx| {
-                this.dashboard.client = 3;
-                this.dashboard.route = crate::app::dashboard::Route::Statistics;
-                this.accept_agent_settings(MonitorSettings::default(), cx);
-                assert_eq!(this.dashboard.client, 1);
-                this.select_usage_client(3, cx);
-                assert_eq!(this.dashboard.client, 1);
-                this.accept_agent_settings(
-                    MonitorSettings {
-                        enabled_ai_tools: vec![AiTool::Cursor],
-                        ..Default::default()
-                    },
-                    cx,
-                );
-                assert_eq!(this.dashboard.client, 0);
-                assert_eq!(this.dashboard.route, crate::app::dashboard::Route::Overview);
-            })
-        })
-        .unwrap();
-    }
-}
-
 impl AgentSettingsState {
     /// 固定客户端编号仍拥有各自筛选会话，展示子集不能重新编号。
     pub(in crate::app) fn dashboard_indices(&self) -> Vec<usize> {
@@ -357,5 +312,50 @@ impl Shell {
                 )
             })
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    /// Cursor 在统一选择中保留，但不能伪装成看板物理来源。
+    #[test]
+    fn selection_indices_keep_stable_client_identity_and_ignore_cursor() {
+        let state = AgentSettingsState {
+            value: Some(MonitorSettings {
+                enabled_ai_tools: vec![AiTool::Cursor, AiTool::Grok, AiTool::WorkBuddy],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert_eq!(state.dashboard_indices(), vec![3, 4]);
+    }
+
+    /// 保存后的能力收缩自动回退并清除不支持路由，旧控件回调不能重选停用项。
+    #[gpui_kit::test]
+    fn disabled_selection_falls_back_and_stale_selector_is_ignored(
+        cx: &mut gpui_kit::TestAppContext,
+    ) {
+        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+        cx.update_window(handle, |_, _, cx| {
+            shell.update(cx, |this, cx| {
+                this.dashboard.client = 3;
+                this.dashboard.route = crate::app::dashboard::Route::Statistics;
+                this.accept_agent_settings(MonitorSettings::default(), cx);
+                assert_eq!(this.dashboard.client, 1);
+                this.select_usage_client(3, cx);
+                assert_eq!(this.dashboard.client, 1);
+                this.accept_agent_settings(
+                    MonitorSettings {
+                        enabled_ai_tools: vec![AiTool::Cursor],
+                        ..Default::default()
+                    },
+                    cx,
+                );
+                assert_eq!(this.dashboard.client, 0);
+                assert_eq!(this.dashboard.route, crate::app::dashboard::Route::Overview);
+            })
+        })
+        .unwrap();
     }
 }

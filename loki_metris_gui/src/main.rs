@@ -1,4 +1,32 @@
 //! 原生 GPUI 入口；前台只处理窗口与展示，偏好文件由独立后台工作线程读写。
+//!
+//! # 依赖层级
+//!
+//! 上层只依赖下层；业务规则、口径与状态机只存在于 `loki_metris_core`。
+//!
+//! 1. 领域核心 `loki_metris_core`：用量口径、自然日窗口、聚合与页面模型、Hook 状态机、桌宠布局、
+//!    设置校验与数据根策略；不依赖 GPUI 或任何宿主 API。
+//! 2. 驱动层，彼此不互相依赖，只依赖 core：
+//!    - `backend`：Agent 会话文件发现、JSONL 解析、SQLite 增量索引与扫描编排，WorkBuddy 只读统计；
+//!    - `monitor`：Hook 配置原子写入、环回 listener、命令型中继、图库与图片解码播放；
+//!    - `skins`：Codex/WorkBuddy 换肤资源校验、宿主进程身份与 CDP 注入；
+//!    - `preferences`：窗口与外观偏好的后台单线程写入。
+//! 3. 服务层 `usage_service`：应用拥有的单 writer 扫描队列、只读查询邮箱、今日摘要与里程碑通知 worker，
+//!    以及换肤、监控、数据目录写操作的后台 owner。它把驱动结果交给 core 生成页面模型，再以 oneshot 回执交付。
+//! 4. 展示与宿主层，共享 GPUI 主线程：`app`（主窗口 Shell 与各页面）、`pet`（桌宠浮窗）、
+//!    `native`（托盘、单实例、自启、系统通知、原生窗口几何）。数据读写一律经服务层；只直接复用驱动层的
+//!    DTO 类型与图片播放组件。`native` 持有 `app::Shell` 与桌宠的弱引用，仅用于恢复和显隐窗口。
+//! 5. 进程级 `lifecycle`：退出时依次收尾服务、桌宠、偏好与日志。
+//!
+//! # 主要业务流向
+//!
+//! - 用量看板：Agent 会话文件 → `backend::local_index` 增量解析入库 → `usage_service::scan` 单 writer 提交覆盖事实
+//!   → `usage_service::query` 只读加载并调用 core 视图（概览、统计、图表、调用页）→ `app::dashboard` 经
+//!   `usage_service::poll_receipt` 取回并渲染。
+//! - Hook 监控与桌宠：Agent 触发 Hook → 本程序以中继模式启动（`monitor::relay`）→ 环回 `monitor::listener`
+//!   → core Hook 状态机 → `pet` 浮窗与 `app::monitor` 工作台展示。
+//! - 用量里程碑通知：`usage_service::notifications` 读取今日摘要并推进 core 里程碑状态机 → `native::notifications` 投递。
+//! - 换肤：`app::skins` 发起意图 → `usage_service::skins` 后台阻塞岛 → `skins` 校验资源并经 CDP 注入宿主页面。
 
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
@@ -72,6 +100,8 @@ fn main() -> std::process::ExitCode {
         cx.set_quit_mode(QuitMode::Explicit);
         let fallback = Bounds::centered(None, size(px(1440.), px(900.)), cx);
         let bounds = preferences.window_bounds(cx).unwrap_or(WindowBounds::Windowed(fallback));
+        // 只有原生显示器选择路径会改写初始窗口参数。
+        #[cfg_attr(not(any(target_os="macos", all(windows, not(test)))), allow(unused_mut))]
         let mut options = WindowOptions {
             show: !starts_hidden,
             focus: !starts_hidden,
@@ -106,7 +136,7 @@ fn main() -> std::process::ExitCode {
                 cx.quit();
             }
         }).detach();
-        notifications.attach(usage_service.clone(),locale,handle.into(),cx);
+        notifications.attach(usage_service.clone(),locale,handle,cx);
         native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
         if !native::startup::show_main(starts_hidden, native::tray_restore_available(cx)) {
@@ -117,7 +147,7 @@ fn main() -> std::process::ExitCode {
         #[cfg(target_os = "macos")]
         if !native::tray_restore_available(cx) { cx.set_activation_policy(gpui_kit::ActivationPolicy::Regular); }
         #[cfg(any(target_os="macos", all(windows, not(test))))]
-        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle.into(), cx); }
+        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle, cx); }
         #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
         cx.activate(true);
     });

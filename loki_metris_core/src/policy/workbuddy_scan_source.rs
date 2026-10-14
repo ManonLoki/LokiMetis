@@ -6,8 +6,6 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::settings::EnabledAgents;
-use crate::source_root::SourceRootCandidate;
 use crate::{SourceClientKind, path_key, source_root_alias_from_path, stable_id};
 
 /// WorkBuddy 固定安装目录名，位于当前用户主目录下。
@@ -16,12 +14,6 @@ pub const WORKBUDDY_HOME_DIR_NAME: &str = ".workbuddy";
 pub const WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME: &str = ".workbuddy-ai";
 /// WorkBuddy 逐请求项目记录固定目录名，用作可统计结构证据。
 pub const WORKBUDDY_PROJECTS_DIR_NAME: &str = "projects";
-
-/// 已批准的两个固定 WorkBuddy 安装目录名，按国内版、国际版稳定顺序排列。
-pub const WORKBUDDY_HOME_DIR_NAMES: [&str; 2] = [
-    WORKBUDDY_HOME_DIR_NAME,
-    WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME,
-];
 
 /// 一个可发现或登记的 WorkBuddy 扫描数据根。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,18 +39,6 @@ pub fn workbuddy_homes_from_user_home(user_home: &Path) -> [PathBuf; 2] {
     ]
 }
 
-/// 返回周期扫描与数据源列举应包含的客户端；WorkBuddy 只在独立开关开启时加入。
-pub fn list_scan_source_clients(
-    enabled_agents: EnabledAgents,
-    workbuddy_stats_enabled: bool,
-) -> Vec<SourceClientKind> {
-    let mut clients: Vec<SourceClientKind> = enabled_agents.iter().collect();
-    if workbuddy_stats_enabled {
-        clients.push(SourceClientKind::WorkBuddy);
-    }
-    clients
-}
-
 /// 按稳定顺序返回主目录下真实存在的 WorkBuddy 普通目录；两个都未安装时返回空。
 ///
 /// 单一版本缺失是正常情况，不构成失败；链接或非目录一律跳过，避免把其它目录
@@ -79,26 +59,6 @@ fn is_workbuddy_home_directory(path: &Path) -> bool {
     !metadata.file_type().is_symlink() && metadata.is_dir()
 }
 
-/// 开关关闭时不返回扫描源，即使本机根已经存在，避免把其它目录误标成 WorkBuddy。
-pub fn list_workbuddy_scan_sources(
-    workbuddy_stats_enabled: bool,
-    user_home: &Path,
-) -> Vec<WorkbuddyScanSource> {
-    if !workbuddy_stats_enabled {
-        return Vec::new();
-    }
-    discover_workbuddy_scan_sources(user_home)
-}
-
-/// 把已发现的 WorkBuddy 根转成 catalog 可登记候选。
-pub fn workbuddy_scan_source_candidate(source: &WorkbuddyScanSource) -> SourceRootCandidate {
-    SourceRootCandidate {
-        root_id: source.root_id.clone(),
-        alias: source.alias.clone(),
-        path: source.path.clone(),
-    }
-}
-
 /// 按稳定命名空间从路径生成 WorkBuddy 扫描源身份。
 fn workbuddy_scan_source_from_path(path: PathBuf) -> WorkbuddyScanSource {
     let client = SourceClientKind::WorkBuddy;
@@ -112,87 +72,7 @@ fn workbuddy_scan_source_from_path(path: PathBuf) -> WorkbuddyScanSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source_root::{
-        CatalogFuture, SourceRootCatalog, SourceRootCatalogError, SourceRootCatalogRecord,
-        source_root_add,
-    };
-    use std::collections::HashMap;
     use std::fs;
-
-    /// 内存 catalog，只覆盖登记/列举，供扫描源登记入口测试。
-    struct MemoryCatalog {
-        roots: HashMap<String, bool>,
-    }
-
-    impl Default for MemoryCatalog {
-        /// 构造空的内存 catalog。
-        fn default() -> Self {
-            Self {
-                roots: HashMap::new(),
-            }
-        }
-    }
-
-    impl SourceRootCatalog for MemoryCatalog {
-        /// 列出已登记根。
-        fn list_roots(
-            &self,
-        ) -> CatalogFuture<'_, Result<Vec<SourceRootCatalogRecord>, SourceRootCatalogError>>
-        {
-            let roots = self
-                .roots
-                .iter()
-                .map(|(root_id, enabled)| SourceRootCatalogRecord {
-                    root_id: root_id.clone(),
-                    enabled: *enabled,
-                })
-                .collect();
-            Box::pin(async move { Ok(roots) })
-        }
-
-        /// 仅在根 ID 尚未存在时登记。
-        fn register_root_if_new(
-            &mut self,
-            candidate: &SourceRootCandidate,
-        ) -> CatalogFuture<'_, Result<bool, SourceRootCatalogError>> {
-            let inserted = self.roots.insert(candidate.root_id.clone(), true).is_none();
-            Box::pin(async move { Ok(inserted) })
-        }
-
-        /// 测试不覆盖启停。
-        fn set_root_enabled(
-            &mut self,
-            _root_id: &str,
-            _enabled: bool,
-        ) -> CatalogFuture<'_, Result<bool, SourceRootCatalogError>> {
-            Box::pin(async move { Ok(false) })
-        }
-
-        /// 测试不覆盖改名。
-        fn set_root_alias(
-            &mut self,
-            _root_id: &str,
-            _alias: &str,
-        ) -> CatalogFuture<'_, Result<bool, SourceRootCatalogError>> {
-            Box::pin(async move { Ok(false) })
-        }
-
-        /// 测试不覆盖删除。
-        fn remove_root(
-            &mut self,
-            _root_id: &str,
-        ) -> CatalogFuture<'_, Result<bool, SourceRootCatalogError>> {
-            Box::pin(async move { Ok(false) })
-        }
-
-        /// 测试不覆盖主目录。
-        fn set_primary_root(
-            &mut self,
-            _root_id: Option<&str>,
-        ) -> CatalogFuture<'_, Result<bool, SourceRootCatalogError>> {
-            Box::pin(async move { Ok(false) })
-        }
-    }
 
     /// 在临时主目录下创建国内版 WorkBuddy 普通目录。
     fn install_workbuddy_home() -> tempfile::TempDir {
@@ -210,28 +90,18 @@ mod tests {
         home
     }
 
-    /// 开启且本机根存在时，扫描源集合必须含 WorkBuddy，发现结果可登记。
-    #[tokio::test]
-    async fn enabled_installed_workbuddy_is_a_scan_source_and_can_register() {
+    /// 已安装的国内版目录生成稳定命名空间根身份，路径与固定目录一致。
+    #[test]
+    fn installed_workbuddy_home_is_discovered_with_stable_identity() {
         let home = install_workbuddy_home();
-        let clients = list_scan_source_clients(EnabledAgents::empty(), true);
-        assert_eq!(clients, vec![SourceClientKind::WorkBuddy]);
-        let listed = list_workbuddy_scan_sources(true, home.path());
-        assert_eq!(listed.len(), 1);
-        assert!(listed[0].root_id.starts_with("workbuddy-root-"));
-        assert_eq!(listed[0].alias, WORKBUDDY_HOME_DIR_NAME);
-        assert_eq!(listed[0].path, workbuddy_home_from_user_home(home.path()));
-        let mut catalog = MemoryCatalog::default();
-        source_root_add(&mut catalog, &workbuddy_scan_source_candidate(&listed[0]))
-            .await
-            .expect("register");
-        let roots = catalog.list_roots().await.expect("list");
-        assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0].root_id, listed[0].root_id);
-        assert!(roots[0].enabled);
+        let discovered = discover_workbuddy_scan_sources(home.path());
+        assert_eq!(discovered.len(), 1);
+        assert!(discovered[0].root_id.starts_with("workbuddy-root-"));
+        assert_eq!(discovered[0].alias, WORKBUDDY_HOME_DIR_NAME);
+        assert_eq!(discovered[0].path, workbuddy_home_from_user_home(home.path()));
     }
 
-    /// 国内版与国际版同时安装时必须按稳定顺序返回两个互不冲突的只读来源。
+    /// 两个版本同时安装时按国内版、国际版稳定顺序返回且身份互不相同。
     #[test]
     fn both_editions_are_discovered_in_stable_order() {
         let home = install_both_workbuddy_homes();
@@ -248,7 +118,14 @@ mod tests {
             home.path().join(WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME)
         );
         assert_ne!(discovered[0].root_id, discovered[1].root_id);
-        assert_eq!(list_workbuddy_scan_sources(true, home.path()).len(), 2);
+    }
+
+    /// 主目录下没有任何 WorkBuddy 安装目录时不发现来源。
+    #[test]
+    fn missing_workbuddy_home_is_not_discovered() {
+        let home = tempfile::tempdir().expect("empty home");
+        fs::create_dir(home.path().join(".codex")).expect("codex home");
+        assert!(discover_workbuddy_scan_sources(home.path()).is_empty());
     }
 
     /// 只安装国际版时也必须被发现，单一版本缺失不得让整个来源消失。
@@ -260,31 +137,6 @@ mod tests {
         let discovered = discover_workbuddy_scan_sources(home.path());
         assert_eq!(discovered.len(), 1);
         assert_eq!(discovered[0].alias, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME);
-    }
-
-    /// 关闭时即使本机根存在也不得进入扫描源集合或列举结果。
-    #[test]
-    fn disabled_workbuddy_is_absent_even_when_installed() {
-        let home = install_workbuddy_home();
-        assert!(list_scan_source_clients(EnabledAgents::empty(), false).is_empty());
-        assert!(list_workbuddy_scan_sources(false, home.path()).is_empty());
-        assert_eq!(discover_workbuddy_scan_sources(home.path()).len(), 1);
-    }
-
-    /// 未安装时开启开关也不得发明扫描根，也不得把其它 Agent 根冒充 WorkBuddy。
-    #[test]
-    fn missing_workbuddy_home_is_not_discovered() {
-        let home = tempfile::tempdir().expect("empty home");
-        fs::create_dir(home.path().join(".codex")).expect("codex home");
-        assert!(
-            list_scan_source_clients(
-                EnabledAgents::empty().with(SourceClientKind::Codex, true),
-                true
-            )
-            .contains(&SourceClientKind::WorkBuddy)
-        );
-        assert!(discover_workbuddy_scan_sources(home.path()).is_empty());
-        assert!(list_workbuddy_scan_sources(true, home.path()).is_empty());
     }
 
     /// 候选根为链接或普通文件时不得被当成 WorkBuddy 安装目录。

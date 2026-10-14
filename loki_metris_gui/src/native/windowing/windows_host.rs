@@ -118,9 +118,11 @@ impl WindowHost {
     }
 
     /// 最大化发生在普通几何确认之后，避免将屏幕尺寸保存为普通尺寸。
+    // SAFETY: 句柄先经 native::valid 确认仍属于当前线程与进程，只改变显示状态。
     pub fn maximize(&self) { if native::valid(self.hwnd) { unsafe { let _ = ShowWindow(self.hwnd, SW_MAXIMIZE); } } }
 
     /// 实际 Win32 zoom 标志作为持久最大化状态。
+    // SAFETY: 句柄先经 native::valid 确认仍属于当前线程与进程，只读取最大化标志。
     pub fn maximized(&self) -> bool { native::valid(self.hwnd) && unsafe { IsZoomed(self.hwnd).as_bool() } }
 
     /// 前台拒绝策略沿用已验证的主窗桥接；调用方已经检查显示租约。

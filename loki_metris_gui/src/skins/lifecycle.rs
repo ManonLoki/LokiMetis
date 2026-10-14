@@ -43,6 +43,6 @@ enum EndpointCleanupOutcome {
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
 // - lifecycle_watchers.rs：取得 watcher 回收器短临界区；即使测试污染锁，也不能遗失真实任务句柄。
-// - lifecycle_reaping.rs：回收上一轮因最终期限耗尽而保存的任务；锁内只移交所有权，不跨 await 持锁。；执行换皮宿主内部的 `drop` 步骤。…
+// - lifecycle_reaping.rs：监视任务回收、服务释放、提示词路径校验，以及皮肤 ID、删除选择与导入 token 校验。
 include!("lifecycle_watchers.rs");
 include!("lifecycle_reaping.rs");

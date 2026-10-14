@@ -97,6 +97,7 @@ impl Socket {
         {
             use std::os::windows::io::AsRawHandle;
             #[link(name = "kernel32")]
+            // SAFETY: 声明与 kernel32 导出的 PeekNamedPipe 原型一致；调用方传入有效管道句柄与可写输出指针。
             unsafe extern "system" {
                 /// 只查询本连接的缓冲字节，不消费输入也不等待对端。
                 fn PeekNamedPipe(pipe: *mut std::ffi::c_void, buffer: *mut std::ffi::c_void,
@@ -111,7 +112,7 @@ impl Socket {
             }
             if available == 0 { return Err(io::ErrorKind::WouldBlock.into()); }
             let count = bytes.len().min(available as usize);
-            return self.0.read(&mut bytes[..count]);
+            self.0.read(&mut bytes[..count])
         }
         #[cfg(not(windows))]
         self.0.read(bytes)
@@ -186,8 +187,8 @@ fn notify(directory: &Path) -> io::Result<()> {
     let (mut sent, mut received) = (0, 0);
     let mut ack = [0; 3];
     while Instant::now() < deadline {
-        let result = if sent < 5 { socket.0.write(&b"show\n"[sent..]).map(|count| { sent += count; count }) }
-            else { socket.read_available(&mut ack[received..]).map(|count| { received += count; count }) };
+        let result = if sent < 5 { socket.0.write(&b"show\n"[sent..]).inspect(|&count| { sent += count; }) }
+            else { socket.read_available(&mut ack[received..]).inspect(|&count| { received += count; }) };
         match result { Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()), Ok(_) => {}, Err(error) if retryable(&error) => {}, Err(error) => return Err(error) }
         if received == 3 { return if ack == *b"ok\n" { Ok(()) } else { Err(io::ErrorKind::InvalidData.into()) } }
         thread::sleep(POLL);
@@ -234,12 +235,12 @@ fn private_directory(directory: &Path) -> io::Result<PathBuf> {
             Ok(metadata) if !linked(&metadata) && metadata.is_dir() => {},
             Ok(_) => return Err(io::ErrorKind::InvalidInput.into()),
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                #[cfg_attr(not(unix), allow(unused_mut))]
                 let mut builder = fs::DirBuilder::new();
                 #[cfg(unix)]
                 { use std::os::unix::fs::DirBuilderExt; builder.mode(0o700); }
-                if let Err(error) = builder.create(&current) {
-                    if error.kind() != io::ErrorKind::AlreadyExists { return Err(error) }
-                }
+                if let Err(error) = builder.create(&current)
+                    && error.kind() != io::ErrorKind::AlreadyExists { return Err(error) }
                 let metadata = fs::symlink_metadata(&current)?;
                 if linked(&metadata) || !metadata.is_dir() { return Err(io::ErrorKind::InvalidInput.into()) }
             }

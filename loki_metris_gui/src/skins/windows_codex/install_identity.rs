@@ -402,8 +402,11 @@ fn publisher_from_trust_state(state: HANDLE) -> Option<String> {
 
 /// 读取 Windows Known Folder 路径并释放系统分配的字符串缓冲区。
 pub(super) fn known_folder_path(folder_id: &windows::core::GUID) -> Option<PathBuf> {
+    // SAFETY: folder_id 指向有效 GUID；成功时系统分配的字符串由本函数在下方释放。
     let raw = unsafe { SHGetKnownFolderPath(folder_id, KF_FLAG_DEFAULT, None) }.ok()?;
+    // SAFETY: raw 是 SHGetKnownFolderPath 返回的、尚未释放的 NUL 结尾宽字符串。
     let path = unsafe { raw.to_string() }.ok().map(PathBuf::from);
+    // SAFETY: raw 由系统以 CoTaskMem 分配，此处只释放一次，之后不再使用。
     unsafe { CoTaskMemFree(Some(raw.0.cast())) };
     path
 }

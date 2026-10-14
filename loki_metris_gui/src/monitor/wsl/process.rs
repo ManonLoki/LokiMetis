@@ -307,6 +307,7 @@ fn windows_system_wsl_executable(
     error_code: &'static str,
 ) -> Result<std::path::PathBuf, HookError> {
     let raw =
+        // SAFETY: 传入静态 FOLDERID_System；成功时系统分配的字符串由本函数在下方释放。
         unsafe { SHGetKnownFolderPath(&FOLDERID_System, KF_FLAG_DEFAULT, None) }.map_err(|_| {
             wsl_lifecycle_error(
                 distribution,
@@ -314,7 +315,9 @@ fn windows_system_wsl_executable(
                 "Windows system directory is unavailable",
             )
         })?;
+    // SAFETY: raw 是 SHGetKnownFolderPath 返回的、尚未释放的 NUL 结尾宽字符串。
     let system_directory = unsafe { raw.to_string() }.map(std::path::PathBuf::from);
+    // SAFETY: raw 由系统以 CoTaskMem 分配，此处只释放一次，之后不再使用。
     unsafe { CoTaskMemFree(Some(raw.0.cast())) };
     let executable = system_directory
         .map_err(|_| {

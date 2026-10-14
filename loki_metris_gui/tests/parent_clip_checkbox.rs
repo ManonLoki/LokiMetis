@@ -11,6 +11,7 @@ use gpui_kit::{
     test::TestWindowExt,
 };
 
+/// 父裁切复选框回归的测试根视图：记录勾选、禁用、变更次数、悬停与圆角等可观察状态。
 struct Probe {
     checked: bool,
     disabled: bool,
@@ -20,6 +21,7 @@ struct Probe {
     anchor: FocusHandle,
 }
 impl Render for Probe {
+    /// 在圆角父裁切容器内渲染受测复选框，并把状态变化写回探针。
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let changed = cx.listener(|this, state: &CheckboxState, _, cx| {
             this.checked = *state == CheckboxState::Checked;
@@ -69,6 +71,7 @@ impl Render for Probe {
     }
 }
 
+/// 初始化组件库并打开承载探针的测试窗口，返回窗口句柄与探针实体。
 fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Probe>) {
     cx.update(gpui_kit::init);
     let (handle, entity) = cx
@@ -97,9 +100,10 @@ fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Probe>) {
             )
         })
         .unwrap();
-    (handle.into(), entity)
+    (handle, entity)
 }
 
+/// 向测试窗口派发一次输入事件，并等待前台任务全部完成。
 fn event(handle: AnyWindowHandle, event: impl InputEvent, cx: &mut TestAppContext) {
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
@@ -109,6 +113,7 @@ fn event(handle: AnyWindowHandle, event: impl InputEvent, cx: &mut TestAppContex
     .unwrap();
     cx.run_until_parked();
 }
+/// 模拟指针移动到指定位置（无按键按下）。
 fn pointer(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContext) {
     event(
         handle,
@@ -119,6 +124,7 @@ fn pointer(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppCon
         cx,
     );
 }
+/// 模拟按住左键时把指针拖到指定位置。
 fn move_pressed(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContext) {
     event(
         handle,
@@ -130,6 +136,7 @@ fn move_pressed(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestA
         cx,
     );
 }
+/// 模拟在指定位置按下左键。
 fn down(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContext) {
     event(
         handle,
@@ -142,6 +149,7 @@ fn down(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContex
         cx,
     );
 }
+/// 模拟在指定位置松开左键。
 fn up(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContext) {
     event(
         handle,
@@ -154,6 +162,7 @@ fn up(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContext)
         cx,
     );
 }
+/// 模拟一次完整的按键按下与松开。
 fn key(handle: AnyWindowHandle, key: &str, cx: &mut TestAppContext) {
     let keystroke = Keystroke::parse(key).unwrap();
     event(
@@ -167,6 +176,7 @@ fn key(handle: AnyWindowHandle, key: &str, cx: &mut TestAppContext) {
     );
     event(handle, KeyUpEvent { keystroke }, cx);
 }
+/// 渲染一帧后返回勾选框在父裁切外与裁切内的两个命中采样点，并断言其几何前提。
 fn positions(handle: AnyWindowHandle, cx: &mut TestAppContext) -> (Point<Pixels>, Point<Pixels>) {
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);

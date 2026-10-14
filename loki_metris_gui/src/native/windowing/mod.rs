@@ -8,11 +8,12 @@ mod macos_host;
 mod windows;
 #[cfg(windows)]
 mod windows_host;
-#[cfg(windows)]
+// 测试构建用测试宿主替换原生窗口事务，这些出口只服务真实 Windows 构建。
+#[cfg(all(windows, not(test)))]
 pub(crate) use windows::{capture_desktop, capture_topology, capture_window, capture_normal, frame_insets, window_display_key};
-#[cfg(windows)]
+#[cfg(all(windows, not(test)))]
 pub(crate) use windows_host::WindowHost;
-#[cfg(windows)]
+#[cfg(all(windows, not(test)))]
 pub(crate) use windows::legacy_main;
 #[cfg(target_os = "macos")]
 mod geometry_settle;
@@ -45,6 +46,7 @@ pub(crate) struct DesktopSnapshot {
     /// 指针所在屏幕稳定身份，失败时交给 core 使用确定回退。
     pub pointer: Option<String>,
     /// AppKit 全局向上坐标转换使用的主屏顶边，保留原生负坐标。
+    #[cfg(target_os = "macos")]
     pub global_top: f64,
 }
 

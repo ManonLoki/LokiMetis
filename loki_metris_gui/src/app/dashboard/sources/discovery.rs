@@ -11,15 +11,11 @@ impl Shell {
     /// 候选重试等待真实登记回执，页面卸载只丢弃提示，不取消服务写任务。
     fn retry_source_candidate(&mut self,id:String,cx:&mut Context<Self>) {
         let Some(service)=&self.dashboard.service else{return};
-        let mut receiver=match service.retry_candidate(id.clone()) {Ok(receiver)=>receiver,Err(error)=>{self.dashboard.sources.feedback=Some(Err(error));cx.notify();return}};
+        let receiver=match service.retry_candidate(id.clone()) {Ok(receiver)=>receiver,Err(error)=>{self.dashboard.sources.feedback=Some(Err(error));cx.notify();return}};
         let generation=self.dashboard.sources.generation;let client=self.usage_client();
         self.dashboard.sources.feedback=None;self.dashboard.sources.post_update_error=None;
         let task=cx.spawn(async move|entity,cx| {
-            let result=loop {match receiver.try_recv() {
-                Ok(result)=>break result,
-                Err(tokio::sync::oneshot::error::TryRecvError::Closed)=>break Err("source_update_failed"),
-                Err(tokio::sync::oneshot::error::TryRecvError::Empty)=>{},
-            }cx.background_executor().timer(std::time::Duration::from_millis(50)).await;};
+            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.sources.generation!=generation||this.usage_client()!=client {return}
                 this.dashboard.sources.feedback=Some(result.map(|()|"sources.messages.sourceRegistered".into()));
@@ -32,7 +28,7 @@ impl Shell {
     fn start_source_discovery(&mut self,scope:Scope,cx:&mut Context<Self>) {
         self.dashboard.sources.feedback=None;
         if self.dashboard.client==4 {
-            let mut status=RootDiscoveryStatus::default();status.lifecycle=State::Complete;status.scope=scope;
+            let mut status=RootDiscoveryStatus{lifecycle:State::Complete,scope,..Default::default()};
             status.progress.volumes_completed=1;status.progress.volumes_total=1;
             self.dashboard.sources.workbuddy_discovery=Some(status);self.load_sources(cx);return
         }
@@ -55,11 +51,7 @@ impl Shell {
                 Ok(Ok(paths))=>{
                     let path=paths.and_then(|paths|paths.into_iter().next());
                     match service.accept_manual_directory(client,lease,path) {
-                        Ok(mut receiver)=>loop {match receiver.try_recv() {
-                            Ok(result)=>break result,
-                            Err(tokio::sync::oneshot::error::TryRecvError::Closed)=>break Err("source_update_failed"),
-                            Err(tokio::sync::oneshot::error::TryRecvError::Empty)=>{},
-                        }cx.background_executor().timer(std::time::Duration::from_millis(50)).await;},
+                        Ok(receiver)=>crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed")),
                         Err(error)=>Err(error),
                     }
                 },
@@ -109,9 +101,8 @@ impl Shell {
                 .child(SourceButton::new("sources-discovery-cancel",SourceButtonVariant::LightRed,cx.theme().mode.is_dark()).h(px(36.)).px(px(18.)).rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||!running||self.dashboard.client==4)
                     .label(self.t("sources.discovery.cancel"))
                     .on_click(cx.listener(|this,_,_,cx| {
-                        if let Some(service)=&this.dashboard.service {
-                            if let Err(error)=service.cancel_discovery(){this.dashboard.sources.feedback=Some(Err(error));}
-                        }cx.notify();
+                        if let Some(service)=&this.dashboard.service
+                            && let Err(error)=service.cancel_discovery(){this.dashboard.sources.feedback=Some(Err(error));}cx.notify();
                     })))));
         let candidates:Vec<_>=view.candidates.iter().filter(|candidate|Some(candidate.client)==self.usage_client()&&view.failed_ids.contains(&candidate.id)).collect();
         let progress=status.progress;

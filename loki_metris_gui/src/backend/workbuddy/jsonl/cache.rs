@@ -55,6 +55,7 @@ impl ParsedFile {
     }
 }
 
+/// 按（根 ID，文件路径）索引的已解析 WorkBuddy 文件缓存表。
 type Entries = HashMap<(String, PathBuf), Arc<ParsedFile>>;
 
 /// 全局缓存；键含固定根 ID，使国内版与国际版互不串用。
@@ -110,6 +111,6 @@ pub(super) fn store(root_id: &str, path: &Path, parsed: ParsedFile) {
 pub(super) fn retain_seen(root_id: &str, seen: &[&Path]) {
     let mut entries = entries().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     entries.retain(|(root, path), _| {
-        root != root_id || seen.iter().any(|seen| *seen == path.as_path())
+        root != root_id || seen.contains(&path.as_path())
     });
 }

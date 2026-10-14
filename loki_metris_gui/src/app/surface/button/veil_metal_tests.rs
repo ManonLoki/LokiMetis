@@ -7,6 +7,7 @@ use gpui_kit::{
 };
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 
+/// 加载遮罩回归的测试根视图：控制按钮加载态、主题与可见性，并回传动效 owner。
 struct Probe {
     loading: bool,
     dark: bool,

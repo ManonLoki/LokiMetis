@@ -297,6 +297,7 @@ pub(crate) async fn force_close_workbuddy_gui() -> Result<usize, AppError> {
             let Some(handle) = handle else {
                 continue;
             };
+            // SAFETY: handle 由 open_verified_process 在复核身份后以终止权限打开并由 OwnedHandle 持有，本次调用期间保持有效。
             match unsafe { TerminateProcess(handle.0, 0) } {
                 Ok(()) => termination_requested = true,
                 Err(_) => tracing::warn!("WorkBuddy 进程在关闭期间已结束或状态变化"),
@@ -321,6 +322,7 @@ fn force_close_incomplete_error(cause: &AppError) -> AppError {
 
 /// 用 ToolHelp 建立进程与父链快照，并仅接纳路径匹配官方候选的 WorkBuddy。
 fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapshot, AppError> {
+    // SAFETY: 创建进程快照不读写调用方内存；返回的句柄立即交给 OwnedHandle 唯一持有并负责关闭。
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
         .map_err(|_| {
@@ -333,6 +335,7 @@ fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapsho
         dwSize: size_of::<PROCESSENTRY32W>() as u32,
         ..Default::default()
     };
+    // SAFETY: snapshot 句柄在本函数内有效；entry 已设置 dwSize 且为本栈可写结构。
     unsafe { Process32FirstW(snapshot.0, &mut entry) }.map_err(|_| process_inspection_error())?;
     let mut processes = Vec::new();
     let mut parents = HashMap::new();
@@ -368,6 +371,7 @@ fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapsho
                 });
             }
         }
+        // SAFETY: 与 Process32FirstW 相同的有效快照句柄与可写 entry。
         match unsafe { Process32NextW(snapshot.0, &mut entry) } {
             Ok(()) => {}
             Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => break,
@@ -379,6 +383,7 @@ fn enumerate_process_snapshot(candidates: &[PathBuf]) -> Result<WorkBuddySnapsho
 
 /// 路径查询失败时用新快照区分已退出进程与仍存活但不可验证的同名进程。
 fn snapshot_still_contains_named_process(pid: u32, expected_name: &str) -> Result<bool, AppError> {
+    // SAFETY: 创建进程快照不读写调用方内存；返回的句柄立即交给 OwnedHandle 唯一持有并负责关闭。
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
         .map_err(|_| process_inspection_error())?;
@@ -386,6 +391,7 @@ fn snapshot_still_contains_named_process(pid: u32, expected_name: &str) -> Resul
         dwSize: size_of::<PROCESSENTRY32W>() as u32,
         ..Default::default()
     };
+    // SAFETY: snapshot 句柄在本函数内有效；entry 已设置 dwSize 且为本栈可写结构。
     match unsafe { Process32FirstW(snapshot.0, &mut entry) } {
         Ok(()) => {}
         Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => return Ok(false),
@@ -397,6 +403,7 @@ fn snapshot_still_contains_named_process(pid: u32, expected_name: &str) -> Resul
         {
             return Ok(true);
         }
+        // SAFETY: 与 Process32FirstW 相同的有效快照句柄与可写 entry。
         match unsafe { Process32NextW(snapshot.0, &mut entry) } {
             Ok(()) => {}
             Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => return Ok(false),
@@ -415,5 +422,5 @@ fn process_inspection_error() -> AppError {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - workbuddy_tests.rs：本模块的单元测试
-include!("workbuddy_tests.rs");
+// - workbuddy_process.rs：WorkBuddy 进程打开与身份复核、安装路径发现，以及本模块单元测试
+include!("workbuddy_process.rs");

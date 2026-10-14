@@ -1,5 +1,5 @@
 // 本文件是 workbuddy.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：本模块的单元测试
+// 与主文件共用作用域，因此无需额外导入。收纳内容：WorkBuddy 进程打开与身份复核、安装路径发现，以及本模块单元测试
 
 /// 打开可终止句柄后再次核对路径；进程已退出时安全返回空值。
 fn open_verified_process(process: &GuiProcess) -> Result<Option<OwnedHandle>, AppError> {
@@ -22,6 +22,7 @@ fn open_verified_process(process: &GuiProcess) -> Result<Option<OwnedHandle>, Ap
         }
     };
     let Some(current_path) = query_process_path_from_handle(handle.0) else {
+        // SAFETY: handle 由 OwnedHandle 持有且具备同步权限；零超时只查询是否已退出。
         if unsafe { WaitForSingleObject(handle.0, 0) } == WAIT_OBJECT_0 {
             return Ok(None);
         }

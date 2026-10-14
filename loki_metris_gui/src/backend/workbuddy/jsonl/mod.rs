@@ -55,6 +55,7 @@ struct ProjectEvent<'a> {
 #[derive(Deserialize)]
 struct JsonString<'a>(#[serde(borrow)] Cow<'a, str>);
 impl std::ops::Deref for JsonString<'_> {
+    /// 解引用为借用或已解码的字符串视图。
     type Target = str;
     /// 下游只读取字符串视图；输出记录需要保留的模型另行取得所有权。
     fn deref(&self) -> &str {
@@ -186,15 +187,13 @@ pub(super) fn read_project_usage(
         remaining_bytes = remaining_bytes.saturating_sub(allowed_len);
         // 只有文件完整落入字节与记录预算时才复用：命中后的结果与重新解析逐项相同。
         let complete = allowed_len == observed_len;
-        if complete {
-            if let Some(parsed) = cache::lookup(root_id, &stamp, source) {
-                if records.len().saturating_add(parsed.records.len()) < MAX_USAGE_RECORDS {
+        if complete
+            && let Some(parsed) = cache::lookup(root_id, &stamp, source)
+                && records.len().saturating_add(parsed.records.len()) < MAX_USAGE_RECORDS {
                     records.extend(parsed.records.iter().cloned());
                     warnings.merge(parsed.warnings);
                     continue;
                 }
-            }
-        }
         let first_record = records.len();
         match parse_project_stream(reader.take(allowed_len), source, root_id, &mut records) {
             Ok(report) => {

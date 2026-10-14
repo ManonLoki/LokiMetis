@@ -183,7 +183,7 @@ fn spring_gap_stays_zero_and_fall_fold_merges_into_one_civil_hour() {
         LocalUsageWindow::Today,
         UsageChartDimension::Model,
         epoch_ms("2026-03-08T16:00:00Z"),
-        TimeStandard::local(),
+        TimeStandard::Local,
         &new_york,
     )
     .expect("spring chart reconciles");
@@ -199,7 +199,7 @@ fn spring_gap_stays_zero_and_fall_fold_merges_into_one_civil_hour() {
         LocalUsageWindow::Today,
         UsageChartDimension::Model,
         epoch_ms("2026-11-01T17:00:00Z"),
-        TimeStandard::local(),
+        TimeStandard::Local,
         &new_york,
     )
     .expect("fall chart reconciles");

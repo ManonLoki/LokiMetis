@@ -76,7 +76,7 @@ fn query() -> oneshot::Receiver<Permission> {
     let (sender, receiver) = oneshot::channel();
     let sender = Arc::new(Mutex::new(Some(sender)));
     let block = RcBlock::new(move |settings: NonNull<UNNotificationSettings>| {
-        // 系统回调参数在回调期间有效，立即复制枚举，不能跨线程保留其借用。
+        // SAFETY: 系统回调参数在回调期间有效，立即复制枚举，不能跨线程保留其借用。
         let status = unsafe { settings.as_ref() }.authorizationStatus();
         let permission = match status {
             UNAuthorizationStatus::NotDetermined => Permission::NotDetermined,
@@ -101,7 +101,7 @@ fn request() -> oneshot::Receiver<Result<(), Error>> {
         let result = if error.is_null() {
             authorization_response(granted.as_bool(), None)
         } else {
-            // NSError仅在完成块内有效；只记录平台域和数值码，不输出描述或userInfo。
+            // SAFETY: 该分支 error 非空，NSError 仅在完成块内有效且只在此借用；只记录平台域和数值码，不输出描述或userInfo。
             let error = unsafe { &*error };
             tracing::warn!(
                 event = "notification_authorization_failed",

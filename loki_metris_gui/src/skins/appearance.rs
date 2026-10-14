@@ -1,7 +1,7 @@
-// 本文件收纳：执行换皮宿主内部的 `build_appearance_check` 步骤；执行换皮宿主内部的 `compare_appearance_requirement` 步骤；执行换皮宿主内部的 `compare_optional_value` 步骤。
+// 本文件收纳：安装前外观预检与逐项比较，以及首批注入的就绪等待与会话重连判定。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 执行换皮宿主内部的 `build_appearance_check` 步骤。
+/// 对照皮肤外观策略检查宿主当前外观：明暗模式不受支持时记一项差异，再按当前模式比较逐项要求。
 fn build_appearance_check(
     policy: &AppearancePolicy,
     probe: &AppearanceProbe,
@@ -39,7 +39,7 @@ fn build_appearance_check(
     check
 }
 
-/// 执行换皮宿主内部的 `compare_appearance_requirement` 步骤。
+/// 逐项比较当前模式下宿主主题、配色、字体等设置与皮肤要求。
 fn compare_appearance_requirement(
     check: &mut SkinAppearanceCheck,
     requirement: &AppearanceRequirement,
@@ -156,7 +156,7 @@ fn compare_appearance_requirement(
     }
 }
 
-/// 执行换皮宿主内部的 `compare_optional_value` 步骤。
+/// 比较单项设置：皮肤未要求时跳过，读不到当前值记为无法读取，规范化后不一致记为差异。
 fn compare_optional_value(
     check: &mut SkinAppearanceCheck,
     field: &str,
@@ -188,7 +188,7 @@ fn compare_optional_value(
     }
 }
 
-/// 执行换皮宿主内部的 `json_display_value` 步骤。
+/// 把 JSON 标量转换为可展示文本，对象与数组返回空。
 fn json_display_value(value: &serde_json::Value) -> Option<String> {
     match value {
         serde_json::Value::String(value) => Some(value.clone()),
@@ -198,23 +198,20 @@ fn json_display_value(value: &serde_json::Value) -> Option<String> {
     }
 }
 
-/// 执行换皮宿主内部的 `normalize_appearance_value` 步骤。
+/// 外观设置比较前去除首尾空白并转为小写。
 fn normalize_appearance_value(value: &str) -> String {
     value.trim().to_ascii_lowercase()
 }
 
-/// 执行换皮宿主内部的 `wait_for_initial_injection_inner` 步骤。
+/// 在页面就绪期限内反复刷新目标并注入首批页面，直到至少一个页面验证成功；会话异常时重新连接同一宿主根进程。
 async fn wait_for_initial_injection_inner(
     host: SkinHostKind,
     browser: &mut Browser,
     handler_task: &mut HandlerTaskGuard,
-    payload: &Arc<str>,
-    skin: &SkinReference,
-    page_ready_timeout: Duration,
-    endpoint: CdpEndpoint,
-    expected_host_root_pid: u32,
+    target: InitialInjection<'_>,
     transaction: &InjectionTransaction,
 ) -> Result<InjectionReport, AppError> {
+    let InitialInjection { payload, skin, page_ready_timeout, endpoint, expected_host_root_pid } = target;
     let deadline = tokio::time::Instant::now() + page_ready_timeout;
     let mut last_session_error = None;
 
@@ -337,7 +334,7 @@ fn reconnect_validation_decision(
     }
 }
 
-/// 执行换皮宿主内部的 `should_reconnect_initial_session` 步骤。
+/// 没有页面验证成功且有页面失败时，判定当前调试会话失效需要重连。
 fn should_reconnect_initial_session(report: &InjectionReport) -> bool {
     report.verified_pages == 0 && report.failed_pages > 0
 }

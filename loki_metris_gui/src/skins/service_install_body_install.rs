@@ -1,8 +1,8 @@
 // 本文件是 service_install_body.rs 的分片（第 2/3 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：执行换皮宿主内部的 `install` 步骤。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：安装皮肤（加载校验、宿主启动或恢复、外观预检、注入与持续监视）。
 
 impl SkinService {
-    /// 执行换皮宿主内部的 `install` 步骤。
+    /// 在串行操作锁内为宿主安装皮肤：加载并校验皮肤，必要时启动或恢复宿主，外观不一致且未获同意时返回待确认结果，否则注入页面并启动持续监视。
     pub async fn install(
         &self,
         host: SkinHostKind,
@@ -266,11 +266,13 @@ impl SkinService {
             host,
             browser,
             handler_task,
-            &loaded.payload,
-            skin,
-            connection_source.page_ready_timeout(),
-            endpoint,
-            verified_root_pid,
+            InitialInjection {
+                payload: &loaded.payload,
+                skin,
+                page_ready_timeout: connection_source.page_ready_timeout(),
+                endpoint,
+                expected_host_root_pid: verified_root_pid,
+            },
             &transaction_id,
             &mut cancel,
         )

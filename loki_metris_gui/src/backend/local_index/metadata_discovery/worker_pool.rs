@@ -267,7 +267,7 @@ impl Drop for MetadataWorkerPool {
     fn drop(&mut self) {
         self.sender.take();
         let deadline = Instant::now() + WORKER_SHUTDOWN_GRACE;
-        let mut pending = self.workers.drain(..).collect::<Vec<_>>();
+        let mut pending = std::mem::take(&mut self.workers);
         while !pending.is_empty() {
             join_finished_workers(&mut pending);
             if pending.is_empty() || Instant::now() >= deadline {
@@ -356,5 +356,5 @@ fn retain_workers(workers: Vec<JoinHandle<()>>) {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - worker_pool_tests.rs：本模块的单元测试
-include!("worker_pool_tests.rs");
+// - worker_pool_inspect.rs：单目录元数据检查，以及本模块单元测试
+include!("worker_pool_inspect.rs");

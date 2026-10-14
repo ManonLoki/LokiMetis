@@ -150,6 +150,7 @@ impl HookStateMachine {
     }
 
     /// 返回当前可重放的展示迁移；从未建立或已释放时返回 `None`。
+    #[cfg(any(test, feature = "test-support"))]
     pub fn current_display_transition(&self) -> Option<HookTransition> {
         let phase = self.aggregate_phase();
         (phase != HookPhase::Released).then(|| phase_transition(phase))

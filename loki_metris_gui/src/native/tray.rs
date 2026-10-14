@@ -22,10 +22,10 @@ impl Tray {
         let (show, quit, name) = labels(locale);
         let show = MenuItem::with_id("show_window", show, true, None);
         let quit = MenuItem::with_id("quit", quit, true, None);
-        let pet=MenuItem::with_id("toggle_pet_overlay",rust_i18n::t!("tray.hide_pet_overlay",locale=locale).to_string(),true,None);
-        let notification=CheckMenuItem::with_id("toggle_notification",rust_i18n::t!("settings.system_notification",locale=locale).to_string(),true,false,None);
-        let pet_settings=MenuItem::with_id("open_pet_settings",rust_i18n::t!("monitor.pet.settingsTitle",locale=locale).to_string(),true,None);
-        let mouse=CheckMenuItem::with_id("toggle_pet_mouse_passthrough",rust_i18n::t!("monitor.pet.mousePassthrough",locale=locale).to_string(),false,false,None);
+        let pet=MenuItem::with_id("toggle_pet_overlay",&rust_i18n::t!("tray.hide_pet_overlay",locale=locale),true,None);
+        let notification=CheckMenuItem::with_id("toggle_notification",&rust_i18n::t!("settings.system_notification",locale=locale),true,false,None);
+        let pet_settings=MenuItem::with_id("open_pet_settings",&rust_i18n::t!("monitor.pet.settingsTitle",locale=locale),true,None);
+        let mouse=CheckMenuItem::with_id("toggle_pet_mouse_passthrough",&rust_i18n::t!("monitor.pet.mousePassthrough",locale=locale),false,false,None);
         let menu = Menu::new();
         menu.append_items(&[&show, &pet, &pet_settings, &mouse, &notification, &quit]).map_err(io::Error::other)?;
         let pixels = include_bytes!("../../assets/tray.rgba").to_vec();
@@ -40,7 +40,7 @@ impl Tray {
         self.locale=locale.into();
         self.set_pet_visibility(self.pet_visible);
         self.set_mouse_passthrough(self.mouse_state);
-        self.pet_settings.set_text(rust_i18n::t!("monitor.pet.settingsTitle",locale=locale).to_string());
+        self.pet_settings.set_text(&rust_i18n::t!("monitor.pet.settingsTitle",locale=locale));
         self.set_notification(&self.notification_state.clone());
         let (show, quit, name) = labels(locale);
         self.show.set_text(show);
@@ -49,13 +49,13 @@ impl Tray {
     }
 
     /// 同一菜单项随真实会话显隐切换，语言来自当前应用。
-    pub fn set_pet_visibility(&mut self,visible:bool) {self.pet_visible=visible;self.pet.set_text(rust_i18n::t!(if visible {"tray.hide_pet_overlay"} else {"tray.show_pet_overlay"},locale=&self.locale).to_string());}
+    pub fn set_pet_visibility(&mut self,visible:bool) {self.pet_visible=visible;self.pet.set_text(&rust_i18n::t!(if visible {"tray.hide_pet_overlay"} else {"tray.show_pet_overlay"},locale=&self.locale));}
 
     /// 仅根据controller内存状态更新菜单，配置窗在穿透期间仍可独立打开。
     pub fn set_mouse_passthrough(&mut self,state:crate::pet::MousePassthroughState) {
         self.mouse.set_checked(state.confirmed == Some(true));
         self.mouse.set_enabled(state.available && !state.busy);
-        self.mouse.set_text(rust_i18n::t!(if state.available && state.confirmed.is_none() {"monitor.pet.mousePassthroughRecover"} else {"monitor.pet.mousePassthrough"},locale=&self.locale).to_string());
+        self.mouse.set_text(&rust_i18n::t!(if state.available && state.confirmed.is_none() {"monitor.pet.mousePassthroughRecover"} else {"monitor.pet.mousePassthrough"},locale=&self.locale));
         self.pet_settings.set_enabled(state.available);
         self.mouse_state=state;
     }

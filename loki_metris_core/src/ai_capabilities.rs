@@ -56,13 +56,6 @@ pub const fn public_ai_capabilities() -> &'static [PublicAiCapability] {
     &PUBLIC_AI_CAPABILITIES
 }
 
-/// 按公开目录顺序返回看板能够识别的数据源，无法映射的类型被忽略。
-pub fn public_dashboard_clients() -> impl Iterator<Item = SourceClientKind> {
-    PUBLIC_AI_CAPABILITIES
-        .iter()
-        .filter_map(|capability| capability.dashboard_client)
-}
-
 /// 按公开目录顺序返回监控能够识别的 Hook 工具，无法映射的类型被忽略。
 pub fn public_monitor_ai_tools() -> impl Iterator<Item = AiTool> {
     PUBLIC_AI_CAPABILITIES
@@ -98,33 +91,6 @@ pub fn dashboard_selection_for_ai_tools(selected: &[AiTool]) -> (Vec<SourceClien
         })
         .collect();
     (clients, workbuddy)
-}
-
-/// 合并升级前分散保存的看板与 Hooks 选择，并按公开目录规范化顺序。
-pub fn merge_public_ai_selections(
-    dashboard_clients: impl IntoIterator<Item = SourceClientKind>,
-    workbuddy_enabled: bool,
-    monitor_tools: &[AiTool],
-) -> Vec<AiTool> {
-    let dashboard = dashboard_clients
-        .into_iter()
-        .collect::<std::collections::HashSet<_>>();
-    let monitor = monitor_tools
-        .iter()
-        .copied()
-        .collect::<std::collections::HashSet<_>>();
-    PUBLIC_AI_CAPABILITIES
-        .iter()
-        .filter_map(|capability| {
-            let tool = capability.monitor_tool?;
-            let enabled_by_dashboard = match capability.dashboard_client {
-                Some(SourceClientKind::WorkBuddy) => workbuddy_enabled,
-                Some(client) => dashboard.contains(&client),
-                None => false,
-            };
-            (enabled_by_dashboard || monitor.contains(&tool)).then_some(tool)
-        })
-        .collect()
 }
 
 #[cfg(test)]
@@ -175,7 +141,7 @@ mod tests {
     #[test]
     fn surface_mappings_filter_unmatched_and_hidden_tools() {
         assert_eq!(
-            public_dashboard_clients().collect::<Vec<_>>(),
+            public_ai_capabilities().iter().filter_map(|capability| capability.dashboard_client).collect::<Vec<_>>(),
             vec![
                 SourceClientKind::Codex,
                 SourceClientKind::ClaudeCode,
@@ -219,16 +185,4 @@ mod tests {
         );
     }
 
-    /// 升级合并保留任一区域已开启项，同时丢弃隐藏协议并恢复固定顺序。
-    #[test]
-    fn legacy_selections_merge_without_losing_enabled_agents() {
-        assert_eq!(
-            merge_public_ai_selections(
-                [SourceClientKind::GrokBuildCli],
-                true,
-                &[AiTool::Cursor, AiTool::OpenCode],
-            ),
-            vec![AiTool::Cursor, AiTool::Grok, AiTool::WorkBuddy]
-        );
-    }
 }

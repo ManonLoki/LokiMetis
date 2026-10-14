@@ -431,5 +431,5 @@ pub(super) fn process_shutdown_deadline() -> Option<tokio::time::Instant> {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - process_reaper_tests.rs：本模块的单元测试
-include!("process_reaper_tests.rs");
+// - process_reaper_shutdown.rs：退出等待、保留进程回收与 reaper 关闭流程，以及本模块单元测试
+include!("process_reaper_shutdown.rs");

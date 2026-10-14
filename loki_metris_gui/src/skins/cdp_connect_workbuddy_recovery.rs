@@ -1,5 +1,5 @@
 // 本文件是 cdp_connect.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射为前端可确认的恢复请求。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射为界面可确认的恢复请求。
 
 /// 判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。
 fn is_workbuddy_connection_error(error_code: &str) -> bool {
@@ -28,7 +28,7 @@ fn is_host_inspection_error(error_code: &str) -> bool {
     )
 }
 
-/// 将 WorkBuddy 仍存活时的不可用 CDP 统一映射为前端可确认的恢复请求。
+/// 将 WorkBuddy 仍存活时的不可用 CDP 统一映射为界面可确认的恢复请求。
 async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -> AppError {
     if host != SkinHostKind::WorkBuddy || error.code == "skin.operation_cancelled" {
         return error;
@@ -49,7 +49,7 @@ async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -
     }
 }
 
-/// 执行换皮宿主内部的 `connect_existing_browser` 步骤。
+/// 连接已在运行的宿主（用于退出清理）；handler 已结束时视为会话失效。
 async fn connect_existing_browser(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
@@ -130,7 +130,7 @@ async fn connect_existing_browser_for_purpose(
 
 include!("cdp_identity.rs");
 
-/// 执行换皮宿主内部的 `connect_browser` 步骤。
+/// 连接指定端点的浏览器（普通用途）。
 async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, HandlerTaskGuard), AppError> {
     connect_browser_for_purpose(endpoint, false).await
 }
@@ -167,19 +167,32 @@ async fn connect_browser_for_purpose(
     Ok((browser, reservation.bind(handler_task)))
 }
 
-/// 执行换皮宿主内部的 `wait_for_initial_injection` 步骤。
+/// 首批注入在整个等待期间保持不变的输入：注入载荷、皮肤身份、页面就绪期限，
+/// 以及必须始终绑定的调试端点与宿主根进程。
+#[derive(Clone, Copy)]
+struct InitialInjection<'a> {
+    /// 注入脚本正文。
+    payload: &'a Arc<str>,
+    /// 待生效的皮肤身份。
+    skin: &'a SkinReference,
+    /// 等待宿主页面就绪的期限。
+    page_ready_timeout: Duration,
+    /// 已验证的调试端点。
+    endpoint: CdpEndpoint,
+    /// 端点必须归属的宿主根进程 PID。
+    expected_host_root_pid: u32,
+}
+
+/// 先复核端点仍绑定预期宿主根进程，再在页面就绪期限内完成首批注入；期间响应取消，失败时由调用方回收 handler。
 async fn wait_for_initial_injection(
     host: SkinHostKind,
     browser: Browser,
     handler_task: HandlerTaskGuard,
-    payload: &Arc<str>,
-    skin: &SkinReference,
-    page_ready_timeout: Duration,
-    endpoint: CdpEndpoint,
-    expected_host_root_pid: u32,
+    target: InitialInjection<'_>,
     transaction_id: &str,
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(Browser, HandlerTaskGuard, InjectionReport), AppError> {
+    let InitialInjection { page_ready_timeout, endpoint, expected_host_root_pid, .. } = target;
     let mut browser = browser;
     let mut handler_task = handler_task;
     let transaction = InjectionTransaction::new(transaction_id);
@@ -193,11 +206,7 @@ async fn wait_for_initial_injection(
                     host,
                     &mut browser,
                     &mut handler_task,
-                    payload,
-                    skin,
-                    page_ready_timeout,
-                    endpoint,
-                    expected_host_root_pid,
+                    target,
                     &transaction,
                 ),
             )
@@ -307,7 +316,7 @@ async fn rollback_initial_injection(
     }
 }
 
-/// 执行换皮宿主内部的 `wait_for_initial_appearance` 步骤。
+/// 在页面就绪期限内找到第一个宿主页面并读取外观，生成安装前的外观预检结果。
 async fn wait_for_initial_appearance(
     host: SkinHostKind,
     browser: &mut Browser,
@@ -341,7 +350,7 @@ async fn wait_for_initial_appearance(
     monitor_host_operation(host, cancel, wait).await
 }
 
-/// 执行换皮宿主内部的 `probe_appearance` 步骤。
+/// 在页面执行外观探针脚本；需要比较逐项要求时读取完整外观，否则只读明暗模式。
 async fn probe_appearance(page: &Page, include_details: bool) -> Result<AppearanceProbe, AppError> {
     let script = if include_details {
         APPEARANCE_PROBE_SCRIPT

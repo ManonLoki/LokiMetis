@@ -121,18 +121,18 @@ fn rect(x: f32, y: f32, w: f32, h: f32) -> Bounds<Pixels> {
     Bounds::new(point(px(x), px(y)), size(px(w), px(h)))
 }
 
+/// 测试与元素共享的排除区域列表。
+type SharedBounds = Rc<RefCell<Vec<Bounds<Pixels>>>>;
+/// 测试与元素共享的观察记录。
+type SharedObservations = Rc<RefCell<Vec<Observation>>>;
+
 /// 返回真实窗口与外部观测，不启用native Services或操作OS。
 fn setup(
     cx: &mut TestAppContext,
     excluded: Vec<Bounds<Pixels>>,
     nested: Vec<Bounds<Pixels>>,
     cached: Option<usize>,
-) -> (
-    gpui_kit::AnyWindowHandle,
-    TargetState,
-    Rc<RefCell<Vec<Bounds<Pixels>>>>,
-    Rc<RefCell<Vec<Observation>>>,
-) {
+) -> (gpui_kit::AnyWindowHandle, TargetState, SharedBounds, SharedObservations) {
     let state = TargetState::new();
     let returned = state.clone();
     let excluded = Rc::new(RefCell::new(excluded));
@@ -235,7 +235,7 @@ fn monitor_sticky_exclusions_exact_half_open_gaps_nested_and_scope_restore(
         let mask = ContentMask {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
         };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         let target = state.latest().hitbox.id;
         let restored = outside.borrow().last().unwrap().hitbox.id;
         let parents = actual_ids(window, point(px(10.), px(10.)))
@@ -333,7 +333,7 @@ fn monitor_sticky_exclusions_cache_key_same_changed_removed_and_replay(cx: &mut 
         let mask = ContentMask {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
         };
-        assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+        assert_paint_owner_and_ax(window, &state, mask, mask);
         window.draw(cx).clear(cx);
         assert_eq!(state.renders.get(), renders + 1);
         exclusions.borrow_mut().clear();
@@ -368,7 +368,7 @@ fn monitor_sticky_exclusions_parent_deferred_replay_and_legacy_escape(cx: &mut T
                 let mask = ContentMask {
                     bounds: Bounds::new(Point::default(), window.viewport_size()),
                 };
-                assert_paint_owner_and_ax(window, &state, mask.clone(), mask);
+                assert_paint_owner_and_ax(window, &state, mask, mask);
             }
         })
         .unwrap();

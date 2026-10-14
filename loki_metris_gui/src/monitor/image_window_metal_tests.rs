@@ -28,11 +28,11 @@ impl Render for Surface {
     }
 }
 
+/// 测试旁路保存的弱 atlas 句柄列表。
+type CapturedAtlases = Rc<RefCell<Vec<Weak<dyn PlatformAtlas>>>>;
+
 /// 原生测试平台仅旁路保存弱 atlas 句柄，不替换 renderer、不延长窗口 GPU 寿命。
-fn context() -> (
-    HeadlessAppContext,
-    Rc<RefCell<Vec<Weak<dyn PlatformAtlas>>>>,
-) {
+fn context() -> (HeadlessAppContext, CapturedAtlases) {
     let atlases = Rc::new(RefCell::new(Vec::new()));
     let captured = atlases.clone();
     let cx = HeadlessAppContext::with_platform(Arc::new(NoopTextSystem), Arc::new(()), move || {
@@ -379,12 +379,14 @@ impl Render for CachedProbe {
             )
     }
 }
+/// 测试窗口根视图：切换移动中的图片兄弟节点可见性，观察缓存兄弟节点是否被重放。
 struct CachedSurface {
     probe: Entity<CachedProbe>,
     moving: Entity<MonitorImageView>,
     visible: bool,
 }
 impl Render for CachedSurface {
+    /// 按可见开关放置移动图片或空占位，并始终保留缓存探针兄弟节点。
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         let sibling = if self.visible {
             self.moving.clone().into_any_element()

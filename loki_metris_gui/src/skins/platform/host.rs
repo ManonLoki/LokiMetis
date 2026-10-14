@@ -56,16 +56,16 @@ async fn platform_workbuddy_endpoint_owned_by_root(
 ) -> Result<bool, AppError> {
     #[cfg(target_os = "windows")]
     {
-        return tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             windows_codex::workbuddy_endpoint_owned_by_root(port, root_pid)
         })
         .await
-        .map_err(|_| workbuddy_owner_inspection_failed())?;
+        .map_err(|_| workbuddy_owner_inspection_failed())?
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_process::host_endpoint_owned_by_root(SkinHostKind::WorkBuddy, port, root_pid)
-            .await;
+        macos_process::host_endpoint_owned_by_root(SkinHostKind::WorkBuddy, port, root_pid)
+            .await
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
@@ -78,7 +78,7 @@ async fn platform_workbuddy_endpoint_owned_by_root(
 async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Result<bool, AppError> {
     #[cfg(target_os = "windows")]
     {
-        return tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             windows_codex::codex_endpoint_owned_by_root(port, root_pid)
         })
         .await
@@ -87,12 +87,12 @@ async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Resu
                 "skin.codex_cdp_owner_inspection_failed",
                 "无法验证 Codex 调试端口所属进程，未应用皮肤。",
             )
-        })?;
+        })?
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_process::host_endpoint_owned_by_root(SkinHostKind::Codex, port, root_pid)
-            .await;
+        macos_process::host_endpoint_owned_by_root(SkinHostKind::Codex, port, root_pid)
+            .await
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {

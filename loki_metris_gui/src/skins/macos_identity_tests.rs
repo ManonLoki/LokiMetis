@@ -75,7 +75,7 @@ mod tests {
             .join("Applications");
         std::fs::create_dir(&applications).expect("应创建批准根");
         let bundle = fake_bundle(&applications, "ForgedCodex", "com.openai.codex");
-        assert!(validated_bundle_location(&bundle, &[applications.clone()]).is_some());
+        assert!(validated_bundle_location(&bundle, std::slice::from_ref(&applications)).is_some());
         assert!(!verify_code_signature(
             &bundle,
             MacHostIdentity::codex(),
@@ -105,7 +105,7 @@ mod tests {
         let linked_bundle = applications.join("LinkedCodex.app");
         symlink(&outside_bundle, &linked_bundle).expect("应创建 bundle 链接");
 
-        assert!(validated_bundle_location(&linked_bundle, &[applications.clone()]).is_none());
+        assert!(validated_bundle_location(&linked_bundle, std::slice::from_ref(&applications)).is_none());
         assert!(validated_bundle_location(&outside_bundle, &[applications]).is_none());
     }
 

@@ -88,7 +88,7 @@ impl UsageService {
     /// 重试返回实际登记回执；成功后恢复终态批次，统一索引不会停留在待激活状态。
     pub fn retry_candidate(self:&Arc<Self>,id:String)->Result<oneshot::Receiver<Result<(),&'static str>>,&'static str> {
         let (candidate,generation)={let state=self.discovery_batch.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            let candidate=self.discovery.select_candidates(&[id.clone()]).map_err(|_|"source_candidate_invalid")?.into_iter().next().ok_or("source_candidate_invalid")?;
+            let candidate=self.discovery.select_candidates(std::slice::from_ref(&id)).map_err(|_|"source_candidate_invalid")?.into_iter().next().ok_or("source_candidate_invalid")?;
             (candidate,state.generation)
         };
         if candidate.client==SourceClientKind::WorkBuddy {return Err("source_candidate_invalid")}

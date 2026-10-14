@@ -191,10 +191,6 @@ where
                         EntryAction::RetainLabel(label) => {
                             retained_relative_labels.insert(label);
                         }
-                        EntryAction::RetainKnown { relative_label, warning_count: retained_warnings } => {
-                            retained_relative_labels.insert(relative_label);
-                            warning_count = warning_count.saturating_add(retained_warnings);
-                        }
                         EntryAction::RejectLabel(label) => {
                             rejected_relative_labels.insert(label);
                             skipped_count = skipped_count.saturating_add(1);

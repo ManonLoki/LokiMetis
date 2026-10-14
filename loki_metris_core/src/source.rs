@@ -135,8 +135,8 @@ pub struct UsageCall {
     /// 已校验的单次 Token 用量。
     pub usage: TokenUsage,
     /// 适配器内部的一致性摘要或检查点；不进入 DTO，只用于严格来源的一致性判定。
-    // #[serde(skip)]：该字段完全不参与序列化/反序列化，即不会出现在传给
-    // 前端的 JSON 里——用于只在 Rust 后端内部流转的敏感或纯内部字段。
+    // #[serde(skip)]：该字段完全不参与序列化/反序列化，不会出现在任何
+    // 落盘或跨进程 JSON 里——只在 adapter 内部做一致性判定。
     #[serde(skip)]
     pub adapter_consistency_key: Option<String>,
     /// 本次调用事实的置信度。

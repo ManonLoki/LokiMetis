@@ -1,8 +1,8 @@
 //! macOS Claude Desktop 内嵌 Claude Code 数据根的固定布局发现。
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use super::{CancellationToken, Candidate, DiscoveryMethod};
+use super::{CancellationToken, Candidate};
 
 /// 内嵌根枚举结果；不携带 transcript 内容。
 #[derive(Default)]
@@ -35,6 +35,9 @@ pub(super) fn candidates(
 #[cfg(target_os = "macos")]
 mod macos {
     use std::fs;
+    use std::path::PathBuf;
+
+    use super::super::DiscoveryMethod;
 
     use super::*;
     use crate::backend::local_index::claude::path_rules::is_uuid;

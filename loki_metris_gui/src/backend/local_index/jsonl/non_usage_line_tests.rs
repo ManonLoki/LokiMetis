@@ -11,7 +11,7 @@ mod tests {
         for byte in input {
             line.push(std::slice::from_ref(byte));
         }
-        line.is_complete_non_usage()
+        line.finish_and_check_complete()
     }
 
     /// 完整工具输出、压缩正文与 item_completed 不依赖键顺序或正文大小。
@@ -97,6 +97,6 @@ mod tests {
         );
         assert!(line.label.capacity() <= MAX_LABEL_BYTES && line.atom.capacity() <= MAX_ATOM_BYTES);
         line.push(br#""}}"#);
-        assert!(line.is_complete_non_usage());
+        assert!(line.finish_and_check_complete());
     }
 }

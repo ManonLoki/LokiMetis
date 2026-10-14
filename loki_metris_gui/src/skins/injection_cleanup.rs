@@ -1,7 +1,7 @@
 // 本文件是 injection.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：执行换皮宿主内部的 `remove_from_browser` 步骤。；新注入与停用复用同一清理确认，防止旧状态冒充新载荷的成功结果。；汇总跨页面清理结果；任一页面失败都拒绝伪报完整成功。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：页面皮肤清理、清理结果汇总、经已有或指定端点清理，以及 CDP 错误与 WebSocket 地址校验。
 
-/// 执行换皮宿主内部的 `remove_from_browser` 步骤。
+/// 并发清除浏览器中所有宿主页面的皮肤注入，返回清除的页面数；有页面失败时报告错误。
 async fn remove_from_browser(host: SkinHostKind, browser: &Browser) -> Result<usize, AppError> {
     let pages = browser_pages(browser).await?;
     let results = join_all(pages.into_iter().map(|page| async move {
@@ -58,7 +58,7 @@ fn finish_cleanup_report(removed: usize, failed: usize) -> Result<usize, AppErro
     }
 }
 
-/// 执行换皮宿主内部的 `remove_from_existing_endpoint` 步骤。
+/// 连接已在运行的宿主并清除皮肤；宿主已不在运行时视为无需清理。
 async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppError> {
     let (_cancel_tx, mut cancel_rx) = watch::channel(false);
     let connection = connect_existing_browser(host, &mut cancel_rx).await;
@@ -70,7 +70,7 @@ async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppE
     cleanup_via(host, browser, handler_task).await
 }
 
-/// 执行换皮宿主内部的 `remove_from_endpoint` 步骤。
+/// 连接指定端点并确认其属于该宿主后清除皮肤；宿主已不在运行时视为无需清理。
 async fn remove_from_endpoint(
     host: SkinHostKind,
     endpoint: CdpEndpoint,
@@ -100,7 +100,7 @@ async fn remove_from_endpoint(
     cleanup_via(host, browser, handler_task).await
 }
 
-/// 执行换皮宿主内部的 `cleanup_via` 步骤。
+/// 在清理期限内刷新调试目标并清除皮肤，结束后中止 handler。
 async fn cleanup_via(
     host: SkinHostKind,
     mut browser: Browser,
@@ -122,17 +122,17 @@ async fn cleanup_via(
     result
 }
 
-/// 执行换皮宿主内部的 `cdp_timeout` 步骤。
+/// 以给定错误码与文案构造 CDP 超时错误。
 fn cdp_timeout(code: &'static str, message: &'static str) -> AppError {
     AppError::new(code, message)
 }
 
-/// 执行换皮宿主内部的 `cdp_error` 步骤。
+/// 把底层 CDP 错误映射为不含细节的稳定通信错误。
 fn cdp_error(_: chromiumoxide::error::CdpError) -> AppError {
     AppError::new("skin.cdp_failed", "与 Codex 调试会话通信失败。")
 }
 
-/// 执行换皮宿主内部的 `cdp_response_error` 步骤。
+/// 调试页面返回无法解析的响应时的稳定错误。
 fn cdp_response_error() -> AppError {
     AppError::new(
         "skin.cdp_response_invalid",
@@ -140,7 +140,7 @@ fn cdp_response_error() -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `is_allowed_websocket` 步骤。
+/// WebSocket 地址必须指向该端点在本机回环地址上的端口。
 fn is_allowed_websocket(address: &str, endpoint: CdpEndpoint) -> bool {
     [
         format!("ws://127.0.0.1:{}/", endpoint.port),

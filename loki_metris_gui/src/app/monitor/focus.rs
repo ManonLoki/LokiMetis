@@ -31,13 +31,16 @@ pub(super) fn picker_button(
 }
 
 impl IntoElement for PickerFocusElement {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 保留内部控件的原生 Element 生命周期。
     fn into_element(self) -> Self { self }
 }
 
 impl Element for PickerFocusElement {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段无需向绘制阶段传递状态。
     type PrepaintState = ();
     /// 原 Button 拥有稳定 ID，包装不添加身份或辅助节点。
     fn id(&self) -> Option<gpui_kit::ElementId> { None }

@@ -145,8 +145,8 @@ fn valid_windows_command(bytes: &[u8]) -> bool {
 /// 解码当前用户 Run 命令；字节损坏与已不存在的旧路径不是同一种状态。
 #[cfg(any(windows, test))]
 fn windows_command(bytes: &[u8]) -> std::io::Result<String> {
-    if bytes.len() < 4 || bytes.len() % 2 != 0 { return Err(std::io::ErrorKind::InvalidData.into()) }
-    let mut words: Vec<u16> = bytes.chunks_exact(2).map(|part| u16::from_le_bytes([part[0], part[1]])).collect();
+    if bytes.len() < 4 || !bytes.len().is_multiple_of(2) { return Err(std::io::ErrorKind::InvalidData.into()) }
+    let mut words: Vec<u16> = bytes.as_chunks::<2>().0.iter().map(|part| u16::from_le_bytes([part[0], part[1]])).collect();
     if words.pop() != Some(0) || words.contains(&0) { return Err(std::io::ErrorKind::InvalidData.into()) }
     let value = String::from_utf16(&words).map_err(|_| std::io::ErrorKind::InvalidData)?;
     if value.trim().is_empty() || value.chars().any(char::is_control) { return Err(std::io::ErrorKind::InvalidData.into()) }
@@ -278,8 +278,8 @@ mod tests {
         assert!(!valid_windows_command(&[65, 0, 66, 0]));
         assert!(valid_windows_command(&[65, 0, 0, 0]));
         assert!(windows_override(&[2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).is_err());
-        assert_eq!(windows_override(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(), true);
-        assert_eq!(windows_override(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(), false);
+        assert!(windows_override(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap());
+        assert!(!windows_override(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap());
         #[cfg(windows)]
         assert!(encoded_path(&format!("C:\\{}", "x".repeat(260))).is_err());
     }

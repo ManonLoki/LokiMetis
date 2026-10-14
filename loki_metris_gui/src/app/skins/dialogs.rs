@@ -155,11 +155,10 @@ impl Shell {
     }
     /// 关闭只回收草稿与焦点，已提交文件事务由服务继续收尾。
     pub(super) fn close_skin_dialog_now(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(modal) = self.skins.modal.take() {
-            if let Some(focus) = modal.previous {
+        if let Some(modal) = self.skins.modal.take()
+            && let Some(focus) = modal.previous {
                 window.focus(&focus, cx);
             }
-        }
         self.skins.input_subscriptions.clear();
         cx.notify();
     }

@@ -9,7 +9,7 @@ pub use cursor::{
     cursor_error, cursor_start, decode_cursor, encode_cursor, fingerprint_query,
     fingerprint_snapshot,
 };
-pub use row::{BuildUsageCallRowsError, UsageCallRow};
+pub use row::{UsageCallRow};
 
 use crate::{
     Completeness, Confidence, Freshness, LocalIndexState, MetricFact, MetricScope, ProviderKind,
@@ -214,7 +214,7 @@ pub struct UsageCallsPage {
     pub next_cursor: Option<String>,
 }
 
-/// 把固定窗口、筛选、排序与稳定游标组装为可直接返回前端的调用页。
+/// 把固定窗口、筛选、排序与稳定游标组装为可直接交给界面渲染的调用页。
 #[allow(clippy::too_many_arguments)]
 pub fn build_usage_calls_page(
     canonical: &[UsageCall],

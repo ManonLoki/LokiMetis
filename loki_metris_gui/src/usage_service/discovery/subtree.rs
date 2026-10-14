@@ -266,7 +266,7 @@ impl Drop for ManualAddReservation {
     }
 }
 
-/// 阻塞岛内执行子树发现，逐步上报进度并把命中候选实时推送给前端。
+/// 阻塞岛内执行子树发现，逐步上报进度并把命中候选实时推送给界面。
 pub(super) fn run_manual_subtree_discovery(
     control: ManualSubtreeRunControl,
     source_client: SourceClientKind,

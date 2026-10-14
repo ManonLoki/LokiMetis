@@ -62,8 +62,10 @@ fn automatic_worker_never_registers_missing_or_foreign_primary() {
 #[test]
 fn automatic_workbuddy_repair_does_not_register_the_other_root() {
     let root = tempdir().unwrap();
-    let mut settings = MonitorSettings::default();
-    settings.enabled_ai_tools = vec![AiTool::WorkBuddy];
+    let settings = MonitorSettings {
+        enabled_ai_tools: vec![AiTool::WorkBuddy],
+        ..Default::default()
+    };
     let roots = hook_config_target_directories(AiTool::WorkBuddy, &settings.hook_directories, root.path());
     assert_eq!(roots.len(), 2);
     seed_owned_config(AiTool::WorkBuddy, &roots[0], "/old/LokiMetris");

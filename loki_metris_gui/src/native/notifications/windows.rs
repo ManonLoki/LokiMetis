@@ -30,6 +30,7 @@ struct Apartment;
 impl Apartment {
     /// 本后台执行器线程只建立 MTA，失败交由上层呈现 unavailable。
     fn new() -> windows::core::Result<Self> {
+        // SAFETY: 在当前线程初始化 WinRT 多线程 apartment，不涉及指针；成功时由 Apartment 负责配对反初始化。
         unsafe { RoInitialize(RO_INIT_MULTITHREADED) }?;
         Ok(Self)
     }
@@ -37,6 +38,7 @@ impl Apartment {
 impl Drop for Apartment {
     /// 只平衡本次成功初始化，不退出其它线程的apartment。
     fn drop(&mut self) {
+        // SAFETY: 只有 RoInitialize 成功才会构造 Apartment，因此这里与本线程的那次初始化一一配对。
         unsafe { RoUninitialize() }
     }
 }
@@ -168,6 +170,7 @@ fn activation_handler(pending: Arc<AtomicBool>) -> TypedEventHandler<ToastNotifi
 fn registered() -> bool {
     let mut bytes = [0_u16; 128];
     let mut length = std::mem::size_of_val(&bytes) as u32;
+    // SAFETY: 读取当前用户下固定键的 REG_SZ；输出缓冲是本栈数组，length 以字节传入其真实大小，返回后再校验长度。
     let result = unsafe {
         RegGetValueW(
             HKEY_CURRENT_USER,
@@ -180,7 +183,7 @@ fn registered() -> bool {
         )
     };
     result.is_ok()
-        && length % 2 == 0
+        && length.is_multiple_of(2)
         && length >= 2
         && length as usize <= std::mem::size_of_val(&bytes)
         && String::from_utf16_lossy(&bytes[..length as usize / 2 - 1]) == "LokiMetris"
@@ -194,6 +197,7 @@ pub(super) fn authorize(control:&super::driver::Authorization) -> Result<(), Err
     }
     control.check()?;
     let mut key = HKEY::default();
+    // SAFETY: 在当前用户下创建或打开固定键；输出句柄写入本栈变量，成功后的每条路径都会关闭它。
     unsafe {
         RegCreateKeyExW(
             HKEY_CURRENT_USER,
@@ -209,6 +213,7 @@ pub(super) fn authorize(control:&super::driver::Authorization) -> Result<(), Err
     }
     .ok()
     .map_err(|_| Error::Unavailable)?;
+    // SAFETY: key 是上面成功创建的句柄，关闭后立即返回、不再使用。
     if let Err(error)=control.check() {let _=unsafe {RegCloseKey(key)};return Err(error)}
     let name: Vec<u16> = "LokiMetris\0".encode_utf16().collect();
     // 安全：REG_SZ 读取当前活 Vec 的完整UTF-16字节，调用期间内存不变。

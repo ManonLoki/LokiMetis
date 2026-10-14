@@ -57,7 +57,7 @@ impl<I, O> Queue<I, O> {
     fn submit_inner(&self, intent: I, cancel_active: bool) -> Result<oneshot::Receiver<Result<O, &'static str>>, &'static str> {
         let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.stopped { return Err("usage_service_stopped") }
-        if cancel_active { if let Some(active) = &state.active { active.cancel(); } }
+        if cancel_active && let Some(active) = &state.active { active.cancel(); }
         let (reply, receiver) = oneshot::channel();
         state.pending = Some(Pending { intent, reply });
         self.wake.notify_one();

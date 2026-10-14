@@ -19,3 +19,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+[features]
+# 只供下游测试使用：公开索引与里程碑状态的观测/夹具接口；生产构建不启用。
+test-support = []

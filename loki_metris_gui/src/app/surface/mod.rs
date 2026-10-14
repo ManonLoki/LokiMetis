@@ -1,6 +1,10 @@
 //! 历史品牌卡片的原生材质容器；布局、子控件及辅助语义仍交给 GPUI Div。
 
 pub(in crate::app) mod motion;
+
+/// 测试注入的一次性回调，用于取得控件内部 keyed-state owner 实体。
+#[cfg(test)]
+pub(in crate::app) type OwnerObserver<T> = Box<dyn FnOnce(&gpui_kit::Entity<T>)>;
 mod palette;
 mod raster;
 mod rim;
@@ -55,7 +59,7 @@ pub(in crate::app) struct MaterialCard<const SPOTLIGHT: bool> {
     geometry: Geometry,
     material: MaterialKind,
     #[cfg(test)]
-    owner_observer: Option<Box<dyn FnOnce(&Entity<MaterialState>)>>,
+    owner_observer: Option<OwnerObserver<MaterialState>>,
 }
 
 /// 需要历史hover光斑的卡片使用同一原生容器与完整材质。
@@ -161,6 +165,7 @@ impl<const SPOTLIGHT: bool> InteractiveElement for MaterialCard<SPOTLIGHT> {
 impl<const SPOTLIGHT: bool> StatefulInteractiveElement for MaterialCard<SPOTLIGHT> {}
 
 impl<const SPOTLIGHT: bool> IntoElement for MaterialCard<SPOTLIGHT> {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 容器本身就是实际参与布局和绘制的元素。
     fn into_element(self) -> Self {
@@ -169,10 +174,12 @@ impl<const SPOTLIGHT: bool> IntoElement for MaterialCard<SPOTLIGHT> {
 }
 
 impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
+    /// 内部容器的布局状态与材质动效实体。
     type RequestLayoutState = (
         <Stateful<Div> as Element>::RequestLayoutState,
         Entity<MaterialState>,
     );
+    /// 指针命中区域；未注册命中区时为空。
     type PrepaintState = Option<Hitbox>;
 
     /// 材质和子控件共享外层稳定ID，测试支持与辅助树仍识别真实卡片。

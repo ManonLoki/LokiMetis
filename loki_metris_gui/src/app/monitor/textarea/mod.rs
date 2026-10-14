@@ -55,6 +55,7 @@ impl MonitorTextarea {
 }
 
 impl IntoElement for MonitorTextarea {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 直接参与原生元素生命周期，布局与可访问属性仍来自内部真实 Textarea。
     fn into_element(self) -> Self {
@@ -69,7 +70,9 @@ pub(super) struct PaintState {
 }
 
 impl Element for MonitorTextarea {
+    /// 内部输入框元素、边框过渡实体与可选展开状态，在布局后各阶段复用。
     type RequestLayoutState = (AnyElement, Entity<BorderTransition>, Option<Entity<RevealState>>);
+    /// 预绘制阶段算出的绘制参数，交给 paint 使用。
     type PrepaintState = PaintState;
 
     /// 实体 ID 隔离相邻输入，也使卸载时的动画状态按原生 keyed-state 生命周期释放。
@@ -139,7 +142,7 @@ impl Element for MonitorTextarea {
         let now = cx.background_executor().now();
         let (border, running) = request
             .1
-            .update(cx, |motion, _| motion.sample(target.into(), now));
+            .update(cx, |motion, _| motion.sample(target, now));
         request.0.prepaint(window, cx);
         if let (Some(target), Some(state)) = (&self.reveal, &request.2) {
             reveal::observe(state, &self.input, target, bounds, window, cx);

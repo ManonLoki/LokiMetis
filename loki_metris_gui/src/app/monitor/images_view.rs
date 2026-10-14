@@ -308,8 +308,8 @@ fn checkerboard(cell: f32, corners: Corners<Pixels>, cx: &Context<Shell>) -> Any
     canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {
-            let corners = corners.clone().clamp_radii_for_quad_size(bounds.size);
-            window.paint_quad(fill(bounds, background).corner_radii(corners.clone()));
+            let corners = corners.clamp_radii_for_quad_size(bounds.size);
+            window.paint_quad(fill(bounds, background).corner_radii(corners));
             let width: f32 = bounds.size.width.into();
             let height: f32 = bounds.size.height.into();
             for row in 0..(height / cell).ceil() as usize {
@@ -325,7 +325,7 @@ fn checkerboard(cell: f32, corners: Corners<Pixels>, cx: &Context<Shell>) -> Any
                         window.with_content_mask(
                             Some(ContentMask { bounds: cell_bounds }),
                             |window| {
-                                window.paint_quad(fill(bounds, muted).corner_radii(corners.clone()));
+                                window.paint_quad(fill(bounds, muted).corner_radii(corners));
                             },
                         );
                     }

@@ -241,7 +241,7 @@ mod tests {
         assert!(
             image
                 .bytes
-                .chunks_exact(4)
+                .as_chunks::<4>().0.iter()
                 .any(|pixel| pixel[0] > 0 && pixel[1] == 0 && pixel[2] > 0 && pixel[3] > 0)
         );
     }

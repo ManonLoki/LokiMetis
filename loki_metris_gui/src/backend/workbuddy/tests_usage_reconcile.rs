@@ -16,7 +16,7 @@ async fn usage_details_reconciles_exact_components_and_models() {
     );
 
     let details = read_workbuddy_usage_details(
-        &[home.clone()],
+        std::slice::from_ref(&home),
         LocalUsageWindow::ThisMonth,
         UsageDimension::Model,
         now,
@@ -80,7 +80,7 @@ async fn ignores_unterminated_tail_without_degrading_coverage() {
     .expect("unterminated fixture tail writes");
     drop(file);
 
-    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(std::slice::from_ref(&home), now, TimeStandard::utc())
         .await
         .expect("statistics compute succeeds");
     assert_eq!(snapshot.coverage.state, CoverageState::Complete);
@@ -117,7 +117,7 @@ async fn malformed_and_oversized_lines_are_partial_and_recovery_continues() {
     .expect("valid recovery line writes");
     drop(file);
 
-    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(std::slice::from_ref(&home), now, TimeStandard::utc())
         .await
         .expect("partial statistics remain usable");
     assert_eq!(snapshot.coverage.state, CoverageState::Partial);
@@ -152,7 +152,7 @@ async fn reads_usage_after_two_megabytes_in_one_file() {
     drop(file);
     assert!(fs::metadata(&path).expect("fixture metadata").len() > 2 * 1024 * 1024);
 
-    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(std::slice::from_ref(&home), now, TimeStandard::utc())
         .await
         .expect("large file statistics compute succeeds");
     assert_eq!(snapshot.coverage.state, CoverageState::Complete);
@@ -269,7 +269,7 @@ async fn rejects_symlinked_project_transcripts() {
     assert_eq!(evidence.subagent_file_count, 0);
     assert_eq!(evidence.skipped_count, 1);
 
-    let snapshot = read_workbuddy_statistics(&[home.clone()], now, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(std::slice::from_ref(&home), now, TimeStandard::utc())
         .await
         .expect("safe records remain usable");
     assert_eq!(snapshot.coverage.state, CoverageState::Partial);
@@ -356,7 +356,7 @@ async fn notification_workbuddy_snapshot_uses_captured_day_zone() {
     let event=epoch_ms("2026-09-03T20:00:00Z");let now=epoch_ms("2026-09-04T01:00:00Z");
     write_lines(&home.join("projects/project-a/session-a.jsonl"),&[usage_event(event,"s","m","model",100,0,10,1,1.0)]);
     let zone=jiff::tz::TimeZone::get("Asia/Shanghai").unwrap();
-    let local=read_workbuddy_usage_snapshot_in_zone(&[home.clone()],now,TimeStandard::Local,&zone).await.unwrap();
+    let local=read_workbuddy_usage_snapshot_in_zone(std::slice::from_ref(&home),now,TimeStandard::Local,&zone).await.unwrap();
     let utc=read_workbuddy_usage_snapshot_in_zone(&[home],now,TimeStandard::Local,&jiff::tz::TimeZone::UTC).await.unwrap();
     let tokens=|s:&WorkbuddyStatisticsSnapshot|s.windows.iter().find(|w|w.window==LocalUsageWindow::Today).unwrap().tokens;
     assert_eq!(tokens(&local),110);assert_eq!(tokens(&utc),0);

@@ -40,12 +40,13 @@ pub(crate) fn encode_path(path: &Path) -> Vec<u8> {
 pub(crate) fn decode_path(value: &[u8]) -> Option<PathBuf> {
     use std::os::windows::ffi::OsStringExt;
 
-    let chunks = value.chunks_exact(2);
-    if !chunks.remainder().is_empty() {
+    let (pairs, remainder) = value.as_chunks::<2>();
+    if !remainder.is_empty() {
         return None;
     }
-    let units = chunks
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+    let units = pairs
+        .iter()
+        .map(|pair| u16::from_le_bytes(*pair))
         .collect::<Vec<_>>();
     Some(std::ffi::OsString::from_wide(&units).into())
 }

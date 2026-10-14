@@ -1,5 +1,5 @@
 // 本文件是 store_activation.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：本模块的单元测试
+// 与主文件共用作用域，因此无需额外导入。收纳内容：带参数的商店版 Codex 激活调用，以及本模块单元测试
 
 /// 在独立 STA 线程执行 COM 激活；所有成功初始化步骤都在同一线程对称清理。
 fn activate_store_codex_with_arguments(
@@ -17,6 +17,7 @@ fn activate_store_codex_with_arguments(
             .map_err(|_| StoreActivationFailure::CancellationSetup)?;
         control
             .thread_id
+            // SAFETY: 只读取当前线程标识，无参数与副作用。
             .store(unsafe { GetCurrentThreadId() }, Ordering::Release);
         control
             .phase

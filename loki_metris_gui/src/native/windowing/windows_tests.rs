@@ -7,11 +7,13 @@ use windows::{core::w, Win32::{Foundation::RECT, Graphics::Gdi::*, UI::HiDpi::*}
 struct TestWindow { hwnd: HWND, dpi: DPI_AWARENESS_CONTEXT }
 impl Drop for TestWindow {
     /// 只销毁测试创建的 HWND，不触碰用户窗口或系统显示设置。
+    // SAFETY: hwnd 是本测试创建且仅由 TestWindow 拥有的窗口；恢复的是创建前保存的线程 DPI 上下文。
     fn drop(&mut self) { unsafe { let _ = DestroyWindow(self.hwnd); let _ = SetThreadDpiAwarenessContext(self.dpi); } }
 }
 
 /// 创建隐藏的系统类窗口，测试时与 GPUI 一样采用 per-monitor v2 DPI 语义。
 fn test_window() -> TestWindow {
+    // SAFETY: 在测试线程创建系统 STATIC 类窗口，字符串为编译期 NUL 结尾常量；返回句柄由 TestWindow 负责销毁。
     unsafe {
         let dpi = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("STATIC"), w!("LokiMetris placement regression"),
@@ -22,6 +24,7 @@ fn test_window() -> TestWindow {
 
 /// 从测试窗当前真实屏读取工作区；不声明不存在的第二块物理显示器。
 fn desktop(hwnd: HWND) -> DesktopSnapshot {
+    // SAFETY: hwnd 是本测试创建的存活窗口；info 已设置 cbSize 且为本栈可写结构。
     unsafe {
         let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
         let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
@@ -29,7 +32,7 @@ fn desktop(hwnd: HWND) -> DesktopSnapshot {
         let scale = f64::from(GetDpiForWindow(hwnd)) / 96.;
         let RECT { left, top, .. } = info.rcMonitor;
         let work = info.rcWork;
-        DesktopSnapshot { pointer: Some("test-monitor".into()), global_top: 0., displays: vec![super::super::NativeDisplay {
+        DesktopSnapshot { pointer: Some("test-monitor".into()), displays: vec![super::super::NativeDisplay {
             id: gpui_kit::DisplayId::new(monitor.0 as u64), global_origin: WindowDipPoint { x: left.into(), y: top.into() },
             area: WindowDisplayArea { key: "test-monitor".into(), primary: true, scale, work_area: WindowDipRect {
                 origin: WindowDipPoint { x: f64::from(work.left - left) / scale, y: f64::from(work.top - top) / scale },
@@ -42,9 +45,11 @@ fn desktop(hwnd: HWND) -> DesktopSnapshot {
 fn maximized_then_minimized_normalizes_and_places_exact_client_size() {
     let window = test_window();
     let host = WindowHost::from_handle(window.hwnd).unwrap();
+    // SAFETY: hwnd 是本测试创建的存活窗口，只改变其显示状态。
     unsafe { let _ = ShowWindow(window.hwnd, SW_MAXIMIZE); let _ = ShowWindow(window.hwnd, SW_MINIMIZE); }
     host.normalize().unwrap();
     assert!(!host.maximized());
+    // SAFETY: hwnd 是本测试创建的存活窗口，只读取最小化状态。
     assert!(!unsafe { IsIconic(window.hwnd) }.as_bool());
     let desktop = desktop(window.hwnd);
     let plan = restore_window_placement(&desktop.areas(), WindowDisplaySelection::default(), WindowPlacementRequest {
@@ -81,9 +86,11 @@ fn auxiliary_lock_changes_native_resize_and_maximize_capabilities() {
     let host = WindowHost::from_handle(window.hwnd).unwrap();
     for resizable in [true, false, true] {
         host.configure_auxiliary(resizable, false).unwrap();
+        // SAFETY: hwnd 是本测试创建的存活窗口，只读取样式。
         let style = unsafe { GetWindowLongPtrW(window.hwnd, GWL_STYLE) };
         assert_eq!(style & WS_THICKFRAME.0 as isize != 0, resizable);
         assert_eq!(style & WS_MAXIMIZEBOX.0 as isize != 0, resizable);
+        // SAFETY: hwnd 是本测试创建的存活窗口，只读取扩展样式。
         assert_eq!(unsafe { GetWindowLongPtrW(window.hwnd, GWL_EXSTYLE) } & WS_EX_APPWINDOW.0 as isize, 0);
     }
 }

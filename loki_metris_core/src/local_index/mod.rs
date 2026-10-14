@@ -39,11 +39,9 @@ use migrator::Migrator;
 
 /// 管理调用方指定 app-data 内的单一物理数据库连接。
 // 池上限固定为 1（SeaORM 对 SQLite 后端在未显式设置时的默认值）：
-// 效果等价于旧实现里“每次都新开一个 `rusqlite::Connection`”——不同的
-// `LocalIndex` 实例（不同 Tauri command 调用）各自持有独立的单连接
-// 连接池，靠 `busy_timeout` PRAGMA 而不是应用层显式串行化来处理短暂的
-// 跨连接写锁竞争，与本模块一直以来“同一时刻只有一个扫描 writer”的
-// 假设一致。
+// 不同的 `LocalIndex` 实例（例如扫描 writer 与只读查询）各自持有独立的
+// 单连接池，靠 `busy_timeout` PRAGMA 而不是应用层显式串行化来处理短暂的
+// 跨连接写锁竞争，与本模块“同一时刻只有一个扫描 writer”的假设一致。
 #[derive(Debug)]
 pub struct LocalIndex {
     pub(crate) connection: DatabaseConnection,

@@ -139,18 +139,15 @@ impl Drop for SkinImportLease {
         self.session.abandon();
     }
 }
+/// 导入预检的最终回执：预检通过的批次或换肤错误。
+type PreparationReceipt = oneshot::Receiver<Result<PreparedSkinImportBatch, SkinError>>;
+
 impl UsageService {
     /// ZIP选择已确定后才建立资源租约；后台接管迟到token的回收责任。
     pub(crate) fn prepare_skin_import(
         self: &Arc<Self>,
         paths: Vec<PathBuf>,
-    ) -> Result<
-        (
-            SkinImportLease,
-            oneshot::Receiver<Result<PreparedSkinImportBatch, SkinError>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<(SkinImportLease, PreparationReceipt), &'static str> {
         let session = Arc::new(ImportSession {
             state: Mutex::new(ImportState::default()),
         });
@@ -171,7 +168,7 @@ impl UsageService {
         let registered = self.background.spawn("skin-import-owner", move |mut shutdown| async move {
             loop {
                 if shutdown.is_cancelled() { observer.abandon(); }
-                if observer.abandoned() { if let Err(error) = observer.cancel(&owner.service) { if shutdown.is_cancelled() { tracing::warn!(code=error.code, "skin import shutdown cleanup failed"); break; } } }
+                if observer.abandoned() && let Err(error) = observer.cancel(&owner.service) && shutdown.is_cancelled() { tracing::warn!(code=error.code, "skin import shutdown cleanup failed"); break; }
                 if observer.finished() { break; }
                 tokio::select! { _ = shutdown.cancelled(), if !shutdown.is_cancelled() => {}, _ = tokio::time::sleep(std::time::Duration::from_millis(30)) => {} }
             }

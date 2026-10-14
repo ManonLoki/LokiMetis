@@ -104,14 +104,13 @@ impl Monitor {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
-        if let Some(task) = task {
-            if let Err(error) = task.await {
+        if let Some(task) = task
+            && let Err(error) = task.await {
                 tracing::error!(
                     event = "notification_worker_join_failed",
                     panicked = error.is_panic()
                 );
             }
-        }
     }
 }
 impl UsageService {
@@ -229,5 +228,5 @@ impl UsageService {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - notifications_tests.rs：本模块的单元测试
-include!("notifications_tests.rs");
+// - notifications_worker.rs：账本持久化、发送意图发布与通知 worker 主循环，以及本模块单元测试
+include!("notifications_worker.rs");

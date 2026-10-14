@@ -148,8 +148,10 @@ fn malformed_enabled_tools_shape_remains_an_error() {
 /// 保存路径同样按公开目录规范化，调用方不能把隐藏工具重新写入有效集合。
 fn save_filters_hidden_tools_from_the_effective_enabled_set() {
     let root = tempdir().expect("temp");
-    let mut settings = MonitorSettings::default();
-    settings.enabled_ai_tools = vec![AiTool::OpenCode, AiTool::Cursor, AiTool::CodeBuddy];
+    let settings = MonitorSettings {
+        enabled_ai_tools: vec![AiTool::OpenCode, AiTool::Cursor, AiTool::CodeBuddy],
+        ..Default::default()
+    };
 
     let saved = save_monitor_settings(root.path(), &settings).expect("save");
 
@@ -183,8 +185,10 @@ fn missing_enabled_tools_and_directories_use_defaults() {
 fn saved_pet_overlay_position_round_trips() {
     let root = tempdir().expect("temp");
     let config = root.path();
-    let mut settings = MonitorSettings::default();
-    settings.pet_overlay_position = Some(PetOverlayPosition { x: 240, y: 90 });
+    let settings = MonitorSettings {
+        pet_overlay_position: Some(PetOverlayPosition { x: 240, y: 90 }),
+        ..Default::default()
+    };
     save_monitor_settings(config, &settings).expect("save");
     let loaded = load_monitor_settings(config).expect("load");
     assert_eq!(
@@ -198,14 +202,16 @@ fn saved_pet_overlay_position_round_trips() {
 fn pet_window_preferences_round_trip_and_normalize() {
     let root = tempdir().expect("temp");
     let config = root.path();
-    let mut settings = MonitorSettings::default();
-    settings.pet_window = PetWindowPreferences {
-        layout: PetLayout::Row3,
-        focused_slot: 200,
-        pet_size: 1,
-        always_on_top: false,
-        locked: true,
-        mouse_passthrough: true,
+    let settings = MonitorSettings {
+        pet_window: PetWindowPreferences {
+            layout: PetLayout::Row3,
+            focused_slot: 200,
+            pet_size: 1,
+            always_on_top: false,
+            locked: true,
+            mouse_passthrough: true,
+        },
+        ..Default::default()
     };
     let saved = save_monitor_settings(config, &settings).expect("save");
     assert_eq!(saved.pet_window.focused_slot, 11);

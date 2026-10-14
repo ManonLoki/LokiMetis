@@ -8,6 +8,7 @@
 ///      单行时主动丢弃而不是无限增长缓冲区，防止恶意/损坏文件耗尽内存；
 ///   2. 需要在任意读取间隙检查取消标志（`cancellation`），
 ///      让用户点“取消扫描”后能在很短时间内响应，而不必等一整个大文件读完。
+///
 /// `R: Read` 泛型让这个函数既能处理真实文件，也能在测试里处理内存中的
 /// `&[u8]`，不关心底层是什么具体的字节来源。
 pub fn parse_jsonl_stream<R, F>(
@@ -54,7 +55,7 @@ where
                 //     其余计一次警告，不尝试恢复已丢弃的正文；
                 //   - 否则去掉可能的尾随 `\r`（兼容 CRLF 换行）后真正解析这一行。
                 if oversized {
-                    if !non_usage_line.take().is_some_and(non_usage_line::NonUsageJsonLine::is_complete_non_usage) {
+                    if !non_usage_line.take().is_some_and(non_usage_line::NonUsageJsonLine::finish_and_check_complete) {
                         warnings.oversized_lines = warnings.oversized_lines.saturating_add(1);
                     }
                 } else {
@@ -180,6 +181,7 @@ enum LineOutcome {
 ///   4. `token_count` -> 真正的用量事件，继续往下解析 Token 字段；
 ///   5. 其他未知种类 -> Unknown（用于统计格式漂移，可能是上游新增了
 ///      本解析器还不认识的事件类型）。
+///
 /// 之所以要严格区分 Ignored 与 Unknown，是为了让“新版本 Codex 输出了
 /// 全新事件格式”这种情况能被统计出来，而不是和“正常的非用量事件”混在一起。
 fn parse_complete_line(

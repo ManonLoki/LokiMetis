@@ -2,7 +2,9 @@
 // 与主文件共用作用域，因此无需额外导入。收纳内容：稳定作用域隔离相邻按钮的短暂反馈owner。
 
 impl Element for SurfaceButton {
+    /// 内部按钮元素、按压动效 owner 与加载中遮罩元素（仅加载态存在）。
     type RequestLayoutState = (AnyElement, Entity<ButtonMotion>, Option<AnyElement>);
+    /// 预绘制阶段算出的绘制参数，交给 paint 使用。
     type PrepaintState = PaintState;
     /// 稳定作用域隔离相邻按钮的短暂反馈owner。
     fn id(&self) -> Option<ElementId> {

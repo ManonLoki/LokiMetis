@@ -8,43 +8,6 @@ struct MaskRun {
     outside: f64,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use super::super::shadow_geometry_tests::oracle_rounded_coverage;
-
-    /// 检查每个展开覆盖率的 f64 位值，阻止最终字节偶合掩盖量化错误。
-    #[test]
-    fn compressed_runs_preserve_unquantized_coverage_bits() {
-        for (width, height, scale, radius) in [
-            (0, 0, 1., -0.), (1, 50, 1.125, 20.), (50, 1, 1.5, 20.),
-            (50, 50, 1.25, 0.25), (1000, 50, 2., 12.),
-            (20000, 10000, 1.125, 19.999), (20000, 10000, 2., 20.),
-        ] {
-            let geometry = ShadowGeometry::new(width, height, scale, radius);
-            let radius = (radius * scale)
-                .min(f64::from(geometry.card_width.min(geometry.card_height)) / 2.);
-            assert_eq!(geometry.row_offsets.len(), (geometry.height - 1) as usize);
-            for (row, offsets) in (1..geometry.height - 1).zip(geometry.row_offsets.windows(2)) {
-                let mut start = 1;
-                for run in &geometry.runs[offsets[0]..offsets[1]] {
-                    assert!(run.end > start && run.end < geometry.width);
-                    for column in start..run.end {
-                        let outside = 1. - oracle_rounded_coverage(
-                            f64::from(column) - f64::from(geometry.near_x) - 0.5,
-                            f64::from(row) - f64::from(geometry.near_y) - 0.5,
-                            f64::from(geometry.card_width), f64::from(geometry.card_height), radius,
-                        );
-                        assert_eq!(run.outside.to_bits(), outside.to_bits());
-                    }
-                    start = run.end;
-                }
-                assert_eq!(start, geometry.width - 1);
-            }
-        }
-    }
-}
-
 /// 每个 owner 仅保留一个计划；动态 Gaussian 参数不进入几何缓存。
 pub(in crate::app::surface) struct ShadowGeometry {
     width: u32,
@@ -68,7 +31,7 @@ impl ShadowGeometry {
         let (card_height, y) = slices(height, cap(146.), cap(106.), near_y, cap(100.));
         let width = card_width + near_x + cap(76.) + 2;
         let height = card_height + near_y + cap(100.) + 2;
-        assert!(radius >= 0. && radius <= 20., "品牌材质半径必须处于当前产品的0..20px范围");
+        assert!((0. ..=20.).contains(&radius), "品牌材质半径必须处于当前产品的0..20px范围");
         let radius = (radius * scale).min(f64::from(card_width.min(card_height)) / 2.);
         let mut runs: Vec<MaskRun> = Vec::new();
         let mut row_offsets = vec![0];
@@ -139,5 +102,42 @@ impl ShadowGeometry {
         self.row_offsets.capacity() * std::mem::size_of::<usize>()
             + self.runs.capacity() * std::mem::size_of::<MaskRun>()
             + (self.x.capacity() + self.y.capacity()) * std::mem::size_of::<Slice>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::shadow_geometry_tests::oracle_rounded_coverage;
+
+    /// 检查每个展开覆盖率的 f64 位值，阻止最终字节偶合掩盖量化错误。
+    #[test]
+    fn compressed_runs_preserve_unquantized_coverage_bits() {
+        for (width, height, scale, radius) in [
+            (0, 0, 1., -0.), (1, 50, 1.125, 20.), (50, 1, 1.5, 20.),
+            (50, 50, 1.25, 0.25), (1000, 50, 2., 12.),
+            (20000, 10000, 1.125, 19.999), (20000, 10000, 2., 20.),
+        ] {
+            let geometry = ShadowGeometry::new(width, height, scale, radius);
+            let radius = (radius * scale)
+                .min(f64::from(geometry.card_width.min(geometry.card_height)) / 2.);
+            assert_eq!(geometry.row_offsets.len(), (geometry.height - 1) as usize);
+            for (row, offsets) in (1..geometry.height - 1).zip(geometry.row_offsets.windows(2)) {
+                let mut start = 1;
+                for run in &geometry.runs[offsets[0]..offsets[1]] {
+                    assert!(run.end > start && run.end < geometry.width);
+                    for column in start..run.end {
+                        let outside = 1. - oracle_rounded_coverage(
+                            f64::from(column) - f64::from(geometry.near_x) - 0.5,
+                            f64::from(row) - f64::from(geometry.near_y) - 0.5,
+                            f64::from(geometry.card_width), f64::from(geometry.card_height), radius,
+                        );
+                        assert_eq!(run.outside.to_bits(), outside.to_bits());
+                    }
+                    start = run.end;
+                }
+                assert_eq!(start, geometry.width - 1);
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
-// 本文件收纳：执行换皮宿主内部的 `watch_pages` 步骤；执行换皮宿主内部的 `inject_pages` 步骤；在写入皮肤资源前给页面登记本次事务标记，供失败补偿精确回滚。
+// 本文件收纳：页面持续监视与补注入、逐页注入与事务标记、宿主兼容规则执行及当前皮肤检查。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 执行换皮宿主内部的 `watch_pages` 步骤。
+/// 后台持续监视宿主：先提交首批注入事务，再按固定间隔为新出现的页面补注入，直到收到取消信号。
 async fn watch_pages(
     host: SkinHostKind,
     mut browser: Browser,
@@ -65,7 +65,7 @@ async fn watch_pages(
     removed
 }
 
-/// 执行换皮宿主内部的 `inject_pages` 步骤。
+/// 并发处理全部宿主页面：已是当前皮肤的只补兼容规则，否则清除旧注入后写入新载荷，并汇总验证、注入、失败数与兼容规则。
 async fn inject_pages(
     host: SkinHostKind,
     browser: &Browser,
@@ -320,7 +320,7 @@ fn rollback_error(original: &AppError, rollback: AppError) -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `apply_host_compatibility` 步骤。
+/// 在页面执行宿主兼容规则脚本并读取报告；执行失败或版本不符时记为跳过 `adapter-runtime` 规则。
 async fn apply_host_compatibility(host: SkinHostKind, page: &Page) -> Result<CompatibilityPageReport, AppError> {
     let script = match host {
         SkinHostKind::Codex => HOST_COMPATIBILITY_SCRIPT,
@@ -350,7 +350,7 @@ async fn apply_host_compatibility(host: SkinHostKind, page: &Page) -> Result<Com
     }
 }
 
-/// 执行换皮宿主内部的 `is_codex_page` 步骤。
+/// 判断页面是否为可信的 Codex 主页面。
 async fn is_codex_page(page: &Page) -> Result<bool, AppError> {
     is_host_page(SkinHostKind::Codex, page).await
 }
@@ -379,7 +379,7 @@ async fn is_host_page(host: SkinHostKind, page: &Page) -> Result<bool, AppError>
     })
 }
 
-/// 执行换皮宿主内部的 `has_current_skin` 步骤。
+/// 在请求期限内检查页面是否已完整生效指定皮肤。
 async fn has_current_skin(page: &Page, skin: &SkinReference) -> Result<bool, AppError> {
     let expression = current_skin_expression(skin);
     let result = tokio::time::timeout(CDP_REQUEST_TIMEOUT, page.evaluate_expression(expression))
@@ -391,7 +391,7 @@ async fn has_current_skin(page: &Page, skin: &SkinReference) -> Result<bool, App
         .map_err(|_| cdp_response_error())
 }
 
-/// 执行换皮宿主内部的 `current_skin_expression` 步骤。
+/// 生成检查页面皮肤状态的脚本：要求运行态版本与皮肤身份一致、未被停用或静默、清理函数与样式节点齐全，且没有其它换肤工具。
 fn current_skin_expression(skin: &SkinReference) -> String {
     let version = serde_json::to_string(SKIN_VERSION).unwrap_or_else(|_| "null".into());
     let source = serde_json::to_string(&skin.source).unwrap_or_else(|_| "null".into());
@@ -424,5 +424,5 @@ fn injection_failed_error() -> AppError {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - injection_cleanup.rs：执行换皮宿主内部的 `remove_from_browser` 步骤。；新注入与停用复用同一清理确认，防止旧状态冒充新载荷的成功结果。；汇总跨页面清理结果…
+// - injection_cleanup.rs：页面皮肤清理、清理结果汇总、经已有或指定端点清理，以及 CDP 错误与 WebSocket 地址校验。
 include!("injection_cleanup.rs");

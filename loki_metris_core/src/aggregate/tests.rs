@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{
-    Completeness, Confidence, Freshness, MetricFact, MetricScope, ProviderKind, SourceProvenance,
+    Confidence, SourceProvenance,
     TokenUsage, UsageCall,
 };
 
@@ -28,65 +28,6 @@ fn call(id: &str, source_id: &str, input: u64) -> UsageCall {
             archived: false,
         }],
     }
-}
-
-#[test]
-/// 验证同一范围内重复观察优先采用更新事实。
-fn prefers_the_newer_observation_within_the_same_scope() {
-    let older = MetricFact::new(
-        10_u64,
-        ProviderKind::RolloutJsonl,
-        MetricScope::DeviceObserved,
-        10,
-        Freshness::Stale,
-        Completeness::Partial,
-        Confidence::Derived,
-        Some("parser-v1".to_owned()),
-    );
-    let newer = MetricFact::new(
-        12_u64,
-        ProviderKind::RolloutJsonl,
-        MetricScope::DeviceObserved,
-        20,
-        Freshness::Fresh,
-        Completeness::Complete,
-        Confidence::Exact,
-        Some("parser-v1".to_owned()),
-    );
-
-    let selected = prefer_metric_within_scope(older, newer).expect("scope matches");
-    assert_eq!(selected.observed_at_epoch_ms, 20);
-    assert_eq!(selected.value, 12);
-}
-
-#[test]
-/// 验证不同聚合范围的事实不会被错误融合。
-fn rejects_cross_scope_fusion() {
-    let root = MetricFact::new(
-        10_u64,
-        ProviderKind::RolloutJsonl,
-        MetricScope::RootObserved,
-        1,
-        Freshness::Fresh,
-        Completeness::Complete,
-        Confidence::Exact,
-        None,
-    );
-    let device = MetricFact::new(
-        10_u64,
-        ProviderKind::RolloutJsonl,
-        MetricScope::DeviceObserved,
-        1,
-        Freshness::Fresh,
-        Completeness::Complete,
-        Confidence::Exact,
-        None,
-    );
-
-    assert_eq!(
-        prefer_metric_within_scope(root, device),
-        Err(MetricFusionError::ScopeMismatch)
-    );
 }
 
 #[test]

@@ -1,7 +1,7 @@
-// 本文件收纳：执行换皮宿主内部的 `read_manifest` 步骤；执行换皮宿主内部的 `validate_manifest` 步骤；执行换皮宿主内部的 `validate_legacy_manifest` 步骤。
+// 本文件收纳：皮肤清单读取与按版本分派、旧版与纯主题清单校验、外观契约校验及主变量表解析。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 执行换皮宿主内部的 `read_manifest` 步骤。
+/// 读取 theme.json 并按 schemaVersion 分派：1 为旧版皮肤，3 且类型为 theme 为纯主题，2 为已停用的过渡格式。
 fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
     let text = read_text(&directory.join("theme.json"))?;
     let value: serde_json::Value = serde_json::from_str(&text)
@@ -11,6 +11,7 @@ fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
         .and_then(serde_json::Value::as_u64)
     {
         Some(1) => serde_json::from_value(value)
+            .map(Box::new)
             .map(SkinManifest::Legacy)
             .map_err(|_| AppError::new("skin.assets_invalid", "旧版皮肤配置字段无效。")),
         Some(2) => Err(AppError::with_details(
@@ -36,7 +37,7 @@ fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
     }
 }
 
-/// 执行换皮宿主内部的 `validate_manifest` 步骤。
+/// 校验清单的通用字段（ID、名称、作者）后按包类型做专属校验。
 fn validate_manifest(directory: &Path, manifest: &SkinManifest) -> Result<(), AppError> {
     if normalize_skin_creator_text(manifest.name()).is_err()
         || normalize_skin_creator_text(manifest.author()).is_err()
@@ -53,7 +54,7 @@ fn validate_manifest(directory: &Path, manifest: &SkinManifest) -> Result<(), Ap
     }
 }
 
-/// 执行换皮宿主内部的 `validate_legacy_manifest` 步骤。
+/// 旧版皮肤只能引用固定的三张图片，且全部必需资源齐全有效。
 fn validate_legacy_manifest(directory: &Path, manifest: &LegacyManifest) -> Result<(), AppError> {
     if manifest.schema_version != 1
         || manifest.image != "qq2007-sky.png"
@@ -72,7 +73,7 @@ fn validate_legacy_manifest(directory: &Path, manifest: &LegacyManifest) -> Resu
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `validate_theme_css_manifest` 步骤。
+/// 校验纯主题清单：版本与类型、元数据、外观契约、变量表，并要求目录中只有声明过的文件。
 fn validate_theme_css_manifest(
     directory: &Path,
     manifest: &PureThemeCssManifest,
@@ -161,7 +162,7 @@ fn validate_theme_css_manifest(
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `validate_theme_appearance` 步骤。
+/// 校验外观契约：支持模式列表非空不重复，且只能为已支持的模式声明要求。
 fn validate_theme_appearance(manifest: &PureThemeCssManifest) -> Result<(), AppError> {
     let Some(appearance) = &manifest.appearance else {
         return Ok(());
@@ -194,7 +195,7 @@ fn validate_theme_appearance(manifest: &PureThemeCssManifest) -> Result<(), AppE
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `validate_appearance_requirement` 步骤。
+/// 校验单一模式的外观要求：文本字段非空且不超过 160 字符，颜色与数值在允许范围内。
 fn validate_appearance_requirement(
     requirement: &AppearanceRequirement,
     mode: ColorMode,
@@ -247,7 +248,7 @@ fn validate_appearance_requirement(
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `is_valid_requirement_color` 步骤。
+/// 外观要求中的颜色必须是 `#RRGGBB`。
 fn is_valid_requirement_color(value: &str) -> bool {
     value.len() == 7
         && value.starts_with('#')
@@ -256,7 +257,7 @@ fn is_valid_requirement_color(value: &str) -> bool {
             .all(|character| character.is_ascii_hexdigit())
 }
 
-/// 执行换皮宿主内部的 `read_theme_css_config` 步骤。
+/// 读取并解析 theme.css；声明了外观契约时再叠加各模式的 `theme.<mode>.css` 并收集其背景图。
 fn read_theme_css_config(
     directory: &Path,
     appearance: Option<&ThemeAppearance>,
@@ -285,7 +286,7 @@ fn read_theme_css_config(
     Ok(config)
 }
 
-/// 执行换皮宿主内部的 `parse_theme_css` 步骤。
+/// 解析主变量表：只允许根、浅色、深色三个选择器与固定变量，每项只声明一次，并提取预览图与背景图。
 fn parse_theme_css(css: &str, explicit_appearance: bool) -> Result<ThemeCssConfig, AppError> {
     const ROOT: &str = "html.codex-dream-skin";
     const DARK: &str = "html.codex-dream-skin[data-dream-shell=\"dark\"]";
@@ -423,5 +424,5 @@ fn parse_theme_css(css: &str, explicit_appearance: bool) -> Result<ThemeCssConfi
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - validation_theme_css.rs：执行换皮宿主内部的 `parse_mode_theme_css` 步骤。；执行换皮宿主内部的 `is_allowed_mode_property` 步骤。；执行换皮宿主内部的 `is_valid_mode_prop…
+// - validation_theme_css.rs：逐模式 CSS 与变量取值校验、资源文件检查、图片校验，以及新主题 ID 与模板写入。
 include!("validation_theme_css.rs");

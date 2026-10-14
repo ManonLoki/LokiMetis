@@ -244,7 +244,7 @@ fn notification_today_rejects_in_progress_failed_and_partial_index_writes() {
             }
             let successful = index.begin_scan("quick", now).await.unwrap();
             index.finish_scan(&successful, now + 1, "completed", false, 1, 0, 0).await.unwrap();
-            index.record_roots_coverage(&[root_id.clone()], CoverageState::Partial).await.unwrap();
+            index.record_roots_coverage(std::slice::from_ref(&root_id), CoverageState::Partial).await.unwrap();
             let partial = read_today(service.context.clone(), now).await;
             assert!(!partial.eligible(now, &partial.day, &partial.source));
             index.record_roots_coverage(&[root_id], CoverageState::Complete).await.unwrap();

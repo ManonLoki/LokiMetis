@@ -1,4 +1,4 @@
-// 本文件收纳：在读取自由注入脚本或持久化兼容皮肤前校验本次操作的显式信任确认；执行换皮宿主内部的 `build_payload` 步骤；与 `build_payload` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
+// 本文件收纳：注入载荷生成与信任确认、资源读取与 data URL 编码、宿主命令行解析与稳定实例 ID。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 /// 在读取自由注入脚本或持久化兼容皮肤前校验本次操作的显式信任确认。
@@ -10,7 +10,7 @@ fn validate_code_execution_consent(
         .map_err(|_| third_party_code_consent_required_error())
 }
 
-/// 执行换皮宿主内部的 `build_payload` 步骤。
+/// 读取并校验皮肤目录清单后生成注入脚本；可执行的旧版皮肤需要显式信任。
 #[cfg(test)]
 fn build_payload(directory: &Path, explicitly_trusted: bool) -> Result<String, AppError> {
     let manifest = read_manifest(directory)?;
@@ -89,7 +89,7 @@ fn build_payload_from_manifest(
     Ok(payload)
 }
 
-/// 执行换皮宿主内部的 `append_runtime_skin_marker` 步骤。
+/// 在注入脚本末尾追加运行态标记，让页面记录当前生效皮肤的来源、ID、名称与包类型，供后续恢复身份。
 fn append_runtime_skin_marker(
     payload: String,
     descriptor: &SkinDescriptor,
@@ -107,17 +107,17 @@ fn append_runtime_skin_marker(
     )))
 }
 
-/// 执行换皮宿主内部的 `theme_image_data_url` 步骤。
+/// 把主题目录中的图片读成 data URL，MIME 由扩展名决定。
 fn theme_image_data_url(directory: &Path, file_name: &str) -> Result<String, AppError> {
     image_data_url(&directory.join(file_name), image_mime(file_name)?)
 }
 
-/// 执行换皮宿主内部的 `read_text` 步骤。
+/// 按文本资源默认上限读取 UTF-8 文本。
 fn read_text(path: &Path) -> Result<String, AppError> {
     read_text_with_limit(path, MAX_TEXT_BYTES)
 }
 
-/// 执行换皮宿主内部的 `read_text_with_limit` 步骤。
+/// 读取非空且不超过上限的普通文件为 UTF-8 文本。
 fn read_text_with_limit(path: &Path, limit: u64) -> Result<String, AppError> {
     let metadata = std::fs::metadata(path)
         .map_err(|_| AppError::new("skin.assets_invalid", "无法读取皮肤文本资源。"))?;
@@ -131,7 +131,7 @@ fn read_text_with_limit(path: &Path, limit: u64) -> Result<String, AppError> {
         .map_err(|_| AppError::new("skin.assets_invalid", "皮肤文本资源不是有效 UTF-8。"))
 }
 
-/// 执行换皮宿主内部的 `image_data_url` 步骤。
+/// 读取非空且不超过上限的图片，确认魔数与 MIME 一致后编码为 data URL。
 fn image_data_url(path: &Path, mime: &str) -> Result<String, AppError> {
     let bytes = std::fs::read(path)
         .map_err(|_| AppError::new("skin.assets_invalid", "无法读取皮肤图片资源。"))?;
@@ -154,13 +154,13 @@ fn image_data_url(path: &Path, mime: &str) -> Result<String, AppError> {
     Ok(gallery_image_data_url(format, &bytes))
 }
 
-/// 执行换皮宿主内部的 `json_string` 步骤。
+/// 把文本编码为 JSON 字符串字面量，供拼入注入脚本。
 fn json_string(value: &str) -> Result<String, AppError> {
     serde_json::to_string(value)
         .map_err(|_| AppError::new("skin.assets_invalid", "皮肤文本无法序列化。"))
 }
 
-/// 执行换皮宿主内部的 `debug_port_from_command_line` 步骤。
+/// 从命令行解析 `--remote-debugging-port` 的端口值（空格或等号两种写法，最后一次出现生效）；没有或为 0 时返回空。
 fn debug_port_from_command_line(command_line: &str) -> Option<u16> {
     let tokens = command_line.split_whitespace().collect::<Vec<_>>();
     let mut result = None;
@@ -187,7 +187,7 @@ fn debug_port_from_command_line(command_line: &str) -> Option<u16> {
     result
 }
 
-/// 执行换皮宿主内部的 `command_line_arguments` 步骤。
+/// 按 Windows 命令行规则拆分参数，正确处理引号与反斜杠转义。
 fn command_line_arguments(command_line: &str) -> Vec<String> {
     let mut arguments = Vec::new();
     let mut current = String::new();
@@ -225,7 +225,7 @@ fn command_line_arguments(command_line: &str) -> Vec<String> {
     arguments
 }
 
-/// 执行换皮宿主内部的 `reusable_process_arguments` 步骤。
+/// 提取重启实例时可复用的原始参数，去掉可执行文件本身与全部远程调试相关参数。
 fn reusable_process_arguments(command_line: &str) -> Vec<String> {
     let mut values = command_line_arguments(command_line)
         .into_iter()
@@ -248,7 +248,7 @@ fn reusable_process_arguments(command_line: &str) -> Vec<String> {
     arguments
 }
 
-/// 执行换皮宿主内部的 `is_primary_codex_command_line` 步骤。
+/// 命令行没有 `--type` 或 `--utility-sub-type` 参数时才是 Codex 主进程，而非渲染器或辅助进程。
 fn is_primary_codex_command_line(command_line: &str) -> bool {
     !command_line_arguments(command_line)
         .into_iter()
@@ -261,7 +261,7 @@ fn is_primary_codex_command_line(command_line: &str) -> bool {
         })
 }
 
-/// 执行换皮宿主内部的 `user_data_profile` 步骤。
+/// 从 `--user-data-dir` 取最后一级目录名作为配置档名称。
 fn user_data_profile(arguments: &[String]) -> Option<String> {
     user_data_directory(arguments).and_then(|value| {
         value
@@ -274,7 +274,7 @@ fn user_data_profile(arguments: &[String]) -> Option<String> {
     })
 }
 
-/// 执行换皮宿主内部的 `user_data_directory` 步骤。
+/// 解析 `--user-data-dir` 参数（空格或等号写法），去掉引号与结尾分隔符。
 fn user_data_directory(arguments: &[String]) -> Option<PathBuf> {
     let mut index = 0;
     while index < arguments.len() {
@@ -295,7 +295,7 @@ fn user_data_directory(arguments: &[String]) -> Option<PathBuf> {
     None
 }
 
-/// 执行换皮宿主内部的 `stable_instance_id` 步骤。
+/// 由 PID、可执行文件路径与命令行的 FNV-1a 哈希生成实例 ID，同一进程在多次扫描间保持不变。
 fn stable_instance_id(process: &PlatformHostProcess) -> String {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in process
@@ -325,7 +325,7 @@ fn stable_workbuddy_instance_id(process: &PlatformHostProcess) -> String {
     format!("workbuddy-{}-{hash:016x}", process.pid)
 }
 
-/// 执行换皮宿主内部的 `resolved_instance` 步骤。
+/// 以稳定实例 ID 解析宿主进程实例。
 fn resolved_instance(process: PlatformHostProcess) -> ResolvedSkinHostInstance {
     let id = stable_instance_id(&process);
     resolved_instance_with_id(process, id)

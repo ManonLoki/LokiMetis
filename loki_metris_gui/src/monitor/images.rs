@@ -297,11 +297,10 @@ pub(crate) fn delete_monitor_image(
     }
     let snapshot = snapshot_from_records(data, &records)?;
     save_index(data, &records)?;
-    if let Err(error) = std::fs::remove_file(path) {
-        if error.kind() != std::io::ErrorKind::NotFound {
+    if let Err(error) = std::fs::remove_file(path)
+        && error.kind() != std::io::ErrorKind::NotFound {
             tracing::warn!(event = "monitor_image_orphan_cleanup_failed");
         }
-    }
     Ok(snapshot)
 }
 

@@ -22,8 +22,6 @@ pub(super) enum EntryAction {
     PushDirectory(PathBuf),
     /// 仅保留相对标签，不索引。
     RetainLabel(String),
-    /// 已验证未变化的 generation，无需读文件但保留其质量贡献。
-    RetainKnown { relative_label: String, warning_count: u64 },
     /// 确认拒绝的相对标签。
     RejectLabel(String),
     /// 已通过签名探测，交给 async 侧串行索引。

@@ -124,9 +124,7 @@ fn background(window: &Window, index: usize) -> Rgba {
         .painted_quads()
         .into_iter()
         .filter(|quad| quad.bounds == bounds)
-        .filter_map(|quad| quad.background.as_solid().map(Rgba::from))
-        .filter(|color| color.a > 0.)
-        .last()
+        .filter_map(|quad| quad.background.as_solid().map(Rgba::from)).rfind(|color| color.a > 0.)
         .expect("真实按钮必须绘制可见背景")
 }
 
@@ -244,7 +242,7 @@ fn source_button_hover_is_continuous_reversible_and_owned(cx: &mut TestAppContex
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         let settled = background(window, 0);
-        let expected: Rgba = gpui_kit::rgb(0xa52f25).into();
+        let expected: Rgba = gpui_kit::rgb(0xa52f25);
         assert_color(settled, expected, "历史亮色filled hover取brand7");
         probe.update(cx, |this, cx| {
             this.dark = true;
@@ -259,7 +257,7 @@ fn source_button_hover_is_continuous_reversible_and_owned(cx: &mut TestAppContex
         window.render_frame(cx);
         assert_color(
             background(window, 0),
-            Rgba::from(gpui_kit::rgb(0xc43b2d)),
+            gpui_kit::rgb(0xc43b2d),
             "历史暗色filled hover取brand6",
         );
     })

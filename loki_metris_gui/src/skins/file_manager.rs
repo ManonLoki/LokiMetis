@@ -1,4 +1,4 @@
-// 本文件的测试覆盖：文件管理器 launcher 的单次运行时限；launcher 超时后用于终止和回收子进程的尾部预算；执行换皮宿主内部的 `open_in_file_manager` 步骤。
+// 本文件收纳：文件管理器 launcher 的运行时限与回收预算，以及在系统文件管理器中打开皮肤目录。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 // 以可信系统入口异步打开皮肤目录，并完整拥有 launcher 生命周期。
@@ -10,7 +10,7 @@ const FILE_MANAGER_TIMEOUT: Duration = Duration::from_secs(5);
 #[cfg(unix)]
 const FILE_MANAGER_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 
-/// 执行换皮宿主内部的 `open_in_file_manager` 步骤。
+/// 规范化并确认目录存在后，用系统文件管理器打开它。
 async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
     let directory = tokio::fs::canonicalize(directory)
         .await
@@ -29,11 +29,11 @@ async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
     {
         let mut command = tokio::process::Command::new("/usr/bin/open");
         command.arg(&directory);
-        return run_file_manager_command(command).await;
+        run_file_manager_command(command).await
     }
     #[cfg(target_os = "windows")]
     {
-        return open_with_windows_shell(&directory);
+        open_with_windows_shell(&directory)
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {

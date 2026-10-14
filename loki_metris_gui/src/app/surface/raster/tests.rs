@@ -50,7 +50,7 @@ fn short_cards_keep_overlap_and_empty_cast_is_transparent() {
         empty
             .pixels
             .bytes
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .all(|pixel| pixel[3] == 0)
     );
 }
@@ -62,11 +62,11 @@ fn shadow_knocks_out_original_card_and_uses_straight_bgra() {
     for (x, y) in [(100, 100), (200, 70), (80, 200)] {
         assert_eq!(alpha(&card.pixels, x + 77, y + 53), 0);
     }
-    assert!(card.pixels.bytes.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(card.pixels.bytes.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
     for pixel in card
         .pixels
         .bytes
-        .chunks_exact(4)
+        .as_chunks::<4>().0.iter()
         .filter(|pixel| pixel[3] > 0)
     {
         assert_eq!(&pixel[..3], &[36, 63, 91]);

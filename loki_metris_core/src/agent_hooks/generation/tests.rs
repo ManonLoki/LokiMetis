@@ -34,7 +34,7 @@ pub(super) fn command_text(command: &str) -> String {
     let Some(encoded) = command.strip_prefix(super::windows_command::PREFIX) else { return command.into() };
     let bytes = STANDARD.decode(encoded).expect("编码命令必须为 base64");
     assert_eq!(bytes.len() % 2, 0);
-    String::from_utf16(&bytes.chunks_exact(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect::<Vec<_>>()).unwrap()
+    String::from_utf16(&bytes.as_chunks::<2>().0.iter().map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect::<Vec<_>>()).unwrap()
 }
 
 /// 用固定示例路径生成配置，供本文件与合并测试复用。

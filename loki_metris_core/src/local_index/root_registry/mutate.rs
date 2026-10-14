@@ -158,6 +158,7 @@ impl LocalIndex {
     }
 
     /// 返回不含绝对路径的数据根 registry 展示记录，供 adapter 诊断与测试观察登记状态。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn list_sources(&self) -> Result<Vec<crate::local_index::RootRecord>, LocalError> {
         crate::local_index::snapshot::load_root_records(&self.connection, self.parser_version).await
     }

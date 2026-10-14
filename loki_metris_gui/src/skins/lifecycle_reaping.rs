@@ -1,5 +1,5 @@
 // 本文件是 lifecycle.rs 的分片（第 3/3 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：回收上一轮因最终期限耗尽而保存的任务；锁内只移交所有权，不跨 await 持锁。；执行换皮宿主内部的 `drop` 步骤。；在共同截止前等待 watcher 终态；超时保留原 JoinHandle 给调用方继续持有。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：监视任务回收、服务释放时的取消与移交、皮肤提示词路径校验，以及皮肤 ID、删除选择与导入 token 的校验。
 
 impl SkinService {
     /// 回收上一轮因最终期限耗尽而保存的任务；锁内只移交所有权，不跨 await 持锁。
@@ -75,7 +75,7 @@ impl SkinService {
 
 
 impl Drop for SkinService {
-    /// 执行换皮宿主内部的 `drop` 步骤。
+    /// 服务释放时取消在途操作与全部页面监视任务，并把未确认终态的任务交给进程级 owner。
     fn drop(&mut self) {
         let _ = self.cancel_codex_operation();
         let retained = {
@@ -99,16 +99,14 @@ impl Drop for SkinService {
                 task.abort();
             }
         }
-        if let Ok(active) = self.import_preparation.get_mut() {
-            if let Some(active) = active.take() {
+        if let Ok(active) = self.import_preparation.get_mut()
+            && let Some(active) = active.take() {
                 active.cancelled.store(true, Ordering::Release);
             }
-        }
-        if let Ok(state) = self.pending_import.get_mut() {
-            if let Some(pending) = state.take() {
+        if let Ok(state) = self.pending_import.get_mut()
+            && let Some(pending) = state.take() {
                 let _ = std::fs::remove_dir_all(pending.staging_root);
             }
-        }
     }
 }
 
@@ -166,12 +164,12 @@ fn watch_stop_timeout_error() -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `prompt_unavailable` 步骤。
+/// 生成皮肤提示词不可用的稳定错误。
 fn prompt_unavailable(message: impl Into<String>) -> AppError {
     AppError::new("skin.prompt_unavailable", message)
 }
 
-/// 执行换皮宿主内部的 `validate_prompt_directory` 步骤。
+/// 要求提示词引用的目录是绝对路径下的真实目录（非链接）。
 fn validate_prompt_directory(path: &Path, message: &str) -> Result<(), AppError> {
     if !path.is_absolute() {
         return Err(prompt_unavailable(message));
@@ -183,7 +181,7 @@ fn validate_prompt_directory(path: &Path, message: &str) -> Result<(), AppError>
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `validate_bundled_skill_file` 步骤。
+/// 校验安装包内置 Skill 中的文件：相对路径只含普通段，沿途不经过链接，且规范化后仍位于 Skill 根目录内。
 fn validate_bundled_skill_file(
     bundled_skill_root: &Path,
     relative: &Path,
@@ -227,7 +225,7 @@ fn validate_bundled_skill_file(
     Ok(candidate)
 }
 
-/// 执行换皮宿主内部的 `prompt_json_path` 步骤。
+/// 把路径编码为 JSON 字符串供写入提示词；非 UTF-8 或含控制字符的路径拒绝。
 fn prompt_json_path(path: &Path) -> Result<String, AppError> {
     let value = path
         .to_str()
@@ -240,12 +238,12 @@ fn prompt_json_path(path: &Path) -> Result<String, AppError> {
     serde_json::to_string(value).map_err(|_| prompt_unavailable("暂时无法生成 Codex 主题提示词。"))
 }
 
-/// 执行换皮宿主内部的 `is_valid_skin_id` 步骤。
+/// 皮肤 ID 是否合法，规则由 core 决定。
 pub(crate) fn is_valid_skin_id(value: &str) -> bool {
     loki_metris_core::is_valid_skin_id(value)
 }
 
-/// 执行换皮宿主内部的 `validate_skin_id` 步骤。
+/// 校验用户皮肤 ID，规则由 core 决定。
 fn validate_skin_id(value: &str) -> Result<(), AppError> {
     loki_metris_core::validate_skin_reference(&SkinReference {
         source: SkinSource::User,
@@ -259,7 +257,7 @@ fn validate_skin_id(value: &str) -> Result<(), AppError> {
     })
 }
 
-/// 执行换皮宿主内部的 `validate_skin_reference` 步骤。
+/// 校验皮肤引用，并把 core 规则错误映射为界面错误。
 fn validate_skin_reference(skin: &SkinReference) -> Result<(), AppError> {
     loki_metris_core::validate_skin_reference(skin).map_err(|_| {
         AppError::new(
@@ -285,7 +283,7 @@ fn workbuddy_owner_inspection_failed() -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `validate_delete_batch` 步骤。
+/// 校验批量删除选择（数量、只读内置、重复与 ID），把 core 规则错误映射为界面错误。
 fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
     loki_metris_core::validate_skin_delete_batch(skins).map_err(|error| match error {
         SkinRuleError::InvalidBatchSize => AppError::new(
@@ -313,7 +311,7 @@ fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
     })
 }
 
-/// 执行换皮宿主内部的 `validate_import_token` 步骤。
+/// 导入 token 必须是 64 字符以内的数字与连字符，否则视为已过期。
 fn validate_import_token(token: &str) -> Result<(), AppError> {
     if !token.is_empty()
         && token.len() <= 64
@@ -330,7 +328,7 @@ fn validate_import_token(token: &str) -> Result<(), AppError> {
     }
 }
 
-/// 执行换皮宿主内部的 `unknown_author` 步骤。
+/// 旧版清单缺少作者时的默认值。
 fn unknown_author() -> String {
     "未知作者".into()
 }

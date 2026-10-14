@@ -3,7 +3,6 @@
 mod aggregation;
 mod canonicalization;
 mod filter;
-mod fusion;
 #[cfg(test)]
 mod tests;
 
@@ -12,8 +11,7 @@ pub use canonicalization::{
     CanonicalUsageSet, CanonicalizationWarning, CanonicalizationWarningKind,
     attach_session_snapshots, canonicalize_session_snapshots, canonicalize_usage_calls,
 };
-pub use filter::{copy_matching_snapshots, filter_canonical_usage, partition_canonical_usage_two};
-pub use fusion::{MetricFusionError, prefer_metric_within_scope};
+pub use filter::{copy_matching_snapshots, filter_canonical_usage};
 
 pub(crate) use canonicalization::lower_confidence;
 pub(crate) use aggregation::aggregate_filtered_canonical_usage;

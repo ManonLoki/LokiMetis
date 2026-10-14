@@ -117,11 +117,6 @@ pub fn is_discovery_path_excluded(
         .any(|excluded| path.starts_with(excluded) && !traversal_root.starts_with(excluded))
 }
 
-/// 在全设备发现前先应用的平台保守排除策略（不含按卷展开的相对目录）。
-pub fn append_platform_discovery_excludes(excluded_roots: Vec<PathBuf>) -> Vec<PathBuf> {
-    append_platform_discovery_excludes_for_volumes(excluded_roots, &[])
-}
-
 /// 在平台固定排除之外，按每个本地卷根展开“不可能存放会话数据”的相对目录。
 pub fn append_platform_discovery_excludes_for_volumes(
     mut excluded_roots: Vec<PathBuf>,
@@ -193,12 +188,10 @@ pub fn append_platform_discovery_excludes_for_volumes(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_os = "windows")]
-    use super::append_platform_discovery_excludes_for_volumes;
     #[cfg(target_os = "macos")]
     use super::is_discovery_path_excluded;
     use super::{
-        append_platform_discovery_excludes, full_discovery_skip_directory_names,
+        append_platform_discovery_excludes_for_volumes, full_discovery_skip_directory_names,
         is_full_discovery_skip_directory_name,
     };
     #[cfg(target_os = "macos")]
@@ -209,7 +202,7 @@ mod tests {
     #[test]
     /// 验证 macOS 完全扫描包含固定系统绝对排除目录。
     fn macos_includes_system_absolute_excludes() {
-        let excluded = append_platform_discovery_excludes(vec![PathBuf::from("/tmp")]);
+        let excluded = append_platform_discovery_excludes_for_volumes(vec![PathBuf::from("/tmp")], &[]);
 
         assert!(excluded.contains(&PathBuf::from("/tmp")));
         assert!(excluded.contains(&PathBuf::from("/Network")));
@@ -229,7 +222,7 @@ mod tests {
     #[test]
     /// 验证系统 Library 排除不会误伤用户 Library 路径。
     fn macos_user_library_is_not_prefix_excluded_by_system_library() {
-        let excluded = append_platform_discovery_excludes(Vec::new());
+        let excluded = append_platform_discovery_excludes_for_volumes(Vec::new(), &[]);
         let user_library = PathBuf::from("/Users/demo/Library");
         assert!(!is_discovery_path_excluded(
             &user_library,
@@ -247,7 +240,7 @@ mod tests {
     #[test]
     /// 验证 Linux 扫描包含已知伪文件系统与临时目录排除。
     fn linux_includes_known_excludes() {
-        let excluded = append_platform_discovery_excludes(vec![PathBuf::from("/tmp")]);
+        let excluded = append_platform_discovery_excludes_for_volumes(vec![PathBuf::from("/tmp")], &[]);
 
         assert!(excluded.contains(&PathBuf::from("/tmp")));
         assert!(excluded.contains(&PathBuf::from("/proc")));
@@ -282,7 +275,7 @@ mod tests {
     #[test]
     /// 验证没有枚举到卷时保留调用者明确提供的扫描输入。
     fn windows_without_volumes_keeps_input_only() {
-        let excluded = append_platform_discovery_excludes(vec![PathBuf::from(r"C:")]);
+        let excluded = append_platform_discovery_excludes_for_volumes(vec![PathBuf::from(r"C:")], &[]);
         assert_eq!(excluded, vec![PathBuf::from(r"C:")]);
     }
 

@@ -66,7 +66,7 @@ async fn refresh_upgraded_indexes(context:Arc<super::super::ServiceContext>,shut
             Ok(index)=>index.index_state().await.is_ok_and(loki_metris_core::immediate_reindex_required),Err(_)=>false,
         };
         if shutdown.is_cancelled() {return}
-        if required {if let Err(error)=super::super::scan::run(context.clone(),super::super::queue::Intent{client:Some(client),origin:ScanStartOrigin::InitialAutomatic},ScanCancellation::new()).await {tracing::warn!(event="usage_startup_upgrade_scan_failed",code=error);}}
+        if required&& let Err(error)=super::super::scan::run(context.clone(),super::super::queue::Intent{client:Some(client),origin:ScanStartOrigin::InitialAutomatic},ScanCancellation::new()).await {tracing::warn!(event="usage_startup_upgrade_scan_failed",code=error);}
     }
 }
 

@@ -257,8 +257,9 @@ impl Render for MonitorImageView {
         #[cfg(target_os = "macos")]
         let residency = (self.source.id.clone(), self.owner.clone());
         let frame = self.frame;
-        let viewport_corners = self.viewport_corners.clone();
-        let fit = match self.fit {
+        let viewport_corners = self.viewport_corners;
+        // 上游 ObjectFit 未实现 Clone/Copy，只能逐变体复制给绘制闭包。
+        let fit = match &self.fit {
             ObjectFit::Fill => ObjectFit::Fill,
             ObjectFit::Contain => ObjectFit::Contain,
             ObjectFit::Cover => ObjectFit::Cover,
@@ -317,7 +318,7 @@ impl Render for MonitorImageView {
                                     padded,
                                     ImageRoundedClip {
                                         bounds,
-                                        corner_radii: viewport_corners.clone(),
+                                        corner_radii: viewport_corners,
                                     },
                                     decoded.image.clone(),
                                     frame,

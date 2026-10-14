@@ -3,7 +3,7 @@
 use serde::Serialize;
 use thiserror::Error;
 
-/// 向前端返回稳定错误码、脱敏消息与可选详情。
+/// 向界面返回稳定错误码、脱敏消息与可选详情。
 #[derive(Clone, Debug, Error, Serialize)]
 #[error("{message}")]
 pub struct AppError {

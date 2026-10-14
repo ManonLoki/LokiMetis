@@ -6,20 +6,11 @@ use thiserror::Error;
 
 use crate::calls_view::{CallOrigins, UsageCallOrigin, build_usage_calls_page_with_origins};
 use crate::{
-    CanonicalUsageSet, CanonicalizationWarning, CoverageReport, CoverageState, EnabledAgents,
+    CanonicalUsageSet, CanonicalizationWarning, CoverageReport, CoverageState,
     LocalIndexState, LocalRecordsSummary, ProviderKind, SessionTokenSnapshot, SourceClientKind,
     SourceProvenance, TimeStandard, TokenUsage, TotalTokenAccounting, UsageCall, UsageCallsPage,
     UsageCallsQuery, UsageSnapshot, agent_wire_label, build_local_windows_with_standard, stable_id,
 };
-
-/// 区分具体物理 Agent 与不拥有存储的只读联合用量视图。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UsageViewKind {
-    /// 所有已开启且受支持 Agent 的联合视图。
-    All,
-    /// 单个物理 Agent 的既有视图。
-    Agent(SourceClientKind),
-}
 
 /// 解析或装配联合用量视图时的稳定业务错误。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -74,25 +65,6 @@ pub struct CombinedUsageSnapshot {
     root_aliases: BTreeMap<String, String>,
     origins: CallOrigins,
     source_version: String,
-}
-
-/// 把用量视图解析成固定顺序的物理 Agent 成员；空联合与关闭项都拒绝。
-pub fn resolve_usage_view_members(
-    view: UsageViewKind,
-    enabled_agents: EnabledAgents,
-) -> Result<Vec<SourceClientKind>, UsageViewError> {
-    match view {
-        UsageViewKind::All => {
-            let members = enabled_agents.iter().collect::<Vec<_>>();
-            if members.is_empty() {
-                Err(UsageViewError::NoEnabledAgents)
-            } else {
-                Ok(members)
-            }
-        }
-        UsageViewKind::Agent(client) if enabled_agents.contains(client) => Ok(vec![client]),
-        UsageViewKind::Agent(_) => Err(UsageViewError::AgentDisabled),
-    }
 }
 
 /// 合并多个物理 Agent 的单库一致快照；没有启用数据源的 Agent 不参与联合状态，

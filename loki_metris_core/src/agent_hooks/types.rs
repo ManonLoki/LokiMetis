@@ -56,13 +56,13 @@ impl AiTool {
     ];
 }
 
-/// 前端展示 AI 工具选择项所需的稳定目录条目。
+/// 界面展示 AI 工具选择项所需的稳定目录条目。
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AiToolDescriptor {
     /// 对应的工具枚举值。
     pub tool: AiTool,
-    /// 供前端直接展示的工具名称。
+    /// 供界面直接展示的工具名称。
     pub name: String,
 }
 

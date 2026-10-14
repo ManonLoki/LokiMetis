@@ -1,9 +1,11 @@
 //! 启动来源属于宿主机制；登录启动不激活主窗，手动启动保留恢复入口。
 
 /// 登录项传入稳定标记，旧 macOS LaunchAgent 只按自身精确服务身份兼容。
+#[cfg(any(target_os = "macos", test))]
 pub(crate) const AUTOSTART_ARGUMENT: &str = "--autostart";
 
 /// 只识别完整参数或自身 launchd job，不把已开启自启、父进程或其它服务当成登录启动。
+#[cfg(any(target_os = "macos", test))]
 pub(crate) fn login_launch(arguments: impl IntoIterator<Item = std::ffi::OsString>, service: Option<&std::ffi::OsStr>) -> bool {
     arguments.into_iter().any(|argument| argument == AUTOSTART_ARGUMENT)
         || service.is_some_and(|service| service == "com.loki-metris.app")

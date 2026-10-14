@@ -400,7 +400,7 @@ async fn split_read_of_valid_post_is_accepted() {
     assert_eq!(event.hook_type, "SessionStart");
 }
 
-/// 测试用 listener 门禁，不启动真实 Tauri worker。
+/// 测试用 listener 门禁，不启动真实 listener worker。
 fn listener_control(
     enabled_tools: &[AiTool],
 ) -> (Arc<RwLock<HookRelayStatus>>, HookListenerControl) {

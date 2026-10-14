@@ -25,9 +25,8 @@ fn embed_windows_icon() {
 /// 优先尊重显式工具及 PATH，其后从现有 SDK 中按数值版本寻找本宿主的 rc.exe。
 fn resource_compiler() -> Option<PathBuf> {
     if let Some(path) = env::var_os("RC") { return Some(path.into()); }
-    if let Some(paths) = env::var_os("PATH") {
-        if let Some(path) = env::split_paths(&paths).map(|path| path.join("rc.exe")).find(|path| path.is_file()) { return Some(path); }
-    }
+    if let Some(paths) = env::var_os("PATH")
+        && let Some(path) = env::split_paths(&paths).map(|path| path.join("rc.exe")).find(|path| path.is_file()) { return Some(path); }
     let root = env::var_os("WindowsSdkDir").map(PathBuf::from).or_else(||
         env::var_os("ProgramFiles(x86)").map(|path| PathBuf::from(path).join("Windows Kits/10")))?;
     let architecture = if cfg!(target_arch = "aarch64") { "arm64" } else { "x64" };

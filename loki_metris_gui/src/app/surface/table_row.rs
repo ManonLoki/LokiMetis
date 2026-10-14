@@ -46,7 +46,7 @@ pub(in crate::app) struct BrandTableRow {
     bottom_corner_radius: Pixels,
     children: Vec<AnyChildElement>,
     #[cfg(test)]
-    owner_observer: Option<Box<dyn FnOnce(&Entity<RowState>)>>,
+    owner_observer: Option<super::OwnerObserver<RowState>>,
 }
 
 impl BrandTableRow {
@@ -110,13 +110,16 @@ impl ChildElement for BrandTableRow {
 }
 
 impl IntoElement for BrandTableRow {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 行直接参与原生布局，不插入额外Row或Group包裹层。
     fn into_element(self) -> Self { self }
 }
 
 impl Element for BrandTableRow {
+    /// 内部行的布局状态与行交互状态实体。
     type RequestLayoutState = (<Inner as Element>::RequestLayoutState, Entity<RowState>);
+    /// 沿用内部行的预绘制状态。
     type PrepaintState = <Inner as Element>::PrepaintState;
 
     /// 稳定产品行ID同时限定keyed owner和辅助树的作用域。

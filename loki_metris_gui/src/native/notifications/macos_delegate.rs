@@ -57,7 +57,9 @@ define_class!(
     #[ivars = DelegateIvars]
     /// 里程碑的原生桥接代理，不替换 Kit 注册的 App 回调。
     struct NotificationDelegate;
+    // SAFETY: NotificationDelegate 由 define_class! 声明为 NSObject 子类，满足 NSObjectProtocol 的要求。
     unsafe impl NSObjectProtocol for NotificationDelegate {}
+    // SAFETY: 下面实现的方法签名与 UNUserNotificationCenterDelegate 对应选择子的 Objective-C 类型一致。
     unsafe impl UNUserNotificationCenterDelegate for NotificationDelegate {
         /// 本应用点击返回主线程，其它通知原样交给 GPUI，完成块只调用一次。
         #[unsafe(method(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:))]

@@ -434,5 +434,5 @@ fn launch_error(host: SkinHostKind) -> AppError {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - macos_process_tests.rs：本模块的单元测试
-include!("macos_process_tests.rs");
+// - macos_process_ownership.rs：宿主进程错误、回环监听 owner 解析与进程树归属判定，以及本模块单元测试
+include!("macos_process_ownership.rs");

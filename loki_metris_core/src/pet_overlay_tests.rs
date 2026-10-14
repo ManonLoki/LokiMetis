@@ -331,21 +331,4 @@ mod tests {
         assert_eq!(wrap_pet_overlay_page(PetLayout::Grid, 2, isize::MAX), 0);
     }
 
-    /// 验证浮窗规格保持透明、无边框、可缩放的默认网格基线。
-    #[test]
-    fn window_spec_matches_resizable_grid_baseline() {
-        let spec = pet_overlay_window_spec();
-        assert_eq!(spec.label, "pet");
-        assert!(!spec.decorations);
-        assert!(spec.transparent);
-        assert!(spec.always_on_top);
-        assert!(spec.skip_taskbar);
-        assert!(spec.resizable);
-        assert!(!spec.hide_main_window);
-        assert!(!spec.stop_hook_listener);
-        assert_eq!(spec.default_layout, PetLayout::Grid);
-        assert_eq!(spec.default_cell_size, 64.0);
-        assert_eq!(spec.min_cell_size, 64.0);
-        assert_eq!((spec.default_width, spec.default_height), (128.0, 128.0));
-    }
 }

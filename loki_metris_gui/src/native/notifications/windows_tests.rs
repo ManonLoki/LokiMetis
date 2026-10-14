@@ -20,10 +20,12 @@ fn native_toast_preserves_text_and_identity_without_showing() {
 fn native_permission_preserves_existing_sta_on_apartment_failure() {
     std::thread::spawn(|| {
         use windows::Win32::{Foundation::RPC_E_CHANGED_MODE, System::WinRT::RO_INIT_SINGLETHREADED};
+        // SAFETY: 在本测试独占的新线程上初始化 STA，结尾在同一线程配对反初始化。
         unsafe { RoInitialize(RO_INIT_SINGLETHREADED) }.unwrap();
         assert_eq!(Apartment::new().err().unwrap().code(), RPC_E_CHANGED_MODE);
         assert_eq!(permission(), NotificationPermission::Unavailable);
         assert!(XmlDocument::new().is_ok());
+        // SAFETY: 与本线程开头成功的 RoInitialize 配对。
         unsafe { RoUninitialize() };
     }).join().unwrap();
 }

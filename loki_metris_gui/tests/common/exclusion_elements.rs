@@ -16,6 +16,7 @@ struct PaintedTarget {
     image: Option<Arc<RenderImage>>,
 }
 impl IntoElement for PaintedTarget {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 无额外透明包装或假节点。
     fn into_element(self) -> Self {
@@ -23,7 +24,9 @@ impl IntoElement for PaintedTarget {
     }
 }
 impl Element for PaintedTarget {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段注册的命中区域，绘制时用于判定悬停。
     type PrepaintState = Hitbox;
     /// 同一真实控件拥有稳定元素身份。
     fn id(&self) -> Option<gpui_kit::ElementId> {
@@ -117,6 +120,7 @@ impl ExclusionScope {
     }
 }
 impl IntoElement for ExclusionScope {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 不为scope制造可访问或焦点节点。
     fn into_element(self) -> Self {
@@ -124,7 +128,9 @@ impl IntoElement for ExclusionScope {
     }
 }
 impl Element for ExclusionScope {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段无需向绘制阶段传递状态。
     type PrepaintState = ();
     /// scope没有额外身份。
     fn id(&self) -> Option<gpui_kit::ElementId> {
@@ -177,6 +183,7 @@ struct DeferredTarget {
     legacy: bool,
 }
 impl IntoElement for DeferredTarget {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// deferred无额外可访问节点。
     fn into_element(self) -> Self {
@@ -184,7 +191,9 @@ impl IntoElement for DeferredTarget {
     }
 }
 impl Element for DeferredTarget {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段无需向绘制阶段传递状态。
     type PrepaintState = ();
     /// 稳定身份属于实际child。
     fn id(&self) -> Option<gpui_kit::ElementId> {

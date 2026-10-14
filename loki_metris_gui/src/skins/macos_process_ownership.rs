@@ -1,5 +1,5 @@
 // 本文件是 macos_process.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：本模块的单元测试
+// 与主文件共用作用域，因此无需额外导入。收纳内容：宿主进程错误、回环监听 owner 解析与进程树归属判定，以及本模块单元测试
 
 /// 返回进程身份在操作前发生变化的稳定错误。
 fn instance_changed_error(host: SkinHostKind) -> AppError {

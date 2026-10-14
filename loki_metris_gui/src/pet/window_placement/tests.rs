@@ -195,7 +195,7 @@ fn desktop() -> crate::native::windowing::DesktopSnapshot {
         area: WindowDisplayArea { key: key.into(), scale, primary,
             work_area: WindowDipRect { origin: WindowDipPoint { x: 0., y: 24. }, size: WindowDipSize { width, height: 1000. } } },
     };
-    DesktopSnapshot { pointer: Some("external".into()), global_top: 1200.,
+    DesktopSnapshot { pointer: Some("external".into()), #[cfg(target_os = "macos")] global_top: 1200.,
         displays: vec![make("builtin", 1, 0., 1500., 2., true), make("external", 2, -1920., 1920., 1., false)] }
 }
 

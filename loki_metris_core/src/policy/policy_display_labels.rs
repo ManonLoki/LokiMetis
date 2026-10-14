@@ -95,10 +95,5 @@ pub fn empty_coverage() -> CoverageReport {
     }
 }
 
-/// 返回启动时可复用的初始覆盖报告。
-pub fn initial_coverage() -> CoverageReport {
-    empty_coverage()
-}
-
 #[cfg(test)]
 mod policy_tests;

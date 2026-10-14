@@ -273,7 +273,7 @@ pub(super) trait HookProtocol: Sync {
     }
 
     /// 配置实际变化后需要执行的激活流程。工具专属流程必须在协议内唯一声明，
-    /// application 与前端不得再根据 `AiTool` 组合布尔值或推断指引。
+    /// application 与 GUI 不得再根据 `AiTool` 组合布尔值或推断指引。
     fn changed_write_outcome(&self) -> HookWriteOutcome {
         // 默认写入后立即生效，无需重启或额外操作
         HookWriteOutcome::Active
@@ -319,6 +319,7 @@ pub fn ai_tool_name(tool: AiTool) -> &'static str {
 /// 返回全部 AI 工具的展示目录。名称来自每个工具的 `HookProtocol`；
 /// 顺序按展示名 ASCII 升序（A-Z），供设置页 AI 客户端列表使用。持久化规范化仍走
 /// `AiTool::ALL`，不受此展示顺序影响。
+#[cfg(any(test, feature = "test-support"))]
 pub fn ai_tool_descriptors() -> Vec<AiToolDescriptor> {
     let mut descriptors = AiTool::ALL
         .into_iter()

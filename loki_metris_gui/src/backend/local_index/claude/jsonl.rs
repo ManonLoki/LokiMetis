@@ -347,5 +347,5 @@ fn usage_is_monotonic(previous: &UsageCall, next: &UsageCall) -> bool {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - jsonl_tests.rs：本模块的单元测试
-include!("jsonl_tests.rs");
+// - jsonl_line.rs：单行 transcript 解析与 ID 校验，以及本模块单元测试
+include!("jsonl_line.rs");

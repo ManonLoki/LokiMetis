@@ -46,7 +46,7 @@ use store_activation::activate_store_codex_owned;
 const PROCESS_PATH_CAPACITY: usize = 32_768;
 
 #[derive(Debug, PartialEq, Eq)]
-/// 执行 Windows Codex 宿主中的 `LaunchDecision` 步骤。
+/// 启动 Codex 的决策：已经由应用商店激活启动、改用传统安装入口、商店版存在但激活失败，或找不到任何安装。
 enum LaunchDecision {
     StartedStore,
     StartTraditional(PathBuf),
@@ -54,7 +54,7 @@ enum LaunchDecision {
     NotFound,
 }
 
-/// 执行 Windows Codex 宿主中的 `OwnedHandle` 步骤。
+/// 独占持有的 Win32 内核句柄，释放时关闭一次。
 struct OwnedHandle(HANDLE);
 
 // SAFETY: OwnedHandle 仅包装可跨线程使用的 Win32 内核 HANDLE（进程或 ToolHelp 快照），
@@ -64,7 +64,7 @@ unsafe impl Send for OwnedHandle {}
 unsafe impl Sync for OwnedHandle {}
 
 #[derive(Clone, Copy)]
-/// 执行 Windows Codex 宿主中的 `WindowCandidate` 步骤。
+/// 窗口枚举收集到的候选：所属进程、是否可见及是否为附属窗口。
 struct WindowCandidate {
     handle: HWND,
     pid: u32,
@@ -73,19 +73,19 @@ struct WindowCandidate {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-/// 执行 Windows Codex 宿主中的 `GuiProcess` 步骤。
+/// 已通过安装身份校验的 Codex 图形进程。
 pub(crate) struct GuiProcess {
     pid: u32,
     path: PathBuf,
 }
 
 impl GuiProcess {
-    /// 执行 Windows Codex 宿主中的 `pid` 步骤。
+    /// 进程 PID。
     pub(crate) fn pid(&self) -> u32 {
         self.pid
     }
 
-    /// 执行 Windows Codex 宿主中的 `path` 步骤。
+    /// 进程可执行文件的完整路径。
     pub(crate) fn path(&self) -> &Path {
         &self.path
     }
@@ -99,7 +99,7 @@ struct CodexProcessSnapshot {
 }
 
 impl Drop for OwnedHandle {
-    /// 执行 Windows Codex 宿主中的 `drop` 步骤。
+    /// 关闭持有的句柄。
     fn drop(&mut self) {
         // SAFETY: 此类型只包装成功取得且由当前函数拥有的 Windows HANDLE。
         unsafe {
@@ -108,14 +108,14 @@ impl Drop for OwnedHandle {
     }
 }
 
-/// 执行 Windows Codex 宿主中的 `is_gui_running` 步骤。
+/// 是否存在经身份校验的 Codex 图形进程。
 pub async fn is_gui_running() -> Result<bool, AppError> {
     let roots = KnownInstallRoots::discover();
     let traditional_candidates = discover_traditional_executables(&roots);
     Ok(!enumerate_gui_processes(&traditional_candidates, &roots)?.is_empty())
 }
 
-/// 执行 Windows Codex 宿主中的 `gui_process_command_lines` 步骤。
+/// 列出可信 Codex 图形进程的 PID 与命令行。
 pub async fn gui_process_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     Ok(gui_processes()
         .await?
@@ -124,7 +124,7 @@ pub async fn gui_process_command_lines() -> Result<Vec<(u32, String)>, AppError>
         .collect())
 }
 
-/// 执行 Windows Codex 宿主中的 `gui_processes` 步骤。
+/// 列出可信 Codex 图形进程及其命令行；任一进程的命令行无法读取时整体报错。
 pub async fn gui_processes() -> Result<Vec<(GuiProcess, String)>, AppError> {
     let roots = KnownInstallRoots::discover();
     let traditional_candidates = discover_traditional_executables(&roots);
@@ -142,12 +142,13 @@ pub async fn gui_processes() -> Result<Vec<(GuiProcess, String)>, AppError> {
         .collect()
 }
 
-/// 执行 Windows Codex 宿主中的 `activate_gui_process` 步骤。
+/// 把可信宿主进程的主窗口（可见且非附属）恢复并带到前台；PID 未通过身份复核时不操作。
 pub(crate) fn activate_gui_process(pid: u32) -> bool {
     if !is_verified_host_process(pid) {
         return false;
     }
-    /// 执行 Windows Codex 宿主中的 `collect_window` 步骤。
+    /// EnumWindows 回调：记录每个顶层窗口的所属进程、可见性与是否附属。
+    // SAFETY: 仅作为 EnumWindows 回调传入；系统保证回调期间 hwnd 有效，parameter 是调用方传入的可写 Vec 地址。
     unsafe extern "system" fn collect_window(hwnd: HWND, parameter: LPARAM) -> BOOL {
         // SAFETY: LPARAM 指向本函数同步调用 EnumWindows 期间仍然存活的 Vec。
         let candidates = unsafe { &mut *(parameter.0 as *mut Vec<WindowCandidate>) };
@@ -189,7 +190,7 @@ pub(crate) fn activate_gui_process(pid: u32) -> bool {
     }
 }
 
-/// 执行 Windows Codex 宿主中的 `select_target_window` 步骤。
+/// 选出属于目标进程、可见且非附属的第一个窗口。
 fn select_target_window(candidates: &[WindowCandidate], pid: u32) -> Option<HWND> {
     candidates
         .iter()
@@ -197,7 +198,7 @@ fn select_target_window(candidates: &[WindowCandidate], pid: u32) -> Option<HWND
         .map(|candidate| candidate.handle)
 }
 
-/// 执行 Windows Codex 宿主中的 `restart_gui_process` 步骤。
+/// 按 PID 与路径重新确认实例后终止并等待其退出，再附加回环调试参数重新启动：商店版经应用激活服务，传统版复核安装路径后直接启动。
 pub async fn restart_gui_process(
     pid: u32,
     expected_path: &Path,
@@ -263,7 +264,7 @@ pub async fn restart_gui_process(
     Ok(())
 }
 
-/// 执行 Windows Codex 宿主中的 `process_inspection_error` 步骤。
+/// 读取 Codex 命令行失败时的稳定错误。
 fn process_inspection_error() -> AppError {
     AppError::new(
         "skin.codex_process_inspection_failed",
@@ -271,7 +272,7 @@ fn process_inspection_error() -> AppError {
     )
 }
 
-/// 执行 Windows Codex 宿主中的 `force_close_gui` 步骤。
+/// 终止全部可信 Codex 图形进程并在共同期限内等待退出，返回关闭数量；任一失败报告首个错误。
 pub async fn force_close_gui() -> Result<usize, AppError> {
     let roots = KnownInstallRoots::discover();
     let traditional_candidates = discover_traditional_executables(&roots);
@@ -302,7 +303,7 @@ pub async fn force_close_gui() -> Result<usize, AppError> {
     Ok(count)
 }
 
-/// 执行 Windows Codex 宿主中的 `launch` 步骤。
+/// 以 9341 回环调试端口启动 Codex：已在运行时要求用户先退出；优先通过应用商店激活，失败时改用传统安装入口。
 pub async fn launch() -> Result<(), AppError> {
     let roots = KnownInstallRoots::discover();
     let traditional_candidates = discover_traditional_executables(&roots);
@@ -369,7 +370,7 @@ pub async fn launch() -> Result<(), AppError> {
     }
 }
 
-/// 执行 Windows Codex 宿主中的 `decide_launch` 步骤。
+/// 按商店激活结果、传统入口与商店安装是否存在决定启动方式。
 fn decide_launch(
     store_started: bool,
     traditional: Option<PathBuf>,
@@ -386,7 +387,7 @@ fn decide_launch(
     }
 }
 
-/// 执行 Windows Codex 宿主中的 `enumerate_gui_processes` 步骤。
+/// 枚举经身份校验的 Codex 图形进程。
 fn enumerate_gui_processes(
     traditional_candidates: &[PathBuf],
     roots: &KnownInstallRoots,
@@ -396,5 +397,5 @@ fn enumerate_gui_processes(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - windows_codex_tests.rs：本模块的单元测试
-include!("windows_codex_tests.rs");
+// - windows_codex_process.rs：进程快照、端口 owner、句柄生命周期、路径查询与参数转义，以及单元测试入口
+include!("windows_codex_process.rs");

@@ -38,6 +38,7 @@ pub(super) struct Spotlight {
 
 impl Spotlight {
     /// 三个无圆角区域使用矩形mask，四角单独烘焙原圆角，因此没有图片交集边缘错误。
+    #[expect(clippy::too_many_arguments, reason = "绘制需要的几何、主题与退休资源是本帧独立输入，另加 GPUI 窗口")]
     pub fn paint(
         &mut self,
         bounds: Bounds<Pixels>,

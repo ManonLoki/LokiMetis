@@ -1,11 +1,13 @@
 // 本文件是 mod.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：本模块的单元测试
+// 与主文件共用作用域，因此无需额外导入。收纳内容：可信 Codex 进程快照枚举、调试端口 owner 校验、
+// 进程句柄的打开/终止/等待、进程路径查询与命令行参数转义，以及本模块单元测试入口。
 
 /// 用一个完整 ToolHelp 快照枚举可信 Codex 进程并保留父进程关系。
 fn enumerate_gui_process_snapshot(
     traditional_candidates: &[PathBuf],
     roots: &KnownInstallRoots,
 ) -> Result<CodexProcessSnapshot, AppError> {
+    // SAFETY: 创建进程快照不读写调用方内存；返回的句柄立即交给 OwnedHandle 唯一持有并负责关闭。
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
         .map_err(|_| process_inspection_error())?;
@@ -13,6 +15,7 @@ fn enumerate_gui_process_snapshot(
         dwSize: size_of::<PROCESSENTRY32W>() as u32,
         ..Default::default()
     };
+    // SAFETY: snapshot 句柄在本函数内有效；entry 已设置 dwSize 且为本栈可写结构。
     if let Err(error) = unsafe { Process32FirstW(snapshot.0, &mut entry) } {
         return if error.code() == ERROR_NO_MORE_FILES.to_hresult() {
             Ok(CodexProcessSnapshot {
@@ -51,6 +54,7 @@ fn enumerate_gui_process_snapshot(
                 });
             }
         }
+        // SAFETY: 与 Process32FirstW 相同的有效快照句柄与可写 entry。
         match unsafe { Process32NextW(snapshot.0, &mut entry) } {
             Ok(()) => {}
             Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => break,
@@ -62,6 +66,7 @@ fn enumerate_gui_process_snapshot(
 
 /// 路径查询失败时重新确认候选 PID 是否仍存在，避免把不可验证进程当成已退出。
 fn snapshot_still_contains_candidate_process(pid: u32) -> Result<bool, AppError> {
+    // SAFETY: 创建进程快照不读写调用方内存；返回的句柄立即交给 OwnedHandle 唯一持有并负责关闭。
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
         .map_err(|_| process_inspection_error())?;
@@ -69,6 +74,7 @@ fn snapshot_still_contains_candidate_process(pid: u32) -> Result<bool, AppError>
         dwSize: size_of::<PROCESSENTRY32W>() as u32,
         ..Default::default()
     };
+    // SAFETY: snapshot 句柄在本函数内有效；entry 已设置 dwSize 且为本栈可写结构。
     match unsafe { Process32FirstW(snapshot.0, &mut entry) } {
         Ok(()) => {}
         Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => return Ok(false),
@@ -80,6 +86,7 @@ fn snapshot_still_contains_candidate_process(pid: u32) -> Result<bool, AppError>
         {
             return Ok(true);
         }
+        // SAFETY: 与 Process32FirstW 相同的有效快照句柄与可写 entry。
         match unsafe { Process32NextW(snapshot.0, &mut entry) } {
             Ok(()) => {}
             Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => return Ok(false),
@@ -129,8 +136,9 @@ fn is_verified_host_process(pid: u32) -> bool {
         || workbuddy::is_verified_gui_process(pid)
 }
 
-/// 执行 Windows Codex 宿主中的 `open_verified_process` 步骤。
+/// 以终止、查询与等待权限打开已校验进程，并再次核对句柄对应的进程身份。
 fn open_verified_process(process: &GuiProcess) -> Result<OwnedHandle, AppError> {
+    // SAFETY: 按 PID 打开进程只申请所列权限，不访问调用方内存；成功的句柄立即交给 OwnedHandle 持有。
     let handle = unsafe {
         OpenProcess(
             PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
@@ -175,6 +183,7 @@ fn verified_process_identity(
     traditional_candidates: &[PathBuf],
     roots: &KnownInstallRoots,
 ) -> bool {
+    // SAFETY: 以受限查询权限按 PID 打开进程；成功的句柄随即交给 OwnedHandle 持有并关闭。
     let Ok(handle) = (unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }) else {
         return false;
     };
@@ -241,18 +250,20 @@ async fn wait_for_process_exit_until(
     }
 }
 
-/// 执行 Windows Codex 宿主中的 `query_process_path` 步骤。
+/// 以受限查询权限打开 PID 并读取其可执行文件路径。
 fn query_process_path(pid: u32) -> Option<PathBuf> {
+    // SAFETY: 以受限查询权限按 PID 打开进程；成功的句柄随即交给 OwnedHandle 持有并关闭。
     let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }
         .ok()
         .map(OwnedHandle)?;
     query_process_path_from_handle(handle.0)
 }
 
-/// 执行 Windows Codex 宿主中的 `query_process_path_from_handle` 步骤。
+/// 从进程句柄读取可执行文件的完整 Win32 路径。
 fn query_process_path_from_handle(handle: HANDLE) -> Option<PathBuf> {
     let mut buffer = vec![0_u16; PROCESS_PATH_CAPACITY];
     let mut length = buffer.len() as u32;
+    // SAFETY: handle 由调用方保证有效且具备查询权限；buffer 可写长度与传入的 length 一致，返回后按 length 截断。
     unsafe {
         QueryFullProcessImageNameW(
             handle,
@@ -266,7 +277,7 @@ fn query_process_path_from_handle(handle: HANDLE) -> Option<PathBuf> {
     Some(PathBuf::from(String::from_utf16_lossy(&buffer)))
 }
 
-/// 执行 Windows Codex 宿主中的 `utf16_array_to_string` 步骤。
+/// 把以 NUL 结尾的 UTF-16 定长数组转换为字符串。
 fn utf16_array_to_string(value: &[u16]) -> String {
     let length = value
         .iter()
@@ -275,12 +286,12 @@ fn utf16_array_to_string(value: &[u16]) -> String {
     String::from_utf16_lossy(&value[..length])
 }
 
-/// 执行 Windows Codex 宿主中的 `is_candidate_process_name` 步骤。
+/// 进程映像名是否为 Codex 桌面应用的候选名（不区分大小写）。
 fn is_candidate_process_name(name: &str) -> bool {
     name.eq_ignore_ascii_case("ChatGPT.exe") || name.eq_ignore_ascii_case("Codex.exe")
 }
 
-/// 执行 Windows Codex 宿主中的 `quote_windows_argument` 步骤。
+/// 按 Windows 命令行规则为参数加引号并转义引号与结尾反斜杠。
 fn quote_windows_argument(value: &str) -> String {
     if !value.is_empty()
         && !value

@@ -123,9 +123,8 @@ fn finish(owner: &Entity<Controller>, request: &Request, handle: AnyWindowHandle
         owner.display_applying = false;
         owner.display_task.take();
         // 已显示的默认浮窗不因迟到设置回填再次抢焦点，冻结屏仍保留到首次成功。
-        if revealed {
-            if let Some(request) = &mut owner.display_request { request.reveal = false; }
-        }
+        if revealed
+            && let Some(request) = &mut owner.display_request { request.reveal = false; }
         if verified && (owner.settings_ready || owner.geometry_restored) {
             owner.geometry_restored = true;
             owner.display_geometry_unconfirmed = false;

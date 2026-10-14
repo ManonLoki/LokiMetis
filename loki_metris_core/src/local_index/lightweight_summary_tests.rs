@@ -6,8 +6,9 @@ use sea_orm::ConnectionTrait;
 
 use crate::{
     Confidence, SessionTokenSnapshot, SourceDiscoveryMethod, SourceRootInput, TokenUsage,
-    UsageCall, build_indexed_source_roots, build_source_roots,
+    UsageCall, build_indexed_source_roots,
 };
+use crate::local_view::build_source_roots;
 
 use super::{
     DiscoveryMethod, LocalErrorKind, LocalIndex, RootUsageSummaryRecord, SourceParseCheckpoint,

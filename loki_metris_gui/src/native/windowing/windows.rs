@@ -72,7 +72,7 @@ fn snapshot(cx: &App, pointer: bool) -> anyhow::Result<DesktopSnapshot> {
                     size: WindowDipSize { width: f64::from(work.right - work.left) / scale, height: f64::from(work.bottom - work.top) / scale } } } });
     }
     anyhow::ensure!(!displays.is_empty(), "window_displays_unavailable");
-    Ok(DesktopSnapshot { displays, pointer: pointer_key, global_top: 0. })
+    Ok(DesktopSnapshot { displays, pointer: pointer_key })
 }
 
 /// 活窗所属屏以原生 HWND 决定，不把保存屏或鼠标屏冒充当前屏。

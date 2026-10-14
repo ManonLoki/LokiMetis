@@ -117,7 +117,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(dots.len(), 1, "滑块中央必须实际绘制5.6px指示圆");
-        (tracks[0].clone(), thumbs[0].clone(), dots[0].clone())
+        (*tracks[0], *thumbs[0], *dots[0])
     }
 
     /// 同时断言外框、滑块和指示圆，焦点及动画不得改变尺寸与垂直居中。

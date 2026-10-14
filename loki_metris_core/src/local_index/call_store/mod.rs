@@ -7,7 +7,9 @@
 //! 作为覆盖这类场景的正式手段；sqlx 驱动本身会按 SQL 文本自动缓存已解析
 //! 的语句，所以这里不需要手工维护“准备一次、复用多次”的语句对象。
 
-use sea_orm::{ConnectionTrait, TransactionTrait};
+use sea_orm::TransactionTrait;
+#[cfg(any(test, feature = "test-support"))]
+use sea_orm::ConnectionTrait;
 
 use crate::{SessionTokenSnapshot, UsageCall};
 
@@ -33,6 +35,7 @@ impl LocalIndex {
     /// 返回指定来源 generation 中按适配器内部顺序最新的一致性检查点。
     /// 一致性键的编码与解释仍归具体 adapter 所有；core 只提供严格按来源和
     /// generation 隔离的只读原语，避免把 Codex 协议细节扩散进持久层。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn latest_adapter_consistency_key(
         &self,
         source_id: &str,

@@ -1,11 +1,49 @@
 //! 本机自然日窗口边界与日期成员资格测试。
 
 use super::*;
-use crate::{ProviderKind, TimeStandard};
+use crate::{
+    Confidence, CoverageReport, CoverageState, LocalIndexState, ProviderKind, SourceProvenance,
+    TimeStandard, TokenUsage, UsageCall, build_local_windows_with_standard, canonicalize_usage_calls,
+};
 use jiff::ToSpan;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use std::cell::RefCell;
+
+/// 测试用组合：按设备本地标准生成窗口的自然日序列。
+fn local_dates_for_window(
+    window: LocalUsageWindow,
+    observed_at_epoch_ms: i64,
+) -> Result<Vec<Date>, TimelineError> {
+    dates_for_window(window, observed_at_epoch_ms, &TimeStandard::Local, &TimeZone::system())
+}
+
+/// 测试用组合：判断调用是否属于所选标准下的窗口，只比较民用日期。
+fn belongs_to_window(
+    occurred_at_epoch_ms: i64,
+    window: LocalUsageWindow,
+    observed_at_epoch_ms: i64,
+    standard: &TimeStandard,
+    device_tz: &TimeZone,
+) -> Result<bool, TimelineError> {
+    let dates = dates_for_window(window, observed_at_epoch_ms, standard, device_tz)?;
+    Ok(occurred_on_dates(occurred_at_epoch_ms, &dates, standard, device_tz))
+}
+
+/// 测试用组合：按设备本地标准判断窗口成员资格。
+fn belongs_to_local_window(
+    occurred_at_epoch_ms: i64,
+    window: LocalUsageWindow,
+    observed_at_epoch_ms: i64,
+) -> Result<bool, TimelineError> {
+    belongs_to_window(
+        occurred_at_epoch_ms,
+        window,
+        observed_at_epoch_ms,
+        &TimeStandard::Local,
+        &TimeZone::system(),
+    )
+}
 
 /// 固定偏移回退仍按 6/29 个本地日起点拉开，而不是滚动小时。
 #[test]
@@ -20,13 +58,9 @@ fn fixed_windows_use_expected_offsets() {
     let _ = WindowBoundaries::for_local_today(observed);
 }
 
-/// 用量查询缺省窗口是本周，不得改成概览默认的当天。
+/// 概览缺省窗口是当天。
 #[test]
-fn usage_query_default_window_is_this_week() {
-    assert_eq!(
-        LocalUsageWindow::default_usage_query(),
-        LocalUsageWindow::ThisWeek
-    );
+fn overview_default_window_is_today() {
     assert_eq!(LocalUsageWindow::default(), LocalUsageWindow::Today);
 }
 
@@ -378,12 +412,7 @@ fn ninety_day_retention_cutoff_is_earlier_than_thirty_day_window() {
 #[test]
 fn local_device_and_custom_zone_split_the_same_instant_across_days() {
     let device_tz = TimeZone::fixed(jiff::tz::offset(8));
-    let custom = TimeStandard::resolve(
-        crate::TimeStandardMode::Custom,
-        Some("America/Los_Angeles"),
-        "UTC",
-    );
-    assert_eq!(custom, TimeStandard::utc());
+    let custom = TimeStandard::utc();
     assert_eq!(custom.viewing_time_zone(&device_tz), TimeZone::UTC);
     let observed = zoned_civil_ms(2026, 8, 19, 15, 0, 0, &device_tz);
     let local_early = zoned_civil_ms(2026, 8, 19, 1, 0, 0, &device_tz);
@@ -427,3 +456,118 @@ fn local_device_and_custom_zone_split_the_same_instant_across_days() {
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
 // - timeline_tests_civil_day.rs：观测为当日 15:00 时当地 23:59:59 仍属当地当天；UTC 下界是 UTC 午夜，同一瞬间按 UTC 民用日判定。；下一自然日起点必须按民用日推进，不能把“明天”简化为固定增加 24 小时。
 include!("timeline_tests_civil_day.rs");
+
+/// 六个日历窗口键均被接受，当地/UTC 标准会改变日界与窗口归属。
+#[test]
+fn overview_windows_accept_six_keys_and_time_standard_shifts_day_boundary() {
+    assert_eq!(
+        LocalUsageWindow::OVERVIEW_WINDOWS,
+        [
+            LocalUsageWindow::Today,
+            LocalUsageWindow::Yesterday,
+            LocalUsageWindow::ThisWeek,
+            LocalUsageWindow::LastWeek,
+            LocalUsageWindow::ThisMonth,
+            LocalUsageWindow::LastMonth,
+        ]
+    );
+
+    let shanghai = TimeZone::get("Asia/Shanghai").expect("IANA zone exists");
+    // 观测 2026-08-19 10:00 +08（UTC 02:00）；调用发生在当天 00:30 +08（UTC 前一日 16:30）。
+    let observed = 1_787_104_800_000_i64;
+    let occurred_at = 1_787_070_600_000_i64;
+    let local_today =
+        WindowBoundaries::for_standard(observed, &TimeStandard::Local, &shanghai).today;
+    let utc_today =
+        WindowBoundaries::for_standard(observed, &TimeStandard::utc(), &shanghai).today;
+    assert_ne!(
+        local_today, utc_today,
+        "local and UTC day starts must differ when the device offset is not zero"
+    );
+
+    let call = UsageCall {
+        logical_call_id: "boundary".to_owned(),
+        occurred_at_epoch_ms: occurred_at,
+        model: Some("model-a".to_owned()),
+        reasoning_effort: None,
+        project_key: None,
+        project_label: None,
+        thread_key: "thread-boundary".to_owned(),
+        thread_label: None,
+        usage: TokenUsage::new(6, 0, None, 4, 0, Some(10)).expect("valid usage"),
+        adapter_consistency_key: None,
+        confidence: Confidence::Exact,
+        provenance: vec![SourceProvenance {
+            source_id: "source-boundary".to_owned(),
+            root_id: "root-boundary".to_owned(),
+            relative_label: "session.jsonl".to_owned(),
+            archived: false,
+        }],
+    };
+    let canonical = canonicalize_usage_calls(vec![call]);
+    let coverage = CoverageReport {
+        state: CoverageState::Complete,
+        roots_scanned: 1,
+        roots_discovered: 1,
+        permission_denied_count: 0,
+        skipped_count: 0,
+        warning_count: 0,
+    };
+    let local_windows = build_local_windows_with_standard(
+        &canonical,
+        &coverage,
+        LocalIndexState::Ready,
+        observed,
+        ProviderKind::RolloutJsonl,
+        None,
+        TimeStandard::Local,
+        &shanghai,
+    )
+    .expect("local windows");
+    let utc_windows = build_local_windows_with_standard(
+        &canonical,
+        &coverage,
+        LocalIndexState::Ready,
+        observed,
+        ProviderKind::RolloutJsonl,
+        None,
+        TimeStandard::utc(),
+        &shanghai,
+    )
+    .expect("utc windows");
+
+    let local_today_usage = local_windows
+        .windows
+        .iter()
+        .find(|item| item.window == LocalUsageWindow::Today)
+        .expect("today");
+    let utc_today_usage = utc_windows
+        .windows
+        .iter()
+        .find(|item| item.window == LocalUsageWindow::Today)
+        .expect("today");
+    assert_eq!(local_windows.windows.len(), 6);
+    assert_eq!(utc_windows.windows.len(), 6);
+    assert_eq!(local_today_usage.fact.value.call_count, 1);
+    assert_eq!(utc_today_usage.fact.value.call_count, 0);
+    assert!(
+        belongs_to_window(
+            occurred_at,
+            LocalUsageWindow::Today,
+            observed,
+            &TimeStandard::Local,
+            &shanghai,
+        )
+        .expect("local membership")
+    );
+    assert!(
+        !belongs_to_window(
+            occurred_at,
+            LocalUsageWindow::Today,
+            observed,
+            &TimeStandard::utc(),
+            &shanghai,
+        )
+        .expect("utc membership")
+    );
+}

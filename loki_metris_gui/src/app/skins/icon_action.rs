@@ -103,7 +103,7 @@ impl RenderOnce for IconAction {
             radius: px(12.),
             gap: px(2.),
             width: px(2.),
-            color: ring.into(),
+            color: ring,
         })
     }
 }

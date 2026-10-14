@@ -32,6 +32,7 @@ const _: () = assert!(size_of::<FlashInfo>() == 32);
 const _: () = assert!(size_of::<FlashInfo>() == 20);
 
 #[link(name = "kernel32")]
+// SAFETY: 以下声明与 kernel32 导出原型一致，均无参数、只返回标识。
 unsafe extern "system" {
     /// 返回调用线程的系统标识，用于确认窗口操作仍在捕获句柄的 UI 线程执行。
     fn GetCurrentThreadId() -> u32;
@@ -40,6 +41,7 @@ unsafe extern "system" {
 }
 
 #[link(name = "user32")]
+// SAFETY: 以下声明与 user32 导出的窗口原型一致（system ABI）；调用方负责传入当前线程拥有的有效 HWND。
 unsafe extern "system" {
     /// 请求把有效窗口设为前台；受系统前台限制，非零表示成功，零表示未取得前台。
     fn SetForegroundWindow(window: Handle) -> i32;
@@ -56,6 +58,7 @@ unsafe extern "system" {
     /// 查询窗口是否最小化；非零表示最小化，零表示未最小化。
     fn IsIconic(window: Handle) -> i32;
     /// 隐藏主窗不产生可保存的普通几何。
+    #[cfg(test)]
     fn IsWindowVisible(window: Handle) -> i32;
     /// 查询句柄当前是否标识窗口；结果不能保证其后仍有效，也不能证明进程或线程归属。
     fn IsWindow(window: Handle) -> i32;
@@ -72,6 +75,7 @@ pub(crate) struct MainWindow {
 
 impl MainWindow {
     /// 最小化的 iconic 坐标及隐藏反馈不能覆盖最后可信的普通位置。
+    #[cfg(test)]
     pub(crate) fn allows_geometry_save(&self) -> bool {
         // SAFETY: 句柄先确认属于当前 UI 线程和进程，查询不转移所有权。
         self.is_valid() && unsafe { IsIconic(self.window) == 0 && IsWindowVisible(self.window) != 0 }
@@ -93,6 +97,7 @@ impl MainWindow {
 
     /// 原生事务与真实 HWND 回归共用所属线程验证，不转移窗口销毁所有权。
     pub(super) fn from_handle(window: Handle) -> io::Result<Self> {
+        // SAFETY: 只读取调用线程标识，无参数与副作用。
         let thread = unsafe { GetCurrentThreadId() };
         let native = Self { window, thread };
         if !native.is_valid() {
@@ -163,7 +168,9 @@ impl MainWindow {
     }
 }
 
-/// 活窗无法识别时生产路径拒绝保存；虚拟测试窗沿用 GPUI 的可见性合同。
+/// 活窗无法识别时拒绝保存；虚拟测试窗沿用 GPUI 的可见性合同。
+/// 生产路径改由原生 v2 几何提交，本判定只服务旧几何回退路径的测试。
+#[cfg(test)]
 pub(crate) fn allows_geometry_save(window: &Window) -> bool {
     MainWindow::capture(window).map(|host| host.allows_geometry_save()).unwrap_or(cfg!(test) && window.is_visible())
 }

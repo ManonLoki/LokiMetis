@@ -10,6 +10,7 @@ const RUN: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 const APPROVED: &str = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 
 #[link(name = "advapi32")]
+// SAFETY: 以下声明与 advapi32 导出的注册表原型一致（system ABI）；句柄以 isize 表示，调用方负责传入有效键与以 NUL 结尾的宽字符串。
 unsafe extern "system" {
     /// 按精确权限打开当前用户键，不创建系统范围状态。
     fn RegOpenKeyExW(root: isize, name: *const u16, options: u32, access: u32, result: *mut isize) -> i32;
@@ -25,6 +26,7 @@ unsafe extern "system" {
 struct Key(isize);
 impl Drop for Key {
     /// 错误路径也关闭句柄，不关闭预定义 root。
+    // SAFETY: Key 只包装 RegOpenKeyExW 成功返回的句柄，且只在这里关闭一次。
     fn drop(&mut self) { unsafe { RegCloseKey(self.0); } }
 }
 /// 固定键名和应用 ID 均不包含 NUL；UTF-16 终止由本函数拥有。
@@ -32,6 +34,7 @@ fn wide(value: &str) -> Vec<u16> { value.encode_utf16().chain(Some(0)).collect()
 /// 未找到视为不存在，其余 OS 错误保留为失败。
 fn open(path: &str, access: u32) -> io::Result<Option<Key>> {
     let mut key = 0;
+    // SAFETY: 路径为本次调用期间存活、以 NUL 结尾的 UTF-16；输出句柄写入本栈变量。
     let status = unsafe { RegOpenKeyExW(CURRENT_USER, wide(path).as_ptr(), 0, access, &mut key) };
     match status { 0 => Ok(Some(Key(key))), 2 => Ok(None), error => Err(io::Error::from_raw_os_error(error)) }
 }
@@ -41,6 +44,7 @@ fn value(path: &str, id: &str) -> io::Result<Option<(u32, Vec<u8>)>> {
     let mut bytes = vec![0; 16 * 1024];
     let mut size = bytes.len() as u32;
     let mut kind = 0;
+    // SAFETY: key 是有效打开的句柄；值名以 NUL 结尾；bytes 可写长度与 size 一致，类型与长度写入本栈变量。
     let status = unsafe { RegQueryValueExW(key.0, wide(id).as_ptr(), ptr::null_mut(), &mut kind, bytes.as_mut_ptr(), &mut size) };
     match status {
         0 => { bytes.truncate(size as usize); Ok(Some((kind, bytes))) },
@@ -62,6 +66,7 @@ pub(super) fn is_enabled(id: &str, expected: &str) -> io::Result<bool> {
 /// 关闭只删除本应用 HKCU Run 值；保留 OS 管理的历史开关和其他应用值。
 pub(super) fn disable(id: &str) -> io::Result<()> {
     let Some(key) = open(RUN, 2)? else { return Ok(()) };
+    // SAFETY: key 以写权限打开且有效；值名为以 NUL 结尾的 UTF-16。
     let status = unsafe { RegDeleteValueW(key.0, wide(id).as_ptr()) };
     match status { 0 | 2 => Ok(()), error => Err(io::Error::from_raw_os_error(error)) }
 }

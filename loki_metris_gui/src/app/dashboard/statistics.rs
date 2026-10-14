@@ -87,7 +87,7 @@ impl Shell {
     pub(super) fn usage_statistics(&self, cx: &mut Context<Self>) -> AnyElement {
         if self.dashboard.loading && self.dashboard.detail.statistics.is_none() { return self.usage_loading(cx) }
         let mut page=div().w_full().flex().flex_col().gap_5();
-        if let Some(data)=&self.dashboard.detail.statistics {if data.index_state!=loki_metris_core::LocalIndexState::Ready {page=page.child(self.local_index_notice(data.index_state,cx));}}
+        if let Some(data)=&self.dashboard.detail.statistics&& data.index_state!=loki_metris_core::LocalIndexState::Ready {page=page.child(self.local_index_notice(data.index_state,cx));}
         page=page.child(self.statistics_controls(cx));
         let Some(data)=&self.dashboard.detail.statistics else { return page.into_any_element() };
         let value=&data.fact.value;

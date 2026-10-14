@@ -13,7 +13,7 @@ pub(crate) mod startup;
 pub mod shortcuts;
 #[cfg(windows)]
 mod windows;
-#[cfg(windows)]
+#[cfg(all(windows, test))]
 pub(crate) use windows::allows_geometry_save;
 
 use gpui_kit::{AnyWindowHandle, App, Global, Task};
@@ -31,7 +31,8 @@ pub struct Services {
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_action_generation: u64,
     _poll: Task<()>,
-    #[cfg(windows)]
+    /// 测试窗口没有原生宿主事务，显示时直接操作捕获的 HWND。
+    #[cfg(all(windows, test))]
     window: Option<windows::MainWindow>,
     tray: Option<tray::Tray>,
     pub autostart: autostart::Service,
@@ -121,7 +122,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         #[cfg(any(target_os="macos", all(windows, not(test))))]
         window_action_generation: 0,
         _poll: poll,
-        #[cfg(windows)]
+        #[cfg(all(windows, test))]
         window: native_window,
         tray,
         autostart,
@@ -163,11 +164,10 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
                 let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
                 cx.spawn(async move |cx| {
                     let live = cx.update(|cx| window_action_current(generation, cx) && handle.update(cx, |_, _, _| ()).is_ok());
-                    if live { if let Some(host) = host { host.show(); cx.update(|cx| cx.activate(true)); } }
+                    if live && let Some(host) = host { host.show(); cx.update(|cx| cx.activate(true)); }
                 }).detach();
             }
         }
-        return;
     }
     #[cfg(any(not(any(target_os="macos", windows)), test))]
     {
@@ -274,7 +274,7 @@ pub fn set_language(locale: &str, cx: &mut App) {
     menu::set_language(locale, cx);
     if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.set_language(locale);}
     crate::pet::set_language(locale,cx);
-    if cx.has_global::<Services>() { if let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); } }
+    if cx.has_global::<Services>() && let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); }
 }
 /// 设置视图仅读取内存快照，实际 OS 状态由后台 worker 更新。
 pub fn autostart_state(cx: &App) -> autostart::State {
@@ -294,18 +294,18 @@ pub fn reload_autostart(cx: &App) {
 pub(crate) fn configure_font_smoothing() {
     use objc2_foundation::{NSUserDefaults,NSArgumentDomain,NSMutableDictionary,NSNumber,ns_string};
     let defaults=NSUserDefaults::standardUserDefaults();
-    // 系统静态域名借用有效；volatile 域不落盘且保留已有参数。
+    // SAFETY: 读取 Foundation 导出的不可变静态域名，借用在进程内始终有效；volatile 域不落盘且保留已有参数。
     let domain=unsafe {NSArgumentDomain};
     let current=defaults.volatileDomainForName(domain);
     let arguments=NSMutableDictionary::dictionaryWithDictionary(&current);
     let zero=NSNumber::new_i32(0);
     arguments.insert(ns_string!("AppleFontSmoothing"),zero.as_ref());
-    // 值类型为 Foundation 支持的 NSNumber，仅修改当前进程搜索列表。
+    // SAFETY: 字典值类型为 Foundation 支持的 NSNumber，仅修改当前进程搜索列表。
     unsafe {defaults.setVolatileDomain_forName(&arguments,domain);}
 }
 
 /// 托盘只按用户会话可见性改标签，不把系统遮挡误当作隐藏。
-pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services>() {if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_pet_visibility(visible);}}}
+pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services>()&& let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_pet_visibility(visible);}}
 
 /// 设置页只读取应用级通知偏好，离页不丢失真实保存结果。
 pub fn notification_state(cx:&App)->notifications::State {cx.try_global::<Services>().map(|services|services.notifications.state()).unwrap_or_default()}

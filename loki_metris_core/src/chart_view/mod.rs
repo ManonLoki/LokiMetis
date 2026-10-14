@@ -164,12 +164,15 @@ pub(crate) fn build_combined_chart_with_standard(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+/// 按逻辑调用 ID 查找其所属 Agent 的回调；联合视图用它按 Agent 分组。
+type CallOrigin<'a> = &'a dyn Fn(&str) -> Option<SourceClientKind>;
+
 /// 从同一规范快照构造时间桶与分布组，并在返回前完成对账。
+#[allow(clippy::too_many_arguments)]
 fn build_chart(
     canonical: &CanonicalUsageSet,
     root_aliases: &BTreeMap<String, String>,
-    origins: Option<&dyn Fn(&str) -> Option<SourceClientKind>>,
+    origins: Option<CallOrigin<'_>>,
     index_state: LocalIndexState,
     coverage: &CoverageReport,
     window: LocalUsageWindow,

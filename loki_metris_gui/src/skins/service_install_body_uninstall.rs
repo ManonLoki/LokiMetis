@@ -1,8 +1,8 @@
 // 本文件是 service_install_body.rs 的分片（第 3/3 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：执行换皮宿主内部的 `uninstall` 步骤。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：停用宿主或指定实例的皮肤。
 
 impl SkinService {
-    /// 执行换皮宿主内部的 `uninstall` 步骤。
+    /// 在串行操作锁内停用宿主（或指定实例）的皮肤：停止相关监视任务并清除页面注入，返回受影响页面数与停用后的状态。
     pub async fn uninstall(
         &self,
         host: SkinHostKind,

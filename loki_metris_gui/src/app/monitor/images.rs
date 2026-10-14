@@ -181,6 +181,7 @@ impl Shell {
     }
 
     /// 按实际解码结果渲染图片；加载中与损坏状态不伪装为可用缩略图。
+    #[expect(clippy::too_many_arguments, reason = "预览的条目、标识、适配方式与圆角都是独立几何输入，另加 GPUI 窗口与上下文")]
     pub(super) fn monitor_image_preview(
         &self,
         entry: &ImageEntry,
@@ -207,7 +208,7 @@ impl Shell {
             .relative()
             .size_full()
             .overflow_hidden()
-            .child(checkerboard(checker, corners.clone(), cx));
+            .child(checkerboard(checker, corners, cx));
         // 独立画布先按实际布局决定需求，未进入视口的格子不会启动任何解码。
         preview = preview.child(
             canvas(
@@ -263,7 +264,7 @@ impl Shell {
                             epoch,
                             cx.new(|cx| {
                                 MonitorImageView::new(source, fit, window, cx)
-                                    .with_viewport_corners(corners.clone())
+                                    .with_viewport_corners(corners)
                             }),
                         )
                     });

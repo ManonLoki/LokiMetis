@@ -32,6 +32,7 @@ impl DeferredProbe {
 }
 
 impl IntoElement for DeferredProbe {
+    /// 自身即参与布局与绘制的元素，不再额外包装。
     type Element = Self;
     /// 包装本身不增加原生节点或样式盒。
     fn into_element(self) -> Self {
@@ -40,7 +41,9 @@ impl IntoElement for DeferredProbe {
 }
 
 impl Element for DeferredProbe {
+    /// 布局阶段无需向后续阶段传递状态。
     type RequestLayoutState = ();
+    /// 预绘制阶段无需向绘制阶段传递状态。
     type PrepaintState = ();
     /// 不给预约创建额外可访问身份。
     fn id(&self) -> Option<gpui_kit::ElementId> {
@@ -347,17 +350,15 @@ impl Render for CacheRoot {
     }
 }
 
+/// 共享的重绘计数器。
+type Counter = Rc<Cell<usize>>;
+
 /// 新窗口在实际 inactive 帧先形成缓存；后续不能用强制 refresh 的 render_frame。
 fn cache_setup(
     cx: &mut TestAppContext,
     kind: usize,
     nested: bool,
-) -> (
-    gpui_kit::AnyWindowHandle,
-    Rc<Cell<usize>>,
-    Rc<Cell<usize>>,
-    Rc<Cell<usize>>,
-) {
+) -> (gpui_kit::AnyWindowHandle, Counter, Counter, Counter) {
     let relevant = Rc::new(Cell::new(0));
     let outer = Rc::new(Cell::new(0));
     let unrelated = Rc::new(Cell::new(0));

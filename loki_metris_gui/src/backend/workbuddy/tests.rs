@@ -232,7 +232,7 @@ async fn reads_top_level_and_subagent_usage_with_exact_model_breakdown() {
     assert_eq!(evidence.skipped_count, 0);
     assert!(!evidence.budget_exhausted);
 
-    let snapshot = read_workbuddy_statistics(&[home.clone()], day_two, TimeStandard::utc())
+    let snapshot = read_workbuddy_statistics(std::slice::from_ref(&home), day_two, TimeStandard::utc())
         .await
         .expect("statistics compute succeeds");
     assert_eq!(snapshot.coverage.state, CoverageState::Complete);

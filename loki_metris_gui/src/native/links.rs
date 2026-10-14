@@ -23,7 +23,7 @@ pub fn open_repository() -> bool {
             Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL},
             core::PCWSTR,
         };
-        // GPUI后台线程不保证已有COM apartment；此调用与释放固定在同一线程。
+        // SAFETY: GPUI后台线程不保证已有COM apartment；此调用不涉及指针，初始化与释放固定在同一线程。
         if unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) }
             .is_err()
         {
@@ -34,6 +34,7 @@ pub fn open_repository() -> bool {
         impl Drop for Apartment {
             /// 句柄只在创建线程的同步栈中存活，不跨await或线程移动。
             fn drop(&mut self) {
+                // SAFETY: 只有本线程的 CoInitializeEx 成功后才构造 Apartment，这里与那次初始化一一配对。
                 unsafe {
                     CoUninitialize();
                 }
@@ -42,7 +43,7 @@ pub fn open_repository() -> bool {
         let _apartment = Apartment;
         let url: Vec<u16> = REFERENCE_REPOSITORY.encode_utf16().chain(Some(0)).collect();
         let open: Vec<u16> = "open".encode_utf16().chain(Some(0)).collect();
-        // 固定UTF-16缓冲在调用期间有效且NUL终止；不接受用户可控参数。
+        // SAFETY: 固定UTF-16缓冲在调用期间有效且NUL终止；不接受用户可控参数。
         let result = unsafe {
             ShellExecuteW(
                 None,

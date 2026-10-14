@@ -1,9 +1,9 @@
-// 本文件收纳：执行换皮宿主内部的 `prepare_import_batch` 步骤；执行换皮宿主内部的 `prepare_import_batch_with_progress` 步骤；执行换皮宿主内部的 `commit_import_batch` 步骤。
+// 本文件收纳：导入预检、确认安装与取消，批量删除，打开皮肤目录，以及暂存与遗留目录清理。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 impl SkinService {
     #[cfg(test)]
-    /// 执行换皮宿主内部的 `prepare_import_batch` 步骤。
+    /// 预检一批皮肤包归档，不上报逐项进度。
     pub async fn prepare_import_batch(
         &self,
         sources: Vec<PathBuf>,
@@ -12,7 +12,7 @@ impl SkinService {
             .await
     }
 
-    /// 执行换皮宿主内部的 `prepare_import_batch_with_progress` 步骤。
+    /// 在串行操作锁内预检一批皮肤包：先取消上一批暂存，再在后台线程解压校验并逐项上报进度，结果暂存等待确认。
     pub async fn prepare_import_batch_with_progress<F>(
         &self,
         sources: Vec<PathBuf>,
@@ -106,7 +106,7 @@ impl SkinService {
         Ok(response)
     }
 
-    /// 执行换皮宿主内部的 `commit_import_batch` 步骤。
+    /// 安装暂存批次中用户选中的条目；选择必须非空、无重复且不超过上限，可执行旧版皮肤需要显式同意第三方代码。
     pub async fn commit_import_batch(
         &self,
         token: &str,
@@ -204,7 +204,7 @@ impl SkinService {
         })
     }
 
-    /// 执行换皮宿主内部的 `cancel_import` 步骤。
+    /// 取消指定 token 的导入：中止进行中的预检并回收已暂存的批次；token 不匹配时不影响其它批次。
     pub fn cancel_import(&self, token: &str) -> Result<(), AppError> {
         validate_import_token(token)?;
         if let Some(active) = self
@@ -233,7 +233,7 @@ impl SkinService {
         Ok(())
     }
 
-    /// 执行换皮宿主内部的 `finish_import_preparation` 步骤。
+    /// 预检结束后清除仍属于该 token 的进行中登记。
     fn finish_import_preparation(&self, token: &str) -> Result<(), AppError> {
         let mut active = self
             .import_preparation
@@ -246,7 +246,7 @@ impl SkinService {
     }
 
     #[cfg(test)]
-    /// 执行换皮宿主内部的 `prepare_test_import_batch` 步骤。
+    /// 测试用：同步预检单个归档并登记为待安装批次。
     fn prepare_test_import_batch(
         &self,
         source: &Path,
@@ -269,7 +269,7 @@ impl SkinService {
     }
 
     #[cfg(test)]
-    /// 执行换皮宿主内部的 `commit_test_import_batch` 步骤。
+    /// 测试用：安装待安装批次的第一个条目，失败时返回该条目的错误。
     async fn commit_test_import_batch(&self, token: &str) -> Result<SkinDescriptor, AppError> {
         let item_id = self
             .pending_import
@@ -296,7 +296,7 @@ impl SkinService {
         })
     }
 
-    /// 执行换皮宿主内部的 `delete_many` 步骤。
+    /// 批量删除用户皮肤；正在生效的皮肤与删除失败项单独列出，其余照常删除。
     pub async fn delete_many(
         &self,
         skins: &[SkinReference],
@@ -342,7 +342,7 @@ impl SkinService {
         Ok(BatchDeleteResult { deleted, failed })
     }
 
-    /// 执行换皮宿主内部的 `open_directory` 步骤。
+    /// 在系统文件管理器中打开用户皮肤目录；内置皮肤只读，不提供目录。
     pub async fn open_directory(&self, skin: &SkinReference) -> Result<(), AppError> {
         validate_skin_reference(skin)?;
         if skin.source == SkinSource::Builtin {
@@ -355,7 +355,7 @@ impl SkinService {
         open_in_file_manager(&directory).await
     }
 
-    /// 执行换皮宿主内部的 `take_pending_import` 步骤。
+    /// 取出与 token 匹配的待安装批次；不匹配表示批次已过期。
     fn take_pending_import(&self, token: &str) -> Result<PendingImportBatch, AppError> {
         let mut state = self
             .pending_import
@@ -370,7 +370,7 @@ impl SkinService {
         ))
     }
 
-    /// 执行换皮宿主内部的 `cancel_current_import` 步骤。
+    /// 丢弃当前待安装批次并删除其暂存目录。
     fn cancel_current_import(&self) -> Result<(), AppError> {
         let pending = self
             .pending_import
@@ -383,7 +383,7 @@ impl SkinService {
         Ok(())
     }
 
-    /// 执行换皮宿主内部的 `cleanup_transient_directories` 步骤。
+    /// 清理上次异常退出遗留的导入、创建暂存目录，并恢复或丢弃中断替换留下的备份目录。
     fn cleanup_transient_directories(&self) -> Result<(), AppError> {
         for entry in std::fs::read_dir(&self.user_root)
             .map_err(|_| AppError::new("skin.library_unavailable", "无法读取用户皮肤资源库。"))?
@@ -422,7 +422,7 @@ impl SkinService {
         Ok(())
     }
 
-    /// 执行换皮宿主内部的 `skin_directory` 步骤。
+    /// 定位并校验皮肤引用对应的目录：必须是真实目录（非链接）且清单有效。
     fn skin_directory(&self, skin: &SkinReference) -> Result<PathBuf, AppError> {
         validate_skin_reference(skin)?;
         let directory = match skin.source {

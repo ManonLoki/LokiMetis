@@ -70,7 +70,7 @@ enum HookWriterWork {
     /// 必须返回结构化结果的显式写入。
     Explicit(ExplicitHookWriteRequest),
     /// 无需阻塞 UI 的最新设置自愈。
-    AutomaticRepair(MonitorSettings),
+    AutomaticRepair(Box<MonitorSettings>),
 }
 
 /// 异步等待被取消时同步标记对应请求，避免 worker 变成 detached 写入。
@@ -273,8 +273,8 @@ impl HookConfigWriter {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
-        if let Some(worker_handle) = worker_handle {
-            if let Err(worker_handle) =
+        if let Some(worker_handle) = worker_handle
+            && let Err(worker_handle) =
                 join_worker_until(worker_handle, HOOK_WRITER_SHUTDOWN_TIMEOUT)
             {
                 retained_hook_writer_owner().retain(worker_handle);
@@ -283,7 +283,6 @@ impl HookConfigWriter {
                     "hook config writer exceeded shutdown deadline and was transferred to the retained owner"
                 );
             }
-        }
         retained_hook_writer_owner().reap_finished();
         #[cfg(target_os = "windows")]
         super::wsl::shutdown_wsl_owners(HOOK_WRITER_SHUTDOWN_TIMEOUT);

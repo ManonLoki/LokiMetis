@@ -241,8 +241,8 @@ impl Shell {
                     ),
                 ),
         );
-        if let Some((feedback_tool, feedback)) = &state.feedback {
-            if *feedback_tool == tool {
+        if let Some((feedback_tool, feedback)) = &state.feedback
+            && *feedback_tool == tool {
                 let (label, error) = match feedback {
                     Feedback::Failed(error) => (self.monitor_error_text(error), true),
                     Feedback::Written(result) => {
@@ -266,7 +266,6 @@ impl Shell {
                 };
                 panel = panel.child(self.hook_feedback_element(&label, error, cx));
             }
-        }
         card.child(panel).into_any_element()
     }
 

@@ -188,7 +188,7 @@ fn populate_catalog(shell: &Entity<crate::app::Shell>, image: Arc<Image>,
         this.skins.entries = Some(vec![crate::usage_service::SkinEntry {
             skin: crate::skins::SkinDescriptor {
                 id: "pikachu".into(),
-                source: source,
+                source,
                 package_type: loki_metris_core::SkinPackageType::LegacySkin,
                 name: "Pikachu".into(),
                 author: "ManonLoki".into(),

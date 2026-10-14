@@ -3,6 +3,9 @@
 mod queue;
 mod today;
 mod today_cache;
+mod page_cache;
+#[cfg(test)]
+mod page_cache_tests;
 #[cfg(test)]
 mod today_cache_tests;
 mod notifications;
@@ -15,7 +18,7 @@ mod discovery;
 mod settings;
 mod agents;
 mod receipt;
-pub(crate) use receipt::receipt;
+pub(crate) use receipt::{poll_receipt, receipt};
 mod pet;
 mod skins;
 mod skin_import;
@@ -34,7 +37,11 @@ mod source_tests;
 pub use query::{UsageQuery, UsageResponse};
 pub use sources::{SourceOperation,SourceOperationResult};
 pub use discovery::{DiscoveryView,ManualAddResult};
-use crate::backend::local_index::{current_user_home, ScanCoordinator, ScanProgress};
+use crate::backend::local_index::{current_user_home, ScanCoordinator};
+/// 扫描进度属于本服务的公开状态；展示层经服务层取得类型，不直接依赖数据源驱动。
+pub(crate) use crate::backend::local_index::ScanProgress;
+/// 通知预约时间戳由本服务按此时钟写入，宿主比较时必须使用同一时钟。
+pub(crate) use crate::backend::local_index::current_epoch_ms;
 use loki_metris_core::{CoverageReport, LocalRecordsSummary, SourceClientKind,
     WorkbuddyStatisticsSnapshot, ScanStartOrigin};
 use queue::{Intent, Queue};
@@ -73,6 +80,8 @@ struct ServiceContext {
     agents:Arc<agents::AgentSettingsStore>,
     monitor_revision:std::sync::atomic::AtomicU64,
     today_cache: today_cache::TodayCache,
+    /// 当前查看的统计页或图表页结果缓存，页面定时刷新在索引未变时直接复用。
+    page_cache: page_cache::PageCache,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -124,7 +133,7 @@ impl UsageService {
         let skins=Arc::new(skins::OwnedSkins::new(&directory));
         let context = Arc::new(ServiceContext { directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            settings, agents,monitor_revision:Default::default(),today_cache:Default::default() });
+            settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default() });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();
@@ -195,7 +204,7 @@ impl UsageService {
             for change in plan.changes {
                 if let Err(error)=self.context.agents.save_pet_blocking(Some(change),None) {tracing::warn!(code=error.code,"pet shutdown preference failed");}
             }
-            if let Some(position)=plan.position {if let Err(error)=self.context.agents.save_pet_blocking(None,Some(position)) {tracing::warn!(code=error.code,"pet shutdown position failed");}}
+            if let Some(position)=plan.position&& let Err(error)=self.context.agents.save_pet_blocking(None,Some(position)) {tracing::warn!(code=error.code,"pet shutdown position failed");}
             if !self.scans.stop(Duration::from_secs(10)) { tracing::warn!(event = "usage_shutdown_drain_timeout"); }
             if !self.queries.stop(Duration::from_secs(5)) { tracing::warn!(event = "usage_query_drain_timeout"); }
             runtime.shutdown_timeout(Duration::from_secs(1));

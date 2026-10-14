@@ -1,21 +1,19 @@
-// 本文件收纳：把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner；执行换皮宿主内部的 `connect_or_launch` 步骤；执行换皮宿主内部的 `poll_until_cdp_ready` 步骤。
+// 本文件收纳：连接 handler 的 owner 绑定，以及连接或启动宿主、等待 CDP 就绪、强制重启与运行状态归类。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 /// 把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner。
-fn hold_connected_handler_during<T, Operation>(
+async fn hold_connected_handler_during<T, Operation>(
     handler_task: HandlerTaskGuard,
     operation: Operation,
-) -> impl Future<Output = (HandlerTaskGuard, T)>
+) -> (HandlerTaskGuard, T)
 where
     Operation: Future<Output = T>,
 {
-    async move {
-        let result = operation.await;
-        (handler_task, result)
-    }
+    let result = operation.await;
+    (handler_task, result)
 }
 
-/// 执行换皮宿主内部的 `connect_or_launch` 步骤。
+/// 取得宿主的可信 CDP 连接：指定实例时只连接其调试端口并核对进程根；否则优先复用已运行宿主的端点，宿主运行却无调试端口时要求用户先退出，未运行时以空闲端口启动并等待就绪。
 async fn connect_or_launch(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
@@ -107,7 +105,7 @@ async fn connect_or_launch(
     ))
 }
 
-/// 执行换皮宿主内部的 `poll_until_cdp_ready` 步骤。
+/// 在启动期限内反复连接新启动宿主的调试端点，直到浏览器通过宿主身份核对；期间响应取消，Codex 还会监视进程退出。
 async fn poll_until_cdp_ready(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
@@ -273,7 +271,7 @@ async fn host_runtime_status(
     ))
 }
 
-/// 执行换皮宿主内部的 `classify_codex_runtime` 步骤。
+/// 按 CDP 是否就绪与图形进程是否在运行归类宿主状态。
 fn classify_codex_runtime(cdp_ready: bool, gui_running: bool) -> CodexRuntimeState {
     if cdp_ready {
         CodexRuntimeState::Ready
@@ -284,7 +282,7 @@ fn classify_codex_runtime(cdp_ready: bool, gui_running: bool) -> CodexRuntimeSta
     }
 }
 
-/// 执行换皮宿主内部的 `launch_and_wait_for_cdp` 步骤。
+/// 确保宿主处于可换肤状态：已就绪直接返回，运行但无调试端口时要求用户先退出，未运行时以空闲端口启动并等待就绪。
 async fn launch_and_wait_for_cdp(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
@@ -306,7 +304,7 @@ async fn launch_and_wait_for_cdp(
     }
 }
 
-/// 执行换皮宿主内部的 `force_launch_and_wait_for_cdp` 步骤。
+/// 必要时强制关闭宿主后以未排除的端口重新启动并等待 CDP 就绪；可复用的就绪宿主直接返回。关闭前须持有宿主操作授权，关闭超时报错。
 async fn force_launch_and_wait_for_cdp(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
@@ -376,7 +374,7 @@ fn ready_runtime_can_be_reused(host: SkinHostKind, process_roots: usize) -> bool
     host != SkinHostKind::WorkBuddy || process_roots == 1
 }
 
-/// 执行换皮宿主内部的 `force_close_timeout_error` 步骤。
+/// 宿主未能在强制关闭期限内退出时的错误。
 fn force_close_timeout_error(host: SkinHostKind) -> AppError {
     AppError::new(
         match host {
@@ -390,7 +388,7 @@ fn force_close_timeout_error(host: SkinHostKind) -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `wait_for_cdp_ready` 步骤。
+/// 等待新启动宿主的 CDP 就绪，确认后立即断开验证连接并返回就绪状态与端点。
 async fn wait_for_cdp_ready(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,

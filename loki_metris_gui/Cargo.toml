@@ -52,6 +52,7 @@ libc.workspace = true
 
 
 [dev-dependencies]
+loki_metris_core = { workspace = true, features = ["test-support"] }
 sea-orm.workspace = true
 gpui-kit = { workspace = true, features = ["test-support"] }
 

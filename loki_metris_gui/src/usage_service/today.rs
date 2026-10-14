@@ -19,7 +19,7 @@ pub(super) async fn load(
     if selection.0.is_empty() && !selection.1 {
         return Err("usage_agents_disabled");
     }
-    let clients: Vec<_> = selection.0.iter().copied().collect();
+    let clients: Vec<_> = selection.0.to_vec();
     // 读取前取键；索引文件、覆盖与民用日都未变时直接复用上轮索引侧汇总。
     let key = today_cache::key_for(&context, today_cache::Scope::Combined, &clients, &day).await;
     let cached = key.as_ref().and_then(|key| context.today_cache.lookup(key));
