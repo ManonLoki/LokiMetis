@@ -161,7 +161,7 @@ impl Service {
         let Some(request) = usage.take_notification() else {
             return;
         };
-        let now = crate::backend::local_index::current_epoch_ms();
+        let now = crate::usage_service::current_epoch_ms();
         let ready = (0..=10_000).contains(&now.saturating_sub(request.reserved_ms))
             && owner.state.enabled
             && owner.state.permission == NotificationPermission::Allowed

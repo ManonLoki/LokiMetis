@@ -27,7 +27,7 @@ use std::sync::Arc;
 pub(super) struct Dashboard {
     pub client: usize,
     pub ranges: [usize; 5],
-    pub progress: Option<crate::backend::local_index::ScanProgress>,
+    pub progress: Option<crate::usage_service::ScanProgress>,
     pub route: Route,
     pub detail: DetailState,
     pub chart: charts::ChartState,

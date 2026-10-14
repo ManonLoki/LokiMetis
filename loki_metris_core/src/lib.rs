@@ -1,5 +1,20 @@
 //! 诡秘神谕（LokiMetris）领域核心：平台无关的用量类型、窗口、聚合、数据源策略与设置规则。
 //! GUI adapter 只负责本机 I/O、IPC 与展示；本 crate 不依赖 GPUI 或任何宿主 UI 库。
+//!
+//! # 模块分组与业务流向
+//!
+//! - 用量事实：`usage`（Token 字段口径）、`provider`、`source`（单次调用事实与来源）
+//!   → `aggregate`（跨来源去重规范化、过滤与求和）→ `timeline`/`time_standard`（自然日窗口）
+//!   → `statistics`（固定维度 Top-N 分组）。
+//! - 持久化：`local_index`（每个 Agent 一个派生 SQLite 库、解析检查点、数据根登记）与 `private_sqlite`。
+//! - 页面模型：`local_view`（概览窗口与数据根摘要）、`statistics_view`、`chart_view`、`calls_view`、
+//!   `combined_view`（All 汇总）、`workbuddy_stats`、`today_usage`、`usage_milestones`。
+//!   adapter 读出索引后只调用这些构建函数，不自行聚合。
+//! - 扫描与数据根策略：`policy`（扫描窗口、来源访问判定、数据根校验与变更结果）、`scan`、`root_discovery`、
+//!   `source_root`、`client_ports`。
+//! - 监控与桌宠：`agent_hooks`（Hook 协议、配置生成与显示状态机）、`ai_capabilities`、`monitor_profile`、
+//!   `monitor_gallery`、`pet_overlay`、`pet_overlay_position`、`pet_preferences`、`window_placement`。
+//! - 设置与展示辅助：`settings`、`bounded_minutes`、`display_label`、`display_name`、`codex_skin`。
 
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]

@@ -34,7 +34,11 @@ mod source_tests;
 pub use query::{UsageQuery, UsageResponse};
 pub use sources::{SourceOperation,SourceOperationResult};
 pub use discovery::{DiscoveryView,ManualAddResult};
-use crate::backend::local_index::{current_user_home, ScanCoordinator, ScanProgress};
+use crate::backend::local_index::{current_user_home, ScanCoordinator};
+/// 扫描进度属于本服务的公开状态；展示层经服务层取得类型，不直接依赖数据源驱动。
+pub(crate) use crate::backend::local_index::ScanProgress;
+/// 通知预约时间戳由本服务按此时钟写入，宿主比较时必须使用同一时钟。
+pub(crate) use crate::backend::local_index::current_epoch_ms;
 use loki_metris_core::{CoverageReport, LocalRecordsSummary, SourceClientKind,
     WorkbuddyStatisticsSnapshot, ScanStartOrigin};
 use queue::{Intent, Queue};
