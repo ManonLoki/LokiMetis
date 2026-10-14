@@ -56,7 +56,7 @@ LOKI_METRIS_DATA_DIR="$PWD/target/parity-data" pnpm run dev
 
 ## 构建与发布边界
 
-- 本机试包使用 `pnpm run gpui:package build --root . --mode local --format dmg`，产物是未签名的开发制品，不是发布候选。
+- 本机试包使用 `pnpm run gpui:package build --root . --mode local --format dmg`；macOS 完整 App 使用无证书 ad-hoc 本地签名，Windows 保持 unsigned。试包不代表 Developer ID、公证、系统通知或最终候选验收通过。
 - 版本只由 `$desktop-manage-version` 在真实变化完成并通过相关测试后提交。
 - 正式候选必须来自干净且明确的源码提交，产物写入被忽略的 `release/`。
 - 调试预览不构成安装包或最终候选验收。
