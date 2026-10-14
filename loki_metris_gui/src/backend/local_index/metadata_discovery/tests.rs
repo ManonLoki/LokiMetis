@@ -64,7 +64,7 @@ fn priority_queue_deduplicates_traversal_root() {
     assert_eq!(queue.into_iter().collect::<Vec<_>>(), [temp.path()]);
 }
 
-/// 同一候选由多个文件命中时只实时通知前端一次。
+/// 同一候选由多个文件命中时只实时通知界面一次。
 #[test]
 fn candidate_callback_only_reports_first_insertion() {
     let temp = tempdir().unwrap();

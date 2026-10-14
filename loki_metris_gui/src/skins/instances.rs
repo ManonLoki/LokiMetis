@@ -122,7 +122,7 @@ async fn resolve_host_instance_with_preferred(
         })
 }
 
-/// 扫描宿主主进程并生成按 PID 从新到旧排列的前端实例快照。
+/// 扫描宿主主进程并生成按 PID 从新到旧排列的界面实例快照。
 async fn discover_host_process_instances(
     host: SkinHostKind,
 ) -> Result<Vec<SkinHostInstance>, AppError> {

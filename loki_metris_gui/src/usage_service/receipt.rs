@@ -1,22 +1,39 @@
 //! GPUI与服务owner之间的回执桥接，不绑定调用窗口的生存期。
 
-use loki_metris_core::HookError;
+use std::time::Duration;
 
-/// 跨 Tokio owner 回执采用有界轮询；不把 GPUI 假调度器 waker 注册到外部工作线程。
+use loki_metris_core::HookError;
+use tokio::sync::oneshot::{self, error::TryRecvError};
+
+/// Hook 回执的轮询间隔；与页面交互延迟同量级，不在空闲时产生唤醒。
+const HOOK_RECEIPT_POLL: Duration = Duration::from_millis(30);
+
+/// 以固定间隔有界轮询一个跨 owner 的一次性回执，发送端丢弃时返回 `None`。
+///
+/// 回执由外部 Tokio owner 完成；这里只用 GPUI 自己的计时器轮询，
+/// 不把 GPUI（尤其是测试假调度器）的 waker 注册到外部工作线程。
+/// 轮询只在请求在途期间存在，回执到达或任务被丢弃即停止，不形成空闲唤醒。
+pub(crate) async fn poll_receipt<T>(
+    mut work: oneshot::Receiver<T>,
+    executor: gpui_kit::BackgroundExecutor,
+    interval: Duration,
+) -> Option<T> {
+    loop {
+        match work.try_recv() {
+            Ok(value) => return Some(value),
+            Err(TryRecvError::Closed) => return None,
+            Err(TryRecvError::Empty) => executor.timer(interval).await,
+        }
+    }
+}
+
+/// 等待 Hook 服务回执；owner 提前丢弃发送端时映射为调用方给定的稳定错误码。
 pub(crate) async fn receipt<T>(
-    mut work: tokio::sync::oneshot::Receiver<Result<T, HookError>>,
+    work: oneshot::Receiver<Result<T, HookError>>,
     executor: gpui_kit::BackgroundExecutor,
     code: &'static str,
 ) -> Result<T, HookError> {
-    loop {
-        match work.try_recv() {
-            Ok(result) => return result,
-            Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
-                return Err(HookError::new(code));
-            }
-            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
-                executor.timer(std::time::Duration::from_millis(30)).await
-            }
-        }
-    }
+    poll_receipt(work, executor, HOOK_RECEIPT_POLL)
+        .await
+        .unwrap_or_else(|| Err(HookError::new(code)))
 }

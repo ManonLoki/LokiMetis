@@ -137,7 +137,7 @@ impl Shell {
             Route::Charts => UsageQuery::Chart(client,loki_metris_core::LocalUsageWindow::OVERVIEW_WINDOWS[self.dashboard.chart.ranges[self.dashboard.client]],self.chart_dimension()),
             _ => UsageQuery::Overview(client),
         };
-        let mut work = match service.query(query) {
+        let work = match service.query(query) {
             Ok(work) => work,
             Err(error) => { self.dashboard.error = Some(error); cx.notify(); return }
         };
@@ -145,14 +145,9 @@ impl Shell {
         self.dashboard.loading = true;
         self.dashboard.error = None;
         self.dashboard.task = Some(cx.spawn(async move |entity, cx| {
-            let result = loop {
-                match work.try_recv() {
-                    Ok(result) => break result,
-                    Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break Err("usage_scan_cancelled"),
-                    Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {},
-                }
-                cx.background_executor().timer(std::time::Duration::from_millis(150)).await;
-            };
+            let result = crate::usage_service::poll_receipt(work, cx.background_executor().clone(), std::time::Duration::from_millis(150))
+                .await
+                .unwrap_or(Err("usage_scan_cancelled"));
             let _ = entity.update(cx, |this, cx| {
                 if this.dashboard.revision != revision { return }
                 this.dashboard.loading = false;

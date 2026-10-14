@@ -220,21 +220,17 @@ impl Service {
                 .mutate(PreferencePatch::SystemNotification(enabled))
                 .map_err(|_| Error::Save);
             let result = match receipt {
-                Ok(mut receipt) => loop {
-                    match receipt.try_recv() {
-                        Ok(Ok(PreferencePatch::SystemNotification(actual)))
-                            if actual == enabled =>
-                        {
-                            break Ok(());
-                        }
-                        Ok(_) | Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
-                            break Err(Error::Save);
-                        }
-                        Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
+                Ok(receipt) => match crate::usage_service::poll_receipt(
+                    receipt,
+                    cx.background_executor().clone(),
+                    std::time::Duration::from_millis(20),
+                )
+                .await
+                {
+                    Some(Ok(PreferencePatch::SystemNotification(actual))) if actual == enabled => {
+                        Ok(())
                     }
-                    cx.background_executor()
-                        .timer(std::time::Duration::from_millis(20))
-                        .await;
+                    _ => Err(Error::Save),
                 },
                 Err(error) => Err(error),
             };

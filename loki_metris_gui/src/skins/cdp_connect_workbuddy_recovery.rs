@@ -1,5 +1,5 @@
 // 本文件是 cdp_connect.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射为前端可确认的恢复请求。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射为界面可确认的恢复请求。
 
 /// 判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。
 fn is_workbuddy_connection_error(error_code: &str) -> bool {
@@ -28,7 +28,7 @@ fn is_host_inspection_error(error_code: &str) -> bool {
     )
 }
 
-/// 将 WorkBuddy 仍存活时的不可用 CDP 统一映射为前端可确认的恢复请求。
+/// 将 WorkBuddy 仍存活时的不可用 CDP 统一映射为界面可确认的恢复请求。
 async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -> AppError {
     if host != SkinHostKind::WorkBuddy || error.code == "skin.operation_cancelled" {
         return error;

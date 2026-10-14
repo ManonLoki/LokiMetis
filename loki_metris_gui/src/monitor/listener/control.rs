@@ -148,7 +148,7 @@ impl HookListenerPolicy {
     }
 }
 
-/// Tauri 保存设置时同步更新的 listener 启用门禁。
+/// 保存监控设置时同步更新的 listener 启用门禁。
 pub struct HookListenerControl {
     pub(super) policy: Arc<RwLock<HookListenerPolicy>>,
     pub(super) status: Arc<RwLock<HookRelayStatus>>,

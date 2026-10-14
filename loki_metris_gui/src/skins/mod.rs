@@ -87,7 +87,7 @@ mod tests {
     include!("tests/authority.rs");
 }
 
-/// 历史宿主回归使用独立Tokio运行时，不引入Tauri全局runtime。
+/// 宿主回归使用独立Tokio运行时，不依赖应用全局runtime。
 #[cfg(test)]
 fn test_block_on<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap().block_on(future)

@@ -45,17 +45,13 @@ impl Shell {
         self.dashboard.task.take();self.dashboard.error=None;self.dashboard.loading=false;
         let Some(client)=self.usage_client() else{return};
         let Some(service)=&self.dashboard.service else {cx.notify();return};
-        let mut receiver=match service.query(UsageQuery::Sources(client)) {
+        let receiver=match service.query(UsageQuery::Sources(client)) {
             Ok(receiver)=>receiver,Err(error)=>{self.sources_query_failed(error);cx.notify();return}
         };
         let revision=self.dashboard.revision;let generation=self.dashboard.sources.generation;
         self.dashboard.loading=true;
         self.dashboard.task=Some(cx.spawn(async move|entity,cx| {
-            let result=loop {match receiver.try_recv() {
-                Ok(result)=>break result,
-                Err(tokio::sync::oneshot::error::TryRecvError::Closed)=>break Err("usage_query_failed"),
-                Err(tokio::sync::oneshot::error::TryRecvError::Empty)=>{},
-            }cx.background_executor().timer(std::time::Duration::from_millis(50)).await;};
+            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.revision!=revision || this.dashboard.sources.generation!=generation || this.usage_client()!=Some(client) {return}
                 this.dashboard.loading=false;

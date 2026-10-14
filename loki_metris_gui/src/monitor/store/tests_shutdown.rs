@@ -1,7 +1,6 @@
 // 本文件是 tests.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
 // 与主文件共用作用域，因此无需额外导入。收纳内容：应用退出必须同时取消在途与排队显式写入，并立即答复尚未执行的调用。；不可中断的本机 I/O worker 超过期限时不得继续阻塞应用退出回调。；未显式 shutdown 的空闲 writer 在 Drop 后也必须让线程终态并释放共享状态。
 
-use crate::monitor::hook_test_support::HookCommandText as _;
 #[test]
 /// 应用退出必须同时取消在途与排队显式写入，并立即答复尚未执行的调用。
 fn shutdown_cancels_active_and_pending_explicit_writes() {

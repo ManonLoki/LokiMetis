@@ -11,17 +11,13 @@ impl Shell {
         let Some(client)=self.usage_client() else{return};
         self.dashboard.sources.feedback=None;
         let Some(service)=&self.dashboard.service else{return};
-        let mut receiver=match service.mutate_source(client,operation) {
+        let receiver=match service.mutate_source(client,operation) {
             Ok(receiver)=>receiver,Err(error)=>{self.dashboard.sources.feedback=Some(Err(error));cx.notify();return}
         };
         let generation=self.dashboard.sources.generation;
         self.dashboard.sources.pending=true;
         self.dashboard.sources.operation_task=Some(cx.spawn(async move|entity,cx| {
-            let result=loop {match receiver.try_recv() {
-                Ok(result)=>break result,
-                Err(tokio::sync::oneshot::error::TryRecvError::Closed)=>break Err("source_update_failed"),
-                Err(tokio::sync::oneshot::error::TryRecvError::Empty)=>{},
-            }cx.background_executor().timer(std::time::Duration::from_millis(50)).await;};
+            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.sources.generation!=generation || this.usage_client()!=Some(client) {return}
                 this.dashboard.sources.pending=false;

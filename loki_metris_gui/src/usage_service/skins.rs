@@ -168,21 +168,15 @@ impl UsageService {
 
 /// 跨Tokio与GPUI只轮询回执；不把测试前台waker注册到外部runtime。
 pub(crate) async fn receipt<T>(
-    mut work: oneshot::Receiver<Result<T, SkinError>>,
+    work: oneshot::Receiver<Result<T, SkinError>>,
     executor: gpui_kit::BackgroundExecutor,
 ) -> Result<T, SkinError> {
-    loop {
-        match work.try_recv() {
-            Ok(value) => return value,
-            Err(oneshot::error::TryRecvError::Closed) => {
-                return Err(SkinError::new(
-                    "skin.operation_unavailable",
-                    "换肤操作回执不可用。",
-                ));
-            }
-            Err(oneshot::error::TryRecvError::Empty) => {
-                executor.timer(std::time::Duration::from_millis(30)).await
-            }
-        }
-    }
+    super::poll_receipt(work, executor, std::time::Duration::from_millis(30))
+        .await
+        .unwrap_or_else(|| {
+            Err(SkinError::new(
+                "skin.operation_unavailable",
+                "换肤操作回执不可用。",
+            ))
+        })
 }

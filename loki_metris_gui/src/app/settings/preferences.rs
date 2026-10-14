@@ -73,17 +73,10 @@ impl Shell {
         // 通知必须通过应用级授权 owner，禁止绕过权限门禁直接提交展示偏好。
         if matches!(patch,PreferencePatch::SystemNotification(_))||self.preference_save.pending.is_some() {return}
         if match patch {PreferencePatch::Theme(theme)=>self.preferences.theme==theme,PreferencePatch::Language(language)=>self.preferences.language==language,PreferencePatch::SystemNotification(_)=>return} {return}
-        let mut work=match self.writer.mutate(patch) {Ok(work)=>work,Err(_)=>{self.preference_save.failed=Some(patch);cx.notify();return}};
+        let work=match self.writer.mutate(patch) {Ok(work)=>work,Err(_)=>{self.preference_save.failed=Some(patch);cx.notify();return}};
         self.preference_save.pending=Some(patch);self.preference_save.failed=None;
         self.preference_save.task=Some(cx.spawn_in(window,async move|entity,cx| {
-            let result=loop {
-                match work.try_recv() {
-                    Ok(result)=>break Some(result),
-                    Err(tokio::sync::oneshot::error::TryRecvError::Closed)=>break None,
-                    Err(tokio::sync::oneshot::error::TryRecvError::Empty)=>{},
-                }
-                cx.background_executor().timer(std::time::Duration::from_millis(20)).await;
-            };
+            let result=crate::usage_service::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(20)).await;
             let _=entity.update_in(cx,|this,window,cx| {
                 this.preference_save.pending=None;
                 match result {

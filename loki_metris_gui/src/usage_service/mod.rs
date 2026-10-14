@@ -15,7 +15,7 @@ mod discovery;
 mod settings;
 mod agents;
 mod receipt;
-pub(crate) use receipt::receipt;
+pub(crate) use receipt::{poll_receipt, receipt};
 mod pet;
 mod skins;
 mod skin_import;

@@ -41,7 +41,7 @@ impl Shell {
         self.dashboard.calls.replacement_failed=false;self.dashboard.calls.next_failed=false;
         self.dashboard.loading=false;self.dashboard.calls.loading_next=false;
         let Some(service)=&self.dashboard.service else {cx.notify();return};
-        let mut receiver=match service.query(UsageQuery::Calls(self.usage_client(),query)) {
+        let receiver=match service.query(UsageQuery::Calls(self.usage_client(),query)) {
             Ok(receiver)=>receiver,Err(error)=>{
                 if next {self.dashboard.calls.next_failed=true;}else if self.dashboard.calls.page.is_some(){self.dashboard.calls.replacement_failed=true;}
                 else {self.dashboard.error=Some(error);}cx.notify();return
@@ -50,11 +50,7 @@ impl Shell {
         let revision=self.dashboard.revision;
         self.dashboard.loading=!next;self.dashboard.calls.loading_next=next;
         self.dashboard.task=Some(cx.spawn(async move|entity,cx| {
-            let result=loop {match receiver.try_recv() {
-                Ok(result)=>break result,
-                Err(tokio::sync::oneshot::error::TryRecvError::Closed)=>break Err("usage_query_failed"),
-                Err(tokio::sync::oneshot::error::TryRecvError::Empty)=>{},
-            }cx.background_executor().timer(std::time::Duration::from_millis(50)).await;};
+            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.revision!=revision || this.dashboard.client!=client {return}
                 this.dashboard.loading=false;this.dashboard.calls.loading_next=false;
