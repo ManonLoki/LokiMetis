@@ -270,6 +270,37 @@ fn calls_navigation_sorting_and_clear_preserve_contract(cx:&mut TestAppContext) 
     }).unwrap();
 }
 
+/// 追加分页只增量测量新行，结果必须与整页重新测量一致；直接换页即使行数不变也要重算。
+#[gpui_kit::test]
+fn calls_column_widths_grow_incrementally_and_match_full_measurement(cx:&mut TestAppContext) {
+    use loki_metris_core::*;
+    let (handle,shell,_finish)=open_shell(cx,1440.,900.);
+    let item=|id:&str,project:&str| {
+        let tokens=TokenUsage::new(10,0,None,1,0,Some(11)).unwrap();
+        UsageCallItem {id:id.into(),client:SourceClientKind::Codex,occurred_at_epoch_ms:1_791_488_880_000,
+            project_label:project.into(),project_label_code:DisplayLabelCode::Literal,
+            thread_label:"t".into(),thread_label_code:DisplayLabelCode::Literal,
+            model_label:"m".into(),model_label_code:DisplayLabelCode::Literal,
+            reasoning_effort_label:"low".into(),reasoning_effort_label_code:DisplayLabelCode::Literal,
+            uncached_input_tokens:Some(10),usage:tokens.clone(),confidence:Confidence::Exact,
+            fact:MetricFact::new(tokens,ProviderKind::RolloutJsonl,MetricScope::ThreadObserved,0,Freshness::Fresh,Completeness::Complete,Confidence::Exact,None)}
+    };
+    let mut page=build_usage_calls_page(&[],LocalIndexState::Ready,&std::collections::BTreeMap::new(),&UsageCallsQuery::default(),0,
+        SourceClientKind::Codex,ProviderKind::RolloutJsonl,None).unwrap();
+    page.items.push(item("first","p"));
+    let widths=|page:&loki_metris_core::UsageCallsPage,cx:&mut TestAppContext| cx.update_window(handle,|_,window,cx|
+        shell.update(cx,|shell,cx|shell.call_widths(page,window,cx))).unwrap();
+    let short=widths(&page,cx);
+    page.items.push(item("appended","a-considerably-longer-project-directory-name"));
+    let incremental=widths(&page,cx);
+    assert!(incremental[2]>short[2],"追加行必须扩展项目列");
+    shell.update(cx,|shell,_|shell.dashboard.calls.replacement+=1);
+    assert_eq!(widths(&page,cx),incremental,"增量结果必须等于整页重新测量");
+    let mut replaced=page.clone();replaced.items.truncate(1);replaced.items[0]=item("other","p");
+    replaced.items.push(item("other-second","q"));
+    assert_eq!(widths(&replaced,cx),short,"首末行变化的同长度换页必须丢弃旧测量");
+}
+
 /// 长时间文案与长项目名不能覆盖相邻列；Token 精确值与紧凑值留在同一列。
 #[gpui_kit::test]
 fn calls_columns_keep_time_project_and_token_bounds_separate(cx:&mut TestAppContext) {
