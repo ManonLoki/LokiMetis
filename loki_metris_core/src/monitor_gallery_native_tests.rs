@@ -1,4 +1,4 @@
-//! 原生元数据零编码与历史完整预览合同并行保留。
+//! 原生元数据目录零编码合同。
 
 use super::*;
 
@@ -17,19 +17,4 @@ fn native_metadata_catalog_never_invokes_base64_and_keeps_counts() {
     assert!(!json.contains("data:"));
     assert!(!json.contains("base64"));
     assert!(json.len() < 256);
-}
-
-/// 旧完整预览仍实际编码并保留错误合同，不能通过清空image字段伪装兼容。
-#[test]
-fn full_preview_still_encodes_and_metadata_shares_the_same_errors() {
-    let before = ENCODE_CALLS.with(std::cell::Cell::get);
-    let preview = preview_from_bytes("g1", "small.gif", b"GIF89a").unwrap();
-    assert_eq!(preview.image, "data:image/gif;base64,R0lGODlh");
-    assert_eq!(ENCODE_CALLS.with(std::cell::Cell::get), before + 1);
-    for bytes in [&[][..], &b"unsupported"[..]] {
-        assert_eq!(
-            metadata_from_bytes("id", "name", bytes).unwrap_err().code,
-            preview_from_bytes("id", "name", bytes).unwrap_err().code
-        );
-    }
 }

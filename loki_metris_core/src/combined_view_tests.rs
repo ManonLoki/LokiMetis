@@ -101,29 +101,6 @@ fn unconfigured_agent_snapshot(client: SourceClientKind) -> AgentUsageSnapshot {
     snapshot
 }
 
-/// 「全部」只解析已开启子集并固定 Agent 顺序，空集合和关闭单项都拒绝。
-#[test]
-fn resolves_only_enabled_members_and_rejects_empty_or_disabled_views() {
-    let enabled = EnabledAgents::empty()
-        .with(SourceClientKind::ClaudeCode, true)
-        .with(SourceClientKind::GrokBuildCli, true);
-    assert_eq!(
-        resolve_usage_view_members(UsageViewKind::All, enabled),
-        Ok(vec![
-            SourceClientKind::ClaudeCode,
-            SourceClientKind::GrokBuildCli,
-        ])
-    );
-    assert_eq!(
-        resolve_usage_view_members(UsageViewKind::All, EnabledAgents::empty()),
-        Err(UsageViewError::NoEnabledAgents)
-    );
-    assert_eq!(
-        resolve_usage_view_members(UsageViewKind::Agent(SourceClientKind::Codex), enabled),
-        Err(UsageViewError::AgentDisabled)
-    );
-}
-
 /// 只开启一个 Agent 时，联合视图除联合 provider 与命名空间身份外必须保持原值。
 #[test]
 fn single_agent_combined_view_matches_the_physical_metrics() {

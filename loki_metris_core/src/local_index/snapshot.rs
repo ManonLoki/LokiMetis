@@ -200,7 +200,7 @@ pub(super) async fn load_local_index_state<C: ConnectionTrait>(
 ///      也没有任何来源文件 -> NotScanned；
 ///   5. 排除以上情况，说明确实扫描过、数据也是最新版本，只是恰好没有
 ///      调用记录 -> ReadyNoCalls（区别于 NotScanned，这是“扫描确认过、
-///      结果真的是空”，前端可以放心显示零用量而不是提示去扫描）。
+///      结果真的是空”，界面可以放心显示零用量而不是提示去扫描）。
 fn determine_local_index_state(
     completed_scan_count: u64,
     current_source_count: u64,

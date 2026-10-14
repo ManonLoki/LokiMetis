@@ -1,4 +1,4 @@
-//! 本文件的测试覆盖：锁定各客户端当前 parser generation，避免 GUI writer 单独加一代而读取仍用旧值；验证首次初始化与后续启动都不会声称完整覆盖；验证扫描门禁只允许显式用户触发绕过初始化。
+//! 本文件的测试覆盖：锁定各客户端当前 parser generation，避免 GUI writer 单独加一代而读取仍用旧值；扫描回看窗口与保留下界。
 
 use super::*;
 
@@ -8,92 +8,6 @@ fn parser_generation_matches_shipped_clients() {
     assert_eq!(SourceClientKind::Codex.parser_version(), 11);
     assert_eq!(SourceClientKind::ClaudeCode.parser_version(), 4);
     assert_eq!(SourceClientKind::GrokBuildCli.parser_version(), 3);
-}
-
-/// 验证首次初始化与后续启动都不会声称完整覆盖。
-#[test]
-fn provides_initial_empty_coverage() {
-    assert_eq!(
-        initial_coverage(),
-        CoverageReport {
-            state: CoverageState::Partial,
-            roots_scanned: 0,
-            roots_discovered: 0,
-            permission_denied_count: 0,
-            skipped_count: 0,
-            warning_count: 0,
-        }
-    );
-    assert_eq!(initial_coverage(), empty_coverage());
-}
-
-/// 验证扫描门禁只允许显式用户触发绕过初始化。
-#[test]
-fn denies_automatic_scan_before_initialization() {
-    assert_eq!(
-        ensure_scan_start_allowed(ScanStartOrigin::ExplicitUser, false, ScanKind::FullDevice),
-        Ok(())
-    );
-    assert_eq!(
-        ensure_scan_start_allowed(ScanStartOrigin::InitialAutomatic, false, ScanKind::Quick),
-        Err(ScanStartAccessError::InitializationRequired)
-    );
-    assert_eq!(
-        ensure_scan_start_allowed(ScanStartOrigin::PeriodicAutomatic, false, ScanKind::Quick),
-        Err(ScanStartAccessError::InitializationRequired)
-    );
-    assert_eq!(
-        ensure_scan_start_allowed(
-            ScanStartOrigin::PeriodicAutomatic,
-            true,
-            ScanKind::FullDevice
-        ),
-        Err(ScanStartAccessError::AutomaticScansMustBeQuick)
-    );
-    assert_eq!(
-        ensure_scan_start_allowed(ScanStartOrigin::InitialAutomatic, true, ScanKind::Quick),
-        Ok(())
-    );
-}
-
-#[test]
-/// 验证首次扫描覆盖近 30 日，而周期扫描只处理当天增量。
-fn scan_policy_bootstraps_thirty_days_then_limits_periodic_work_to_today() {
-    let observed_at_epoch_ms = 1_775_000_000_000;
-    let boundaries = WindowBoundaries::for_local_today(observed_at_epoch_ms);
-    let empty_periodic = local_index_scan_policy(
-        ScanStartOrigin::PeriodicAutomatic,
-        false,
-        observed_at_epoch_ms,
-    );
-    assert_eq!(empty_periodic.window, LocalIndexScanWindow::ThirtyDays);
-    assert_eq!(empty_periodic.scan_since_epoch_ms, boundaries.thirty_days);
-
-    let incremental = local_index_scan_policy(
-        ScanStartOrigin::PeriodicAutomatic,
-        true,
-        observed_at_epoch_ms,
-    );
-    assert_eq!(incremental.window, LocalIndexScanWindow::Today);
-    assert_eq!(incremental.scan_since_epoch_ms, boundaries.today);
-    assert_eq!(incremental.retention_since_epoch_ms, boundaries.thirty_days);
-}
-
-#[test]
-/// 验证显式与初始化扫描都保留近 30 日恢复窗口。
-fn explicit_and_initial_scans_keep_the_thirty_day_recovery_window() {
-    let observed_at_epoch_ms = 1_775_000_000_000;
-    let boundaries = WindowBoundaries::for_local_today(observed_at_epoch_ms);
-    for origin in [
-        ScanStartOrigin::ExplicitUser,
-        ScanStartOrigin::InitialAutomatic,
-    ] {
-        let policy = local_index_scan_policy(origin, true, observed_at_epoch_ms);
-        assert_eq!(policy.window, LocalIndexScanWindow::ThirtyDays);
-        assert_eq!(policy.scan_since_epoch_ms, boundaries.thirty_days);
-    }
-    assert_eq!(LOCAL_DISCOVERY_WORKER_LIMIT, 2);
-    assert_eq!(LOCAL_INDEX_WORKER_LIMIT, 1);
 }
 
 /// 数据库或 parser 升级只在明确需要重建时触发启动后立即索引。
@@ -350,70 +264,6 @@ fn exposes_source_client_display_labels() {
 }
 
 #[test]
-/// 验证周期快速扫描只调度当前没有活动扫描的客户端。
-fn allows_only_idle_clients_for_periodic_quick_scan() {
-    assert_eq!(
-        ensure_periodic_quick_scan_allowed(false, false),
-        Err(PeriodicQuickScanError::InitializationRequired)
-    );
-    assert_eq!(
-        ensure_periodic_quick_scan_allowed(true, true),
-        Err(PeriodicQuickScanError::ScanAlreadyRunning)
-    );
-    assert_eq!(ensure_periodic_quick_scan_allowed(true, false), Ok(()));
-}
-
-/// 无已开放客户端时本拍必须跳过，不得虚构扫描对象。
-#[test]
-fn periodic_tick_skips_when_no_agents_are_enabled() {
-    assert_eq!(
-        decide_periodic_scan_tick(&[], |_| false, false),
-        PeriodicScanTick::Skip
-    );
-}
-
-/// 共享 writer 忙碌时本拍等待，不新增任务；空闲后同一拍覆盖全部已开放客户端。
-#[test]
-fn busy_writer_waits_and_idle_writer_scans_every_enabled_client() {
-    let enabled = [
-        SourceClientKind::Codex,
-        SourceClientKind::ClaudeCode,
-        SourceClientKind::GrokBuildCli,
-    ];
-    assert_eq!(
-        decide_periodic_scan_tick(&enabled, |_| false, true),
-        PeriodicScanTick::Wait
-    );
-    assert_eq!(
-        decide_periodic_scan_tick(&enabled, |_| false, false),
-        PeriodicScanTick::Start {
-            clients: enabled.to_vec(),
-        }
-    );
-}
-
-/// 已在扫描的客户端从本拍剔除，其余空闲客户端仍按固定顺序全部执行。
-#[test]
-fn running_client_is_excluded_while_idle_agents_still_scan_this_tick() {
-    let enabled = [
-        SourceClientKind::Codex,
-        SourceClientKind::ClaudeCode,
-        SourceClientKind::GrokBuildCli,
-    ];
-    let running = |client| client == SourceClientKind::Codex;
-    assert_eq!(
-        decide_periodic_scan_tick(&enabled, running, false),
-        PeriodicScanTick::Start {
-            clients: vec![SourceClientKind::ClaudeCode, SourceClientKind::GrokBuildCli,],
-        }
-    );
-    assert_eq!(
-        decide_periodic_scan_tick(&enabled, |_| true, false),
-        PeriodicScanTick::Wait
-    );
-}
-
-#[test]
 /// 验证来源新增与主目录变更返回一致的摘要状态。
 fn summarizes_source_root_mutation_results_for_add_and_primary_path() {
     assert_eq!(
@@ -490,4 +340,51 @@ fn partial_reindex_preserves_other_root_coverage_gaps() {
     let first=extend_coverage_with_partial_scan(prior.clone(),&one);
     assert_eq!(first,prior);assert_eq!(extend_coverage_with_partial_scan(first,&one),prior);
     one.state=CoverageState::Cancelled;assert_eq!(extend_coverage_with_partial_scan(prior,&one).state,CoverageState::Cancelled);
+}
+
+/// 以默认 30 天保留与设备当地标准计算扫描策略，聚焦回看窗口规则。
+fn default_scan_policy(
+    origin: ScanStartOrigin,
+    has_current_usage: bool,
+    observed_at_epoch_ms: i64,
+) -> LocalIndexScanPolicy {
+    local_index_scan_policy_with_retention(
+        origin,
+        has_current_usage,
+        observed_at_epoch_ms,
+        crate::RetentionDays::new(30).expect("30 days is valid"),
+        crate::TimeStandard::Local,
+        &jiff::tz::TimeZone::system(),
+    )
+}
+
+#[test]
+/// 验证首次扫描覆盖近 30 日，而周期扫描只处理当天增量。
+fn scan_policy_bootstraps_thirty_days_then_limits_periodic_work_to_today() {
+    let observed_at_epoch_ms = 1_775_000_000_000;
+    let boundaries = WindowBoundaries::for_local_today(observed_at_epoch_ms);
+    let empty_periodic =
+        default_scan_policy(ScanStartOrigin::PeriodicAutomatic, false, observed_at_epoch_ms);
+    assert_eq!(empty_periodic.window, LocalIndexScanWindow::ThirtyDays);
+    assert_eq!(empty_periodic.scan_since_epoch_ms, boundaries.thirty_days);
+    let incremental =
+        default_scan_policy(ScanStartOrigin::PeriodicAutomatic, true, observed_at_epoch_ms);
+    assert_eq!(incremental.window, LocalIndexScanWindow::Today);
+    assert_eq!(incremental.scan_since_epoch_ms, boundaries.today);
+}
+
+#[test]
+/// 验证显式与初始化扫描都保留近 30 日恢复窗口。
+fn explicit_and_initial_scans_keep_the_thirty_day_recovery_window() {
+    let observed_at_epoch_ms = 1_775_000_000_000;
+    let boundaries = WindowBoundaries::for_local_today(observed_at_epoch_ms);
+    for origin in [
+        ScanStartOrigin::ExplicitUser,
+        ScanStartOrigin::InitialAutomatic,
+    ] {
+        let policy = default_scan_policy(origin, true, observed_at_epoch_ms);
+        assert_eq!(policy.window, LocalIndexScanWindow::ThirtyDays);
+        assert_eq!(policy.scan_since_epoch_ms, boundaries.thirty_days);
+    }
+    assert_eq!(LOCAL_DISCOVERY_WORKER_LIMIT, 2);
 }

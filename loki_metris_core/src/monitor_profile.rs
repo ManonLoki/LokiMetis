@@ -15,7 +15,7 @@ pub const MIN_PROFILE_SLOT: u8 = 1;
 /// 展示位闭区间最大值（最多 12 槽）。
 pub const MAX_PROFILE_SLOT: u8 = 12;
 
-/// 前端控件使用的闭区间能力。
+/// 界面控件使用的闭区间能力。
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorCapabilityRange {
@@ -80,13 +80,6 @@ impl AiProfileDraft {
         }
     }
 
-    /// 已选择图片的行为数量，仅用于完成度展示。
-    pub fn configured_behavior_count(&self) -> usize {
-        self.hooks
-            .iter()
-            .filter(|hook| !hook.image.trim().is_empty())
-            .count()
-    }
 }
 
 /// 一次读取得到的完整草稿集合。
@@ -226,13 +219,24 @@ mod tests {
                 .collect::<Vec<_>>(),
             HookBehavior::DISPLAY_BEHAVIORS
         );
-        assert_eq!(draft.configured_behavior_count(), 0);
         assert!(
             draft
                 .hooks
                 .iter()
                 .all(|hook| hook.content.is_empty() && hook.image.is_empty())
         );
+    }
+
+    /// 验证图片可为空，非空图片存在时完整草稿能够保存。
+    #[test]
+    fn validate_accepts_incomplete_images_when_ids_exist_or_empty() {
+        let draft = AiProfileDraft::default_for(AiTool::WorkBuddy);
+        validate_profile_draft(draft, &known(&[])).expect("empty images allowed");
+
+        let complete = complete_draft(AiTool::ClaudeCode);
+        let ids = known(&["img-0", "img-1", "img-2", "img-3"]);
+        let saved = validate_profile_draft(complete, &ids).expect("complete");
+        assert!(saved.hooks.iter().all(|hook| !hook.image.trim().is_empty()));
     }
 
     /// 验证合并结果按工具目录顺序补齐所有受支持 Agent。
@@ -282,16 +286,4 @@ mod tests {
         assert_eq!(unknown.code, "error.monitor.unknownImage");
     }
 
-    /// 验证图片可为空，非空图片存在时完整草稿能够保存。
-    #[test]
-    fn validate_accepts_incomplete_images_when_ids_exist_or_empty() {
-        let draft = AiProfileDraft::default_for(AiTool::WorkBuddy);
-        let saved = validate_profile_draft(draft, &known(&[])).expect("empty images allowed");
-        assert_eq!(saved.configured_behavior_count(), 0);
-
-        let complete = complete_draft(AiTool::ClaudeCode);
-        let ids = known(&["img-0", "img-1", "img-2", "img-3"]);
-        let saved = validate_profile_draft(complete, &ids).expect("complete");
-        assert_eq!(saved.configured_behavior_count(), 4);
-    }
 }

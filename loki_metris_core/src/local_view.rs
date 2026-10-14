@@ -2,9 +2,9 @@
 
 use crate::aggregate::aggregate_filtered_canonical_usage;
 use crate::{
-    CanonicalUsageSet, Confidence, CoverageReport, LocalIndexState, LocalUsageAggregate,
+    CanonicalUsageSet, CoverageReport, LocalIndexState, LocalUsageAggregate,
     LocalUsageWindow, MetricFact, MetricScope, ProviderKind, SourceClientKind, TimeStandard,
-    civil_date_for_timestamp, empty_local_usage_aggregate_for_provider,
+    civil_date_for_timestamp,
     inclusive_calendar_range, local_fact_quality, safe_root_label,
 };
 
@@ -191,48 +191,26 @@ pub fn build_local_windows_with_standard(
     })
 }
 
-/// 组装无数据且未扫描窗口的稳定空事实。
-pub fn build_empty_local_windows(
-    coverage: &CoverageReport,
-    observed_at_epoch_ms: i64,
-    provider: ProviderKind,
-    source_version: Option<&str>,
-) -> LocalRecordsSummary {
-    let index_state = LocalIndexState::NotScanned;
-    let (freshness, completeness, _) =
-        local_fact_quality(index_state, coverage.state, Confidence::Exact);
-    let empty = empty_local_usage_aggregate_for_provider(provider);
-
-    let windows = LocalUsageWindow::OVERVIEW_WINDOWS
-        .into_iter()
-        .map(|window| WindowUsage {
-            window,
-            fact: MetricFact::new(
-                empty.clone(),
-                provider,
-                MetricScope::DeviceObserved,
-                observed_at_epoch_ms,
-                freshness,
-                completeness,
-                Confidence::Derived,
-                source_version.map(ToOwned::to_owned),
-            ),
-        })
-        .collect();
-
-    LocalRecordsSummary {
-        index_state,
-        windows,
-    }
-}
-
-/// 将来源根输入与 canonical 映射为可展示摘要。
-pub fn build_source_roots(
+/// 测试对照实现：从完整 canonical 调用集合计数后组装来源根摘要。
+///
+/// 生产路径只使用 [`build_indexed_source_roots`] 的有界 SQL 计数；本函数保留为
+/// 轻量摘要回归的独立真值来源，证明两条计数口径一致。
+#[cfg(test)]
+pub(crate) fn build_source_roots(
     records: &[SourceRootInput],
     canonical: &CanonicalUsageSet,
     environment_label: &'static str,
 ) -> Vec<SourceRootSummary> {
-    let call_counts_by_root = call_counts_by_root(canonical);
+    let mut call_counts_by_root = std::collections::HashMap::new();
+    for call in &canonical.calls {
+        // 同一调用在同一根内的多个来源只计一次 canonical 归属。
+        let mut counted_roots = std::collections::HashSet::new();
+        for source in &call.provenance {
+            if counted_roots.insert(source.root_id.as_str()) {
+                *call_counts_by_root.entry(source.root_id.as_str()).or_insert(0u64) += 1;
+            }
+        }
+    }
     build_source_roots_with_counts(records, &call_counts_by_root, environment_label)
 }
 
@@ -313,20 +291,6 @@ const fn indexed_discovery_method(
             SourceDiscoveryMethod::MetadataDiscovery
         }
     }
-}
-
-/// 单遍扫描规范集合，按数据根 id 统计调用数，避免每个数据根各扫一遍全量调用。
-fn call_counts_by_root(canonical: &CanonicalUsageSet) -> std::collections::HashMap<&str, u64> {
-    let mut counts = std::collections::HashMap::new();
-    for call in &canonical.calls {
-        let mut counted_roots = std::collections::HashSet::new();
-        for source in &call.provenance {
-            if counted_roots.insert(source.root_id.as_str()) {
-                *counts.entry(source.root_id.as_str()).or_insert(0u64) += 1;
-            }
-        }
-    }
-    counts
 }
 
 /// 为数据根发现方式选择不含路径的展示标签。

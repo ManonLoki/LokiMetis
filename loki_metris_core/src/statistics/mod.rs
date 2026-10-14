@@ -118,12 +118,12 @@ pub fn summarize_usage(canonical: &CanonicalUsageSet) -> Result<UsageMeasure, To
 }
 
 /// 按固定维度生成确定性 Top-N 与其余项，不接受任意字段或表达式。
-/// 步骤拆解（前端“按模型/项目/线程等维度统计”功能的核心实现）：
+/// 步骤拆解（“按模型/项目/线程等维度统计”页面的核心实现）：
 ///   1. 按 dimension 把每条调用分到一个 key（如模型名）下的桶；
 ///   2. 对每个桶调用 measure_calls 算出可加总的统计量；
 ///   3. 按总 Token 降序、调用数降序、key 字典序做稳定排序；
 ///   4. 只保留前 top_limit 组，其余全部合并成一个 “remainder”（其余项），
-///      这样前端只需要渲染有限行数，又能通过 remainder 对账总量不丢失。
+///      这样界面只需要渲染有限行数，又能通过 remainder 对账总量不丢失。
 pub fn group_usage(
     canonical: &CanonicalUsageSet,
     dimension: UsageDimension,

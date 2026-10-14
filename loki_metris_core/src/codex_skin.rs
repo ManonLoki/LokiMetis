@@ -1,4 +1,4 @@
-//! 定义多宿主换皮在 Tauri、WebView 与操作系统之外仍然成立的领域合同。
+//! 定义多宿主换皮在 GUI 框架、宿主渲染进程与操作系统之外仍然成立的领域合同。
 
 use std::collections::HashSet;
 

@@ -100,33 +100,6 @@ pub fn dashboard_selection_for_ai_tools(selected: &[AiTool]) -> (Vec<SourceClien
     (clients, workbuddy)
 }
 
-/// 合并升级前分散保存的看板与 Hooks 选择，并按公开目录规范化顺序。
-pub fn merge_public_ai_selections(
-    dashboard_clients: impl IntoIterator<Item = SourceClientKind>,
-    workbuddy_enabled: bool,
-    monitor_tools: &[AiTool],
-) -> Vec<AiTool> {
-    let dashboard = dashboard_clients
-        .into_iter()
-        .collect::<std::collections::HashSet<_>>();
-    let monitor = monitor_tools
-        .iter()
-        .copied()
-        .collect::<std::collections::HashSet<_>>();
-    PUBLIC_AI_CAPABILITIES
-        .iter()
-        .filter_map(|capability| {
-            let tool = capability.monitor_tool?;
-            let enabled_by_dashboard = match capability.dashboard_client {
-                Some(SourceClientKind::WorkBuddy) => workbuddy_enabled,
-                Some(client) => dashboard.contains(&client),
-                None => false,
-            };
-            (enabled_by_dashboard || monitor.contains(&tool)).then_some(tool)
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,16 +192,4 @@ mod tests {
         );
     }
 
-    /// 升级合并保留任一区域已开启项，同时丢弃隐藏协议并恢复固定顺序。
-    #[test]
-    fn legacy_selections_merge_without_losing_enabled_agents() {
-        assert_eq!(
-            merge_public_ai_selections(
-                [SourceClientKind::GrokBuildCli],
-                true,
-                &[AiTool::Cursor, AiTool::OpenCode],
-            ),
-            vec![AiTool::Cursor, AiTool::Grok, AiTool::WorkBuddy]
-        );
-    }
 }

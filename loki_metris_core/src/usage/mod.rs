@@ -1,7 +1,6 @@
 //! 定义 Token 字段校验、缓存读取口径和单次事实选择规则。
 
-// Serialize/Deserialize 来自 serde，是 Rust 生态最常用的序列化框架；
-// derive 后结构体可以和 JSON（前端 DTO）、SQLite（本机索引）等格式互转。
+// Serialize/Deserialize 让用量结构可以在 JSON 快照、Hook 协议与本机索引之间互转。
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -22,9 +21,8 @@ pub enum TotalTokenAccounting {
 }
 
 /// 表示一次模型调用的规范化 Token 用量。
-// #[serde(rename_all = "camelCase")]：Rust 字段名是 snake_case（如 input_tokens），
-// 但序列化成 JSON 传给前端 TypeScript 时会自动转成 camelCase（inputTokens），
-// 这样前后端各自符合自己语言的命名习惯，不需要手工映射字段名。
+// #[serde(rename_all = "camelCase")]：序列化字段名沿用历史 JSON 契约（如 inputTokens），
+// 已落盘的数据与夹具依赖这些键名，改动会破坏反序列化兼容。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenUsage {
@@ -188,7 +186,7 @@ impl TokenUsage {
 
     /// 返回缓存读取占比的基点数；输入为零时返回“不适用”。
     /// “基点”(basis point) = 万分之一，10_000 基点等于 100%；
-    /// 用整数而不是浮点数表示百分比，避免浮点精度问题，前端展示时再除以 100 转成百分数。
+    /// 用整数而不是浮点数表示百分比，避免浮点精度问题，界面展示时再除以 100 转成百分数。
     pub fn cache_read_basis_points(&self) -> Option<u16> {
         if self.input_tokens == 0 {
             return None;

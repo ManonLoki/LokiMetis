@@ -11,7 +11,6 @@ use crate::{
 mod discovery_batch;
 mod manual_source_add;
 pub mod messages;
-mod scan_gate;
 mod source_root_alias;
 mod source_root_mutation;
 mod source_visit;
@@ -23,24 +22,19 @@ pub use discovery_batch::{
 pub use manual_source_add::{
     ManualSourceAddDecision, ManualSourceInspectOutcome, decide_manual_source_add,
 };
-pub use scan_gate::{
-    PeriodicQuickScanError, PeriodicScanTick, decide_periodic_scan_tick,
-    ensure_periodic_quick_scan_allowed,
-};
+
 pub use source_root_alias::source_root_alias_from_path;
 pub use source_root_mutation::{
-    SourceRootMutationFeedback, SourceRootMutationKind, SourceRootMutationMessageCode,
-    SourceRootMutationOutcome, source_root_add_outcome, source_root_mutation_feedback,
+    SourceRootMutationKind, SourceRootMutationOutcome, source_root_add_outcome,
     source_root_primary_outcome, source_root_remove_outcome, source_root_rename_outcome,
-    source_root_set_enabled_outcome, source_root_toggle_enabled_outcome,
+    source_root_set_enabled_outcome,
 };
 pub use source_visit::{PersistedSourceQuality, SourceFileObservation, SourceVisitDecision,
     retain_ingestable_calls, source_file_needs_visit, source_file_visit_decision};
 pub use workbuddy_scan_source::{
-    WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_HOME_DIR_NAMES, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME,
-    WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyScanSource, discover_workbuddy_scan_sources,
-    list_scan_source_clients, list_workbuddy_scan_sources, workbuddy_home_from_user_home,
-    workbuddy_homes_from_user_home, workbuddy_scan_source_candidate,
+    WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME,
+    WorkbuddyScanSource, discover_workbuddy_scan_sources, workbuddy_home_from_user_home,
+    workbuddy_homes_from_user_home,
 };
 
 /// 表示扫描触发的来源类型，决定是否允许后台自动触发。
@@ -56,9 +50,6 @@ pub enum ScanStartOrigin {
 
 /// 数据源发现任务固定最多使用两个目录 I/O worker。
 pub const LOCAL_DISCOVERY_WORKER_LIMIT: usize = 2;
-
-/// 全部本机 Agent 的 Token 索引共享一个进程级执行名额。
-pub const LOCAL_INDEX_WORKER_LIMIT: usize = 1;
 
 /// 表示一次 Token 索引允许回看的本地自然日范围。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,22 +71,6 @@ pub struct LocalIndexScanPolicy {
     pub retention_since_epoch_ms: i64,
     /// 本轮采用的业务窗口。
     pub window: LocalIndexScanWindow,
-}
-
-/// 根据触发来源和当前 generation 是否已有派生用量决定本轮索引窗口。
-pub fn local_index_scan_policy(
-    origin: ScanStartOrigin,
-    has_current_usage: bool,
-    observed_at_epoch_ms: i64,
-) -> LocalIndexScanPolicy {
-    local_index_scan_policy_with_retention(
-        origin,
-        has_current_usage,
-        observed_at_epoch_ms,
-        RetentionDays::new(30).unwrap_or_default(),
-        TimeStandard::Local,
-        &jiff::tz::TimeZone::system(),
-    )
 }
 
 /// 扫描回看窗口仍按既有 1/30 日规则，派生保留下界改用已保存天数与时间标准。
@@ -137,43 +112,6 @@ pub enum ScanKind {
     Quick,
     /// 全设备发现扫描，耗时长，不允许后台自动触发。
     FullDevice,
-}
-
-/// 表示扫描触发门禁拒绝原因。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-pub enum ScanStartAccessError {
-    /// 初始化未完成前只能允许用户主动触发。
-    #[error("initialization has not completed")]
-    InitializationRequired,
-    /// 后台触发仅允许有界快速扫描。
-    #[error("automatic scans only support quick mode")]
-    AutomaticScansMustBeQuick,
-}
-
-/// 对扫描启动进行来源/初始化/模式统一校验。
-pub fn ensure_scan_start_allowed(
-    origin: ScanStartOrigin,
-    initialization_completed: bool,
-    kind: ScanKind,
-) -> Result<(), ScanStartAccessError> {
-    if matches!(origin, ScanStartOrigin::ExplicitUser) {
-        return Ok(());
-    }
-    if !initialization_completed {
-        return Err(ScanStartAccessError::InitializationRequired);
-    }
-    if kind != ScanKind::Quick {
-        return Err(ScanStartAccessError::AutomaticScansMustBeQuick);
-    }
-    Ok(())
-}
-
-/// 返回扫描启动门禁拒绝后的用户提示文案。
-pub const fn scan_start_access_error_message(error: ScanStartAccessError) -> &'static str {
-    match error {
-        ScanStartAccessError::InitializationRequired => "请先完成初始化向导。",
-        ScanStartAccessError::AutomaticScansMustBeQuick => "后台扫描只允许有界快速扫描。",
-    }
 }
 
 /// 表示源根来源类型，用于稳定的标识前缀校验。

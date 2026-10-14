@@ -32,13 +32,6 @@ pub struct UsageCallRow {
     pub(crate) root_ids: Vec<String>,
 }
 
-/// 当行组装逻辑发生异常时的占位错误类型，当前调用路径不会返回该错误。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BuildUsageCallRowsError {
-    /// 未预期的输入不变更。
-    UnsupportedInput,
-}
-
 /// 把一个 canonical 调用转换为只含业务展示字段的内部行。
 pub fn build_rows(calls: &[UsageCall]) -> Vec<UsageCallRow> {
     calls.iter().cloned().map(UsageCallRow::from_call).collect()

@@ -273,7 +273,7 @@ pub(super) trait HookProtocol: Sync {
     }
 
     /// 配置实际变化后需要执行的激活流程。工具专属流程必须在协议内唯一声明，
-    /// application 与前端不得再根据 `AiTool` 组合布尔值或推断指引。
+    /// application 与 GUI 不得再根据 `AiTool` 组合布尔值或推断指引。
     fn changed_write_outcome(&self) -> HookWriteOutcome {
         // 默认写入后立即生效，无需重启或额外操作
         HookWriteOutcome::Active

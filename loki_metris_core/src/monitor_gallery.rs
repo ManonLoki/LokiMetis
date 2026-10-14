@@ -61,33 +61,6 @@ impl ImageFormat {
     }
 }
 
-/// 前端文件选择器使用的 MIME 与扩展名清单。
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct ImageUploadAccept {
-    /// 允许的 MIME 类型。
-    pub mime_types: Vec<String>,
-    /// 允许的文件扩展名（含点）。
-    pub extensions: Vec<String>,
-}
-
-/// 上传 accept 与格式识别共用的固定清单，只含本机可持久化的三种格式。
-pub fn image_upload_accept() -> ImageUploadAccept {
-    ImageUploadAccept {
-        mime_types: vec![
-            "image/jpeg".to_owned(),
-            "image/png".to_owned(),
-            "image/gif".to_owned(),
-        ],
-        extensions: vec![
-            ".jpg".to_owned(),
-            ".jpeg".to_owned(),
-            ".png".to_owned(),
-            ".gif".to_owned(),
-        ],
-    }
-}
-
 /// 原生图库的已识别元数据；原始字节由宿主独立持有，不生成展示用编码字符串。
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -98,20 +71,6 @@ pub struct MonitorImageMetadata {
     pub filename: String,
     /// 由字节魔数判定的格式。
     pub format: ImageFormat,
-}
-
-/// 一张已识别的本机图库条目，含预览 data URL。
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorImagePreview {
-    /// 稳定 ID。
-    pub id: String,
-    /// 原始文件名。
-    pub filename: String,
-    /// 由字节魔数判定的格式。
-    pub format: ImageFormat,
-    /// CSP 允许的 `data:` 预览。
-    pub image: String,
 }
 
 /// 按格式统计的图库数量。
@@ -135,16 +94,6 @@ impl MonitorImageCounts {
             gif: 0,
         }
     }
-}
-
-/// 本机图库快照：预览列表与格式计数。
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorImageGallery {
-    /// 预览条目，顺序与调用方提供的一致。
-    pub images: Vec<MonitorImagePreview>,
-    /// JPEG/PNG/GIF 计数。
-    pub counts: MonitorImageCounts,
 }
 
 /// 原生图库快照只有条目元数据和格式计数，不承担图片编码或解码。
@@ -183,34 +132,6 @@ pub fn metadata_from_bytes(
         return Err(HookError::new("error.monitor.imageUnsupportedType"));
     };
     Ok(MonitorImageMetadata { id: id.into(), filename: filename.into(), format })
-}
-
-/// 把已识别条目组装为图库快照；空输入得到空库与零计数。
-pub fn assemble_image_gallery(images: Vec<MonitorImagePreview>) -> MonitorImageGallery {
-    let mut counts = MonitorImageCounts::empty();
-    for item in &images {
-        match item.format {
-            ImageFormat::Jpeg => counts.jpeg += 1,
-            ImageFormat::Png => counts.png += 1,
-            ImageFormat::Gif => counts.gif += 1,
-        }
-    }
-    MonitorImageGallery { images, counts }
-}
-
-/// 用魔数识别格式并生成预览；空字节或非法格式失败。
-pub fn preview_from_bytes(
-    id: impl Into<String>,
-    filename: impl Into<String>,
-    bytes: &[u8],
-) -> Result<MonitorImagePreview, HookError> {
-    let metadata = metadata_from_bytes(id, filename, bytes)?;
-    Ok(MonitorImagePreview {
-        id: metadata.id,
-        filename: metadata.filename,
-        format: metadata.format,
-        image: image_data_url(metadata.format, bytes),
-    })
 }
 
 /// 生成 CSP 允许的 data URL。
@@ -261,58 +182,48 @@ mod native_metadata_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::{ImageFormat, assemble_image_gallery, image_upload_accept, preview_from_bytes};
+    use super::{ImageFormat, assemble_image_catalog, image_data_url, metadata_from_bytes};
 
     const JPEG: &[u8] = &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
     const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
     const GIF: &[u8] = b"GIF89a\x01\x00";
     const WEBP: &[u8] = b"RIFF....WEBP";
 
-    /// 验证三种受支持格式均能被计数并生成匹配 MIME 的预览。
+    /// 验证三种受支持格式按魔数识别、计入目录，并生成匹配 MIME 的 data URL。
     #[test]
-    fn gallery_counts_jpeg_png_gif_and_encodes_preview() {
-        let jpeg = preview_from_bytes("j1", "a.jpg", JPEG).expect("jpeg");
-        let png = preview_from_bytes("p1", "b.png", PNG).expect("png");
-        let gif = preview_from_bytes("g1", "c.gif", GIF).expect("gif");
+    fn catalog_counts_jpeg_png_gif_and_data_url_uses_mime() {
+        let jpeg = metadata_from_bytes("j1", "a.jpg", JPEG).expect("jpeg");
+        let png = metadata_from_bytes("p1", "b.png", PNG).expect("png");
+        let gif = metadata_from_bytes("g1", "c.gif", GIF).expect("gif");
         assert_eq!(jpeg.format, ImageFormat::Jpeg);
         assert_eq!(png.format, ImageFormat::Png);
         assert_eq!(gif.format, ImageFormat::Gif);
-        assert!(jpeg.image.starts_with("data:image/jpeg;base64,"));
-        assert!(png.image.starts_with("data:image/png;base64,"));
-        assert!(gif.image.starts_with("data:image/gif;base64,"));
-        let gallery = assemble_image_gallery(vec![jpeg, png, gif]);
-        assert_eq!(gallery.counts.jpeg, 1);
-        assert_eq!(gallery.counts.png, 1);
-        assert_eq!(gallery.counts.gif, 1);
-        assert_eq!(gallery.images.len(), 3);
+        assert!(image_data_url(jpeg.format, JPEG).starts_with("data:image/jpeg;base64,"));
+        assert!(image_data_url(png.format, PNG).starts_with("data:image/png;base64,"));
+        assert!(image_data_url(gif.format, GIF).starts_with("data:image/gif;base64,"));
+        let catalog = assemble_image_catalog(vec![jpeg, png, gif]);
+        assert_eq!(catalog.counts.jpeg, 1);
+        assert_eq!(catalog.counts.png, 1);
+        assert_eq!(catalog.counts.gif, 1);
+        assert_eq!(catalog.images.len(), 3);
     }
 
-    /// 验证空输入生成无条目且各格式计数均为零的图库。
+    /// 验证空输入生成无条目且各格式计数均为零的目录。
     #[test]
-    fn empty_gallery_has_zero_counts() {
-        let gallery = assemble_image_gallery(Vec::new());
-        assert!(gallery.images.is_empty());
-        assert_eq!(gallery.counts.jpeg, 0);
-        assert_eq!(gallery.counts.png, 0);
-        assert_eq!(gallery.counts.gif, 0);
+    fn empty_catalog_has_zero_counts() {
+        let catalog = assemble_image_catalog(Vec::new());
+        assert!(catalog.images.is_empty());
+        assert_eq!(catalog.counts.jpeg, 0);
+        assert_eq!(catalog.counts.png, 0);
+        assert_eq!(catalog.counts.gif, 0);
     }
 
     /// 验证空字节和不受支持的文件魔数会返回各自的稳定错误。
     #[test]
     fn illegal_format_and_empty_bytes_are_rejected() {
-        let unsupported = preview_from_bytes("w1", "x.webp", WEBP).expect_err("webp");
+        let unsupported = metadata_from_bytes("w1", "x.webp", WEBP).expect_err("webp");
         assert_eq!(unsupported.code, "error.monitor.imageUnsupportedType");
-        let empty = preview_from_bytes("e1", "empty.png", &[]).expect_err("empty");
+        let empty = metadata_from_bytes("e1", "empty.png", &[]).expect_err("empty");
         assert_eq!(empty.code, "error.monitor.imageEmpty");
-    }
-
-    /// 验证上传清单只公开 JPEG、PNG 与 GIF 的 MIME 和扩展名。
-    #[test]
-    fn upload_accept_lists_only_jpeg_png_gif() {
-        let accept = image_upload_accept();
-        assert_eq!(accept.mime_types, ["image/jpeg", "image/png", "image/gif"]);
-        assert_eq!(accept.extensions, [".jpg", ".jpeg", ".png", ".gif"]);
-        assert!(!accept.mime_types.iter().any(|item| item.contains("webp")));
-        assert!(!accept.extensions.iter().any(|item| item == ".bmp"));
     }
 }

@@ -196,54 +196,6 @@ pub struct PetOverlayPage {
     pub slots: Vec<PetOverlaySlot>,
 }
 
-/// 桌宠悬浮窗的宿主无关规格。
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PetOverlayWindowSpec {
-    /// 原生窗口标签。
-    pub label: &'static str,
-    /// 是否绘制系统标题栏。
-    pub decorations: bool,
-    /// 是否透明背景。
-    pub transparent: bool,
-    /// 是否默认始终置顶。
-    pub always_on_top: bool,
-    /// 是否从任务栏/Dock 隐藏独立入口。
-    pub skip_taskbar: bool,
-    /// 是否允许用户调整窗口大小。
-    pub resizable: bool,
-    /// 打开时是否隐藏主窗口。
-    pub hide_main_window: bool,
-    /// 打开或关闭时是否停止 Hook listener。
-    pub stop_hook_listener: bool,
-    /// 默认布局。
-    pub default_layout: PetLayout,
-    /// 默认单元格逻辑边长。
-    pub default_cell_size: f64,
-    /// 单元格最小逻辑边长。
-    pub min_cell_size: f64,
-    /// 默认逻辑宽度。
-    pub default_width: f64,
-    /// 默认逻辑高度。
-    pub default_height: f64,
-}
-
-/// 已交付的桌宠悬浮窗规格：默认两行两列、每格 64，透明无边框且允许缩放。
-pub const PET_OVERLAY_WINDOW_SPEC: PetOverlayWindowSpec = PetOverlayWindowSpec {
-    label: "pet",
-    decorations: false,
-    transparent: true,
-    always_on_top: true,
-    skip_taskbar: true,
-    resizable: true,
-    hide_main_window: false,
-    stop_hook_listener: false,
-    default_layout: PetLayout::Grid,
-    default_cell_size: 64.0,
-    min_cell_size: 64.0,
-    default_width: 128.0,
-    default_height: 128.0,
-};
-
 /// 从已保存展示草稿和最近迁移投影十二个纯位置；没有行为时不回退空闲图。
 pub fn project_pet_overlay_from_drafts(
     drafts: &[AiProfileDraft],
@@ -340,11 +292,6 @@ fn tile_for_position(
             .filter(|image| !image.is_empty())
             .map(str::to_owned),
     })
-}
-
-/// 返回已交付的悬浮窗规格。
-pub fn pet_overlay_window_spec() -> PetOverlayWindowSpec {
-    PET_OVERLAY_WINDOW_SPEC
 }
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，

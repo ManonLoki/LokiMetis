@@ -39,10 +39,6 @@ impl LocalUsageWindow {
         Self::LastMonth,
     ];
 
-    /// 用量统计页缺省窗口；旧设置缺该字段时使用，与概览默认当天不同。
-    pub const fn default_usage_query() -> Self {
-        Self::ThisWeek
-    }
 }
 
 /// 本机自然日窗口所需的 UTC 毫秒边界。
@@ -126,19 +122,6 @@ pub enum TimelineError {
 /// 选择划分民用日时使用的时区：当地时间用设备时区，UTC 模式固定 UTC。
 fn zone_for_standard(standard: &TimeStandard, device_tz: &TimeZone) -> TimeZone {
     standard.viewing_time_zone(device_tz)
-}
-
-/// 从窗口与当前观测时刻生成持续窗口的自然日序列。
-pub fn local_dates_for_window(
-    window: LocalUsageWindow,
-    observed_at_epoch_ms: i64,
-) -> Result<Vec<Date>, TimelineError> {
-    dates_for_window(
-        window,
-        observed_at_epoch_ms,
-        &TimeStandard::Local,
-        &TimeZone::system(),
-    )
 }
 
 /// 按时间标准生成窗口内从最旧到最新的民用日序列。
@@ -285,38 +268,6 @@ pub fn dates_for_day_count(
     dates_from(first, day_count)
 }
 
-/// 判断一次调用是否属于指定本机窗口：只比较系统本地民用日期，忽略时刻。
-pub fn belongs_to_local_window(
-    occurred_at_epoch_ms: i64,
-    window: LocalUsageWindow,
-    observed_at_epoch_ms: i64,
-) -> Result<bool, TimelineError> {
-    belongs_to_window(
-        occurred_at_epoch_ms,
-        window,
-        observed_at_epoch_ms,
-        &TimeStandard::Local,
-        &TimeZone::system(),
-    )
-}
-
-/// 判断一次调用是否属于指定窗口：只比较所选标准下的民用日期。
-pub fn belongs_to_window(
-    occurred_at_epoch_ms: i64,
-    window: LocalUsageWindow,
-    observed_at_epoch_ms: i64,
-    standard: &TimeStandard,
-    device_tz: &TimeZone,
-) -> Result<bool, TimelineError> {
-    let dates = dates_for_window(window, observed_at_epoch_ms, standard, device_tz)?;
-    Ok(occurred_on_dates(
-        occurred_at_epoch_ms,
-        &dates,
-        standard,
-        device_tz,
-    ))
-}
-
 /// 判断发生时刻在所选标准下的民用日是否落在给定日期集合内。
 pub fn occurred_on_dates(
     occurred_at_epoch_ms: i64,
@@ -364,15 +315,6 @@ pub fn civil_date_for_timestamp(
             .to_zoned(zone_for_standard(standard, device_tz))
             .date()
     })
-}
-
-/// 返回观测时刻之后下一设备当地自然日的首个可表示瞬间。
-pub fn next_local_day_start_epoch_ms(observed_at_epoch_ms: i64) -> Option<i64> {
-    next_day_start_epoch_ms(
-        observed_at_epoch_ms,
-        &TimeStandard::Local,
-        &TimeZone::system(),
-    )
 }
 
 /// 按所选时间标准返回观测时刻之后下一民用日的首个可表示瞬间。

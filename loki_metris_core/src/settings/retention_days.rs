@@ -38,14 +38,6 @@ impl Default for RetentionDays {
     }
 }
 
-/// 缺字段视为默认 90 天；出现越界值则拒绝，避免坏值被默认吞掉。
-pub fn resolve_retention_days(days: Option<u16>) -> Result<RetentionDays, RetentionDaysError> {
-    match days {
-        None => Ok(RetentionDays::default()),
-        Some(days) => RetentionDays::new(days),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,8 +49,6 @@ mod tests {
         assert_eq!(DEFAULT_RETENTION_DAYS, 90);
         assert_eq!(RetentionDays::new(1).unwrap().get(), 1);
         assert_eq!(RetentionDays::new(3_650).unwrap().get(), 3_650);
-        assert_eq!(resolve_retention_days(None).unwrap().get(), 90);
-        assert_eq!(resolve_retention_days(Some(120)).unwrap().get(), 120);
     }
 
     /// 0 与超过上限都必须拒绝。
@@ -66,7 +56,5 @@ mod tests {
     fn rejects_out_of_range_days() {
         assert_eq!(RetentionDays::new(0), Err(RetentionDaysError));
         assert_eq!(RetentionDays::new(3_651), Err(RetentionDaysError));
-        assert_eq!(resolve_retention_days(Some(0)), Err(RetentionDaysError));
-        assert_eq!(resolve_retention_days(Some(3_651)), Err(RetentionDaysError));
     }
 }

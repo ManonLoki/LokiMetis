@@ -18,27 +18,6 @@ pub fn filter_canonical_usage(
     build_canonical_subset(canonical, calls)
 }
 
-/// 单次遍历按 `classify` 把 canonical 调用分派进两个互斥子集，供同一调用集需要
-/// 两个不相交切片时使用，避免各自重新扫描一遍全量调用。
-pub fn partition_canonical_usage_two(
-    canonical: &CanonicalUsageSet,
-    mut classify: impl FnMut(&UsageCall) -> Option<bool>,
-) -> (CanonicalUsageSet, CanonicalUsageSet) {
-    let mut first = Vec::new();
-    let mut second = Vec::new();
-    for call in &canonical.calls {
-        match classify(call) {
-            Some(true) => first.push(call.clone()),
-            Some(false) => second.push(call.clone()),
-            None => {}
-        }
-    }
-    (
-        build_canonical_subset(canonical, first),
-        build_canonical_subset(canonical, second),
-    )
-}
-
 /// 用已选定的调用子集重建同步裁剪过重复计数、告警与空值形状归属的 canonical 集合。
 fn build_canonical_subset(
     canonical: &CanonicalUsageSet,

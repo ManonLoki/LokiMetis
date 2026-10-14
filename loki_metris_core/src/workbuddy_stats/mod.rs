@@ -27,11 +27,6 @@ pub use windows::{
     mark_workbuddy_unavailable_in_local_windows, merge_workbuddy_into_local_windows,
 };
 
-/// 「全部」保留其他 Agent、但 WorkBuddy 当次不可读时的稳定降级说明。
-pub const fn workbuddy_combined_usage_unavailable_message() -> &'static str {
-    "WorkBuddy 本机用量暂时无法读取；当前“全部”仅展示其他已开启 Agent，覆盖标记为不完整，请重试。"
-}
-
 /// Trace 整体状态；只作为独立健康诊断，不参与 Token 或模型统计。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

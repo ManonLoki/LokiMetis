@@ -1,59 +1,14 @@
 //! 与 GUI 及未来 CLI/MCP 共享的客户端能力端口定义。
 //! 该模块不依赖任意 UI 框架、文件系统路径语义、进程管理或协议细节。
 
-use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
-    CoverageReport, ScanKind, ScanStartOrigin, SourceClientKind, SourceRootReindexRequest,
+    CoverageReport, ScanKind, SourceClientKind,
     SourceRootSummary,
 };
-
-/// 本机扫描能力的 object-safe async 返回值别名。
-pub type LocalScanFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-
-/// 固定客户端槽位的轻量 registry，避免基于 HashMap 的缺失路径风险。
-pub struct AgentClientRegistry<T> {
-    codex: T,
-    claude_code: T,
-    grok_build_cli: T,
-}
-
-impl<T> AgentClientRegistry<T> {
-    /// 构造完整槽位 registry。
-    pub const fn new(codex: T, claude_code: T, grok_build_cli: T) -> Self {
-        Self {
-            codex,
-            claude_code,
-            grok_build_cli,
-        }
-    }
-
-    /// 按强类型客户端返回对应插槽；WorkBuddy 不是物理扫描客户端，不占用槽位，
-    /// 调用方必须先经 `AgentClientKindDto` 过滤，不应把它传入本 registry。
-    pub const fn get(&self, client: SourceClientKind) -> &T {
-        match client {
-            SourceClientKind::Codex => &self.codex,
-            SourceClientKind::ClaudeCode => &self.claude_code,
-            SourceClientKind::GrokBuildCli => &self.grok_build_cli,
-            SourceClientKind::WorkBuddy => unreachable!(),
-        }
-    }
-
-    /// 返回可变槽位，供装配阶段替换或测试注入使用；跨 crate 可见，
-    /// 因为 `#[cfg(test)]` 门禁不会在依赖此 crate 的下游 crate 测试中生效。
-    pub fn get_mut(&mut self, client: SourceClientKind) -> &mut T {
-        match client {
-            SourceClientKind::Codex => &mut self.codex,
-            SourceClientKind::ClaudeCode => &mut self.claude_code,
-            SourceClientKind::GrokBuildCli => &mut self.grok_build_cli,
-            SourceClientKind::WorkBuddy => unreachable!(),
-        }
-    }
-}
 
 /// 每个本机 Agent 用量索引的固定文件名；不同 Agent 不得共用同一文件。
 pub const USAGE_INDEX_FILE_NAME: &str = "usage-index.sqlite3";
@@ -150,28 +105,6 @@ pub struct LocalScanOutput {
     pub coverage: CoverageReport,
     /// 用于回写来源快照的去标识根摘要。
     pub roots: Vec<SourceRootSummary>,
-}
-
-/// 定义无副作用索引 adapter 的扫描能力；实现必须在 async 任务内直接
-/// `.await` LocalIndex，不得在生产路径调用 `block_on`。
-pub trait LocalUsageScanner: Send + Sync {
-    /// 异步执行扫描；进度回调须为 `Send`，以便跨 await 边界持有。
-    fn execute(
-        &self,
-        kind: ScanKind,
-        origin: ScanStartOrigin,
-        cancellation: ScanCancellation,
-        on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
-    ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>>;
-
-    /// 异步重建一个已校验数据根；实现不得先清除旧 generation，只有完整
-    /// 解析成功后才能原子切换到新 generation。
-    fn reindex_source_root(
-        &self,
-        request: SourceRootReindexRequest,
-        cancellation: ScanCancellation,
-        on_progress: Box<dyn FnMut(LocalScanProgress) + Send>,
-    ) -> LocalScanFuture<'_, Result<LocalScanOutput, String>>;
 }
 
 #[cfg(test)]

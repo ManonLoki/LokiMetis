@@ -26,25 +26,6 @@ impl ScanIntervalMinutes {
     }
 }
 
-/// 把当前字段与旧本机字段折叠为单一扫描间隔。
-///
-/// 选择顺序：新 `scan` 字段优先，其次是旧本机字段；都缺失则默认 5。
-/// 任一出现的字段越界都会失败，避免坏值被默认值吞掉。
-pub fn resolve_scan_interval_minutes(
-    scan: Option<u16>,
-    local: Option<u16>,
-) -> Result<ScanIntervalMinutes, ScanIntervalError> {
-    for minutes in [scan, local].into_iter().flatten() {
-        ScanIntervalMinutes::new(minutes)?;
-    }
-    let chosen = match (scan, local) {
-        (Some(minutes), _) => minutes,
-        (None, Some(minutes)) => minutes,
-        (None, None) => return Ok(ScanIntervalMinutes::default()),
-    };
-    ScanIntervalMinutes::new(chosen)
-}
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -73,32 +54,4 @@ mod tests {
         assert_eq!(ScanIntervalMinutes::new(1_441), Err(ScanIntervalError));
     }
 
-    /// 验证折叠优先使用新字段，缺失时才看旧本机字段。
-    #[test]
-    fn prefers_explicit_scan_field_over_legacy_local_field() {
-        assert_eq!(
-            resolve_scan_interval_minutes(Some(9), Some(3))
-                .unwrap()
-                .get(),
-            9
-        );
-        assert_eq!(
-            resolve_scan_interval_minutes(None, Some(3)).unwrap().get(),
-            3
-        );
-        assert_eq!(resolve_scan_interval_minutes(None, None).unwrap().get(), 5);
-    }
-
-    /// 验证任一出现的越界字段都会拒绝，不能回退成默认 5。
-    #[test]
-    fn rejects_out_of_range_legacy_or_scan_fields() {
-        assert_eq!(
-            resolve_scan_interval_minutes(Some(0), None),
-            Err(ScanIntervalError)
-        );
-        assert_eq!(
-            resolve_scan_interval_minutes(None, Some(1_441)),
-            Err(ScanIntervalError)
-        );
-    }
 }
