@@ -46,6 +46,8 @@ use self::error::AppError;
 include!("constants.rs");
 include!("model.rs");
 include!("manifests.rs");
+include!("manifests_runtime_types.rs");
+include!("runtime_owners.rs");
 include!("handler_task_owner.rs");
 include!("service_state.rs");
 
@@ -61,6 +63,8 @@ include!("validation.rs");
 #[cfg(test)]
 include!("test_seams.rs");
 include!("conversion.rs");
+include!("archive_export.rs");
+include!("archive_import.rs");
 include!("file_manager.rs");
 include!("payload.rs");
 include!("isolation.rs");

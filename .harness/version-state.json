@@ -51,7 +51,10 @@
     "LMWIN-PET-CLAMPED-RESIZE-AXIS-001",
     "LMMAC-DOCK-ACCESSORY-001",
     "LMMAC-AUTOSTART-HIDDEN-001",
-    "LMMAC-NOTIFICATION-AUTHORIZATION-001"
+    "LMMAC-NOTIFICATION-AUTHORIZATION-001",
+    "LMDESK-CALLS-INCREMENTAL-WIDTHS-001",
+    "LMDESK-ANALYTICS-PAGE-CACHE-001",
+    "LMDESK-SKIN-WATCHER-HANDLE-REAP-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.2.52",
@@ -60,7 +63,23 @@
     "source_commit": "7d769ff67fe3481ade563f6ef4ffa05ab779dd3d",
     "version": "0.2.52"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-CALLS-INCREMENTAL-WIDTHS-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.53"
+    },
+    {
+      "change_id": "LMDESK-ANALYTICS-PAGE-CACHE-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.54"
+    },
+    {
+      "change_id": "LMDESK-SKIN-WATCHER-HANDLE-REAP-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.55"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.2.52"
+  "target_version": "0.2.55"
 }
