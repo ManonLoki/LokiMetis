@@ -16,4 +16,3 @@ pub use scan_interval::{
     DEFAULT_SCAN_INTERVAL_MINUTES, MAX_SCAN_INTERVAL_MINUTES, MIN_SCAN_INTERVAL_MINUTES,
     ScanIntervalError, ScanIntervalMinutes,
 };
-

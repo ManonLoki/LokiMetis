@@ -291,7 +291,7 @@ async fn wait_for_hook_listener_task(
     task: &mut OwnedHookListenerTask,
     deadline: tokio::time::Instant,
 ) -> Option<Result<(), tokio::task::JoinError>> {
-    
+
     if task.handle.is_finished() {
         Some((&mut task.handle).await)
     } else {

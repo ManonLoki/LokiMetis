@@ -76,7 +76,7 @@ pub(super) async fn run_listener(
         current.bind_address = bind_address;
     }
     let connection_slots = Arc::new(Semaphore::new(HOOK_CONNECTION_TASK_LIMIT));
-    
+
     run_connection_loop(
         listener,
         Arc::clone(&status),

@@ -445,7 +445,7 @@ async fn wait_for_owned_task(
     task: &mut OwnedBackgroundTask,
     deadline: tokio::time::Instant,
 ) -> Option<Result<(),tokio::task::JoinError>> {
-    
+
     if task.handle.is_finished() {
         Some((&mut task.handle).await)
     } else {
