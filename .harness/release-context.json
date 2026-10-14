@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "c61f15d0fbc317a5830041cbfdd82509a549e080",
+  "sourceHead": "45ec233493e77217cbfd0c80f2a0bef679642a3e",
   "version": "0.2.52",
   "releaseDate": "2026-10-14",
   "expectedTag": "v0.2.52-20261014",
@@ -9,9 +9,9 @@
     "selection": "enabled",
     "status": "passed",
     "scopeBase": "3ff70c6160a9059fa83a582f0fd7b3559a471f09",
-    "sourceHead": "c61f15d0fbc317a5830041cbfdd82509a549e080",
-    "scopeDiffSha256": "8b561cab04571ff23b0590dd0a08491ed8491cbd915c0aa5fb3e8f0bfb6cd2c8",
-    "reviewedSourceCommit": "c61f15d0fbc317a5830041cbfdd82509a549e080",
+    "sourceHead": "45ec233493e77217cbfd0c80f2a0bef679642a3e",
+    "scopeDiffSha256": "db6045ee447edeba11788f9b194631865e319ec8be78c1e89001fc35f681d266",
+    "reviewedSourceCommit": "45ec233493e77217cbfd0c80f2a0bef679642a3e",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed cumulative GPUI changes since v0.2.16: behavior and existing regressions, core/adapter boundaries, native/Hook/installer contracts, cohesive module sizes and temporary markers. No source blockers found; generated architecture HTML excluded from manual size limits. Final OS behavior and candidate signing remain unverified.",
+    "evidenceSummary": "Reviewed cumulative GPUI changes since v0.2.16: behavior and regressions, core/adapter boundaries, native/Hook/installer contracts, cohesive module sizes and temporary markers. Subsequent docs and policy wording preserve the existing local_package choice. Generated architecture HTML excluded from manual size limits. No source blockers; OS behavior and candidate signing unverified.",
     "reason": null,
     "remainingRisk": null
   }
