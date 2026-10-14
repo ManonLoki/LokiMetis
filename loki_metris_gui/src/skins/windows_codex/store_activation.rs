@@ -396,5 +396,5 @@ fn store_activation_lifecycle_error(error: StoreActivationLifecycleFailure) -> A
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - store_activation_tests.rs：本模块的单元测试
-include!("store_activation_tests.rs");
+// - store_activation_call.rs：带参数的商店版 Codex 激活调用，以及本模块单元测试
+include!("store_activation_call.rs");

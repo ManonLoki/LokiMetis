@@ -56,13 +56,6 @@ pub const fn public_ai_capabilities() -> &'static [PublicAiCapability] {
     &PUBLIC_AI_CAPABILITIES
 }
 
-/// 按公开目录顺序返回看板能够识别的数据源，无法映射的类型被忽略。
-pub fn public_dashboard_clients() -> impl Iterator<Item = SourceClientKind> {
-    PUBLIC_AI_CAPABILITIES
-        .iter()
-        .filter_map(|capability| capability.dashboard_client)
-}
-
 /// 按公开目录顺序返回监控能够识别的 Hook 工具，无法映射的类型被忽略。
 pub fn public_monitor_ai_tools() -> impl Iterator<Item = AiTool> {
     PUBLIC_AI_CAPABILITIES
@@ -148,7 +141,7 @@ mod tests {
     #[test]
     fn surface_mappings_filter_unmatched_and_hidden_tools() {
         assert_eq!(
-            public_dashboard_clients().collect::<Vec<_>>(),
+            public_ai_capabilities().iter().filter_map(|capability| capability.dashboard_client).collect::<Vec<_>>(),
             vec![
                 SourceClientKind::Codex,
                 SourceClientKind::ClaudeCode,

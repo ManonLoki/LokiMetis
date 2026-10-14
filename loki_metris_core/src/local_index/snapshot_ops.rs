@@ -2,17 +2,17 @@
 
 use sea_orm::{ConnectionTrait, DbBackend, Statement, TransactionTrait};
 
-use crate::{
-    CanonicalUsageSet, LocalIndexState, LocalUsageAggregate, ProviderKind,
-    aggregate_canonical_usage,
-};
+use crate::{CanonicalUsageSet, LocalIndexState, LocalUsageAggregate, aggregate_canonical_usage};
+#[cfg(any(test, feature = "test-support"))]
+use crate::ProviderKind;
 
-use super::call_store::{from_sql_u64, to_sql_u64};
+#[cfg(any(test, feature = "test-support"))]
+use super::call_store::from_sql_u64;
+use super::call_store::to_sql_u64;
 use super::id_codec::stable_id;
-use super::snapshot::{
-    UsageSnapshot, load_canonical_calls, load_usage_snapshot, load_usage_snapshot_since,
-    load_usage_view_snapshot_since,
-};
+use super::snapshot::{UsageSnapshot, load_canonical_calls, load_usage_view_snapshot_since};
+#[cfg(any(test, feature = "test-support"))]
+use super::snapshot::{load_usage_snapshot, load_usage_snapshot_since};
 use super::{LocalError, LocalErrorKind, LocalIndex};
 
 /// 为快照维护操作构造带绑定值的 SQLite 语句。
@@ -21,6 +21,7 @@ fn statement(sql: &str, values: Vec<sea_orm::Value>) -> Statement {
 }
 
 /// 本机规范化快照在 `provider_snapshots` 中的稳定类别标签。
+#[cfg(any(test, feature = "test-support"))]
 const LOCAL_METRIC_SNAPSHOT_KIND: &str = "local_metric";
 
 impl LocalIndex {
@@ -101,6 +102,7 @@ impl LocalIndex {
 
     /// 返回当前缓存的规范化 provider 快照数量；供 adapter 诊断与测试观察
     /// 主根切换、停用等操作是否正确使旧快照失效。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn provider_snapshot_count(&self) -> Result<u64, LocalError> {
         let row = self
             .connection
@@ -113,11 +115,13 @@ impl LocalIndex {
     }
 
     /// 在一个只读快照事务中取得统计所需调用与根记录，不触发扫描或写入。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn usage_snapshot(&mut self) -> Result<UsageSnapshot, LocalError> {
         load_usage_snapshot(&self.connection, self.parser_version).await
     }
 
     /// 在一个事务中只装载给定时间下界后的调用，供 30 日视图读取使用。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn usage_snapshot_since(
         &mut self,
         cutoff_epoch_ms: i64,
@@ -141,6 +145,7 @@ impl LocalIndex {
     }
 
     /// 按明确本机 provider 的业务口径聚合当前 generation，供扫描摘要复用。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn aggregate_for_provider(
         &self,
         provider: ProviderKind,
@@ -153,6 +158,7 @@ impl LocalIndex {
     }
 
     /// 写入一条不含账户身份的规范化本机快照 JSON，供清理/主根切换观察表生命周期。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn save_normalized_snapshot(
         &mut self,
         observed_at_epoch_ms: i64,
@@ -174,6 +180,7 @@ impl LocalIndex {
     /// （用户登记了哪些数据根、启用状态、别名）完全不动——对应产品语义
     /// “清空索引不等于清空数据源设置”，用户下次扫描会重新从头解析原始
     /// 文件，但不需要重新登记数据根。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn clear_index(&mut self) -> Result<(), LocalError> {
         let transaction = self.connection.begin().await?;
         transaction
@@ -262,6 +269,7 @@ impl LocalIndex {
     }
 
     /// 用固定类别主键覆盖最近规范化快照。
+    #[cfg(any(test, feature = "test-support"))]
     async fn save_provider_snapshot(
         &mut self,
         snapshot_kind: &str,

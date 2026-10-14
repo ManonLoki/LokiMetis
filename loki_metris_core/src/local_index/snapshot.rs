@@ -43,6 +43,7 @@ impl UsageSnapshot {
 
 /// 在一个事务中读取调用与根记录，读取完成后只提交事务边界；所有查询共享
 /// 同一数据库快照，避免并发写入让调用记录和数据根信息互相矛盾。
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) async fn load_usage_snapshot(
     connection: &sea_orm::DatabaseConnection,
     parser_version: u32,
@@ -63,6 +64,7 @@ pub(crate) async fn load_usage_snapshot(
 }
 
 /// 只读取给定发生时间下界后的 canonical 调用，根和索引状态仍来自同一事务。
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) async fn load_usage_snapshot_since(
     connection: &sea_orm::DatabaseConnection,
     parser_version: u32,

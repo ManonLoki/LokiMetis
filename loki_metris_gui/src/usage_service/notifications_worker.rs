@@ -1,5 +1,5 @@
 // 本文件是 notifications.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：本模块的单元测试
+// 与主文件共用作用域，因此无需额外导入。收纳内容：账本持久化、发送意图发布与通知 worker 主循环，以及本模块单元测试
 
 /// 文件事务在 blocking 岛执行，返回原 owner；失败时不提交候选状态。
 async fn persist(mut ledger: Ledger, next: MilestoneState) -> (Ledger, Result<bool, &'static str>) {

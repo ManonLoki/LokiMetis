@@ -1,5 +1,5 @@
 // 本文件是 process_reaper.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：本模块的单元测试
+// 与主文件共用作用域，因此无需额外导入。收纳内容：退出等待、保留进程回收与 reaper 关闭流程，以及本模块单元测试
 
 /// 等待进程级 shutdown；发送端意外消失也按关闭处理。
 pub(super) async fn wait_for_process_shutdown(receiver: &mut watch::Receiver<bool>) {

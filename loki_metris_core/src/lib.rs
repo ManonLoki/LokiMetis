@@ -56,13 +56,15 @@ pub mod usage_milestones;
 pub use today_usage::{UsageDay, TodayAvailability, TodayUsageSnapshot, TodayUsageDisplay, project_today_usage_display};
 mod workbuddy_stats;
 
+#[cfg(any(test, feature = "test-support"))]
+pub use agent_hooks::ai_tool_descriptors;
 pub use agent_hooks::{
     AiTool, AiToolDescriptor, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
     HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
     HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigDirectories, HookConfigLocation,
     HookConfigPreview, HookConfigWriteResult, HookError, HookEventDecision, HookRegistrationMode, HookStateMachine,
     HookTransition, HookWriteOutcome, MAX_NATIVE_HOOK_INPUT_BYTES, MinimalHookPayload,
-    PreparedNativeHook, ai_tool_descriptors, ai_tool_name, generate_hook_auxiliary_configs,
+    PreparedNativeHook, ai_tool_name, generate_hook_auxiliary_configs,
     generate_hook_config, generate_wsl_hook_config, hook_config_filename, hook_config_write_result,
     hook_relay_loopback_address, hook_supports_wsl, managed_hook_marker, merge_hook_config,
     normalize_enabled_ai_tools, prepare_native_hook, remove_managed_hook_entries, tool_from_slug,
@@ -74,8 +76,7 @@ pub use aggregate::{
 };
 pub use ai_capabilities::{
     PUBLIC_AI_CAPABILITIES, PublicAiCapability, dashboard_selection_for_ai_tools,
-    is_public_monitor_tool, public_ai_capabilities, public_dashboard_clients,
-    public_monitor_ai_tools,
+    is_public_monitor_tool, public_ai_capabilities, public_monitor_ai_tools,
 };
 pub use calls_view::{
     USAGE_CALL_PAGE_SIZE, UsageAvailableFilters, UsageCallFilters, UsageCallItem, UsageCallRow,

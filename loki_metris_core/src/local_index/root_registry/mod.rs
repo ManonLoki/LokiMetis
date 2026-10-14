@@ -187,6 +187,7 @@ impl LocalIndex {
     }
 
     /// 返回唯一主数据根的内部访问位置；没有主根时保留进程继承的 Codex 上下文。
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn primary_root(&self) -> Result<Option<RegisteredRoot>, LocalError> {
         let Some(row) = self
             .connection

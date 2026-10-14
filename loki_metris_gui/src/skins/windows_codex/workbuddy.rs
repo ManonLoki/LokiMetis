@@ -422,5 +422,5 @@ fn process_inspection_error() -> AppError {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - workbuddy_tests.rs：本模块的单元测试
-include!("workbuddy_tests.rs");
+// - workbuddy_process.rs：WorkBuddy 进程打开与身份复核、安装路径发现，以及本模块单元测试
+include!("workbuddy_process.rs");
