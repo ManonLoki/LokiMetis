@@ -1,6 +1,6 @@
 //! 只读 loader 直接返回 core 页面模型；CPU 聚合在 blocking 岛，绝不初始化或迁移库。
 
-use super::{ServiceContext, UsageData};
+use super::{ServiceContext, UsageData, page_cache::{CachedPage, PageKey, PageQuery}};
 use crate::backend::{local_index::current_epoch_ms, workbuddy::{self, WorkbuddyReadError}};
 use jiff::tz::TimeZone;
 use loki_metris_core::*;
@@ -86,11 +86,41 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
             super::today_cache::restamp(&mut records, now);
             return Ok(UsageResponse::Overview(UsageData { records, workbuddy: None, workbuddy_unavailable: false }));
         }
+        // 统计页和图表页可见时同样每 10 秒刷新；同一小时内索引未变时复用上次页面。
+        let page = match &query {
+            UsageQuery::Statistics(_, window, dimension) => Some(PageQuery::Statistics(*window, *dimension)),
+            UsageQuery::Chart(_, window, dimension) => Some(PageQuery::Chart(*window, *dimension)),
+            _ => None,
+        };
+        let cache_key = match page {
+            Some(page) => page_key(&context, client, now, &zone, page).await,
+            None => None,
+        };
+        if let Some(mut cached) = cache_key.as_ref().and_then(|key| context.page_cache.lookup(key)) {
+            cached.restamp(now);
+            return Ok(match cached {
+                CachedPage::Statistics(page) => UsageResponse::Statistics(page),
+                CachedPage::Chart(page) => UsageResponse::Chart(page),
+            });
+        }
         let snapshot = read_snapshot(&context.directory, client, now, &zone).await?;
         let coverage = coverage(&context, client);
         check_cancel(&cancellation)?;
-        let response = tokio::task::spawn_blocking(move || build_single(query, snapshot, coverage, client, now, &zone))
+        let build_zone = zone.clone();
+        let response = tokio::task::spawn_blocking(move || build_single(query, snapshot, coverage, client, now, &build_zone))
             .await.map_err(|_| "usage_aggregate_failed")??;
+        if let Some(key) = cache_key {
+            let cached = match &response {
+                UsageResponse::Statistics(page) => Some(CachedPage::Statistics(page.clone())),
+                UsageResponse::Chart(page) => Some(CachedPage::Chart(page.clone())),
+                _ => None,
+            };
+            // 读取期间索引文件未变化才保存，避免把并发写入中途的数据当作稳定结果。
+            if let Some(cached) = cached
+                && page_key(&context, client, now, &zone, key.query).await.as_ref() == Some(&key) {
+                context.page_cache.store(key, cached);
+            }
+        }
         // 读取期间索引文件未变化才保存，避免把并发写入中途的数据当作稳定结果。
         if let (Some(key), Some(day), UsageResponse::Overview(data)) = (key, day, &response) {
             let after = super::today_cache::key_for(&context, super::today_cache::Scope::Single, &[client], &day).await;
@@ -151,6 +181,16 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
             UsageQuery::Statistics(..)|UsageQuery::Sources(..) => Err("usage_client_unsupported"),
         }
     }).await.map_err(|_| "usage_aggregate_failed")?
+}
+
+/// 取得单 Agent 页面缓存键；时间或索引文件无法确定时不使用缓存。
+async fn page_key(context: &Arc<ServiceContext>, client: SourceClientKind, now: i64, zone: &TimeZone, query: PageQuery)
+    -> Option<PageKey>
+{
+    let day = UsageDay::capture(now, zone)?;
+    let hour = jiff::Timestamp::from_millisecond(now).ok()?.to_zoned(zone.clone()).hour();
+    let index = super::today_cache::key_for(context, super::today_cache::Scope::Single, &[client], &day).await?;
+    Some(PageKey { index, hour, query })
 }
 
 /// 用户未配置来源与装配故障保持不同分类，不能用空页面掩盖失败。
