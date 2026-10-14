@@ -49,6 +49,7 @@ struct MonitorInfo {
     flags: u32,
 }
 #[link(name = "user32")]
+// SAFETY: 以下声明与 user32 导出的 Win32 原型逐项一致（system ABI、参数与返回类型），调用方负责传入有效 HWND。
 unsafe extern "system" {
     /// 调整位置及Z序，返回0时读取系统错误。
     fn SetWindowPos(
@@ -90,6 +91,7 @@ unsafe extern "system" {
     fn SetWindowLongW(window: Handle, index: i32, value: i32) -> i32;
 }
 #[link(name = "kernel32")]
+// SAFETY: 以下声明与 kernel32 导出的线程错误码原型一致，均无指针参数。
 unsafe extern "system" {
     /// Win32样式API的零返回需要结合线程错误码解释。
     fn SetLastError(error: u32);
@@ -102,6 +104,7 @@ const MOUSE_STYLE_BITS: isize = 0x80000 | 0x20;
 
 /// checked样式调用兼容32/64位，返回0本身不代表失败。
 fn checked_style(hwnd: Handle, set: Option<isize>) -> anyhow::Result<isize> {
+    // SAFETY: hwnd 由 `native` 从仍存活的 GPUI 窗口取得且在 UI 线程使用；清零与读取线程错误码只影响当前线程。
     unsafe {
         SetLastError(0);
         let value = style(hwnd, -20, set);
@@ -115,6 +118,7 @@ fn checked_style(hwnd: Handle, set: Option<isize>) -> anyhow::Result<isize> {
 fn write_mouse_bits(hwnd: Handle, bits: isize) -> anyhow::Result<()> {
     let current = checked_style(hwnd, None)?;
     checked_style(hwnd, Some((current & !MOUSE_STYLE_BITS) | bits))?;
+    // SAFETY: hwnd 来自当前 UI 线程拥有的活窗；只刷新框架（不移动、不改尺寸与 Z 序），不转移句柄所有权。
     anyhow::ensure!(unsafe { SetWindowPos(hwnd, std::ptr::null_mut(), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020) } != 0,
         "mouse passthrough style refresh: {}", std::io::Error::last_os_error());
     anyhow::ensure!(checked_style(hwnd, None)? & MOUSE_STYLE_BITS == bits, "mouse passthrough style readback mismatch");
@@ -157,20 +161,26 @@ fn native(window: &Window) -> anyhow::Result<Handle> {
     Ok(handle.hwnd.get() as Handle)
 }
 /// 查询并修改所属线程活窗的原生样式。
+/// # Safety
+/// 调用方须保证 `window` 是当前线程拥有、仍然存活的窗口句柄，`index` 是合法的窗口长整型索引。
 unsafe fn style(window: Handle, index: i32, set: Option<isize>) -> isize {
     #[cfg(target_pointer_width = "64")]
     {
         if let Some(value) = set {
+            // SAFETY: 由本函数的调用约定保证句柄与索引有效。
             unsafe { SetWindowLongPtrW(window, index, value) }
         } else {
+            // SAFETY: 由本函数的调用约定保证句柄与索引有效；只读取。
             unsafe { GetWindowLongPtrW(window, index) }
         }
     }
     #[cfg(target_pointer_width = "32")]
     {
         if let Some(value) = set {
+            // SAFETY: 由本函数的调用约定保证句柄与索引有效；32 位目标的样式值可无损截断为 i32。
             unsafe { SetWindowLongW(window, index, value as i32) as isize }
         } else {
+            // SAFETY: 由本函数的调用约定保证句柄与索引有效；只读取。
             unsafe { GetWindowLongW(window, index) as isize }
         }
     }
@@ -183,6 +193,7 @@ pub fn work_area(window: &Window) -> Bounds<gpui_kit::Pixels> {
         work: Rect::default(),
         flags: 0,
     };
+    // SAFETY: window 来自仍存活的 GPUI 窗口；info 是本栈上已按结构体大小初始化的可写缓冲。
     let ok = native(window).is_ok_and(|window| unsafe {
         GetMonitorInfoW(MonitorFromWindow(window, 2), &mut info) != 0
     });
@@ -252,6 +263,7 @@ pub fn start_drag(window: &Window, cx: &gpui_kit::App) {
     if let Ok(hwnd) = native(window) {
         cx.foreground_executor()
             .spawn(async move {
+                // SAFETY: 在前台执行器（UI 线程）调用；hwnd 由同一窗口在本次按下时取得，标题栏拖动消息不涉及指针参数。
                 unsafe {
                     ReleaseCapture();
                     SendMessageW(hwnd, 0x00a1, 2, 0);
@@ -271,6 +283,7 @@ pub fn set_geometry(window: &mut Window, bounds: Bounds<gpui_kit::Pixels>) -> an
         (f32::from(bounds.origin.y) * scale).round() as i32,
         (f32::from(bounds.size.width) * scale).round() as i32,
         (f32::from(bounds.size.height) * scale).round() as i32);
+    // SAFETY: hwnd 来自当前 UI 线程拥有的活窗；只移动并改尺寸，不改变 Z 序与激活状态。
     let ok = unsafe {
         SetWindowPos(
             hwnd,

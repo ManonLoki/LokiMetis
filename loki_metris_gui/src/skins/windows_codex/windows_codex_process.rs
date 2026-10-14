@@ -7,6 +7,7 @@ fn enumerate_gui_process_snapshot(
     traditional_candidates: &[PathBuf],
     roots: &KnownInstallRoots,
 ) -> Result<CodexProcessSnapshot, AppError> {
+    // SAFETY: 创建进程快照不读写调用方内存；返回的句柄立即交给 OwnedHandle 唯一持有并负责关闭。
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
         .map_err(|_| process_inspection_error())?;
@@ -14,6 +15,7 @@ fn enumerate_gui_process_snapshot(
         dwSize: size_of::<PROCESSENTRY32W>() as u32,
         ..Default::default()
     };
+    // SAFETY: snapshot 句柄在本函数内有效；entry 已设置 dwSize 且为本栈可写结构。
     if let Err(error) = unsafe { Process32FirstW(snapshot.0, &mut entry) } {
         return if error.code() == ERROR_NO_MORE_FILES.to_hresult() {
             Ok(CodexProcessSnapshot {
@@ -52,6 +54,7 @@ fn enumerate_gui_process_snapshot(
                 });
             }
         }
+        // SAFETY: 与 Process32FirstW 相同的有效快照句柄与可写 entry。
         match unsafe { Process32NextW(snapshot.0, &mut entry) } {
             Ok(()) => {}
             Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => break,
@@ -63,6 +66,7 @@ fn enumerate_gui_process_snapshot(
 
 /// 路径查询失败时重新确认候选 PID 是否仍存在，避免把不可验证进程当成已退出。
 fn snapshot_still_contains_candidate_process(pid: u32) -> Result<bool, AppError> {
+    // SAFETY: 创建进程快照不读写调用方内存；返回的句柄立即交给 OwnedHandle 唯一持有并负责关闭。
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
         .map(OwnedHandle)
         .map_err(|_| process_inspection_error())?;
@@ -70,6 +74,7 @@ fn snapshot_still_contains_candidate_process(pid: u32) -> Result<bool, AppError>
         dwSize: size_of::<PROCESSENTRY32W>() as u32,
         ..Default::default()
     };
+    // SAFETY: snapshot 句柄在本函数内有效；entry 已设置 dwSize 且为本栈可写结构。
     match unsafe { Process32FirstW(snapshot.0, &mut entry) } {
         Ok(()) => {}
         Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => return Ok(false),
@@ -81,6 +86,7 @@ fn snapshot_still_contains_candidate_process(pid: u32) -> Result<bool, AppError>
         {
             return Ok(true);
         }
+        // SAFETY: 与 Process32FirstW 相同的有效快照句柄与可写 entry。
         match unsafe { Process32NextW(snapshot.0, &mut entry) } {
             Ok(()) => {}
             Err(error) if error.code() == ERROR_NO_MORE_FILES.to_hresult() => return Ok(false),
@@ -132,6 +138,7 @@ fn is_verified_host_process(pid: u32) -> bool {
 
 /// 以终止、查询与等待权限打开已校验进程，并再次核对句柄对应的进程身份。
 fn open_verified_process(process: &GuiProcess) -> Result<OwnedHandle, AppError> {
+    // SAFETY: 按 PID 打开进程只申请所列权限，不访问调用方内存；成功的句柄立即交给 OwnedHandle 持有。
     let handle = unsafe {
         OpenProcess(
             PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
@@ -176,6 +183,7 @@ fn verified_process_identity(
     traditional_candidates: &[PathBuf],
     roots: &KnownInstallRoots,
 ) -> bool {
+    // SAFETY: 以受限查询权限按 PID 打开进程；成功的句柄随即交给 OwnedHandle 持有并关闭。
     let Ok(handle) = (unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }) else {
         return false;
     };
@@ -244,6 +252,7 @@ async fn wait_for_process_exit_until(
 
 /// 以受限查询权限打开 PID 并读取其可执行文件路径。
 fn query_process_path(pid: u32) -> Option<PathBuf> {
+    // SAFETY: 以受限查询权限按 PID 打开进程；成功的句柄随即交给 OwnedHandle 持有并关闭。
     let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }
         .ok()
         .map(OwnedHandle)?;
@@ -254,6 +263,7 @@ fn query_process_path(pid: u32) -> Option<PathBuf> {
 fn query_process_path_from_handle(handle: HANDLE) -> Option<PathBuf> {
     let mut buffer = vec![0_u16; PROCESS_PATH_CAPACITY];
     let mut length = buffer.len() as u32;
+    // SAFETY: handle 由调用方保证有效且具备查询权限；buffer 可写长度与传入的 length 一致，返回后按 length 截断。
     unsafe {
         QueryFullProcessImageNameW(
             handle,

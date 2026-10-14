@@ -294,13 +294,13 @@ pub fn reload_autostart(cx: &App) {
 pub(crate) fn configure_font_smoothing() {
     use objc2_foundation::{NSUserDefaults,NSArgumentDomain,NSMutableDictionary,NSNumber,ns_string};
     let defaults=NSUserDefaults::standardUserDefaults();
-    // 系统静态域名借用有效；volatile 域不落盘且保留已有参数。
+    // SAFETY: 读取 Foundation 导出的不可变静态域名，借用在进程内始终有效；volatile 域不落盘且保留已有参数。
     let domain=unsafe {NSArgumentDomain};
     let current=defaults.volatileDomainForName(domain);
     let arguments=NSMutableDictionary::dictionaryWithDictionary(&current);
     let zero=NSNumber::new_i32(0);
     arguments.insert(ns_string!("AppleFontSmoothing"),zero.as_ref());
-    // 值类型为 Foundation 支持的 NSNumber，仅修改当前进程搜索列表。
+    // SAFETY: 字典值类型为 Foundation 支持的 NSNumber，仅修改当前进程搜索列表。
     unsafe {defaults.setVolatileDomain_forName(&arguments,domain);}
 }
 

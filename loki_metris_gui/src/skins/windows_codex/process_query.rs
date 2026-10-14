@@ -23,6 +23,7 @@ struct NativeUnicodeString {
 }
 
 #[link(name = "ntdll")]
+// SAFETY: 声明与 ntdll 导出的 NtQueryInformationProcess 原型一致（system ABI，输出缓冲与长度指针由调用方提供）。
 unsafe extern "system" {
     /// 调用 Windows 原生的有界进程信息查询，不启动 COM/WMI 工作线程。
     fn NtQueryInformationProcess(
@@ -39,6 +40,7 @@ pub(super) fn query_verified_process_command_line(
     pid: u32,
     expected_path: &Path,
 ) -> Option<String> {
+    // SAFETY: 以受限查询权限按 PID 打开进程；成功的句柄随即交给 OwnedHandle 持有并关闭。
     let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }
         .ok()
         .map(OwnedHandle)?;
@@ -78,6 +80,7 @@ fn query_process_command_line_from_handle(handle: HANDLE) -> Option<String> {
     let base = storage.as_mut_ptr().cast::<u8>();
     let capacity = storage.len().checked_mul(size_of::<usize>())?;
     let mut returned = 0_u32;
+    // SAFETY: handle 具备查询权限；base 指向 capacity 字节、按 usize 对齐的可写缓冲，长度参数与之一致。
     let status = unsafe {
         NtQueryInformationProcess(
             handle,
@@ -93,6 +96,7 @@ fn query_process_command_line_from_handle(handle: HANDLE) -> Option<String> {
     {
         return None;
     }
+    // SAFETY: 内核报告的写入长度不小于头部且不超过缓冲；缓冲按 usize 对齐，满足头部结构的对齐要求。
     let header = unsafe { &*base.cast::<NativeUnicodeString>() };
     let byte_length = usize::from(header.length);
     if byte_length == 0
@@ -111,6 +115,7 @@ fn query_process_command_line_from_handle(handle: HANDLE) -> Option<String> {
     {
         return None;
     }
+    // SAFETY: 上面已校验缓冲区起止都位于本次分配之内、按 u16 对齐，且长度为偶数字节。
     let units = unsafe {
         std::slice::from_raw_parts(header.buffer.cast_const(), byte_length / size_of::<u16>())
     };

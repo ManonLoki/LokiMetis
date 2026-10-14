@@ -22,6 +22,7 @@ fn open_verified_process(process: &GuiProcess) -> Result<Option<OwnedHandle>, Ap
         }
     };
     let Some(current_path) = query_process_path_from_handle(handle.0) else {
+        // SAFETY: handle 由 OwnedHandle 持有且具备同步权限；零超时只查询是否已退出。
         if unsafe { WaitForSingleObject(handle.0, 0) } == WAIT_OBJECT_0 {
             return Ok(None);
         }

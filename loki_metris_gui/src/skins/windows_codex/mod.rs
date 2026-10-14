@@ -148,6 +148,7 @@ pub(crate) fn activate_gui_process(pid: u32) -> bool {
         return false;
     }
     /// EnumWindows 回调：记录每个顶层窗口的所属进程、可见性与是否附属。
+    // SAFETY: 仅作为 EnumWindows 回调传入；系统保证回调期间 hwnd 有效，parameter 是调用方传入的可写 Vec 地址。
     unsafe extern "system" fn collect_window(hwnd: HWND, parameter: LPARAM) -> BOOL {
         // SAFETY: LPARAM 指向本函数同步调用 EnumWindows 期间仍然存活的 Vec。
         let candidates = unsafe { &mut *(parameter.0 as *mut Vec<WindowCandidate>) };

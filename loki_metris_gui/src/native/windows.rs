@@ -32,6 +32,7 @@ const _: () = assert!(size_of::<FlashInfo>() == 32);
 const _: () = assert!(size_of::<FlashInfo>() == 20);
 
 #[link(name = "kernel32")]
+// SAFETY: 以下声明与 kernel32 导出原型一致，均无参数、只返回标识。
 unsafe extern "system" {
     /// 返回调用线程的系统标识，用于确认窗口操作仍在捕获句柄的 UI 线程执行。
     fn GetCurrentThreadId() -> u32;
@@ -40,6 +41,7 @@ unsafe extern "system" {
 }
 
 #[link(name = "user32")]
+// SAFETY: 以下声明与 user32 导出的窗口原型一致（system ABI）；调用方负责传入当前线程拥有的有效 HWND。
 unsafe extern "system" {
     /// 请求把有效窗口设为前台；受系统前台限制，非零表示成功，零表示未取得前台。
     fn SetForegroundWindow(window: Handle) -> i32;
@@ -95,6 +97,7 @@ impl MainWindow {
 
     /// 原生事务与真实 HWND 回归共用所属线程验证，不转移窗口销毁所有权。
     pub(super) fn from_handle(window: Handle) -> io::Result<Self> {
+        // SAFETY: 只读取调用线程标识，无参数与副作用。
         let thread = unsafe { GetCurrentThreadId() };
         let native = Self { window, thread };
         if !native.is_valid() {

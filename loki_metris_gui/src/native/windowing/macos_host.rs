@@ -88,6 +88,7 @@ impl WindowHost {
             ) });
         }
         // 焦点失效独立于几何静默窗口；原生回调只递增计数，不能同步借用GPUI。
+        // SAFETY: 通知名是 AppKit 导出的不可变静态 NSString，读取外部静态不存在数据竞争。
         for name in unsafe { [NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification] } {
             let signals = signals.clone();
             let block = RcBlock::new(move |_: NonNull<NSNotification>| {
@@ -113,6 +114,7 @@ impl WindowHost {
             let target = unsafe { note.as_ref() }.userInfo()
                 .and_then(|info| info.objectForKey(ns_string!("targetFrame")))
                 .and_then(|value| value.downcast::<NSValue>().ok())
+                // SAFETY: targetFrame 由 GPUI 以 NSRect 封装进 NSValue，按同一类型读取。
                 .map(|value| native_frame(unsafe { value.rectValue() }));
             zoom.zoom.lock().unwrap_or_else(|error| error.into_inner()).begin(target);
             zoom.changed();

@@ -33,6 +33,7 @@ const SECURITY_MUTATION_FLAGS: u32 =
 const PROCESS_PATH_BUFFER_BYTES: usize = 4096;
 
 #[link(name = "CoreFoundation", kind = "framework")]
+// SAFETY: 以下声明与 CoreFoundation 公开的 C 原型一致；返回的 CF 对象由调用方按 Create 规则持有并释放。
 unsafe extern "C" {
     /// 由绝对文件系统路径创建 CFURL。
     fn CFURLCreateFromFileSystemRepresentation(
@@ -52,6 +53,7 @@ unsafe extern "C" {
 }
 
 #[link(name = "Security", kind = "framework")]
+// SAFETY: 以下声明与 Security.framework 公开的 C 原型一致；输出参数由调用方提供可写指针，返回对象按 Create 规则释放。
 unsafe extern "C" {
     /// 从 bundle URL 创建静态代码对象。
     fn SecStaticCodeCreateWithPath(

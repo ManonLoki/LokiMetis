@@ -17,6 +17,7 @@ fn activate_store_codex_with_arguments(
             .map_err(|_| StoreActivationFailure::CancellationSetup)?;
         control
             .thread_id
+            // SAFETY: 只读取当前线程标识，无参数与副作用。
             .store(unsafe { GetCurrentThreadId() }, Ordering::Release);
         control
             .phase

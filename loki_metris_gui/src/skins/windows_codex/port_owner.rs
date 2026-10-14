@@ -57,6 +57,7 @@ pub(super) fn unique_loopback_listener_owner(
 /// 读取指定地址族的 owner-PID listener 表，并对系统返回长度做边界复核。
 fn tcp_listener_rows_for<Row: Copy>(address_family: u32) -> Result<Vec<Row>, ()> {
     let mut required_bytes = 0_u32;
+    // SAFETY: 首次调用不传缓冲，只把所需字节数写入本栈变量。
     let status = unsafe {
         GetExtendedTcpTable(
             None,
@@ -78,6 +79,7 @@ fn tcp_listener_rows_for<Row: Copy>(address_family: u32) -> Result<Vec<Row>, ()>
         let word_count = (required_bytes as usize).div_ceil(size_of::<u32>());
         let mut buffer = vec![0_u32; word_count];
         let mut returned_bytes = (buffer.len() * size_of::<u32>()) as u32;
+        // SAFETY: buffer 是按 u32 对齐的可写缓冲，传入的长度与其字节大小一致。
         let status = unsafe {
             GetExtendedTcpTable(
                 Some(buffer.as_mut_ptr().cast::<c_void>()),
@@ -104,6 +106,7 @@ fn tcp_listener_rows_for<Row: Copy>(address_family: u32) -> Result<Vec<Row>, ()>
             return Err(());
         }
         let rows =
+            // SAFETY: 上面已校验 count 行加上 4 字节头部不超过系统写入长度和缓冲大小；缓冲按 u32 对齐，满足行结构的对齐要求。
             unsafe { std::slice::from_raw_parts(buffer.as_ptr().add(1).cast::<Row>(), count) };
         return Ok(rows.to_vec());
     }

@@ -97,6 +97,7 @@ impl Socket {
         {
             use std::os::windows::io::AsRawHandle;
             #[link(name = "kernel32")]
+            // SAFETY: 声明与 kernel32 导出的 PeekNamedPipe 原型一致；调用方传入有效管道句柄与可写输出指针。
             unsafe extern "system" {
                 /// 只查询本连接的缓冲字节，不消费输入也不等待对端。
                 fn PeekNamedPipe(pipe: *mut std::ffi::c_void, buffer: *mut std::ffi::c_void,
