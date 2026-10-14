@@ -1,7 +1,7 @@
-// 本文件收纳：定义换皮宿主 `SkinService` 使用的内部数据。
+// 本文件收纳：换肤服务 `SkinService` 的状态定义。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 定义换皮宿主 `SkinService` 使用的内部数据。
+/// 换肤服务：持有皮肤库、导入暂存、宿主操作代次与取消、账户资料与端点缓存、监视任务回收器；`operation` 串行化所有改动宿主的操作，`runtime` 保存各实例运行态。
 pub struct SkinService {
     builtin_root: PathBuf,
     user_root: PathBuf,

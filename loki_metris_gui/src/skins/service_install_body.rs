@@ -231,7 +231,7 @@ impl SkinService {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - service_install_body_install.rs：执行换皮宿主内部的 `install` 步骤。
-// - service_install_body_uninstall.rs：执行换皮宿主内部的 `uninstall` 步骤。
+// - service_install_body_install.rs：安装皮肤（加载校验、宿主启动或恢复、外观预检、注入与持续监视）。
+// - service_install_body_uninstall.rs：停用宿主或指定实例的皮肤。
 include!("service_install_body_install.rs");
 include!("service_install_body_uninstall.rs");

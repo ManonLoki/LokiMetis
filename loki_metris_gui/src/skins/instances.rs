@@ -1,7 +1,7 @@
-// 本文件收纳：执行换皮宿主内部的 `resolve_skin_host_instance` 步骤；解析指定宿主的实例，并只把经过页面与 owner 验证的端点关联到对应进程树根；使用服务刚验证过的端点作为首选候选，避免动态端口因命令行读取降级而短暂丢失。
+// 本文件收纳：宿主实例解析与端点归属、账户资料探测、生效皮肤身份恢复与实例展示转换。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 执行换皮宿主内部的 `resolve_skin_host_instance` 步骤。
+/// 按实例 ID 重新解析 Codex 实例；实例已退出或身份变化时报错，防止操作错误进程。
 #[cfg(target_os = "macos")]
 async fn resolve_skin_host_instance(id: &str) -> Result<ResolvedSkinHostInstance, AppError> {
     resolved_host_instances(SkinHostKind::Codex)
@@ -145,7 +145,7 @@ fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedSkinHostInstance)
     host_instance_from_resolved(host, resolved, state, None)
 }
 
-/// 执行换皮宿主内部的 `scanned_skin_host_instance` 步骤。
+/// 把解析结果转换为界面实例，有调试端口即视为可换肤。
 #[cfg(test)]
 fn scanned_skin_host_instance(resolved: ResolvedSkinHostInstance) -> SkinHostInstance {
     let state = if resolved.debug_port.is_some() {
@@ -156,7 +156,7 @@ fn scanned_skin_host_instance(resolved: ResolvedSkinHostInstance) -> SkinHostIns
     codex_instance_from_resolved(resolved, state, None)
 }
 
-/// 执行换皮宿主内部的 `probe_resolved_account_profile` 步骤。
+/// 连接实例的调试端口，确认浏览器属于该进程后在就绪期限内读取账户资料。
 async fn probe_resolved_account_profile(
     resolved: &ResolvedSkinHostInstance,
 ) -> Result<Option<AccountProfile>, AppError> {
@@ -239,7 +239,7 @@ async fn probe_resolved_active_skin(
     result
 }
 
-/// 执行换皮宿主内部的 `codex_instance_from_resolved` 步骤。
+/// 由解析结果生成界面实例：标签为“Codex · 配置档”，没有配置档时为“Codex 进程 PID”，并附上账户资料。
 fn codex_instance_from_resolved(
     resolved: ResolvedSkinHostInstance,
     state: CodexRuntimeState,
@@ -291,7 +291,7 @@ fn host_instance_from_resolved(
     }
 }
 
-/// 执行换皮宿主内部的 `discover_account_profile_until_ready` 步骤。
+/// 在就绪期限内反复读取账户资料，直到同时拿到头像；超时则返回已得到的部分资料或最后的错误。
 async fn discover_account_profile_until_ready(
     browser: &Browser,
 ) -> Result<Option<AccountProfile>, AppError> {
@@ -320,7 +320,7 @@ async fn discover_account_profile_until_ready(
     }
 }
 
-/// 执行换皮宿主内部的 `discover_account_profile` 步骤。
+/// 读取全部 Codex 页面的账户名称与头像；只有各页面结果一致时才采用，全部探测失败时报错。
 async fn discover_account_profile(browser: &Browser) -> Result<Option<AccountProfile>, AppError> {
     let pages = browser_pages(browser).await?;
     let mut labels = BTreeSet::new();
@@ -391,7 +391,7 @@ async fn discover_account_profile(browser: &Browser) -> Result<Option<AccountPro
     }))
 }
 
-/// 执行换皮宿主内部的 `recovered_skin_identity` 步骤。
+/// 从页面运行态标记恢复生效皮肤身份：优先精确引用，其次旧版主题 ID，最后旧版样式文本；版本标记无效时放弃。
 fn recovered_skin_identity(probe: Option<ActiveSkinProbe>) -> Option<RecoveredSkinIdentity> {
     let probe = probe?;
     let _version = probe.version.filter(|value| {
@@ -417,7 +417,7 @@ fn recovered_skin_identity(probe: Option<ActiveSkinProbe>) -> Option<RecoveredSk
         })
 }
 
-/// 执行换皮宿主内部的 `validated_account_avatar` 步骤。
+/// 只接受 PNG、JPEG 或 WebP 的 base64 data URL，且解码后非空并不超过头像大小上限。
 fn validated_account_avatar(value: Option<&str>) -> Option<String> {
     let value = value?;
     let (header, payload) = value.split_once(',')?;
@@ -433,12 +433,12 @@ fn validated_account_avatar(value: Option<&str>) -> Option<String> {
     (!decoded.is_empty() && decoded.len() <= MAX_ACCOUNT_AVATAR_BYTES).then(|| value.to_owned())
 }
 
-/// 执行换皮宿主内部的 `displayed_active_skin_name` 步骤。
+/// 返回生效皮肤的展示名称。
 fn displayed_active_skin_name(active: Option<&SkinDescriptor>) -> Option<String> {
     active.map(|skin| skin.name.clone())
 }
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - instances_debug_port.rs：从宿主默认端口区间选择未被已知实例占用的本机监听端口。；选择端口时同时排除已占用端口和本轮已失败端口。；执行换皮宿主内部的 `endpoint_candidates_from_commands` 步骤。
+// - instances_debug_port.rs：调试端口选择与候选收集，以及宿主操作的取消、退出监视与可取消等待。
 include!("instances_debug_port.rs");

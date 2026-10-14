@@ -64,7 +64,7 @@ impl SkinService {
             })
     }
 
-    /// 执行换皮宿主内部的 `status` 步骤。
+    /// 返回宿主最近一次操作目标实例的换肤状态；监视任务未运行或没有生效皮肤时视为未注入。
     pub async fn status(&self, host: SkinHostKind) -> SkinStatus {
         let runtime = self.runtime.lock().await;
         runtime
@@ -84,7 +84,7 @@ impl SkinService {
             .unwrap_or_else(|| SkinStatus::stopped(0))
     }
 
-    /// 执行换皮宿主内部的 `scanned_codex_instances` 步骤。
+    /// 扫描宿主当前实例：WorkBuddy 结合已验证端点逐个探测页面，Codex 枚举进程；随后清理已消失实例的缓存与运行态，并标注生效皮肤。
     pub async fn scanned_host_instances(
         &self,
         host: SkinHostKind,
@@ -119,7 +119,7 @@ impl SkinService {
         Ok(instances)
     }
 
-    /// 执行换皮宿主内部的 `account_profile_probe_cell` 步骤。
+    /// 取得实例的账户资料一次性探测单元，同一实例的并发扫描共享同一次探测。
     fn account_profile_probe_cell(
         &self,
         instance_id: &str,
@@ -136,7 +136,7 @@ impl SkinService {
             .clone())
     }
 
-    /// 执行换皮宿主内部的 `retain_account_profile_probes` 步骤。
+    /// 只保留仍存在实例的账户资料探测缓存。
     fn retain_account_profile_probes<'a>(&self, instance_ids: impl IntoIterator<Item = &'a str>) {
         let active = instance_ids.into_iter().collect::<HashSet<_>>();
         if let Ok(mut probes) = self.account_profile_probes.lock() {
@@ -144,7 +144,7 @@ impl SkinService {
         }
     }
 
-    /// 执行换皮宿主内部的 `retain_recovered_instance_runtimes` 步骤。
+    /// 移除该宿主已消失且没有运行中监视任务的实例运行态。
     async fn retain_recovered_instance_runtimes<'a>(
         &self,
         host: SkinHostKind,
@@ -203,7 +203,7 @@ impl SkinService {
         }
     }
 
-    /// 执行换皮宿主内部的 `cached_codex_instance` 步骤。
+    /// 探测一个已解析实例的当前页面皮肤；Codex 实例另取账户资料（同一实例共享一次探测，页面探测失败时只用已有缓存）。
     async fn cached_host_instance(
         &self,
         host: SkinHostKind,
@@ -281,7 +281,7 @@ impl SkinService {
         instance
     }
 
-    /// 执行换皮宿主内部的 `annotate_codex_instances` 步骤。
+    /// 用运行态中的生效皮肤为扫描到的实例填写皮肤名称与引用。
     async fn annotate_host_instances(
         &self,
         host: SkinHostKind,
@@ -304,7 +304,7 @@ impl SkinService {
         }
     }
 
-    /// 执行换皮宿主内部的 `resolve_recovered_skin` 步骤。
+    /// 把页面恢复出的皮肤身份解析为皮肤库中的唯一描述；旧版 ID 或样式文本有多个匹配时放弃。
     fn resolve_recovered_skin(&self, identity: &RecoveredSkinIdentity) -> Option<SkinDescriptor> {
         match identity {
             RecoveredSkinIdentity::Exact(reference) => {
@@ -431,7 +431,7 @@ impl SkinService {
         ))
     }
 
-    /// 执行换皮宿主内部的 `cancel_codex_operation` 步骤。
+    /// 向在途宿主操作发送取消信号，返回是否确有操作被通知。
     pub fn cancel_codex_operation(&self) -> bool {
         let Ok(active) = self.codex_operation.lock() else {
             tracing::warn!("Codex 操作取消状态锁已损坏");

@@ -1,5 +1,5 @@
 // 本文件是 catalog.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：与 `load_descriptor` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。；执行换皮宿主内部的 `load_skin` 步骤。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：复用已校验清单生成描述，以及按引用加载待注入皮肤。
 
 /// 与 `load_descriptor` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
 fn load_descriptor_from_manifest(
@@ -34,7 +34,7 @@ fn load_descriptor_from_manifest(
     })
 }
 
-/// 执行换皮宿主内部的 `load_skin` 步骤。
+/// 按引用定位内置或用户皮肤目录，校验清单并生成注入脚本、展示描述与外观要求。
 fn load_skin(
     builtin_root: &Path,
     user_root: &Path,

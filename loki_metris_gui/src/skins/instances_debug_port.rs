@@ -1,5 +1,5 @@
 // 本文件是 instances.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：从宿主默认端口区间选择未被已知实例占用的本机监听端口。；选择端口时同时排除已占用端口和本轮已失败端口。；执行换皮宿主内部的 `endpoint_candidates_from_commands` 步骤。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：调试端口选择与候选收集，以及宿主操作的取消、退出监视与可取消等待。
 
 /// 从宿主默认端口区间选择未被已知实例占用的本机监听端口。
 fn available_debug_port_for(
@@ -38,7 +38,7 @@ fn available_debug_port_for_excluding(
 }
 
 #[cfg(test)]
-/// 执行换皮宿主内部的 `endpoint_candidates_from_commands` 步骤。
+/// 从宿主进程命令行收集显式声明的调试端点候选。
 fn endpoint_candidates_from_commands(commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
     explicit_endpoint_candidates_from_commands(commands)
 }
@@ -89,7 +89,7 @@ fn host_endpoint_candidates_from_commands(
     endpoints
 }
 
-/// 执行换皮宿主内部的 `operation_cancelled` 步骤；文案保持宿主中立，
+/// 用户停止启动或页面搜寻时的稳定错误。
 /// 因为调用方既有 Codex 专属路径，也有 WorkBuddy 等其它宿主共用的
 /// 通用取消/关闭门禁（如 [`crate::skins::lifecycle`] 的 shutdown 门禁），
 /// 后者在调用时并不持有具体的 [`SkinHostKind`]。
@@ -97,17 +97,17 @@ fn operation_cancelled() -> AppError {
     AppError::new("skin.operation_cancelled", "已停止启动或页面搜寻。")
 }
 
-/// 执行换皮宿主内部的 `codex_exited` 步骤。
+/// Codex 在操作期间退出时的稳定错误。
 fn codex_exited() -> AppError {
     AppError::new("skin.codex_exited", "Codex 已在启动或页面搜寻期间退出。")
 }
 
-/// 执行换皮宿主内部的 `ensure_codex_running` 步骤。
+/// Codex 已不在运行时返回退出错误。
 fn ensure_codex_running(running: bool) -> Result<(), AppError> {
     running.then_some(()).ok_or_else(codex_exited)
 }
 
-/// 执行换皮宿主内部的 `monitor_codex_operation` 步骤。
+/// 运行 Codex 操作，同时响应取消信号并定期确认 Codex 仍在运行，任一失败立即结束操作。
 async fn monitor_codex_operation<T, F>(
     cancel: &mut watch::Receiver<bool>,
     future: F,
@@ -166,7 +166,7 @@ where
     run_cancellable(cancel, future).await
 }
 
-/// 执行换皮宿主内部的 `run_cancellable` 步骤。
+/// 运行操作并在完成前收到取消信号时立即返回取消错误；信号通道关闭也视为取消。
 async fn run_cancellable<T, F>(cancel: &mut watch::Receiver<bool>, future: F) -> Result<T, AppError>
 where
     F: Future<Output = Result<T, AppError>>,
@@ -188,7 +188,7 @@ where
     }
 }
 
-/// 执行换皮宿主内部的 `cancellable_sleep` 步骤。
+/// 可被取消信号提前打断的等待。
 async fn cancellable_sleep(
     cancel: &mut watch::Receiver<bool>,
     duration: Duration,

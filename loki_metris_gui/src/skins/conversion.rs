@@ -1,4 +1,4 @@
-// 本文件收纳：旧皮肤配色角色到 v3 变量的映射，第三项是回退提示中使用的中文名称；执行换皮宿主内部的 `converted_theme_id` 步骤；执行换皮宿主内部的 `converted_theme_name` 步骤。
+// 本文件收纳：旧版皮肤到纯主题的配色迁移与写出、皮肤导出打包、ZIP 安全解压与旧版清单补全。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 /// 旧皮肤配色角色到 v3 变量的映射，第三项是回退提示中使用的中文名称。
@@ -15,14 +15,14 @@ const CONVERTED_COLOR_ROLES: [(&str, &str, &str); 8] = [
 const CONVERTED_BACKGROUND_FILE: &str = "background.png";
 const CONVERTED_CSS_HEADER: &str = "/*\n * 由旧版兼容皮肤转换生成的变量表（schemaVersion 3）。\n * 只迁移了配色角色与背景图片；原皮肤的自由 CSS 与注入脚本不会被转换。\n * 只能修改现有变量的值，不要增加选择器、普通 CSS 属性或 @ 规则。\n */\n";
 
-/// 执行换皮宿主内部的 `converted_theme_id` 步骤。
+/// 由旧版皮肤 ID 派生转换后主题的 ID，追加 `-theme` 并保持 64 字符上限。
 fn converted_theme_id(base_id: &str) -> String {
     let suffix = "-theme";
     let stem_length = 64_usize.saturating_sub(suffix.len());
     format!("{}{suffix}", &base_id[..base_id.len().min(stem_length)])
 }
 
-/// 执行换皮宿主内部的 `converted_theme_name` 步骤。
+/// 由旧版皮肤名称派生转换后主题的名称，追加“（主题版）”并保持 80 字符上限。
 fn converted_theme_name(base_name: &str) -> String {
     let suffix = "（主题版）";
     let stem_length = 80_usize.saturating_sub(suffix.chars().count());
@@ -52,7 +52,7 @@ fn normalize_theme_color(value: &str) -> Option<String> {
     Some(format!("#{}", expanded.to_ascii_uppercase()))
 }
 
-/// 执行换皮宿主内部的 `legacy_palette` 步骤。
+/// 取旧版配色中指定模式的调色板；未按 light/dark 分组的旧配色视为单一调色板。
 fn legacy_palette(
     colors: Option<&serde_json::Value>,
     mode: ColorMode,
@@ -97,7 +97,7 @@ fn convert_legacy_palettes(
     (light, dark, fallbacks)
 }
 
-/// 执行换皮宿主内部的 `css_declaration_property` 步骤。
+/// 取一行 CSS 声明中以 `--skin-` 开头的变量名。
 fn css_declaration_property(line: &str) -> Option<&str> {
     let separator = line.find(':')?;
     let property = line[..separator].trim();
@@ -149,7 +149,7 @@ fn render_converted_theme_css(
     output
 }
 
-/// 执行换皮宿主内部的 `write_converted_theme` 步骤。
+/// 在暂存目录写出由旧版皮肤转换的纯主题：模板清单、迁移后的双模式变量与原图片，返回需要回退默认值的配色角色说明。
 fn write_converted_theme(
     staging: &Path,
     source: &Path,
@@ -190,7 +190,7 @@ fn write_converted_theme(
     Ok(fallback_roles)
 }
 
-/// 执行换皮宿主内部的 `export_file_names` 步骤。
+/// 列出导出皮肤时需要打包的文件：旧版为固定运行文件，主题为清单、变量表、逐模式样式与引用的图片。
 fn export_file_names(directory: &Path, manifest: &SkinManifest) -> Result<Vec<String>, AppError> {
     Ok(match manifest {
         SkinManifest::Legacy(_) => LEGACY_REQUIRED_FILES
@@ -221,7 +221,7 @@ fn export_file_names(directory: &Path, manifest: &SkinManifest) -> Result<Vec<St
     })
 }
 
-/// 执行换皮宿主内部的 `build_skin_archive` 步骤。
+/// 把皮肤目录中的指定文件打包为内存中的 ZIP。
 fn build_skin_archive(directory: &Path, file_names: &[String]) -> Result<Vec<u8>, AppError> {
     let cursor = Cursor::new(Vec::new());
     let mut writer = zip::ZipWriter::new(cursor);
@@ -241,7 +241,7 @@ fn build_skin_archive(directory: &Path, file_names: &[String]) -> Result<Vec<u8>
         .map_err(|_| AppError::new("skin.export_failed", "无法完成皮肤导出压缩包。"))
 }
 
-/// 执行换皮宿主内部的 `extract_zip` 步骤。
+/// 安全解压导入 ZIP：限制条目数与解压体积，拒绝路径穿越与链接，识别唯一的皮肤根目录并只解出该目录内容；返回解压字节数。
 fn extract_zip(source: &Path, destination: &Path, cancelled: &AtomicBool) -> Result<u64, AppError> {
     ensure_import_not_cancelled(cancelled)?;
     let file = std::fs::File::open(source)
@@ -375,7 +375,7 @@ fn extract_zip(source: &Path, destination: &Path, cancelled: &AtomicBool) -> Res
     Ok(total_bytes)
 }
 
-/// 执行换皮宿主内部的 `synthesize_legacy_manifest_if_missing` 步骤。
+/// 没有清单的旧版皮肤包在五个运行文件齐全时生成兼容清单；有 theme.css 却缺清单或文件不全时报具体问题。
 fn synthesize_legacy_manifest_if_missing(source: &Path, directory: &Path) -> Result<(), AppError> {
     let manifest_path = directory.join("theme.json");
     if manifest_path.exists() {
@@ -445,7 +445,7 @@ fn synthesize_legacy_manifest_if_missing(source: &Path, directory: &Path) -> Res
     })
 }
 
-/// 执行换皮宿主内部的 `inferred_legacy_id` 步骤。
+/// 由归档名推导旧版皮肤 ID：取 ASCII 字母数字组成短标识，再拼接名称的 FNV-1a 哈希保证唯一。
 fn inferred_legacy_id(name: &str) -> String {
     let mut slug = String::new();
     let mut separator_pending = false;

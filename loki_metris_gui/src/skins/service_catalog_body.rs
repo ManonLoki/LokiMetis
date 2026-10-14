@@ -1,8 +1,8 @@
-// 本文件收纳：执行换皮宿主内部的 `new` 步骤；执行换皮宿主内部的 `initialize` 步骤；执行换皮宿主内部的 `list_skins` 步骤。
+// 本文件收纳：换肤服务构造与初始化、皮肤库列出与刷新、新主题创建、主题转换与导出。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 impl SkinService {
-    /// 执行换皮宿主内部的 `new` 步骤。
+    /// 以内置与用户皮肤库根目录构造服务，所有运行态与缓存均为空。
     pub fn new(builtin_root: PathBuf, user_root: PathBuf) -> Self {
         Self {
             builtin_root,
@@ -22,7 +22,7 @@ impl SkinService {
         }
     }
 
-    /// 执行换皮宿主内部的 `initialize` 步骤。
+    /// 启动时校验内置库为真实目录，创建并校验用户库，清理上次遗留的暂存目录。
     pub fn initialize(&self) -> Result<(), AppError> {
         let metadata = std::fs::symlink_metadata(&self.builtin_root)
             .map_err(|_| AppError::new("skin.builtin_unavailable", "无法读取应用内置皮肤资源。"))?;
@@ -46,7 +46,7 @@ impl SkinService {
         self.refresh_catalog().map(|_| ())
     }
 
-    /// 执行换皮宿主内部的 `list_skins` 步骤。
+    /// 列出皮肤库；目录指纹未变时直接返回缓存，否则重新扫描。
     pub fn list_skins(&self) -> Result<Vec<SkinDescriptor>, AppError> {
         std::fs::create_dir_all(&self.user_root)
             .map_err(|_| AppError::new("skin.library_unavailable", "无法准备用户皮肤资源库。"))?;
@@ -63,7 +63,7 @@ impl SkinService {
         self.refresh_catalog()
     }
 
-    /// 执行换皮宿主内部的 `skin_creation_prompt` 步骤。
+    /// 生成交给 AI 创建新皮肤的提示词，引用经校验的用户库目录与安装包内置 Skill 文件路径。
     pub fn skin_creation_prompt(
         &self,
         bundled_skill_root: &Path,
@@ -118,7 +118,7 @@ impl SkinService {
         })
     }
 
-    /// 执行换皮宿主内部的 `create_user_theme` 步骤。
+    /// 在串行操作锁内由模板创建新的用户主题：先写入暂存目录，成功后再原子移动到新 ID 目录。
     pub async fn create_user_theme(
         &self,
         name: &str,
@@ -210,7 +210,7 @@ impl SkinService {
         })
     }
 
-    /// 执行换皮宿主内部的 `build_export_archive` 步骤。
+    /// 把用户皮肤打包为可分享的 ZIP；内置皮肤不可导出，目录名须与清单 ID 一致。
     pub fn build_export_archive(&self, skin: &SkinReference) -> Result<Vec<u8>, AppError> {
         validate_skin_reference(skin)?;
         if skin.source != SkinSource::User {
@@ -231,7 +231,7 @@ impl SkinService {
         build_skin_archive(&directory, &export_file_names(&directory, &manifest)?)
     }
 
-    /// 执行换皮宿主内部的 `refresh_catalog` 步骤。
+    /// 重新扫描两个皮肤库并排序（用户皮肤在前、按修改时间从新到旧），扫描前后指纹一致时才写入缓存。
     pub fn refresh_catalog(&self) -> Result<Vec<SkinDescriptor>, AppError> {
         std::fs::create_dir_all(&self.user_root)
             .map_err(|_| AppError::new("skin.library_unavailable", "无法准备用户皮肤资源库。"))?;
@@ -268,7 +268,7 @@ impl SkinService {
         Ok(skins)
     }
 
-    /// 执行换皮宿主内部的 `invalidate_catalog` 步骤。
+    /// 清空目录缓存，迫使下次列出时重新扫描。
     fn invalidate_catalog(&self) -> Result<(), AppError> {
         *self.catalog.write().map_err(|_| catalog_cache_error())? = None;
         Ok(())

@@ -49,7 +49,7 @@ async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -
     }
 }
 
-/// 执行换皮宿主内部的 `connect_existing_browser` 步骤。
+/// 连接已在运行的宿主（用于退出清理）；handler 已结束时视为会话失效。
 async fn connect_existing_browser(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
@@ -130,7 +130,7 @@ async fn connect_existing_browser_for_purpose(
 
 include!("cdp_identity.rs");
 
-/// 执行换皮宿主内部的 `connect_browser` 步骤。
+/// 连接指定端点的浏览器（普通用途）。
 async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, HandlerTaskGuard), AppError> {
     connect_browser_for_purpose(endpoint, false).await
 }
@@ -167,7 +167,7 @@ async fn connect_browser_for_purpose(
     Ok((browser, reservation.bind(handler_task)))
 }
 
-/// 执行换皮宿主内部的 `wait_for_initial_injection` 步骤。
+/// 先复核端点仍绑定预期宿主根进程，再在页面就绪期限内完成首批注入；期间响应取消，失败时由调用方回收 handler。
 async fn wait_for_initial_injection(
     host: SkinHostKind,
     browser: Browser,
@@ -307,7 +307,7 @@ async fn rollback_initial_injection(
     }
 }
 
-/// 执行换皮宿主内部的 `wait_for_initial_appearance` 步骤。
+/// 在页面就绪期限内找到第一个宿主页面并读取外观，生成安装前的外观预检结果。
 async fn wait_for_initial_appearance(
     host: SkinHostKind,
     browser: &mut Browser,
@@ -341,7 +341,7 @@ async fn wait_for_initial_appearance(
     monitor_host_operation(host, cancel, wait).await
 }
 
-/// 执行换皮宿主内部的 `probe_appearance` 步骤。
+/// 在页面执行外观探针脚本；需要比较逐项要求时读取完整外观，否则只读明暗模式。
 async fn probe_appearance(page: &Page, include_details: bool) -> Result<AppearanceProbe, AppError> {
     let script = if include_details {
         APPEARANCE_PROBE_SCRIPT

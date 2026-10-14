@@ -1,9 +1,9 @@
-// 本文件收纳：定义换皮宿主 `LegacyManifest` 使用的内部数据；定义换皮宿主 `FriendCards` 使用的内部数据；定义换皮宿主 `PureThemeCssManifest` 使用的内部数据。
+// 本文件收纳：皮肤包清单与外观契约的数据结构、页面探针结构，以及监视任务与在途操作的句柄守卫。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-/// 定义换皮宿主 `LegacyManifest` 使用的内部数据。
+/// 旧版皮肤包清单：好友卡片图片与可选配色，作为需要显式信任的可执行皮肤加载。
 struct LegacyManifest {
     schema_version: u64,
     id: String,
@@ -20,7 +20,7 @@ struct LegacyManifest {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-/// 定义换皮宿主 `FriendCards` 使用的内部数据。
+/// 旧版皮肤的好友卡片图片，分别用于资料页与列表。
 struct FriendCards {
     profile_image: String,
     list_image: String,
@@ -28,7 +28,7 @@ struct FriendCards {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-/// 定义换皮宿主 `PureThemeCssManifest` 使用的内部数据。
+/// 纯主题 CSS 皮肤包清单：只含样式与外观要求，不携带可执行脚本。
 struct PureThemeCssManifest {
     #[serde(rename = "$comment", default)]
     _comment: Option<String>,
@@ -45,7 +45,7 @@ struct PureThemeCssManifest {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-/// 定义换皮宿主 `ThemeAppearance` 使用的内部数据。
+/// 主题声明的外观契约：支持的明暗模式及可选的逐模式宿主设置要求。
 struct ThemeAppearance {
     supported_color_modes: Vec<ColorMode>,
     #[serde(default)]
@@ -54,7 +54,7 @@ struct ThemeAppearance {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-/// 定义换皮宿主 `AppearanceRequirements` 使用的内部数据。
+/// 按浅色、深色分别声明的宿主外观要求。
 struct AppearanceRequirements {
     #[serde(default)]
     light: Option<AppearanceRequirement>,
@@ -64,7 +64,7 @@ struct AppearanceRequirements {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-/// 定义换皮宿主 `AppearanceRequirement` 使用的内部数据。
+/// 单一明暗模式下皮肤期望的宿主外观设置，字段缺失表示不作要求。
 struct AppearanceRequirement {
     #[serde(default)]
     code_theme_id: Option<String>,
@@ -87,7 +87,7 @@ struct AppearanceRequirement {
 }
 
 impl AppearanceRequirement {
-    /// 执行换皮宿主内部的 `has_fields` 步骤。
+    /// 是否声明了至少一项外观要求。
     fn has_fields(&self) -> bool {
         self.code_theme_id.is_some()
             || self.accent.is_some()
@@ -106,7 +106,7 @@ impl AppearanceRequirement {
 }
 
 impl AppearanceRequirements {
-    /// 执行换皮宿主内部的 `has_fields` 步骤。
+    /// 任一明暗模式声明了外观要求时为真。
     fn has_fields(&self) -> bool {
         self.light
             .as_ref()
@@ -120,7 +120,7 @@ impl AppearanceRequirements {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-/// 定义换皮宿主 `SemanticColorRequirements` 使用的内部数据。
+/// 期望的语义色：差异新增、差异删除与技能标记颜色。
 struct SemanticColorRequirements {
     #[serde(default)]
     diff_added: Option<String>,
@@ -131,7 +131,7 @@ struct SemanticColorRequirements {
 }
 
 #[derive(Debug)]
-/// 定义换皮宿主 `ThemeCssConfig` 使用的内部数据。
+/// 主题 CSS 包解析后的资源：预览图、背景图、逐模式背景与样式正文。
 struct ThemeCssConfig {
     preview: String,
     background: String,
@@ -139,14 +139,14 @@ struct ThemeCssConfig {
     css_text: String,
 }
 
-/// 定义换皮宿主 `SkinManifest` 使用的内部数据。
+/// 两种受支持的皮肤包清单。
 enum SkinManifest {
     Legacy(LegacyManifest),
     ThemeCss(Box<PureThemeCssManifest>),
 }
 
 impl SkinManifest {
-    /// 执行换皮宿主内部的 `id` 步骤。
+    /// 返回清单声明的皮肤 ID。
     fn id(&self) -> &str {
         match self {
             Self::Legacy(manifest) => &manifest.id,
@@ -154,7 +154,7 @@ impl SkinManifest {
         }
     }
 
-    /// 执行换皮宿主内部的 `name` 步骤。
+    /// 返回清单声明的皮肤名称。
     fn name(&self) -> &str {
         match self {
             Self::Legacy(manifest) => &manifest.name,
@@ -162,7 +162,7 @@ impl SkinManifest {
         }
     }
 
-    /// 执行换皮宿主内部的 `author` 步骤。
+    /// 返回清单声明的作者。
     fn author(&self) -> &str {
         match self {
             Self::Legacy(manifest) => &manifest.author,
@@ -170,7 +170,7 @@ impl SkinManifest {
         }
     }
 
-    /// 执行换皮宿主内部的 `package_type` 步骤。
+    /// 把清单种类映射为对外包类型。
     fn package_type(&self) -> SkinPackageType {
         match self {
             Self::Legacy(_) => SkinPackageType::LegacySkin,
@@ -178,7 +178,7 @@ impl SkinManifest {
         }
     }
 
-    /// 执行换皮宿主内部的 `supported_color_modes` 步骤。
+    /// 返回皮肤支持的明暗模式：旧版皮肤只有配色完整时才支持双模式，主题未声明时默认仅浅色。
     fn supported_color_modes(&self) -> Vec<ColorMode> {
         let mut modes = match self {
             Self::Legacy(manifest) if legacy_has_complete_dual_palettes(manifest) => {
@@ -199,7 +199,7 @@ impl SkinManifest {
     }
 }
 
-/// 执行换皮宿主内部的 `legacy_has_complete_dual_palettes` 步骤。
+/// 旧版清单是否为浅色与深色都提供了完整的八项配色。
 fn legacy_has_complete_dual_palettes(manifest: &LegacyManifest) -> bool {
     const COLOR_KEYS: [&str; 8] = [
         "background",
@@ -236,7 +236,7 @@ fn legacy_has_complete_dual_palettes(manifest: &LegacyManifest) -> bool {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-/// 定义换皮宿主 `AppearanceProbe` 使用的内部数据。
+/// 页面脚本回报的外观探针：实际明暗模式、生效设置及可读取的外观配置。
 struct AppearanceProbe {
     effective_mode: ColorMode,
     #[serde(default)]
@@ -247,7 +247,7 @@ struct AppearanceProbe {
 }
 
 #[derive(Debug, Deserialize)]
-/// 定义换皮宿主 `PageProbe` 使用的内部数据。
+/// 页面身份探针：是否为 Codex 或 WorkBuddy 页面及其 URL。
 struct PageProbe {
     #[serde(default)]
     codex: bool,
@@ -258,7 +258,7 @@ struct PageProbe {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
-/// 定义换皮宿主 `CompatibilityPageReport` 使用的内部数据。
+/// 单个页面注入后回报的兼容规则应用情况。
 struct CompatibilityPageReport {
     version: String,
     #[serde(default)]
@@ -268,7 +268,7 @@ struct CompatibilityPageReport {
 }
 
 impl PageProbe {
-    /// 执行换皮宿主内部的 `is_verified_codex` 步骤。
+    /// 只有 Codex 主界面固定 URL 才算已验证的 Codex 页面。
     fn is_verified_codex(&self) -> bool {
         self.codex && self.url == "app://-/index.html"
     }
@@ -280,14 +280,14 @@ impl PageProbe {
 }
 
 #[derive(Clone, Copy)]
-/// 定义换皮宿主 `ConnectionSource` 使用的内部数据。
+/// CDP 连接来源：连接已在运行的宿主，或由本应用刚启动的宿主。
 enum ConnectionSource {
     Existing,
     Launched,
 }
 
 impl ConnectionSource {
-    /// 执行换皮宿主内部的 `page_ready_timeout` 步骤。
+    /// 等待页面就绪的期限；刚启动的宿主需要更长时间加载。
     fn page_ready_timeout(self) -> Duration {
         match self {
             Self::Existing => EXISTING_CODEX_PAGE_READY_TIMEOUT,
@@ -296,7 +296,7 @@ impl ConnectionSource {
     }
 }
 
-/// 定义换皮宿主 `LoadedSkin` 使用的内部数据。
+/// 已加载待注入的皮肤：展示描述、注入脚本正文与外观要求。
 struct LoadedSkin {
     descriptor: SkinDescriptor,
     payload: Arc<str>,
@@ -304,13 +304,13 @@ struct LoadedSkin {
 }
 
 #[derive(Clone)]
-/// 定义换皮宿主 `AppearancePolicy` 使用的内部数据。
+/// 安装前预检使用的外观策略：支持的模式与逐模式要求。
 struct AppearancePolicy {
     supported_color_modes: Vec<ColorMode>,
     requirements: Option<AppearanceRequirements>,
 }
 
-/// 定义换皮宿主 `WatchTask` 使用的内部数据。
+/// 持续监视宿主新页面并补注入的后台任务句柄，含取消信号、CDP handler 中止句柄与回收 owner。
 struct WatchTask {
     host: SkinHostKind,
     cancel: watch::Sender<bool>,
@@ -353,7 +353,7 @@ struct ActiveWatchRegistration {
     owner: Arc<StdMutex<WatchTaskReaper>>,
 }
 
-/// 定义换皮宿主 `HandlerTaskGuard` 使用的内部数据。
+/// 持有一个 CDP handler 任务；丢弃或显式中止时把任务交给进程级回收，避免句柄丢失。
 struct HandlerTaskGuard(Option<JoinHandle<()>>);
 
 impl HandlerTaskGuard {
@@ -365,7 +365,7 @@ impl HandlerTaskGuard {
             .bind(task)
     }
 
-    /// 执行换皮宿主内部的 `abort` 步骤。
+    /// 中止 handler 任务并移交进程级 owner 确认终态；重复调用无副作用。
     fn abort(&mut self) {
         if let Some(task) = self.0.take() {
             retain_aborted_handler_task(task);
@@ -393,26 +393,26 @@ impl HandlerTaskGuard {
 }
 
 impl Drop for HandlerTaskGuard {
-    /// 执行换皮宿主内部的 `drop` 步骤。
+    /// 守卫释放时中止仍在运行的 handler。
     fn drop(&mut self) {
         self.abort();
     }
 }
 
-/// 定义换皮宿主 `CodexOperation` 使用的内部数据。
+/// 当前在途的宿主操作：操作代次与取消信号。
 struct CodexOperation {
     id: u64,
     cancel: watch::Sender<bool>,
 }
 
-/// 定义换皮宿主 `CodexOperationGuard` 使用的内部数据。
+/// 在途宿主操作的作用域守卫；结束时只清除仍属于自己的操作登记。
 struct CodexOperationGuard<'a> {
     id: u64,
     active: &'a StdMutex<Option<CodexOperation>>,
 }
 
 impl Drop for CodexOperationGuard<'_> {
-    /// 执行换皮宿主内部的 `drop` 步骤。
+    /// 仅当登记的仍是本操作时清除，避免误清后续操作。
     fn drop(&mut self) {
         let Ok(mut active) = self.active.lock() else {
             return;
@@ -440,5 +440,5 @@ impl Drop for HostRuntimeMutationGuard<'_> {
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - manifests_runtime_types.rs：定义换皮宿主 `InstanceRuntime` 使用的内部数据。；定义换皮宿主 `RuntimeState` 使用的内部数据。；定义换皮宿主 `PendingImportItem` 使用的内部数据。
+// - manifests_runtime_types.rs：实例运行态、导入暂存批次、目录缓存指纹与注入汇总报告。
 include!("manifests_runtime_types.rs");

@@ -1,7 +1,7 @@
-// 本文件收纳：执行换皮宿主内部的 `fetch_targets` 步骤；激活与已验证调试端点对应的宿主窗口；执行换皮宿主内部的 `exactly_one` 步骤：迭代器恰好只有一个匹配项时返回该项。
+// 本文件收纳：CDP 目标与页面列举、唯一匹配判定、窗口激活，以及各平台 Codex 进程查询、启动、重启与强制关闭。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 执行换皮宿主内部的 `fetch_targets` 步骤。
+/// 在请求期限内刷新浏览器调试目标列表，并留出短暂稳定时间让新页面出现。
 async fn fetch_targets(browser: &mut Browser) -> Result<(), AppError> {
     tokio::time::timeout(CDP_REQUEST_TIMEOUT, browser.fetch_targets())
         .await
@@ -34,13 +34,13 @@ async fn try_activate_host_window(host: SkinHostKind, endpoint: CdpEndpoint) {
     }
 }
 
-/// 执行换皮宿主内部的 `exactly_one` 步骤：迭代器恰好只有一个匹配项时返回该项。
+/// 迭代器恰有一个元素时返回它；为空或多于一个都返回 `None`，避免在歧义时猜测。
 fn exactly_one<T>(mut iter: impl Iterator<Item = T>) -> Option<T> {
     let first = iter.next()?;
     iter.next().is_none().then_some(first)
 }
 
-/// 执行换皮宿主内部的 `unique_codex_pid_for_endpoint` 步骤。
+/// 在已解析实例中找出唯一使用该调试端口的 Codex 进程 PID。
 fn unique_codex_pid_for_endpoint(
     instances: &[ResolvedSkinHostInstance],
     endpoint: CdpEndpoint,
@@ -53,7 +53,7 @@ fn unique_codex_pid_for_endpoint(
     .map(|instance| instance.process.pid)
 }
 
-/// 执行换皮宿主内部的 `restarted_instance_for_endpoint` 步骤。
+/// 重启后在实例列表中找出唯一使用该调试端口的实例。
 fn restarted_instance_for_endpoint(
     instances: Vec<SkinHostInstance>,
     endpoint: CdpEndpoint,
@@ -66,7 +66,7 @@ fn restarted_instance_for_endpoint(
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `activate_platform_codex_window` 步骤。
+/// 把指定 PID 的 Codex 窗口带到前台（Windows），在阻塞线程执行。
 async fn activate_platform_codex_window(pid: u32) -> bool {
     tokio::task::spawn_blocking(move || windows_codex::activate_gui_process(pid))
         .await
@@ -74,7 +74,7 @@ async fn activate_platform_codex_window(pid: u32) -> bool {
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `activate_platform_codex_window` 步骤。
+/// 把指定 PID 的 Codex 窗口带到前台（macOS），在阻塞线程执行。
 async fn activate_platform_codex_window(pid: u32) -> bool {
     tokio::task::spawn_blocking(move || macos_codex::activate_gui_process(pid))
         .await
@@ -82,12 +82,12 @@ async fn activate_platform_codex_window(pid: u32) -> bool {
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-/// 执行换皮宿主内部的 `activate_platform_codex_window` 步骤。
+/// 不支持的平台不激活窗口。
 async fn activate_platform_codex_window(_pid: u32) -> bool {
     false
 }
 
-/// 执行换皮宿主内部的 `browser_pages` 步骤。
+/// 在请求期限内列出浏览器当前全部页面。
 async fn browser_pages(browser: &Browser) -> Result<Vec<Page>, AppError> {
     tokio::time::timeout(CDP_REQUEST_TIMEOUT, browser.pages())
         .await
@@ -96,13 +96,13 @@ async fn browser_pages(browser: &Browser) -> Result<Vec<Page>, AppError> {
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `launch_platform_codex` 步骤。
+/// 以 9341 调试端口启动 Codex（macOS）。
 async fn launch_platform_codex() -> Result<(), AppError> {
     macos_process::launch_host(SkinHostKind::Codex, 9341).await
 }
 
 #[cfg(any(target_os = "macos", test))]
-/// 执行换皮宿主内部的 `matching_process_command_lines` 步骤。
+/// 从进程列表输出中挑出命令行恰为指定可执行文件（可带引号）或其后紧跟 ` --` 参数的进程，返回 PID 与命令行。
 fn matching_process_command_lines(output: &str, executable: &Path) -> Vec<(u32, String)> {
     let executable = executable.to_string_lossy();
     let quoted_executable = format!("\"{executable}\"");
@@ -129,13 +129,13 @@ fn matching_process_command_lines(output: &str, executable: &Path) -> Vec<(u32, 
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `platform_codex_command_lines` 步骤。
+/// 列出 Codex 进程的 PID 与命令行（macOS）。
 async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     macos_process::host_command_lines(SkinHostKind::Codex).await
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
+/// 列出经身份校验的 Codex 主进程（macOS），排除辅助进程。
 async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(macos_process::host_processes(SkinHostKind::Codex)
         .await?
@@ -199,7 +199,7 @@ async fn restart_platform_workbuddy_instance(
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `restart_platform_codex_instance` 步骤。
+/// 以回环调试参数重启所选 Codex 实例（macOS）；实例可执行文件已变化时拒绝。
 async fn restart_platform_codex_instance(
     selected: &ResolvedSkinHostInstance,
     port: u16,
@@ -222,13 +222,13 @@ async fn restart_platform_codex_instance(
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `force_close_platform_codex` 步骤。
+/// 强制关闭全部 Codex 进程（macOS）。
 async fn force_close_platform_codex() -> Result<(), AppError> {
     macos_process::force_close_host(SkinHostKind::Codex).await
 }
 
 #[cfg(target_os = "macos")]
-/// 执行换皮宿主内部的 `platform_codex_is_running` 步骤。
+/// 判断 Codex 是否在运行（macOS）；找不到应用视为未运行。
 async fn platform_codex_is_running() -> Result<bool, AppError> {
     match macos_process::host_is_running(SkinHostKind::Codex).await {
         Ok(running) => Ok(running),
@@ -238,19 +238,19 @@ async fn platform_codex_is_running() -> Result<bool, AppError> {
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `platform_codex_is_running` 步骤。
+/// 判断 Codex 图形进程是否在运行（Windows）。
 async fn platform_codex_is_running() -> Result<bool, AppError> {
     windows_codex::is_gui_running().await
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `platform_codex_command_lines` 步骤。
+/// 列出 Codex 图形进程的 PID 与命令行（Windows）。
 async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     windows_codex::gui_process_command_lines().await
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
+/// 列出 Codex 主图形进程（Windows），排除辅助进程。
 async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(windows_codex::gui_processes()
         .await?
@@ -265,7 +265,7 @@ async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `restart_platform_codex_instance` 步骤。
+/// 以指定调试端口重启所选 Codex 进程（Windows），保留其原始启动参数。
 async fn restart_platform_codex_instance(
     selected: &ResolvedSkinHostInstance,
     port: u16,
@@ -280,13 +280,13 @@ async fn restart_platform_codex_instance(
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `launch_platform_codex` 步骤。
+/// 启动 Codex（Windows）。
 async fn launch_platform_codex() -> Result<(), AppError> {
     windows_codex::launch().await
 }
 
 #[cfg(target_os = "windows")]
-/// 执行换皮宿主内部的 `force_close_platform_codex` 步骤。
+/// 强制关闭 Codex 图形进程（Windows）。
 async fn force_close_platform_codex() -> Result<(), AppError> {
     windows_codex::force_close_gui().await.map(|_| ())
 }
@@ -345,25 +345,25 @@ async fn force_close_platform_workbuddy() -> Result<(), AppError> {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-/// 执行换皮宿主内部的 `platform_codex_is_running` 步骤。
+/// 不支持的平台视为 Codex 未运行。
 async fn platform_codex_is_running() -> Result<bool, AppError> {
     Ok(false)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-/// 执行换皮宿主内部的 `platform_codex_command_lines` 步骤。
+/// 不支持的平台没有可列出的 Codex 进程。
 async fn platform_codex_command_lines() -> Result<Vec<(u32, String)>, AppError> {
     Ok(Vec::new())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-/// 执行换皮宿主内部的 `platform_codex_processes` 步骤。
+/// 不支持的平台没有可列出的 Codex 主进程。
 async fn platform_codex_processes() -> Result<Vec<PlatformHostProcess>, AppError> {
     Ok(Vec::new())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-/// 执行换皮宿主内部的 `restart_platform_codex_instance` 步骤。
+/// 不支持的平台拒绝重启 Codex 实例。
 async fn restart_platform_codex_instance(
     _selected: &ResolvedSkinHostInstance,
     _port: u16,
@@ -375,7 +375,7 @@ async fn restart_platform_codex_instance(
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-/// 执行换皮宿主内部的 `launch_platform_codex` 步骤。
+/// 不支持的平台拒绝启动 Codex。
 async fn launch_platform_codex() -> Result<(), AppError> {
     Err(AppError::new(
         "skin.platform_unsupported",
@@ -384,7 +384,7 @@ async fn launch_platform_codex() -> Result<(), AppError> {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-/// 执行换皮宿主内部的 `force_close_platform_codex` 步骤。
+/// 不支持的平台拒绝强制关闭 Codex。
 async fn force_close_platform_codex() -> Result<(), AppError> {
     Err(AppError::new(
         "skin.platform_unsupported",

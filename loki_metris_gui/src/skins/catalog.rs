@@ -1,17 +1,17 @@
-// 本文件收纳：执行换皮宿主内部的 `catalog_cache_error` 步骤；执行换皮宿主内部的 `import_state_error` 步骤；执行换皮宿主内部的 `catalog_fingerprint` 步骤。
+// 本文件收纳：皮肤库目录指纹与扫描、导入批次预检与身份分配，以及皮肤描述加载。
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
-/// 执行换皮宿主内部的 `catalog_cache_error` 步骤。
+/// 目录缓存锁不可用时的稳定错误。
 fn catalog_cache_error() -> AppError {
     AppError::new("skin.library_unavailable", "皮肤资源缓存不可用。")
 }
 
-/// 执行换皮宿主内部的 `import_state_error` 步骤。
+/// 导入暂存状态锁不可用时的稳定错误。
 fn import_state_error() -> AppError {
     AppError::new("skin.import_failed", "皮肤安装暂存状态不可用。")
 }
 
-/// 执行换皮宿主内部的 `catalog_fingerprint` 步骤。
+/// 合并内置库与用户库的目录指纹，按来源（内置在前）和目录名排序，供缓存比对。
 fn catalog_fingerprint(
     builtin_root: &Path,
     user_root: &Path,
@@ -26,7 +26,7 @@ fn catalog_fingerprint(
     Ok(fingerprint)
 }
 
-/// 执行换皮宿主内部的 `catalog_root_fingerprint` 步骤。
+/// 读取一个皮肤库根目录下全部合法皮肤目录的指纹；跳过链接、非目录与非法 ID。
 fn catalog_root_fingerprint(
     root: &Path,
     source: SkinSource,
@@ -113,7 +113,7 @@ fn catalog_root_fingerprint(
     Ok(directories)
 }
 
-/// 执行换皮宿主内部的 `directory_latest_modified` 步骤。
+/// 返回目录自身及其直接子项中最新的修改时间，不跟随链接。
 fn directory_latest_modified(path: &Path) -> Option<SystemTime> {
     let directory_modified = std::fs::symlink_metadata(path)
         .ok()
@@ -133,7 +133,7 @@ fn directory_latest_modified(path: &Path) -> Option<SystemTime> {
         })
 }
 
-/// 执行换皮宿主内部的 `scan_catalog_root` 步骤。
+/// 扫描一个皮肤库根目录并加载每个合法皮肤；单个皮肤无效时只记录日志并跳过。
 fn scan_catalog_root(
     root: &Path,
     source: SkinSource,
@@ -178,7 +178,7 @@ fn scan_catalog_root(
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `path_is_occupied` 步骤。
+/// 路径是否已被任何文件或链接占用；无法判断时返回错误而不是假定空闲。
 fn path_is_occupied(path: &Path) -> Result<bool, AppError> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(true),
@@ -191,7 +191,7 @@ fn path_is_occupied(path: &Path) -> Result<bool, AppError> {
 }
 
 impl PendingImportBatch {
-    /// 执行换皮宿主内部的 `response` 步骤。
+    /// 把暂存批次转换为对外的预检结果。
     fn response(&self) -> PreparedSkinImportBatch {
         PreparedSkinImportBatch {
             token: self.token.clone(),
@@ -210,7 +210,7 @@ impl PendingImportBatch {
     }
 }
 
-/// 执行换皮宿主内部的 `prepare_import_batch_in_worker` 步骤。
+/// 在后台线程逐个解压、校验导入归档到暂存目录，分配不冲突的身份并实时上报进度；取消或失败时清理整个暂存目录。
 fn prepare_import_batch_in_worker(
     user_root: &Path,
     sources: Vec<PathBuf>,
@@ -337,13 +337,13 @@ fn prepare_import_batch_in_worker(
     })
 }
 
-/// 执行换皮宿主内部的 `next_import_token` 步骤。
+/// 生成进程内唯一的导入批次 token（进程 ID 加递增序号）。
 fn next_import_token() -> String {
     let suffix = IMPORT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     format!("{}-{suffix}", std::process::id())
 }
 
-/// 执行换皮宿主内部的 `ensure_import_not_cancelled` 步骤。
+/// 导入已被取消时返回取消错误。
 fn ensure_import_not_cancelled(cancelled: &AtomicBool) -> Result<(), AppError> {
     if cancelled.load(Ordering::Acquire) {
         Err(import_cancelled_error())
@@ -352,12 +352,12 @@ fn ensure_import_not_cancelled(cancelled: &AtomicBool) -> Result<(), AppError> {
     }
 }
 
-/// 执行换皮宿主内部的 `import_cancelled_error` 步骤。
+/// 导入预检被用户取消的稳定错误。
 fn import_cancelled_error() -> AppError {
     AppError::new("skin.import_cancelled", "已取消这批主题/皮肤预检。")
 }
 
-/// 执行换皮宿主内部的 `checked_batch_import_bytes` 步骤。
+/// 累计批次解压体积，超过批次上限时拒绝。
 fn checked_batch_import_bytes(current: u64, next: u64) -> Result<u64, AppError> {
     let total = current.saturating_add(next);
     if total > MAX_IMPORT_BATCH_BYTES {
@@ -369,7 +369,7 @@ fn checked_batch_import_bytes(current: u64, next: u64) -> Result<u64, AppError> 
     Ok(total)
 }
 
-/// 执行换皮宿主内部的 `available_import_identity` 步骤。
+/// 为导入皮肤分配用户库中未占用的 ID 与名称。
 fn available_import_identity(
     user_root: &Path,
     base_id: &str,
@@ -378,7 +378,7 @@ fn available_import_identity(
     available_import_identity_with_reserved(user_root, base_id, base_name, &HashSet::new())
 }
 
-/// 执行换皮宿主内部的 `available_import_identity_with_reserved` 步骤。
+/// 原 ID 未占用时直接使用；否则依次追加 `_N` 后缀（名称追加 `(N)`），并避开本批次已预留的 ID，同时保持长度上限。
 fn available_import_identity_with_reserved(
     user_root: &Path,
     base_id: &str,
@@ -411,7 +411,7 @@ fn available_import_identity_with_reserved(
     ))
 }
 
-/// 执行换皮宿主内部的 `rewrite_import_identity` 步骤。
+/// 把重新分配的 ID 与名称写回暂存皮肤的 theme.json，其余字段保持原样。
 fn rewrite_import_identity(directory: &Path, id: &str, name: &str) -> Result<(), AppError> {
     let path = directory.join("theme.json");
     let text = read_text(&path)?;
@@ -428,7 +428,7 @@ fn rewrite_import_identity(directory: &Path, id: &str, name: &str) -> Result<(),
         .map_err(|_| AppError::new("skin.import_failed", "无法准备皮肤安装信息。"))
 }
 
-/// 执行换皮宿主内部的 `load_descriptor` 步骤。
+/// 读取并校验皮肤目录清单，生成皮肤库展示描述。
 fn load_descriptor(
     directory: &Path,
     id: &str,
@@ -441,5 +441,5 @@ fn load_descriptor(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - catalog_load.rs：与 `load_descriptor` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。；执行换皮宿主内部的 `load_skin` 步骤。
+// - catalog_load.rs：复用已校验清单生成描述，以及按引用加载待注入皮肤。
 include!("catalog_load.rs");

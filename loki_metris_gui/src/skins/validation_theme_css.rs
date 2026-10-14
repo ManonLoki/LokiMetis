@@ -1,7 +1,7 @@
 // 本文件是 validation.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：执行换皮宿主内部的 `parse_mode_theme_css` 步骤。；执行换皮宿主内部的 `is_allowed_mode_property` 步骤。；执行换皮宿主内部的 `is_valid_mode_property_value` 步骤。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：逐模式 CSS 与变量取值校验、资源文件检查、图片格式与签名校验，以及新主题 ID 与模板写入。
 
-/// 执行换皮宿主内部的 `parse_mode_theme_css` 步骤。
+/// 校验单一颜色模式的 CSS 文件：只允许对应模式的唯一根选择器、白名单变量各声明一次且取值合法；返回其中声明的背景图片文件名。
 fn parse_mode_theme_css(
     css: &str,
     mode: ColorMode,
@@ -62,7 +62,7 @@ fn parse_mode_theme_css(
     Ok(background)
 }
 
-/// 执行换皮宿主内部的 `is_allowed_mode_property` 步骤。
+/// 模式 CSS 允许声明的固定变量白名单。
 fn is_allowed_mode_property(property: &str) -> bool {
     matches!(
         property,
@@ -91,7 +91,7 @@ fn is_allowed_mode_property(property: &str) -> bool {
     )
 }
 
-/// 执行换皮宿主内部的 `is_valid_mode_property_value` 步骤。
+/// 按变量类别校验取值：颜色为十六进制，背景尺寸只允许 cover/contain，其余为限定范围的像素或百分比。
 fn is_valid_mode_property_value(property: &str, value: &str) -> bool {
     match property {
         "--skin-bg" | "--skin-panel" | "--skin-panel-alt" | "--skin-accent"
@@ -109,7 +109,7 @@ fn is_valid_mode_property_value(property: &str, value: &str) -> bool {
     }
 }
 
-/// 执行换皮宿主内部的 `mode_css_error` 步骤。
+/// 生成指出具体文件与问题的模式 CSS 契约错误。
 fn mode_css_error(file: &str, problem: &str) -> AppError {
     AppError::with_details(
         "skin.assets_invalid",
@@ -118,7 +118,7 @@ fn mode_css_error(file: &str, problem: &str) -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `strip_css_comments` 步骤。
+/// 去除 `/* */` 注释；注释未闭合时报语法错误。
 fn strip_css_comments(css: &str) -> Result<String, AppError> {
     let mut result = String::with_capacity(css.len());
     let mut chars = css.chars().peekable();
@@ -144,7 +144,7 @@ fn strip_css_comments(css: &str) -> Result<String, AppError> {
     Ok(result)
 }
 
-/// 执行换皮宿主内部的 `parse_local_css_image` 步骤。
+/// 解析 `url("…")` 或 `url('…')` 形式的本地图片引用，并校验文件名安全。
 fn parse_local_css_image(value: &str) -> Result<String, AppError> {
     let inner = value
         .strip_prefix("url(\"")
@@ -159,7 +159,7 @@ fn parse_local_css_image(value: &str) -> Result<String, AppError> {
     Ok(inner.to_owned())
 }
 
-/// 执行换皮宿主内部的 `is_css_px` 步骤。
+/// 值是否为闭区间内的整数像素（`Npx`）。
 fn is_css_px(value: &str, min: u16, max: u16) -> bool {
     value
         .strip_suffix("px")
@@ -167,7 +167,7 @@ fn is_css_px(value: &str, min: u16, max: u16) -> bool {
         .is_some_and(|value| (min..=max).contains(&value))
 }
 
-/// 执行换皮宿主内部的 `is_css_percent` 步骤。
+/// 值是否为闭区间内的整数百分比（`N%`）。
 fn is_css_percent(value: &str, min: u16, max: u16) -> bool {
     value
         .strip_suffix('%')
@@ -175,7 +175,7 @@ fn is_css_percent(value: &str, min: u16, max: u16) -> bool {
         .is_some_and(|value| (min..=max).contains(&value))
 }
 
-/// 执行换皮宿主内部的 `theme_css_syntax_error` 步骤。
+/// theme.css 结构不符合固定选择器与变量契约时的错误。
 fn theme_css_syntax_error() -> AppError {
     AppError::new(
         "skin.assets_invalid",
@@ -183,7 +183,7 @@ fn theme_css_syntax_error() -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `theme_css_value_error` 步骤。
+/// theme.css 变量取值非法时的错误。
 fn theme_css_value_error() -> AppError {
     AppError::new(
         "skin.assets_invalid",
@@ -191,7 +191,7 @@ fn theme_css_value_error() -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `validate_resource_file` 步骤。
+/// 要求皮肤目录中的资源文件存在、是非空普通文件且不超过大小上限。
 fn validate_resource_file(directory: &Path, file: &str, limit: u64) -> Result<(), AppError> {
     if let Some(problem) = resource_file_problem(directory, file, limit) {
         return Err(import_resource_error(vec![problem]));
@@ -199,7 +199,7 @@ fn validate_resource_file(directory: &Path, file: &str, limit: u64) -> Result<()
     Ok(())
 }
 
-/// 执行换皮宿主内部的 `resource_display_name` 步骤。
+/// 把资源文件名转换为面向用户的用途说明。
 fn resource_display_name(file: &str) -> String {
     let purpose = match file {
         "theme.json" => "皮肤说明文件",
@@ -214,7 +214,7 @@ fn resource_display_name(file: &str) -> String {
     format!("{purpose}「{file}」")
 }
 
-/// 执行换皮宿主内部的 `resource_file_problem` 步骤。
+/// 检查单个资源文件，返回缺失、不可读、非普通文件、空文件或过大的用户可读问题。
 fn resource_file_problem(directory: &Path, file: &str, limit: u64) -> Option<String> {
     let display_name = resource_display_name(file);
     match std::fs::metadata(directory.join(file)) {
@@ -229,7 +229,7 @@ fn resource_file_problem(directory: &Path, file: &str, limit: u64) -> Option<Str
     }
 }
 
-/// 执行换皮宿主内部的 `legacy_resource_problems` 步骤。
+/// 按图片或文本上限检查旧版皮肤的全部必需资源，汇总所有问题。
 fn legacy_resource_problems(directory: &Path, files: &[&str]) -> Vec<String> {
     files
         .iter()
@@ -247,7 +247,7 @@ fn legacy_resource_problems(directory: &Path, files: &[&str]) -> Vec<String> {
         .collect()
 }
 
-/// 执行换皮宿主内部的 `import_resource_error` 步骤。
+/// 皮肤包资源不完整的导入错误，携带逐项问题。
 fn import_resource_error(details: Vec<String>) -> AppError {
     AppError::with_details(
         "skin.assets_invalid",
@@ -256,14 +256,14 @@ fn import_resource_error(details: Vec<String>) -> AppError {
     )
 }
 
-/// 执行换皮宿主内部的 `is_valid_theme_color` 步骤。
+/// 颜色是否为 `#RRGGBB` 或 `#RRGGBBAA` 十六进制形式。
 fn is_valid_theme_color(value: &str) -> bool {
     matches!(value.len(), 7 | 9)
         && value.starts_with('#')
         && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-/// 执行换皮宿主内部的 `validate_theme_image_name` 步骤。
+/// 主题图片必须是根目录内的安全文件名且扩展名为 PNG 或 JPEG。
 fn validate_theme_image_name(value: &str) -> Result<(), AppError> {
     if validate_core_image_name(value).is_ok() && image_mime(value).is_ok() {
         Ok(())
@@ -275,12 +275,12 @@ fn validate_theme_image_name(value: &str) -> Result<(), AppError> {
     }
 }
 
-/// 执行换皮宿主内部的 `is_image_file` 步骤。
+/// 文件名扩展名是否为受支持的图片格式。
 fn is_image_file(file_name: &str) -> bool {
     image_mime(file_name).is_ok()
 }
 
-/// 执行换皮宿主内部的 `validate_image_signature` 步骤。
+/// 读取图片字节，确认魔数与扩展名声明的格式一致。
 fn validate_image_signature(path: &Path, file_name: &str) -> Result<(), AppError> {
     let bytes = std::fs::read(path)
         .map_err(|_| AppError::new("skin.assets_invalid", "无法读取纯主题图片。"))?;
@@ -305,7 +305,7 @@ fn validate_image_signature(path: &Path, file_name: &str) -> Result<(), AppError
     }
 }
 
-/// 执行换皮宿主内部的 `image_mime` 步骤。
+/// 按扩展名（不区分大小写）返回图片 MIME，只接受 PNG 与 JPEG。
 fn image_mime(file_name: &str) -> Result<&'static str, AppError> {
     match Path::new(file_name)
         .extension()
@@ -322,7 +322,7 @@ fn image_mime(file_name: &str) -> Result<&'static str, AppError> {
     }
 }
 
-/// 执行换皮宿主内部的 `validate_theme_creator_text` 步骤。
+/// 规范化主题名称或作者文本，长度不合法时给出带字段名的错误。
 fn validate_theme_creator_text(value: &str, label: &str) -> Result<String, AppError> {
     loki_metris_core::normalize_skin_creator_text(value).map_err(|_| {
         AppError::new(
@@ -332,7 +332,7 @@ fn validate_theme_creator_text(value: &str, label: &str) -> Result<String, AppEr
     })
 }
 
-/// 执行换皮宿主内部的 `available_theme_id` 步骤。
+/// 生成用户皮肤库中尚未占用的新主题 ID，有限次重试后失败。
 fn available_theme_id(user_root: &Path) -> Result<String, AppError> {
     for _ in 0..16 {
         let candidate = format!("theme_{}", uuid::Uuid::now_v7());
@@ -346,7 +346,7 @@ fn available_theme_id(user_root: &Path) -> Result<String, AppError> {
     ))
 }
 
-/// 执行换皮宿主内部的 `write_theme_scaffold` 步骤。
+/// 在新主题目录写入内置模板：清单（填入 ID、名称、作者）、变量表与占位图片。
 fn write_theme_scaffold(
     directory: &Path,
     id: &str,

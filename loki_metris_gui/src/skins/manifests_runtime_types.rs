@@ -1,7 +1,7 @@
 // 本文件是 manifests.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：定义换皮宿主 `InstanceRuntime` 使用的内部数据。；定义换皮宿主 `RuntimeState` 使用的内部数据。；定义换皮宿主 `PendingImportItem` 使用的内部数据。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：实例运行态、导入暂存批次、目录缓存指纹与注入汇总报告。
 
-/// 定义换皮宿主 `InstanceRuntime` 使用的内部数据。
+/// 单个宿主实例的换肤运行态：生效皮肤、页面监视任务与兼容结果。
 struct InstanceRuntime {
     active: Option<SkinDescriptor>,
     task: Option<WatchTask>,
@@ -9,13 +9,13 @@ struct InstanceRuntime {
 }
 
 #[derive(Default)]
-/// 定义换皮宿主 `RuntimeState` 使用的内部数据。
+/// 全部实例的运行态，以及每种宿主最近一次操作的目标实例。
 struct RuntimeState {
     instances: HashMap<String, InstanceRuntime>,
     last_targets: HashMap<SkinHostKind, String>,
 }
 
-/// 定义换皮宿主 `PendingImportItem` 使用的内部数据。
+/// 导入预检中暂存的一个归档：暂存目录与候选描述。
 struct PendingImportItem {
     item_id: String,
     archive_name: String,
@@ -23,7 +23,7 @@ struct PendingImportItem {
     candidate: SkinDescriptor,
 }
 
-/// 定义换皮宿主 `PendingImportBatch` 使用的内部数据。
+/// 一次导入预检的暂存批次，确认或取消时整体回收暂存根目录。
 struct PendingImportBatch {
     token: String,
     staging_root: PathBuf,
@@ -31,21 +31,21 @@ struct PendingImportBatch {
     skipped: Vec<SkippedSkinImport>,
 }
 
-/// 定义换皮宿主 `ActiveImportPreparation` 使用的内部数据。
+/// 正在进行的导入预检，以 token 标识并可协作取消。
 struct ActiveImportPreparation {
     token: String,
     cancelled: Arc<AtomicBool>,
 }
 
 #[derive(Clone)]
-/// 定义换皮宿主 `CachedCatalog` 使用的内部数据。
+/// 皮肤目录扫描缓存；目录指纹不变时直接复用上次解析结果。
 struct CachedCatalog {
     fingerprint: Vec<CatalogDirectoryFingerprint>,
     skins: Vec<SkinDescriptor>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
-/// 定义换皮宿主 `CatalogDirectoryFingerprint` 使用的内部数据。
+/// 皮肤库中一个皮肤目录的指纹：名称、修改时间及子项列表。
 struct CatalogDirectoryFingerprint {
     source: SkinSource,
     name: OsString,
@@ -55,7 +55,7 @@ struct CatalogDirectoryFingerprint {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-/// 定义换皮宿主 `CatalogChildFingerprint` 使用的内部数据。
+/// 皮肤目录子项的指纹：名称、类型、长度与修改时间。
 struct CatalogChildFingerprint {
     name: OsString,
     kind: u8,
@@ -63,14 +63,14 @@ struct CatalogChildFingerprint {
     modified: Option<SystemTime>,
 }
 
-/// 定义换皮宿主 `CatalogSkin` 使用的内部数据。
+/// 目录扫描得到的皮肤及其修改时间，目录列表按修改时间从新到旧排列。
 struct CatalogSkin {
     descriptor: SkinDescriptor,
     modified: Option<SystemTime>,
 }
 
 #[derive(Default)]
-/// 定义换皮宿主 `InjectionReport` 使用的内部数据。
+/// 一次注入的汇总报告：验证、注入、失败的页面数，首个失败原因、事务目标与兼容规则。
 struct InjectionReport {
     verified_pages: usize,
     injected_pages: usize,
@@ -120,7 +120,7 @@ impl InjectionTransaction {
 }
 
 impl InjectionReport {
-    /// 执行换皮宿主内部的 `include_compatibility` 步骤。
+    /// 合并单个页面回报的兼容规则。
     fn include_compatibility(&mut self, report: CompatibilityPageReport) {
         self.compatibility_applied_rules
             .extend(report.applied_rules);
@@ -128,7 +128,7 @@ impl InjectionReport {
             .extend(report.skipped_rules);
     }
 
-    /// 执行换皮宿主内部的 `compatibility_status` 步骤。
+    /// 按已应用与跳过的规则得出兼容模式。
     fn compatibility_status(&self) -> SkinCompatibilityStatus {
         let mode = if self.compatibility_skipped_rules.is_empty() {
             if self.compatibility_applied_rules.is_empty() {
