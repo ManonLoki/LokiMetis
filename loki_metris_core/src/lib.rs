@@ -144,6 +144,7 @@ pub use policy::messages::{
     source_root_reindex_validation_failed_message,
 };
 pub use policy::{
+    BusyWriterAction, scan_target_clients,
     DiscoveryBatchIndexDecision, DiscoveryBatchKind, LOCAL_DISCOVERY_WORKER_LIMIT,
     LocalIndexScanPolicy, LocalIndexScanWindow, ManualSourceAddDecision,
     ManualSourceInspectOutcome, PrimarySourceRootSupportError, ScanKind, ScanStartOrigin,

@@ -13,9 +13,8 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
             state.error=Some(error);state.revision=state.revision.wrapping_add(1);return Err(error);
         }
     };
-    let automatic = intent.origin != loki_metris_core::ScanStartOrigin::ExplicitUser;
-    let clients = intent.client.map(|client| vec![client]).unwrap_or(enabled_clients.clone())
-        .into_iter().filter(|client| !automatic || enabled_clients.contains(client)).collect::<Vec<_>>();
+    let automatic = intent.origin.is_automatic();
+    let clients = loki_metris_core::scan_target_clients(intent.origin, intent.client, &enabled_clients);
     if clients.is_empty() {return Ok(())}
     let retention=match context.settings.snapshot().await {
         Ok(settings)=>settings.retention_days,
@@ -25,8 +24,8 @@ pub(super) async fn run(context: Arc<ServiceContext>, intent: Intent, cancellati
             state.error=Some(error);state.revision=state.revision.wrapping_add(1);return Err(error);
         }
     };
-    let periodic = intent.origin == loki_metris_core::ScanStartOrigin::PeriodicAutomatic;
-    let permit = if periodic {
+    let periodic = intent.origin.continues_after_client_failure();
+    let permit = if intent.origin.busy_writer_action() == loki_metris_core::BusyWriterAction::Skip {
         match context.writer.try_start() { Ok(permit) => permit, Err(_) => return Ok(()) }
     } else {
         context.writer.start_when_available().await.map_err(|_| "usage_scan_busy")?

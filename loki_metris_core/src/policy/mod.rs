@@ -14,6 +14,8 @@ pub mod messages;
 mod source_root_alias;
 mod source_root_mutation;
 mod source_visit;
+mod scan_admission;
+pub use scan_admission::{BusyWriterAction, scan_target_clients};
 mod workbuddy_scan_source;
 
 pub use discovery_batch::{
