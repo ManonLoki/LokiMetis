@@ -13,7 +13,7 @@ pub(crate) mod startup;
 pub mod shortcuts;
 #[cfg(windows)]
 mod windows;
-#[cfg(windows)]
+#[cfg(all(windows, test))]
 pub(crate) use windows::allows_geometry_save;
 
 use gpui_kit::{AnyWindowHandle, App, Global, Task};
@@ -31,7 +31,8 @@ pub struct Services {
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_action_generation: u64,
     _poll: Task<()>,
-    #[cfg(windows)]
+    /// 测试窗口没有原生宿主事务，显示时直接操作捕获的 HWND。
+    #[cfg(all(windows, test))]
     window: Option<windows::MainWindow>,
     tray: Option<tray::Tray>,
     pub autostart: autostart::Service,
@@ -121,7 +122,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         #[cfg(any(target_os="macos", all(windows, not(test))))]
         window_action_generation: 0,
         _poll: poll,
-        #[cfg(windows)]
+        #[cfg(all(windows, test))]
         window: native_window,
         tray,
         autostart,

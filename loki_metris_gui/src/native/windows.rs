@@ -56,6 +56,7 @@ unsafe extern "system" {
     /// 查询窗口是否最小化；非零表示最小化，零表示未最小化。
     fn IsIconic(window: Handle) -> i32;
     /// 隐藏主窗不产生可保存的普通几何。
+    #[cfg(test)]
     fn IsWindowVisible(window: Handle) -> i32;
     /// 查询句柄当前是否标识窗口；结果不能保证其后仍有效，也不能证明进程或线程归属。
     fn IsWindow(window: Handle) -> i32;
@@ -72,6 +73,7 @@ pub(crate) struct MainWindow {
 
 impl MainWindow {
     /// 最小化的 iconic 坐标及隐藏反馈不能覆盖最后可信的普通位置。
+    #[cfg(test)]
     pub(crate) fn allows_geometry_save(&self) -> bool {
         // SAFETY: 句柄先确认属于当前 UI 线程和进程，查询不转移所有权。
         self.is_valid() && unsafe { IsIconic(self.window) == 0 && IsWindowVisible(self.window) != 0 }
@@ -163,7 +165,9 @@ impl MainWindow {
     }
 }
 
-/// 活窗无法识别时生产路径拒绝保存；虚拟测试窗沿用 GPUI 的可见性合同。
+/// 活窗无法识别时拒绝保存；虚拟测试窗沿用 GPUI 的可见性合同。
+/// 生产路径改由原生 v2 几何提交，本判定只服务旧几何回退路径的测试。
+#[cfg(test)]
 pub(crate) fn allows_geometry_save(window: &Window) -> bool {
     MainWindow::capture(window).map(|host| host.allows_geometry_save()).unwrap_or(cfg!(test) && window.is_visible())
 }

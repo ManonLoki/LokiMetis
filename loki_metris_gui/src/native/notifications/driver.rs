@@ -34,6 +34,8 @@ impl Drop for AuthorizationGuard {
 }
 /// 有界平台回调，点击必须在 UI 线程恢复主窗口。
 pub(super) enum Event {
+    /// macOS delegate 回调产生；Windows 点击经宿主的 `pending_click` 标志轮询，不走事件通道。
+    #[cfg_attr(windows, allow(dead_code))]
     Clicked,
     /// 只有 Windows 的晚到失败回调会产生；其它平台不会构造，但事件处理对所有平台统一。
     #[cfg_attr(not(windows), allow(dead_code))]

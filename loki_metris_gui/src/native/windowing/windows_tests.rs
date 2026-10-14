@@ -29,7 +29,7 @@ fn desktop(hwnd: HWND) -> DesktopSnapshot {
         let scale = f64::from(GetDpiForWindow(hwnd)) / 96.;
         let RECT { left, top, .. } = info.rcMonitor;
         let work = info.rcWork;
-        DesktopSnapshot { pointer: Some("test-monitor".into()), global_top: 0., displays: vec![super::super::NativeDisplay {
+        DesktopSnapshot { pointer: Some("test-monitor".into()), displays: vec![super::super::NativeDisplay {
             id: gpui_kit::DisplayId::new(monitor.0 as u64), global_origin: WindowDipPoint { x: left.into(), y: top.into() },
             area: WindowDisplayArea { key: "test-monitor".into(), primary: true, scale, work_area: WindowDipRect {
                 origin: WindowDipPoint { x: f64::from(work.left - left) / scale, y: f64::from(work.top - top) / scale },

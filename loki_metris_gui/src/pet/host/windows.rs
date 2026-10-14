@@ -50,8 +50,6 @@ struct MonitorInfo {
 }
 #[link(name = "user32")]
 unsafe extern "system" {
-    /// 有效窗口显示命令，不以返回旧可见性作为成功证据。
-    fn ShowWindow(window: Handle, command: i32) -> i32;
     /// 调整位置及Z序，返回0时读取系统错误。
     fn SetWindowPos(
         window: Handle,
@@ -218,37 +216,6 @@ pub fn bounds(window: &Window) -> Bounds<gpui_kit::Pixels> {
     } else {
         window.bounds()
     }
-}
-/// 使用无激活显示命令，隐藏不会隐藏同一进程的主窗口。
-pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
-    unsafe {
-        ShowWindow(native(window)?, if visible { 4 } else { 0 });
-    }
-    Ok(())
-}
-/// 只修改位置，保持尺寸、Z序和焦点。
-pub fn move_to(window: &Window, x: f64, y: f64) -> anyhow::Result<()> {
-    let scale = f64::from(window.scale_factor());
-    let hwnd = native(window)?;
-    let frame = ClientFrame::read(hwnd)?;
-    let (x, y, _, _) = frame.outer((x * scale).round() as i32, (y * scale).round() as i32, 0, 0);
-    let ok = unsafe {
-        SetWindowPos(
-            hwnd,
-            std::ptr::null_mut(),
-            x,
-            y,
-            0,
-            0,
-            0x0001 | 0x0004 | 0x0010,
-        )
-    };
-    anyhow::ensure!(
-        ok != 0,
-        "move auxiliary window: {}",
-        std::io::Error::last_os_error()
-    );
-    Ok(())
 }
 /// 工具窗无任务栏入口，锁定关闭边缘缩放，置顶不激活窗口。
 pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> anyhow::Result<()> {

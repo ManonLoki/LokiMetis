@@ -150,7 +150,7 @@ impl Writer {
     }
 
     /// 旧几何没有可信屏幕身份，提交时清除新记录，仍保留有效尺寸用于居中恢复。
-    #[cfg(any(test, not(target_os="macos")))]
+    #[cfg(any(test, not(any(target_os="macos", windows))))]
     pub fn save_window(&self,bounds:Option<[f32;4]>,maximized:bool) {
         self.queue_window(bounds, maximized, None);
     }

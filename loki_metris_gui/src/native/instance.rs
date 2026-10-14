@@ -234,6 +234,7 @@ fn private_directory(directory: &Path) -> io::Result<PathBuf> {
             Ok(metadata) if !linked(&metadata) && metadata.is_dir() => {},
             Ok(_) => return Err(io::ErrorKind::InvalidInput.into()),
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                #[cfg_attr(not(unix), allow(unused_mut))]
                 let mut builder = fs::DirBuilder::new();
                 #[cfg(unix)]
                 { use std::os::unix::fs::DirBuilderExt; builder.mode(0o700); }

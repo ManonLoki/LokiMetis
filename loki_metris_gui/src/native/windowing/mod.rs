@@ -45,6 +45,7 @@ pub(crate) struct DesktopSnapshot {
     /// 指针所在屏幕稳定身份，失败时交给 core 使用确定回退。
     pub pointer: Option<String>,
     /// AppKit 全局向上坐标转换使用的主屏顶边，保留原生负坐标。
+    #[cfg(target_os = "macos")]
     pub global_top: f64,
 }
 
