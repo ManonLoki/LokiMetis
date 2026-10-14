@@ -17,10 +17,12 @@ fn retain_process_watch_task(mut task: RetainedWatchTask) {
         join.abort();
     }
     task.owner = StdWeak::new();
-    process_watch_task_owner()
+    let mut retained = process_watch_task_owner()
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .push(task);
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // 已确认终态的句柄不会再分离任何运行中的任务，随每次登记释放，避免长期运行时只增不减。
+    retained.retain(|retained| retained.join.as_ref().is_some_and(|join| !join.is_finished()));
+    retained.push(task);
 }
 
 /// 优先把取消中的 watcher 归还仍存活的 service；最终析构后转交进程级 owner。

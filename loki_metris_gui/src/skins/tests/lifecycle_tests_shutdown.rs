@@ -330,3 +330,27 @@ async fn queued_host_mutations_recheck_closing_after_operation_lock() {
     assert_eq!(restart.await.unwrap().unwrap_err().code, "skin.operation_cancelled");
     assert_eq!(stop.await.unwrap().unwrap_err().code, "skin.operation_cancelled");
 }
+
+/// 进程级 watcher owner 登记新句柄时，必须释放已经确认终态的旧句柄，长期运行不能只增不减。
+#[test]
+fn process_watch_owner_releases_finished_handles_on_retain() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let finished = runtime.spawn(async { Ok(0_usize) });
+    runtime.block_on(async {
+        while !finished.is_finished() {
+            tokio::task::yield_now().await;
+        }
+    });
+    let retained = |join| super::RetainedWatchTask {
+        host: super::SkinHostKind::Codex,
+        endpoint: super::CdpEndpoint::new(9341),
+        join: Some(join),
+        handler_abort: None,
+        owner: std::sync::Weak::new(),
+    };
+    super::retain_process_watch_task(retained(finished));
+    let pending = runtime.spawn(std::future::pending::<Result<usize, super::AppError>>());
+    super::retain_process_watch_task(retained(pending));
+    let owner = super::process_watch_task_owner().lock().unwrap();
+    assert!(owner.iter().all(|task| task.join.as_ref().is_some_and(|join| !join.is_finished())));
+}
