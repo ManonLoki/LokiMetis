@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "45ec233493e77217cbfd0c80f2a0bef679642a3e",
-  "version": "0.2.52",
+  "sourceHead": "18b0ce540fa1cac7f5804d9a800d90dfdfe19408",
+  "version": "0.2.55",
   "releaseDate": "2026-10-14",
-  "expectedTag": "v0.2.52-20261014",
+  "expectedTag": "v0.2.55-20261014",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "3ff70c6160a9059fa83a582f0fd7b3559a471f09",
-    "sourceHead": "45ec233493e77217cbfd0c80f2a0bef679642a3e",
-    "scopeDiffSha256": "db6045ee447edeba11788f9b194631865e319ec8be78c1e89001fc35f681d266",
-    "reviewedSourceCommit": "45ec233493e77217cbfd0c80f2a0bef679642a3e",
+    "scopeBase": "7d769ff67fe3481ade563f6ef4ffa05ab779dd3d",
+    "sourceHead": "18b0ce540fa1cac7f5804d9a800d90dfdfe19408",
+    "scopeDiffSha256": "967c41422c955f63453df3db1943236bfa10982a4578d26b9de1b030aba2f94e",
+    "reviewedSourceCommit": "18b0ce540fa1cac7f5804d9a800d90dfdfe19408",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed cumulative GPUI changes since v0.2.16: behavior and regressions, core/adapter boundaries, native/Hook/installer contracts, cohesive module sizes and temporary markers. Subsequent docs and policy wording preserve the existing local_package choice. Generated architecture HTML excluded from manual size limits. No source blockers; OS behavior and candidate signing unverified.",
+    "evidenceSummary": "Reviewed behavior, core/adapter boundaries, Hooks/CDP/private IPC contracts, responsibility/size and temporary markers since v0.2.52. Three fixes retain regression coverage. Skin responsibility splits preserve function/type bodies; 142 related regressions passed before the version bump. Registered branches are ancestors of sourceHead. Package runtime and Windows remain unverified.",
     "reason": null,
     "remainingRisk": null
   }

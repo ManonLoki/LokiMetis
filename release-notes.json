@@ -3,6 +3,26 @@
   "releases": [
     {
       "releaseDate": "2026-10-14",
+      "version": "v0.2.55",
+      "featureOptimizations": [
+        {
+          "zh-CN": "优化调用明细表分页渲染，追加记录时复用已有列宽测量。",
+          "en-US": "Improve call-table pagination by reusing column measurements for previously loaded rows."
+        },
+        {
+          "zh-CN": "统计和图表在索引、覆盖状态及时间范围未变化时复用结果，减少自动刷新时的重复读取与聚合。",
+          "en-US": "Reuse statistics and chart results while index, coverage and time scope remain unchanged, reducing repeated reads and aggregation during refresh."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复长期运行时换肤监视任务句柄持续累积的问题，及时释放已结束任务。",
+          "en-US": "Fix accumulated skin watcher handles during long-running sessions by releasing completed tasks."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-14",
       "version": "v0.2.52",
       "featureOptimizations": [],
       "bugFixes": [
