@@ -101,6 +101,7 @@ fn atlas(renderer: &MetalHeadlessRenderer, mono: bool) -> AtlasTile {
 /// 真NV12/IOSurface是Metal的Surface实现要求；锁定后按各plane实际stride填充。
 fn surface() -> CFRetained<CVPixelBuffer> {
     let empty = CFDictionary::<CFType, CFType>::empty();
+    // 安全：这些 CoreVideo 导出常量在受支持的 Apple 平台终身有效；这里只借用，不转移所有权。
     let keys: [&CFString; 2] = unsafe {
         [
             kCVPixelBufferIOSurfacePropertiesKey,
@@ -110,7 +111,7 @@ fn surface() -> CFRetained<CVPixelBuffer> {
     let values: [&CFType; 2] = [&empty, CFBoolean::new(true)];
     let options = CFDictionary::from_slices(&keys, &values);
     let mut raw = std::ptr::null_mut();
-    // SAFETY: 输出指针指向本地变量；成功时 CoreVideo 返回 +1 引用，由 CFRetained 接管。
+    // 安全：输出指针指向有效本地变量；先确认创建成功及非空，再将 Create 的 +1 引用唯一交给 CFRetained。
     let buffer = unsafe {
         assert_eq!(
             CVPixelBufferCreate(
@@ -125,7 +126,7 @@ fn surface() -> CFRetained<CVPixelBuffer> {
         );
         CFRetained::from_raw(std::ptr::NonNull::new(raw).unwrap())
     };
-    // SAFETY: CVPixelBuffer已锁定；长度取自当前plane的实际height×bytes_per_row。
+    // 安全：独占新建 NV12 缓冲区，锁定成功后才写入两个有效 plane；长度取各自实际 stride×height，写完解锁。
     unsafe {
         assert_eq!(
             CVPixelBufferLockBaseAddress(&buffer, CVPixelBufferLockFlags::empty()),

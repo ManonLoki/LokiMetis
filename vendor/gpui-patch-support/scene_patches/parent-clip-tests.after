@@ -251,6 +251,7 @@ mod parent_clip_tests {
             use objc2_core_video::{CVPixelBufferCreate, kCVPixelFormatType_32BGRA, kCVReturnSuccess};
             let mut image_buffer = std::ptr::null_mut();
             assert_eq!(
+                // 安全：输出指针指向调用期间有效的本地变量；其余参数创建独立的一像素 BGRA 缓冲区。
                 unsafe {
                     CVPixelBufferCreate(
                         None,
@@ -268,6 +269,7 @@ mod parent_clip_tests {
                 order: 0,
                 bounds: bounds(),
                 content_mask: mask,
+                // 安全：已确认创建成功且指针非空；Create 返回的 +1 引用只交给此 CFRetained 一次。
                 image_buffer: unsafe {
                     CFRetained::from_raw(std::ptr::NonNull::new(image_buffer).unwrap())
                 },

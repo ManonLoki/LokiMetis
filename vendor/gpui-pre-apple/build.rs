@@ -46,7 +46,7 @@ fn generated_sources() -> PathBuf {
             ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
             ("src/metal_renderer.rs", "621c12b03a666e74fdd7c51439092b72a8de1c7789b614cccb1a2759c6f4497c"),
             ("src/gpui_apple.rs", "581be8cd4369fb9506dbfc2efc0d99090ba927eabec6727d22af2d6090577ac8"),
-            ("vendor/gpui/src/scene.rs", "febcf9f3a1ff390ffb7292071dcb5e7e4d725db770d774a5c33c8118c669ba5b"),
+            ("vendor/gpui/src/scene.rs", "2c91fbb271d2e32bb9b4f341eeae6fb3edb6e302d525e58741505472e9b0c0e6"),
             ("src/shaders.metal", "0293a36fef5f5bbde11fcad44ac903c6d70bb6c83c9db86c26a831f6ae53da3c"),
             ("src/text_system.rs", "d92a152eb49dcfd644d7a594f12f394caa0c41a593a868d2df4e8ab98298d1ca"),
         ],

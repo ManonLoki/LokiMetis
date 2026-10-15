@@ -55,7 +55,7 @@ fn generated_sources() -> PathBuf {
             ("src/elements/div.rs", "1eade4ee979ab0e9c4a1d275f4730ac8f4a598baa2b3e079fe5e8189b627ef07"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
             ("src/platform/test/window.rs", "e7571f2fae5062f3035d4ed7719b6efa755a210f32c95a52039169a4dc2d077d"),
-            ("src/scene.rs", "febcf9f3a1ff390ffb7292071dcb5e7e4d725db770d774a5c33c8118c669ba5b"),
+            ("src/scene.rs", "2c91fbb271d2e32bb9b4f341eeae6fb3edb6e302d525e58741505472e9b0c0e6"),
             ("src/style.rs", "332c53a090e87cef0ee71e2b10e807be8ef4e376c654a84fe10c0b5886ae19cd"),
             ("src/styled.rs", "d7a9d0e6b52885c428ecab1bed2cb6c2141c6fcf55f2b2b6a242f1483723c50d"),
             ("src/view.rs", "248507911637f48c4c1ffa0eb65a4fc4c5e488d93de0e2b7ef237d740f04b9ed"),
