@@ -2,7 +2,7 @@
 
 use gpui_kit::{ClickEvent, MouseButton, MouseDownEvent, Pixels, Point};
 
-/// 与GPUI 0.3.8拖动判定一致，阈值单位是逻辑像素，边界2px仍可点击。
+/// 与GPUI 0.3.9拖动判定一致，阈值单位是逻辑像素，边界2px仍可点击。
 pub(super) const CLICK_MOVE_THRESHOLD: f64 = 2.;
 
 /// 候选绑定实际slot与第二击按下位置，不累计平台已有的clickCount。

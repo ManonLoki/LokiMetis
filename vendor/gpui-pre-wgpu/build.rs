@@ -71,7 +71,7 @@ fn main() {
     let spec = Spec {
         entry: "src/gpui_wgpu.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "49af2ca1842fcf48ce4d903972a531b8d0355b73a2c8af30ab466a5e068f60b7",
+        source_manifest_sha256: "64f38e80c93d932e660b2b437d6591d74996851cd37e7e0e216b0e0608ef340b",
         patches: &[
             Patch {
                 name: "polychrome-layout",
@@ -129,7 +129,7 @@ fn main() {
             },
         ],
         generated_hashes: &[
-            ("src/cosmic_text_system.rs", "8275d670a3b89548b4544adb07914a41f8d0d57b2a85bb311dd1989380d9917f"),
+            ("src/cosmic_text_system.rs", "79305228ecd9588a20bae8c4b3680391ba870657da5ac8e6854ce58a8a458535"),
             ("src/gpui_wgpu.rs", "b51033ac07d187c89c4079f208d3a557c6fff309b1cd403927ce8974e795afa0"),
             ("src/shaders.wgsl", "03d4c3ee901b800fe0beb775abfc191820affdec17bc38759129f3254c7c2e48"),
             ("src/shaders_webgl.wgsl", "d48a0ef2bd567c342f91f9b45ec4483de23e0f9ded11a4a232b3b46f9a43e6c9"),

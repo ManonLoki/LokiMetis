@@ -108,21 +108,21 @@ test("tray source drift rejects its whole registration while preserving other so
   assert.ok(result.errors.some((error) => /原样文件 SHA256 不符.*tray-icon.*lib\.rs/u.test(error)));
 });
 
-test("macOS font registration verifies all 17 originals and excludes no helper or fixture", () => {
-  const expected = installGpuiSource("vendor/gpui-pre-macos");
+test("Apple font registration verifies all 19 originals and excludes no helper or fixture", () => {
+  const expected = installGpuiSource("vendor/gpui-pre-apple");
   for (const relative of ["src/variable_font.rs", "test-fixtures/font.ttf"]) {
-    const target = path.join(root, "vendor/gpui-pre-macos", relative);
+    const target = path.join(root, "vendor/gpui-pre-apple", relative);
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, "maintained content\n");
   }
-  assert.equal(expected.length, 17);
+  assert.equal(expected.length, 19);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
 });
 
-test("macOS font source drift rejects all its exclusions while keeping other registrations", () => {
+test("Apple font source drift rejects all its exclusions while keeping other registrations", () => {
   const expected = installSource();
-  installGpuiSource("vendor/gpui-pre-macos");
-  writeFileSync(path.join(root, "vendor/gpui-pre-macos/upstream/src/text_system.rs"), "// changed\n");
+  installGpuiSource("vendor/gpui-pre-apple");
+  writeFileSync(path.join(root, "vendor/gpui-pre-apple/upstream/src/text_system.rs"), "// changed\n");
   const result = verifyRegisteredThirdParty(root);
   assert.deepEqual(result.files, expected);
   assert.ok(result.errors.some((error) => /原样文件 SHA256 不符.*text_system\.rs/u.test(error)));

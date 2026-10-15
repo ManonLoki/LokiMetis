@@ -48,7 +48,7 @@ fn owns(id: &str) -> bool {
 }
 /// objc2 0.6 的自动类名包含模块和包版本；只协作当前固定归档中审阅过的实现。
 fn supported_class_name(name: &std::ffi::CStr) -> bool {
-    name == c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.8"
+    name == c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.9"
 }
 define_class!(
     // 安全：NSObject 无额外不变量；仅并发访问有界线程安全 sender 与已知 GPUI 线程安全代理。

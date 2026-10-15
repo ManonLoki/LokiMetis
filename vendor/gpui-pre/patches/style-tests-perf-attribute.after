@@ -1,0 +1,2 @@
+    // 0.3.9 发布清单不再携带 util_macros；独立包测试以内建 #[test] 运行同一组用例。
+    use core::prelude::v1::test as perf;

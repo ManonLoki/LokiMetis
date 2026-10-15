@@ -1,6 +1,6 @@
 // 自有生成补丁：只为原生可变字体补全 wght 实例和尺寸无关的反查身份。
 use anyhow::{Result, bail};
-use cocoa::appkit::CGFloat;
+use core_graphics::base::CGFloat;
 use core_foundation::{
     base::{CFEqual, CFType, TCFType},
     dictionary::{CFDictionary, CFDictionaryRef},

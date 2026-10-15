@@ -39,10 +39,10 @@ fn raw_font(bytes: &'static [u8]) -> CTFont {
 }
 
 /// 内存字体源走真实 add_fonts，family 从夹具读取，不依赖全局已安装同名字体。
-fn system(bytes: &'static [u8]) -> (MacTextSystem, String) {
+fn system(bytes: &'static [u8]) -> (AppleTextSystem, String) {
     let native = raw_font(bytes);
     let family = unsafe { FontKitFont::from_native_font(&native) }.family_name();
-    let system = MacTextSystem::new();
+    let system = AppleTextSystem::new();
     system
         .add_fonts(vec![Cow::Borrowed(bytes)])
         .expect("real fixture registration");
@@ -57,12 +57,12 @@ fn request(family: &str, weight: f32) -> Font {
 }
 
 /// 注册结果必须从保存的实际 CTFont 读取，不用请求字重冒充实例。
-fn native(system: &MacTextSystem, id: FontId) -> CTFont {
+fn native(system: &AppleTextSystem, id: FontId) -> CTFont {
     system.0.read().fonts[id.0].native_font()
 }
 
 /// 真实 raster 包含尺寸和字节；不同几何同样属于可观察输出差异。
-fn raster(system: &MacTextSystem, id: FontId) -> (Size<DevicePixels>, Vec<u8>) {
+fn raster(system: &AppleTextSystem, id: FontId) -> (Size<DevicePixels>, Vec<u8>) {
     let params = RenderGlyphParams {
         font_id: id,
         glyph_id: system.glyph_for_char(id, 'M').expect("M glyph"),
@@ -86,11 +86,11 @@ fn raster(system: &MacTextSystem, id: FontId) -> (Size<DevicePixels>, Vec<u8>) {
     pixels
 }
 
-/// 编译期检验完整 MacTextSystem 的 Send/Sync，无法由纯 Rust key 的单独检查替代。
+/// 编译期检验完整 AppleTextSystem 的 Send/Sync，无法由纯 Rust key 的单独检查替代。
 #[test]
 fn mac_text_system_remains_send_sync() {
     fn check<T: Send + Sync>() {}
-    check::<MacTextSystem>();
+    check::<AppleTextSystem>();
     check::<NativeFontIdentity>();
 }
 

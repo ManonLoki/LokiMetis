@@ -1,0 +1,5 @@
+            content_mask: ContentMask { bounds },
+            image_buffer: image_buffer.clone(),
+            #[cfg(feature = "parent-rounded-clip")]
+            parent_clip: Default::default(),
+        });

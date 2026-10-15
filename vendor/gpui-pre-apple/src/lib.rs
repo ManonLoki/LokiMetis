@@ -1,9 +1,9 @@
 #![cfg(any(target_os = "macos", target_os = "ios"))]
-//! Shared Apple rendering and task dispatch for GPUI.
+//! Shared Apple rendering, task dispatch, and system services for GPUI.
 //!
 //! This crate renders GPUI scenes directly with Metal on Apple platforms. It
-//! owns GPU resources and shaders while leaving application lifecycle,
-//! windowing, and input to each platform backend.
+//! owns GPU resources, text rendering, Keychain access, and thermal notifications
+//! while leaving application lifecycle, windowing, and input to each platform backend.
 
 mod atlas_retirement;
 

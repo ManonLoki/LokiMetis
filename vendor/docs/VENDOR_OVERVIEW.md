@@ -4,7 +4,7 @@
 
 ## 1. vendor 的定位
 
-LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.1` 间接依赖 Zed 发布到 crates.io 的 `gpui-pre 0.3.8` 系列包（`gpui-kit → gpui-pre-platform → gpui-pre-macos / gpui-pre-windows / … → gpui-pre-apple / gpui-pre / gpui-pre-wgpu`），macOS 辅助功能再经 `gpui-pre-macos` 依赖 `accesskit_macos 0.26.3`。
+LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依赖 Zed 发布到 crates.io 的 `gpui-pre 0.3.9` 系列包（`gpui-kit → gpui-pre-platform → gpui-pre-macos / gpui-pre-windows / … → gpui-pre-apple / gpui-pre / gpui-pre-wgpu`），macOS 辅助功能再经 `gpui-pre-macos` 依赖 `accesskit_macos 0.26.3`。
 
 产品复刻过程中有若干行为无法在应用层实现，必须改框架本身（图片独立圆角视口、父圆角裁剪、按需帧调度、可变字体 wght 实例、macOS 窗口 zoom／全屏／reopen 事件、AccessKit 标题层级等）。`vendor/` 的作用就是在**不 fork、不改版本号、不手改第三方源码**的前提下，对这几个固定版本的 crate 施加一组可审阅、可复现、失败关闭的补丁：
 
@@ -20,14 +20,14 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.1` 间接依�
 | 目录 | 替换的 crate | 上游 | 作用 | 补丁数 | 生成校验文件数 |
 |---|---|---|---|---|---|
 | `gpui-patch-support/` | 无（共享维护代码） | — | 标准库 SHA-256 生成器、`patch!` 宏、共用 scene 补丁、独立 Node 验证器 | 24（scene，供两包复用） | — |
-| `gpui-pre/` | `gpui-pre 0.3.8`（lib 名 `gpui`） | zed@279fe07，160 文件 | GPUI core：图片圆角视口、父圆角裁剪、按需帧、deferred AX、hitbox 排除、元素仿射、焦点代数 | 24 + 144 = 168 | 15 |
-| `gpui-pre-apple/` | `gpui-pre-apple 0.3.8`（`gpui_apple`） | zed@279fe07，15 文件 | Metal 渲染器与 shader：圆角视口、父裁剪接线、图集延迟回收 | 24 + 35 = 59 | 5 |
-| `gpui-pre-macos/` | `gpui-pre-macos 0.3.8`（`gpui_macos`） | zed@279fe07，17 文件 | AppKit 平台层：可变字体、菜单锁、reopen／zoom／全屏事件、CVDisplayLink 需求位 | 27 | 5 |
-| `gpui-pre-windows/` | `gpui-pre-windows 0.3.8`（`gpui_windows`） | zed@279fe07，28 文件 | DirectX 平台层：HLSL 圆角视口 ABI、调试 shader 路径 | 3 | 3 |
-| `gpui-pre-wgpu/` | `gpui-pre-wgpu 0.3.8`（`gpui_wgpu`） | zed@279fe07，14 文件 | WGPU 后端：WGSL／WebGL 圆角视口 ABI、测试字体夹具路径 | 9 | 5 |
+| `gpui-pre/` | `gpui-pre 0.3.9`（lib 名 `gpui`） | zed@93d7456，160 文件 | GPUI core：图片圆角视口、父圆角裁剪、按需帧、deferred AX、hitbox 排除、元素仿射、焦点代数 | 24 + 146 = 170 | 15 |
+| `gpui-pre-apple/` | `gpui-pre-apple 0.3.9`（`gpui_apple`） | zed@93d7456，19 文件 | Metal 渲染器与 shader：圆角视口、父裁剪接线、图集延迟回收；CoreText 可变字体（0.3.9 自 macos 迁入） | 24 + 36 + 3 = 63 | 6 |
+| `gpui-pre-macos/` | `gpui-pre-macos 0.3.9`（`gpui_macos`） | zed@93d7456，15 文件 | AppKit 平台层：菜单锁、reopen／zoom／全屏事件、CVDisplayLink 需求位 | 24 | 4 |
+| `gpui-pre-windows/` | `gpui-pre-windows 0.3.9`（`gpui_windows`） | zed@93d7456，28 文件 | DirectX 平台层：HLSL 圆角视口 ABI、调试 shader 路径、原生命中与外部显示 | 9 | 5 |
+| `gpui-pre-wgpu/` | `gpui-pre-wgpu 0.3.9`（`gpui_wgpu`） | zed@93d7456，14 文件 | WGPU 后端：WGSL／WebGL 圆角视口 ABI、测试字体夹具路径 | 9 | 5 |
 | `accesskit_macos/` | `accesskit_macos 0.26.3` | AccessKit@c88605b，15 文件 | macOS AX 适配：Heading 角色、`AXHeadingLevel`、整数 `AXValue` | 7（独立 FNV 生成器） | 1（`node.rs`） |
 
-补丁数按 `build.rs`／补丁登记模块中的 `Patch` 条目计数，`root-prefix.before` 不计入。所有 `gpui-pre*` 包的 Zed 源 revision 一致（`279fe070bb389b79652e52065b2f001edcc0b11b`），因此 ABI 变更可以跨包保持一致。
+补丁数按 `build.rs`／补丁登记模块中的 `Patch` 条目计数，`root-prefix.before` 不计入。所有 `gpui-pre*` 包的 Zed 源 revision 一致（`93d745668805029476e6d7fbb19652116fed51de`；0.3.8 为 `279fe070…`，2026-10-15 升级），因此 ABI 变更可以跨包保持一致。
 
 ## 3. 统一的工作机制（gpui-pre 五包）
 
@@ -103,7 +103,7 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.1` 间接依�
 
 ### 5.2 `gpui-pre-apple/`（Metal）
 
-入口 `src/gpui_apple.rs`。补丁 = 共享 scene 24 + `metal_patches.rs` 35：
+入口 `src/gpui_apple.rs`。补丁 = 共享 scene 24 + `metal_patches.rs` 36 + `font_patches.rs` 3：
 
 - `atlas-retirement-*`（8）：新模块 `src/atlas_retirement.rs`，跟踪未完成的 GPU 编码 epoch，图集条目退休后等待在途编码完成才真正归还物理分配，防止 CPU 覆盖 GPU 正在读取的区域（见 `docs/performance/gpu-01`）。
 - `metal-clip-distance`（1）：`shaders.metal` 以独立圆角视口计算距离。
@@ -111,9 +111,13 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.1` 间接依�
 
 Feature `parent-rounded-clip` 透传到 `gpui/parent-rounded-clip`；根 `Cargo.toml` 注释说明 GUI 在 macOS 显式依赖 `gpui_apple = { features = ["parent-rounded-clip"] }` 只为统一开启此特性，源码不直接引用该包。测试模块：`rounded_clip_tests.rs`（总是）、`metal_test_support.rs`／`parent_clip_tests.rs`／`geometry_metal_tests.rs`／`skin_parent_only_metal_tests.rs`（仅 feature 开启），均为真实离屏 Metal 像素测试。
 
+另有 `parent-metal-surface-test-field`（1）：0.3.9 上游新增的 Surface 渲染测试直接构造 `PaintSurface`，开启父裁剪时补齐 `parent_clip` 字段。
+
+可变字体（`src/font_patches.rs`，3）：0.3.9 上游把 `text_system.rs`／`open_type.rs` 从 gpui-pre-macos 移入本包并改名 `AppleTextSystem`；`font-native-identity-state`、`font-requested-weight-instance`、`font-native-registration-and-runs` 只改类型名后迁入，为请求字重建立真实 CoreText `wght` 实例，选择与 CTRun 反查统一用轴／feature／cascade／矩阵身份；自有模块 `variable_font.rs`、`semantic_identity.rs`、`descriptor_identity.rs` 及其测试同步迁入。附属资产 `test-fixtures/` 七份 Geist／Geist Mono 字体与 OFL（来源见 `fixture-provenance.json`，清单 `test-fixtures.sha256`）由 `fixture_verify.rs` 在构建期核验，仅供测试，不安装系统字体。
+
 ### 5.3 `gpui-pre-macos/`（AppKit 平台层）
 
-入口 `src/gpui_macos.rs`。27 个补丁直接写在 `build.rs`，按主题：
+入口 `src/gpui_macos.rs`。24 个补丁直接写在 `build.rs`，按主题（可变字体 3 个已于 0.3.9 随上游 text_system 迁入 gpui-pre-apple）：
 
 | 主题 | 补丁 | 改动文件 | 行为 |
 |---|---|---|---|
@@ -121,10 +125,9 @@ Feature `parent-rounded-clip` 透传到 `gpui/parent-rounded-clip`；根 `Cargo.
 | 应用唤起 | `reopen-registration`、`reopen-event` | `platform.rs` | 注册 `applicationShouldHandleReopen:hasVisibleWindows:`；有 handler 时每次转发，返回 NO 阻止默认恢复 |
 | 窗口缩放 | `zoom-target-registration`、`zoom-target-event` | `window.rs` | `windowShouldZoom:toFrame:` 发布私有 `LokiMetrisGPUIWindowWillZoomNotification`（userInfo 含 `targetFrame`） |
 | 全屏失败 | `fullscreen-failure-registration`、`fullscreen-failure-event` | `window.rs` | 进入／退出全屏失败时发布 `LokiMetrisGPUIWindowFullScreenTransitionFailedNotification` |
-| 可变字体 | `font-native-identity-state`、`font-requested-weight-instance`、`font-native-registration-and-runs` | `text_system.rs` | 为请求字重建立真实 CoreText `wght` 实例；选择与 CTRun 反查统一用轴／feature／cascade／矩阵身份；新模块 `variable_font.rs`、`semantic_identity.rs`、`descriptor_identity.rs` 及其测试 |
 | 按需帧（14） | `window.rs` 上 9 个：`demand-window-{state,init,source,waker}`、`demand-unocclude`、`demand-screen-change`、`demand-activation-consume`、`demand-layer-consume`、`demand-main-dispatch`；`display_link.rs` 上 5 个：`demand-subscriber`、`demand-vsync-gate`、`demand-subscribe-{argument,state}`、`demand-frame-source` | `window.rs`、`display_link.rs` | 新模块 `frame_demand.rs`：每窗口原子需求位，CVDisplayLink 线程只观察、有需求才投递主队列（见 `docs/performance/案例-2`） |
 
-附属资产：`test-fixtures/` 七份 Geist／Geist Mono 字体与 OFL（来源见 `fixture-provenance.json`，清单 `test-fixtures.sha256`），仅供测试，不安装系统字体；`licenses/NOTICE.md` 为本地修改声明。
+附属资产：`licenses/NOTICE.md` 为本地修改声明；字体夹具已随可变字体迁入 gpui-pre-apple。
 
 ### 5.4 `gpui-pre-windows/`（DirectX 平台层）
 
@@ -163,19 +166,21 @@ rustc --edition=2024 --test vendor/gpui-patch-support/generator.rs -o /tmp/loki-
 /tmp/loki-gpui-generator-tests --test-threads=1
 ```
 
-包内测试因在工作区外，必须显式绑定同一组路径补丁（示例取自 `gpui-pre-macos/README.md`）：
+包内测试因在工作区外，必须显式绑定同一组路径补丁（示例取自 `gpui-pre-apple/README.md`，含迁入的可变字体回归与 Metal 实物测试）：
 
 ```sh
-cargo test --manifest-path vendor/gpui-pre-macos/Cargo.toml --lib \
-  --features font-kit,test-support \
+cargo test --manifest-path vendor/gpui-pre-apple/Cargo.toml --lib \
+  --features font-kit,test-support,parent-rounded-clip \
   --config "patch.crates-io.accesskit_macos.path=\"$PWD/vendor/accesskit_macos\"" \
   --config "patch.crates-io.gpui-pre.path=\"$PWD/vendor/gpui-pre\"" \
   --config "patch.crates-io.gpui-pre-apple.path=\"$PWD/vendor/gpui-pre-apple\"" \
   --config "patch.crates-io.gpui-pre-macos.path=\"$PWD/vendor/gpui-pre-macos\"" \
   --config "patch.crates-io.gpui-pre-windows.path=\"$PWD/vendor/gpui-pre-windows\"" \
   --config "patch.crates-io.gpui-pre-wgpu.path=\"$PWD/vendor/gpui-pre-wgpu\"" \
-  variable_font -- --test-threads=1
+  -- --test-threads=1
 ```
+
+2026-10-15 升级 0.3.9 后实际运行（同一组路径补丁）：`gpui-pre` lib（`test-support,parent-rounded-clip,frame-demand-regression`）372 通过／2 上游忽略；`gpui-pre --test rounded_clip_window` 2 通过；`gpui-pre-apple` lib 55 通过（含可变字体 19 项）；`gpui-pre-macos` lib 15 通过；`gpui-pre-wgpu` lib 40 通过、`--test rounded_clip` 1 通过；生成器自测 5 通过。0.3.9 发布清单不再携带 `util_macros`，`style-tests-perf-attribute` 把上游 style 测试的 `#[perf]` 指向内建 `#[test]`；上游与本地 CoreVideo 测试所需的 `CVBase`／`CVReturn` 由 gpui-pre／gpui-pre-apple 的 macOS dev-dependency 显式开启。
 
 `accesskit_macos` 的 `cargo check`／`cargo test --test generation|heading` 用独立 `--target-dir` 与 `--offline`，见其 README。
 
@@ -198,7 +203,7 @@ cargo test --manifest-path vendor/gpui-pre-macos/Cargo.toml --lib \
 3. 比对上游 `Cargo.toml` 与本地 `Cargo.toml`，同步依赖与 feature，保留本地 `[lib]`／`build`／`publish = false`／测试 target。
 4. 核对 `root-prefix.before` 仍是入口文件的精确前缀。
 5. 逐个重新匹配补丁；上游已自带等效修改的补丁应删除而不是硬凑 `before`。
-6. 重算 `generated_hashes`，更新 `docs/ENGINEERING_RULES.md` 2.3 节登记的文件数（当前 18／160／15／17／28／14）及 `verified_third_party.mjs` 的锚点。
+6. 重算 `generated_hashes`，更新 `docs/ENGINEERING_RULES.md` 2.3 节登记的文件数（当前 18／160／19／15／28／14）及 `verified_third_party.mjs` 的锚点与项数。
 7. 五个 `gpui-pre*` 包必须同一 Zed revision 同步升级，否则 scene 共享补丁与跨后端 ABI 失效。
 
 ### 7.3 移除条件
@@ -217,7 +222,6 @@ cargo test --manifest-path vendor/gpui-pre-macos/Cargo.toml --lib \
 以下为整理本文时发现的事实，未在本文中修改：
 
 - **Node 验证器对 gpui-pre／gpui-pre-apple 失效。** `verify-source.mjs` 仅用正则扫描 `build.rs` 中的 `Patch { … }` 字面量；这两个包的补丁已迁入 `src/*_patches.rs`（`patch!` 宏）与共享 `scene_patches.rs`，验证器提取到 0 个补丁，随后在比对 `generated_hashes` 时必然报 `generated output drift`。各包 `README.md` 与 `gpui-patch-support/README.md` 列出的五包一并验证命令因此在这两个包上无法通过。Rust 构建期生成器不受影响。
-- `gpui-pre-macos/licenses/NOTICE.md` 仍写"应用三个严格补丁"，而 `build.rs` 现登记 27 个（字体 3 之外还有菜单、reopen、zoom、全屏、按需帧）。
 - `gpui-pre-macos/Cargo.toml` 保留了上游的 `publish = true`，其它五包均为 `publish = false`。
 - `gpui-pre-apple/README.md` 与 `gpui-pre-windows/README.md` 是 `gpui-pre/README.md` 早期版本的复制，未描述各自的 Metal 图集回收／父裁剪、HLSL 补丁。
 - `gpui-pre-wgpu/provenance.json` 同时含两套字段命名（`crate_archive_sha256` 与 `archive_sha256`、`crate_archive_regular_file_count` 与 `upstream_file_count`），值一致但与其它四包的 schema 不同。

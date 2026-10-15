@@ -3,8 +3,8 @@ use crate::open_type::apply_features_and_fallbacks;
 #[allow(non_upper_case_globals)]
 const kCGImageAlphaOnly: u32 = 7;
 
-/// macOS text system using CoreText for font shaping.
-pub struct MacTextSystem(RwLock<MacTextSystemState>);
+/// Apple text system using CoreText for font shaping.
+pub struct AppleTextSystem(RwLock<AppleTextSystemState>);
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct FontKey {
@@ -13,7 +13,7 @@ struct FontKey {
     font_fallbacks: Option<FontFallbacks>,
 }
 
-struct MacTextSystemState {
+struct AppleTextSystemState {
     memory_source: MemSource,
     system_source: SystemSource,
     fonts: Vec<FontKitFont>,
@@ -23,10 +23,10 @@ struct MacTextSystemState {
     postscript_names_by_font_id: HashMap<FontId, String>,
 }
 
-impl MacTextSystem {
-    /// Create a new MacTextSystem.
+impl AppleTextSystem {
+    /// Create a new AppleTextSystem.
     pub fn new() -> Self {
-        Self(RwLock::new(MacTextSystemState {
+        Self(RwLock::new(AppleTextSystemState {
             memory_source: MemSource::empty(),
             system_source: SystemSource::new(),
             fonts: Vec::new(),
@@ -38,7 +38,7 @@ impl MacTextSystem {
     }
 }
 
-impl Default for MacTextSystem {
+impl Default for AppleTextSystem {
     fn default() -> Self {
         Self::new()
     }

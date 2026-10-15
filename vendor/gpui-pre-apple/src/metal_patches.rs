@@ -39,4 +39,6 @@ pub const PATCHES: &[Patch] = &[
     patch!("../patches/", "parent-metal-shader-surface-vertex-parent-clip", "src/shaders.metal"),
     patch!("../patches/", "parent-metal-shader-surface-unclipped-split", "src/shaders.metal"),
     patch!("../patches/", "parent-metal-shader-surface-parent-clip", "src/shaders.metal"),
+    // 0.3.9 上游新增的 Surface 渲染测试直接构造 PaintSurface，开启父裁剪时须补齐字段。
+    patch!("../patches/", "parent-metal-surface-test-field", "src/metal_renderer.rs"),
 ];

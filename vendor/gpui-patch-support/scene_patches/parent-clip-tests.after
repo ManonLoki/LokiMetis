@@ -247,13 +247,30 @@ mod parent_clip_tests {
         ];
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         {
-            use core_video::pixel_buffer::{CVPixelBuffer, kCVPixelFormatType_32BGRA};
+            use objc2_core_foundation::CFRetained;
+            use objc2_core_video::{CVPixelBufferCreate, kCVPixelFormatType_32BGRA, kCVReturnSuccess};
+            let mut image_buffer = std::ptr::null_mut();
+            assert_eq!(
+                unsafe {
+                    CVPixelBufferCreate(
+                        None,
+                        1,
+                        1,
+                        kCVPixelFormatType_32BGRA,
+                        None,
+                        std::ptr::NonNull::from(&mut image_buffer),
+                    )
+                },
+                kCVReturnSuccess,
+                "真实一像素 Surface 夹具"
+            );
             primitives.push(Primitive::Surface(PaintSurface {
                 order: 0,
                 bounds: bounds(),
                 content_mask: mask,
-                image_buffer: CVPixelBuffer::new(kCVPixelFormatType_32BGRA, 1, 1, None)
-                    .expect("真实一像素 Surface 夹具"),
+                image_buffer: unsafe {
+                    CFRetained::from_raw(std::ptr::NonNull::new(image_buffer).unwrap())
+                },
                 parent_clip: Default::default(),
             }));
         }

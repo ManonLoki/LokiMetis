@@ -8,29 +8,50 @@ use generator::{Patch, Spec};
 mod scene_patches;
 #[path = "src/metal_patches.rs"]
 mod metal_patches;
+#[path = "src/font_patches.rs"]
+mod font_patches;
+mod fixture_verify;
 use std::path::{Path, PathBuf};
 
 /// 所有上游文件和补丁结果有固定 SHA，编译阶段仅生成独立 OUT_DIR 镜像。
 fn generated_sources() -> PathBuf {
-    // scene.rs 补丁与 gpui-pre 共用，其余为 Metal 专属。
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for name in [
+        "src/variable_font.rs",
+        "src/semantic_identity.rs",
+        "src/descriptor_identity.rs",
+        "src/variable_font_tests.rs",
+        "src/variable_font_tests_fallback.rs",
+        "src/descriptor_identity_tests.rs",
+        "fixture_verify.rs",
+        "test-fixtures",
+        "test-fixtures.sha256",
+    ] {
+        println!("cargo:rerun-if-changed={name}");
+    }
+    // 可变字体回归使用的七份原样字体/OFL 先逐字节核验，再生成补丁树。
+    fixture_verify::verify(root).unwrap_or_else(|error| panic!("{error}"));
+    // scene.rs 补丁与 gpui-pre 共用；Metal 与可变字体为本包专属。
     let patches: Vec<Patch> = [
         &scene_patches::all("vendor/gpui/src/scene.rs")[..],
         metal_patches::PATCHES,
+        font_patches::PATCHES,
     ].concat();
     let spec = Spec {
         entry: "src/gpui_apple.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "3a0648847f84019c27d80c8d030a34e709136c4e65c1c69643b1d527cc41c95d",
+        source_manifest_sha256: "06d9ac026f90f50a7926e9e49f3b8b04ecd65fba05aee2494b6b7b83959f72e5",
         patches: &patches,
         generated_hashes: &[
             ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
-            ("src/metal_renderer.rs", "91e4b5cde950223e8c8c2d11e4e4b17803b6d5bc4e0c911cdc8e908adfe34f5c"),
-            ("src/gpui_apple.rs", "13f5d77ff374cd40082f29f20aeb6a2d185643e15d5031bcbe6a8538ad3d2f7f"),
-            ("vendor/gpui/src/scene.rs", "f8e1a899071e298bed53c7eb10f0e65a8039e1663048033ab6f5e79a1a434af4"),
+            ("src/metal_renderer.rs", "621c12b03a666e74fdd7c51439092b72a8de1c7789b614cccb1a2759c6f4497c"),
+            ("src/gpui_apple.rs", "581be8cd4369fb9506dbfc2efc0d99090ba927eabec6727d22af2d6090577ac8"),
+            ("vendor/gpui/src/scene.rs", "febcf9f3a1ff390ffb7292071dcb5e7e4d725db770d774a5c33c8118c669ba5b"),
             ("src/shaders.metal", "0293a36fef5f5bbde11fcad44ac903c6d70bb6c83c9db86c26a831f6ae53da3c"),
+            ("src/text_system.rs", "d92a152eb49dcfd644d7a594f12f394caa0c41a593a868d2df4e8ab98298d1ca"),
         ],
     };
-    generator::generate(Path::new(env!("CARGO_MANIFEST_DIR")), &spec)
+    generator::generate(root, &spec)
 }
 
 /// 验证原包并生成全树后，才运行平台原有的 shader 构建。

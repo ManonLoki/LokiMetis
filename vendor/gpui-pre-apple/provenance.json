@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "package": "gpui-pre-apple",
-  "version": "0.3.8",
-  "source": "https://crates.io/api/v1/crates/gpui-pre-apple/0.3.8/download",
-  "archive_sha256": "bfdd914311cd12894367c8b9908947bb0c27fd42f8b9a5ff7a0730551a83fa4c",
-  "source_manifest_sha256": "3a0648847f84019c27d80c8d030a34e709136c4e65c1c69643b1d527cc41c95d",
-  "upstream_file_count": 15,
-  "upstream_bytes": 966259,
+  "version": "0.3.9",
+  "source": "https://crates.io/api/v1/crates/gpui-pre-apple/0.3.9/download",
+  "archive_sha256": "b52f58893fe1a0836464428dfad2b5eaf42c9c303a9638f4c2aced5a69072a15",
+  "source_manifest_sha256": "06d9ac026f90f50a7926e9e49f3b8b04ecd65fba05aee2494b6b7b83959f72e5",
+  "upstream_file_count": 19,
+  "upstream_bytes": 1038170,
   "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched",
   "official_repository": "https://github.com/zed-industries/zed",
-  "source_revision": "279fe070bb389b79652e52065b2f001edcc0b11b",
+  "source_revision": "93d745668805029476e6d7fbb19652116fed51de",
   "manifest_definition": "Sorted UTF-8 SHA-256 lines, two ASCII spaces, upstream-relative path, LF; every archive regular file is unchanged."
 }

@@ -2,15 +2,13 @@
 //! 不创建NSApplication、窗口、Services，也不操作用户应用；mono夹具是确定性atlas覆盖图。
 
 use crate::metal_renderer::{MetalHeadlessRenderer, PathRasterizationVertex, SurfaceBounds};
-use core_foundation::{
-    base::{CFType, TCFType},
-    boolean::CFBoolean,
-    dictionary::CFDictionary,
-    string::CFString,
-};
-use core_video::pixel_buffer::{
-    CVPixelBuffer, kCVPixelBufferIOSurfacePropertiesKey, kCVPixelBufferMetalCompatibilityKey,
-    kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+use objc2_core_foundation::{CFBoolean, CFDictionary, CFRetained, CFString, CFType};
+use objc2_core_video::{
+    CVPixelBuffer, CVPixelBufferCreate, CVPixelBufferGetBaseAddressOfPlane,
+    CVPixelBufferGetBytesPerRowOfPlane, CVPixelBufferGetHeightOfPlane,
+    CVPixelBufferLockBaseAddress, CVPixelBufferLockFlags, CVPixelBufferUnlockBaseAddress,
+    kCVPixelBufferIOSurfacePropertiesKey, kCVPixelBufferMetalCompatibilityKey,
+    kCVPixelFormatType_420YpCbCr8BiPlanarFullRange, kCVReturnSuccess,
 };
 use gpui::{
     AtlasKey, AtlasTile, Background, BorderStyle, Bounds, ContentMask, Corners, DevicePixels,
@@ -101,32 +99,42 @@ fn atlas(renderer: &MetalHeadlessRenderer, mono: bool) -> AtlasTile {
 }
 
 /// 真NV12/IOSurface是Metal的Surface实现要求；锁定后按各plane实际stride填充。
-fn surface() -> CVPixelBuffer {
-    let empty = CFDictionary::<CFString, CFType>::from_CFType_pairs(&[]);
-    let options = CFDictionary::from_CFType_pairs(&[
-        (
-            unsafe { CFString::wrap_under_get_rule(kCVPixelBufferIOSurfacePropertiesKey) },
-            empty.as_CFType(),
-        ),
-        (
-            unsafe { CFString::wrap_under_get_rule(kCVPixelBufferMetalCompatibilityKey) },
-            CFBoolean::true_value().as_CFType(),
-        ),
-    ]);
-    let buffer = CVPixelBuffer::new(
-        kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-        4,
-        4,
-        Some(&options),
-    )
-    .unwrap();
-    assert_eq!(buffer.lock_base_address(0), 0);
+fn surface() -> CFRetained<CVPixelBuffer> {
+    let empty = CFDictionary::<CFType, CFType>::empty();
+    let keys: [&CFString; 2] = unsafe {
+        [
+            kCVPixelBufferIOSurfacePropertiesKey,
+            kCVPixelBufferMetalCompatibilityKey,
+        ]
+    };
+    let values: [&CFType; 2] = [&empty, CFBoolean::new(true)];
+    let options = CFDictionary::from_slices(&keys, &values);
+    let mut raw = std::ptr::null_mut();
+    // SAFETY: 输出指针指向本地变量；成功时 CoreVideo 返回 +1 引用，由 CFRetained 接管。
+    let buffer = unsafe {
+        assert_eq!(
+            CVPixelBufferCreate(
+                None,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                Some(options.as_opaque()),
+                std::ptr::NonNull::from(&mut raw),
+            ),
+            kCVReturnSuccess
+        );
+        CFRetained::from_raw(std::ptr::NonNull::new(raw).unwrap())
+    };
     // SAFETY: CVPixelBuffer已锁定；长度取自当前plane的实际height×bytes_per_row。
     unsafe {
+        assert_eq!(
+            CVPixelBufferLockBaseAddress(&buffer, CVPixelBufferLockFlags::empty()),
+            kCVReturnSuccess
+        );
         for plane in 0..2 {
-            let length =
-                buffer.get_bytes_per_row_of_plane(plane) * buffer.get_height_of_plane(plane);
-            let base = buffer.get_base_address_of_plane(plane);
+            let length = CVPixelBufferGetBytesPerRowOfPlane(&buffer, plane)
+                * CVPixelBufferGetHeightOfPlane(&buffer, plane);
+            let base = CVPixelBufferGetBaseAddressOfPlane(&buffer, plane);
             assert!(!base.is_null());
             std::ptr::write_bytes(
                 base.cast::<u8>(),
@@ -134,8 +142,11 @@ fn surface() -> CVPixelBuffer {
                 length,
             );
         }
+        assert_eq!(
+            CVPixelBufferUnlockBaseAddress(&buffer, CVPixelBufferLockFlags::empty()),
+            kCVReturnSuccess
+        );
     }
-    assert_eq!(buffer.unlock_base_address(0), 0);
     buffer
 }
 
