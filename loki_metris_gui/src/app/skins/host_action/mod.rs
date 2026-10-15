@@ -134,8 +134,18 @@ async fn run(
     }
     valid()?;
     let installed = service.install(&intent).await?;
-    valid()?;
+    // 已提交事务保留真实成功；只有尚需确认的新副作用继续核对页面授权。
+    if matches!(installed, InstallSkinResult::NeedsConfirmation { .. }) { valid()?; }
     Ok(Outcome::Applied(installed, intent))
+}
+
+/// 只有实际安装或真实失败通知；中间确认和用户取消不产生结果通知。
+pub(super) fn notification_result(result: &Result<Outcome, SkinError>) -> Option<bool> {
+    match result {
+        Ok(Outcome::Applied(InstallSkinResult::Installed { .. }, _)) => Some(true),
+        Err(error) if !matches!(error.code, "skin.operation_cancelled" | "skin.workbuddy_recovery_cancelled_after_close") => Some(false),
+        _ => None,
+    }
 }
 
 /// Windows WorkBuddy恢复允许无唯一目标；其他系统必须有明确实例供重启。

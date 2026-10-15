@@ -147,6 +147,7 @@ impl UsageService {
         enabled: bool,
         permission: NotificationPermission,
     ) {
+        self.context.activity_notifications.configure(enabled && permission == NotificationPermission::Allowed);
         self.notifications.control.send_if_modified(|c| {
             if c.initialized && c.enabled == enabled && c.permission == permission {
                 return false;
@@ -156,6 +157,10 @@ impl UsageService {
             c.permission = permission;
             true
         });
+    }
+    /// 后台事务只持有纯值邮箱，不依赖 GPUI Entity 或原生通知对象。
+    pub(crate) fn activity_notifications(&self) -> Arc<crate::notification_events::ActivityQueue> {
+        self.context.activity_notifications.clone()
     }
     /// 浮窗会话需求只控制摘要读取，不增加顶栏或其它桌宠业务。
     pub(crate) fn today_visible(&self, visible: bool) {

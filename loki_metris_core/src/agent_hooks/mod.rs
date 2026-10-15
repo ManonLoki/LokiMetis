@@ -27,6 +27,8 @@ mod open_code;
 mod qoder;
 mod qwen_code;
 mod work_buddy;
+mod notifications;
+pub use notifications::{HookNotification, hook_notification};
 
 // 仅在测试编译时包含跨工具契约测试模块
 #[cfg(test)]

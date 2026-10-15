@@ -29,6 +29,7 @@ pub(super) async fn run_hook_worker(
     config_dir: std::path::PathBuf,
     policy: Arc<RwLock<HookListenerPolicy>>,
     mut shutdown: HookListenerShutdown,
+    notifications: Option<Arc<crate::notification_events::ActivityQueue>>,
 ) {
     let mut state_machines = HashMap::<AiTool, HookStateMachine>::new();
     let mut machine_generations = HashMap::<AiTool, u64>::new();
@@ -59,6 +60,7 @@ pub(super) async fn run_hook_worker(
                     &status,
                     &config_dir,
                     Some((&policy,queued.generation)),
+                    notifications.as_deref(),
                 ) {
                     // 状态 revision 已同步提交，原生视图直接读取该权威快照。
                 }
@@ -92,19 +94,21 @@ pub(super) async fn run_hook_worker(
 /// 直接入口供已隔离的状态机回归使用；生产经 checked 入口复核启用代数。
 #[cfg(test)]
 pub(super) fn process_hook_event(event:IncomingHookEvent,observed_at:Duration,machines:&mut HashMap<AiTool,HookStateMachine>,status:&Arc<RwLock<HookRelayStatus>>,config_dir:&Path)->bool {
-    process_hook_event_checked(event,observed_at,machines,status,config_dir,None)
+    process_hook_event_checked(event,observed_at,machines,status,config_dir,None,None)
 }
 
 /// 复核启用代数后推进事件并写入状态。
-fn process_hook_event_checked(
+pub(super) fn process_hook_event_checked(
     event: IncomingHookEvent,
     observed_at: Duration,
     state_machines: &mut HashMap<AiTool, HookStateMachine>,
     status: &Arc<RwLock<HookRelayStatus>>,
     config_dir: &Path,
     admission:Option<(&RwLock<HookListenerPolicy>,u64)>,
+    notifications: Option<&crate::notification_events::ActivityQueue>,
 ) -> bool {
     let mut candidate_machine = state_machines.get(&event.tool).cloned().unwrap_or_default();
+    let previous = candidate_machine.notification_behavior();
     let decision = candidate_machine.apply_event_with_status_at(
         event.tool,
         &event.hook_type,
@@ -124,6 +128,7 @@ fn process_hook_event_checked(
     let mut pet_state_changed = false;
     let mut commit_machine = false;
     let mut current = write_hook_relay_status(status);
+    let notification = loki_metris_core::hook_notification(event.tool, &event.hook_type, event.status.as_deref(), previous, decision);
     current.received_count += 1;
     current.last_event = Some(HookRelayLastEvent {
         tool: event.tool,
@@ -190,6 +195,9 @@ fn process_hook_event_checked(
     drop(current);
     if commit_machine {
         state_machines.insert(event.tool, candidate_machine);
+    }
+    if pet_state_changed && let (Some(queue), Some(state)) = (notifications, notification) {
+        queue.push(crate::notification_events::Activity::Hook { tool: event.tool, state });
     }
     pet_state_changed
 }

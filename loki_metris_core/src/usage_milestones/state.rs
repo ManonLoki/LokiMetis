@@ -64,7 +64,7 @@ pub struct Reservation {
 pub struct MilestoneDay {
     /// 原民用日界。
     pub day: UsageDay,
-    /// 已入队或明确建基线的最高档，回落不降低。
+    /// 新策略仅为0/1，表示当日是否已入队或建基线；回落不降低。
     pub high: u64,
     /// 因首次安装或重开跳过的已有档位数。
     pub baseline: u64,
@@ -154,7 +154,7 @@ impl MilestoneDay {
 pub struct MilestoneState {
     /// 独立文件 schema，未知版本失败关闭。
     pub schema_version: u8,
-    /// 100M 业务策略版本。
+    /// 版本 2 为每日首次突破 1B；版本 1 的 100M 账本只允许显式迁移。
     pub policy_version: u8,
     /// 最后已确认的本地开关。
     pub enabled: bool,
@@ -176,11 +176,11 @@ pub struct MilestoneState {
     pub issue: Option<MilestoneIssue>,
 }
 impl Default for MilestoneState {
-    /// 缺失文件只建立真实当前量基线，不假造历史提交。
+    /// 缺失文件从新策略开始，只考虑首次可信的当日总量，不假造历史提交。
     fn default() -> Self {
         Self {
             schema_version: 1,
-            policy_version: 1,
+            policy_version: 2,
             enabled: false,
             initialized: false,
             needs_baseline: true,
@@ -196,14 +196,18 @@ impl Default for MilestoneState {
 impl MilestoneState {
     /// 解码后检查范围、容量与单预约不变量，非法历史不得据此发送。
     pub fn valid(&self) -> bool {
+        self.valid_policy(2)
+    }
+    /// 验证指定策略的历史，不把旧 100M 档位直接解释为新策略的日事件。
+    fn valid_policy(&self, policy: u8) -> bool {
         self.schema_version == 1
-            && self.policy_version == 1
+            && self.policy_version == policy
             && self.days.len() <= 32
             && self.active_key == self.days.last().map(|d| d.day.key())
             && self.days.iter().filter(|d| d.reservation.is_some()).count() <= 1
             && self.days.iter().enumerate().all(|(i, d)| {
                 d.day.start_ms < d.day.end_ms
-                    && d.high <= u64::MAX / TOKEN_MILESTONE
+                    && d.high <= if policy == 1 { u64::MAX / 100_000_000 } else { 1 }
                     && d.baseline <= d.high
                     && d.submitted_through <= d.high
                     && d.retry_floor <= d.high
@@ -238,6 +242,23 @@ impl MilestoneState {
                     })
             })
     }
+    /// 旧策略仅迁移可信去重事实，取消全部旧预约与重试；可证明已超过 1B 的日界保守建基线。
+    pub fn upgrade_policy(&mut self) -> bool {
+        if self.policy_version == 2 { return self.valid(); }
+        if !self.valid_policy(1) { return false; }
+        for day in &mut self.days {
+            let high = u64::from(day.high >= 11);
+            *day = MilestoneDay::new(day.day.clone());
+            day.high = high;
+            day.baseline = high;
+            day.retry_floor = high;
+        }
+        self.policy_version = 2;
+        self.needs_baseline = true;
+        self.next_send_ms = 0;
+        self.issue = Some(MilestoneIssue::Baseline);
+        self.valid()
+    }
     /// 只在偏好真实回执后调用；重开不追补关闭期间的消费。
     pub fn set_enabled(&mut self, enabled: bool) {
         if self.enabled == enabled {
@@ -252,7 +273,7 @@ impl MilestoneState {
             self.issue = Some(MilestoneIssue::Disabled);
         }
     }
-    /// 以同日高水位逐档入队；来源/时区首次改变只建立基线，旧日队列显式过期。
+    /// 同日高水位只有 0/1；首次可信观测突破即入队，来源重建和重开仍抑制已有消费。
     pub fn observe(&mut self, snapshot: &TodayUsageSnapshot, now_ms: i64) {
         if !self.enabled || !snapshot.eligible(now_ms, &snapshot.day, &snapshot.source) {
             return;
@@ -296,8 +317,8 @@ impl MilestoneState {
             self.days.len() - 1
         };
         let day = &mut self.days[index];
-        let bucket = snapshot.total_tokens / TOKEN_MILESTONE;
-        if rebuilding || !self.initialized {
+        let bucket = u64::from(snapshot.total_tokens > TOKEN_MILESTONE);
+        if rebuilding && self.initialized {
             day.baseline += bucket.saturating_sub(day.high);
             day.high = day.high.max(bucket);
             day.retry_floor = day.high;

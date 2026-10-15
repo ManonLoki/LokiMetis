@@ -41,12 +41,12 @@ pub struct MilestoneRequest {
     pub reserved_ms: i64,
     /// 新跨越的档位。
     pub bucket: u64,
-    /// 提交时最新可信今日总量；同一跳跃的三条可以正文相同但 ID 不同。
+    /// 提交时最新可信今日总量；一日只有一个事件，无论跳跃多大。
     pub total_tokens: u64,
 }
-/// ID 保留完整十六进制档位，两档绝不共享 tag。
+/// 新策略使用 m2 命名空间，与历史 100M 通知及回执隔离。
 pub fn milestone_request_id(day_key: &str, bucket: u64) -> String {
-    format!("{}-{bucket:016x}", stable_id("m1", day_key))
+    format!("{}-{bucket:016x}", stable_id("m2", day_key))
 }
 impl MilestoneState {
     /// 一次只预约一档，拒绝过期、关闭、权限不足、Unknown 与自动重试耗尽状态。

@@ -23,9 +23,9 @@ impl Ledger {
             if bytes.len() > NOTIFICATION_STATE_LIMIT {
                 return Err(std::io::ErrorKind::InvalidData.into());
             }
-            let state: MilestoneState =
+            let mut state: MilestoneState =
                 serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
-            if !state.valid() {
+            if !state.upgrade_policy() {
                 return Err(std::io::ErrorKind::InvalidData.into());
             }
             Ok(state)
@@ -38,6 +38,7 @@ impl Ledger {
             Err(_) => (
                 MilestoneState {
                     issue: Some(MilestoneIssue::Storage),
+                    initialized: true,
                     ..Default::default()
                 },
                 true,
@@ -160,7 +161,7 @@ mod reservation_tests {
         next.set_enabled(true);
         next.observe(&value, now);
         ledger.commit(next).unwrap();
-        value.total_tokens = 350_000_000;
+        value.total_tokens = 1_350_000_000;
         let mut next = ledger.state.clone();
         next.observe(&value, now);
         ledger.commit(next).unwrap();

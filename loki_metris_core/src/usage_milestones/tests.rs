@@ -1,287 +1,234 @@
-//! 可控民用日、真实整数边界与纯 sender 回执，不发送系统通知。
+//! 固定民用日与纯 sender 回执，验证每日唯一事件，不发送系统通知。
 use super::*;
 use crate::{Completeness, Confidence, TodayAvailability, TodayUsageSnapshot, UsageDay};
 
-/// 固定 UTC 日界让重试、跨日和回滚完全可重现。
+/// 固定 UTC 日界，使跨日、重试和回落不依赖真实时钟。
 fn snapshot(tokens: u64, day: i64) -> TodayUsageSnapshot {
     let start = 1_800_000_000_000_i64 / 86_400_000 * 86_400_000 + day * 86_400_000;
     TodayUsageSnapshot {
-        day: UsageDay {
-            date: format!("day{day}"),
-            zone: "UTC".into(),
-            start_ms: start,
-            end_ms: start + 86_400_000,
-        },
-        source: "all-a".into(),
-        total_tokens: tokens,
-        observed_ms: start + 1000,
-        availability: TodayAvailability::Available,
-        completeness: Completeness::Complete,
-        confidence: Confidence::Exact,
+        day: UsageDay { date: format!("day{day}"), zone: "UTC".into(), start_ms: start, end_ms: start + 86_400_000 },
+        source: "all-a".into(), total_tokens: tokens, observed_ms: start + 1000,
+        availability: TodayAvailability::Available, completeness: Completeness::Complete, confidence: Confidence::Exact,
     }
 }
-/// 建基线后模拟同日消费，不在 fixture 中伪造已提交状态。
-fn crossing(tokens: u64) -> (MilestoneState, TodayUsageSnapshot) {
+/// 先观察阈值以下的可信总量，再模拟同日首次突破。
+fn crossing() -> (MilestoneState, TodayUsageSnapshot) {
     let mut state = MilestoneState::default();
     state.set_enabled(true);
-    let initial = snapshot(90_000_000, 0);
+    let initial = snapshot(900_000_000, 0);
     state.observe(&initial, initial.observed_ms);
-    let value = snapshot(tokens, 0);
+    let value = snapshot(1_350_000_000, 0);
     state.observe(&value, value.observed_ms);
     (state, value)
 }
-/// 刷新观测时间与发送时间一致，避免测试不小心绕过90秒门禁。
-fn reserve(
-    state: &mut MilestoneState,
-    value: &mut TodayUsageSnapshot,
-    now: i64,
-) -> MilestoneRequest {
+/// 观测时间随发送更新，所有测试真实经过90秒资格门禁。
+fn reserve(state: &mut MilestoneState, value: &mut TodayUsageSnapshot, now: i64) -> MilestoneRequest {
     value.observed_ms = now;
-    state
-        .reserve(value, NotificationPermission::Allowed, now)
-        .unwrap()
+    state.reserve(value, NotificationPermission::Allowed, now).unwrap()
 }
-/// 90M→350M 三档分别提交且节流，下降或重复观测不重新排队。
+/// 严格突破才入队；极大跳跃、重复观测及下降后反弹都不产生第二条。
 #[test]
-fn three_crossings_have_stable_distinct_ids_and_high_water() {
-    let (mut state, mut value) = crossing(350_000_000);
-    let start = value.observed_ms;
-    assert_eq!(state.active().unwrap().pending_count(), 3);
-    let mut ids = vec![];
-    for bucket in 1..=3 {
-        let now = start + (bucket - 1) as i64 * 10_000;
-        let request = reserve(&mut state, &mut value, now);
-        assert_eq!(request.bucket, bucket);
-        assert_eq!(request.total_tokens, 350_000_000);
-        assert!(
-            state
-                .reserve(&value, NotificationPermission::Allowed, now)
-                .is_none()
-        );
-        state.complete(&request.id, MilestoneOutcome::Accepted, now);
-        ids.push(request.id);
-        assert!(
-            state
-                .reserve(&value, NotificationPermission::Allowed, now + 9999)
-                .is_none()
-        );
-    }
-    ids.sort();
-    ids.dedup();
-    assert_eq!(ids.len(), 3);
-    value.total_tokens = 20;
-    state.observe(&value, value.observed_ms);
-    value.total_tokens = 350_000_000;
+fn daily_first_billion_crossing_is_strict_and_unique() {
+    let mut state = MilestoneState::default();
+    state.set_enabled(true);
+    let mut value = snapshot(TOKEN_MILESTONE, 0);
     state.observe(&value, value.observed_ms);
     assert_eq!(state.active().unwrap().pending_count(), 0);
-    assert_eq!(state.active().unwrap().submitted, 3);
+    value.total_tokens += 1;
+    state.observe(&value, value.observed_ms);
+    assert_eq!(state.active().unwrap().pending_count(), 1);
+    let now = value.observed_ms;
+    let request = reserve(&mut state, &mut value, now);
+    assert_eq!(request.total_tokens, TOKEN_MILESTONE + 1);
+    assert!(request.id.starts_with("m2-"));
+    state.complete(&request.id, MilestoneOutcome::Accepted, now);
+    for total in [2_000_000_000, u64::MAX, 0, 1_500_000_000] {
+        value.total_tokens = total;
+        state.observe(&value, now);
+        assert_eq!(state.active().unwrap().pending_count(), 0);
+    }
+    assert_eq!(state.active().unwrap().submitted, 1);
     assert!(state.valid());
 }
-/// 最大整数跳跃压缩为一个范围，不按档位分配内存。
+/// 首次可信观测已突破也只产生当日一个事件，不展开历史百兆档位。
 #[test]
-fn huge_jump_stays_bounded_and_missing_history_is_baseline() {
-    let (state, _) = crossing(u64::MAX);
-    assert_eq!(state.active().unwrap().pending.len(), 1);
+fn first_observation_above_threshold_notifies_once() {
+    let mut state = MilestoneState::default();
+    state.set_enabled(true);
+    let value = snapshot(u64::MAX, 0);
+    state.observe(&value, value.observed_ms);
+    assert_eq!(state.active().unwrap().pending_count(), 1);
     assert!(serde_json::to_vec(&state).unwrap().len() < 4096);
     assert!(state.valid());
-    let mut initial = MilestoneState::default();
-    initial.set_enabled(true);
-    let v = snapshot(350_000_000, 0);
-    initial.observe(&v, v.observed_ms);
-    assert_eq!(initial.active().unwrap().baseline, 3);
-    assert_eq!(initial.active().unwrap().submitted, 0);
-    assert_eq!(initial.active().unwrap().pending_count(), 0);
 }
-/// 权限不足、部分/派生/过期快照都暂停；恢复完整事实时补齐跨档。
+/// 部分、推算和过期快照不能消费阈值；权限恢复后仍是同一事件。
 #[test]
-fn permission_and_evidence_pause_without_consuming_crossings() {
-    let (mut state, mut v) = crossing(90_000_000);
-    v.total_tokens = 350_000_000;
-    v.completeness = Completeness::Partial;
-    state.observe(&v, v.observed_ms);
-    assert_eq!(state.active().unwrap().high, 0);
-    v.completeness = Completeness::Complete;
-    v.confidence = Confidence::Derived;
-    state.observe(&v, v.observed_ms);
-    assert_eq!(state.active().unwrap().high, 0);
-    v.confidence = Confidence::Exact;
-    state.observe(&v, v.observed_ms + 90_001);
-    assert_eq!(state.active().unwrap().high, 0);
-    state.observe(&v, v.observed_ms);
-    assert_eq!(state.active().unwrap().pending_count(), 3);
-    for p in [
-        NotificationPermission::Denied,
-        NotificationPermission::Unavailable,
-        NotificationPermission::NotDetermined,
-    ] {
-        assert!(state.reserve(&v, p, v.observed_ms).is_none());
-        assert!(state.enabled);
-    }
-    assert!(
-        state
-            .reserve(&v, NotificationPermission::Allowed, v.observed_ms)
-            .is_some()
-    );
-}
-/// 关闭、来源改变和原地重建都抑制历史，重新开启不追补关闭期间消费。
-#[test]
-fn disable_reenable_and_source_change_rebaseline() {
-    let (mut state, mut v) = crossing(350_000_000);
-    state.set_enabled(false);
-    assert_eq!(state.active().unwrap().suppressed, 3);
+fn evidence_and_permission_gate_daily_event() {
+    let mut state = MilestoneState::default();
     state.set_enabled(true);
-    v.total_tokens = 650_000_000;
-    state.observe(&v, v.observed_ms);
-    assert_eq!(state.active().unwrap().pending_count(), 0);
-    v.total_tokens = 750_000_000;
-    state.observe(&v, v.observed_ms);
+    let mut value = snapshot(1_350_000_000, 0);
+    for (completeness, confidence, age) in [
+        (Completeness::Partial, Confidence::Exact, 0),
+        (Completeness::Complete, Confidence::Derived, 0),
+        (Completeness::Complete, Confidence::Exact, 90_001),
+    ] {
+        value.completeness = completeness;
+        value.confidence = confidence;
+        state.observe(&value, value.observed_ms + age);
+        assert!(state.active().is_none());
+    }
+    value.completeness = Completeness::Complete;
+    value.confidence = Confidence::Exact;
+    state.observe(&value, value.observed_ms);
+    for permission in [NotificationPermission::Denied, NotificationPermission::Unavailable, NotificationPermission::NotDetermined] {
+        assert!(state.reserve(&value, permission, value.observed_ms).is_none());
+    }
     assert_eq!(state.active().unwrap().pending_count(), 1);
-    v.source = "all-b".into();
-    v.total_tokens = 950_000_000;
-    state.observe(&v, v.observed_ms);
-    assert_eq!(state.active().unwrap().pending_count(), 0);
+    assert!(state.reserve(&value, NotificationPermission::Allowed, value.observed_ms).is_some());
+}
+/// 关闭重开与来源重建抑制已有事件，不因消费继续增加而重新通知。
+#[test]
+fn reenable_and_source_reset_do_not_duplicate_daily_event() {
+    let (mut state, mut value) = crossing();
+    state.set_enabled(false);
+    assert_eq!(state.active().unwrap().suppressed, 1);
+    state.set_enabled(true);
+    value.total_tokens = 2_500_000_000;
+    state.observe(&value, value.observed_ms);
+    value.source = "all-b".into();
+    state.observe(&value, value.observed_ms);
     state.source_reset();
-    v.total_tokens = 1_250_000_000;
-    state.observe(&v, v.observed_ms);
+    state.observe(&value, value.observed_ms);
+    value.total_tokens = u64::MAX;
+    state.observe(&value, value.observed_ms);
     assert_eq!(state.active().unwrap().pending_count(), 0);
+    assert_eq!(state.active().unwrap().high, 1);
     assert!(state.valid());
 }
-/// 普通新日从零跨档，首次新时区建基线，返回旧日复用高水位；仅保留32日。
+/// 新日重新拥有一次事件；旧队列过期，返回旧日不重报且仅保留32日。
 #[test]
-fn day_zone_return_and_retention() {
-    let (mut state, _) = crossing(350_000_000);
-    let next = snapshot(250_000_000, 1);
-    state.observe(&next, next.observed_ms);
-    assert_eq!(state.active().unwrap().pending_count(), 2);
-    assert_eq!(state.days[0].expired, 3);
-    let mut other = next.clone();
-    other.day.zone = "other".into();
-    other.day.start_ms += 100;
-    other.total_tokens = 650_000_000;
-    state.observe(&other, other.observed_ms);
-    assert_eq!(state.active().unwrap().baseline, 6);
-    state.observe(&next, next.observed_ms);
-    assert_eq!(state.active().unwrap().high, 2);
+fn rollover_return_and_retention() {
+    let (mut state, _) = crossing();
+    let value = snapshot(2_500_000_000, 1);
+    state.observe(&value, value.observed_ms);
+    assert_eq!(state.active().unwrap().pending_count(), 1);
+    assert_eq!(state.days[0].expired, 1);
+    let old = snapshot(2_500_000_000, 0);
+    state.observe(&old, old.observed_ms);
     assert_eq!(state.active().unwrap().pending_count(), 0);
-    for day in 2..40 {
-        let v = snapshot(0, day);
-        state.observe(&v, v.observed_ms);
-    }
+    for day in 2..40 { let value = snapshot(0, day); state.observe(&value, value.observed_ms); }
     assert_eq!(state.days.len(), 32);
-    let old = snapshot(350_000_000, 0);
     state.observe(&old, old.observed_ms);
     assert_eq!(state.active().unwrap().pending_count(), 0);
     assert!(state.valid());
 }
-/// 三次自动重试保持 ID，第四次失败暂停；手动重试才能重启。
+/// 拒绝保持稳定ID和三次重试预算，耗尽后须明确重试。
 #[test]
 fn rejected_receipts_backoff_and_exhaustion() {
-    let (mut state, mut v) = crossing(100_000_000);
-    let mut now = v.observed_ms;
+    let (mut state, mut value) = crossing();
+    let mut now = value.observed_ms;
     let mut id = None;
     for delay in [30_000, 120_000, 600_000, 600_000] {
-        let request = reserve(&mut state, &mut v, now);
+        let request = reserve(&mut state, &mut value, now);
         assert_eq!(id.get_or_insert(request.id.clone()), &request.id);
         state.complete(&request.id, MilestoneOutcome::Rejected, now);
         now += delay;
-        v.observed_ms = now;
-        assert!(
-            state
-                .reserve(&v, NotificationPermission::Allowed, now - 1)
-                .is_none()
-        );
+        value.observed_ms = now;
+        assert!(state.reserve(&value, NotificationPermission::Allowed, now - 1).is_none());
     }
-    assert!(
-        state
-            .reserve(&v, NotificationPermission::Allowed, now)
-            .is_none()
-    );
+    assert!(state.reserve(&value, NotificationPermission::Allowed, now).is_none());
     assert_eq!(state.issue, Some(MilestoneIssue::RetryExhausted));
     state.retry(now);
-    assert_eq!(reserve(&mut state, &mut v, now).id, id.unwrap());
+    assert_eq!(reserve(&mut state, &mut value, now).id, id.unwrap());
 }
-/// 预约重启或超时成为Unknown；找到系统相同 ID 才接受，否则显式重试。
+/// 重启已预约请求保持Unknown，核对成功或主动重试才改变结果。
 #[test]
-fn crash_unknown_reconciliation_and_explicit_retry() {
-    let (mut state, mut v) = crossing(250_000_000);
-    let now = v.observed_ms;
-    let req = reserve(&mut state, &mut v, now);
-    let bytes = serde_json::to_vec(&state).unwrap();
-    let mut restored: MilestoneState = serde_json::from_slice(&bytes).unwrap();
+fn restart_preserves_unknown_and_daily_deduplication() {
+    let (mut state, mut value) = crossing();
+    let now = value.observed_ms;
+    let request = reserve(&mut state, &mut value, now);
+    let mut restored: MilestoneState = serde_json::from_slice(&serde_json::to_vec(&state).unwrap()).unwrap();
     restored.recover();
     assert_eq!(restored.active().unwrap().unknown_count, 1);
-    assert!(
-        restored
-            .reserve(&v, NotificationPermission::Allowed, now)
-            .is_none()
-    );
-    restored.complete(&req.id, MilestoneOutcome::Accepted, now);
-    assert_eq!(restored.active().unwrap().submitted, 1);
-    state.complete(&req.id, MilestoneOutcome::Unknown, now);
+    assert!(restored.reserve(&value, NotificationPermission::Allowed, now).is_none());
+    restored.complete(&request.id, MilestoneOutcome::Accepted, now);
+    value.total_tokens = u64::MAX;
+    restored.observe(&value, now);
+    assert_eq!(restored.active().unwrap().pending_count(), 0);
+    state.complete(&request.id, MilestoneOutcome::Unknown, now);
     state.retry(now);
-    assert_eq!(reserve(&mut state, &mut v, now).id, req.id);
+    assert_eq!(reserve(&mut state, &mut value, now).id, request.id);
 }
-/// 已提交第1档晚到失败只补第1档，不回退已提交第2档或重复添加重试。
+/// 晚到失败只重试匹配日事件，重复回调与旧策略ID不能添加新事件。
 #[test]
-fn sparse_late_failure_retries_only_that_bucket() {
-    let (mut state, mut v) = crossing(250_000_000);
-    let now = v.observed_ms;
-    let first = reserve(&mut state, &mut v, now);
-    state.complete(&first.id, MilestoneOutcome::Accepted, now);
-    let second = reserve(&mut state, &mut v, now + 10_000);
-    state.complete(&second.id, MilestoneOutcome::Accepted, now + 10_000);
-    state.late_failure(&first.id, now + 20_000);
-    state.late_failure(&first.id, now + 20_000);
-    assert_eq!(state.active().unwrap().retries.len(), 1);
-    assert_eq!(state.active().unwrap().high, 2);
-    assert_eq!(reserve(&mut state, &mut v, now + 50_000).id, first.id);
-}
-/// 非法 schema、重叠队列和重复日期都不能作为可信去重历史。
-#[test]
-fn state_validation_rejects_corrupt_history() {
-    let (mut state, _) = crossing(350_000_000);
-    state.schema_version = 2;
-    assert!(!state.valid());
-    state.schema_version = 1;
-    state.days[0]
-        .pending
-        .push(BucketRange { first: 2, last: 3 });
-    assert!(!state.valid());
-}
-
-/// 来源变更后的晚到失败不得重启已经抑制的旧来源事件。
-#[test]
-fn source_rebase_suppresses_late_callbacks_and_unsubmitted_unknown() {
-    let (mut state, mut v) = crossing(250_000_000);
-    let now = v.observed_ms;
-    let first = reserve(&mut state, &mut v, now);
-    state.complete(&first.id, MilestoneOutcome::Accepted, now);
-    let second = reserve(&mut state, &mut v, now + 10_000);
-    state.source_reset();
-    v.total_tokens = 350_000_000;
-    state.observe(&v, v.observed_ms);
-    state.late_failure(&first.id, now + 20_000);
-    state.complete(&second.id, MilestoneOutcome::Rejected, now + 20_000);
+fn late_failure_retries_only_matching_daily_event() {
+    let (mut state, mut value) = crossing();
+    let now = value.observed_ms;
+    let request = reserve(&mut state, &mut value, now);
+    state.complete(&request.id, MilestoneOutcome::Accepted, now);
+    state.late_failure(&request.id.replacen("m2-", "m1-", 1), now);
     assert!(state.active().unwrap().retries.is_empty());
-    assert!(state.active().unwrap().reservation.is_none());
-    assert_eq!(state.active().unwrap().high, 3);
-    v.total_tokens = 450_000_000;
-    state.observe(&v, v.observed_ms);
-    assert_eq!(reserve(&mut state, &mut v, now + 20_000).bucket, 4);
+    state.late_failure(&request.id, now);
+    state.late_failure(&request.id, now);
+    assert_eq!(state.active().unwrap().retries.len(), 1);
+    assert_eq!(reserve(&mut state, &mut value, now + 30_000).id, request.id);
 }
-
-/// 宿主确认尚未调用OS时可归还同档，不消费失败预算；已关闭意图不重新排队。
+/// 旧百兆队列显式取消，已见1B的日界保守建基线而不误发旧请求。
+#[test]
+fn old_policy_migrates_without_replaying_100m_notifications() {
+    let (mut state, _) = crossing();
+    state.policy_version = 1;
+    state.days[0].high = 35;
+    state.days[0].pending = vec![BucketRange { first: 1, last: 35 }];
+    assert!(!state.valid());
+    assert!(state.upgrade_policy());
+    assert_eq!(state.policy_version, 2);
+    assert_eq!(state.days[0].high, 1);
+    assert_eq!(state.days[0].baseline, 1);
+    assert_eq!(state.days[0].pending_count(), 0);
+    assert!(state.upgrade_policy());
+    let value = snapshot(5_000_000_000, 0);
+    state.observe(&value, value.observed_ms);
+    assert_eq!(state.active().unwrap().pending_count(), 0);
+}
+/// 旧第10档可能恰好1B，迁移不能吞掉随后严格超过阈值的首次事件。
+#[test]
+fn old_policy_at_exact_billion_can_cross_after_migration() {
+    let (mut state, _) = crossing();
+    state.policy_version = 1;
+    state.days[0].high = 10;
+    state.days[0].pending = vec![BucketRange { first: 1, last: 10 }];
+    assert!(state.upgrade_policy());
+    let mut value = snapshot(TOKEN_MILESTONE, 0);
+    state.observe(&value, value.observed_ms);
+    assert_eq!(state.active().unwrap().high, 0);
+    value.total_tokens += 1;
+    state.observe(&value, value.observed_ms);
+    assert_eq!(state.active().unwrap().pending_count(), 1);
+}
+/// 未知策略、超出唯一事件的高水位与重叠队列均拒绝。
+#[test]
+fn validation_rejects_corrupt_history() {
+    let (mut state, _) = crossing();
+    state.policy_version = 3;
+    assert!(!state.upgrade_policy());
+    state.policy_version = 2;
+    state.days[0].high = 2;
+    assert!(!state.valid());
+    state.days[0].high = 1;
+    state.days[0].pending.push(BucketRange { first: 1, last: 1 });
+    assert!(!state.valid());
+}
+/// 尚未调用OS的预约可无损归还；关闭后的旧预约不得重新排队。
 #[test]
 fn unsubmitted_reservation_defers_without_failure_budget() {
-    let (mut state, mut value) = crossing(250_000_000);
+    let (mut state, mut value) = crossing();
     let now = value.observed_ms;
     let request = reserve(&mut state, &mut value, now);
     state.defer_unsubmitted(&request.id, now);
     assert_eq!(state.active().unwrap().retries[0].failures, 0);
     assert_eq!(reserve(&mut state, &mut value, now).id, request.id);
     state.set_enabled(false);
-    assert_eq!(state.active().unwrap().suppressed, 1);
-    assert_eq!(state.active().unwrap().unknown_count, 1);
     state.defer_unsubmitted(&request.id, now);
     assert!(state.active().unwrap().reservation.is_none());
     assert!(state.active().unwrap().retries.is_empty());

@@ -197,7 +197,7 @@ impl Shell {
         F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<Outcome, SkinError>> + Send + 'static,
     {
-        self.skin_mutation_kind(work, false, cx);
+        self.skin_mutation_kind(work, false, None, cx);
     }
     /// 宿主操作额外启用CDP退出责任，资源库操作不关闭进程级gate。
     fn skin_host_mutation<F, Fut>(&mut self, work: F, cx: &mut Context<Self>)
@@ -205,10 +205,17 @@ impl Shell {
         F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<Outcome, SkinError>> + Send + 'static,
     {
-        self.skin_mutation_kind(work, true, cx);
+        self.skin_mutation_kind(work, true, None, cx);
+    }
+    /// 更换皮肤绑定真实宿主终态通知，资源操作和中间确认保持各自语义。
+    fn skin_apply_mutation<F, Fut>(&mut self, host: loki_metris_core::SkinHostKind, work: F, cx: &mut Context<Self>)
+    where F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<Outcome, SkinError>> + Send + 'static,
+    {
+        self.skin_mutation_kind(work, true, Some(host), cx);
     }
     /// 同一串行UI入口按副作用种类登记应用owner。
-    fn skin_mutation_kind<F, Fut>(&mut self, work: F, host: bool, cx: &mut Context<Self>)
+    fn skin_mutation_kind<F, Fut>(&mut self, work: F, host: bool, notification_host: Option<loki_metris_core::SkinHostKind>, cx: &mut Context<Self>)
     where
         F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<Outcome, SkinError>> + Send + 'static,
@@ -220,19 +227,28 @@ impl Shell {
         let Some(service) = &self.dashboard.service else {
             return;
         };
+        let notifications = service.activity_notifications();
+        let completed = notifications.clone();
         let work = match if host {
             let authority = self.skins.authority.clone();
-            service.skin_host_work(move |service| async move {
+            service.skin_host_work_observed(move |service| async move {
                 crate::skins::with_host_authority(
                     Arc::new(move || authority.load(Ordering::Acquire) == epoch),
                     async move { work(service).await },
                 ).await
+            }, move |result| {
+                if let (Some(host), Some(success)) = (notification_host, host_action::notification_result(result)) {
+                    completed.push(crate::notification_events::Activity::Skin { host, success });
+                }
             })
         } else {
             service.skin_work(work)
         } {
             Ok(work) => work,
             Err(code) => {
+                if let Some(host) = notification_host {
+                    notifications.push(crate::notification_events::Activity::Skin { host, success: false });
+                }
                 self.skins.feedback = Some(Err(SkinError::new(code, "无法提交皮肤操作。")));
                 cx.notify();
                 return;

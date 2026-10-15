@@ -92,12 +92,26 @@ fn notification_delegate_routes_owned_clicks_without_swallowing_kit() {
     assert_eq!(done.get(), 2);
     assert!(matches!(rx.try_recv(), Ok(super::super::driver::Event::Clicked)));
     assert!(rx.try_recv().is_err());
-    for id in ["gpui-component-notification-1", "m1-not-a-full-id", "foreign"] {
+    for id in ["gpui-component-notification-1", "m1-not-a-full-id", "foreign", "a1-not-a-full-id"] {
         ivars.response(id, || panic!("foreign completion belongs to previous delegate"), || forwarded.set(forwarded.get() + 1));
     }
-    assert_eq!(forwarded.get(), 3);
+    assert_eq!(forwarded.get(), 4);
     assert_eq!(done.get(), 2);
     assert!(rx.try_recv().is_err());
+}
+/// 瞬时事件与新Token策略共享前台展示/点击路由，不能误认不完整或外部tag。
+#[test]
+fn notification_delegate_recognizes_activity_and_billion_namespaces() {
+    let id = format!("a1-{}", uuid::Uuid::new_v4().simple());
+    assert!(super::owns(&id));
+    assert!(super::owns(&loki_metris_core::usage_milestones::milestone_request_id("today", 1)));
+    assert!(!super::owns("a1-short"));
+    let (clicked, receiver) = mpsc::sync_channel(1);
+    let ivars = DelegateIvars { clicked, previous: None };
+    let done = Cell::new(false);
+    ivars.response(&id, || done.set(true), || panic!("activity click must be owned"));
+    assert!(done.get());
+    assert!(matches!(receiver.try_recv(), Ok(super::super::driver::Event::Clicked)));
 }
 /// 固定依赖的真实自动类名合同不能退化成短名、前缀匹配或接受未经审阅的新版本。
 #[test]

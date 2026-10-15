@@ -2,6 +2,7 @@
 
 mod driver;
 mod host;
+mod activity;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
@@ -269,6 +270,7 @@ impl Service {
     pub fn stop(&self) {
         let mut owner = self.owner.borrow_mut();
         owner.closing = true;
+        if let Some(usage) = &owner.usage { usage.activity_notifications().configure(false); }
         owner.generation += 1;
         owner.task.take();
         owner.poll.take();

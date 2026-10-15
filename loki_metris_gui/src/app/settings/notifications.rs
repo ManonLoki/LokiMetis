@@ -168,6 +168,7 @@ impl Shell {
                         .flex()
                         .flex_col()
                         .gap_3()
+                        .child(div().text_sm().child(self.t("notification.rules")))
                         .child(
                             div()
                                 .text_sm()

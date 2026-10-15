@@ -82,7 +82,7 @@ impl UsageService {
         F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
     {
-        self.skin_work_kind(work, false)
+        self.skin_work_kind(work, false, |_| {})
     }
     /// 只有真实宿主任务才拥有进程级CDP/launcher关闭责任。
     pub(crate) fn skin_host_work<T, F, Fut>(
@@ -94,13 +94,23 @@ impl UsageService {
         F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
     {
-        self.skin_work_kind(work, true)
+        self.skin_work_kind(work, true, |_| {})
+    }
+    /// 终态观察在应用后台 owner 内、回执发送前执行，页面关闭不能吞掉真实结果。
+    pub(crate) fn skin_host_work_observed<T, F, Fut>(
+        &self, work: F, completed: impl FnOnce(&Result<T, SkinError>) + Send + 'static,
+    ) -> Result<oneshot::Receiver<Result<T, SkinError>>, &'static str>
+    where T: Send + 'static, F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
+    {
+        self.skin_work_kind(work, true, completed)
     }
     /// 资源事务与宿主事务共用阻塞岛，进程级owner仅由宿主入口启用。
     fn skin_work_kind<T, F, Fut>(
         &self,
         work: F,
         host: bool,
+        completed: impl FnOnce(&Result<T, SkinError>) + Send + 'static,
     ) -> Result<oneshot::Receiver<Result<T, SkinError>>, &'static str>
     where
         T: Send + 'static,
@@ -127,6 +137,7 @@ impl UsageService {
                     .await?;
                 work(state.service.clone()).await
             });
+            completed(&result);
             let _ = tx.send(result);
         })?;
         if host {
@@ -180,3 +191,7 @@ pub(crate) async fn receipt<T>(
             ))
         })
 }
+
+#[cfg(test)]
+#[path = "skin_notification_tests.rs"]
+mod notification_tests;

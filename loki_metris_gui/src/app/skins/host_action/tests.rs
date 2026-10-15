@@ -298,3 +298,40 @@ fn confirmed_steps_do_not_reenter_recovery_confirmation() {
         assert!(!host.calls.lock().unwrap().iter().any(|call|call=="instances"));
     }
 }
+
+/// 构造真实安装回执的最小状态，避免把确认或目录操作当作更换成功。
+fn installed() -> InstallSkinResult {
+    InstallSkinResult::Installed { status: crate::skins::SkinStatus {
+        installed: true, skin_id: Some("theme".into()), source: Some(SkinSource::User),
+        package_type: Some(loki_metris_core::SkinPackageType::Theme), skin_name: Some("Theme".into()),
+        version: "1.0.0".into(), affected_pages: 1, compatibility: None, instance_id: Some("one".into()),
+    } }
+}
+/// 成功与失败均形成通知，取消、重启/外观确认和其它资源操作保持静默。
+#[test]
+fn skin_notification_result_classifies_actual_terminal_outcomes() {
+    assert_eq!(notification_result(&Ok(Outcome::Applied(installed(), intent(SkinHostKind::Codex)))), Some(true));
+    assert_eq!(notification_result(&Err(SkinError::new("skin.install_failed", "failure"))), Some(false));
+    for code in ["skin.operation_cancelled", "skin.workbuddy_recovery_cancelled_after_close"] {
+        assert_eq!(notification_result(&Err(SkinError::new(code, "cancelled"))), None);
+    }
+    assert_eq!(notification_result(&Ok(Outcome::Applied(appearance(), intent(SkinHostKind::Codex)))), None);
+    assert_eq!(notification_result(&Ok(Outcome::NeedsRestart(intent(SkinHostKind::Codex), RestartMode::RestartSelected))), None);
+    assert_eq!(notification_result(&Ok(Outcome::Stopped)), None);
+}
+/// 安装完成后即使页面授权失效仍保留真实成功，界面自行拒收旧投影。
+#[test]
+fn skin_notification_keeps_committed_success_after_page_authority_changes() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let host = Host::default();
+    host.installed.lock().unwrap().push_back(Ok(installed()));
+    let checks = AtomicUsize::new(0);
+    let result = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
+        apply_host_action(&host, intent(SkinHostKind::Codex), ApplyStep::InstallDirect, false, || {
+            if checks.fetch_add(1, Ordering::SeqCst) < 2 { Ok(()) }
+            else { Err(SkinError::new("skin.operation_cancelled", "page closed")) }
+        })
+    );
+    assert_eq!(notification_result(&result), Some(true));
+    assert_eq!(*host.calls.lock().unwrap(), ["install"]);
+}

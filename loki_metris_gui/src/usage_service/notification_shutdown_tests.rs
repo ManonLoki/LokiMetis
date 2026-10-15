@@ -27,7 +27,7 @@ fn notification_shutdown_cancels_blocked_summary_and_persists_accepted_receipt()
     let mut state = ledger.state.clone();
     state.set_enabled(true);
     state.observe(&value, now);
-    value.total_tokens = 350_000_000;
+    value.total_tokens = 1_350_000_000;
     state.observe(&value, now);
     let request = state.reserve(&value, NotificationPermission::Allowed, now).unwrap();
     ledger.commit(state).unwrap();
@@ -46,7 +46,7 @@ fn notification_shutdown_cancels_blocked_summary_and_persists_accepted_receipt()
     let restored = Ledger::load(path);
     assert_eq!(restored.state.active().unwrap().submitted, 1);
     assert!(restored.state.active().unwrap().reservation.is_none());
-    assert_eq!(restored.state.active().unwrap().pending_count(), 2);
+    assert_eq!(restored.state.active().unwrap().pending_count(), 0);
     assert!(service.take_notification().is_none(), "closing must never reserve another bucket");
     assert!(service.notifications.receipts.is_closed());
     blocked.release();

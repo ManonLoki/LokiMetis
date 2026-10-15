@@ -199,3 +199,46 @@ fn failed_slot_read_does_not_consume_expiry_transition() {
 
 /// 测试仅写隔离目录的草稿 fixture，不提供产品保存桩。
 fn save_profile_fixture(config:&std::path::Path,_data:&std::path::Path,draft:loki_metris_core::AiProfileDraft)->std::io::Result<()> {std::fs::write(config.join("monitor-profiles.json"),serde_json::to_vec(&vec![draft]).unwrap())}
+
+/// 同槽工具互相覆盖不能丢失通知前态；启动、重复询问与结束后的释放保持静默。
+#[test]
+fn hook_notifications_survive_shared_pet_slot_and_deduplicate_states() {
+    use crate::notification_events::{Activity, ActivityQueue};
+    use loki_metris_core::HookNotification;
+    let root = tempdir().unwrap();
+    let mut drafts = [loki_metris_core::AiProfileDraft::default_for(AiTool::Codex), loki_metris_core::AiProfileDraft::default_for(AiTool::ClaudeCode)];
+    for draft in &mut drafts { draft.slot = 1; }
+    std::fs::write(root.path().join("monitor-profiles.json"), serde_json::to_vec(&drafts).unwrap()).unwrap();
+    let status = Arc::new(RwLock::new(HookRelayStatus::default()));
+    let mut machines = HashMap::new();
+    let queue = ActivityQueue::default();
+    queue.configure(true);
+    let mut process = |event: IncomingHookEvent| {
+        super::lifecycle::process_hook_event_checked(event, Duration::from_secs(1), &mut machines, &status, root.path(), None, Some(&queue))
+    };
+    process(codex_event("SessionStart", None));
+    assert!(queue.take().is_none());
+    process(codex_event("UserPromptSubmit", Some("turn-1")));
+    let mut other = codex_event("UserPromptSubmit", Some("turn-other"));
+    other.tool = AiTool::ClaudeCode;
+    process(other);
+    assert!(!status.read().unwrap().pet_states.iter().any(|state| state.tool == AiTool::Codex && state.behavior.is_some()));
+    process(codex_event("PermissionRequest", Some("turn-1")));
+    process(codex_event("PermissionRequest", Some("turn-1")));
+    assert_eq!(queue.take().unwrap().activity, Activity::Hook { tool: AiTool::Codex, state: HookNotification::Asking });
+    assert!(queue.take().is_none());
+    process(codex_event("Stop", Some("turn-1")));
+    process(codex_event("SessionEnd", None));
+    assert_eq!(queue.take().unwrap().activity, Activity::Hook { tool: AiTool::Codex, state: HookNotification::Ended });
+    assert!(queue.take().is_none());
+    let mut failure = codex_event("PostToolUseFailure", Some("turn-other"));
+    failure.tool = AiTool::ClaudeCode;
+    process(failure.clone());
+    process(failure);
+    assert_eq!(queue.take().unwrap().activity, Activity::Hook { tool: AiTool::ClaudeCode, state: HookNotification::Error });
+    let mut stop = codex_event("Stop", Some("turn-other"));
+    stop.tool = AiTool::ClaudeCode;
+    process(stop);
+    assert_eq!(queue.take().unwrap().activity, Activity::Hook { tool: AiTool::ClaudeCode, state: HookNotification::Ended });
+    assert!(queue.take().is_none());
+}

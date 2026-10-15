@@ -59,24 +59,19 @@
     "LMDESK-REMOVE-FOREIGN-QQ-001"
   ],
   "applied_reconciliations": [],
-  "cycle_base_version": "0.2.55",
-  "feature_bump_applied": false,
+  "cycle_base_version": "0.2.57",
+  "feature_bump_applied": true,
   "last_release": {
-    "source_commit": "103f8225cf571f6acfb7bf491f52e6d9ab62234e",
-    "version": "0.2.55"
+    "source_commit": "ac34dfca0f98d8cf3af757afac1be137b0c42fa5",
+    "version": "0.2.57"
   },
   "pending_changes": [
     {
-      "change_id": "LM-DEPENDENCY-MAINTENANCE-RELEASE-20261015",
-      "kind": "bug-fix",
-      "required_version": "0.2.56"
-    },
-    {
-      "change_id": "LMDESK-REMOVE-FOREIGN-QQ-001",
-      "kind": "bug-fix",
-      "required_version": "0.2.57"
+      "change_id": "LMDESK-TRAY-NOTIFICATIONS-001",
+      "kind": "feature",
+      "required_version": "0.3.0"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.57"
+  "target_version": "0.3.0"
 }

@@ -45,6 +45,8 @@ pub(crate) const MAX_TRACKED_HOOK_SESSIONS: usize = 256;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HookStateMachine {
     sessions: HashMap<String, HookSessionState>,
+    /// 最近已接受的展示行为；直通协议同样维护，不依赖宿主桌宠槽位。
+    notification_behavior: Option<HookBehavior>,
 }
 
 impl HookStateMachine {
@@ -88,6 +90,31 @@ impl HookStateMachine {
         turn_id: Option<&str>,
         status: Option<&str>,
         observed_at: Duration,
+    ) -> HookEventDecision {
+        let decision = self.apply_event_inner(tool, event, session_id, turn_id, status, observed_at);
+        self.remember_transition(decision)
+    }
+
+    /// 返回工具自身前态，通知去重不受其它工具覆盖同一展示槽位影响。
+    pub fn notification_behavior(&self) -> Option<HookBehavior> {
+        self.notification_behavior
+    }
+
+    /// 只记录已接受迁移；忽略/不支持的事件不能改变通知前态。
+    fn remember_transition(&mut self, decision: HookEventDecision) -> HookEventDecision {
+        if let HookEventDecision::Forward(transition) = decision {
+            self.notification_behavior = match transition {
+                HookTransition::Display(behavior) => Some(behavior),
+                HookTransition::Release => None,
+            };
+        }
+        decision
+    }
+
+    /// 原有会话和轮次归约，不改变直通协议及生命周期语义。
+    fn apply_event_inner(
+        &mut self, tool: AiTool, event: &str, session_id: Option<&str>, turn_id: Option<&str>,
+        status: Option<&str>, observed_at: Duration,
     ) -> HookEventDecision {
         let Some(event_kind) = event_kind(tool, event, status) else {
             return HookEventDecision::Unsupported;
@@ -139,14 +166,15 @@ impl HookStateMachine {
             .retain(|_, session| observed_at.saturating_sub(session.last_seen_at) < timeout);
         let next = self.aggregate_phase();
         if next != HookPhase::Released {
-            return phase_decision(previous, next);
+            return self.remember_transition(phase_decision(previous, next));
         }
-        match previous {
+        let decision = match previous {
             HookPhase::Running | HookPhase::Asking | HookPhase::Error => {
                 HookEventDecision::Forward(HookTransition::Display(HookBehavior::Idle))
             }
             HookPhase::Released | HookPhase::Idle => HookEventDecision::Ignore,
-        }
+        };
+        self.remember_transition(decision)
     }
 
     /// 返回当前可重放的展示迁移；从未建立或已释放时返回 `None`。

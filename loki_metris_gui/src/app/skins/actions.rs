@@ -193,7 +193,7 @@ impl Shell {
         }
         let authority = self.skins.authority.clone();
         let epoch = authority.load(Ordering::Acquire);
-        self.skin_host_mutation(
+        self.skin_apply_mutation(intent.host,
             move |service| async move {
                 let valid = || {
                     if authority.load(Ordering::Acquire) == epoch {

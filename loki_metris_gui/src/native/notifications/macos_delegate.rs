@@ -1,4 +1,4 @@
-//! 仅桥接本版本 GPUI 的已知代理；Kit 的非里程碑回调、可选方法和原槽位均保留。
+//! 仅桥接本版本 GPUI 的已知代理；Kit 的外部通知回调、可选方法和原槽位均保留。
 use block2::DynBlock;
 use objc2::{AnyThread, DefinedClass, define_class, msg_send, rc::Retained, runtime::ProtocolObject, sel};
 use objc2_foundation::{NSObject, NSObjectProtocol};
@@ -40,7 +40,8 @@ impl DelegateIvars {
 }
 /// 原生路由只识别本应用既有稳定 tag 格式，不参与业务去重。
 fn owns(id: &str) -> bool {
-    let Some((day, bucket)) = id.strip_prefix("m1-").and_then(|v| v.split_once('-')) else {
+    if let Some(value) = id.strip_prefix("a1-") { return value.len() == 32 && value.bytes().all(|b| b.is_ascii_hexdigit()); }
+    let Some((day, bucket)) = id.strip_prefix("m2-").or_else(|| id.strip_prefix("m1-")).and_then(|v| v.split_once('-')) else {
         return false;
     };
     day.len() == 16 && bucket.len() == 16

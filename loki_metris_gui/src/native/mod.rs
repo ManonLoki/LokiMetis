@@ -94,7 +94,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                 }
                 if receiver.try_iter().take(64).count() > 0 { show(handle, cx); }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
-                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::OpenPetSettings => crate::pet::open_settings(cx), tray::Event::ToggleMousePassthrough => crate::pet::toggle_mouse_passthrough(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);} } }
+                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::OpenPetSettings => crate::pet::open_settings(cx), tray::Event::ToggleMousePassthrough => crate::pet::toggle_mouse_passthrough(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);}, tray::Event::ToggleAutostart=>toggle_autostart(cx) } }
                 let mouse_state=crate::pet::mouse_passthrough_state(cx);
                 if last_mouse_state != Some(mouse_state) {
                     if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_mouse_passthrough(mouse_state);}
@@ -105,7 +105,12 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                     menu::refresh(cx);last_notification_key=Some(key);cx.refresh_windows();
                 }
                 let current = cx.global::<Services>().autostart.state().revision;
-                if current != revision { revision = current; menu::refresh(cx); cx.refresh_windows(); }
+                if current != revision {
+                    revision = current;
+                    let state = autostart_state(cx);
+                    if let Some(tray) = cx.global_mut::<Services>().tray.as_mut() { tray.set_autostart(&state); }
+                    menu::refresh(cx); cx.refresh_windows();
+                }
                 let handlers = cx.global::<Services>().shortcuts.pending();
                 for dispatch in handlers { dispatch(cx); }
             });
@@ -283,6 +288,13 @@ pub fn autostart_state(cx: &App) -> autostart::State {
 /// 事件直接来自自启控件，初始化不会调用此 mutation。
 pub fn set_autostart(enabled: bool, cx: &App) {
     if let Some(services) = cx.try_global::<Services>() { services.autostart.set(enabled); }
+}
+/// 原生菜单依据同一 OS 事实切换；未知/错误时只重读，忙碌时不提交额外写入。
+pub(super) fn toggle_autostart(cx: &App) {
+    let state = autostart_state(cx);
+    if state.busy { return; }
+    if state.error || state.enabled.is_none() { reload_autostart(cx); }
+    else if let Some(enabled) = state.enabled { set_autostart(!enabled, cx); }
 }
 /// 读取失败时提供显式重试，不能乐观假定系统状态。
 pub fn reload_autostart(cx: &App) {

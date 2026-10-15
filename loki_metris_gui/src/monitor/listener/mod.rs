@@ -102,12 +102,13 @@ impl Default for HookRelayStatus {
     }
 }
 
-/// 启动环回 listener，返回可查询状态与可同步更新的启用门禁。
-pub fn spawn_hook_listener(
+/// 生产监听绑定应用通知邮箱；隔离监听可省略，不连接真实 OS 通知。
+pub(crate) fn spawn_hook_listener_with_notifications(
     runtime: &tokio::runtime::Handle,
     config_dir: PathBuf,
     enabled_tools: Vec<AiTool>,
     rendezvous_path: PathBuf,
+    notifications: Option<Arc<crate::notification_events::ActivityQueue>>,
 ) -> (Arc<RwLock<HookRelayStatus>>, HookListenerControl) {
     let status = Arc::new(RwLock::new(HookRelayStatus::default()));
     let policy = Arc::new(RwLock::new(HookListenerPolicy::new(&enabled_tools)));
@@ -119,6 +120,7 @@ pub fn spawn_hook_listener(
         config_dir,
         Arc::clone(&policy),
         HookListenerShutdown::new(shutdown_receiver.clone()),
+        notifications,
     ));
     let shared = Arc::clone(&status);
     let listener_policy = Arc::clone(&policy);

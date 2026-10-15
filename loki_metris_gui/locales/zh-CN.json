@@ -82,7 +82,9 @@
     "show_window": "显示窗口",
     "quit": "退出",
     "hide_pet_overlay": "隐藏浮窗",
-    "show_pet_overlay": "显示浮窗"
+    "show_pet_overlay": "显示浮窗",
+    "autostart_busy": "开机自启（更新中）",
+    "autostart_retry": "开机自启（状态不可用，点击重试）"
   },
   "dashboard": {
     "overview": "概览",
@@ -816,7 +818,7 @@
     "host_unavailable": "当前应用无法连接系统通知服务。请重新打开应用后重试。",
     "menu_unavailable": "系统通知 · 服务不可用",
     "title": "诡秘神谕",
-    "milestone": "恭喜您今天已经使用「%{total}」的Token了",
+    "milestone": "恭喜您已使用%{total}的Token",
     "permission_allowed": "系统允许通知",
     "permission_denied": "系统不允许通知",
     "permission_ask": "需要主动授权",
@@ -824,12 +826,12 @@
     "permission_label": "系统权限：%{status}",
     "summary": "待提交 %{pending} · API已接受 %{submitted} · 结果不明 %{unknown}",
     "history": "基线跳过 %{baseline} · 已抑制 %{suppressed} · 已过期 %{expired}",
-    "baseline": "已用当前可信总量建立基线，已有档位不会补发。",
-    "waiting": "今日数据不完整、不可用或已过期，通知已暂停；恢复可信数据后继续。",
+    "baseline": "已建立当前可信总量基线，已达到的每日 1B 事件不会补发。",
+    "waiting": "今日数据不完整、不可用或已过期，Token 通知已暂停；Hooks 与换肤通知独立处理。",
     "unknown": "部分请求结果不明，自动发送已暂停。手动重试可能重复显示通知。",
     "rejected": "系统提交失败，按30秒、120秒、600秒重试；用尽后等待手动重试。",
     "storage": "通知历史读取、保存或容量出现问题，已暂停发送。",
-    "rebuilt": "通知历史缺失或损坏，使用首个可信当前总量重建基线；已有档位不补发。",
+    "rebuilt": "通知历史损坏，使用首个可信当前总量重建基线；已达到的每日事件不补发。",
     "retry": "刷新权限并重试",
     "retry_unknown": "重试结果不明的请求（可能重复）",
     "open_settings": "打开系统通知设置",
@@ -837,6 +839,12 @@
     "menu_queue": "系统通知 · 待提交 %{count}",
     "menu_unknown": "系统通知 · 结果不明",
     "menu_disabled": "系统通知",
-    "source_rebuilt": "来源集合或索引已改变，旧队列已抑制，并以可信当前总量重建基线。"
+    "source_rebuilt": "来源集合或索引已改变，旧队列已抑制，并以可信当前总量重建基线。",
+    "hook_asking": "%{name} 正在询问，等待您的处理",
+    "hook_ended": "%{name} 已结束",
+    "hook_error": "%{name} 发生错误",
+    "skin_success": "%{name} 皮肤更换成功",
+    "skin_failure": "%{name} 皮肤更换失败，请在应用内查看详情",
+    "rules": "当天 Token 总量首次突破 1B、Hooks 询问/结束/错误状态变化、皮肤更换成功或失败时通知。"
   }
 }

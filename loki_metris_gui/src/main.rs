@@ -45,6 +45,7 @@ mod fonts;
 mod format_tokens;
 
 mod native;
+mod notification_events;
 mod pet;
 mod skins;
 

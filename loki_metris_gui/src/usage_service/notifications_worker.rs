@@ -106,6 +106,7 @@ async fn run(
         let now = current_epoch_ms();
         // 关闭后拒收新回执，但已经被有界通道接受的结果必须全部落盘。
         if control.closing {
+            context.activity_notifications.configure(false);
             receipts.close();
         }
         let mut next = ledger.state.clone();

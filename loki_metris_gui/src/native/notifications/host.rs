@@ -47,7 +47,10 @@ impl Service {
                     for event in receiver.try_iter().take(128) {
                         match event {
                             driver::Event::Clicked => crate::native::show(main, cx),
-                            driver::Event::LateFailure(id) => usage.notification_late_failure(id),
+                            driver::Event::LateFailure(id) => {
+                                if id.starts_with("a1-") { tracing::warn!(event = "activity_notification_rejected"); }
+                                else { usage.notification_late_failure(id); }
+                            },
                         }
                     }
                     let clicked = service.owner.borrow().host.as_ref().is_some_and(|host| driver::take_click(host));
@@ -77,6 +80,7 @@ impl Service {
                     }
                     service.reconcile(cx);
                     service.dispatch(cx);
+                    service.dispatch_activity(cx);
                 });
             }
         });
@@ -311,7 +315,7 @@ fn grouped(value: u64) -> String {
     }
     result
 }
-/// 文案来自同一双语词典；同轮跨多个档位允许使用同一最新真实总量。
+/// 文案来自同一双语词典，插入最新可信今日总量。
 fn message(locale: &str, total: u64) -> (String, String) {
     (
         rust_i18n::t!("notification.title", locale = locale).to_string(),
@@ -329,17 +333,17 @@ mod tests {
     #[test]
     fn notification_message_preserves_exact_total() {
         assert_eq!(
-            super::message("zh-CN", 350_000_000),
+            super::message("zh-CN", 1_350_000_000),
             (
                 "诡秘神谕".into(),
-                "恭喜您今天已经使用「350,000,000」的Token了".into()
+                "恭喜您已使用1,350,000,000的Token".into()
             )
         );
         assert_eq!(super::grouped(u64::MAX), "18,446,744,073,709,551,615");
         assert!(
-            super::message("en-US", 350_000_000)
+            super::message("en-US", 1_350_000_000)
                 .1
-                .contains("350,000,000")
+                .contains("1,350,000,000")
         );
     }
 }
