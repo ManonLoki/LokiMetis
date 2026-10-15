@@ -18,6 +18,15 @@ pub struct MinimalHookPayload {
     /// 可选轮次标识。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub turn_id: Option<String>,
+    /// 执行该交互的子 Agent；不会拿它替代父会话或轮次 ID。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+    /// 单次工具/澄清交互标识，用于保护其它并行的用户等待。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interaction_id: Option<String>,
+    /// 工具公开名称；不包含工具参数或回答。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_name: Option<String>,
     /// 可选状态标量。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
@@ -95,18 +104,87 @@ fn envelope_from_source(
                 "promptId",
             ],
         ),
-        // 三种 Claude 兼容客户端用 notification_type 区分同名 Notification 分组。
-        // 其余事件仍保留原生 status 的既有语义，不把通知正文传出 relay。
-        status: if configured_event == "Notification"
-            && matches!(
-                tool,
-                AiTool::ClaudeCode | AiTool::WorkBuddy | AiTool::CodeBuddy
-            ) {
-            string_field(source, &["notification_type"])
-        } else {
-            scalar_field(source, "status")
-        },
+        agent_id: string_field(source, &["agent_id", "agentId"]),
+        interaction_id: string_field(
+            source,
+            &[
+                "interaction_id",
+                "tool_use_id",
+                "toolUseId",
+                "tool_call_id",
+                "toolCallId",
+                "elicitation_id",
+            ],
+        ),
+        tool_name: string_field(source, &["tool_name", "toolName"]).or_else(|| {
+            // 无调用ID的MCP表单至少按服务器隔离；该名称不冒充工具调用ID。
+            matches!(configured_event, "Elicitation" | "ElicitationResult")
+                .then(|| {
+                    string_field(source, &["mcp_server_name"])
+                        .map(|name| format!("mcp-server:{name}"))
+                })
+                .flatten()
+        }),
+        status: event_status(tool, source, configured_event),
     })
+}
+
+/// 只传递可证实的有限语义；错误正文、工具参数、问题和回答均留在原生输入边界。
+fn event_status(tool: AiTool, source: &Map<String, Value>, event: &str) -> Option<String> {
+    if event.eq_ignore_ascii_case("Notification") {
+        return string_field(source, &["notification_type", "notificationType"]);
+    }
+    if event == "FinalStop" && matches!(tool, AiTool::WorkBuddy | AiTool::CodeBuddy) {
+        return string_field(source, &["final_stop_reason"]);
+    }
+    if tool == AiTool::Cursor && event == "sessionEnd" {
+        return Some(
+            match string_field(source, &["final_status", "reason", "status"]).as_deref() {
+                Some("completed") => "completed",
+                Some("error") => "error",
+                Some("aborted") => "aborted",
+                _ => "closed",
+            }
+            .into(),
+        );
+    }
+    if matches!(event, "PostToolUseFailure" | "postToolUseFailure")
+        && source.get("is_interrupt") == Some(&Value::Bool(true))
+    {
+        return Some("cancelled".into());
+    }
+    if event == "PreToolUse" {
+        let name = string_field(source, &["tool_name", "toolName"]);
+        let asks = match tool {
+            AiTool::ClaudeCode => {
+                matches!(name.as_deref(), Some("AskUserQuestion" | "ExitPlanMode"))
+            }
+            AiTool::WorkBuddy | AiTool::CodeBuddy => matches!(
+                name.as_deref(),
+                Some("AskUserQuestion" | "ExitPlanMode" | "AskUserForStructuredInput")
+            ),
+            AiTool::Grok => name.as_deref() == Some("ask_user_question"),
+            _ => false,
+        };
+        if asks {
+            return Some("awaiting_user".into());
+        }
+    }
+    if tool == AiTool::GeminiCli
+        && event == "AfterTool"
+        && source
+            .get("tool_response")
+            .and_then(|value| value.get("error"))
+            .is_some_and(|value| match value {
+                Value::String(text) => !text.is_empty(),
+                Value::Object(_) => true,
+                Value::Bool(value) => *value,
+                _ => false,
+            })
+    {
+        return Some("tool_error".into());
+    }
+    scalar_field(source, "status")
 }
 
 /// Cursor 宿主字段；非 Cursor adapter 遇到非空 cursor_version 时抑制。

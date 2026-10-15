@@ -56,7 +56,7 @@ fn claude_compatible_notification_groups_merge_without_overwriting_each_other() 
         assert_eq!(first.content, second.content, "{tool:?}");
         let value: Value = serde_json::from_str(&second.content).unwrap();
         let groups = value["hooks"]["Notification"].as_array().unwrap();
-        assert_eq!(groups.len(), 3, "{tool:?}");
+        assert_eq!(groups.len(), match tool { AiTool::ClaudeCode => 6, AiTool::WorkBuddy => 4, _ => 3 }, "{tool:?}");
         assert_eq!(groups[0]["hooks"][0]["command"], "user-notify");
         assert_eq!(groups[1]["matcher"], "idle_prompt");
         assert_eq!(groups[2]["matcher"], "permission_prompt");

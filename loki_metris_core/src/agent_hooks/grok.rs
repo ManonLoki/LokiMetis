@@ -17,10 +17,8 @@ pub(super) static GROK: GrokProtocol = GrokProtocol;
 pub(super) struct GrokProtocol;
 
 // 官方个人 hooks 使用 PascalCase 事件名与 Claude 风格 command group。
-// 不订阅 Claude 专属 PermissionRequest / Elicitation；官方表没有 ask/Q&A 事件，
-// Asking 为契约降级。不给 Notification 加 matcher（idle_prompt / permission_prompt
-// 不是可移植的无 matcher 语义）。StopCancelled 是当前官方 turn-end 事件，
-// 用于用户中断后回到 Idle。
+// 真实权限等待通过 Notification.permission_prompt 表达；不猜测 Claude 专属事件。
+// https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md
 const EVENTS: &[HookEvent] = &[
     HookEvent::new("SessionStart", HookEventKind::SessionStart),
     HookEvent::new("UserPromptSubmit", HookEventKind::WorkStart),
@@ -34,22 +32,24 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "PostToolUseFailure",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkCompletion(HookBehavior::Error),
     ),
     HookEvent::new(
         "PermissionDenied",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkProgress(HookBehavior::Error),
     ),
-    HookEvent::new("Stop", HookEventKind::Stop),
-    HookEvent::new("StopFailure", HookEventKind::State(HookBehavior::Error)),
-    HookEvent::new("StopCancelled", HookEventKind::Stop),
+    HookEvent::new("Stop", HookEventKind::ContinuableStop),
+    HookEvent::new("StopFailure", HookEventKind::TerminalState(HookBehavior::Error)),
+    HookEvent::new("StopCancelled", HookEventKind::Cancelled),
+    HookEvent::with_matcher("Notification", "permission_prompt", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::with_matcher("Notification", "agent_error", HookEventKind::TerminalState(HookBehavior::Error)),
     HookEvent::new(
         "SubagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     HookEvent::new(
         "SubagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     HookEvent::new(
         "PreCompact",
@@ -93,6 +93,14 @@ impl HookProtocol for GrokProtocol {
     /// 返回 Grok Build 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
+    }
+    /// 已证实的提问工具会阻塞用户；普通执行前事件仍保持运行。
+    fn event_kind(&self, event: &HookEvent, status: Option<&str>) -> HookEventKind {
+        match (event.name, status) {
+            ("PreToolUse", Some("awaiting_user")) => HookEventKind::State(HookBehavior::Asking),
+            ("PostToolUseFailure", Some("cancelled")) => HookEventKind::WorkCompletion(HookBehavior::Running),
+            _ => event.kind,
+        }
     }
 
     /// 按当前平台命令和可选 matcher 构造事件处理配置。

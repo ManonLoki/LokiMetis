@@ -37,11 +37,11 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "beforeShellExecution",
-        HookEventKind::State(HookBehavior::Asking),
+        HookEventKind::WorkProgress(HookBehavior::Running),
     ),
     HookEvent::new(
         "beforeMCPExecution",
-        HookEventKind::State(HookBehavior::Asking),
+        HookEventKind::WorkProgress(HookBehavior::Running),
     ),
     HookEvent::new(
         "preToolUse",
@@ -107,13 +107,15 @@ impl HookProtocol for CursorProtocol {
         EVENTS
     }
 
-    /// Cursor 的 stop 结合 status 区分正常结束和错误终止。
+    /// 执行前事件不证明需要用户批准；取消不等于错误或成功完成。
     fn event_kind(&self, event: &HookEvent, status: Option<&str>) -> HookEventKind {
-        let failed = status.is_some_and(|value| value.eq_ignore_ascii_case("error"));
-        if event.name == "stop" && failed {
-            HookEventKind::TerminalState(HookBehavior::Error)
-        } else {
-            event.kind
+        match (event.name, status) {
+            ("stop", Some(value)) if value.eq_ignore_ascii_case("error") => HookEventKind::TerminalState(HookBehavior::Error),
+            ("stop", Some("completed")) => HookEventKind::TerminalState(HookBehavior::Idle),
+            ("stop", Some(value)) if value.eq_ignore_ascii_case("aborted") => HookEventKind::Cancelled,
+            // 中断的是工具调用，不擅自退休整个父轮次；后续 stop 决定最终状态。
+            ("postToolUseFailure", Some("cancelled")) => HookEventKind::WorkCompletion(HookBehavior::Running),
+            _ => event.kind,
         }
     }
 

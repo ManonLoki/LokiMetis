@@ -27,6 +27,9 @@ const EVENTS: &[HookEvent] = &[
         HookEventKind::State(HookBehavior::Asking),
     ),
     HookEvent::new("question.asked", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::new("permission.replied", HookEventKind::WorkProgress(HookBehavior::Running)),
+    HookEvent::new("question.replied", HookEventKind::WorkProgress(HookBehavior::Running)),
+    HookEvent::new("question.rejected", HookEventKind::WorkProgress(HookBehavior::Running)),
     HookEvent::new("session.retry", HookEventKind::State(HookBehavior::Error)),
     HookEvent::new("session.error", HookEventKind::State(HookBehavior::Error)),
     HookEvent::new("session.idle", HookEventKind::Stop),
@@ -81,7 +84,8 @@ const relayExecutable = {executable_literal}
 
 const supportedEvents = new Set([
   "session.created", "tool.execute.before", "tool.execute.after",
-  "permission.asked", "question.asked", "session.idle", "session.deleted",
+  "permission.asked", "question.asked", "permission.replied",
+  "question.replied", "question.rejected", "session.idle", "session.deleted",
 ])
 
 const normalizedEvent = (event) => {{
@@ -118,6 +122,8 @@ const send = async (event) => {{
   const body = JSON.stringify({{
     hook_event_name: hookEvent,
     session_id: properties.sessionID ?? properties.info?.id ?? null,
+    interaction_id: properties.requestID ?? (hookEvent.endsWith(".asked") ? properties.id : properties.callID) ?? null,
+    tool_name: typeof properties.tool === "string" ? properties.tool : null,
     status: properties.status?.type ?? null,
   }})
   try {{
@@ -129,6 +135,9 @@ const send = async (event) => {{
 
 export const LokiMetrisPlugin = async () => ({{
   event: async ({{ event }}) => send(event),
+  // OpenCode v1的具名工具Hook独立于Bus event回调；callID只标识工具调用。
+  "tool.execute.before": async (input) => send({{ type: "tool.execute.before", properties: input }}),
+  "tool.execute.after": async (input) => send({{ type: "tool.execute.after", properties: input }}),
 }})
 "#
         ))

@@ -57,14 +57,14 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new("Stop", HookEventKind::Stop),
     HookEvent::new("StopFailure", HookEventKind::State(HookBehavior::Error)),
-    HookEvent::new("Interrupt", HookEventKind::Stop),
+    HookEvent::new("Interrupt", HookEventKind::Cancelled),
     HookEvent::new(
         "SubagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     HookEvent::new(
         "SubagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     HookEvent::new(
         "PreCompact",

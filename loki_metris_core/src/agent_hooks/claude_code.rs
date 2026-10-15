@@ -71,12 +71,12 @@ const EVENTS: &[HookEvent] = &[
     // 子代理开始，视为工作进度
     HookEvent::new(
         "SubagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     // 子代理结束，视为工作完成
     HookEvent::new(
         "SubagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     // 压缩前，视为工作进度
     HookEvent::new(
@@ -95,6 +95,9 @@ const EVENTS: &[HookEvent] = &[
         "permission_prompt",
         HookEventKind::State(HookBehavior::Asking),
     ),
+    HookEvent::with_matcher("Notification", "elicitation_dialog", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::with_matcher("Notification", "elicitation_url_dialog", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::with_matcher("Notification", "elicitation_response", HookEventKind::State(HookBehavior::Running)),
     // 会话结束事件
     HookEvent::new("SessionEnd", HookEventKind::SessionEnd),
 ];
@@ -124,6 +127,14 @@ impl HookProtocol for ClaudeCodeProtocol {
     /// 返回 Claude Code 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
+    }
+    /// 交互工具在PreToolUse进入等待，中断工具调用不冒充真实执行错误。
+    fn event_kind(&self, event: &HookEvent, status: Option<&str>) -> HookEventKind {
+        match (event.name, status) {
+            ("PreToolUse", Some("awaiting_user")) => HookEventKind::State(HookBehavior::Asking),
+            ("PostToolUseFailure", Some("cancelled")) => HookEventKind::WorkCompletion(HookBehavior::Running),
+            _ => event.kind,
+        }
     }
 
     /// 按当前平台命令和可选 matcher 构造事件处理配置。

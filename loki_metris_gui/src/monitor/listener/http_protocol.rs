@@ -166,6 +166,15 @@ pub(crate) fn parse_hook_request(raw: &[u8], expected_instance_id: &str) -> Conn
     let Ok(status) = normalize_hook_context_field(payload.status, MAX_HOOK_STATUS_BYTES) else {
         return authenticated_fail("400 Bad Request", "Invalid status");
     };
+    let Ok(agent_id) = normalize_hook_context_field(payload.agent_id, MAX_HOOK_SESSION_ID_BYTES) else {
+        return authenticated_fail("400 Bad Request", "Invalid agent id");
+    };
+    let Ok(interaction_id) = normalize_hook_context_field(payload.interaction_id, MAX_HOOK_TURN_ID_BYTES) else {
+        return authenticated_fail("400 Bad Request", "Invalid interaction id");
+    };
+    let Ok(tool_name) = normalize_hook_context_field(payload.tool_name, MAX_HOOK_SESSION_ID_BYTES) else {
+        return authenticated_fail("400 Bad Request", "Invalid tool name");
+    };
     ConnectionOutcome {
         ok: true,
         authenticated: true,
@@ -176,6 +185,9 @@ pub(crate) fn parse_hook_request(raw: &[u8], expected_instance_id: &str) -> Conn
             hook_type: hook_type.to_owned(),
             session_id,
             turn_id,
+            agent_id,
+            interaction_id,
+            tool_name,
             status,
         }),
     }

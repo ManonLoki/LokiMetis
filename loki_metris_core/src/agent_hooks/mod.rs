@@ -33,6 +33,12 @@ pub use notifications::{HookNotification, hook_notification};
 // 仅在测试编译时包含跨工具契约测试模块
 #[cfg(test)]
 mod tests_contract;
+#[cfg(test)]
+mod tests_protocol_audit;
+#[cfg(test)]
+mod tests_protocol_outcomes;
+#[cfg(all(test, unix))]
+mod tests_plugin_runtime;
 
 // 引入 serde_json 的 Map/Value 与 json! 宏，用于构造和解析 Hook 配置 JSON
 use serde_json::{Map, Value, json};
@@ -50,7 +56,7 @@ pub use types::{
     AiTool, AiToolDescriptor, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
     HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
     HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigDirectories, HookConfigLocation,
-    HookConfigPreview, HookConfigWriteResult, HookTransition, HookWriteOutcome,
+    HookConfigPreview, HookConfigWriteResult, HookTransition, HookWriteOutcome, HookEventScope,
     MAX_NATIVE_HOOK_INPUT_BYTES, hook_relay_loopback_address, normalize_enabled_ai_tools,
 };
 
@@ -76,6 +82,10 @@ pub(super) enum HookEventKind {
     WorkCompletion(HookBehavior),
     // 明确的停止事件，固定迁移到 Idle 展示
     Stop,
+    // Stop门禁尚可请求续跑；显示空闲但不把它当已证实的成功或永久退休。
+    ContinuableStop,
+    // 用户取消或中断结束当前轮次，但不证明任务成功。
+    Cancelled,
     // 终止态事件（如成功/失败/中断的最终结果），展示态由携带的 HookBehavior 决定
     TerminalState(HookBehavior),
     // 通用状态事件，展示态由携带的 HookBehavior 决定
@@ -91,7 +101,7 @@ impl HookEventKind {
             // 会话结束：释放该会话占用的展示位
             Self::SessionEnd => HookTransition::Release,
             // 工作区开始 / 会话开始 / 停止：统一展示为 Idle
-            Self::WorkspaceStart | Self::SessionStart | Self::Stop => {
+            Self::WorkspaceStart | Self::SessionStart | Self::Stop | Self::ContinuableStop | Self::Cancelled => {
                 HookTransition::Display(HookBehavior::Idle)
             }
             // 明确的工作开始 / 未限定作用域的工作完成：统一展示为 Running

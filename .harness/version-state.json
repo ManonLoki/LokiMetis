@@ -56,7 +56,8 @@
     "LMDESK-ANALYTICS-PAGE-CACHE-001",
     "LMDESK-SKIN-WATCHER-HANDLE-REAP-001",
     "LM-DEPENDENCY-MAINTENANCE-RELEASE-20261015",
-    "LMDESK-REMOVE-FOREIGN-QQ-001"
+    "LMDESK-REMOVE-FOREIGN-QQ-001",
+    "LMDESK-HOOKS-PROTOCOL-AUDIT-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.2.57",
@@ -70,8 +71,13 @@
       "change_id": "LMDESK-TRAY-NOTIFICATIONS-001",
       "kind": "feature",
       "required_version": "0.3.0"
+    },
+    {
+      "change_id": "LMDESK-HOOKS-PROTOCOL-AUDIT-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.1"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.3.0"
+  "target_version": "0.3.1"
 }

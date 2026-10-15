@@ -80,6 +80,12 @@ impl HookProtocol for GeminiCliProtocol {
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
     }
+    /// AfterTool的结构化error只表示工具失败，本轮仍可继续。
+    fn event_kind(&self, event: &HookEvent, status: Option<&str>) -> HookEventKind {
+        if event.name == "AfterTool" && status == Some("tool_error") {
+            HookEventKind::WorkCompletion(HookBehavior::Error)
+        } else { event.kind }
+    }
 
     /// 生成 Claude-compatible command group。
     fn handler(&self, event: &HookEvent, commands: &ManagedCommands) -> Value {

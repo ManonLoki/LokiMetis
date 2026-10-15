@@ -310,6 +310,17 @@ pub enum HookTransition {
     Release,
 }
 
+/// 一次交互的归属只保存不透明标识，不携带问题、命令或工具参数。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct HookEventScope<'a> {
+    /// 子 Agent 作用域；缺省表示父 Agent。
+    pub agent_id: Option<&'a str>,
+    /// 工具/澄清调用标识；不能作为整个轮次 ID 使用。
+    pub interaction_id: Option<&'a str>,
+    /// 工具公开名称；仅在请求缺少调用 ID 时辅助关联已知调用。
+    pub tool_name: Option<&'a str>,
+}
+
 /// 按统一公开目录的监控映射顺序规范化已选工具，隐藏项与重复项均被丢弃。
 pub fn normalize_enabled_ai_tools(selected: &[AiTool]) -> Vec<AiTool> {
     crate::public_monitor_ai_tools()

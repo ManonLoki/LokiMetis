@@ -17,6 +17,8 @@ impl HookStateMachine {
         has_session_id: bool,
         event_kind: HookEventKind,
         turn_id: Option<&str>,
+        scope: super::super::HookEventScope<'_>,
+        interaction_action: super::interaction::InteractionAction,
         observed_at: Duration,
         previous: HookPhase,
     ) -> HookEventDecision {
@@ -53,12 +55,12 @@ impl HookStateMachine {
                 session.last_seen_at = observed_at;
                 return HookEventDecision::Ignore;
             }
-            if session.turn_id.is_some() {
+            if session.turn_id.is_some() || session.requires_explicit_restart {
                 return HookEventDecision::Ignore;
             }
             session.turn_active = true;
             session.finished_unidentified_turn = false;
-            session.failed_unidentified_turn = false;
+            session.requires_explicit_restart = false;
             session.phase = HookPhase::Running;
             session.last_seen_at = observed_at;
             return phase_decision(previous, self.aggregate_phase());
@@ -74,11 +76,38 @@ impl HookStateMachine {
         }
 
         let transition = event_kind.transition();
-        if event_kind == HookEventKind::Stop
+        if event_kind == HookEventKind::ContinuableStop {
+            if !session.turn_active
+                && !session.continuable_stop
+                && (session.requires_explicit_restart
+                    || session.is_retired_turn(session.turn_id.as_deref())
+                    || session.finished_unidentified_turn)
+            {
+                return HookEventDecision::Ignore;
+            }
+            if session.is_retired_turn(turn_id) || turn_is_stale(session, turn_id) {
+                return HookEventDecision::Ignore;
+            }
+            session.waiting.clear();
+            session.waiting_overflow = false;
+            session.active_interactions.clear();
+            session.active_interactions_overflow = false;
+            if session.turn_id.is_none() {
+                session.turn_id = turn_id.map(str::to_owned);
+            }
+            session.turn_active = false;
+            session.continuable_stop = true;
+            session.phase = HookPhase::Idle;
+            session.quarantined_turn_ids.clear();
+            session.last_seen_at = observed_at;
+            return phase_decision(previous, self.aggregate_phase());
+        }
+        if matches!(event_kind, HookEventKind::Stop | HookEventKind::Cancelled)
             || matches!(event_kind, HookEventKind::TerminalState(_))
         {
             if !session.turn_active
                 && turn_id.is_none()
+                && !session.continuable_stop
                 && (session.is_retired_turn(session.turn_id.as_deref())
                     || session.finished_unidentified_turn)
             {
@@ -93,10 +122,10 @@ impl HookStateMachine {
             }
             session.finish_turn(turn_id);
             session.finished_unidentified_turn = session.turn_id.is_none();
-            session.failed_unidentified_turn = session.turn_id.is_none()
+            session.requires_explicit_restart = session.turn_id.is_none()
                 && matches!(
                     event_kind,
-                    HookEventKind::TerminalState(HookBehavior::Error)
+                    HookEventKind::TerminalState(_) | HookEventKind::Cancelled
                 );
             session.phase = match transition {
                 HookTransition::Display(HookBehavior::Error) => HookPhase::Error,
@@ -122,11 +151,19 @@ impl HookStateMachine {
             return HookEventDecision::Ignore;
         }
         if starts_new_implicit_turn {
-            session.start_turn(turn_id);
+            let resumed_id = turn_id.or(session.turn_id.as_deref()).map(str::to_owned);
+            session.start_turn(resumed_id.as_deref());
         }
         // 无轮次 ID 的 Stop Hook 可能请求继续；已接纳的活动信号即为续跑证据。
         session.finished_unidentified_turn = false;
-        session.phase = next_turn_phase(session, event_kind, transition, turn_id);
+        session.phase = next_turn_phase(
+            session,
+            event_kind,
+            transition,
+            turn_id,
+            scope,
+            interaction_action,
+        );
         session.last_seen_at = observed_at;
         phase_decision(previous, self.aggregate_phase())
     }
@@ -162,8 +199,15 @@ fn next_turn_phase(
     event_kind: HookEventKind,
     transition: HookTransition,
     turn_id: Option<&str>,
+    scope: super::super::HookEventScope<'_>,
+    action: super::interaction::InteractionAction,
 ) -> HookPhase {
-    match transition {
+    session.update_interactions(
+        scope,
+        action,
+        transition == HookTransition::Display(HookBehavior::Asking),
+    );
+    let phase = match transition {
         HookTransition::Release => HookPhase::Released,
         HookTransition::Display(HookBehavior::Idle) => HookPhase::Idle,
         HookTransition::Display(HookBehavior::Running) => {
@@ -185,5 +229,10 @@ fn next_turn_phase(
             }
             HookPhase::Error
         }
+    };
+    if session.waiting.is_empty() && !session.waiting_overflow {
+        phase
+    } else {
+        HookPhase::Asking
     }
 }

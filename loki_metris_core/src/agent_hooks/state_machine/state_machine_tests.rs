@@ -247,9 +247,9 @@ mod tests {
         );
     }
 
-    /// Goal 续跑允许新轮次进度恢复，同时持续拦截旧轮次迟到事件。
+    /// Goal 续跑允许新轮次进度恢复；孤立完成不恢复工作。
     #[test]
-    fn goal_mode_resumes_only_with_a_new_turn() {
+    fn goal_mode_resumes_with_new_turn_progress() {
         let mut machine = HookStateMachine::default();
         let _ = apply(&mut machine, "SessionStart", Some("goal"), None, 1);
         let _ = apply(
@@ -263,7 +263,7 @@ mod tests {
             apply(&mut machine, "Stop", Some("goal"), Some("turn-1"), 3),
             HookEventDecision::Forward(HookTransition::Display(HookBehavior::Idle))
         );
-        for event in ["PreToolUse", "PostToolUse"] {
+        for event in ["PostToolUse"] {
             assert_eq!(
                 apply(&mut machine, event, Some("goal"), Some("turn-1"), 4),
                 HookEventDecision::Ignore

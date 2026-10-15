@@ -49,11 +49,11 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "SubagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     HookEvent::new(
         "SubagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     HookEvent::new(
         "PreCompact",

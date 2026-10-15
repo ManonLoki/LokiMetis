@@ -14,12 +14,13 @@ fn apply_tool(
     turn_id: Option<&str>,
     second: u64,
 ) -> HookEventDecision {
+    let event = if tool == AiTool::WorkBuddy && event == "Stop" { "FinalStop" } else { event };
     machine.apply_event_with_status_at(
         tool,
         event,
         session_id,
         turn_id,
-        None,
+        (event == "FinalStop").then_some("completed"),
         Duration::from_secs(second),
     )
 }
@@ -112,7 +113,7 @@ fn workbuddy_and_codebuddy_aggregate_sessions_and_reject_late_progress() {
 /// 无轮次 ID 时 Stop Hook 可能继续执行：迟到完成无效，新的活动信号可恢复运行。
 #[test]
 fn idless_stop_can_resume_after_new_activity() {
-    for tool in [AiTool::ClaudeCode, AiTool::WorkBuddy, AiTool::CodeBuddy] {
+    for tool in [AiTool::ClaudeCode, AiTool::CodeBuddy] {
         let mut machine = HookStateMachine::default();
         let _ = apply_tool(&mut machine, tool, "UserPromptSubmit", Some("s1"), None, 1);
         assert_eq!(

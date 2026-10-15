@@ -109,12 +109,13 @@ pub(super) fn process_hook_event_checked(
 ) -> bool {
     let mut candidate_machine = state_machines.get(&event.tool).cloned().unwrap_or_default();
     let previous = candidate_machine.notification_behavior();
-    let decision = candidate_machine.apply_event_with_status_at(
+    let decision = candidate_machine.apply_event_with_scope_at(
         event.tool,
         &event.hook_type,
         event.session_id.as_deref(),
         event.turn_id.as_deref(),
         event.status.as_deref(),
+        loki_metris_core::HookEventScope { agent_id: event.agent_id.as_deref(), interaction_id: event.interaction_id.as_deref(), tool_name: event.tool_name.as_deref() },
         observed_at,
     );
     let slot_result = matches!(

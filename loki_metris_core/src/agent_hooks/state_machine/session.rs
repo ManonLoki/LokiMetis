@@ -14,11 +14,33 @@ pub(super) struct HookSessionState {
     pub(super) quarantined_turn_ids: VecDeque<String>,
     /// 已结束但上游未提供轮次 ID；仅用于去重迟到的终止事件。
     pub(super) finished_unidentified_turn: bool,
-    /// API 错误结束了无 ID 轮次；恢复需明确工作起点。
-    pub(super) failed_unidentified_turn: bool,
+    /// 已明确终结或取消无ID轮次；只有新的工作起点才能重启。
+    pub(super) requires_explicit_restart: bool,
+    /// 上游Stop尚未通过其它Hook门禁，允许同轮次继续执行。
+    pub(super) continuable_stop: bool,
     pub(super) ended: bool,
     pub(super) last_seen_at: Duration,
     pub(super) explicit_turn_started_at: Option<Duration>,
+    /// 每个会话至多256个未解决交互；其它工具完成不消耗这些等待。
+    pub(super) waiting: Vec<HookInteraction>,
+    /// 超过有界容量后保守保留询问态，直到明确的新轮次或终态。
+    pub(super) waiting_overflow: bool,
+    /// 有界的在途工具调用，用于关联缺少 tool_use_id 的权限请求。
+    pub(super) active_interactions: Vec<HookInteraction>,
+    /// 活动集合容量溢出后禁用唯一候选推断，避免把遗漏调用错配到已知调用。
+    pub(super) active_interactions_overflow: bool,
+}
+
+/// 等待用户的工具/澄清归属，与会话轮次身份分离。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct HookInteraction {
+    pub(super) agent_id: Option<String>,
+    pub(super) interaction_id: Option<String>,
+    pub(super) tool_name: Option<String>,
+    /// MCP澄清等待单独归属，缺少调用ID的回执只能解除这一类等待。
+    pub(super) elicitation: bool,
+    /// UI通知仅补充观察；稍后到达的真实澄清请求可以替换这一泛化等待。
+    pub(super) notification_only: bool,
 }
 
 pub(super) const MAX_RETIRED_TURNS_PER_SESSION: usize = 256;
@@ -44,8 +66,13 @@ impl HookSessionState {
 
     /// 开启新轮次并退休被替代的可识别轮次。
     pub(super) fn start_turn(&mut self, turn_id: Option<&str>) {
+        self.waiting.clear();
+        self.waiting_overflow = false;
+        self.active_interactions.clear();
+        self.active_interactions_overflow = false;
         self.finished_unidentified_turn = false;
-        self.failed_unidentified_turn = false;
+        self.requires_explicit_restart = false;
+        self.continuable_stop = false;
         if self.turn_id.as_deref() != turn_id {
             if let Some(previous) = self.turn_id.take() {
                 self.retire_turn(previous);
@@ -72,6 +99,11 @@ impl HookSessionState {
 
     /// 结束轮次并把其 ID 记入有界退休队列。
     pub(super) fn finish_turn(&mut self, turn_id: Option<&str>) {
+        self.waiting.clear();
+        self.waiting_overflow = false;
+        self.active_interactions.clear();
+        self.active_interactions_overflow = false;
+        self.continuable_stop = false;
         let finished = turn_id.map(str::to_owned).or_else(|| self.turn_id.clone());
         if let Some(finished) = finished {
             self.turn_id = Some(finished.clone());
@@ -181,7 +213,10 @@ pub(super) fn stopped_turn_decision(
         return StoppedTurnDecision::NotApplicable;
     }
     if turn_id.is_none() {
-        return if session.turn_id.is_some() || session.failed_unidentified_turn {
+        if session.continuable_stop {
+            return StoppedTurnDecision::StartNewTurn;
+        }
+        return if session.turn_id.is_some() || session.requires_explicit_restart {
             StoppedTurnDecision::SuppressLateEvent
         } else {
             StoppedTurnDecision::NotApplicable
@@ -189,7 +224,10 @@ pub(super) fn stopped_turn_decision(
     }
     if session.is_retired_turn(turn_id) || session.is_quarantined_turn(turn_id) {
         StoppedTurnDecision::SuppressLateEvent
-    } else if session.turn_id.is_none() || turn_is_stale(session, turn_id) {
+    } else if session.continuable_stop
+        || session.turn_id.is_none()
+        || turn_is_stale(session, turn_id)
+    {
         StoppedTurnDecision::StartNewTurn
     } else {
         StoppedTurnDecision::SuppressLateEvent

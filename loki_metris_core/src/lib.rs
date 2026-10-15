@@ -54,6 +54,7 @@ pub mod window_placement;
 pub mod today_usage;
 pub mod usage_milestones;
 pub use agent_hooks::{HookNotification, hook_notification};
+pub use agent_hooks::HookEventScope;
 pub use today_usage::{UsageDay, TodayAvailability, TodayUsageSnapshot, TodayUsageDisplay, project_today_usage_display};
 mod workbuddy_stats;
 

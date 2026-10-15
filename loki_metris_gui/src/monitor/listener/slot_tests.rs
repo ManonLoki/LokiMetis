@@ -18,6 +18,9 @@ fn codex_event(hook_type: &str, turn_id: Option<&str>) -> IncomingHookEvent {
         hook_type: hook_type.to_owned(),
         session_id: Some("session-1".to_owned()),
         turn_id: turn_id.map(str::to_owned),
+        agent_id: None,
+        interaction_id: None,
+        tool_name: None,
         status: None,
     }
 }
@@ -229,7 +232,7 @@ fn hook_notifications_survive_shared_pet_slot_and_deduplicate_states() {
     assert!(queue.take().is_none());
     process(codex_event("Stop", Some("turn-1")));
     process(codex_event("SessionEnd", None));
-    assert_eq!(queue.take().unwrap().activity, Activity::Hook { tool: AiTool::Codex, state: HookNotification::Ended });
+    // Codex Stop还可续跑，SessionEnd也不能证明成功，不发确定完成。
     assert!(queue.take().is_none());
     let mut failure = codex_event("PostToolUseFailure", Some("turn-other"));
     failure.tool = AiTool::ClaudeCode;

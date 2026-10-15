@@ -37,16 +37,18 @@ const EVENTS: &[HookEvent] = &[
         HookEventKind::State(HookBehavior::Asking),
     ),
     // 明确的停止事件
-    HookEvent::new("Stop", HookEventKind::Stop),
+    HookEvent::new("Stop", HookEventKind::ContinuableStop),
+    // 官方主线程中断事件；归还空闲并退休轮次，不生成成功通知。
+    HookEvent::new("Interrupt", HookEventKind::Cancelled),
     // 子代理开始，视为工作进度
     HookEvent::new(
         "SubagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     // 子代理结束，视为工作完成
     HookEvent::new(
         "SubagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     // 压缩前，视为工作进度
     HookEvent::new(
@@ -108,7 +110,7 @@ impl HookProtocol for CodexProtocol {
             "command": command,
         });
         // SessionEnd 事件需要限定超时时间，避免进程退出时 Hook 阻塞过久
-        if event.name == "SessionEnd" {
+        if matches!(event.name, "SessionEnd" | "Interrupt") {
             command["timeout"] = json!(3);
         }
         // 包装为 Codex 期望的 hooks 数组结构

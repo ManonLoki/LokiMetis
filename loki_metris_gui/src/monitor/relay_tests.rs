@@ -100,6 +100,9 @@ fn special_hook_protocols_keep_json_stdout_and_fail_open_contracts() {
         hook_event_name: "SessionStart".to_owned(),
         session_id: None,
         turn_id: None,
+        agent_id: None,
+        interaction_id: None,
+        tool_name: None,
         status: None,
     });
     assert!(requires_json_stdout(
@@ -385,6 +388,9 @@ fn relay_request_is_minimal_and_instance_bound() {
         hook_event_name: "PostToolUse".to_owned(),
         session_id: Some("session-1".to_owned()),
         turn_id: Some("turn-2".to_owned()),
+        agent_id: None,
+        interaction_id: None,
+        tool_name: None,
         status: None,
     };
     let body = serde_json::to_vec(&payload).expect("body");
@@ -445,7 +451,7 @@ fn stale_identity_response_reloads_rendezvous_before_retry() {
 /// 网络失败仍必须返回工具要求的合法 JSON，旁路错误继续可见。
 #[test]
 fn delivery_failure_does_not_skip_required_native_json() {
-    let prepared=PreparedNativeHook::Deliver(MinimalHookPayload{hook_event_name:"SessionStart".into(),session_id:None,turn_id:None,status:None});
+    let prepared=PreparedNativeHook::Deliver(MinimalHookPayload{hook_event_name:"SessionStart".into(),session_id:None,turn_id:None,agent_id:None,interaction_id:None,tool_name:None,status:None});
     for tool in [AiTool::Cursor,AiTool::QwenCode,AiTool::GeminiCli,AiTool::Codex] {
         let mut output=Vec::new();let result=deliver_prepared(tool,"fixture",&prepared,&mut output,|_,_,_|Err(anyhow!("fixture delivery failed")));
         assert!(result.is_err());assert_eq!(output,if tool==AiTool::Codex {b"".as_slice()}else{b"{}\n".as_slice()});

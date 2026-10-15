@@ -17,6 +17,7 @@ pub(super) struct HermesProtocol;
 const EVENTS: &[HookEvent] = &[
     HookEvent::new("on_session_start", HookEventKind::SessionStart),
     HookEvent::new("pre_llm_call", HookEventKind::WorkStart),
+    HookEvent::new("pre_api_request", HookEventKind::WorkProgress(HookBehavior::Running)),
     HookEvent::new(
         "pre_tool_call",
         HookEventKind::WorkProgress(HookBehavior::Running),
@@ -35,9 +36,10 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "api_request_error",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkProgress(HookBehavior::Error),
     ),
-    HookEvent::new("post_llm_call", HookEventKind::Stop),
+    // 失败解释也会触发post_llm_call；最终结果只消费on_session_end。
+    HookEvent::new("post_llm_call", HookEventKind::WorkCompletion(HookBehavior::Running)),
     HookEvent::new("on_session_end", HookEventKind::Stop),
     HookEvent::new("on_session_finalize", HookEventKind::SessionEnd),
     HookEvent::new("on_session_reset", HookEventKind::SessionEnd),
@@ -73,6 +75,16 @@ impl HookProtocol for HermesProtocol {
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
     }
+    /// smart审批不等待人；每轮on_session_end按真实完成/中断标志处理。
+    fn event_kind(&self, event: &HookEvent, status: Option<&str>) -> HookEventKind {
+        match (event.name, status) {
+            ("pre_approval_request", Some("smart")) => HookEventKind::WorkProgress(HookBehavior::Running),
+            ("on_session_end", Some("completed")) => HookEventKind::TerminalState(HookBehavior::Idle),
+            ("on_session_end", Some("failed")) => HookEventKind::TerminalState(HookBehavior::Error),
+            ("on_session_end", _) => HookEventKind::Cancelled,
+            _ => event.kind,
+        }
+    }
 
     /// Hermes 插件需显式启用并新建会话或重启。
     fn changed_write_outcome(&self) -> HookWriteOutcome {
@@ -103,6 +115,10 @@ def _send(hook_event: str, **kwargs) -> None:
     if hook_event == "on_session_reset":
         session_id = kwargs.get("old_session_id") or session_id
     status = kwargs.get("status") or kwargs.get("choice") or kwargs.get("reason")
+    if hook_event == "on_session_end":
+        status = "cancelled" if kwargs.get("interrupted") is True else ("completed" if kwargs.get("completed") is True else ("failed" if kwargs.get("failed") is True else "cancelled"))
+    elif hook_event == "pre_approval_request" and kwargs.get("surface") == "smart":
+        status = "smart"
     payload = json.dumps({{
         "hook_event_name": hook_event,
         "session_id": session_id,
@@ -135,6 +151,7 @@ def register(ctx) -> None:
     for hook_event in (
         "on_session_start",
         "pre_llm_call",
+        "pre_api_request",
         "pre_tool_call",
         "post_tool_call",
         "pre_approval_request",
@@ -171,6 +188,7 @@ author: LokiMetris
 hooks:
   - on_session_start
   - pre_llm_call
+  - pre_api_request
   - pre_tool_call
   - post_tool_call
   - pre_approval_request

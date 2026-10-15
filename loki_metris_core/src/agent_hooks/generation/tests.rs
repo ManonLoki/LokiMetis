@@ -106,7 +106,7 @@ fn claude_compatible_notification_matchers_are_both_generated() {
         let preview = generate_test_hook_config(tool).unwrap();
         let value: Value = serde_json::from_str(&preview.content).unwrap();
         let groups = value["hooks"]["Notification"].as_array().unwrap();
-        assert_eq!(groups.len(), 2, "{tool:?}");
+        assert_eq!(groups.len(), match tool { AiTool::ClaudeCode => 5, AiTool::WorkBuddy => 3, _ => 2 }, "{tool:?}");
         assert_eq!(groups[0]["matcher"], "idle_prompt", "{tool:?}");
         assert_eq!(groups[1]["matcher"], "permission_prompt", "{tool:?}");
         for group in groups {

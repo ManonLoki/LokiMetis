@@ -51,6 +51,9 @@ struct IncomingHookEvent {
     hook_type: String,
     session_id: Option<String>,
     turn_id: Option<String>,
+    agent_id: Option<String>,
+    interaction_id: Option<String>,
+    tool_name: Option<String>,
     status: Option<String>,
 }
 

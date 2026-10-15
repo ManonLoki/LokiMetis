@@ -90,6 +90,9 @@ fn codex_event(
         hook_type: hook_type.to_owned(),
         session_id: session_id.map(str::to_owned),
         turn_id: turn_id.map(str::to_owned),
+        agent_id: None,
+        interaction_id: None,
+        tool_name: None,
         status: None,
     }
 }
@@ -205,6 +208,23 @@ fn accepted_post_preserves_trimmed_lifecycle_context() {
     assert_eq!(event.session_id.as_deref(), Some("session-1"));
     assert_eq!(event.turn_id.as_deref(), Some("turn-1"));
     assert_eq!(event.status.as_deref(), Some("running"));
+}
+
+/// 交互归属经HTTP边界裁剪保留，各字段超限均拒绝，避免长期存储不受限。
+#[test]
+fn accepted_post_preserves_bounded_interaction_context() {
+    let body = serde_json::json!({"hook_event_name":"PreToolUse", "agent_id":" child ", "interaction_id":" call ", "tool_name":" Bash "});
+    let outcome = parse_hook_request(&hook_request("claude-code", Some("PreToolUse"), &body.to_string()), TEST_INSTANCE_ID);
+    let event = outcome.event.unwrap();
+    assert_eq!(event.agent_id.as_deref(), Some("child"));
+    assert_eq!(event.interaction_id.as_deref(), Some("call"));
+    assert_eq!(event.tool_name.as_deref(), Some("Bash"));
+    for field in ["agent_id", "interaction_id", "tool_name"] {
+        let mut body = body.clone();
+        body[field] = "x".repeat(513).into();
+        let outcome = parse_hook_request(&hook_request("claude-code", Some("PreToolUse"), &body.to_string()), TEST_INSTANCE_ID);
+        assert_eq!(outcome.status, "400 Bad Request", "{field}");
+    }
 }
 
 /// 缺少可信事件头时不能仅凭正文自报事件类型。

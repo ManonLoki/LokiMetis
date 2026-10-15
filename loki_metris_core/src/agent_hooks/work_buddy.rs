@@ -55,22 +55,23 @@ const EVENTS: &[HookEvent] = &[
         "ElicitationResult",
         HookEventKind::State(HookBehavior::Running),
     ),
-    // 停止 -> 回到空闲展示
-    HookEvent::new("Stop", HookEventKind::Stop),
-    // 停止失败 -> 出错态
+    // 5.7.7 的 Stop 之后仍可继续；FinalStop 才携带真实最终结果。
+    HookEvent::new("Stop", HookEventKind::WorkCompletion(HookBehavior::Running)),
+    HookEvent::new("FinalStop", HookEventKind::Stop),
+    // 5.7.7的StopFailure只说明停止Hook失败；最终结果仍由FinalStop决定。
     HookEvent::new(
         "StopFailure",
-        HookEventKind::TerminalState(HookBehavior::Error),
+        HookEventKind::WorkProgress(HookBehavior::Error),
     ),
     HookEvent::new(
         // 子代理开始 -> 工作进行中（运行态）
         "SubagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     HookEvent::new(
         // 子代理结束 -> 工作完成（运行态）
         "SubagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     HookEvent::new(
         // 压缩上下文前 -> 工作进行中（运行态）
@@ -89,6 +90,7 @@ const EVENTS: &[HookEvent] = &[
         "permission_prompt",
         HookEventKind::State(HookBehavior::Asking),
     ),
+    HookEvent::with_matcher("Notification", "elicitation_dialog", HookEventKind::State(HookBehavior::Asking)),
     // 会话结束 -> 会话结束
     HookEvent::new("SessionEnd", HookEventKind::SessionEnd),
 ];
@@ -118,6 +120,17 @@ impl HookProtocol for WorkBuddyProtocol {
     /// 返回 WorkBuddy 支持的完整 Hook 事件表。
     fn events(&self) -> &'static [HookEvent] {
         EVENTS
+    }
+    /// 依据第一方5.7.7引擎的final_stop_reason区分真实完成、失败与取消。
+    fn event_kind(&self, event: &HookEvent, status: Option<&str>) -> HookEventKind {
+        match (event.name, status) {
+            ("PreToolUse", Some("awaiting_user")) => HookEventKind::State(HookBehavior::Asking),
+            ("PostToolUseFailure", Some("cancelled")) => HookEventKind::WorkCompletion(HookBehavior::Running),
+            ("FinalStop", Some("completed")) => HookEventKind::TerminalState(HookBehavior::Idle),
+            ("FinalStop", Some("failed")) => HookEventKind::TerminalState(HookBehavior::Error),
+            ("FinalStop", _) => HookEventKind::Cancelled,
+            _ => event.kind,
+        }
     }
 
     /// 使用 WorkBuddy 固定要求的 POSIX 命令构造事件处理配置。

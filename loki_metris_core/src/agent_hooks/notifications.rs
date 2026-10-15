@@ -22,13 +22,22 @@ pub fn hook_notification(
     decision: HookEventDecision,
 ) -> Option<HookNotification> {
     let HookEventDecision::Forward(transition) = decision else { return None; };
+    // 关闭会话本身不能证明完成；Cursor另有明确的最终结果可用。
+    if event_kind(tool, event, status) == Some(HookEventKind::SessionEnd)
+        && matches!(transition, HookTransition::Release | HookTransition::Display(HookBehavior::Idle)) {
+        return match (tool, status) {
+            (AiTool::Cursor, Some("error")) if previous != Some(HookBehavior::Error) => Some(HookNotification::Error),
+            (AiTool::Cursor, Some("completed")) if matches!(previous, Some(HookBehavior::Running | HookBehavior::Asking | HookBehavior::Error)) => Some(HookNotification::Ended),
+            _ => None,
+        };
+    }
     match transition {
         HookTransition::Display(HookBehavior::Asking) if previous != Some(HookBehavior::Asking) => Some(HookNotification::Asking),
         HookTransition::Display(HookBehavior::Error) if previous != Some(HookBehavior::Error) => Some(HookNotification::Error),
         HookTransition::Display(HookBehavior::Idle) | HookTransition::Release
             if (matches!(previous, Some(HookBehavior::Running | HookBehavior::Asking))
                 && matches!(event_kind(tool, event, status), Some(HookEventKind::Stop | HookEventKind::SessionEnd | HookEventKind::TerminalState(HookBehavior::Idle))))
-                || (previous == Some(HookBehavior::Error) && matches!(event_kind(tool, event, status), Some(HookEventKind::Stop))) => Some(HookNotification::Ended),
+                || (previous == Some(HookBehavior::Error) && matches!(event_kind(tool, event, status), Some(HookEventKind::Stop | HookEventKind::TerminalState(HookBehavior::Idle)))) => Some(HookNotification::Ended),
         _ => None,
     }
 }
@@ -46,10 +55,11 @@ mod tests {
         assert_eq!(classify("PermissionRequest", Some(Asking), forward(Asking)), None);
         assert_eq!(classify("PostToolUseFailure", Some(Running), forward(Error)), Some(HookNotification::Error));
         assert_eq!(classify("PostToolUseFailure", Some(Error), forward(Error)), None);
-        assert_eq!(classify("Stop", Some(Running), forward(Idle)), Some(HookNotification::Ended));
-        assert_eq!(classify("Stop", Some(Asking), forward(Idle)), Some(HookNotification::Ended));
-        assert_eq!(classify("Stop", Some(Error), forward(Idle)), Some(HookNotification::Ended));
-        assert_eq!(classify("SessionEnd", Some(Running), HookEventDecision::Forward(HookTransition::Release)), Some(HookNotification::Ended));
+        assert_eq!(classify("Stop", Some(Running), forward(Idle)), None);
+        assert_eq!(classify("Stop", Some(Asking), forward(Idle)), None);
+        assert_eq!(classify("Stop", Some(Error), forward(Idle)), None);
+        assert_eq!(hook_notification(AiTool::Cursor, "stop", Some("completed"), Some(Running), forward(Idle)), Some(HookNotification::Ended));
+        assert_eq!(classify("SessionEnd", Some(Running), HookEventDecision::Forward(HookTransition::Release)), None);
         assert_eq!(classify("SessionEnd", Some(Idle), HookEventDecision::Forward(HookTransition::Release)), None);
         assert_eq!(classify("SessionEnd", Some(Error), HookEventDecision::Forward(HookTransition::Release)), None);
         assert_eq!(classify("SessionStart", Some(Running), forward(Idle)), None);

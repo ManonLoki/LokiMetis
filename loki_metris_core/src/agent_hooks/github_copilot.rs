@@ -27,20 +27,22 @@ const EVENTS: &[HookEvent] = &[
     ),
     HookEvent::new(
         "postToolUseFailure",
-        HookEventKind::State(HookBehavior::Error),
+        HookEventKind::WorkCompletion(HookBehavior::Error),
     ),
     HookEvent::new(
         "permissionRequest",
-        HookEventKind::State(HookBehavior::Asking),
+        HookEventKind::WorkProgress(HookBehavior::Running),
     ),
+    HookEvent::with_matcher("notification", "permission_prompt", HookEventKind::State(HookBehavior::Asking)),
+    HookEvent::with_matcher("notification", "elicitation_dialog", HookEventKind::State(HookBehavior::Asking)),
     HookEvent::new("agentStop", HookEventKind::Stop),
     HookEvent::new(
         "subagentStart",
-        HookEventKind::WorkProgress(HookBehavior::Running),
+        HookEventKind::UnscopedWorkStart(HookBehavior::Running),
     ),
     HookEvent::new(
         "subagentStop",
-        HookEventKind::WorkCompletion(HookBehavior::Running),
+        HookEventKind::UnscopedWorkCompletion,
     ),
     HookEvent::new(
         "preCompact",

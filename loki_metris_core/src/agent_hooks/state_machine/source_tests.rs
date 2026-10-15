@@ -367,9 +367,8 @@ fn codex_goal_mode_resumes_with_a_new_turn_without_another_user_prompt() {
         HookEventDecision::Forward(HookTransition::Display(HookBehavior::Idle))
     );
 
-    // 已停止轮次的迟到进度和完成事件都不能重新激活展示。
-    for event in ["PreToolUse", "PostToolUse"] {
-        // 针对已停止的 turn-1，重放工具调用前/后事件，期望均被忽略
+    // Stop可续跑，但孤立的工具完成不能作为续跑起点。
+    for event in ["PostToolUse"] {
         assert_eq!(
             machine.apply_event(AiTool::Codex, event, Some("goal-session"), Some("turn-1"),),
             HookEventDecision::Ignore,
