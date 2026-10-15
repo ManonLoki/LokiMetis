@@ -86,12 +86,12 @@ impl Host {
         let result = (|| -> windows::core::Result<()> {
             let _apartment = Apartment::new()?;
             if !registered() {
-                return Err(windows::core::Error::from_win32());
+                return Err(windows::core::Error::from_thread());
             }
             let notifier =
                 ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(AUMID))?;
             if notifier.Setting()? != NotificationSetting::Enabled {
-                return Err(windows::core::Error::from_win32());
+                return Err(windows::core::Error::from_thread());
             }
             let toast = build_toast(id, title, body)?;
             let activated = toast.Activated(&activation_handler(self.pending_click.clone()))?;

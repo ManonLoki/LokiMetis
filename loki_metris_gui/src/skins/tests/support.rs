@@ -310,7 +310,8 @@ html.codex-dream-skin[data-dream-shell="light"] {
                     .by_index(index)
                     .expect("应读取导出 ZIP 条目")
                     .name()
-                    .to_owned()
+                    .expect("导出 ZIP 条目名必须可解码")
+                    .into_owned()
             })
             .collect::<Vec<_>>();
         names.sort();
