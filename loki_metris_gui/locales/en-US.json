@@ -840,9 +840,9 @@
     "menu_unknown": "System notifications · unknown result",
     "menu_disabled": "System notifications",
     "source_rebuilt": "Sources or index changed. Old pending events were suppressed and a baseline uses the trusted current total.",
-    "hook_asking": "%{name} is asking for your attention",
+    "hook_asking": "%{name} needs your decision",
     "hook_ended": "%{name} has finished",
-    "hook_error": "%{name} encountered an error",
+    "hook_error": "%{name} ran into an error",
     "skin_success": "%{name} skin changed successfully",
     "skin_failure": "%{name} skin change failed. Open the app for details.",
     "rules": "Notify when today’s tokens first exceed 1B, Hooks change to asking/finished/error, or a skin change succeeds or fails."

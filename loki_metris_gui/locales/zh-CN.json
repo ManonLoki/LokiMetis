@@ -840,9 +840,9 @@
     "menu_unknown": "系统通知 · 结果不明",
     "menu_disabled": "系统通知",
     "source_rebuilt": "来源集合或索引已改变，旧队列已抑制，并以可信当前总量重建基线。",
-    "hook_asking": "%{name} 正在询问，等待您的处理",
-    "hook_ended": "%{name} 已结束",
-    "hook_error": "%{name} 发生错误",
+    "hook_asking": "%{name}需要您决策",
+    "hook_ended": "%{name}已完成",
+    "hook_error": "%{name}出错了",
     "skin_success": "%{name} 皮肤更换成功",
     "skin_failure": "%{name} 皮肤更换失败，请在应用内查看详情",
     "rules": "当天 Token 总量首次突破 1B、Hooks 询问/结束/错误状态变化、皮肤更换成功或失败时通知。"

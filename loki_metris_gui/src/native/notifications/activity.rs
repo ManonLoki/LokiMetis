@@ -42,7 +42,10 @@ fn message(locale: &str, activity: Activity) -> (String, String) {
             HookNotification::Asking => "notification.hook_asking",
             HookNotification::Ended => "notification.hook_ended",
             HookNotification::Error => "notification.hook_error",
-        }, loki_metris_core::ai_tool_name(tool)),
+        }, loki_metris_core::public_ai_capabilities().iter()
+            .find(|capability| capability.monitor_tool == Some(tool))
+            .map(|capability| capability.name)
+            .unwrap_or_else(|| loki_metris_core::ai_tool_name(tool))),
         Activity::Skin { host, success } => (if success { "notification.skin_success" } else { "notification.skin_failure" }, match host {
             SkinHostKind::Codex => "Codex", SkinHostKind::WorkBuddy => "WorkBuddy",
         }),
@@ -61,6 +64,21 @@ mod tests {
                 let (_, body) = message(locale, Activity::Hook { tool: loki_metris_core::AiTool::Codex, state });
                 assert!(body.contains("Codex"));
                 assert!(!body.contains("notification."));
+            }
+        }
+        for (tool, name) in [
+            (loki_metris_core::AiTool::Codex, "Codex"),
+            (loki_metris_core::AiTool::ClaudeCode, "Claude Code"),
+            (loki_metris_core::AiTool::Cursor, "Cursor"),
+            (loki_metris_core::AiTool::Grok, "Grok"),
+            (loki_metris_core::AiTool::WorkBuddy, "WorkBuddy"),
+        ] {
+            for (state, suffix) in [
+                (HookNotification::Asking, "需要您决策"),
+                (HookNotification::Error, "出错了"),
+                (HookNotification::Ended, "已完成"),
+            ] {
+                assert_eq!(message("zh-CN", Activity::Hook { tool, state }).1, format!("{name}{suffix}"));
             }
         }
         assert_eq!(message("zh-CN", Activity::Skin { host: SkinHostKind::WorkBuddy, success: true }).1, "WorkBuddy 皮肤更换成功");
