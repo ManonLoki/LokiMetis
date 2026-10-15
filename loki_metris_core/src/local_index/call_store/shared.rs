@@ -99,7 +99,7 @@ pub(super) async fn execute_usage_call(
         .transpose()?
         .unwrap_or_default();
     let result = transaction
-        .execute(statement(
+        .execute_raw(statement(
             sql,
             vec![
                 source_id.into(),
@@ -232,7 +232,7 @@ pub(super) async fn execute_token_snapshot(
     snapshot: &SessionTokenSnapshot,
 ) -> Result<u64, LocalError> {
     let result = transaction
-        .execute(statement(
+        .execute_raw(statement(
             UPSERT_TOKEN_SNAPSHOT_SQL,
             vec![
                 source_id.into(),

@@ -41,7 +41,7 @@ pub(super) async fn was_primary(
     root_id: &str,
 ) -> Result<bool, LocalError> {
     let is_primary: Option<bool> = transaction
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT is_primary FROM source_roots WHERE root_id = ?1",
             vec![root_id.into()],
         ))
@@ -56,7 +56,7 @@ pub(super) async fn invalidate_primary_snapshot_cache(
     transaction: &DatabaseTransaction,
 ) -> Result<(), LocalError> {
     transaction
-        .execute(statement("DELETE FROM provider_snapshots", vec![]))
+        .execute_raw(statement("DELETE FROM provider_snapshots", vec![]))
         .await?;
     Ok(())
 }
@@ -78,7 +78,7 @@ impl LocalIndex {
         let access_path = encode_path(path);
         let transaction = self.connection.begin().await?;
         let existing = transaction
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT access_path, is_primary FROM source_roots WHERE root_id = ?1",
                 vec![root_id.into()],
             ))
@@ -100,7 +100,7 @@ impl LocalIndex {
             .as_ref()
             .is_some_and(|(stored_path, is_primary)| *is_primary && stored_path != &access_path);
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "INSERT INTO source_roots
                  (root_id, access_path, alias, enabled, discovery_method)
                  VALUES (?1, ?2, ?3, 1, ?4)
@@ -116,7 +116,7 @@ impl LocalIndex {
             .await?;
         if primary_path_changed {
             transaction
-                .execute(statement(
+                .execute_raw(statement(
                     "UPDATE source_roots SET is_primary = 0 WHERE root_id = ?1",
                     vec![root_id.into()],
                 ))
@@ -137,7 +137,7 @@ impl LocalIndex {
     ) -> Result<bool, LocalError> {
         let result = self
             .connection
-            .execute(statement(
+            .execute_raw(statement(
                 "INSERT INTO source_roots
                  (root_id, access_path, alias, enabled, discovery_method, activation_state)
                  VALUES (?1, ?2, ?3, 1, ?4, ?5)
@@ -159,7 +159,7 @@ impl LocalIndex {
     pub async fn registered_root_paths(&self) -> Result<Vec<(String, PathBuf)>, LocalError> {
         let rows = self
             .connection
-            .query_all(statement(
+            .query_all_raw(statement(
                 "SELECT root_id, access_path FROM source_roots",
                 vec![],
             ))
@@ -191,7 +191,7 @@ impl LocalIndex {
     pub async fn primary_root(&self) -> Result<Option<RegisteredRoot>, LocalError> {
         let Some(row) = self
             .connection
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT root_id, access_path, alias, enabled
                  FROM source_roots WHERE is_primary = 1",
                 vec![],
@@ -225,7 +225,7 @@ impl LocalIndex {
     pub async fn set_primary_root(&mut self, root_id: Option<&str>) -> Result<bool, LocalError> {
         let transaction = self.connection.begin().await?;
         let current: Option<String> = transaction
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT root_id FROM source_roots WHERE is_primary = 1",
                 vec![],
             ))
@@ -237,7 +237,7 @@ impl LocalIndex {
         }
         if let Some(root_id) = root_id {
             let enabled: Option<bool> = transaction
-                .query_one(statement(
+                .query_one_raw(statement(
                     "SELECT enabled FROM source_roots WHERE root_id = ?1",
                     vec![root_id.into()],
                 ))
@@ -249,14 +249,14 @@ impl LocalIndex {
             }
         }
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE source_roots SET is_primary = 0 WHERE is_primary = 1",
                 vec![],
             ))
             .await?;
         if let Some(root_id) = root_id {
             transaction
-                .execute(statement(
+                .execute_raw(statement(
                     "UPDATE source_roots SET is_primary = 1 WHERE root_id = ?1 AND enabled = 1",
                     vec![root_id.into()],
                 ))
@@ -280,7 +280,7 @@ impl LocalIndex {
              WHERE enabled = 1 AND activation_state IN ('ready', 'indexing')
              ORDER BY alias, root_id"
         };
-        let rows = self.connection.query_all(statement(sql, vec![])).await?;
+        let rows = self.connection.query_all_raw(statement(sql, vec![])).await?;
         let mut roots = Vec::with_capacity(rows.len());
         for row in rows {
             let root_id: String = row.try_get_by_index(0)?;
@@ -306,7 +306,7 @@ impl LocalIndex {
         root_id: &str,
     ) -> Result<RootActivationState, LocalError> {
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE source_roots SET activation_state = 'confirmed_unindexed'
                  WHERE root_id = ?1 AND enabled = 1 AND activation_state = 'validation_failed'",
                 vec![root_id.into()],
@@ -314,7 +314,7 @@ impl LocalIndex {
             .await?;
         let label: String = self
             .connection
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT activation_state FROM source_roots WHERE root_id = ?1",
                 vec![root_id.into()],
             ))
@@ -330,7 +330,7 @@ impl LocalIndex {
     pub async fn claim_background_index_roots(&mut self) -> Result<Vec<String>, LocalError> {
         let transaction = self.connection.begin().await?;
         let rows = transaction
-            .query_all(statement(
+            .query_all_raw(statement(
                 "SELECT root_id FROM source_roots
                  WHERE enabled = 1 AND activation_state IN ('confirmed_unindexed', 'indexing')
                  ORDER BY root_id",
@@ -342,7 +342,7 @@ impl LocalIndex {
             .map(|row| row.try_get_by_index(0))
             .collect::<Result<Vec<String>, _>>()?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE source_roots SET activation_state = 'indexing'
                  WHERE enabled = 1 AND activation_state = 'confirmed_unindexed'",
                 vec![],
@@ -361,7 +361,7 @@ impl LocalIndex {
         let mut claimed = Vec::new();
         for root_id in root_ids.iter().map(String::as_str).collect::<BTreeSet<_>>() {
             let result = transaction
-                .execute(statement(
+                .execute_raw(statement(
                     "UPDATE source_roots SET activation_state = 'indexing'
                      WHERE root_id = ?1 AND enabled = 1
                        AND activation_state IN ('confirmed_unindexed', 'validation_failed')",
@@ -386,7 +386,7 @@ impl LocalIndex {
     ) -> Result<(), LocalError> {
         for root_id in root_ids {
             self.connection
-                .execute(statement(
+                .execute_raw(statement(
                     "UPDATE source_roots
                      SET activation_state = CASE
                        WHEN EXISTS (
@@ -415,14 +415,14 @@ impl LocalIndex {
         let was_primary = was_primary(&transaction, root_id).await?;
         let result = if enabled {
             transaction
-                .execute(statement(
+                .execute_raw(statement(
                     "UPDATE source_roots SET enabled = 1 WHERE root_id = ?1",
                     vec![root_id.into()],
                 ))
                 .await?
         } else {
             transaction
-                .execute(statement(
+                .execute_raw(statement(
                     "UPDATE source_roots SET enabled = 0, is_primary = 0 WHERE root_id = ?1",
                     vec![root_id.into()],
                 ))

@@ -29,7 +29,7 @@ impl LocalIndex {
     pub async fn has_current_parser_usage(&self) -> Result<bool, LocalError> {
         let row = self
             .connection
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT
                    EXISTS(
                      SELECT 1 FROM usage_calls u
@@ -67,13 +67,13 @@ impl LocalIndex {
     pub async fn prune_usage_before(&mut self, cutoff_epoch_ms: i64) -> Result<(), LocalError> {
         let transaction = self.connection.begin().await?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_calls WHERE occurred_at_epoch_ms < ?1",
                 vec![cutoff_epoch_ms.into()],
             ))
             .await?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_token_snapshots WHERE occurred_at_epoch_ms < ?1",
                 vec![cutoff_epoch_ms.into()],
             ))
@@ -106,7 +106,7 @@ impl LocalIndex {
     pub async fn provider_snapshot_count(&self) -> Result<u64, LocalError> {
         let row = self
             .connection
-            .query_one(statement("SELECT COUNT(*) FROM provider_snapshots", vec![]))
+            .query_one_raw(statement("SELECT COUNT(*) FROM provider_snapshots", vec![]))
             .await?
             .ok_or_else(|| {
                 LocalError::new(LocalErrorKind::Database, "snapshot count is unreadable")
@@ -184,19 +184,19 @@ impl LocalIndex {
     pub async fn clear_index(&mut self) -> Result<(), LocalError> {
         let transaction = self.connection.begin().await?;
         transaction
-            .execute(statement("DELETE FROM usage_calls", vec![]))
+            .execute_raw(statement("DELETE FROM usage_calls", vec![]))
             .await?;
         transaction
-            .execute(statement("DELETE FROM source_files", vec![]))
+            .execute_raw(statement("DELETE FROM source_files", vec![]))
             .await?;
         transaction
-            .execute(statement("DELETE FROM scan_runs", vec![]))
+            .execute_raw(statement("DELETE FROM scan_runs", vec![]))
             .await?;
         transaction
-            .execute(statement("DELETE FROM provider_snapshots", vec![]))
+            .execute_raw(statement("DELETE FROM provider_snapshots", vec![]))
             .await?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE source_roots SET last_coverage_state = NULL",
                 vec![],
             ))
@@ -217,7 +217,7 @@ impl LocalIndex {
     ) -> Result<String, LocalError> {
         let result = self
             .connection
-            .execute(statement(
+            .execute_raw(statement(
                 "INSERT INTO scan_runs
                  (scan_id, mode, started_at_epoch_ms, status, cancelled,
                   files_scanned, calls_added, warning_count)
@@ -228,7 +228,7 @@ impl LocalIndex {
         let row_id = to_sql_u64(result.last_insert_id())?;
         let scan_id = stable_id("scan", &format!("{started_at_epoch_ms}\u{0}{row_id}"));
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE scan_runs SET scan_id = ?2 WHERE row_id = ?1",
                 vec![row_id.into(), (&scan_id).into()],
             ))
@@ -249,7 +249,7 @@ impl LocalIndex {
         warning_count: u64,
     ) -> Result<(), LocalError> {
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE scan_runs SET
                    finished_at_epoch_ms = ?2, status = ?3, cancelled = ?4,
                    files_scanned = ?5, calls_added = ?6, warning_count = ?7
@@ -278,7 +278,7 @@ impl LocalIndex {
         normalized_json: String,
     ) -> Result<(), LocalError> {
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "INSERT INTO provider_snapshots
                  (snapshot_kind, observed_at_epoch_ms, valid_until_epoch_ms, normalized_json)
                  VALUES (?1, ?2, ?3, ?4)

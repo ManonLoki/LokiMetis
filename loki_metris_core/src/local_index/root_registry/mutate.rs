@@ -15,7 +15,7 @@ impl LocalIndex {
     pub async fn set_root_alias(&mut self, root_id: &str, alias: &str) -> Result<bool, LocalError> {
         let result = self
             .connection
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE source_roots SET alias = ?2 WHERE root_id = ?1",
                 vec![root_id.into(), alias.into()],
             ))
@@ -28,7 +28,7 @@ impl LocalIndex {
         let transaction = self.connection.begin().await?;
         let was_primary = was_primary(&transaction, root_id).await?;
         let result = transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM source_roots WHERE root_id = ?1",
                 vec![root_id.into()],
             ))
@@ -49,7 +49,7 @@ impl LocalIndex {
         let placeholders = in_placeholders(1, root_ids.len());
         let id_values: Vec<sea_orm::Value> = root_ids.iter().map(Into::into).collect();
         let removed_primary = transaction
-            .query_one(statement(
+            .query_one_raw(statement(
                 &format!(
                     "SELECT 1 FROM source_roots WHERE root_id IN ({placeholders}) AND is_primary = 1 LIMIT 1"
                 ),
@@ -58,7 +58,7 @@ impl LocalIndex {
             .await?
             .is_some();
         let result = transaction
-            .execute(statement(
+            .execute_raw(statement(
                 &format!("DELETE FROM source_roots WHERE root_id IN ({placeholders})"),
                 id_values,
             ))
@@ -77,7 +77,7 @@ impl LocalIndex {
         state: CoverageState,
     ) -> Result<(), LocalError> {
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "UPDATE source_roots SET last_coverage_state = ?2 WHERE root_id = ?1",
                 vec![root_id.into(), coverage_state_label(state).into()],
             ))
@@ -101,7 +101,7 @@ impl LocalIndex {
         let mut values: Vec<sea_orm::Value> = vec![coverage_state_label(state).into()];
         values.extend(root_ids.iter().map(Into::into));
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 &format!(
                     "UPDATE source_roots SET last_coverage_state = ?1 WHERE root_id IN ({placeholders})"
                 ),
@@ -122,7 +122,7 @@ impl LocalIndex {
     ) -> Result<u64, LocalError> {
         let rows = self
             .connection
-            .query_all(statement(
+            .query_all_raw(statement(
                 "SELECT source_id, relative_label FROM source_files
                  WHERE root_id = ?1 AND archived = ?2",
                 vec![root_id.into(), archived.into()],
@@ -146,7 +146,7 @@ impl LocalIndex {
         let mut values: Vec<sea_orm::Value> = vec![root_id.into()];
         values.extend(stale_source_ids.iter().map(Into::into));
         let result = transaction
-            .execute(statement(
+            .execute_raw(statement(
                 &format!(
                     "DELETE FROM source_files WHERE root_id = ?1 AND source_id IN ({placeholders})"
                 ),

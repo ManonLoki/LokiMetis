@@ -46,7 +46,7 @@ pub(crate) fn migration_names() -> Vec<String> {
 /// schema 时都要先确认目标表已经建立，这里集中一份实现供它们共用。
 async fn table_exists(connection: &impl ConnectionTrait, name: &str) -> Result<bool, DbErr> {
     Ok(connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             connection.get_database_backend(),
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
             [name.into()],

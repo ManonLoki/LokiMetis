@@ -20,8 +20,8 @@ image = { version = "0.25.10", default-features = false, features = ["jpeg", "pn
 png = "0.18.1"
 encoding_rs = "0.8.42"
 jiff = "0.2.38"
-sea-orm = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
-sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
+sea-orm = { version = "2.0.4", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
+sea-orm-migration = { version = "2.0.4", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2.0.21"

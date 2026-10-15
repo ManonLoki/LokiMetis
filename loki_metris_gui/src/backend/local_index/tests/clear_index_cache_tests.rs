@@ -24,7 +24,7 @@ fn table_count(connection: &DatabaseConnection, table: &str) -> i64 {
         ),
         "table name must be a known derived or registry table"
     );
-    let row = block_on(connection.query_one(Statement::from_string(
+    let row = block_on(connection.query_one_raw(Statement::from_string(
         DbBackend::Sqlite,
         format!("SELECT COUNT(*) FROM {table}"),
     )))
@@ -35,7 +35,7 @@ fn table_count(connection: &DatabaseConnection, table: &str) -> i64 {
 
 /// 读取全部登记根的 last_coverage_state，供清空前后对照。
 fn last_coverage_states(connection: &DatabaseConnection) -> Vec<Option<String>> {
-    let rows = block_on(connection.query_all(Statement::from_string(
+    let rows = block_on(connection.query_all_raw(Statement::from_string(
         DbBackend::Sqlite,
         "SELECT last_coverage_state FROM source_roots ORDER BY root_id",
     )))

@@ -124,7 +124,7 @@ async fn load_read_ready<C: ConnectionTrait>(
     {
         return Ok(false);
     }
-    let Some(row) = connection.query_one(statement(
+    let Some(row) = connection.query_one_raw(statement(
         "SELECT status, cancelled, finished_at_epoch_ms, warning_count,
                 EXISTS(SELECT 1 FROM source_files f
                        JOIN source_roots r ON r.root_id = f.root_id
@@ -152,7 +152,7 @@ pub(super) async fn load_local_index_state<C: ConnectionTrait>(
     parser_version: u32,
 ) -> Result<LocalIndexState, LocalError> {
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT
                (SELECT COUNT(*) FROM scan_runs WHERE status = 'completed'),
                (SELECT COUNT(*) FROM source_files f
@@ -232,7 +232,7 @@ pub(crate) async fn load_root_records<C: ConnectionTrait>(
     parser_version: u32,
 ) -> Result<Vec<RootRecord>, LocalError> {
     let rows = connection
-        .query_all(statement(
+        .query_all_raw(statement(
             "SELECT r.root_id, r.alias, r.enabled, r.is_primary, r.discovery_method,
                     r.activation_state, r.last_coverage_state,
                     (SELECT COUNT(*) FROM source_files f
@@ -258,7 +258,7 @@ pub(crate) async fn load_root_usage_summary_records<C: ConnectionTrait>(
 ) -> Result<Vec<RootUsageSummaryRecord>, LocalError> {
     validate_current_usage_integrity(connection, parser_version).await?;
     let rows = connection
-        .query_all(statement(
+        .query_all_raw(statement(
             "WITH current_sources AS (
                SELECT source_id, root_id, generation
                FROM source_files
@@ -335,7 +335,7 @@ pub(super) async fn load_canonical_call_count<C: ConnectionTrait>(
 ) -> Result<u64, LocalError> {
     validate_current_usage_integrity(connection, parser_version).await?;
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT COUNT(DISTINCT u.logical_call_id)
              FROM usage_calls u
              JOIN source_files f ON f.source_id = u.source_id

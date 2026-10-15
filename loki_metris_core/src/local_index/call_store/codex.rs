@@ -30,7 +30,7 @@ async fn prefetch_exact_threads(
     let mut values: Vec<sea_orm::Value> = vec![source_id.into(), generation.into()];
     values.extend(thread_keys.iter().map(|key| (*key).into()));
     let rows = transaction
-        .query_all(statement(
+        .query_all_raw(statement(
             &format!(
                 "SELECT DISTINCT thread_key FROM usage_calls
                  WHERE source_id = ?1 AND generation = ?2
@@ -74,7 +74,7 @@ pub(crate) async fn insert_usage_batch(
             }
         } else if call.confidence == Confidence::Exact {
             transaction
-                .execute(statement(
+                .execute_raw(statement(
                     DELETE_DERIVED_CALLS_SQL,
                     vec![
                         source_id.into(),

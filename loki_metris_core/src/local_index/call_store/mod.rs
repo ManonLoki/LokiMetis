@@ -43,7 +43,7 @@ impl LocalIndex {
     ) -> Result<Option<String>, LocalError> {
         let row = self
             .connection
-            .query_one(shared::statement(
+            .query_one_raw(shared::statement(
                 "SELECT adapter_consistency_key FROM usage_calls
                  WHERE source_id = ?1 AND generation = ?2
                    AND adapter_consistency_key IS NOT NULL

@@ -109,7 +109,7 @@ async fn conflicting_observed_response_never_overwrites_or_partly_commits() {
         LocalErrorKind::InvalidUsage
     );
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT count(*),sum(input_tokens) FROM usage_calls",
             vec![],
         ))
@@ -175,7 +175,7 @@ async fn observed_response_keeps_legacy_derived_prefix() {
         1
     );
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT count(*),sum(total_tokens) FROM usage_calls",
             vec![],
         ))
@@ -205,7 +205,7 @@ async fn observed_rebuild_checks_published_bill_without_replacing_it() {
         1
     );
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT occurred_at_epoch_ms FROM usage_calls WHERE generation=2",
             vec![],
         ))
@@ -239,7 +239,7 @@ async fn observed_rebuild_checks_published_bill_without_replacing_it() {
         1
     );
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT count(*),sum(input_tokens) FROM usage_calls WHERE generation=3",
             vec![],
         ))
@@ -285,7 +285,7 @@ async fn observed_retention_uses_original_time_before_filtering() {
         LocalErrorKind::InvalidUsage
     );
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT count(*),min(occurred_at_epoch_ms) FROM usage_calls WHERE generation=2",
             vec![],
         ))

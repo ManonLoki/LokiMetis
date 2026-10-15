@@ -35,7 +35,7 @@ async fn prefetch_existing_calls(
     let mut values: Vec<sea_orm::Value> = vec![source_id.into(), generation.into()];
     values.extend(logical_call_ids.iter().map(Into::into));
     let rows = transaction
-        .query_all(statement(
+        .query_all_raw(statement(
             &format!(
                 "SELECT logical_call_id, input_tokens, cached_input_tokens, cached_input_available,
                         cache_write_input_tokens, output_tokens, total_tokens

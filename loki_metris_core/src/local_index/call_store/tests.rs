@@ -148,7 +148,7 @@ async fn batch_preserves_exact_and_derived_rules() {
         0
     );
     let refreshed_row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT input_tokens FROM usage_calls WHERE logical_call_id = 'derived'",
             vec![],
         ))
@@ -188,7 +188,7 @@ async fn batch_preserves_exact_and_derived_rules() {
         0
     );
     let summary_row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT COUNT(*), MIN(confidence) FROM usage_calls",
             vec![],
         ))
@@ -251,7 +251,7 @@ async fn claude_batch_rejects_regressions() {
         .expect("regressions are isolated warnings");
     assert_eq!((outcome.added, outcome.regressed), (0, 2));
     let trusted_row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT input_tokens, output_tokens FROM usage_calls",
             vec![],
         ))
@@ -316,7 +316,7 @@ async fn batch_keeps_overflow_classification_and_rolls_back() {
         .expect_err("trigger aborts the transaction");
     assert_eq!(error.kind(), LocalErrorKind::Database);
     let count_row = connection
-        .query_one(statement("SELECT COUNT(*) FROM usage_calls", vec![]))
+        .query_one_raw(statement("SELECT COUNT(*) FROM usage_calls", vec![]))
         .await
         .expect("row count query succeeds")
         .expect("row count is readable");

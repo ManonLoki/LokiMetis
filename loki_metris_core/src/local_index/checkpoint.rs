@@ -76,7 +76,7 @@ impl LocalIndex {
     ) -> Result<Option<StoredSourceFile>, LocalError> {
         let Some(row) = self
             .connection
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT source_id, root_id, relative_label, file_identity, archived,
                         observed_size, modified_at_epoch_ms, parsed_offset, trailing_bytes,
                         parser_version, generation, token_snapshots_ready
@@ -142,7 +142,7 @@ impl LocalIndex {
     {
         let rows = self
             .connection
-            .query_all(statement(
+            .query_all_raw(statement(
                 "SELECT relative_label, observed_size, modified_at_epoch_ms,
                         parser_version, ready, token_snapshots_ready, adapter_state,
                         parsed_offset, trailing_bytes
@@ -182,7 +182,7 @@ impl LocalIndex {
     ) -> Result<Option<SourceParseCheckpoint>, LocalError> {
         let Some(row) = self
             .connection
-            .query_one(statement(
+            .query_one_raw(statement(
                 "SELECT thread_key, project_key, project_label, thread_label,
                         model, reasoning_effort, call_sequence, adapter_state
                  FROM source_files WHERE source_id = ?1 AND ready = 1",
@@ -222,7 +222,7 @@ impl LocalIndex {
         thread_label: Option<&str>,
     ) -> Result<(), LocalError> {
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "INSERT INTO source_files
                  (source_id, root_id, relative_label, file_identity, archived,
                   observed_size, modified_at_epoch_ms, parsed_offset, trailing_bytes,
@@ -258,13 +258,13 @@ impl LocalIndex {
     ) -> Result<(), LocalError> {
         let keep = to_sql_u64(keep_generation)?;
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_calls WHERE source_id = ?1 AND generation > ?2",
                 vec![source_id.into(), keep.into()],
             ))
             .await?;
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_token_snapshots WHERE source_id = ?1 AND generation > ?2",
                 vec![source_id.into(), keep.into()],
             ))
@@ -281,13 +281,13 @@ impl LocalIndex {
     ) -> Result<(), LocalError> {
         let generation = to_sql_u64(generation)?;
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_calls WHERE source_id = ?1 AND generation = ?2",
                 vec![source_id.into(), generation.into()],
             ))
             .await?;
         self.connection
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_token_snapshots WHERE source_id = ?1 AND generation = ?2",
                 vec![source_id.into(), generation.into()],
             ))
@@ -317,7 +317,7 @@ impl LocalIndex {
         let generation_sql = to_sql_u64(generation)?;
         let transaction = self.connection.begin().await?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "INSERT INTO source_files
                  (source_id, root_id, relative_label, file_identity, archived,
                   observed_size, modified_at_epoch_ms, parsed_offset, trailing_bytes,
@@ -374,13 +374,13 @@ impl LocalIndex {
             ))
             .await?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_calls WHERE source_id = ?1 AND generation <> ?2",
                 vec![source_id.into(), generation_sql.into()],
             ))
             .await?;
         transaction
-            .execute(statement(
+            .execute_raw(statement(
                 "DELETE FROM usage_token_snapshots WHERE source_id = ?1 AND generation <> ?2",
                 vec![source_id.into(), generation_sql.into()],
             ))

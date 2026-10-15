@@ -18,7 +18,7 @@ pub(crate) async fn insert_observed_usage_batch(
     let generation = to_sql_u64(generation)?;
     // 重建只在新代完整提交后替换旧代；此处仍须尊重已经公开的响应事实。
     let published = transaction
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT generation FROM source_files WHERE source_id = ?1",
             vec![source_id.into()],
         ))
@@ -70,7 +70,7 @@ async fn verify_observed_bill(
     // 查询本事务最新行，覆盖同批与跨批冲突；并发写入失败由外层事务整体回滚。
     // IS 同时比较 NULL 与值，None 不能被 Some(0) 静默替换。
     let row = transaction
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT occurred_at_epoch_ms, NOT (thread_key = ?4 AND input_tokens = ?5
          AND cached_input_tokens = ?6 AND cache_write_input_tokens IS ?7
          AND output_tokens = ?8 AND reasoning_output_tokens = ?9 AND total_tokens = ?10

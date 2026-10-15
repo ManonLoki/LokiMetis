@@ -63,14 +63,14 @@ async fn migrations_table_exists(connection: &DatabaseConnection) -> Result<bool
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1",
         [SEAQL_MIGRATIONS_TABLE_NAME.into()],
     );
-    Ok(connection.query_one(statement).await?.is_some())
+    Ok(connection.query_one_raw(statement).await?.is_some())
 }
 
 /// 读取旧版迁移写入的 `PRAGMA user_version`；从未迁移过的数据库返回 0。
 async fn read_pre_seaorm_user_version(connection: &DatabaseConnection) -> Result<i64, LocalError> {
     let statement =
         Statement::from_string(connection.get_database_backend(), "PRAGMA user_version");
-    let row = connection.query_one(statement).await?.ok_or_else(|| {
+    let row = connection.query_one_raw(statement).await?.ok_or_else(|| {
         LocalError::new(LocalErrorKind::Database, "local index schema is unreadable")
     })?;
     Ok(row.try_get_by_index(0)?)
@@ -100,7 +100,7 @@ async fn mark_migration_applied(
         "INSERT OR IGNORE INTO seaql_migrations (version, applied_at) VALUES (?1, ?2)",
         [name.into(), applied_at.into()],
     );
-    connection.execute(statement).await?;
+    connection.execute_raw(statement).await?;
     Ok(())
 }
 
@@ -216,7 +216,7 @@ mod tests {
             .expect("remaining migrations apply cleanly");
 
         let alias: String = connection
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 connection.get_database_backend(),
                 "SELECT alias FROM source_roots WHERE root_id = 'root-1'",
             ))
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(alias, "fixture");
 
         let is_primary_column_exists = connection
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 connection.get_database_backend(),
                 "SELECT is_primary FROM source_roots WHERE root_id = 'root-1'",
             ))

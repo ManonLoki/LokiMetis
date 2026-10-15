@@ -8,7 +8,7 @@ async fn validate_current_usage_integrity<C: ConnectionTrait>(
     parser_version: u32,
 ) -> Result<(), LocalError> {
     let row = connection
-        .query_one(statement(
+        .query_one_raw(statement(
             "SELECT
                (SELECT COALESCE(MAX(
                   CASE
@@ -130,7 +130,7 @@ pub(crate) async fn load_canonical_calls_since<C: ConnectionTrait>(
     let canonical =
         load_canonical_usage_calls_since(connection, parser_version, cutoff_epoch_ms).await?;
     let snapshot_rows = connection
-        .query_all(statement(
+        .query_all_raw(statement(
             "SELECT s.thread_key, s.occurred_at_epoch_ms, s.total_tokens, s.logical_call_id,
                     s.model, s.reasoning_effort, s.project_key,
                     f.source_id, f.root_id, f.relative_label, f.archived
@@ -160,7 +160,7 @@ async fn load_canonical_usage_calls_since<C: ConnectionTrait>(
     cutoff_epoch_ms: i64,
 ) -> Result<CanonicalUsageSet, LocalError> {
     let rows = connection
-        .query_all(statement(
+        .query_all_raw(statement(
             "SELECT u.logical_call_id, u.occurred_at_epoch_ms, u.model,
                     u.reasoning_effort, u.project_key, u.thread_key,
                     u.project_label, u.thread_label,

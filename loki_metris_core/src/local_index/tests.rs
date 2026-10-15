@@ -90,7 +90,7 @@ async fn read_only_open_never_creates_or_migrates_schema() {
 
     let inspection = reopen_for_inspection(&database_path).await;
     let version: i64 = inspection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DbBackend::Sqlite,
             "PRAGMA user_version",
         ))
@@ -102,7 +102,7 @@ async fn read_only_open_never_creates_or_migrates_schema() {
     assert_eq!(version, 1);
     assert!(
         inspection
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DbBackend::Sqlite,
                 "SELECT version FROM seaql_migrations LIMIT 1",
             ))
@@ -156,7 +156,7 @@ async fn stores_only_normalized_provider_snapshots() {
 
     let inspection = reopen_for_inspection(&database_path).await;
     let normalized: String = inspection
-        .query_one(sea_orm::Statement::from_string(
+        .query_one_raw(sea_orm::Statement::from_string(
             sea_orm::DbBackend::Sqlite,
             "SELECT normalized_json FROM provider_snapshots WHERE snapshot_kind = 'local_metric'",
         ))
@@ -181,7 +181,7 @@ async fn stores_only_normalized_provider_snapshots() {
 
     let inspection = reopen_for_inspection(&database_path).await;
     let snapshot_count: i64 = inspection
-        .query_one(sea_orm::Statement::from_string(
+        .query_one_raw(sea_orm::Statement::from_string(
             sea_orm::DbBackend::Sqlite,
             "SELECT COUNT(*) FROM provider_snapshots",
         ))
@@ -226,7 +226,7 @@ async fn migration_rebuilds_legacy_derived_usage_calls() {
 
     let inspection = reopen_for_inspection(&database_path).await;
     let count: i64 = inspection
-        .query_one(sea_orm::Statement::from_string(
+        .query_one_raw(sea_orm::Statement::from_string(
             sea_orm::DbBackend::Sqlite,
             "SELECT COUNT(*) FROM usage_calls",
         ))
@@ -365,7 +365,7 @@ async fn migrates_v3_roots_with_no_implicit_primary_and_enforces_single_enabled_
 async fn scan_modes(database_path: &Path) -> Vec<String> {
     let inspection = reopen_for_inspection(database_path).await;
     let rows = inspection
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             DbBackend::Sqlite,
             "SELECT mode FROM scan_runs ORDER BY row_id",
         ))
