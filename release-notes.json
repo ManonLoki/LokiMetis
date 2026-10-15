@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-15",
+      "version": "v0.2.57",
+      "featureOptimizations": [
+        {
+          "zh-CN": "升级 GPUI 组件与渲染基线至 gpui-kit 0.7.3、gpui-pre 0.3.9，保留项目的字体、圆角和原生窗口补丁。",
+          "en-US": "Upgrade the GPUI component and rendering baseline to gpui-kit 0.7.3 and gpui-pre 0.3.9 while retaining project font, rounded-clip and native-window patches."
+        },
+        {
+          "zh-CN": "升级 SeaORM 与数据库迁移依赖至 2.0.4，适配原始 SQL 接口并保持现有数据库结构和迁移记录。",
+          "en-US": "Upgrade SeaORM and migration dependencies to 2.0.4, adapting raw SQL calls while preserving the existing database schema and migration ledger."
+        },
+        {
+          "zh-CN": "更新 Windows、磁盘识别、ZIP、Base64 及其他 Rust 依赖，完成对应接口兼容适配。",
+          "en-US": "Update Windows, disk detection, ZIP, Base64 and other Rust dependencies with the corresponding API compatibility adaptations."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "移除不属于项目负责人的 QQ 联系信息；窗口标题只保留应用名称和版本，界面模板不再生成该联系入口。",
+          "en-US": "Remove the QQ contact that does not belong to the project owner. Window titles now contain only the app name and version, and retained UI templates no longer generate that contact entry."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-14",
       "version": "v0.2.55",
       "featureOptimizations": [

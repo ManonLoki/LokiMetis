@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "18b0ce540fa1cac7f5804d9a800d90dfdfe19408",
-  "version": "0.2.55",
-  "releaseDate": "2026-10-14",
-  "expectedTag": "v0.2.55-20261014",
+  "sourceHead": "d83135f93dc34bc6ab61201f7d9196bcea9b1ab2",
+  "version": "0.2.57",
+  "releaseDate": "2026-10-15",
+  "expectedTag": "v0.2.57-20261015",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "7d769ff67fe3481ade563f6ef4ffa05ab779dd3d",
-    "sourceHead": "18b0ce540fa1cac7f5804d9a800d90dfdfe19408",
-    "scopeDiffSha256": "967c41422c955f63453df3db1943236bfa10982a4578d26b9de1b030aba2f94e",
-    "reviewedSourceCommit": "18b0ce540fa1cac7f5804d9a800d90dfdfe19408",
+    "scopeBase": "103f8225cf571f6acfb7bf491f52e6d9ab62234e",
+    "sourceHead": "d83135f93dc34bc6ab61201f7d9196bcea9b1ab2",
+    "scopeDiffSha256": "dd771ec38a2c5fc26416074eee893936921089fea4ff900c5e406832dffcdd5b",
+    "reviewedSourceCommit": "d83135f93dc34bc6ab61201f7d9196bcea9b1ab2",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed behavior, core/adapter boundaries, Hooks/CDP/private IPC contracts, responsibility/size and temporary markers since v0.2.52. Three fixes retain regression coverage. Skin responsibility splits preserve function/type bodies; 142 related regressions passed before the version bump. Registered branches are ancestors of sourceHead. Package runtime and Windows remain unverified.",
+    "evidenceSummary": "Five checks passed: dependency compatibility, SQL/schema and core boundaries retained; GPUI patch hashes and safety explanations verified; unapproved QQ contact removed from UI and templates. No new markers or maintained-file size violations. Tests: 1549 workspace, 3 title, 18 Node and 7 Metal regressions passed. pnpm validate retains the receipt-bound Archify generated-output false positive in TECH_DEBT. ADR-008 records the approved maintenance bump. Runtime and Windows remain unverified.",
     "reason": null,
     "remainingRisk": null
   }
