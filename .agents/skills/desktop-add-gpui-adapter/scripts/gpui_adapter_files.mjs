@@ -101,6 +101,7 @@ export function renderGpuiAdapterFiles(input) {
   const nativeDeps = nativeMemberDependencies(options);
   const profile = JSON.parse(fs.readFileSync(path.join(assetsRoot, 'brand-support/brand-support-profile.json'), 'utf8'));
   const contact = profile.contacts.windowTitle;
+  const support = profile.contacts.support;
   const logoExtension = options.logoBytes ? 'png' : 'svg';
   const manifest = JSON.parse(fs.readFileSync(path.join(assetsRoot, 'brand-support/media-manifest.json'), 'utf8'));
   const media = sponsor ? manifest.assets : [];
@@ -124,7 +125,8 @@ export function renderGpuiAdapterFiles(input) {
                         this.writer.save(&this.preferences);
                         cx.notify();
                     }))))` : '',
-    LOGO_EXT: logoExtension, COMPACT: String(compact), CONTACT_TITLE: ` ${rustText(contact.channel)}:${rustText(contact.value)}`, BRAND_CONTACT: rustText(profile.contacts.support.value),
+    LOGO_EXT: logoExtension, COMPACT: String(compact), CONTACT_TITLE: contact?.channel && contact?.value ? ` ${rustText(contact.channel)}:${rustText(contact.value)}` : '',
+    ABOUT_CONTACT: about && support?.channel && support?.value ? `            .child(self.card("about.contact_author_title", "about.support_thanks", cx).child("${rustText(support.channel)} ${rustText(support.value)}"))` : '',
     ABOUT_MODULE: about ? 'mod about;' : '', SPONSOR_MODULE: sponsor ? 'mod sponsor;' : '',
     ABOUT_VARIANT: about ? '    About,' : '', SPONSOR_VARIANT: sponsor ? '    Sponsor,' : '',
     ABOUT_FIELDS: about ? '    show_update_status: bool,\n    show_release_notes: bool,' : '', ABOUT_DEFAULTS: about ? '            show_update_status: false, show_release_notes: false,' : '',

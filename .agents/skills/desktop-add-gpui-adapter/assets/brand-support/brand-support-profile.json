@@ -6,16 +6,7 @@
     "displayNameZhCN": "守城工作室&飞鹰工作室",
     "displayNameEnUS": "Shoucheng & Feiying Studio"
   },
-  "contacts": {
-    "windowTitle": {
-      "channel": "QQ",
-      "value": "2222980"
-    },
-    "support": {
-      "channel": "QQ",
-      "value": "2222980"
-    }
-  },
+  "contacts": {},
   "sponsor": {
     "background": "sponsor/bg.jpg",
     "tiers": [
@@ -29,14 +20,6 @@
         "benefits": [
           {
             "mainKey": "sponsor.tier1_b1"
-          },
-          {
-            "mainKey": "sponsor.tier1_b2_main",
-            "noteKey": "sponsor.tier1_b2_note"
-          },
-          {
-            "mainKey": "sponsor.tier1_b3_main",
-            "noteKey": "sponsor.tier1_b3_note"
           },
           {
             "mainKey": "sponsor.tier1_b4_main",

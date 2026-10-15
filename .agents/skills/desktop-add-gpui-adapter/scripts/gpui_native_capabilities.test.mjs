@@ -52,7 +52,7 @@ test('generated_native_workspace_passes_retained_rust_comment_check_on_all_hosts
     const scripts = '.agents/skills/desktop-implement-change/scripts';
     const retained = path.join(target, scripts);
     fs.mkdirSync(retained, { recursive: true });
-    for (const name of ['check_rust_chinese_comments.mjs', 'check_file_line_limits.mjs']) {
+    for (const name of ['check_rust_chinese_comments.mjs', 'check_file_line_limits.mjs', 'verified_third_party.mjs']) {
       fs.copyFileSync(fileURLToPath(new URL(`../../desktop-implement-change/scripts/${name}`, import.meta.url)), path.join(retained, name));
     }
     const result = spawnSync(process.execPath, [path.join(retained, 'check_rust_chinese_comments.mjs'), '--root', target, '--json'], {

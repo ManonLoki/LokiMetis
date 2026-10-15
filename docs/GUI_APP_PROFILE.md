@@ -44,7 +44,7 @@ sidebar_mode: compact
 
 中性基线命中标准 gpui-gui-common-v1；当前业务页采用上段已批准的参考产品像素覆盖。侧栏 compact，固定 80px、Logo 36px、图标 22px、居中图标/名称上下排列，不折叠。公共设置已迁入应用信息与统一 Agent 五项开关，语言为中英两项（系统探测仅初值），主题保留浅深/跟随系统三态；有实际保存回执及失败保留旧值。更新日志为受控原生弹窗，普通构建保持真实空状态。公共设置包含通知与自启两列卡，以及原样迁入的历史项目微信/支付宝两张本地收款图；用户本次明确授权为达成1:1目标引入所需资源，图片仅展示，不解码重建、不授权支付。GitHub动作是已知历史源码入口，提示中明确LokiMetis，未宣称为新项目仓库。
 
-标题公式为 {applicationName} v{Cargo.version} {contactChannel}:{contactValue}，名称随 locale，联系人取受管品牌 contacts.windowTitle。应用 identifier=com.loki-metris.app，publisher=ManonLoki；不代表已取得商店/签名资格。系统语言由 sys_locale 读取，未知回退英文；窗口只恢复有效尺寸/位置/最大化，首次/损坏居中 1440×900、最小 960×640。
+标题公式为 {applicationName} v{Cargo.version}，名称随 locale，不附加第三方联系方式。负责人已明确要求清除非本人 QQ 联系信息；change_id：`LMDESK-REMOVE-FOREIGN-QQ-001`，required_version：`0.2.57`。应用 identifier=com.loki-metris.app，publisher=ManonLoki；不代表已取得商店/签名资格。系统语言由 sys_locale 读取，未知回退英文；窗口只恢复有效尺寸/位置/最大化，首次/损坏居中 1440×900、最小 960×640。
 
 系统托盘、开机自启、单实例、全局快捷键 enabled；通知与页内赞助 enabled；独立关于页和深链接 disabled。热键 actions=0、初始非空 bindings=0、实际系统注册=0，退出无外部键位需要注销。自启仅有能力，初始化不注册，真实宿主检查后恢复原状态。
 

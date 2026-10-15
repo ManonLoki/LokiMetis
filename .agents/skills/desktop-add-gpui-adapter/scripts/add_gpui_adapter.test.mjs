@@ -30,6 +30,16 @@ test('retained_renderer_only_produces_gui_profile_and_gpui_packaging_files', () 
   assert.doesNotMatch(files.get('existing_tool_gui/src/app/mod.rs'), /existing_tool_core::product_definition/);
 });
 
+/** 未配置联系人时不生成标题后缀、联系卡或第三方群聊权益，防止错误身份再次进入产品。 */
+test('missing_contacts_do_not_generate_contact_suffix_or_support_promises', () => {
+  const files = renderGpuiAdapterFiles({ ...identity, aboutPage: 'enabled', sponsorPage: 'enabled' });
+  assert.match(files.get('existing_tool_gui/src/app/mod.rs'), /format!\("\{\} \{\}", self\.name\(\), self\.version\(\)\)/);
+  assert.doesNotMatch(files.get('existing_tool_gui/src/app/about.rs'), /about\.contact_author_title/);
+  for (const [file, contents] of files) {
+    if (file.endsWith('.rs') || file.endsWith('.json')) assert.doesNotMatch(String(contents), /QQ/);
+  }
+});
+
 /** 调用方已有打包配置不被初始化接线覆盖，整个新增操作零写入失败。 */
 test('existing_packaging_config_is_preserved_without_partial_gui', () => {
   const target = fixture();

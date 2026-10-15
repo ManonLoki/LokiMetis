@@ -1,12 +1,12 @@
 //! 主窗口标题请求属于每个壳层；稳定绘制无需重复进入原生平台。
 
 impl super::Shell {
-    /// 版本和支持信息在进程内固定；只有已确认的有效语言改变完整标题。
+    /// 版本在进程内固定；只有已确认的有效语言改变名称与版本组成的标题。
     pub(super) fn request_window_title(&mut self, window: &mut gpui_kit::Window) {
         if self.last_requested_title_locale == Some(self.locale) {
             return;
         }
-        window.set_window_title(&format!("{} {} QQ:2222980", self.name(), self.version()));
+        window.set_window_title(&format!("{} {}", self.name(), self.version()));
         // GPUI setter 没有宿主成功回执，这里只记录已请求的语言。
         self.last_requested_title_locale = Some(self.locale);
     }
@@ -33,9 +33,9 @@ mod tests {
         cx.run_until_parked();
     }
 
-    /// 完整标题必须保留正式名称、编译期版本及支持信息。
+    /// 完整标题仅保留正式名称与编译期版本，不附带未经确认的第三方联系方式。
     fn expected(name: &str) -> String {
-        format!("{name} v{} QQ:2222980", env!("CARGO_PKG_VERSION"))
+        format!("{name} v{}", env!("CARGO_PKG_VERSION"))
     }
 
     /// 哨兵由真实 setter 写入；旧的逐帧请求会覆盖它，不能用内部字段冒充去重。

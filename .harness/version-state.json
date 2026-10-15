@@ -55,7 +55,8 @@
     "LMDESK-CALLS-INCREMENTAL-WIDTHS-001",
     "LMDESK-ANALYTICS-PAGE-CACHE-001",
     "LMDESK-SKIN-WATCHER-HANDLE-REAP-001",
-    "LM-DEPENDENCY-MAINTENANCE-RELEASE-20261015"
+    "LM-DEPENDENCY-MAINTENANCE-RELEASE-20261015",
+    "LMDESK-REMOVE-FOREIGN-QQ-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.2.55",
@@ -69,8 +70,13 @@
       "change_id": "LM-DEPENDENCY-MAINTENANCE-RELEASE-20261015",
       "kind": "bug-fix",
       "required_version": "0.2.56"
+    },
+    {
+      "change_id": "LMDESK-REMOVE-FOREIGN-QQ-001",
+      "kind": "bug-fix",
+      "required_version": "0.2.57"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.2.56"
+  "target_version": "0.2.57"
 }

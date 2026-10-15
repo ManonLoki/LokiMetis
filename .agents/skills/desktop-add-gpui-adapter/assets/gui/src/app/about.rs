@@ -21,8 +21,7 @@ impl Shell {
                         .on_click(cx.listener(|this, _, _, cx| { this.show_release_notes = !this.show_release_notes; cx.notify(); }))))
                 .when(self.show_update_status, |card| card.child(div().w_full().min_w_0().whitespace_normal().text_sm().child(self.t("about.updater_unavailable")))))
             .when(self.show_release_notes, |page| page.child(self.release_notes_panel(cx)))
-            .child(self.card("about.contact_author_title", "about.support_thanks", cx)
-                .child("QQ @@BRAND_CONTACT@@"))
+@@ABOUT_CONTACT@@
             .child(self.card("about.local_first", "about.local_first_detail", cx))
             .child(self.card("about.disclaimer_title", "about.disclaimer_1", cx)
                 .child(div().w_full().min_w_0().whitespace_normal().text_sm().child(self.t("about.disclaimer_2")))
