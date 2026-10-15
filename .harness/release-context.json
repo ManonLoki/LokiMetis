@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "d83135f93dc34bc6ab61201f7d9196bcea9b1ab2",
-  "version": "0.2.57",
-  "releaseDate": "2026-10-15",
-  "expectedTag": "v0.2.57-20261015",
+  "sourceHead": "637fbfef050326ad3ba9e81e585b9ac735ed17a8",
+  "version": "0.3.1",
+  "releaseDate": "2026-10-16",
+  "expectedTag": "v0.3.1-20261016",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "103f8225cf571f6acfb7bf491f52e6d9ab62234e",
-    "sourceHead": "d83135f93dc34bc6ab61201f7d9196bcea9b1ab2",
-    "scopeDiffSha256": "dd771ec38a2c5fc26416074eee893936921089fea4ff900c5e406832dffcdd5b",
-    "reviewedSourceCommit": "d83135f93dc34bc6ab61201f7d9196bcea9b1ab2",
+    "scopeBase": "ac34dfca0f98d8cf3af757afac1be137b0c42fa5",
+    "sourceHead": "637fbfef050326ad3ba9e81e585b9ac735ed17a8",
+    "scopeDiffSha256": "d0a26fcdfc3d279cbaad1903583b161e566eb0a5d429ce7a3e30c2d697c81064",
+    "reviewedSourceCommit": "637fbfef050326ad3ba9e81e585b9ac735ed17a8",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Five checks passed: dependency compatibility, SQL/schema and core boundaries retained; GPUI patch hashes and safety explanations verified; unapproved QQ contact removed from UI and templates. No new markers or maintained-file size violations. Tests: 1549 workspace, 3 title, 18 Node and 7 Metal regressions passed. pnpm validate retains the receipt-bound Archify generated-output false positive in TECH_DEBT. ADR-008 records the approved maintenance bump. Runtime and Windows remain unverified.",
+    "evidenceSummary": "Five checks passed: bounded lifecycle/notifications and native projections; optional relay IDs without private content; core owns state and dedupe; files below hard size limit; no unfinished markers. Relevant regressions: 402 passed. Codex/Grok completion is deliberately conservative; real Agent/OS and Windows remain unverified.",
     "reason": null,
     "remainingRisk": null
   }

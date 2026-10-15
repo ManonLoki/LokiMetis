@@ -2,6 +2,50 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-16",
+      "version": "v0.3.1",
+      "featureOptimizations": [
+        {
+          "zh-CN": "托盘新增开机自启选项，勾选状态与系统设置同步。",
+          "en-US": "Add a launch-at-login option to the tray menu, reflecting the actual system setting."
+        },
+        {
+          "zh-CN": "当天Token总量首次严格超过1B时通知一次，显示当前总量；跨日重新计数。",
+          "en-US": "Notify once when daily tokens first exceed 1B, showing the current total and resetting for each new day."
+        },
+        {
+          "zh-CN": "新增Hooks询问、错误与完成通知，并在Codex或WorkBuddy换肤实际成功、失败时提示结果。",
+          "en-US": "Add Hook decision, error and completion notifications, plus result notifications for successful or failed Codex and WorkBuddy skin changes."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复取消、中断或关闭会话被误报为完成，以及普通工具执行被误报为需要决策。",
+          "en-US": "Prevent cancellations, interruptions and session closure from appearing as completion, and ordinary tool execution from appearing to require a decision."
+        },
+        {
+          "zh-CN": "修复子Agent或无关并行工具解除主Agent询问；按工具调用与MCP澄清归属处理等待和回执。",
+          "en-US": "Keep child agents and unrelated parallel tools from clearing the main agent decision state, correlating tool and MCP clarification requests with replies."
+        },
+        {
+          "zh-CN": "补齐Claude提问、OpenCode独立工具回调及决策回执，修正Grok、Gemini、Copilot、Qwen和Kimi事件映射。",
+          "en-US": "Cover Claude questions, OpenCode native tool callbacks and decision replies, and correct Grok, Gemini, Copilot, Qwen and Kimi event mappings."
+        },
+        {
+          "zh-CN": "WorkBuddy和Hermes依据真实最终结果判断完成或失败；可恢复工具错误不再封死当前工作。",
+          "en-US": "Use authoritative WorkBuddy and Hermes final outcomes for success or failure, and keep recoverable tool errors from retiring active work."
+        },
+        {
+          "zh-CN": "Codex和Grok的Stop允许同轮次继续；上游缺少确定成功信号时保守停发该事件的已完成通知。",
+          "en-US": "Allow Codex and Grok to continue the same turn after Stop, and suppress its completion notification while upstream lacks a definitive success signal."
+        },
+        {
+          "zh-CN": "通知状态独立于桌宠共享槽位，换肤结果由后台任务观察，离开页面不丢失已提交操作的结果。",
+          "en-US": "Track notification state independently of shared pet slots and observe skin results in the background so leaving the page preserves submitted outcomes."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-15",
       "version": "v0.2.57",
       "featureOptimizations": [
