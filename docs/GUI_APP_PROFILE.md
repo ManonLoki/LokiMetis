@@ -7,6 +7,8 @@
 - Logo: candidate-1 金色神谕之眼；用户在本次 Codex 表单明确选择
 - unavailable fixed capabilities: updater / general native dialog / deep_link
 
+Linux GNU x64/ARM64扩展已批准，构建及原生能力的实现边界统一见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。下列九字段仍表达产品选择；托盘依赖接通不等于Linux恢复入口和全部菜单已运行验收，Portal/X11热键新服务尚未接线，空action合同保持不变。
+
 ```gui-initialization-config
 system_tray: enabled
 system_notification: enabled

@@ -76,6 +76,11 @@
       "change_id": "LMDESK-HOOKS-PROTOCOL-AUDIT-001",
       "kind": "bug-fix",
       "required_version": "0.3.1"
+    },
+    {
+      "change_id": "LINUX-NATIVE-TOOLCHAIN-001",
+      "kind": "feature",
+      "required_version": "0.3.1"
     }
   ],
   "schema_version": 1,

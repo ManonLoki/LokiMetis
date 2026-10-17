@@ -8,7 +8,7 @@
 
 1. 先读本文件及 `docs/AGENT_POLICY.md` 的 YAML frontmatter、字段语义；仅 Task、并行、构建或永久策略任务继续读对应章节。
 2. 写入前确认 Git 顶层、分支和状态，保护已有修改；冲突无法安全归属时停止。
-3. 根 `Cargo.toml` 是版本、接口、目标平台与框架事实源；当前 GUI / GPUI / Windows、macOS，不加载 Tauri、React、Mantine 专属规则。
+3. 根 `Cargo.toml` 是版本、接口、目标平台与框架事实源；当前 GUI / GPUI / Windows、macOS、Linux，不加载 Tauri、React、Mantine 专属规则。Linux双架构工具链按 `docs/LINUX_GPUI_TOOLCHAIN.md` 渐进读取。
 4. 按任务渐进读取，仅完整读取命中 Skill 及其精确引用，不预读全部记忆或同类 Skills。
 
 ## 按任务渐进读取

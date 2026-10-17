@@ -1,6 +1,6 @@
 # 诡秘神谕 · LokiMetris
 
-LokiMetris 是一个面向 Windows 与 macOS 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261016_product_spec.md`](docs/product_spec/20261016_product_spec.md)，进度见 [持续计划](docs/work_plan/20261009_work_plan.md)。整体体验复刻尚未完成。
+LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261018_product_spec.md`](docs/product_spec/20261018_product_spec.md)，进度见 [持续计划](docs/work_plan/20261009_work_plan.md)。整体体验复刻尚未完成。
 
 ## 当前状态
 
@@ -9,7 +9,7 @@ LokiMetris 是一个面向 Windows 与 macOS 的 GPUI 原生 Rust 桌面应用�
 - 当前版本：以根 `Cargo.toml` 为准
 - Rust 架构：`loki_metris_core` + `loki_metris_gui`
 - 界面：GPUI 原生（无 WebView）
-- 目标平台：Windows、macOS
+- 目标平台：Windows、macOS、Linux（GNU x64/ARM64工具链；原生运行差异见Linux知识库）
 - 产品定义：已批准；Windows 运行与完整安装包尚未验收
 
 ## 当前实现
@@ -52,7 +52,7 @@ macOS 默认派生数据位于 `~/Library/Application Support/app-loki-metris/da
 LOKI_METRIS_DATA_DIR="$PWD/target/parity-data" pnpm run dev
 ```
 
-皮肤正式运行资源来自安装包的 `Contents/Resources/skins`（macOS）或安装根 `resources/skins`（Windows）；缺失时显示错误。源码运行由 `pnpm run dev` 设置开发资源变量，release 二进制忽略该变量。
+皮肤正式运行资源来自安装包的 `Contents/Resources/skins`（macOS）或安装根 `resources/skins`（Windows/Linux）；缺失时显示错误。源码运行由 `pnpm run dev` 设置开发资源变量，release 二进制忽略该变量。
 
 ## 构建与发布边界
 
@@ -63,6 +63,8 @@ LOKI_METRIS_DATA_DIR="$PWD/target/parity-data" pnpm run dev
 - tag、push、上传、签名、公证和渠道发布均需要各自明确授权。
 
 版本、构建和候选合同见 [`docs/RELEASE.md`](docs/RELEASE.md)。
+
+Linux GNU x64/ARM64的安装、检查、同系统交叉构建和deb/tar.gz打包统一见[Linux GPUI工程知识库](docs/LINUX_GPUI_TOOLCHAIN.md)。当前声明目标与实际运行验收分开，完整托盘/热键、桌宠及窗口原生能力不能据构建成功推断通过。
 
 ## 许可
 

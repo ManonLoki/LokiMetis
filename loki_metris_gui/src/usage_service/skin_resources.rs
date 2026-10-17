@@ -56,7 +56,7 @@ mod tests {
     use super::*;
 
     #[test]
-    /// 两平台只按安装布局定位，完全不需要历史项目或源码目录。
+    /// 各平台只按安装布局定位，Linux便携包与Debian包同样不依赖源码目录。
     fn installed_resources_resolve_without_source_tree() {
         let root = tempfile::tempdir().unwrap();
         for (macos, executable, resources) in [
@@ -69,6 +69,16 @@ mod tests {
                 false,
                 "windows/loki_metris_gui.exe",
                 "windows/resources/skins",
+            ),
+            (
+                false,
+                "LokiMetris/loki_metris_gui",
+                "LokiMetris/resources/skins",
+            ),
+            (
+                false,
+                "opt/com.loki-metris.app/loki_metris_gui",
+                "opt/com.loki-metris.app/resources/skins",
             ),
         ] {
             let binary = root.path().join(executable);

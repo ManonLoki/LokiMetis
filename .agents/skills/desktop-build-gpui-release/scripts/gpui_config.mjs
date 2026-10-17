@@ -8,6 +8,8 @@ export const TARGETS = {
   'aarch64-apple-darwin': { platform: 'macos', host: 'darwin', arch: 'aarch64', formats: ['app', 'dmg'] },
   'x86_64-apple-darwin': { platform: 'macos', host: 'darwin', arch: 'x86_64', formats: ['app', 'dmg'] },
   'x86_64-pc-windows-msvc': { platform: 'windows', host: 'win32', arch: 'x86_64', formats: ['nsis'] },
+  'aarch64-unknown-linux-gnu': { platform: 'linux', host: 'linux', arch: 'aarch64', debArch: 'arm64', machine: 183, formats: ['deb', 'tar.gz'] },
+  'x86_64-unknown-linux-gnu': { platform: 'linux', host: 'linux', arch: 'x86_64', debArch: 'amd64', machine: 62, formats: ['deb', 'tar.gz'] },
 };
 
 /** 初始化器只写中性身份，不把产品用途或发布选择写入配置。 */
@@ -64,7 +66,7 @@ export function validateConfig(value) {
   if (value.resources !== undefined) {
     if (!Array.isArray(value.resources)) throw new Error('resources must be an array');
     for (const resource of value.resources) {
-      keys(resource,['source','macos','windows'],'resource');
+      keys(resource,['source','macos','windows',...(Object.hasOwn(resource ?? {},'linux') ? ['linux'] : [])],'resource');
       for (const [key,item] of Object.entries(resource)) { text(item,`resource ${key}`); relativePath(item); }
     }
   }

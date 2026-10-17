@@ -41,7 +41,7 @@ pnpm run gpui:package --help
 ```
 
 - 除向后兼容的可选 `resources` 外所有字段必须存在；未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件。`minimumSystemVersion` 至少 11.0。
-- `resources` 缺省为空数组，每项严格为 `{ "source": "项目内文件或目录", "macos": "包内相对路径", "windows": "安装根相对路径" }`。目录递归展开且不能含链接、特殊文件或空目录；例如皮肤资源使用 `{ "source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins" }`，分别进入 `Contents/Resources/skins` 与 Windows 安装根的 `resources/skins`。目标不能大小写碰撞、形成文件/目录前缀冲突，或覆盖两份许可证、根日志、macOS图标、Windows主程序及卸载器。
+- `resources`缺省为空数组，每项包含`source`、`macos`、`windows`及可选`linux`目标；Linux构建要求每项显式声明linux路径，不从其它平台猜测。目录递归拒绝链接、特殊文件、空目录、大小写/前缀冲突及保留文件覆盖。完整Linux布局、双架构工具链和示例见[Linux知识库](../../../../docs/LINUX_GPUI_TOOLCHAIN.md)；原macOS/Windows映射保持不变。
 - 可选 `releaseNotesUi` 必须为布尔值；`true` 表示设置页等关于页之外的入口也消费构建嵌入更新日志，候选仍必须检查二进制内的原始 JSON 字节。缺省保持原关于页判断；`false` 不能关闭已启用关于页的嵌入合同。普通本地试包不生成发布记录。
 - 测试前捕获排序文件清单及SHA-256，测试后、打包前和manifest前复算，Git忽略文件也参与漂移检测。复制和最终app/zip/DMG/NSIS核对相同摘要；资源根本身或其祖先为链接时拒绝。manifest的 `bundledResources` 记录目标路径与摘要；该证据不替代实际运行验收。
 - `windows.extractor` 仅可填写项目内已批准/声明的 `7z.exe` 或 `7zr.exe` 相对路径；调用协议为 `x -y -o<本次隔离目录> <最终NSIS>`。Skill 不下载安装它。支持哪种 NSIS 压缩由实际提取结果决定，解包失败或缺资源阻断候选。

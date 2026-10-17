@@ -15,6 +15,7 @@ import { packagerConfig, packagePath, signingChoice, finalizeSigning, verifyReso
 import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable, stageResources } from './gpui_resources.mjs';
 import { signLocalBundle, verifyLocalBundle } from './gpui_macos_identity.mjs';
+import { executeLinuxBuild } from './gpui_linux_build.mjs';
 
 /** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
 export function assertNodeRuntime(version = process.versions.node) {
@@ -50,15 +51,15 @@ export function gitIdentity(root, run) {
 }
 
 /** local 可从 dirty 开始，但源文件/HEAD 在本次测试和构建过程中必须保持同一快照。 */
-function assertSourceStable(root, run, original) {
+export function assertSourceStable(root, run, original) {
   if (!isDeepStrictEqual(gitIdentity(root,run),original)) throw new Error('source commit or worktree bytes changed during build');
 }
 
 /** tracked 策略在 metadata、测试和构建全部传 --locked。 */
-function cargoArguments(base, lockPolicy) { return [...base,...(lockPolicy === 'tracked' ? ['--locked'] : [])]; }
+export function cargoArguments(base, lockPolicy) { return [...base,...(lockPolicy === 'tracked' ? ['--locked'] : [])]; }
 
 /** 隔离目录必须真实受 Git 忽略，避免构建污染 clean 源码。 */
-function assertIgnored(run, relative) {
+export function assertIgnored(run, relative) {
   const result = run('git',['check-ignore','-q','--no-index','--',relative]);
   if (result.status !== 0) throw new Error(`build directory must be Git-ignored: ${relative}`);
 }
@@ -150,6 +151,7 @@ export function writeIcons(root, config) {
 export function executeBuild(options, hooks = {}) {
   const root = safeRoot(options.root), run = hooks.run ?? commandRunner(root);
   const platform = hooks.platform ?? process.platform, environment = hooks.env ?? process.env;
+  if (platform === 'linux' && options.command !== 'icons') return executeLinuxBuild(options, { ...hooks, run });
   const identity = gitIdentity(root,run), config = readConfig(root);
   const lockPolicy = readDependencyLockPolicy(root);
   const metadata = JSON.parse(run('cargo',cargoArguments(['metadata','--no-deps','--format-version','1'],lockPolicy)).stdout);
@@ -286,7 +288,7 @@ export function main(argv = process.argv.slice(2)) {
     root: { type: 'string', default: '.' }, mode: { type: 'string', default: 'local' }, target: { type: 'string' }, format: { type: 'string' },
     e2e: { type: 'string' }, 'e2e-reason': { type: 'string' }, 'e2e-risk': { type: 'string' }, signing: { type: 'string' }, 'signing-source': { type: 'string' }, help: { type: 'boolean', short: 'h' },
   } });
-  if (values.help) { process.stdout.write('Usage: node build_gpui_release.mjs preview|setup|icons|build --root <project> --mode local|candidate [--target <native-triple>] [--format app|dmg|nsis] [--e2e enabled|disabled --e2e-reason <text> --e2e-risk <text>] [--signing disabled|enabled --signing-source not-requested|configured|requested|channel-required]\n'); return 0; }
+  if (values.help) { process.stdout.write('Usage: node build_gpui_release.mjs preview|setup|icons|build --root <project> --mode local|candidate [--target <triple>] [--format app|dmg|nsis|deb|tar.gz] [--e2e enabled|disabled --e2e-reason <text> --e2e-risk <text>] [--signing disabled|enabled --signing-source not-requested|configured|requested|channel-required]\n'); return 0; }
   if (positionals.length !== 1 || !['preview','setup','icons','build'].includes(positionals[0])) throw new Error('expected one command: preview|setup|icons|build');
   const result = executeBuild({ ...values, command: positionals[0], e2eReason: values['e2e-reason'], e2eRisk: values['e2e-risk'], signingSource: values['signing-source'] });
   process.stdout.write(JSON.stringify(result,null,2) + '\n'); return 0;

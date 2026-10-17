@@ -18,7 +18,7 @@ function assertTargets(files, reserved) {
 
 /** 逐层拒绝链接、特殊文件和空映射，摘要同时覆盖被Git忽略的产品资源。 */
 export function collectResources(root, config, platform, candidate) {
-  if (!['macos','windows'].includes(platform)) throw new Error('unsupported resource platform');
+  if (!['macos','windows','linux'].includes(platform)) throw new Error('unsupported resource platform');
   const mandatory = ['LICENSE.zh-CN.md','LICENSE.en.md',...(candidate ? ['release-notes.json'] : [])];
   const files = mandatory.map(source => ({source,target:source,sha256:sha256(safePath(root,source,{type:'file'}))}));
   const custom = [];
@@ -32,8 +32,11 @@ export function collectResources(root, config, platform, candidate) {
     } else if (stat.isFile()) custom.push({source,target,sha256:sha256(full)});
     else throw new Error(`resource must be an ordinary file or directory: ${source}`);
   }
-  for (const item of config.resources ?? []) walk(item.source,item[platform]);
-  assertTargets(custom,['LICENSE.zh-CN.md','LICENSE.en.md','release-notes.json',...(platform==='windows'?[`${config.binary}.exe`,'uninstall.exe']:[path.posix.basename(config.icons.macos)])]);
+  for (const item of config.resources ?? []) {
+    if (!item[platform]) throw new Error(`resource requires an explicit ${platform} destination: ${item.source}`);
+    walk(item.source,item[platform]);
+  }
+  assertTargets(custom,['LICENSE.zh-CN.md','LICENSE.en.md','release-notes.json',...(platform==='windows'?[`${config.binary}.exe`,'uninstall.exe']:platform==='linux'?[config.binary,'launch','app.png']:[path.posix.basename(config.icons.macos)])]);
   files.push(...custom);
   return files.sort((a,b)=>a.target < b.target ? -1 : a.target > b.target ? 1 : 0);
 }

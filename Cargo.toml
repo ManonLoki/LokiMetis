@@ -47,6 +47,9 @@ tray-icon = { version = "=0.26.1", default-features = false }
 auto-launch = "0.6.0"
 interprocess = "2.4.5"
 global-hotkey = "0.8.0"
+# Linux热键分别使用桌面Portal与可确认注册结果的X11连接，仅由Linux GUI继承。
+ashpd = { version = "0.13.13", default-features = false, features = ["async-io", "global_shortcuts"] }
+x11rb = { version = "0.13.2", features = ["xkb"] }
 raw-window-handle = "0.6.2"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSWindow", "NSView", "NSScreen", "NSResponder", "NSEvent", "NSWorkspace", "NSRunningApplication", "libc"] }
 objc2 = "0.6.5"
@@ -57,7 +60,7 @@ objc2-user-notifications = { version = "0.3.2", default-features = false, featur
 [workspace.metadata.agent-first-harness]
 project-id = "loki_metris"
 interfaces = ["gui"]
-target-platforms = ["windows", "macos"]
+target-platforms = ["windows", "macos", "linux"]
 gui-framework = "gpui"
 
 [patch.crates-io]

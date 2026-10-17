@@ -1,11 +1,13 @@
 ---
 name: desktop-build-gpui-release
-description: 通过项目根 pnpm 工程入口为 GPUI Rust GUI 原生构建 macOS app/DMG 或 Windows x64 NSIS；独立处理本地试包和已发布源码候选。
+description: 通过项目根pnpm入口为GPUI构建macOS app/DMG、Windows x64 NSIS及Linux x64/ARM64 deb或tar.gz，区分本地试包和已发布候选。
 ---
 
 # 构建 GPUI 安装包
 
-只用于根 Cargo metadata 的 `interfaces` 含 `gui` 且 `gui-framework = "gpui"` 的终端下游。Harness 源维护、Tauri、Linux GUI 和跨系统打包不走此入口。不调用前端、Tauri 插件、远端、安装、启动或渠道分发。
+只用于根Cargo metadata选择GPUI GUI的终端下游。Harness模板源、Tauri和跨操作系统打包不走此入口；Linux允许同系统x64/ARM64交叉架构构建。不给安装包自动执行安装、启动或分发。
+
+Linux任务先读[项目Linux工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md)，再按其双架构依赖、宿主测试、ELF校验和最终解包合同执行。Linux的`setup`仅复探系统工具，不安装cargo-packager；实际系统依赖安装只走已授权的Linux专用入口。Windows/macOS继续使用下文原有流程。
 
 ## 选择模式
 
@@ -38,7 +40,7 @@ pnpm run gpui:package setup --root .
 pnpm run gpui:package icons --root .
 ```
 
-macOS 原生支持当前架构或已安装 Apple target 的 `.app.zip`/DMG；Windows x64 原生支持 MSVC NSIS。目标必须已列入 Cargo metadata。Linux、Windows ARM、Docker/xwin 跨系统编译尚无受管产物证据，明确阻断；示例项目有 Docker 实验路线不等于当前 Skill 支持它。
+macOS原生支持当前架构或已安装Apple target的app/DMG；Windows x64原生支持MSVC NSIS；Linux GNU x64/ARM64支持deb/tar.gz并分别记录原生或跨架构模式。目标必须已列入Cargo metadata。Windows ARM、Docker/xwin及跨操作系统编译仍未接入；Linux交叉构建不等于目标宿主运行通过。
 
 ```sh
 pnpm run gpui:package build --root . --mode local --format app

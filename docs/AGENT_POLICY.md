@@ -148,6 +148,7 @@ Task 绑定：
 - 日常直接实施，只运行必要相关非空测试，不自动追加计划、全仓检查、构建、E2E 或人工复核。
 - parallel_worktree_subagents 只控制当前 Task 内部受管并行 Worktree，不自动创建左侧 Task；当前关闭，读取型协作不形成写入 Worktree。
 - 普通 GPUI 本地试包使用 $desktop-build-gpui-release 的 local 模式，不升级为发布候选，不生成发布日志、上下文、release/、提交或 tag。
+- Linux GNU x64/ARM64的同系统构建、交叉目标依赖与deb/tar.gz打包按`docs/LINUX_GPUI_TOOLCHAIN.md`及本项目保留的GPUI Skill执行；宿主单元测试不替代交叉目标运行证据。不改变已确认的发布后动作或当前候选的独立选择。
 - 发布候选需 clean 已发布默认主分支/tag，运行项目全部非空单元测试，每次单独解析 e2eSelection。当前请求明确时复用；否则先读 e2e_hint 建议再询问一次，产品/渠道硬要求优先。只把本次选择写候选证据，不改本策略。
 - E2E 启用时只运行完整最终候选；禁用记录 Not run、原因和风险。acceptance_smoke 的允许不替代产品批准和完整候选要求。GPUI 不使用 Tauri 插件、前端测试或 Tauri 初始化 E2E Skill。
 - macOS 签名默认 disabled/not-requested 且不探测身份；仅已批准配置、当次主动要求或渠道硬要求才启用，签名、公证、stapling 完整执行，不降级。Windows 运行验收只能在真实 Windows 宿主完成。
