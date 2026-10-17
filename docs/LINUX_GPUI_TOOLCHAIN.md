@@ -64,6 +64,8 @@ pnpm run gpui:package build --root . --mode local --target x86_64-unknown-linux-
 
 local仅写忽略的`target/gpui-packaging/local-linux-*`，生成包、相邻SHA-256和manifest。candidate继续要求clean已发布默认主分支/tag、冻结上下文、版本门禁及当次E2E选择；未实现Linux签名，任何启用请求都明确阻断。构建结果只保存在忽略目录和最终回复，不写入本知识库或伪造验收记录。
 
+单实例测试使用文件型Unix socket，完整路径受sockaddr_un容量限制。测试TMPDIR固定选择项目`target/lt-*`短目录，为tempfile/private/instance.sock预留空间；不要放进深层打包工作目录。项目路径本身过长时明确报错并选择更短的本地checkout，不创建不透明链接或跳过单实例回归。tar写入归档前使用`--`终止选项，并移除继承的TAR_OPTIONS，避免产品目录名被解释为命令选项。
+
 ## 维护与验证入口
 
 修改Linux打包路径时运行`node --test .agents/skills/desktop-build-gpui-release/scripts/gpui_linux.test.mjs .agents/skills/desktop-build-gpui-release/scripts/gpui_build.test.mjs`。Linux测试使用真实系统ELF和真实tar/dpkg-deb验证最终包，但这些夹具不是产品候选；GUI皮肤定位回归同时覆盖便携及Debian安装目录。Windows/macOS回归保留原有约束，不为支持Linux放宽签名、资源、发行或候选门禁。

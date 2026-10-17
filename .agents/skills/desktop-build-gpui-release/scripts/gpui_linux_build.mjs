@@ -55,6 +55,23 @@ export function probeLinuxLinker(root,run,target,env) {
   return {status:'linked-and-elf-verified',target,binary,sha256:sha256(binary),runtimeVerification:'Not run (compile/link probe only)'};
 }
 
+/** 短路径位于项目持久卷，为tempfile与instance.sock后缀保留Unix地址空间。 */
+export function linuxTestTemporary(root) {
+  const parent=safePath(root,'target',{type:'directory'});
+  if (Buffer.byteLength(path.join(parent,'lt-XXXXXX'))>70) throw new Error('project path is too long for Unix socket test fixtures; use a shorter local checkout path');
+  return fs.mkdtempSync(path.join(parent,'lt-'));
+}
+
+/** 宿主测试沿用原生默认编译器，清除交叉目标覆盖并复用普通Cargo测试缓存。 */
+export function linuxHostTestEnvironment(environment=process.env) {
+  const env={...environment,CARGO_BUILD_JOBS:environment.CARGO_BUILD_JOBS ?? '1',CARGO_PROFILE_TEST_DEBUG:'0'};
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('PKG_CONFIG') || /^(?:CC|CXX|AR)(?:_|$)/u.test(key) || /^CARGO_TARGET_.+_LINKER$/u.test(key)
+        || ['CARGO_BUILD_TARGET','HARNESS_GPUI_RELEASE_NOTES_RS'].includes(key)) delete env[key];
+  }
+  return env;
+}
+
 /** Linux沿用默认主分支/日志/测试/资源门禁，local不写release或发布元数据。 */
 export function executeLinuxBuild(options,hooks) {
   const root=safeRoot(options.root), run=hooks.run, environment=hooks.env ?? process.env;
@@ -88,10 +105,8 @@ export function executeLinuxBuild(options,hooks) {
   const cargoDirectory=safePath(root,'target',{type:'directory'});
   const env={...toolchain.env,CARGO_TARGET_DIR:cargoDirectory};
   // 测试始终运行当前真实宿主，禁止执行交叉目标或将其记录成目标运行证据。
-  const testEnv={...linuxEnvironment(host,host,environment),CARGO_TARGET_DIR:cargoDirectory,CARGO_PROFILE_TEST_DEBUG:'0'};
-  delete testEnv.CARGO_BUILD_TARGET;
-  delete testEnv[`CARGO_TARGET_${host.replaceAll('-','_').toUpperCase()}_LINKER`];
-  testEnv.TMPDIR=path.join(work,'test-tmp'); fs.mkdirSync(testEnv.TMPDIR,{mode:0o700});
+  const testEnv={...linuxHostTestEnvironment(environment),CARGO_TARGET_DIR:cargoDirectory};
+  testEnv.TMPDIR=linuxTestTemporary(root);
   const unitTests={...runWorkspaceTests(root,facts,run,testEnv),target:host,scope:'host-workspace'};
   if (embedNotes) {
     env.HARNESS_GPUI_RELEASE_NOTES_RS=path.join(work,'release_notes.rs');

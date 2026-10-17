@@ -90,8 +90,9 @@ export function makeLinuxPackage({root, work, config, facts, info, binary, resou
     if (fs.readFileSync(path.join(control,'control'),'utf8') !== fs.readFileSync(path.join(staged.image,'DEBIAN/control'),'utf8')) throw new Error('Debian control bytes differ');
     if (fs.readdirSync(control).join(',') !== 'control') throw new Error('unexpected Debian maintainer scripts');
   } else {
-    run('tar',['--sort=name','--owner=0','--group=0','--numeric-owner','-czf',artifact,'-C',staged.image,staged.applicationRelative]);
-    fs.mkdirSync(extracted); run('tar',['--no-same-owner','-xzf',artifact,'-C',extracted]);
+    const env={...process.env}; delete env.TAR_OPTIONS;
+    run('tar',['--sort=name','--owner=0','--group=0','--numeric-owner','-czf',artifact,'-C',staged.image,'--',staged.applicationRelative],{env});
+    fs.mkdirSync(extracted); run('tar',['--no-same-owner','-xzf',artifact,'-C',extracted],{env});
   }
   if (JSON.stringify(treeSnapshot(extracted)) !== JSON.stringify(expected)) throw new Error('final Linux package tree differs');
   const app=safePath(extracted,staged.applicationRelative,{type:'directory'});

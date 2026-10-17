@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {spawnSync} from 'node:child_process';
-import {linuxEnvironment,checkLinuxToolchain,probeLinuxLinker} from './gpui_linux_build.mjs';
+import {linuxEnvironment,checkLinuxToolchain,probeLinuxLinker,linuxTestTemporary,linuxHostTestEnvironment} from './gpui_linux_build.mjs';
 import {verifyElf,makeLinuxPackage,treeSnapshot} from './gpui_linux_package.mjs';
 import {TARGETS,renderDefaultConfig,validateConfig} from './gpui_config.mjs';
 import {collectResources} from './gpui_resources.mjs';
@@ -33,6 +33,20 @@ test('cross toolchain rejects a host library returned by pkg-config',()=>{
   assert.throws(()=>checkLinuxToolchain(fake,'x86_64-unknown-linux-gnu','aarch64-unknown-linux-gnu',{}),/another architecture/);
 });
 
+test('host tests cannot inherit target linker, compiler, pkg-config or release-note overrides',()=>{
+  const env=linuxHostTestEnvironment({PATH:'/usr/bin',CARGO_BUILD_TARGET:'x86_64-unknown-linux-gnu',CC:'cross-cc',CC_x86_64_unknown_linux_gnu:'cross-cc',CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER:'cross-ld',PKG_CONFIG_LIBDIR:'/cross-libs',HARNESS_GPUI_RELEASE_NOTES_RS:'/release-notes'});
+  assert.deepEqual(env,{PATH:'/usr/bin',CARGO_BUILD_JOBS:'1',CARGO_PROFILE_TEST_DEBUG:'0'});
+});
+
+test('Linux fixture paths reserve room for Unix sockets and reject an overlong checkout',t=>{
+  const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'l-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  fs.mkdirSync(path.join(root,'target'));
+  const directory=linuxTestTemporary(root);
+  assert.ok(Buffer.byteLength(path.join(directory,'.tmpABCDEF','private','instance.sock'))<108);
+  const long=path.join(root,'long'.repeat(24)); fs.mkdirSync(path.join(long,'target'),{recursive:true});
+  assert.throws(()=>linuxTestTemporary(long),/too long for Unix socket/);
+});
+
 test('ELF header rejects another architecture or truncated executable',t=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'gpui-elf-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   const file=path.join(root,'binary'), bytes=Buffer.alloc(64);
@@ -56,7 +70,7 @@ test('Linux resources require an explicit mapping and reject binary collisions',
 
 for(const format of ['deb','tar.gz']) test(`real ${format} preserves final binary, resources, executable modes and Debian identity`,{skip:process.platform!=='linux'},t=>{
   const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-linux-package-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
-  const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:'Sample',owner:'Owner'});
+  const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:format==='tar.gz'?'--help':'Sample',owner:'Owner'});
   config.icons.source='icon.png'; config.resources=[{source:'skin',macos:'skins',windows:'resources/skins',linux:'resources/skins'}];
   for(const [name,bytes] of Object.entries({'LICENSE.en.md':'License en','LICENSE.zh-CN.md':'License zh','icon.png':'fixture-icon','skin/theme.txt':'theme'})) {
     const file=path.join(root,name); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,bytes);
