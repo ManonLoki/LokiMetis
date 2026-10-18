@@ -3,7 +3,7 @@
 use gpui_kit::{GraphicalEnvironment, Window};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::sync::OnceLock;
-use x11rb::{connection::Connection as _, protocol::xproto::{AtomEnum, ConnectionExt as _, PropMode}, wrapper::ConnectionExt as _};
+use x11rb::{protocol::xproto::{AtomEnum, ConnectionExt as _, PropMode}, wrapper::ConnectionExt as _};
 
 /// 启动前解码并缓存有限尺寸；窗口线程只提交已准备的 ARGB 像素。
 static ICON: OnceLock<Vec<u32>> = OnceLock::new();
@@ -62,6 +62,7 @@ pub(crate) fn x11_window_id(window: &Window) -> anyhow::Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use x11rb::connection::Connection as _;
 
     /// Wayland 会话的 XWayland 保留完整桌宠宿主能力，纯 Wayland 不伪造 DISPLAY。
     #[test]

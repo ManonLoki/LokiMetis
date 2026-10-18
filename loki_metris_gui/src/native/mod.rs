@@ -26,6 +26,9 @@ use std::time::Duration;
 /// 平台窗口与已选服务由唯一 Global 持有，不增加第二条事件循环。
 pub struct Services {
     main:AnyWindowHandle,
+    /// 主窗后端在安装时捕获；关闭回调已借用Window，不能再次update同一窗口探测句柄。
+    #[cfg(target_os = "linux")]
+    main_is_x11: bool,
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     shell: gpui_kit::WeakEntity<crate::app::Shell>,
     #[cfg(any(target_os="macos", all(windows, not(test))))]
@@ -42,6 +45,9 @@ pub struct Services {
     #[cfg(all(windows, test))]
     window: Option<windows::MainWindow>,
     tray: Option<tray::Tray>,
+    /// 虚拟平台只替换恢复入口事实，不创建真实托盘或伪装原生显隐已通过。
+    #[cfg(all(target_os = "linux", test))]
+    tray_restore_available_for_test: Option<bool>,
     pub autostart: autostart::Service,
     pub notifications: notifications::Service,
     _instance: instance::Instance,
@@ -56,6 +62,8 @@ impl Services {
 /// 主窗口创建后安装宿主机制；不注册登录项，不申请通知权限，不绑定默认热键。
 pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::Shell>, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
     menu::install(locale, cx);
+    #[cfg(target_os = "linux")]
+    let main_is_x11 = handle.update(cx, |_, window, _| linux::x11_window_id(window).is_ok()).unwrap_or(false);
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     let window_host = shell.update(cx, |shell, _| shell.window_host()).ok().flatten();
     #[cfg(windows)]
@@ -133,6 +141,8 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
     });
     cx.set_global(Services {
         main:handle,
+        #[cfg(target_os = "linux")]
+        main_is_x11,
         #[cfg(any(target_os="macos", all(windows, not(test))))]
         shell,
         #[cfg(any(target_os="macos", all(windows, not(test))))]
@@ -147,6 +157,8 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         #[cfg(all(windows, test))]
         window: native_window,
         tray,
+        #[cfg(all(target_os = "linux", test))]
+        tray_restore_available_for_test: None,
         autostart,
         notifications,
         _instance: instance,
@@ -253,8 +265,7 @@ pub(crate) fn minimize_main(cx: &mut App) {
 pub fn hide_if_available(cx: &mut App) -> bool {
     #[cfg(target_os = "linux")]
     {
-        let Some(main) = cx.try_global::<Services>().map(|service| service.main) else { return false; };
-        if !main.update(cx, |_, window, _| linux::x11_window_id(window).is_ok()).unwrap_or(false) { return false; }
+        if !cx.try_global::<Services>().is_some_and(|service| service.main_is_x11) { return false; }
     }
     let available = tray_restore_available(cx);
     tracing::info!(event="tray_hide_requested", services_present=cx.has_global::<Services>(),
@@ -306,6 +317,8 @@ pub fn hide_if_available(cx: &mut App) -> bool {
 
 /// 只在关闭边界读取系统托盘位置，不增加后台轮询或第二份托盘状态。
 pub(crate) fn tray_restore_available(cx: &App) -> bool {
+    #[cfg(all(target_os = "linux", test))]
+    if let Some(available) = cx.try_global::<Services>().and_then(|service| service.tray_restore_available_for_test) { return available; }
     cx.try_global::<Services>().and_then(|services| services.tray.as_ref()).is_some_and(tray::Tray::restore_entry_available)
 }
 
@@ -378,3 +391,6 @@ pub fn set_notification(enabled:bool,cx:&mut App) {if let Some(service)=cx.try_g
 pub fn refresh_notification_permission(cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.refresh_permission(cx);}}
 /// 明确按钮重试由同一应用 owner 处理。
 pub fn retry_notifications(cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.retry(cx);}}
+
+#[cfg(all(target_os = "linux", test))]
+mod close_tests;

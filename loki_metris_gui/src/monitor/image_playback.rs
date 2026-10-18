@@ -155,6 +155,9 @@ impl MonitorImageView {
     pub fn release_pixels(&mut self, cx: &Context<Self>) -> Option<Arc<DecodedMonitorImage>> {
         if self.started.is_some() {
             self.pause(cx);
+        } else {
+            // 静态图没有播放任务，但卸载同样撤销尚未送达的首帧通知。
+            self.generation = self.generation.wrapping_add(1);
         }
         self.decoded.take()
     }
@@ -176,7 +179,17 @@ impl MonitorImageView {
                     self.timeline = Some(Timeline::new(&decoded));
                 }
                 self.decoded = Some(decoded);
-                cx.notify();
+                let generation = self.generation;
+                let owner = cx.entity().downgrade();
+                // prepaint 才接纳的结果尚未进入本帧绘制闭包；在绘制栈退出后请求一次正式重绘。
+                window.defer(cx, move |window, cx| {
+                    let _ = owner.update(cx, |this, cx| {
+                        if this.generation == generation && this.mounted && this.element_visible
+                            && window.is_visible() && this.decoded.is_some() {
+                            cx.notify();
+                        }
+                    });
+                });
             }
         }
     }
@@ -348,6 +361,10 @@ impl Render for MonitorImageView {
 #[cfg(all(test, target_os = "macos"))]
 #[path = "image_playback_clip_tests.rs"]
 mod rounded_clip_tests;
+
+#[cfg(test)]
+#[path = "image_playback_first_frame_tests.rs"]
+mod first_frame_tests;
 
 #[cfg(test)]
 mod tests {

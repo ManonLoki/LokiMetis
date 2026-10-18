@@ -64,67 +64,35 @@
     "LMDESK-LINUX-PACKAGE-PERMISSIONS-001",
     "LMDESK-LINUX-DEPENDENCY-ROOT-001",
     "LMDESK-LINUX-PET-HOST-001",
-    "LMDESK-LINUX-NOTIFICATIONS-001"
+    "LMDESK-LINUX-NOTIFICATIONS-001",
+    "LMDESK-STATIC-IMAGE-FIRST-FRAME-001",
+    "LMDESK-LINUX-TRAY-CLOSE-BORROW-001",
+    "LMDESK-LINUX-HICOLOR-ICON-001"
   ],
   "applied_reconciliations": [],
-  "cycle_base_version": "0.2.57",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.3.8",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "ac34dfca0f98d8cf3af757afac1be137b0c42fa5",
-    "version": "0.2.57"
+    "source_commit": "89f5e5a90ee71778b0570cc3fa2ff622e821f0a3",
+    "version": "0.3.8"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-TRAY-NOTIFICATIONS-001",
-      "kind": "feature",
-      "required_version": "0.3.0"
-    },
-    {
-      "change_id": "LMDESK-HOOKS-PROTOCOL-AUDIT-001",
+      "change_id": "LMDESK-STATIC-IMAGE-FIRST-FRAME-001",
       "kind": "bug-fix",
-      "required_version": "0.3.1"
+      "required_version": "0.3.9"
     },
     {
-      "change_id": "LINUX-NATIVE-TOOLCHAIN-001",
-      "kind": "feature",
-      "required_version": "0.3.1"
-    },
-    {
-      "change_id": "LMDESK-HOOKS-CACHE-GATE-001",
+      "change_id": "LMDESK-LINUX-TRAY-CLOSE-BORROW-001",
       "kind": "bug-fix",
-      "required_version": "0.3.2"
+      "required_version": "0.3.10"
     },
     {
-      "change_id": "LMDESK-LINUX-DOCK-ICON-001",
+      "change_id": "LMDESK-LINUX-HICOLOR-ICON-001",
       "kind": "bug-fix",
-      "required_version": "0.3.3"
-    },
-    {
-      "change_id": "LMDESK-LINUX-TRAY-RESTORE-001",
-      "kind": "bug-fix",
-      "required_version": "0.3.4"
-    },
-    {
-      "change_id": "LMDESK-LINUX-PACKAGE-PERMISSIONS-001",
-      "kind": "bug-fix",
-      "required_version": "0.3.5"
-    },
-    {
-      "change_id": "LMDESK-LINUX-DEPENDENCY-ROOT-001",
-      "kind": "bug-fix",
-      "required_version": "0.3.6"
-    },
-    {
-      "change_id": "LMDESK-LINUX-PET-HOST-001",
-      "kind": "bug-fix",
-      "required_version": "0.3.7"
-    },
-    {
-      "change_id": "LMDESK-LINUX-NOTIFICATIONS-001",
-      "kind": "bug-fix",
-      "required_version": "0.3.8"
+      "required_version": "0.3.11"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.3.8"
+  "target_version": "0.3.11"
 }

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { safePath, sha256 } from './gpui_filesystem.mjs';
 import { stageResources } from './gpui_resources.mjs';
 import { verifyResources } from './gpui_packager.mjs';
+import { decodePng, renderPngIcon } from './gpui_icons.mjs';
 
 /** 直接核对ELF64小端头和机器编号，交叉目标无需执行即可拒绝错误架构。 */
 export function verifyElf(file, info) {
@@ -60,8 +61,8 @@ export function stageLinuxTree({root, work, config, facts, info, binary, resourc
     fs.writeFileSync(destination, `#!/bin/sh\nexec /opt/${config.identifier}/${config.binary} "$@"\n`, {mode:0o755, flag:'wx'});
     const desktop = path.join(image, 'usr/share/applications'); fs.mkdirSync(desktop, {recursive:true});
     fs.writeFileSync(path.join(desktop, `${config.identifier}.desktop`), desktopEntry(config, `/${wrapper}`), {flag:'wx'});
-    const icons = path.join(image,'usr/share/icons/hicolor/1024x1024/apps'); fs.mkdirSync(icons, {recursive:true});
-    fs.copyFileSync(path.join(application,'app.png'), path.join(icons, `${config.identifier}.png`));
+    const icons = path.join(image,'usr/share/icons/hicolor/512x512/apps'); fs.mkdirSync(icons, {recursive:true});
+    fs.writeFileSync(path.join(icons, `${config.identifier}.png`), renderPngIcon(fs.readFileSync(path.join(application,'app.png')),512), {flag:'wx'});
     const control = path.join(image, 'DEBIAN'); fs.mkdirSync(control);
     const glibc = glibcRequirement(run, binary);
     const dependencies = [`libc6 (>= ${glibc})`, 'libgcc-s1', 'libstdc++6', 'libfontconfig1', 'libfreetype6',
@@ -115,5 +116,9 @@ export function makeLinuxPackage({root, work, config, facts, info, binary, resou
   verifyElf(safePath(app,config.binary,{type:'file'}),info);
   verifyResources(app,root,resources);
   if (sha256(path.join(app,config.binary)) !== staged.binarySha256) throw new Error('final Linux executable differs');
+  if (format === 'deb') {
+    const icon=decodePng(fs.readFileSync(safePath(extracted,`usr/share/icons/hicolor/512x512/apps/${config.identifier}.png`,{type:'file'})));
+    if (icon.width!==512 || icon.height!==512) throw new Error('final Debian hicolor icon must be 512x512 pixels');
+  }
   return {artifact, filename, binarySha256:staged.binarySha256, resourceVerification:'final-linux-package-byte-identical'};
 }

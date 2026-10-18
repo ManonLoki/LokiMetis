@@ -1,0 +1,7 @@
+    /// 只按测试平台的帧请求绘制，关闭测试模式每轮效果结束时的自动绘制。
+    pub fn use_platform_frame_requests(&mut self) {
+        self.app.borrow_mut().mode = GpuiMode::Production;
+    }
+
+    /// 返回真实测试平台窗口，供 test-support 回归只消费实际帧请求而不强制重绘。
+    pub fn test_window(&self, window: AnyWindowHandle) -> TestWindow {

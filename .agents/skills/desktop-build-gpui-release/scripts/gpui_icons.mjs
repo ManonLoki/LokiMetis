@@ -76,6 +76,12 @@ function resized(image, size) {
   return encodePng(size,size,pixels);
 }
 
+/** 从已批准源派生真实尺寸的PNG，供Linux标准hicolor目录复用同一图标算法。 */
+export function renderPngIcon(source, size) {
+  if (!Number.isInteger(size) || size < 16 || size > 2048) throw new Error('PNG icon size must be an integer from 16 to 2048');
+  return resized(decodePng(source), size);
+}
+
 /** 同一已选 Logo 的多尺寸平台容器，不改变品牌身份。 */
 export function renderPlatformIcons(source) {
   const image = decodePng(source);

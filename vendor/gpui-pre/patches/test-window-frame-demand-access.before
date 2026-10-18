@@ -1,0 +1,2 @@
+    /// Returns the `TestWindow` backing the given handle.
+    pub(crate) fn test_window(&self, window: AnyWindowHandle) -> TestWindow {

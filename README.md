@@ -1,6 +1,6 @@
 # 诡秘神谕 · LokiMetris
 
-LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261018_product_spec.md`](docs/product_spec/20261018_product_spec.md)，进度见 [持续计划](docs/work_plan/20261009_work_plan.md)。整体体验复刻尚未完成。
+LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261018_product_spec.md`](docs/product_spec/20261018_product_spec.md)，进度见 [持续计划](docs/work_plan/20261018_work_plan.md)。整体体验复刻尚未完成。
 
 ## 当前状态
 

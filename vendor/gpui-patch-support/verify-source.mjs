@@ -3,6 +3,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, lstatSync } from 'node:fs';
 import { resolve, join, relative, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { readPatchInputs } from './patch-inputs.mjs';
 
 /** 对实际字节做 SHA-256，清单换行也属于固定输入。 */
 function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
@@ -81,7 +83,7 @@ function verifyWgpuFontFixtures(directory, sourceProvenance, build) {
 }
 
 /** 从维护入口读取固定常量，并独立按模板顺序复现生成结果及其 SHA。 */
-function verify(directory) {
+export function verify(directory) {
   const provenance = JSON.parse(readFileSync(join(directory, 'provenance.json')));
   const build = readFileSync(join(directory, 'build.rs'), 'utf8');
   const expectedManifest = build.match(/source_manifest_sha256:\s*"([a-f0-9]{64})"/)?.[1];
@@ -107,19 +109,17 @@ function verify(directory) {
   const generated = new Map(originals);
   const entry = build.match(/entry:\s*"([^"]+)"/)?.[1];
   safePath(entry);
-  const prefix = readFileSync(join(directory, 'patches/root-prefix.before'), 'utf8');
+  const { patches, rootPrefix: prefix } = readPatchInputs(directory, build);
   const entryText = generated.get(entry).toString('utf8');
   if (!entryText.startsWith(prefix)) throw new Error('entry prefix drift');
   generated.set(entry, Buffer.from(entryText.slice(prefix.length)));
   const changed = new Set([entry]);
-  const patches = [...build.matchAll(/Patch\s*\{\s*name:\s*"([^"]+)",\s*path:\s*"([^"]+)",\s*before:\s*include_str!\("([^"]+)"\),\s*after:\s*include_str!\("([^"]+)"\),?\s*\}/g)];
-  for (const [, name, path, beforePath, afterPath] of patches) {
-    safePath(path); safePath(beforePath); safePath(afterPath);
-    const before = readFileSync(join(directory, beforePath), 'utf8');
-    const after = readFileSync(join(directory, afterPath), 'utf8');
+  for (const { name, path, before, after } of patches) {
+    safePath(path);
+    if (!generated.has(path)) throw new Error(`missing patch target: ${path}`);
     const text = generated.get(path).toString('utf8');
     if (!before || text.split(before).length !== 2) throw new Error(`ambiguous patch: ${name}`);
-    generated.set(path, Buffer.from(text.replace(before, after)));
+    generated.set(path, Buffer.from(text.replace(before, () => after)));
     changed.add(path);
   }
   const checked = new Set();
@@ -133,6 +133,8 @@ function verify(directory) {
     ...(fontFixtures ? { font_fixtures: fontFixtures } : {}) };
 }
 
-const paths = process.argv.slice(2);
-if (!paths.length) throw new Error('pass one or more GPUI vendor package directories');
-for (const path of paths) console.log(JSON.stringify(verify(resolve(path))));
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const paths = process.argv.slice(2);
+  if (!paths.length) throw new Error('pass one or more GPUI vendor package directories');
+  for (const path of paths) console.log(JSON.stringify(verify(resolve(path))));
+}

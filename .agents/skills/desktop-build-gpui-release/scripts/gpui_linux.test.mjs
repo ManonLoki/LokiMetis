@@ -10,12 +10,24 @@ import {verifyElf,makeLinuxPackage,treeSnapshot} from './gpui_linux_package.mjs'
 import {TARGETS,renderDefaultConfig,validateConfig} from './gpui_config.mjs';
 import {collectResources} from './gpui_resources.mjs';
 import {sha256} from './gpui_filesystem.mjs';
+import {decodePng,encodePng} from './gpui_icons.mjs';
 
 /** 外部工具保留真实stdout和非零退出，避免把打包失败当成通过。 */
 function run(program,args,options={}) {
   const result=spawnSync(program,args,{encoding:'utf8',...options});
   if(result.error || result.status!==0) throw new Error(`${program}: ${result.error?.message ?? result.stderr}`);
   return result;
+}
+
+/** 已知四色区域的真实1024 PNG，最终包必须实际缩至512，不能只更改目录标签。 */
+function iconPng() {
+  const size=1024,pixels=Buffer.alloc(size*size*4);
+  for(let y=0;y<size;y+=1) for(let x=0;x<size;x+=1) {
+    const offset=(y*size+x)*4;
+    pixels[offset]=x<size/2?231:17; pixels[offset+1]=y<size/2?47:199;
+    pixels[offset+2]=61; pixels[offset+3]=255;
+  }
+  return encodePng(size,size,pixels);
 }
 
 test('cross environments isolate target compiler and pkg-config from inherited host overrides',()=>{
@@ -80,7 +92,7 @@ for(const format of ['deb','tar.gz']) test(`real ${format} preserves final binar
   const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-linux-package-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:format==='tar.gz'?'--help':'Sample',owner:'Owner'});
   config.icons.source='icon.png'; config.resources=[{source:'skin',macos:'skins',windows:'resources/skins',linux:'resources/skins'}];
-  for(const [name,bytes] of Object.entries({'LICENSE.en.md':'License en','LICENSE.zh-CN.md':'License zh','icon.png':'fixture-icon','skin/theme.txt':'theme'})) {
+  for(const [name,bytes] of Object.entries({'LICENSE.en.md':'License en','LICENSE.zh-CN.md':'License zh','icon.png':iconPng(),'skin/theme.txt':'theme'})) {
     const file=path.join(root,name); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,bytes);
   }
   const resources=collectResources(root,config,'linux',false), work=path.join(root,'work'); fs.mkdirSync(work);
@@ -98,7 +110,16 @@ for(const format of ['deb','tar.gz']) test(`real ${format} preserves final binar
     const desktop=fs.readFileSync(path.join(work,'extracted/usr/share/applications/com.sample.app.desktop'),'utf8');
     assert.match(desktop,/^Icon=com\.sample\.app$/mu);
     assert.match(desktop,/^StartupWMClass=com\.sample\.app$/mu);
-    assert.ok(files.some(item=>item.path==='usr/share/icons/hicolor/1024x1024/apps/com.sample.app.png'));
+    const iconPath=path.join(work,'extracted/usr/share/icons/hicolor/512x512/apps/com.sample.app.png');
+    assert.ok(fs.existsSync(iconPath),'hicolor must expose the icon in a standard indexed directory');
+    assert.ok(!files.some(item=>item.path.startsWith('usr/share/icons/hicolor/1024x1024/')));
+    const icon=decodePng(fs.readFileSync(iconPath));
+    assert.equal(icon.width,512); assert.equal(icon.height,512);
+    for(const [x,y,red,green] of [[64,64,231,47],[448,64,17,47],[64,448,231,199],[448,448,17,199]]) {
+      const offset=(y*icon.width+x)*4;
+      assert.deepEqual([...icon.pixels.subarray(offset,offset+4)],[red,green,61,255]);
+    }
+    assert.equal(sha256(path.join(work,'extracted/opt/com.sample.app/app.png')),sha256(path.join(root,'icon.png')),'approved source remains byte-identical');
     const fields=run('dpkg-deb',['--field',result.artifact,'Depends']).stdout;
     assert.match(fields,/libc6 \(>= \d+\.\d+\)/);
   }
@@ -113,11 +134,12 @@ for(const format of ['deb','tar.gz']) test(`real ${format} remains readable and 
     import {makeLinuxPackage,treeSnapshot} from ${JSON.stringify(new URL('./gpui_linux_package.mjs',import.meta.url).href)};
     import {TARGETS,renderDefaultConfig} from ${JSON.stringify(new URL('./gpui_config.mjs',import.meta.url).href)};
     import {collectResources} from ${JSON.stringify(new URL('./gpui_resources.mjs',import.meta.url).href)};
+    import {encodePng} from ${JSON.stringify(new URL('./gpui_icons.mjs',import.meta.url).href)};
     process.umask(0o077);
     const {root,format}=JSON.parse(fs.readFileSync(0,'utf8'));
     const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:'Sample',owner:'Owner'});
     config.icons.source='icon.png'; config.resources=[{source:'skin',macos:'skins',windows:'resources/skins',linux:'resources/skins'}];
-    for(const [name,bytes] of Object.entries({'LICENSE.en.md':'License en','LICENSE.zh-CN.md':'License zh','icon.png':'fixture-icon','skin/theme.txt':'theme'})) {
+    for(const [name,bytes] of Object.entries({'LICENSE.en.md':'License en','LICENSE.zh-CN.md':'License zh','icon.png':encodePng(256,256,Buffer.alloc(256*256*4,255)),'skin/theme.txt':'theme'})) {
       const file=path.join(root,name); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,bytes);
     }
     const work=path.join(root,'work'); fs.mkdirSync(work);
@@ -149,7 +171,8 @@ for(const target of ['aarch64-unknown-linux-gnu','x86_64-unknown-linux-gnu']) te
   const probe=probeLinuxLinker(root,localRun,target,toolchain.env);
   assert.equal(probe.status,'linked-and-elf-verified');
   const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:'Sample',owner:'Owner'}); config.icons.source='icon.png';
-  for(const name of ['LICENSE.en.md','LICENSE.zh-CN.md','icon.png']) fs.writeFileSync(path.join(root,name),'fixture');
+  for(const name of ['LICENSE.en.md','LICENSE.zh-CN.md']) fs.writeFileSync(path.join(root,name),'fixture');
+  fs.writeFileSync(path.join(root,'icon.png'),iconPng());
   for(const format of ['deb','tar.gz']) {
     const work=path.join(root,format); fs.mkdirSync(work);
     const result=makeLinuxPackage({root,work,config,facts:{project:'sample',version:'0.1.0'},info:TARGETS[target],binary:probe.binary,resources:collectResources(root,config,'linux',false),run:localRun,format});

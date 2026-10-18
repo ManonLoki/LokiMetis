@@ -30,7 +30,7 @@ bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dep
 
 ## 原生托盘和热键方案
 
-Linux GUI显式继承现有tray-icon的`ksni`特性；KSNI通过会话D-Bus和StatusNotifierItem运行自身工作线程，不要求在GPUI主线程混入GTK循环。恢复入口由独立有界worker核对Watcher的真实宿主及注册列表，并复核条目属于本进程且Id为`main_tray`；主线程只读已发布事实。未知、断连、宿主消失或仅创建KSNI对象均不允许将主窗隐藏到不可恢复状态。
+Linux GUI显式继承现有tray-icon的`ksni`特性；KSNI通过会话D-Bus和StatusNotifierItem运行自身工作线程，不要求在GPUI主线程混入GTK循环。恢复入口由独立有界worker核对Watcher的真实宿主及注册列表，并复核条目属于本进程且Id为`main_tray`；主线程只读已发布事实。主窗口关闭回调已借用当前窗口，X11能力须在安装宿主机制时捕获，不能在关闭回调中再次update同一窗口；托盘可用性仍在关闭及延迟隐藏时重新核对。未知、断连、宿主消失或仅创建KSNI对象均不允许将主窗隐藏到不可恢复状态。
 
 热键支持依赖为ashpd（async-io/global_shortcuts）和x11rb（xkb）。Wayland必须使用GlobalShortcuts Portal及系统授权；纯X11可采用具有checked request和确定错误传播的X11连接。当前global-hotkey 0.8的Linux后端仅X11，工作线程断连时可能返回成功，不能当作已确认注册路径。
 
@@ -53,7 +53,11 @@ X11/XWayland窗口通过真实XID执行map/unmap、root全局客户区位置/尺
 
 窗口管理器确认由16ms异步timer与总2秒预算完成，正常界面不通过sleep等待。偏好只有原生效果确认后才交给文件服务；期间屏蔽中间bounds，关闭设置不撤销已接受意图，退出接管尚未提交的最后意图。首次map可能改写初始EWMH状态，显示后重新请求并确认置顶；临时几何/显隐目标确认后释放，不能用旧目标拦住后续拖动或单独切换穿透。
 
-Dock/任务栏身份统一为`com.loki-metris.app`：窗口`app_id`、Debian桌面入口和`StartupWMClass`必须一致。事件循环前由已批准Logo准备64/128像素ARGB图标，活窗写入`_NET_WM_ICON`，开发二进制无需先安装桌面入口也能提供真实图标。包内桌面入口及图标仍须通过最终包核验；桌面分组、图标呈现、混合DPI和热插拔须真实运行验证。
+Dock/任务栏身份统一为`com.loki-metris.app`：窗口`app_id`、Debian桌面入口和`StartupWMClass`必须一致。事件循环前由已批准Logo准备64/128像素ARGB图标，活窗写入`_NET_WM_ICON`。该属性不保证GNOME Dock已识别应用：宿主还须能解析有效的桌面入口与可执行入口；隔离解包运行时，宿主看不到沙箱内安装路径，须明确记录临时启动映射及恢复，不能把属性读回当作Dock图标已呈现。包内桌面入口及图标仍须通过最终包核验；桌面分组、图标呈现、混合DPI和热插拔须真实运行验证。
+
+## 静态图片首帧
+
+图片资源可能在prepaint阶段才就绪，而本帧paint闭包仍持有render阶段的空快照。在绘制中直接notify只留下dirty标记，不能据此假定平台会再发送帧；动画计时器可能掩盖同一问题。首次接纳结果后，在当前绘制栈退出时请求一次正式重绘，并以弱实体、挂载状态及代次撤销过期任务。静态图片不增加周期计时器。回归须禁用Test模式自动绘制，仅消费平台真实帧请求，同时覆盖暂停、卸载及关闭的取消边界。
 
 ## Hooks 与共享设置加载
 
@@ -80,7 +84,7 @@ pnpm run gpui:package build --root . --mode local --target x86_64-unknown-linux-
 
 每次真实打包先在真实宿主运行全workspace/all-targets/all-features非空测试，再显式target构建release二进制。交叉目标不在宿主强行执行；manifest分别记录`hostTarget`、目标、`native/cross-architecture`和宿主测试范围，目标运行状态保持Unverified。默认单个Cargo job控制内存；测试关闭调试符号，减少大GPUI链接的内存占用，不能把资源耗尽误归为源码错误。测试临时目录放在本次项目忽略的工作目录；索引夹具要求项目位于可确认本地持久卷，本机tmpfs `/tmp`会被既有卷安全策略拒绝，不能为迁就测试放宽网络/未知卷边界或改写HOME。
 
-便携归档使用`LokiMetris/主程序`与相邻`resources/skins`，附`launch`入口。Debian包使用`/opt/<应用identifier>/主程序`与相邻资源，`/usr/bin/<项目slug>`只作转发；同时安装`.desktop`与hicolor图标。版本只取Cargo，架构只取Rust目标。Debian依赖披露从真实ELF读取的glibc最低版本及所需运行库；不自带另一发行版的glibc，不安装或运行生成的应用。
+便携归档使用`LokiMetris/主程序`与相邻`resources/skins`，附`launch`入口。Debian包使用`/opt/<应用identifier>/主程序`与相邻资源，`/usr/bin/<项目slug>`只作转发；同时安装`.desktop`与hicolor图标。Debian图标从已批准母版实际派生为512×512 PNG，并安装到标准主题登记的`hicolor/512x512/apps`，最终解包核尺寸；不把1024像素原图塞进512目录，也不依赖未被主题索引登记的1024目录。版本只取Cargo，架构只取Rust目标。Debian依赖披露从真实ELF读取的glibc最低版本及所需运行库；不自带另一发行版的glibc，不安装或运行生成的应用。
 
 资源配置必须逐项显式声明`linux`目标，不默认复用macOS/Windows映射。两份根许可证、皮肤、生成器和第三方许可证均进入最终包；正式候选还需相同字节的更新日志。构建前后验证源码与资源快照；最终包真实解包后检查文件集合、权限、ELF64机器类型、二进制与资源摘要，以及Debian控制文件和桌面入口。
 

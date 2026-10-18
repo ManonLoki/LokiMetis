@@ -39,6 +39,12 @@ fn generated_sources() -> PathBuf {
                 before: include_str!("patches/style-tests-perf-attribute.before"),
                 after: include_str!("patches/style-tests-perf-attribute.after"),
             },
+            Patch {
+                name: "test-window-frame-demand-access",
+                path: "src/app/test_context.rs",
+                before: include_str!("patches/test-window-frame-demand-access.before"),
+                after: include_str!("patches/test-window-frame-demand-access.after"),
+            },
         ],
     ].concat();
     let spec = Spec {
@@ -50,7 +56,7 @@ fn generated_sources() -> PathBuf {
             ("src/element.rs", "34c1bce0a19624576243d3887ba6460e7e00a9b47a848a3141672622f27de5e6"),
             ("src/randomized_element_tree.rs", "0037f6467213be6580f5b873db359104f30ac9ba304993fc5cf3d5f860836f88"),
             ("src/svg_renderer.rs", "451bdcdb75315b64e1c6a10109a2dbf6808c9137075c124dd42dc841d92953f8"),
-            ("src/app/test_context.rs", "b3d24be3f5c03f818b6175c7f0b22889488f522fd3010b77adcd01e7a7949089"),
+            ("src/app/test_context.rs", "821aac2ed0da761c5bb18d01af492ae76867152900dd42dd0060cf2085017b53"),
             ("src/debug_overlay.rs", "35ed7c2918c601c298fe1eea0e7fa679763768016cfdc99f10f1ae6bffa4a622"),
             ("src/elements/div.rs", "1eade4ee979ab0e9c4a1d275f4730ac8f4a598baa2b3e079fe5e8189b627ef07"),
             ("src/gpui.rs", "67e623c4b2ca71e132bd25043ab7c3d1b837d5aa158a518a2a574a8c8815ff3e"),
