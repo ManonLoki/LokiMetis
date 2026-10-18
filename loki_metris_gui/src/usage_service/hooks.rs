@@ -130,3 +130,6 @@ impl UsageService {
 #[cfg(test)]
 #[path = "hooks_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "hooks_startup_tests.rs"]
+mod startup_tests;

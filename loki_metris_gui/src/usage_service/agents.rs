@@ -198,7 +198,7 @@ impl AgentSettingsStore {
         }
     }
 
-    /// 桌宠只提交自身字段，不发布默认Agent、不触发Hooks修复或覆盖其它配置。
+    /// 桌宠只提交自身字段；首次读到权威配置或Agent字段更新时同步宿主，普通移动不重复修复Hooks。
     pub(super) fn save_pet_blocking(
         &self,
         change: Option<(loki_metris_core::PetPreferenceChange, loki_metris_core::PetSizeRange)>,
@@ -212,10 +212,23 @@ impl AgentSettingsStore {
             change,
             position,
         )?;
-        if value.as_ref().is_some_and(|old| dashboard_selection_for_ai_tools(&old.enabled_ai_tools)!=dashboard_selection_for_ai_tools(&settings.enabled_ai_tools)) {
-            self.notification_source_epoch.fetch_add(1,Ordering::Release);
+        let previously_loaded = value.is_some();
+        let agent_configuration_changed = value.as_ref().is_none_or(|old| {
+            old.enabled_ai_tools != settings.enabled_ai_tools
+                || AiTool::ALL.into_iter().any(|tool| {
+                    old.hook_directories.get(tool) != settings.hook_directories.get(tool)
+                })
+        });
+        // 首次桌宠保存也可能先于设置查询；缓存一旦填充，就必须同时发布监听门禁。
+        // 同位置noop仍读取最新磁盘事实，Agent集合/目录变更不能只留在缓存中。
+        if agent_configuration_changed {
+            self.publish(&mut value, settings.clone());
+            if previously_loaded {
+                self.revision.fetch_add(1, Ordering::Release);
+            }
+        } else {
+            *value = Some(settings.clone());
         }
-        *value = Some(settings.clone());
         if changed {
             self.pet_revision.fetch_add(1, Ordering::Release);
         }

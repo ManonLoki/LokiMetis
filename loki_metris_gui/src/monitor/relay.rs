@@ -186,13 +186,25 @@ where
 
 /// 读取 stdin、生成最小信封并按领域决策投递或返回合法空 JSON。
 fn run_relay(tool: loki_metris_core::AiTool, tool_slug: &str, event: &str) -> anyhow::Result<()> {
+    relay_native_input(tool, tool_slug, event, &mut std::io::stdin(), &mut std::io::stdout(), post_local_hook)
+}
+
+/// 原生载荷读取、隐私归约与投递共用一个路径，隔离回归可注入自己的端点传输。
+fn relay_native_input(
+    tool: loki_metris_core::AiTool,
+    tool_slug: &str,
+    event: &str,
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    post: impl FnOnce(&str, &str, &[u8]) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
     let mut stdin = Vec::new();
-    std::io::stdin()
+    reader
         .take(MAX_NATIVE_HOOK_INPUT_BYTES as u64 + 1)
         .read_to_end(&mut stdin)
         .context("无法读取 AI Hook 原始输入")?;
     let prepared = prepare_native_hook(tool, &stdin, event).context("无法处理 AI Hook 原始载荷")?;
-    deliver_prepared(tool,tool_slug,&prepared,&mut std::io::stdout(),post_local_hook)
+    deliver_prepared(tool, tool_slug, &prepared, writer, post)
 }
 
 /// 必需的原生 JSON 回应独立于旁路投递结果，网络失败不能破坏宿主协议。
@@ -422,3 +434,7 @@ fn post_local_hook(slug: &str, hook_type: &str, body: &[u8]) -> anyhow::Result<(
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
 // - relay_delivery.rs：可注入文件与等待策略的可靠投递实现，确保测试不触碰真实 temp 文件。；向一个已验证描述执行单次 HTTP 投递并校验响应实例身份。；使用单一 wall-clock 截止时间执行连接、写入与完整响应读取。
 include!("relay_delivery.rs");
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "relay_command_tests.rs"]
+mod command_tests;
