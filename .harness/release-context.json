@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "637fbfef050326ad3ba9e81e585b9ac735ed17a8",
-  "version": "0.3.1",
-  "releaseDate": "2026-10-16",
-  "expectedTag": "v0.3.1-20261016",
+  "sourceHead": "e144c2530af454808d4a13f0230bc608f4306017",
+  "version": "0.3.8",
+  "releaseDate": "2026-10-18",
+  "expectedTag": "v0.3.8-20261018",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "ac34dfca0f98d8cf3af757afac1be137b0c42fa5",
-    "sourceHead": "637fbfef050326ad3ba9e81e585b9ac735ed17a8",
-    "scopeDiffSha256": "d0a26fcdfc3d279cbaad1903583b161e566eb0a5d429ce7a3e30c2d697c81064",
-    "reviewedSourceCommit": "637fbfef050326ad3ba9e81e585b9ac735ed17a8",
+    "scopeBase": "eabd2ee1eb10ff367c4e4d0d43d342a3e9a77429",
+    "sourceHead": "e144c2530af454808d4a13f0230bc608f4306017",
+    "scopeDiffSha256": "35e8d4a6eca8b9c5c468953ece28055263ad930d01e4dd12a5999c1267e0f0a0",
+    "reviewedSourceCommit": "e144c2530af454808d4a13f0230bc608f4306017",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Five checks passed: bounded lifecycle/notifications and native projections; optional relay IDs without private content; core owns state and dedupe; files below hard size limit; no unfinished markers. Relevant regressions: 402 passed. Codex/Grok completion is deliberately conservative; real Agent/OS and Windows remain unverified.",
+    "evidenceSummary": "Behavior: pet97, live icon1, notifications20, native49, Hooks35, engineering109 and validate passed. Boundary: domain stays core/services. Contracts: settings/Hooks unchanged; D-Bus, SNI and package modes verified. Responsibility/size: focused modules within limits. Temporary markers: no unfinished code, barriers clear and pending work revoked. Final E2E required.",
     "reason": null,
     "remainingRisk": null
   }
