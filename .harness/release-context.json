@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "e144c2530af454808d4a13f0230bc608f4306017",
-  "version": "0.3.8",
+  "sourceHead": "40b94740ace9eb4c3fe976b66910c3c7d0ffd651",
+  "version": "0.3.11",
   "releaseDate": "2026-10-18",
-  "expectedTag": "v0.3.8-20261018",
+  "expectedTag": "v0.3.11-20261018",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "eabd2ee1eb10ff367c4e4d0d43d342a3e9a77429",
-    "sourceHead": "e144c2530af454808d4a13f0230bc608f4306017",
-    "scopeDiffSha256": "35e8d4a6eca8b9c5c468953ece28055263ad930d01e4dd12a5999c1267e0f0a0",
-    "reviewedSourceCommit": "e144c2530af454808d4a13f0230bc608f4306017",
+    "scopeBase": "89f5e5a90ee71778b0570cc3fa2ff622e821f0a3",
+    "sourceHead": "40b94740ace9eb4c3fe976b66910c3c7d0ffd651",
+    "scopeDiffSha256": "35556613bc501c12f407fea30666fe9e3cbefdfa540907b5a19ecd69f8c5fd2a",
+    "reviewedSourceCommit": "40b94740ace9eb4c3fe976b66910c3c7d0ffd651",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Behavior: pet97, live icon1, notifications20, native49, Hooks35, engineering109 and validate passed. Boundary: domain stays core/services. Contracts: settings/Hooks unchanged; D-Bus, SNI and package modes verified. Responsibility/size: focused modules within limits. Temporary markers: no unfinished code, barriers clear and pending work revoked. Final E2E required.",
+    "evidenceSummary": "Behavior: strict static-frame RED/GREEN4, image46, native53, package43 and verifier13 passed; validate passed. Boundary: domain remains core; changes are rendering, native and packaging adapters. Contracts: installed identity preserved; actual hicolor lookup verified. Responsibility/size: focused modules within limits. Temporary markers: none added; lifetime cancellation covered. Final candidate E2E required.",
     "reason": null,
     "remainingRisk": null
   }

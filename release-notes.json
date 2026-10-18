@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-10-18",
+      "version": "v0.3.11",
+      "featureOptimizations": [
+        {
+          "zh-CN": "补齐GPUI来源校验的分组补丁解析，并同步Linux知识库及当前工程计划。",
+          "en-US": "Complete grouped GPUI patch verification and update Linux engineering knowledge and the current development plan."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复静态图片首次解码后空白，首帧无需鼠标操作、图库刷新或动画驱动。",
+          "en-US": "Fix blank static images after initial decoding without requiring pointer input, gallery refresh or animation timers."
+        },
+        {
+          "zh-CN": "修复Linux关闭主窗口时重复借用窗口，确保存在真实托盘入口时可隐藏并恢复。",
+          "en-US": "Fix a reentrant window borrow when closing the Linux main window, preserving hide and restore through a real tray entry."
+        },
+        {
+          "zh-CN": "修复GNOME找不到包内图标，实际生成512像素PNG并安装到标准hicolor目录。",
+          "en-US": "Fix missing GNOME package icons by generating a real 512-pixel PNG in the standard hicolor directory."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-18",
       "version": "v0.3.8",
       "featureOptimizations": [
         {
