@@ -3,6 +3,10 @@
 pub(crate) mod host;
 mod overlay;
 mod geometry;
+mod native_settle;
+#[cfg(test)]
+mod native_settle_tests;
+mod preference_mutation;
 mod today;
 mod settings;
 mod settings_window;
@@ -72,6 +76,7 @@ struct Controller {
     settings_window: Option<AnyWindowHandle>,
     /// 配置窗显示意图独立于设置文件读取 generation，关闭也使尚未创建的显示失效。
     settings_window_generation: u64,
+    settings_window_task: Option<Task<()>>,
     overlay_view: Option<Entity<overlay::Overlay>>,
     visible: bool,
     locale: String,
@@ -91,6 +96,8 @@ struct Controller {
     mutation: Option<Task<()>>,
     position_task: Option<Task<()>>,
     applying: bool,
+    /// 原生命令尚未确认或正在回滚，期间不保存中间 bounds。
+    native_mutating: bool,
     geometry_restored: bool,
     /// 显示租约同时约束显隐和迁屏，旧 defer 不能覆盖较新的用户意图。
     display_generation: u64,
@@ -119,6 +126,7 @@ impl Controller {
             overlay: None,
             settings_window: None,
             settings_window_generation: 0,
+            settings_window_task: None,
             overlay_view: None,
             visible: true,
             locale: locale.into(),
@@ -138,6 +146,7 @@ impl Controller {
             mutation: None,
             position_task: None,
             applying: false,
+            native_mutating: false,
             geometry_restored: false,
             display_generation: 0,
             display_request: None,

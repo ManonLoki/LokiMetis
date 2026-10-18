@@ -75,7 +75,7 @@ impl Overlay {
             let bounds = host::bounds(window);
             let scale = window.scale_factor();
             let trusted = bounds_owner.read(cx);
-            let actual = if !trusted.applying && !trusted.display_geometry_unconfirmed && trusted.geometry_restored {
+            let actual = if !trusted.applying && !trusted.native_mutating && !trusted.display_geometry_unconfirmed && trusted.geometry_restored {
                 super::window_placement::observed_state(window, cx)
             } else { None };
             bounds_owner.update(cx, |owner, cx| {

@@ -36,4 +36,4 @@ GPUI 当前 updater、通用原生 dialog、深链接 unavailable；通知、原
 
 Cargo.lock / pnpm 锁默认 ignored，测试构建不用 --locked/--frozen-lockfile；显式切换 tracked 后才按受管锁策略冻结解析。vendor原样归档中的Cargo.lock仅为来源证据，逐字节保留并跟踪，不是当前工作区的解析锁。日常只运行本次必要相关非空测试；显式候选全 workspace 测试，零测试/失败阻断。
 
-普通本地试包通过 $desktop-build-gpui-release 的 local 模式；未来正式 Git 发布后，local_package 从 clean 默认主分支/tag 进入 candidate 模式，当前构建单独解析 E2E/签名。原生 macOS app/DMG 与原生 Windows x64 NSIS 分宿主生成，当前 Windows 尚未运行，不把 macOS 构建推断为 Windows 验证。
+普通本地试包通过 $desktop-build-gpui-release 的 local 模式；正式 Git 发布后，local_package 从 clean 默认主分支/tag 进入 candidate 模式，当前构建单独解析 E2E/签名。macOS app/DMG 与 Windows x64 NSIS 分原生宿主生成；Linux GNU x64/ARM64 的 deb/tar.gz 及同系统跨架构合同见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。各次构建和目标运行证据分别核对，不把一个宿主的构建、单元测试或实物结果推断为其它平台验收。

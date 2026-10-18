@@ -4,6 +4,10 @@ pub(crate) mod windowing;
 pub(crate) mod keyboard_entry;
 mod tray;
 mod tray_hide;
+#[cfg(target_os = "linux")]
+mod tray_linux;
+#[cfg(target_os = "linux")]
+pub(crate) mod linux;
 mod menu;
 pub mod autostart;
 pub mod notifications;
@@ -28,8 +32,11 @@ pub struct Services {
     window_host: Option<windowing::WindowHost>,
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_revision: u64,
-    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    #[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
     window_action_generation: u64,
+    /// Linux 显式隐藏不同于遮挡/最小化；托盘入口消失时只恢复真实隐藏的主窗。
+    #[cfg(target_os = "linux")]
+    main_hidden: bool,
     _poll: Task<()>,
     /// 测试窗口没有原生宿主事务，显示时直接操作捕获的 HWND。
     #[cfg(all(windows, test))]
@@ -60,12 +67,14 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
     let allows_tray = native_window.is_some();
     #[cfg(not(windows))]
     let allows_tray = true;
-    let tray = if allows_tray { tray::Tray::new(locale).ok() } else { None };
+    let tray = if allows_tray { tray::Tray::new(locale, cx.background_executor().clone()).ok() } else { None };
     if tray.is_none() { tracing::warn!(event = "tray_unavailable"); }
     let autostart = autostart::Service::new();
     let mut revision = 0;
     let mut last_notification_key=None;
     let mut last_mouse_state=None;
+    #[cfg(target_os = "linux")]
+    let mut last_tray_available = false;
     #[cfg(target_os="macos")]
     let mut last_focus_revision = 0;
     let poll = cx.spawn(async move |cx| {
@@ -93,6 +102,12 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                     }
                 }
                 if receiver.try_iter().take(64).count() > 0 { show(handle, cx); }
+                #[cfg(target_os = "linux")]
+                {
+                    let available = tray_restore_available(cx);
+                    if last_tray_available && !available && cx.global::<Services>().main_hidden { show(handle, cx); }
+                    last_tray_available = available;
+                }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
                 for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::OpenPetSettings => crate::pet::open_settings(cx), tray::Event::ToggleMousePassthrough => crate::pet::toggle_mouse_passthrough(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);}, tray::Event::ToggleAutostart=>toggle_autostart(cx) } }
                 let mouse_state=crate::pet::mouse_passthrough_state(cx);
@@ -124,8 +139,10 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         window_host,
         #[cfg(any(target_os="macos", all(windows, not(test))))]
         window_revision: 0,
-        #[cfg(any(target_os="macos", all(windows, not(test))))]
+        #[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
         window_action_generation: 0,
+        #[cfg(target_os = "linux")]
+        main_hidden: false,
         _poll: poll,
         #[cfg(all(windows, test))]
         window: native_window,
@@ -178,11 +195,27 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
     {
     #[cfg(windows)]
     let native = cx.try_global::<Services>().and_then(|services| services.window);
+    #[cfg(target_os = "linux")]
+    let generation = next_window_action(cx);
     cx.defer(move |cx| {
+        #[cfg(target_os = "linux")]
+        if !window_action_current(generation, cx) { return; }
         #[cfg(windows)]
         if let Some(window) = native { window.show(); }
         cx.activate(true);
-        let _ = handle.update(cx, |_, window, _| window.activate_window());
+        let _ = handle.update(cx, |_, window, cx| {
+            #[cfg(target_os = "linux")]
+            if linux::x11_window_id(window).is_ok() {
+                if crate::pet::host::set_visible(window, true).is_err() {
+                    tracing::warn!(event="main_window_show_failed");
+                }
+                // 最小化时 WM 的父框可能尚未映射；仍须发 _NET_ACTIVE_WINDOW 解除隐藏。
+                if cx.has_global::<Services>() { cx.global_mut::<Services>().main_hidden = false; }
+            }
+            #[cfg(not(target_os = "linux"))]
+            let _ = cx;
+            window.activate_window();
+        });
     });
     }
 }
@@ -218,6 +251,11 @@ pub(crate) fn minimize_main(cx: &mut App) {
 
 /// 托盘实际成功才隐藏，失败允许正常关闭，不留下无法恢复的进程。
 pub fn hide_if_available(cx: &mut App) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        let Some(main) = cx.try_global::<Services>().map(|service| service.main) else { return false; };
+        if !main.update(cx, |_, window, _| linux::x11_window_id(window).is_ok()).unwrap_or(false) { return false; }
+    }
     let available = tray_restore_available(cx);
     tracing::info!(event="tray_hide_requested", services_present=cx.has_global::<Services>(),
         tray_present=cx.try_global::<Services>().is_some_and(|service| service.tray.is_some()),
@@ -243,12 +281,22 @@ pub fn hide_if_available(cx: &mut App) -> bool {
     }
     #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
     {
+    #[cfg(target_os = "linux")]
+    let generation = next_window_action(cx);
     cx.defer(move |cx| {
+        #[cfg(target_os = "linux")]
+        let current = window_action_current(generation, cx);
+        #[cfg(not(target_os = "linux"))]
+        let current = true;
         let available = tray_restore_available(cx);
-        request.finish(true, || available, || {
+        request.finish(current, || available, || {
         #[cfg(windows)]
         if let Some(window) = native { window.hide(); }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
+        if main.update(cx, |_, window, _| crate::pet::host::set_visible(window, false)).is_ok_and(|result| result.is_ok()) {
+            cx.global_mut::<Services>().main_hidden = true;
+        }
+        #[cfg(not(any(windows, target_os = "linux")))]
         let _=main.update(cx,|_,window,_|crate::pet::host::set_visible(window,false));
         });
     });
@@ -262,17 +310,18 @@ pub(crate) fn tray_restore_available(cx: &App) -> bool {
 }
 
 /// 服务级显示代次约束延迟 fallback show/hide，后来的相反意图撤销旧命令。
-#[cfg(any(target_os="macos", all(windows, not(test))))]
+#[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
 fn next_window_action(cx: &mut App) -> u64 {
+    if !cx.has_global::<Services>() { return 0; }
     let service = cx.global_mut::<Services>();
     service.window_action_generation = service.window_action_generation.wrapping_add(1);
     service.window_action_generation
 }
 
 /// 退出移除服务或代次变化时，迟到原生命令保持零副作用。
-#[cfg(any(target_os="macos", all(windows, not(test))))]
+#[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
 fn window_action_current(generation: u64, cx: &App) -> bool {
-    cx.try_global::<Services>().is_some_and(|service| service.window_action_generation == generation)
+    cx.try_global::<Services>().map_or(generation == 0, |service| service.window_action_generation == generation)
 }
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {

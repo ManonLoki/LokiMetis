@@ -1,6 +1,8 @@
 //! 通知开关由应用级 owner 持有；授权回调只传值，落盘回执才更新已确认状态。
 
 mod driver;
+#[cfg(target_os = "linux")]
+mod linux;
 mod host;
 mod activity;
 #[cfg(target_os = "macos")]
@@ -176,6 +178,8 @@ impl Service {
             owner.state.busy = true;
             owner.state.desired = Some(enabled);
             owner.state.error = None;
+            #[cfg(target_os = "linux")]
+            if !enabled && let Some(host) = &owner.host { host.set_delivery_allowed(false); }
             owner.generation
         };
         let executor = cx.background_executor().clone();
@@ -248,6 +252,10 @@ impl Service {
                 }
                 Err(error) => state.state.error = Some(error),
             }
+            #[cfg(target_os = "linux")]
+            if let Some(host) = &state.host {
+                host.set_delivery_allowed(state.state.enabled && state.state.permission == loki_metris_core::usage_milestones::NotificationPermission::Allowed);
+            }
             if let Some(usage) = &state.usage {
                 usage.configure_notifications(
                     state.state.enabled,
@@ -270,6 +278,8 @@ impl Service {
     pub fn stop(&self) {
         let mut owner = self.owner.borrow_mut();
         owner.closing = true;
+        #[cfg(target_os = "linux")]
+        if let Some(host) = &owner.host { host.set_delivery_allowed(false); }
         if let Some(usage) = &owner.usage { usage.activity_notifications().configure(false); }
         owner.generation += 1;
         owner.task.take();

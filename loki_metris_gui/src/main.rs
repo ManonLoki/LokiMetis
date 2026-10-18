@@ -84,7 +84,14 @@ fn main() -> std::process::ExitCode {
     if let Err(error)=usage_service.start_monitoring() {tracing::error!(event=error);}
     shutdown.borrow_mut().own_usage(usage_service.clone());
     let native_shutdown = shutdown.clone();
+    #[cfg(target_os = "linux")]
+    native::linux::prepare_icon();
     let application = gpui_kit::application().with_assets(assets::Assets);
+    // 普通 Wayland toplevel 无全局定位/置顶合同；使用本会话 X11/XWayland 保留桌宠行为。
+    #[cfg(target_os = "linux")]
+    let application = application.with_windowing(gpui_kit::WindowingRequest::Windowed(
+        native::linux::desktop_environment(gpui_kit::GraphicalEnvironment::detect()),
+    ));
     // macOS 的 Headless 仅选择 Accessory 激活策略，仍可显示原生窗口；在事件循环前避免 Dock 闪现。
     #[cfg(target_os = "macos")]
     let application = application.with_windowing(gpui_kit::WindowingRequest::Headless);
@@ -124,6 +131,12 @@ fn main() -> std::process::ExitCode {
             shell
         }))
         .expect("无法创建 GPUI 窗口");
+        #[cfg(target_os = "linux")]
+        let _ = handle.update(cx, |_, window, _| {
+            if native::linux::install_icon(window).is_err() {
+                tracing::warn!(event="linux_window_icon_unavailable");
+            }
+        });
         #[cfg(any(target_os="macos", all(windows, not(test))))]
         if startup_desktop.is_none() {
             let _ = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.release_initial_window_restore(window, cx)));

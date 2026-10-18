@@ -28,8 +28,10 @@ impl Service {
         let (events, receiver) = mpsc::sync_channel(128);
         {
             let mut owner = self.owner.borrow_mut();
-            owner.host = driver::install(events).map(Rc::new);
+            owner.host = driver::install(events, cx.background_executor().clone()).map(Rc::new);
             owner.state.host_available = owner.host.is_some();
+            #[cfg(target_os = "linux")]
+            if let Some(host) = &owner.host { host.set_delivery_allowed(owner.state.enabled && owner.state.permission == NotificationPermission::Allowed); }
             owner.usage = Some(usage.clone());
             owner.locale = locale.into();
         }
@@ -134,6 +136,8 @@ impl Service {
                     .is_some_and(|error| error != super::Error::Save);
             let changed = owner.state.permission != value || clear_error;
             owner.state.permission = value;
+            #[cfg(target_os = "linux")]
+            if let Some(host) = &owner.host { host.set_delivery_allowed(owner.state.enabled && value == NotificationPermission::Allowed); }
             if changed {
                 tracing::info!(event = "notification_permission_changed", permission = ?value);
             }
@@ -156,7 +160,7 @@ impl Service {
     /// 一个已持久预约只有一个前台系统调用；关闭或旧快照均不再提交。
     fn dispatch(&self, cx: &mut App) {
         let owner = self.owner.borrow();
-        if owner.closing || owner.delivery_task.is_some() || owner.permission_task.is_some() {
+        if owner.closing || owner.state.busy || owner.delivery_task.is_some() || owner.permission_task.is_some() {
             return;
         }
         let Some(usage) = owner.usage.clone() else {
@@ -183,10 +187,10 @@ impl Service {
         let (title, body) = message(&locale, request.total_tokens);
         let service = self.clone();
         let executor = cx.background_executor().clone();
+        let delivery = driver::send(&host, executor.clone(), request.id.clone(), title, body);
         let task = cx.spawn(async move |_cx| {
             let result = match select(
-                driver::send(&host, executor.clone(), request.id.clone(), title, body)
-                    .boxed_local(),
+                delivery.boxed_local(),
                 executor.timer(Duration::from_secs(10)).boxed_local(),
             )
             .await
@@ -250,6 +254,16 @@ impl Service {
     }
     /// 已保存开启而OS权限丢失时，明确重试动作允许再次授权；不改写本地开关。
     fn retry_permission(&self, cx: &mut App) {
+        let executor = cx.background_executor().clone();
+        self.retry_permission_using(move |deadline| driver::authorize(executor, deadline), cx);
+    }
+
+    /// 重试共享真实回执路径；隔离协议回归只替换授权结果，不访问用户通知服务。
+    pub(super) fn retry_permission_using<F: std::future::Future<Output = Result<(), super::Error>> + 'static>(
+        &self,
+        authorize: impl FnOnce(std::time::Instant) -> F + 'static,
+        cx: &mut App,
+    ) {
         let generation = {
             let mut owner = self.owner.borrow_mut();
             if owner.closing || owner.state.busy {
@@ -265,7 +279,7 @@ impl Service {
         let deadline = executor.now() + Duration::from_secs(10);
         let task = cx.spawn(async move |cx| {
             let result = match select(
-                driver::authorize(executor.clone(), deadline).boxed_local(),
+                authorize(deadline).boxed_local(),
                 executor.timer(Duration::from_secs(10)).boxed_local(),
             )
             .await
@@ -285,6 +299,10 @@ impl Service {
                 Err(_) => NotificationPermission::Unavailable,
             };
             owner.permission_at = Some(executor.now());
+            #[cfg(target_os = "linux")]
+            if let Some(host) = &owner.host {
+                host.set_delivery_allowed(owner.state.enabled && owner.state.permission == NotificationPermission::Allowed);
+            }
             if let Some(usage) = &owner.usage {
                 usage.configure_notifications(
                     owner.state.enabled,

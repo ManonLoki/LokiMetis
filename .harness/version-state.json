@@ -58,7 +58,13 @@
     "LM-DEPENDENCY-MAINTENANCE-RELEASE-20261015",
     "LMDESK-REMOVE-FOREIGN-QQ-001",
     "LMDESK-HOOKS-PROTOCOL-AUDIT-001",
-    "LMDESK-HOOKS-CACHE-GATE-001"
+    "LMDESK-HOOKS-CACHE-GATE-001",
+    "LMDESK-LINUX-DOCK-ICON-001",
+    "LMDESK-LINUX-TRAY-RESTORE-001",
+    "LMDESK-LINUX-PACKAGE-PERMISSIONS-001",
+    "LMDESK-LINUX-DEPENDENCY-ROOT-001",
+    "LMDESK-LINUX-PET-HOST-001",
+    "LMDESK-LINUX-NOTIFICATIONS-001"
   ],
   "applied_reconciliations": [],
   "cycle_base_version": "0.2.57",
@@ -87,8 +93,38 @@
       "change_id": "LMDESK-HOOKS-CACHE-GATE-001",
       "kind": "bug-fix",
       "required_version": "0.3.2"
+    },
+    {
+      "change_id": "LMDESK-LINUX-DOCK-ICON-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.3"
+    },
+    {
+      "change_id": "LMDESK-LINUX-TRAY-RESTORE-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.4"
+    },
+    {
+      "change_id": "LMDESK-LINUX-PACKAGE-PERMISSIONS-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.5"
+    },
+    {
+      "change_id": "LMDESK-LINUX-DEPENDENCY-ROOT-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.6"
+    },
+    {
+      "change_id": "LMDESK-LINUX-PET-HOST-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.7"
+    },
+    {
+      "change_id": "LMDESK-LINUX-NOTIFICATIONS-001",
+      "kind": "bug-fix",
+      "required_version": "0.3.8"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.3.2"
+  "target_version": "0.3.8"
 }

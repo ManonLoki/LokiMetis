@@ -18,7 +18,7 @@ export function verifyElf(file, info) {
 /** .desktop与控制文件中不接受换行、占位展开或额外执行参数注入。 */
 export function desktopEntry(config, command) {
   if (!/^\/[A-Za-z0-9/._-]+$/u.test(command)) throw new Error('unsafe desktop executable');
-  return `[Desktop Entry]\nType=Application\nName=${config.productNameEn}\nName[zh_CN]=${config.productName}\nExec=${command}\nIcon=${config.identifier}\nTerminal=false\nCategories=Utility;Development;\nStartupNotify=true\n`;
+  return `[Desktop Entry]\nType=Application\nName=${config.productNameEn}\nName[zh_CN]=${config.productName}\nExec=${command}\nIcon=${config.identifier}\nStartupWMClass=${config.identifier}\nTerminal=false\nCategories=Utility;Development;\nStartupNotify=true\n`;
 }
 
 /** 依据真实ELF符号需求写glibc下界，不把新Ubuntu构建伪装为兼容旧发行版。 */
@@ -27,6 +27,20 @@ export function glibcRequirement(run, binary) {
     .map(match => [Number(match[1]), Number(match[2])]).sort((a,b) => a[0]-b[0] || a[1]-b[1]);
   if (!versions.length) throw new Error('Linux GNU executable has no verifiable GLIBC requirement');
   return versions.at(-1).join('.');
+}
+
+/** 发行树权限不依赖开发者umask；仅固定执行入口可执行，其余资源作为普通可读数据。 */
+function normalizeLinuxModes(root, executables) {
+  fs.chmodSync(root, 0o755);
+  function walk(relative) {
+    for (const name of fs.readdirSync(relative ? safePath(root,relative,{type:'directory'}) : root)) {
+      const item=relative?`${relative}/${name}`:name, full=safePath(root,item), stat=fs.lstatSync(full);
+      if (stat.isDirectory()) { fs.chmodSync(full,0o755); walk(item); }
+      else if (stat.isFile()) fs.chmodSync(full,executables.has(item)?0o755:0o644);
+      else throw new Error('Linux staging tree contains a special file');
+    }
+  }
+  walk('');
 }
 
 /** 构建包内固定目录：主程序与resources相邻，与现有皮肤资源定位合同一致。 */
@@ -56,6 +70,8 @@ export function stageLinuxTree({root, work, config, facts, info, binary, resourc
   } else {
     fs.writeFileSync(path.join(application,'launch'), `#!/bin/sh\napplication_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1\nexec "$application_dir/${config.binary}" "$@"\n`, {mode:0o755, flag:'wx'});
   }
+  normalizeLinuxModes(image,new Set([`${applicationRelative}/${config.binary}`,
+    format==='deb'?`usr/bin/${facts.project.replaceAll('_','-')}`:`${applicationRelative}/launch`]));
   return {image, applicationRelative, binarySha256:sha256(copied)};
 }
 
@@ -65,8 +81,8 @@ export function treeSnapshot(root) {
   function walk(relative) {
     for (const name of fs.readdirSync(relative ? safePath(root, relative, {type:'directory'}) : root).sort()) {
       const item = relative ? `${relative}/${name}` : name, full = safePath(root,item), stat=fs.lstatSync(full);
-      if (stat.isDirectory()) walk(item);
-      else if (stat.isFile()) result.push({path:item, mode:stat.mode & 0o777, sha256:sha256(full)});
+      if (stat.isDirectory()) { result.push({path:item,type:'directory',mode:stat.mode & 0o777}); walk(item); }
+      else if (stat.isFile()) result.push({path:item,type:'file',mode:stat.mode & 0o777,sha256:sha256(full)});
       else throw new Error('Linux package contains a special file');
     }
   }
@@ -78,7 +94,7 @@ export function makeLinuxPackage({root, work, config, facts, info, binary, resou
   const staged = stageLinuxTree({root,work,config,facts,info,binary,resources,run,format});
   const filename = `${facts.project.replaceAll('_','-')}-v${facts.version}-linux-${info.arch}.${format}`;
   const artifact = path.join(work, filename), extracted=path.join(work,'extracted');
-  const expected = treeSnapshot(staged.image).filter(item => !item.path.startsWith('DEBIAN/'));
+  const expected = treeSnapshot(staged.image).filter(item => item.path!=='DEBIAN' && !item.path.startsWith('DEBIAN/'));
   if (format === 'deb') {
     run('dpkg-deb', ['--root-owner-group','--build',staged.image,artifact]);
     const fields=run('dpkg-deb',['--field',artifact,'Package','Version','Architecture']).stdout;
@@ -92,7 +108,7 @@ export function makeLinuxPackage({root, work, config, facts, info, binary, resou
   } else {
     const env={...process.env}; delete env.TAR_OPTIONS;
     run('tar',['--sort=name','--owner=0','--group=0','--numeric-owner','-czf',artifact,'-C',staged.image,'--',staged.applicationRelative],{env});
-    fs.mkdirSync(extracted); run('tar',['--no-same-owner','-xzf',artifact,'-C',extracted],{env});
+    fs.mkdirSync(extracted); run('tar',['--no-same-owner','--same-permissions','-xzf',artifact,'-C',extracted],{env});
   }
   if (JSON.stringify(treeSnapshot(extracted)) !== JSON.stringify(expected)) throw new Error('final Linux package tree differs');
   const app=safePath(extracted,staged.applicationRelative,{type:'directory'});

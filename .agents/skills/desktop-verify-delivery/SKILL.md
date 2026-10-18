@@ -7,7 +7,7 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 
 验证完整真实候选，不把开发检查、模拟实现或目录存在误报为可用。
 
-GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前端测试、Tauri资源定位、DMG及其 helper 只适用于 Tauri。GPUI 候选先读取 `$desktop-build-gpui-release`，只接受其 `candidate` 模式形成的原生最终包及通用 manifest；`local` 试包与初始化开发程序没有候选验收资格。资源、许可证、更新日志、最终包摘要与适用签名证据使用该 Skill 的 GPUI 独立实现检查，不调用 Tauri helper。Linux/跨宿主未支持路线不能进入验收。
+GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前端测试、Tauri资源定位、DMG及其 helper 只适用于 Tauri。GPUI 候选先读取 `$desktop-build-gpui-release`，只接受其 `candidate` 模式形成的原生最终包及通用 manifest；`local` 试包与初始化开发程序没有候选验收资格。资源、许可证、更新日志、最终包摘要与适用签名证据使用该 Skill 的 GPUI 独立实现检查，不调用 Tauri helper。Linux GNU x64/ARM64 的 deb/tar.gz 按本项目 [Linux 工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md) 解包并核对真实资源；只有当前架构与实际图形会话能进入运行验收，交叉架构构建的目标运行保持 `Unverified`，不能据宿主测试或解包通过代替。
 
 ## 准入
 

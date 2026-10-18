@@ -4,7 +4,10 @@ use std::io;
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent, menu::{Menu, MenuEvent, MenuItem, CheckMenuItem}};
 
 /// 原生对象只由 GPUI 线程持有，退出在更新栈外释放。
-pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, pet_visible:bool, pet_settings:MenuItem, mouse:CheckMenuItem, mouse_state:crate::pet::MousePassthroughState, notification:CheckMenuItem, notification_state:super::notifications::State, autostart:CheckMenuItem, autostart_state:super::autostart::State, locale:String }
+pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, pet_visible:bool, pet_settings:MenuItem, mouse:CheckMenuItem, mouse_state:crate::pet::MousePassthroughState, notification:CheckMenuItem, notification_state:super::notifications::State, autostart:CheckMenuItem, autostart_state:super::autostart::State, locale:String,
+    #[cfg(target_os = "linux")]
+    restore: super::tray_linux::RestoreEntry,
+}
 
 /// 托盘输入只拥有恢复与退出两种宿主语义，不承载业务动作。
 pub enum Event { Show, Quit, TogglePet, OpenPetSettings, ToggleMousePassthrough, ToggleNotification, ToggleAutostart }
@@ -14,11 +17,15 @@ impl Tray {
     pub fn restore_entry_available(&self) -> bool {
         #[cfg(windows)]
         { self.icon.rect().is_some() }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
+        { self.restore.available() }
+        #[cfg(not(any(windows, target_os = "linux")))]
         { true }
     }
     /// 必须在运行中的原生 UI loop 创建，图标来自用户选择的应用 Logo。
-    pub fn new(locale: &str) -> io::Result<Self> {
+    pub fn new(locale: &str, executor: gpui_kit::BackgroundExecutor) -> io::Result<Self> {
+        #[cfg(not(target_os = "linux"))]
+        let _ = executor;
         let (show, quit, name) = labels(locale);
         let show = MenuItem::with_id("show_window", show, true, None);
         let quit = MenuItem::with_id("quit", quit, true, None);
@@ -33,7 +40,10 @@ impl Tray {
         let icon = Icon::from_rgba(pixels, 32, 32).map_err(io::Error::other)?;
         let icon = TrayIconBuilder::new().with_id("main_tray").with_menu(Box::new(menu))
             .with_menu_on_left_click(false).with_tooltip(name).with_icon(icon).build().map_err(io::Error::other)?;
-        Ok(Self { icon, show, quit, pet, pet_visible:true,pet_settings,mouse,mouse_state:Default::default(),notification,notification_state:Default::default(),autostart,autostart_state:Default::default(),locale:locale.into() })
+        Ok(Self { icon, show, quit, pet, pet_visible:true,pet_settings,mouse,mouse_state:Default::default(),notification,notification_state:Default::default(),autostart,autostart_state:Default::default(),locale:locale.into(),
+            #[cfg(target_os = "linux")]
+            restore: super::tray_linux::RestoreEntry::new(executor),
+        })
     }
 
     /// 当前 UI locale 是唯一语言来源，未知值回退英文。

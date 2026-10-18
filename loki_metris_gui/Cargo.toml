@@ -44,7 +44,8 @@ windows.workspace = true
 # KSNI使用独立D-Bus工作线程，不引入GTK事件循环或AppIndicator系统库。
 tray-icon = { workspace = true, features = ["ksni"] }
 ashpd.workspace = true
-x11rb.workspace = true
+raw-window-handle.workspace = true
+x11rb = { workspace = true, features = ["shape", "randr"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # 仅macOS Metal启用；其它目标仍使用原图元ABI。

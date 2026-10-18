@@ -100,7 +100,7 @@ fn current(owner: &Entity<Controller>, generation: u64, handle: Option<AnyWindow
         && owner.overlay == handle && handle.is_some()
 }
 
-/// 延迟入口过期时零原生操作；虚拟宿主与 Windows 保持现有几何桥接。
+/// 延迟入口过期时零原生操作；Linux 命令完成后以异步 timer 等待 WM 的真实读回。
 fn begin(owner: Entity<Controller>, request: Request, handle: Option<AnyWindowHandle>, cx: &mut App) {
     if !current(&owner, request.generation, handle, request.visible, cx) { return; }
     #[cfg(all(any(target_os = "macos", windows), not(test)))]
@@ -112,7 +112,23 @@ fn begin(owner: Entity<Controller>, request: Request, handle: Option<AnyWindowHa
         let shown = if request.reveal || !request.visible {
             handle.unwrap().update(cx, |_, window, _| host::set_visible(window, request.visible)).is_ok_and(|result| result.is_ok())
         } else { true };
-        finish(&owner, &request, handle.unwrap(), applied && shown, request.reveal && shown, cx);
+        let handle = handle.unwrap();
+        if !applied || !shown {
+            finish(&owner, &request, handle, false, request.reveal && shown, cx);
+            return;
+        }
+        let weak = owner.downgrade();
+        let task = cx.spawn(async move |cx| {
+            let lease = super::native_settle::Lease::Display { generation: request.generation, visible: request.visible };
+            let settled = super::native_settle::wait(&weak, handle, lease, cx).await;
+            if matches!(settled, Ok(false)) { return; }
+            cx.update(|cx| {
+                if let Some(owner) = weak.upgrade() {
+                    finish(&owner, &request, handle, settled.is_ok(), request.reveal && settled.is_ok(), cx);
+                }
+            });
+        });
+        owner.update(cx, |owner, _| owner.display_task = Some(task));
     }
 }
 

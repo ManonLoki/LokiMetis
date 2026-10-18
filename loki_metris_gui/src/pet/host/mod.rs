@@ -26,8 +26,16 @@ pub use macos::*;
 mod windows;
 #[cfg(all(windows, not(test)))]
 pub use windows::*;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(all(target_os = "linux", not(test)))]
+pub use linux::*;
 
-#[cfg(all(not(any(windows, target_os = "macos")), not(test)))]
+/// AppKit 与 Win32 同线程 setter 已完成原生提交；Linux 另以实际 WM 状态异步确认。
+#[cfg(all(any(windows, target_os = "macos"), not(test)))]
+pub fn settled(_: &gpui_kit::Window) -> anyhow::Result<bool> { Ok(true) }
+
+#[cfg(all(not(any(windows, target_os = "macos", target_os = "linux")), not(test)))]
 mod fallback {
     use gpui_kit::{Bounds, Window, point, px, size};
     use loki_metris_core::PetWindowPreferences;
@@ -40,6 +48,8 @@ mod fallback {
     pub fn set_visible(_: &Window, _: bool) -> anyhow::Result<()> {
         anyhow::bail!("auxiliary windows unsupported")
     }
+    /// 未支持平台不能把尚无原生实现的请求确认成成功。
+    pub fn settled(_: &Window) -> anyhow::Result<bool> { anyhow::bail!("auxiliary windows unsupported") }
     /// 未支持平台不应用假属性。
     pub fn apply(_: &Window, _: PetWindowPreferences, _: bool) -> anyhow::Result<()> {
         anyhow::bail!("auxiliary windows unsupported")
@@ -73,7 +83,7 @@ mod fallback {
         window.start_window_move();
     }
 }
-#[cfg(all(not(any(windows, target_os = "macos")), not(test)))]
+#[cfg(all(not(any(windows, target_os = "macos", target_os = "linux")), not(test)))]
 pub use fallback::*;
 
 #[cfg(test)]
@@ -83,6 +93,27 @@ mod test_host {
     std::thread_local! {
         /// 仅虚拟宿主记录原生显隐命令，不代表真实操作系统可见性。
         static VISIBILITY: std::cell::RefCell<std::collections::VecDeque<(gpui_kit::AnyWindowHandle, bool)>> = Default::default();
+        /// 仅当前测试线程的下一次原生属性提交失败，用于验证设置窗不能吞掉宿主错误。
+        static APPLY_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+        /// 只在明确测试中延迟原生确认，不阻塞测试或 GPUI 前台执行器。
+        static SETTLE_PENDING: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+        /// 下次原生读回失败用于覆盖回滚和退出接管。
+        static SETTLE_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    }
+    /// 原生调用的显式失败夹具不会污染其它线程或后续成功操作。
+    pub fn fail_next_apply() { APPLY_FAILURE.with(|failure| failure.set(true)); }
+    /// 让指定轮数返回未确认，用真实 timer 驱动 controller 等待回归。
+    pub fn delay_settle(turns: usize) { SETTLE_PENDING.with(|pending| pending.set(turns)); }
+    /// 单次确认失败不伪造后续回滚成功或磁盘回执。
+    pub fn fail_next_settle() { SETTLE_FAILURE.with(|failure| failure.set(true)); }
+    /// 默认同步宿主可立即确认，明确夹具则返回失败或未完成。
+    pub fn settled(_: &Window) -> anyhow::Result<bool> {
+        if SETTLE_FAILURE.with(|failure| failure.replace(false)) { anyhow::bail!("injected native settle failure"); }
+        Ok(SETTLE_PENDING.with(|pending| {
+            let count = pending.get();
+            if count > 0 { pending.set(count.saturating_sub(1)); }
+            count == 0
+        }))
     }
     /// 取出当前测试活窗的命令记录，有界缓存防止其它用例无限累积。
     pub fn take_visibility_events(handle: gpui_kit::AnyWindowHandle) -> Vec<bool> {
@@ -113,6 +144,7 @@ mod test_host {
     }
     /// 测试平台没有OS句柄，属性调用由显式测试适配器接收。
     pub fn apply(_: &Window, _: PetWindowPreferences, _: bool) -> anyhow::Result<()> {
+        if APPLY_FAILURE.with(|failure| failure.replace(false)) { anyhow::bail!("injected native auxiliary apply failure"); }
         Ok(())
     }
     /// 假平台不模拟OS移动，位置持久化另以显式边界事件验证。

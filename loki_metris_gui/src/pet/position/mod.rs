@@ -100,7 +100,7 @@ impl PositionQueue {
 impl Controller {
     /// 保留原生DPI舍入规则，真实移动/首布局可保存；重复bounds不会重启防抖或替换在途任务。
     pub(super) fn moved(&mut self, bounds: Bounds<Pixels>, scale: f32, cx: &mut Context<Self>) {
-        if self.applying || self.display_geometry_unconfirmed || !self.geometry_restored || self.quitting {
+        if self.applying || self.native_mutating || self.display_geometry_unconfirmed || !self.geometry_restored || self.quitting {
             return;
         }
         let position = PetOverlayPosition {

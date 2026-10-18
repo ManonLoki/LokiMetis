@@ -25,6 +25,7 @@ description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI �
 - TUI：键盘导航、焦点、尺寸调整、错误恢复和终端还原。
 - MCP：批准真实宿主的发现、调用、错误、取消和干净断开。
 - GUI：启动、完整用户闭环、无障碍状态、错误、持久化和干净退出。GPUI 按 `$desktop-build-gpui-release` 定位最终原生包，不使用 Tauri URL/命令；按 `docs/GUI_APP_PROFILE.md` 检查侧栏与支持页：`detailed` 检查菜单左对齐及顶部折叠按钮，`compact` 检查固定 80px 侧栏及无折叠按钮；仅 `sponsor_page = enabled` 检查独立赞助内容区，禁用时检查赞助入口与运行时资源缺席。另检查本地日志实际写入和退出刷新。
+- Linux GPUI：从最终 deb/tar.gz 解出的同一可执行文件运行，先核对架构、资源及更新日志摘要。X11/XWayland 场景验证桌宠布局/尺寸/置顶/锁定与穿透设置的保存、关闭重开和正常退出重启；在其它实际窗口激活后观察置顶，读回真实 `WM_CLASS`/`_NET_WM_ICON` 并观察 Dock 图标。Hooks 使用隔离目录中的真实生成命令到本应用 listener，区分 HTTP 接受与状态机实际接纳。托盘关闭恢复只在真实 Watcher/本进程条目存在时测试；不得为制造失败而停止用户桌面服务。纯 Wayland 和跨架构运行按实际能力单列，不把 XWayland 证据标作原生 Wayland 通过。
 - GUI 系统通知：仅当 `system_notification = enabled` 且当前候选运行在 macOS 时，先验证当前 `.app` 已按 manifest 的 enabled 路线完成签名；`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败，不能以 E2E `disabled` 或 `Unverified` 绕过，也不能由本 Skill 补签。随后读取当前系统授权状态并选择不破坏用户决定的隔离场景。已授权时确认开关成功且持久化；明确拒绝/受限时点击开启必须打开固定 Notifications 系统设置、应用偏好保持关闭并显示稳定恢复信息；设置窗口无法打开时错误可见。`NotDetermined` 只有在用户明确允许本次权限提示时才触发请求并复读，否则记为 `Unverified`，不得为了测试重置或伪造系统授权。其他平台按其官方权限界面验证。
 - GUI 更新日志：先从最终候选自身只读定位并校验 `release-notes.json`；`about_page = enabled` 时在真实应用打开关于页（Tauri `/about`；GPUI 原生导航），点击“更新日志”自身按钮，确认加载来自候选资源、按最新在前最多十版、每版固定“功能优化/问题修复”各最多十条、当前版本与全部版本仅一个小写 `v`，并验证关闭后重开仍显示同一候选事实。资源缺失/损坏的受控失败候选只在已有隔离夹具且无需破坏最终候选时验证本地错误与重试；不得改写正式候选制造失败。`about_page = disabled` 时确认关于路由、入口、命令和弹窗均缺席。
 

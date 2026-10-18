@@ -3,6 +3,26 @@
 use super::super::tests::{fixture, settle};
 use gpui_kit::{AppContext, TestAppContext, point, px, test::TestWindowExt};
 
+/// 新建设置窗的原生属性失败必须呈现错误且销毁窗口；下一次重试能建立可用入口。
+#[gpui_kit::test]
+fn failed_native_settings_creation_is_visible_and_retryable(cx: &mut TestAppContext) {
+    let f = fixture(cx);
+    super::super::host::fail_next_apply();
+    f.owner.update(cx, |owner, cx| owner.open_settings(cx));
+    cx.run_until_parked();
+    f.owner.read_with(cx, |owner, _| {
+        assert!(owner.settings_window.is_none());
+        assert_eq!(owner.last_error.as_ref().unwrap().code, "error.monitor.petApplyFailed");
+    });
+    f.owner.update(cx, |owner, cx| owner.open_settings(cx));
+    cx.run_until_parked();
+    f.owner.read_with(cx, |owner, _| {
+        assert!(owner.settings_window.is_some());
+        assert!(owner.last_error.is_none());
+    });
+    assert_eq!(f.service.pet_settings_revision(), 0);
+}
+
 /// 真实轨道点击跨过缩进后的指示器两端，仍提交完整尺寸范围并持久化。
 #[gpui_kit::test]
 fn size_track_endpoints_save_full_range(cx: &mut TestAppContext) {

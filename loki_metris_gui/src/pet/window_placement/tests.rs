@@ -5,6 +5,22 @@ use crate::pet::{tests::fixture, geometry};
 use gpui_kit::{AppContext, TestAppContext, Bounds, point, px, size};
 use loki_metris_core::{PetOverlayPosition, PetWindowPreferences, window_placement::*};
 
+/// WM 尚未确认显示时保留 reveal 意图，超时重试不能误把只接受的 map 请求当作已显示。
+#[gpui_kit::test]
+fn display_timeout_preserves_unconfirmed_reveal_for_retry(cx: &mut TestAppContext) {
+    let f = fixture(cx);
+    f.owner.update(cx, |owner, _| owner.settings_ready = true);
+    host::delay_settle(1000);
+    f.owner.update(cx, |owner, cx| owner.request_display(cx));
+    settle_query(&f.owner, cx);
+    f.owner.read_with(cx, |owner, _| {
+        assert!(!owner.display_applying);
+        assert!(owner.display_geometry_unconfirmed);
+        assert!(owner.display_request.as_ref().unwrap().reveal);
+    });
+    host::delay_settle(0);
+}
+
 /// 查询使用真实服务，假时钟与有界墙钟让步不触碰用户配置。
 fn settle_query(owner: &Entity<Controller>, cx: &mut TestAppContext) {
     for _ in 0..500 {

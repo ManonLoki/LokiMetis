@@ -21,10 +21,11 @@ esac
 command -v dpkg >/dev/null && command -v apt-get >/dev/null || { printf '自动安装仅适用于既有Debian/Ubuntu apt宿主\n' >&2; exit 2; }
 native_arch=$(dpkg --print-architecture)
 case "$native_arch" in arm64|amd64) ;; *) printf '不支持的宿主架构\n' >&2; exit 2 ;; esac
+effective_uid=$(id -u)
 
 # 权限由真实交互终端处理；不使用sudo -S、缓存密码或调整系统权限。
 as_root() {
-    if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo -- "$@"; fi
+    if [ "$effective_uid" -eq 0 ]; then "$@"; else sudo -- "$@"; fi
 }
 
 if [ "$mode" = install ]; then
@@ -32,23 +33,36 @@ if [ "$mode" = install ]; then
         as_root /usr/bin/dpkg --add-architecture "$arch"
     fi
     as_root apt-get update
-    as_root apt-get install -y build-essential pkg-config curl binutils tar dpkg-dev \
+    as_root apt-get install -y build-essential pkg-config curl binutils tar dpkg-dev dbus-daemon \
         "gcc-$tuple" "g++-$tuple" \
         "libfontconfig1-dev:$arch" "libfreetype-dev:$arch" \
         "libxkbcommon-dev:$arch" "libxkbcommon-x11-dev:$arch" \
         "libwayland-dev:$arch" "libx11-dev:$arch" "libx11-xcb-dev:$arch" "libxcb1-dev:$arch"
-    rustup target add "$target"
+    # 整个入口被sudo/pkexec提权时不能把root的Rust状态冒充原用户，也不猜测其HOME或身份。
+    if [ "$effective_uid" -ne 0 ]; then rustup target add "$target"; fi
 fi
 
 # 检查真实编译器及目标pkg-config目录，不允许把宿主头文件冒充交叉目标依赖。
 missing=0
-for tool in rustup cargo rustc "$tuple-gcc" "$tuple-g++" pkg-config readelf tar dpkg-deb; do
+for tool in "$tuple-gcc" "$tuple-g++" pkg-config readelf tar dpkg-deb dbus-daemon; do
     if command -v "$tool" >/dev/null 2>&1; then printf 'linux.tool.%s=present\n' "$tool";
     else printf 'linux.tool.%s=missing\n' "$tool"; missing=1; fi
 done
-if ! rustup target list --installed | awk -v expected="$target" '$0 == expected {found=1} END {exit !found}'; then
-    printf 'linux.rust.target=missing\n'; missing=1
-else printf 'linux.rust.target=%s\n' "$target"; fi
+if [ "$effective_uid" -eq 0 ]; then
+    printf 'linux.rust.target=pending-original-user\n'
+    printf 'linux.status=pending-original-user\n'
+    printf 'linux.next.command=rustup target add %s\n' "$target"
+    printf '请退出管理员上下文，在原用户终端执行上述命令，再用本入口 --check-only --target %s 复探。\n' "$target"
+    missing=1
+else
+    for tool in rustup cargo rustc; do
+        if command -v "$tool" >/dev/null 2>&1; then printf 'linux.tool.%s=present\n' "$tool";
+        else printf 'linux.tool.%s=missing\n' "$tool"; missing=1; fi
+    done
+    if ! rustup target list --installed | awk -v expected="$target" '$0 == expected {found=1} END {exit !found}'; then
+        printf 'linux.rust.target=missing\n'; missing=1
+    else printf 'linux.rust.target=%s\n' "$target"; fi
+fi
 for library in fontconfig freetype2 xkbcommon xkbcommon-x11 wayland-client x11 x11-xcb xcb; do
     if version=$(PKG_CONFIG_SYSROOT_DIR=/ PKG_CONFIG_LIBDIR="/usr/lib/$tuple/pkgconfig:/usr/share/pkgconfig" PKG_CONFIG_PATH= pkg-config --modversion "$library" 2>/dev/null); then
         printf 'linux.library.%s=%s\n' "$library" "$version"

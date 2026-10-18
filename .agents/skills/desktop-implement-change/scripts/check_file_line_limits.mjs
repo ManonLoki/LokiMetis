@@ -7,6 +7,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { verifyRegisteredThirdParty } from "./verified_third_party.mjs";
+import { verifyRegisteredGenerated } from "./verified_generated.mjs";
 
 export const RUST_REVIEW_THRESHOLD = 400;
 export const RUST_HARD_LINE_LIMIT = 800;
@@ -140,6 +141,9 @@ export function inspectRepository(root) {
   const thirdParty = verifyRegisteredThirdParty(canonical);
   const verifiedThirdPartyFiles = new Set(thirdParty.files);
   report.errors.push(...thirdParty.errors);
+  const generated = verifyRegisteredGenerated(canonical);
+  const verifiedGeneratedFiles = new Set(generated.files);
+  report.errors.push(...generated.errors);
   for (const relative of relativePaths) {
     const [candidate, pathError, skipReason] = safeCandidate(canonical, relative);
     if (pathError) { report.errors.push(pathError); continue; }
@@ -152,7 +156,7 @@ export function inspectRepository(root) {
       report.excludedThirdPartyFiles.push(relative);
       continue;
     }
-    if (GENERATED_LOCKFILE_NAMES.has(path.basename(candidate)) || GENERATED_LOCKFILE_PATHS.has(relative)) {
+    if (verifiedGeneratedFiles.has(relative) || GENERATED_LOCKFILE_NAMES.has(path.basename(candidate)) || GENERATED_LOCKFILE_PATHS.has(relative)) {
       report.excludedGeneratedFiles.push(relative);
       continue;
     }

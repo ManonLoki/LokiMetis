@@ -401,7 +401,8 @@ function assertGpuiPackageReady(root) {
 /** 判断接口、框架与平台是否有适用的 CLI、Tauri 或 GPUI 本地打包 Skill。 */
 export function localPackageSupported(interfaces, platforms, guiFramework = "tauri") {
   if (!["tauri", "gpui"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
-  return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => ["macos", "windows"].includes(platform)));
+  const supported = guiFramework === "gpui" ? ["macos", "windows", "linux"] : ["macos", "windows"];
+  return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => supported.includes(platform)));
 }
 
 function assertLocalPackageSupported(root) {

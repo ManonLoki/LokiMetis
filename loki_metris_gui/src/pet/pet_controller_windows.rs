@@ -45,7 +45,6 @@ impl Controller {
         if self.quitting {
             return;
         }
-        self.scheduled = None;
         let old = self.settings.pet_window;
         let layout = if let PetPreferenceChange::Layout(layout) = change {
             layout
@@ -54,34 +53,28 @@ impl Controller {
         };
         let range = self.range(layout, cx);
         let Ok(next) = change_pet_preferences(old, change, range) else {
+            self.scheduled = None;
             self.complete_first_focus(false, cx);
             self.busy = false;
             self.next_pending(cx);
             return;
         };
         let mouse_requested = matches!(change, PetPreferenceChange::MousePassthrough(_));
+        let native_correction = next == old && matches!(change, PetPreferenceChange::NativeSize(_)) && !old.locked;
+        let commit = next != old || mouse_requested;
+        // 原生 setter 也可能触发退出；后台接受之前持续保留已接受的字段意图。
+        self.scheduled = commit.then_some(change);
         // 显式穿透意图还须合并到真实store，避免首次读取的旧值覆盖恢复。
-        if next == old && !mouse_requested {
-            // 原生拖边在上下限或整数化后可能同值，只纠正真实几何而不重复提交配置。
-            let applied = if matches!(change, PetPreferenceChange::NativeSize(_)) && !old.locked {
-                match self.apply_geometry(false, cx) {
-                    Ok(()) => { self.last_error = None; true }
-                    Err(error) => {
-                        self.last_error = Some(HookError::new("error.monitor.petApplyFailed"));
-                        tracing::warn!(%error, "pet native resize correction failed");
-                        false
-                    }
-                }
-            } else { true };
-            self.complete_first_focus(applied, cx);
+        if !commit && !native_correction {
+            self.complete_first_focus(true, cx);
             self.busy = false;
             self.next_pending(cx);
-            if applied { self.recheck_native_resize(cx); }
+            self.recheck_native_resize(cx);
             cx.notify();
             return;
         }
         // 页码只改变内容；重复宿主事务会刷新 bounds 并使原生指针坐标失效。
-        let native_changed = old.layout != next.layout
+        let native_changed = native_correction || old.layout != next.layout
             || old.pet_size != next.pet_size
             || old.always_on_top != next.always_on_top
             || old.locked != next.locked;
@@ -94,57 +87,20 @@ impl Controller {
         };
         self.settings_generation = self.settings_generation.wrapping_add(1);
         self.settings.pet_window = next;
-        if native_changed || mouse_requested {
+        let native = native_changed || mouse_requested;
+        self.native_mutating = native_changed;
+        let initial_error = if native {
             let applied = if native_changed { self.apply_geometry(false, cx) } else { self.apply_mouse_passthrough(cx) };
-            if let Err(error) = applied {
-                self.complete_first_focus(false, cx);
-                self.settings.pet_window = old;
-                let _ = self.rollback_native(native_changed, old_bounds, cx);
-                self.last_error = Some(HookError::new("error.monitor.petApplyFailed"));
-                tracing::warn!(%error,"pet native preference failed");
-                self.busy = false;
-                self.next_pending(cx);
-                cx.notify();
-                return;
-            }
-        }
+            applied.err().map(|error| {
+                tracing::warn!(%error, "pet native preference request failed");
+                HookError::new("error.monitor.petApplyFailed")
+            })
+        } else { None };
         self.last_error = None;
-        let work = self.service.change_pet_preferences(change, range);
-        self.busy = true;
-        self.mutation = Some(cx.spawn(async move |entity, cx| {
-            let result = match work {
-                Ok(work) => {
-                    crate::usage_service::receipt(
-                        work,
-                        cx.background_executor().clone(),
-                        "error.monitor.settingsWriteFailed",
-                    )
-                    .await
-                }
-                Err(_) => Err(HookError::new("error.monitor.settingsWriteFailed")),
-            };
-            let _ = entity.update(cx, |this, cx| {
-                this.busy = false;
-                let saved = result.is_ok();
-                this.complete_first_focus(saved, cx);
-                match result {
-                    Ok(settings) => {
-                        this.settings = settings;
-                        this.settings_ready = true;
-                        this.observed.1 = this.service.pet_settings_revision();
-                    }
-                    Err(error) => {
-                        this.settings.pet_window = old;
-                        let restored = if native_changed || mouse_requested { this.rollback_native(native_changed, old_bounds, cx) } else { true };
-                        tracing::warn!(code = error.code, "pet preference save failed");
-                        this.last_error = Some(if restored { error } else { HookError::new("error.monitor.petApplyFailed") });
-                    }
-                }
-                this.next_pending(cx);
-                if saved { this.recheck_native_resize(cx); }
-                cx.notify();
-            });
-        }));
+        self.start_preference_mutation(preference_mutation::Request {
+            change, range, old, old_bounds, geometry: native_changed, native,
+            commit, initial_error, generation: self.settings_generation,
+        }, cx);
         cx.notify();
     }
     /// 成功或同值队列结束后补采样最后一次拖边；规范尺寸和未确认事务不制造bounds事件。
@@ -207,6 +163,7 @@ impl Controller {
     /// 设置窗销毁不会取消controller持有的保存回执。
     fn close_settings(&mut self, cx: &mut App) {
         self.settings_window_generation = self.settings_window_generation.wrapping_add(1);
+        self.settings_window_task.take();
         if let Some(handle) = self.settings_window.take() {
             cx.defer(move |cx| {
                 let _ = handle.update(cx, |_, window, _| window.remove_window());
@@ -217,6 +174,7 @@ impl Controller {
     fn settings_window_closed(&mut self, handle: AnyWindowHandle) {
         if self.settings_window == Some(handle) {
             self.settings_window_generation = self.settings_window_generation.wrapping_add(1);
+            self.settings_window_task.take();
             self.settings_window = None;
         }
     }
@@ -253,6 +211,7 @@ pub fn install(main: AnyWindowHandle, service: Arc<UsageService>, locale: &str, 
             is_minimizable: false,
             app_owns_titlebar_drag: true,
             inactive_frame_interval: None,
+            app_id: Some("com.loki-metris.app".into()),
             ..Default::default()
         },
         |window, cx| {
@@ -334,6 +293,8 @@ pub(crate) fn take_shutdown_plan(cx: &mut App) -> crate::usage_service::PetShutd
         this.poll.take();
         this.query.take();
         this.position_task.take();
+        this.mutation.take();
+        this.settings_window_task.take();
         let mut layout = this.settings.pet_window.layout;
         let intents = this
             .scheduled

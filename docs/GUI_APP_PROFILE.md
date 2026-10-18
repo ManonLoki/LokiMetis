@@ -7,7 +7,7 @@
 - Logo: candidate-1 金色神谕之眼；用户在本次 Codex 表单明确选择
 - unavailable fixed capabilities: updater / general native dialog / deep_link
 
-Linux GNU x64/ARM64扩展已批准，构建及原生能力的实现边界统一见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。下列九字段仍表达产品选择；托盘依赖接通不等于Linux恢复入口和全部菜单已运行验收，Portal/X11热键新服务尚未接线，空action合同保持不变。
+Linux GNU x64/ARM64扩展已批准，构建及原生能力的实现边界统一见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。存在`DISPLAY`时选择X11/XWayland桌宠宿主；窗口、托盘恢复探测及通知已接线，真实候选E2E仍待验证。纯Wayland没有XWayland时不宣称支持桌宠全局定位/置顶。下列九字段仍表达产品选择；Portal/X11后台热键服务尚未接线，空action合同保持不变。
 
 ```gui-initialization-config
 system_tray: enabled
@@ -52,6 +52,10 @@ sidebar_mode: compact
 
 macOS 正常启动使用 Accessory 策略并通过包内 `LSUIElement` 隐藏 Dock，手动打开显示主窗；登录项传入 `--autostart`，旧无参数 LaunchAgent 兼容自身精确服务身份。登录启动仅在托盘恢复入口存在时隐藏主窗，重复登录启动不唤醒已有实例；托盘失败回退普通 Dock 身份和可见主窗。该逻辑属于宿主启动机制，不恢复持久隐藏偏好。当前仅通过相关开发回归，真实登录启动与 Dock 行为仍待新版包实测。
 
+Linux主窗与辅助窗使用相同`app_id`，最终Debian桌面入口以相同`StartupWMClass`绑定；X11/XWayland活窗从已批准Logo取得64/128像素`_NET_WM_ICON`。桌宠通过真实宿主控制显隐、几何、置顶、锁定与Shape输入穿透；托盘仅在Watcher及本进程`main_tray`均确认时作为隐藏主窗的恢复入口。协议、失败和纯Wayland边界见Linux工程知识库，源码接入不代表Dock呈现或原生交互已验收。
+
+首次桌宠设置缓存命中不得短路统一Agent启用集合的发布。桌宠偏好保存与Hooks启用门禁分别消费各自权威事实，不能因一次先到的偏好读取让Hooks继续沿用默认空集合；实际事件仍须通过生命周期状态机后才能驱动桌宠和通知。
+
 ## macOS 打包资产与未决事项
 
 中性背景 packaging/macos/background.png 为 660×400 PNG，未来原生 DMG 窗口 660×400，应用/Applications 落点取 GPUI 构建 Skill 的受管布局。已生成背景与平台图标不是已构建 DMG 或布局验收。首次真实产品 GUI 身份流程需确认描述、反馈/分发渠道、DMG 视觉及任何商店元数据；当前均未确定。
@@ -87,7 +91,7 @@ macOS 主字体使用历史 @fontsource-variable 5.3.0 的原样 Geist／Geist M
 
 ### 通知纵切
 
-当前规则与边界以[最新产品规格](product_spec/20261016_product_spec.md#托盘自启与系统通知)为准。`LMDESK-TRAY-NOTIFICATIONS-001`（required_version `0.3.0`）将旧每100M规则替换为当天首次严格超过1B，并增加Hooks询问/结束/错误及换肤成功/失败通知；托盘同时增加真实OS状态的开机自启入口。设置、托盘与原生菜单共享已确认通知偏好与权限。独立今日摘要仍供桌宠显示；用量读取失败只暂停Token通知。瞬时事件与Token共用原生owner和生命周期。开发回归不替代OS横幅、点击、登录启动或跨平台正式验收。
+当前规则与边界以[最新产品规格](product_spec/20261018_product_spec.md#托盘自启与系统通知)为准。`LMDESK-TRAY-NOTIFICATIONS-001`（required_version `0.3.0`）将旧每100M规则替换为当天首次严格超过1B，并增加Hooks询问/结束/错误及换肤成功/失败通知；托盘同时增加真实OS状态的开机自启入口。设置、托盘与原生菜单共享已确认通知偏好与权限。独立今日摘要仍供桌宠显示；用量读取失败只暂停Token通知。瞬时事件与Token共用原生owner和生命周期。开发回归不替代OS横幅、点击、登录启动或跨平台正式验收。
 
 macOS Kit初始化已先注册GPUI通知代理；应用仅对该已知类建立协作桥接，强持有原代理并转发非里程碑通知及可选系统设置回调，不替换Kit的App回调。未知代理保持失败关闭；退出只在槽位仍属自身时恢复原代理。通知worker关闭会取消正在等待的只读摘要，拒收新回执并排空已接受结果的文件事务，不等待OS完成块或继续预约。正常退出与横幅、点击仍须以新候选实机复核。
 

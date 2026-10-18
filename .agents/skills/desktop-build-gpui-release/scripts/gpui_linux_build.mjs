@@ -31,7 +31,8 @@ export function checkLinuxToolchain(run,target,host,environment=process.env) {
   if (!installed.includes(target)) throw new Error(`missing Rust target: rustup target add ${target}`);
   if (run(`${tuple}-gcc`,['-dumpmachine']).stdout.trim() !== tuple) throw new Error('Linux C compiler target differs');
   run(`${tuple}-g++`,['--version']); run(`${tuple}-ar`,['--version']);
-  const tools={gcc:run(`${tuple}-gcc`,['--version']).stdout.split('\n')[0], dpkg:run('dpkg-deb',['--version']).stdout.split('\n')[0], tar:run('tar',['--version']).stdout.split('\n')[0]};
+  const tools={gcc:run(`${tuple}-gcc`,['--version']).stdout.split('\n')[0], dpkg:run('dpkg-deb',['--version']).stdout.split('\n')[0], tar:run('tar',['--version']).stdout.split('\n')[0],
+    dbusTestFixture:run('dbus-daemon',['--version']).stdout.split('\n')[0]};
   run('readelf',['--version']);
   const libraries={};
   for (const library of ['fontconfig','freetype2','xkbcommon','xkbcommon-x11','wayland-client','x11','x11-xcb','xcb']) {
@@ -84,7 +85,7 @@ export function executeLinuxBuild(options,hooks) {
   if ((options.signing ?? 'disabled')!=='disabled' || (options.signingSource ?? 'not-requested')!=='not-requested') throw new Error('Linux package signing is not implemented; cannot silently downgrade');
   const candidate=options.mode==='candidate', buildRun=randomUUID();
   const plan={buildRun,mode:options.mode,project:facts.project,version:facts.version,target,format,platform:'linux',arch:info.arch,interface:'gui',guiFramework:'gpui',lockPolicy,package:config.package,binary:config.binary,hostTarget:host,buildMode:target===host?'native':'cross-architecture',sourceCommit:identity.commit,dirty:identity.dirty};
-  if (options.command==='preview') return {...plan,tools:['rustup',`${target.replace('-unknown','')}-gcc`,'pkg-config','readelf','tar','dpkg-deb'],toolchain:'unchecked'};
+  if (options.command==='preview') return {...plan,tools:['rustup',`${target.replace('-unknown','')}-gcc`,'pkg-config','readelf','tar','dpkg-deb','dbus-daemon'],toolchain:'unchecked'};
   const toolchain=checkLinuxToolchain(run,target,host,environment);
   toolchain.evidence.compilerProbe=probeLinuxLinker(root,run,target,toolchain.env);
   if (options.command==='setup') return {target,toolchain:toolchain.evidence,installation:'not-needed; uses system GNU/binutils/tar/dpkg tools'};

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -45,6 +46,17 @@ function installThirdPartySource() {
     copyFileSync(path.join(source, relative), target);
   }
   return files.map((relative) => `${directory}/${relative}`).sort();
+}
+
+/** 安装仓库已封存的真实生成物与完成回执，不能用新造的摘要冒充登记。 */
+function installGeneratedArchitecture(directory = ".archify/architecture-lokimetris-20261011-2240") {
+  const source = fileURLToPath(new URL("../../../../.archify/architecture-lokimetris-20261011-2240/", import.meta.url));
+  for (const name of ["lokimetris.html", "lokimetris.finalize.json"]) {
+    const target = path.join(root, directory, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(path.join(source, name), target);
+  }
+  return `${directory}/lokimetris.html`;
 }
 
 function captureOutput(callback) {
@@ -194,6 +206,112 @@ test("excludes only root Harness generated lock path", () => {
   const report = inspectRepository(root);
   assert.deepEqual(report.excludedGeneratedFiles, [".harness/upstream-lock.json"]);
   assert.deepEqual(report.violations.map((item) => item.path), ["docs/upstream-lock.json", "nested/.harness/upstream-lock.json"]);
+});
+
+test("sealed architecture bytes and finalize receipt exempt only the exact registered HTML", () => {
+  const artifact = installGeneratedArchitecture();
+  const neighbor = ".archify/architecture-lokimetris-20261011-2240/handwritten.html";
+  write(neighbor, "x\n".repeat(FRONTEND_HARD_LINE_LIMIT + 1));
+  const report = inspectRepository(root);
+  assert.deepEqual(report.errors, []);
+  assert.deepEqual(report.excludedGeneratedFiles, [artifact]);
+  assert.deepEqual(report.violations.map((item) => item.path), [neighbor]);
+});
+
+test("registered architecture remains excluded while its finalize receipt is maintained text", () => {
+  const artifact = installGeneratedArchitecture();
+  const report = inspectRepository(root);
+  assert.equal(report.ok, true, JSON.stringify(report));
+  assert.deepEqual(report.excludedGeneratedFiles, [artifact]);
+  assert.equal(report.checkedTextFiles, 1);
+});
+
+test("copying a genuine generated pair to another directory does not grant exclusion", () => {
+  const artifact = installGeneratedArchitecture(".archify/unregistered");
+  const report = inspectRepository(root);
+  assert.deepEqual(report.errors, []);
+  assert.deepEqual(report.excludedGeneratedFiles, []);
+  assert.deepEqual(report.violations.map((item) => item.path), [artifact]);
+});
+
+test("generator markers alone do not exempt handwritten HTML", () => {
+  write(".archify/unregistered.html", '<meta name="generator" content="archify 3.0.1">\n'.repeat(FRONTEND_HARD_LINE_LIMIT + 1));
+  const report = inspectRepository(root);
+  assert.deepEqual(report.excludedGeneratedFiles, []);
+  assert.deepEqual(report.violations.map((item) => item.path), [".archify/unregistered.html"]);
+});
+
+test("equal-size HTML corruption fails closed and still reports its line violation", () => {
+  const artifact = installGeneratedArchitecture();
+  const payload = readFileSync(path.join(root, artifact));
+  payload[100] ^= 1;
+  write(artifact, payload);
+  const report = inspectRepository(root);
+  assert.deepEqual(report.excludedGeneratedFiles, []);
+  assert.ok(report.errors.some((error) => error.includes("生成物 SHA256")), JSON.stringify(report));
+  assert.deepEqual(report.violations.map((item) => item.path), [artifact]);
+});
+
+test("changing HTML and all matching receipt hashes cannot forge a new trusted registration", () => {
+  const artifact = installGeneratedArchitecture();
+  const payload = readFileSync(path.join(root, artifact));
+  payload[100] ^= 1;
+  write(artifact, payload);
+  const receipt = artifact.replace(".html", ".finalize.json");
+  const content = readFileSync(path.join(root, receipt), "utf8");
+  const original = JSON.parse(content).artifact.sha256;
+  const forged = createHash("sha256").update(payload).digest("hex");
+  write(receipt, content.replaceAll(original, forged));
+  const report = inspectRepository(root);
+  assert.deepEqual(report.excludedGeneratedFiles, []);
+  assert.ok(report.errors.some((error) => error.includes("完成回执 SHA256")), JSON.stringify(report));
+  assert.deepEqual(report.violations.map((item) => item.path), [artifact]);
+});
+
+for (const missing of ["lokimetris.html", "lokimetris.finalize.json"]) {
+  test(`partially missing sealed pair fails closed: ${missing}`, () => {
+    const artifact = installGeneratedArchitecture();
+    unlinkSync(path.join(root, path.posix.dirname(artifact), missing));
+    const report = inspectRepository(root);
+    assert.deepEqual(report.excludedGeneratedFiles, []);
+    assert.ok(report.errors.some((error) => error.includes("缺失")), JSON.stringify(report));
+  });
+}
+
+for (const linked of ["lokimetris.html", "lokimetris.finalize.json"]) {
+  test(`sealed artifact and receipt reject file links: ${linked}`, (context) => {
+    const artifact = installGeneratedArchitecture();
+    const target = path.join(root, path.posix.dirname(artifact), linked);
+    const original = path.join(root, "original-payload");
+    renameSync(target, original);
+    try { symlinkSync(original, target); }
+    catch (error) { if (error?.code === "EPERM" || error?.code === "ENOSYS") { context.skip("host disallows symbolic links"); return; } throw error; }
+    const report = inspectRepository(root);
+    assert.deepEqual(report.excludedGeneratedFiles, []);
+    assert.ok(report.errors.some((error) => error.includes("符号链接")), JSON.stringify(report));
+  });
+}
+
+test("a symlink in the registered parent chain fails closed", (context) => {
+  const artifact = installGeneratedArchitecture();
+  const directory = path.join(root, path.posix.dirname(artifact));
+  const original = path.join(root, "original-directory");
+  renameSync(directory, original);
+  try { symlinkSync(original, directory, "dir"); }
+  catch (error) { if (error?.code === "EPERM" || error?.code === "ENOSYS") { context.skip("host disallows symbolic links"); return; } throw error; }
+  const report = inspectRepository(root);
+  assert.deepEqual(report.excludedGeneratedFiles, []);
+  assert.ok(report.errors.some((error) => error.includes("符号链接")), JSON.stringify(report));
+});
+
+test("registered receipt must be a regular file", () => {
+  const artifact = installGeneratedArchitecture();
+  const receipt = path.join(root, artifact.replace(".html", ".finalize.json"));
+  unlinkSync(receipt);
+  mkdirSync(receipt);
+  const report = inspectRepository(root);
+  assert.deepEqual(report.excludedGeneratedFiles, []);
+  assert.ok(report.errors.some((error) => error.includes("不是普通文件")), JSON.stringify(report));
 });
 
 test("verified original third-party files are explicitly reported and excluded", () => {

@@ -11,7 +11,7 @@ impl Service {
     /// Token 预约优先，其余终态使用同一单在途槽；关闭与权限暂停期间不补发。
     pub(super) fn dispatch_activity(&self, cx: &mut App) {
         let owner = self.owner.borrow();
-        if owner.closing || owner.delivery_task.is_some() || owner.permission_task.is_some()
+        if owner.closing || owner.state.busy || owner.delivery_task.is_some() || owner.permission_task.is_some()
             || !owner.state.enabled || owner.state.delivery_permission() != NotificationPermission::Allowed { return; }
         let Some(usage) = &owner.usage else { return; };
         let Some(request) = usage.activity_notifications().take() else { return; };
@@ -20,9 +20,10 @@ impl Service {
         drop(owner);
         let service = self.clone();
         let executor = cx.background_executor().clone();
+        let delivery = driver::send(&host, executor.clone(), request.id, title, body);
         let task = cx.spawn(async move |_cx| {
             let result = match select(
-                driver::send(&host, executor.clone(), request.id, title, body).boxed_local(),
+                delivery.boxed_local(),
                 executor.timer(Duration::from_secs(10)).boxed_local(),
             ).await {
                 Either::Left((result, _)) => result,
