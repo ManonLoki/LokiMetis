@@ -15,10 +15,15 @@ use loki_metris_core::{UsageCallsQuery,UsageCallsPage,UsageCallFilters,UsageFilt
 
 /// 会话筛选按 Agent 独立；结果链只保留当前 Agent 的可信页面。
 pub(in crate::app) struct CallsState {
+    /// 各客户端的调用筛选与排序。
     pub queries:[UsageCallsQuery;5],
+    /// 当前结果链；追加分页时在末尾拼接。
     pub page:Option<UsageCallsPage>,
+    /// 下一页加载在途。
     pub loading_next:bool,
+    /// 整页替换失败。
     pub replacement_failed:bool,
+    /// 加载下一页失败。
     pub next_failed:bool,
     /// 每次整页替换递增，使列宽缓存不会沿用上一结果链的测量。
     pub replacement:u64,

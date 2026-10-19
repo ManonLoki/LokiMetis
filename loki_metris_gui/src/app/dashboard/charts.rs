@@ -10,9 +10,23 @@ use gpui_kit::base::TestSupportExt as _;
 
 /// 各 Agent 的图表筛选和悬浮不改变用量统计页的筛选。
 pub(in crate::app) struct ChartState {
-    pub ranges:[usize;5], pub dimensions:[usize;5], pub visible:[[bool;6];5], pub metric:[usize;5],
-    pub data:Option<UsageChartPage>, pub workbuddy:Option<WorkbuddyStatisticsSnapshot>,
-    pub workbuddy_group:usize, pub workbuddy_metric:usize,
+    /// 各 Agent 选中的自然日窗口下标（对应 `NATURAL_WINDOW_KEYS`）；数组按看板客户端下标索引。
+    pub ranges:[usize;5],
+    /// 各 Agent 选中的分布维度下标。
+    pub dimensions:[usize;5],
+    /// 各 Agent 在 Token 趋势图中显示的六条曲线；至少保留一条可见。
+    pub visible:[[bool;6];5],
+    /// 各 Agent 分布图选中的指标下标。
+    pub metric:[usize;5],
+    /// 当前 Agent 的图表数据；切换 Agent 时清空。
+    pub data:Option<UsageChartPage>,
+    /// WorkBuddy 的统计快照；仅 WorkBuddy 图表使用。
+    pub workbuddy:Option<WorkbuddyStatisticsSnapshot>,
+    /// WorkBuddy 图表选中的分组下标。
+    pub workbuddy_group:usize,
+    /// WorkBuddy 图表选中的指标下标；切换分组时归零。
+    pub workbuddy_metric:usize,
+    /// 各折线图悬浮所在的横轴下标，按 `plot_view` 的 hover 槽位共享给绘制层。
     pub hover:[Rc<Cell<Option<usize>>>;4],
 }
 impl Default for ChartState {

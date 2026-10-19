@@ -13,10 +13,15 @@ use std::time::Duration;
 /// 视觉子树保存稳定动画通道，外层开关独立拥有输入与辅助语义。
 #[derive(IntoElement)]
 struct SwitchVisual {
+    /// 动画通道的稳定元素 ID。
     id: ElementId,
+    /// 开关处于开启状态。
     checked: bool,
+    /// 开关禁用。
     disabled: bool,
+    /// 轨道颜色。
     track: Hsla,
+    /// 滑块颜色。
     thumb: Hsla,
 }
 

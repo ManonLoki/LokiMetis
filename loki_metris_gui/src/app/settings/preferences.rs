@@ -7,10 +7,15 @@ use gpui_kit::{Context,Task,Window};
 /// 主题和语言串行提交；失败状态归属原字段，不切换已经确认的值。
 #[derive(Default)]
 pub(in crate::app) struct PreferenceSaveState {
+    /// 在途的偏好修改。
     pub pending:Option<PreferencePatch>,
+    /// 最近一次保存失败的修改，失败提示归属于该字段。
     pub failed:Option<PreferencePatch>,
+    /// 保存任务。
     task:Option<Task<()>>,
+    /// 两个语言选项的焦点。
     pub language_focus:std::cell::OnceCell<[gpui_kit::FocusHandle;2]>,
+    /// 三个主题选项的焦点。
     pub theme_focus:std::cell::OnceCell<[gpui_kit::FocusHandle;3]>,
 }
 

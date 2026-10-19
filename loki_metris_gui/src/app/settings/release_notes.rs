@@ -15,7 +15,9 @@ use gpui_kit::{
 
 /// 模态仅拥有原生焦点，不镜像构建嵌入的发布数据。
 pub(in crate::app) struct ReleaseNotesModal {
+    /// 弹窗焦点。
     focus: FocusHandle,
+    /// 打开前的焦点，关闭时恢复。
     previous: Option<FocusHandle>,
 }
 

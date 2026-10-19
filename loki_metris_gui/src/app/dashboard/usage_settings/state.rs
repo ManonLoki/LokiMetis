@@ -9,19 +9,33 @@ pub(crate) enum Feedback {Saved(u16),Failed}
 
 /// 输入实体跨渲染稳定；离页或切物理客户端只重置页面草稿。
 pub(in crate::app) struct UsageSettingsState {
+    /// 两个输入框：下标 0 为扫描间隔，1 为保留天数；首次进入页面时创建。
     pub inputs:Option<[Entity<InputState>;2]>,
+    /// 输入变化的订阅。
     pub subscriptions:Vec<Subscription>,
+    /// 最近一次读取或保存成功的设置。
     pub saved:Option<UsageSettings>,
+    /// 下一帧要写回输入框的值；渲染时取走。
     pub reset_inputs:[Option<String>;2],
+    /// 各字段保存在途。
     pub pending:[bool;2],
+    /// 各字段最近一次保存的反馈。
     pub feedback:[Option<Feedback>;2],
+    /// 各字段的保存任务。
     pub save_tasks:[Option<Task<()>>;2],
+    /// 读取任务。
     pub query_task:Option<Task<()>>,
+    /// 读取在途。
     pub loading:bool,
+    /// 最近一次读取失败。
     pub failed:bool,
+    /// 页面代次；重置时递增，旧保存结果被丢弃。
     pub generation:u64,
+    /// 读取代次；每次发起读取递增，旧读取结果被丢弃。
     pub query_revision:u64,
+    /// 已读取到的服务端设置修订号。
     pub service_revision:u64,
+    /// 页面对应的物理客户端下标（1..=3）；切换时重置草稿。
     pub physical_client:usize,
 }
 impl Default for UsageSettingsState {

@@ -6,8 +6,11 @@ use gpui_kit::{Context, Task};
 /// 根实体保留一次系统请求与失败状态，切换页面不取消已经接受的打开。
 #[derive(Default)]
 pub(in crate::app) struct RepositoryState {
+    /// 打开请求在途。
     pub pending: bool,
+    /// 最近一次打开失败。
     pub failed: bool,
+    /// 打开任务。
     task: Option<Task<()>>,
 }
 

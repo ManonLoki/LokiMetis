@@ -22,11 +22,17 @@ mod a11y_tests;
 
 /// 弹窗只持有别名草稿和目标身份，不把原始目录暴露给输入控件。
 pub(in crate::app) struct SourceDialog {
+    /// 目标数据根。
     root: SourceRootSummary,
+    /// 是移除确认弹窗；为 false 时是改名弹窗。
     remove: bool,
+    /// 别名输入框。
     input: Entity<InputState>,
+    /// 弹窗焦点。
     focus: FocusHandle,
+    /// 打开弹窗前的焦点，关闭时恢复。
     previous_focus: Option<FocusHandle>,
+    /// 输入变化订阅。
     _subscription: Subscription,
 }
 

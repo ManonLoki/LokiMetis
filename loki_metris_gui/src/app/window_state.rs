@@ -8,9 +8,13 @@ use std::time::Duration;
 
 /// generation 使迟到的恢复 task 失效；隐藏/关闭不会提交迁屏中间反馈。
 pub(super) struct MainWindowState {
+    /// 主窗原生宿主；捕获失败时为 None。
     host: Option<WindowHost>,
+    /// 恢复代次；新的恢复请求使旧的失效。
     generation: u64,
+    /// 启动恢复在途，期间不保存几何。
     restoring: bool,
+    /// 已同步的宿主几何修订号。
     revision: u64,
 }
 

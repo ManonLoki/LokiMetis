@@ -19,16 +19,27 @@ use loki_metris_core::SourceRootSummary;
 /// 局部页面状态随卸载丢弃；服务持有已接受的写任务。
 #[derive(Default)]
 pub(in crate::app) struct SourcesState {
+    /// 当前 Agent 的数据根列表；尚未读取时为 None。
     pub roots:Option<Vec<SourceRootSummary>>,
+    /// 最近一次读取失败。
     pub refresh_failed:bool,
+    /// 有数据根变更在途。
     pub pending:bool,
+    /// 最近一次变更的反馈：成功文案或失败类别。
     pub feedback:Option<Result<String,&'static str>>,
+    /// 在途的数据根变更任务。
     pub operation_task:Option<Task<()>>,
+    /// 按候选 ID 索引的重试任务。
     pub candidate_tasks:std::collections::BTreeMap<String,Task<()>>,
+    /// 变更已生效但随后刷新失败的类别；不能把已发生的变更说成未执行。
     pub post_update_error:Option<&'static str>,
+    /// 打开中的改名或移除弹窗。
     pub modal:Option<dialog::SourceDialog>,
+    /// 页面代次；重置时递增，旧结果被丢弃。
     pub generation:u64,
+    /// 自动发现的公开状态。
     pub discovery:crate::usage_service::DiscoveryView,
+    /// WorkBuddy 根发现状态。
     pub workbuddy_discovery:Option<loki_metris_core::RootDiscoveryStatus>,
 }
 impl SourcesState {

@@ -14,9 +14,13 @@ pub(in crate::app) enum Route { Overview, Statistics, Charts, Calls, Sources, Se
 
 /// 统计结果只是查询快照，时间和分组选择属于进程会话。
 pub(in crate::app) struct DetailState {
+    /// 各客户端统计页选中的窗口下标。
     pub ranges: [usize; 5],
+    /// 各客户端统计页选中的分组维度下标。
     pub dimensions: [usize; 5],
+    /// 当前统计结果；切换客户端时清空。
     pub statistics: Option<UsageStatisticsPage>,
+    /// WorkBuddy 逐模型用量；仅 WorkBuddy 使用。
     pub models: Option<WorkbuddyModelUsageWindow>,
 }
 impl Default for DetailState {

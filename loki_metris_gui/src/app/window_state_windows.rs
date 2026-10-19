@@ -7,10 +7,15 @@ use loki_metris_core::window_placement::*;
 
 /// 单窗代次撤销迟到恢复；未读回确认的几何不能进入偏好 worker。
 pub(super) struct MainWindowState {
+    /// 主窗原生宿主；捕获失败时为 None。
     host: Option<WindowHost>,
+    /// 恢复代次；新的恢复请求使旧的失效。
     generation: u64,
+    /// 启动恢复在途，期间不保存几何。
     restoring: bool,
+    /// 原生几何尚未读回确认，期间不保存几何。
     geometry_unconfirmed: bool,
+    /// 已同步的宿主几何修订号。
     revision: u64,
 }
 

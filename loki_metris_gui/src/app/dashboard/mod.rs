@@ -33,30 +33,55 @@ const NATURAL_WINDOW_KEYS: [&str; 6] = ["today", "yesterday", "this_week", "last
 
 /// 看板进程内会话保持客户端和自然日窗口，不把筛选写入业务库。
 pub(super) struct Dashboard {
+    /// 看板客户端下标：0 全部、1 Codex、2 Claude Code、3 Grok、4 WorkBuddy；各长度为 5 的数组都按它索引。
     pub client: usize,
+    /// 各客户端概览页选中的自然日窗口下标（对应 `NATURAL_WINDOW_KEYS`）。
     pub ranges: [usize; 5],
+    /// 在途扫描的进度。
     pub progress: Option<crate::usage_service::ScanProgress>,
+    /// 当前子页。
     pub route: Route,
+    /// 统计页的筛选与结果。
     pub detail: DetailState,
+    /// 图表页的筛选、结果与悬浮。
     pub chart: charts::ChartState,
+    /// 调用页的筛选与分页结果。
     pub calls: calls::CallsState,
+    /// 数据源页状态。
     pub sources: sources::SourcesState,
+    /// 用量设置页状态。
     pub usage_settings:usage_settings::UsageSettingsState,
+    /// 后台有扫描在途。
     pub scanning: bool,
+    /// 在途扫描的 Agent；全部 Agent 扫描时为 None。
     pub scanning_client:Option<SourceClientKind>,
+    /// 最近一轮扫描的失败类别。
     pub scan_error: Option<&'static str>,
+    /// 每轮检查扫描状态、设置修订与 10 秒定时刷新的前台任务。
     pub watch_task: Option<Task<()>>,
+    /// 当前客户端的概览数据；切换客户端时清空。
     pub data: Option<UsageData>,
+    /// 最近一次查询的失败类别。
     pub error: Option<&'static str>,
+    /// 查询在途。
     pub loading: bool,
+    /// 查询代次；每次发起查询或切换子页递增，旧代次结果被丢弃。
     pub revision: u64,
+    /// 最近一次发起或完成查询的时刻，用于 10 秒定时刷新。
     pub last_read: std::time::Instant,
+    /// 用量服务；测试根视图不接入时为 None。
     pub service: Option<Arc<UsageService>>,
+    /// 在途查询任务。
     pub task: Option<Task<()>>,
+    /// 概览总 Token 精确值刚被复制，显示对勾。
     pub copied: bool,
+    /// 统计摘要卡中刚被复制精确值的指标键。
     pub copied_metric: Option<&'static str>,
+    /// 手动选择目录检查在途，期间不接受重复请求。
     pub manual_pending:bool,
+    /// 手动目录检查任务。
     pub manual_task:Option<Task<()>>,
+    /// 复制反馈到期后恢复图标的定时任务。
     pub copy_task: Option<Task<()>>,
 }
 

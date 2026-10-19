@@ -17,13 +17,21 @@ use loki_metris_core::{
 /// 页面之间共享已提交配置；查询代数阻止旧读取覆盖正在保存的新选择。
 #[derive(Default)]
 pub(in crate::app) struct AgentSettingsState {
+    /// 最近一次读取或提交成功的监控设置。
     pub value: Option<MonitorSettings>,
+    /// 读取在途。
     pub loading: bool,
+    /// 保存在途。
     pub pending: bool,
+    /// 最近一次读写的失败类别。
     pub error: Option<&'static str>,
+    /// 已读取到的服务端设置修订号。
     pub service_revision: u64,
+    /// 读取代次；保存开始时递增，使旧读取不覆盖新选择。
     query_revision: u64,
+    /// 读取任务。
     query_task: Option<Task<()>>,
+    /// 保存任务。
     save_task: Option<Task<()>>,
 }
 

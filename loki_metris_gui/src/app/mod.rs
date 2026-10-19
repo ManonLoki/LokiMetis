@@ -23,9 +23,13 @@ const SIDEBAR_INSET: f32 = 6.;
 /// 页面枚举只包含本次初始化实际启用的页面。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
+    /// 用量看板。
     Dashboard,
+    /// AI 监控。
     Monitor,
+    /// 换肤。
     Skins,
+    /// 设置。
     Settings,
 
 }
@@ -33,48 +37,81 @@ pub enum Page {
 /// 页面滚动只拥有原生 handle 和弱壳层租约，不能形成根视图引用环。
 #[derive(Clone)]
 pub(in crate::app) struct PageScroll {
+    /// 页面滚动容器的原生句柄。
     handle: gpui_kit::ScrollHandle,
+    /// 根视图的弱引用，避免引用环。
     owner: gpui_kit::WeakEntity<Shell>,
+    /// 页面代次；页面、子页或 Agent 变化时递增，使旧的滚入回调失效。
     revision: std::rc::Rc<std::cell::Cell<u64>>,
+    /// 手动滚动代次；用户滚轮时递增，撤销未完成的自动滚入。
     manual_revision: std::rc::Rc<std::cell::Cell<u64>>,
+    /// 当前页面容器与粘滞头尾的绘制边界。
     regions: std::rc::Rc<std::cell::RefCell<PageRegions>>,
 }
 
 /// 当前实际文档及粘滞绘制边界只属于展示，不改变完整视口的原生焦点可见判定。
 #[derive(Default)]
 struct PageRegions {
+    /// 页面滚动容器边界。
     container: Option<gpui_kit::Bounds<gpui_kit::Pixels>>,
+    /// 粘滞页头边界。
     header: Option<gpui_kit::Bounds<gpui_kit::Pixels>>,
+    /// 粘滞页脚边界。
     footer: Option<gpui_kit::Bounds<gpui_kit::Pixels>>,
+    /// 页脚布局 ID，用于读取最新布局边界。
     footer_layout: Option<gpui_kit::LayoutId>,
 }
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
+    /// 主窗几何恢复与保存状态。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_state: window_state::MainWindowState,
+    /// 监控页状态。
     monitor:monitor::MonitorView,
+    /// 换肤页状态。
     skins:skins::Skins,
+    /// 主窗句柄。
     native_window:gpui_kit::AnyWindowHandle,
+    /// 已提交的监控设置与读写状态，各页面共享。
     agent_settings:settings::AgentSettingsState,
+    /// 主题与语言的保存状态。
     preference_save:settings::PreferenceSaveState,
+    /// 设置页通知详情是否展开。
     notification_details_expanded: bool,
+    /// 打开参考仓库请求的状态。
     repository:settings::RepositoryState,
+    /// 看板页状态。
     dashboard: dashboard::Dashboard,
+    /// 当前页面。
     page: Page,
+    /// 页面滚动与滚入租约。
     page_scroll: PageScroll,
+    /// 当前视口宽度（逻辑像素），用于响应式列数。
     viewport_width: f32,
+    /// 已确认的展示偏好。
     preferences: Preferences,
+    /// 偏好写入器。
     writer: Writer,
+    /// 当前界面语言。
     locale: &'static str,
+    /// 最近一次请求设置窗口标题时的语言；相同时不重复设置。
     last_requested_title_locale: Option<&'static str>,
+    /// 订阅系统外观变化。
     _appearance: Subscription,
+    /// 订阅窗口 bounds 变化。
     _bounds: Subscription,
+    /// 订阅窗口激活变化。
     _activation: Subscription,
+    /// 订阅窗口可见性变化。
     _visibility: Subscription,
+    /// 订阅键盘进入以显示焦点指示。
     _keyboard_entry: Subscription,
+    /// 主窗是当前激活窗口。
     window_active: bool,
+    /// 主窗可见；隐藏时暂停定时刷新。
     window_visible: bool,
+    /// 打开中的更新日志弹窗。
     release_notes_modal: Option<settings::ReleaseNotesModal>,
 }
 
