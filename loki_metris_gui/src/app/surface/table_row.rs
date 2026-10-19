@@ -15,7 +15,9 @@ type Inner = ObservedElement<Stateful<Div>>;
 
 /// 行只拥有透明背景的纯交互时间线，不分配图片、GPU图集或后台任务。
 pub(in crate::app) struct RowState {
+    /// 指针悬停。
     hovered: bool,
+    /// 背景色过渡。
     motion: CssMotion<4>,
 }
 
@@ -39,12 +41,19 @@ impl RowState {
 
 /// 显式稳定ID用于保存行交互；序号由TableBody传入，仅决定辅助索引及行边框。
 pub(in crate::app) struct BrandTableRow {
+    /// 内层行元素。
     inner: Inner,
+    /// 深色主题。
     dark: bool,
+    /// 行序号，决定辅助索引与行边框。
     ix: usize,
+    /// 行尺寸档位。
     size: Size,
+    /// 末行底部圆角。
     bottom_corner_radius: Pixels,
+    /// 单元格。
     children: Vec<AnyChildElement>,
+    /// 测试中观察行状态。
     #[cfg(test)]
     owner_observer: Option<super::OwnerObserver<RowState>>,
 }

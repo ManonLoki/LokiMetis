@@ -4,9 +4,13 @@ use crate::app::surface::raster::Pixels;
 
 /// 纹理只保留两侧模糊支持区，长按钮中段用同一恒定列展开。
 pub(super) struct Raster {
+    /// 遮罩像素。
     pub pixels: Pixels,
+    /// 两侧模糊支持区宽度。
     pub margin: u32,
+    /// 纹理的规范宽度；更长的按钮由中段恒定列展开。
     pub canonical_width: u32,
+    /// 两端保留的列宽。
     pub cap: u32,
 }
 

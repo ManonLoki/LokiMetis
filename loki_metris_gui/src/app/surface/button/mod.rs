@@ -36,32 +36,55 @@ mod veil_metal_tests;
 /// 每种变体对应历史Sources实际使用的Mantine按钮，而非全局主题替换。
 #[derive(Clone, Copy)]
 pub(in crate::app) enum SurfaceButtonVariant {
+    /// 品牌色实心。
     FilledBrand,
+    /// 红色实心。
     FilledRed,
+    /// 品牌色浅底。
     LightBrand,
+    /// 红色浅底。
     LightRed,
+    /// 品牌色无底，悬停显示浅底。
     SubtleBrand,
+    /// 红色无底，悬停显示浅底。
     SubtleRed,
+    /// 默认描边按钮。
     Default,
 }
 
 /// 按钮只拥有短暂反馈；三个CSS属性独立过渡，状态不进入偏好或业务服务。
 pub(in crate::app) struct ButtonMotion {
+    /// 指针悬停。
     hovered: bool,
+    /// 鼠标按下尚未抬起。
     mouse_pressed: bool,
+    /// 鼠标按下后移出或被打断，本次点击不再激活。
     mouse_activation_cancelled: bool,
+    /// 键盘按下后失焦或被打断，本次按键不再激活。
     keyboard_activation_cancelled: bool,
+    /// 最近一次键盘聚焦的句柄，用于判断是否显示焦点环。
     keyboard_focus: Option<FocusHandle>,
+    /// 上一帧处于按下态，用于检测按下边沿。
     was_active: bool,
+    /// 背景色过渡。
     background: CssMotion<4>,
+    /// 边框色过渡。
     border: CssMotion<4>,
+    /// 按下缩放与位移过渡。
     transform: CssMotion<2>,
+    /// 加载态内容的过渡。
     content: content::LoadingMotion,
+    /// 内容过渡仍在进行，需要继续请求下一帧。
     content_running: bool,
+    /// 加载遮罩纹理。
     veil: veil::Veil,
+    /// 加载遮罩当前显示。
     veil_active: bool,
+    /// 遮罩最近一次的 (边界, 圆角, 深色主题)。
     veil_geometry: Option<(Bounds<Pixels>, Pixels, bool)>,
+    /// 已安排在帧结束后退休遮罩纹理。
     veil_cleanup_scheduled: bool,
+    /// 焦点与窗口状态订阅。
     _subscriptions: Vec<Subscription>,
 }
 impl ButtonMotion {
@@ -145,19 +168,33 @@ type ClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
 /// 元素无额外辅助节点，内层继续使用原始控件ID与原生Button行为。
 pub(in crate::app) struct SurfaceButton {
+    /// 内层原生按钮；渲染时取走。
     button: Option<Button>,
+    /// 按钮文字。
     label: Option<SharedString>,
+    /// 已显式设置可访问名称，不再用文字派生。
     explicit_name: bool,
+    /// 点击回调，绑定在原生按钮上。
     click_handler: Option<ClickHandler>,
+    /// 历史尺寸档位；None 使用默认尺寸。
     historical_size: Option<HistoricalButtonSize>,
+    /// 左侧图标。
     left_icon: Option<Icon>,
+    /// 左侧图标尺寸。
     left_icon_size: Pixels,
+    /// 稳定元素 ID。
     id: ElementId,
+    /// 按钮变体。
     variant: SurfaceButtonVariant,
+    /// 深色主题。
     dark: bool,
+    /// 圆角半径。
     radius: Pixels,
+    /// 禁用。
     disabled: bool,
+    /// 加载中，显示遮罩与旋转指示。
     loading: bool,
+    /// 测试中观察动画 owner。
     #[cfg(test)]
     motion_observer: Option<crate::app::surface::OwnerObserver<ButtonMotion>>,
 }
@@ -274,11 +311,17 @@ impl IntoElement for SurfaceButton {
 
 /// 预绘制缓存连续颜色和中心仿射，绘制及命中共享同一时间线。
 pub(in crate::app) struct PaintState {
+    /// 本帧背景色。
     background: Rgba,
+    /// 本帧边框色。
     border: Rgba,
+    /// 按钮边界。
     bounds: Bounds<Pixels>,
+    /// 按下缩放比例。
     scale: f32,
+    /// 按下位移。
     translation: Point<Pixels>,
+    /// 过渡仍在进行。
     running: bool,
 }
 

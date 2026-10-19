@@ -6,12 +6,19 @@ use std::time::Instant;
 
 /// 主边框、顶accent、surface和两层阴影分别拥有时间线，颜色存储预乘sRGB。
 pub(super) struct MaterialMotion {
+    /// 表面色。
     surface: CssMotion<4>,
+    /// 主边框色。
     border: CssMotion<4>,
+    /// 顶边强调色。
     top: CssMotion<4>,
+    /// 内高光色。
     highlight: CssMotion<4>,
+    /// 阴影参数。
     shadow: CssMotion<7>,
+    /// 最近一次生成端点的输入与结果；输入不变时复用。
     targets: Option<(TargetInputs, MaterialTargets)>,
+    /// 测试中生成端点的次数。
     #[cfg(test)]
     target_builds: usize,
 }
@@ -19,18 +26,26 @@ pub(super) struct MaterialMotion {
 /// 端点生成只依赖这些输入；Hsla 的完整相等语义保留零符号与 NaN payload。
 #[derive(Clone, Copy, PartialEq)]
 struct TargetInputs {
+    /// 深色主题。
     dark: bool,
+    /// 悬停。
     hovered: bool,
+    /// 顶边强调色。
     top_accent: Option<Hsla>,
 }
 
 /// 当前端点是固定大小值，不持有历史主题或额外堆分配。
 #[derive(Clone, Copy)]
 struct MaterialTargets {
+    /// 主边框色端点。
     border: [f64; 4],
+    /// 顶边色端点。
     top: [f64; 4],
+    /// 表面色端点。
     surface: [f64; 4],
+    /// 内高光色端点。
     highlight: [f64; 4],
+    /// 阴影参数端点。
     shadow: [f64; 7],
 }
 
@@ -81,11 +96,17 @@ impl MaterialTargets {
 
 /// 单帧完整材质参数；阴影sigma、offset与spread仍是逻辑像素。
 pub(super) struct MaterialSample {
+    /// 表面色。
     pub surface: Hsla,
+    /// 主边框色。
     pub border: Hsla,
+    /// 顶边强调色。
     pub top: Hsla,
+    /// 内高光色。
     pub highlight: Hsla,
+    /// 阴影参数。
     pub shadow: ShadowSample,
+    /// 过渡仍在进行。
     pub running: bool,
 }
 

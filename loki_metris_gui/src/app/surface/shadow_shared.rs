@@ -7,11 +7,17 @@ use std::{cell::RefCell, collections::HashMap, rc::{Rc, Weak}, sync::Arc};
 /// 长轴只使用真正参与像素生成的尺寸；比例、圆角和连续样本均保留完整位值。
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) struct Key {
+    /// 纹理宽度。
     pub width: u32,
+    /// 纹理高度。
     pub height: u32,
+    /// 设备缩放比例的 f32 位模式。
     pub scale: u32,
+    /// 圆角半径的 f32 位模式。
     pub radius: u32,
+    /// 阴影 sigma、spread、dy、alpha 的 f64 位模式。
     sample: [u64; 4],
+    /// 阴影颜色的 BGR 分量。
     bgra: [u8; 3],
 }
 
@@ -29,14 +35,19 @@ impl Key {
 
 /// 弱缓存不拥有纹理，最后一个 lease 退出时删除精确代际的键和 atlas 条目。
 struct Pool {
+    /// 所属窗口。
     window: WindowId,
+    /// 按键索引的弱缓存。
     images: HashMap<Key, Weak<Lease>>,
 }
 
 /// 一个强引用代表一个当前或退休需求；RenderImage 的临时绘制引用不延长需求。
 pub(super) struct Lease {
+    /// 纹理键。
     pub key: Key,
+    /// 共享纹理。
     pub image: Arc<RenderImage>,
+    /// 所属窗口的纹理池。
     pool: Rc<RefCell<Pool>>,
 }
 
@@ -57,7 +68,9 @@ impl Lease {
 
 /// 每个 App 隔离窗口集合；弱 pool 不因关闭或无材质窗口而保留像素历史。
 struct Registry {
+    /// 按窗口索引的纹理池。
     windows: HashMap<WindowId, Weak<RefCell<Pool>>>,
+    /// 订阅窗口关闭以丢弃池。
     _closed: Subscription,
 }
 impl Global for Registry {}

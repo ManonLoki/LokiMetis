@@ -5,12 +5,19 @@ use std::time::{Duration, Instant};
 
 /// 每个CSS属性独立保存可逆时间线；未变的目标不会因其他属性变化重新计时。
 pub(in crate::app) struct CssMotion<const N: usize> {
+    /// 本段过渡起点。
     from: [f64; N],
+    /// 目标值；首次设置前为 None。
     target: Option<[f64; N]>,
+    /// CSS 过渡规范的 reversing-adjusted start value。
     reversing_start: [f64; N],
+    /// CSS 过渡规范的 reversing shortening factor。
     reversing_factor: f32,
+    /// 本段过渡开始的时刻。
     started: Instant,
+    /// 本段过渡时长；可能因中途反向被缩短。
     duration: Duration,
+    /// 未缩短前的基础时长。
     base_duration: Duration,
 }
 

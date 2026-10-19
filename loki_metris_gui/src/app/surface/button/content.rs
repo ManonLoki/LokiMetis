@@ -14,7 +14,9 @@ use std::time::{Duration, Instant};
 /// 本轮仅支持真实出现的 sm 保存与 xs 写入，避免隐式替换所有原生控件。
 #[derive(Clone, Copy)]
 pub(in crate::app) enum HistoricalButtonSize {
+    /// sm 档，用于保存按钮。
     Small,
+    /// xs 档，用于写入按钮。
     XSmall,
 }
 impl HistoricalButtonSize {
@@ -43,12 +45,19 @@ impl HistoricalButtonSize {
 
 /// 普通 CSS ease 过渡，支持同属性反向时连续采样与缩短剩余时间。
 struct Transition {
+    /// 本段过渡起点。
     from: f32,
+    /// 目标值；首次设置前为 None。
     target: Option<f32>,
+    /// CSS 过渡规范的 reversing-adjusted start value。
     reversing_start: f32,
+    /// CSS 过渡规范的 reversing shortening factor。
     reversing_factor: f32,
+    /// 本段过渡开始的时刻。
     started: Option<Instant>,
+    /// 本段过渡时长。
     duration: Duration,
+    /// 未缩短前的基础时长。
     base: Duration,
 }
 impl Transition {
@@ -126,18 +135,27 @@ impl Transition {
 
 /// 三个 CSS 属性独立计时；旋转只在真实 loading 生命周期内存在。
 pub(super) struct LoadingMotion {
+    /// 文字不透明度过渡。
     opacity: Transition,
+    /// 文字位移过渡。
     slide: Transition,
+    /// 加载指示器显现过渡。
     loader: Transition,
+    /// 当前处于加载态。
     loading: bool,
+    /// 旋转开始的时刻；非加载态为 None。
     rotation_start: Option<Instant>,
 }
 /// 单帧不可变绘制参数，不向业务状态或偏好写入动画信息。
 #[derive(Clone, Copy)]
 pub(super) struct LoadingPaint {
+    /// 文字不透明度。
     opacity: f32,
+    /// 文字位移。
     slide: f32,
+    /// 加载指示器不透明度。
     loader: f32,
+    /// 加载指示器旋转角度。
     angle: f32,
     pub(super) running: bool,
 }

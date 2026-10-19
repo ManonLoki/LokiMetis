@@ -11,10 +11,15 @@ use gpui_kit::{Bounds, Pixels, Rgba, Window};
 /// 精确几何独立于颜色；保留比例、半径及顶边原始位模式。
 #[derive(Clone, Copy, PartialEq)]
 struct GeometryKey {
+    /// 宽度。
     width: u32,
+    /// 高度。
     height: u32,
+    /// 缩放比例的 f32 位模式。
     scale: u32,
+    /// 圆角半径的 f32 位模式。
     radius: u32,
+    /// 顶边宽度的 f32 位模式。
     top: u32,
 }
 
@@ -25,8 +30,11 @@ struct Key { geometry: GeometryKey, colors: RimColors }
 /// 小型九切片保留CSS各边颜色和椭圆padding-box，不用矩形顶条遮住圆角。
 #[derive(Default)]
 pub(super) struct Rim {
+    /// 当前纹理。
     texture: Texture<Key>,
+    /// 当前几何键与采样计划。
     geometry: Option<(GeometryKey, RimGeometry)>,
+    /// 测试中重建几何的次数。
     #[cfg(test)]
     geometry_builds: usize,
 }

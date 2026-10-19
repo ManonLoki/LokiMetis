@@ -25,17 +25,25 @@ pub(in crate::app) fn mark_render_once_disabled(interactivity: &mut Interactivit
 
 /// 焦点线沿实际控件边缘向外绘制，透明中心保留原背景及其alpha。
 pub(in crate::app) struct FocusRing {
+    /// 控件焦点。
     pub focus: FocusHandle,
+    /// 焦点环圆角。
     pub radius: Pixels,
+    /// 焦点环与控件边缘的间距。
     pub gap: Pixels,
+    /// 焦点环线宽。
     pub width: Pixels,
+    /// 焦点环颜色。
     pub color: Rgba,
 }
 
 /// 完整转发具体元素，保持同一ID、布局、命中盒及单一辅助节点。
 pub(in crate::app) struct NativeControl<E> {
+    /// 被包装的具体元素。
     inner: E,
+    /// 禁用，不绘制焦点环。
     disabled: bool,
+    /// 焦点环参数；None 表示不绘制。
     ring: Option<FocusRing>,
 }
 impl<E: Element> NativeControl<E> {

@@ -8,8 +8,11 @@ use std::sync::{Arc, OnceLock};
 
 /// 纹理使用直通 BGRA 像素；所有尺寸均为物理像素，外围保留一圈采样保护。
 pub(super) struct Pixels {
+    /// 宽度（物理像素）。
     pub width: u32,
+    /// 高度（物理像素）。
     pub height: u32,
+    /// 直通 BGRA 像素。
     pub bytes: Vec<u8>,
 }
 
@@ -25,27 +28,39 @@ impl Pixels {
 /// 一个轴的九切片映射；源坐标含纹理外扩，目标坐标相对原卡片的近边。
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Slice {
+    /// 源纹理起点。
     pub source_start: f64,
+    /// 源纹理终点。
     pub source_end: f64,
+    /// 目标起点，相对卡片近边。
     pub target_start: f64,
+    /// 目标终点，相对卡片近边。
     pub target_end: f64,
 }
 
 /// 紧凑投影与映射同时生成，使短卡片的两端模糊保留真实重叠。
 #[cfg(test)]
 pub(super) struct ShadowRaster {
+    /// 阴影像素。
     pub pixels: Pixels,
+    /// 横轴映射。
     pub x: Vec<Slice>,
+    /// 纵轴映射。
     pub y: Vec<Slice>,
 }
 
 /// 两个主题共享的 CSS 阴影参数，sigma 已转换为物理像素。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct ShadowSample {
+    /// 高斯模糊 sigma（物理像素）。
     pub sigma: f64,
+    /// 扩展距离。
     pub spread: f64,
+    /// 纵向偏移。
     pub dy: f64,
+    /// 不透明度。
     pub alpha: f64,
+    /// 颜色的 BGR 分量。
     pub bgra: [u8; 3],
 }
 

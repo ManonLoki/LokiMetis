@@ -8,8 +8,11 @@ use gpui_kit::Rgba;
 /// 直通sRGB颜色；像素覆盖期间先预乘合成，再恢复直通BGRA交给GPUI。
 #[derive(Clone, Copy, PartialEq)]
 pub(in crate::app::surface) struct RimColors {
+    /// 主边框色。
     pub main: Rgba,
+    /// 顶边色。
     pub top: Rgba,
+    /// 内高光色。
     pub highlight: Rgba,
 }
 
@@ -17,24 +20,35 @@ pub(in crate::app::surface) struct RimColors {
 #[derive(Clone, Copy, PartialEq)]
 #[repr(u8)]
 enum SampleKind {
+    /// 主边框。
     Main,
+    /// 顶边。
     Top,
+    /// 内高光。
     Highlight,
 }
 
 /// 连续同类贡献仍逐次累加；单 texel 最多 64 次，可直接存入 u8。
 struct SampleRun {
+    /// 采样类别。
     kind: SampleKind,
+    /// 连续贡献次数。
     repeats: u8,
 }
 
 /// 每个 owner 仅保存当前圆角、粗顶边和内高光的原序采样计划。
 pub(in crate::app::surface) struct RimGeometry {
+    /// 纹理宽度（物理像素）。
     width: u32,
+    /// 纹理高度（物理像素）。
     height: u32,
+    /// 横轴九切片映射。
     x: Vec<super::Slice>,
+    /// 纵轴九切片映射。
     y: Vec<super::Slice>,
+    /// 每个像素在 `runs` 中的起始下标。
     pixel_offsets: Vec<usize>,
+    /// 按像素压缩的采样连段。
     runs: Vec<SampleRun>,
 }
 

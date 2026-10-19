@@ -11,17 +11,24 @@ use std::rc::Rc;
 /// 原始比例与半径位模式决定唯一几何计划，不对连续值量化。
 #[derive(Clone, Copy, PartialEq)]
 struct GeometryKey {
+    /// 宽度。
     width: u32,
+    /// 高度。
     height: u32,
+    /// 缩放比例的 f32 位模式。
     scale: u32,
+    /// 圆角半径的 f32 位模式。
     radius: u32,
 }
 
 /// 一张当前阴影和最多九个源片；离屏、隐藏或释放时可直接清空。
 #[derive(Default)]
 pub(super) struct Shadow {
+    /// 当前共享阴影 lease。
     texture: Option<Rc<Lease>>,
+    /// 当前几何键与切片计划。
     geometry: Option<(GeometryKey, ShadowGeometry)>,
+    /// 测试中重建几何的次数。
     #[cfg(test)]
     geometry_builds: usize,
 }

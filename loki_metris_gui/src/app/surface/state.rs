@@ -19,15 +19,25 @@ use gpui_kit::{
 
 /// 所有纹理都由一个元素owner拥有，后帧任务只保存弱引用。
 pub(in crate::app) struct MaterialState {
+    /// 指针相对卡片的位置。
     pub pointer: Point<Pixels>,
+    /// 卡片本帧可见。
     pub visible: bool,
+    /// 指针悬停。
     hovered: bool,
+    /// 材质颜色与阴影过渡。
     motion: MaterialMotion,
+    /// 阴影纹理。
     shadow: Shadow,
+    /// 聚光纹理。
     spotlight: Spotlight,
+    /// 边框与顶边纹理。
     rim: Rim,
+    /// 待下一帧回收的旧纹理。
     retired: Retired,
+    /// 已安排帧后清理。
     cleanup_scheduled: bool,
+    /// 窗口与外观订阅。
     _subscriptions: Vec<Subscription>,
 }
 

@@ -10,18 +10,26 @@ use gpui_kit::{
 /// 每个按钮最多当前和退休一张遮罩，不按动画时刻建立新缓存键。
 #[derive(Default)]
 pub(super) struct Veil {
+    /// 当前遮罩纹理。
     texture: Texture<Key>,
+    /// 待回收的旧纹理。
     retired: Retired,
+    /// 当前纹理的切片几何 (两侧模糊宽度, 规范宽度, 端部列宽)；纹理退休时清空。
     geometry: Option<(u32, u32, u32)>,
 }
 
 /// 实际border-box、设备比例、半径及主题决定唯一静态像素。
 #[derive(PartialEq)]
 struct Key {
+    /// border-box 宽度（物理像素）。
     width: u32,
+    /// border-box 高度（物理像素）。
     height: u32,
+    /// 设备缩放比例的 f32 位模式。
     scale: u32,
+    /// 圆角半径的 f32 位模式。
     radius: u32,
+    /// 深色主题。
     dark: bool,
 }
 

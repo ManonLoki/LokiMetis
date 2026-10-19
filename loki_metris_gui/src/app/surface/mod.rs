@@ -31,33 +31,46 @@ use state::MaterialState;
 /// 当前产品圆角与顶边几何；颜色改变不改变布局，宽度始终进入真实border-box。
 #[derive(Clone, Copy)]
 pub(in crate::app) struct Geometry {
+    /// 圆角半径。
     radius: Pixels,
+    /// 顶边宽度。
     top_width: Pixels,
+    /// 顶边强调色；None 使用默认边框色。
     top_accent: Option<Hsla>,
 }
 
 /// 历史静态类各自决定阴影与主题过渡，不把所有Paper或筛选条视为同一种卡片。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::app) enum StaticMaterial {
+    /// 普通面板。
     Panel,
+    /// 表格面板。
     Table,
+    /// 筛选条。
     FilterBar,
 }
 
 /// 材质模式独立于布局，只有明确的spot-panel允许注册内部指针反馈。
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum MaterialKind {
+    /// 带指针聚光的 spot-panel。
     Spotlight,
+    /// 静态材质。
     Static(StaticMaterial),
 }
 
 /// 默认r20、1px边框和品牌材质；显式radius/top_accent复用历史hero及slot合同。
 /// 背景、圆角、边框、阴影及材质hover由组件保留；请勿用同名style覆盖材质。
 pub(in crate::app) struct MaterialCard<const SPOTLIGHT: bool> {
+    /// 内层容器。
     inner: Stateful<Div>,
+    /// 深色主题。
     dark: bool,
+    /// 圆角与顶边几何。
     geometry: Geometry,
+    /// 材质模式。
     material: MaterialKind,
+    /// 测试中观察材质状态。
     #[cfg(test)]
     owner_observer: Option<OwnerObserver<MaterialState>>,
 }

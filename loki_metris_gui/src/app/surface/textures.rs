@@ -8,7 +8,9 @@ use super::shadow_shared::Lease;
 
 /// 普通纹理由单个 owner 释放，共享阴影由最后一个当前或退休 lease 释放。
 enum RetiredImage {
+    /// 单个 owner 独占的纹理。
     Owned(Arc<RenderImage>),
+    /// 共享阴影的 lease。
     Shared(Rc<Lease>),
 }
 impl RetiredImage {
@@ -24,12 +26,19 @@ impl RetiredImage {
 /// 固定角色的纹理槽使上一代待回收资源数量始终有界。
 #[derive(Clone, Copy)]
 pub(super) enum TextureRole {
+    /// 阴影。
     Shadow = 0,
+    /// 聚光径向主体。
     Radial = 1,
+    /// 左上圆角。
     Corner0 = 2,
+    /// 右上圆角。
     Corner1 = 3,
+    /// 左下圆角。
     Corner2 = 4,
+    /// 右下圆角。
     Corner3 = 5,
+    /// 边框与顶边。
     Rim = 6,
 }
 
@@ -43,6 +52,7 @@ impl TextureRole {
 /// 回收队列每种角色最多一张；后帧回调只捕获owner弱引用，不捕获纹理历史。
 #[derive(Default)]
 pub(super) struct Retired {
+    /// 按纹理角色索引的待回收纹理。
     images: [Option<RetiredImage>; 7],
 }
 
@@ -116,7 +126,9 @@ impl Retired {
 
 /// 相同实际采样值复用图像ID；替换、主题切换与显示比例改变至多退休一代。
 pub(super) struct Texture<K> {
+    /// 当前纹理的缓存键。
     pub key: Option<K>,
+    /// 当前纹理。
     pub image: Option<Arc<RenderImage>>,
 }
 

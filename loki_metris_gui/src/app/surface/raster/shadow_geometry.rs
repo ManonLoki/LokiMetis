@@ -4,21 +4,33 @@ use super::{Pixels, ShadowSample, Slice, cdf, rounded_coverage, slices};
 
 /// 连段终点为开区间，覆盖率保留原算法的完整 f64 位值。
 struct MaskRun {
+    /// 连段终点列（开区间）。
     end: u32,
+    /// 该连段每个像素位于卡片外的覆盖率。
     outside: f64,
 }
 
 /// 每个 owner 仅保留一个计划；动态 Gaussian 参数不进入几何缓存。
 pub(in crate::app::surface) struct ShadowGeometry {
+    /// 阴影纹理宽度（物理像素）。
     width: u32,
+    /// 阴影纹理高度（物理像素）。
     height: u32,
+    /// 纹理中卡片本体的宽度。
     card_width: u32,
+    /// 纹理中卡片本体的高度。
     card_height: u32,
+    /// 卡片左侧的模糊外扩宽度。
     near_x: u32,
+    /// 卡片上方的模糊外扩高度。
     near_y: u32,
+    /// 横轴九切片映射。
     pub(super) x: Vec<Slice>,
+    /// 纵轴九切片映射。
     pub(super) y: Vec<Slice>,
+    /// 每行在 `runs` 中的起始下标。
     row_offsets: Vec<usize>,
+    /// 按行压缩的卡片外覆盖率连段。
     runs: Vec<MaskRun>,
 }
 

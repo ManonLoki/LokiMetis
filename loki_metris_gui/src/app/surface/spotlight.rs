@@ -10,29 +10,43 @@ use std::sync::Arc;
 /// 径向主体只因主题或设备比例改变，鼠标移动不会生成新主体纹理。
 #[derive(Clone, PartialEq)]
 struct BaseKey {
+    /// 深色主题。
     dark: bool,
+    /// 设备缩放比例的 f32 位模式。
     scale: u32,
 }
 
 /// 圆角纹理只拥有当前位置的键；坐标均相对原卡片，布局变化不能借用过期mask。
 #[derive(Clone, PartialEq)]
 struct CornerKey {
+    /// 径向主体纹理的键。
     base: BaseKey,
+    /// 卡片宽度。
     width: u32,
+    /// 卡片高度。
     height: u32,
+    /// 该圆角区域相对卡片的左边。
     x: u32,
+    /// 该圆角区域相对卡片的上边。
     y: u32,
+    /// 圆角区域宽度。
     w: u32,
+    /// 圆角区域高度。
     h: u32,
+    /// 指针相对卡片的横坐标。
     pointer_x: i64,
+    /// 指针相对卡片的纵坐标。
     pointer_y: i64,
+    /// 圆角半径的 f32 位模式。
     radius: u64,
 }
 
 /// 固定一张径向图与四个小圆角槽，退出hover时退休所有光斑资源。
 #[derive(Default)]
 pub(super) struct Spotlight {
+    /// 径向主体纹理。
     base: Texture<BaseKey>,
+    /// 四个圆角区域的裁切纹理。
     corners: [Texture<CornerKey>; 4],
 }
 
