@@ -7,7 +7,12 @@ use std::{fs,io::{self,Read,Write},path::{Path,PathBuf},sync::atomic::{AtomicU64
 /// 缺字段采用产品缺省，出现非法值或损坏内容则拒绝整个快照。
 #[derive(Default,Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
-struct StoredSettings {scan_interval_minutes:Option<u16>,retention_days:Option<u16>}
+struct StoredSettings {
+    /// 扫描间隔（分钟）；缺失时使用默认值。
+    scan_interval_minutes:Option<u16>,
+    /// 保留天数；缺失时使用默认值。
+    retention_days:Option<u16>,
+}
 
 /// 父路径必须解析为目录；系统的 /var 等目录别名可以使用，目标文件仍拒绝链接。
 fn safe_parent(path:&Path)->io::Result<()> {

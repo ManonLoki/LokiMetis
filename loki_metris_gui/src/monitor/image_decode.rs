@@ -64,7 +64,12 @@ mod load_observation {
     static PROBES: OnceLock<Mutex<HashMap<String, Weak<AtomicUsize>>>> = OnceLock::new();
 
     /// 启动次数直接区分同一个 pending Asset 与被取消后立即重建的新任务。
-    pub(crate) struct LoadProbe { id: String, count: Arc<AtomicUsize> }
+    pub(crate) struct LoadProbe {
+        /// 被观察的图库 ID。
+        id: String,
+        /// 解码启动次数。
+        count: Arc<AtomicUsize>,
+    }
     impl LoadProbe {
         /// 仅为当前测试的实际来源建立唯一观察，不向生产解码注入替代结果。
         pub(crate) fn new(id: &str) -> Self {

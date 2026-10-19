@@ -8,7 +8,12 @@ use loki_metris_core::{AiTool, HookBehavior};
 
 /// 真实图片字段的两种原生按钮，不增加第二套控件业务状态。
 #[derive(Clone, Copy)]
-pub(in crate::app::monitor) enum PickerFocus { Clear, Trigger }
+pub(in crate::app::monitor) enum PickerFocus {
+    /// 清除图片按钮。
+    Clear,
+    /// 打开选择器按钮。
+    Trigger,
+}
 
 /// 在途回调只保留弱编辑身份或值类型字段身份；原生 FocusHandle 由 keyed 状态拥有。
 #[derive(Clone)]

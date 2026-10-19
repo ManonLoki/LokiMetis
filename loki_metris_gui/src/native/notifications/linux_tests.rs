@@ -5,7 +5,12 @@ use ashpd::zbus::{self, interface, object_server::SignalEmitter, zvariant::Owned
 use std::{io::{BufRead as _, BufReader}, process::{Child, Command, Stdio}, thread, time::Instant};
 
 /// daemon 与测试同寿命；异常路径也会终止并回收隔离进程，不改用户会话环境。
-struct PrivateBus { child: Child, address: String }
+struct PrivateBus {
+    /// 私有 dbus-daemon 子进程。
+    child: Child,
+    /// 私有总线地址。
+    address: String,
+}
 impl PrivateBus {
     /// 创建真实但不向外暴露的私有总线，地址只交给本测试的连接。
     fn new() -> Self {
@@ -28,7 +33,14 @@ impl Drop for PrivateBus {
 
 /// 只记录回归所需外部调用事实，不复刻应用领域逻辑。
 #[derive(Default)]
-struct Observations { replacements: Vec<u32>, bodies: Vec<String>, calls: usize }
+struct Observations {
+    /// 收到的替换 ID。
+    replacements: Vec<u32>,
+    /// 收到的通知正文。
+    bodies: Vec<String>,
+    /// Notify 调用次数。
+    calls: usize,
+}
 /// 测试用桌面通知服务，验证真实 D-Bus 参数并显式返回系统拒绝。
 struct NotificationServer(Arc<Mutex<Observations>>);
 #[interface(name = "org.freedesktop.Notifications", crate = "ashpd::zbus")]

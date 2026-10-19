@@ -4,7 +4,12 @@ use super::*;
 use windows::{core::w, Win32::{Foundation::RECT, Graphics::Gdi::*, UI::HiDpi::*}};
 
 /// 即使用例断言失败也销毁本线程窗口，恢复原先的 DPI awareness。
-struct TestWindow { hwnd: HWND, dpi: DPI_AWARENESS_CONTEXT }
+struct TestWindow {
+    /// 测试窗口句柄。
+    hwnd: HWND,
+    /// 创建窗口时使用的 DPI 感知上下文。
+    dpi: DPI_AWARENESS_CONTEXT,
+}
 impl Drop for TestWindow {
     /// 只销毁测试创建的 HWND，不触碰用户窗口或系统显示设置。
     // SAFETY: hwnd 是本测试创建且仅由 TestWindow 拥有的窗口；恢复的是创建前保存的线程 DPI 上下文。

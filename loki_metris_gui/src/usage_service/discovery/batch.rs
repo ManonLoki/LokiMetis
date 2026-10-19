@@ -65,7 +65,14 @@ impl DiscoveryBatch {
 }
 
 /// 登记真实 future 结束才释放去重身份；新批次同 ID 不受旧 guard 影响。
-struct Registration {batch:Arc<DiscoveryBatch>,generation:u64,id:String}
+struct Registration {
+    /// 所属批次状态。
+    batch:Arc<DiscoveryBatch>,
+    /// 登记时的批次代次。
+    generation:u64,
+    /// 登记的候选 ID。
+    id:String,
+}
 impl Drop for Registration {
     /// 失败、取消及 unwind 都释放本代数拥有的候选槽。
     fn drop(&mut self) {
@@ -74,7 +81,16 @@ impl Drop for Registration {
 }
 
 /// 批次任务拥有 active 与 indexing，退出时只清理自己的代数和客户端。
-struct BatchLease {service:Arc<UsageService>,generation:u64,client:SourceClientKind,armed:bool}
+struct BatchLease {
+    /// 用量服务。
+    service:Arc<UsageService>,
+    /// 批次代次。
+    generation:u64,
+    /// 批次所属 Agent。
+    client:SourceClientKind,
+    /// 尚未正常完成；为 true 时析构会清理 active 等忙态。
+    armed:bool,
+}
 impl Drop for BatchLease {
     /// runtime 取消与正常返回共用清理，旧任务不会清空新批次的忙态。
     fn drop(&mut self) {

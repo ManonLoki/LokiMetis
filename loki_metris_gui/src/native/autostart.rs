@@ -22,7 +22,14 @@ pub struct State {
 }
 
 /// 唯一 worker 接收读、写和退出命令，不在初始化时注册登录项。
-enum Command { Read, Set(bool), Stop }
+enum Command {
+    /// 重新读取系统状态。
+    Read,
+    /// 写入目标状态。
+    Set(bool),
+    /// 停止 worker。
+    Stop,
+}
 
 /// 应用生命周期持有线程与发送端，退出时等待本模块工作完成。
 pub struct Service {

@@ -290,7 +290,16 @@ fn record_listener_failure(status: &Arc<RwLock<HookRelayStatus>>, error: &str) {
 }
 
 /// 发布完成后同时持有磁盘与可见状态清理，即使 listener 被 abort 也不会留下活跃假象。
-struct PublishedEndpoint {path:std::path::PathBuf,endpoint:relay::HookRelayRendezvous,status:Arc<RwLock<HookRelayStatus>>,_lease:EndpointLease}
+struct PublishedEndpoint {
+    /// 端点描述文件路径。
+    path:std::path::PathBuf,
+    /// 已发布的端点描述。
+    endpoint:relay::HookRelayRendezvous,
+    /// 对外展示的 relay 状态。
+    status:Arc<RwLock<HookRelayStatus>>,
+    /// 端点租约，释放时撤销发布。
+    _lease:EndpointLease,
+}
 impl Drop for PublishedEndpoint {
     /// 只清理当前实例拥有的端点，之后把可见监听状态置为关闭。
     fn drop(&mut self) {remove_rendezvous_if_current(&self.path,&self.endpoint);write_hook_relay_status(&self.status).listening=false;}

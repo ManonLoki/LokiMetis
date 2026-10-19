@@ -119,7 +119,14 @@ impl Preferences {
 
 /// 明确偏好逐字段提交，不能携带可能过时的窗口或其他偏好快照。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice), SystemNotification(bool) }
+pub enum PreferencePatch {
+    /// 修改主题。
+    Theme(ThemeChoice),
+    /// 修改语言。
+    Language(LanguageChoice),
+    /// 修改系统通知开关。
+    SystemNotification(bool),
+}
 
 /// 几何属于可合并高频事件，不拥有主题与语言字段。
 #[derive(Clone)]
@@ -134,7 +141,12 @@ struct WindowGeometry {
 
 /// 几何只占一个待处理信号，不能挤满明确偏好命令的队列。
 #[derive(Default)]
-struct WindowUpdates { latest:Option<WindowGeometry>, queued:bool }
+struct WindowUpdates {
+    /// 最新待写入的窗口几何。
+    latest:Option<WindowGeometry>,
+    /// 已向 worker 发出合并信号，尚未被处理。
+    queued:bool,
+}
 
 /// 有界命令队列保留真实回执；窗口事件仅发送合并信号。
 enum Command {
@@ -147,7 +159,15 @@ enum Command {
 }
 
 /// 只有测试可使用显式内存存储，生产缺路径不能报告落盘成功。
-enum Storage { File(PathBuf), Unavailable, #[cfg(test)] Memory }
+enum Storage {
+    /// 写入应用数据目录内的偏好文件。
+    File(PathBuf),
+    /// 没有可用的数据目录；写入一律失败，保留旧值。
+    Unavailable,
+    /// 测试中只保存在内存。
+    #[cfg(test)]
+    Memory,
+}
 
 /// 工作线程拥有唯一已提交快照，写入成功后才更新基线并通知 UI。
 #[derive(Clone)]

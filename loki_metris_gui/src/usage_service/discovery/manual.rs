@@ -9,7 +9,14 @@ use crate::backend::source_catalog::SourceRootCatalogAdapter;
 pub struct ManualAddLease(Arc<ManualAddReservation>);
 
 /// 回执区分取消、直接登记和已启动深搜，不把取消显示为失败。
-pub enum ManualAddResult {Cancelled,Registered{outcome:SourceRootMutationOutcome,refresh:Result<(),&'static str>},DeepSearchStarted}
+pub enum ManualAddResult {
+    /// 用户取消了目录选择。
+    Cancelled,
+    /// 目录已登记为数据根，附变更结果与随后刷新的结果。
+    Registered{outcome:SourceRootMutationOutcome,refresh:Result<(),&'static str>},
+    /// 目录不是根，已开始在其子树中深度搜索。
+    DeepSearchStarted,
+}
 
 impl UsageService {
     /// 在展示原生选择器前同步拒绝重复流程和不支持的客户端。

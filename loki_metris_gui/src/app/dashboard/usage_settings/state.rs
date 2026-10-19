@@ -5,7 +5,12 @@ use loki_metris_core::{UsageSettings,UsageSettingField};
 
 /// 成功反馈携带该次实际保存值；失败不泄漏文件路径。
 #[derive(Clone,Copy)]
-pub(crate) enum Feedback {Saved(u16),Failed}
+pub(crate) enum Feedback {
+    /// 保存成功，附实际保存的值。
+    Saved(u16),
+    /// 保存失败。
+    Failed,
+}
 
 /// 输入实体跨渲染稳定；离页或切物理客户端只重置页面草稿。
 pub(in crate::app) struct UsageSettingsState {

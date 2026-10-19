@@ -25,7 +25,12 @@ struct GeometryKey {
 
 /// 当前动态颜色只替换纹理，不保留历史主题图像。
 #[derive(Clone, PartialEq)]
-struct Key { geometry: GeometryKey, colors: RimColors }
+struct Key {
+    /// 几何键。
+    geometry: GeometryKey,
+    /// 边框颜色。
+    colors: RimColors,
+}
 
 /// 小型九切片保留CSS各边颜色和椭圆padding-box，不用矩形顶条遮住圆角。
 #[derive(Default)]

@@ -7,10 +7,20 @@ use tokio::sync::{Notify, oneshot};
 
 /// 请求携带纯值；异步结果通过一次性通道返回所属界面。
 #[derive(Clone, Copy)]
-pub(super) struct Intent { pub client: Option<SourceClientKind>, pub origin: loki_metris_core::ScanStartOrigin }
+pub(super) struct Intent {
+    /// 要扫描的 Agent；None 表示全部。
+    pub client: Option<SourceClientKind>,
+    /// 扫描的触发来源。
+    pub origin: loki_metris_core::ScanStartOrigin,
+}
 
 /// 独立请求没有隐式 detach 句柄；丢弃前台接收端不会生成额外扫描。
-struct Pending<I, O> { intent: I, reply: oneshot::Sender<Result<O, &'static str>> }
+struct Pending<I, O> {
+    /// 请求输入。
+    intent: I,
+    /// 结果回执发送端。
+    reply: oneshot::Sender<Result<O, &'static str>>,
+}
 
 /// 一把锁线性化提交、领取、取消及退出，避免取消落到下一次请求。
 struct State<I, O> {
@@ -25,7 +35,14 @@ struct State<I, O> {
 }
 
 /// 唯一 worker 拥有执行顺序；待处理槽的容量永远是一个。
-pub(super) struct Queue<I, O> { state: Mutex<State<I, O>>, wake: Notify, drained: Condvar }
+pub(super) struct Queue<I, O> {
+    /// 队列状态。
+    state: Mutex<State<I, O>>,
+    /// 有新请求时唤醒 worker。
+    wake: Notify,
+    /// worker 退出时唤醒等待者。
+    drained: Condvar,
+}
 
 impl<I, O> Default for Queue<I, O> {
     /// 泛型邮箱默认不要求请求和响应本身可构造默认业务值。

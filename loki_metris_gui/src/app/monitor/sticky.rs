@@ -8,11 +8,23 @@ use gpui_kit::{
 
 /// 保存栏与页头只需要 CSS bottom12 和 top0 两种约束。
 #[derive(Clone, Copy)]
-pub(super) enum Edge { Header, Footer }
+pub(super) enum Edge {
+    /// 页头，吸附在视口顶部。
+    Header,
+    /// 保存栏，吸附在视口底部上方 12px。
+    Footer,
+}
 
 /// 无辅助节点的包装保留子布局，并区分正常绘制、Tab顺序和粘滞绘制。
 #[derive(Clone, Copy)]
-enum Kind { Scope, Order(isize), Sticky(Edge) }
+enum Kind {
+    /// 登记页面容器边界，作为粘滞绘制的作用域。
+    Scope,
+    /// 显式保留 deferred 项的文档 Tab 顺序；值为 1 的正文同时排除粘滞栏内的鼠标命中。
+    Order(isize),
+    /// 粘滞绘制到指定边。
+    Sticky(Edge),
+}
 
 /// 两处实际布局共享同一吸附计算；不猜测控件高度，也不扣除页底露出缝隙。
 fn painted_bounds(edge: Edge, bounds: Bounds<Pixels>, viewport: Bounds<Pixels>, container: Option<Bounds<Pixels>>) -> Bounds<Pixels> {

@@ -8,7 +8,12 @@ use gpui_kit::base::TestSupportExt as _;
 
 /// 整数保留到 tooltip 格式化时；浮点只用于积分与绘制坐标。
 #[derive(Clone, Copy)]
-pub(super) enum Value { Count(u64), Decimal(f64) }
+pub(super) enum Value {
+    /// 整数计数，如调用数或 Token。
+    Count(u64),
+    /// 小数值，如积分。
+    Decimal(f64),
+}
 impl Value {
     /// 数值转换仅作用于几何计算。
     pub(super) fn number(self) -> f64 { match self { Self::Count(v)=>v as f64, Self::Decimal(v)=>v } }
@@ -18,13 +23,48 @@ impl Value {
 
 /// 轴的显示格式来自图形指标，不影响同图中的 tooltip 精确值。
 #[derive(Clone, Copy)]
-pub(super) enum Scale { Tokens, Count, Credits }
+pub(super) enum Scale {
+    /// Token 刻度，按紧凑格式显示。
+    Tokens,
+    /// 计数刻度。
+    Count,
+    /// 积分刻度。
+    Credits,
+}
 
 /// 单条曲线投影，不保存另一份领域状态。
-pub(super) struct Series { pub label: String, pub color: Hsla, pub values: Vec<Option<Value>> }
+pub(super) struct Series {
+    /// 曲线名称。
+    pub label: String,
+    /// 曲线颜色。
+    pub color: Hsla,
+    /// 按横轴顺序的取值；None 表示该点没有数据。
+    pub values: Vec<Option<Value>>,
+}
 
 /// 图表专用颜色沿用参考主题，避免借用面板边框造成低对比网格。
-pub(super) struct Palette { pub foreground:Hsla,pub muted:Hsla,pub grid:Hsla,pub hover:Hsla,pub point:Hsla,pub background:Hsla,pub tooltip_border:Hsla,pub track:Hsla,pub bar:Hsla,pub remainder:Hsla }
+pub(super) struct Palette {
+    /// 主文字色。
+    pub foreground:Hsla,
+    /// 次要文字色。
+    pub muted:Hsla,
+    /// 网格线色。
+    pub grid:Hsla,
+    /// 悬停指示线色。
+    pub hover:Hsla,
+    /// 数据点填充色。
+    pub point:Hsla,
+    /// 提示框背景色。
+    pub background:Hsla,
+    /// 提示框边框色。
+    pub tooltip_border:Hsla,
+    /// 条形图底轨色。
+    pub track:Hsla,
+    /// 条形图主色。
+    pub bar:Hsla,
+    /// “其余”条目的颜色。
+    pub remainder:Hsla,
+}
 impl Palette {
     /// 透明度与颜色都来自历史 AppThemeProvider 的图表变量。
     pub fn new(dark:bool)->Self {
@@ -34,7 +74,18 @@ impl Palette {
 }
 
 /// 分布行使用后端顺序与总 Token 占比，指标变化不会重排。
-pub(super) struct Bar {pub label:String,pub value:Option<Value>,pub display:String,pub share:String,pub remainder:bool}
+pub(super) struct Bar {
+    /// 分组名称。
+    pub label:String,
+    /// 分组取值；None 表示未提供。
+    pub value:Option<Value>,
+    /// 取值的显示文本。
+    pub display:String,
+    /// 占总 Token 的百分比文本。
+    pub share:String,
+    /// 是“其余”汇总行。
+    pub remainder:bool,
+}
 
 /// 原生条形图沿用参考的 220/150 边距、52 行高和五条竖网格。
 pub(super) fn bars(id:&'static str,rows:Vec<Bar>,palette:Palette,scale_kind:Scale)->AnyElement {

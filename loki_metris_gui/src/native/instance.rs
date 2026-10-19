@@ -19,10 +19,22 @@ const TIMEOUT: Duration = Duration::from_millis(800);
 const MAX_CLIENTS: usize = 8;
 
 /// 第二次启动通知旧实例后直接退出，不创建第二个窗口。
-pub enum Launch { Primary(Instance), Activated }
+pub enum Launch {
+    /// 本进程成为主实例，持有实例锁。
+    Primary(Instance),
+    /// 已有主实例；已通知它恢复窗口或按要求不打扰。
+    Activated,
+}
 
 /// 持有锁文件直到 listener 停止；不能删除锁文件造成 Unix inode 绕过。
-pub struct Instance { _lock: File, stop: Arc<AtomicBool>, worker: Option<JoinHandle<()>> }
+pub struct Instance {
+    /// 实例锁文件句柄，持有到退出。
+    _lock: File,
+    /// 通知监听线程退出的标志。
+    stop: Arc<AtomicBool>,
+    /// 监听线程句柄，退出时 join。
+    worker: Option<JoinHandle<()>>,
+}
 
 impl Instance {
     /// 仅应用私有目录可建立实例锁；手动重开恢复旧窗，登录重启不打扰旧实例。
@@ -127,7 +139,18 @@ impl Drop for Socket {
 }
 
 /// 客户端只持有定长输入、应答偏移与绝对超时，不分配独立线程。
-struct Client { socket: Socket, input: [u8; 6], received: usize, sent: Option<usize>, deadline: Instant }
+struct Client {
+    /// 客户端连接。
+    socket: Socket,
+    /// 已收到的请求字节，协议固定为 `show\n`。
+    input: [u8; 6],
+    /// 已收到的字节数。
+    received: usize,
+    /// 已发送的应答字节数；尚未接受请求时为 None。
+    sent: Option<usize>,
+    /// 连接的绝对超时时刻。
+    deadline: Instant,
+}
 impl Client {
     /// 每次最多一次读与写，固定 show 协议以外的数据不能触发动作。
     fn poll(&mut self, sender: &SyncSender<()>) -> bool {

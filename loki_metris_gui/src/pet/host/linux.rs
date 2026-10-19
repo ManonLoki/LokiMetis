@@ -27,7 +27,16 @@ struct NativeWindow {
 
 /// 全局物理矩形只在 X11 边界使用，转换到 GPUI 时才除以当前窗口 scale。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct PhysicalRect { x: i32, y: i32, width: u32, height: u32 }
+struct PhysicalRect {
+    /// 左边界（全局物理坐标）。
+    x: i32,
+    /// 上边界（全局物理坐标）。
+    y: i32,
+    /// 宽度（物理像素）。
+    width: u32,
+    /// 高度（物理像素）。
+    height: u32,
+}
 
 impl PhysicalRect {
     /// 只保留真实相交部分；工作区和显示器不相交时不产生虚假可用区域。

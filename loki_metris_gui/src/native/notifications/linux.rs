@@ -8,7 +8,20 @@ use loki_metris_core::usage_milestones::{MilestoneOutcome, NotificationPermissio
 use std::{collections::HashMap, sync::{Arc, Mutex, Weak, atomic::{AtomicBool, AtomicU64, Ordering}}, time::Duration};
 
 /// 队列只携带已获授权的文字和回执，桌面数值 ID 的所有权由唯一 worker 持有。
-struct Delivery { id: String, title: String, body: String, receipt: oneshot::Sender<MilestoneOutcome>, cancelled: Arc<AtomicBool>, expires: futures::future::BoxFuture<'static, ()> }
+struct Delivery {
+    /// 通知 ID。
+    id: String,
+    /// 标题。
+    title: String,
+    /// 正文。
+    body: String,
+    /// 回执发送端。
+    receipt: oneshot::Sender<MilestoneOutcome>,
+    /// 撤销标志；置位后 worker 不再提交。
+    cancelled: Arc<AtomicBool>,
+    /// 8 秒期限计时器。
+    expires: futures::future::BoxFuture<'static, ()>,
+}
 
 /// 生命周期随原生通知 owner 释放；点击合并为一位，不受提交队列占用影响。
 pub(super) struct Host {

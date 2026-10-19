@@ -68,7 +68,14 @@ fn pending_static_logo_paints_using_only_requested_frames(cx: &mut TestAppContex
 
 /// 在子画布接纳 Ready 后、绘制栈退出前，驱动真实的卸载／暂停／关闭边界。
 #[derive(Clone, Copy)]
-enum Cancel { Unmount, NewGeneration, Close }
+enum Cancel {
+    /// 卸载视图。
+    Unmount,
+    /// 开始新的播放代次。
+    NewGeneration,
+    /// 关闭窗口。
+    Close,
+}
 
 /// 在同一真实绘制栈内撤销已排队的首帧通知，保留计数以核对没有迟到回执。
 struct CancelOnReady {

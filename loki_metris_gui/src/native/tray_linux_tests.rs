@@ -5,7 +5,12 @@ use ashpd::zbus::{self, interface};
 use std::{io::{BufRead as _, BufReader}, process::{Child, Command, Stdio}, sync::Mutex};
 
 /// 总线地址只交给本测试连接，退出和断言失败均回收 daemon。
-struct PrivateBus { child: Child, address: String }
+struct PrivateBus {
+    /// 私有 dbus-daemon 子进程。
+    child: Child,
+    /// 私有总线地址。
+    address: String,
+}
 
 impl PrivateBus {
     /// 创建独立会话总线，不修改 DBUS_SESSION_BUS_ADDRESS 或用户配置。
@@ -38,7 +43,12 @@ impl Drop for PrivateBus {
 
 /// 属性只携带外部协议事实，query 的身份和可恢复判断始终执行正式代码。
 #[derive(Default)]
-struct WatcherState { host: AtomicBool, items: Mutex<Vec<String>> }
+struct WatcherState {
+    /// 模拟 Watcher 是否声明宿主已注册。
+    host: AtomicBool,
+    /// 模拟的已注册条目。
+    items: Mutex<Vec<String>>,
+}
 
 /// 本地注册项由独立对象导出，服务的真实 PID 由 D-Bus daemon 返回。
 struct Watcher(Arc<WatcherState>);

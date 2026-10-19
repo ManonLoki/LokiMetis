@@ -22,10 +22,22 @@ struct Rect {
 /// Win32 客户区原点转换所需的物理点。
 #[repr(C)]
 #[derive(Default)]
-struct NativePoint { x: i32, y: i32 }
+struct NativePoint {
+    /// 横坐标（物理像素）。
+    x: i32,
+    /// 纵坐标（物理像素）。
+    y: i32,
+}
 
 /// 同一活窗读回的内容区与四边框，避免将画布尺寸当作外框尺寸。
-struct ClientFrame { frame: Rect, client: Rect, origin: NativePoint }
+struct ClientFrame {
+    /// 含非客户区的窗口外框。
+    frame: Rect,
+    /// 客户区矩形。
+    client: Rect,
+    /// 客户区原点的屏幕坐标。
+    origin: NativePoint,
+}
 impl ClientFrame {
     /// 同步读取客户区和屏幕原点，所有指针仅在当前栈有效。
     fn read(hwnd: Handle) -> anyhow::Result<Self> {

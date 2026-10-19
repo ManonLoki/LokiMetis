@@ -10,7 +10,22 @@ pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, 
 }
 
 /// 托盘输入只拥有恢复与退出两种宿主语义，不承载业务动作。
-pub enum Event { Show, Quit, TogglePet, OpenPetSettings, ToggleMousePassthrough, ToggleNotification, ToggleAutostart }
+pub enum Event {
+    /// 显示主窗。
+    Show,
+    /// 退出应用。
+    Quit,
+    /// 切换桌宠可见。
+    TogglePet,
+    /// 打开桌宠设置。
+    OpenPetSettings,
+    /// 切换桌宠鼠标穿透。
+    ToggleMousePassthrough,
+    /// 切换系统通知。
+    ToggleNotification,
+    /// 切换登录自启。
+    ToggleAutostart,
+}
 
 impl Tray {
     /// Windows 对象创建成功不保证 Explorer 已登记图标；关窗时查询真实恢复入口。
