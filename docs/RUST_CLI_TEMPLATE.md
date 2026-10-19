@@ -1,5 +1,7 @@
 # Rust core 与 GPUI 工程基线
 
+GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.md) 分派；只在当前任务需要时读取对应 Skill。
+
 当前只选择 GPUI GUI，接口和平台取根 Cargo metadata。没有 CLI/TUI/MCP 或前端运行时，不因文档文件名附加接口。文件、中文注释、测试、记忆事件和例外详见 ENGINEERING_RULES。
 
 当前依赖声明、features、平台继承、本地兼容层和 Harness 工具版本统一见[技术选型与依赖清单](TECHNOLOGY.md)。它按根 Cargo 与 package.json 整理，不把保留初始化模板或本机忽略锁文件当作当前版本合同。

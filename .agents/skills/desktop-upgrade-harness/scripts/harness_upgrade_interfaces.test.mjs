@@ -168,3 +168,13 @@ test("gpui_initialization_tombstones_must_precede_the_conditional_tree", (t) => 
   fs.writeFileSync(f.ownership, JSON.stringify(manifest));
   assert.throws(() => loadOwnership(f.ownership), /GPUI 初始化专用 tombstone 规则必须位于 GPUI conditional/u);
 });
+
+/** 新工程知识严格随GPUI传播，Tauri与无GUI候选不得获得这些资产。 */
+test("gpui_engineering_knowledge_is_conditional_and_framework_scoped", () => {
+  const files = [".agents/skills/desktop-manage-gpui-dependencies/SKILL.md", ".agents/skills/desktop-optimize-gpui-performance/references/measurement.md", "docs/GUI_ENGINEERING.md"];
+  for (const relative of files) {
+    assert.equal(inapplicableGuiCandidate(relative, {interfaces:["gui"],guiFramework:"gpui"}), false);
+    assert.equal(inapplicableGuiCandidate(relative, {interfaces:["gui"],guiFramework:"tauri"}), true);
+    assert.equal(inapplicableGuiCandidate(relative, {interfaces:["cli"],guiFramework:null}), true);
+  }
+});

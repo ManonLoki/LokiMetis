@@ -11,6 +11,8 @@
 3. 根 `Cargo.toml` 是版本、接口、目标平台与框架事实源；当前 GUI / GPUI / Windows、macOS、Linux，不加载 Tauri、React、Mantine 专属规则。技术选型与依赖声明见 `docs/TECHNOLOGY.md`，Linux双架构工具链按 `docs/LINUX_GPUI_TOOLCHAIN.md` 渐进读取。
 4. 按任务渐进读取，仅完整读取命中 Skill 及其精确引用，不预读全部记忆或同类 Skills。
 
+GUI 依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
+
 ## 按任务渐进读取
 
 | 任务 | 事实来源 | 入口 |
@@ -50,7 +52,7 @@
 
 ## Skills 地图
 
-- GUI：`$desktop-add-gpui-adapter`、`$desktop-prepare-gui-app-identity`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`、`$design-taste-frontend`。
+- GUI：`$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance`、`$desktop-add-gpui-adapter`、`$desktop-prepare-gui-app-identity`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`、`$design-taste-frontend`。
 - 开发治理：`$desktop-define-product`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-plan-change`、`$desktop-manage-git-lifecycle`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-check-development-environment`、`$desktop-summarize-development-history`、`$desktop-switch-post-release-action`、`$desktop-upgrade-harness`。
 - 构建验收：`$desktop-prepare-release`、`$desktop-build-gpui-release`、`$desktop-collect-release-artifacts`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 

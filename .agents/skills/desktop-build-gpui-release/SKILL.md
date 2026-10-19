@@ -1,77 +1,38 @@
 ---
 name: desktop-build-gpui-release
-description: 通过项目根pnpm入口为GPUI构建macOS app/DMG、Windows x64 NSIS及Linux x64/ARM64 deb或tar.gz，区分本地试包和已发布候选。
+description: 通过项目根 pnpm 入口构建 GPUI 的 macOS app/DMG、Windows x64 NSIS、Linux GNU x64/ARM64 deb/tar.gz，区分本地试包与已发布候选。
 ---
 
 # 构建 GPUI 安装包
 
-只用于根Cargo metadata选择GPUI GUI的终端下游。Harness模板源、Tauri和跨操作系统打包不走此入口；Linux允许同系统x64/ARM64交叉架构构建。不给安装包自动执行安装、启动或分发。
+只用于根 Cargo 已选择 GPUI GUI 的终端下游。Harness 源只维护工具，不在模板根打产品包。一个入口复用源码、测试和候选合同，按平台读取细节；不为每个平台再建一套发布生命周期。
 
-Linux任务先读[项目Linux工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md)，再按其双架构依赖、宿主测试、ELF校验和最终解包合同执行。Linux的`setup`仅复探系统工具，不安装cargo-packager；实际系统依赖安装只走已授权的Linux专用入口。Windows/macOS继续使用下文原有流程。
+## 模式与路由
 
-## 选择模式
+- 普通构建/试包使用 local：允许初始 dirty，随后源码与资源快照保持稳定；运行全部非空 Rust workspace 测试，只写忽略的 target/gpui-packaging/local-*。不创建发布上下文，不执行安装/启动，不询问候选 E2E。
+- 明确发布候选或已冻结 local_package 才用 candidate：只消费 clean 已发布默认主分支、精确 tag、已跟踪发布上下文和双语日志。复用本次 E2E 明确选择，否则按策略询问一次；偏好不能跳过硬要求。
 
-- 普通“构建/打包/安装试一下”使用 `local`：允许 dirty，但全量非空 Rust workspace 单元测试必须通过；只写项目忽略的 `target/gpui-packaging/local-*`。macOS 对完整 App 做无证书 ad-hoc 签名并验证身份、plist 与资源封印；Windows 保持 unsigned。试包未安装、未运行且仅供本机检查，不询问 E2E、不生成发布上下文或日志。
-- 用户明确要求发布候选，或 Git 发布已确认 `local_package`，才使用 `candidate`：只消费 clean 已发布默认主分支、精确本地 tag 和已跟踪 `.harness/release-context.json`。每次单独解析当前请求的 E2E；先复用本次明确选择，否则结合 `e2e_hint` 询问一次。选择关闭时记录原因与风险，硬要求不能关闭。
+读取项目构建相关 Policy、RELEASE、存在时的 VERIFICATION，再按需要读取 [configuration](references/configuration.md)。macOS 读 [macos-packaging](references/macos-packaging.md)，Windows 读 [windows-packaging](references/windows-packaging.md)，Linux 读 [linux-packaging](references/linux-packaging.md)。仅当前平台需要时加载对应引用。
 
-读取 `AGENTS.md`、`docs/AGENT_POLICY.md` 的构建相关字段、`docs/RELEASE.md`、存在时的 `docs/VERIFICATION.md` 与 [配置合同](references/configuration.md)。候选只读复用 `$desktop-prepare-release` 的发布上下文和日志校验、`$desktop-manage-version` 的版本检查；缺失时阻断，不在构建中补写。
+项目根入口为 pnpm run gpui:package；Node >=24.21.0、pnpm >=12.4.1，仅用 Node 标准库，不需要先安装 npm 依赖。Cargo metadata 决定 GUI package/binary、目标、版本、额外测试工作区和锁策略，配置不重复存产品版本。
 
-## 原生执行
+## 执行合同
 
-在项目根通过 `package.json` 的 `gpui:package` 脚本调用自含的 Node 标准库 helper。工程运行时要求稳定版 Node.js `>=24.21.0`、pnpm `>=12.4.1`，由根 `engines` 声明；不增加 npm 第三方依赖，不要求 `pnpm install`、前端测试或前端锁文件。`packaging/gpui.json` 与根工程入口由 GPUI 初始化模板生成；Cargo metadata 决定实际 workspace、GUI 包/二进制、版本、`target-platforms`、`gui-root`、`rust-test-manifests` 和锁策略。目录名不得代替这些事实。既有工程缺少入口时按[配置合同](references/configuration.md)安全合并，不覆盖已有产品脚本。
+先 preview 解析所选 target/format/mode；它不安装工具、不运行测试或探针。setup 是有副作用的显式入口，具体行为见平台引用，不因普通开发自动执行。icons 只补缺失或同字节的品牌资产；不同资产回身份流程，不覆盖。
 
-先只读预览：
-
-```sh
+~~~sh
 pnpm run gpui:package preview --root . --mode local --format app
-```
-
-首次明确需要打包工具时，在项目私有 `target/harness-tools/cargo-packager-0.11.8` 安装固定版本；工具已存在则验证版本，不覆盖不同版本或残缺目录。此调用安装工具，不安装生成的应用，不修改产品依赖。
-
-cargo-packager CLI 本身不依赖全局安装。0.11.8 内部下载的 create-dmg/NSIS 辅助工具使用其官方固定 OS 用户缓存 `.cargo-packager`，没有 tools-dir 配置；不把该缓存说成项目隔离，也不改 HOME。缓存不是可假设已存在的全局 CLI，真实缺失/下载失败仍阻断打包。
-
-```sh
-pnpm run gpui:package setup --root .
-```
-
-初始化已从已选 PNG 生成 ICNS/ICO 与中性 DMG 背景时无需补做图标。既有 GPUI 接入可用 `icons` 仅填充缺失或相同字节的项目本地图标；不同资产不得覆盖，回身份流程处理。源 PNG 必须为方形 256..2048px、非隔行、8-bit RGB/RGBA；中性 SVG 不能冒充确认后的打包 Logo。
-
-```sh
-pnpm run gpui:package icons --root .
-```
-
-macOS原生支持当前架构或已安装Apple target的app/DMG；Windows x64原生支持MSVC NSIS；Linux GNU x64/ARM64支持deb/tar.gz并分别记录原生或跨架构模式。目标必须已列入Cargo metadata。Windows ARM、Docker/xwin及跨操作系统编译仍未接入；Linux交叉构建不等于目标宿主运行通过。
-
-```sh
 pnpm run gpui:package build --root . --mode local --format app
-pnpm run gpui:package build --root . --mode local --format dmg
-pnpm run gpui:package build --root . --mode local --target x86_64-pc-windows-msvc --format nsis
-```
+~~~
 
-通用候选参数示例；参数须来自当前选择，且须满足下文平台硬门禁。本项目当前macOS通知签名门禁不允许直接使用此disabled示例生成候选：
+实际 build 对每个真实 Rust workspace 先列出再运行全部非空单元测试。tracked 锁要求 metadata/test/build 使用 --locked；ignored 不假装冻结解析。Linux 交叉架构测试运行真实宿主并单独报告目标构建。失败或零测试阻断。
 
-```sh
-pnpm run gpui:package build --root . --mode candidate --format dmg --e2e disabled --e2e-reason "本次未选择 E2E" --e2e-risk "安装与运行行为尚未验收" --signing disabled --signing-source not-requested
-```
+关于页启用或 releaseNotesUi:true 时，候选生成临时 Rust 静态日志模块，build.rs 通过 HARNESS_GPUI_RELEASE_NOTES_RS 消费，二进制保留同一原始 JSON 字节。其他情况不注入日志 UI，所有候选仍核对包内独立日志与双语许可证。local 不生成发布记录。
 
-## 候选门禁
+资源按配置的显式平台映射捕获精确文件集与摘要，包括 Git 忽略的资源；测试后、封包前、manifest 前复核源码/配置/资源/上下文。路径、链接、大小写/前缀冲突及漂移失败关闭。最终包真实解包核对资源与二进制，不能只验证打包前目录。
 
-helper 在测试前验证独立 Git 根、clean 默认主分支/tag、发布上下文、base-100 版本、锁策略及资源；原子隔离旧 `release/`，拒绝链接/重解析、路径越界和覆盖。所有实际 Rust workspaces 分别列出非空全量测试并运行 `cargo test --workspace --all-targets --all-features`；`tracked` 的 metadata、测试、构建全部传 `--locked`，同时核对受跟踪且未被忽略的实际 Cargo.lock。pnpm 只提供 Node 工程命令入口；不触发 React、前端安装/测试或前端锁门禁。
-
-关于页启用，或包装配置明确 `releaseNotesUi: true`（例如日志位于设置页）时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，日志界面直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。两种入口均关闭时不注入日志 UI。所有情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选日志界面的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
-
-macOS candidate 默认 `disabled/not-requested`、unsigned，不探测身份/凭据；当前 Skill 未实现完整 Developer ID 签名公证，任何启用请求或渠道要求在测试前失败关闭。不能关闭渠道要求继续构建。Windows 有批准的证书指纹与 HTTPS 时间戳配置时，显式 `--signing enabled --signing-source configured|requested|channel-required` 才执行 `signtool sign` 与 `verify /pa /all`，任何失败停止；不创建或输出凭据。机器恰有工具/环境变量不改变选择。
-
-macOS candidate在profile启用系统通知时必须显式选择enabled signing；当前实现随后会因正式签名/公证尚不可用而失败关闭。因此本项目当前不能形成macOS candidate，不能改选disabled绕过；local ad-hoc是独立试包路径。Windows当前包装配置没有已批准的extractor时，NSIS candidate也在测试前阻断。具体项目事实见[发布规则](../../../docs/RELEASE.md)。
-
-上述候选签名门禁不变；local macOS 的 ad-hoc 只绑定本机应用身份，不使用证书或公证。App ZIP 在归档前签完整 bundle 并在解包后验证；DMG 使用固定内部 hook 在封盘前签 App，记录签名前后可执行文件摘要，在最终只读挂载卷再次验证。任何签名或身份验证失败都阻断试包，不退回 unsigned，不宣称通知授权、横幅或渠道信任已通过。`macos.agent: true` 同时固化 `LSUIElement`，与产品运行时的 Accessory 策略配合隐藏 Dock。
-
-macOS `.app.zip` 用系统 `ditto` 打包，DMG 用 cargo-packager 固定原生配置；Finder 布局阶段有十分钟上限。候选 DMG 在最终字节上只读挂载，核对 `.DS_Store`、项目背景、唯一 `.app`、`/Applications` 拖拽目标与全部资源；headless 无可用 Finder 布局时阻断，不能把缺布局的 DMG 记为通过。Windows NSIS 候选要求项目内显式批准且已声明的 `7z/7zr` 解包器，以只读解包核对最终包内日志、许可证与二进制；缺少时阻断，不自动增加第三方工具。local NSIS 可打出试包，其最终资源/安装/运行保持 `Unverified`。
-
-测试后、打包前及写 manifest 前再次核对源码、配置和显式平台资源清单；资源包含Git忽略文件，按捕获摘要逐字节验证。源码、资源、上下文或选择漂移均停止。最终安装包或 app 归档、相邻 SHA-256、manifest 在同根暂存区形成精确普通文件集合，再目录级原子提交到忽略的 `release/`。manifest 保留通用字段、实际 packager/GPUI 身份和 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`；不伪造 updater/Tauri 版本，也不写 tracked 项目记忆。
-
-E2E 为 `enabled` 或硬要求时，最终候选形成后调用 `$desktop-verify-delivery`；编译/打包期间不混跑安装、启动或 E2E。关闭时准确报告 `Not run` 与风险。构建通过只证明真实产物已生成，不能称已验收或发布就绪。
+candidate 的最终包、SHA-256 与 manifest 在同根暂存后原子发布到忽略的 release/。保留 milestoneAcceptance:pending、runtimeVerification:Unverified；签名、解包、目标运行和 E2E 分别报告。E2E 启用或硬要求时最终候选形成后才交 $desktop-verify-delivery，不混入构建。失败保留中间物与隔离的旧候选，不改 Git 发布事实。
 
 ## 完成输出
 
-报告模式、实际源码/dirty 状态、Rust 全量测试数量、target/format、工具版本、真实产物/哈希/manifest、签名与资源检查、当前 E2E 选择及未执行的安装/运行、未验证平台。失败保留本次隔离中间物和旧候选隔离目录，不覆盖源码、不安装应用、不改 Git 发布事实。
+报告模式、源码与 dirty 摘要、宿主测试数量、host/target/buildMode、格式、实际工具路径和版本、产物/哈希/manifest、资源/签名与当前 E2E 选择。安装、运行及未验证平台据实标注。当前产品的专属阻断以其 RELEASE 为准，不写成全部下游的能力限制。

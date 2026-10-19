@@ -55,7 +55,7 @@ export function validateConfig(value) {
   relativePath(value.macos.background);
   if (value.macos.signingIdentity !== null && !text(value.macos.signingIdentity,'signingIdentity').startsWith('Developer ID Application: ')) throw new Error('macOS candidate signing needs Developer ID Application');
   keys(value.windows, ['signing','extractor'], 'windows');
-  if (value.windows.extractor !== null) relativePath(value.windows.extractor);
+  if (value.windows.extractor !== null && !['7z','7zr','7z.exe','7zr.exe'].includes(value.windows.extractor)) throw new Error('extractor must name an approved global 7z/7zr CLI; migrate old project-local paths explicitly');
   if (value.windows.signing !== null) {
     keys(value.windows.signing, ['certificateThumbprint','timestampUrl'], 'windows.signing');
     if (!/^[A-Fa-f0-9]{40}$/u.test(value.windows.signing.certificateThumbprint) || !/^https:\/\/[^\s]+$/u.test(value.windows.signing.timestampUrl)) throw new Error('invalid Authenticode configuration');

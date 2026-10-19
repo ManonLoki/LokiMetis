@@ -107,9 +107,9 @@ GPUI 五包同为 `0.3.9`，不要只升级其中一个包或把字体补丁仍�
 本仓库是已实例化的终端下游，保留 Harness 工程规则与 Skills 用于自身维护，不是可继续派生产品的 Harness 源根。没有本项目的 Harness 时间版本；产品版本仍由根 Cargo 与版本门禁管理。工程所有权与升级保护见 [desktop-upgrade-harness](../.agents/skills/desktop-upgrade-harness/SKILL.md)。
 
 - `AGENTS.md` 负责启动与路由；[AGENT_POLICY](AGENT_POLICY.md)保存已确认能力开关、Task 与发布生命周期；[ENGINEERING_RULES](ENGINEERING_RULES.md)保存架构、测试和文档事件规则。
-- 相关 Skill 的依赖说明引用本清单；保留的 add-only renderer 仍是中性初始化快照，具体差异见[依赖参考](../.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。不要据旧模板降级当前 Cargo 或覆盖产品代码。
+- GUI 方案按 [工程索引](GUI_ENGINEERING.md) 分派；相关 Skill 的依赖说明引用本清单；保留的 add-only renderer 仍是中性初始化快照，具体差异见[依赖参考](../.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。不要据旧模板降级当前 Cargo 或覆盖产品代码。
 - Node 仅运行 `.agents/skills/`、`scripts/` 中的工程工具；`validate` 是显式治理检查，`test` 是全 workspace 测试，日常文档维护只做必要解析/完整性检查。
-- macOS/Windows 打包固定使用项目内 `cargo-packager 0.11.8`；其内部辅助工具使用 OS 用户缓存，不能声称全部缓存均项目隔离。Linux 直接使用 GNU `tar`、`dpkg-deb`、`readelf`，不安装 cargo-packager。
+- macOS/Windows 打包核对全局 PATH 的 `cargo-packager 0.11.8`；其内部辅助工具使用 OS 用户缓存，不能声称全部缓存均项目隔离。Linux 直接使用 GNU `tar`、`dpkg-deb`、`readelf`，不安装 cargo-packager。
 - 打包选择与产物边界见 [RELEASE](RELEASE.md)和[构建 Skill](../.agents/skills/desktop-build-gpui-release/SKILL.md)；普通试包写 `target/`，正式候选写忽略的 `release/`，不据文档更新自动构建、发布或升级依赖。
 
 受管 Tauri/Mantine 设计资料完整保留，但本项目运行栈只读取 GPUI 命中规则；本产品扩展以 [GUI profile](GUI_APP_PROFILE.md)与已批准 ADR 为准。

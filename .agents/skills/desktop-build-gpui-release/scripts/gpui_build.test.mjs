@@ -45,7 +45,9 @@ function fixture(t, { systemNotification = 'disabled', withResources = false } =
   for (const args of [['init','-b','main'],['config','user.name','Fixture'],['config','user.email','fixture@example.invalid'],['add','.'],['commit','-qm','fixture']]) {
     const result = spawnSync('git',args,{ cwd: root, encoding: 'utf8' }); assert.equal(result.status,0,result.stderr);
   }
-  const tool = path.join(root,'target/harness-tools/cargo-packager-0.11.8/bin/cargo-packager'); fs.mkdirSync(path.dirname(tool),{ recursive: true }); fs.writeFileSync(tool,'unit-test-tool');
+  const tools = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-global-tools-test-'));
+  t.after(() => fs.rmSync(tools,{recursive:true,force:true}));
+  const tool = path.join(tools,'cargo-packager'); fs.writeFileSync(tool,'unit-test-tool',{mode:0o755});
   const metadata = { workspace_root: root, workspace_members: ['sample-id'], metadata: { 'agent-first-harness': { 'project-id': 'sample', interfaces: ['gui'], 'gui-framework': 'gpui', 'target-platforms': ['macos','windows'] } }, packages: [{ id: 'sample-id', name: 'sample_gui', version: '0.1.0', manifest_path: path.join(root,'sample_gui/Cargo.toml'), targets: [{ name: 'sample_gui', kind: ['bin'] }] }] };
   const commit = spawnSync('git',['rev-parse','HEAD'],{ cwd: root, encoding: 'utf8' }).stdout.trim();
   const review = { selection: 'disabled', status: 'Not run', reason: 'Fixture request', remainingRisk: 'Semantic review not selected.' };
@@ -112,7 +114,7 @@ function fakeRun(f, overrides = {}) {
 }
 
 /** 流水线共用本机适配，测试无法经 CLI 打开宿主覆盖。 */
-function hooks(f, fake) { return { run: fake.run, platform: 'darwin', arch: 'arm64', env: { APPLE_SIGNING_IDENTITY: 'must-not-inherit' }, locks: () => {}, context: () => f.context }; }
+function hooks(f, fake) { return { run: fake.run, platform: 'darwin', arch: 'arm64', env: { PATH: path.dirname(f.tool), APPLE_SIGNING_IDENTITY: 'must-not-inherit' }, locks: () => {}, context: () => f.context }; }
 function localOptions(root) { return { command: 'build', root, mode: 'local', target: 'aarch64-apple-darwin', format: 'app' }; }
 function candidateOptions(root) { return { ...localOptions(root), mode: 'candidate', e2e: 'disabled', e2eReason: 'User selected no E2E', e2eRisk: 'Installation remains unverified' }; }
 
@@ -172,14 +174,14 @@ test('ignored resource additions removals and byte changes invalidate the snapsh
 /** NSIS最终解包的安装根和嵌套资源分别校验，篡改不能被源目录正确所掩盖。 */
 test('final NSIS resources verify explicit Windows targets and reject nested tampering', t => {
   for (const tamper of [false,true]) for (const nestedBinary of ['different binary','binary']) {
-    const f=fixture(t,{withResources:true});f.config.windows.extractor='tools/7zr.exe';
+    const f=fixture(t,{withResources:true});f.config.windows.extractor='7zr.exe';
     fs.writeFileSync(path.join(f.root,'assets/skins/generator/release-notes.json'),'nested generator log');
     fs.writeFileSync(path.join(f.root,'assets/skins/generator/sample_gui.exe'),nestedBinary);
-    fs.mkdirSync(path.join(f.root,'tools'));fs.writeFileSync(path.join(f.root,'tools/7zr.exe'),'test extractor');
+    fs.writeFileSync(path.join(path.dirname(f.tool),'7zr.exe'),'test extractor',{mode:0o755});
     const resources=collectResources(f.root,f.config,'windows',true),binary=path.join(f.root,'binary.exe');fs.writeFileSync(binary,'binary');
     const destination=path.join(f.root,`extract-${tamper}`);
     const run=()=>{const install=path.join(destination,'$INSTDIR');fs.mkdirSync(install);for(const file of resources){const target=path.join(install,file.target);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(path.join(f.root,file.source),target);}fs.copyFileSync(binary,path.join(install,'sample_gui.exe'));if(tamper)fs.writeFileSync(path.join(install,'resources/skins/builtin/theme/preview.png'),'changed');};
-    const verify=()=>verifyNsis({run,root:f.root,config:f.config,artifact:'fixture.exe',destination,resources,binarySha256:sha256(binary)});
+    const verify=()=>verifyNsis({run,root:f.root,config:f.config,artifact:'fixture.exe',destination,resources,binarySha256:sha256(binary),environment:{PATH:path.dirname(f.tool)}});
     if(tamper)assert.throws(verify,/bytes differ/);else assert.equal(verify(),'final-installer-byte-identical');
   }
 });
@@ -381,10 +383,10 @@ test('tracked policy passes locked to full metadata/list/run commands', t => {
   const listing = fake.calls.find(item => item.args.includes('--list')); assert.ok(listing.args.indexOf('--locked') < listing.args.indexOf('--'));
 });
 
-test('tool setup reuses exact project-local version and refuses replacement', t => {
+test('tool setup reuses exact global version and refuses replacement', t => {
   const f = fixture(t), calls = [];
-  assert.equal(setupPackager(f.root,(program,args) => { calls.push({ program,args }); return { stdout: 'cargo-packager 0.11.8\n',status: 0 }; },'darwin'),f.tool);
-  assert.equal(calls.filter(item => item.program !== 'git').length,1); assert.throws(() => setupPackager(f.root,() => ({ stdout: 'cargo-packager 9.0.0\n',status: 0 }),'darwin'),/different version/);
+  assert.equal(setupPackager(f.root,(program,args) => { calls.push({ program,args }); return { stdout: 'cargo-packager 0.11.8\n',status: 0 }; },'darwin',{PATH:path.dirname(f.tool)}),f.tool);
+  assert.equal(calls.filter(item => item.program !== 'git').length,1); assert.throws(() => setupPackager(f.root,() => ({ stdout: 'cargo-packager 9.0.0\n',status: 0 }),'darwin',{PATH:path.dirname(f.tool)}),/different version/);
 });
 
 test('release-note Rust generation escapes text and binary search covers chunk boundary', t => {
@@ -416,7 +418,7 @@ test('unsigned packager config has no signing hook and Windows signing failure c
   assert.equal(uninstall.includes('source-only'), false);
   const configured = { ...f.config,windows: { signing: { certificateThumbprint: '1'.repeat(40),timestampUrl: 'https://example.invalid' },extractor: null } };
   assert.throws(() => finalizeSigning({ run: () => { throw new Error('signing failed'); },config: configured,signing: signingChoice('enabled','configured'),format: 'nsis',artifact: 'installer.exe',env: {} }),/signing failed/);
-  assert.throws(() => verifyNsis({ run: () => {},root: f.root,config: f.config,artifact: 'installer.exe',destination: path.join(f.root,'extract'),resources: [] }),/project-local/);
+  assert.throws(() => verifyNsis({ run: () => {},root: f.root,config: f.config,artifact: 'installer.exe',destination: path.join(f.root,'extract'),resources: [] }),/global/);
 });
 
 test('resource verification compares final bytes and rejects linked resources', t => {
@@ -425,12 +427,11 @@ test('resource verification compares final bytes and rejects linked resources', 
   assert.throws(() => verifyResources(copied,f.root,[{source:'LICENSE.en.md',target:'LICENSE.en.md',sha256:sha256(path.join(f.root,'LICENSE.en.md'))}]),/link/);
 });
 
-test('nonignored local build and tool directories fail before writing', t => {
+test('nonignored local build directory fails before writing', t => {
   const f = fixture(t), fake = fakeRun(f);
   fs.writeFileSync(path.join(f.root,'.gitignore'),'release/\n.release-clean.*\n');
   assert.throws(() => executeBuild(localOptions(f.root),hooks(f,fake)),/Git-ignored/);
   assert.equal(fs.existsSync(path.join(f.root,'target/gpui-packaging')),false);
-  assert.throws(() => setupPackager(f.root,fake.run,'darwin'),/Git-ignored/);
 });
 
 test('local initial dirty bytes are allowed but drift during tests blocks', t => {

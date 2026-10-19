@@ -59,7 +59,7 @@ test('host tests cannot inherit target linker, compiler, pkg-config or release-n
 });
 
 test('Linux fixture paths reserve room for Unix sockets and reject an overlong checkout',t=>{
-  const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'l-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const root=fs.mkdtempSync(path.join(fs.realpathSync(process.platform === 'darwin' ? '/tmp' : os.tmpdir()),'l-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   fs.mkdirSync(path.join(root,'target'));
   const directory=linuxTestTemporary(root);
   assert.ok(Buffer.byteLength(path.join(directory,'.tmpABCDEF','private','instance.sock'))<108);

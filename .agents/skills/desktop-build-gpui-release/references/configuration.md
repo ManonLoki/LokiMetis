@@ -40,11 +40,11 @@ pnpm run gpui:package --help
 }
 ```
 
-- 除向后兼容的可选 `resources` 外所有字段必须存在；未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件。`minimumSystemVersion` 至少 11.0。
-- `resources`缺省为空数组，每项包含`source`、`macos`、`windows`及可选`linux`目标；Linux构建要求每项显式声明linux路径，不从其它平台猜测。目录递归拒绝链接、特殊文件、空目录、大小写/前缀冲突及保留文件覆盖。完整Linux布局、双架构工具链和示例见[Linux知识库](../../../../docs/LINUX_GPUI_TOOLCHAIN.md)；原macOS/Windows映射保持不变。
+- 除向后兼容的可选 `resources` 外所有字段必须存在；未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件；全局 CLI 名称例外由独立字段校验。`minimumSystemVersion` 至少 11.0。
+- `resources`缺省为空数组，每项包含`source`、`macos`、`windows`及可选`linux`目标；Linux构建要求每项显式声明linux路径，不从其它平台猜测。目录递归拒绝链接、特殊文件、空目录、大小写/前缀冲突及保留文件覆盖。完整Linux布局、双架构工具链和示例见[Linux打包合同](linux-packaging.md)；原macOS/Windows映射保持不变。
 - 可选 `releaseNotesUi` 必须为布尔值；`true` 表示设置页等关于页之外的入口也消费构建嵌入更新日志，候选仍必须检查二进制内的原始 JSON 字节。缺省保持原关于页判断；`false` 不能关闭已启用关于页的嵌入合同。普通本地试包不生成发布记录。
 - 测试前捕获排序文件清单及SHA-256，测试后、打包前和manifest前复算，Git忽略文件也参与漂移检测。复制和最终app/zip/DMG/NSIS核对相同摘要；资源根本身或其祖先为链接时拒绝。manifest的 `bundledResources` 记录目标路径与摘要；该证据不替代实际运行验收。
-- `windows.extractor` 仅可填写项目内已批准/声明的 `7z.exe` 或 `7zr.exe` 相对路径；调用协议为 `x -y -o<本次隔离目录> <最终NSIS>`。Skill 不下载安装它。支持哪种 NSIS 压缩由实际提取结果决定，解包失败或缺资源阻断候选。
+- `windows.extractor` 仅可填写已批准全局 PATH 上的 `7z`、`7zr`、`7z.exe` 或 `7zr.exe` 命令名；调用协议为 `x -y -o<本次隔离目录> <最终NSIS>`。Skill 不下载安装它。支持哪种 NSIS 压缩由实际提取结果决定，解包失败或缺资源阻断候选。
 - `windows.signing` 启用时形如 `{ "certificateThumbprint": "40位十六进制公开指纹", "timestampUrl": "https://批准的时间戳服务" }`。证书只通过宿主已授权 store 使用，不保存私钥、密码或秘密路径。macOS Developer ID 签名公证当前不可用，填 `signingIdentity` 不会自动启用。
 - `macos.agent` 为可选布尔值，缺省 false；true 使 App 的 `LSUIElement` 为 true，产品运行时仍须选择 Accessory 激活策略。local macOS 完整 bundle 始终使用无证书 ad-hoc 身份，manifest 的 `signingStatus: ad-hoc` 与 `signingEvidence.status: verified-local-adhoc` 不代表 Developer ID、公证或系统通知实测；候选原有签名门禁不变。
 - Cargo metadata 的 `rust-test-manifests` 默认 `["Cargo.toml"]`；每个独立 workspace 都须列出。`gui-root` 缺省从明确的 GUI package manifest 得出，根 package 可用 `"."`。`dependency-lock-policy` 缺省 `ignored`；`tracked` 走既有锁文件门禁，不生成或暂存锁文件。
@@ -59,6 +59,6 @@ pub const RELEASE_NOTES: &[(&str, &str, &[(&str, &str)], &[(&str, &str)])] = &[]
 
 每个元组依次是 ISO 日期、带一个小写 `v` 的版本、功能优化的中文/英文条目对、问题修复的条目对。候选且 `about_page: enabled` 或 `releaseNotesUi: true` 时 helper 填入真实日志，并要求二进制实际保留原始字节，例如 `std::hint::black_box(RELEASE_NOTES_JSON)`，避免编译器移除证据；文本展示用静态条目，未知 locale 回退英文。local 或两个日志UI入口都关闭时不设置 `HARNESS_GPUI_RELEASE_NOTES_RS`，`build.rs` 写空模块；candidate的设置页日志入口同样必须注入并核对二进制原始字节，关于页禁用仍核对包内独立 JSON 资源。此标记本身不证明 UI 行为，真实候选 E2E 仍按当前选择执行。
 
-配置/产物字段已在 2026-10-08 核对 [cargo-packager 0.11.8 API](https://docs.rs/cargo-packager/0.11.8/cargo_packager/config/struct.Config.html)、[资源映射](https://docs.crabnebula.dev/packager/configuration/#resources) 与 [DMG 配置](https://docs.rs/cargo-packager/0.11.8/cargo_packager/config/struct.DmgConfig.html)。固定版本沿用已验证示例的 `0.11.8`，不随全局工具版本变化。示例的 Docker/Windows 着色器路线未移入当前管线。
+配置/产物字段已在 2026-10-08 核对 [cargo-packager 0.11.8 API](https://docs.rs/cargo-packager/0.11.8/cargo_packager/config/struct.Config.html)、[资源映射](https://docs.crabnebula.dev/packager/configuration/#resources) 与 [DMG 配置](https://docs.rs/cargo-packager/0.11.8/cargo_packager/config/struct.DmgConfig.html)。固定版本沿用已验证示例的 `0.11.8`，遇到不同全局版本就阻断，不能静默替换。示例的 Docker/Windows 着色器路线未移入当前管线。
 
-0.11.8 的 Applications 坐标 JSON 键实际是 `appFolderPosition`，不是自动推导的 `applicationFolderPosition`；构建 helper 已按实际工具解析核对。上游 `Context::new` 把 create-dmg/NSIS 支持工具放在 OS 用户缓存 `.cargo-packager`，并未开放 tools-dir 配置；只承诺 cargo-packager CLI 项目本地安装，不把其内部缓存冒充项目隔离。
+0.11.8 的 Applications 坐标 JSON 键实际是 `appFolderPosition`，不是自动推导的 `applicationFolderPosition`；构建 helper 已按实际工具解析核对。上游 `Context::new` 把 create-dmg/NSIS 支持工具放在 OS 用户缓存 `.cargo-packager`，并未开放 tools-dir 配置；cargo-packager CLI 按全局工具政策安装并核对实际路径/版本，不把其内部缓存冒充项目隔离。

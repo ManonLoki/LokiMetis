@@ -1,6 +1,6 @@
 # AccessKit macOS 标题兼容补丁
 
-此目录替代 GPUI 0.3.8 使用的 `accesskit_macos 0.26.3`，保持原有公开接口与依赖。
+此目录替代当前 GPUI 0.3.9 依赖链使用的 `accesskit_macos 0.26.3`，保持原有公开接口与依赖。
 补丁只将 Heading 映射为 `AXHeading`，为正数层级声明、返回 `AXHeadingLevel`，
 并按 WebKit 的原生约定在没有显式值时返回整数 `AXValue`。
 两种 Braille 属性、父类属性列表及其它角色保持原有语义。Label setter 未修改；

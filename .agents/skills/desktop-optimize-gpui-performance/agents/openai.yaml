@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPUI 性能审计与优化"
+  short_description: "按真实场景定位运行时、重绘、图片及缓存成本，复测并保留行为证据"
+  default_prompt: "使用 $desktop-optimize-gpui-performance 分析当前 GPUI 性能问题并验证改动。"

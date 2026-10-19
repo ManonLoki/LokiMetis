@@ -53,3 +53,5 @@
 若新版 Harness 改变法律文本、产品边界或硬规则，升级计划只能报告并请求独立确认；不能把来源仓库的批准事实导入下游。
 
 自动应用一次只替换一个受审路径，之后必须重新生成计划；普通 `managed` 完成后才进入 `managed-self`，升级入口脚本在自更新过程中最后替换。普通权限位参与三方比较；遇到特殊权限位、符号链接、目录联接点和其他特殊节点时，必须以阻断方式失败。
+
+GPUI 专属的 `$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance` 与中性 `docs/GUI_ENGINEERING.md` 为 conditional，仅向根 Cargo 已选 gpui 的 GUI 下游传播；Tauri/非 GUI 候选出现时阻断。依赖治理不默认升级；性能知识不附带产品数据/预算。GPUI 打包额外包含 Linux GNU x64/ARM64 deb/tar.gz，是否接线桌面能力仍由产品事实决定。

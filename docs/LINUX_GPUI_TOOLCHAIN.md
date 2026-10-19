@@ -73,7 +73,7 @@ Linux使用固定会话D-Bus服务`org.freedesktop.Notifications`，不依赖全
 
 ## 统一构建与打包入口
 
-继续使用根`pnpm run gpui:package`。Linux不安装cargo-packager CLI，复用GNU tar、dpkg-deb和readelf；`setup`只复探已安装工具，实际系统安装使用上一节显式入口。
+继续使用根`pnpm run gpui:package`。Linux不安装cargo-packager CLI，复用GNU tar、dpkg-deb和readelf；`setup`检查已安装工具并在忽略的target下编译链接C++探针、核对ELF，不运行目标，实际系统安装使用上一节显式入口。
 
 ```sh
 pnpm run gpui:package preview --root . --mode local --target aarch64-unknown-linux-gnu --format deb

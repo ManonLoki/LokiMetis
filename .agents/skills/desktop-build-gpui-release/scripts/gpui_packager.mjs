@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { safePath, safeRoot, relativePath, sha256 } from './gpui_filesystem.mjs';
+import { findGlobalTool } from './gpui_global_tools.mjs';
 import { TARGETS } from './gpui_config.mjs';
 import { writeNsisTemplate } from './gpui_nsis.mjs';
 import { localDmgSigningHook, macosAgentPlist, verifyLocalBundle } from './gpui_macos_identity.mjs';
@@ -109,10 +110,11 @@ export function verifyDmg({ run, artifact, mount, root, config, facts, resources
   } finally { if (attached) run('hdiutil', ['detach',mount], { quiet: true }); }
 }
 
-/** NSIS 只读解包到本次暂存区；没有显式项目内解包器时不安装应用来取证。 */
-export function verifyNsis({ run, root, config, artifact, destination, resources, binarySha256 }) {
-  if (!config.windows.extractor) throw new Error('NSIS candidate requires an approved project-local 7z/7zr extractor; local packages remain unverified');
-  const extractor = safePath(root, config.windows.extractor, { type: 'file' });
+/** NSIS 只读解包到本次暂存区；没有显式全局解包器时不安装应用来取证。 */
+export function verifyNsis({ run, root, config, artifact, destination, resources, binarySha256, environment = process.env, platform = process.platform }) {
+  if (!config.windows.extractor) throw new Error('NSIS candidate requires an approved global 7z/7zr extractor; local packages remain unverified');
+  const extractor = findGlobalTool(root, config.windows.extractor, platform, environment);
+  if (!extractor) throw new Error('approved global NSIS extractor is missing from PATH');
   fs.mkdirSync(destination);
   run(extractor, ['x','-y',`-o${destination}`,artifact], { quiet: true });
   const matches = [];

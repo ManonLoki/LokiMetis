@@ -16,6 +16,8 @@ import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable, stageResources } from './gpui_resources.mjs';
 import { signLocalBundle, verifyLocalBundle } from './gpui_macos_identity.mjs';
 import { executeLinuxBuild } from './gpui_linux_build.mjs';
+import { findGlobalTool, requirePackager, setupPackager } from './gpui_global_tools.mjs';
+export { setupPackager } from './gpui_global_tools.mjs';
 
 /** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
 export function assertNodeRuntime(version = process.versions.node) {
@@ -107,30 +109,6 @@ function buildEnvironment(config, target, cargoDirectory, candidate, notesPath, 
   return env;
 }
 
-/** 固定版本工具只装项目私有目录，已有不同版本或残缺安装不覆盖。 */
-export function setupPackager(root, run, platform = process.platform) {
-  assertIgnored(run,'target/harness-tools/.gpui-private');
-  const relative = `target/harness-tools/cargo-packager-${PACKAGER_VERSION}`;
-  const destination = safePath(root,relative,{ missing: true });
-  const tool = path.join(destination,'bin',`cargo-packager${platform === 'win32' ? '.exe' : ''}`);
-  if (fs.existsSync(destination)) {
-    safePath(root,`${relative}/bin/${path.basename(tool)}`,{ type: 'file' });
-    if (run(tool,['--version']).stdout.trim() !== `cargo-packager ${PACKAGER_VERSION}`) throw new Error('project-local cargo-packager has a different version; refusing overwrite');
-    return tool;
-  }
-  const parent = safePath(root,'target/harness-tools',{ missing: true }); fs.mkdirSync(parent,{ recursive: true });
-  const stage = fs.mkdtempSync(path.join(parent,'.install-'));
-  try {
-    run('cargo',['install','cargo-packager','--version',PACKAGER_VERSION,'--locked','--root',stage]);
-    const executable = safePath(stage,`bin/${path.basename(tool)}`,{ type: 'file' });
-    if (run(executable,['--version']).stdout.trim() !== `cargo-packager ${PACKAGER_VERSION}`) throw new Error('installed cargo-packager version mismatch');
-    safePath(root,relative,{ missing: true });
-    if (fs.existsSync(destination)) throw new Error('tool directory appeared during installation');
-    fs.renameSync(stage,destination);
-  } catch (error) { fs.rmSync(stage,{ recursive: true, force: true }); throw error; }
-  return tool;
-}
-
 /** 平台图标只填充缺失文件，相同字节幂等、不同字节需回身份流程。 */
 export function writeIcons(root, config) {
   const bytes = fs.readFileSync(safePath(root,config.icons.source,{ type: 'file' }));
@@ -157,10 +135,10 @@ export function executeBuild(options, hooks = {}) {
   const metadata = JSON.parse(run('cargo',cargoArguments(['metadata','--no-deps','--format-version','1'],lockPolicy)).stdout);
   const facts = projectFacts(root,metadata,config);
   if (options.command === 'icons') return { files: writeIcons(root,config) };
-  if (options.command === 'setup') return { packager: setupPackager(root,run,platform), version: PACKAGER_VERSION };
+  if (options.command === 'setup') return { packager: setupPackager(root,run,platform,environment), version: PACKAGER_VERSION };
   const target = options.target ?? run('rustc',['-vV']).stdout.match(/^host: (.+)$/mu)?.[1];
   const info = TARGETS[target], format = options.format ?? (platform === 'darwin' ? 'dmg' : 'nsis');
-  if (!info || !info.formats.includes(format) || info.host !== platform || !facts.platforms.includes(info.platform)) throw new Error('unsupported/unselected native GPUI target or format; Linux and cross-system packaging are unavailable');
+  if (!info || !info.formats.includes(format) || info.host !== platform || !facts.platforms.includes(info.platform)) throw new Error('unsupported/unselected native GPUI target or format; cross-system packaging is unavailable');
   if (format === 'nsis' && (hooks.arch ?? process.arch) !== 'x64') throw new Error('Windows NSIS currently requires a native x64 host');
   const candidate = options.mode === 'candidate';
   const localAdhoc = !candidate && info.platform === 'macos';
@@ -171,7 +149,7 @@ export function executeBuild(options, hooks = {}) {
   if (info.platform === 'macos' && signing.selection === 'enabled') throw new Error('GPUI macOS signing/notarization is not implemented; enabled selection fails closed, never downgraded');
   if (format === 'nsis' && signing.selection === 'enabled' && !config.windows.signing) throw new Error('Windows signing configuration is incomplete');
   const selections = candidate ? candidateSelection(options.e2e,options.e2eReason,options.e2eRisk) : null;
-  if (candidate && format === 'nsis' && !config.windows.extractor) throw new Error('NSIS candidate requires an approved project-local 7z/7zr extractor');
+  if (candidate && format === 'nsis' && !config.windows.extractor) throw new Error('NSIS candidate requires an approved global 7z/7zr extractor');
   const context = candidate ? (hooks.context ?? releasedContext)(root,facts) : null;
   if (candidate && identity.dirty) throw new Error('candidate source must be clean');
   const resources = collectResources(root,config,info.platform,candidate);
@@ -184,12 +162,10 @@ export function executeBuild(options, hooks = {}) {
   }
   safePath(root,config.icons[format === 'nsis' ? 'windows' : 'macos'],{ type: 'file' });
   if (format === 'dmg') safePath(root,config.macos.background,{ type: 'file' });
-  const toolRelative = `target/harness-tools/cargo-packager-${PACKAGER_VERSION}/bin/cargo-packager${platform === 'win32' ? '.exe' : ''}`;
   const buildRun = randomUUID();
   const plan = { buildRun, mode: options.mode, project: facts.project, version: facts.version, target, format, package: config.package, binary: config.binary, lockPolicy, signing, ...(candidate ? { sourceCommit: context.sourceCommit, ...selections } : { sourceCommit: identity.commit, dirty: identity.dirty }) };
-  if (options.command === 'preview') return { ...plan, tool: fs.existsSync(safePath(root,toolRelative,{ missing: true })) ? 'present-version-unchecked' : 'setup-required' };
-  const tool = safePath(root,toolRelative,{ type: 'file' });
-  if (run(tool,['--version']).stdout.trim() !== `cargo-packager ${PACKAGER_VERSION}`) throw new Error('cargo-packager version differs; run setup');
+  if (options.command === 'preview') return { ...plan, tool: findGlobalTool(root,'cargo-packager',platform,environment) ? 'present-version-unchecked' : 'setup-required' };
+  const tool = requirePackager(root,run,platform,environment);
   assertIgnored(run,'target/gpui-packaging/.gpui-private');
   if (candidate) {
     run(process.execPath,[safePath(root,'.agents/skills/desktop-manage-version/scripts/version_gate.mjs',{ type: 'file' }),'check','--project-root',root,'--phase','release']);
@@ -248,7 +224,7 @@ export function executeBuild(options, hooks = {}) {
   const signingResult = finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc });
   let resourceVerification = format === 'nsis' ? 'Unverified' : 'app-bundle-byte-identical';
   if (format === 'dmg') resourceVerification = verifyDmg({ run, artifact, mount: path.join(work,'mount'), root, config, facts, resources, binarySha256, localAdhoc, env });
-  if (candidate && format === 'nsis') resourceVerification = verifyNsis({ run, root, config, artifact, destination: path.join(work,'extracted'), resources, binarySha256 });
+  if (candidate && format === 'nsis') resourceVerification = verifyNsis({ run, root, config, artifact, destination: path.join(work,'extracted'), resources, binarySha256, environment, platform });
   const extension = format === 'app' ? 'app.zip' : format === 'dmg' ? 'dmg' : 'exe';
   const filename = `${facts.project.replaceAll('_','-')}-v${facts.version}-${info.platform}-${info.arch}.${extension}`;
   if (format === 'app') {

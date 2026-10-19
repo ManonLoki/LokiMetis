@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPUI 依赖与兼容方案"
+  short_description: "整理 GPUI 版本、平台特征与兼容补丁，保留产品依赖边界"
+  default_prompt: "使用 $desktop-manage-gpui-dependencies 核查当前 GPUI 依赖和兼容方案。"
