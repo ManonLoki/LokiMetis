@@ -17,6 +17,8 @@ GPUI Kit 官方知识的创建期安装由上游初始化器负责；既有下�
 
 初始化及运行时/能力接线读 [runtime-and-native](references/runtime-and-native.md)；侧栏/关于/赞助页变更读 [shell-surfaces](references/shell-surfaces.md)；根 pnpm 脚本或开发循环变更读 [workspace-tooling](references/workspace-tooling.md)。只读取命中主题，保留九字段、禁用裁剪与已有产品接线。
 
+Linux原生窗口、托盘恢复、Dock或通知改动再读[Linux宿主方案](references/linux-native.md)。产品已验证能力的版本/架构/会话范围取[能力证据索引](../../../docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)，不把历史候选通过扩张为当前版本或中性renderer通过。
+
 1. 按 `AGENTS.md` 读取当前任务命中的工程与 Rust 规范；GUI 设计只读 `docs/design_standards/README.md` 与 `docs/design_standards/gpui_gui.md`。初次中性初始化复用初始化器已经确认的身份、接口、目标平台和九项 GUI profile，不要求 Product Spec、ADR、Work Plan、版本分类或发布上下文。初始化后新增接口才按 `$desktop-manage-version` 处理已批准 feature。
 
 2. 框架由独立问题选择：`1. Tauri（默认；未回答时使用）`、`2. GPUI`。九项 profile 保持原顺序：`system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`。托盘、系统通知、自启、单实例与全局快捷键允许 enabled/disabled，只按选择生成依赖和实现。深链接仍 unavailable/disabled；本项目Linux扩展按[Linux工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md)与ADR-009执行；不得把旧X11热键成功回执当作Wayland支持，未接线能力不能宣称可用。关于/赞助页分别允许 `enabled` 或 `disabled`；侧栏为 `compact` 或 `detailed`。全部选择结束后必须读取 [原生能力与配置询问](references/native-capabilities.md)，汇总已选能力并询问配置协助；具体产品配置留到终端下游唯一根目录，不在 Harness 源收集业务内容。

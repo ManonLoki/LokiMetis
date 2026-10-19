@@ -4,6 +4,8 @@
 
 按真实 viewport 和 content mask 决定解码/播放；静态帧或有限循环结束停止刷新。动画使用真实时间线。逐帧 GPU 清理必须取同窗所有消费者最后成功 paint 的 identity + frame 并集，收尾前复查，覆盖 A→B→A、错相播放、缓存 Scene 重放与跨窗消费者。backend 不同就分别验证，不能把 Metal 专用机制当所有平台已有。
 
+静态资源可能在prepaint阶段才Ready，但本帧paint闭包仍持有render阶段的空快照。只在绘制栈内notify可能仅留下dirty标记，没有下一次正式帧请求；动画timer会掩盖此问题。首次接纳结果后，在当前绘制栈退出时请求一次正式重绘，以弱实体、挂载状态和代次撤销过期任务，静态图片不增加周期timer。回归禁用测试宿主自动绘制，只消费平台真实帧请求，并覆盖暂停/代次变化、卸载及关闭取消。本项目行为回归见`loki_metris_gui/src/monitor/image_playback_first_frame_tests.rs`；真实Linux首帧观察见[能力证据索引](../../../../docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)，不据此声称其它GPU后端或性能基准通过。
+
 几何缓存与重着色分离，动画变换尽量保留布局、字形和纹理身份。视觉等价需要保持影响结果的浮点运算、缩放、DPI、主题、字体、语言和 mask；使用位值 key 前考虑所有实际输入。atlas 物理回收按 GPU 编码完成/取消边界，不能提前复用仍在引用的区域。
 
 缓存要有完整 key、有界容量与失效策略；文件查询可用读前/读后 stamp 一致才保存，仍做权限/路径安全检查。数据库的主文件、WAL、journal，语言、数据范围和版本都可能参与 key。命中后的 freshness 定义必须明确，不把 stale 成功永久保活。

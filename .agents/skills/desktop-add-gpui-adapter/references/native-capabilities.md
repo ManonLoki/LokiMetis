@@ -6,6 +6,8 @@
 
 当前依赖见[技术选型清单](../../../../docs/TECHNOLOGY.md)，已批准能力配置见[GUI profile](../../../../docs/GUI_APP_PROFILE.md)。本项目已实现macOS UserNotifications、Windows Toast及Linux freedesktop通知owner与点击恢复，详见[GUI支持界面](../../../../docs/GUI_SUPPORT_SURFACES.md)。下文Kit-only通知与未配置时行为是保留中性模板合同，不能用于撤销产品已批准配置或宣称当前产品没有通知触发器。Linux托盘已接线，后台热键服务仍未接线，空action合同继续零注册。
 
+Linux的Watcher/本进程条目确认、关闭回调借用、X11/Wayland窗口差异及通知owner规则按[Linux宿主方案](linux-native.md)执行。已有真实候选通过范围取[已验证能力索引](../../../../docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)；声明依赖、协议回归和产品E2E分别判断。
+
 ## 选择后的询问
 
 初始化先按既有顺序解析九项配置。所有能力选择结束后，必须汇总已选的托盘、系统通知、开机自启、单实例与全局快捷键，询问是否需要协助配置；不能仅给出一句“以后可以配置”。已明确提供的答案直接复用，禁用项不问，整组没有启用项时跳过。

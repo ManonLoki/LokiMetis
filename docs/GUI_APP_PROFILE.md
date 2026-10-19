@@ -9,7 +9,7 @@
 
 当前技术栈、依赖声明与本地补丁归属见[技术选型清单](TECHNOLOGY.md)。受管GPUI设计标准仍完整保留；其中中性托盘/热键平台限制按下述已批准Linux产品扩展解释，不据旧模板回退当前配置。
 
-Linux GNU x64/ARM64扩展已批准，构建及原生能力的实现边界统一见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。存在`DISPLAY`时选择X11/XWayland桌宠宿主；窗口、托盘恢复探测及通知已接线，真实候选E2E仍待验证。纯Wayland没有XWayland时不宣称支持桌宠全局定位/置顶。下列九字段仍表达产品选择；Portal/X11后台热键服务尚未接线，空action合同保持不变。
+Linux GNU x64/ARM64扩展已批准，构建及原生能力的实现边界统一见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。存在`DISPLAY`时选择X11/XWayland桌宠宿主；窗口、托盘恢复及Hook通知等已在v0.3.11 ARM64 GNOME XWayland最终候选通过16项E2E，精确范围见[已验证能力索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)。v0.3.13双架构包已实际构建，运行状态仍为Unverified。纯Wayland没有XWayland时不宣称支持桌宠全局定位/置顶。下列九字段仍表达产品选择；Portal/X11后台热键服务尚未接线，空action合同保持不变。
 
 ```gui-initialization-config
 system_tray: enabled

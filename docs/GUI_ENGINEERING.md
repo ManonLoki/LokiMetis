@@ -10,6 +10,7 @@
 | 异步/队列/重绘/缓存/图片性能 | [$desktop-optimize-gpui-performance](../.agents/skills/desktop-optimize-gpui-performance/SKILL.md) | 定场景、测成本、最小修改、行为回归、同条件复测 |
 | 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
 | 最终候选验收 | 保留的 desktop-verify-delivery / desktop-test-final-artifact-e2e | 真实最终字节和目标宿主，构建通过不代替验收 |
+| Linux宿主问题与已有验证 | [Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)、[已验证能力索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)；adapter的[Linux原生方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | 按版本、架构及图形会话判断，历史通过不覆盖新包状态 |
 
 ## 方案选择
 
@@ -26,3 +27,7 @@ adapter 只负责装配，依赖 Skill 管版本/补丁，性能 Skill 管定位
 ## 本项目事实与边界
 
 当前依赖全表见 [TECHNOLOGY](TECHNOLOGY.md)，Linux 产品接线/工具链见 [LINUX_GPUI_TOOLCHAIN](LINUX_GPUI_TOOLCHAIN.md)。性能现状、历史测量与被否定的尝试见 [PERFORMANCE_OPTIMIZATION](PERFORMANCE_OPTIMIZATION.md) 和 [性能知识库](performance/README.md)；历史 macOS 合成短窗 A/B 不代表当前版本或 Windows/Linux 复测。具体候选阻断取 [RELEASE](RELEASE.md)。工程升级按根 Cargo 与受保护产品事实渲染知识，不自动修改产品 Rust 依赖声明或切换能力。
+
+Linux已解决机制按职责沉淀：托盘恢复/窗口/Dock/通知交adapter的Linux引用，声明与features交依赖矩阵，静态首帧及共享设置发布交性能引用，双架构/图标/权限交build的Linux引用。原始候选证据继续留在忽略的`release/`；知识库只维护验证范围与链接。
+
+本地Linux知识扩展与上游来源分开维护，上游身份仅取`.harness/upstream-lock.json`。没有新的独立源审计，不刷新来源锁；现有文件的本地知识扩展保留为下游差异，未来升级按三方比较处理，不把它们登记为上游原文。

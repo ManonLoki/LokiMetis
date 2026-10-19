@@ -10,6 +10,6 @@ GitHub 按钮固定打开 `https://github.com/ManonLoki/LokiMetis`，提示为�
 
 通知偏好默认关闭；启动只恢复本地设置并查询真实系统状态，不主动请求权限或发送测试通知。当前已接入当天首次严格超过1B Token、Hooks询问/结束/错误及Codex/WorkBuddy换肤终态通知；触发与去重规则以[最新产品规格](product_spec/20261018_product_spec.md#托盘自启与系统通知)为准，已确认开关与权限共同控制发送。原生通知点击可恢复主窗，API接受、横幅呈现与点击分别验证。
 
-macOS使用本产品bundle的UserNotifications权限与协作delegate，显式开启时必要申请Alert/Sound，随后保存用户意图并披露权限与保存结果；关闭不撤销OS权限。Windows使用本产品AUMID、Toast设置查询及Activated/Failed回调，只有用户明确开启或重试才初始化授权身份，启动查询不偷偷写HKCU。Linux使用会话D-Bus `org.freedesktop.Notifications`，服务可用不表示每应用授权或横幅已显示；owner、点击及未知投递结果按[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md#系统通知宿主)处理。实际宿主行为仍须由真实候选验证，不以源码接线或回归结果替代。
+macOS使用本产品bundle的UserNotifications权限与协作delegate，显式开启时必要申请Alert/Sound，随后保存用户意图并披露权限与保存结果；关闭不撤销OS权限。Windows使用本产品AUMID、Toast设置查询及Activated/Failed回调，只有用户明确开启或重试才初始化授权身份，启动查询不偷偷写HKCU。Linux使用会话D-Bus `org.freedesktop.Notifications`，服务可用不表示每应用授权或横幅已显示；owner、点击及未知投递结果按[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md#系统通知宿主)处理。v0.3.11 ARM64 GNOME XWayland的Hook询问横幅、点击恢复和关闭门禁已有真实候选验证，见[能力证据索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)；其余事件、版本及平台按实际候选另取证。
 
 macOS 通知要求完整 bundle 的签名身份与 `Info.plist` 中本产品标识一致。开发预览可使用仅本地的 ad-hoc 签名并严格校验；它不代表 Developer ID 签名、公证或分发候选。裸 debug 二进制或仅有链接器签名的复制 bundle 不能作为通知权限验收依据，正式候选仍遵守独立签名门禁。系统拒绝、权限查询失败和超时必须保留真实失败，不能以本地偏好模拟授权。

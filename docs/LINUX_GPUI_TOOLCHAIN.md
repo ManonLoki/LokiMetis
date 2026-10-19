@@ -2,6 +2,42 @@
 
 本文件是本项目Linux兼容、双架构构建和打包工具链的技术事实源。目标来自根Cargo metadata；声明支持不等于运行验收。Linux当前承接已批准的x64与ARM64工具链扩展，Windows/macOS路径继续独立维护。跨平台依赖声明、features与本地补丁索引见[技术选型清单](TECHNOLOGY.md)。
 
+## 已验证能力与证据索引
+
+2026-10-19回顾核对：下表“已验证”绑定 **v0.3.11、Linux ARM64、GNOME X11/XWayland** 最终候选，源码`9eb59c14cfdf93ec8abcc7734b898f0051033ceb`，buildRun=`6f9a33c8-02ef-4df5-ba47-0cd18207586a`。它证明这些方案已有真实运行验证；当前Cargo为v0.3.13，不自动继承旧候选的验收状态。
+
+权威结论为[最终E2E结果](../release/e2e-evidence/e2e-result.json)的16项`passed`及[候选manifest](../release/loki-metris-v0.3.11-linux-aarch64.deb.manifest.json)的`runtimeVerification`/`milestoneAcceptance`。包SHA-256为`56f37cbae017fd274f5dc83596b475d745e80ac93a559e883c6061256fa143ce`；751项证据文件已逐项复算一致（文件数不代表测试数），复算结果见[本次知识审计回执](../release/linux-knowledge-audit-20261019.json)。原始截图、日志、计划及首尾完整性快照保留于忽略的`release/`，本节仅索引。首尾快照中的`acceptanceDecision:not-performed`是完整性检查自身的状态，不覆盖后续E2E结论。
+
+| 解决方案/能力 | 状态与真实观察 | E2E场景ID |
+| --- | --- | --- |
+| 桌宠设置与持久化 | 已验证：尺寸、布局、锁定关闭重开及正常退出后重启一致 | `settings_persistence`、`restart_persistence` |
+| 锁定、拖动与几何 | 已验证：锁定无位移，解锁可拖动并保存原生几何 | `lock_drag_geometry` |
+| 鼠标穿透与恢复 | 已验证：Shape输入区为空，点击改变下方主题；关闭后恢复输入 | `passthrough` |
+| 原生置顶 | 已验证：主窗激活时开/关置顶具有真实覆盖差异 | `topmost` |
+| 静态图片首帧 | 已验证：首次Idle后无需鼠标或图库刷新即显示Logo | `static_first_frame` |
+| Dock身份与图标 | 已验证：真实GNOME Dock、窗口身份和包内标准512图标相符 | `dock_identity` |
+| 五Agent Hooks命令 | 已验证：GUI生成35条命令，经实际shell/relay进入监听器和状态机 | `hooks_real_commands` |
+| Agent启用门禁 | 已验证：停用时旧命令不接纳，重新启用后恢复 | `hooks_enabled_filter` |
+| 托盘关闭与恢复 | 已验证：真实Watcher/本进程条目下关闭隐藏，托盘恢复原窗 | `tray_close_restore` |
+| 单实例恢复 | 已验证：第二次启动相同产物恢复原进程窗口 | `single_instance_restore` |
+| 通知横幅、点击与关闭 | 已验证：真实Hook横幅、点击恢复，关闭后停止投递 | `notifications_banner_click_disable` |
+| 更新日志和包内资源 | 已验证：日志可重开，看板、图表、来源、监控及换肤资源页面可见 | `release_notes_modal`、`navigation_packaged_resources` |
+| 正常退出与完整性 | 已验证：日志刷新、owned端点回收，候选字节及临时宿主登记恢复 | `normal_quit_cleanup`、`final_integrity_and_registration_cleanup` |
+
+**双架构打包已验证，目标运行分开标记。** v0.3.13的[ARM64本机包manifest](../target/gpui-packaging/local-linux-4Cixl2/loki-metris-v0.3.13-linux-aarch64.deb.manifest.json)和[x64交叉包manifest](../target/gpui-packaging/local-linux-f1mWPO/loki-metris-v0.3.13-linux-x86_64.deb.manifest.json)绑定源码`1518ca4c81aae9dcef294cb382a2020827a6dfcb`；工具链、宿主1565项测试和最终包检查通过，两者`runtimeVerification`仍为`Unverified`、`milestoneAcceptance`仍为`pending`。deb/tar.gz的格式、资源和受限umask权限另有真实打包回归，不据此声称每种格式均完成产品E2E。
+
+未覆盖范围保持明确：v0.3.13运行、Linux x64运行、纯Wayland桌宠、真实登录自启、混合DPI/热插拔、第三方Agent自行消费新Hooks及未测宿主换肤Apply/Stop。Portal/X11后台热键服务尚未接线，空actions不等于已验证热键。此处也不将产品实现推广为中性renderer的Linux托盘/热键生成支持。
+
+## 按问题查找方案
+
+| 问题 | 技术事实与工程入口 |
+| --- | --- |
+| 安装、root接续、双架构库与交叉链接 | [依赖、安装和复探](#依赖安装和复探)；[Linux打包引用](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md) |
+| 托盘恢复、窗口、Dock、通知、热键边界 | 下文各宿主章节；[Harness原生方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) |
+| 首帧不出现、共享设置缓存吞发布 | [静态图片首帧](#静态图片首帧)、[Hooks与共享设置](#hooks-与共享设置加载)；性能Skill的资源/运行时引用 |
+| 包格式、权限、图标、资源、许可证、glibc | [统一构建与打包入口](#统一构建与打包入口)；实际包manifest |
+| 已验证到哪个版本/架构/桌面 | 本页能力矩阵及其精确候选证据；[GUI工程索引](GUI_ENGINEERING.md) |
+
 ## 支持矩阵与宿主边界
 
 | Rust目标 | Debian架构 | GNU工具前缀 | 包格式 |
@@ -34,7 +70,7 @@ Linux GUI显式继承现有tray-icon的`ksni`特性；KSNI通过会话D-Bus和St
 
 热键支持依赖为ashpd（async-io/global_shortcuts）和x11rb（xkb）。Wayland必须使用GlobalShortcuts Portal及系统授权；纯X11可采用具有checked request和确定错误传播的X11连接。当前global-hotkey 0.8的Linux后端仅X11，工作线程断连时可能返回成功，不能当作已确认注册路径。
 
-依赖准备及工具链扩展不会自动增加热键action、注册系统键位或请求Portal权限。Portal/X11的后台热键服务尚未接线，空action合同保持不变。下述窗口和通知已接入相应宿主路径，真实托盘点击、系统通知、桌宠交互及完整候选E2E仍须分别取证；不得据源码、编译或打包成功宣称完整Linux体验通过。
+依赖准备及工具链扩展不会自动增加热键action、注册系统键位或请求Portal权限。Portal/X11的后台热键服务尚未接线，空action合同保持不变。下述窗口、通知、托盘及桌宠的历史候选验证范围见本页能力矩阵；后续版本、其它桌面及架构仍须分别取证。
 
 只读会话探测：
 
@@ -86,9 +122,9 @@ pnpm run gpui:package build --root . --mode local --target x86_64-unknown-linux-
 
 便携归档使用`LokiMetris/主程序`与相邻`resources/skins`，附`launch`入口。Debian包使用`/opt/<应用identifier>/主程序`与相邻资源，`/usr/bin/<项目slug>`只作转发；同时安装`.desktop`与hicolor图标。Debian图标从已批准母版实际派生为512×512 PNG，并安装到标准主题登记的`hicolor/512x512/apps`，最终解包核尺寸；不把1024像素原图塞进512目录，也不依赖未被主题索引登记的1024目录。版本只取Cargo，架构只取Rust目标。Debian依赖披露从真实ELF读取的glibc最低版本及所需运行库；不自带另一发行版的glibc，不安装或运行生成的应用。
 
-资源配置必须逐项显式声明`linux`目标，不默认复用macOS/Windows映射。两份根许可证、皮肤、生成器和第三方许可证均进入最终包；正式候选还需相同字节的更新日志。构建前后验证源码与资源快照；最终包真实解包后检查文件集合、权限、ELF64机器类型、二进制与资源摘要，以及Debian控制文件和桌面入口。
+资源配置必须逐项显式声明`linux`目标，不默认复用macOS/Windows映射。两份根许可证、皮肤、生成器和第三方许可证均进入最终包；正式候选还需相同字节的更新日志。发行目录、二进制及启动入口显式规范为`0755`，普通资源为`0644`，不能继承开发者的`umask`。构建前后验证源码与资源快照；最终包真实解包后检查文件集合、权限、ELF64机器类型、二进制与资源摘要，以及Debian控制文件和桌面入口。
 
-local仅写忽略的`target/gpui-packaging/local-linux-*`，生成包、相邻SHA-256和manifest。candidate继续要求clean已发布默认主分支/tag、冻结上下文、版本门禁及当次E2E选择；未实现Linux签名，任何启用请求都明确阻断。构建结果只保存在忽略目录和最终回复，不写入本知识库或伪造验收记录。
+local仅写忽略的`target/gpui-packaging/local-linux-*`，生成包、相邻SHA-256和manifest。candidate继续要求clean已发布默认主分支/tag、冻结上下文、版本门禁及当次E2E选择；未实现Linux签名，任何启用请求都明确阻断。构建及验收原始结果只保存在忽略目录；知识库仅维护能力状态、适用范围和证据链接，不复制或改写原始验收记录。
 
 单实例测试使用文件型Unix socket，完整路径受sockaddr_un容量限制。测试TMPDIR固定选择项目`target/lt-*`短目录，为tempfile/private/instance.sock预留空间；不要放进深层打包工作目录。项目路径本身过长时明确报错并选择更短的本地checkout，不创建不透明链接或跳过单实例回归。tar写入归档前使用`--`终止选项，并移除继承的TAR_OPTIONS，避免产品目录名被解释为命令选项。
 
