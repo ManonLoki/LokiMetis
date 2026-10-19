@@ -3,6 +3,26 @@
   "releases": [
     {
       "releaseDate": "2026-10-19",
+      "version": "v0.4.0",
+      "featureOptimizations": [
+        {
+          "zh-CN": "同步 Harness 工程工具与规则，完善 GPUI 工程入口、依赖治理和 Linux 已验证能力索引。",
+          "en-US": "Synchronize Harness engineering tools and rules, refining GPUI workflows, dependency governance and the index of verified Linux capabilities."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复跨机器发布后本机生命周期记录落后导致的版本门禁阻断；核验既有 tag、上下文和版本状态，并保留原记录。",
+          "en-US": "Recover stale local lifecycle records after releases on another machine by verifying existing tags, contexts and version state while preserving the original records."
+        },
+        {
+          "zh-CN": "本地打包之外的当次明确推送绑定精确提交与 tag，保留打包策略并逐项核对远端发布引用。",
+          "en-US": "Bind explicitly requested pushes in addition to local packaging to the exact release commit and tag, preserving the packaging policy and verifying each remote release reference."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-19",
       "version": "v0.3.13",
       "featureOptimizations": [],
       "bugFixes": [

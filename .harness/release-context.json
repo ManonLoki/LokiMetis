@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "475f02ad8744803ed413e2cfd2857ec3d3e0b481",
-  "version": "0.3.13",
+  "sourceHead": "fbce28eb9109af3697f538f6519495899b058625",
+  "version": "0.4.0",
   "releaseDate": "2026-10-19",
-  "expectedTag": "v0.3.13-20261019",
+  "expectedTag": "v0.4.0-20261019",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "1e1c4f687bad40f11b624a6b3408b8fcb5b12d68",
-    "sourceHead": "475f02ad8744803ed413e2cfd2857ec3d3e0b481",
-    "scopeDiffSha256": "c1b1f833bf52378e76a41a7b2a273fc367341e96e47db490f71155291f363ff4",
-    "reviewedSourceCommit": "475f02ad8744803ed413e2cfd2857ec3d3e0b481",
+    "scopeBase": "1518ca4c81aae9dcef294cb382a2020827a6dfcb",
+    "sourceHead": "fbce28eb9109af3697f538f6519495899b058625",
+    "scopeDiffSha256": "7df8094a07471df1038643e184616bb52241e7ed9fb99473fab0fc611566dd80",
+    "reviewedSourceCommit": "fbce28eb9109af3697f538f6519495899b058625",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed exact 1e1c4f6..475f02a diff: two GUI alignment substitutions plus consistent v0.3.13 lifecycle metadata. Behavior correctness, core/adapter boundary, external contracts, responsibility/size and temporary markers passed. Existing overview material/copy unit regression and incidental Metal test passed. No blocking findings; live visual alignment and Windows/Linux remain unverified.",
+    "evidenceSummary": "Reviewed 1518ca4..fbce28e: five checks passed for recovery, exact push binding, Harness tools and version reconciliation. Product Rust code and dependencies unchanged. Recovery 13, Git 74, version 35 regressions and engineering checks passed. The generic Windows watcher descendant-cleanup limit is documented and outside this product dev entry. No blocking findings for this Linux release. New candidate runtime and Windows/macOS remain unverified; E2E disabled.",
     "reason": null,
     "remainingRisk": null
   }
