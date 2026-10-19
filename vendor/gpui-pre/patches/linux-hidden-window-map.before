@@ -1,0 +1,1 @@
+        platform_window.map_window().unwrap();

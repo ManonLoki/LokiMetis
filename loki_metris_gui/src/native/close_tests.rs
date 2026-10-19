@@ -5,7 +5,7 @@ use crate::preferences::{Preferences, Writer};
 use gpui_kit::{AppContext, Bounds, TestAppContext, VisualTestContext, WindowBounds, WindowOptions, point, px, size};
 use std::{cell::Cell, rc::Rc};
 
-/// 服务与单实例均归属本次临时目录；偏好使用内存writer，登录项owner只执行启动时只读查询。
+/// 服务与单实例均归属本次临时目录；偏好使用内存writer，通知查询保持停止，登录项只读。
 struct Fixture {
     /// 主窗句柄。
     handle: AnyWindowHandle,
@@ -17,11 +17,18 @@ struct Fixture {
 
 /// 真实Shell::new负责注册生产关闭回调；虚拟窗口没有raw X11句柄，能力在服务缓存边界明确注入。
 fn fixture(cx: &mut TestAppContext, main_is_x11: bool, restore_available: bool) -> Fixture {
+    fixture_with_visibility(cx, main_is_x11, restore_available, true)
+}
+
+/// 窗口可见性通过真实 WindowOptions 进入 GPUI 创建路径，其余资源仍完全隔离。
+fn fixture_with_visibility(cx: &mut TestAppContext, main_is_x11: bool, restore_available: bool, show: bool) -> Fixture {
     cx.update(gpui_kit::init);
     let preferences = Preferences::default();
     let writer = Writer::in_memory(preferences.clone());
     let shell_writer = writer.clone();
     let (handle, _) = cx.update(|cx| gpui_kit::open_window(WindowOptions {
+        show,
+        focus: show,
         window_bounds: Some(WindowBounds::Windowed(Bounds::new(point(px(20.), px(30.)), size(px(1200.), px(800.))))),
         ..Default::default()
     }, cx, |window, cx| cx.new(|cx| crate::app::Shell::new(preferences, shell_writer, window, cx))).unwrap());
@@ -32,6 +39,8 @@ fn fixture(cx: &mut TestAppContext, main_is_x11: bool, restore_available: bool) 
         instance::Launch::Activated => panic!("isolated instance must be primary"),
     };
     let notifications = notifications::Service::new(false, writer.clone());
+    // 唤醒会刷新通知权限；本组只验证窗口生命周期，不能访问真实会话 D-Bus。
+    notifications.stop();
     cx.update(|cx| cx.set_global(Services {
         main: handle,
         main_is_x11,
@@ -114,4 +123,110 @@ fn deferred_close_hide_rechecks_the_restore_entry(cx: &mut TestAppContext) {
     assert!(crate::pet::host::take_visibility_events(f.handle).is_empty());
     assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
     finish(f, cx);
+}
+
+/// 隐藏创建不向 Linux 平台发出首次 map，普通创建仍映射同一真实窗口。
+#[gpui_kit::test]
+fn startup_hidden_window_does_not_request_initial_map(cx: &mut TestAppContext) {
+    for show in [false, true] {
+        let f = fixture_with_visibility(cx, true, false, show);
+        assert_eq!(cx.test_window(f.handle).map_request_count(), usize::from(show));
+        finish(f, cx);
+    }
+}
+
+/// 托盘异步就绪前保持隐藏，成功确认后登记隐藏状态，后续不会触发超时显示。
+#[gpui_kit::test]
+fn startup_waits_for_tray_confirmation_without_showing(cx: &mut TestAppContext) {
+    let f = fixture_with_visibility(cx, true, false, false);
+    let shows = Rc::new(Cell::new(0));
+    let observed = shows.clone();
+    cx.update(|cx| startup::complete(true, cx, move |_| observed.set(observed.get() + 1)));
+    cx.run_until_parked();
+    assert_eq!(shows.get(), 0);
+    cx.executor().advance_clock(Duration::from_millis(500));
+    cx.run_until_parked();
+    assert_eq!(shows.get(), 0);
+    cx.update(|cx| cx.global_mut::<Services>().tray_restore_available_for_test = Some(true));
+    cx.executor().advance_clock(Duration::from_millis(40));
+    cx.run_until_parked();
+    assert!(cx.read(|cx| cx.global::<Services>().main_hidden));
+    cx.executor().advance_clock(Duration::from_secs(4));
+    cx.run_until_parked();
+    assert_eq!(shows.get(), 0);
+    assert_eq!(cx.test_window(f.handle).map_request_count(), 0);
+    finish(f, cx);
+}
+
+/// 没有实际托盘、纯 Wayland 或普通启动立即显示，不遗留不可恢复的主窗。
+#[gpui_kit::test]
+fn startup_manual_and_missing_restore_paths_show_immediately(cx: &mut TestAppContext) {
+    for (hidden, x11, installed) in [(false, true, true), (true, false, true), (true, true, false)] {
+        let f = fixture_with_visibility(cx, x11, false, false);
+        if !installed { cx.update(|cx| cx.global_mut::<Services>().tray_restore_available_for_test = None); }
+        let shows = Rc::new(Cell::new(0));
+        let observed = shows.clone();
+        cx.update(|cx| startup::complete(hidden, cx, move |_| observed.set(observed.get() + 1)));
+        assert_eq!(shows.get(), 1);
+        assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
+        finish(f, cx);
+    }
+}
+
+/// 探测始终失败时三秒内只回退显示一次，不把 unknown 当成可恢复入口。
+#[gpui_kit::test]
+fn startup_unconfirmed_tray_times_out_to_visible_window(cx: &mut TestAppContext) {
+    let f = fixture_with_visibility(cx, true, false, false);
+    let shows = Rc::new(Cell::new(0));
+    let observed = shows.clone();
+    cx.update(|cx| startup::complete(true, cx, move |_| observed.set(observed.get() + 1)));
+    cx.run_until_parked();
+    for tick in 1..=75 {
+        cx.executor().advance_clock(Duration::from_millis(40));
+        cx.run_until_parked();
+        assert_eq!(shows.get(), usize::from(tick == 75));
+    }
+    assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
+    finish(f, cx);
+}
+
+/// 事件线程迟到执行时按真实截止时间回退，不重新累计轮询次数延长隐藏等待。
+#[gpui_kit::test]
+fn startup_delayed_poll_still_observes_the_total_deadline(cx: &mut TestAppContext) {
+    let f = fixture_with_visibility(cx, true, false, false);
+    let shows = Rc::new(Cell::new(0));
+    let observed = shows.clone();
+    cx.update(|cx| startup::complete(true, cx, move |_| observed.set(observed.get() + 1)));
+    cx.run_until_parked();
+    cx.executor().advance_clock(Duration::from_secs(4));
+    cx.run_until_parked();
+    assert_eq!(shows.get(), 1);
+    finish(f, cx);
+}
+
+/// 等待期间手动显示会撤销旧意图，迟到托盘成功不能重新隐藏主窗。
+#[gpui_kit::test]
+fn startup_manual_show_cancels_pending_hidden_launch(cx: &mut TestAppContext) {
+    let f = fixture_with_visibility(cx, true, false, false);
+    cx.update(|cx| startup::complete(true, cx, |_| panic!("旧启动意图不得再次显示或隐藏")));
+    cx.run_until_parked();
+    cx.update(|cx| {
+        show(f.handle, cx);
+        cx.global_mut::<Services>().tray_restore_available_for_test = Some(true);
+    });
+    cx.executor().advance_clock(Duration::from_millis(40));
+    cx.run_until_parked();
+    assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
+    finish(f, cx);
+}
+
+/// 退出移除原生服务后，在途启动等待保持零窗口副作用。
+#[gpui_kit::test]
+fn startup_shutdown_cancels_pending_tray_wait(cx: &mut TestAppContext) {
+    let f = fixture_with_visibility(cx, true, false, false);
+    cx.update(|cx| startup::complete(true, cx, |_| panic!("退出后不能显示")));
+    cx.run_until_parked();
+    finish(f, cx);
+    cx.executor().advance_clock(Duration::from_secs(4));
+    cx.run_until_parked();
 }

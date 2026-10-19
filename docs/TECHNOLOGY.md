@@ -93,7 +93,7 @@ X11/XWayland 的桌宠、托盘恢复探测和 Linux 通知已接线；纯 Wayla
 | 包 / 路径 | 包版本 | 维护职责 |
 | --- | --- | --- |
 | [accesskit_macos](../vendor/accesskit_macos/README.md) | `0.26.3` | 原生 Heading 角色与层级 |
-| [gpui-pre](../vendor/gpui-pre/README.md) | `0.3.9` | 圆角视口、AX/延迟绘制、焦点代数与 hitbox 排除等公共接口 |
+| [gpui-pre](../vendor/gpui-pre/README.md) | `0.3.9` | 圆角视口、AX/延迟绘制、焦点代数、hitbox 排除与 Linux 隐藏创建首次映射 |
 | [gpui-pre-apple](../vendor/gpui-pre-apple/README.md) | `0.3.9` | Apple/Metal 图元与可变字体；`parent-rounded-clip` 为 macOS 显式 opt-in |
 | [gpui-pre-macos](../vendor/gpui-pre-macos/README.md) | `0.3.9` | macOS 窗口恢复、缩放/全屏失败与 reopen 桥接 |
 | [gpui-pre-windows](../vendor/gpui-pre-windows/README.md) | `0.3.9` | Windows 渲染 ABI 与窗口兼容层 |

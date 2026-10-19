@@ -1,0 +1,3 @@
+    pub(crate) edited: bool,
+    /// 记录生产窗口创建路径发出的映射请求，不模拟原生窗口显示效果。
+    map_request_count: usize,

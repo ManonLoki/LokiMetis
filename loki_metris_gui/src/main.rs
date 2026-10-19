@@ -153,17 +153,15 @@ fn main() -> std::process::ExitCode {
         notifications.attach(usage_service.clone(),locale,handle,cx);
         native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
-        if !native::startup::show_main(starts_hidden, native::tray_restore_available(cx)) {
-            tracing::info!(event = "application_started_hidden");
-            return;
-        }
-        // 托盘创建失败时恢复普通应用身份，保证可见主窗仍有 Dock/退出入口。
-        #[cfg(target_os = "macos")]
-        if !native::tray_restore_available(cx) { cx.set_activation_policy(gpui_kit::ActivationPolicy::Regular); }
-        #[cfg(any(target_os="macos", all(windows, not(test))))]
-        if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle, cx); }
-        #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
-        cx.activate(true);
+        native::startup::complete(starts_hidden, cx, move |cx| {
+            // 托盘创建失败时恢复普通应用身份，保证可见主窗仍有 Dock/退出入口。
+            #[cfg(target_os = "macos")]
+            if !native::tray_restore_available(cx) { cx.set_activation_policy(gpui_kit::ActivationPolicy::Regular); }
+            #[cfg(any(target_os="macos", all(windows, not(test))))]
+            if let Some(desktop) = startup_desktop { native::show_on_desktop(handle, desktop, cx); } else { native::show(handle, cx); }
+            #[cfg(not(any(target_os="macos", all(windows, not(test)))))]
+            native::show(handle, cx);
+        });
     });
     shutdown.borrow_mut().finish();
     std::process::ExitCode::SUCCESS

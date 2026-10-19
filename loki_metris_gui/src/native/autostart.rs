@@ -5,6 +5,9 @@ use std::{sync::{Arc, Mutex, mpsc}, thread};
 #[cfg(windows)]
 #[path = "autostart_windows.rs"]
 mod windows;
+#[cfg(target_os = "linux")]
+#[path = "autostart_linux.rs"]
+mod linux;
 
 /// 未知和关闭必须区分；失败后也以重新读取的实际系统状态展示。
 #[derive(Clone, Debug, Default)]
@@ -94,16 +97,16 @@ impl Service {
     }
 }
 
-/// 登录项指向当前可执行文件；macOS 显式传入登录标记并关联本产品 bundle。
+/// 登录项指向当前可执行文件并统一传入登录标记；macOS 另关联本产品 bundle。
 fn handle() -> Result<AutoLaunch, String> {
     let executable = std::env::current_exe().map_err(|_| "executable_unavailable")?;
     let executable = executable.to_str().ok_or("executable_not_utf8")?;
     let executable = encoded_path(executable)?;
     let mut builder = AutoLaunchBuilder::new();
     builder.set_app_name("com.loki-metris.app").set_app_path(&executable)
-        .set_macos_launch_mode(MacOSLaunchMode::LaunchAgent).set_args(&[] as &[&str]);
+        .set_macos_launch_mode(MacOSLaunchMode::LaunchAgent).set_args(&[super::startup::AUTOSTART_ARGUMENT]);
     #[cfg(target_os = "macos")]
-    builder.set_args(&[super::startup::AUTOSTART_ARGUMENT]).set_bundle_identifiers(&["com.loki-metris.app"]);
+    builder.set_bundle_identifiers(&["com.loki-metris.app"]);
     #[cfg(windows)]
     builder.set_windows_enable_mode(auto_launch::WindowsEnableMode::CurrentUser);
     builder.build().map_err(|_| "autostart_unavailable".into())
@@ -115,7 +118,7 @@ fn encoded_path(path: &str) -> Result<String, String> {
     #[cfg(windows)]
     { if path.contains('"') { return Err("autostart_unsafe_path".into()) }
       let command = format!("\"{path}\"");
-      if command.encode_utf16().count() + 1 > 260 { return Err("autostart_unsafe_path".into()) }
+      if windows_launch_command(&command).encode_utf16().count() + 1 > 260 { return Err("autostart_unsafe_path".into()) }
       Ok(command) }
     #[cfg(target_os = "macos")]
     { if path.contains(['&', '<', '>']) { return Err("autostart_unsafe_path".into()) } Ok(path.into()) }
@@ -123,11 +126,13 @@ fn encoded_path(path: &str) -> Result<String, String> {
     { if !path.chars().all(|value| value.is_alphanumeric() || "/._-".contains(value)) { return Err("autostart_unsafe_path".into()) } Ok(path.into()) }
 }
 
-/// Windows 只查询当前用户；上游跨用户查询和删除不能作为本模块的系统事实。
+/// 查询当前用户的完整登录命令；Linux 不再把旧 XDG 文件存在当作已启用。
 fn read(handle: &AutoLaunch) -> Result<bool, String> {
     #[cfg(windows)]
-    { windows::is_enabled("com.loki-metris.app", handle.get_app_path()).map_err(|_| "autostart_read_failed".into()) }
-    #[cfg(not(windows))]
+    { windows::is_enabled("com.loki-metris.app", &windows_launch_command(handle.get_app_path())).map_err(|_| "autostart_read_failed".into()) }
+    #[cfg(target_os = "linux")]
+    { linux::is_enabled(handle).map_err(|_| "autostart_read_failed".into()) }
+    #[cfg(not(any(windows, target_os = "linux")))]
     { handle.is_enabled().map_err(|_| "autostart_read_failed".into()) }
 }
 /// Windows 开启明确 CurrentUser，关闭只删除当前用户同名项，不触达 HKLM。
@@ -141,8 +146,8 @@ fn write(handle: &AutoLaunch, enabled: bool) -> Result<(), String> {
 /// 写入后复读必须匹配请求，OS 拒绝生效和读取失败都保留实际状态并显示错误。
 fn apply<E>(desired: Option<bool>, mut read: impl FnMut() -> Result<bool, E>, mut write: impl FnMut(bool) -> Result<(), E>) -> (Option<bool>, bool) {
     let result = match desired {
-        // 显式关闭也清理同名旧路径；false 只表示当前命令未启用，不能证明 Run 值不存在。
-        Some(false) if cfg!(windows) => write(false),
+        // 显式关闭也清理同名旧项；false 只表示当前命令未启用，不能证明旧登录项不存在。
+        Some(false) if cfg!(any(windows, target_os = "linux")) => write(false),
         Some(desired) => read().and_then(|actual| if actual == desired { Ok(()) } else { write(desired) }),
         None => Ok(()),
     };
@@ -167,10 +172,20 @@ fn windows_command(bytes: &[u8]) -> std::io::Result<String> {
     if value.trim().is_empty() || value.chars().any(char::is_control) { return Err(std::io::ErrorKind::InvalidData.into()) }
     Ok(value)
 }
-/// 只认可当前无参数的受引号保护命令；旧副本和额外参数均要求显式重新开启。
+/// 只认可当前完整登录命令；旧副本、无标记旧项和额外参数均要求显式重新开启。
 #[cfg(any(windows, test))]
 fn windows_command_matches(bytes: &[u8], expected: &str) -> std::io::Result<bool> {
-    Ok(windows_command(bytes)?.trim_end_matches(' ').eq_ignore_ascii_case(expected))
+    let command = windows_command(bytes)?;
+    let suffix = format!(" {}", super::startup::AUTOSTART_ARGUMENT);
+    let Some(executable) = command.trim_end_matches(' ').strip_suffix(&suffix) else { return Ok(false); };
+    let Some(expected_executable) = expected.strip_suffix(&suffix) else { return Ok(false); };
+    // Windows 路径大小写不敏感，但启动标记与实际参数识别一样必须精确匹配。
+    Ok(executable.eq_ignore_ascii_case(expected_executable))
+}
+/// 与 auto-launch 的 Run 值拼接保持一致，标记必须纳入路径长度和状态复读。
+#[cfg(any(windows, test))]
+fn windows_launch_command(executable: &str) -> String {
+    format!("{executable} {}", super::startup::AUTOSTART_ARGUMENT)
 }
 /// 按完整 DWORD 识别已知开关；未知/损坏值返回失败，不猜测 OS 状态。
 #[cfg(any(windows, test))]
@@ -192,10 +207,9 @@ impl Drop for Service {
 #[cfg(test)]
 mod tests {
     use super::{State, apply, encoded_path, valid_windows_command, windows_command_matches, windows_override};
-    /// 构造macOS登录项只声明后台标记，不注册或改写真实登录项。
-    #[cfg(target_os = "macos")]
+    /// 三平台构造登录项都声明后台标记，不注册或改写真实登录项。
     #[test]
-    fn macos_autostart_configuration_launches_in_background() {
+    fn autostart_configuration_launches_in_background() {
         assert_eq!(super::handle().unwrap().get_args(), &[super::super::startup::AUTOSTART_ARGUMENT]);
     }
     /// 实际 HKCU 读取与后台线程只读初始化；不创建、修改或删除任何系统值。
@@ -229,12 +243,13 @@ mod tests {
     #[test]
     fn stale_windows_run_command_is_repaired_only_on_explicit_enable() {
         let bytes = |value: &str| value.encode_utf16().chain(Some(0)).flat_map(u16::to_le_bytes).collect::<Vec<_>>();
-        let expected = r#""C:\Program Files\LokiMetris\app.exe""#;
+        let executable = r#""C:\Program Files\LokiMetris\app.exe""#;
+        let expected = super::windows_launch_command(executable);
         let registered = std::cell::RefCell::new(Some(bytes(r#""C:\Old LokiMetris\app.exe" "#)));
         let writes = std::cell::Cell::new(0);
-        let read = || registered.borrow().as_ref().map(|bytes| windows_command_matches(bytes, expected)).unwrap_or(Ok(false));
+        let read = || registered.borrow().as_ref().map(|bytes| windows_command_matches(bytes, &expected)).unwrap_or(Ok(false));
         assert_eq!(apply(None, read, |_| -> std::io::Result<()> { panic!("查询不能修复旧路径") }), (Some(false), false));
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "linux"))]
         {
             assert_eq!(apply(Some(false), read, |enabled| {
                 assert!(!enabled);
@@ -252,9 +267,11 @@ mod tests {
         }), (Some(true), false));
         assert_eq!(writes.get(), 1);
         assert_eq!(apply(Some(true), read, |_| -> std::io::Result<()> { panic!("已匹配命令不能重复写入") }), (Some(true), false));
-        assert!(!windows_command_matches(&bytes(&format!("{expected} --other")), expected).unwrap());
-        assert!(windows_command_matches(&bytes(&format!("{} ", expected.to_ascii_lowercase())), expected).unwrap());
-        assert!(windows_command_matches(&[65, 0], expected).is_err());
+        assert!(!windows_command_matches(&bytes(executable), &expected).unwrap());
+        assert!(!windows_command_matches(&bytes(&format!("{expected} --other")), &expected).unwrap());
+        assert!(!windows_command_matches(&bytes(&format!("{executable} --AUTOSTART")), &expected).unwrap());
+        assert!(windows_command_matches(&bytes(&format!("{} ", expected.to_ascii_lowercase())), &expected).unwrap());
+        assert!(windows_command_matches(&[65, 0], &expected).is_err());
     }
     /// 未读取的系统状态不能冒充已开启或已关闭，也不授权注册。
     #[test]

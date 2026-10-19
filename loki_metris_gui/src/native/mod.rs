@@ -40,7 +40,6 @@ pub struct Services {
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_revision: u64,
     /// 显示/隐藏意图代次；较新的相反意图会让旧的延迟命令失效。
-    #[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
     window_action_generation: u64,
     /// Linux 显式隐藏不同于遮挡/最小化；托盘入口消失时只恢复真实隐藏的主窗。
     #[cfg(target_os = "linux")]
@@ -92,8 +91,6 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
     let mut revision = 0;
     let mut last_notification_key=None;
     let mut last_mouse_state=None;
-    #[cfg(target_os = "linux")]
-    let mut last_tray_available = false;
     #[cfg(target_os="macos")]
     let mut last_focus_revision = 0;
     let poll = cx.spawn(async move |cx| {
@@ -124,8 +121,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                 #[cfg(target_os = "linux")]
                 {
                     let available = tray_restore_available(cx);
-                    if last_tray_available && !available && cx.global::<Services>().main_hidden { show(handle, cx); }
-                    last_tray_available = available;
+                    if !available && cx.global::<Services>().main_hidden { show(handle, cx); }
                 }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
                 for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::OpenPetSettings => crate::pet::open_settings(cx), tray::Event::ToggleMousePassthrough => crate::pet::toggle_mouse_passthrough(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);}, tray::Event::ToggleAutostart=>toggle_autostart(cx) } }
@@ -160,7 +156,6 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         window_host,
         #[cfg(any(target_os="macos", all(windows, not(test))))]
         window_revision: 0,
-        #[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
         window_action_generation: 0,
         #[cfg(target_os = "linux")]
         main_hidden: false,
@@ -197,6 +192,7 @@ pub(crate) fn refresh_menu_after_activation(cx: &mut App) {
 
 /// 主动显示统一捕获入口鼠标屏；原生修改由前台 task 在借用之外执行。
 pub fn show(handle: AnyWindowHandle, cx: &mut App) {
+    next_window_action(cx);
     #[cfg(all(any(target_os="macos", windows), not(test)))]
     {
         let desktop = windowing::capture_desktop(cx);
@@ -334,7 +330,6 @@ pub(crate) fn tray_restore_available(cx: &App) -> bool {
 }
 
 /// 服务级显示代次约束延迟 fallback show/hide，后来的相反意图撤销旧命令。
-#[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
 fn next_window_action(cx: &mut App) -> u64 {
     if !cx.has_global::<Services>() { return 0; }
     let service = cx.global_mut::<Services>();
@@ -343,7 +338,6 @@ fn next_window_action(cx: &mut App) -> u64 {
 }
 
 /// 退出移除服务或代次变化时，迟到原生命令保持零副作用。
-#[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
 fn window_action_current(generation: u64, cx: &App) -> bool {
     cx.try_global::<Services>().map_or(generation == 0, |service| service.window_action_generation == generation)
 }

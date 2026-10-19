@@ -1,0 +1,4 @@
+        // Linux X11 的 map_window 不读取 WindowParams::show；隐藏创建不得提前映射。
+        if !cfg!(target_os = "linux") || show {
+            platform_window.map_window().unwrap();
+        }

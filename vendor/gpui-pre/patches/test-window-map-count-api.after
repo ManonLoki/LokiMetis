@@ -1,0 +1,11 @@
+impl TestWindow {
+    /// 读取平台边界实际收到的首次映射请求数，供静默创建回归使用。
+    pub fn map_request_count(&self) -> usize { self.0.lock().map_request_count }
+}
+
+impl PlatformWindow for TestWindow {
+    /// 仅记录生产创建路径的映射请求，不创建系统窗口或声称已通过宿主验收。
+    fn map_window(&mut self) -> anyhow::Result<()> {
+        self.0.lock().map_request_count += 1;
+        Ok(())
+    }

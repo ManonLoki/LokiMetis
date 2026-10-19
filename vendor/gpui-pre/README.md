@@ -21,6 +21,12 @@ rustc --edition=2024 --test vendor/gpui-patch-support/generator.rs -o /tmp/loki-
 
 生成验证不是产品候选验收；真实 Window 与 GPU 像素测试须使用相应已启用 test-support 的目标。
 
+Linux 创建窗口时，公共层只在 `WindowOptions.show=true` 才调用平台的首次 `map_window`，
+避免 X11 后端忽略隐藏参数后直接显示主窗。其它平台保留既有映射路径，不改变图元 ABI。
+test-support 记录平台实际收到的映射请求数，覆盖隐藏创建零请求及普通创建一次请求；
+后续显式显示仍由产品原生窗口桥负责，真实登录会话和窗口管理器行为需另行实测。
+本补丁仅匹配原样 GPUI 0.3.9，升级时若上游已正确处理隐藏创建则移除并重跑相关回归。
+
 `Label` 的 `aria_label` 在未指定 `aria_value`、且节点尚无 value 时同时填入 value，
 供 Windows AccessKit 的静态文本名称读取。显式值（包括空字符串）、已有节点文本、
 其他角色以及原 label 保持其优先级；真实工作台 AX 树回归覆盖动态计数与最近事件。

@@ -69,7 +69,8 @@
     "LMDESK-LINUX-TRAY-CLOSE-BORROW-001",
     "LMDESK-LINUX-HICOLOR-ICON-001",
     "LMDESK-CLAUDE-SUBAGENT-NOTIFICATION-001",
-    "LMDESK-PANEL-TEXT-LEFT-ALIGN-001"
+    "LMDESK-PANEL-TEXT-LEFT-ALIGN-001",
+    "LMDESK-AUTOSTART-HIDDEN-002"
   ],
   "applied_reconciliations": [
     {
@@ -85,27 +86,19 @@
       "required_version": "0.4.0"
     }
   ],
-  "cycle_base_version": "0.3.13",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.4.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "1518ca4c81aae9dcef294cb382a2020827a6dfcb",
-    "version": "0.3.13"
+    "source_commit": "1ccc52fc60f00e936e4c25a61a49ef626418ec4d",
+    "version": "0.4.0"
   },
   "pending_changes": [
     {
-      "change_id": "LM-RELEASE-HISTORY-RECONCILIATION-20261019",
-      "conflict_evidence": {
-        "confirmed": true,
-        "event_id": "LM-RELEASE-HISTORY-CROSS-HOST-20261019",
-        "record_a": ".git/agent-first-harness/recovery-audits/96a1b2a124a515300da1b0dcbc4a724480872056a2f74099f47d58ccc17fa66f.json#lastRelease.version",
-        "record_b": ".harness/version-state.json#last_release.version",
-        "value_a": "0.3.11",
-        "value_b": "0.3.13"
-      },
-      "kind": "record-reconciliation",
-      "required_version": "0.4.0"
+      "change_id": "LMDESK-AUTOSTART-HIDDEN-002",
+      "kind": "bug-fix",
+      "required_version": "0.4.1"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.4.0"
+  "target_version": "0.4.1"
 }
