@@ -99,37 +99,13 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.4.0",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.5.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "1ccc52fc60f00e936e4c25a61a49ef626418ec4d",
-    "version": "0.4.0"
+    "source_commit": "058c5433451f246213cc6387511500604660f87d",
+    "version": "0.5.0"
   },
-  "pending_changes": [
-    {
-      "change_id": "LMDESK-AUTOSTART-HIDDEN-002",
-      "kind": "bug-fix",
-      "required_version": "0.4.1"
-    },
-    {
-      "change_id": "LMDESK-LINUX-TASKBAR-HIDE-001",
-      "kind": "bug-fix",
-      "required_version": "0.4.2"
-    },
-    {
-      "change_id": "LM-RELEASE-HISTORY-MAC-20261020",
-      "conflict_evidence": {
-        "confirmed": true,
-        "event_id": "LM-RELEASE-HISTORY-MAC-HOST-20261020",
-        "record_a": ".git/agent-first-harness/recovery-audits/91e08848c0f35034a430bcc0b473d8eaf506a8ba9e80fcc584d898d3fd05c20e.json#lastRelease.version",
-        "record_b": ".harness/version-state.json#last_release.version",
-        "value_a": "0.3.13",
-        "value_b": "0.4.0"
-      },
-      "kind": "record-reconciliation",
-      "required_version": "0.5.0"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.5.0"
 }
