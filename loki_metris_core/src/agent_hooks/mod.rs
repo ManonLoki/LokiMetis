@@ -60,37 +60,37 @@ pub use types::{
     MAX_NATIVE_HOOK_INPUT_BYTES, hook_relay_loopback_address, normalize_enabled_ai_tools,
 };
 
-// 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetris 写入的条目
+/// 所有受管 Hook 命令共用的标识前缀，用于在配置文件中识别 LokiMetris 写入的条目
 pub(super) const MANAGED_HOOK_PREFIX: &str = "LokiMetris";
 
 /// 描述 Hook 事件的状态机语义种类，并决定其基础迁移。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum HookEventKind {
-    // 工作区/项目打开，尚未进入具体会话
+    /// 工作区/项目打开，尚未进入具体会话
     WorkspaceStart,
-    // 会话开始
+    /// 会话开始
     SessionStart,
-    // 明确的工作开始（有确定的展示态迁移到 Running）
+    /// 明确的工作开始（有确定的展示态迁移到 Running）
     WorkStart,
-    // 未限定作用域的工作开始，展示态由携带的 HookBehavior 决定
+    /// 未限定作用域的工作开始，展示态由携带的 HookBehavior 决定
     UnscopedWorkStart(HookBehavior),
-    // 未限定作用域的工作完成，固定迁移回 Running 展示
+    /// 未限定作用域的工作完成，固定迁移回 Running 展示
     UnscopedWorkCompletion,
-    // 工作过程中的进度事件，展示态由携带的 HookBehavior 决定
+    /// 工作过程中的进度事件，展示态由携带的 HookBehavior 决定
     WorkProgress(HookBehavior),
-    // 工作完成事件，展示态由携带的 HookBehavior 决定
+    /// 工作完成事件，展示态由携带的 HookBehavior 决定
     WorkCompletion(HookBehavior),
-    // 明确的停止事件，固定迁移到 Idle 展示
+    /// 明确的停止事件，固定迁移到 Idle 展示
     Stop,
-    // Stop门禁尚可请求续跑；显示空闲但不把它当已证实的成功或永久退休。
+    /// Stop门禁尚可请求续跑；显示空闲但不把它当已证实的成功或永久退休。
     ContinuableStop,
-    // 用户取消或中断结束当前轮次，但不证明任务成功。
+    /// 用户取消或中断结束当前轮次，但不证明任务成功。
     Cancelled,
-    // 终止态事件（如成功/失败/中断的最终结果），展示态由携带的 HookBehavior 决定
+    /// 终止态事件（如成功/失败/中断的最终结果），展示态由携带的 HookBehavior 决定
     TerminalState(HookBehavior),
-    // 通用状态事件，展示态由携带的 HookBehavior 决定
+    /// 通用状态事件，展示态由携带的 HookBehavior 决定
     State(HookBehavior),
-    // 会话结束，触发展示位释放
+    /// 会话结束，触发展示位释放
     SessionEnd,
 }
 
@@ -121,11 +121,11 @@ impl HookEventKind {
 /// 描述协议声明的事件名、可选子类型 matcher 与状态机语义。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct HookEvent {
-    // 事件在该工具原生配置中的名称（如 "SessionStart"）
+    /// 事件在该工具原生配置中的名称（如 "SessionStart"）
     pub name: &'static str,
-    // 可选的匹配器，用于进一步区分同一事件名下的子类型（如 Notification 的 idle_prompt）
+    /// 可选的匹配器，用于进一步区分同一事件名下的子类型（如 Notification 的 idle_prompt）
     pub matcher: Option<&'static str>,
-    // 该事件对应的状态机语义种类
+    /// 该事件对应的状态机语义种类
     pub kind: HookEventKind,
 }
 
@@ -148,7 +148,6 @@ impl HookEvent {
     ) -> Self {
         Self {
             name,
-            // 携带指定的 matcher
             matcher: Some(matcher),
             kind,
         }
@@ -157,18 +156,18 @@ impl HookEvent {
 
 /// 保存同一事件在 POSIX、WSL 与 Windows 宿主下的托管命令变体。
 pub(super) struct ManagedCommands {
-    // POSIX shell（macOS/Linux，以及 WSL）使用的命令
+    /// POSIX shell（macOS/Linux，以及 WSL）使用的命令。
     pub posix: String,
-    // WSL 配置必须选择 POSIX 命令；普通 Windows 配置仍保持现有 CMD 分支。
+    /// WSL 配置必须选择 POSIX 命令；普通 Windows 配置仍保持现有 CMD 分支。
     pub is_wsl: bool,
-    // 这两个字段只在 `#[cfg(target_os = "windows")]` 分支中被读取
+    /// 原生 Windows CMD 命令。
+    // 下面两个字段只在 `#[cfg(target_os = "windows")]` 分支中被读取
     // （见 `platform_command` 与 `codex.rs` 的 `handler`），非 Windows 平台
     // 编译时会被 dead_code 检查误判为未使用，因此显式允许。
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
-    // 原生 Windows CMD 命令
     pub windows: String,
+    /// 经 PowerShell 宿主转发到 CMD 的命令变体。
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
-    // 经 PowerShell 宿主转发到 CMD 的命令变体
     pub windows_powershell_host: String,
 }
 

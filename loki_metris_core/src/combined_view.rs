@@ -32,9 +32,13 @@ pub enum UsageViewError {
 /// 保存 adapter 从单个物理 Agent 独占 SQLite 取得的一致快照及质量事实。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentUsageSnapshot {
+    /// 该快照所属的物理 Agent，同一联合视图内不得重复。
     client: SourceClientKind,
+    /// 调用方在单个数据库事务内取得的一致快照。
     snapshot: UsageSnapshot,
+    /// 已与快照自身质量合并后的有效覆盖报告。
     coverage: CoverageReport,
+    /// 该 Agent 的 parser 版本；缺失时在联合版本中记为 unknown。
     source_version: Option<String>,
 }
 
@@ -59,11 +63,17 @@ impl AgentUsageSnapshot {
 /// 保存已经命名空间化的跨 Agent canonical 集合及逐调用原始来源。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CombinedUsageSnapshot {
+    /// 跨 Agent 合并的 canonical 集合；调用 ID 已加 `all-<agent>-call-` 命名空间，跨 Agent 不去重。
     canonical: CanonicalUsageSet,
+    /// 由各 Agent 索引状态与合并结果是否为空归约出的联合索引状态。
     index_state: LocalIndexState,
+    /// 合并后的覆盖报告。
     coverage: CoverageReport,
+    /// 命名空间化数据根 ID 到展示别名的映射。
     root_aliases: BTreeMap<String, String>,
+    /// 按调用 ID 命名空间前缀还原每条调用所属的 Agent 与来源版本。
     origins: CallOrigins,
+    /// 联合来源版本，形如 `combined-local-agents-v1[codex=…,…]`，任一成员版本变化都会改变它。
     source_version: String,
 }
 

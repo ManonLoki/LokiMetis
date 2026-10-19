@@ -45,6 +45,7 @@ pub(crate) const MAX_TRACKED_HOOK_SESSIONS: usize = 256;
 /// 单个 AI 工具的进程内 Hook 生命周期状态。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HookStateMachine {
+    /// 按会话 ID 索引的会话状态，结束墓碑也计入 MAX_TRACKED_HOOK_SESSIONS 上限；缺少会话 ID 的事件共用默认键。
     sessions: HashMap<String, HookSessionState>,
     /// 最近已接受的展示行为；直通协议同样维护，不依赖宿主桌宠槽位。
     notification_behavior: Option<HookBehavior>,

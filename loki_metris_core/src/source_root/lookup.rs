@@ -47,7 +47,9 @@ mod tests {
     #[derive(Debug, PartialEq)]
     /// 表示来源查找测试中的最小数据根记录。
     struct TestRoot {
+        /// 测试数据根 ID。
         id: &'static str,
+        /// 该数据根是否启用。
         enabled: bool,
     }
 

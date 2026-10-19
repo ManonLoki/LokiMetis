@@ -7,10 +7,15 @@ use super::super::HookEventKind;
 /// 单个会话的有界生命周期状态。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct HookSessionState {
+    /// 该会话当前贡献给工具聚合的展示阶段。
     pub(super) phase: HookPhase,
+    /// 当前轮次是否仍在执行；停止、取消或完成后为 false，但轮次 ID 可以保留。
     pub(super) turn_active: bool,
+    /// 当前或最近一次轮次 ID；停止后仍保留，用于识别同轮次迟到事件。
     pub(super) turn_id: Option<String>,
+    /// 已明确结束或被新轮次替代的轮次 ID，最多保留 MAX_RETIRED_TURNS_PER_SESSION 个，先进先出。
     pub(super) retired_turn_ids: VecDeque<String>,
+    /// 先后关系暂不能判断而被隔离的轮次 ID，容量同上；明确的新工作起点会清空。
     pub(super) quarantined_turn_ids: VecDeque<String>,
     /// 已结束但上游未提供轮次 ID；仅用于去重迟到的终止事件。
     pub(super) finished_unidentified_turn: bool,
@@ -18,8 +23,11 @@ pub(super) struct HookSessionState {
     pub(super) requires_explicit_restart: bool,
     /// 上游Stop尚未通过其它Hook门禁，允许同轮次继续执行。
     pub(super) continuable_stop: bool,
+    /// 会话已收到 SessionEnd，仅作为墓碑保留以拦截迟到事件，淘汰优先级最高。
     pub(super) ended: bool,
+    /// 最近一次接受事件时的单调经过时间，供不活跃会话过期使用。
     pub(super) last_seen_at: Duration,
+    /// 最近一次明确工作起点的单调时间；轮次结束后清除。
     pub(super) explicit_turn_started_at: Option<Duration>,
     /// 每个会话至多256个未解决交互；其它工具完成不消耗这些等待。
     pub(super) waiting: Vec<HookInteraction>,
@@ -34,8 +42,11 @@ pub(super) struct HookSessionState {
 /// 等待用户的工具/澄清归属，与会话轮次身份分离。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct HookInteraction {
+    /// 子 Agent 作用域；None 表示父 Agent。
     pub(super) agent_id: Option<String>,
+    /// 工具或澄清调用 ID；上游缺失时为 None，只能按工具名保守关联。
     pub(super) interaction_id: Option<String>,
+    /// 工具公开名称，仅在缺少调用 ID 时辅助匹配已知调用。
     pub(super) tool_name: Option<String>,
     /// MCP澄清等待单独归属，缺少调用ID的回执只能解除这一类等待。
     pub(super) elicitation: bool,
@@ -161,19 +172,27 @@ impl HookSessionState {
 /// 会话聚合使用的内部展示阶段；默认表示从未建立展示。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum HookPhase {
+    /// 从未建立或已释放展示位，不占用桌宠槽位。
     #[default]
     Released,
+    /// 会话存在但没有执行中的轮次。
     Idle,
+    /// 至少有一个轮次正在执行。
     Running,
+    /// 正在等待用户回答权限请求或澄清。
     Asking,
+    /// 最近的终态为失败。
     Error,
 }
 
 /// 已停止会话收到进度类事件时的时序判定。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum StoppedTurnDecision {
+    /// 会话仍在执行或事件不是进度类，交给常规轮次逻辑处理。
     NotApplicable,
+    /// 事件属于已停止、已退休或被隔离的轮次，按迟到事件丢弃。
     SuppressLateEvent,
+    /// 可续跑的 Stop 或新的轮次 ID，应据此建立新的隐式轮次。
     StartNewTurn,
 }
 

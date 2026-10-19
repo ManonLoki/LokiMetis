@@ -78,7 +78,6 @@ pub struct UsageGroup {
     pub measure: UsageMeasure,
 }
 
-/// 描述确定性 Top-N 分组、可选其余项及同一快照总计。
 /// 生成稳定、不可逆向推导原始 key 的跨端展示行 ID。
 pub fn stable_group_id(dimension: UsageDimension, key: Option<&str>) -> String {
     let namespace = match dimension {

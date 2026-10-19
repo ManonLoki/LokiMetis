@@ -72,17 +72,29 @@ pub struct WorkbuddyUsageQuality {
 /// core 内部已验证且已去重的逐请求聚合事件。
 #[derive(Clone)]
 pub(super) struct ValidatedWorkbuddyUsageRecord {
+    /// 去重主键：同一 ID 的多次观察只保留最终合法的一次。
     pub(super) logical_call_id: String,
+    /// 内容无关的稳定会话键，已确认非空。
     pub(super) session_key: String,
+    /// 合并后的全部来源文件 ID；只用于追溯，不参与事实比较。
     pub(super) source_ids: Vec<String>,
+    /// 所属 WorkBuddy 只读根 ID，已确认非空。
     pub(super) root_id: String,
+    /// 请求发生时刻的 Unix 毫秒时间戳，已确认可转换为合法时间点。
     pub(super) occurred_at_epoch_ms: i64,
+    /// 通过线程标题安全校验的模型名；不安全时为 None。
     pub(super) model: Option<String>,
+    /// 通过技术标签安全校验的项目键；不安全时为 None。
     pub(super) project_key: Option<String>,
+    /// 安全路径末段形式的项目标签；不安全时为 None。
     pub(super) project_label: Option<String>,
+    /// 本事件包含的上游请求数，已限定在 1..=MAX_REQUESTS_PER_EVENT。
     pub(super) request_count: u32,
+    /// 强类型 Token 用量，输入加输出严格等于上游总量。
     pub(super) usage: TokenUsage,
+    /// 上游积分，仅保留有限非负值；缺失或非法时为 None。
     pub(super) credit: Option<f64>,
+    /// 顶层会话或 subagent 来源。
     pub(super) origin: WorkbuddyUsageOrigin,
 }
 

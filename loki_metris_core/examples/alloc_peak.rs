@@ -6,12 +6,19 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use loki_metris_core::*;
 
+/// 计数分配器：真实分配全部转交系统分配器，只额外维护存活字节与峰值两个计数。
 struct Counting;
+/// 当前仍存活的堆字节数；只统计成功的分配，失败的请求不计入。
 static LIVE: AtomicUsize = AtomicUsize::new(0);
+/// 自上次 `measure` 重置以来 `LIVE` 达到的最高水位。
 static PEAK: AtomicUsize = AtomicUsize::new(0);
 
+// SAFETY: 每个方法都把同一 layout/指针原样转交 `System`，满足 GlobalAlloc 对返回内存与释放配对的全部要求；
+// 计数只用原子操作更新，不分配内存，也不会在分配器内重入。
 unsafe impl GlobalAlloc for Counting {
+    /// 分配成功后累加存活字节并刷新峰值；空指针表示分配失败，不改变计数。
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: 调用方按 GlobalAlloc::alloc 约定提供非零尺寸的合法 layout，原样转交系统分配器。
         let ptr = unsafe { System.alloc(layout) };
         if !ptr.is_null() {
             let live = LIVE.fetch_add(layout.size(), Ordering::Relaxed) + layout.size();
@@ -19,11 +26,15 @@ unsafe impl GlobalAlloc for Counting {
         }
         ptr
     }
+    /// 释放前扣减存活字节；峰值保持不变，只反映曾同时存活的最大量。
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
+        // SAFETY: `ptr` 由本分配器以同一 `layout` 分配，而本分配器的内存全部来自 `System`。
         unsafe { System.dealloc(ptr, layout) }
     }
+    /// 按新旧尺寸差调整存活字节：增长时可能抬高峰值，缩小时只扣减；失败时原块仍有效，计数不变。
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        // SAFETY: `ptr`/`layout` 来自本分配器（即 `System`），`new_size` 由调用方按 GlobalAlloc::realloc 约定保证合法。
         let new = unsafe { System.realloc(ptr, layout, new_size) };
         if !new.is_null() {
             if new_size >= layout.size() {
@@ -36,6 +47,7 @@ unsafe impl GlobalAlloc for Counting {
         new
     }
 }
+/// 把整个示例进程的堆分配切到计数分配器，测量才能覆盖 core 内部的全部分配。
 #[global_allocator]
 static ALLOCATOR: Counting = Counting;
 
@@ -107,6 +119,7 @@ fn agent(client: SourceClientKind, canonical: CanonicalUsageSet) -> AgentUsageSn
     AgentUsageSnapshot::new(client, snapshot, coverage, Some("parser-1".to_owned()))
 }
 
+/// 依次测量 5 万条调用的构造、canonical 去重，以及两个 Agent 合并后的联合窗口构建，打印各阶段峰值与留存增量。
 fn main() {
     let count = 50_000;
     let input = measure("build 50k calls (input)", || calls(count));

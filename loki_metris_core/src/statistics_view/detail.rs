@@ -11,13 +11,18 @@ use crate::{
 #[derive(Debug)]
 /// 保存统计分组的稳定键、安全标签与完整度量。
 pub(crate) struct LabeledUsageGroup {
+    /// 由维度和原始键生成、不可逆推原始键的稳定展示行 ID。
     id: String,
+    /// 聚合使用的原始安全键；None 表示未知或未归类，不参与展示。
     key: Option<String>,
+    /// 消毒后的展示标签；仅在 `label_code` 为 Literal 时原样展示。
     label: String,
+    /// 标签翻译码，未知、未归类与其余项由展示层翻译。
     label_code: DisplayLabelCode,
     /// 当多个分组消毒后的展示标签重复时，标记该分组在重复集合内从 1
     /// 开始的消歧序号；标签唯一时为 `None`。
     disambiguation_index: Option<usize>,
+    /// 该分组的完整可加总度量。
     measure: UsageMeasure,
 }
 

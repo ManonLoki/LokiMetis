@@ -219,15 +219,20 @@ impl Default for RootDiscoveryStatus {
 /// 线程安全地保存单个客户端当前发现任务和内存候选。
 #[derive(Debug, Clone, Default)]
 pub struct RootDiscoveryCoordinator {
+    /// 跨线程共享的任务状态；所有读写都在同一把锁内完成。
     inner: Arc<Mutex<RootDiscoveryState>>,
 }
 
 #[derive(Debug, Default)]
-/// 保存测试期间发现任务的阶段、候选与取消状态。
+/// 保存当前发现任务的阶段、候选与取消状态；由协调器的锁统一保护。
 struct RootDiscoveryState {
+    /// 当前任务的生命周期与进度；`candidates_found` 始终等于候选数量。
     status: RootDiscoveryStatus,
+    /// 按候选 ID 索引的未确认候选；新任务开始时清空。
     candidates: BTreeMap<String, RootCandidate>,
+    /// 候选首次发现的顺序，列表按此顺序返回，与 `candidates` 的键集合保持一致。
     candidate_order: Vec<String>,
+    /// 用户已请求取消；任务结束时据此标记为已取消而非完成。
     cancel_requested: bool,
 }
 

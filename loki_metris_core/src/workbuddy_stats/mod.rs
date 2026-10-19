@@ -139,7 +139,9 @@ pub struct WorkbuddyStatisticsSnapshot {
 /// core 内部去重会话的首末请求时刻。
 #[derive(Debug, Clone, Copy)]
 struct WorkbuddySessionTiming {
+    /// 会话内最早请求的 Unix 毫秒时间戳。
     first_epoch_ms: i64,
+    /// 会话内最晚请求的 Unix 毫秒时间戳，不早于 `first_epoch_ms`。
     last_epoch_ms: i64,
 }
 

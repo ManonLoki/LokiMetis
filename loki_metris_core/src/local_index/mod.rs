@@ -44,9 +44,11 @@ use migrator::Migrator;
 // 跨连接写锁竞争，与本模块“同一时刻只有一个扫描 writer”的假设一致。
 #[derive(Debug)]
 pub struct LocalIndex {
+    /// 本实例独占的单连接 SQLite 池。
     pub(crate) connection: DatabaseConnection,
     /// 当前客户端数据库只接受的 parser generation。
     pub(crate) parser_version: u32,
+    /// 实际打开的数据库文件路径；生产代码不读取，只供测试复查同一文件。
     #[cfg_attr(not(test), allow(dead_code))]
     database_path: PathBuf,
 }

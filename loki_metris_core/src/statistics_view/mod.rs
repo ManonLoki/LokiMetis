@@ -133,9 +133,13 @@ pub fn build_usage_statistics_with_standard(
 /// 一次窗口过滤与聚合的完整产出：统计页面，连同图表页复用所需的窗口内
 /// canonical 调用集合、总计量与窗口日期序列，避免再次过滤和聚合同一份数据。
 pub(crate) struct WindowStatistics {
+    /// 交给统计页的最终页面。
     pub page: UsageStatisticsPage,
+    /// 已按窗口过滤的 canonical 调用，供图表页复用。
     pub window_calls: crate::CanonicalUsageSet,
+    /// 窗口内全部调用的总计量。
     pub total: UsageMeasure,
+    /// 窗口覆盖的自然日序列，按时间升序。
     pub dates: Vec<jiff::civil::Date>,
 }
 

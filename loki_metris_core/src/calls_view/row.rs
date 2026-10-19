@@ -16,19 +16,33 @@ use crate::{
 /// 仅表示行内字段，不直接用于持久化；跨 `calls_view`/`cursor` 子模块共享，
 /// 因此字段是 `pub(crate)` 而非 crate 外公开。
 pub struct UsageCallRow {
+    /// 原始 canonical 调用；排序、游标与 Token 读数仍以它为唯一事实。
     pub(crate) call: UsageCall,
+    /// 模型筛选 ID；上游缺失或不安全时固定为 `__unknown_model__`。
     pub(crate) model_id: String,
+    /// 模型展示文本；仅在 `model_label_code` 为 Literal 时直接展示。
     pub(crate) model_label: String,
+    /// 模型标签的翻译码，未知模型由展示层按语言翻译。
     pub(crate) model_label_code: DisplayLabelCode,
+    /// 推理强度筛选 ID；缺失或不安全时固定为 `__unknown_reasoning_effort__`。
     pub(crate) reasoning_effort_id: String,
+    /// 推理强度展示文本，未知值同样只保留占位文案。
     pub(crate) reasoning_effort_label: String,
+    /// 推理强度标签的翻译码。
     pub(crate) reasoning_effort_label_code: DisplayLabelCode,
+    /// 项目筛选 ID；缺失或未通过安全校验时为 `__unknown_project__`。
     pub(crate) project_id: String,
+    /// 项目展示文本：安全路径末段，或回退为项目键的短哈希。
     pub(crate) project_label: String,
+    /// 项目标签的翻译码；短哈希回退为 Project，未归类为 UncategorizedProject。
     pub(crate) project_label_code: DisplayLabelCode,
+    /// 线程筛选 ID；不安全的线程键统一为 `__unknown_thread__`。
     pub(crate) thread_id: String,
+    /// 线程展示文本：安全线程标题，或回退为线程键的短哈希。
     pub(crate) thread_label: String,
+    /// 线程标签的翻译码；短哈希回退为 Thread，未知为 UnknownThread。
     pub(crate) thread_label_code: DisplayLabelCode,
+    /// 调用出现过的全部安全数据根 ID，按来源顺序保留，供数据根筛选。
     pub(crate) root_ids: Vec<String>,
 }
 

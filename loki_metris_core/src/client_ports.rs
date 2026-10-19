@@ -38,6 +38,7 @@ pub fn source_client_usage_index_path(app_data_dir: &Path, client: SourceClientK
 /// 表示可取消的扫描取消语义，不包含实现细节。
 #[derive(Debug, Clone, Default)]
 pub struct ScanCancellation {
+    /// 所有克隆共享的取消标志，一经置位不再复位。
     cancelled: Arc<AtomicBool>,
 }
 

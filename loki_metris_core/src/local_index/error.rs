@@ -36,7 +36,9 @@ pub enum LocalErrorKind {
 #[derive(Debug, Error)]
 #[error("{message}")]
 pub struct LocalError {
+    /// 供调用方分支处理的稳定错误类别。
     kind: LocalErrorKind,
+    /// 编译期固定的脱敏说明，直接作为错误显示文本。
     message: &'static str,
 }
 

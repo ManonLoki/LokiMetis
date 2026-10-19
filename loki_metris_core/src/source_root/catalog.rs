@@ -248,7 +248,9 @@ mod tests {
 
     /// 内存 catalog，仅用于验证 async helper 的业务前置校验与 outcome。
     struct MemoryCatalog {
+        /// 数据根 ID 到是否启用的映射。
         roots: HashMap<String, bool>,
+        /// 当前主数据根 ID；None 表示尚未设定。
         primary: Option<String>,
     }
 

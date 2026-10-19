@@ -6,11 +6,17 @@ use crate::agent_hooks::HookEventScope;
 /// 只有明确的调用开始与回复才改变交互集合，压缩和非最终 Stop 都不解除等待。
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum InteractionAction {
+    /// 与交互归属无关的事件，不改变等待或在途集合。
     Observe,
+    /// 工具调用开始（如 PreToolUse），登记为在途调用。
     Begin,
+    /// 工具调用完成、失败或权限已答复，解除对应等待与在途调用。
     Resolve,
+    /// MCP 澄清请求开始，登记为独立的澄清等待。
     ElicitationBegin,
+    /// MCP 澄清已答复，只解除澄清类等待。
     ElicitationResolve,
+    /// 澄清对话框的 UI 通知，只登记可被后续真实澄清请求替换的泛化等待。
     ElicitationNotification,
 }
 
