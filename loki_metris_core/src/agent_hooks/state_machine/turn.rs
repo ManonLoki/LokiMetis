@@ -10,6 +10,45 @@ use super::{
 use crate::agent_hooks::{HookBehavior, HookEventKind};
 
 impl HookStateMachine {
+    /// 子 Agent 失败仅释放自身等待；不新建、复活或终止父轮次，也不覆盖父错误。
+    pub(super) fn apply_child_failure(
+        &mut self,
+        session_key: &str,
+        turn_id: Option<&str>,
+        scope: super::super::HookEventScope<'_>,
+        event_kind: HookEventKind,
+        action: super::interaction::InteractionAction,
+        observed_at: Duration,
+    ) -> HookEventDecision {
+        let previous = self.aggregate_phase();
+        let Some(session) = self.sessions.get_mut(session_key) else {
+            return HookEventDecision::Ignore;
+        };
+        if session.ended
+            || !session.turn_active
+            || session.is_retired_turn(turn_id)
+            || session.is_quarantined_turn(turn_id)
+            || turn_is_stale(session, turn_id)
+        {
+            return HookEventDecision::Ignore;
+        }
+        if matches!(event_kind, HookEventKind::TerminalState(_)) {
+            // 子 Agent 已因 API 失败结束，不会再答复自身的工具或澄清等待。
+            session.waiting.retain(|wait| wait.agent_id.as_deref() != scope.agent_id);
+            session.active_interactions.retain(|call| call.agent_id.as_deref() != scope.agent_id);
+        } else {
+            session.update_interactions(scope, action, false);
+        }
+        if session.phase == HookPhase::Asking
+            && session.waiting.is_empty()
+            && !session.waiting_overflow
+        {
+            session.phase = HookPhase::Running;
+        }
+        session.last_seen_at = observed_at;
+        phase_decision(previous, self.aggregate_phase())
+    }
+
     /// 推进一条轮次事件，只在最终聚合阶段变化时产出展示迁移。
     #[allow(clippy::too_many_arguments)]
     pub(super) fn apply_turn_event(

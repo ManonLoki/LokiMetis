@@ -36,6 +36,8 @@ mod tests_contract;
 #[cfg(test)]
 mod tests_protocol_audit;
 #[cfg(test)]
+mod tests_claude_subagents;
+#[cfg(test)]
 mod tests_protocol_outcomes;
 #[cfg(all(test, unix))]
 mod tests_plugin_runtime;

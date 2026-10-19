@@ -152,6 +152,27 @@ impl HookStateMachine {
         let Some(event_kind) = event_kind(tool, event, status) else {
             return HookEventDecision::Unsupported;
         };
+        // Claude 全局工具 Hooks 也在子 Agent 中运行，session_id 仍指向父会话。
+        // agent_id 是明确的子 Agent 归属；局部失败不能改写父轮次或伪造父任务错误。
+        // 协议依据：https://code.claude.com/docs/en/hooks#common-input-fields
+        if tool == AiTool::ClaudeCode
+            && scope.agent_id.is_some_and(|id| !id.trim().is_empty())
+            && matches!(
+                event_kind,
+                HookEventKind::WorkProgress(HookBehavior::Error)
+                    | HookEventKind::WorkCompletion(HookBehavior::Error)
+                    | HookEventKind::TerminalState(HookBehavior::Error)
+            )
+        {
+            return self.apply_child_failure(
+                session_id.unwrap_or(DEFAULT_SESSION_KEY),
+                turn_id,
+                scope,
+                event_kind,
+                interaction::interaction_action(event, status),
+                observed_at,
+            );
+        }
         if forwards_every_event(tool) {
             return HookEventDecision::Forward(event_kind.transition());
         }

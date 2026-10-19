@@ -5,7 +5,7 @@
 | Agent | 已核实的映射依据 | 第一方来源 |
 | --- | --- | --- |
 | Codex | 公开支持12项事件，包含PostCompact与Interrupt；Interrupt静默取消，超时3秒。Stop可被其它Hook阻止后续跑，仅显示空闲，不据此发送确定成功通知。未虚构失败或提问事件。 | [Hooks](https://learn.chatgpt.com/docs/hooks) |
-| Claude Code | AskUserQuestion/ExitPlanMode进入交互等待；PermissionDenied与工具失败可恢复；StopFailure为轮次失败；MCP澄清回执按交互/服务器关联。 | [Hooks reference](https://code.claude.com/docs/en/hooks) |
+| Claude Code | AskUserQuestion/ExitPlanMode进入交互等待；PermissionDenied与工具失败可恢复；主Agent的StopFailure为父轮次失败。子Agent的失败按agent_id隔离，只解除其自身交互，不冒充父任务错误或结束；MCP澄清回执按交互/服务器关联。 | [Hooks reference](https://code.claude.com/docs/en/hooks) |
 | Cursor | 执行前事件不是权限等待；afterAgentResponse仅消息完成；stop的completed/error/aborted分别为完成/错误/取消；sessionEnd仅有明确最终结果才报告完成或错误。 | [Hooks](https://cursor.com/docs/hooks) |
 | Grok Build | Notification使用notificationType；permission_prompt实际等待，agent_error为轮次失败；工具失败/权限拒绝可恢复；StopCancelled不报告完成。Stop可同promptId续跑，故不报告确定成功；task_complete只是后台作业完成，不能替代Agent成功。 | [用户指南](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md)、[事件定义](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-hooks/src/event.rs) |
 | WorkBuddy | Stop可继续，StopFailure是停止Hook异常；FinalStop的final_stop_reason才是completed/failed/cancelled/interrupted最终结果。三类阻塞工具及澄清通知进入等待。 | [官方插件说明](https://www.workbuddy.cn/docs/workbuddy/Plugins)、下述本机第一方引擎 |
@@ -17,6 +17,8 @@
 | Kimi Code | Interrupt表示用户主动中断并替代Stop；不报告成功。 | [Hooks](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/hooks.html) |
 
 WorkBuddy终态证据来自已安装5.7.7的`/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/dist/codebuddy-headless.js`，SHA-256为`76b75e8513c70f696148278cf5621cd0a9bc9a8105318a451fbed7e63bae38c5`。核对executeStopHooks、executeFinalStopHooks与completed/failed/cancelled/interrupted调用点；该结论不自动推广为独立CodeBuddy CLI的版本保证。
+
+Claude子Agent归属字段于2026-10-19补核：[公共输入字段](https://code.claude.com/docs/en/hooks#common-input-fields)的`agent_id`标识子Agent或进程内teammate，`agent_type`也可由主会话的`--agent`提供，不能单独据此判为子Agent。[SubagentStop](https://code.claude.com/docs/en/hooks#subagentstop)沿用父会话的`session_id`。据此，本实现将明确带`agent_id`的工具/权限失败及API终止限制在该子Agent，不以其失败推断父轮次失败；未带子Agent身份的主会话错误保持原有语义。
 
 公共归约规则：
 
