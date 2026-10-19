@@ -101,6 +101,15 @@ scenario("recover_rejects_invalid_pending_changes_without_writing", (item) => {
   rejectsWithoutWrites(item, item.args, "recovery-state-conflict");
 });
 
+scenario("recover_rejects_pending_changes_at_or_before_the_finalized_baseline", (item) => {
+  const file = join(item.repository, ".harness/version-state.json");
+  const versionState = JSON.parse(readFileSync(file, "utf8"));
+  versionState.applied_bug_ids.push("STALE-001");
+  versionState.pending_changes.push({ change_id: "STALE-001", kind: "bug-fix", required_version: "0.3.13" });
+  item.commitFile(item.repository, ".harness/version-state.json", JSON.stringify(versionState));
+  rejectsWithoutWrites(item, item.args, "recovery-state-conflict");
+});
+
 /** 断言拒绝不会改变清单、引用或生成恢复备份。 */
 function rejectsWithoutWrites(item, args, code) {
   const before = readFileSync(item.stateFile);

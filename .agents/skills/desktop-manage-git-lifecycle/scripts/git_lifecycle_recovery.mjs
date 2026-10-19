@@ -120,7 +120,9 @@ export function commandRecoverRelease(repository, args) {
     // 只恢复已经复位的精确基线；后续合法待发变化原样保留，不把目标版本倒退到历史版本。
     if (Version.parse(current.current_version).compare(Version.parse(recovered.version)) < 0 ||
         versionState.last_release?.version !== recovered.version ||
-        versionState.last_release?.source_commit !== recovered.head) {
+        versionState.last_release?.source_commit !== recovered.head ||
+        versionState.pending_changes.some((change) =>
+          Version.parse(change.required_version).compare(Version.parse(recovered.version)) <= 0)) {
       throw new Error("current finalized release differs");
     }
     requireAncestor(repository, recovered.head, `refs/heads/${recovered.defaultBranch}`);
