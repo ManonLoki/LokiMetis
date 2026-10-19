@@ -30,10 +30,15 @@ const WSL_CLEANUP_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// 一次参数化 WSL 命令的完整结果。
 pub(super) struct WslCommandOutput {
+    /// 子进程退出状态。
     pub(super) status: ExitStatus,
+    /// 标准输出，超出上限的部分被截断。
     pub(super) stdout: Vec<u8>,
+    /// 标准错误，超出上限的部分被截断。
     pub(super) stderr: Vec<u8>,
+    /// 标准输出被截断。
     pub(super) stdout_truncated: bool,
+    /// 标准错误被截断。
     pub(super) stderr_truncated: bool,
 }
 
@@ -44,8 +49,11 @@ type WslWriteTask = OwnedWslIoTask<std::io::Result<()>>;
 
 /// 一个 WSL 子进程的全部 stdio owner；构造中途失败也由 RAII 移交已启动线程。
 struct WslIoOwners {
+    /// 写入标准输入的任务；无输入时为 None。
     input: Option<WslWriteTask>,
+    /// 读取标准输出的任务；不需要输出时为 None。
     stdout: Option<WslReadTask>,
+    /// 读取标准错误的任务。
     stderr: WslReadTask,
 }
 

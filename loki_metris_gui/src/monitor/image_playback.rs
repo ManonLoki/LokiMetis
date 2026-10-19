@@ -13,8 +13,11 @@ use std::{
 
 /// 帧边界用于按真实经过时间定位，调度迟到不累积播放漂移。
 struct Timeline {
+    /// 每帧在单次循环内的结束时刻，单调递增。
     ends: Vec<Duration>,
+    /// 单次循环总时长。
     cycle: Duration,
+    /// 总播放次数；None 表示无限循环。
     plays: Option<u32>,
 }
 impl Timeline {
@@ -59,23 +62,40 @@ impl Timeline {
 
 /// 每个挂载位置拥有一个时钟；像素缓存仍按图库ID共享而不复制。
 pub(crate) struct MonitorImageView {
+    /// 要播放的图库图片。
     source: MonitorImageSource,
+    /// 本播放位置的驻留归属。
     owner: ImageOwner,
+    /// 图片在视口内的缩放方式。
     fit: ObjectFit,
+    /// 视口圆角，绘制时裁切。
     viewport_corners: Corners<Pixels>,
+    /// 已解码的图片；解码完成前为 None。
     decoded: Option<Arc<DecodedMonitorImage>>,
+    /// 多帧图片的帧时间线；静态图为 None。
     timeline: Option<Timeline>,
+    /// 当前显示的帧下标。
     frame: usize,
+    /// 暂停时累计的播放时长；恢复播放时从这里继续。
     elapsed: Duration,
+    /// 本段播放开始的时刻；暂停或播放结束时为 None。
     started: Option<Instant>,
+    /// 视图已挂载到窗口。
     mounted: bool,
+    /// 元素实际可见；不可见时暂停推进帧。
     element_visible: bool,
+    /// 有限播放次数已用完，停在最后一帧。
     finished: bool,
+    /// 播放调度代次；暂停、卸载或重新开始时递增，旧的帧定时器随之失效。
     generation: u64,
+    /// 下一帧的定时任务。
     task: Option<Task<()>>,
+    /// 测试中的绘制次数。
     #[cfg(test)]
     painted: std::rc::Rc<std::cell::Cell<usize>>,
+    /// 订阅窗口可见性变化。
     _visibility: Subscription,
+    /// 订阅窗口关闭以释放驻留。
     _closed: Subscription,
 }
 impl MonitorImageView {

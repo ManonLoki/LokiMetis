@@ -14,14 +14,19 @@ const RETAINED_THREAD_POLL: Duration = Duration::from_millis(10);
 /// 仍待回收的工作线程，以及当前是否已有唯一 reaper 在轮询。
 #[derive(Default)]
 struct RetainedThreadState {
+    /// 待回收的工作线程。
     tasks: Vec<thread::JoinHandle<()>>,
+    /// 已有 reaper 在轮询。
     reaper_running: bool,
 }
 
 /// 在原调用期限耗尽后继续持有并回收 `std::thread` 句柄。
 pub(super) struct RetainedThreadOwner {
+    /// 稳定的 owner 名，用于日志。
     name: &'static str,
+    /// 待回收线程表与唤醒条件变量。
     shared: Arc<(Mutex<RetainedThreadState>, Condvar)>,
+    /// reaper 线程自身的句柄。
     reapers: Mutex<Vec<thread::JoinHandle<()>>>,
 }
 

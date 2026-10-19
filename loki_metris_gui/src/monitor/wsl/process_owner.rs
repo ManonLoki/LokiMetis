@@ -13,13 +13,17 @@ use super::WSL_COMMAND_POLL;
 /// WSL child reaper 的共享句柄表和唯一运行标志。
 #[derive(Default)]
 struct RetainedWslChildState {
+    /// 待 kill/reap 的子进程。
     children: Vec<Child>,
+    /// 已有 reaper 在轮询。
     reaper_running: bool,
 }
 
 /// 在原命令结束后继续 kill/reap WSL 子进程，并持有 reaper 自身线程。
 struct RetainedWslChildOwner {
+    /// 待回收子进程表与唤醒条件变量。
     shared: Arc<(Mutex<RetainedWslChildState>, Condvar)>,
+    /// 持有 reaper 线程的 owner。
     reapers: RetainedThreadOwner,
 }
 

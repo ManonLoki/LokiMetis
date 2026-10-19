@@ -40,20 +40,30 @@ const HOOK_EVENT_QUEUE_CAPACITY: usize = 256;
 /// listener 接收时附带的启用代数；禁用或重启用后旧排队事件会失效。
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct QueuedHookEvent {
+    /// 已校验的事件。
     event: IncomingHookEvent,
+    /// 接收时该工具的启用代次。
     generation: u64,
 }
 
 /// 通过 HTTP 边界校验后送入生命周期状态机的完整事件。
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct IncomingHookEvent {
+    /// 发出事件的 AI 工具。
     tool: AiTool,
+    /// 工具原生的 Hook 事件名。
     hook_type: String,
+    /// 上游会话 ID；缺失时由状态机使用默认会话。
     session_id: Option<String>,
+    /// 上游轮次 ID。
     turn_id: Option<String>,
+    /// 子 Agent 作用域；缺失表示父 Agent。
     agent_id: Option<String>,
+    /// 工具或澄清调用 ID。
     interaction_id: Option<String>,
+    /// 工具公开名称。
     tool_name: Option<String>,
+    /// 原生 status 字段，用于区分同名事件的子类型。
     status: Option<String>,
 }
 

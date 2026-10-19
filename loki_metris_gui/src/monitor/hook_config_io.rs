@@ -24,6 +24,7 @@ const RECONCILIATION_ROUNDS: usize = 4;
 const RECONCILIATION_SETTLE: Duration = Duration::from_millis(25);
 /// 持有一个配置根的操作系统文件锁；进程退出或句柄 Drop 时由系统自动释放。
 pub(super) struct HookConfigFileLock {
+    /// 持有锁的文件句柄；释放即解锁。
     _file: File,
 }
 

@@ -41,8 +41,11 @@ const WINDOWS_HOOK_RELAY_CACHE_NAMESPACE: &str = "com.manonloki.lokimetris";
 /// 严格解析后的 Hook relay 参数。
 #[derive(Debug, PartialEq, Eq)]
 struct HookRelayArguments {
+    /// AI 工具的稳定 slug。
     tool_slug: String,
+    /// 原生 Hook 事件名。
     event: String,
+    /// 受管标记，必须与本应用写入的一致。
     managed_by: String,
 }
 
@@ -65,8 +68,11 @@ enum RelayArgumentError {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct HookRelayRendezvous {
+    /// 端点描述文件格式版本。
     pub(super) schema_version: u8,
+    /// listener 的回环端口。
     pub(super) port: u16,
+    /// listener 实例 ID，用作请求认证。
     pub(super) instance_id: String,
 }
 
@@ -243,10 +249,13 @@ fn report_relay_error(error: &dyn std::fmt::Display) {
 /// 支持的宿主路径规则；独立枚举使三平台单一路径可在任意 CI 宿主验证。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum HookRelayHostPlatform {
+    /// Linux 宿主路径规则。
     #[cfg(any(test, target_os = "linux"))]
     Linux,
+    /// macOS 宿主路径规则。
     #[cfg(any(test, target_os = "macos"))]
     Macos,
+    /// Windows 宿主路径规则。
     #[cfg(any(test, target_os = "windows"))]
     Windows,
 }
@@ -413,7 +422,9 @@ fn encode_local_hook_request(
 
 /// 一次请求的失败分类；只有确定未入队的场景才允许重试。
 enum PostAttemptError {
+    /// 确定未入队，可以重试。
     Retryable(anyhow::Error),
+    /// 可能已入队或无法恢复，不得重试。
     Fatal(anyhow::Error),
 }
 

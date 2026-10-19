@@ -24,32 +24,44 @@ const MAX_INDEX_BYTES: u64 = 1024 * 1024;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MonitorImageRecord {
+    /// 图片 ID。
     id: String,
+    /// 原始文件名，仅供显示。
     filename: String,
+    /// 图库目录内的实际文件名。
     stored_name: String,
 }
 
 /// 同一锁内读出的领域元数据和原始资源；原生快照明确不包含 data URL。
 #[derive(Clone, Debug)]
 pub(crate) struct MonitorGallerySnapshot {
+    /// 图库领域元数据。
     pub gallery: MonitorImageCatalog,
+    /// 可用图片的原始字节，按图片 ID 索引。
     pub bytes: HashMap<String, Arc<[u8]>>,
+    /// 登记了但资源缺失或损坏的图片。
     pub unavailable: Vec<UnavailableMonitorImage>,
 }
 
 /// 索引仍有记录但资源缺失或损坏时保留可清理条目，不阻断其他图库操作。
 #[derive(Clone, Debug)]
 pub(crate) struct UnavailableMonitorImage {
+    /// 图片 ID。
     pub id: String,
+    /// 原始文件名，仅供显示。
     pub filename: String,
+    /// 登记的图片格式。
     pub format: loki_metris_core::ImageFormat,
+    /// 资源缺失或损坏的原因。
     pub error: HookError,
 }
 
 /// 导入回执明确携带本次新增 ID，不能在并发图库中按文件名猜测绑定项。
 #[derive(Clone, Debug)]
 pub(crate) struct MonitorImageImport {
+    /// 导入后的图库快照。
     pub snapshot: MonitorGallerySnapshot,
+    /// 本次新增的图片 ID。
     pub id: String,
 }
 

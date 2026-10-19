@@ -17,13 +17,17 @@ const MAX_HOOK_STATUS_BYTES: usize = 64;
 const HEADER_BYTE_BUDGET: usize = 8192;
 const MAX_HOOK_HTTP_REQUEST_BYTES: usize = MAX_NATIVE_HOOK_INPUT_BYTES + HEADER_BYTE_BUDGET;
 
-/// 保存一次最小 HTTP Hook 请求的认证、响应与可选事件结果。
 /// 保存单个 Hook HTTP 请求的认证、响应与可选事件结果。
 pub(crate) struct ConnectionOutcome {
+    /// 请求整体处理成功。
     pub(super) ok: bool,
+    /// 请求通过实例令牌认证。
     pub(super) authenticated: bool,
+    /// HTTP 状态行。
     pub(super) status: &'static str,
+    /// 固定的响应正文。
     pub(super) body: &'static str,
+    /// 通过校验、需要送入状态机的事件。
     pub(super) event: Option<IncomingHookEvent>,
 }
 

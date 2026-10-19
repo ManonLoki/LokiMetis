@@ -18,23 +18,31 @@ use std::{
 /// 播放器、桌宠聚合与图库 entry 属于不同位置；entry 身份对应真实 Rc allocation。
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Placement {
+    /// 图库或页面中的播放器。
     Playback,
+    /// 桌宠浮窗的聚合需求。
     Overlay,
+    /// 图库条目，值为条目 Rc 分配的地址。
     Catalog(usize),
 }
 
 /// Entity 和窗口均参与位置身份，关闭旧窗或迟到旧 entry 不能退役新位置。
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct OwnerKey {
+    /// 所在窗口。
     window: WindowId,
+    /// 持有的实体。
     entity: EntityId,
+    /// 位置类别。
     placement: Placement,
 }
 
 /// 弱 allocation anchor 防止旧 owner 仍登记期间 Rc 地址被新 entry 复用，不强持像素或 entry。
 #[derive(Clone)]
 pub(crate) struct ImageOwner {
+    /// 位置身份。
     key: OwnerKey,
+    /// 图库条目 Rc 分配的弱锚点；非条目位置为 None。
     allocation: Option<RcWeak<dyn Any>>,
 }
 impl ImageOwner {
@@ -94,17 +102,25 @@ impl ImageOwner {
 
 /// 原始字节和解码结果都不复制；Weak 只供最终退役时取得已绘制的 GPU 句柄。
 struct Residency {
+    /// 图片原始字节与格式。
     source: MonitorImageSource,
+    /// 当前持有该图片的位置；值为已绘制图像的弱引用，用于最终退役时取得 GPU 句柄。
     owners: HashMap<OwnerKey, Option<RcWeak<dyn Any>>>,
+    /// 共享的解码结果；所有位置都释放后自然失效。
     decoded: Weak<DecodedMonitorImage>,
+    /// 最近一次解码失败；用户刷新经 `retry_failed` 清除后重新解码，期间不自动重试。
     failed: bool,
 }
 
 /// 局部退役不延长像素寿命；实际图像身份防止迟到清理混淆同 ID 的新一代。
 struct WindowRetirement {
+    /// 图片 ID。
     source_id: String,
+    /// 要退役的窗口。
     window: WindowId,
+    /// 实际绘制的图像身份，防止误清同 ID 的新一代。
     image_id: ImageId,
+    /// 当时的解码结果弱引用。
     decoded: Weak<DecodedMonitorImage>,
 }
 impl WindowRetirement {
@@ -169,8 +185,11 @@ fn remove_owners(
 
 /// App 内唯一登记器覆盖 pending 与 ready；订阅本身不持有任何 Entity 强引用。
 struct Residencies {
+    /// 按图片 ID 索引的驻留记录。
     images: HashMap<String, Residency>,
+    /// 已订阅释放的实体；实体释放时退役其全部位置。
     entities: HashMap<EntityId, Subscription>,
+    /// 订阅窗口关闭以退役该窗口的位置。
     _closed: Subscription,
 }
 impl Global for Residencies {}

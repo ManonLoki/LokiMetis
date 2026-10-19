@@ -31,6 +31,7 @@ const HOOK_LISTENER_REAPER_POLL: Duration = Duration::from_millis(10);
 /// 交给 listener/worker 的共享关闭观察端。
 #[derive(Clone)]
 pub(super) struct HookListenerShutdown {
+    /// 关闭信号的接收端。
     receiver: watch::Receiver<bool>,
 }
 
@@ -60,7 +61,9 @@ impl HookListenerShutdown {
 
 /// 一项由 control 或进程级 reaper 持有的 Hook listener 任务。
 struct OwnedHookListenerTask {
+    /// 任务句柄。
     handle: JoinHandle<()>,
+    /// 测试中区分登记顺序的 ID。
     #[cfg(test)]
     registration_id: u64,
 }
@@ -78,20 +81,26 @@ impl OwnedHookListenerTask {
 
 /// Hook 两项长期任务的已登记句柄与首次关闭截止时间。
 struct HookListenerTaskState {
+    /// 已登记的任务。
     tasks: Vec<OwnedHookListenerTask>,
+    /// 首次关闭确定的共同截止时间；重复退出不重置。
     shutdown_deadline: Option<tokio::time::Instant>,
 }
 
 /// 从 control 移交后的异步任务及唯一 reaper 运行标志。
 #[derive(Default)]
 struct RetainedHookListenerState {
+    /// 移交后仍未确认终态的任务。
     tasks: Vec<OwnedHookListenerTask>,
+    /// 已有 reaper 在轮询，避免重复启动。
     reaper_running: bool,
 }
 
 /// 在 control Drop 或关闭期限后继续持有并确认异步任务终态。
 struct RetainedHookListenerOwner {
+    /// 移交的任务表与唤醒条件变量。
     shared: Arc<(Mutex<RetainedHookListenerState>, Condvar)>,
+    /// 持有 reaper 线程的 owner。
     reapers: RetainedThreadOwner,
 }
 
@@ -118,8 +127,11 @@ static NEXT_HOOK_LISTENER_TASK_TEST_ID: AtomicU64 = AtomicU64::new(1);
 /// 当前允许进入状态机的工具集合，以及每次启停变化后的单调代数。
 #[derive(Debug)]
 pub(super) struct HookListenerPolicy {
+    /// 当前允许进入状态机的工具。
     pub(super) enabled_tools: HashSet<AiTool>,
+    /// 已开始关闭，不再接受启用变化。
     closing:bool,
+    /// 各工具的启用代次；每次启停递增，旧代次的排队事件被丢弃。
     pub(super) generations: HashMap<AiTool, u64>,
 }
 
@@ -150,16 +162,23 @@ impl HookListenerPolicy {
 
 /// 保存监控设置时同步更新的 listener 启用门禁。
 pub struct HookListenerControl {
+    /// 允许进入状态机的工具集合及启用代次。
     pub(super) policy: Arc<RwLock<HookListenerPolicy>>,
+    /// 对外展示的 relay 状态。
     pub(super) status: Arc<RwLock<HookRelayStatus>>,
+    /// 通知 listener 与 worker 关闭的信号。
     shutdown: watch::Sender<bool>,
+    /// 已登记的长期任务句柄。
     tasks: Mutex<HookListenerTaskState>,
+    /// 串行化关闭流程，重复退出共用同一截止时间。
     shutdown_lock:tokio::sync::Mutex<()>,
 }
 
 /// 在 shutdown future 被取消或 panic 时把尚未终态的句柄交还原 control。
 struct HookListenerShutdownBatch<'owner> {
+    /// 原 control。
     owner: &'owner HookListenerControl,
+    /// 本批关闭中、尚未确认终态的任务。
     tasks: Vec<OwnedHookListenerTask>,
 }
 

@@ -14,7 +14,9 @@ const MAX_RESIDENT_BYTES: u64 = 512 * 1024 * 1024;
 
 /// 资源只含线程安全所有权，解码 future 与像素租约均不借用 App。
 pub(super) struct DecodeResources {
+    /// 限制并发解码数量的信号量。
     decoders: Arc<Semaphore>,
+    /// 当前已驻留的解码像素字节总数。
     retained: Arc<AtomicU64>,
 }
 impl DecodeResources {
@@ -77,7 +79,9 @@ impl gpui_kit::Global for AppDecodeResources {}
 
 /// 预算与真实 Arc 解码结果共生，复制结果不会重复计算。
 pub(super) struct ImageMemoryLease {
+    /// 所属的驻留字节计数；租约释放时扣减。
     retained: Arc<AtomicU64>,
+    /// 本次解码结果占用的字节数。
     bytes: u64,
 }
 impl ImageMemoryLease {

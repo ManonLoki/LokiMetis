@@ -7,7 +7,9 @@ use std::collections::{HashMap, HashSet};
 /// 只保存身份值，不持有 Entity、原始字节或解码像素。
 #[derive(Default)]
 struct Frames {
+    /// 各位置最近绘制的图像参数。
     owners: HashMap<OwnerKey, RenderImageParams>,
+    /// 各窗口待执行的帧清理。
     pending: HashMap<WindowId, Pending>,
 }
 impl Global for Frames {}
@@ -15,7 +17,9 @@ impl Global for Frames {}
 /// 同一窗口一个收尾任务；生命周期清理仍需失效旧 Scene。
 #[derive(Default)]
 struct Pending {
+    /// 待从 Scene 缓存移除的图像参数。
     frames: HashSet<RenderImageParams>,
+    /// 清理后需要刷新窗口，使旧 Scene 失效。
     refresh: bool,
 }
 

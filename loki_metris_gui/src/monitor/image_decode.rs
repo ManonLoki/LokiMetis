@@ -21,8 +21,11 @@ pub(super) const MAX_FRAMES: usize = 2048;
 /// UUID 图片副本不可变；资源缓存以稳定 ID 标识，字节跨帧共享。
 #[derive(Clone)]
 pub(crate) struct MonitorImageSource {
+    /// 图库图片的稳定 ID，也是解码缓存的键。
     pub id: String,
+    /// 不可变原始字节，跨位置共享。
     pub bytes: Arc<[u8]>,
+    /// 图片格式。
     pub format: ImageFormat,
 }
 impl Hash for MonitorImageSource {
@@ -90,9 +93,11 @@ mod load_observation {
 }
 /// 解码像素与浏览器语义的总播放次数；None 表示无限循环。
 pub(crate) struct DecodedMonitorImage {
+    /// 可直接绘制的解码图像。
     pub image: Arc<RenderImage>,
     /// 纹理含复制边缘保护像素，布局仍使用未经扩展的天然尺寸。
     pub natural_size: Size<DevicePixels>,
+    /// 总播放次数；None 表示无限循环。
     pub plays: Option<u32>,
     /// 包含所有帧和边缘保护像素，绘制闭包也持有完整结果 owner。
     pub(super) _memory: super::image_memory::ImageMemoryLease,

@@ -47,16 +47,22 @@ const WSL_PRIVATE_TEMP_WRITE_SCRIPT: &str = "umask 077; set -C; { trap 'rm -f --
 #[cfg(any(target_os = "windows", test))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum WslIoTaskError {
+    /// 截止前没有完成。
     TimedOut,
+    /// 任务线程 panic。
     Panicked,
+    /// 线程已结束但没有交回结果。
     ResultUnavailable,
 }
 
 /// 持有一项阻塞 stdio 任务；只在 `is_finished` 证实终态后才调用 `join`。
 #[cfg(any(target_os = "windows", test))]
 struct OwnedWslIoTask<T> {
+    /// 稳定的任务名，用于日志。
     label: &'static str,
+    /// 任务结果的接收端。
     result: Receiver<T>,
+    /// 线程句柄；确认结束后才 join。
     handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -141,8 +147,11 @@ fn reap_finished_wsl_io_threads() {
 /// 从 Windows WSL UNC 路径解析出的发行版与 Linux 目录。
 #[derive(Clone, Debug)]
 pub(super) struct WslDirectory {
+    /// WSL 发行版名称。
     distribution: String,
+    /// 发行版内的绝对目录路径。
     linux_path: String,
+    /// 整次配置写入共享的取消标志。
     cancellation: Arc<AtomicBool>,
     /// 首条 WSL 命令确定的整次配置写入共同截止时间。
     deadline: Arc<std::sync::OnceLock<std::time::Instant>>,
@@ -151,9 +160,13 @@ pub(super) struct WslDirectory {
 /// WSL 发行版内一个可读写的确定文件。
 #[derive(Clone, Debug)]
 pub(super) struct WslFile {
+    /// WSL 发行版名称。
     distribution: String,
+    /// 发行版内的绝对路径。
     linux_path: String,
+    /// 整次配置写入共享的取消标志。
     cancellation: Arc<AtomicBool>,
+    /// 首条 WSL 命令确定的整次写入共同截止时间。
     deadline: Arc<std::sync::OnceLock<std::time::Instant>>,
 }
 
@@ -178,8 +191,11 @@ impl Eq for WslFile {}
 /// 一次 WSL 原子替换的临时路径 owner；失败与取消都使用独立预算清理。
 #[cfg(target_os = "windows")]
 struct WslTemporaryFile<'a> {
+    /// WSL 发行版名称。
     distribution: &'a str,
+    /// 临时文件路径。
     linux_path: String,
+    /// 尚未完成替换；为 true 时被丢弃会清理临时文件。
     armed: bool,
 }
 
