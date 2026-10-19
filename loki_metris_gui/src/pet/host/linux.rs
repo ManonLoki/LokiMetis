@@ -4,8 +4,6 @@ use gpui_kit::{Bounds, Pixels, point, px, size};
 #[cfg(not(test))]
 use gpui_kit::Window;
 use loki_metris_core::PetWindowPreferences;
-#[cfg(not(test))]
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use x11rb::{
     connection::Connection as _,
     properties::WmSizeHints,
@@ -55,12 +53,7 @@ impl NativeWindow {
     /// X11 和 XWayland 共用原生协议；Wayland toplevel 不具备全局定位和置顶合同。
     #[cfg(not(test))]
     fn capture(window: &Window) -> anyhow::Result<Self> {
-        let id = match HasWindowHandle::window_handle(window)?.as_raw() {
-            RawWindowHandle::Xlib(handle) => u32::try_from(handle.window)?,
-            RawWindowHandle::Xcb(handle) => handle.window.get(),
-            _ => anyhow::bail!("auxiliary windows require X11 or XWayland"),
-        };
-        Self::connect(id)
+        Self::connect(crate::native::linux::x11_window_id(window)?)
     }
     /// GetGeometry 验证 XID 仍属于当前服务器，并从窗口取得真实 root。
     fn connect(window: u32) -> anyhow::Result<Self> {
@@ -295,8 +288,10 @@ pub fn settled(window: &Window) -> anyhow::Result<bool> { NativeWindow::capture(
 /// 仅在已验证 X11 活窗上应用置顶、工具窗、装饰和缩放边界。
 #[cfg(not(test))]
 pub fn apply(window: &Window, prefs: PetWindowPreferences, settings: bool) -> anyhow::Result<()> {
-    let result = NativeWindow::capture(window)?.apply(prefs, settings, window.scale_factor());
-    if result.is_ok() { let _ = crate::native::linux::install_icon(window); }
+    let native = NativeWindow::capture(window)?;
+    let result = native.apply(prefs, settings, window.scale_factor());
+    // 复用本次已验证活窗的连接补写 Dock 图标，不再为同一 XID 另开连接。
+    if result.is_ok() { let _ = crate::native::linux::write_icon(&native.connection, native.window); }
     result
 }
 /// 设置窗居中只修改 root 全局位置，不激活其它应用窗口。

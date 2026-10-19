@@ -42,7 +42,7 @@ pub(crate) fn install_icon(window: &Window) -> anyhow::Result<()> {
 }
 
 /// 对具体活 XID 写入有限像素，协议错误在调用栈返回，不把资源存在当作已提供窗口图标。
-fn write_icon(connection: &impl x11rb::connection::Connection, handle: u32) -> anyhow::Result<()> {
+pub(crate) fn write_icon(connection: &impl x11rb::connection::Connection, handle: u32) -> anyhow::Result<()> {
     let atom = connection.intern_atom(false, b"_NET_WM_ICON")?.reply()?.atom;
     let icon = ICON.get().ok_or_else(|| anyhow::anyhow!("application icon not prepared"))?;
     connection.change_property32(PropMode::REPLACE, handle, atom, AtomEnum::CARDINAL, icon)?.check()?;
@@ -50,12 +50,12 @@ fn write_icon(connection: &impl x11rb::connection::Connection, handle: u32) -> a
     Ok(())
 }
 
-/// 原生显隐只对 X11/XWayland 可用；普通 Wayland 主窗保留 GPUI 激活和正常关闭路径。
+/// 原生显隐、图标与桌宠宿主只对 X11/XWayland 可用；普通 Wayland 窗口保留 GPUI 激活和正常关闭路径。
 pub(crate) fn x11_window_id(window: &Window) -> anyhow::Result<u32> {
     Ok(match HasWindowHandle::window_handle(window)?.as_raw() {
         RawWindowHandle::Xlib(handle) => u32::try_from(handle.window)?,
         RawWindowHandle::Xcb(handle) => handle.window.get(),
-        _ => anyhow::bail!("X11 icon property unavailable"),
+        _ => anyhow::bail!("window is not an X11 or XWayland surface"),
     })
 }
 
