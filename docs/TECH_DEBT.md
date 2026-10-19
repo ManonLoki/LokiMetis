@@ -1,7 +1,7 @@
 # 已知边界与技术债
 
 - 产品边界以最新 `docs/product_spec/` 为准；完整候选仍需按当次构建与渠道要求独立验收。
-- Linux已有真实验证范围：v0.3.11 ARM64 GNOME XWayland的桌宠、Dock、托盘恢复、Hook通知及其它16项必需场景通过；[能力证据索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)保留精确候选绑定。剩余缺口为当前v0.3.13及x64运行、登录自启、混合DPI/热插拔、第三方Agent自行消费Hooks与未测宿主换肤。纯Wayland桌宠全局定位/置顶和Portal/X11后台热键服务仍未接通，空action合同不注册键位，旧global-hotkey 0.8断连回执不能作为注册成功。新版本及未覆盖环境仍须真实候选验证。
+- Linux已有真实验证范围：v0.3.11 ARM64 GNOME XWayland的桌宠、Dock、托盘恢复、Hook通知及其它16项必需场景通过；[能力证据索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)保留精确候选绑定。剩余缺口为v0.3.13及后续版本、x64运行、登录自启、混合DPI/热插拔、第三方Agent自行消费Hooks与未测宿主换肤。纯Wayland桌宠全局定位/置顶和Portal/X11后台热键服务仍未接通，空action合同不注册键位，旧global-hotkey 0.8断连回执不能作为注册成功。新版本及未覆盖环境仍须真实候选验证。
 - Hooks上游信息边界：没有轮次/序号的旧终态若在新提示后迟到，无法可靠判断所属；并行同名工具权限请求或同服务器MCP表单缺少调用ID时，保守保留询问至明确新轮次/终态。WorkBuddy FinalStop依据本机5.7.7第一方引擎；更早版本未提供该事件时不能保证完成提示，需对应版本另行核验。详细协议来源见[Hooks协议依据](HOOKS_PROTOCOLS.md)。
 - Codex/Grok Stop会在其它Hook可能阻止续跑之前触发，公开协议没有所有门禁通过后的成功信号；本次保守禁用它们的Stop“已完成”提示，仍显示空闲且允许同ID续跑。Grok task_complete是后台作业结束，不用于替代整个Agent成功。后续以第一方新增权威终态契约解除此降级。
 - Windows 剩余宿主验收：托盘指针交互、通知横幅、自启登录、真实 Agent／WSL Hooks、Codex／WorkBuddy 换肤、混合 DPI 热插拔及 NSIS 安装仍需对应真实场景，单元测试和开发预览不能替代。

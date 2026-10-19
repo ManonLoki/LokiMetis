@@ -20,7 +20,7 @@ LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面
 - 字体随 App 内嵌，不进行全局包或字体安装；历史源码目录和已安装参考 App 都不是运行时依赖。
 - 保留已选金色神谕之眼 Logo 和独立 `com.loki-metris.app` 身份，不会覆盖参考 App。
 
-Linux 已接通 KSNI 托盘、X11/XWayland 窗口与桌宠宿主、freedesktop 通知；v0.3.11 ARM64 GNOME XWayland 最终候选的16项必需场景已验证，当前v0.3.13双架构deb已实际打包、运行仍为Unverified。纯 Wayland 的桌宠全局定位/置顶和 Portal/X11 后台热键服务尚未接通，当前快捷键合同为空，不注册系统键位。已验证范围及其证据见 [Linux 工程知识库](docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)，能力选择见 [GUI 资料](docs/GUI_APP_PROFILE.md)。
+Linux 已接通 KSNI 托盘、X11/XWayland 窗口与桌宠宿主、freedesktop 通知；v0.3.11 ARM64 GNOME XWayland 最终候选的16项必需场景已验证，v0.3.13双架构deb已实际打包、运行仍为Unverified。纯 Wayland 的桌宠全局定位/置顶和 Portal/X11 后台热键服务尚未接通，当前快捷键合同为空，不注册系统键位。已验证范围及其证据见 [Linux 工程知识库](docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)，能力选择见 [GUI 资料](docs/GUI_APP_PROFILE.md)。
 
 ## 技术栈
 

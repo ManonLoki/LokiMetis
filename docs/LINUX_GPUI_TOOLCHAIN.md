@@ -4,7 +4,7 @@
 
 ## 已验证能力与证据索引
 
-2026-10-19回顾核对：下表“已验证”绑定 **v0.3.11、Linux ARM64、GNOME X11/XWayland** 最终候选，源码`9eb59c14cfdf93ec8abcc7734b898f0051033ceb`，buildRun=`6f9a33c8-02ef-4df5-ba47-0cd18207586a`。它证明这些方案已有真实运行验证；当前Cargo为v0.3.13，不自动继承旧候选的验收状态。
+2026-10-19回顾核对：下表“已验证”绑定 **v0.3.11、Linux ARM64、GNOME X11/XWayland** 最终候选，源码`9eb59c14cfdf93ec8abcc7734b898f0051033ceb`，buildRun=`6f9a33c8-02ef-4df5-ba47-0cd18207586a`。它证明这些方案已有真实运行验证；当前版本取根Cargo，后续版本不自动继承旧候选的验收状态。
 
 权威结论为[最终E2E结果](../release/e2e-evidence/e2e-result.json)的16项`passed`及[候选manifest](../release/loki-metris-v0.3.11-linux-aarch64.deb.manifest.json)的`runtimeVerification`/`milestoneAcceptance`。包SHA-256为`56f37cbae017fd274f5dc83596b475d745e80ac93a559e883c6061256fa143ce`；751项证据文件已逐项复算一致（文件数不代表测试数），复算结果见[本次知识审计回执](../release/linux-knowledge-audit-20261019.json)。原始截图、日志、计划及首尾完整性快照保留于忽略的`release/`，本节仅索引。首尾快照中的`acceptanceDecision:not-performed`是完整性检查自身的状态，不覆盖后续E2E结论。
 
