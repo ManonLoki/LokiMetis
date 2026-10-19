@@ -23,20 +23,26 @@ type IndexFiles = [Option<FileStamp>; 3];
 /// 汇总口径：联合"全部"与单个物理 Agent 的窗口 provider 不同，不能共用条目。
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Scope {
+    /// “全部”联合口径。
     Combined,
+    /// 单个物理 Agent 口径。
     Single,
 }
 
 /// 缓存键：同一民用日内，所选 Agent 的索引文件与覆盖报告都相同。
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct IndexKey {
+    /// 汇总口径。
     scope: Scope,
+    /// 所属民用日。
     day: UsageDay,
+    /// 所选 Agent 的索引文件标识与覆盖报告。
     clients: Vec<(SourceClientKind, IndexFiles, CoverageReport)>,
 }
 
 /// 命中后可直接复用的索引侧产物，`signature` 与 `all_ready` 取自当时读到的根与索引状态。
 pub(super) struct Cached {
+    /// 命中条件：口径、民用日与各 Agent 的索引文件和覆盖报告。
     key: IndexKey,
     pub(super) signature: Vec<String>,
     pub(super) all_ready: bool,

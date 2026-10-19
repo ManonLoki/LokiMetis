@@ -18,51 +18,81 @@ use tokio::sync::{mpsc, watch};
 /// 宿主只发布已确认开关与权限；最新控制槽有界合并，重试使用单调代数。
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Control {
+    /// 宿主已发布第一次开关与权限；之前 worker 不调度通知。
     pub initialized: bool,
+    /// 已确认的本地通知开关。
     pub enabled: bool,
+    /// 桌宠浮窗正在展示当日摘要；只影响摘要读取频率。
     pub visible: bool,
+    /// 已确认的系统通知权限。
     pub permission: NotificationPermission,
+    /// 用户主动重试次数，单调递增；worker 看到变化即执行一次重试。
     pub retry: u64,
+    /// 应用正在退出，worker 停止调度新通知。
     pub closing: bool,
 }
 /// 摘要读取事实独立于通知账本错误，时区读取只发生在后台 worker。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct TodayReadStatus {
+    /// 最近一次读取所属的民用日。
     day: Option<UsageDay>,
+    /// 最近一次读取时的通知来源代次；与当前代次不同时需要重新读取。
     source_epoch: u64,
+    /// 最近一次读取失败。
     failed: bool,
+    /// worker 已关闭，不再读取。
     closed: bool,
 }
 /// 仅内存的设置投影，不把 API 接受写成实际系统送达。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Progress {
+    /// 当日已越过、尚待提交的里程碑档位数。
     pub pending: u64,
+    /// 保留天数内系统接受通知的累计次数；只代表 API 回执，不代表已送达。
     pub submitted: u64,
+    /// 当日因首次安装或重新开启而直接跳过的既有档位数。
     pub baseline: u64,
+    /// 保留天数内因主动关闭或来源变化而取消的未提交数量。
     pub suppressed: u64,
+    /// 保留天数内因跨日未提交而过期的数量。
     pub expired: u64,
+    /// 保留天数内回执不明的数量。
     pub unknown: u64,
     /// 可供平台历史核对的唯一当前 Unknown；无匹配仍不重发。
     pub unknown_id: Option<String>,
+    /// 需要在设置页提示的里程碑问题。
     pub issue: Option<MilestoneIssue>,
+    /// 账本读写失败的类别。
     pub error: Option<&'static str>,
+    /// 最近一次成功读取的当日用量快照。
     pub snapshot: Option<TodayUsageSnapshot>,
+    /// 当日摘要读取状态，只供 worker 内部判断。
     today: TodayReadStatus,
+    /// 进度修订号；任一字段变化时递增，前台只比较修订号。
     pub revision: u64,
 }
 /// sender 回执与稀疏失败经过一个有界通道回到持久 owner。
 pub(crate) enum Receipt {
+    /// 一次提交的系统回执。
     Outcome(String, MilestoneOutcome),
+    /// 提交后才到达的失败回调。
     LateFailure(String),
+    /// 预约因条件不满足而没有提交，延后处理。
     Unsubmitted(String),
 }
 /// 服务克隆只共享控制和只读投影，所有存储 I/O 在唯一后台 worker。
 pub(super) struct Monitor {
+    /// 宿主发布开关、权限与重试意图的最新值通道。
     control: watch::Sender<Control>,
+    /// worker 发布的只读进度投影。
     progress: watch::Receiver<Progress>,
+    /// worker 交出的待发送通知（附预约代次），容量 1。
     requests: Mutex<mpsc::Receiver<(u64, MilestoneRequest)>>,
+    /// 系统回执回到 worker 的有界通道。
     pub receipts: mpsc::Sender<Receipt>,
+    /// 回执通道已满导致回执丢失时置位，worker 据此暂停而不当作成功。
     overflow: Arc<AtomicBool>,
+    /// 后台账本 worker 句柄；退出时取出并等待。
     task: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 impl Monitor {

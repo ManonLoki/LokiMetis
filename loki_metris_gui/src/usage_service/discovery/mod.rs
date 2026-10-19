@@ -18,17 +18,24 @@ use automatic::{RootDiscoveryRunControl,supervise_root_discovery_boundaries,run_
 /// 发现的局部批次投影独立于扫描状态；候选保留到确认成功或新批次开始。
 #[derive(Default)]
 pub(super) struct DiscoveryBatch {
+    /// 所有批次投影共用的锁，检查与修改在同一临界区内完成。
     state:Mutex<batch::BatchState>,
 }
 
 /// GUI 可读公开状态，不返回库句柄或原始记录。
 #[derive(Clone,Default,PartialEq,Eq)]
 pub struct DiscoveryView {
+    /// 发现任务的生命周期与进度。
     pub status:RootDiscoveryStatus,
+    /// 尚未确认的候选目录。
     pub candidates:Vec<RootCandidate>,
+    /// 登记失败的候选 ID。
     pub failed_ids:BTreeSet<String>,
+    /// 正在执行批次索引的 Agent。
     pub indexing:BTreeSet<SourceClientKind>,
+    /// 用户手动重试中的候选 ID。
     pub retrying_ids:BTreeSet<String>,
+    /// 最近一次批次索引的失败类别。
     pub error:Option<&'static str>,
 }
 

@@ -9,21 +9,33 @@ use std::{collections::BTreeMap, sync::Arc};
 /// 查询输入只包含业务筛选；All 不拥有另一个物理存储。
 #[derive(Clone)]
 pub enum UsageQuery {
+    /// 概览；None 表示全部 Agent。
     Overview(Option<SourceClientKind>),
+    /// 单个 Agent 在指定窗口与维度上的分组统计。
     Statistics(SourceClientKind, LocalUsageWindow, UsageDimension),
+    /// 图表数据；Agent 为 None 表示全部。
     Chart(Option<SourceClientKind>, LocalUsageWindow, UsageChartDimension),
+    /// 调用列表的一页；Agent 为 None 表示全部。
     Calls(Option<SourceClientKind>, UsageCallsQuery),
+    /// 单个 Agent 的数据根列表。
     Sources(SourceClientKind),
 }
 
 /// 类型化页面响应避免从概览聚合值反推调用或图表。
 pub enum UsageResponse {
+    /// 概览页数据。
     Overview(UsageData),
+    /// 统计页一页分组。
     Statistics(UsageStatisticsPage),
+    /// 图表页数据。
     Chart(UsageChartPage),
+    /// 调用列表的一页。
     Calls(UsageCallsPage),
+    /// 数据源页的根列表。
     Sources(Vec<SourceRootSummary>),
+    /// WorkBuddy 统计快照。
     Workbuddy(WorkbuddyStatisticsSnapshot),
+    /// WorkBuddy 统计页分组及模型用量窗口。
     WorkbuddyDetails(UsageStatisticsPage, WorkbuddyModelUsageWindow),
 }
 

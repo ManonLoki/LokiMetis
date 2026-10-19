@@ -14,11 +14,13 @@ static BACKGROUND_TASK_CAPACITY_OWNER: OnceLock<Arc<BackgroundTaskCapacity>> = O
 /// 保存当前进程仍被稳定拥有的后台任务槽位数。
 #[derive(Default)]
 pub(super) struct BackgroundTaskCapacity {
+    /// 当前已预约或运行中的任务槽位数。
     pub(super) owned: AtomicUsize,
 }
 
 /// 从 spawn 前预约到任务 future/闭包真实返回全程随执行体移动的容量槽位。
 pub(super) struct BackgroundTaskSlot {
+    /// 所属的容量计数；槽位释放时减一。
     capacity: Arc<BackgroundTaskCapacity>,
 }
 

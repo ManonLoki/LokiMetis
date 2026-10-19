@@ -6,21 +6,28 @@ use std::{collections::VecDeque, sync::Mutex, time::{Duration, Instant}};
 /// 瞬时通知不携带会话内容、用户输入、路径或宿主错误文本。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Activity {
+    /// AI 工具 Hook 终态。
     Hook { tool: AiTool, state: HookNotification },
+    /// 换肤完成或失败。
     Skin { host: SkinHostKind, success: bool },
 }
 
 /// 一次后台终态对应一个独立原生通知；超时后不补发过时操作。
 pub(crate) struct ActivityRequest {
+    /// 通知唯一 ID。
     pub id: String,
+    /// 通知内容类别。
     pub activity: Activity,
+    /// 入队时刻，超时未提交即丢弃。
     pub created: Instant,
 }
 
 /// 一个锁同步发送资格和有界队列，关闭与权限暂停立即丢弃未提交瞬时事件。
 #[derive(Default)]
 struct Mailbox {
+    /// 开关与系统权限都允许发送；为 false 时立即清空队列。
     ready: bool,
+    /// 待提交的瞬时通知。
     requests: VecDeque<ActivityRequest>,
 }
 

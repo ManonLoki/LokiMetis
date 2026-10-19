@@ -12,20 +12,28 @@ use tokio::sync::oneshot;
 
 /// UI只持单一租约；观察进度的后台任务持session而不延长页面授权。
 pub(crate) struct SkinImportLease {
+    /// 本次导入会话。
     pub(crate) session: Arc<ImportSession>,
 }
 /// 一次预检、确认或提交的短锁状态，不复制文件事务的领域结果。
 pub(crate) struct ImportSession {
+    /// 导入状态的短临界区锁。
     state: Mutex<ImportState>,
 }
 /// committing在提交预约时设置，离页不能取消已接管token的事务。
 #[derive(Default)]
 struct ImportState {
+    /// 导入预检登记的事务令牌。
     token: Option<String>,
+    /// 用户已离开导入页；未在提交中的事务会被取消回收。
     abandoned: bool,
+    /// 提交已开始，离页也不再取消。
     committing: bool,
+    /// 导入已成功结束。
     finished: bool,
+    /// 预检的文件总数。
     total: usize,
+    /// 已就绪或已跳过的文件数。
     processed: usize,
 }
 impl ImportSession {

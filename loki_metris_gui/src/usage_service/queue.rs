@@ -14,9 +14,13 @@ struct Pending<I, O> { intent: I, reply: oneshot::Sender<Result<O, &'static str>
 
 /// 一把锁线性化提交、领取、取消及退出，避免取消落到下一次请求。
 struct State<I, O> {
+    /// 最新的待办请求；新提交会取代它。
     pending: Option<Pending<I, O>>,
+    /// 在途请求的取消句柄。
     active: Option<CancellationToken>,
+    /// 已禁止新提交。
     stopped: bool,
+    /// worker 已退出，不再执行任何请求。
     finished: bool,
 }
 

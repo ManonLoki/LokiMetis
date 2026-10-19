@@ -8,16 +8,23 @@ use tokio::sync::oneshot;
 
 /// 页面只提交稳定根身份；原始目录路径不由启停、改名或重建控件重复传入。
 pub enum SourceOperation {
+    /// 启用或停用一个数据根。
     SetEnabled {root_id:String,enabled:bool},
+    /// 修改数据根展示别名。
     Rename {root_id:String,alias:String},
+    /// 移除数据根登记，不删除原始文件。
     Remove {root_id:String},
+    /// 设定主数据根；None 表示取消主数据根。
     SetPrimary {root_id:Option<String>},
+    /// 重建一个数据根的索引。
     Reindex {root_id:String},
 }
 
 /// 已提交的变更结果保持独立，后续刷新失败不能把已发生的修改说成未执行。
 pub enum SourceOperationResult {
+    /// 数据根变更的结果。
     Mutation(SourceRootMutationOutcome),
+    /// 重建索引已完成。
     Reindexed,
 }
 

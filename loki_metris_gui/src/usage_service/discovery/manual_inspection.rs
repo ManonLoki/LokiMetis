@@ -70,9 +70,13 @@ pub(super) enum ManualInspectionCompletion {
 
 /// 命令仅持有结果票据与共享取消句柄；真正的 blocking JoinHandle 留在 owner。
 struct ManualInspectionRequest {
+    /// blocking 检查结果的接收端。
     receiver: tokio::sync::oneshot::Receiver<io::Result<InspectBundle>>,
+    /// 与检查 worker 共享的取消句柄。
     cancellation: CancellationToken,
+    /// 发现协调器，用于观察用户的显式取消。
     coordinator: Arc<RootDiscoveryCoordinator>,
+    /// 尚未得到终态；为 true 时被丢弃会立即传播取消。
     armed: bool,
 }
 

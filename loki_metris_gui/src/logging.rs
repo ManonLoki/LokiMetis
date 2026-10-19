@@ -11,7 +11,9 @@ const QUEUE_LINES: usize = 1024;
 
 /// 两个本地输出共用同一后台 worker，文件失败时仍尝试标准错误且返回可观察错误。
 struct LocalOutputs<W> {
+    /// 按日滚动的日志文件。
     file: RollingFileAppender,
+    /// 标准错误输出。
     stderr: W,
 }
 

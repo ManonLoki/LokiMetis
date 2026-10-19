@@ -36,22 +36,30 @@ const MANUAL_SUBTREE_COVERAGE_ERROR: &str = "manual_subtree_discovery_coverage_i
 /// 线性化手动子树的 deadline、取消与候选交付，关闭后迟到 worker 只能本地收敛。
 #[derive(Clone)]
 pub(super) struct ManualSubtreeRunControl {
+    /// 共享的发现协调器。
     coordinator: Arc<RootDiscoveryCoordinator>,
+    /// 本次手动子树扫描的取消句柄。
     cancellation: CancellationToken,
+    /// 候选交付闸门。
     delivery: Arc<Mutex<ManualSubtreeDeliveryGate>>,
 }
 
 /// 为锁外事件交付保留当前世代；关闭即递增世代并阻止当前批次继续。
 #[derive(Debug)]
 struct ManualSubtreeDeliveryGate {
+    /// 是否仍接受交付；关闭后为 false。
     accepting: bool,
+    /// 交付代次；关闭时递增，使锁外的在途交付失效。
     generation: u64,
 }
 
 /// 保存一个已写入共享状态、可在锁外发送事件的候选。
 struct ManualCandidateDelivery {
+    /// 已写入共享状态的候选。
     candidate: RootCandidate,
+    /// 写入时的交付代次。
     generation: u64,
+    /// 本次是新增候选而非更新已有候选。
     inserted: bool,
 }
 

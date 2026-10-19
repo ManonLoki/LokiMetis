@@ -7,16 +7,27 @@ use tokio::sync::oneshot;
 /// 所有批次投影在同一锁内换代，检查和修改之间不存在可被新批次插入的空隙。
 #[derive(Default)]
 pub(super) struct BatchState {
+    /// 发现批次代次；新一轮发现开始时递增，旧批次的迟到写入一律丢弃。
     pub generation:u64,
+    /// 登记失败的候选 ID；重试成功后移除。
     pub failed:BTreeSet<String>,
+    /// 正在执行批次索引的 Agent。
     pub indexing:BTreeSet<SourceClientKind>,
+    /// 用户手动重试中的候选 ID。
     pub retrying:BTreeSet<String>,
+    /// 最近一次批次索引的失败类别。
     pub error:Option<&'static str>,
+    /// 手动检查目录进行中；期间不自动接续批次。
     pub(super) manual_inspecting:bool,
+    /// 各 Agent 候选登记次数；索引期间有新登记时不把该轮视为终态。
     pub(super) registrations_revision:BTreeMap<SourceClientKind,u64>,
+    /// 当前有批次任务在运行的 Agent，每个 Agent 至多一个。
     active:BTreeSet<SourceClientKind>,
+    /// 本代次已完成终态索引的 Agent，不再重复索引；重试成功会把它移出。
     finalized:BTreeSet<SourceClientKind>,
+    /// 正在登记的候选 ID 及其 Agent，用于拒绝重复登记。
     registrations:BTreeMap<String,SourceClientKind>,
+    /// 在途批次索引的取消句柄；新代次开始时全部取消。
     index_requests:BTreeMap<SourceClientKind,ScanCancellation>,
 }
 

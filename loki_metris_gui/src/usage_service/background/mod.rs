@@ -30,6 +30,7 @@ const BACKGROUND_TASK_FINAL_REAP_BUDGET: Duration = Duration::from_secs(1);
 
 /// 交给应用后台任务的关闭观察端。
 pub(crate) struct BackgroundTaskShutdown {
+    /// 关闭信号的接收端。
     receiver: watch::Receiver<bool>,
 }
 
@@ -54,17 +55,24 @@ impl BackgroundTaskShutdown {
 
 /// 一项已登记的应用后台任务。
 struct OwnedBackgroundTask {
+    /// 稳定的任务名，用于日志。
     name: &'static str,
+    /// 通知任务开始关闭的信号。
     shutdown: watch::Sender<bool>,
+    /// blocking 任务的协作取消回调；异步任务为 None。
     cooperative_cancel: Option<Box<dyn Fn() + Send + Sync + 'static>>,
+    /// 任务句柄。
     handle: JoinHandle<()>,
+    /// 任务种类，决定关闭时能否强制中止。
     kind: BackgroundTaskKind,
 }
 
 /// 区分可由 Tokio abort 销毁的异步 future 与已经开始后不可强停的 blocking 闭包。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BackgroundTaskKind {
+    /// 异步 future，超时后可直接 abort。
     AbortableAsync,
+    /// 已开始的 blocking 闭包，只能协作取消并等待其返回。
     CooperativeBlocking,
 }
 
@@ -73,7 +81,9 @@ static RETAINED_BACKGROUND_TASKS: OnceLock<Mutex<Vec<OwnedBackgroundTask>>> = On
 /// 受同步锁保护的短临界区登记表；锁内不执行 await。
 #[derive(Default)]
 struct BackgroundTaskOwnerState {
+    /// 已开始关闭，不再接受新任务。
     shutting_down: bool,
+    /// 已登记且尚未确认终态的任务。
     tasks: Vec<OwnedBackgroundTask>,
     /// 首次关闭确定的共同截止时间；重复退出事件不得重置预算。
     shutdown_deadline: Option<tokio::time::Instant>,
@@ -83,14 +93,19 @@ struct BackgroundTaskOwnerState {
 pub(crate) struct BackgroundTaskOwner {
     /// 应用明确注入的 runtime，后台任务不借用全局运行时。
     runtime: tokio::runtime::Handle,
+    /// 数据根发现协调器，关闭时一并请求取消。
     root_discovery: Arc<RootDiscoveryCoordinator>,
+    /// 进程级后台任务容量计数。
     capacity: Arc<BackgroundTaskCapacity>,
+    /// 任务登记表。
     state: Mutex<BackgroundTaskOwnerState>,
 }
 
 /// 在关闭 future 被取消或 panic 时，把仍未确认终态的句柄交还原 owner。
 struct ShutdownTaskBatchGuard<'owner> {
+    /// 原 owner。
     owner: &'owner BackgroundTaskOwner,
+    /// 本批正在关闭、尚未确认终态的任务。
     tasks: Vec<OwnedBackgroundTask>,
 }
 

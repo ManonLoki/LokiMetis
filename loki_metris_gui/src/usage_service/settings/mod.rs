@@ -12,9 +12,13 @@ use tokio::sync::oneshot;
 
 /// 一把同步锁在阻塞岛内覆盖读取、克隆、单字段修改、实际落盘和内存提交全过程。
 pub(super) struct SettingsStore {
+    /// 用量设置文件路径。
     path:PathBuf,
+    /// 最近一次成功读取或提交的设置；尚未读取时为 None。
     value:Mutex<Option<UsageSettings>>,
+    /// 执行阻塞读写的后台任务 owner。
     owner:Arc<BackgroundTaskOwner>,
+    /// 设置修订号，每次成功提交递增。
     revision:std::sync::atomic::AtomicU64,
 }
 

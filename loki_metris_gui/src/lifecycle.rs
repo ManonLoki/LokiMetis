@@ -10,10 +10,15 @@ type WindowCapture = Box<dyn FnMut(&mut App)>;
 
 /// 同一状态在原生退出回调与事件循环返回回退间共享，日志 worker 只刷新一次。
 pub struct Shutdown {
+    /// 退出前捕获最后窗口几何的回调。
     capture_window: Option<WindowCapture>,
+    /// 偏好写入器，退出时等待最后快照落盘。
     writer: Writer,
+    /// 通知服务，退出时排空已接受的偏好写入。
     notifications:Option<crate::native::notifications::Service>,
+    /// 日志 worker 守卫，释放时刷新日志；只刷新一次。
     log_guard: Option<WorkerGuard>,
+    /// 用量服务，退出时完成后台收尾。
     usage: Option<std::sync::Arc<crate::usage_service::UsageService>>,
 }
 

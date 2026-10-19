@@ -15,19 +15,27 @@ use tokio::sync::{OnceCell, oneshot};
 
 /// 目录快照同时准备原生图像，主线程不解Base64或读取文件。
 pub(crate) struct SkinEntry {
+    /// 皮肤描述。
     pub skin: SkinDescriptor,
+    /// 已解码的预览图；无预览或解码失败时为 None。
     pub preview: Option<Arc<gpui_kit::Image>>,
 }
 /// 目录成功与否是单一事实，失败不以空资源库替代。
 pub(crate) struct SkinCatalog {
+    /// 目录中的全部皮肤。
     pub entries: Vec<SkinEntry>,
 }
 /// 应用唯一资源库owner，首次成功初始化以后不重复清理导入暂存。
 pub(super) struct OwnedSkins {
+    /// 皮肤目录、导入与安装服务。
     pub(super) service: Arc<SkinService>,
+    /// 当前进行中的导入会话，退出时逐个回收。
     pub(super) imports: std::sync::Mutex<Vec<Arc<super::skin_import::ImportSession>>>,
+    /// 资源库首次初始化成功的标记。
     initialized: OnceCell<()>,
+    /// 资源库初始化失败的错误；存在时皮肤功能不可用。
     resource_error: Option<SkinError>,
+    /// 后台皮肤生命周期已启动。
     pub(super) started: AtomicBool,
 }
 impl OwnedSkins {

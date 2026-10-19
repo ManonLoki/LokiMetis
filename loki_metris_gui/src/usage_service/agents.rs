@@ -14,16 +14,25 @@ use tokio::sync::oneshot;
 
 /// 内存仅缓存成功读取或提交的完整监控配置；没有第二份启用项落盘副本。
 pub(super) struct AgentSettingsStore {
+    /// 监控设置所在的应用数据目录。
     directory: PathBuf,
+    /// 最近一次成功读取或提交的完整监控设置；尚未读取时为 None。
     value: Mutex<Option<MonitorSettings>>,
+    /// 执行阻塞读写的后台任务 owner。
     owner: Arc<BackgroundTaskOwner>,
+    /// 启用 Agent 变化后唤醒当日摘要重读。
     today_refresh:Arc<tokio::sync::Notify>,
+    /// 启用 Agent 变化时递增的通知来源代次。
     notification_source_epoch:Arc<AtomicU64>,
+    /// 监控设置修订号，每次成功提交递增。
     revision: AtomicU64,
+    /// 桌宠偏好修订号，每次成功提交桌宠字段递增。
     pub(super) pet_revision: AtomicU64,
     /// 首次退出拥有的最终位置命令；不落盘为第二状态，晚到位置工作只能提交此终止意图。
     final_pet_position: std::sync::OnceLock<loki_metris_core::PetOverlayPosition>,
+    /// Hook 监听控制，启动后只设置一次。
     pub(super) listener: std::sync::OnceLock<Arc<crate::monitor::listener::HookListenerControl>>,
+    /// Hook 配置读写宿主，启动后只设置一次。
     pub(super) hooks: std::sync::OnceLock<super::hooks::HookHost>,
 }
 

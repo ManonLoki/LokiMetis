@@ -14,8 +14,11 @@ const ROOT_DISCOVERY_WORKER_ERROR: &str = "metadata_discovery_worker_unavailable
 /// 把一次后台发现的私有协调器与当前共享状态绑定；关闭后所有迟到写入都被拒绝。
 #[derive(Clone)]
 pub(super) struct RootDiscoveryRunControl {
+    /// 页面读取的共享协调器。
     shared: Arc<loki_metris_core::RootDiscoveryCoordinator>,
+    /// 本次后台发现私有的协调器。
     worker: Arc<loki_metris_core::RootDiscoveryCoordinator>,
+    /// 是否仍接受 worker 写回共享状态；关闭后为 false。
     accepting: Arc<Mutex<bool>>,
 }
 

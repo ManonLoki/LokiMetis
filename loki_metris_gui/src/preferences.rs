@@ -7,29 +7,41 @@ use std::{fs, io::{Read, Write}, path::PathBuf, sync::{Arc, Mutex, mpsc}, thread
 /// 设置页支持浅色、深色与随系统变化三种明确选择。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ThemeChoice {
+    /// 跟随系统外观。
     #[default]
     System,
+    /// 固定浅色。
     Light,
+    /// 固定深色。
     Dark,
 }
 
 /// 语言缺省跟随操作系统；未知系统语言回退到英文。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum LanguageChoice {
+    /// 跟随系统语言，未知时回退英文。
     #[default]
     System,
+    /// 固定中文。
     Chinese,
+    /// 固定英文。
     English,
 }
 
 /// 展示偏好与可恢复窗口几何不进入业务核心或页面会话状态。
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Preferences {
+    /// 主题选择。
     pub theme: ThemeChoice,
+    /// 语言选择。
     pub language: LanguageChoice,
+    /// 侧栏折叠偏好；当前侧栏按产品规范固定不折叠，界面不读取，仅为偏好文件格式兼容保留读写。
     pub collapsed: bool,
+    /// 旧版窗口矩形 [x, y, 宽, 高]（逻辑像素），保留供旧版本回退。
     pub bounds: Option<[f32; 4]>,
+    /// 旧版最大化标记，保留供旧版本回退。
     pub maximized: bool,
+    /// 系统通知开关。
     pub system_notification: bool,
     /// 有身份的屏内 DIP 状态；旧 bounds/maximized 继续保留供旧版本回退。
     pub window_state_v2: Option<WindowStateV2>,
@@ -112,8 +124,11 @@ pub enum PreferencePatch { Theme(ThemeChoice), Language(LanguageChoice), SystemN
 /// 几何属于可合并高频事件，不拥有主题与语言字段。
 #[derive(Clone)]
 struct WindowGeometry {
+    /// 旧版窗口矩形 [x, y, 宽, 高]。
     bounds: Option<[f32; 4]>,
+    /// 旧版最大化标记。
     maximized: bool,
+    /// 带显示器身份的窗口状态。
     window_state_v2: Option<WindowStateV2>,
 }
 
@@ -123,8 +138,11 @@ struct WindowUpdates { latest:Option<WindowGeometry>, queued:bool }
 
 /// 有界命令队列保留真实回执；窗口事件仅发送合并信号。
 enum Command {
+    /// 窗口几何已变化，worker 合并后写入最新几何。
     Window,
+    /// 修改偏好字段，并回传实际写入结果。
     Mutate(PreferencePatch,tokio::sync::oneshot::Sender<Result<PreferencePatch,&'static str>>),
+    /// 停止 worker。
     Stop,
 }
 
@@ -134,9 +152,13 @@ enum Storage { File(PathBuf), Unavailable, #[cfg(test)] Memory }
 /// 工作线程拥有唯一已提交快照，写入成功后才更新基线并通知 UI。
 #[derive(Clone)]
 pub struct Writer {
+    /// 待写入的最新窗口几何，多次变化只保留最后一次。
     geometry: Arc<Mutex<WindowUpdates>>,
+    /// 向 worker 投递命令的有界通道。
     sender: mpsc::SyncSender<Command>,
+    /// 已开始退出，不再接受新命令。
     closing: Arc<Mutex<bool>>,
+    /// 写入线程句柄，退出时 join。
     thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 

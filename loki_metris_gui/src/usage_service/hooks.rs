@@ -10,7 +10,9 @@ use tokio::sync::oneshot;
 
 /// 路径定位与写入共用同一个注入的主目录，测试不启动生产宿主。
 pub(super) struct HookHost {
+    /// Hook 配置文件写入器。
     pub writer: Arc<HookConfigWriter>,
+    /// 定位各工具 Hook 配置使用的用户主目录。
     pub home: PathBuf,
 }
 

@@ -52,7 +52,9 @@ use tokio::{runtime::Runtime, sync::oneshot};
 /// 一次查询的不可变概览事实，不保存另一份权威领域状态。
 #[derive(Clone)]
 pub struct UsageData {
+    /// 所选 Agent 的本地用量窗口摘要。
     pub records: LocalRecordsSummary,
+    /// WorkBuddy 统计快照；非 WorkBuddy 视图或读取失败时为 None。
     pub workbuddy: Option<WorkbuddyStatisticsSnapshot>,
     /// “全部”概览中 WorkBuddy 读取失败：结果只含其他 Agent，界面必须明示不完整，不能静默少算。
     pub workbuddy_unavailable: bool,
@@ -61,41 +63,66 @@ pub struct UsageData {
 /// 后台扫描的展示投影；revision 只在一轮完成/失败/取消收尾后增加。
 #[derive(Clone, Default)]
 pub struct ScanStatus {
+    /// 当前有扫描在途。
     pub running: bool,
+    /// 在途扫描的 Agent；全部 Agent 扫描时为 None。
     pub client:Option<SourceClientKind>,
     pub revision: u64,
+    /// 最近一轮扫描的失败类别。
     pub error: Option<&'static str>,
+    /// 在途扫描的进度；空闲时为 None。
     pub progress: Option<ScanProgress>,
 }
 
 /// 共享的是扫描元数据和 writer 许可；聚合结果不跨查询缓存。
 struct ServiceContext {
+    /// 应用私有数据目录，各 Agent 的索引、设置与资源都在其下。
     directory: PathBuf,
+    /// 当日摘要需要重新读取时唤醒后台 worker。
     today_refresh: Arc<tokio::sync::Notify>,
+    /// 通知来源代次；数据根或启用 Agent 变化时递增，旧来源的里程碑预约随之作废。
     notification_source_epoch: Arc<std::sync::atomic::AtomicU64>,
+    /// 应用唯一的皮肤资源库 owner。
     skins:Arc<skins::OwnedSkins>,
+    /// 各 Agent 最近一次扫描的覆盖报告。
     coverage: Mutex<BTreeMap<SourceClientKind, CoverageReport>>,
+    /// 后台扫描的展示投影。
     status: Mutex<ScanStatus>,
+    /// 索引写入许可，保证同一时刻只有一个扫描 writer。
     writer: ScanCoordinator,
+    /// 用量设置存储。
     settings:Arc<settings::SettingsStore>,
+    /// 监控设置（启用 Agent、桌宠偏好等）存储。
     agents:Arc<agents::AgentSettingsStore>,
+    /// 监控图库修订号；图片或配置草稿变化时递增。
     monitor_revision:std::sync::atomic::AtomicU64,
+    /// 当日摘要的索引侧结果缓存。
     today_cache: today_cache::TodayCache,
     /// 当前查看的统计页或图表页结果缓存，页面定时刷新在索引未变时直接复用。
     page_cache: page_cache::PageCache,
+    /// Hook 与换肤终态的瞬时通知邮箱。
     activity_notifications: Arc<activity_notifications::ActivityQueue>,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
 pub struct UsageService {
+    /// 服务专用 Tokio 运行时；退出时取出并在其上完成收尾。
     runtime: Mutex<Option<Runtime>>,
+    /// Token 里程碑通知的后台账本 worker。
     notifications: notifications::Monitor,
+    /// 扫描邮箱：至多一个在途加一个最新待办。
     scans: Arc<Queue<Intent, ()>>,
+    /// 查询邮箱：至多一个在途加一个最新待办，新请求取代旧的待办。
     queries: Arc<Queue<UsageQuery, UsageResponse>>,
+    /// 各 worker 共享的服务上下文。
     context: Arc<ServiceContext>,
+    /// 数据根发现与一次性维护任务的唯一 owner。
     background:Arc<background::BackgroundTaskOwner>,
+    /// 数据根自动发现的共享协调器。
     discovery:Arc<loki_metris_core::RootDiscoveryCoordinator>,
+    /// 发现候选的登记与索引批次状态。
     discovery_batch:Arc<discovery::DiscoveryBatch>,
+    /// 后台用量生命周期已启动，重复调用直接返回。
     lifecycle_started:std::sync::atomic::AtomicBool,
 }
 
