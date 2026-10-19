@@ -13,11 +13,12 @@ import {
   withLifecycleStateLock,
 } from "./git_lifecycle_core.mjs";
 import { commandPublish, commandPushRelease, commandRelease } from "./git_lifecycle_publication.mjs";
+import { commandRecoverRelease } from "./git_lifecycle_recovery.mjs";
 
 export * from "./git_lifecycle_core.mjs";
 export * from "./git_lifecycle_publication.mjs";
 
-const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release", "push-release", "check-post-release"];
+const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release", "push-release", "check-post-release", "recover-release"];
 
 /** 把 kebab-case CLI 选项转换成 camelCase。 */
 function optionName(value) {
@@ -40,8 +41,9 @@ export function parseArguments(argv) {
     "track-worktree": new Set(["projectRoot", "worktree", "remote"]),
     publish: new Set(["projectRoot", "remote", "alsoRemote"]),
     release: new Set(["projectRoot", "version", "date", "releaseContextSha256"]),
-    "push-release": new Set(["projectRoot", "remote"]),
+    "push-release": new Set(["projectRoot", "remote", "explicitHead", "explicitTag"]),
     "check-post-release": new Set(["projectRoot", "action"]),
+    "recover-release": new Set(["projectRoot", "tag", "sourceCommit", "releaseContextSha256", "expectedStateSha256", "recoveryApproved"]),
   }[command];
   const args = { command, alsoRemote: [] };
   for (let index = 1; index < argv.length; index += 1) {
@@ -99,6 +101,7 @@ export async function main(argv = process.argv.slice(2)) {
     else if (args.command === "publish") operation = () => commandPublish(repository, args);
     else if (args.command === "push-release") operation = () => commandPushRelease(repository, args);
     else if (args.command === "check-post-release") operation = () => commandCheckPostRelease(repository, args);
+    else if (args.command === "recover-release") operation = () => commandRecoverRelease(repository, args);
     else operation = () => commandRelease(repository, args);
     const result = args.command === "inspect"
       ? await operation()

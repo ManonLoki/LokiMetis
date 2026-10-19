@@ -680,10 +680,14 @@ export function commandPushRelease(repository, args) {
   const state = loadState(repository);
   const last = state.lastRelease;
   if (last === null) throw new LifecycleError("no-release", "No completed local release is recorded.");
-  if (last.postReleaseAction === null && !isHarnessSourceRelease(repository, last)) {
+  const explicitPush = args.explicitHead !== undefined || args.explicitTag !== undefined;
+  if (explicitPush && (args.explicitHead !== last.head || args.explicitTag !== last.tag)) {
+    throw new LifecycleError("explicit-release-mismatch", "Explicit push must name the exact completed release HEAD and tag.");
+  }
+  if (!explicitPush && last.postReleaseAction === null && !isHarnessSourceRelease(repository, last)) {
     throw new LifecycleError("post-release-action-unbound", "This historical release has no confirmed post-release action.");
   }
-  if (last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch") {
+  if (!explicitPush && last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch") {
     throw new LifecycleError("post-release-action-mismatch", "Frozen post-release action is not push_release_branch.");
   }
   if (state.cycle?.pendingRelease || state.pendingPublish !== null) {
