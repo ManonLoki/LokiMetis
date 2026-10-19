@@ -64,7 +64,9 @@ async fn shutdown_waits_for_watcher_registered_before_runtime_insertion() {
 
 /// 区分取消到达时仍在注入，以及取消后已进入回滚的两个关键安装窗口。
 enum ParkedInstallPhase {
+    /// 取消到达时仍在初始注入。
     InitialInjection,
+    /// 取消后已进入回滚。
     Rollback,
 }
 

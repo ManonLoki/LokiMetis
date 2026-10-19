@@ -3,16 +3,23 @@
 /// 真实父内容mask与owner Hitbox几何在排除scope内仍须完整。
 #[derive(Clone)]
 struct Observation {
+    /// 登记的 Hitbox。
     hitbox: Hitbox,
+    /// 绘制时的内容裁切。
     mask: ContentMask<Pixels>,
+    /// 目标边界。
     bounds: Bounds<Pixels>,
 }
 
 /// 自有最小Element创建真实Hitbox、半透明quad及图片，并读取实际AX节点bounds。
 struct PaintedTarget {
+    /// 目标标签。
     label: &'static str,
+    /// 每次绘制的观测记录。
     records: Rc<RefCell<Vec<Observation>>>,
+    /// 最近读取的辅助节点边界。
     ax_bounds: Rc<RefCell<Option<gpui_kit::accesskit::Rect>>>,
+    /// 目标绘制的图片；None 时只绘制 quad。
     image: Option<Arc<RenderImage>>,
 }
 impl IntoElement for PaintedTarget {
@@ -107,7 +114,9 @@ impl Element for PaintedTarget {
 
 /// 只在实际child prepaint期间追加精确排除，保留正常布局/paint/AX调用。
 struct ExclusionScope {
+    /// 被包装的子元素。
     child: AnyElement,
+    /// 子元素 prepaint 期间追加的排除矩形。
     excluded: Vec<Bounds<Pixels>>,
 }
 impl ExclusionScope {
@@ -179,7 +188,9 @@ impl Element for ExclusionScope {
 
 /// 对照legacy弹层和newparent的实际排除继承与跨帧几何replay。
 struct DeferredTarget {
+    /// 被包装的子元素。
     child: Option<AnyElement>,
+    /// 使用 legacy 弹层路径。
     legacy: bool,
 }
 impl IntoElement for DeferredTarget {

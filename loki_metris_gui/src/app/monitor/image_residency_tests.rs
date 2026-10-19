@@ -19,7 +19,9 @@ use std::{cell::Cell, rc::Rc, sync::Arc, time::Duration};
 
 /// 只有实际播放器参与绘制；隐藏投影不代理任何资源清理逻辑。
 struct PlaybackWindow {
+    /// 播放器。
     image: Entity<MonitorImageView>,
+    /// 是否在投影中绘制播放器。
     shown: bool,
 }
 impl Render for PlaybackWindow {
@@ -34,15 +36,25 @@ impl Render for PlaybackWindow {
 
 /// 所有文件、服务与偏好由当前测试拥有；窗口关闭测试会额外保留播放器强引用。
 struct Windows {
+    /// 测试临时目录。
     root: tempfile::TempDir,
+    /// 测试用量服务。
     service: Arc<crate::usage_service::UsageService>,
+    /// 主窗句柄。
     main: AnyWindowHandle,
+    /// 主窗根视图。
     shell: Entity<Shell>,
+    /// 独立播放窗口句柄。
     playback: AnyWindowHandle,
+    /// 播放窗口根视图。
     playback_root: Entity<PlaybackWindow>,
+    /// 被观察的播放器。
     image: Entity<MonitorImageView>,
+    /// 测试图片源。
     source: MonitorImageSource,
+    /// 解码启动次数观察。
     probe: LoadProbe,
+    /// 测试结束时等待偏好写入的守卫。
     _writer: crate::app::tests::FinishWriter,
 }
 impl Drop for Windows {

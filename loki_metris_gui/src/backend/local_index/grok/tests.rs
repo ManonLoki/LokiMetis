@@ -395,6 +395,8 @@ async fn load_today_statistics(app_data: &std::path::Path) -> TokenAndCount {
 
 /// 测试对账用的合计与调用数。
 struct TokenAndCount {
+    /// Token 合计。
     tokens: TokenUsage,
+    /// 调用数。
     call_count: u64,
 }

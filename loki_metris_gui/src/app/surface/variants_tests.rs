@@ -13,9 +13,13 @@ type Owner = Rc<RefCell<Option<gpui_kit::WeakEntity<MaterialState>>>>;
 
 /// radius/top accent可变探针不实例化业务壳层或文件服务。
 struct Probe {
+    /// 卡片圆角。
     radius: Pixels,
+    /// 启用顶边强调色。
     accent: bool,
+    /// 深色主题。
     dark: bool,
+    /// 材质 owner 的观察。
     owner: Owner,
 }
 

@@ -10,8 +10,11 @@ use std::time::Duration;
 
 /// 两种实际尺寸同时出现，相邻动作和反馈状态互不串扰。
 struct Probe {
+    /// 按钮加载中。
     loading: bool,
+    /// 按钮禁用。
     disabled: bool,
+    /// 两个按钮各自的点击次数。
     clicks: [usize; 2],
 }
 impl Render for Probe {

@@ -5,9 +5,13 @@ use gpui_kit::{TestAppContext, test::TestWindowExt};
 
 /// 每个测试的服务和临时文件仅由当前测试拥有。
 pub(super) struct Fixture {
+    /// 测试临时目录。
     pub(super) root: tempfile::TempDir,
+    /// 测试用量服务。
     pub(super) service: Arc<UsageService>,
+    /// 桌宠控制器。
     pub(super) owner: Entity<Controller>,
+    /// 桌宠浮窗句柄。
     pub(super) overlay: AnyWindowHandle,
 }
 impl Drop for Fixture {

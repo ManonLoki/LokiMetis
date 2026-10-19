@@ -11,7 +11,9 @@ use std::{cell::RefCell, rc::Rc, time::Duration};
 
 /// 两个实际播放器共享原始字节；可见投影与挂载状态一起改变，沿生产清理路径。
 struct Surface {
+    /// 两个播放器。
     images: Vec<Entity<MonitorImageView>>,
+    /// 各播放器是否可见。
     visible: Vec<bool>,
 }
 impl Render for Surface {
@@ -356,8 +358,11 @@ fn phased_players_keep_union_then_release_frames_while_catalog_keeps_decode() {
 
 /// 独立 cached sibling 的真实 prepaint/paint 计数，不以 Render 计数替代缓存重放。
 struct CachedProbe {
+    /// 缓存兄弟中的播放器。
     player: Entity<MonitorImageView>,
+    /// prepaint 次数。
     prepaint: Rc<std::cell::Cell<usize>>,
+    /// paint 次数。
     paint: Rc<std::cell::Cell<usize>>,
 }
 impl Render for CachedProbe {
@@ -381,8 +386,11 @@ impl Render for CachedProbe {
 }
 /// 测试窗口根视图：切换移动中的图片兄弟节点可见性，观察缓存兄弟节点是否被重放。
 struct CachedSurface {
+    /// 缓存兄弟节点。
     probe: Entity<CachedProbe>,
+    /// 移动中的播放器。
     moving: Entity<MonitorImageView>,
+    /// 移动播放器是否可见。
     visible: bool,
 }
 impl Render for CachedSurface {

@@ -12,9 +12,13 @@ use std::time::Duration;
 
 /// 同一按钮可切换禁用、加载和主题；相邻按钮拥有独立动作计数。
 struct Probe {
+    /// 深色主题。
     dark: bool,
+    /// 按钮禁用。
     disabled: bool,
+    /// 按钮加载中。
     loading: bool,
+    /// 两个按钮各自的点击次数。
     clicks: [usize; 2],
 }
 

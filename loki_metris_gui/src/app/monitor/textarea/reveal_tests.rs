@@ -314,8 +314,11 @@ fn shell_textarea_reveal_does_not_fight_manual_scrolling_or_editing(cx: &mut Tes
 
 /// 真实双轴滚动容器只用来覆盖 X 保留与边界，文本域和所属 Shell 输入仍为生产实现。
 struct BothAxes {
+    /// 所属根视图。
     _shell: Entity<Shell>,
+    /// 页面滚动。
     scroll: PageScroll,
+    /// 文本域。
     input: Entity<TextareaState>,
 }
 

@@ -9,8 +9,11 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     /// 表示扫描编排测试中的可复用发现根。
     struct TestDiscoveredRoot {
+        /// 根路径。
         path: PathBuf,
+        /// 根 ID。
         root_id: String,
+        /// 展示别名。
         alias: String,
     }
 
@@ -35,12 +38,19 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     /// 保存测试发现结果及其扫描范围元数据。
     struct TestDiscoveryResult {
+        /// 发现的根。
         roots: Vec<TestDiscoveredRoot>,
+        /// 确认无效的根 ID。
         confirmed_invalid_root_ids: Vec<String>,
+        /// 未能确认的根 ID。
         unconfirmed_root_ids: Vec<String>,
+        /// 覆盖报告。
         coverage: CoverageReport,
+        /// 扫描的目录数。
         directories_scanned: u64,
+        /// 因符号链接跳过的数量。
         symlink_skipped_count: u64,
+        /// 因网络卷跳过的数量。
         network_skipped_count: u64,
     }
 
@@ -96,8 +106,11 @@ mod tests {
     #[derive(Debug, Clone)]
     /// 表示登记库中已有的数据根测试记录。
     struct TestRegisteredRoot {
+        /// 根路径。
         path: PathBuf,
+        /// 已登记的根 ID；尚未分配时为 None。
         root_id: Option<String>,
+        /// 展示别名。
         alias: String,
     }
 

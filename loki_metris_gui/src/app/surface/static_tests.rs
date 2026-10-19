@@ -16,10 +16,15 @@ type Owners = Rc<RefCell<[Option<gpui_kit::WeakEntity<MaterialState>>; 3]>>;
 
 /// 同一原生视图同时展示三个CSS模式，输入实体跨主题重绘保持稳定。
 struct Probe {
+    /// 深色主题。
     dark: bool,
+    /// 三张卡片各自是否显示。
     shown: [bool; 3],
+    /// 三个按钮各自的点击次数。
     clicks: [usize; 3],
+    /// 三个输入框。
     inputs: [Entity<InputState>; 3],
+    /// 各卡片状态 owner 的观察。
     owners: Owners,
 }
 

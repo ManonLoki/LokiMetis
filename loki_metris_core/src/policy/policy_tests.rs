@@ -128,6 +128,7 @@ fn validates_root_id_and_alias_rules() {
 #[derive(Debug)]
 /// 表示数据根策略测试中的最小已发现来源。
 struct TestSourceRoot {
+    /// 来源根 ID。
     id: &'static str,
 }
 

@@ -6,20 +6,31 @@ use std::time::Instant;
 
 /// 主边框、顶accent、surface和两层阴影分别拥有时间线，颜色存储预乘sRGB。
 struct OriginalMotion {
+    /// 表面色过渡。
     surface: CssMotion<4>,
+    /// 主边框色过渡。
     border: CssMotion<4>,
+    /// 顶边色过渡。
     top: CssMotion<4>,
+    /// 内高光色过渡。
     highlight: CssMotion<4>,
+    /// 阴影参数过渡。
     shadow: CssMotion<7>,
 }
 
 /// 单帧完整材质参数；阴影sigma、offset与spread仍是逻辑像素。
 struct MaterialSample {
+    /// 表面色。
     pub surface: Hsla,
+    /// 主边框色。
     pub border: Hsla,
+    /// 顶边色。
     pub top: Hsla,
+    /// 内高光色。
     pub highlight: Hsla,
+    /// 阴影参数。
     pub shadow: ShadowSample,
+    /// 过渡仍在进行。
     pub running: bool,
 }
 

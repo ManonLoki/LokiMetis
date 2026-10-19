@@ -79,8 +79,11 @@ fn notification_details_are_compact_controlled_and_keyboard_accessible(cx: &mut 
 
 /// 隔离状态夹具复用生产卡片和 Shell 回调，不安装托盘或通知 owner。
 struct CardProbe {
+    /// 根视图。
     shell: Entity<Shell>,
+    /// 注入的通知状态。
     state: State,
+    /// 根视图变化订阅。
     _subscription: Subscription,
 }
 impl Render for CardProbe {

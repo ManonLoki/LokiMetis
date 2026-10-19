@@ -7,8 +7,11 @@ use std::{cell::Cell, rc::Rc};
 
 /// 服务与单实例均归属本次临时目录；偏好使用内存writer，登录项owner只执行启动时只读查询。
 struct Fixture {
+    /// 主窗句柄。
     handle: AnyWindowHandle,
+    /// 内存偏好写入器。
     writer: Writer,
+    /// 测试临时目录。
     _root: tempfile::TempDir,
 }
 

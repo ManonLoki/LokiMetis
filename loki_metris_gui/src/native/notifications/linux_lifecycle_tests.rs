@@ -7,11 +7,17 @@ use std::{rc::Rc, sync::mpsc as std_mpsc, thread::JoinHandle};
 
 /// 仅测试拥有的总线与Notify服务；屏障不替代生产协议，只控制worker首次取出请求的时刻。
 struct NativeFixture {
+    /// 测试私有总线。
     _bus: PrivateBus,
+    /// 模拟通知服务的连接。
     _server: Connection,
+    /// 模拟服务观察到的调用。
     observed: Arc<Mutex<Observations>>,
+    /// 被测通知宿主。
     host: Rc<Host>,
+    /// 放行 worker 取出首个请求的屏障。
     start: Option<std_mpsc::Sender<()>>,
+    /// 模拟服务线程。
     worker: Option<JoinHandle<()>>,
 }
 

@@ -9,9 +9,13 @@ use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 
 /// 加载遮罩回归的测试根视图：控制按钮加载态、主题与可见性，并回传动效 owner。
 struct Probe {
+    /// 按钮加载中。
     loading: bool,
+    /// 深色主题。
     dark: bool,
+    /// 按钮可见。
     visible: bool,
+    /// 回传的按钮动效 owner。
     motion: Rc<RefCell<Option<gpui_kit::WeakEntity<ButtonMotion>>>>,
 }
 impl Render for Probe {

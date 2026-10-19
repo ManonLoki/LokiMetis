@@ -5,7 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// 模拟一次不让出执行器的 poll，用于证明 abort 不会被误当作已回收。
 struct NonYieldingFuture {
+    /// 首次 poll 时发送开始信号。
     started: Option<tokio::sync::oneshot::Sender<()>>,
+    /// 置位后 future 才完成。
     release: Arc<AtomicBool>,
 }
 

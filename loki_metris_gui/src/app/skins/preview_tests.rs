@@ -12,9 +12,13 @@ use std::sync::Arc;
 
 /// 窄宽预览共用生产图片元素；选择框与下方按钮各自拥有动作。
 struct PreviewProbe {
+    /// 预览图。
     image: Arc<RenderImage>,
+    /// 预览容器宽度。
     width: f32,
+    /// 选择框勾选状态。
     selected: bool,
+    /// 应用按钮点击次数。
     applied: usize,
 }
 

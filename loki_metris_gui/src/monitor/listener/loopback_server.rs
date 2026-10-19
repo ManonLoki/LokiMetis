@@ -306,7 +306,10 @@ impl Drop for PublishedEndpoint {
 }
 
 /// 同一当前产品端点在整个监听和清理期间只允许一个发布者，锁文件永不删除。
-struct EndpointLease { _file:std::fs::File }
+struct EndpointLease {
+    /// 持有跨进程锁的锁文件句柄；释放即解锁。
+    _file:std::fs::File,
+}
 impl EndpointLease {
     /// 使用标准库跨进程非阻塞锁，旧实例清理结束前新实例不能覆盖相同端点。
     fn acquire(path:&std::path::Path)->Result<Self,String> {

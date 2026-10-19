@@ -45,7 +45,9 @@ fn oversized_known_non_usage_is_skipped_without_masking_other_lines() {
 
 /// 第一次读取时在超长正文中取消，阻止下一块而不伪造完整行。
 struct CancelAfterChunk<'a> {
+    /// 剩余可读的字节。
     bytes: &'a [u8],
+    /// 第一次读取后触发的取消令牌。
     cancellation: CancellationToken,
 }
 

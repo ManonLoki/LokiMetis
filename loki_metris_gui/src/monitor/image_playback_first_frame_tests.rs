@@ -79,11 +79,17 @@ enum Cancel {
 
 /// 在同一真实绘制栈内撤销已排队的首帧通知，保留计数以核对没有迟到回执。
 struct CancelOnReady {
+    /// 被观察的播放器。
     image: gpui_kit::Entity<MonitorImageView>,
+    /// 首帧就绪时执行的撤销方式。
     action: Cancel,
+    /// 撤销已执行。
     applied: Rc<Cell<bool>>,
+    /// 收到的变化通知次数。
     notices: Rc<Cell<usize>>,
+    /// 撤销时的通知次数，用于检查之后没有迟到通知。
     notices_at_cancel: Rc<Cell<usize>>,
+    /// 播放器变化订阅。
     _observer: Subscription,
 }
 

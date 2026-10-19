@@ -12,9 +12,13 @@ mod tests {
 
     /// 隔离探针只保存受控开关及回调次数，不初始化原生服务或写入偏好。
     struct SwitchProbe {
+        /// 开关状态。
         checked: bool,
+        /// 开关禁用。
         disabled: bool,
+        /// 变化回调次数。
         changes: usize,
+        /// 焦点锚点。
         anchor: FocusHandle,
     }
 

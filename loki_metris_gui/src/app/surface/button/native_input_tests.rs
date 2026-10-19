@@ -8,9 +8,13 @@ use gpui_kit::{
 
 /// 对比历史内容层及普通内容层，使用同一真实原生按钮和动作计数。
 struct Probe {
+    /// 使用历史内容层。
     historical: bool,
+    /// 按钮禁用。
     disabled: bool,
+    /// 按钮加载中。
     loading: bool,
+    /// 点击次数。
     clicks: usize,
 }
 impl Render for Probe {

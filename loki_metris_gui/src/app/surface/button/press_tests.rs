@@ -10,8 +10,11 @@ use std::{cell::RefCell, rc::Rc};
 
 /// 两个同级按钮共享真实动作模型，owner只用于检查隐藏后动画是否已经静止。
 pub(super) struct Probe {
+    /// 使用小尺寸。
     pub(super) small: bool,
+    /// 两个按钮各自的点击次数。
     pub(super) clicks: [usize; 2],
+    /// 回传的按钮动效 owner。
     pub(super) motion: Rc<RefCell<Option<gpui_kit::WeakEntity<ButtonMotion>>>>,
 }
 impl Render for Probe {

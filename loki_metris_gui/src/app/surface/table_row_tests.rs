@@ -16,11 +16,17 @@ type Owners = Rc<RefCell<[Option<gpui_kit::WeakEntity<RowState>>; 2]>>;
 
 /// 同一实体可反转顺序、卸载邻居和切换主题，子按钮及选择框独立拥有动作。
 struct Probe {
+    /// 深色主题。
     dark: bool,
+    /// 两行各自是否显示。
     shown: [bool; 2],
+    /// 两行顺序是否反转。
     reversed: bool,
+    /// 两行选择框的勾选状态。
     selected: [bool; 2],
+    /// 两行按钮各自的点击次数。
     clicks: [usize; 2],
+    /// 各行状态 owner 的观察。
     owners: Owners,
 }
 
@@ -251,6 +257,7 @@ fn row_index_is_one_based_and_independent_from_stable_identity() {
 
 /// 同一张Table让品牌行与既有行消费完全相同的Size和Cell，避免复制padding公式。
 struct SizeProbe {
+    /// 表格尺寸档位。
     size: gpui_kit::component::Size,
 }
 

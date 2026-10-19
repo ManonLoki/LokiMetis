@@ -5,7 +5,9 @@ use std::{cell::RefCell, rc::Rc, time::{Duration, Instant}};
 
 /// 注入推进时钟的闭包只修改 TestClock，不运行 scheduler 或重入 App。
 struct Probe {
+    /// 每帧采样到的时刻。
     samples: Rc<RefCell<Vec<Instant>>>,
+    /// 推进测试时钟的闭包。
     advance: Rc<dyn Fn()>,
 }
 impl Render for Probe {

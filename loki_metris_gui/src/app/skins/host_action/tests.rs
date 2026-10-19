@@ -6,10 +6,15 @@ use std::{collections::VecDeque, sync::Mutex};
 /// 有序快照和安装回执模拟进程竞态，记录真实编排入口及完整授权。
 #[derive(Default)]
 struct Host {
+    /// 按顺序返回的实例快照。
     snapshots: Mutex<VecDeque<Vec<SkinHostInstance>>>,
+    /// 按顺序返回的安装结果。
     installed: Mutex<VecDeque<Result<InstallSkinResult, SkinError>>>,
+    /// 启动宿主时返回的错误。
     launch_error: Mutex<Option<SkinError>>,
+    /// 被调用的编排入口。
     calls: Mutex<Vec<String>>,
+    /// 收到的应用意图。
     intents: Mutex<Vec<PendingApply>>,
 }
 impl ApplyHost for Host {

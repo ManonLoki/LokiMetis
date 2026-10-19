@@ -17,7 +17,9 @@ use std::sync::Arc;
 
 /// 空投影模拟真实位置卸载，图片仍由生产播放器完整绘制。
 struct PlaybackWindow {
+    /// 播放器。
     image: Entity<MonitorImageView>,
+    /// 是否在投影中绘制播放器。
     shown: bool,
 }
 impl Render for PlaybackWindow {
@@ -32,10 +34,15 @@ impl Render for PlaybackWindow {
 
 /// 测试额外强持播放器，覆盖窗口已关闭但 Entity 尚未释放的原生路径。
 struct SharedWindows {
+    /// 桌宠测试夹具。
     pet: Fixture,
+    /// 另一个播放窗口。
     other: AnyWindowHandle,
+    /// 该窗口的根视图。
     root: Entity<PlaybackWindow>,
+    /// 被观察的播放器。
     image: Entity<MonitorImageView>,
+    /// 测试图片源。
     source: MonitorImageSource,
 }
 

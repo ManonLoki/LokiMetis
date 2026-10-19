@@ -13,11 +13,17 @@ use gpui_kit::{
 
 /// 父裁切复选框回归的测试根视图：记录勾选、禁用、变更次数、悬停与圆角等可观察状态。
 struct Probe {
+    /// 复选框勾选状态。
     checked: bool,
+    /// 复选框禁用。
     disabled: bool,
+    /// 勾选变化次数。
     changes: usize,
+    /// 指针悬停。
     hovered: bool,
+    /// 父容器圆角半径。
     radius: f32,
+    /// 焦点锚点。
     anchor: FocusHandle,
 }
 impl Render for Probe {

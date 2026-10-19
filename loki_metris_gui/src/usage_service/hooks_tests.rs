@@ -11,7 +11,9 @@ use std::{
 
 /// 失败和正常结束都先关闭服务，再让临时目录释放。
 struct Fixture {
+    /// 测试用量服务。
     service: Arc<UsageService>,
+    /// 测试临时目录。
     root: tempfile::TempDir,
 }
 impl Drop for Fixture {

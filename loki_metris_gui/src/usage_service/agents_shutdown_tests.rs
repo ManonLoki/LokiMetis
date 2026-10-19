@@ -8,7 +8,9 @@ use std::time::Duration;
 
 /// 真实store mutation锁的测试持有者；panic也释放并join自己的线程。
 pub(crate) struct MutationBlocker {
+    /// 放行持锁线程的信号。
     release: Option<mpsc::Sender<()>>,
+    /// 持有 mutation 锁的线程。
     worker: Option<JoinHandle<()>>,
 }
 impl MutationBlocker {
@@ -61,7 +63,9 @@ pub(crate) fn pet_background_task_count(service: &UsageService) -> usize {
 
 /// 受控晚到的正式store工作；接受/句柄所有权/超时均使用真实service.background。
 struct DelayedPosition {
+    /// 放行晚到工作的信号。
     release: Option<mpsc::Sender<()>>,
+    /// 工作结果的接收端。
     receipt: Option<mpsc::Receiver<Result<MonitorSettings, HookError>>>,
 }
 impl DelayedPosition {

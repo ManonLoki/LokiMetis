@@ -152,7 +152,9 @@ fn preserves_cumulative_fallback_when_last_is_missing() {
 /// 一次 `token_count` 快照：`last` 与会话 `total`，字段均来自同一 fixture。
 #[derive(Clone)]
 struct TokenCountSnapshot {
+    /// 本次调用用量。
     last: Option<TokenUsage>,
+    /// 会话累计用量。
     cumulative: Option<TokenUsage>,
 }
 

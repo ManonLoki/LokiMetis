@@ -11,10 +11,15 @@ use std::{cell::Cell, collections::HashSet, rc::Rc};
 
 /// 无身份包装只移动子项的实际 prepaint/paint，保留子 LayoutId 与输入所有权。
 struct DeferredProbe {
+    /// 被包装的子元素。
     child: Option<AnyElement>,
+    /// deferred 优先级。
     priority: usize,
+    /// 使用 legacy deferred 路径。
     legacy: bool,
+    /// 在 prepaint 时取消预约。
     cancel: bool,
+    /// 绘制时的内容裁切。
     mask: Option<ContentMask<Pixels>>,
 }
 
@@ -168,6 +173,7 @@ impl ActualTree {
 
 /// 静态探针保留每一帧同一构造合同，输入事件与辅助节点仍只登记一次。
 struct OrderRoot {
+    /// 在嵌套层级中构造。
     nested: bool,
 }
 
@@ -273,6 +279,7 @@ fn monitor_sticky_api_nested_reservations_preserve_full_order(cx: &mut TestAppCo
 
 /// 仅用于观测真实 Render 次数的无节点缓存，证明 legacy 路径未全局失效。
 struct UnrelatedCache {
+    /// Render 次数。
     renders: Rc<Cell<usize>>,
 }
 impl Render for UnrelatedCache {
@@ -285,8 +292,11 @@ impl Render for UnrelatedCache {
 
 /// 缓存视图可直接预约、在 legacy deferred 后代预约，或再包一层真实缓存父。
 struct CacheNode {
+    /// Render 次数。
     renders: Rc<Cell<usize>>,
+    /// 预约方式：直接预约、legacy 后代预约或再包一层缓存父。
     kind: usize,
+    /// 嵌套的缓存子节点。
     child: Option<gpui_kit::Entity<CacheNode>>,
 }
 impl Render for CacheNode {
@@ -324,7 +334,9 @@ impl Render for CacheNode {
 
 /// 根本身正常重绘，相关缓存与无关缓存拥有不同实体和独立生命周期。
 struct CacheRoot {
+    /// 相关缓存子树。
     relevant: gpui_kit::Entity<CacheNode>,
+    /// 无关缓存。
     unrelated: gpui_kit::Entity<UnrelatedCache>,
 }
 impl Render for CacheRoot {

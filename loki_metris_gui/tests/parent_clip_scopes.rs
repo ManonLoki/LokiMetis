@@ -19,9 +19,13 @@ include!("common/exclusion_elements.rs");
 /// 视图属性只持有观测与真实图片，不镜像任何输入业务状态。
 #[derive(Clone)]
 struct TargetState {
+    /// 每次绘制的观测记录。
     records: Rc<RefCell<Vec<Observation>>>,
+    /// 最近读取的辅助节点边界。
     ax_bounds: Rc<RefCell<Option<gpui_kit::accesskit::Rect>>>,
+    /// 目标绘制的真实图片。
     image: Arc<RenderImage>,
+    /// Render 次数。
     renders: Rc<Cell<usize>>,
 }
 impl TargetState {
@@ -56,7 +60,9 @@ impl TargetState {
 
 /// 真实cached实体记录Render次数，用于证明key相等复用、变化及移除重建。
 struct CachedTarget {
+    /// 观测状态。
     state: TargetState,
+    /// 缓存键模式；变化时应重建。
     mode: usize,
 }
 impl Render for CachedTarget {
@@ -78,11 +84,17 @@ impl Render for CachedTarget {
 
 /// 矩形状态属于根render输入；修改它不会notify cached子实体。
 struct ScopeRoot {
+    /// 当前排除的矩形。
     excluded: Rc<RefCell<Vec<Bounds<Pixels>>>>,
+    /// 嵌套作用域的排除矩形。
     nested: Vec<Bounds<Pixels>>,
+    /// 父容器圆角半径。
     radius: Rc<Cell<f32>>,
+    /// 被测目标的观测状态。
     state: TargetState,
+    /// 缓存子实体。
     cached: Option<gpui_kit::Entity<CachedTarget>>,
+    /// 作用域外目标的观测记录。
     outside: Rc<RefCell<Vec<Observation>>>,
 }
 impl Render for ScopeRoot {

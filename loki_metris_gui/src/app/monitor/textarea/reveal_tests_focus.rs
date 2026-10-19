@@ -65,13 +65,17 @@ fn shell_textarea_inline_picker_tab_reveals_still_mounted_input(cx: &mut TestApp
 
 /// 单独测试实体接收真实 bounds 事件，避免持有 Shell 可变借用时执行租约校验。
 struct GeometryObserver {
+    /// bounds 变化订阅。
     _bounds: gpui_kit::Subscription,
 }
 
 /// 记录真实 resize 回调中、测试框架自动绘制之前的可观察滚动结果。
 struct GeometryDelivery {
+    /// 回调前的滚动偏移。
     before: gpui_kit::Point<Pixels>,
+    /// resize 回调后的滚动偏移。
     after_callback: gpui_kit::Point<Pixels>,
+    /// 随后滚轮后的滚动偏移。
     after_wheel: gpui_kit::Point<Pixels>,
 }
 

@@ -9,14 +9,23 @@ use std::{sync::Arc, time::Duration};
 
 /// 同一 owner 跨主题、颜色与几何更新，绘制闭包只持有弱引用。
 struct Probe {
+    /// 被观察的材质 owner；卸载后为 None。
     owner: Option<Entity<MaterialState>>,
+    /// 深色主题。
     dark: bool,
+    /// 卡片宽度。
     width: Pixels,
+    /// 卡片高度。
     height: Pixels,
+    /// 卡片左偏移。
     left: Pixels,
+    /// 圆角半径。
     radius: Pixels,
+    /// 顶边宽度。
     top: Pixels,
+    /// 顶边强调色。
     accent: Option<Hsla>,
+    /// 在亚像素位置绘制。
     paint_subpixel: bool,
 }
 

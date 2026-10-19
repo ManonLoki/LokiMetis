@@ -10,6 +10,7 @@ use std::{cell::Cell, rc::Rc};
 
 /// 两个原生按钮使窗口隔离与订阅释放都可通过真实焦点和动作观察。
 struct BareButtons {
+    /// 按钮点击次数。
     clicks: Rc<Cell<usize>>,
 }
 

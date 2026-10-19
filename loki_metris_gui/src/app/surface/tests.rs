@@ -15,8 +15,11 @@ type Owners = Rc<RefCell<[Option<gpui_kit::WeakEntity<MaterialState>>; 2]>>;
 
 /// 同一父容器内的两张卡片共享局部state键，但必须由各自ElementId形成独立路径。
 struct MultiProbe {
+    /// 两张卡片各自是否显示。
     shown: [bool; 2],
+    /// 各卡片状态 owner 的观察。
     owners: Owners,
+    /// 深色主题。
     dark: bool,
 }
 
@@ -49,8 +52,11 @@ impl Render for MultiProbe {
 
 /// 卡片只承载一个原生按钮，点击留白不应回传子控件动作。
 struct Probe {
+    /// 按钮点击次数。
     clicks: usize,
+    /// 卡片显示。
     shown: bool,
+    /// 深色主题。
     dark: bool,
 }
 

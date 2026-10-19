@@ -9,12 +9,19 @@ use std::time::Duration;
 
 /// 可变尺寸、主题和材质共用同一 owner，闭包仅持有弱引用。
 struct Probe {
+    /// 被观察的材质 owner。
     owner: Entity<MaterialState>,
+    /// 深色主题。
     dark: bool,
+    /// 圆角半径。
     radius: Pixels,
+    /// 卡片宽度。
     width: Pixels,
+    /// 卡片高度。
     height: Pixels,
+    /// 卡片左偏移。
     left: Pixels,
+    /// 材质模式。
     material: MaterialKind,
 }
 

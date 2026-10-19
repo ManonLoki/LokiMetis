@@ -5,7 +5,10 @@ use crate::app::surface::{raster::ShadowGeometry, textures::Retired};
 use gpui_kit::{AppContext, Context, Corners, IntoElement, Render, TestAppContext, WindowOptions, canvas, prelude::*, px, test::TestWindowExt};
 
 /// 极小图片只承担真实 atlas 生命周期检查，不替代阴影像素 oracle。
-struct Probe { image: Arc<RenderImage> }
+struct Probe {
+    /// 上传到 atlas 的测试纹理。
+    image: Arc<RenderImage>,
+}
 impl Render for Probe {
     /// 绘制共享实际 ImageId，之后可直接观察 atlas 是否保留或移除。
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {

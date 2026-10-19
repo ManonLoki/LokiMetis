@@ -12,7 +12,9 @@ use gpui_kit::{
 
 /// 独立工具栏夹具，只记录真实按钮激活，不启动后台服务。
 pub(super) struct Probe {
+    /// 工具栏禁用。
     pub(super) disabled: bool,
+    /// 两个按钮各自的点击次数。
     pub(super) clicks: [usize; 2],
 }
 impl Render for Probe {

@@ -11,7 +11,14 @@ mod native {
     use std::sync::Arc;
 
     /// 只包装绘制与命中，不改变祖先布局或字体参数。
-    struct Scaled<E: Element> { inner: E, scale: f32, shift: Point<Pixels> }
+    struct Scaled<E: Element> {
+        /// 被变换的内层元素。
+        inner: E,
+        /// 绘制与命中的缩放比例。
+        scale: f32,
+        /// 绘制与命中的位移。
+        shift: Point<Pixels>,
+    }
     impl<E: Element> IntoElement for Scaled<E> {
         /// 自身即参与布局与绘制的元素，不再额外包装。
         type Element = Self;
@@ -58,7 +65,10 @@ mod native {
     }
 
     /// 各通道独占一种内容，便于在实际像素中区分字形、SVG和背景。
-    struct Probe { scale: f32 }
+    struct Probe {
+        /// 应用到内容的缩放比例。
+        scale: f32,
+    }
     impl Render for Probe {
         /// 父兄弟使用独立颜色，退出子域后仍必须逐像素不变。
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {

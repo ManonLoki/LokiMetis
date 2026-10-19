@@ -26,8 +26,11 @@ const TEST_INSTANCE_ID: &str = "01234567-89ab-4def-8123-456789abcdef";
 
 /// 每次 poll_read 只交出一个分片，用来复现 TCP 拆包。
 struct SequentialChunks {
+    /// 按顺序交出的分片。
     chunks: Vec<Vec<u8>>,
+    /// 当前分片下标。
     index: usize,
+    /// 当前分片内已交出的字节数。
     offset: usize,
 }
 
