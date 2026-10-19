@@ -18,20 +18,30 @@ const MAX_TRANSCRIPT_FILES: usize = 25_000;
 
 /// 一个已经通过相对布局与链接边界检查的 JSONL 候选。
 pub(super) struct WorkbuddyProjectFile {
+    /// 文件路径。
     pub(super) path: PathBuf,
+    /// 相对来源键。
     pub(super) relative_key: String,
+    /// 派生项目键的材料。
     pub(super) project_key_material: String,
+    /// 顶层或 subagent 来源。
     pub(super) origin: WorkbuddyUsageOrigin,
 }
 
 /// 路径枚举的文件集合和覆盖计数。
 #[derive(Default)]
 pub(super) struct WorkbuddyProjectFiles {
+    /// 通过检查的 JSONL 候选。
     pub(super) files: Vec<WorkbuddyProjectFile>,
+    /// 顶层会话文件数。
     pub(super) top_level_file_count: u64,
+    /// subagent 文件数。
     pub(super) subagent_file_count: u64,
+    /// 权限拒绝计数。
     pub(super) permission_denied_count: u64,
+    /// 跳过计数。
     pub(super) skipped_count: u64,
+    /// 预算已耗尽。
     pub(super) budget_exhausted: bool,
 }
 

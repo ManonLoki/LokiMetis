@@ -61,6 +61,7 @@ impl TraversalStopReason {
 /// 把兜底遍历的绝对 deadline 与协调器取消信号组合为统一边界检查。
 #[derive(Debug, Clone, Copy)]
 pub(super) struct MetadataTraversalBudget {
+    /// 兜底遍历的绝对截止时刻。
     deadline: Instant,
 }
 
@@ -129,10 +130,15 @@ pub(super) struct InspectionBatch {
 
 /// 覆盖整次发现生命周期的固定目录 worker 池，避免每轮反复创建原生线程。
 pub(super) struct MetadataWorkerPool {
+    /// 派发 (序号, 目录) 的通道；关闭池时取走以让 worker 退出。
     sender: Option<mpsc::SyncSender<(usize, PathBuf)>>,
+    /// worker 回传的 (序号, 结果)。
     results: mpsc::Receiver<(usize, Result<DirectoryResult, ()>)>,
+    /// worker 线程句柄。
     workers: Vec<JoinHandle<()>>,
+    /// 发现协调器，用于观察取消。
     coordinator: RootDiscoveryCoordinator,
+    /// 遍历预算。
     budget: MetadataTraversalBudget,
 }
 

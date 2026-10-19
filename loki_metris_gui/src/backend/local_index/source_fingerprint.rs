@@ -7,9 +7,13 @@ use std::{fs::File, io::{Read, Seek, SeekFrom}};
 /// 摘要格式独立版本化，旧64字节身份首次重建一次，无需改变数据库 schema。
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Fingerprint {
+    /// 摘要格式版本。
     version: u8,
+    /// 摘要覆盖的字节数。
     length: u64,
+    /// 摘要时的文件戳。
     stamp: FileStamp,
+    /// 内容摘要。
     digest: u64,
 }
 

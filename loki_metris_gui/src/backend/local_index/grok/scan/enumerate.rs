@@ -17,31 +17,48 @@ use super::super::path_rules::is_grok_updates_path;
 /// 汇总一次扫描内跨目录、跨文件累积的可变计数与剩余预算。
 #[derive(Default, Clone)]
 pub(super) struct ScanCounters {
+    /// 剩余允许遍历的目录数。
     pub(super) remaining_directories: u64,
+    /// 剩余允许处理的目录项数。
     pub(super) remaining_entries: u64,
+    /// 已处理的文件数。
     pub(super) files_scanned: u64,
+    /// 未变化、跳过重建的文件数。
     pub(super) unchanged_files: u64,
+    /// 整份重建的文件数。
     pub(super) rebuilt_files: u64,
+    /// 新增写入的调用数。
     pub(super) calls_added: u64,
+    /// 权限拒绝计数。
     pub(super) permission_denied_count: u64,
+    /// 因链接、非本地卷等原因跳过的计数。
     pub(super) skipped_count: u64,
+    /// 格式与数据质量告警计数。
     pub(super) warning_count: u64,
+    /// 预算已耗尽，枚举不完整。
     pub(super) budget_exhausted: bool,
 }
 
 /// 一个根内按相对路径累积的保留与拒绝来源标签。
 #[derive(Default)]
 pub(super) struct RootSourceLabels {
+    /// 应保留索引的来源相对标签。
     pub(super) retained: std::collections::HashSet<String>,
+    /// 应拒绝索引的来源相对标签。
     pub(super) rejected: std::collections::HashSet<String>,
 }
 
 /// 枚举结果：更新后的计数、标签、完整性与待索引路径。
 pub(super) struct EnumerateOutcome {
+    /// 更新后的计数。
     pub(super) counters: ScanCounters,
+    /// 更新后的保留与拒绝来源标签。
     pub(super) labels: RootSourceLabels,
+    /// 已完整覆盖该根。
     pub(super) enumeration_complete: bool,
+    /// 因取消提前结束。
     pub(super) cancelled: bool,
+    /// 待索引的文件路径。
     pub(super) paths: Vec<PathBuf>,
 }
 

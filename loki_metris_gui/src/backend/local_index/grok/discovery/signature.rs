@@ -16,10 +16,15 @@ const MAX_SIGNATURE_RECORDS_PER_FILE: u64 = 64;
 
 /// 结构签名探测过程中共享的有界预算。
 pub(crate) struct SignatureBudget<'a> {
+    /// 取消令牌。
     cancellation: &'a CancellationToken,
+    /// 剩余目录预算。
     remaining_directories: u64,
+    /// 剩余目录项预算。
     remaining_entries: u64,
+    /// 剩余文件预算。
     remaining_files: u64,
+    /// 剩余读取字节预算。
     remaining_bytes: u64,
 }
 
@@ -55,11 +60,16 @@ pub(crate) enum Inspection {
 #[derive(Deserialize)]
 /// 仅反序列化 Grok 更新签名所需的外层事件字段。
 struct SignatureEnvelope {
+    /// 更新类型。
     #[serde(rename = "sessionUpdate")]
     session_update: Option<String>,
+    /// 嵌套 update。
     update: Option<Box<SignatureEnvelope>>,
+    /// 嵌套 params。
     params: Option<Box<SignatureEnvelope>>,
+    /// 用量。
     usage: Option<SignatureUsage>,
+    /// 按模型拆分的用量，只判断是否存在。
     #[serde(rename = "modelUsage")]
     model_usage: Option<serde_json::Value>,
 }
@@ -67,8 +77,10 @@ struct SignatureEnvelope {
 #[derive(Deserialize)]
 /// 仅反序列化判断已完成用量所需的计数字段。
 struct SignatureUsage {
+    /// 输入 Token。
     #[serde(rename = "inputTokens", alias = "input_tokens")]
     input_tokens: Option<u64>,
+    /// 输出 Token。
     #[serde(rename = "outputTokens", alias = "output_tokens")]
     output_tokens: Option<u64>,
 }

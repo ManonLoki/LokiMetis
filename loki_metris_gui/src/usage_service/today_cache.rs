@@ -44,8 +44,11 @@ pub(super) struct IndexKey {
 pub(super) struct Cached {
     /// 命中条件：口径、民用日与各 Agent 的索引文件和覆盖报告。
     key: IndexKey,
+    /// 读取时各 Agent 的 parser 版本与各数据根“ID:启用”组成的签名，用于判断来源是否变化。
     pub(super) signature: Vec<String>,
+    /// 读取时所选 Agent 的索引是否全部就绪。
     pub(super) all_ready: bool,
+    /// 缓存的当日窗口摘要。
     pub(super) records: LocalRecordsSummary,
 }
 

@@ -20,11 +20,17 @@ const MAX_CACHED_RECORDS: usize = 100_000;
 
 /// 单个文件完整解析后的安全投影；记录数不超过全局记录预算时才会入缓存。
 pub(super) struct ParsedFile {
+    /// 解析时的文件戳；不一致即失效。
     stamp: FileStamp,
+    /// 相对来源键。
     relative_key: String,
+    /// 派生项目键的材料。
     project_key_material: String,
+    /// 顶层或 subagent 来源。
     origin: WorkbuddyUsageOrigin,
+    /// 解析出的用量记录。
     pub(super) records: Vec<WorkbuddyUsageEventRecord>,
+    /// 质量计数。
     pub(super) warnings: ProjectJsonlWarnings,
 }
 

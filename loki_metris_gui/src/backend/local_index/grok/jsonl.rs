@@ -129,36 +129,52 @@ pub struct GrokJsonlParseReport {
 #[derive(Deserialize)]
 /// 只承载 Grok 单行事件解析所需的外层字段。
 struct Envelope {
+    /// 更新类型。
     #[serde(rename = "sessionUpdate")]
     session_update: Option<String>,
+    /// 嵌套的 update 对象。
     update: Option<Box<Envelope>>,
+    /// 嵌套的 params 对象。
     params: Option<Box<Envelope>>,
+    /// 本轮用量。
     usage: Option<RawUsage>,
+    /// 按模型拆分的用量。
     #[serde(rename = "modelUsage")]
     model_usage: Option<BTreeMap<String, RawUsage>>,
+    /// 时间戳，可能是数字或字符串。
     #[serde(default)]
     timestamp: Option<serde_json::Value>,
+    /// 创建时间字符串。
     #[serde(rename = "createdAt")]
     created_at: Option<String>,
+    /// 模型名。
     model: Option<String>,
+    /// 轮次 ID。
     #[serde(rename = "turnId")]
     turn_id: Option<String>,
+    /// 事件 ID。
     id: Option<String>,
 }
 
 #[derive(Deserialize, Clone)]
 /// 保存 Grok 更新行中未经规范化的 Token 计数。
 struct RawUsage {
+    /// 输入 Token。
     #[serde(rename = "inputTokens", alias = "input_tokens")]
     input_tokens: Option<u64>,
+    /// 输出 Token。
     #[serde(rename = "outputTokens", alias = "output_tokens")]
     output_tokens: Option<u64>,
+    /// 上游总 Token。
     #[serde(rename = "totalTokens", alias = "total_tokens")]
     total_tokens: Option<u64>,
+    /// 缓存读取 Token。
     #[serde(rename = "cachedReadTokens", alias = "cached_read_tokens")]
     cached_read_tokens: Option<u64>,
+    /// 缓存写入 Token。
     #[serde(rename = "cacheCreationTokens", alias = "cache_creation_tokens")]
     cache_creation_tokens: Option<u64>,
+    /// 推理输出 Token。
     #[serde(rename = "reasoningTokens", alias = "reasoning_tokens")]
     reasoning_tokens: Option<u64>,
     /// 完成轮次用量对象内按模型拆分的用量；键是模型 slug。
@@ -168,12 +184,19 @@ struct RawUsage {
 
 /// 区分一行被忽略、形成调用或导致文件级失败的结果。
 enum LineOutcome {
+    /// 形成一条或多条调用。
     Calls(Vec<UsageCall>),
+    /// 与用量无关，忽略。
     Ignored,
+    /// 无法识别的事件类型。
     Unknown,
+    /// JSON 损坏。
     Malformed,
+    /// 完成事件缺少用量。
     MissingUsage,
+    /// 用量不满足 Token 不变量。
     InvalidUsage,
+    /// 时间戳无效。
     InvalidTimestamp,
 }
 

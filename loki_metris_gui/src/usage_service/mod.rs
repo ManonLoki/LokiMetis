@@ -67,6 +67,7 @@ pub struct ScanStatus {
     pub running: bool,
     /// 在途扫描的 Agent；全部 Agent 扫描时为 None。
     pub client:Option<SourceClientKind>,
+    /// 扫描轮次修订号，只在一轮完成、失败或取消收尾后递增。
     pub revision: u64,
     /// 最近一轮扫描的失败类别。
     pub error: Option<&'static str>,

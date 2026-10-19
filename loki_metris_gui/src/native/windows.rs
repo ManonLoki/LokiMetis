@@ -18,10 +18,15 @@ const FLASHW_ALL: u32 = 3;
 /// size 是结构体字节数，flags 选择闪烁区域，count 为次数；timeout 以毫秒计，零使用系统默认间隔。
 #[repr(C)]
 struct FlashInfo {
+    /// 结构体字节数，调用前必须设置。
     size: u32,
+    /// 要闪烁的窗口句柄，调用期间必须有效。
     window: Handle,
+    /// 闪烁区域与停止条件标志（FLASHW_*）。
     flags: u32,
+    /// 闪烁次数。
     count: u32,
+    /// 闪烁间隔（毫秒）；零使用系统光标闪烁间隔。
     timeout: u32,
 }
 

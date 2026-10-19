@@ -141,20 +141,31 @@ impl<'a> SignatureProbeContext<'a> {
 
 /// 区分有效根、普通目录、结构拒绝、用户取消与安全预算耗尽。
 pub(crate) enum RootInspection {
+    /// 有效根。
     Found(DiscoveredRoot),
+    /// 普通目录。
     NotRoot,
+    /// 结构签名明确不匹配。
     RejectedSignature,
+    /// I/O 失败，无法判断。
     Indeterminate,
+    /// 用户取消。
     Cancelled,
+    /// 安全预算耗尽。
     BudgetExhausted,
 }
 
 /// 描述一个会话区域的最小 rollout 结构探测结果，并把 I/O 不确定与确认拒绝分开。
 enum SignatureInspection {
+    /// 结构匹配。
     Matched,
+    /// 确认不匹配。
     Rejected,
+    /// I/O 失败，无法判断。
     Indeterminate,
+    /// 用户取消。
     Cancelled,
+    /// 预算耗尽。
     BudgetExhausted,
 }
 

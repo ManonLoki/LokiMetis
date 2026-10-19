@@ -9,8 +9,11 @@ use std::{
 
 /// 已成功落盘的状态是唯一发送依据，失败变更不会提交到内存。
 pub(crate) struct Ledger {
+    /// 账本文件路径。
     path: PathBuf,
+    /// 最近一次成功落盘的里程碑状态。
     pub state: MilestoneState,
+    /// 已有账本读取或解析失败；此时状态以 Storage 问题初始化，并作为错误报告给设置页。
     pub read_error: bool,
 }
 impl Ledger {

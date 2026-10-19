@@ -15,6 +15,7 @@ const SYSTEM_INDEX_RESULT_LIMIT: usize = 10_000;
 /// 把取消、总墙钟预算和结果数量上限折叠成每个页/行边界复用的判定。
 #[derive(Debug, Clone, Copy)]
 struct SystemIndexBudget {
+    /// 系统索引查询的绝对截止时刻。
     deadline: Instant,
 }
 

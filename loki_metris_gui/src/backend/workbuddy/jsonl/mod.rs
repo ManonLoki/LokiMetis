@@ -35,18 +35,24 @@ const MAX_USAGE_RECORDS: usize = 500_000;
 
 /// 一次 project JSONL 读取的安全投影与覆盖结论。
 pub(super) struct WorkbuddyProjectUsageRead {
+    /// 读取到的用量记录。
     pub(super) records: Vec<WorkbuddyUsageEventRecord>,
+    /// 覆盖结论。
     pub(super) coverage: CoverageReport,
 }
 
 /// 只反序列化顶层事件中统计必需的白名单字段。
 #[derive(Deserialize)]
 struct ProjectEvent<'a> {
+    /// 事件时间（Unix 毫秒）。
     timestamp: Option<i64>,
+    /// 会话 ID。
     #[serde(borrow, rename = "sessionId")]
     session_id: Option<JsonString<'a>>,
+    /// 工作目录，只用于派生项目键。
     #[serde(borrow)]
     cwd: Option<JsonString<'a>>,
+    /// provider 层数据。
     #[serde(borrow, rename = "providerData")]
     provider_data: Option<ProviderData<'a>>,
 }
@@ -66,11 +72,15 @@ impl std::ops::Deref for JsonString<'_> {
 /// WorkBuddy provider 层的实际模型、调用 ID 与直接 usage。
 #[derive(Deserialize)]
 struct ProviderData<'a> {
+    /// 消息 ID，与会话 ID 组成稳定调用 ID。
     #[serde(borrow, rename = "messageId")]
     message_id: Option<JsonString<'a>>,
+    /// 实际模型。
     #[serde(borrow)]
     model: Option<JsonString<'a>>,
+    /// 直接用量。
     usage: Option<ProviderUsage>,
+    /// 原始用量，只取积分。
     #[serde(rename = "rawUsage")]
     raw_usage: Option<RawUsage>,
 }
@@ -78,26 +88,33 @@ struct ProviderData<'a> {
 /// 直接 provider usage 是 Token 与请求数的唯一来源。
 #[derive(Deserialize)]
 struct ProviderUsage {
+    /// 全部输入 Token。
     #[serde(rename = "inputTokens")]
     input_tokens: Option<i64>,
+    /// 输入 Token 明细。
     #[serde(rename = "inputTokensDetails")]
     input_token_details: Option<Vec<InputTokenDetail>>,
+    /// 输出 Token。
     #[serde(rename = "outputTokens")]
     output_tokens: Option<i64>,
+    /// 上游总 Token。
     #[serde(rename = "totalTokens")]
     total_tokens: Option<i64>,
+    /// 请求数。
     requests: Option<i64>,
 }
 
 /// 缓存输入只读取 `cached_tokens`，它是 input 的子集。
 #[derive(Deserialize)]
 struct InputTokenDetail {
+    /// 命中缓存的输入 Token。
     cached_tokens: Option<i64>,
 }
 
 /// raw usage 仅用于逐请求积分；其它 provider 私有字段全部忽略。
 #[derive(Deserialize)]
 struct RawUsage {
+    /// 逐请求积分。
     #[serde(default, deserialize_with = "deserialize_optional_f64")]
     credit: Option<f64>,
 }
@@ -116,10 +133,15 @@ where
 /// 流式解析质量计数，不携带文件名或记录正文。
 #[derive(Clone, Copy, Default)]
 struct ProjectJsonlWarnings {
+    /// 损坏行数。
     malformed_lines: u64,
+    /// 超长行数。
     oversized_lines: u64,
+    /// 时间戳无效的行数。
     invalid_timestamp: u64,
+    /// 身份无效的行数。
     invalid_identity: u64,
+    /// 用量无效的行数。
     invalid_usage: u64,
 }
 
@@ -147,11 +169,17 @@ impl ProjectJsonlWarnings {
 
 /// 完整行投影后的稳定分类；普通消息与工具事件属于 `Ignored`。
 enum LineOutcome {
+    /// 形成一条用量记录。
     Usage(Box<WorkbuddyUsageEventRecord>),
+    /// 普通消息或工具事件。
     Ignored,
+    /// JSON 损坏。
     Malformed,
+    /// 时间戳无效。
     InvalidTimestamp,
+    /// 会话或消息 ID 无效。
     InvalidIdentity,
+    /// 用量不满足不变量。
     InvalidUsage,
 }
 
@@ -281,7 +309,9 @@ fn open_fixed_prefix_stamped(path: &Path) -> std::io::Result<(File, FileStamp)> 
 
 /// 单文件解析报告。
 struct ProjectStreamReport {
+    /// 质量计数。
     warnings: ProjectJsonlWarnings,
+    /// 记录预算已耗尽。
     record_budget_exhausted: bool,
 }
 

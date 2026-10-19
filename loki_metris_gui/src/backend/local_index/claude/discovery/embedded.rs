@@ -7,19 +7,28 @@ use super::{CancellationToken, Candidate};
 /// 内嵌根枚举结果；不携带 transcript 内容。
 #[derive(Default)]
 pub(super) struct EmbeddedCandidates {
+    /// 枚举到的根候选。
     pub(super) candidates: Vec<Candidate>,
+    /// 影响覆盖结论的计数。
     pub(super) quality: EnumerationQuality,
 }
 
 /// 固定容器枚举中影响覆盖结论的计数。
 #[derive(Default)]
 pub(super) struct EnumerationQuality {
+    /// 已扫描的目录数。
     pub(super) directories_scanned: u64,
+    /// 权限拒绝计数。
     pub(super) permission_denied_count: u64,
+    /// 跳过的总数。
     pub(super) skipped_count: u64,
+    /// 因符号链接跳过的数量。
     pub(super) symlink_skipped_count: u64,
+    /// 因网络卷跳过的数量。
     pub(super) network_skipped_count: u64,
+    /// 预算已耗尽。
     pub(super) budget_exhausted: bool,
+    /// 已取消。
     pub(super) cancelled: bool,
 }
 

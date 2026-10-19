@@ -5,8 +5,11 @@ use std::io::{self, BufRead};
 /// 只有观察到换行才提交正常行或超长行；文件末尾半行留待下一轮读取。
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum LineRead {
+    /// 读到完整一行。
     Complete,
+    /// 整行超过上限，已丢弃至换行。
     Oversized,
+    /// 到达文件末尾，半行留待下一轮。
     End,
 }
 
@@ -143,7 +146,9 @@ mod tests {
 
     /// 在指定字节后固定失败的真实 Read，避免错误被后续成功读取掩盖。
     struct FaultAfterPrefix {
+        /// 失败前正常返回的字节。
         prefix: Cursor<Vec<u8>>,
+        /// 之后固定返回的错误类型。
         kind: io::ErrorKind,
     }
 

@@ -171,7 +171,9 @@ pub(crate) async fn read_workbuddy_usage_snapshot_in_zone(
 
 /// 一次 WorkBuddy 读取返回同一快照下的通用统计页与逐模型明细。
 pub(crate) struct WorkbuddyUsageDetails {
+    /// 通用统计页。
     pub(crate) statistics: UsageStatisticsPage,
+    /// 逐模型明细。
     pub(crate) model_usage: WorkbuddyModelUsageWindow,
 }
 
@@ -204,8 +206,11 @@ pub(crate) async fn read_workbuddy_usage_details(
 
 /// adapter 内一次读取的全部安全输入。
 struct WorkbuddyUsageInputs {
+    /// 读取到的用量记录。
     records: Vec<loki_metris_core::WorkbuddyUsageEventRecord>,
+    /// 覆盖报告。
     coverage: CoverageReport,
+    /// 根 ID 到展示别名的映射。
     root_aliases: BTreeMap<String, String>,
 }
 
@@ -259,6 +264,7 @@ fn read_usage_inputs_blocking(
 /// trace JSON 文件的最小反序列化形状；未声明的 spans/正文由 serde 丢弃。
 #[derive(Deserialize)]
 struct TraceFileEnvelope {
+    /// trace 元数据。
     trace: TraceMeta,
 }
 
@@ -266,8 +272,11 @@ struct TraceFileEnvelope {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TraceMeta {
+    /// 开始时间字符串。
     started_at: String,
+    /// 耗时（毫秒）。
     duration: i64,
+    /// 整体状态。
     status: String,
 }
 

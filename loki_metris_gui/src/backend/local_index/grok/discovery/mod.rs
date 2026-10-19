@@ -85,9 +85,13 @@ pub struct GrokDiscoveryResult {
 
 /// 表示待核对的 Grok 本机根候选及其发现来源。
 struct Candidate {
+    /// 已登记时的根 ID。
     existing_root_id: Option<String>,
+    /// 候选目录。
     path: PathBuf,
+    /// 展示别名。
     alias: String,
+    /// 发现方式。
     method: DiscoveryMethod,
 }
 

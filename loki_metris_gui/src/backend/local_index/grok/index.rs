@@ -27,29 +27,45 @@ use crate::backend::local_index::scan::CancellationToken;
 
 /// 一个 Grok updates 文件的增量索引结果。
 pub(super) struct GrokFileIndexOutcome {
+    /// 新增的调用数。
     pub(super) added_calls: u64,
+    /// 整份重建。
     pub(super) rebuilt: bool,
+    /// 文件未变化。
     pub(super) unchanged: bool,
+    /// 解析告警计数。
     pub(super) warnings: GrokJsonlWarningCounts,
+    /// 因取消提前结束。
     pub(super) cancelled: bool,
 }
 
 /// 保存 Grok 索引前已验证的来源身份与现有解析状态。
 struct GrokIdentityPrep {
+    /// 来源 ID。
     source_id: String,
+    /// 相对展示标签。
     relative_label: String,
+    /// 已验证的完整来源身份。
     identity: String,
+    /// 打开时观测到的字节数。
     observed_size: u64,
+    /// 修改时间（Unix 毫秒）。
     modified_at_epoch_ms: i64,
+    /// 派生项目键的种子。
     project_seed: Option<String>,
+    /// 派生线程键的种子。
     thread_seed: String,
+    /// 已打开的来源文件。
     file: File,
 }
 
 /// 汇总单轮 Grok 解析得到的调用批次与新检查点。
 struct ParsedGrokBatches {
+    /// 按提交批次分组的调用。
     batches: Vec<Vec<UsageCall>>,
+    /// 解析结束时的上下文，作为新检查点。
     context: GrokJsonlParseContext,
+    /// 解析报告。
     report: GrokJsonlParseReport,
 }
 
@@ -317,16 +333,25 @@ fn prepare_grok_identity(
 
 /// 封装 Grok 批量解析所需的不可变输入与资源限制。
 struct GrokParseRequest {
+    /// 已打开的来源文件。
     file: File,
     /// 已验证完整身份，解析结束前不允许来源变化。
     fingerprint: String,
+    /// 打开时观测到的字节数，解析不越过它。
     observed_size: u64,
+    /// 本轮解析的起始偏移。
     parse_start: u64,
+    /// 单行字节上限。
     max_line_bytes: usize,
+    /// 来源 ID。
     source_id: String,
+    /// 所属数据根 ID。
     root_id: String,
+    /// 不含绝对路径的相对展示标签。
     relative_label: String,
+    /// 跨行的解析上下文。
     context: GrokJsonlParseContext,
+    /// 取消令牌。
     cancellation: CancellationToken,
 }
 

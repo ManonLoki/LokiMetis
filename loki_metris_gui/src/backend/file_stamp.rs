@@ -8,8 +8,11 @@ use std::time::SystemTime;
 /// 长度、修改时间与宿主文件身份/状态变更时间同时相同才视为未改变。
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct FileStamp {
+    /// 文件字节长度。
     len: u64,
+    /// 修改时间；读取失败时为 None，此时不可缓存。
     modified: Option<SystemTime>,
+    /// 宿主文件身份：Unix 为 (设备, inode, ctime 秒, ctime 纳秒)；Windows 为 (卷序列号, 128 位文件 ID, ChangeTime)，读取失败时为 None。
     #[cfg(unix)]
     identity: (u64, u64, i64, i64),
     #[cfg(windows)]
