@@ -17,8 +17,11 @@ use x11rb::{
 
 /// 每次操作重新核对活窗，连接只拥有本次协议请求，不跨窗口缓存 XID。
 struct NativeWindow {
+    /// 本次操作独占的 X11 连接。
     connection: RustConnection,
+    /// 目标窗口 XID，已经 GetGeometry 验证存活。
     window: u32,
+    /// 目标窗口所在屏幕的 root 窗口。
     root: u32,
 }
 

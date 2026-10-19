@@ -3,11 +3,15 @@
 /// 单一浮窗的原生穿透确认和样式位所有权，不保存跨窗口裸句柄。
 #[derive(Default)]
 pub struct MousePassthroughState {
+    /// 最近读回确认的原生穿透状态；未知或回滚失败时为 None。
     pub(super) confirmed: Option<bool>,
+    /// 开启穿透前的窗口扩展样式，关闭时据此恢复。
     #[cfg(windows)]
     pub(super) original_bits: Option<isize>,
+    /// 测试中原生调用次数。
     #[cfg(test)]
     pub(super) calls: usize,
+    /// 测试中让下一次原生调用失败。
     #[cfg(test)]
     pub(super) fail_next: bool,
 }

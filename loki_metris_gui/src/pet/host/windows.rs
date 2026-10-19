@@ -10,9 +10,13 @@ type Handle = *mut c_void;
 #[repr(C)]
 #[derive(Default)]
 struct Rect {
+    /// 左边界（物理像素）。
     left: i32,
+    /// 上边界（物理像素）。
     top: i32,
+    /// 右边界，开区间。
     right: i32,
+    /// 下边界，开区间。
     bottom: i32,
 }
 /// Win32 客户区原点转换所需的物理点。
@@ -43,9 +47,13 @@ impl ClientFrame {
 /// Win32工作区查询的固定C布局。
 #[repr(C)]
 struct MonitorInfo {
+    /// 结构体字节数，调用前必须设置。
     size: u32,
+    /// 显示器整体矩形。
     monitor: Rect,
+    /// 去除任务栏后的工作区矩形。
     work: Rect,
+    /// 显示器标志；含主显示器位。
     flags: u32,
 }
 #[link(name = "user32")]

@@ -7,13 +7,16 @@ pub(super) const CLICK_MOVE_THRESHOLD: f64 = 2.;
 
 /// 候选绑定实际slot与第二击按下位置，不累计平台已有的clickCount。
 struct Pending {
+    /// 第二次按下所在的格位，完成点击必须落在同一格位。
     slot: u8,
+    /// 第二次按下的位置；抬起时偏移不得超过点击移动阈值。
     origin: Point<Pixels>,
 }
 
 /// 仅拥有一次指针手势，动画、分页及领域偏好均不属于该状态。
 #[derive(Default)]
 pub(super) struct DoubleClick {
+    /// 已收到第二次按下、等待抬起完成的候选；移动超过阈值、离窗或失焦时清除。
     pending: Option<Pending>,
 }
 

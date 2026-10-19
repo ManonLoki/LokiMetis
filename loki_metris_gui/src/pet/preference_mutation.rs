@@ -6,14 +6,23 @@ use loki_metris_core::{HookError, PetPreferenceChange, PetSizeRange, PetWindowPr
 
 /// 单个字段意图的回滚资料只属于当前事务，不作为第二份权威偏好。
 pub(super) struct Request {
+    /// 本次要保存的字段意图。
     pub change: PetPreferenceChange,
+    /// 当前屏幕下的桌宠尺寸范围，交给 core 校验。
     pub range: PetSizeRange,
+    /// 事务开始前的偏好，失败时据此回滚。
     pub old: PetWindowPreferences,
+    /// 原生几何变化前的浮窗矩形；拖边产生的尺寸变化为 None，失败时按旧偏好重算。
     pub old_bounds: Option<Bounds<Pixels>>,
+    /// 本次改变了原生几何（布局、尺寸、置顶或锁定）。
     pub geometry: bool,
+    /// 需要等待原生确认：几何变化或鼠标穿透切换。
     pub native: bool,
+    /// 偏好确有变化，需要交给服务保存；纯原生尺寸校正为 false。
     pub commit: bool,
+    /// 同步应用原生变化时已发生的错误；存在时直接进入回滚。
     pub initial_error: Option<HookError>,
+    /// 事务所属的偏好代次，迟到回调据此判断是否已被取代。
     pub generation: u64,
 }
 

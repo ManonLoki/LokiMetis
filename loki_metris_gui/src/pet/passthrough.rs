@@ -6,9 +6,13 @@ use gpui_kit::{App, Bounds, Pixels};
 /// 托盘消费可比较的内存状态，不轮询OS或克隆图片/用量快照。
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct State {
+    /// 已保存的穿透偏好。
     pub enabled: bool,
+    /// 有偏好事务在途。
     pub busy: bool,
+    /// 浮窗存在且未退出，可以切换。
     pub available: bool,
+    /// 原生读回的实际穿透状态。
     pub confirmed: Option<bool>,
 }
 

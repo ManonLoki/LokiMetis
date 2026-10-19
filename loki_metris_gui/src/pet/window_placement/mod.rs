@@ -15,11 +15,16 @@ use gpui_kit::{AnyWindowHandle, App, Context, Entity};
 /// 一个显式显示动作的入口事实；首次设置回执只续用该意图，不重新读取鼠标。
 #[derive(Clone)]
 pub(super) struct Request {
+    /// 显示动作所属的显示代次。
     generation: u64,
+    /// 动作发生时指针所在的显示器标识；用于选择迁入的屏幕。
     #[cfg(all(any(target_os = "macos", windows), not(test)))]
     pointer: Option<String>,
+    /// 设置读取完成时的 (Agent 设置, 桌宠设置) 修订号；首次显示前为 None。
     revisions: Option<(u64, u64)>,
+    /// 本次动作的目标可见性。
     visible: bool,
+    /// 需要实际显示窗口；仅续用意图时为 false。
     reveal: bool,
 }
 

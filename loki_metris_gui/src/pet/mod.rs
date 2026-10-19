@@ -70,38 +70,65 @@ enum FirstPopulatedFocus {
 }
 /// 桌宠投影只缓存成功事实，损坏配置的默认值只用于当前展示。
 struct Controller {
+    /// 读写设置、图库与用量快照的应用服务。
     service: Arc<UsageService>,
+    /// 主窗句柄，桌宠操作需要恢复主窗时使用。
     main: AnyWindowHandle,
+    /// 桌宠浮窗句柄；未创建或已关闭时为 None。
     overlay: Option<AnyWindowHandle>,
+    /// 桌宠配置窗句柄；未打开时为 None。
     settings_window: Option<AnyWindowHandle>,
     /// 配置窗显示意图独立于设置文件读取 generation，关闭也使尚未创建的显示失效。
     settings_window_generation: u64,
+    /// 配置窗打开流程的在途任务。
     settings_window_task: Option<Task<()>>,
+    /// 浮窗内容实体，跟随浮窗生命周期。
     overlay_view: Option<Entity<overlay::Overlay>>,
+    /// 用户会话内的桌宠可见意图，不落盘。
     visible: bool,
+    /// 当前界面语言。
     locale: String,
+    /// 当日用量展示快照；只在变化时通知重绘。
     today: TodayUsageDisplay,
+    /// 最近一次成功读取或保存的监控设置；事务进行中可能暂含尚未提交的新偏好。
     settings: MonitorSettings,
+    /// 各 AI 工具的形象配置草稿。
     drafts: Vec<AiProfileDraft>,
+    /// 公开监控工具的当前桌宠展示状态。
     states: Vec<PetOverlayToolState>,
+    /// 按图片 ID 索引的已解码图库素材。
     images: HashMap<String, crate::monitor::image_decode::MonitorImageSource>,
+    /// 已消费的修订号：(Agent 设置, 桌宠设置, 图库, 监控状态)；与服务端修订号不同才重新读取。
     observed: (u64, u64, u64, u64),
+    /// 设置、草稿与图库的读取任务在途。
     loading: bool,
+    /// 偏好事务代次；每次修改递增，迟到的读取或保存结果按代次丢弃。
     settings_generation: u64,
+    /// 首次自动聚焦到有内容页面的进度。
     first_populated: FirstPopulatedFocus,
+    /// 有偏好事务在途；期间新意图进入 `pending`。
     busy: bool,
+    /// 事务在途时排队的偏好意图，最多 64 个；尺寸类意图只保留最新一个。
     pending: VecDeque<PetPreferenceChange>,
+    /// 每 100ms 检查内存修订号并按需刷新的前台轮询任务。
     poll: Option<Task<()>>,
+    /// 在途的设置/草稿/图库读取任务。
     query: Option<Task<()>>,
+    /// 在途的偏好事务：原生确认、保存与失败回滚。
     mutation: Option<Task<()>>,
+    /// 在途的位置保存任务；同一时刻至多一个。
     position_task: Option<Task<()>>,
+    /// 正在同步应用几何；期间 bounds 回调不视为用户拖动。
     applying: bool,
     /// 原生命令尚未确认或正在回滚，期间不保存中间 bounds。
     native_mutating: bool,
+    /// 启动后已按保存偏好恢复并确认过浮窗几何；之前不保存位置。
     geometry_restored: bool,
     /// 显示租约同时约束显隐和迁屏，旧 defer 不能覆盖较新的用户意图。
     display_generation: u64,
+    /// 尚未完成的显示动作入口事实，等设置读取完成后续用。
     display_request: Option<window_placement::Request>,
+    /// 在途的显示/迁屏确认任务。
     display_task: Option<Task<()>>,
     /// 原生迁屏尚未读回时屏蔽中间 bounds 的尺寸推导及位置保存。
     display_applying: bool,
@@ -109,12 +136,19 @@ struct Controller {
     display_geometry_unconfirmed: bool,
     /// 已确认的迁屏或用户拖动几何，不从被取消的原生迁屏中间帧恢复锚点。
     display_state: Option<loki_metris_core::window_placement::WindowStateV2>,
+    /// 至少成功读取或保存过一次设置；之前不按默认值恢复几何。
     settings_ready: bool,
+    /// 浮窗鼠标穿透的原生确认状态。
     mouse_state: host::MousePassthroughState,
+    /// 读取不完整或迁屏失败后的重试时刻；到期前不再读取。
     retry_after: Option<std::time::Instant>,
+    /// 最近一次偏好事务的失败，供设置窗展示。
     last_error: Option<HookError>,
+    /// 已接受、尚未交给服务保存的字段意图；退出时与 `pending` 一起补交。
     scheduled: Option<PetPreferenceChange>,
+    /// 应用正在退出；置位后所有迟到回调都不再修改状态。
     quitting: bool,
+    /// 位置保存的单写者队列。
     position: position::PositionQueue,
 }
 impl Controller {

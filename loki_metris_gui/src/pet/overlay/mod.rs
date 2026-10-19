@@ -26,27 +26,44 @@ use std::{
 
 /// 每个绝对位置持有独立时钟，同图片原始字节通过Asset共享。
 struct Player {
+    /// 当前播放的图片 ID。
     id: String,
+    /// 图片播放视图。
     view: Entity<MonitorImageView>,
+    /// 订阅播放视图变化以重绘浮窗。
     _observe: Subscription,
 }
 /// 原生内容实体跟随窗口可见性，不随主页面导航卸载。
 pub(super) struct Overlay {
+    /// 所属桌宠控制器。
     owner: Entity<Controller>,
+    /// 浮窗键盘焦点。
     focus: FocusHandle,
+    /// 指针位于浮窗内。
     hovered: bool,
+    /// 键盘操作后显示焦点指示；指针操作或失焦时隐藏。
     keyboard_visible: bool,
+    /// 按格位索引的图片播放器，每格独立计时。
     players: HashMap<u8, Player>,
     /// 本窗口上一帧的可见素材；最后位置离开时仅退役本窗聚合需求。
     active_assets: HashSet<String>,
+    /// 本浮窗的图片驻留归属。
     image_owner: ImageOwner,
+    /// 最近一次被接受的滚轮翻页时刻；220ms 内的后续滚轮被忽略。
     last_wheel: Option<Instant>,
+    /// 双击手势识别状态。
     double_click: gesture::DoubleClick,
+    /// 订阅控制器变化以重绘。
     _controller: Subscription,
+    /// 订阅窗口可见性变化。
     _visibility: Subscription,
+    /// 订阅窗口 bounds 变化以识别用户拖动和拖边。
     _bounds: Subscription,
+    /// 订阅窗口激活变化。
     _activation: Subscription,
+    /// 订阅获得焦点。
     _focus: Subscription,
+    /// 订阅失去焦点，用于隐藏键盘焦点指示。
     _focus_out: Subscription,
 }
 impl Overlay {

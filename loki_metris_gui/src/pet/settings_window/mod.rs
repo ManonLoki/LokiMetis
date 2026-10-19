@@ -12,7 +12,9 @@ use gpui_kit::{AnyWindowHandle, App, Entity};
 
 /// 一个用户打开动作只捕获一次指针屏；defer 与前台 task 复用这份入口事实。
 pub(super) struct Request {
+    /// 配置窗显示代次。
     generation: u64,
+    /// 打开动作时捕获的桌面与指针快照。
     #[cfg(all(any(target_os = "macos", windows), not(test)))]
     desktop: Option<crate::native::windowing::DesktopSnapshot>,
 }

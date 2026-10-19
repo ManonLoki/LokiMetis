@@ -10,12 +10,19 @@ use loki_metris_core::{PetLayout, PetPreferenceChange};
 
 /// 控件实体只属于此设置窗；关闭不影响controller中的偏好提交。
 pub(super) struct Settings {
+    /// 所属桌宠控制器。
     owner: Entity<Controller>,
+    /// 尺寸滑块的键盘焦点。
     slider_focus: FocusHandle,
+    /// 尺寸滑块状态。
     slider: Entity<SliderState>,
+    /// 滑块当前的 (最小, 最大) 尺寸；屏幕或布局变化时重建滑块。
     range: (u16, u16),
+    /// 订阅控制器变化以同步滑块。
     _owner: Subscription,
+    /// 订阅滑块值变化并提交尺寸意图。
     _slider: Subscription,
+    /// 订阅键盘进入以显示焦点指示。
     _keyboard_entry: Subscription,
 }
 impl Settings {

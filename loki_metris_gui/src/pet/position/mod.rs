@@ -11,14 +11,18 @@ const POSITION_DEBOUNCE: Duration = Duration::from_millis(200);
 /// 一个尚未被成功回执消费的位置意图。
 #[derive(Clone, Copy)]
 struct PositionIntent {
+    /// 要保存的浮窗位置。
     position: PetOverlayPosition,
+    /// 防抖后的最早写入时刻；新的位置意图会重新计算，从而合并拖动中的连续写入。
     due_at: Instant,
 }
 
 /// 单写者队列保留latest desired及已接受的inflight；返回旧saved值也不能吞掉在途写后的恢复。
 #[derive(Default)]
 pub(super) struct PositionQueue {
+    /// 最新待写入的位置意图。
     desired: Option<PositionIntent>,
+    /// 已交给服务、尚未回执的位置。
     in_flight: Option<PetOverlayPosition>,
     /// 当前driver成功写入的操作回执；保护稍后到达的旧展示快照，不额外持久化或推导领域值。
     last_successful_write: Option<PetOverlayPosition>,
