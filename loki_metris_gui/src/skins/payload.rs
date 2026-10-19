@@ -1,8 +1,9 @@
-// 本文件收纳：注入载荷生成与信任确认、资源读取与 data URL 编码、宿主命令行解析与稳定实例 ID。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 注入载荷生成与信任确认、资源读取与 data URL 编码、宿主命令行解析与稳定实例 ID。
+
+use super::*;
 
 /// 在读取自由注入脚本或持久化兼容皮肤前校验本次操作的显式信任确认。
-fn validate_code_execution_consent(
+pub(super) fn validate_code_execution_consent(
     package_type: SkinPackageType,
     explicitly_trusted: bool,
 ) -> Result<(), AppError> {
@@ -12,14 +13,14 @@ fn validate_code_execution_consent(
 
 /// 读取并校验皮肤目录清单后生成注入脚本；可执行的旧版皮肤需要显式信任。
 #[cfg(test)]
-fn build_payload(directory: &Path, explicitly_trusted: bool) -> Result<String, AppError> {
+pub(super) fn build_payload(directory: &Path, explicitly_trusted: bool) -> Result<String, AppError> {
     let manifest = read_manifest(directory)?;
     validate_manifest(directory, &manifest)?;
     build_payload_from_manifest(directory, &manifest, explicitly_trusted)
 }
 
 /// 与 `build_payload` 相同，但复用调用方已解析并校验过的 manifest，避免重复读取磁盘。
-fn build_payload_from_manifest(
+pub(super) fn build_payload_from_manifest(
     directory: &Path,
     manifest: &SkinManifest,
     explicitly_trusted: bool,
@@ -90,7 +91,7 @@ fn build_payload_from_manifest(
 }
 
 /// 在注入脚本末尾追加运行态标记，让页面记录当前生效皮肤的来源、ID、名称与包类型，供后续恢复身份。
-fn append_runtime_skin_marker(
+pub(super) fn append_runtime_skin_marker(
     payload: String,
     descriptor: &SkinDescriptor,
 ) -> Result<String, AppError> {
@@ -113,7 +114,7 @@ fn theme_image_data_url(directory: &Path, file_name: &str) -> Result<String, App
 }
 
 /// 按文本资源默认上限读取 UTF-8 文本。
-fn read_text(path: &Path) -> Result<String, AppError> {
+pub(super) fn read_text(path: &Path) -> Result<String, AppError> {
     read_text_with_limit(path, MAX_TEXT_BYTES)
 }
 
@@ -132,7 +133,7 @@ fn read_text_with_limit(path: &Path, limit: u64) -> Result<String, AppError> {
 }
 
 /// 读取非空且不超过上限的图片，确认魔数与 MIME 一致后编码为 data URL。
-fn image_data_url(path: &Path, mime: &str) -> Result<String, AppError> {
+pub(super) fn image_data_url(path: &Path, mime: &str) -> Result<String, AppError> {
     let bytes = std::fs::read(path)
         .map_err(|_| AppError::new("skin.assets_invalid", "无法读取皮肤图片资源。"))?;
     if bytes.is_empty() || bytes.len() as u64 > MAX_IMAGE_BYTES {
@@ -161,7 +162,7 @@ fn json_string(value: &str) -> Result<String, AppError> {
 }
 
 /// 从命令行解析 `--remote-debugging-port` 的端口值（空格或等号两种写法，最后一次出现生效）；没有或为 0 时返回空。
-fn debug_port_from_command_line(command_line: &str) -> Option<u16> {
+pub(super) fn debug_port_from_command_line(command_line: &str) -> Option<u16> {
     let tokens = command_line.split_whitespace().collect::<Vec<_>>();
     let mut result = None;
     let mut index = 0;
@@ -188,7 +189,7 @@ fn debug_port_from_command_line(command_line: &str) -> Option<u16> {
 }
 
 /// 按 Windows 命令行规则拆分参数，正确处理引号与反斜杠转义。
-fn command_line_arguments(command_line: &str) -> Vec<String> {
+pub(super) fn command_line_arguments(command_line: &str) -> Vec<String> {
     let mut arguments = Vec::new();
     let mut current = String::new();
     let mut quoted = false;
@@ -226,7 +227,7 @@ fn command_line_arguments(command_line: &str) -> Vec<String> {
 }
 
 /// 提取重启实例时可复用的原始参数，去掉可执行文件本身与全部远程调试相关参数。
-fn reusable_process_arguments(command_line: &str) -> Vec<String> {
+pub(super) fn reusable_process_arguments(command_line: &str) -> Vec<String> {
     let mut values = command_line_arguments(command_line)
         .into_iter()
         .skip(1)
@@ -249,7 +250,7 @@ fn reusable_process_arguments(command_line: &str) -> Vec<String> {
 }
 
 /// 命令行没有 `--type` 或 `--utility-sub-type` 参数时才是 Codex 主进程，而非渲染器或辅助进程。
-fn is_primary_codex_command_line(command_line: &str) -> bool {
+pub(super) fn is_primary_codex_command_line(command_line: &str) -> bool {
     !command_line_arguments(command_line)
         .into_iter()
         .skip(1)
@@ -262,7 +263,7 @@ fn is_primary_codex_command_line(command_line: &str) -> bool {
 }
 
 /// 从 `--user-data-dir` 取最后一级目录名作为配置档名称。
-fn user_data_profile(arguments: &[String]) -> Option<String> {
+pub(super) fn user_data_profile(arguments: &[String]) -> Option<String> {
     user_data_directory(arguments).and_then(|value| {
         value
             .to_string_lossy()
@@ -275,7 +276,7 @@ fn user_data_profile(arguments: &[String]) -> Option<String> {
 }
 
 /// 解析 `--user-data-dir` 参数（空格或等号写法），去掉引号与结尾分隔符。
-fn user_data_directory(arguments: &[String]) -> Option<PathBuf> {
+pub(super) fn user_data_directory(arguments: &[String]) -> Option<PathBuf> {
     let mut index = 0;
     while index < arguments.len() {
         let value = if arguments[index] == "--user-data-dir" {
@@ -326,13 +327,13 @@ fn stable_workbuddy_instance_id(process: &PlatformHostProcess) -> String {
 }
 
 /// 以稳定实例 ID 解析宿主进程实例。
-fn resolved_instance(process: PlatformHostProcess) -> ResolvedSkinHostInstance {
+pub(super) fn resolved_instance(process: PlatformHostProcess) -> ResolvedSkinHostInstance {
     let id = stable_instance_id(&process);
     resolved_instance_with_id(process, id)
 }
 
 /// 按宿主选择稳定身份来源；命令行仍只用于端口、配置和安全重启参数。
-fn resolved_instance_for_host(
+pub(super) fn resolved_instance_for_host(
     host: SkinHostKind,
     process: PlatformHostProcess,
 ) -> ResolvedSkinHostInstance {

@@ -215,7 +215,7 @@ fn resource_display_name(file: &str) -> String {
 }
 
 /// 检查单个资源文件，返回缺失、不可读、非普通文件、空文件或过大的用户可读问题。
-fn resource_file_problem(directory: &Path, file: &str, limit: u64) -> Option<String> {
+pub(super) fn resource_file_problem(directory: &Path, file: &str, limit: u64) -> Option<String> {
     let display_name = resource_display_name(file);
     match std::fs::metadata(directory.join(file)) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -230,7 +230,7 @@ fn resource_file_problem(directory: &Path, file: &str, limit: u64) -> Option<Str
 }
 
 /// 按图片或文本上限检查旧版皮肤的全部必需资源，汇总所有问题。
-fn legacy_resource_problems(directory: &Path, files: &[&str]) -> Vec<String> {
+pub(super) fn legacy_resource_problems(directory: &Path, files: &[&str]) -> Vec<String> {
     files
         .iter()
         .filter_map(|file| {
@@ -248,7 +248,7 @@ fn legacy_resource_problems(directory: &Path, files: &[&str]) -> Vec<String> {
 }
 
 /// 皮肤包资源不完整的导入错误，携带逐项问题。
-fn import_resource_error(details: Vec<String>) -> AppError {
+pub(super) fn import_resource_error(details: Vec<String>) -> AppError {
     AppError::with_details(
         "skin.assets_invalid",
         "这个皮肤包的文件还不完整，请补齐后重新导入。",
@@ -264,7 +264,7 @@ fn is_valid_theme_color(value: &str) -> bool {
 }
 
 /// 主题图片必须是根目录内的安全文件名且扩展名为 PNG 或 JPEG。
-fn validate_theme_image_name(value: &str) -> Result<(), AppError> {
+pub(super) fn validate_theme_image_name(value: &str) -> Result<(), AppError> {
     if validate_core_image_name(value).is_ok() && image_mime(value).is_ok() {
         Ok(())
     } else {
@@ -306,7 +306,7 @@ fn validate_image_signature(path: &Path, file_name: &str) -> Result<(), AppError
 }
 
 /// 按扩展名（不区分大小写）返回图片 MIME，只接受 PNG 与 JPEG。
-fn image_mime(file_name: &str) -> Result<&'static str, AppError> {
+pub(super) fn image_mime(file_name: &str) -> Result<&'static str, AppError> {
     match Path::new(file_name)
         .extension()
         .and_then(|value| value.to_str())
@@ -323,7 +323,7 @@ fn image_mime(file_name: &str) -> Result<&'static str, AppError> {
 }
 
 /// 规范化主题名称或作者文本，长度不合法时给出带字段名的错误。
-fn validate_theme_creator_text(value: &str, label: &str) -> Result<String, AppError> {
+pub(super) fn validate_theme_creator_text(value: &str, label: &str) -> Result<String, AppError> {
     loki_metris_core::normalize_skin_creator_text(value).map_err(|_| {
         AppError::new(
             "skin.create_invalid",
@@ -333,7 +333,7 @@ fn validate_theme_creator_text(value: &str, label: &str) -> Result<String, AppEr
 }
 
 /// 生成用户皮肤库中尚未占用的新主题 ID，有限次重试后失败。
-fn available_theme_id(user_root: &Path) -> Result<String, AppError> {
+pub(super) fn available_theme_id(user_root: &Path) -> Result<String, AppError> {
     for _ in 0..16 {
         let candidate = format!("theme_{}", uuid::Uuid::now_v7());
         if !user_root.join(&candidate).exists() {
@@ -347,7 +347,7 @@ fn available_theme_id(user_root: &Path) -> Result<String, AppError> {
 }
 
 /// 在新主题目录写入内置模板：清单（填入 ID、名称、作者）、变量表与占位图片。
-fn write_theme_scaffold(
+pub(super) fn write_theme_scaffold(
     directory: &Path,
     id: &str,
     name: &str,

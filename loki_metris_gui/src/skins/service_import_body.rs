@@ -1,5 +1,6 @@
-// 本文件收纳：导入预检、确认安装与取消，批量删除，打开皮肤目录，以及暂存与遗留目录清理。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 导入预检、确认安装与取消，批量删除，打开皮肤目录，以及暂存与遗留目录清理。
+
+use super::*;
 
 impl SkinService {
     #[cfg(test)]
@@ -247,7 +248,7 @@ impl SkinService {
 
     #[cfg(test)]
     /// 测试用：同步预检单个归档并登记为待安装批次。
-    fn prepare_test_import_batch(
+    pub(super) fn prepare_test_import_batch(
         &self,
         source: &Path,
     ) -> Result<PreparedSkinImportBatch, AppError> {
@@ -270,7 +271,7 @@ impl SkinService {
 
     #[cfg(test)]
     /// 测试用：安装待安装批次的第一个条目，失败时返回该条目的错误。
-    async fn commit_test_import_batch(&self, token: &str) -> Result<SkinDescriptor, AppError> {
+    pub(super) async fn commit_test_import_batch(&self, token: &str) -> Result<SkinDescriptor, AppError> {
         let item_id = self
             .pending_import
             .lock()
@@ -384,7 +385,7 @@ impl SkinService {
     }
 
     /// 清理上次异常退出遗留的导入、创建暂存目录，并恢复或丢弃中断替换留下的备份目录。
-    fn cleanup_transient_directories(&self) -> Result<(), AppError> {
+    pub(super) fn cleanup_transient_directories(&self) -> Result<(), AppError> {
         for entry in std::fs::read_dir(&self.user_root)
             .map_err(|_| AppError::new("skin.library_unavailable", "无法读取用户皮肤资源库。"))?
             .filter_map(Result::ok)
@@ -423,7 +424,7 @@ impl SkinService {
     }
 
     /// 定位并校验皮肤引用对应的目录：必须是真实目录（非链接）且清单有效。
-    fn skin_directory(&self, skin: &SkinReference) -> Result<PathBuf, AppError> {
+    pub(super) fn skin_directory(&self, skin: &SkinReference) -> Result<PathBuf, AppError> {
         validate_skin_reference(skin)?;
         let directory = match skin.source {
             SkinSource::Builtin => self.builtin_root.join(&skin.id),

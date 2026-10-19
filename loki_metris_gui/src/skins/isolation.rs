@@ -1,10 +1,9 @@
-// 本文件收纳：外层词法函数供内置运行时捕获；在namespace转换后拼装，旧归属键不得被重写；明确归属冲突不能被解释成兼容规则部分跳过或普通注入成功；稳定领域映射只携带操作指引，不暴露宿主脚本与私有页面内容。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 页面写入的归属隔离：每次写入在同一次 JavaScript 求值中复核归属，避免异步预检与写入之间被其它应用接管；归属冲突不当作兼容规则跳过。
 
-// 每次页面写入在同一JavaScript求值中复核归属，避免异步预检与写入间被其它应用接管。
+use super::*;
 
 /// 外层词法函数供内置运行时捕获；在namespace转换后拼装，旧归属键不得被重写。
-fn guarded_skin_script(body: &str) -> String {
+pub(super) fn guarded_skin_script(body: &str) -> String {
     format!(
         r#"(() => {{
       const __lokiMetrisHasForeignOwner = () => Boolean(
@@ -18,7 +17,7 @@ fn guarded_skin_script(body: &str) -> String {
 }
 
 /// 明确归属冲突不能被解释成兼容规则部分跳过或普通注入成功。
-fn skin_owner_result(value: serde_json::Value) -> Result<Option<serde_json::Value>, AppError> {
+pub(super) fn skin_owner_result(value: serde_json::Value) -> Result<Option<serde_json::Value>, AppError> {
     match value.get("kind").and_then(serde_json::Value::as_str) {
         Some("foreignOwner") => Err(foreign_skin_owner_error()),
         Some("applied") => Ok(value.get("value").cloned()),
@@ -27,7 +26,7 @@ fn skin_owner_result(value: serde_json::Value) -> Result<Option<serde_json::Valu
 }
 
 /// 稳定领域映射只携带操作指引，不暴露宿主脚本与私有页面内容。
-fn foreign_skin_owner_error() -> AppError {
+pub(super) fn foreign_skin_owner_error() -> AppError {
     AppError::new(
         "skin.foreign_owner",
         "其它应用正在维护宿主皮肤，请先在原应用停止皮肤后重试。",
@@ -35,7 +34,7 @@ fn foreign_skin_owner_error() -> AppError {
 }
 
 /// CSS只替换独占ID选择器，保留注释、字符串、URL及更长的用户标识。
-fn runtime_css_namespace(css: &str) -> String {
+pub(super) fn runtime_css_namespace(css: &str) -> String {
     let mut output = String::with_capacity(css.len());
     let mut position = 0;
     let mut quote = None;

@@ -1,58 +1,62 @@
+//! 换肤模块共享的调试端口、超时、容量与资源上限常量。
+
+use super::*;
+
 /// Codex 调试端口的默认起点；被占用时会顺延选择空闲端口。
-const DEFAULT_CDP_PORT: u16 = 9341;
+pub(super) const DEFAULT_CDP_PORT: u16 = 9341;
 /// WorkBuddy 调试端口的默认起点，与 Codex 错开，避免两个宿主抢同一个端口。
-const WORKBUDDY_DEFAULT_CDP_PORT: u16 = 9441;
+pub(super) const WORKBUDDY_DEFAULT_CDP_PORT: u16 = 9441;
 /// 新启动 Codex 后，等主页面就绪的最长时间。
-const CODEX_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(15);
+pub(super) const CODEX_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(15);
 /// 连接已在运行的 Codex 时，等主页面就绪的最长时间。
-const EXISTING_CODEX_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(15);
+pub(super) const EXISTING_CODEX_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(15);
 /// 等待页面就绪时每隔多久看一次。
-const CODEX_PAGE_POLL_INTERVAL: Duration = Duration::from_millis(350);
+pub(super) const CODEX_PAGE_POLL_INTERVAL: Duration = Duration::from_millis(350);
 /// 等待进程出现或退出时每隔多久看一次。
-const CODEX_PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(750);
+pub(super) const CODEX_PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(750);
 /// 启动 Codex 并等它开放调试端口的最长时间。
-const CODEX_LAUNCH_TIMEOUT: Duration = Duration::from_secs(15);
+pub(super) const CODEX_LAUNCH_TIMEOUT: Duration = Duration::from_secs(15);
 /// 强制关闭 Codex 后，等进程真正退出的最长时间。
-const CODEX_FORCE_CLOSE_TIMEOUT: Duration = Duration::from_secs(15);
+pub(super) const CODEX_FORCE_CLOSE_TIMEOUT: Duration = Duration::from_secs(15);
 /// 建立调试连接的最长时间。
-const CDP_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+pub(super) const CDP_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// 单个调试请求等待回复的最长时间。
-const CDP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+pub(super) const CDP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// 页面目标出现后再等一小会儿，让它稳定下来再操作。
-const CDP_TARGET_SETTLE_DELAY: Duration = Duration::from_millis(200);
+pub(super) const CDP_TARGET_SETTLE_DELAY: Duration = Duration::from_millis(200);
 /// 读取账号头像与名称时，等界面准备好的最长时间。
-const ACCOUNT_PROFILE_READY_TIMEOUT: Duration = Duration::from_secs(2);
+pub(super) const ACCOUNT_PROFILE_READY_TIMEOUT: Duration = Duration::from_secs(2);
 /// 账号信息还没准备好时的重试间隔。
-const ACCOUNT_PROFILE_RETRY_INTERVAL: Duration = Duration::from_millis(150);
+pub(super) const ACCOUNT_PROFILE_RETRY_INTERVAL: Duration = Duration::from_millis(150);
 /// 接受的账号头像最大字节数，防止异常数据撑爆内存。
-const MAX_ACCOUNT_AVATAR_BYTES: usize = 256 * 1024;
+pub(super) const MAX_ACCOUNT_AVATAR_BYTES: usize = 256 * 1024;
 /// 从页面读取运行中样式文本的最大字符数。
-const MAX_RUNTIME_STYLE_PROBE_CHARS: usize = 256 * 1024;
+pub(super) const MAX_RUNTIME_STYLE_PROBE_CHARS: usize = 256 * 1024;
 /// 皮肤守护检查页面是否还在、皮肤是否还生效的周期。
-const SKIN_WATCH_INTERVAL: Duration = Duration::from_secs(5);
+pub(super) const SKIN_WATCH_INTERVAL: Duration = Duration::from_secs(5);
 /// 清理页面里已注入皮肤的最长时间。
-const CDP_CLEANUP_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const CDP_CLEANUP_TIMEOUT: Duration = Duration::from_secs(10);
 /// 停止皮肤守护任务时等它收尾的最长时间。
-const WATCH_STOP_TIMEOUT: Duration = Duration::from_secs(12);
+pub(super) const WATCH_STOP_TIMEOUT: Duration = Duration::from_secs(12);
 /// 注入到页面里的皮肤运行时版本，页面里带着它便于判断是不是自己注入的。
-const SKIN_VERSION: &str = "1.7.0";
+pub(super) const SKIN_VERSION: &str = "1.7.0";
 /// 宿主兼容脚本的版本号，脚本有变化时要一起升级。
-const HOST_COMPATIBILITY_VERSION: &str = "5";
+pub(super) const HOST_COMPATIBILITY_VERSION: &str = "5";
 /// Codex 宿主兼容脚本，随程序内置。
-const HOST_COMPATIBILITY_SCRIPT: &str = include_str!("../../resources/skin-host-compat.js");
+pub(super) const HOST_COMPATIBILITY_SCRIPT: &str = include_str!("../../resources/skin-host-compat.js");
 /// WorkBuddy 宿主兼容脚本，随程序内置。
-const WORKBUDDY_HOST_COMPATIBILITY_SCRIPT: &str =
+pub(super) const WORKBUDDY_HOST_COMPATIBILITY_SCRIPT: &str =
     include_str!("../../resources/workbuddy-skin-host-compat.js");
 /// 主题皮肤运行时样式表，随程序内置。
-const THEME_RUNTIME_CSS: &str = include_str!("../../resources/theme-runtime/theme.css");
+pub(super) const THEME_RUNTIME_CSS: &str = include_str!("../../resources/theme-runtime/theme.css");
 /// 主题皮肤运行时注入脚本，随程序内置。
-const THEME_RUNTIME_SCRIPT: &str = include_str!("../../resources/theme-runtime/renderer-inject.js");
+pub(super) const THEME_RUNTIME_SCRIPT: &str = include_str!("../../resources/theme-runtime/renderer-inject.js");
 /// “新建主题”使用的默认清单模板。
-const THEME_TEMPLATE_MANIFEST: &str = include_str!("../../resources/theme-template/theme.json");
+pub(super) const THEME_TEMPLATE_MANIFEST: &str = include_str!("../../resources/theme-template/theme.json");
 /// “新建主题”使用的默认样式模板。
-const THEME_TEMPLATE_CSS: &str = include_str!("../../resources/theme-template/theme.css");
+pub(super) const THEME_TEMPLATE_CSS: &str = include_str!("../../resources/theme-template/theme.css");
 /// “新建主题”附带的默认预览图与背景图。
-const THEME_TEMPLATE_IMAGES: [(&str, &[u8]); 2] = [
+pub(super) const THEME_TEMPLATE_IMAGES: [(&str, &[u8]); 2] = [
     (
         "preview.png",
         include_bytes!("../../resources/theme-template/preview.png"),
@@ -63,17 +67,17 @@ const THEME_TEMPLATE_IMAGES: [(&str, &[u8]); 2] = [
     ),
 ];
 /// 皮肤包里单个文本文件的最大字节数。
-const MAX_TEXT_BYTES: u64 = 2 * 1024 * 1024;
+pub(super) const MAX_TEXT_BYTES: u64 = 2 * 1024 * 1024;
 /// 导入单个皮肤包允许的最大字节数。
-const MAX_IMPORT_BYTES: u64 = 64 * 1024 * 1024;
+pub(super) const MAX_IMPORT_BYTES: u64 = 64 * 1024 * 1024;
 /// 一个皮肤压缩包里最多允许的条目数，防止压缩炸弹。
-const MAX_IMPORT_ENTRIES: usize = 256;
+pub(super) const MAX_IMPORT_ENTRIES: usize = 256;
 /// 一次批量导入全部皮肤包的字节数上限。
-const MAX_IMPORT_BATCH_BYTES: u64 = MAX_IMPORT_BYTES * MAX_IMPORT_BATCH_FILES as u64;
+pub(super) const MAX_IMPORT_BATCH_BYTES: u64 = MAX_IMPORT_BYTES * MAX_IMPORT_BATCH_FILES as u64;
 /// 导入临时目录的递增序号，保证并发导入各用各的目录。
-static IMPORT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+pub(super) static IMPORT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 /// 旧版皮肤包必须包含的文件。
-const LEGACY_REQUIRED_FILES: [&str; 6] = [
+pub(super) const LEGACY_REQUIRED_FILES: [&str; 6] = [
     "dream-skin.css",
     "renderer-inject.js",
     "theme.json",
@@ -82,7 +86,7 @@ const LEGACY_REQUIRED_FILES: [&str; 6] = [
     "qqshow.jpg",
 ];
 /// 旧版皮肤包里真正会注入页面运行的文件。
-const LEGACY_RUNTIME_FILES: [&str; 5] = [
+pub(super) const LEGACY_RUNTIME_FILES: [&str; 5] = [
     "dream-skin.css",
     "renderer-inject.js",
     "qq2007-sky.png",
@@ -91,7 +95,7 @@ const LEGACY_RUNTIME_FILES: [&str; 5] = [
 ];
 
 /// 在 Codex 页面里运行的探测脚本：确认当前页面确实是 Codex 主界面，而不是别的网页。
-const PROBE_SCRIPT: &str = r#"(() => {
+pub(super) const PROBE_SCRIPT: &str = r#"(() => {
   const mainCandidates = document.querySelectorAll('#root main');
   const stableMainCandidates = document.querySelectorAll('main[data-app-shell-main-surface]');
   const composer = document.querySelector('[data-codex-composer]');
@@ -115,7 +119,7 @@ const PROBE_SCRIPT: &str = r#"(() => {
 })()"#;
 
 /// 在 WorkBuddy 页面里运行的探测脚本：确认当前页面确实是 WorkBuddy 主界面。
-const WORKBUDDY_PROBE_SCRIPT: &str = r#"(() => {
+pub(super) const WORKBUDDY_PROBE_SCRIPT: &str = r#"(() => {
   const body = document.body;
   return {
     url: location.href,
@@ -128,7 +132,7 @@ const WORKBUDDY_PROBE_SCRIPT: &str = r#"(() => {
 })()"#;
 
 /// 读取页面里账号头像与名称的探测脚本；只在能唯一确定按钮时才返回结果。
-const ACCOUNT_PROFILE_PROBE_SCRIPT: &str = r#"(() => {
+pub(super) const ACCOUNT_PROFILE_PROBE_SCRIPT: &str = r#"(() => {
   const normalize = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   const buttons = [...document.querySelectorAll('button[aria-haspopup="menu"]')];
   const semanticLabels = new Set(['打开个人资料菜单', 'Open profile menu']);
@@ -153,7 +157,7 @@ const ACCOUNT_PROFILE_PROBE_SCRIPT: &str = r#"(() => {
 })()"#;
 
 /// 判断页面里当前生效的是哪套皮肤的探测脚本（同时兼容旧版运行时留下的标记）。
-const ACTIVE_SKIN_PROBE_SCRIPT: &str = r#"(() => {
+pub(super) const ACTIVE_SKIN_PROBE_SCRIPT: &str = r#"(() => {
   if (window.__CODEX_DREAM_SKIN_STATE__ || window.__BIFANG_CODEX_SKIN_COMPAT__) return { activeSkin: null };
   const runtime = window.__LOKI_METRIS_DREAM_SKIN_STATE__;
   if (runtime?.quiesced === true) return { activeSkin: null };
@@ -189,7 +193,7 @@ const ACTIVE_SKIN_PROBE_SCRIPT: &str = r#"(() => {
 })()"#;
 
 /// 读取 Codex 当前外观（明暗、强调色等）的探测脚本，读不到时只返回有效模式。
-const APPEARANCE_PROBE_SCRIPT: &str = r#"(async () => {
+pub(super) const APPEARANCE_PROBE_SCRIPT: &str = r#"(async () => {
   const root = document.documentElement;
   const marker = [root?.className, root?.dataset?.theme, root?.dataset?.appearance,
     document.body?.className, document.body?.dataset?.theme].filter(Boolean).join(' ').toLowerCase();
@@ -248,7 +252,7 @@ const APPEARANCE_PROBE_SCRIPT: &str = r#"(async () => {
 })()"#;
 
 /// 只读取明暗模式的轻量探测脚本，用于外观读取失败时兜底。
-const APPEARANCE_MODE_SCRIPT: &str = r#"(() => {
+pub(super) const APPEARANCE_MODE_SCRIPT: &str = r#"(() => {
   const root = document.documentElement;
   const marker = [root?.className, root?.dataset?.theme, root?.dataset?.appearance,
     document.body?.className, document.body?.dataset?.theme].filter(Boolean).join(' ').toLowerCase();
@@ -261,7 +265,7 @@ const APPEARANCE_MODE_SCRIPT: &str = r#"(() => {
 })()"#;
 
 /// 从页面里移除已注入皮肤的清理脚本；清理失败要如实返回 false，不能假装成功。
-const REMOVE_SCRIPT: &str = r#"(() => {
+pub(super) const REMOVE_SCRIPT: &str = r#"(() => {
   const ownState = window.__LOKI_METRIS_DREAM_SKIN_STATE__;
   const ownCompat = window.__LOKI_METRIS_CODEX_SKIN_COMPAT__;
   if (!ownState && !ownCompat && !window.__LOKI_METRIS_SKIN_TRANSACTION__) return true;

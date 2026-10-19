@@ -35,7 +35,7 @@ fn load_descriptor_from_manifest(
 }
 
 /// 按引用定位内置或用户皮肤目录，校验清单并生成注入脚本、展示描述与外观要求。
-fn load_skin(
+pub(super) fn load_skin(
     builtin_root: &Path,
     user_root: &Path,
     skin: &SkinReference,

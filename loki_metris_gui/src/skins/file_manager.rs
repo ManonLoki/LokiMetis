@@ -1,7 +1,6 @@
-// 本文件收纳：文件管理器 launcher 的运行时限与回收预算，以及在系统文件管理器中打开皮肤目录。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 在系统文件管理器中打开皮肤目录：只用可信系统入口异步启动，并完整拥有 launcher 的运行时限与回收。
 
-// 以可信系统入口异步打开皮肤目录，并完整拥有 launcher 生命周期。
+use super::*;
 
 /// 文件管理器 launcher 的单次运行时限。
 #[cfg(unix)]
@@ -11,7 +10,7 @@ const FILE_MANAGER_TIMEOUT: Duration = Duration::from_secs(5);
 const FILE_MANAGER_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// 规范化并确认目录存在后，用系统文件管理器打开它。
-async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
+pub(super) async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
     let unreadable = |_| AppError::new("skin.open_failed", "无法读取皮肤目录。");
     let directory = tokio::fs::canonicalize(directory).await.map_err(unreadable)?;
     let metadata = tokio::fs::metadata(&directory).await.map_err(unreadable)?;

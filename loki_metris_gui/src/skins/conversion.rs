@@ -1,5 +1,6 @@
-// 本文件只负责旧版皮肤到纯主题的配色迁移与写出。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 旧版皮肤到纯主题的配色迁移与写出。
+
+use super::*;
 
 /// 旧皮肤配色角色到 v3 变量的映射，第三项是回退提示中使用的中文名称。
 const CONVERTED_COLOR_ROLES: [(&str, &str, &str); 8] = [
@@ -16,14 +17,14 @@ const CONVERTED_BACKGROUND_FILE: &str = "background.png";
 const CONVERTED_CSS_HEADER: &str = "/*\n * 由旧版兼容皮肤转换生成的变量表（schemaVersion 3）。\n * 只迁移了配色角色与背景图片；原皮肤的自由 CSS 与注入脚本不会被转换。\n * 只能修改现有变量的值，不要增加选择器、普通 CSS 属性或 @ 规则。\n */\n";
 
 /// 由旧版皮肤 ID 派生转换后主题的 ID，追加 `-theme` 并保持 64 字符上限。
-fn converted_theme_id(base_id: &str) -> String {
+pub(super) fn converted_theme_id(base_id: &str) -> String {
     let suffix = "-theme";
     let stem_length = 64_usize.saturating_sub(suffix.len());
     format!("{}{suffix}", &base_id[..base_id.len().min(stem_length)])
 }
 
 /// 由旧版皮肤名称派生转换后主题的名称，追加“（主题版）”并保持 80 字符上限。
-fn converted_theme_name(base_name: &str) -> String {
+pub(super) fn converted_theme_name(base_name: &str) -> String {
     let suffix = "（主题版）";
     let stem_length = 80_usize.saturating_sub(suffix.chars().count());
     let stem = base_name
@@ -36,7 +37,7 @@ fn converted_theme_name(base_name: &str) -> String {
 
 /// v3 变量表只接受 `#RRGGBB` 与 `#RRGGBBAA`，因此三位、四位简写在此展开，
 /// 其他 CSS 颜色写法一律视为无法迁移。
-fn normalize_theme_color(value: &str) -> Option<String> {
+pub(super) fn normalize_theme_color(value: &str) -> Option<String> {
     let hex = value.trim().strip_prefix('#')?;
     if !hex.chars().all(|char| char.is_ascii_hexdigit()) {
         return None;
@@ -150,7 +151,7 @@ fn render_converted_theme_css(
 }
 
 /// 在暂存目录写出由旧版皮肤转换的纯主题：模板清单、迁移后的双模式变量与原图片，返回需要回退默认值的配色角色说明。
-fn write_converted_theme(
+pub(super) fn write_converted_theme(
     staging: &Path,
     source: &Path,
     legacy: &LegacyManifest,

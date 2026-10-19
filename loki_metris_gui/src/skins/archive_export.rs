@@ -1,8 +1,9 @@
-// 皮肤归档导出：选择已验证包资源并写入 ZIP。
-// 本文件由 skins/mod.rs include! 并入，保留同一模块作用域。
+//! 皮肤归档导出：选择已验证包资源并写入 ZIP。
+
+use super::*;
 
 /// 列出导出皮肤时需要打包的文件：旧版为固定运行文件，主题为清单、变量表、逐模式样式与引用的图片。
-fn export_file_names(directory: &Path, manifest: &SkinManifest) -> Result<Vec<String>, AppError> {
+pub(super) fn export_file_names(directory: &Path, manifest: &SkinManifest) -> Result<Vec<String>, AppError> {
     Ok(match manifest {
         SkinManifest::Legacy(_) => LEGACY_REQUIRED_FILES
             .into_iter()
@@ -33,7 +34,7 @@ fn export_file_names(directory: &Path, manifest: &SkinManifest) -> Result<Vec<St
 }
 
 /// 把皮肤目录中的指定文件打包为内存中的 ZIP。
-fn build_skin_archive(directory: &Path, file_names: &[String]) -> Result<Vec<u8>, AppError> {
+pub(super) fn build_skin_archive(directory: &Path, file_names: &[String]) -> Result<Vec<u8>, AppError> {
     let cursor = Cursor::new(Vec::new());
     let mut writer = zip::ZipWriter::new(cursor);
     for file_name in file_names {

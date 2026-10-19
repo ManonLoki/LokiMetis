@@ -43,7 +43,7 @@ async fn remove_skin_from_page(page: &Page) -> Result<bool, AppError> {
 }
 
 /// 汇总跨页面清理结果；任一页面失败都拒绝伪报完整成功。
-fn finish_cleanup_report(removed: usize, failed: usize) -> Result<usize, AppError> {
+pub(super) fn finish_cleanup_report(removed: usize, failed: usize) -> Result<usize, AppError> {
     if failed > 0 {
         Err(AppError::with_details(
             "skin.cdp_cleanup_failed",
@@ -59,7 +59,7 @@ fn finish_cleanup_report(removed: usize, failed: usize) -> Result<usize, AppErro
 }
 
 /// 连接已在运行的宿主并清除皮肤；宿主已不在运行时视为无需清理。
-async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppError> {
+pub(super) async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppError> {
     let (_cancel_tx, mut cancel_rx) = watch::channel(false);
     let connection = connect_existing_browser(host, &mut cancel_rx).await;
     let (browser, handler_task) = match connection {
@@ -71,7 +71,7 @@ async fn remove_from_existing_endpoint(host: SkinHostKind) -> Result<usize, AppE
 }
 
 /// 连接指定端点并确认其属于该宿主后清除皮肤；宿主已不在运行时视为无需清理。
-async fn remove_from_endpoint(
+pub(super) async fn remove_from_endpoint(
     host: SkinHostKind,
     endpoint: CdpEndpoint,
 ) -> Result<usize, AppError> {
@@ -123,17 +123,17 @@ async fn cleanup_via(
 }
 
 /// 以给定错误码与文案构造 CDP 超时错误。
-fn cdp_timeout(code: &'static str, message: &'static str) -> AppError {
+pub(super) fn cdp_timeout(code: &'static str, message: &'static str) -> AppError {
     AppError::new(code, message)
 }
 
 /// 把底层 CDP 错误映射为不含细节的稳定通信错误。
-fn cdp_error(_: chromiumoxide::error::CdpError) -> AppError {
+pub(super) fn cdp_error(_: chromiumoxide::error::CdpError) -> AppError {
     AppError::new("skin.cdp_failed", "与 Codex 调试会话通信失败。")
 }
 
 /// 调试页面返回无法解析的响应时的稳定错误。
-fn cdp_response_error() -> AppError {
+pub(super) fn cdp_response_error() -> AppError {
     AppError::new(
         "skin.cdp_response_invalid",
         "Codex 调试页面返回了无效响应。",
@@ -141,7 +141,7 @@ fn cdp_response_error() -> AppError {
 }
 
 /// WebSocket 地址必须指向该端点在本机回环地址上的端口。
-fn is_allowed_websocket(address: &str, endpoint: CdpEndpoint) -> bool {
+pub(super) fn is_allowed_websocket(address: &str, endpoint: CdpEndpoint) -> bool {
     [
         format!("ws://127.0.0.1:{}/", endpoint.port),
         format!("ws://localhost:{}/", endpoint.port),

@@ -1,7 +1,6 @@
-// 本文件收纳：刷新用户皮肤库指纹，返回目录相对上次是否发生变化；删除单个皮肤；批量删除未恰好删除一项时视为失败；关闭未开放调试通道的指定宿主后重新启动。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 仅测试编译的 `SkinService` 接缝；生产路径不调用，集中于此以免测试形状渗入生产文件。
 
-// 仅测试编译的 SkinService 接缝：生产路径不调用，集中于此以免测试形状渗入生产文件。
+use super::*;
 
 impl SkinService {
     /// 刷新用户皮肤库指纹，返回目录相对上次是否发生变化。
@@ -69,7 +68,7 @@ impl SkinService {
     }
 
     /// 登记一次 Codex 宿主操作，返回操作守卫与取消信号接收端。
-    fn begin_codex_operation(
+    pub(super) fn begin_codex_operation(
         &self,
     ) -> Result<(CodexOperationGuard<'_>, watch::Receiver<bool>), AppError> {
         let id = self.next_codex_operation_id.fetch_add(1, Ordering::Relaxed);
@@ -91,7 +90,7 @@ impl SkinService {
     }
 
     /// 使用可注入预算和清理器关闭服务，供生产路径与生命周期回归共用。
-    async fn shutdown_with_budget_and_cleanup<Cleanup, CleanupFuture>(
+    pub(super) async fn shutdown_with_budget_and_cleanup<Cleanup, CleanupFuture>(
         &self,
         budget: WatchStopBudget,
         cleanup: &mut Cleanup,
@@ -106,6 +105,6 @@ impl SkinService {
 }
 
 /// 在 spawn 前原子保留一个 handler 容量名额；满额时拒绝继续创建任务。
-fn reserve_handler_task_capacity() -> Result<HandlerTaskReservation, AppError> {
+pub(super) fn reserve_handler_task_capacity() -> Result<HandlerTaskReservation, AppError> {
     reserve_handler_task_for_purpose(false)
 }

@@ -1,5 +1,6 @@
-// 本文件收纳：换肤服务构造与初始化、皮肤库列出与刷新、新主题创建、主题转换与导出。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 换肤服务构造与初始化、皮肤库列出与刷新、新主题创建、主题转换与导出。
+
+use super::*;
 
 impl SkinService {
     /// 以内置与用户皮肤库根目录构造服务，所有运行态与缓存均为空。
@@ -269,7 +270,7 @@ impl SkinService {
     }
 
     /// 清空目录缓存，迫使下次列出时重新扫描。
-    fn invalidate_catalog(&self) -> Result<(), AppError> {
+    pub(super) fn invalidate_catalog(&self) -> Result<(), AppError> {
         *self.catalog.write().map_err(|_| catalog_cache_error())? = None;
         Ok(())
     }

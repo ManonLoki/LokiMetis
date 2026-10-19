@@ -1,10 +1,11 @@
-// 本文件收纳：在完整安装事务退出前持续占用 shutdown completion 登记；Windows WorkBuddy 的恢复会关闭全部旧进程，因此新 PID 必须接管该宿主的全部旧运行态；构造恢复期间实例或端点漂移的稳定错误，阻止继续提交皮肤。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 皮肤安装与卸载事务，含 Windows WorkBuddy 整宿主恢复时的运行态接管。
+
+use super::*;
 
 /// 在完整安装事务退出前持续占用 shutdown completion 登记。
-struct InstallCompletionGuard {
+pub(super) struct InstallCompletionGuard {
     /// 持续占用的关闭完成登记。
-    _registration: ActiveWatchRegistration,
+    pub(super) _registration: ActiveWatchRegistration,
 }
 
 /// Windows WorkBuddy 的恢复会关闭全部旧进程，因此新 PID 必须接管该宿主的全部旧运行态。
@@ -29,7 +30,7 @@ fn authorized_workbuddy_error(error: AppError) -> AppError {
 }
 
 /// 只接受绑定到指定端点的唯一 WorkBuddy 根，避免孤立页面或启动交接被误认成目标。
-fn unique_workbuddy_target_for_endpoint(
+pub(super) fn unique_workbuddy_target_for_endpoint(
     instances: &[ResolvedSkinHostInstance],
     endpoint: CdpEndpoint,
 ) -> Option<ResolvedSkinHostInstance> {
@@ -40,7 +41,7 @@ fn unique_workbuddy_target_for_endpoint(
 }
 
 /// 注入事务提交前后必须仍是同一个根实例与端点。
-fn workbuddy_target_binding_matches(
+pub(super) fn workbuddy_target_binding_matches(
     expected: &ResolvedSkinHostInstance,
     current: &ResolvedSkinHostInstance,
     endpoint: CdpEndpoint,
@@ -62,7 +63,7 @@ async fn current_windows_workbuddy_target(
 }
 
 /// 摘除新安装即将替代的监视任务，并清掉已失效 PID 对应的活动皮肤占位。
-fn take_replaced_watch_tasks(
+pub(super) fn take_replaced_watch_tasks(
     runtime: &mut RuntimeState,
     host: SkinHostKind,
     target_key: &str,
@@ -88,7 +89,7 @@ fn take_replaced_watch_tasks(
 }
 
 /// 摘除停用目标。Windows WorkBuddy 使用宿主级回收，以覆盖恢复后 PID 已变化的场景。
-fn take_uninstall_watch_tasks(
+pub(super) fn take_uninstall_watch_tasks(
     runtime: &mut RuntimeState,
     host: SkinHostKind,
     target_key: Option<&str>,
@@ -119,7 +120,7 @@ fn take_uninstall_watch_tasks(
 
 impl SkinService {
     /// 为完整安装事务建立退出 completion guard，并返回同一持久取消通道。
-    fn begin_install_completion(
+    pub(super) fn begin_install_completion(
         &self,
     ) -> Result<
         (
@@ -142,7 +143,7 @@ impl SkinService {
     }
 
     /// 把安装 completion 的同一发送端发布为当前宿主操作取消入口。
-    fn bind_install_codex_operation(
+    pub(super) fn bind_install_codex_operation(
         &self,
         cancel: watch::Sender<bool>,
     ) -> Result<CodexOperationGuard<'_>, AppError> {
@@ -161,7 +162,7 @@ impl SkinService {
     }
 
     /// 在一次受确认的操作内收敛 WorkBuddy，并把已验证端点绑定到唯一官方进程树根。
-    async fn recover_windows_workbuddy_target(
+    pub(super) async fn recover_windows_workbuddy_target(
         &self,
         cancel: &mut watch::Receiver<bool>,
         mut preferred_endpoint: Option<CdpEndpoint>,

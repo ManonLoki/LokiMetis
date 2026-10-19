@@ -3,7 +3,7 @@
 
 impl SkinService {
     /// 回收上一轮因最终期限耗尽而保存的任务；锁内只移交所有权，不跨 await 持锁。
-    async fn reap_retained_watch_tasks_until<Cleanup, CleanupFuture>(
+    pub(super) async fn reap_retained_watch_tasks_until<Cleanup, CleanupFuture>(
         &self,
         _cooperative_deadline: tokio::time::Instant,
         final_deadline: tokio::time::Instant,
@@ -157,7 +157,7 @@ fn log_aborted_watch_join_result(result: Result<Result<usize, AppError>, tokio::
 }
 
 /// 返回 watcher 或端点清理未在共同截止内完成的稳定错误。
-fn watch_stop_timeout_error() -> AppError {
+pub(super) fn watch_stop_timeout_error() -> AppError {
     AppError::new(
         "skin.task_stop_timeout",
         "皮肤后台任务停止超时，残留页面清理未完成，请稍后重试。",
@@ -165,12 +165,12 @@ fn watch_stop_timeout_error() -> AppError {
 }
 
 /// 生成皮肤提示词不可用的稳定错误。
-fn prompt_unavailable(message: impl Into<String>) -> AppError {
+pub(super) fn prompt_unavailable(message: impl Into<String>) -> AppError {
     AppError::new("skin.prompt_unavailable", message)
 }
 
 /// 要求提示词引用的目录是绝对路径下的真实目录（非链接）。
-fn validate_prompt_directory(path: &Path, message: &str) -> Result<(), AppError> {
+pub(super) fn validate_prompt_directory(path: &Path, message: &str) -> Result<(), AppError> {
     if !path.is_absolute() {
         return Err(prompt_unavailable(message));
     }
@@ -182,7 +182,7 @@ fn validate_prompt_directory(path: &Path, message: &str) -> Result<(), AppError>
 }
 
 /// 校验安装包内置 Skill 中的文件：相对路径只含普通段，沿途不经过链接，且规范化后仍位于 Skill 根目录内。
-fn validate_bundled_skill_file(
+pub(super) fn validate_bundled_skill_file(
     bundled_skill_root: &Path,
     relative: &Path,
 ) -> Result<PathBuf, AppError> {
@@ -226,7 +226,7 @@ fn validate_bundled_skill_file(
 }
 
 /// 把路径编码为 JSON 字符串供写入提示词；非 UTF-8 或含控制字符的路径拒绝。
-fn prompt_json_path(path: &Path) -> Result<String, AppError> {
+pub(super) fn prompt_json_path(path: &Path) -> Result<String, AppError> {
     let value = path
         .to_str()
         .ok_or_else(|| prompt_unavailable("当前系统路径无法安全写入提示词，请联系应用维护者。"))?;
@@ -244,7 +244,7 @@ pub(crate) fn is_valid_skin_id(value: &str) -> bool {
 }
 
 /// 校验用户皮肤 ID，规则由 core 决定。
-fn validate_skin_id(value: &str) -> Result<(), AppError> {
+pub(super) fn validate_skin_id(value: &str) -> Result<(), AppError> {
     loki_metris_core::validate_skin_reference(&SkinReference {
         source: SkinSource::User,
         id: value.to_owned(),
@@ -258,7 +258,7 @@ fn validate_skin_id(value: &str) -> Result<(), AppError> {
 }
 
 /// 校验皮肤引用，并把 core 规则错误映射为界面错误。
-fn validate_skin_reference(skin: &SkinReference) -> Result<(), AppError> {
+pub(super) fn validate_skin_reference(skin: &SkinReference) -> Result<(), AppError> {
     loki_metris_core::validate_skin_reference(skin).map_err(|_| {
         AppError::new(
             "skin.id_invalid",
@@ -268,7 +268,7 @@ fn validate_skin_reference(skin: &SkinReference) -> Result<(), AppError> {
 }
 
 /// 把核心层的自由脚本信任缺失映射为稳定 GUI 错误，不暗示格式校验能证明安全。
-fn third_party_code_consent_required_error() -> AppError {
+pub(super) fn third_party_code_consent_required_error() -> AppError {
     AppError::new(
         "skin.third_party_code_consent_required",
         "兼容皮肤包含 renderer-inject.js，并会在目标宿主中执行第三方代码。只有明确确认信任来源后才能继续；格式校验不能证明脚本安全。",
@@ -276,7 +276,7 @@ fn third_party_code_consent_required_error() -> AppError {
 }
 
 /// 返回不暴露端口、PID 或路径的稳定 WorkBuddy 端点归属检查错误。
-fn workbuddy_owner_inspection_failed() -> AppError {
+pub(super) fn workbuddy_owner_inspection_failed() -> AppError {
     AppError::new(
         "skin.workbuddy_cdp_owner_inspection_failed",
         "无法验证 WorkBuddy 调试端口所属进程，未应用皮肤。",
@@ -284,7 +284,7 @@ fn workbuddy_owner_inspection_failed() -> AppError {
 }
 
 /// 校验批量删除选择（数量、只读内置、重复与 ID），把 core 规则错误映射为界面错误。
-fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
+pub(super) fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
     loki_metris_core::validate_skin_delete_batch(skins).map_err(|error| match error {
         SkinRuleError::InvalidBatchSize => AppError::new(
             "skin.delete_selection_invalid",
@@ -312,7 +312,7 @@ fn validate_delete_batch(skins: &[SkinReference]) -> Result<(), AppError> {
 }
 
 /// 导入 token 必须是 64 字符以内的数字与连字符，否则视为已过期。
-fn validate_import_token(token: &str) -> Result<(), AppError> {
+pub(super) fn validate_import_token(token: &str) -> Result<(), AppError> {
     if !token.is_empty()
         && token.len() <= 64
         && token
@@ -329,6 +329,6 @@ fn validate_import_token(token: &str) -> Result<(), AppError> {
 }
 
 /// 旧版清单缺少作者时的默认值。
-fn unknown_author() -> String {
+pub(super) fn unknown_author() -> String {
     "未知作者".into()
 }

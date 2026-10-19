@@ -2,7 +2,7 @@
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 /// 验证浏览器包含目标宿主页面，并把端口 owner 绑定到可信进程根。
-async fn browser_matches_host(
+pub(super) async fn browser_matches_host(
     host: SkinHostKind,
     browser: &mut Browser,
     endpoint: CdpEndpoint,
@@ -11,7 +11,7 @@ async fn browser_matches_host(
 }
 
 /// 验证浏览器与可选的宿主根进程精确绑定。
-async fn browser_matches_host_for_root(
+pub(super) async fn browser_matches_host_for_root(
     host: SkinHostKind,
     browser: &mut Browser,
     endpoint: CdpEndpoint,
@@ -58,7 +58,7 @@ async fn browser_host_root_pid(
 }
 
 /// 选择端点必须绑定的 WorkBuddy 根 PID；指定实例时不得改用其它唯一实例。
-fn trusted_workbuddy_root_pid(
+pub(super) fn trusted_workbuddy_root_pid(
     processes: &[PlatformHostProcess],
     expected_workbuddy_root_pid: Option<u32>,
 ) -> Option<u32> {
@@ -69,7 +69,7 @@ fn trusted_workbuddy_root_pid(
 }
 
 /// 选择 Codex 端点必须绑定的根 PID；声明端口冲突或多实例均失败关闭。
-fn trusted_codex_root_pid(
+pub(super) fn trusted_codex_root_pid(
     processes: &[PlatformHostProcess],
     endpoint: CdpEndpoint,
     expected_root_pid: Option<u32>,
@@ -92,7 +92,7 @@ fn trusted_codex_root_pid(
 }
 
 /// 首次注入期间只接受同一个已验证根 PID，owner 消失或交接都失败关闭。
-fn endpoint_owner_is_stable(expected_root_pid: u32, current_root_pid: Option<u32>) -> bool {
+pub(super) fn endpoint_owner_is_stable(expected_root_pid: u32, current_root_pid: Option<u32>) -> bool {
     current_root_pid == Some(expected_root_pid)
 }
 

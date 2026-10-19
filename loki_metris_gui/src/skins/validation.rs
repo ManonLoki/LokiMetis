@@ -1,8 +1,9 @@
-// 本文件收纳：皮肤清单读取与按版本分派、旧版与纯主题清单校验、外观契约校验及主变量表解析。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 皮肤清单读取与按版本分派、旧版与纯主题清单校验、外观契约校验及主变量表解析。
+
+use super::*;
 
 /// 读取 theme.json 并按 schemaVersion 分派：1 为旧版皮肤，3 且类型为 theme 为纯主题，2 为已停用的过渡格式。
-fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
+pub(super) fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
     let text = read_text(&directory.join("theme.json"))?;
     let value: serde_json::Value = serde_json::from_str(&text)
         .map_err(|_| AppError::new("skin.assets_invalid", "皮肤主题配置不是有效 JSON。"))?;
@@ -38,7 +39,7 @@ fn read_manifest(directory: &Path) -> Result<SkinManifest, AppError> {
 }
 
 /// 校验清单的通用字段（ID、名称、作者）后按包类型做专属校验。
-fn validate_manifest(directory: &Path, manifest: &SkinManifest) -> Result<(), AppError> {
+pub(super) fn validate_manifest(directory: &Path, manifest: &SkinManifest) -> Result<(), AppError> {
     if normalize_skin_creator_text(manifest.name()).is_err()
         || normalize_skin_creator_text(manifest.author()).is_err()
         || !is_valid_skin_id(manifest.id())
@@ -258,7 +259,7 @@ fn is_valid_requirement_color(value: &str) -> bool {
 }
 
 /// 读取并解析 theme.css；声明了外观契约时再叠加各模式的 `theme.<mode>.css` 并收集其背景图。
-fn read_theme_css_config(
+pub(super) fn read_theme_css_config(
     directory: &Path,
     appearance: Option<&ThemeAppearance>,
 ) -> Result<ThemeCssConfig, AppError> {

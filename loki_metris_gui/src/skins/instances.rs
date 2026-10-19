@@ -1,9 +1,10 @@
-// 本文件收纳：宿主实例解析与端点归属、账户资料探测、生效皮肤身份恢复与实例展示转换。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 宿主实例解析与端点归属、账户资料探测、生效皮肤身份恢复与实例展示转换。
+
+use super::*;
 
 /// 按实例 ID 重新解析 Codex 实例；实例已退出或身份变化时报错，防止操作错误进程。
 #[cfg(target_os = "macos")]
-async fn resolve_skin_host_instance(id: &str) -> Result<ResolvedSkinHostInstance, AppError> {
+pub(super) async fn resolve_skin_host_instance(id: &str) -> Result<ResolvedSkinHostInstance, AppError> {
     resolved_host_instances(SkinHostKind::Codex)
         .await?
         .into_iter()
@@ -24,7 +25,7 @@ async fn resolved_host_instances(
 }
 
 /// 使用服务刚验证过的端点作为首选候选，避免动态端口因命令行读取降级而短暂丢失。
-async fn resolved_host_instances_with_preferred(
+pub(super) async fn resolved_host_instances_with_preferred(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
 ) -> Result<Vec<ResolvedSkinHostInstance>, AppError> {
@@ -67,7 +68,7 @@ async fn endpoint_matches_host(
 }
 
 /// 为运行态实例加宿主命名空间，防止不同宿主的相同实例 ID 冲突。
-fn runtime_instance_key(host: SkinHostKind, instance_id: &str) -> String {
+pub(super) fn runtime_instance_key(host: SkinHostKind, instance_id: &str) -> String {
     let prefix = match host {
         SkinHostKind::Codex => "codex",
         SkinHostKind::WorkBuddy => "workBuddy",
@@ -76,7 +77,7 @@ fn runtime_instance_key(host: SkinHostKind, instance_id: &str) -> String {
 }
 
 /// 判断运行态键是否属于指定宿主，避免 PID 变化后遗留的旧实例状态跨宿主泄漏。
-fn runtime_instance_belongs_to_host(host: SkinHostKind, key: &str) -> bool {
+pub(super) fn runtime_instance_belongs_to_host(host: SkinHostKind, key: &str) -> bool {
     key.starts_with(match host {
         SkinHostKind::Codex => "codex:",
         SkinHostKind::WorkBuddy => "workBuddy:",
@@ -84,7 +85,7 @@ fn runtime_instance_belongs_to_host(host: SkinHostKind, key: &str) -> bool {
 }
 
 /// 从宿主命名空间键中恢复原始实例 ID，并兼容旧的无前缀键。
-fn runtime_instance_id(host: SkinHostKind, key: &str) -> &str {
+pub(super) fn runtime_instance_id(host: SkinHostKind, key: &str) -> &str {
     key.strip_prefix(match host {
         SkinHostKind::Codex => "codex:",
         SkinHostKind::WorkBuddy => "workBuddy:",
@@ -94,7 +95,7 @@ fn runtime_instance_id(host: SkinHostKind, key: &str) -> &str {
 
 /// 重新发现并按稳定 ID 解析目标宿主实例，拒绝已退出或身份变化的实例。
 #[cfg(target_os = "macos")]
-async fn resolve_host_instance(
+pub(super) async fn resolve_host_instance(
     host: SkinHostKind,
     id: &str,
 ) -> Result<ResolvedSkinHostInstance, AppError> {
@@ -102,7 +103,7 @@ async fn resolve_host_instance(
 }
 
 /// 解析实例时优先复核服务在同一生命周期内保存的已验证端点。
-async fn resolve_host_instance_with_preferred(
+pub(super) async fn resolve_host_instance_with_preferred(
     host: SkinHostKind,
     id: &str,
     preferred_endpoint: Option<CdpEndpoint>,
@@ -123,7 +124,7 @@ async fn resolve_host_instance_with_preferred(
 }
 
 /// 扫描宿主主进程并生成按 PID 从新到旧排列的界面实例快照。
-async fn discover_host_process_instances(
+pub(super) async fn discover_host_process_instances(
     host: SkinHostKind,
 ) -> Result<Vec<SkinHostInstance>, AppError> {
     let mut instances = resolved_host_instances(host)
@@ -147,7 +148,7 @@ fn scanned_host_instance(host: SkinHostKind, resolved: ResolvedSkinHostInstance)
 
 /// 把解析结果转换为界面实例，有调试端口即视为可换肤。
 #[cfg(test)]
-fn scanned_skin_host_instance(resolved: ResolvedSkinHostInstance) -> SkinHostInstance {
+pub(super) fn scanned_skin_host_instance(resolved: ResolvedSkinHostInstance) -> SkinHostInstance {
     let state = if resolved.debug_port.is_some() {
         CodexRuntimeState::Ready
     } else {
@@ -157,7 +158,7 @@ fn scanned_skin_host_instance(resolved: ResolvedSkinHostInstance) -> SkinHostIns
 }
 
 /// 连接实例的调试端口，确认浏览器属于该进程后在就绪期限内读取账户资料。
-async fn probe_resolved_account_profile(
+pub(super) async fn probe_resolved_account_profile(
     resolved: &ResolvedSkinHostInstance,
 ) -> Result<Option<AccountProfile>, AppError> {
     let port = resolved.debug_port.ok_or_else(|| {
@@ -190,7 +191,7 @@ async fn probe_resolved_account_profile(
 }
 
 /// 两个宿主独立读取当前皮肤标记，不让账户缓存承担动态运行状态。
-async fn probe_resolved_active_skin(
+pub(super) async fn probe_resolved_active_skin(
     host: SkinHostKind,
     resolved: &ResolvedSkinHostInstance,
 ) -> Result<Option<RecoveredSkinIdentity>, AppError> {
@@ -267,7 +268,7 @@ fn codex_instance_from_resolved(
 }
 
 /// 将已验证进程映射为宿主实例，同时保留 Codex 专属账户信息边界。
-fn host_instance_from_resolved(
+pub(super) fn host_instance_from_resolved(
     host: SkinHostKind,
     resolved: ResolvedSkinHostInstance,
     state: CodexRuntimeState,
@@ -392,7 +393,7 @@ async fn discover_account_profile(browser: &Browser) -> Result<Option<AccountPro
 }
 
 /// 从页面运行态标记恢复生效皮肤身份：优先精确引用，其次旧版主题 ID，最后旧版样式文本；版本标记无效时放弃。
-fn recovered_skin_identity(probe: Option<ActiveSkinProbe>) -> Option<RecoveredSkinIdentity> {
+pub(super) fn recovered_skin_identity(probe: Option<ActiveSkinProbe>) -> Option<RecoveredSkinIdentity> {
     let probe = probe?;
     let _version = probe.version.filter(|value| {
         !value.trim().is_empty()
@@ -418,7 +419,7 @@ fn recovered_skin_identity(probe: Option<ActiveSkinProbe>) -> Option<RecoveredSk
 }
 
 /// 只接受 PNG、JPEG 或 WebP 的 base64 data URL，且解码后非空并不超过头像大小上限。
-fn validated_account_avatar(value: Option<&str>) -> Option<String> {
+pub(super) fn validated_account_avatar(value: Option<&str>) -> Option<String> {
     let value = value?;
     let (header, payload) = value.split_once(',')?;
     if !matches!(
@@ -434,7 +435,7 @@ fn validated_account_avatar(value: Option<&str>) -> Option<String> {
 }
 
 /// 返回生效皮肤的展示名称。
-fn displayed_active_skin_name(active: Option<&SkinDescriptor>) -> Option<String> {
+pub(super) fn displayed_active_skin_name(active: Option<&SkinDescriptor>) -> Option<String> {
     active.map(|skin| skin.name.clone())
 }
 

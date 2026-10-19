@@ -2,7 +2,7 @@
 // 与主文件共用作用域，因此无需额外导入。收纳内容：判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。；身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。；将 WorkBuddy 仍存活时的不可用 CDP 统一映射为界面可确认的恢复请求。
 
 /// 判断错误是否属于可由 WorkBuddy 调试连接恢复流程处理的连接故障。
-fn is_workbuddy_connection_error(error_code: &str) -> bool {
+pub(super) fn is_workbuddy_connection_error(error_code: &str) -> bool {
     matches!(
         error_code,
         "skin.cdp_connect_timeout"
@@ -16,7 +16,7 @@ fn is_workbuddy_connection_error(error_code: &str) -> bool {
 }
 
 /// 身份、进程或端口 owner 检查失败属于权威故障，禁止降级成破坏性恢复提示。
-fn is_host_inspection_error(error_code: &str) -> bool {
+pub(super) fn is_host_inspection_error(error_code: &str) -> bool {
     matches!(
         error_code,
         "skin.codex_cdp_owner_inspection_failed"
@@ -29,7 +29,7 @@ fn is_host_inspection_error(error_code: &str) -> bool {
 }
 
 /// 将 WorkBuddy 仍存活时的不可用 CDP 统一映射为界面可确认的恢复请求。
-async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -> AppError {
+pub(super) async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -> AppError {
     if host != SkinHostKind::WorkBuddy || error.code == "skin.operation_cancelled" {
         return error;
     }
@@ -50,7 +50,7 @@ async fn remap_workbuddy_connection_error(host: SkinHostKind, error: AppError) -
 }
 
 /// 连接已在运行的宿主（用于退出清理）；handler 已结束时视为会话失效。
-async fn connect_existing_browser(
+pub(super) async fn connect_existing_browser(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(Browser, HandlerTaskGuard, CdpEndpoint), AppError> {
@@ -131,11 +131,11 @@ async fn connect_existing_browser_for_purpose(
 include!("cdp_identity.rs");
 
 /// 连接指定端点的浏览器（普通用途）。
-async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, HandlerTaskGuard), AppError> {
+pub(super) async fn connect_browser(endpoint: CdpEndpoint) -> Result<(Browser, HandlerTaskGuard), AppError> {
     connect_browser_for_purpose(endpoint, false).await
 }
 /// 只有退出后的页面清理可使用Draining阶段的连接容量。
-async fn connect_browser_for_purpose(
+pub(super) async fn connect_browser_for_purpose(
     endpoint: CdpEndpoint,
     cleanup: bool,
 ) -> Result<(Browser, HandlerTaskGuard), AppError> {
@@ -170,21 +170,21 @@ async fn connect_browser_for_purpose(
 /// 首批注入在整个等待期间保持不变的输入：注入载荷、皮肤身份、页面就绪期限，
 /// 以及必须始终绑定的调试端点与宿主根进程。
 #[derive(Clone, Copy)]
-struct InitialInjection<'a> {
+pub(super) struct InitialInjection<'a> {
     /// 注入脚本正文。
-    payload: &'a Arc<str>,
+    pub(super) payload: &'a Arc<str>,
     /// 待生效的皮肤身份。
-    skin: &'a SkinReference,
+    pub(super) skin: &'a SkinReference,
     /// 等待宿主页面就绪的期限。
-    page_ready_timeout: Duration,
+    pub(super) page_ready_timeout: Duration,
     /// 已验证的调试端点。
-    endpoint: CdpEndpoint,
+    pub(super) endpoint: CdpEndpoint,
     /// 端点必须归属的宿主根进程 PID。
-    expected_host_root_pid: u32,
+    pub(super) expected_host_root_pid: u32,
 }
 
 /// 先复核端点仍绑定预期宿主根进程，再在页面就绪期限内完成首批注入；期间响应取消，失败时由调用方回收 handler。
-async fn wait_for_initial_injection(
+pub(super) async fn wait_for_initial_injection(
     host: SkinHostKind,
     browser: Browser,
     handler_task: HandlerTaskGuard,
@@ -260,7 +260,7 @@ async fn wait_for_initial_injection(
 }
 
 /// 回滚优先复用当前会话；会话失效时仅对同一端点重连并重新验证宿主一次。
-async fn rollback_initial_injection(
+pub(super) async fn rollback_initial_injection(
     host: SkinHostKind,
     browser: &mut Browser,
     handler_task: &mut HandlerTaskGuard,
@@ -317,7 +317,7 @@ async fn rollback_initial_injection(
 }
 
 /// 在页面就绪期限内找到第一个宿主页面并读取外观，生成安装前的外观预检结果。
-async fn wait_for_initial_appearance(
+pub(super) async fn wait_for_initial_appearance(
     host: SkinHostKind,
     browser: &mut Browser,
     page_ready_timeout: Duration,

@@ -2,7 +2,7 @@
 // 与主文件共用作用域，因此无需额外导入。收纳内容：调试端口选择与候选收集，以及宿主操作的取消、退出监视与可取消等待。
 
 /// 从宿主默认端口区间选择未被已知实例占用的本机监听端口。
-fn available_debug_port_for(
+pub(super) fn available_debug_port_for(
     host: SkinHostKind,
     instances: &[ResolvedSkinHostInstance],
 ) -> Result<u16, AppError> {
@@ -10,7 +10,7 @@ fn available_debug_port_for(
 }
 
 /// 选择端口时同时排除已占用端口和本轮已失败端口。
-fn available_debug_port_for_excluding(
+pub(super) fn available_debug_port_for_excluding(
     host: SkinHostKind,
     instances: &[ResolvedSkinHostInstance],
     excluded_ports: &[u16],
@@ -39,7 +39,7 @@ fn available_debug_port_for_excluding(
 
 #[cfg(test)]
 /// 从宿主进程命令行收集显式声明的调试端点候选。
-fn endpoint_candidates_from_commands(commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
+pub(super) fn endpoint_candidates_from_commands(commands: Vec<(u32, String)>) -> Vec<CdpEndpoint> {
     explicit_endpoint_candidates_from_commands(commands)
 }
 
@@ -58,7 +58,7 @@ fn explicit_endpoint_candidates_from_commands(
 }
 
 /// 合并宿主命令行与已验证首选值；仅 WorkBuddy 保留其兼容默认端口。
-async fn cdp_endpoint_candidates_for(
+pub(super) async fn cdp_endpoint_candidates_for(
     host: SkinHostKind,
     preferred_endpoint: Option<CdpEndpoint>,
 ) -> Result<Vec<CdpEndpoint>, AppError> {
@@ -70,7 +70,7 @@ async fn cdp_endpoint_candidates_for(
 }
 
 /// 在通用命令行端口候选上替换宿主默认值，保留 WorkBuddy renderer 的动态端口。
-fn host_endpoint_candidates_from_commands(
+pub(super) fn host_endpoint_candidates_from_commands(
     host: SkinHostKind,
     commands: Vec<(u32, String)>,
     preferred_endpoint: Option<CdpEndpoint>,
@@ -93,17 +93,17 @@ fn host_endpoint_candidates_from_commands(
 /// 因为调用方既有 Codex 专属路径，也有 WorkBuddy 等其它宿主共用的
 /// 通用取消/关闭门禁（如 [`crate::skins::lifecycle`] 的 shutdown 门禁），
 /// 后者在调用时并不持有具体的 [`SkinHostKind`]。
-fn operation_cancelled() -> AppError {
+pub(super) fn operation_cancelled() -> AppError {
     AppError::new("skin.operation_cancelled", "已停止启动或页面搜寻。")
 }
 
 /// Codex 在操作期间退出时的稳定错误。
-fn codex_exited() -> AppError {
+pub(super) fn codex_exited() -> AppError {
     AppError::new("skin.codex_exited", "Codex 已在启动或页面搜寻期间退出。")
 }
 
 /// Codex 已不在运行时返回退出错误。
-fn ensure_codex_running(running: bool) -> Result<(), AppError> {
+pub(super) fn ensure_codex_running(running: bool) -> Result<(), AppError> {
     running.then_some(()).ok_or_else(codex_exited)
 }
 
@@ -152,7 +152,7 @@ where
 }
 
 /// Codex 操作额外监视宿主退出，WorkBuddy 操作仅响应统一取消信号。
-async fn monitor_host_operation<T, F>(
+pub(super) async fn monitor_host_operation<T, F>(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
     future: F,
@@ -167,7 +167,7 @@ where
 }
 
 /// 运行操作并在完成前收到取消信号时立即返回取消错误；信号通道关闭也视为取消。
-async fn run_cancellable<T, F>(cancel: &mut watch::Receiver<bool>, future: F) -> Result<T, AppError>
+pub(super) async fn run_cancellable<T, F>(cancel: &mut watch::Receiver<bool>, future: F) -> Result<T, AppError>
 where
     F: Future<Output = Result<T, AppError>>,
 {
@@ -189,7 +189,7 @@ where
 }
 
 /// 可被取消信号提前打断的等待。
-async fn cancellable_sleep(
+pub(super) async fn cancellable_sleep(
     cancel: &mut watch::Receiver<bool>,
     duration: Duration,
 ) -> Result<(), AppError> {

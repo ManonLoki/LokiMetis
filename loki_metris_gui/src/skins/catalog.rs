@@ -1,18 +1,19 @@
-// 本文件收纳：皮肤库目录指纹与扫描、导入批次预检与身份分配，以及皮肤描述加载。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 皮肤库目录指纹与扫描、导入批次预检与身份分配，以及皮肤描述加载。
+
+use super::*;
 
 /// 目录缓存锁不可用时的稳定错误。
-fn catalog_cache_error() -> AppError {
+pub(super) fn catalog_cache_error() -> AppError {
     AppError::new("skin.library_unavailable", "皮肤资源缓存不可用。")
 }
 
 /// 导入暂存状态锁不可用时的稳定错误。
-fn import_state_error() -> AppError {
+pub(super) fn import_state_error() -> AppError {
     AppError::new("skin.import_failed", "皮肤安装暂存状态不可用。")
 }
 
 /// 合并内置库与用户库的目录指纹，按来源（内置在前）和目录名排序，供缓存比对。
-fn catalog_fingerprint(
+pub(super) fn catalog_fingerprint(
     builtin_root: &Path,
     user_root: &Path,
 ) -> Result<Vec<CatalogDirectoryFingerprint>, AppError> {
@@ -134,7 +135,7 @@ fn directory_latest_modified(path: &Path) -> Option<SystemTime> {
 }
 
 /// 扫描一个皮肤库根目录并加载每个合法皮肤；单个皮肤无效时只记录日志并跳过。
-fn scan_catalog_root(
+pub(super) fn scan_catalog_root(
     root: &Path,
     source: SkinSource,
     skins: &mut Vec<CatalogSkin>,
@@ -179,7 +180,7 @@ fn scan_catalog_root(
 }
 
 /// 路径是否已被任何文件或链接占用；无法判断时返回错误而不是假定空闲。
-fn path_is_occupied(path: &Path) -> Result<bool, AppError> {
+pub(super) fn path_is_occupied(path: &Path) -> Result<bool, AppError> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(true),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
@@ -192,7 +193,7 @@ fn path_is_occupied(path: &Path) -> Result<bool, AppError> {
 
 impl PendingImportBatch {
     /// 把暂存批次转换为对外的预检结果。
-    fn response(&self) -> PreparedSkinImportBatch {
+    pub(super) fn response(&self) -> PreparedSkinImportBatch {
         PreparedSkinImportBatch {
             token: self.token.clone(),
             items: self
@@ -211,7 +212,7 @@ impl PendingImportBatch {
 }
 
 /// 在后台线程逐个解压、校验导入归档到暂存目录，分配不冲突的身份并实时上报进度；取消或失败时清理整个暂存目录。
-fn prepare_import_batch_in_worker(
+pub(super) fn prepare_import_batch_in_worker(
     user_root: &Path,
     sources: Vec<PathBuf>,
     token: String,
@@ -338,13 +339,13 @@ fn prepare_import_batch_in_worker(
 }
 
 /// 生成进程内唯一的导入批次 token（进程 ID 加递增序号）。
-fn next_import_token() -> String {
+pub(super) fn next_import_token() -> String {
     let suffix = IMPORT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     format!("{}-{suffix}", std::process::id())
 }
 
 /// 导入已被取消时返回取消错误。
-fn ensure_import_not_cancelled(cancelled: &AtomicBool) -> Result<(), AppError> {
+pub(super) fn ensure_import_not_cancelled(cancelled: &AtomicBool) -> Result<(), AppError> {
     if cancelled.load(Ordering::Acquire) {
         Err(import_cancelled_error())
     } else {
@@ -353,12 +354,12 @@ fn ensure_import_not_cancelled(cancelled: &AtomicBool) -> Result<(), AppError> {
 }
 
 /// 导入预检被用户取消的稳定错误。
-fn import_cancelled_error() -> AppError {
+pub(super) fn import_cancelled_error() -> AppError {
     AppError::new("skin.import_cancelled", "已取消这批主题/皮肤预检。")
 }
 
 /// 累计批次解压体积，超过批次上限时拒绝。
-fn checked_batch_import_bytes(current: u64, next: u64) -> Result<u64, AppError> {
+pub(super) fn checked_batch_import_bytes(current: u64, next: u64) -> Result<u64, AppError> {
     let total = current.saturating_add(next);
     if total > MAX_IMPORT_BATCH_BYTES {
         return Err(AppError::new(
@@ -370,7 +371,7 @@ fn checked_batch_import_bytes(current: u64, next: u64) -> Result<u64, AppError> 
 }
 
 /// 为导入皮肤分配用户库中未占用的 ID 与名称。
-fn available_import_identity(
+pub(super) fn available_import_identity(
     user_root: &Path,
     base_id: &str,
     base_name: &str,
@@ -429,7 +430,7 @@ fn rewrite_import_identity(directory: &Path, id: &str, name: &str) -> Result<(),
 }
 
 /// 读取并校验皮肤目录清单，生成皮肤库展示描述。
-fn load_descriptor(
+pub(super) fn load_descriptor(
     directory: &Path,
     id: &str,
     source: SkinSource,

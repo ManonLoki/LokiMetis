@@ -1,5 +1,6 @@
-// 本文件收纳：换肤对外数据模型（皮肤描述、外观预检、导入与删除结果、运行状态、宿主实例）及内部探针与端点类型。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 换肤对外数据模型（皮肤描述、外观预检、导入与删除结果、运行状态、宿主实例）及内部探针与端点类型。
+
+use super::*;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -230,13 +231,13 @@ pub struct SkinStatus {
 /// 皮肤对当前宿主版本的兼容情况：适配模式及已应用、已跳过的兼容规则。
 pub struct SkinCompatibilityStatus {
     /// 宿主兼容脚本版本。
-    version: String,
+    pub(super) version: String,
     /// 兼容模式。
-    mode: SkinCompatibilityMode,
+    pub(super) mode: SkinCompatibilityMode,
     /// 已应用的兼容规则。
-    applied_rules: Vec<String>,
+    pub(super) applied_rules: Vec<String>,
     /// 无法应用的兼容规则。
-    skipped_rules: Vec<String>,
+    pub(super) skipped_rules: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -300,49 +301,49 @@ pub struct SkinHostInstance {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// 从宿主页面读取的账户资料原始探针结果，字段均可能缺失。
-struct AccountProfileProbe {
+pub(super) struct AccountProfileProbe {
     /// 账户展示名。
-    label: Option<String>,
+    pub(super) label: Option<String>,
     /// 头像 data URL。
-    avatar_data_url: Option<String>,
+    pub(super) avatar_data_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// 仅解析页面当前活动皮肤引用，不读取账户资料。
-struct ActiveSkinOnlyProbe {
+pub(super) struct ActiveSkinOnlyProbe {
     /// 页面当前生效皮肤；未注入时为 None。
-    active_skin: Option<ActiveSkinProbe>,
+    pub(super) active_skin: Option<ActiveSkinProbe>,
 }
 
 #[derive(Debug, Clone)]
 /// 已校验并缓存的实例账户资料，用于实例列表展示。
-struct AccountProfile {
+pub(super) struct AccountProfile {
     /// 已校验的账户展示名。
-    label: Option<String>,
+    pub(super) label: Option<String>,
     /// 已校验的头像 data URL。
-    avatar_data_url: Option<String>,
+    pub(super) avatar_data_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// 从宿主页面读取的当前生效皮肤标记，兼容新版引用与旧版主题 ID、样式文本。
-struct ActiveSkinProbe {
+pub(super) struct ActiveSkinProbe {
     /// 页面中皮肤运行时版本。
-    version: Option<String>,
+    pub(super) version: Option<String>,
     /// 皮肤来源。
-    source: Option<SkinSource>,
+    pub(super) source: Option<SkinSource>,
     /// 皮肤 ID。
-    id: Option<String>,
+    pub(super) id: Option<String>,
     /// 旧版主题 ID。
-    legacy_theme_id: Option<String>,
+    pub(super) legacy_theme_id: Option<String>,
     /// 旧版主题样式文本。
-    legacy_style_text: Option<String>,
+    pub(super) legacy_style_text: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 从页面恢复出的生效皮肤身份：精确引用、旧版主题 ID 或旧版主题样式文本。
-enum RecoveredSkinIdentity {
+pub(super) enum RecoveredSkinIdentity {
     /// 新版精确皮肤引用。
     Exact(SkinReference),
     /// 旧版主题 ID。
@@ -353,45 +354,45 @@ enum RecoveredSkinIdentity {
 
 #[derive(Debug, Clone)]
 /// 已通过身份校验的宿主进程：PID、可执行文件路径与完整命令行。
-struct PlatformHostProcess {
+pub(super) struct PlatformHostProcess {
     /// 进程 PID。
-    pid: u32,
+    pub(super) pid: u32,
     /// 已校验的可执行文件路径。
-    executable: PathBuf,
+    pub(super) executable: PathBuf,
     /// 完整命令行。
-    command_line: String,
+    pub(super) command_line: String,
 }
 
 #[derive(Debug, Clone)]
 /// 解析完成的宿主实例：稳定实例 ID、进程、启动参数、调试端口与配置档。
-struct ResolvedSkinHostInstance {
+pub(super) struct ResolvedSkinHostInstance {
     /// 稳定实例 ID。
-    id: String,
+    pub(super) id: String,
     /// 宿主进程。
-    process: PlatformHostProcess,
+    pub(super) process: PlatformHostProcess,
     /// 启动参数。
-    arguments: Vec<String>,
+    pub(super) arguments: Vec<String>,
     /// 已开放的 CDP 调试端口。
-    debug_port: Option<u16>,
+    pub(super) debug_port: Option<u16>,
     /// 配置档名称。
-    profile: Option<String>,
+    pub(super) profile: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// 本机回环 CDP 调试端点，只保存端口。
-struct CdpEndpoint {
+pub(super) struct CdpEndpoint {
     /// 回环地址上的调试端口。
-    port: u16,
+    pub(super) port: u16,
 }
 
 impl CdpEndpoint {
     /// 以指定端口构造回环端点。
-    fn new(port: u16) -> Self {
+    pub(super) fn new(port: u16) -> Self {
         Self { port }
     }
 
     /// 返回一个宿主专用且互不冲突的默认回环端口。
-    fn default_for(host: SkinHostKind) -> Self {
+    pub(super) fn default_for(host: SkinHostKind) -> Self {
         Self::new(match host {
             SkinHostKind::Codex => DEFAULT_CDP_PORT,
             SkinHostKind::WorkBuddy => WORKBUDDY_DEFAULT_CDP_PORT,
@@ -399,7 +400,7 @@ impl CdpEndpoint {
     }
 
     /// 返回该端点的 HTTP 基础地址。
-    fn url(self) -> String {
+    pub(super) fn url(self) -> String {
         format!("http://127.0.0.1:{}", self.port)
     }
 }
@@ -413,14 +414,14 @@ impl Default for CdpEndpoint {
 
 impl CodexRuntimeStatus {
     /// 以运行状态构造查询结果。
-    fn new(state: CodexRuntimeState) -> Self {
+    pub(super) fn new(state: CodexRuntimeState) -> Self {
         Self { state }
     }
 }
 
 impl SkinStatus {
     /// 未注入皮肤的状态，保留本次清理影响的页面数。
-    fn stopped(affected_pages: usize) -> Self {
+    pub(super) fn stopped(affected_pages: usize) -> Self {
         Self {
             installed: false,
             skin_id: None,
@@ -435,7 +436,7 @@ impl SkinStatus {
     }
 
     /// 指定皮肤已注入时的运行状态。
-    fn running(
+    pub(super) fn running(
         skin: &SkinDescriptor,
         affected_pages: usize,
         compatibility: Option<SkinCompatibilityStatus>,
@@ -454,7 +455,7 @@ impl SkinStatus {
     }
 
     /// 把状态绑定到指定宿主实例。
-    fn for_instance(mut self, instance_id: impl Into<String>) -> Self {
+    pub(super) fn for_instance(mut self, instance_id: impl Into<String>) -> Self {
         self.instance_id = Some(instance_id.into());
         self
     }

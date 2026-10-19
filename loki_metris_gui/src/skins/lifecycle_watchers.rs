@@ -3,19 +3,19 @@
 
 impl SkinService {
     /// 取得 watcher 回收器短临界区；即使测试污染锁，也不能遗失真实任务句柄。
-    fn lock_watch_task_reaper(&self) -> std::sync::MutexGuard<'_, WatchTaskReaper> {
+    pub(super) fn lock_watch_task_reaper(&self) -> std::sync::MutexGuard<'_, WatchTaskReaper> {
         self.watch_task_reaper
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// 保存未到终态的原 JoinHandle，或保存已到终态但尚未执行的端点清理。
-    fn retain_watch_task(&self, task: RetainedWatchTask) {
+    pub(super) fn retain_watch_task(&self, task: RetainedWatchTask) {
         self.lock_watch_task_reaper().retained.push(task);
     }
 
     /// 在同一短锁中复核 shutdown 门禁并登记需要在退出前完成的活动。
-    fn register_shutdown_participant(
+    pub(super) fn register_shutdown_participant(
         &self,
         cancel: watch::Sender<bool>,
     ) -> Result<ActiveWatchRegistration, AppError> {
@@ -33,7 +33,7 @@ impl SkinService {
     }
 
     /// 登记已构造但尚未提交到运行态的 watcher，使退出能取消并等待其完成。
-    fn register_active_watch_task(
+    pub(super) fn register_active_watch_task(
         &self,
         cancel: watch::Sender<bool>,
     ) -> Result<ActiveWatchRegistration, AppError> {
@@ -58,7 +58,7 @@ impl SkinService {
     }
 
     /// 应用退出一旦开始，不允许在退出任务完成后又登记新的 watcher。
-    fn ensure_watch_runtime_open(&self) -> Result<(), AppError> {
+    pub(super) fn ensure_watch_runtime_open(&self) -> Result<(), AppError> {
         if self.lock_watch_task_reaper().shutting_down {
             Err(operation_cancelled())
         } else {
@@ -68,12 +68,12 @@ impl SkinService {
 
     /// 返回后续安装/停用操作需要优先回收的任务数。
     #[cfg(test)]
-    fn retained_watch_task_count(&self) -> usize {
+    pub(super) fn retained_watch_task_count(&self) -> usize {
         self.lock_watch_task_reaper().retained.len()
     }
 
     /// 为正常操作建立一次完整而有界的 watcher 回收轮次。
-    async fn reap_watch_tasks(&self) -> Result<usize, AppError> {
+    pub(super) async fn reap_watch_tasks(&self) -> Result<usize, AppError> {
         reap_finished_handler_tasks();
         let budget = WatchStopBudget::production();
         let (cooperative_deadline, final_deadline) = budget.deadlines(tokio::time::Instant::now());
@@ -88,7 +88,7 @@ impl SkinService {
     }
 
     /// 停止一组已从运行态摘除的 watcher，并优先回收上一轮保留的句柄。
-    async fn stop_watch_tasks(&self, tasks: Vec<WatchTask>) -> Result<usize, AppError> {
+    pub(super) async fn stop_watch_tasks(&self, tasks: Vec<WatchTask>) -> Result<usize, AppError> {
         reap_finished_handler_tasks();
         let budget = WatchStopBudget::production();
         let (cooperative_deadline, final_deadline) = budget.deadlines(tokio::time::Instant::now());
@@ -156,7 +156,7 @@ impl SkinService {
     }
 
     /// 生产退出在同一总预算内给最终handler abort与终态确认保留尾部。
-    async fn shutdown_with_budget_cleanup_and_tail<Cleanup, CleanupFuture>(
+    pub(super) async fn shutdown_with_budget_cleanup_and_tail<Cleanup, CleanupFuture>(
         &self,
         budget: WatchStopBudget,
         cleanup: &mut Cleanup,
@@ -246,7 +246,7 @@ impl SkinService {
     }
 
     /// 同一轮所有任务先收到合作取消，再共享合作、abort 确认与 endpoint cleanup 总截止。
-    async fn stop_watch_tasks_until<Cleanup, CleanupFuture>(
+    pub(super) async fn stop_watch_tasks_until<Cleanup, CleanupFuture>(
         &self,
         tasks: Vec<WatchTask>,
         cooperative_deadline: tokio::time::Instant,
@@ -296,7 +296,7 @@ impl SkinService {
     }
 
     /// 停止单个 watcher；任何未完成阶段都把剩余所有权移交回 service reaper。
-    async fn stop_watch_task<Cleanup, CleanupFuture>(
+    pub(super) async fn stop_watch_task<Cleanup, CleanupFuture>(
         &self,
         task: WatchTask,
         cooperative_deadline: tokio::time::Instant,

@@ -1,8 +1,9 @@
-// 本文件收纳：CDP 目标与页面列举、唯一匹配判定、窗口激活，以及各平台 Codex 进程查询、启动、重启与强制关闭。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! CDP 目标与页面列举、唯一匹配判定、窗口激活，以及各平台宿主进程查询、启动、重启与强制关闭。
+
+use super::*;
 
 /// 在请求期限内刷新浏览器调试目标列表，并留出短暂稳定时间让新页面出现。
-async fn fetch_targets(browser: &mut Browser) -> Result<(), AppError> {
+pub(super) async fn fetch_targets(browser: &mut Browser) -> Result<(), AppError> {
     tokio::time::timeout(CDP_REQUEST_TIMEOUT, browser.fetch_targets())
         .await
         .map_err(|_| cdp_timeout("skin.cdp_request_timeout", "Codex 调试目标刷新超时。"))?
@@ -12,7 +13,7 @@ async fn fetch_targets(browser: &mut Browser) -> Result<(), AppError> {
 }
 
 /// 激活与已验证调试端点对应的宿主窗口。
-async fn try_activate_host_window(host: SkinHostKind, endpoint: CdpEndpoint) {
+pub(super) async fn try_activate_host_window(host: SkinHostKind, endpoint: CdpEndpoint) {
     let processes = match platform_host_processes(host).await {
         Ok(processes) => processes
             .into_iter()
@@ -35,13 +36,13 @@ async fn try_activate_host_window(host: SkinHostKind, endpoint: CdpEndpoint) {
 }
 
 /// 迭代器恰有一个元素时返回它；为空或多于一个都返回 `None`，避免在歧义时猜测。
-fn exactly_one<T>(mut iter: impl Iterator<Item = T>) -> Option<T> {
+pub(super) fn exactly_one<T>(mut iter: impl Iterator<Item = T>) -> Option<T> {
     let first = iter.next()?;
     iter.next().is_none().then_some(first)
 }
 
 /// 在已解析实例中找出唯一使用该调试端口的 Codex 进程 PID。
-fn unique_codex_pid_for_endpoint(
+pub(super) fn unique_codex_pid_for_endpoint(
     instances: &[ResolvedSkinHostInstance],
     endpoint: CdpEndpoint,
 ) -> Option<u32> {
@@ -54,7 +55,7 @@ fn unique_codex_pid_for_endpoint(
 }
 
 /// 重启后在实例列表中找出唯一使用该调试端口的实例。
-fn restarted_instance_for_endpoint(
+pub(super) fn restarted_instance_for_endpoint(
     instances: Vec<SkinHostInstance>,
     endpoint: CdpEndpoint,
 ) -> Option<SkinHostInstance> {
@@ -88,7 +89,7 @@ async fn activate_platform_codex_window(_pid: u32) -> bool {
 }
 
 /// 在请求期限内列出浏览器当前全部页面。
-async fn browser_pages(browser: &Browser) -> Result<Vec<Page>, AppError> {
+pub(super) async fn browser_pages(browser: &Browser) -> Result<Vec<Page>, AppError> {
     tokio::time::timeout(CDP_REQUEST_TIMEOUT, browser.pages())
         .await
         .map_err(|_| cdp_timeout("skin.cdp_request_timeout", "Codex 调试页面列表响应超时。"))?
@@ -103,7 +104,7 @@ async fn launch_platform_codex() -> Result<(), AppError> {
 
 #[cfg(any(target_os = "macos", test))]
 /// 从进程列表输出中挑出命令行恰为指定可执行文件（可带引号）或其后紧跟 ` --` 参数的进程，返回 PID 与命令行。
-fn matching_process_command_lines(output: &str, executable: &Path) -> Vec<(u32, String)> {
+pub(super) fn matching_process_command_lines(output: &str, executable: &Path) -> Vec<(u32, String)> {
     let executable = executable.to_string_lossy();
     let quoted_executable = format!("\"{executable}\"");
     output
@@ -229,7 +230,7 @@ async fn force_close_platform_codex() -> Result<(), AppError> {
 
 #[cfg(target_os = "macos")]
 /// 判断 Codex 是否在运行（macOS）；找不到应用视为未运行。
-async fn platform_codex_is_running() -> Result<bool, AppError> {
+pub(super) async fn platform_codex_is_running() -> Result<bool, AppError> {
     match macos_process::host_is_running(SkinHostKind::Codex).await {
         Ok(running) => Ok(running),
         Err(error) if error.code == "skin.codex_not_found" => Ok(false),
@@ -239,7 +240,7 @@ async fn platform_codex_is_running() -> Result<bool, AppError> {
 
 #[cfg(target_os = "windows")]
 /// 判断 Codex 图形进程是否在运行（Windows）。
-async fn platform_codex_is_running() -> Result<bool, AppError> {
+pub(super) async fn platform_codex_is_running() -> Result<bool, AppError> {
     windows_codex::is_gui_running().await
 }
 
@@ -346,7 +347,7 @@ async fn force_close_platform_workbuddy() -> Result<(), AppError> {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 /// 不支持的平台视为 Codex 未运行。
-async fn platform_codex_is_running() -> Result<bool, AppError> {
+pub(super) async fn platform_codex_is_running() -> Result<bool, AppError> {
     Ok(false)
 }
 

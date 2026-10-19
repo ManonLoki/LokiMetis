@@ -1,8 +1,9 @@
-// 皮肤归档导入：有界安全解压与缺失旧版清单的兼容补全。
-// 本文件由 skins/mod.rs include! 并入，保留同一模块作用域。
+//! 皮肤归档导入：有界安全解压与缺失旧版清单的兼容补全。
+
+use super::*;
 
 /// 安全解压导入 ZIP：限制条目数与解压体积，拒绝路径穿越与链接，识别唯一的皮肤根目录并只解出该目录内容；返回解压字节数。
-fn extract_zip(source: &Path, destination: &Path, cancelled: &AtomicBool) -> Result<u64, AppError> {
+pub(super) fn extract_zip(source: &Path, destination: &Path, cancelled: &AtomicBool) -> Result<u64, AppError> {
     ensure_import_not_cancelled(cancelled)?;
     let file = std::fs::File::open(source)
         .map_err(|_| AppError::new("skin.import_invalid", "无法读取所选 ZIP 文件。"))?;
@@ -136,7 +137,7 @@ fn extract_zip(source: &Path, destination: &Path, cancelled: &AtomicBool) -> Res
 }
 
 /// 没有清单的旧版皮肤包在五个运行文件齐全时生成兼容清单；有 theme.css 却缺清单或文件不全时报具体问题。
-fn synthesize_legacy_manifest_if_missing(source: &Path, directory: &Path) -> Result<(), AppError> {
+pub(super) fn synthesize_legacy_manifest_if_missing(source: &Path, directory: &Path) -> Result<(), AppError> {
     let manifest_path = directory.join("theme.json");
     if manifest_path.exists() {
         return Ok(());

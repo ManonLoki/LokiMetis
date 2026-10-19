@@ -43,37 +43,68 @@ use tokio::task::{AbortHandle, JoinHandle};
 
 use self::error::AppError;
 
-include!("constants.rs");
-include!("model.rs");
-include!("manifests.rs");
-include!("manifests_runtime_types.rs");
-include!("runtime_owners.rs");
-include!("handler_task_owner.rs");
-include!("service_state.rs");
+mod constants;
+use constants::*;
+mod model;
+pub(crate) use model::*;
+mod manifests;
+use manifests::*;
+mod manifests_runtime_types;
+use manifests_runtime_types::*;
+mod runtime_owners;
+use runtime_owners::*;
+mod handler_task_owner;
+use handler_task_owner::*;
+mod service_state;
+pub(crate) use service_state::*;
 
-include!("service_catalog_body.rs");
-include!("service_import_body.rs");
-include!("service_runtime_body.rs");
-include!("service_install_body.rs");
+mod service_catalog_body;
+mod service_import_body;
+mod service_runtime_body;
+mod service_install_body;
 
-include!("watch_task_owner.rs");
-include!("lifecycle.rs");
-include!("catalog.rs");
-include!("validation.rs");
+mod watch_task_owner;
+use watch_task_owner::*;
+mod lifecycle;
+pub(crate) use lifecycle::*;
+mod catalog;
+use catalog::*;
+mod validation;
+use validation::*;
 #[cfg(test)]
-include!("test_seams.rs");
-include!("conversion.rs");
-include!("archive_export.rs");
-include!("archive_import.rs");
-include!("file_manager.rs");
-include!("payload.rs");
-include!("isolation.rs");
-include!("authority.rs");
-include!("instances.rs");
-include!("cdp_connect.rs");
-include!("appearance.rs");
-include!("platform/mod.rs");
-include!("injection.rs");
+mod test_seams;
+#[cfg(test)]
+use test_seams::*;
+mod conversion;
+use conversion::*;
+mod archive_export;
+use archive_export::*;
+mod archive_import;
+use archive_import::*;
+mod file_manager;
+use file_manager::*;
+mod payload;
+use payload::*;
+mod isolation;
+use isolation::*;
+mod authority;
+pub(crate) use authority::*;
+mod instances;
+use instances::*;
+mod cdp_connect;
+use cdp_connect::*;
+mod appearance;
+use appearance::*;
+mod platform;
+use platform::*;
+mod injection;
+use injection::*;
+
+/// 宿主回归使用独立Tokio运行时，不依赖应用全局runtime。
+#[cfg(test)]
+fn test_block_on<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap().block_on(future)
+}
 
 #[cfg(test)]
 mod tests {
@@ -89,10 +120,4 @@ mod tests {
     include!("tests/conversion.rs");
     include!("tests/isolation.rs");
     include!("tests/authority.rs");
-}
-
-/// 宿主回归使用独立Tokio运行时，不依赖应用全局runtime。
-#[cfg(test)]
-fn test_block_on<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap().block_on(future)
 }

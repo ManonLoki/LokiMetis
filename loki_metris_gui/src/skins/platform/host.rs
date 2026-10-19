@@ -2,7 +2,7 @@
 // （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
 
 /// 按宿主类型路由到经过应用身份验证的平台进程适配器。
-async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> {
+pub(super) async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> {
     match host {
         SkinHostKind::Codex => platform_codex_is_running().await,
         SkinHostKind::WorkBuddy => platform_workbuddy_is_running().await,
@@ -10,7 +10,7 @@ async fn platform_host_is_running(host: SkinHostKind) -> Result<bool, AppError> 
 }
 
 /// 读取指定宿主已验证进程的命令行，用于发现其显式 CDP 端口。
-async fn platform_host_command_lines(host: SkinHostKind) -> Result<Vec<(u32, String)>, AppError> {
+pub(super) async fn platform_host_command_lines(host: SkinHostKind) -> Result<Vec<(u32, String)>, AppError> {
     match host {
         SkinHostKind::Codex => platform_codex_command_lines().await,
         SkinHostKind::WorkBuddy => platform_workbuddy_command_lines().await,
@@ -18,7 +18,7 @@ async fn platform_host_command_lines(host: SkinHostKind) -> Result<Vec<(u32, Str
 }
 
 /// 列出指定宿主的可信主进程及其启动参数。
-async fn platform_host_processes(
+pub(super) async fn platform_host_processes(
     host: SkinHostKind,
 ) -> Result<Vec<PlatformHostProcess>, AppError> {
     match host {
@@ -28,7 +28,7 @@ async fn platform_host_processes(
 }
 
 /// 以原实例身份和参数重启指定宿主，并绑定新的本机调试端口。
-async fn restart_platform_host_instance(
+pub(super) async fn restart_platform_host_instance(
     host: SkinHostKind,
     selected: &ResolvedSkinHostInstance,
     port: u16,
@@ -41,7 +41,7 @@ async fn restart_platform_host_instance(
 }
 
 /// 按宿主类型启动官方桌面应用，并仅开放指定的本机调试端口。
-async fn launch_platform_host(host: SkinHostKind, port: u16) -> Result<(), AppError> {
+pub(super) async fn launch_platform_host(host: SkinHostKind, port: u16) -> Result<(), AppError> {
     check_host_authority()?;
     match host {
         SkinHostKind::Codex => launch_platform_codex().await,
@@ -50,7 +50,7 @@ async fn launch_platform_host(host: SkinHostKind, port: u16) -> Result<(), AppEr
 }
 
 /// 把 CDP listener 的唯一 owner 绑定到 Windows 或 macOS 的官方 WorkBuddy 进程树。
-async fn platform_workbuddy_endpoint_owned_by_root(
+pub(super) async fn platform_workbuddy_endpoint_owned_by_root(
     port: u16,
     root_pid: u32,
 ) -> Result<bool, AppError> {
@@ -75,7 +75,7 @@ async fn platform_workbuddy_endpoint_owned_by_root(
 }
 
 /// 把 Codex CDP listener 的唯一 owner 绑定到指定可信进程树。
-async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Result<bool, AppError> {
+pub(super) async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Result<bool, AppError> {
     #[cfg(target_os = "windows")]
     {
         tokio::task::spawn_blocking(move || {
@@ -102,7 +102,7 @@ async fn platform_codex_endpoint_owned_by_root(port: u16, root_pid: u32) -> Resu
 }
 
 /// 关闭指定宿主的全部已验证 GUI 进程，并传播不完整关闭错误。
-async fn force_close_platform_host(host: SkinHostKind) -> Result<(), AppError> {
+pub(super) async fn force_close_platform_host(host: SkinHostKind) -> Result<(), AppError> {
     match host {
         SkinHostKind::Codex => force_close_platform_codex().await,
         SkinHostKind::WorkBuddy => force_close_platform_workbuddy().await,

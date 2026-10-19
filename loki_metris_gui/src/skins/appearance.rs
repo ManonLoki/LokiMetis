@@ -1,8 +1,9 @@
-// 本文件收纳：安装前外观预检与逐项比较，以及首批注入的就绪等待与会话重连判定。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 安装前外观预检与逐项比较，以及首批注入的就绪等待与会话重连判定。
+
+use super::*;
 
 /// 对照皮肤外观策略检查宿主当前外观：明暗模式不受支持时记一项差异，再按当前模式比较逐项要求。
-fn build_appearance_check(
+pub(super) fn build_appearance_check(
     policy: &AppearancePolicy,
     probe: &AppearanceProbe,
 ) -> SkinAppearanceCheck {
@@ -204,7 +205,7 @@ fn normalize_appearance_value(value: &str) -> String {
 }
 
 /// 在页面就绪期限内反复刷新目标并注入首批页面，直到至少一个页面验证成功；会话异常时重新连接同一宿主根进程。
-async fn wait_for_initial_injection_inner(
+pub(super) async fn wait_for_initial_injection_inner(
     host: SkinHostKind,
     browser: &mut Browser,
     handler_task: &mut HandlerTaskGuard,
@@ -307,7 +308,7 @@ async fn wait_for_initial_injection_inner(
 }
 
 /// 表示重连候选完成宿主页与进程归属复核后的处置方式。
-enum ReconnectValidationDecision {
+pub(super) enum ReconnectValidationDecision {
     /// 候选已通过全部校验，可以替换当前会话。
     Accept,
     /// 候选未通过临时校验，关闭后可在截止时间内重试。
@@ -317,7 +318,7 @@ enum ReconnectValidationDecision {
 }
 
 /// 仅接受完整通过宿主校验的重连候选，并将归属检查故障设为失败关闭。
-fn reconnect_validation_decision(
+pub(super) fn reconnect_validation_decision(
     host: SkinHostKind,
     verification: Result<bool, AppError>,
 ) -> ReconnectValidationDecision {
@@ -335,12 +336,12 @@ fn reconnect_validation_decision(
 }
 
 /// 没有页面验证成功且有页面失败时，判定当前调试会话失效需要重连。
-fn should_reconnect_initial_session(report: &InjectionReport) -> bool {
+pub(super) fn should_reconnect_initial_session(report: &InjectionReport) -> bool {
     report.verified_pages == 0 && report.failed_pages > 0
 }
 
 /// 已验证的页面必须全部应用成功，部分失败交由外层安装事务回滚。
-fn validate_initial_injection_report(report: &mut InjectionReport) -> Result<(), AppError> {
+pub(super) fn validate_initial_injection_report(report: &mut InjectionReport) -> Result<(), AppError> {
     if report.failed_pages > 0 {
         Err(report.first_failure.take().unwrap_or_else(injection_failed_error))
     } else {
@@ -349,7 +350,7 @@ fn validate_initial_injection_report(report: &mut InjectionReport) -> Result<(),
 }
 
 /// 返回与宿主一致的页面就绪失败，避免 WorkBuddy 错误沿用 Codex 文案。
-fn host_page_not_found(host: SkinHostKind) -> AppError {
+pub(super) fn host_page_not_found(host: SkinHostKind) -> AppError {
     match host {
         SkinHostKind::Codex => AppError::new(
             "skin.codex_page_not_found",

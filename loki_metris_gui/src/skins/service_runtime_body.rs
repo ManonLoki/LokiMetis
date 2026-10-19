@@ -1,5 +1,6 @@
-// 本文件收纳：返回指定宿主的原子运行代次；偶数表示空闲，奇数表示显式变更正在进行；读取宿主当前运行代次，用于约束异步页面探针的提交时机；开始一个受串行操作锁保护的宿主变更，并在守卫释放时自动结束新代次。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 宿主运行代次：偶数空闲、奇数表示变更进行中，约束异步页面探针的提交时机。
+
+use super::*;
 
 impl SkinService {
     /// 返回指定宿主的原子运行代次；偶数表示空闲，奇数表示显式变更正在进行。
@@ -11,13 +12,13 @@ impl SkinService {
     }
 
     /// 读取宿主当前运行代次，用于约束异步页面探针的提交时机。
-    fn host_runtime_generation(&self, host: SkinHostKind) -> u64 {
+    pub(super) fn host_runtime_generation(&self, host: SkinHostKind) -> u64 {
         self.host_runtime_generation_counter(host)
             .load(Ordering::Acquire)
     }
 
     /// 开始一个受串行操作锁保护的宿主变更，并在守卫释放时自动结束新代次。
-    fn begin_host_runtime_mutation(&self, host: SkinHostKind) -> HostRuntimeMutationGuard<'_> {
+    pub(super) fn begin_host_runtime_mutation(&self, host: SkinHostKind) -> HostRuntimeMutationGuard<'_> {
         let generation = self.host_runtime_generation_counter(host);
         generation.fetch_add(1, Ordering::AcqRel);
         HostRuntimeMutationGuard { generation }
@@ -33,7 +34,7 @@ impl SkinService {
     }
 
     /// 读取同一应用生命周期内最近一次经过宿主页验证的调试端点。
-    fn verified_endpoint_hint(&self, host: SkinHostKind) -> Result<Option<CdpEndpoint>, AppError> {
+    pub(super) fn verified_endpoint_hint(&self, host: SkinHostKind) -> Result<Option<CdpEndpoint>, AppError> {
         self.verified_endpoint_hints
             .lock()
             .map(|hints| hints.get(&host).copied())
@@ -46,7 +47,7 @@ impl SkinService {
     }
 
     /// 只保存已经连接并通过宿主页探针的端点，后续使用前仍会重新验证。
-    fn remember_verified_endpoint(
+    pub(super) fn remember_verified_endpoint(
         &self,
         host: SkinHostKind,
         endpoint: CdpEndpoint,
@@ -120,7 +121,7 @@ impl SkinService {
     }
 
     /// 取得实例的账户资料一次性探测单元，同一实例的并发扫描共享同一次探测。
-    fn account_profile_probe_cell(
+    pub(super) fn account_profile_probe_cell(
         &self,
         instance_id: &str,
     ) -> Result<Arc<OnceCell<Option<AccountProfile>>>, AppError> {
@@ -145,7 +146,7 @@ impl SkinService {
     }
 
     /// 移除该宿主已消失且没有运行中监视任务的实例运行态。
-    async fn retain_recovered_instance_runtimes<'a>(
+    pub(super) async fn retain_recovered_instance_runtimes<'a>(
         &self,
         host: SkinHostKind,
         instance_ids: impl IntoIterator<Item = &'a str>,
@@ -163,7 +164,7 @@ impl SkinService {
     }
 
     /// 用当前页面探针完整对齐无活动监视任务的实例；变更前后的迟到结果不得提交。
-    async fn reconcile_recovered_instance_runtime(
+    pub(super) async fn reconcile_recovered_instance_runtime(
         &self,
         host: SkinHostKind,
         instance_id: &str,
@@ -246,7 +247,7 @@ impl SkinService {
     }
 
     /// 账户资料缓存只提供名称与头像，活动皮肤始终消费本次页面探针。
-    async fn host_instance_from_observation(
+    pub(super) async fn host_instance_from_observation(
         &self,
         host: SkinHostKind,
         resolved: ResolvedSkinHostInstance,
@@ -305,7 +306,7 @@ impl SkinService {
     }
 
     /// 把页面恢复出的皮肤身份解析为皮肤库中的唯一描述；旧版 ID 或样式文本有多个匹配时放弃。
-    fn resolve_recovered_skin(&self, identity: &RecoveredSkinIdentity) -> Option<SkinDescriptor> {
+    pub(super) fn resolve_recovered_skin(&self, identity: &RecoveredSkinIdentity) -> Option<SkinDescriptor> {
         match identity {
             RecoveredSkinIdentity::Exact(reference) => {
                 self.skin_directory(reference).ok().and_then(|directory| {

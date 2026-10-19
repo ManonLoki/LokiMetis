@@ -1,37 +1,38 @@
-// 本文件收纳：同时存在的活跃或待回收 CDP handler 上限；达到上限后在 spawn 前施加背压；进程级持有全部 handler 容量令牌，以及已取消但尚未确认终态的任务；spawn 前取得的容量令牌；未绑定任务就析构时自动归还名额。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! CDP handler 任务的进程级容量与回收：spawn 前预约名额，取消后保留句柄直到确认终态。
+
+use super::*;
 
 /// 同时存在的活跃或待回收 CDP handler 上限；达到上限后在 spawn 前施加背压。
-const MAX_OWNED_HANDLER_TASKS: usize = 256;
+pub(super) const MAX_OWNED_HANDLER_TASKS: usize = 256;
 
 #[derive(Default)]
 /// 进程级持有全部 handler 容量令牌，以及已取消但尚未确认终态的任务。
-struct HandlerTaskReaper {
+pub(super) struct HandlerTaskReaper {
     /// 运行中的 handler 任务。
-    active: HashMap<tokio::task::Id, AbortHandle>,
+    pub(super) active: HashMap<tokio::task::Id, AbortHandle>,
     /// 已取消待确认终态的任务。
-    retained: Vec<JoinHandle<()>>,
+    pub(super) retained: Vec<JoinHandle<()>>,
     /// 正在回收的任务 ID。
     reaping: HashSet<tokio::task::Id>,
     /// 当前占用的容量。
-    owned_tasks: usize,
+    pub(super) owned_tasks: usize,
     /// 所有预约（含清理用途）已关闭。
-    reservations_closed: bool,
+    pub(super) reservations_closed: bool,
     /// 普通预约已关闭，只剩清理用途可以预约。
-    normal_closed: bool,
+    pub(super) normal_closed: bool,
 }
 
 /// spawn 前取得的容量令牌；未绑定任务就析构时自动归还名额。
-struct HandlerTaskReservation {
+pub(super) struct HandlerTaskReservation {
     /// 预约仍有效；为 true 时析构会归还名额。
-    active: bool,
+    pub(super) active: bool,
     /// 清理用途预约，在普通预约关闭后仍可取得。
-    cleanup: bool,
+    pub(super) cleanup: bool,
 }
 
 impl HandlerTaskReservation {
     /// 把已登记容量与新任务绑定，并将所有权移交给 guard。
-    fn bind(mut self, task: JoinHandle<()>) -> HandlerTaskGuard {
+    pub(super) fn bind(mut self, task: JoinHandle<()>) -> HandlerTaskGuard {
         register_handler_task_for_purpose(&task, self.cleanup);
         self.active = false;
         HandlerTaskGuard(Some(task))
@@ -52,17 +53,17 @@ struct HandlerTaskReapGuard(Option<JoinHandle<()>>);
 
 impl HandlerTaskReapGuard {
     /// 临时接管一个已请求取消的 handler。
-    fn new(task: JoinHandle<()>) -> Self {
+    pub(super) fn new(task: JoinHandle<()>) -> Self {
         Self(Some(task))
     }
 
     /// 返回当前等待中的原始句柄。
-    fn task_mut(&mut self) -> &mut JoinHandle<()> {
+    pub(super) fn task_mut(&mut self) -> &mut JoinHandle<()> {
         self.0.as_mut().expect("handler reap guard must own a task")
     }
 
     /// 任务已确认终态，移除 in-flight 标记并归还容量。
-    fn complete(mut self) {
+    pub(super) fn complete(mut self) {
         let task = self.0.take().expect("completed handler task must exist");
         let task_id = task.id();
         {
@@ -116,19 +117,19 @@ fn reap_finished_handler_tasks_locked(owner: &mut HandlerTaskReaper) -> usize {
 }
 
 /// 移除已经确认到达终态的句柄，避免正常运行中累积已完成任务。
-fn reap_finished_handler_tasks() -> usize {
+pub(super) fn reap_finished_handler_tasks() -> usize {
     reap_finished_handler_tasks_locked(&mut lock_handler_task_reaper())
 }
 
 /// 判断当前活跃与 retained handler 总数是否仍低于硬上限。
-fn has_handler_task_capacity(owner: &HandlerTaskReaper) -> bool {
+pub(super) fn has_handler_task_capacity(owner: &HandlerTaskReaper) -> bool {
     !owner.reservations_closed
         && !owner.normal_closed
         && owner.owned_tasks < MAX_OWNED_HANDLER_TASKS
 }
 
 /// 在调用方持有短锁时原子占用容量；失败不会修改计数。
-fn try_reserve_handler_task_capacity_locked(owner: &mut HandlerTaskReaper) -> bool {
+pub(super) fn try_reserve_handler_task_capacity_locked(owner: &mut HandlerTaskReaper) -> bool {
     if !has_handler_task_capacity(owner) {
         return false;
     }
@@ -137,7 +138,7 @@ fn try_reserve_handler_task_capacity_locked(owner: &mut HandlerTaskReaper) -> bo
 }
 
 /// Draining阶段只允许有限容量的专用清理连接。
-fn reserve_handler_task_for_purpose(cleanup: bool) -> Result<HandlerTaskReservation, AppError> {
+pub(super) fn reserve_handler_task_for_purpose(cleanup: bool) -> Result<HandlerTaskReservation, AppError> {
     let mut owner = lock_handler_task_reaper();
     reap_finished_handler_tasks_locked(&mut owner);
     let accepted = if cleanup {
@@ -168,7 +169,7 @@ fn register_handler_task_for_purpose(task: &JoinHandle<()>, cleanup: bool) {
     register_handler_task_locked(&mut lock_handler_task_reaper(), task, cleanup);
 }
 /// 短锁内绑定与门禁复核共用生产路径，测试可注入独立owner。
-fn register_handler_task_locked(
+pub(super) fn register_handler_task_locked(
     owner: &mut HandlerTaskReaper,
     task: &JoinHandle<()>,
     cleanup: bool,
@@ -180,7 +181,7 @@ fn register_handler_task_locked(
 }
 
 /// 在短锁内关闭新 handler 准入并取消所有已经登记的 active handler。
-fn close_handler_task_reservations_locked(owner: &mut HandlerTaskReaper) {
+pub(super) fn close_handler_task_reservations_locked(owner: &mut HandlerTaskReaper) {
     owner.reservations_closed = true;
     for task in owner.active.values() {
         task.abort();
@@ -188,12 +189,12 @@ fn close_handler_task_reservations_locked(owner: &mut HandlerTaskReaper) {
 }
 
 /// 清理开始只关闭普通准入，已绑定watcher的通信通道保持到清理终态。
-fn begin_handler_task_shutdown() {
+pub(super) fn begin_handler_task_shutdown() {
     lock_handler_task_reaper().normal_closed = true;
 }
 
 /// 清理完成后原子关闭全部准入，并取消剩余探针。
-fn close_handler_task_reservations() {
+pub(super) fn close_handler_task_reservations() {
     close_handler_task_reservations_locked(&mut lock_handler_task_reaper());
 }
 
@@ -204,7 +205,7 @@ fn release_handler_task_capacity() {
 }
 
 /// 请求取消并把未到终态的原始 JoinHandle 移交稳定 owner；容量令牌继续保留。
-fn retain_aborted_handler_task(task: JoinHandle<()>) {
+pub(super) fn retain_aborted_handler_task(task: JoinHandle<()>) {
     task.abort();
     let mut owner = lock_handler_task_reaper();
     reap_finished_handler_tasks_locked(&mut owner);
@@ -236,7 +237,7 @@ fn has_pending_handler_tasks() -> bool {
 }
 
 /// 在共同截止前确认全部已取消 handler 到达终态；超时任务仍由稳定 owner 持有。
-async fn reap_handler_tasks_until(deadline: tokio::time::Instant) -> Result<usize, AppError> {
+pub(super) async fn reap_handler_tasks_until(deadline: tokio::time::Instant) -> Result<usize, AppError> {
     if tokio::time::Instant::now() >= deadline {
         reap_finished_handler_tasks();
         return if has_pending_handler_tasks() {
@@ -286,7 +287,7 @@ async fn reap_handler_tasks_until(deadline: tokio::time::Instant) -> Result<usiz
 
 #[cfg(test)]
 /// 判断指定任务是否仍由稳定 owner 或取消安全回收 guard 持有。
-fn handler_task_is_retained(task_id: tokio::task::Id) -> bool {
+pub(super) fn handler_task_is_retained(task_id: tokio::task::Id) -> bool {
     let owner = lock_handler_task_reaper();
     owner.retained.iter().any(|task| task.id() == task_id) || owner.reaping.contains(&task_id)
 }

@@ -1,8 +1,9 @@
-// 本文件收纳：页面持续监视与补注入、逐页注入与事务标记、宿主兼容规则执行及当前皮肤检查。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 页面持续监视与补注入、逐页注入与事务标记、宿主兼容规则执行及当前皮肤检查。
+
+use super::*;
 
 /// 后台持续监视宿主：先提交首批注入事务，再按固定间隔为新出现的页面补注入，直到收到取消信号。
-async fn watch_pages(
+pub(super) async fn watch_pages(
     host: SkinHostKind,
     mut browser: Browser,
     mut handler_task: HandlerTaskGuard,
@@ -66,7 +67,7 @@ async fn watch_pages(
 }
 
 /// 并发处理全部宿主页面：已是当前皮肤的只补兼容规则，否则清除旧注入后写入新载荷，并汇总验证、注入、失败数与兼容规则。
-async fn inject_pages(
+pub(super) async fn inject_pages(
     host: SkinHostKind,
     browser: &Browser,
     payload: &Arc<str>,
@@ -182,7 +183,7 @@ fn encode_injection_transaction_id(transaction_id: &str) -> Result<String, AppEr
 }
 
 /// 生成只清理当前事务所拥有页面状态的回滚表达式。
-fn rollback_injection_transaction_expression(transaction_id: &str) -> Result<Arc<str>, AppError> {
+pub(super) fn rollback_injection_transaction_expression(transaction_id: &str) -> Result<Arc<str>, AppError> {
     let transaction_id = encode_injection_transaction_id(transaction_id)?;
     Ok(Arc::<str>::from(format!(
         "(() => {{
@@ -195,7 +196,7 @@ fn rollback_injection_transaction_expression(transaction_id: &str) -> Result<Arc
 }
 
 /// 生成只移除当前事务标记而保留已应用皮肤的提交表达式。
-fn commit_injection_transaction_expression(transaction_id: &str) -> Result<Arc<str>, AppError> {
+pub(super) fn commit_injection_transaction_expression(transaction_id: &str) -> Result<Arc<str>, AppError> {
     let transaction_id = encode_injection_transaction_id(transaction_id)?;
     Ok(Arc::<str>::from(format!(
         "(() => {{
@@ -207,7 +208,7 @@ fn commit_injection_transaction_expression(transaction_id: &str) -> Result<Arc<s
 }
 
 /// 严格回滚本次安装实际标记过的页面，绝不清理由其它安装产生的皮肤状态。
-async fn rollback_marked_injection_pages(
+pub(super) async fn rollback_marked_injection_pages(
     browser: &mut Browser,
     transaction_id: &str,
     transaction_targets: &BTreeSet<String>,
@@ -309,7 +310,7 @@ async fn commit_marked_injection_pages(
 }
 
 /// 合并原始失败与补偿失败代码，返回可操作且不泄露载荷的稳定错误。
-fn rollback_error(original: &AppError, rollback: AppError) -> AppError {
+pub(super) fn rollback_error(original: &AppError, rollback: AppError) -> AppError {
     AppError::with_details(
         "skin.injection_rollback_failed",
         "皮肤应用失败，且无法确认已清理本次临时注入；请刷新或重启宿主后重试。",
@@ -351,12 +352,12 @@ async fn apply_host_compatibility(host: SkinHostKind, page: &Page) -> Result<Com
 }
 
 /// 判断页面是否为可信的 Codex 主页面。
-async fn is_codex_page(page: &Page) -> Result<bool, AppError> {
+pub(super) async fn is_codex_page(page: &Page) -> Result<bool, AppError> {
     is_host_page(SkinHostKind::Codex, page).await
 }
 
 /// 按宿主选择独立页面探针，防止跨应用注入。
-async fn is_host_page(host: SkinHostKind, page: &Page) -> Result<bool, AppError> {
+pub(super) async fn is_host_page(host: SkinHostKind, page: &Page) -> Result<bool, AppError> {
     let script = match host {
         SkinHostKind::Codex => PROBE_SCRIPT,
         SkinHostKind::WorkBuddy => WORKBUDDY_PROBE_SCRIPT,
@@ -392,7 +393,7 @@ async fn has_current_skin(page: &Page, skin: &SkinReference) -> Result<bool, App
 }
 
 /// 生成检查页面皮肤状态的脚本：要求运行态版本与皮肤身份一致、未被停用或静默、清理函数与样式节点齐全，且没有其它换肤工具。
-fn current_skin_expression(skin: &SkinReference) -> String {
+pub(super) fn current_skin_expression(skin: &SkinReference) -> String {
     let version = serde_json::to_string(SKIN_VERSION).unwrap_or_else(|_| "null".into());
     let source = serde_json::to_string(&skin.source).unwrap_or_else(|_| "null".into());
     let id = serde_json::to_string(&skin.id).unwrap_or_else(|_| "null".into());
@@ -415,7 +416,7 @@ fn current_skin_expression(skin: &SkinReference) -> String {
 }
 
 /// 运行状态或样式未生效时拒绝把 CDP 求值成功解释为皮肤安装成功。
-fn injection_failed_error() -> AppError {
+pub(super) fn injection_failed_error() -> AppError {
     AppError::new(
         "skin.injection_failed",
         "未能确认全部宿主页面的皮肤已生效，请刷新后重试。",

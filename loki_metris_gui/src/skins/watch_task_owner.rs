@@ -1,15 +1,16 @@
-// 本文件收纳：取得应用生命周期结束后仍需持有 watcher 句柄的进程级最终 owner；把已中止但尚未确认终态的 watcher 交给进程级 owner，禁止丢弃 JoinHandle；优先把取消中的 watcher 归还仍存活的 service；最终析构后转交进…。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 页面监视任务的进程级最终 owner：服务释放后继续持有并回收未确认终态的 watcher。
+
+use super::*;
 
 /// 取得应用生命周期结束后仍需持有 watcher 句柄的进程级最终 owner。
-fn process_watch_task_owner() -> &'static StdMutex<Vec<RetainedWatchTask>> {
+pub(super) fn process_watch_task_owner() -> &'static StdMutex<Vec<RetainedWatchTask>> {
     static OWNER: std::sync::OnceLock<StdMutex<Vec<RetainedWatchTask>>> =
         std::sync::OnceLock::new();
     OWNER.get_or_init(|| StdMutex::new(Vec::new()))
 }
 
 /// 把已中止但尚未确认终态的 watcher 交给进程级 owner，禁止丢弃 JoinHandle。
-fn retain_process_watch_task(mut task: RetainedWatchTask) {
+pub(super) fn retain_process_watch_task(mut task: RetainedWatchTask) {
     if let Some(handler_abort) = task.handler_abort.take() {
         handler_abort.abort();
     }
@@ -47,7 +48,7 @@ fn retain_abandoned_watch_task(task: RetainedWatchTask) {
 
 impl WatchTask {
     /// 构造立即绑定 service owner 的 watcher 句柄；生产调用方不得手写未登记任务。
-    fn new(
+    pub(super) fn new(
         owner: &Arc<StdMutex<WatchTaskReaper>>,
         host: SkinHostKind,
         cancel: watch::Sender<bool>,
@@ -67,7 +68,7 @@ impl WatchTask {
 
     /// 构造无需 active 登记的隔离测试任务，析构仍会先中止底层 future。
     #[cfg(test)]
-    fn new_test(
+    pub(super) fn new_test(
         host: SkinHostKind,
         cancel: watch::Sender<bool>,
         join: JoinHandle<Result<usize, AppError>>,
@@ -85,12 +86,12 @@ impl WatchTask {
     }
 
     /// 返回 watcher future 是否仍未到终态。
-    fn is_running(&self) -> bool {
+    pub(super) fn is_running(&self) -> bool {
         self.join.as_ref().is_some_and(|join| !join.is_finished())
     }
 
     /// 发布合作取消并把 JoinHandle、handler 与 endpoint 责任移入取消守卫。
-    fn into_retained(mut self) -> RetainedWatchTask {
+    pub(super) fn into_retained(mut self) -> RetainedWatchTask {
         let _ = self.cancel.send(true);
         RetainedWatchTask {
             host: self.host,
@@ -102,7 +103,7 @@ impl WatchTask {
     }
 
     /// 发布合作取消并中止 watcher 与 handler；实际句柄仍由 Drop 确认或保留。
-    fn abort(&self) {
+    pub(super) fn abort(&self) {
         let _ = self.cancel.send(true);
         if let Some(handler_abort) = self.handler_abort.as_ref() {
             handler_abort.abort();
@@ -145,24 +146,24 @@ impl Drop for ActiveWatchRegistration {
 }
 
 /// 在任意 await 取消点保护一个已离开运行态的 watcher 所有权。
-struct RetainedWatchTaskGuard {
+pub(super) struct RetainedWatchTaskGuard {
     /// 受保护的监视任务；交还后为 None。
-    task: Option<RetainedWatchTask>,
+    pub(super) task: Option<RetainedWatchTask>,
 }
 
 impl RetainedWatchTaskGuard {
     /// 接管 watcher 的 JoinHandle、handler 与 endpoint 清理责任。
-    fn new(task: RetainedWatchTask) -> Self {
+    pub(super) fn new(task: RetainedWatchTask) -> Self {
         Self { task: Some(task) }
     }
 
     /// 返回受保护任务的可变引用。
-    fn task_mut(&mut self) -> &mut RetainedWatchTask {
+    pub(super) fn task_mut(&mut self) -> &mut RetainedWatchTask {
         self.task.as_mut().expect("watch task guard must be armed")
     }
 
     /// watcher 已确认终态后中止独立 handler，再释放两层任务句柄。
-    fn clear_finished_handles(&mut self) {
+    pub(super) fn clear_finished_handles(&mut self) {
         let task = self.task_mut();
         if let Some(handler_abort) = task.handler_abort.take() {
             handler_abort.abort();
@@ -171,7 +172,7 @@ impl RetainedWatchTaskGuard {
     }
 
     /// 中止 watcher 与 CDP handler，但继续持有 JoinHandle 直到确认终态。
-    fn abort(&mut self) {
+    pub(super) fn abort(&mut self) {
         let task = self.task_mut();
         if let Some(handler_abort) = task.handler_abort.as_ref() {
             handler_abort.abort();
@@ -182,12 +183,12 @@ impl RetainedWatchTaskGuard {
     }
 
     /// 清理或正常终态已完成，解除析构时的保留责任。
-    fn complete(mut self) {
+    pub(super) fn complete(mut self) {
         self.task.take();
     }
 
     /// 当前尝试未完成，把原责任放回 service owner 供下一轮继续。
-    fn retain_in_service(mut self, service: &SkinService) {
+    pub(super) fn retain_in_service(mut self, service: &SkinService) {
         if let Some(task) = self.task.take() {
             service.retain_watch_task(task);
         }

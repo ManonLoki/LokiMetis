@@ -1,23 +1,24 @@
-// 本文件收纳：强制中止 watcher 后留给 Tokio 确认 future 已到终态的预算；端点清理继续受同一总截止约束；描述 watcher 合作停止、总截止和 abort 终态确认的预算；从产品常量构造生产环境预算。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! 监视任务的停止预算、页面监视生命周期与退出回收。
+
+use super::*;
 
 /// 强制中止 watcher 后留给 Tokio 确认 future 已到终态的预算；端点清理继续受同一总截止约束。
 const WATCH_ABORT_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// 描述 watcher 合作停止、总截止和 abort 终态确认的预算。
 #[derive(Clone, Copy)]
-struct WatchStopBudget {
+pub(super) struct WatchStopBudget {
     /// 合作停止的等待时长。
-    cooperative: Duration,
+    pub(super) cooperative: Duration,
     /// 总截止时长。
-    total: Duration,
+    pub(super) total: Duration,
     /// abort 后确认终态的时长。
-    abort_reap: Duration,
+    pub(super) abort_reap: Duration,
 }
 
 impl WatchStopBudget {
     /// 从产品常量构造生产环境预算。
-    fn production() -> Self {
+    pub(super) fn production() -> Self {
         Self {
             cooperative: WATCH_STOP_TIMEOUT,
             // 保留原有合作停止与 CDP 清理预算，但二者现在共享一个不可重置的总截止。
@@ -27,7 +28,7 @@ impl WatchStopBudget {
     }
 
     /// 由同一开始时间派生不可重置的合作截止与最终截止。
-    fn deadlines(
+    pub(super) fn deadlines(
         self,
         started_at: tokio::time::Instant,
     ) -> (tokio::time::Instant, tokio::time::Instant) {

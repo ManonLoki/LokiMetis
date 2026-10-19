@@ -1,8 +1,9 @@
-// 本文件收纳：连接 handler 的 owner 绑定，以及连接或启动宿主、等待 CDP 就绪、强制重启与运行状态归类。
-// （本文件由主文件 include! 并入，与主文件共用同一个模块作用域。）
+//! CDP 连接：handler owner 绑定、连接或启动宿主、等待就绪、强制重启与运行状态归类。
+
+use super::*;
 
 /// 把已由 guard 接管的连接绑定到后续操作；future 未 poll、取消或 panic 都不会丢失 owner。
-async fn hold_connected_handler_during<T, Operation>(
+pub(super) async fn hold_connected_handler_during<T, Operation>(
     handler_task: HandlerTaskGuard,
     operation: Operation,
 ) -> (HandlerTaskGuard, T)
@@ -14,7 +15,7 @@ where
 }
 
 /// 取得宿主的可信 CDP 连接：指定实例时只连接其调试端口并核对进程根；否则优先复用已运行宿主的端点，宿主运行却无调试端口时要求用户先退出，未运行时以空闲端口启动并等待就绪。
-async fn connect_or_launch(
+pub(super) async fn connect_or_launch(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
     selected: Option<&ResolvedSkinHostInstance>,
@@ -272,7 +273,7 @@ async fn host_runtime_status(
 }
 
 /// 按 CDP 是否就绪与图形进程是否在运行归类宿主状态。
-fn classify_codex_runtime(cdp_ready: bool, gui_running: bool) -> CodexRuntimeState {
+pub(super) fn classify_codex_runtime(cdp_ready: bool, gui_running: bool) -> CodexRuntimeState {
     if cdp_ready {
         CodexRuntimeState::Ready
     } else if gui_running {
@@ -283,7 +284,7 @@ fn classify_codex_runtime(cdp_ready: bool, gui_running: bool) -> CodexRuntimeSta
 }
 
 /// 确保宿主处于可换肤状态：已就绪直接返回，运行但无调试端口时要求用户先退出，未运行时以空闲端口启动并等待就绪。
-async fn launch_and_wait_for_cdp(
+pub(super) async fn launch_and_wait_for_cdp(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
     preferred_endpoint: Option<CdpEndpoint>,
@@ -305,7 +306,7 @@ async fn launch_and_wait_for_cdp(
 }
 
 /// 必要时强制关闭宿主后以未排除的端口重新启动并等待 CDP 就绪；可复用的就绪宿主直接返回。关闭前须持有宿主操作授权，关闭超时报错。
-async fn force_launch_and_wait_for_cdp(
+pub(super) async fn force_launch_and_wait_for_cdp(
     host: SkinHostKind,
     cancel: &mut watch::Receiver<bool>,
     preferred_endpoint: Option<CdpEndpoint>,
@@ -370,12 +371,12 @@ async fn force_launch_and_wait_for_cdp(
 }
 
 /// WorkBuddy 只有在恰好一个可信树根时才能复用 CDP；零根与多根都必须重新收敛。
-fn ready_runtime_can_be_reused(host: SkinHostKind, process_roots: usize) -> bool {
+pub(super) fn ready_runtime_can_be_reused(host: SkinHostKind, process_roots: usize) -> bool {
     host != SkinHostKind::WorkBuddy || process_roots == 1
 }
 
 /// 宿主未能在强制关闭期限内退出时的错误。
-fn force_close_timeout_error(host: SkinHostKind) -> AppError {
+pub(super) fn force_close_timeout_error(host: SkinHostKind) -> AppError {
     AppError::new(
         match host {
             SkinHostKind::Codex => "skin.codex_force_close_timeout",
@@ -404,7 +405,7 @@ async fn wait_for_cdp_ready(
 }
 
 /// 按宿主返回需要用户先保存工作并确认恢复的稳定错误。
-fn manual_close_required_for(host: SkinHostKind) -> AppError {
+pub(super) fn manual_close_required_for(host: SkinHostKind) -> AppError {
     match host {
         SkinHostKind::Codex => AppError::new(
             "skin.codex_manual_close_required",
@@ -418,7 +419,7 @@ fn manual_close_required_for(host: SkinHostKind) -> AppError {
 }
 
 /// 只有调试连接类故障且 WorkBuddy 仍在运行时，才请求用户确认全量恢复。
-fn should_request_workbuddy_recovery(
+pub(super) fn should_request_workbuddy_recovery(
     host: SkinHostKind,
     error_code: &str,
     host_running: bool,

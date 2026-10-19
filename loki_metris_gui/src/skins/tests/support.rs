@@ -31,10 +31,10 @@
         reusable_process_arguments, rollback_injection_transaction_expression,
         reconnect_validation_decision, scanned_skin_host_instance, should_reconnect_initial_session,
         should_request_workbuddy_recovery, unique_codex_pid_for_endpoint,
-        trusted_codex_root_pid, trusted_workbuddy_root_pid, unique_workbuddy_target_for_endpoint,
+        trusted_codex_root_pid, trusted_workbuddy_root_pid,
         user_data_directory, user_data_profile,
         validate_bundled_skill_file,
-        validated_account_avatar, workbuddy_target_binding_matches, AppError, AppearancePolicy,
+        validated_account_avatar, AppError, AppearancePolicy,
         AppearanceProbe, CdpEndpoint, SkinHostInstance,
         CodexRuntimeState, CodexRuntimeStatus, ColorMode, CompatibilityPageReport,
         ConnectionSource, HandlerTaskGuard, InjectionReport, InjectionTransaction, LegacyManifest,
@@ -49,6 +49,7 @@
         THEME_RUNTIME_CSS, WORKBUDDY_HOST_COMPATIBILITY_SCRIPT,
         WORKBUDDY_PROBE_SCRIPT,
     };
+    use super::service_install_body::{unique_workbuddy_target_for_endpoint, workbuddy_target_binding_matches};
 
     /// 验证换皮迁移中的 `temp_directory` 回归场景。
     fn temp_directory(label: &str) -> PathBuf {
