@@ -1,0 +1,4 @@
+interface:
+  display_name: "接入 GPUI 自启"
+  short_description: "按批准选择接入原生自启开关、串行状态与受限迁移并恢复宿主状态"
+  default_prompt: "使用 $desktop-add-gpui-autostart，在当前授权范围内接入 GPUI 自启并报告真实结果与未验证事项。"

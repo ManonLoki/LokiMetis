@@ -158,3 +158,50 @@ test("identity_report_and_check_are_read_only", (t) => {
   assert.equal(checked.status, 0, checked.stderr);
   assert.equal(JSON.parse(checked.stdout).identity.email.value, "DeviceUser@gmail.com");
 });
+
+/** 中文消息只读检查在非仓库也可运行，不创建模板或修改配置。 */
+test("message_check_is_read_only_and_accepts_chinese_summaries", (t) => {
+  const ctx = fixture(t);
+  const config = path.join(ctx.root, ".git", "config");
+  const before = fs.readFileSync(config);
+  const message = path.join(path.dirname(ctx.root), "message.txt");
+  for (const value of ["chore: 初始化项目\n", "feat(core): 复用共享核心\n\nWhy:\n- 避免重复规则\n", "合并开发分支 feature-example\n"]) {
+    fs.writeFileSync(message, value);
+    const result = run(ctx, "message-check", "--message-file", message);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).subject, value.split("\n")[0]);
+  }
+  assert.deepEqual(fs.readFileSync(config), before);
+  assert.equal(fs.existsSync(path.join(ctx.root, ".git", "harness")), false);
+  assert.equal(fs.existsSync(ctx.globalConfig), false);
+});
+
+/** 空、非法编码/控制字符和纯英文摘要全部拒绝；中文 scope 不能代替摘要。 */
+test("message_check_rejects_invalid_input_and_english_summary", (t) => {
+  const ctx = fixture(t);
+  const message = path.join(path.dirname(ctx.root), "message.txt");
+  for (const value of ["", "\n", "feat: implement rules\n", "feat(中文): implement rules\n", "Feat(中文): implement rules\n", "fix: 增加\0规则", "fix: 增加\u001b规则", "# 中文模板注释\n", "\nfix: 修复", " fix: 修复", Buffer.from([0xc3, 0x28])]) {
+    fs.writeFileSync(message, value);
+    assert.equal(run(ctx, "message-check", "--message-file", message).status, 1, String(value));
+  }
+  assert.equal(run(ctx, "message-check", "--message-file", ctx.root).status, 1);
+  assert.equal(run(ctx, "message-check", "--message-file", `${message}.missing`).status, 1);
+});
+
+/** 实际初始化消息通过检查后创建唯一基线，并复读真实 Git 消息。 */
+test("initialization_commit_uses_checked_chinese_message", (t) => {
+  const ctx = fixture(t);
+  const message = path.join(path.dirname(ctx.root), "message.txt");
+  fs.writeFileSync(message, "chore: 初始化项目\n");
+  assert.equal(command(ctx, "identity-bootstrap", "--fallback-username", "DeviceUser").status, 0);
+  assert.equal(command(ctx, "install").status, 0);
+  assert.equal(command(ctx, "check").status, 0);
+  assert.equal(run(ctx, "message-check", "--message-file", message).status, 0);
+  fs.writeFileSync(path.join(ctx.root, "README.md"), "中性基线\n");
+  assert.equal(git(ctx, "add", "README.md").status, 0);
+  const committed = git(ctx, "commit", "--quiet", "-F", message);
+  assert.equal(committed.status, 0, committed.stderr);
+  assert.equal(git(ctx, "log", "-1", "--format=%s").stdout.trim(), "chore: 初始化项目");
+  assert.equal(git(ctx, "rev-list", "--count", "HEAD").stdout.trim(), "1");
+  assert.equal(git(ctx, "status", "--porcelain").stdout, "");
+});

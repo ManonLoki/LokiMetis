@@ -874,12 +874,18 @@ export function commandTrackWorktree(repository, args) {
   const remote = selectRemote(repository, state, args.remote, { required: false });
   const target = canonicalPath(args.worktree, { strict: true });
   const records = worktreeRecords(repository);
-  const normalized = new Map(records.map((record) => [canonicalPath(record.path, { strict: true }), record]));
-  if (!normalized.has(target)) throw new LifecycleError("not-a-worktree", "Requested path is not a registered Git worktree.");
   const primary = canonicalPath(records[0].path, { strict: true });
+  // 其它单元可能正在失败回收；只要求本次目标与 primary 身份稳定。
+  const record = records.find((candidate) => {
+    try { return canonicalPath(candidate.path, { strict: true }) === target; }
+    catch (error) {
+      if (error instanceof LifecycleError && error.code === "not-a-worktree") return false;
+      throw error;
+    }
+  });
+  if (!record) throw new LifecycleError("not-a-worktree", "Requested path is not a registered Git worktree.");
   if (target === primary) throw new LifecycleError("primary-worktree", "Primary Git worktree cannot be tracked as a cycle resource.");
   if (resolveRepository(target).commonDir !== repository.commonDir) throw new LifecycleError("repository-mismatch", "Worktree belongs to a different Git repository.");
-  const record = normalized.get(target);
   if (record.detached === "true" || !record.branch) throw new LifecycleError("detached-head", "Tracked worktree must have a named branch.");
   const branch = record.branch;
   if (branch === state.defaultBranch) throw new LifecycleError("default-branch", "Default branch worktree cannot be tracked for cleanup.");
@@ -930,7 +936,7 @@ export function mergeRegisteredBranches(repository, state, defaultBranch) {
       continue;
     }
     const before = currentHead(repository);
-    const result = runGit(repository.root, ["merge", "--no-edit", `refs/heads/${branch}`], { check: false });
+    const result = runGit(repository.root, ["merge", "--no-edit", "-m", `合并开发分支 ${branch}`, `refs/heads/${branch}`], { check: false });
     if (result.returncode !== 0) throw new LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.");
     (currentHead(repository) === before ? alreadyMerged : merged).push(branch);
   }

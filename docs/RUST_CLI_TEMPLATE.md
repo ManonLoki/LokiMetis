@@ -36,6 +36,8 @@ GPUI 当前 updater、通用原生 dialog、深链接 unavailable；通知、原
 
 源码启动使用 `pnpm run dev`，它由 Node 标准库设置 debug 皮肤资源路径再调用 `cargo run -p loki_metris_gui`；直接 cargo run 不会自动设置该资源路径。相关单元测试按本次修改选取；显式全量测试入口为 `pnpm run test`（cargo test --workspace --all-targets --all-features），编译入口为 `cargo build --workspace`，治理检查入口为 `pnpm run validate`。根 package.json 无 JS 前端或 npm 运行依赖，不因列出命令就自动执行全部步骤。
 
+验证入口 `scripts/validate.mjs` 复用受管 GPUI runner，将行数检查定点接到项目封存物/vendor 摘要登记层；公共检查器保持上游原样，其余两项门禁和失败传播不变。保留的通用 `gpui_dev.mjs` 提供保存后编译/重启及 owned 进程回收知识，当前产品 `dev` 继续使用已有资源装配，不在升级中切换开发行为。
+
 需要 macOS 通知身份或包内皮肤资源的开发对照使用 `pnpm gpui:preview`，完成后通过 Computer Use 打开 `target/gpui-preview/LokiMetris.app`。此命令复用 Cargo 已配置的 host debug 缓存，核对源码／资源、完整 ad-hoc 签名与严格身份验证后才替换旧预览；旧包保留为同目录 `previous-*.app`。运行中的同路径预览必须先正常退出。工具不启动应用、不使用证书、不公证、不生成分发候选；候选继续使用下述独立打包入口。
 
 Cargo.lock / pnpm 锁默认 ignored，测试构建不用 --locked/--frozen-lockfile；显式切换 tracked 后才按受管锁策略冻结解析。vendor原样归档中的Cargo.lock仅为来源证据，逐字节保留并跟踪，不是当前工作区的解析锁。日常只运行本次必要相关非空测试；显式候选全 workspace 测试，零测试/失败阻断。

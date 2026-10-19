@@ -2,6 +2,7 @@
 /** 安全创建、检查、验证和移除 Harness 并行协作使用的 Git Worktree。 */
 
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,6 +14,9 @@ const LIFECYCLE_SCRIPT_RELATIVE = path.join(".agents", "skills", "desktop-manage
 const IDENTIFIER = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const OBJECT_ID = /^[0-9a-f]{40,64}$/;
 const STATE_SCHEMA_VERSION = 1;
+const STATE_LOCK_WAIT_MS = 30_000;
+const STATE_LOCK_POLL_MS = 25;
+const LOCK_WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 export class WorkflowError extends Error {
   constructor(code, message, exitCode = 2) { super(message); this.code = code; this.exitCode = exitCode; }
@@ -128,7 +132,11 @@ export function requirePlainDirectory(value, code, label, create = false) {
   let stat = lstatOrNull(value);
   if (stat?.isSymbolicLink()) throw new WorkflowError(code, `${label}不得是符号链接：${value}`, 4);
   if (stat && !stat.isDirectory()) throw new WorkflowError(code, `${label}不是目录：${value}`, 4);
-  if (create && !stat) { fs.mkdirSync(value); stat = fs.lstatSync(value); if (stat.isSymbolicLink() || !stat.isDirectory()) throw new WorkflowError(code, `${label}未建立为普通目录：${value}`, 4); }
+  if (create && !stat) {
+    try { fs.mkdirSync(value); } catch (error) { if (error?.code !== "EEXIST") throw error; }
+    stat = fs.lstatSync(value);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) throw new WorkflowError(code, `${label}未建立为普通目录：${value}`, 4);
+  }
 }
 
 export function managedWorktreeRoot(projectRoot, create = false) {
@@ -185,7 +193,7 @@ export function normalizeOwnership(rawTargets, source) {
 export function statePayload(state) {
   const { identity } = state;
   const { context } = identity;
-  return { schemaVersion: STATE_SCHEMA_VERSION, projectRoot: context.projectRoot, commonDir: context.commonDir, sourceWorktree: context.sourceWorktree, sourceBranch: context.sourceBranch, task: identity.task, unit: identity.unit, branch: identity.branch, worktreePath: identity.worktreePath, baseHead: state.baseHead, ownership: [...state.ownership] };
+  return { schemaVersion: STATE_SCHEMA_VERSION, projectRoot: context.projectRoot, commonDir: context.commonDir, sourceWorktree: context.sourceWorktree, sourceBranch: context.sourceBranch, task: identity.task, unit: identity.unit, branch: identity.branch, worktreePath: identity.worktreePath, baseHead: state.baseHead, ownership: [...state.ownership], status: state.status ?? "ready", ...(state.reservationToken ? { reservationToken: state.reservationToken, ownerPid: state.ownerPid } : {}) };
 }
 
 export function readStateDocument(statePath) {
@@ -201,16 +209,27 @@ export function loadUnitState(identity) {
   const payload = readStateDocument(identity.statePath);
   const expected = { projectRoot: identity.context.projectRoot, commonDir: identity.context.commonDir, sourceWorktree: identity.context.sourceWorktree, sourceBranch: identity.context.sourceBranch, task: identity.task, unit: identity.unit, branch: identity.branch, worktreePath: identity.worktreePath };
   for (const [key, value] of Object.entries(expected)) if (payload[key] !== value) throw new WorkflowError("unit_state_identity_mismatch", `单元状态字段 ${key} 为 ${JSON.stringify(payload[key])}，预期为 ${JSON.stringify(value)}`, 4);
+  if (payload.status !== undefined && !["creating", "ready", "failed"].includes(payload.status)) throw new WorkflowError("unit_state_invalid", "单元状态 status 无效", 4);
+  if (payload.status !== undefined && payload.status !== "ready") throw new WorkflowError("unit_not_ready", `单元 ${identity.unit} 状态为 ${payload.status}，创建进程为 ${payload.ownerPid ?? "unknown"}；须完成创建或核对遗留预留，不能执行单元操作`, 4);
   if (typeof payload.baseHead !== "string" || !OBJECT_ID.test(payload.baseHead)) throw new WorkflowError("unit_state_invalid", "单元状态 baseHead 无效", 4);
   if (!Array.isArray(payload.ownership) || !payload.ownership.length || !payload.ownership.every((item) => typeof item === "string")) throw new WorkflowError("unit_state_invalid", "单元状态 ownership 无效", 4);
   const ownership = payload.ownership.map((item) => normalizeRepoRelative(item, identity.worktreePath, "unit_state_invalid"));
   if (new Set(ownership).size !== ownership.length) throw new WorkflowError("unit_state_invalid", "单元状态 ownership 包含重复路径", 4);
-  return { identity, baseHead: payload.baseHead, ownership };
+  return { identity, baseHead: payload.baseHead, ownership, status: "ready", reservationToken: payload.reservationToken, ownerPid: payload.ownerPid };
 }
 
+/** 共享状态锁只保护短暂预留或原子状态转换，正常竞争有界等待。 */
 function withTaskStateLock(identity, callback) {
   const lock = path.join(path.dirname(identity.statePath), ".lock");
-  try { fs.mkdirSync(lock); } catch (error) { if (error?.code === "EEXIST") throw new WorkflowError("task_state_locked", `Task 状态正由另一操作持有，或存在需人工检查的遗留锁：${lock}`, 4); throw error; }
+  const deadline = Date.now() + STATE_LOCK_WAIT_MS;
+  for (;;) {
+    try { fs.mkdirSync(lock); break; }
+    catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      if (Date.now() >= deadline) throw new WorkflowError("task_state_locked", `等待 Task 状态锁 ${STATE_LOCK_WAIT_MS}ms 超时；锁仍由另一操作持有，或需核对遗留锁：${lock}`, 4);
+      Atomics.wait(LOCK_WAIT_BUFFER, 0, 0, STATE_LOCK_POLL_MS);
+    }
+  }
   try { return callback(); } finally { try { fs.rmdirSync(lock); } catch { /* 锁损坏由后续操作可见 */ } }
 }
 
@@ -245,23 +264,60 @@ export function trackLifecycleWorktree(state) {
   let payload = {};
   try { payload = JSON.parse(result.stdout || "{}"); } catch { payload = {}; }
   if (result.status !== 0) throw new WorkflowError("lifecycle_worktree_tracking_failed", `Git 生命周期 Worktree 登记失败（${typeof payload.code === "string" ? payload.code : "unknown"}）：${typeof payload.message === "string" ? payload.message : "Git 生命周期 helper 返回非零状态"}`, 4);
-  return payload && !Array.isArray(payload) && typeof payload === "object" ? payload : {};
+  if (!payload || Array.isArray(payload) || typeof payload !== "object" || !["worktree-tracked", "worktree-already-tracked"].includes(payload.status) || payload.branch !== identity.branch || payload.worktree !== identity.worktreePath) throw new WorkflowError("lifecycle_worktree_tracking_failed", "Git 生命周期 helper 未返回本次精确 Worktree/分支的登记确认", 4);
+  return payload;
 }
 
-export function cleanupEmptyUnitContainers(identity) {
-  const candidates = [path.dirname(identity.statePath), path.dirname(path.dirname(identity.statePath)), path.dirname(identity.worktreePath), path.dirname(path.dirname(identity.worktreePath)), path.dirname(path.dirname(path.dirname(identity.worktreePath)))];
-  for (const directory of candidates) try { fs.rmdirSync(directory); } catch { /* 非空或不存在则保留 */ }
+/** 失败后复读同一 common-dir 的权威清单；只有明确无登记时才允许回滚。 */
+function inspectLifecycleRegistration(state) {
+  const { identity } = state;
+  try {
+    const script = lifecycleScript(identity.context.projectRoot);
+    const result = spawnSync(process.execPath, [script, "inspect", "--project-root", identity.context.projectRoot], { cwd: identity.context.projectRoot, encoding: "utf8", timeout: 60_000, input: "" });
+    if (result.error || result.status !== 0) return "unknown";
+    const payload = JSON.parse(result.stdout);
+    if (payload.status !== "inspected" || payload.statePath !== path.join(identity.context.commonDir, "agent-first-harness", "git-lifecycle.json") || payload.state?.schemaVersion !== 4 || !Array.isArray(payload.state.releasedResources)) return "unknown";
+    const groups = [...payload.state.releasedResources];
+    if (payload.state.cycle !== null) groups.push(payload.state.cycle);
+    let registered = false;
+    for (const group of groups) {
+      if (!group || !Array.isArray(group.branches) || !Array.isArray(group.worktrees)) return "unknown";
+      if (!group.branches.every((entry) => entry && typeof entry.name === "string") || !group.worktrees.every((entry) => entry && typeof entry.path === "string" && typeof entry.branch === "string")) return "unknown";
+      registered ||= group.branches.some((entry) => entry.name === identity.branch) || group.worktrees.some((entry) => entry.path === identity.worktreePath || entry.branch === identity.branch);
+    }
+    return registered ? "registered" : "unregistered";
+  } catch { return "unknown"; }
+}
+
+/** 只允许本次创建者转换其预留，防止失败回收影响其他并发单元。 */
+function updateReservedState(state, status) {
+  withTaskStateLock(state.identity, () => {
+    const previous = readStateDocument(state.identity.statePath);
+    if (previous.reservationToken !== state.reservationToken || previous.status !== "creating") throw new WorkflowError("unit_reservation_lost", `单元预留已改变：${state.identity.statePath}`, 4);
+    const temporary = `${state.identity.statePath}.${state.reservationToken}.tmp`;
+    try {
+      fs.writeFileSync(temporary, `${JSON.stringify(statePayload({ ...state, status }))}\n`, { encoding: "utf8", flag: "wx" });
+      fs.renameSync(temporary, state.identity.statePath);
+    } finally { try { fs.unlinkSync(temporary); } catch (error) { if (error?.code !== "ENOENT") throw error; } }
+  });
+}
+
+/** 删除自己的预留；共享空容器保留，避免与另一创建者的 mkdir 或加锁竞争。 */
+function releaseReservedState(state) {
+  withTaskStateLock(state.identity, () => {
+    const previous = readStateDocument(state.identity.statePath);
+    if (previous.reservationToken !== state.reservationToken || previous.status !== "creating") throw new WorkflowError("unit_reservation_lost", `单元预留已改变：${state.identity.statePath}`, 4);
+    fs.unlinkSync(state.identity.statePath);
+  });
 }
 
 export function rollbackCreatedUnit(state) {
   const { identity } = state;
-  const failures = [];
-  if (lstatOrNull(identity.statePath)) try { fs.unlinkSync(identity.statePath); } catch (error) { failures.push(`无法删除单元状态：${error.message}`); }
   const worktree = runGit(identity.context.projectRoot, "worktree", "remove", identity.worktreePath, { check: false });
-  if (worktree.returncode !== 0) failures.push(worktree.stderr.trim() || "无法移除新建 Worktree");
+  if (worktree.returncode !== 0) throw new WorkflowError("unit_create_rollback_failed", worktree.stderr.trim() || "无法移除新建 Worktree", 4);
   const branch = runGit(identity.context.projectRoot, "branch", "-D", identity.branch, { check: false });
-  if (branch.returncode !== 0) failures.push(branch.stderr.trim() || "无法删除新建单元分支");
-  if (failures.length) throw new WorkflowError("unit_create_rollback_failed", failures.join("；"), 4);
+  if (branch.returncode !== 0) throw new WorkflowError("unit_create_rollback_failed", branch.stderr.trim() || "无法删除新建单元分支", 4);
+  releaseReservedState(state);
 }
 
 export function inspectProject(projectRoot, commonDir) {
@@ -284,19 +340,37 @@ export function createUnit(identity, rawOwnership) {
   if (runGit(source, "status", "--porcelain=v1", "--untracked-files=all").stdout.trim()) throw new WorkflowError("source_worktree_dirty", "源 Task Worktree 存在已跟踪或未跟踪修改；不得自动贮藏或提交", 4);
   const head = runGit(source, "rev-parse", "--verify", "HEAD", { check: false });
   if (head.returncode !== 0) throw new WorkflowError("source_head_missing", "源 Task Worktree 没有已提交的 HEAD", 4);
-  const state = { identity, baseHead: head.stdout.trim(), ownership: normalizeOwnership(rawOwnership, source) };
+  const state = { identity, baseHead: head.stdout.trim(), ownership: normalizeOwnership(rawOwnership, source), status: "creating", reservationToken: randomUUID(), ownerPid: process.pid };
+  if (runGit(identity.context.projectRoot, "show-ref", "--verify", "--quiet", `refs/heads/${identity.branch}`, { check: false }).returncode === 0) throw new WorkflowError("branch_exists", `分支已存在：${identity.branch}`, 4);
+  if (lstatOrNull(identity.worktreePath)) throw new WorkflowError("worktree_path_exists", `Worktree 路径已存在：${identity.worktreePath}`, 4);
+  withTaskStateLock(identity, () => { rejectRegisteredOwnershipOverlap(state); writeUnitState(state); });
   let tracking = {};
+  let worktreeCreated = false;
   try {
-    withTaskStateLock(identity, () => {
-      rejectRegisteredOwnershipOverlap(state);
-      if (runGit(identity.context.projectRoot, "show-ref", "--verify", "--quiet", `refs/heads/${identity.branch}`, { check: false }).returncode === 0) throw new WorkflowError("branch_exists", `分支已存在：${identity.branch}`, 4);
-      if (lstatOrNull(identity.worktreePath)) throw new WorkflowError("worktree_path_exists", `Worktree 路径已存在：${identity.worktreePath}`, 4);
-      runGit(source, "worktree", "add", "-b", identity.branch, identity.worktreePath, "HEAD");
-      try { writeUnitState(state); tracking = trackLifecycleWorktree(state); }
-      catch (error) { try { rollbackCreatedUnit(state); } catch (rollbackError) { throw new WorkflowError("unit_create_rollback_failed", `${error.message}；回滚失败：${rollbackError.message}`, 4); } throw error; }
-    });
-  } catch (error) { if (error instanceof WorkflowError) cleanupEmptyUnitContainers(identity); throw error; }
-  return { created: true, ...statePayload(state), lifecycleTracking: tracking };
+    runGit(source, "worktree", "add", "-b", identity.branch, identity.worktreePath, state.baseHead);
+    worktreeCreated = true;
+    tracking = trackLifecycleWorktree(state);
+    updateReservedState(state, "ready");
+  } catch (error) {
+    if (worktreeCreated) {
+      const registration = inspectLifecycleRegistration(state);
+      if (registration !== "unregistered") {
+        let stateFailure = "";
+        try { updateReservedState(state, "failed"); } catch (failure) { stateFailure = `；失败状态写入未完成：${failure.message}`; }
+        throw new WorkflowError(error.code ?? "unit_create_failed", `${error.message}；生命周期登记结果为 ${registration}，保留本次 Worktree、分支和预留供恢复${stateFailure}`, error.exitCode ?? 4);
+      }
+    }
+    try {
+      if (worktreeCreated) rollbackCreatedUnit(state);
+      else if (!lstatOrNull(identity.worktreePath) && runGit(identity.context.projectRoot, "show-ref", "--verify", "--quiet", `refs/heads/${identity.branch}`, { check: false }).returncode !== 0) releaseReservedState(state);
+      else updateReservedState(state, "failed");
+    } catch (rollbackError) {
+      try { updateReservedState(state, "failed"); } catch { /* 保留已改变的预留供显式核对 */ }
+      throw new WorkflowError("unit_create_rollback_failed", `${error.message}；回滚失败：${rollbackError.message}`, 4);
+    }
+    throw error;
+  }
+  return { created: true, ...statePayload({ ...state, status: "ready" }), lifecycleTracking: tracking };
 }
 
 export function validateUnitContext(identity, requireUnitCwd) {

@@ -4,6 +4,8 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 
 本文件是本项目文件、中文注释、依赖、测试、文档事件及例外的详细事实源。当前为终端 GPUI 项目，不适用 Tauri/WebView/React/Mantine 规则；设计目录作为受管知识完整保留，按框架精确读取。
 
+实际依赖调整、文件能力、外部进程、core 边界专项审查分别路由到 `$desktop-manage-dependencies`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-review-core-boundaries`，不因保留 Skill 自动运行。ADR 与重要交接由 `$desktop-record-adr`、`$desktop-handoff-project` 按各自事件触发；更新日志只读预览由 `$desktop-inspect-release-notes` 承接。提交消息使用中文摘要和正文，由提交 Skill 校验并在提交后复读。
+
 ## 1. 适用范围与规则等级
 
 硬规则保护架构、正确性、跨平台能力和交付可信度，违反必须修复；确需例外按第 6 节记录。默认规则用于可读性，有真实局部理由可偏离，不为普通组织选择增造 ADR。不得覆盖已有修改或为假想未来预建抽象。
@@ -54,6 +56,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 - Rust 超过 800 行、前端超过 1000 行或其他人工维护文本超过 2000 行时必须拆分；计划说明、审查结论、警告或 ADR 都不能把硬超限改判为通过。
 - 工具生成且禁止手工编辑的锁文件/生成物，以及原样内嵌且明确隔离的第三方文件，不属于人工维护文件。这是封闭的范围定义，不是任意路径豁免；生成器、模板、补丁和维护说明仍按自身文件类型受分层规模治理。
 - 封存生成物由行数工具的 `verified_generated.mjs` 精确登记，目前仅含 `.archify/architecture-lokimetris-20261011-2240/lokimetris.html`。必须同时通过固定生成物路径/字节数/SHA-256、固定 `lokimetris.finalize.json` 路径/字节数/SHA-256、生成器标记及各阶段同字节回执校验；任一缺失、漂移、文件或父目录链接均失败关闭。相邻文件、同名副本、生成器、模板和完成回执仍按自身类型检查，不对 `.archify/` 或其它目录整体豁免。
+- 公共 `check_file_line_limits.mjs` 及其测试与上游原样同步；`scripts/check_project_line_limits.mjs` 复用公共扫描、阈值与退出码，只移除已通过上述固定登记校验的精确路径，保留所有公共扫描错误并合并登记错误。两个登记器及产品场景回归属于本地受保护扩展，不能在工程升级中删除或替换为宽泛目录跳过。
 - 当前原样第三方登记为`vendor/accesskit_macos/source-content.sha256`中的18项、五个GPUI 0.3.9包`vendor/gpui-pre{,-apple,-macos,-windows,-wgpu}/source-content.sha256`中的160／19／15／28／14项，以及`vendor/tray-icon/source-content.sha256`中的26项；GPUI 与 tray-icon 清单路径相对各包的`upstream/`。清单摘要和精确根固定注册于行数检查的`verified_third_party.mjs`。仅清单和逐文件SHA-256均匹配、且路径无链接／越界时排除；额外文件、shim、生成器、补丁、测试及维护说明照常计数。原样内容缺失或漂移必须失败，不能改成整个vendor目录跳过。
 - 文件规模治理与职责判断同时成立：文件未达到对应建议阈值不证明职责合理，adapter 未超限也不证明其符合 core-first；语义边界仍按本节其余规则审查。
 
@@ -182,4 +185,4 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 
 ## 7. 机械检查边界
 
-pnpm run validate 仅运行保留的文件硬行数、Rust 中文注释存在性与 core-first 检查，不证明语义质量或发布验收。建议规模、TODO/FIXME/HACK 与非必要语义审查只在当次发布 reviewSelection=enabled 集中复核；不能自动追加到日常任务。项目没有上游专用的脚本语言禁令。
+pnpm run validate 通过 `scripts/validate.mjs` 复用 GPUI runner，仅将公共行数入口接到项目精确登记层，仍完整运行文件硬行数、Rust 中文注释存在性与 core-first 三项检查；不证明语义质量或发布验收。建议规模、TODO/FIXME/HACK 与非必要语义审查只在当次发布 reviewSelection=enabled 集中复核；不能自动追加到日常任务。项目没有上游专用的脚本语言禁令。

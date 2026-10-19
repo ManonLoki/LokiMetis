@@ -25,4 +25,4 @@ adapter 只负责装配，依赖 Skill 管版本/补丁，性能 Skill 管定位
 
 ## 本项目事实与边界
 
-当前依赖全表见 [TECHNOLOGY](TECHNOLOGY.md)，Linux 产品接线/工具链见 [LINUX_GPUI_TOOLCHAIN](LINUX_GPUI_TOOLCHAIN.md)。性能现状、历史测量与被否定的尝试见 [PERFORMANCE_OPTIMIZATION](PERFORMANCE_OPTIMIZATION.md) 和 [性能知识库](performance/README.md)；历史 macOS 合成短窗 A/B 不代表当前版本或 Windows/Linux 复测。具体候选阻断取 [RELEASE](RELEASE.md)。本次只调整工程知识与打包工具，不改产品 Rust 依赖声明。
+当前依赖全表见 [TECHNOLOGY](TECHNOLOGY.md)，Linux 产品接线/工具链见 [LINUX_GPUI_TOOLCHAIN](LINUX_GPUI_TOOLCHAIN.md)。性能现状、历史测量与被否定的尝试见 [PERFORMANCE_OPTIMIZATION](PERFORMANCE_OPTIMIZATION.md) 和 [性能知识库](performance/README.md)；历史 macOS 合成短窗 A/B 不代表当前版本或 Windows/Linux 复测。具体候选阻断取 [RELEASE](RELEASE.md)。工程升级按根 Cargo 与受保护产品事实渲染知识，不自动修改产品 Rust 依赖声明或切换能力。

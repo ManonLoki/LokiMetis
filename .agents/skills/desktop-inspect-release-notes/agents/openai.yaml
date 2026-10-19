@@ -1,0 +1,4 @@
+interface:
+  display_name: "检查更新日志"
+  short_description: "只读校验双语发布日志与期望版本，按语言渲染现有内容而不写文件"
+  default_prompt: "使用 $desktop-inspect-release-notes，在当前授权范围内检查更新日志并报告真实结果与未验证事项。"

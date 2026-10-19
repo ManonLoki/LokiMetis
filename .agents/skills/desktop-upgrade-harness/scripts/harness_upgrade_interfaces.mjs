@@ -8,6 +8,7 @@ const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
 const INTERFACES = new Set(["cli", "tui", "mcp", "gui"]);
 const FRAMEWORKS = new Set(["tauri", "gpui"]);
 const TAURI_SKILLS = new Set([
+  "desktop-enable-gui-updates", "desktop-add-gui-telemetry",
   "desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-system-locale",
   "desktop-add-gui-updater", "desktop-add-gui-window-state", "desktop-add-gui-dialog",
   "desktop-add-gui-system-tray", "desktop-add-gui-single-instance", "desktop-add-gui-deep-link",
@@ -154,7 +155,7 @@ export function readInterfaceSelection(root) {
 export function inapplicableGuiCandidate(relative, selection) {
   if (relative === "docs/GUI_ENGINEERING.md") return selection.guiFramework !== "gpui";
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
-  if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance"].includes(skill)) return selection.guiFramework !== "gpui";
+  if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
   if (TAURI_SKILLS.has(skill)) return selection.guiFramework !== "tauri";
   if (skill === "desktop-prepare-gui-app-identity") return !selection.interfaces.includes("gui");
   return false;

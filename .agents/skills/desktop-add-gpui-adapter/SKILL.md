@@ -9,6 +9,8 @@ description: 为已明确选择 GPUI 的中性 Rust 下游建立原生桌面薄�
 
 当前产品已有 `UsageService` 拥有的Tokio运行时、七个本地第三方兼容包、三平台原生通知桥和Linux宿主扩展；实际机制见[工程基线](../../../docs/RUST_CLI_TEMPLATE.md)及[GUI支持界面](../../../docs/GUI_SUPPORT_SURFACES.md)。下文“模板不需要Tokio”“通知复用Kit”和add-only的Linux限制只描述中性生成器，不表示产品尚未实现这些能力。
 
+GPUI Kit 官方知识的创建期安装由上游初始化器负责；既有下游升级不自动安装 `$gpui-kit` 或 `$gpui-kit-design-guides`。若本项目已安装，按各自主题路由读取 Coding/Design Guides，保留来源、许可与摘要，并核对实际 gpui-kit 版本；不存在时继续使用当前设计标准和实际依赖源码。已批准的自启能力变更另由 `$desktop-add-gpui-autostart` 复用本 Skill 模板，不建立第二套驱动。
+
 ## 按职责装配
 
 依赖整理、版本升级与本地兼容补丁使用 `$desktop-manage-gpui-dependencies`；当前产品先取根 Cargo，初始化才读 [renderer 依赖快照](references/dependency-baseline.md)，不按旧下界降级产品。性能请求使用 `$desktop-optimize-gpui-performance`。

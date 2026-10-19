@@ -48,6 +48,54 @@ test("preview_then_apply_renames_content_paths_and_licenses", (t) => {
   assert.equal(fs.readFileSync(path.join(root, "LICENSE.en.md"), "utf8"), "New Product new_product");
 });
 
+// 第三方 Skill 按项目根相对路径保护原文与文件名，不扩大到相似名称或其它位置。
+test("installed_third_party_skills_are_preserved_and_reported_without_skipping_product_skills", (t) => {
+  const root = fixture(t);
+  const protectedSkills = ["gpui-kit", "gpui-kit-design-guides", "design-taste-frontend"];
+  const original = Buffer.from("旧产品 / Old Product / old_product / old-product / button\n");
+  for (const name of protectedSkills) {
+    const skill = path.join(root, ".agents", "skills", name);
+    fs.mkdirSync(skill, { recursive: true });
+    fs.writeFileSync(path.join(skill, "SKILL.md"), original);
+    fs.writeFileSync(path.join(skill, "button.md"), original);
+  }
+  const maintainedSkills = [
+    ".agents/skills/old-product-tool",
+    ".agents/skills/gpui-kit-extension",
+    "tools/gpui-kit",
+  ];
+  for (const relative of maintainedSkills) {
+    const skill = path.join(root, relative);
+    fs.mkdirSync(skill, { recursive: true });
+    fs.writeFileSync(path.join(skill, "button.md"), original);
+  }
+  const expectedExcluded = protectedSkills.map((name) => `.agents/skills/${name}/`).sort();
+  const preview = runScript(root, "--replace", "button=control");
+  assert.equal(preview.status, 0, preview.stderr);
+  const previewReport = JSON.parse(preview.stdout);
+  assert.deepEqual(previewReport.excludedDirectories, expectedExcluded);
+  assert.equal(previewReport.contentFiles.length, maintainedSkills.length);
+  for (const name of protectedSkills) {
+    assert.deepEqual(fs.readFileSync(path.join(root, ".agents", "skills", name, "button.md")), original);
+  }
+  const result = runScript(root, "--replace", "button=control", "--apply");
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.deepEqual(report.excludedDirectories, expectedExcluded);
+  assert.deepEqual(report.residuals, []);
+  for (const name of protectedSkills) {
+    const skill = path.join(root, ".agents", "skills", name);
+    assert.deepEqual(fs.readdirSync(skill).sort(), ["SKILL.md", "button.md"]);
+    assert.deepEqual(fs.readFileSync(path.join(skill, "SKILL.md")), original);
+    assert.deepEqual(fs.readFileSync(path.join(skill, "button.md")), original);
+  }
+  for (const relative of maintainedSkills) {
+    const renamed = relative.replace("old-product", "new-product");
+    assert.equal(fs.existsSync(path.join(root, renamed, "button.md")), false);
+    assert.equal(fs.readFileSync(path.join(root, renamed, "control.md"), "utf8"), "新产品 / New Product / new_product / new-product / control\n");
+  }
+});
+
 test("existing_destination_blocks_without_overwrite", (t) => {
   const root = fixture(t);
   const oldPath = path.join(root, "old_product.txt");

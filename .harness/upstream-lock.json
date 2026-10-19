@@ -1,0 +1,2749 @@
+{
+  "entries": {
+    ".agents/skills/desktop-add-external-process/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7bba1d1c319fdd583edd669c5a0dbdca0b4a4a18a4ff1297750d8e9c4556729a"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "7bba1d1c319fdd583edd669c5a0dbdca0b4a4a18a4ff1297750d8e9c4556729a"
+      }
+    },
+    ".agents/skills/desktop-add-external-process/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d926e78627f1c9084c6785150f5e9273c076c821074e081d62bf6befe687d0ad"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "d926e78627f1c9084c6785150f5e9273c076c821074e081d62bf6befe687d0ad"
+      }
+    },
+    ".agents/skills/desktop-add-external-process/references/external-process.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "13160c42d7373d91ef79aeb961eb0e2b3589ddfd5999d70142d57c482935e7a2"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "13160c42d7373d91ef79aeb961eb0e2b3589ddfd5999d70142d57c482935e7a2"
+      }
+    },
+    ".agents/skills/desktop-add-file-operations/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "56ea7cff7590ac50c2f370d83862db09362ddfd174514d17e94723833c796a1f"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "56ea7cff7590ac50c2f370d83862db09362ddfd174514d17e94723833c796a1f"
+      }
+    },
+    ".agents/skills/desktop-add-file-operations/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "cd74f2547581311bfa6b96a22feb348d876d7295c8ea7f66f395fe7020873753"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "cd74f2547581311bfa6b96a22feb348d876d7295c8ea7f66f395fe7020873753"
+      }
+    },
+    ".agents/skills/desktop-add-file-operations/references/file-operations.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c6547cf2092ccb41a5ea07d5e25f8c6fca61487ff4bccb67ab14eb71db9de6b8"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "c6547cf2092ccb41a5ea07d5e25f8c6fca61487ff4bccb67ab14eb71db9de6b8"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "56630400d8c4c0be84d6a892992da2241a3be8affafd5d6cd0737fe8beb2d267"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "56630400d8c4c0be84d6a892992da2241a3be8affafd5d6cd0737fe8beb2d267"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "4cb98bf7cf23a95041a7078c72f455bdfdd8022605465f62a3bd6b36739ad2b6"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "4cb98bf7cf23a95041a7078c72f455bdfdd8022605465f62a3bd6b36739ad2b6"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/SOURCE.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "08cea836937995d5179f4de8cbcede1fd40007e5baa4e85b25e74107c41f900d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "08cea836937995d5179f4de8cbcede1fd40007e5baa4e85b25e74107c41f900d"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/brand-support-profile.json": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "104229cb757822b5da547f29d27007e912067013c0985e3e8fd489b90c64fafc"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "104229cb757822b5da547f29d27007e912067013c0985e3e8fd489b90c64fafc"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/i18n/en-US.json": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0952c271ce7cb7a42c02308bfee68d3dc83f25a7e6cb25bd77a93cbc16f0244a"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "0952c271ce7cb7a42c02308bfee68d3dc83f25a7e6cb25bd77a93cbc16f0244a"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/i18n/zh-CN.json": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3effededb973b11520d8385f28fe45d7210f51ad955390a64696e25decb05500"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "3effededb973b11520d8385f28fe45d7210f51ad955390a64696e25decb05500"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media-manifest.json": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "03054b147bafed1570471d1b837c50777cdef9a5f2b730d42490169d8ea4a017"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "03054b147bafed1570471d1b837c50777cdef9a5f2b730d42490169d8ea4a017"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/arrow.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5b4740685ce0e644dfbe44de69a49ae8d4da70252d21e029462324580a4cd10f"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "5b4740685ce0e644dfbe44de69a49ae8d4da70252d21e029462324580a4cd10f"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/bg.jpg": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f756e7d1fba24a89f62b0e9c1475574505614a28fc276e617d15f688da0ff104"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "f756e7d1fba24a89f62b0e9c1475574505614a28fc276e617d15f688da0ff104"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/icon1.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "2f0dbd646d156e439618f122a4f8073cb84d9d857b1e08fc1f938c4115dd9ba0"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "2f0dbd646d156e439618f122a4f8073cb84d9d857b1e08fc1f938c4115dd9ba0"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/icon2.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "135e15ba441a769973747280d9bc5a881cc8a6c6733e34023cc98ec013b58da9"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "135e15ba441a769973747280d9bc5a881cc8a6c6733e34023cc98ec013b58da9"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/icon3.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "69c58a1575fe88b2db05cfe52bbb58b30920ec4ff31265ed037a7f0f7401094f"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "69c58a1575fe88b2db05cfe52bbb58b30920ec4ff31265ed037a7f0f7401094f"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/icon4.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9efc2453bb797a6f2134a1c781e85b11c1eafad074df78a3f585f631dd67d2c1"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "9efc2453bb797a6f2134a1c781e85b11c1eafad074df78a3f585f631dd67d2c1"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/img1.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ac007d294f9d414aa0331315922d5a51333490901bc5217f462837ca559c55f6"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "ac007d294f9d414aa0331315922d5a51333490901bc5217f462837ca559c55f6"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/img2.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c2129d1c912be1ac7b8e6b6309b381bff9986c70323c22bc71c5762eaad4cc5e"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "c2129d1c912be1ac7b8e6b6309b381bff9986c70323c22bc71c5762eaad4cc5e"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/img3.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c6182fe3637c2af635607adc9c0b1a24da38bceb46adf84c0499dbd083428bbc"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "c6182fe3637c2af635607adc9c0b1a24da38bceb46adf84c0499dbd083428bbc"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/pay1.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "95c2f331832b4a105998156d2bb77b5dfe7c82be9ea275078b9d59e08f5813fd"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "95c2f331832b4a105998156d2bb77b5dfe7c82be9ea275078b9d59e08f5813fd"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/pay2.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c9187aac864a8b09ab2457034008a7e833164a8bae63901132c5865caa5cd257"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "c9187aac864a8b09ab2457034008a7e833164a8bae63901132c5865caa5cd257"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/brand-support/media/sponsor/select.png": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ea10f68fc42054e33690a143d4e9ab3395048510bf4d776c87ab0c6e9a550dc1"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "ea10f68fc42054e33690a143d4e9ab3395048510bf4d776c87ab0c6e9a550dc1"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/assets/logo.svg": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "05df4806e3dfde2b5fe28f167a0c657cc31af286a484e659440c9ca3b02d6481"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "05df4806e3dfde2b5fe28f167a0c657cc31af286a484e659440c9ca3b02d6481"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/build.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "107cc03ff9bdbb1e0e73072f5473fce3507a2c6ce6e8b07792706ccebce8ba15"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "107cc03ff9bdbb1e0e73072f5473fce3507a2c6ce6e8b07792706ccebce8ba15"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/about.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5a0133eedaa836d5afb807fa28714d2b08844a212377b53f52eb621fa5cc506f"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "5a0133eedaa836d5afb807fa28714d2b08844a212377b53f52eb621fa5cc506f"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/mod.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "29670a98632365d2a015f585125ec4ba45629df514204b8bdc40fbca99853c8c"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "29670a98632365d2a015f585125ec4ba45629df514204b8bdc40fbca99853c8c"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/mod_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "004dc8914f02dfd0dd1979c0db87696df0b1afe634b5c2f158f5821b713a0616"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "004dc8914f02dfd0dd1979c0db87696df0b1afe634b5c2f158f5821b713a0616"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/settings.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "df9ddcad57216de14152f48e4fe94154fba7c3eb77681b154f3ac836606090bb"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "df9ddcad57216de14152f48e4fe94154fba7c3eb77681b154f3ac836606090bb"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/settings_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5b9a77fd07136047162f3f543fc04c821cffc0b1f6d73f0d0b516e2d6a02d30d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "5b9a77fd07136047162f3f543fc04c821cffc0b1f6d73f0d0b516e2d6a02d30d"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/sponsor.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0d9821846e6b8a97bc30940fa61754017bdea19a64bda46d0ba380e3d70a0e2b"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "0d9821846e6b8a97bc30940fa61754017bdea19a64bda46d0ba380e3d70a0e2b"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/app/sponsor_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7699d8c73ea4d70bfe441b1d9d844548b78c929b09760b9ed0335abcc9337880"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "7699d8c73ea4d70bfe441b1d9d844548b78c929b09760b9ed0335abcc9337880"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/assets.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3a02bd5af534450683c7d7d7831915d2d51309d556ad6823620f2f55fc77049c"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "3a02bd5af534450683c7d7d7831915d2d51309d556ad6823620f2f55fc77049c"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/lifecycle.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f42f7ebf0a8b1136eb2974bdf4ed1d92c80beb5172d708e89ee1b02ae7fa6938"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "f42f7ebf0a8b1136eb2974bdf4ed1d92c80beb5172d708e89ee1b02ae7fa6938"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/lifecycle_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a2186c8fcebc1d9fb12a6fb21450829602405ccd4426d63347bd1c010e35176a"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a2186c8fcebc1d9fb12a6fb21450829602405ccd4426d63347bd1c010e35176a"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/logging.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "466af4ef28b292e5994f20487ec17270ecb280164e0e294138fb0a1ed768aef7"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "466af4ef28b292e5994f20487ec17270ecb280164e0e294138fb0a1ed768aef7"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/logging_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0b0297ad7d5c0f980353f5ebbbc849cf81be0934ccab0e4ac6cb6c902c568585"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "0b0297ad7d5c0f980353f5ebbbc849cf81be0934ccab0e4ac6cb6c902c568585"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/main.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b7d36bb4ce711be115a5245d5fac3c78c15d47d80567fec39e4b3719b1da0a48"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "b7d36bb4ce711be115a5245d5fac3c78c15d47d80567fec39e4b3719b1da0a48"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/autostart.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "be225c3cbad8cb9e68075e1f58e6e00bc1568847bcb5b2530addf71682e11400"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "be225c3cbad8cb9e68075e1f58e6e00bc1568847bcb5b2530addf71682e11400"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/autostart_windows.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7b5fef8cd498e211829c2872dce57ce32a49413b00ed1f177cdd7bac755680d8"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "7b5fef8cd498e211829c2872dce57ce32a49413b00ed1f177cdd7bac755680d8"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/instance.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7124fe76829187d34ea62bbda90b9038b380cd80d257ca0dbd026a3cb5296674"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "7124fe76829187d34ea62bbda90b9038b380cd80d257ca0dbd026a3cb5296674"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/instance_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b4454e322abfc6d89160aeeba1135c2d874c5c4a10c9cfa518c8528a182a421e"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "b4454e322abfc6d89160aeeba1135c2d874c5c4a10c9cfa518c8528a182a421e"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/mod.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "301d407874a65c1f47a915a06e24a957a0cca7814648c06a5215235eba46c386"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "301d407874a65c1f47a915a06e24a957a0cca7814648c06a5215235eba46c386"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/shortcuts.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "54f8e86c983ef350a9f98b9b342741731946838af40bddc9e522e2ff03de1ef0"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "54f8e86c983ef350a9f98b9b342741731946838af40bddc9e522e2ff03de1ef0"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/tray.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a11a851e46d2e0f4321224aef47bdccf288cc168cb6df26ec4372943219c5786"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a11a851e46d2e0f4321224aef47bdccf288cc168cb6df26ec4372943219c5786"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/native/windows.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1162f17ccd80fcd5ea6e8bc5c84715444d81175e48fd682eb3bc2bc9fa812dca"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "1162f17ccd80fcd5ea6e8bc5c84715444d81175e48fd682eb3bc2bc9fa812dca"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/notifications.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "82bd289be618ac0c1ecebe7f9ef8361ecfce5cb7b87026a0ccc4c02b7bbca722"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "82bd289be618ac0c1ecebe7f9ef8361ecfce5cb7b87026a0ccc4c02b7bbca722"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/notifications_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9d180e818dc156dbfb91865c93132327d665b259d5a6d6cb9c1f8db6b9670524"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "9d180e818dc156dbfb91865c93132327d665b259d5a6d6cb9c1f8db6b9670524"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/preferences.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d73db5df00b8ca706c3e86f19a0676ce8b550f2e13c576c4dfcc05c2f7760aa5"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "d73db5df00b8ca706c3e86f19a0676ce8b550f2e13c576c4dfcc05c2f7760aa5"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/preferences_test.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "2c1f17c6ab52604e31c42437b638f11f6b2aa2d778d414cfbe47be2905fa0e56"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "2c1f17c6ab52604e31c42437b638f11f6b2aa2d778d414cfbe47be2905fa0e56"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/assets/gui/src/release_notes.rs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "bf97ee7d7767761a25e584d729a41efc3e0afd98aab6cdfacae3af893d1310c5"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "bf97ee7d7767761a25e584d729a41efc3e0afd98aab6cdfacae3af893d1310c5"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e87084bd2d8a923a958dc1f2dc1945bfb7db5a5ee0672ef1fd9c9abd0aa3de1d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "e87084bd2d8a923a958dc1f2dc1945bfb7db5a5ee0672ef1fd9c9abd0aa3de1d"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/native-capabilities.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "67ba1cef4cd8c796add56e53f524bec827544546c5a0eda6b7d4f2e501bfd97e"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "67ba1cef4cd8c796add56e53f524bec827544546c5a0eda6b7d4f2e501bfd97e"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/runtime-and-native.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "53fe45bc882dd01c57da2ed6b35f32b34bd15341a02e8d3d1a6da6a730427162"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "53fe45bc882dd01c57da2ed6b35f32b34bd15341a02e8d3d1a6da6a730427162"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/shell-surfaces.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a4cecfe33927dada5f12aa66d64b29af5ef657650256d25ae51eb84cc1e9a497"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a4cecfe33927dada5f12aa66d64b29af5ef657650256d25ae51eb84cc1e9a497"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/workspace-tooling.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ca6d80079f7cb9787aaab586c3f4786b31a9e4e8ea9df39efc24f065b2ba1e2d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "ca6d80079f7cb9787aaab586c3f4786b31a9e4e8ea9df39efc24f065b2ba1e2d"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/add_gpui_adapter.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "6ed6ff4dd0320acc54d7e2be9dd32ab952ff8bcb4c573617fcdfe96db5e9bbcf"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "6ed6ff4dd0320acc54d7e2be9dd32ab952ff8bcb4c573617fcdfe96db5e9bbcf"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/add_gpui_adapter.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a08e8ab35bab508f4a9bcb98ec37d3ea9016dd5a9faf60f30b94dfded657b2a5"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a08e8ab35bab508f4a9bcb98ec37d3ea9016dd5a9faf60f30b94dfded657b2a5"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_adapter_files.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "68d86bf6d996fcc37f0907f8ee41d1b9555f6ae129eea4756ce8c8835b1c2861"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "68d86bf6d996fcc37f0907f8ee41d1b9555f6ae129eea4756ce8c8835b1c2861"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "4527b83131f6d7b76b409fb8aabdb7f1eb0cb8bc4624637220bfe15a3a86bca5"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "4527b83131f6d7b76b409fb8aabdb7f1eb0cb8bc4624637220bfe15a3a86bca5"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b98d0792ae3160707cc062d7f8d95e034748865962035efd3b355a8177e7e693"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "b98d0792ae3160707cc062d7f8d95e034748865962035efd3b355a8177e7e693"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_native_capabilities.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b04158d467bf59c50d849511592520e6045263a8459182e0f9c375749ca6861d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "b04158d467bf59c50d849511592520e6045263a8459182e0f9c375749ca6861d"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_native_capabilities.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "889f0be968d73eb5f4a87a64e59e9418dbabe19c6a3d1efe5087b98de18fae67"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "889f0be968d73eb5f4a87a64e59e9418dbabe19c6a3d1efe5087b98de18fae67"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_node_tooling.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "8efe045933928e163d75cfe3ecb9ae84ef2e8749ceb3e38d2eba9fc9eb2fef2a"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "8efe045933928e163d75cfe3ecb9ae84ef2e8749ceb3e38d2eba9fc9eb2fef2a"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_node_tooling.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f211b04ccafd8da59c5a402797871795159052f95ccaf1acfa17cc1302562750"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "f211b04ccafd8da59c5a402797871795159052f95ccaf1acfa17cc1302562750"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_profile.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "df9117c5ce7a88e1727069053fee927bc31f3b138fb6da08b318b2d25639e9ea"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "df9117c5ce7a88e1727069053fee927bc31f3b138fb6da08b318b2d25639e9ea"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_validate.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a57ac4115eb1bd350e4b0779d1928877bd4ba72bd4b5b6f540ca00013ae05081"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a57ac4115eb1bd350e4b0779d1928877bd4ba72bd4b5b6f540ca00013ae05081"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/scripts/merge_gpui_node_tooling.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "53c7053dd1217c905919c40b828dae314345fb0a2d0fd1dba7c85361c39928ff"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "53c7053dd1217c905919c40b828dae314345fb0a2d0fd1dba7c85361c39928ff"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-autostart/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "863b71fec7554d30a61614fef0e469c662b39689535c3b0bb1b80af11f695efa"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "863b71fec7554d30a61614fef0e469c662b39689535c3b0bb1b80af11f695efa"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-autostart/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "6d24e859bdd09376a84599aed10e8d2d470243f184a374458f4082381b41d072"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "6d24e859bdd09376a84599aed10e8d2d470243f184a374458f4082381b41d072"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5f4e115332628b2b7c3bc50827c50e3ca660036489acdb70bdc762fafb1d219c"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "5f4e115332628b2b7c3bc50827c50e3ca660036489acdb70bdc762fafb1d219c"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9e687302281adabaa4e7f59cb81e7a4c63a80a05f922a98e4964242f76bf8c22"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "9e687302281adabaa4e7f59cb81e7a4c63a80a05f922a98e4964242f76bf8c22"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/assets/nsis/LICENSE_APACHE-2.0": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/assets/nsis/LICENSE_MIT": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ef497d10d31e3a85c5c0a6bc598dcdfb5c717b6e085bbc0376f02618a8e31cb2"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "ef497d10d31e3a85c5c0a6bc598dcdfb5c717b6e085bbc0376f02618a8e31cb2"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/assets/nsis/README.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f90ea620ab693c07ddf76ea556890d69b3183e5740423b1d24d201562216f6d0"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "f90ea620ab693c07ddf76ea556890d69b3183e5740423b1d24d201562216f6d0"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/assets/nsis/cargo-packager-0.11.8.nsi": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3ff5fde09ae24dfc031ab91f939b290f394e2c6d3549f2c43c37414716a47b7a"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "3ff5fde09ae24dfc031ab91f939b290f394e2c6d3549f2c43c37414716a47b7a"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/references/configuration.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "875522e7fdcae3b3561fd48cebbb83c204b5afa4357e4edce4a0d074fc7487ae"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "875522e7fdcae3b3561fd48cebbb83c204b5afa4357e4edce4a0d074fc7487ae"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/references/linux-packaging.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ee6415051a85d86bef4536e54c123a47083e4765250db6d8fc2890aedae100a2"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "ee6415051a85d86bef4536e54c123a47083e4765250db6d8fc2890aedae100a2"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/references/macos-packaging.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "89272b59abec265e021d7f2db48db028499c452f12fdbd4893e81af21eb07418"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "89272b59abec265e021d7f2db48db028499c452f12fdbd4893e81af21eb07418"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/references/windows-packaging.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a62c32c403180a51856877cd469aab472a084b501e4f04485c5b0eb4c346dd39"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a62c32c403180a51856877cd469aab472a084b501e4f04485c5b0eb4c346dd39"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "403310817d5a46e48c087603988f5d99ad72bde251d118f349a5797542b37eee"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "403310817d5a46e48c087603988f5d99ad72bde251d118f349a5797542b37eee"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_build.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "33d6ec7594177f5820650c346e10772e09862619ef7daf319b66288d0533b311"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "33d6ec7594177f5820650c346e10772e09862619ef7daf319b66288d0533b311"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_config.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "fa98c8217f39efb09bb4ac1c0a3a4d37a5523c9e36fb41bb074a4c77e8dad179"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "fa98c8217f39efb09bb4ac1c0a3a4d37a5523c9e36fb41bb074a4c77e8dad179"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_evidence.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9c28b86e876472f233bc0b24df150cf1d6c23ac2be199db951d6b33cbe92b2a1"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "9c28b86e876472f233bc0b24df150cf1d6c23ac2be199db951d6b33cbe92b2a1"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_filesystem.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "053773c628157c9f3222015cca91e7fb1c6aa2750ad7dc1fe09f477d739b4870"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "053773c628157c9f3222015cca91e7fb1c6aa2750ad7dc1fe09f477d739b4870"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_global_tools.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "31e64f669b808efe1173951ff1692223f05ef263d12828a525445d31ae3df8e5"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "31e64f669b808efe1173951ff1692223f05ef263d12828a525445d31ae3df8e5"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_global_tools.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a22d8d83d284b2696b9e35aa4fb73b2b03dc65ba17c97ab18f1624c6c65b8592"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "a22d8d83d284b2696b9e35aa4fb73b2b03dc65ba17c97ab18f1624c6c65b8592"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_icons.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0ca7871a5cc1ea9376dfe09b4abb448dfdee8517c158c6312381059dfa173671"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "0ca7871a5cc1ea9376dfe09b4abb448dfdee8517c158c6312381059dfa173671"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_linux.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "459cf01883cdff0dfd7e7d303191460cff9dc73316e907e0e426f2d357cc64db"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "459cf01883cdff0dfd7e7d303191460cff9dc73316e907e0e426f2d357cc64db"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_linux_build.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7baf5c563238b1ffc243f0480a22c87569d1364e4f588156d7c69099bf204850"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "7baf5c563238b1ffc243f0480a22c87569d1364e4f588156d7c69099bf204850"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_linux_package.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "90b29dc52f78c3b45a50724b63f4b49ad11f327a49393a595cc35d37abc48db0"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "90b29dc52f78c3b45a50724b63f4b49ad11f327a49393a595cc35d37abc48db0"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_macos_identity.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "50fadaaf6fae8fb0623deb04e7661b6303aaceaeaf731dba571b07e39d596085"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "50fadaaf6fae8fb0623deb04e7661b6303aaceaeaf731dba571b07e39d596085"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_nsis.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "96d624646fc3215e595ef46df85a9028f1487d53d329afa56cf5bbf25857204b"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "96d624646fc3215e595ef46df85a9028f1487d53d329afa56cf5bbf25857204b"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_nsis.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1c324d17aebd2dd3973a669498df5959b22909d2faa6cbbd891feb4bd4d24db0"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "1c324d17aebd2dd3973a669498df5959b22909d2faa6cbbd891feb4bd4d24db0"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_packager.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f64d448016fcd302efc7fc1184a30ce6ef72b05caf659b9aa32fae62598f0508"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "f64d448016fcd302efc7fc1184a30ce6ef72b05caf659b9aa32fae62598f0508"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/scripts/gpui_resources.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "37d862568b2875ea6d72cd9692b2936c420e05de2f9fa1cef2da366e48a28dfd"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "37d862568b2875ea6d72cd9692b2936c420e05de2f9fa1cef2da366e48a28dfd"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e348451a8b0db816ad6aa789e1a6e4cff7aa3764408f83544a2d5be5e0cf6dd7"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "e348451a8b0db816ad6aa789e1a6e4cff7aa3764408f83544a2d5be5e0cf6dd7"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e10fb4192968dcf7b14472d3178611321dfbd3ec1dc2fb862c5921e0212e6eef"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "e10fb4192968dcf7b14472d3178611321dfbd3ec1dc2fb862c5921e0212e6eef"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/references/development-environment-gates.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a129660ef1622522fcd4fa982bc37ced037e21253b0e89954a5af8b1ba43c6b8"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "a129660ef1622522fcd4fa982bc37ced037e21253b0e89954a5af8b1ba43c6b8"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d9b1a21d7808cebc9c512e0f68687f0a8dcc080cecf1c23599f5417c1eb3435c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "d9b1a21d7808cebc9c512e0f68687f0a8dcc080cecf1c23599f5417c1eb3435c"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.sh": {
+      "candidate": {
+        "mode": 493,
+        "sha256": "8abb30c0d8548693e08f0cc528794309fe7de8760e1c097452d113352315e0bb"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 493,
+        "sha256": "8abb30c0d8548693e08f0cc528794309fe7de8760e1c097452d113352315e0bb"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/environment_gates_detection.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a907919b32ccd450b9da7a92305a7c3a12715d6c8f5af30ceacbb3bebebe3966"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "a907919b32ccd450b9da7a92305a7c3a12715d6c8f5af30ceacbb3bebebe3966"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/environment_gates_fixture.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "43df41fe28ca513ecb4310ad40bd8b894d037f20414c85fca003d87fefb21512"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "43df41fe28ca513ecb4310ad40bd8b894d037f20414c85fca003d87fefb21512"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/environment_gates_install.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "028ed1c3f00e0fb0a50c51c9eaf6183c04a0dbbaaa374fc3d236a6e7cac1135e"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "028ed1c3f00e0fb0a50c51c9eaf6183c04a0dbbaaa374fc3d236a6e7cac1135e"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/environment_gates_security.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c39392d22dde838ccb99078c61dc2db11009f7d1c270c209eff54a5d46fccb1d"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "c39392d22dde838ccb99078c61dc2db11009f7d1c270c209eff54a5d46fccb1d"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/environment_gates_windows.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "6a5915f47dd6b9a3f0e80a295626fd9f90997630bb7ba30e65d8317b29173ace"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "6a5915f47dd6b9a3f0e80a295626fd9f90997630bb7ba30e65d8317b29173ace"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "dc159d814b0d0bc5808536f74cecb83ae720651fa4b413821b91aa69f15802ff"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "dc159d814b0d0bc5808536f74cecb83ae720651fa4b413821b91aa69f15802ff"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/linux_gpui_dependencies.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b577578fc06c05560ea3479c13f50b59354ed480b96f5e9b7c1210b99d3f56b3"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b577578fc06c05560ea3479c13f50b59354ed480b96f5e9b7c1210b99d3f56b3"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/macos-tauri-xwin-gates.sh": {
+      "candidate": {
+        "mode": 493,
+        "sha256": "9cf2fc73ac7191b4dd7157eeed019a82a7281a6548683266d2583e60ceb6892f"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 493,
+        "sha256": "9cf2fc73ac7191b4dd7157eeed019a82a7281a6548683266d2583e60ceb6892f"
+      }
+    },
+    ".agents/skills/desktop-check-development-environment/scripts/macos_tauri_xwin_gates.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c5bdcb741da2e975bd0d1c4aa53eca2f6c3ce4dff5286c4b7ee2af64ee47cd94"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "c5bdcb741da2e975bd0d1c4aa53eca2f6c3ce4dff5286c4b7ee2af64ee47cd94"
+      }
+    },
+    ".agents/skills/desktop-collect-release-artifacts/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f8e5becc1f891ec80c1302f4a712dda100662a3040c78b765aaad98514bbc3ae"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f8e5becc1f891ec80c1302f4a712dda100662a3040c78b765aaad98514bbc3ae"
+      }
+    },
+    ".agents/skills/desktop-collect-release-artifacts/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d8e808a7696a938b480b4551e0f686045658d1a65b1331c5161b9ae1b70d7d5c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "d8e808a7696a938b480b4551e0f686045658d1a65b1331c5161b9ae1b70d7d5c"
+      }
+    },
+    ".agents/skills/desktop-configure-agent-policy/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "be5b94929f587bc46c63613e080e3224045e6c7b13419de706b0dbebefc16edc"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "be5b94929f587bc46c63613e080e3224045e6c7b13419de706b0dbebefc16edc"
+      }
+    },
+    ".agents/skills/desktop-configure-agent-policy/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "bc1cfc7152d5cb6293d831548fcad0bfe126192de744483ca45eb4e94e9be580"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "bc1cfc7152d5cb6293d831548fcad0bfe126192de744483ca45eb4e94e9be580"
+      }
+    },
+    ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0bf44c9f25993c3c5757cfb5a1b9180546411013904c435afcb5fe2af84371c0"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "0bf44c9f25993c3c5757cfb5a1b9180546411013904c435afcb5fe2af84371c0"
+      }
+    },
+    ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "16a5c9631313d419a5d62eca892d2961488a4826bbc31706c5a5e395f7ede71f"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "16a5c9631313d419a5d62eca892d2961488a4826bbc31706c5a5e395f7ede71f"
+      }
+    },
+    ".agents/skills/desktop-configure-git-commits/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "92732a4e658be33cff5cca419b31e335da46c60cb19a9d254ccad3080da87667"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "92732a4e658be33cff5cca419b31e335da46c60cb19a9d254ccad3080da87667"
+      }
+    },
+    ".agents/skills/desktop-configure-git-commits/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "eda02691e0d9d8afc1de6a22fa00743c88e5acc7b2eb0cf8fef87ff5499a8334"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "eda02691e0d9d8afc1de6a22fa00743c88e5acc7b2eb0cf8fef87ff5499a8334"
+      }
+    },
+    ".agents/skills/desktop-configure-git-commits/assets/commit-template.txt": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ff8ef74a9cb8634714d95c441301c47a024907b9a96a2c68e3fa0c346b8a2068"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "ff8ef74a9cb8634714d95c441301c47a024907b9a96a2c68e3fa0c346b8a2068"
+      }
+    },
+    ".agents/skills/desktop-configure-git-commits/references/commit-convention.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9b344314cda6f97bddc1494c101860ddc05f015e71b89d847cddf8f3d4117803"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "9b344314cda6f97bddc1494c101860ddc05f015e71b89d847cddf8f3d4117803"
+      }
+    },
+    ".agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "cdb58f4a92bb0fde98ab74595a15d4090cc338846ffe507ca2ecdba59fb9ae21"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "cdb58f4a92bb0fde98ab74595a15d4090cc338846ffe507ca2ecdba59fb9ae21"
+      }
+    },
+    ".agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "61934d252db533e87450c1fb36d7429b425a4685cb80d7d528870f1c11ce6736"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "61934d252db533e87450c1fb36d7429b425a4685cb80d7d528870f1c11ce6736"
+      }
+    },
+    ".agents/skills/desktop-define-product/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9bd548200baf0c28a5e2b3ada10967fffaa4233c11547ae4d8973fdea8cedad9"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "9bd548200baf0c28a5e2b3ada10967fffaa4233c11547ae4d8973fdea8cedad9"
+      }
+    },
+    ".agents/skills/desktop-define-product/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b41b9877fbd3a22dc89cc60f191088b55f698378fb5540e8de5952a7bb5767c8"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b41b9877fbd3a22dc89cc60f191088b55f698378fb5540e8de5952a7bb5767c8"
+      }
+    },
+    ".agents/skills/desktop-extract-i18n-strings/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "46848a03a77af2936082ed9fa6315cad51f0ce41c6814556db518948575793a6"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "46848a03a77af2936082ed9fa6315cad51f0ce41c6814556db518948575793a6"
+      }
+    },
+    ".agents/skills/desktop-extract-i18n-strings/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "031633387d8d9003f84f97e600ae1a1b00942b2b4ee283f1a361c51c004880d2"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "031633387d8d9003f84f97e600ae1a1b00942b2b4ee283f1a361c51c004880d2"
+      }
+    },
+    ".agents/skills/desktop-handoff-project/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "8c4906475d2e4836b55a4a025b0f34dd7160718174e2445b93e4c5ae4d35a3f9"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "8c4906475d2e4836b55a4a025b0f34dd7160718174e2445b93e4c5ae4d35a3f9"
+      }
+    },
+    ".agents/skills/desktop-handoff-project/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0ea5452c0da81d225380dad7316ace52ba7a979325a1e76273a3f067f99d6755"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "0ea5452c0da81d225380dad7316ace52ba7a979325a1e76273a3f067f99d6755"
+      }
+    },
+    ".agents/skills/desktop-implement-change/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "74271f67626e7507e5dd6df43eee9524b618c811a6cb48ff5476534b1b7eff51"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "74271f67626e7507e5dd6df43eee9524b618c811a6cb48ff5476534b1b7eff51"
+      }
+    },
+    ".agents/skills/desktop-implement-change/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a02f11b1c8db6ec548479d927692a6e481f9d1b6232603fdc7a092e615b400d0"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "a02f11b1c8db6ec548479d927692a6e481f9d1b6232603fdc7a092e615b400d0"
+      }
+    },
+    ".agents/skills/desktop-implement-change/references/capability-external-command.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "6f8408b07eb5538de053011dd5af6099ff7bc1da74fab65ac44d50790d46d24d"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "6f8408b07eb5538de053011dd5af6099ff7bc1da74fab65ac44d50790d46d24d"
+      }
+    },
+    ".agents/skills/desktop-implement-change/references/capability-file-operations.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5874dad507412b1b75ac60b48e3e14acd45aed557778959be2ead9fc3f6f198c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "5874dad507412b1b75ac60b48e3e14acd45aed557778959be2ead9fc3f6f198c"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs": {
+      "candidate": {
+        "mode": 493,
+        "sha256": "0c313849050c51261ce9e704915d2c8dfc8b2b18bfc6dc4a283120a12eccf94b"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 493,
+        "sha256": "0c313849050c51261ce9e704915d2c8dfc8b2b18bfc6dc4a283120a12eccf94b"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/check_core_first.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1bb1351bd1a93a37de0f8d89e7fe3a53e06d2f123f1d9f06d128438a2b283fda"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "1bb1351bd1a93a37de0f8d89e7fe3a53e06d2f123f1d9f06d128438a2b283fda"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e32db444abd7da39ef9338535e36b41c26c144481a9db674b9e63857beb34fae"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "e32db444abd7da39ef9338535e36b41c26c144481a9db674b9e63857beb34fae"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3a6151aa349fb0e7017f2411d983560a6e0a1f916173d9c6eb4bcc21f67ac6ba"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "3a6151aa349fb0e7017f2411d983560a6e0a1f916173d9c6eb4bcc21f67ac6ba"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1628a3e06aff294a97168b17c61f8ea9dca21250dd346ec1a7bc43d6039fcca7"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "1628a3e06aff294a97168b17c61f8ea9dca21250dd346ec1a7bc43d6039fcca7"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "53377ba6f480761188abd626320239ede91b1f6b2de484f92f01d4fcf8bb8c2f"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "53377ba6f480761188abd626320239ede91b1f6b2de484f92f01d4fcf8bb8c2f"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/project_lock_policy.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a962a7407be43cd3ad3cef216a168e59b7de89257828a155784458a1e9c0b480"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "a962a7407be43cd3ad3cef216a168e59b7de89257828a155784458a1e9c0b480"
+      }
+    },
+    ".agents/skills/desktop-implement-change/scripts/project_lock_policy.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3f9e1c144c55b8db3c03ab74fe8636340f2191e045a8e26202c90dcf8a73a993"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "3f9e1c144c55b8db3c03ab74fe8636340f2191e045a8e26202c90dcf8a73a993"
+      }
+    },
+    ".agents/skills/desktop-inspect-release-notes/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "06ac6bf51c9b505f63043c96a0d002e86a635ad000aed40736875dc05eab62ce"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "06ac6bf51c9b505f63043c96a0d002e86a635ad000aed40736875dc05eab62ce"
+      }
+    },
+    ".agents/skills/desktop-inspect-release-notes/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9ec625f7dc4f24205e08756ab88d778986a3c18544cbcc5377a8a8726ddad6d1"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "9ec625f7dc4f24205e08756ab88d778986a3c18544cbcc5377a8a8726ddad6d1"
+      }
+    },
+    ".agents/skills/desktop-inspect-release-notes/scripts/inspect_release_notes.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a43c6e99706a0e1a6370811fc2244c8f43120029de5dace5035934209734bec9"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "a43c6e99706a0e1a6370811fc2244c8f43120029de5dace5035934209734bec9"
+      }
+    },
+    ".agents/skills/desktop-inspect-release-notes/scripts/inspect_release_notes.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1b1d1ce476ab9b0efbb319a5057c8c7e81786e8d9c07962d87567e64ada0dca2"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "1b1d1ce476ab9b0efbb319a5057c8c7e81786e8d9c07962d87567e64ada0dca2"
+      }
+    },
+    ".agents/skills/desktop-manage-dependencies/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c86b61c724fec369f334da0cb6007e92acb71271bad93bcb042cf9b2718b4990"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "c86b61c724fec369f334da0cb6007e92acb71271bad93bcb042cf9b2718b4990"
+      }
+    },
+    ".agents/skills/desktop-manage-dependencies/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ad6ce90b47e9cfbd2ae883c69fbb03e926a79a4b5f9d1dc99e8cf7f4566646bb"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "ad6ce90b47e9cfbd2ae883c69fbb03e926a79a4b5f9d1dc99e8cf7f4566646bb"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5518b15e7f8643abf3a0012f99a64d2aa4a68b619c5601d91a50ab29bc36a86c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "5518b15e7f8643abf3a0012f99a64d2aa4a68b619c5601d91a50ab29bc36a86c"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b774a8387f814ce092ce0218e752875336134f788a5f460ed17b36d918958d0e"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b774a8387f814ce092ce0218e752875336134f788a5f460ed17b36d918958d0e"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "2f934ee429b427b051288dec2737059302030ee6eba491d2e3cf5490552d219d"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "2f934ee429b427b051288dec2737059302030ee6eba491d2e3cf5490552d219d"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "464de9291fd82b89958c79b5138340fd5922a694fef9a1f3ff0b7730b7f9f7a3"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "464de9291fd82b89958c79b5138340fd5922a694fef9a1f3ff0b7730b7f9f7a3"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_core.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5d868187483bba1c1a588a26880a0280c0a44974057826e1f38bda845e775c7e"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "5d868187483bba1c1a588a26880a0280c0a44974057826e1f38bda845e775c7e"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_publication.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "0685519e95cd4e005a6057f5724569aa7a17beed98255656800b0daf48376ac3"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "0685519e95cd4e005a6057f5724569aa7a17beed98255656800b0daf48376ac3"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_release.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "80440c4df483243d3a9520adc3de45c2b11e4bae38a8e816de6754fc90eb0ee0"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "80440c4df483243d3a9520adc3de45c2b11e4bae38a8e816de6754fc90eb0ee0"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_test_support.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f6a643fa8da92762aa9a34fa9bf0b7690f10bb17c017d392cc7aa8ed56796280"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f6a643fa8da92762aa9a34fa9bf0b7690f10bb17c017d392cc7aa8ed56796280"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_report.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "471944088babdc08317bbb1383d00b4b0852f9e3c4dc946fda80df0341d13787"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "471944088babdc08317bbb1383d00b4b0852f9e3c4dc946fda80df0341d13787"
+      }
+    },
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_test_cases.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "4ecf2254109beec0265b8c8cb82eaa426466c3c0fe73ab4f608879f33514d7dc"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "4ecf2254109beec0265b8c8cb82eaa426466c3c0fe73ab4f608879f33514d7dc"
+      }
+    },
+    ".agents/skills/desktop-manage-gpui-dependencies/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1b153507aa899adc88e93402b559fd7b3913c715b96bbda8d5afaa2c770a8996"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "1b153507aa899adc88e93402b559fd7b3913c715b96bbda8d5afaa2c770a8996"
+      }
+    },
+    ".agents/skills/desktop-manage-gpui-dependencies/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "bba44af994f70fe49b85b83ea6b86c01a01618cea8c843044e417dce741275b8"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "bba44af994f70fe49b85b83ea6b86c01a01618cea8c843044e417dce741275b8"
+      }
+    },
+    ".agents/skills/desktop-manage-gpui-dependencies/references/compatibility.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "559ab6ff958a62409821eb2f13ecda7b385b79a0512251724468c04130af2fff"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "559ab6ff958a62409821eb2f13ecda7b385b79a0512251724468c04130af2fff"
+      }
+    },
+    ".agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ac47db68dbcbdce4f970753680053a7346f256f83e2e2f5ed43dbca02c7ec66d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "ac47db68dbcbdce4f970753680053a7346f256f83e2e2f5ed43dbca02c7ec66d"
+      }
+    },
+    ".agents/skills/desktop-manage-task-worktrees/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5642c720d0901e34f7c2c25f412f05997351449f4b60ad91d9aafeb1e4934218"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "5642c720d0901e34f7c2c25f412f05997351449f4b60ad91d9aafeb1e4934218"
+      }
+    },
+    ".agents/skills/desktop-manage-task-worktrees/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9b5afdc7ce338b3250f21fadfe0959eb2fb36d3778eaf8cf0c13c42c1ef62704"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "9b5afdc7ce338b3250f21fadfe0959eb2fb36d3778eaf8cf0c13c42c1ef62704"
+      }
+    },
+    ".agents/skills/desktop-manage-user-tasks/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "784662bbae93175d954352e033eab7b26cc9b2759e45a284f3e03f4789cd1907"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "784662bbae93175d954352e033eab7b26cc9b2759e45a284f3e03f4789cd1907"
+      }
+    },
+    ".agents/skills/desktop-manage-user-tasks/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "855dc5a48d31fbb028828b5ee49b07ff28bfdd2a85e612439968cda4e1a97a86"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "855dc5a48d31fbb028828b5ee49b07ff28bfdd2a85e612439968cda4e1a97a86"
+      }
+    },
+    ".agents/skills/desktop-manage-version/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "42682c41ee9758d082ade30e8c091ec286ab32d85a551716cd4625e7d5e8f7a4"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "42682c41ee9758d082ade30e8c091ec286ab32d85a551716cd4625e7d5e8f7a4"
+      }
+    },
+    ".agents/skills/desktop-manage-version/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "2af8bf1ac7b51283e891233f24ac99d3aad3ebdafac0270c9b59b92307dc3d83"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "2af8bf1ac7b51283e891233f24ac99d3aad3ebdafac0270c9b59b92307dc3d83"
+      }
+    },
+    ".agents/skills/desktop-manage-version/scripts/version_gate.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "6e7c5d0ae8bdcfee46947589c84e6f06d9c1b62b9d3fbf525c4706ea5c039358"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "6e7c5d0ae8bdcfee46947589c84e6f06d9c1b62b9d3fbf525c4706ea5c039358"
+      }
+    },
+    ".agents/skills/desktop-manage-version/scripts/version_gate.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7343393485445d9b9b85f2721689f02c964a67b6ea13a8b4db6a1c6bf3615be6"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "7343393485445d9b9b85f2721689f02c964a67b6ea13a8b4db6a1c6bf3615be6"
+      }
+    },
+    ".agents/skills/desktop-optimize-gpui-performance/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1d6f1112ac5ae3f51ddd8659ddba801f3e3948c83fec6c484621994386c97fd8"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "1d6f1112ac5ae3f51ddd8659ddba801f3e3948c83fec6c484621994386c97fd8"
+      }
+    },
+    ".agents/skills/desktop-optimize-gpui-performance/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1bf9a277ad1e4e44fe2e295e7ec41996c3743e759a026edadb0e0d83cf738fc9"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "1bf9a277ad1e4e44fe2e295e7ec41996c3743e759a026edadb0e0d83cf738fc9"
+      }
+    },
+    ".agents/skills/desktop-optimize-gpui-performance/references/measurement.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "385d5496e303e94550b5ae1fb6661e0ae1debaeddc1d6f44f385e88cfe6763d6"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "385d5496e303e94550b5ae1fb6661e0ae1debaeddc1d6f44f385e88cfe6763d6"
+      }
+    },
+    ".agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "499e0c1f46958bd8d0e4683174481ed24ba35cf9179ba519bde07e3ee6e0fece"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "499e0c1f46958bd8d0e4683174481ed24ba35cf9179ba519bde07e3ee6e0fece"
+      }
+    },
+    ".agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "33fc73813574850a632cffebb5090cae488573c8570464bb7fcb0753e392233b"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "33fc73813574850a632cffebb5090cae488573c8570464bb7fcb0753e392233b"
+      }
+    },
+    ".agents/skills/desktop-plan-change/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "530ba4c5202197689cd8fdd3b955e48e626502536f7a5e4586cd68c0b5e52ebf"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "530ba4c5202197689cd8fdd3b955e48e626502536f7a5e4586cd68c0b5e52ebf"
+      }
+    },
+    ".agents/skills/desktop-plan-change/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d45e56d17c52d11aea766ed3d93ce77bea8483a8f89fb384f49acee8778aae75"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "d45e56d17c52d11aea766ed3d93ce77bea8483a8f89fb384f49acee8778aae75"
+      }
+    },
+    ".agents/skills/desktop-prepare-gui-app-identity/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "340949094aa4399a2ecc998697b6d54df80a3eda80c43163c46c8987f900ca4d"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "340949094aa4399a2ecc998697b6d54df80a3eda80c43163c46c8987f900ca4d"
+      }
+    },
+    ".agents/skills/desktop-prepare-gui-app-identity/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "fe9a04ae510b9560f59c6e5a1b4e70c3ef6f57ff501d34251c4becec260643e8"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "fe9a04ae510b9560f59c6e5a1b4e70c3ef6f57ff501d34251c4becec260643e8"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b8f141a53761d94087a0b2962cb8b94f542896730b587a715581613ea880d46a"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b8f141a53761d94087a0b2962cb8b94f542896730b587a715581613ea880d46a"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "162686bad205bc55cefe98170e86d3c73d2d6046662b76cc9337879dc9af6376"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "162686bad205bc55cefe98170e86d3c73d2d6046662b76cc9337879dc9af6376"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "eeec9ae152df92345fbfa30ff6d7c86e14a7d60b726531034621f18b44b45a77"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "eeec9ae152df92345fbfa30ff6d7c86e14a7d60b726531034621f18b44b45a77"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "145d319236ea761994786c990b8cd865f9c88d4bb81f0aee74c7adf9d6780b2b"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "145d319236ea761994786c990b8cd865f9c88d4bb81f0aee74c7adf9d6780b2b"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/release_context.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1cc0c92e0fd2f6d3dd9c3375d261372672ec9d430309d22006a8575d30f57bee"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "1cc0c92e0fd2f6d3dd9c3375d261372672ec9d430309d22006a8575d30f57bee"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/release_context.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "39ef4ceab7fd966dab95a4189a092e629cd8b11661335312c5cbfff1dcb9782f"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "39ef4ceab7fd966dab95a4189a092e629cd8b11661335312c5cbfff1dcb9782f"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/release_git.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b2f5b20e3d019cb78f42c04054c8d9ffb8046676c5aa62a424d2bb208213f5aa"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b2f5b20e3d019cb78f42c04054c8d9ffb8046676c5aa62a424d2bb208213f5aa"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/release_git.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "450627b4dc52058e6201753ef0da728835cb1fee572549eb8f0c93462afb3a6a"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "450627b4dc52058e6201753ef0da728835cb1fee572549eb8f0c93462afb3a6a"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/release_notes.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f32119f50d7b0ff6ab7fe3b139fc1bd6e1e851814acdd33b298c6c1ca871c431"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f32119f50d7b0ff6ab7fe3b139fc1bd6e1e851814acdd33b298c6c1ca871c431"
+      }
+    },
+    ".agents/skills/desktop-prepare-release/scripts/release_notes.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "411cf75b3f98fdcb72bfc00cfa898e6b1e82ac67c3b51bb85f5a0e0910d5c9bc"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "411cf75b3f98fdcb72bfc00cfa898e6b1e82ac67c3b51bb85f5a0e0910d5c9bc"
+      }
+    },
+    ".agents/skills/desktop-record-adr/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c9bf45a750de153a680a890846d97c0ca41215a7c3c623ee0ce2c9f2ae2102d0"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "c9bf45a750de153a680a890846d97c0ca41215a7c3c623ee0ce2c9f2ae2102d0"
+      }
+    },
+    ".agents/skills/desktop-record-adr/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f4fd146a99d8257450ed5d2c0bef2a44656cd245f9201dfbd4cc0986be5fbf4c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f4fd146a99d8257450ed5d2c0bef2a44656cd245f9201dfbd4cc0986be5fbf4c"
+      }
+    },
+    ".agents/skills/desktop-refactor-code/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "45504e78a9deea382786d4912e5e28dd798894aea058844966a0f2870be77513"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "45504e78a9deea382786d4912e5e28dd798894aea058844966a0f2870be77513"
+      }
+    },
+    ".agents/skills/desktop-refactor-code/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "c1bb40042c16153c8dd5f57a907ff7be36f7f57ace2db1baacc7d63af93d1cfc"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "c1bb40042c16153c8dd5f57a907ff7be36f7f57ace2db1baacc7d63af93d1cfc"
+      }
+    },
+    ".agents/skills/desktop-rename-project-identity/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "07d829bd6aeca3d7aab4795daef6da15242099470ac6087d373777d85cea237d"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "07d829bd6aeca3d7aab4795daef6da15242099470ac6087d373777d85cea237d"
+      }
+    },
+    ".agents/skills/desktop-rename-project-identity/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b102a5491200c25b86c73ca073fb85bc966f90f0ea48d5f59fea761e6c7c5ee1"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b102a5491200c25b86c73ca073fb85bc966f90f0ea48d5f59fea761e6c7c5ee1"
+      }
+    },
+    ".agents/skills/desktop-rename-project-identity/scripts/rename_project_identity.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "281a13b18ab62dd6fbed9b4a6ec339e5a6fe27af99b31323dad5d6d817e485ac"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "281a13b18ab62dd6fbed9b4a6ec339e5a6fe27af99b31323dad5d6d817e485ac"
+      }
+    },
+    ".agents/skills/desktop-rename-project-identity/scripts/rename_project_identity.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "70ce8d552a7707da5e5ec22116fb2ebba0ee8131328ad96e4322dcc391f31683"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "70ce8d552a7707da5e5ec22116fb2ebba0ee8131328ad96e4322dcc391f31683"
+      }
+    },
+    ".agents/skills/desktop-review-core-boundaries/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7aa9095ced8eeb2cfc65ee1d8f7e5eb77bca92576e6cbd39a3e4796a7d9723c9"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "7aa9095ced8eeb2cfc65ee1d8f7e5eb77bca92576e6cbd39a3e4796a7d9723c9"
+      }
+    },
+    ".agents/skills/desktop-review-core-boundaries/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "87ab43c9cac0c5503dff2b7954f2fdf6180464ffabb8d197b733813becf89ebc"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "87ab43c9cac0c5503dff2b7954f2fdf6180464ffabb8d197b733813becf89ebc"
+      }
+    },
+    ".agents/skills/desktop-run-parallel-worktrees/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e357cbaa06449ee4b80be78ca08620275e8fc5e1485b9737c83d1e57924285d3"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "e357cbaa06449ee4b80be78ca08620275e8fc5e1485b9737c83d1e57924285d3"
+      }
+    },
+    ".agents/skills/desktop-run-parallel-worktrees/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "fbb7dbd40f08c7909713cdc46be5726f4e09cd3722620c96079f5c2164f3bbda"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "fbb7dbd40f08c7909713cdc46be5726f4e09cd3722620c96079f5c2164f3bbda"
+      }
+    },
+    ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "428918128f2efc1c67d2cfd87470b438511a54ed5bc0a0933f49ed7a12479f46"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "428918128f2efc1c67d2cfd87470b438511a54ed5bc0a0933f49ed7a12479f46"
+      }
+    },
+    ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "59d1a6a57b542ae35f8fc0b5b399085a36d529fbfce02663d8df42b1f9f7108f"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "59d1a6a57b542ae35f8fc0b5b399085a36d529fbfce02663d8df42b1f9f7108f"
+      }
+    },
+    ".agents/skills/desktop-summarize-development-history/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "32e94432978961bce8452a6f1877bc35dc5513013ae6e6bd65a31687d9a1f8e1"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "32e94432978961bce8452a6f1877bc35dc5513013ae6e6bd65a31687d9a1f8e1"
+      }
+    },
+    ".agents/skills/desktop-summarize-development-history/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3eeaa6a46be575880d4a143b93ff122bf783883ffe301b31c910f162dd3947cd"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "3eeaa6a46be575880d4a143b93ff122bf783883ffe301b31c910f162dd3947cd"
+      }
+    },
+    ".agents/skills/desktop-switch-post-release-action/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "71d2bca81c0a79295772d1e56ea4050e0346cb2fdc8d94e24b21d8d2993704a4"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "71d2bca81c0a79295772d1e56ea4050e0346cb2fdc8d94e24b21d8d2993704a4"
+      }
+    },
+    ".agents/skills/desktop-switch-post-release-action/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "a593bdf3d31d3162e5fca3fb78e6582a12a18212549b84ab1b07a65409207726"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "a593bdf3d31d3162e5fca3fb78e6582a12a18212549b84ab1b07a65409207726"
+      }
+    },
+    ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e9127bf75a220d6735703e49498541ae8ac2388ac31992ea9ba41d48d6a08984"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "e9127bf75a220d6735703e49498541ae8ac2388ac31992ea9ba41d48d6a08984"
+      }
+    },
+    ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ddab98d1f1253ee90c65f643da864dd127162ebc7d34b7e86e2d3cab15f9da46"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "ddab98d1f1253ee90c65f643da864dd127162ebc7d34b7e86e2d3cab15f9da46"
+      }
+    },
+    ".agents/skills/desktop-task-workflow/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f9f7c42f801372082e70b88413e1f31c87f9afb424f9e03b01c663f54076f9b9"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f9f7c42f801372082e70b88413e1f31c87f9afb424f9e03b01c663f54076f9b9"
+      }
+    },
+    ".agents/skills/desktop-task-workflow/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "cf4cda5f424b0026c67dc5d4c192081d9d200b731b528454475fa28d867b7177"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "cf4cda5f424b0026c67dc5d4c192081d9d200b731b528454475fa28d867b7177"
+      }
+    },
+    ".agents/skills/desktop-task-workflow/references/task-contract.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5f9190fb07fcbc7453640565d1c53993f360a2714676db651c5ffcdf3dd2290c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "5f9190fb07fcbc7453640565d1c53993f360a2714676db651c5ffcdf3dd2290c"
+      }
+    },
+    ".agents/skills/desktop-task-workflow/references/task-description.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "098808f947f0e0809034c7dffb56e78ba3f2fc16c310a705762e39c7cb2e019e"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "098808f947f0e0809034c7dffb56e78ba3f2fc16c310a705762e39c7cb2e019e"
+      }
+    },
+    ".agents/skills/desktop-task-workflow/references/worktree-execution.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "04c54492e45e601b95f09912cc93e834dac04408cda1783421e7ebc7bb7176fe"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "04c54492e45e601b95f09912cc93e834dac04408cda1783421e7ebc7bb7176fe"
+      }
+    },
+    ".agents/skills/desktop-test-final-artifact-e2e/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b6988844262443a53b08157dea3ec74569b0261614ccef3441644eb4454ab949"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "b6988844262443a53b08157dea3ec74569b0261614ccef3441644eb4454ab949"
+      }
+    },
+    ".agents/skills/desktop-test-final-artifact-e2e/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "3e33f6628494d54c019f4b380245ff5274425ddf8465c7a0f63b8a2e4e3d058d"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "3e33f6628494d54c019f4b380245ff5274425ddf8465c7a0f63b8a2e4e3d058d"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "6a7d2218eaabb78e915e08d6df7b4ad709b1adfad8f76838b84b19f502e078ee"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "6a7d2218eaabb78e915e08d6df7b4ad709b1adfad8f76838b84b19f502e078ee"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "009c3d7b105cea3f7eb992bf31af49c281d4037b179c6a1e39d30bf9c573d31d"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "009c3d7b105cea3f7eb992bf31af49c281d4037b179c6a1e39d30bf9c573d31d"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/references/adopt-existing-project.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9136e57fe847e0ad9326c9663ae5b60392ae130bf4422265c361e82e5240426a"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "9136e57fe847e0ad9326c9663ae5b60392ae130bf4422265c361e82e5240426a"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/references/ownership-manifest.json": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "b445e24185dba1ded35b93ac3c8e70a5dad75d7bbe5d028f47e09bf6db55c8a9"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "b445e24185dba1ded35b93ac3c8e70a5dad75d7bbe5d028f47e09bf6db55c8a9"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/references/ownership-policy.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5459c728acb8bccac3145206bc4000167f38eb0e88b697d352bcaa1afe76c417"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "5459c728acb8bccac3145206bc4000167f38eb0e88b697d352bcaa1afe76c417"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/references/program-type-labels.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1ddf7bba6a0f254a0660db2cc0d72259ac634d6f3097aeff4a91700019cb8a05"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "1ddf7bba6a0f254a0660db2cc0d72259ac634d6f3097aeff4a91700019cb8a05"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "01e9c842438e2d5cfd48d2cef5962b18ea07f8994a6f6479b68383f3da2d17c2"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "01e9c842438e2d5cfd48d2cef5962b18ea07f8994a6f6479b68383f3da2d17c2"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_core.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "daa9d8258ae401ceb05e1e2f66b0263c725f56d9a89e7ba450c56a5c8dc74b34"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "daa9d8258ae401ceb05e1e2f66b0263c725f56d9a89e7ba450c56a5c8dc74b34"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_interfaces.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d5cc3177d349f7314bc17e9a35c4ef7e12900eac9f554601086c31f296ec2530"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "d5cc3177d349f7314bc17e9a35c4ef7e12900eac9f554601086c31f296ec2530"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_interfaces.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "be86ecb1be69e7594fef06fc153f05c13eb745fb14746a7ab66f878e5d6a7c95"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "be86ecb1be69e7594fef06fc153f05c13eb745fb14746a7ab66f878e5d6a7c95"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_mutation.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7a548770fcf964f5b1caf2edbaf88c499d645d8cda12bf13a522697c923ea9f9"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "7a548770fcf964f5b1caf2edbaf88c499d645d8cda12bf13a522697c923ea9f9"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_mutation.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "9f56d60ce657b8095331f79555fc3c072845a85f08f71dc4b8ce24b99be883a3"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "9f56d60ce657b8095331f79555fc3c072845a85f08f71dc4b8ce24b99be883a3"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_ownership.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5afd1a1af5d5f0d989295a5e3d132afd3ae70a241261c3083e09d035e4b7d074"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "5afd1a1af5d5f0d989295a5e3d132afd3ae70a241261c3083e09d035e4b7d074"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_plan.test.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "53fbe5e416a4bfa865f45dcd01ccc6f16a529fdd8e028f3217af3a42f52ba252"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "53fbe5e416a4bfa865f45dcd01ccc6f16a529fdd8e028f3217af3a42f52ba252"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_policy.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "20fd12545431db9a11ae3b1b7bf56d56766635692ac4a46f91c0d6f5475307c5"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "20fd12545431db9a11ae3b1b7bf56d56766635692ac4a46f91c0d6f5475307c5"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_preflight.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "fecf79e10bd9a31a8bb35b80232e6dbe93539c979c5f663baad2b12bc0932d9b"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "fecf79e10bd9a31a8bb35b80232e6dbe93539c979c5f663baad2b12bc0932d9b"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_record.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f82a2426001233f81741f5cfeed2e572791d123d999c0b0b7b36011d5d7b03da"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "f82a2426001233f81741f5cfeed2e572791d123d999c0b0b7b36011d5d7b03da"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_safety.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7c01db1d5a4ee79f1d096380db5983923a2cb2c2658dc0999c22c6dac90f83ea"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "7c01db1d5a4ee79f1d096380db5983923a2cb2c2658dc0999c22c6dac90f83ea"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_test_support.mjs": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "7a59d164db1bec016d2956aa677105a39e90e61cc0c137fa89787f757ef437e0"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "7a59d164db1bec016d2956aa677105a39e90e61cc0c137fa89787f757ef437e0"
+      }
+    },
+    ".agents/skills/desktop-verify-delivery/SKILL.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "fd8f2b0b137ad4d3f29a1bcabd473677996b96fed520619bf3849e1be3f6c895"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "fd8f2b0b137ad4d3f29a1bcabd473677996b96fed520619bf3849e1be3f6c895"
+      }
+    },
+    ".agents/skills/desktop-verify-delivery/agents/openai.yaml": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ee59eab3839a9b3ac17c201cd18b325e7d01bbfd1da606174d3f8e0abaf27af8"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "ee59eab3839a9b3ac17c201cd18b325e7d01bbfd1da606174d3f8e0abaf27af8"
+      }
+    },
+    "AGENTS.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "784a47810abf4ce32ac7798049390612ba15bff7d89cbe494caa406b647cf5c3"
+      },
+      "mode": "merge-sections",
+      "target": {
+        "mode": 420,
+        "sha256": "784a47810abf4ce32ac7798049390612ba15bff7d89cbe494caa406b647cf5c3"
+      }
+    },
+    "README.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "bb0d884bc52eb29e8e4d7fa6ec5f03143a3e2e3a585b85b2279075ad3ee9c3e1"
+      },
+      "mode": "merge-sections",
+      "target": {
+        "mode": 420,
+        "sha256": "bb0d884bc52eb29e8e4d7fa6ec5f03143a3e2e3a585b85b2279075ad3ee9c3e1"
+      }
+    },
+    "docs/ENGINEERING_RULES.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5c67e31ab79ae4e09ed332d2f99bca8dd76fd57fb58c71cde1310b0d73637b4f"
+      },
+      "mode": "merge-sections",
+      "target": {
+        "mode": 420,
+        "sha256": "5c67e31ab79ae4e09ed332d2f99bca8dd76fd57fb58c71cde1310b0d73637b4f"
+      }
+    },
+    "docs/GUI_ENGINEERING.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "8cbb7233712596a1318817a6ec1b1a27f76444bb57e75d584133d6f24072d381"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "8cbb7233712596a1318817a6ec1b1a27f76444bb57e75d584133d6f24072d381"
+      }
+    },
+    "docs/RELEASE.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "113fb65e3e73da3dfbfcccc29d60aa60430dc9956495553f89259800ef50bf6e"
+      },
+      "mode": "merge-sections",
+      "target": {
+        "mode": 420,
+        "sha256": "113fb65e3e73da3dfbfcccc29d60aa60430dc9956495553f89259800ef50bf6e"
+      }
+    },
+    "docs/RUST_CLI_TEMPLATE.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "e5b7d17489984196e702831c358c7c8cbec2b8245dbb67922f29ca5f5400d4b9"
+      },
+      "mode": "merge-sections",
+      "target": {
+        "mode": 420,
+        "sha256": "e5b7d17489984196e702831c358c7c8cbec2b8245dbb67922f29ca5f5400d4b9"
+      }
+    },
+    "docs/design_standards/README.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "d0e2ce9686f540196c905e020378a317f23c54f27cd5915f48e1b6d4eba5252c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "d0e2ce9686f540196c905e020378a317f23c54f27cd5915f48e1b6d4eba5252c"
+      }
+    },
+    "docs/design_standards/gpui_gui.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f141ba72f8933948b71a606661a340ad094b83e265f5a243ad7b652fc43c84cf"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f141ba72f8933948b71a606661a340ad094b83e265f5a243ad7b652fc43c84cf"
+      }
+    },
+    "docs/design_standards/mantine_list_view.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "92e3b0a63e4ab0757afabcf7a1ec8d1dff73f13820220b5190a2df9c338e082c"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "92e3b0a63e4ab0757afabcf7a1ec8d1dff73f13820220b5190a2df9c338e082c"
+      }
+    },
+    "docs/design_standards/taste_skill.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "20b33c1e85dbc46b749ae63b67ff741f680477733ec13716d26b332f5a6d5c4a"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "20b33c1e85dbc46b749ae63b67ff741f680477733ec13716d26b332f5a6d5c4a"
+      }
+    },
+    "docs/design_standards/tauri_gui.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "f0910c1315c83c1c81a426b0790091cce30df53c12e4271036bd6162834d8c9d"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "f0910c1315c83c1c81a426b0790091cce30df53c12e4271036bd6162834d8c9d"
+      }
+    },
+    "docs/design_standards/tauri_sidebar.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "68ed749a2444e5baf223072193d8a2539a4238467c66b4d4d93427124908a110"
+      },
+      "mode": "managed",
+      "target": {
+        "mode": 420,
+        "sha256": "68ed749a2444e5baf223072193d8a2539a4238467c66b4d4d93427124908a110"
+      }
+    }
+  },
+  "harness_source": {
+    "commit": "387c286790b173633aaf9702758032d0e539432c",
+    "version": "202610101414"
+  },
+  "recorded_at": "2026-10-19T09:45:08.731+00:00",
+  "schema_version": 2
+}

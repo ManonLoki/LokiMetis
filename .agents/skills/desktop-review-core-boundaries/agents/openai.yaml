@@ -1,0 +1,4 @@
+interface:
+  display_name: "审查核心边界"
+  short_description: "只读追踪真实操作的核心职责、适配器映射、依赖方向与已有测试证据"
+  default_prompt: "使用 $desktop-review-core-boundaries，在当前授权范围内审查核心边界并报告真实结果与未验证事项。"

@@ -53,49 +53,56 @@ function setOptions(action, expected = "missing") {
   return ["--action", action, "--expected-action", expected, "--confirmed-user-choice"];
 }
 
+/** 三代合法字段集合严格隔离，任一缺失、额外或重复字段均拒绝。 */
+test("schema3_4_5_require_exact_field_sets_without_default_inference", () => {
+  for (const schema of [3, 4, 5]) {
+    let source = V3.replace("schema_version: 3", `schema_version: ${schema}`);
+    if (schema >= 4) source = source.replace("e2e_hint: disabled\n", "e2e_hint: disabled\npost_release_action: push_release_branch\n");
+    if (schema === 5) source = source.replace("user_owned_tasks: disabled\n", "user_owned_tasks: disabled\ntask_worktrees: disabled\n");
+    const parsed = parseAgentPolicyDocument(source);
+    assert.equal(parsed.fields.size, schema + 6);
+    for (const field of parsed.fields.keys()) assert.throws(() => parseAgentPolicyDocument(source.replace(new RegExp(`^${field}:.*\\n`, "mu"), "")));
+    assert.throws(() => parseAgentPolicyDocument(source.replace("e2e_hint: disabled", "e2e_hint: disabled\nextra: disabled")));
+    assert.throws(() => parseAgentPolicyDocument(source.replace("e2e_hint: disabled", "e2e_hint: disabled\ne2e_hint: enabled")));
+  }
+});
+
+/** 发布动作读写接受 schema 5，保留工作树选择及原确认事实。 */
+test("schema5_action_switch_preserves_task_worktree_choice_and_confirmation", (t) => {
+  for (const value of ["enabled", "disabled"]) {
+    const text = V3.replace("schema_version: 3", "schema_version: 5")
+      .replace("user_owned_tasks: disabled\n", `user_owned_tasks: disabled\ntask_worktrees: ${value}\n`)
+      .replace("e2e_hint: disabled\n", "e2e_hint: disabled\npost_release_action: local_package\n");
+    const f = fixture(t, text);
+    assert.equal(f.run("check").schema_version, 5);
+    assert.equal(f.run("set", setOptions("push_release_branch", "local_package")).schema_version, 5);
+    assert.equal(fs.readFileSync(f.policy, "utf8"), text.replace("post_release_action: local_package", "post_release_action: push_release_branch"));
+    const stat = fs.statSync(f.policy);
+    assert.equal(f.run("set", setOptions("push_release_branch", "push_release_branch")).changed, false);
+    assert.equal(fs.statSync(f.policy).mtimeMs, stat.mtimeMs);
+  }
+});
+
 /** 只将测试场景明确指定的清单放入 Git 索引。 */
 function track(f, ...files) {
   const added = spawnSync("git", ["-C", f.root, "add", "--", ...files], { encoding: "utf8" });
   assert.equal(added.status, 0, added.stderr);
 }
 
-/** GPUI 包含已实现的 Linux 本地路线；Tauri Linux 与无 GUI/CLI 仍不具备该能力。 */
+/** GPUI 原生 macOS/Windows 路线独立可选，Linux GNU GUI 同样有本地包路线。 */
 test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
   assert.equal(localPackageSupported(["gui"], ["macos"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["windows"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["linux"], "gpui"), true);
-  assert.equal(localPackageSupported(["gui"], ["linux"], "tauri"), false);
-  assert.equal(localPackageSupported(["gui"], ["linux"]), false);
-  assert.equal(localPackageSupported(["tui", "mcp"], ["linux"], "gpui"), false);
   assert.equal(localPackageSupported(["cli", "gui"], ["macos"], "gpui"), true);
   assert.equal(localPackageSupported(["cli", "gui"], ["linux"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["macos"]), true);
   assert.throws(() => localPackageSupported(["gui"], ["macos"], "unknown"), /gui-framework/u);
   const f = fixture(t);
-  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["linux"]\ninterfaces = ["gui"]\ngui-framework = "tauri"\n');
-  assert.match(f.run("set", setOptions("local_package"), 2).error, /没有现有本地打包 Skill/u);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["linux"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /GPUI GUI 根目录/u);
   assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
   assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
-});
-
-/** Linux GPUI 仍要求真实受跟踪的 Rust 工程，路由放开不绕过项目完整性或代选持久偏好。 */
-test("gpui_linux_local_package_requires_tracked_native_workspace_and_preserves_other_choices", (t) => {
-  const f = fixture(t);
-  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["app"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = ["linux"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\ngui-root = "app"\nrust-test-manifests = ["Cargo.toml"]\n');
-  assert.match(f.run("set", setOptions("local_package"), 2).error, /GPUI GUI 根目录 不存在/u);
-  assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
-  fs.mkdirSync(path.join(f.root, "app", "src"), { recursive: true });
-  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), '[package]\nname = "example"\nversion = "0.1.0"\n');
-  fs.writeFileSync(path.join(f.root, "app", "src", "main.rs"), "fn main() {}\n");
-  assert.match(f.run("set", setOptions("local_package"), 2).error, /必须受 Git 跟踪/u);
-  track(f, "Cargo.toml", "app/Cargo.toml", "app/src/main.rs");
-  assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
-  assert.equal(f.run("check").status, "configured");
-  const policy = fs.readFileSync(f.policy, "utf8");
-  for (const key of ["decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"]) {
-    assert.equal(policy.match(new RegExp(`^${key}: .+$`, "mu"))?.[0], V3.match(new RegExp(`^${key}: .+$`, "mu"))?.[0]);
-  }
-  assert.equal(fs.existsSync(path.join(f.root, "app", "package.json")), false);
 });
 
 /** GPUI 清单与测试范围受跟踪即可选择原生包，不借用 Tauri 或 pnpm 清单。 */

@@ -57,7 +57,7 @@ function fixture() {
     const args = [
       "commit", "--project-root", root,
       "--expected-status-sha256", snapshot.statusSha256,
-      "--message", "feat: complete reviewed release scope",
+      "--message", "feat: 完成已复核的发布范围",
     ];
     for (const path of paths) args.push("--path", path);
     return invoke(...args);
@@ -86,6 +86,8 @@ test("commit_stages_only_reviewed_paths_and_finishes_clean", () => {
     assert.equal(result.status, 0, result.stderr);
     const payload = JSON.parse(result.stdout);
     assert.equal(payload.clean, true);
+    assert.equal(payload.message, "feat: 完成已复核的发布范围");
+    assert.equal(item.git("log", "-1", "--format=%s").stdout.trim(), payload.message);
     assert.notEqual(payload.previousHead, payload.head);
     assert.equal(item.git("status", "--porcelain").stdout, "");
   } finally { item.cleanup(); }
@@ -267,5 +269,38 @@ test("unsafe_or_empty_commit_scope_is_rejected", () => {
     for (const unsafe of ["../source.txt", ".git/config", ".harness", ".harness/other.json", "release/candidate.zip", ":(glob)*"]) {
       assert.equal(item.commit(snapshot, unsafe).status, 1, unsafe);
     }
+  } finally { item.cleanup(); }
+});
+
+/** 消息拒绝必须发生在任何 index、HEAD 或 hook 副作用之前。 */
+test("invalid_message_is_rejected_before_index_or_commit_side_effects", () => {
+  const item = fixture();
+  try {
+    writeFileSync(join(item.root, "source.txt"), "reviewed\n");
+    const snapshot = item.inspect();
+    const index = readFileSync(join(item.root, ".git", "index"));
+    for (const message of ["", "feat: English summary", "feat(中文): English summary", "feat: 中文\u001b消息"]) {
+      const result = run(process.execPath, [SCRIPT, "commit", "--project-root", item.root,
+        "--expected-status-sha256", snapshot.statusSha256, "--message", message, "--path", "source.txt"], { env: item.env, check: false });
+      assert.equal(result.status, 1, result.stderr);
+      assert.deepEqual(readFileSync(join(item.root, ".git", "index")), index);
+      assert.equal(item.git("rev-parse", "HEAD").stdout.trim(), snapshot.head);
+      assert.equal(item.git("diff", "--cached", "--name-only").stdout, "");
+    }
+  } finally { item.cleanup(); }
+});
+
+/** hook 改写后的实际消息不能冒充已复核中文文本。 */
+test("commit_rechecks_actual_message_after_hook_changes_it", { skip: process.platform === "win32" }, () => {
+  const item = fixture();
+  try {
+    const hook = join(item.root, ".git", "hooks", "commit-msg");
+    writeFileSync(hook, '#!/bin/sh\nprintf "feat: changed by hook\\n" > "$1"\n');
+    chmodSync(hook, 0o755);
+    writeFileSync(join(item.root, "source.txt"), "reviewed\n");
+    const result = item.commit(item.inspect(), "source.txt");
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /actual message failed Chinese message validation/);
+    assert.equal(item.git("log", "-1", "--format=%s").stdout.trim(), "feat: changed by hook");
   } finally { item.cleanup(); }
 });

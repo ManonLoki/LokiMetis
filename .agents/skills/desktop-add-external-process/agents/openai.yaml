@@ -1,0 +1,4 @@
+interface:
+  display_name: "接入外部进程"
+  short_description: "为明确程序建立参数边界、超时取消、输出限制和生命周期回收"
+  default_prompt: "使用 $desktop-add-external-process，为已批准功能接入受限外部程序调用并测试失败路径。"

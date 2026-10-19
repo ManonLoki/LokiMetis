@@ -1,0 +1,4 @@
+interface:
+  display_name: "记录长期决定"
+  short_description: "为已确认的长期决定与允许例外记录权威事实、取代范围和恢复条件"
+  default_prompt: "使用 $desktop-record-adr，在当前授权范围内记录长期决定并报告真实结果与未验证事项。"

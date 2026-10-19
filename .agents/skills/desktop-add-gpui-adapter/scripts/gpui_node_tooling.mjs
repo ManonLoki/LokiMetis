@@ -1,6 +1,7 @@
 /** GPUI 只使用 Node 标准库工程工具；纯渲染与受限字段合并不触碰目标文件。 */
 export const GPUI_ENGINES = Object.freeze({ node: '>=24.21.0', pnpm: '>=12.4.1' });
 export const GPUI_SCRIPTS = Object.freeze({
+  dev: 'node .agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.mjs --root .',
   validate: 'node .agents/skills/desktop-add-gpui-adapter/scripts/gpui_validate.mjs --root .',
   test: 'cargo test --workspace --all-targets --all-features',
   'release:inspect': 'node .agents/skills/desktop-prepare-release/scripts/release_git.mjs inspect --project-root .',

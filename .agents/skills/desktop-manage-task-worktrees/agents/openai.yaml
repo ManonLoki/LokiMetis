@@ -1,0 +1,4 @@
+interface:
+  display_name: "管理 Task 独立工作树"
+  short_description: "兼容 Task 工作树环境选择，统一委托并行创建和真实绑定流程"
+  default_prompt: "使用 $desktop-manage-task-worktrees 兼容入口并路由到 $desktop-task-workflow，按项目已记录或派发冻结的环境选择管理 Task 工作树，无依赖环境并行创建，自动核对身份后继续已授权范围。"

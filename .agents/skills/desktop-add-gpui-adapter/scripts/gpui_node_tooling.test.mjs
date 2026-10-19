@@ -9,6 +9,7 @@ import { mergeGpuiNodeTooling, packageSnapshot, assertPackageSnapshot } from './
 import { validateGpui } from './gpui_validate.mjs';
 
 const helperNames = [
+  'desktop-add-gpui-adapter/scripts/gpui_dev.mjs',
   'desktop-add-gpui-adapter/scripts/gpui_validate.mjs',
   ...['check_file_line_limits.mjs', 'check_rust_chinese_comments.mjs', 'check_core_first.mjs'].map(name => `desktop-implement-change/scripts/${name}`),
   ...['release_git.mjs', 'release_notes.mjs', 'release_context.mjs'].map(name => `desktop-prepare-release/scripts/${name}`),
@@ -34,6 +35,7 @@ test('new_package_declares_compatible_engines_and_real_retained_commands', () =>
   assert.deepEqual(document, { private: true, engines: GPUI_ENGINES, scripts: GPUI_SCRIPTS });
   assert.equal(Object.hasOwn(document, 'dependencies'), false);
   assert.equal(Object.hasOwn(document, 'packageManager'), false);
+  assert.equal(document.scripts.dev, 'node .agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.mjs --root .');
   assert.match(document.scripts.test, /^cargo test --workspace --all-targets --all-features$/);
   assert.match(document.scripts['release:inspect'], /release_git\.mjs inspect --project-root \.$/);
   assert.match(document.scripts['release:git'], /git_lifecycle\.mjs release --project-root \.$/);
@@ -59,6 +61,7 @@ test('conflicting_or_ambiguous_packages_are_rejected', () => {
   for (const source of [
     '{"engines":{"node":">=26.0.0"}}', '{"engines":{"pnpm":">=13.0.0"}}',
     '{"scripts":{"test":"user-test"}}', '{"engines":[]}', '{"scripts":{"other":true}}',
+    '{"scripts":{"dev":"cargo run"}}',
     '{"private":"false"}', '[]', '{"scripts":{},"scripts":{}}', '{"custom":{"a":1,"\\u0061":2}}',
   ]) assert.throws(() => renderGpuiPackageJson(source));
   assert.throws(() => renderGpuiPackageJson(Buffer.from([0xff])), /encoded data/);

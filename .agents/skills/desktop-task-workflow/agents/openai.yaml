@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task 与工作树工作流"
+  short_description: "统一项目 Task 开关、授权继承、并行工作树与恢复"
+  default_prompt: "使用 $desktop-task-workflow，先读取项目已记录开关，关闭时不自动创建左侧子会话；继承本次授权，在所有权明确的独立工作树中并行创建和执行，自动完成绑定与开发检查。"

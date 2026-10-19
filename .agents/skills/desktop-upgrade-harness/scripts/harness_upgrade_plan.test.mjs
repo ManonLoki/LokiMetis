@@ -7,7 +7,14 @@ import path from "node:path";
 import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
 import { loadOwnership, matchesPattern, scanTree } from "./harness_upgrade_ownership.mjs";
-import { snapshotFile } from "./harness_upgrade_safety.mjs";
+import { REQUIRED_MANAGED_SOURCE_PATHS } from "./harness_upgrade_policy.mjs";
+import { safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
+
+/** 保留入口的清单在下游独立校验，不依赖 Harness 源专用目录。 */
+test("required_managed_paths_are_unique_and_canonical", () => {
+  assert.equal(new Set(REQUIRED_MANAGED_SOURCE_PATHS).size, REQUIRED_MANAGED_SOURCE_PATHS.length);
+  for (const relative of REQUIRED_MANAGED_SOURCE_PATHS) assert.equal(safeRelativePath(relative), relative);
+});
 
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
   assert.equal(matchesPattern("docs/a.txt", "docs/[ab].txt"), true);
@@ -157,6 +164,37 @@ test("post_release_choice_stays_protected_while_switch_skill_is_required_managed
   assert.equal(fs.readFileSync(path.join(f.target, PROTECTED), "utf8"), "schema_version: 3\n");
 });
 
+/** 关闭工作树偏好的既有下游也接收完整技能，策略字节与权限保持。 */
+test("disabled_task_worktrees_still_receive_skill_without_policy_mutation", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  f.bootstrap();
+  const policy = "---\nschema_version: 5\ntask_worktrees: disabled\n---\n原用户确认及正文\n";
+  f.write(f.target, PROTECTED, policy);
+  const file = path.join(f.target, PROTECTED);
+  const stat = fs.statSync(file);
+  const paths = [".agents/skills/desktop-manage-task-worktrees/SKILL.md", ".agents/skills/desktop-manage-task-worktrees/agents/openai.yaml"];
+  for (const relative of paths) {
+    assert.ok(REQUIRED_MANAGED_SOURCE_PATHS.includes(relative));
+    f.write(f.source, relative, `完整工程文件:${relative}\n`);
+    f.write(f.candidate, relative, `完整工程文件:${relative}\n`);
+  }
+  f.git(f.source, "add", ...paths);
+  f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "新增独立工作树技能");
+  f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+  const { plan } = f.createPlan();
+  for (const relative of paths) assert.equal(f.classification(plan, relative), "add");
+  assert.equal(plan.actions.some((item) => item.path === PROTECTED), false);
+  // add 沿既有流程逐项复核后复制；apply 只处理已存在文件的 update。
+  for (const relative of paths) f.write(f.target, relative, fs.readFileSync(path.join(f.candidate, relative)));
+  const converged = f.createPlan();
+  for (const relative of paths) assert.equal(f.classification(converged.plan, relative), "converged");
+  f.record(converged.planPath);
+  for (const relative of paths) assert.equal(fs.readFileSync(path.join(f.target, relative), "utf8"), `完整工程文件:${relative}\n`);
+  assert.equal(fs.readFileSync(file, "utf8"), policy);
+  assert.equal(fs.statSync(file).mtimeMs, stat.mtimeMs);
+  assert.equal(fs.statSync(file).mode, stat.mode);
+});
+
 test("legacy_managed_omission_rejects_stale_candidate_and_overlapping_protection", (t) => {
   const f = new HarnessUpgradeFixture(t);
   const switchRule = ".agents/skills/desktop-switch-post-release-action/**";
@@ -209,4 +247,40 @@ test("bootstrap_rejects_divergent_managed_overlap", (t) => {
 
 test("bootstrap_rejects_tombstone", (t) => {
   const f = new HarnessUpgradeFixture(t); f.write(f.target, TOMBSTONE, "forbidden"); const { planPath } = f.createPlan(2); f.runTool(["record", "--plan", planPath, "--source-version", f.sourceVersion, "--source-commit", f.sourceCommit, "--bootstrap", "--approval", "bootstrap-verified-baseline"], 2); assert.equal(fs.existsSync(f.lock), false);
+});
+
+/** 共享消息校验与发布 helper 随升级传播，已确认项目策略逐字节保护。 */
+test("Chinese commit dependency closure is managed and policy remains byte-identical", (t) => {
+  for (const ending of ["\n", "\r\n"]) {
+    const f = new HarnessUpgradeFixture(t);
+    const paths = REQUIRED_MANAGED_SOURCE_PATHS.filter((relative) => relative.includes("desktop-configure-git-commits/") || relative.endsWith("/release_git.mjs") || relative.endsWith("/release_git.test.mjs"));
+    assert.equal(paths.length, 8);
+    f.bootstrap();
+    const policy = Buffer.from(["---", "schema_version: 4", "confirmed_by: 用户已确认", "confirmed_at: 2026-10-01", "user_owned_tasks: disabled", "superpowers: disabled", "parallel_worktree_subagents: disabled", "acceptance_smoke: enabled", "e2e_hint: disabled", "post_release_action: local_package", "---", "", "原项目正文", ""].join(ending));
+    f.write(f.target, PROTECTED, policy);
+    for (const relative of paths) f.write(f.source, relative, `source:${relative}`);
+    f.git(f.source, "add", ...paths);
+    f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "chore: 记录共享消息校验依赖");
+    f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+    const missing = f.plan(2);
+    for (const relative of paths) assert.ok(missing.problems.some((problem) => problem.includes(relative) && problem.includes("候选缺少")));
+    for (const relative of paths) f.write(f.candidate, relative, `source:${relative}`);
+    const plan = f.plan();
+    for (const relative of paths) assert.equal(f.classification(plan, relative), "add");
+    assert.equal(plan.actions.some((action) => action.path === PROTECTED), false);
+    assert.deepEqual(fs.readFileSync(path.join(f.target, PROTECTED)), policy);
+    for (const relative of paths) f.write(f.target, relative, `source:${relative}`);
+    f.record(f.createPlan(0, "converged").planPath);
+    const helper = paths.find((relative) => relative.endsWith("/configure_git_commit.mjs"));
+    f.write(f.source, helper, "updated shared validator");
+    f.write(f.candidate, helper, "updated shared validator");
+    f.git(f.source, "add", helper);
+    f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "chore: 更新共享校验器");
+    f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+    const update = f.createPlan();
+    assert.equal(f.classification(update.plan, helper), "update");
+    f.runTool(["apply", "--plan", update.planPath, "--approval", "apply-managed-changes", "--path", helper]);
+    f.record(f.createPlan(0, "updated").planPath);
+    assert.deepEqual(fs.readFileSync(path.join(f.target, PROTECTED)), policy);
+  }
 });

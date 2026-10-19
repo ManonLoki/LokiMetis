@@ -49,6 +49,7 @@ function assertGpuiWorkspace(root) {
   const selected = [...interfaces[0][1].split('#')[0].matchAll(/"([a-z]+)"/g)].map(match => match[1]);
   if (!selected.includes('gui') || new Set(selected).size !== selected.length) throw new Error('migration requires unique interfaces including gui');
   const helpers = [
+    'desktop-add-gpui-adapter/scripts/gpui_dev.mjs',
     'desktop-add-gpui-adapter/scripts/gpui_validate.mjs',
     ...['check_file_line_limits.mjs', 'check_rust_chinese_comments.mjs', 'check_core_first.mjs'].map(name => `desktop-implement-change/scripts/${name}`),
     ...['release_git.mjs', 'release_notes.mjs', 'release_context.mjs'].map(name => `desktop-prepare-release/scripts/${name}`),

@@ -1,0 +1,4 @@
+interface:
+  display_name: "配置 Agent 能力偏好"
+  short_description: "按明确永久选择原子更新单项能力，保留其他策略并记录确认事实"
+  default_prompt: "使用 $desktop-configure-agent-policy，修改我明确选择的永久能力偏好并报告前后值。"

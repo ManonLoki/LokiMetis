@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { renderNsisTemplate, writeNsisTemplate } from './gpui_nsis.mjs';
 
 test('fixed template stops both installer modes without terminating any process', () => {
-  const rendered = renderNsisTemplate('LokiMetris');
+  const rendered = renderNsisTemplate('ExampleTool');
   assert.equal(rendered.includes('::KillProcess'), false);
   assert.equal(rendered.match(/!insertmacro CheckIfAppIsRunning/gu).length, 3);
   const upgrade = rendered.match(/Function PageLeaveReinstall\n[\s\S]*?\nFunctionEnd/u)[0];
@@ -30,7 +30,7 @@ test('fixed template stops both installer modes without terminating any process'
 });
 
 test('uninstall only removes exact owned current-user Run commands before the executable', () => {
-  const section = renderNsisTemplate('LokiMetris').split('Section Uninstall\n')[1];
+  const section = renderNsisTemplate('ExampleTool').split('Section Uninstall\n')[1];
   const end = section.indexOf('  ; Delete the app directory');
   const cleanup = section.slice(0, end);
   assert.match(cleanup, /ReadRegStr \$R8 HKCU/u);
@@ -44,7 +44,7 @@ test('uninstall only removes exact owned current-user Run commands before the ex
 });
 
 test('source drift fails closed and staging template cannot replace an existing file', t => {
-  assert.throws(() => renderNsisTemplate('LokiMetris', [], Buffer.from('different template')), /digest differs/u);
+  assert.throws(() => renderNsisTemplate('ExampleTool', [], Buffer.from('different template')), /digest differs/u);
   const temporary = fs.realpathSync(os.tmpdir());
   const work = fs.mkdtempSync(path.join(temporary, 'loki-nsis-test-'));
   t.after(() => {
@@ -53,17 +53,17 @@ test('source drift fails closed and staging template cannot replace an existing 
     assert.ok(path.basename(work).startsWith('loki-nsis-test-'));
     fs.rmSync(work, { recursive: true, force: true });
   });
-  const output = writeNsisTemplate(work, 'LokiMetris');
+  const output = writeNsisTemplate(work, 'ExampleTool');
   assert.equal(path.dirname(output), fs.realpathSync(work));
-  assert.equal(fs.readFileSync(output, 'utf8'), renderNsisTemplate('LokiMetris'));
-  assert.throws(() => writeNsisTemplate(work, 'LokiMetris'), /exist/u);
-  assert.equal(fs.readFileSync(output, 'utf8'), renderNsisTemplate('LokiMetris'));
+  assert.equal(fs.readFileSync(output, 'utf8'), renderNsisTemplate('ExampleTool'));
+  assert.throws(() => writeNsisTemplate(work, 'ExampleTool'), /exist/u);
+  assert.equal(fs.readFileSync(output, 'utf8'), renderNsisTemplate('ExampleTool'));
 });
 
 /** 安装与卸载不触及参考版中文链接，任意开始菜单选择由 MUI 同一注册表合同恢复。 */
 test('official English identity owns all shortcut paths and custom start menu folder survives uninstall', () => {
-  const rendered = renderNsisTemplate('LokiMetris');
-  assert.match(rendered, /!define SHORTCUTNAME "LokiMetris"/u);
+  const rendered = renderNsisTemplate('ExampleTool');
+  assert.match(rendered, /!define SHORTCUTNAME "ExampleTool"/u);
   assert.equal(rendered.includes('${PRODUCTNAME}.lnk'), false);
   assert.equal(rendered.match(/\$\{SHORTCUTNAME\}\.lnk/gu).length, 6);
   assert.match(rendered, /MUI_STARTMENUPAGE_DEFAULTFOLDER "\$\{SHORTCUTNAME\}"/u);
@@ -88,7 +88,7 @@ test('shortcut literals reject code and path injection while preserving dollars'
 
 /** 只提取资源清理语句，验证生成的实际目录顺序和非递归语义。 */
 function resourceDirectories(targets) {
-  const uninstall = renderNsisTemplate('LokiMetris', targets).split('Section Uninstall\n')[1];
+  const uninstall = renderNsisTemplate('ExampleTool', targets).split('Section Uninstall\n')[1];
   return [...uninstall.matchAll(/^  RMDir "\$INSTDIR\\([^"\n]+)"$/gmu)].map(match => match[1].replaceAll('\\', '/'));
 }
 
@@ -102,7 +102,7 @@ test('uninstall derives every resource ancestor once in child-first order', () =
   for (const [index, directory] of directories.entries()) {
     for (const child of directories.filter(value => value.startsWith(`${directory}/`))) assert.ok(index > directories.indexOf(child));
   }
-  const rendered = renderNsisTemplate('LokiMetris', ['resources/a/b.txt']);
+  const rendered = renderNsisTemplate('ExampleTool', ['resources/a/b.txt']);
   assert.match(rendered, /CreateDirectory "\$INSTDIR\\\\\{\{this\}\}"/u);
   assert.equal(rendered.split('Section Uninstall\n')[1].includes('{{#each resources_dirs}}'), false);
 });
@@ -111,7 +111,7 @@ test('uninstall derives every resource ancestor once in child-first order', () =
 test('resource cleanup rejects unsafe targets and preserves literal dollars', () => {
   assert.deepEqual(resourceDirectories(['resources/$0/ok.txt']), ['resources/$$0', 'resources']);
   for (const target of ['../escape/file', '/absolute/file', 'a\\b', 'a//b', 'a/CON/file', 'a/quote"/file', 'a/{{identifier}}/file', 'a/line\n/file']) {
-    assert.throws(() => renderNsisTemplate('LokiMetris', [target]), /unsafe|invalid NSIS resource/u);
+    assert.throws(() => renderNsisTemplate('ExampleTool', [target]), /unsafe|invalid NSIS resource/u);
   }
 });
 

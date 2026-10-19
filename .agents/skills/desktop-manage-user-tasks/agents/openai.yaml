@@ -1,0 +1,4 @@
+interface:
+  display_name: "管理左侧 Task"
+  short_description: "兼容左侧 Task 创建与恢复，统一委托项目 Task 和工作树流程"
+  default_prompt: "使用 $desktop-manage-user-tasks 兼容入口并路由到 $desktop-task-workflow，按项目已记录开关处理左侧 Task 创建、身份、进度与恢复，继承现有授权并自动完成必要检查。"

@@ -324,7 +324,7 @@ export function publish(repository, explicitRemote, additionalRemotes = []) {
     code: "remote-read-failed", message: "Git default branch could not be fetched.",
   });
   switchToDefault(repository, remote, defaultBranch);
-  if (runGit(repository.root, ["merge", "--no-edit", `refs/remotes/${remote}/${defaultBranch}`], { check: false }).returncode !== 0) {
+  if (runGit(repository.root, ["merge", "--no-edit", "-m", `合并远端默认分支 ${remote}/${defaultBranch}`, `refs/remotes/${remote}/${defaultBranch}`], { check: false }).returncode !== 0) {
     throw new LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.");
   }
   const [merged, alreadyMerged] = mergeRegisteredBranches(repository, state, defaultBranch);

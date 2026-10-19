@@ -18,6 +18,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateCommitMessage } from "../../desktop-configure-git-commits/scripts/configure_git_commit.mjs";
 
 const HEAD_PATTERN = /^[0-9a-f]{40}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
@@ -293,9 +294,9 @@ export function commitApproved(projectRoot, { expectedStatusSha256, message, pat
   if (!SHA256_PATTERN.test(expectedStatusSha256)) {
     throw new ReleaseGitError("expected status SHA-256 must be 64 lowercase hexadecimal characters");
   }
-  if (typeof message !== "string" || !message.trim() || message.includes("\0")) {
-    throw new ReleaseGitError("commit message must be non-empty and contain no NUL");
-  }
+  // 必须先于隔离 index 和真实 index 的任何写入拒绝非法或纯英文摘要。
+  try { validateCommitMessage(message); }
+  catch (error) { throw new ReleaseGitError(error.message); }
   const approved = [...new Set(paths.map(normalizeApprovedPath))];
   if (approved.length === 0) throw new ReleaseGitError("at least one reviewed path is required");
   const before = statusBytes(root);
@@ -353,6 +354,12 @@ export function commitApproved(projectRoot, { expectedStatusSha256, message, pat
   const final = resolveRepository(root);
   if (final.head === previousHead) throw new ReleaseGitError("git commit did not advance HEAD");
   if (final.branch !== branch) throw new ReleaseGitError("git commit changed the reviewed branch unexpectedly");
+  const actualMessage = runGit(root, ["log", "-1", "--format=%B", final.head]).stdout;
+  try { validateCommitMessage(actualMessage); }
+  catch { throw new ReleaseGitError("commit succeeded but its actual message failed Chinese message validation; release must stop"); }
+  if (actualMessage.trimEnd() !== message.replace(/\r\n/gu, "\n").trimEnd()) {
+    throw new ReleaseGitError("committed message differs from the reviewed message; inspect Git cleanup or hooks before continuing");
+  }
   const parents = runGit(root, ["rev-list", "--parents", "-n", "1", final.head]).stdout.trim().split(/\s+/);
   if (JSON.stringify(parents) !== JSON.stringify([final.head, previousHead])) {
     throw new ReleaseGitError("reviewed commit is not the direct non-merge child of the reviewed HEAD");
@@ -372,6 +379,7 @@ export function commitApproved(projectRoot, { expectedStatusSha256, message, pat
     head: final.head,
     paths: approved,
     clean: true,
+    message: actualMessage.trimEnd(),
   };
 }
 

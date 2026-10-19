@@ -1,0 +1,4 @@
+interface:
+  display_name: "接入文件操作"
+  short_description: "按已批准读写范围接入文件驱动、冲突恢复、原子写入与数据保留回归"
+  default_prompt: "使用 $desktop-add-file-operations，为已批准功能接入文件操作并验证原有数据得到保留。"

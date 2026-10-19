@@ -864,3 +864,16 @@ for (const mode of ["rejected", "readback_failed"]) {
     assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"]).payload.status, "release-pushed");
   });
 }
+
+/** 分叉的登记分支仍普通合并，真实消息中文且保持两个父提交。 */
+scenario("release_uses_chinese_message_for_divergent_merge_without_changing_parents", (item) => {
+  const value = candidate(item, { remote: false });
+  const featureHead = item.git(value.repository, "rev-parse", "HEAD").stdout.trim();
+  item.git(value.repository, "switch", "main");
+  const defaultHead = item.commitFile(value.repository, "main-only.txt", "default\n");
+  item.git(value.repository, "switch", value.branch);
+  const released = item.helper(value.repository, releaseArgs(value)).payload;
+  assert.equal(item.git(value.repository, "log", "-1", "--format=%s", released.head).stdout.trim(), `合并开发分支 ${value.branch}`);
+  assert.deepEqual(item.git(value.repository, "show", "-s", "--format=%P", released.head).stdout.trim().split(" "), [defaultHead, featureHead]);
+  assert.equal(item.git(value.repository, "rev-parse", released.tag).stdout.trim(), released.head);
+});

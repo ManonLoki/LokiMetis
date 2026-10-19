@@ -5,7 +5,7 @@
     "pnpm": ">=12.4.1"
   },
   "scripts": {
-    "validate": "node .agents/skills/desktop-add-gpui-adapter/scripts/gpui_validate.mjs --root .",
+    "validate": "node scripts/validate.mjs --root .",
     "test": "cargo test --workspace --all-targets --all-features",
     "release:inspect": "node .agents/skills/desktop-prepare-release/scripts/release_git.mjs inspect --project-root .",
     "release:notes": "node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs",

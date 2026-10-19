@@ -16,6 +16,7 @@ export const POST_RELEASE_ACTIONS = Object.freeze(["local_package", "push_releas
 const ACTIONS = new Set(POST_RELEASE_ACTIONS);
 const V3_FIELDS = ["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
 const V4_FIELDS = [...V3_FIELDS, "post_release_action"];
+const V5_FIELDS = [...V4_FIELDS, "task_worktrees"];
 const PREFERENCES = ["superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
 const REQUIRED_BODY = [
   "- `post_release_action`：`local_package`",
@@ -52,10 +53,15 @@ export function validConfirmedAt(value) {
     const date = new Date(Date.UTC(year, month - 1, day));
     return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
   }
-  return /^\d{4}-\d{2}-\d{2}T/u.test(value) && !Number.isNaN(Date.parse(value));
+  const timestamp = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-](\d{2}):(\d{2}))$/u.exec(value);
+  return timestamp !== null && validConfirmedAt(timestamp[1])
+    && Number(timestamp[2]) <= 23 && Number(timestamp[3]) <= 59 && Number(timestamp[4]) <= 59
+    && Number(timestamp[5] ?? 0) <= 23 && Number(timestamp[6] ?? 0) <= 59
+    && !Number.isNaN(Date.parse(value));
 }
 
-function projectRoot(raw) {
+/** 核对策略 writer 共用的独立下游仓库与普通目录边界。 */
+export function projectRoot(raw) {
   if (typeof raw !== "string" || !raw || !path.isAbsolute(raw)) throw new ActionError("--project-root 必须是绝对路径");
   const unresolved = path.resolve(raw);
   let stat;
@@ -94,14 +100,15 @@ export function parseAgentPolicyDocument(bytes) {
     fields.set(field[1], field[2]);
   }
   const schema = fields.get("schema_version");
-  const expected = schema === "3" ? V3_FIELDS : schema === "4" ? V4_FIELDS : null;
+  const expected = schema === "3" ? V3_FIELDS : schema === "4" ? V4_FIELDS : schema === "5" ? V5_FIELDS : null;
   if (!expected || fields.size !== expected.length || expected.some((field) => !fields.has(field))) {
     throw new ActionError("Agent 策略 schema 或字段集合不受支持；不得推断发布后动作");
   }
   return { source, normalized, newline, lines, fields, schema };
 }
 
-function readPolicy(root) {
+/** 校验已确认策略；只有发布动作路径需要额外检查真实打包资源。 */
+export function readPolicy(root, { validateActionSupport = true } = {}) {
   const file = path.join(root, POLICY_RELATIVE);
   const stat = regularFile(file, "Agent 策略");
   const bytes = fs.readFileSync(file);
@@ -109,13 +116,14 @@ function readPolicy(root) {
   const { fields, schema } = document;
   if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") throw new ActionError("Agent 策略 decision_mode 无效");
   for (const field of PREFERENCES) if (!["enabled", "disabled"].includes(fields.get(field))) throw new ActionError(`下游 Agent 策略 ${field} 尚未确认`);
+  if (schema === "5" && !["enabled", "disabled"].includes(fields.get("task_worktrees"))) throw new ActionError("下游 Agent 策略 task_worktrees 尚未确认");
   const confirmedBy = fields.get("confirmed_by")?.trim().toLowerCase();
   if (!confirmedBy || ["pending", "unknown", "unset", "n/a"].includes(confirmedBy)) throw new ActionError("下游 Agent 策略 confirmed_by 尚未确认");
   if (!validConfirmedAt(fields.get("confirmed_at") ?? "")) throw new ActionError("下游 Agent 策略 confirmed_at 必须是真实 ISO 日期或时间戳");
-  if (schema === "4" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("post_release_action 必须是 local_package 或 push_release_branch");
+  if (schema !== "3" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("post_release_action 必须是 local_package 或 push_release_branch");
   const policy = { file, stat, bytes, ...document };
-  if (schema === "4") assertCurrentPolicyBody(policy);
-  if (schema === "4" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
+  if (schema !== "3") assertCurrentPolicyBody(policy);
+  if (validateActionSupport && schema !== "3" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
   return policy;
 }
 
@@ -417,16 +425,19 @@ function assertLocalPackageSupported(root) {
 }
 
 function state(policy) {
-  const action = policy.schema === "4" ? policy.fields.get("post_release_action") : null;
+  const action = policy.schema !== "3" ? policy.fields.get("post_release_action") : null;
   return { schema_version: Number(policy.schema), status: action === null ? "selection_required" : "configured", post_release_action: action };
 }
 
-function atomicWrite(policy, next) {
+/** 保留权限并拒绝读取后漂移，再原子替换普通策略文件。 */
+export function atomicWrite(policy, next) {
   const temporary = path.join(path.dirname(policy.file), `.AGENT_POLICY-${crypto.randomUUID()}.tmp`);
   let descriptor;
   try {
     descriptor = fs.openSync(temporary, "wx", policy.stat.mode & 0o777);
     fs.writeFileSync(descriptor, next, "utf8");
+    // 创建权限会受 umask 过滤；写完后按原权限恢复，失败时不替换原文件。
+    fs.fchmodSync(descriptor, policy.stat.mode & 0o777);
     fs.fsyncSync(descriptor);
     fs.closeSync(descriptor); descriptor = undefined;
     const currentStat = regularFile(policy.file, "Agent 策略");
@@ -441,7 +452,8 @@ function atomicWrite(policy, next) {
   }
 }
 
-function withPolicyLock(root, operation) {
+/** 两类永久策略 writer 共用同一短时锁，遗留锁不自动删除。 */
+export function withPolicyLock(root, operation) {
   const lock = path.join(root, "docs", ".AGENT_POLICY.post-release.lock");
   let descriptor;
   try { descriptor = fs.openSync(lock, "wx", 0o600); }
@@ -466,7 +478,7 @@ export function setAction(rawRoot, action, expectedAction, { confirmedChoice = f
   const root = projectRoot(rawRoot);
   return withPolicyLock(root, () => {
     const policy = readPolicy(root);
-    const previous = policy.schema === "4" ? policy.fields.get("post_release_action") : "missing";
+    const previous = policy.schema !== "3" ? policy.fields.get("post_release_action") : "missing";
     if (previous !== expectedAction) throw new ActionError(`发布后动作已变化：预期 ${expectedAction}，实际 ${previous}`);
     if (previous === action) return { ...state(policy), changed: false, previous_action: previous };
     assertCurrentPolicyBody(policy);
@@ -482,7 +494,7 @@ export function setAction(rawRoot, action, expectedAction, { confirmedChoice = f
     const next = `---\n${lines.join("\n")}\n---\n${body}`.replaceAll("\n", policy.newline);
     atomicWrite(policy, next);
     const verified = inspect(root, { requireConfigured: true });
-    if (verified.post_release_action !== action || verified.schema_version !== 4) throw new ActionError("写入后复核发布后动作失败");
+    if (verified.post_release_action !== action || verified.schema_version !== (policy.schema === "3" ? 4 : Number(policy.schema))) throw new ActionError("写入后复核发布后动作失败");
     return { ...verified, changed: true, previous_action: previous };
   });
 }

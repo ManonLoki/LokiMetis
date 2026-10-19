@@ -9,6 +9,8 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 
 目标尚无 Harness 所有权清单或来源锁时，先完整读取 [既有项目首次接入步骤](references/adopt-existing-project.md)，安装精确所有权清单并构造适用候选，再进入下面的 `plan`。不得要求目标先已有 Harness 初始化结果，也不得把源项目记忆或 Python 禁令复制过去。
 
+升级入口先执行用户级 `AGENTS.md` 的长期规则；项目 `user_owned_tasks: enabled` 或用户明确单次要求左侧 Task 时，先完成业务前绑定。按章节合并启动文档的项目 Task 默认关闭、非 pinned、显式阶段隔离和自主恢复入口；`docs/AGENT_POLICY.md` 继续 protected，保留全部 frontmatter 原字节及自定义正文，受保护正文迁移在目标授权范围单独处理。用户级 AGENTS 不进入候选树或来源锁。所有终端下游完整传播 `$desktop-configure-git-commits` 的 Skill、metadata、规范、模板、共享消息校验 helper 与测试，以及消费该 helper 的发布提交入口，候选遗漏/旧版摘要失败关闭。
+
 ## 工作流程
 
 1. 读取下游存在的 `AGENTS.md`、`docs/AGENT_POLICY.md`、日期最新的产品规格、产品状态、工作计划和 ADR、`docs/ENGINEERING_RULES.md`、`docs/TECH_DEBT.md`，以及存在时的 `.harness/upstream-lock.json`。首次接入尚缺这些文件时按接入步骤建立真实项目事实，不从 Harness 源复制批准结论。读取源 Harness 的 `Version.md`、日期最新的产品规格、产品状态和 ADR，以及其验证命令。
@@ -22,7 +24,7 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
    所有终端下游还必须同步 `$desktop-switch-post-release-action` 的 `SKILL.md`、`agents/openai.yaml`、`scripts/post_release_action.mjs` 和 `scripts/post_release_action.test.mjs`，并保持源内容摘要一致；升级器在候选遗漏或旧版内容时阻断。只传播该 managed Skill，不调用其写入命令。
    `.harness/version-state.json` 始终是 `protected` 下游状态，来源或候选都不得包含、初始化、重算或覆盖它；Cargo 产品版本同样受保护。`$desktop-manage-version` 的 Skill/helper 属于可升级工程资产，但产品周期与缺陷 ID 历史不属于。首次检查时同时记录目标是否缺少该状态；缺失只表示旧下游需要在工程层升级完成后进入第 14 步的显式人工迁移，绝不授权候选、升级器或 `apply|record` 静默创建它。
    `.harness/release-context.json` 始终是 `protected` 下游发布事实，来源和候选均不得包含、初始化、重算或覆盖它；目标尚无该文件时保持缺席，只有目标项目真实执行 `$desktop-prepare-release` 时才可创建。Git common-dir 生命周期清单位于 tracked 目标树之外，从不进入候选、所有权清单或来源锁。
-   `docs/AGENT_POLICY.md` 继续是受保护的下游事实。已有 schema 4 正文若未合并默认主分支、release 和 tag 同步规则，须在目标项目保留 frontmatter 与自定义规则迁移正文，再 inspect/check，无需重选；升级器不代写 protected 正文。第 4 步只读记录发布后动作状态：旧 `schema_version: 3` 且缺少 `post_release_action` 表示需要补选；`schema_version: 4` 只接受 `local_package` 或 `push_release_branch`。重复/缺失字段、未知 schema 或非法值是冲突，不能推断为默认项，也不能宣布升级完成。
+   `docs/AGENT_POLICY.md` 继续是受保护的下游事实。已有 schema 4 正文若未合并默认主分支、release 和 tag 同步规则，须在目标项目保留 frontmatter 与自定义规则迁移正文，再 inspect/check，无需重选；升级器不代写 protected 正文。第 4 步只读记录发布后动作状态：旧 `schema_version: 3` 且缺少 `post_release_action` 表示需要补选；`schema_version: 4` 或 `schema_version: 5` 只接受 `local_package` 或 `push_release_branch`。重复/缺失字段、未知 schema 或非法值是冲突，不能推断为默认项，也不能宣布升级完成。
    同时只读解析目标根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下 `dependency-lock-policy` 字段：缺省或 `"ignored"` 沿用忽略锁文件的工程分支，显式 `"tracked"` 走锁文件受跟踪与冻结解析分支；未知值、错误类型或重复键失败关闭。`tracked` 须核对根及 `rust-test-manifests` 指出的每个独立工作区 `Cargo.lock`，以及已选 Tauri GUI 根的 `pnpm-lock.yaml`，均为真实文件、受 Git 跟踪且未被忽略。候选中的通用规则和 Skill 应保留两条分支，并按目标的实际接口与工作区路径渲染；不得以源默认策略覆盖目标的显式选择。根 Cargo 元数据、`.gitignore` 和项目锁文件均为目标受保护事实，升级器 `plan|apply|record` 不修改它们；目标需要首次选择或修复 `tracked` 时，由下游在独立开发范围内显式调整并验证后再继续记录基线。
    项目本地 `.agents/skills/design-taste-frontend/**` 是 protected 第三方知识资产，不进入候选或来源锁，不覆盖、删除或重新安装。旧目标清单缺少此保护规则时先显式合并所有权清单，再重新计划；不得套用通用 managed 规则。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
@@ -61,9 +63,9 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
     ```
 
     每个剩余且已复核的 `manual_merge` 分类都必须重复传入 `--resolved-manual <path>`。精确集合必须与计划匹配，否则记录失败。`manual_add` 必须先创建目标并生成新的已复核收敛计划。绝不得记录仍有 `add`、`manual_add`、`delete`、`update`、阻断项、已变更计划、源 Harness 必需 managed 路径遗漏或未经复核混合路径的基线。
-13. 完成任何 `managed-self` 更新后，重新运行升级后更新器的相关测试和只读计划。只更新被独立事件触发的下游记忆：重要阻断或交接更新 Status，符合范围的新增、行为/契约变化、移除或安全事项更新 Changelog，用户要求完整验收或长期审计时更新 Verification。普通缺陷修复、纯重构和内部清理本身不触发这些记忆。不得导入源 Harness 的任何项目记忆或批准历史。
+13. 完成任何 `managed-self` 更新后，重新运行升级后更新器的相关测试和只读计划。只更新被独立事件触发的下游记忆：重要阻断或交接交 `$desktop-handoff-project` 更新 Status，符合范围的新增、行为/契约变化、移除或安全事项更新 Changelog，真实渠道分发后的记录或独立回顾性人工复核/长期审计才更新 Verification；候选完整验收只写忽略的 release/ 证据。普通缺陷修复、纯重构和内部清理本身不触发这些记忆。不得导入源 Harness 的任何项目记忆或批准历史。
 14. 若第 4 步确认目标是已存在的独立 Git 项目但缺少 `.harness/version-state.json`，必须先完成并记录上述工程层升级，随后停止自动流程，向用户明确说明：旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 历史无法恢复；迁移只会以当前合法 Cargo 版本建立空周期基线；升级器本身没有写入受保护状态。只有用户对这次迁移明确批准后，才由目标项目中的 `$desktop-manage-version` 执行 `node .agents/skills/desktop-manage-version/scripts/version_gate.mjs init --project-root "<downstream-root>" --migration-approved`，并复核输出的 `migration: true`、`history_status: unrecoverable-pre-migration-history`、空 `pending_changes`/`applied_bug_ids` 与 Cargo 版本一致。未获批准时不得代替用户推断或执行，必须把工程层升级与仍待批准的版本状态迁移分别报告，且不得声称整个升级闭环完成。
-15. 工程层收敛并记录基线、且第 14 步适用的版本状态迁移完成后，在目标根调用 `node .agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs inspect --project-root "<downstream-root>"`。旧 schema 3 的 `selection_required` 必须询问用户选择本地打包或提交远程，由目标项目中的 `$desktop-switch-post-release-action` 先在保护既有项目规则的前提下合并旧策略正文与新发布后规则，再按本次明确选择原子迁移 frontmatter 至 schema 4，并记录当日 ADR；旧正文中“发布后另行请求”或“无 release 分支”的相反规则未清除时 `set/check` 必须阻断；升级器 `plan|apply|record` 绝不得代写或传入选择。已有合法 schema 4 保留目标选择，不再次询问。随后运行 `node .agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs check --project-root "<downstream-root>"`，复核 `status: configured` 与合法持久值。缺选、非法状态、写入或 ADR 复核失败时，只能报告工程基线已记录，不能声称整个升级闭环完成。
+15. 工程层收敛并记录基线、且第 14 步适用的版本状态迁移完成后，在目标根调用 `node .agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs inspect --project-root "<downstream-root>"`。旧 schema 3 的 `selection_required` 必须询问用户选择本地打包或提交远程，由目标项目中的 `$desktop-switch-post-release-action` 先在保护既有项目规则的前提下合并旧策略正文与新发布后规则，再按本次明确选择原子迁移 frontmatter 至 schema 4，并记录当日 ADR；旧正文中“发布后另行请求”或“无 release 分支”的相反规则未清除时 `set/check` 必须阻断；升级器 `plan|apply|record` 绝不得代写或传入选择。已有合法 schema 4/5 保留目标选择，不再次询问。随后运行 `node .agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs check --project-root "<downstream-root>"`，复核 `status: configured` 与合法持久值。缺选、非法状态、写入或 ADR 复核失败时，只能报告工程基线已记录，不能声称整个升级闭环完成。
 
 ## 安全边界
 
@@ -77,4 +79,12 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 
 ## 完成要求
 
-报告源与目标身份、基线状态、试运行分类、已批准和已应用路径、保留的本地修改、冲突、本次测试或替代验证、锁文件更新、未验证平台和剩余风险。未显式请求时，构建与完整验收均为 `Not run`；仅有成功的试运行不代表升级完成。必须报告发布后动作的原值、最终值与 schema 4 强制检查结果；旧项目缺选时不得把工程层完成误报为完整升级。
+报告源与目标身份、基线状态、试运行分类、已批准和已应用路径、保留的本地修改、冲突、本次测试或替代验证、锁文件更新、未验证平台和剩余风险。未显式请求时，构建与完整验收均为 `Not run`；仅有成功的试运行不代表升级完成。必须报告发布后动作的原值、最终值与 schema 4/5 强制检查结果；旧项目缺选时不得把工程层完成误报为完整升级。
+
+四项跨接口知识入口 `$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy` 及其 references、helper/测试必须完整传播且与源摘要一致；策略实例仍 protected，升级不得启用能力或改写用户选择。
+
+跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。Tauri GUI 条件完整传播 `$desktop-enable-gui-updates` 与 `$desktop-add-gui-telemetry`；GPUI GUI 条件完整传播 `$desktop-add-gpui-autostart`，均不自动启用。`$desktop-test-gpui-initialization-e2e` 为初始化专用 tombstone，完成基线前删除，升级永久不恢复；产品 profile、支持实例和根清单继续 protected。
+
+完整 managed 传播 `$desktop-manage-task-worktrees`（SKILL 与 metadata），即使 task_worktrees 关闭也保留。schema 3/4 发布动作保持合法读取，schema 4 新环境选择为 selection_required；工程升级不得补默认值、改确认元数据、用户级 AGENTS 或迁移既有 Task/Worktree。受保护正文按章节合并后，由用户明确补选并通过 `$desktop-configure-agent-policy migrate-task-worktrees` 从 schema 4 迁移至 5；schema 3 先由动作专用流程迁移至 4。
+
+统一 Task/工作树合同完整 managed 传播 `$desktop-task-workflow` 的 SKILL、metadata 与 references；旧三个入口仅兼容路由，脚本路径保持兼容。独立工作树尽量并行创建，只有同 Local cwd 与共享状态写入短串行。GPUI 项目本地 `.agents/skills/gpui-kit/**` 与 `.agents/skills/gpui-kit-design-guides/**` 是 protected 第三方文档，不进入候选或来源锁，不由升级覆盖/安装；仅新建 GPUI 下游在初始化阶段安装固定来源快照。

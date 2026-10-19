@@ -18,6 +18,31 @@ const IDENTITY_KEYS = ["user.name", "user.email"];
 
 export class ConfigurationError extends Error {}
 
+/** 校验消息的确定格式和中文摘要；此检查不证明中文表达准确或与差异相符。 */
+export function validateCommitMessage(message) {
+  if (typeof message !== "string" || !message.trim()) throw new ConfigurationError("commit message must be non-empty");
+  if (!message.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\ufffd]/u.test(message) || /\r(?!\n)/u.test(message)) {
+    throw new ConfigurationError("commit message contains invalid control characters or UTF-8 replacement characters");
+  }
+  const subject = message.split(/\r?\n/u)[0];
+  if (!subject || subject !== subject.trim() || subject.startsWith("#")) throw new ConfigurationError("commit subject must be a non-empty trimmed line, not a template comment");
+  // 从 Conventional Commit 的摘要部分判断，scope 中的汉字不能掩盖纯英文摘要。
+  const summary = subject.replace(/^[A-Za-z][A-Za-z0-9-]*(?:\([^\r\n()]+\))?!?:[ \t]*/u, "");
+  if (!/\p{Script=Han}/u.test(summary)) throw new ConfigurationError("commit summary must use Chinese; review its meaning against the diff");
+  return { status: "ok", subject };
+}
+
+/** 严格读取普通 UTF-8 消息文件；不访问仓库配置或安装模板。 */
+export function checkMessageFile(messageFile) {
+  const stat = lstatOrNull(messageFile);
+  if (!stat?.isFile() || stat.isSymbolicLink()) throw new ConfigurationError("message file must be a regular file");
+  const bytes = fs.readFileSync(messageFile);
+  let message;
+  try { message = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { throw new ConfigurationError("message file must be valid UTF-8"); }
+  return validateCommitMessage(message);
+}
+
 function expandHome(value) {
   if (value === "~") return os.homedir();
   if (value.startsWith(`~${path.sep}`)) return path.join(os.homedir(), value.slice(2));
@@ -276,6 +301,11 @@ export function checkInstallation(projectRoot) {
 
 function parseCommand(argv) {
   const command = argv[0];
+  if (command === "message-check") {
+    const { values } = parseArgs({ args: argv.slice(1), options: { "message-file": { type: "string" } }, strict: true });
+    if (!values["message-file"]) throw new ConfigurationError("--message-file is required");
+    return { command, values };
+  }
   if (!["install", "check", "identity-bootstrap", "identity-check", "identity-report"].includes(command)) throw new ConfigurationError("a valid command is required");
   const options = { "project-root": { type: "string" } };
   if (command === "install") options.replace = { type: "boolean", default: false };
@@ -287,6 +317,7 @@ function parseCommand(argv) {
 
 function main(argv) {
   const { command, values } = parseCommand(argv);
+  if (command === "message-check") return checkMessageFile(values["message-file"]);
   if (command === "install") return install(values["project-root"], { replace: values.replace });
   if (command === "check") return checkInstallation(values["project-root"]);
   if (command === "identity-bootstrap") return bootstrapIdentity(values["project-root"], { fallbackUsername: values["fallback-username"] });

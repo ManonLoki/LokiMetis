@@ -4,6 +4,12 @@
 
 仅匹配根 Cargo metadata 中 `interfaces` 包含 `gui` 且 `gui-framework = "gpui"` 的原生桌面界面。技术栈和模板入口由 `$desktop-add-gpui-adapter` 管理；本标准不引入 Tauri、WebView、React、Mantine 或 JavaScript 图标库；Node.js/pnpm 工程脚本入口由 GPUI adapter Skill 管理。
 
+## GPUI Kit 官方知识
+
+GPUI 下游创建时在项目 `.agents/skills/` 安装官方 `$gpui-kit` 与 `$gpui-kit-design-guides`，其它框架与非 GUI 不安装。前者用于 Coding Guides、组件/API、实体/事件/异步和测试，后者用于 Design Guides、布局/主题/密度、交互状态和可见文案；按 Skill 的阅读路由加载当前主题。官方原文、全部 references、Apache-2.0 许可与固定 revision/逐文件摘要一起保留，原样跨 Skill/仓库链接的语义映射见各自 `HARNESS-INTEGRATION.md`。来源于 [GPUI Kit 官方 skills](https://github.com/longbridge/gpui-kit/tree/0bbd9870ce420af9feacbf948b21d3824d82dc0b/skills)，于 2026-10-10 核对。
+
+这些知识服从用户指令、本项目工程边界与已确认的 GUI profile；不自动改变下述壳层尺寸或安装新依赖。使用 API 时核对项目实际 gpui-kit 版本。知识资产安装只复制固定本地文件，不联网、不执行远程脚本、不全局安装；通用 Harness 升级保护已安装第三方内容。
+
 ## 壳层与信息架构
 
 - 原生窗口、根视图、菜单、纯交互状态、主题和语言属于 `<project-id>_gui`；业务规则与权威业务状态仍属于 `<project-id>_core`。中性初始化只显示脚手架状态，不生成业务功能或示例数据。
