@@ -108,7 +108,8 @@ mod test_host {
     }
     /// 原生调用的显式失败夹具不会污染其它线程或后续成功操作。
     pub fn fail_next_apply() { APPLY_FAILURE.with(|failure| failure.set(true)); }
-    /// 单次显隐失败只作用于当前测试线程，不影响后续恢复请求。
+    /// 单次显隐失败只作用于当前测试线程，不影响后续恢复请求；仅 Linux 主窗恢复回归使用。
+    #[cfg(target_os = "linux")]
     pub fn fail_next_visibility() { VISIBILITY_FAILURE.with(|failure| failure.set(true)); }
     /// 让指定轮数返回未确认，用真实 timer 驱动 controller 等待回归。
     pub fn delay_settle(turns: usize) { SETTLE_PENDING.with(|pending| pending.set(turns)); }

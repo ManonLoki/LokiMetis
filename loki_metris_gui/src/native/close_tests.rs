@@ -126,6 +126,14 @@ fn deferred_close_hide_rechecks_the_restore_entry(cx: &mut TestAppContext) {
     finish(f, cx);
 }
 
+/// 启动收尾只计数回退显示，不驱动真实宿主显窗。
+fn complete_counting_shows(cx: &mut TestAppContext, hidden: bool) -> Rc<Cell<usize>> {
+    let shows = Rc::new(Cell::new(0));
+    let observed = shows.clone();
+    cx.update(|cx| startup::complete(hidden, cx, move |_| observed.set(observed.get() + 1)));
+    shows
+}
+
 /// 隐藏创建不向 Linux 平台发出首次 map，普通创建仍映射同一真实窗口。
 #[gpui_kit::test]
 fn startup_hidden_window_does_not_request_initial_map(cx: &mut TestAppContext) {
@@ -140,9 +148,7 @@ fn startup_hidden_window_does_not_request_initial_map(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn startup_waits_for_tray_confirmation_without_showing(cx: &mut TestAppContext) {
     let f = fixture_with_visibility(cx, true, false, false);
-    let shows = Rc::new(Cell::new(0));
-    let observed = shows.clone();
-    cx.update(|cx| startup::complete(true, cx, move |_| observed.set(observed.get() + 1)));
+    let shows = complete_counting_shows(cx, true);
     cx.run_until_parked();
     assert_eq!(shows.get(), 0);
     cx.executor().advance_clock(Duration::from_millis(500));
@@ -165,9 +171,7 @@ fn startup_manual_and_missing_restore_paths_show_immediately(cx: &mut TestAppCon
     for (hidden, x11, installed) in [(false, true, true), (true, false, true), (true, true, false)] {
         let f = fixture_with_visibility(cx, x11, false, false);
         if !installed { cx.update(|cx| cx.global_mut::<Services>().tray_restore_available_for_test = None); }
-        let shows = Rc::new(Cell::new(0));
-        let observed = shows.clone();
-        cx.update(|cx| startup::complete(hidden, cx, move |_| observed.set(observed.get() + 1)));
+        let shows = complete_counting_shows(cx, hidden);
         assert_eq!(shows.get(), 1);
         assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
         finish(f, cx);
@@ -178,9 +182,7 @@ fn startup_manual_and_missing_restore_paths_show_immediately(cx: &mut TestAppCon
 #[gpui_kit::test]
 fn startup_unconfirmed_tray_times_out_to_visible_window(cx: &mut TestAppContext) {
     let f = fixture_with_visibility(cx, true, false, false);
-    let shows = Rc::new(Cell::new(0));
-    let observed = shows.clone();
-    cx.update(|cx| startup::complete(true, cx, move |_| observed.set(observed.get() + 1)));
+    let shows = complete_counting_shows(cx, true);
     cx.run_until_parked();
     for tick in 1..=75 {
         cx.executor().advance_clock(Duration::from_millis(40));
@@ -195,9 +197,7 @@ fn startup_unconfirmed_tray_times_out_to_visible_window(cx: &mut TestAppContext)
 #[gpui_kit::test]
 fn startup_delayed_poll_still_observes_the_total_deadline(cx: &mut TestAppContext) {
     let f = fixture_with_visibility(cx, true, false, false);
-    let shows = Rc::new(Cell::new(0));
-    let observed = shows.clone();
-    cx.update(|cx| startup::complete(true, cx, move |_| observed.set(observed.get() + 1)));
+    let shows = complete_counting_shows(cx, true);
     cx.run_until_parked();
     cx.executor().advance_clock(Duration::from_secs(4));
     cx.run_until_parked();

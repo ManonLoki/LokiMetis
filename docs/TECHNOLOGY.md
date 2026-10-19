@@ -69,6 +69,7 @@
 | --- | --- | --- |
 | `tray-icon` | `=0.26.1` | 关闭默认特征；macOS/Windows 普通继承，Linux 增加 `ksni`，路径补丁见下节 |
 | `auto-launch` | `0.6.0` | 自启状态与注册；启动不自动注册 |
+| `dirs` | `6.0.0` | 仅 Linux GUI；XDG 登录项读取与 auto-launch 写入共用 home 解析 |
 | `interprocess` | `2.4.5` | 单实例本地 IPC |
 | `global-hotkey` | `0.8.0` | 已选快捷键能力；当前 action 合同为空，无键位注册 |
 | `ashpd` | `0.13.13` | 仅 Linux，关闭默认特征，`async-io,global_shortcuts`；Portal 热键依赖准备，后台服务尚未接线 |

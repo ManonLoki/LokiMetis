@@ -8,22 +8,12 @@ use x11rb::{
     connection::Connection as _,
     properties::WmSizeHints,
     protocol::{randr::ConnectionExt as _, shape::{ConnectionExt as _, SK, SO}, xproto::{
-        AtomEnum, ClientMessageEvent, ClipOrdering, ConfigureWindowAux, ConnectionExt as _,
-        EventMask, MapState, PropMode,
+        AtomEnum, ClipOrdering, ConfigureWindowAux, ConnectionExt as _, MapState, PropMode,
     }},
-    rust_connection::RustConnection,
     wrapper::ConnectionExt as _,
 };
-
-/// 每次操作重新核对活窗，连接只拥有本次协议请求，不跨窗口缓存 XID。
-struct NativeWindow {
-    /// 本次操作独占的 X11 连接。
-    connection: RustConnection,
-    /// 目标窗口 XID，已经 GetGeometry 验证存活。
-    window: u32,
-    /// 目标窗口所在屏幕的 root 窗口。
-    root: u32,
-}
+/// 活窗连接、原子与 EWMH 状态协议由主窗共用实现提供，本模块只扩展桌宠几何与输入区域。
+use crate::native::linux::X11Window as NativeWindow;
 
 /// 全局物理矩形只在 X11 边界使用，转换到 GPUI 时才除以当前窗口 scale。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,26 +52,6 @@ impl PhysicalRect {
 }
 
 impl NativeWindow {
-    /// X11 和 XWayland 共用原生协议；Wayland toplevel 不具备全局定位和置顶合同。
-    #[cfg(not(test))]
-    fn capture(window: &Window) -> anyhow::Result<Self> {
-        Self::connect(crate::native::linux::x11_window_id(window)?)
-    }
-    /// GetGeometry 验证 XID 仍属于当前服务器，并从窗口取得真实 root。
-    fn connect(window: u32) -> anyhow::Result<Self> {
-        let (connection, _) = x11rb::connect(None)?;
-        let root = connection.get_geometry(window)?.reply()?.root;
-        Ok(Self { connection, window, root })
-    }
-    /// 原子名由服务器分配，不使用跨服务器静态缓存。
-    fn atom(&self, name: &[u8]) -> anyhow::Result<u32> {
-        Ok(self.connection.intern_atom(false, name)?.reply()?.atom)
-    }
-    /// 有界读取 32 位属性；类型不匹配或字段缺失由调用方确定回退。
-    fn property(&self, window: u32, name: &[u8], kind: AtomEnum, limit: u32) -> anyhow::Result<Vec<u32>> {
-        Ok(self.connection.get_property(false, window, self.atom(name)?, kind, 0, limit)?
-            .reply()?.value32().map(Iterator::collect).unwrap_or_default())
-    }
     /// 客户区原点经 root 转换，避免窗口管理器重设父级后保存 frame 内局部坐标。
     fn bounds(&self) -> anyhow::Result<PhysicalRect> {
         let geometry = self.connection.get_geometry(self.window)?.reply()?;
@@ -131,29 +101,6 @@ impl NativeWindow {
         }
         self.connection.change_property32(PropMode::REPLACE, self.window,
             self.atom(b"_LOKI_METRIS_AUXILIARY_VISIBLE")?, AtomEnum::CARDINAL, &[u32::from(visible)])?.check()?;
-        self.connection.flush()?;
-        Ok(())
-    }
-    /// 已映射窗口始终交由 WM 解释 EWMH；回执只证明请求被服务器接受，确认交给异步 settle。
-    fn request_state(&self, atom: u32, enabled: bool) -> anyhow::Result<()> {
-        let event = ClientMessageEvent::new(32, self.window, self.atom(b"_NET_WM_STATE")?, [u32::from(enabled), atom, 0, 1, 0]);
-        self.connection.send_event(false, self.root,
-            EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY, event)?.check()?;
-        Ok(())
-    }
-    /// 初次 map 前直接登记 EWMH 状态，已映射窗口用 ClientMessage 通知 WM 保持置顶。
-    fn state(&self, atom: u32, enabled: bool) -> anyhow::Result<()> {
-        let property = self.atom(b"_NET_WM_STATE")?;
-        let mut states = self.property(self.window, b"_NET_WM_STATE", AtomEnum::ATOM, 256)?;
-        if states.contains(&atom) == enabled { return Ok(()); }
-        states.retain(|state| *state != atom);
-        if enabled { states.push(atom); }
-        let mapped = self.connection.get_window_attributes(self.window)?.reply()?.map_state != MapState::UNMAPPED;
-        if !mapped {
-            self.connection.change_property32(PropMode::REPLACE, self.window, property, AtomEnum::ATOM, &states)?.check()?;
-        } else {
-            self.request_state(atom, enabled)?;
-        }
         self.connection.flush()?;
         Ok(())
     }

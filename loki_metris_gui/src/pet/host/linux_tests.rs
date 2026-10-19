@@ -1,7 +1,7 @@
 //! 纯坐标回归与显式真实 X11 窗口回归分开；后者只操作测试自己创建的 XID。
 
 use super::*;
-use x11rb::{properties::WmHints, protocol::xproto::{CreateWindowAux, WindowClass}};
+use x11rb::{properties::WmHints, protocol::xproto::{CreateWindowAux, WindowClass}, rust_connection::RustConnection};
 
 /// 创建者连接贯穿同一测试进程，避免快速换连接复用 XID 后被上一窗口的 WM 事件误认。
 static SERVER: std::sync::OnceLock<(RustConnection, u32)> = std::sync::OnceLock::new();

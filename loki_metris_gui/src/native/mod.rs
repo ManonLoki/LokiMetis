@@ -188,7 +188,7 @@ fn sync_linux_main(available: bool, cx: &mut App) {
     let service = cx.global::<Services>();
     if !service.main_is_x11 { return; }
     let (main, mut request) = (service.main, service.main_taskbar_request);
-    if request.sync(available, |skip| main.update(cx, |_, window, _| linux::set_skip_taskbar(window, skip, false))?).is_err() {
+    if request.sync(available, |skip| main.update(cx, |_, window, _| linux::set_skip_taskbar(window, skip))?).is_err() {
         tracing::warn!(event="linux_taskbar_request_failed");
     }
     cx.global_mut::<Services>().main_taskbar_request = request;
@@ -210,7 +210,10 @@ pub(crate) fn refresh_menu_after_activation(cx: &mut App) {
 
 /// 主动显示统一捕获入口鼠标屏；原生修改由前台 task 在借用之外执行。
 pub fn show(handle: AnyWindowHandle, cx: &mut App) {
-    next_window_action(cx);
+    // 先推进代次撤销等待中的隐藏启动；延迟显窗沿用同一代次。
+    let generation = next_window_action(cx);
+    #[cfg(all(not(target_os = "linux"), test))]
+    let _ = generation;
     #[cfg(all(any(target_os="macos", windows), not(test)))]
     {
         let desktop = windowing::capture_desktop(cx);
@@ -219,7 +222,6 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
             Ok(desktop) => show_on_desktop(handle, desktop, cx),
             Err(_) => {
                 tracing::warn!(event="window_desktop_unavailable");
-                let generation = next_window_action(cx);
                 let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
                 cx.spawn(async move |cx| {
                     let live = cx.update(|cx| window_action_current(generation, cx) && handle.update(cx, |_, _, _| ()).is_ok());
@@ -232,8 +234,6 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
     {
     #[cfg(windows)]
     let native = cx.try_global::<Services>().and_then(|services| services.window);
-    #[cfg(target_os = "linux")]
-    let generation = next_window_action(cx);
     cx.defer(move |cx| {
         #[cfg(target_os = "linux")]
         if !window_action_current(generation, cx) { return; }
@@ -241,24 +241,14 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
         if let Some(window) = native { window.show(); }
         cx.activate(true);
         let _ = handle.update(cx, |_, window, cx| {
+            // 安装时已捕获主窗 X11 能力；服务安装前才直接探测窗口句柄。
             #[cfg(target_os = "linux")]
-            let is_x11 = linux::x11_window_id(window).is_ok();
-            // 虚拟窗口仅在显式夹具中复用已捕获的能力事实，原生显隐仍走测试宿主驱动。
-            #[cfg(all(target_os = "linux", test))]
-            let is_x11 = is_x11 || cx.try_global::<Services>().is_some_and(|service| service.main_is_x11);
+            let is_x11 = cx.try_global::<Services>().map_or_else(|| linux::x11_window_id(window).is_ok(), |service| service.main_is_x11);
             #[cfg(target_os = "linux")]
             if is_x11 {
-                // 首次映射前准备状态；映射后的下一轮再发请求，覆盖 WM 撤回时删除属性的情况。
-                if linux::set_skip_taskbar(window, tray_restore_available(cx), true).is_err() {
-                    tracing::warn!(event="linux_taskbar_request_failed");
-                }
-                let mapped = crate::pet::host::set_visible(window, true).is_ok();
+                let mapped = linux::show_skipping_taskbar(window, tray_restore_available(cx), |window| crate::pet::host::set_visible(window, true));
                 if !mapped {
                     tracing::warn!(event="main_window_show_failed");
-                }
-                // MapRequest 后无条件补发；不依赖 WM 是否已经删除或重建了 _NET_WM_STATE。
-                if linux::set_skip_taskbar(window, tray_restore_available(cx), false).is_err() {
-                    tracing::warn!(event="linux_taskbar_request_failed");
                 }
                 // 最小化时 WM 的父框可能尚未映射；仍须发 _NET_ACTIVE_WINDOW 解除隐藏。
                 if cx.has_global::<Services>() {

@@ -17,7 +17,8 @@ export function inspectRepository(root) {
   if (canonical === null) return report;
   const [visible, errors] = gitVisiblePaths(canonical);
   if (errors.length) {
-    report.errors.push(...errors);
+    // 上游同一枚举失败已记录；只补充本次新出现的错误，避免重复诊断。
+    report.errors.push(...errors.filter(error => !report.errors.includes(error)));
     report.ok = false;
     return report;
   }
@@ -30,7 +31,9 @@ export function inspectRepository(root) {
   const alreadyExcluded = new Set(report.excludedGeneratedFiles);
   for (const relative of excluded) {
     if (alreadyExcluded.has(relative)) continue;
-    const payload = readFileSync(path.join(canonical, relative));
+    // 与上游 readText 的文本判定一致：无 NUL 且严格 UTF-8 才曾计入 checkedTextFiles。
+    let payload;
+    try { payload = readFileSync(path.join(canonical, relative)); } catch { continue; /* 登记校验会报告缺失或不可读。 */ }
     if (!payload.includes(0)) {
       try {
         new TextDecoder('utf-8', { fatal: true }).decode(payload);

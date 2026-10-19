@@ -2,13 +2,11 @@
 
 use std::{fs::File, io::{self, Read}, path::Path};
 
-/// auto-launch 0.6 的 XDG 路径固定在 HOME/.config；此处只读相同的本应用条目。
+/// auto-launch 0.6 以 dirs::home_dir 定位 ~/.config/autostart/<应用名>.desktop；读取复用同一解析，只读本应用条目。
 pub(super) fn is_enabled(handle: &auto_launch::AutoLaunch) -> io::Result<bool> {
-    let home = std::env::var_os("HOME").map(std::path::PathBuf::from)
-        .filter(|path| path.is_absolute()).ok_or(io::ErrorKind::NotFound)?;
-    let path = home.join(".config/autostart/com.loki-metris.app.desktop");
-    let command = format!("{} {}", handle.get_app_path(), handle.get_args().join(" "));
-    read_entry(&path, &command)
+    let home = dirs::home_dir().ok_or(io::ErrorKind::NotFound)?;
+    let path = home.join(".config/autostart").join(format!("{}.desktop", handle.get_app_name()));
+    read_entry(&path, &super::launch_command(handle.get_app_path()))
 }
 
 /// 有界读取区分缺失、损坏与权限错误；查询不改写旧项或其它桌面字段。

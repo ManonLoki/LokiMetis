@@ -32,24 +32,27 @@ pub(crate) fn complete(hidden: bool, cx: &mut gpui_kit::App, show: impl FnOnce(&
     cx.spawn(async move |cx| {
         // 真实恢复入口来自已有后台探测，不在事件线程查询 D-Bus。
         loop {
-            let decision = cx.update(|cx| {
-                if !cx.has_global::<super::Services>() || !super::window_action_current(generation, cx) { return Some(false); }
+            let step = cx.update(|cx| {
+                if !cx.has_global::<super::Services>() || !super::window_action_current(generation, cx) { return Step::Stop; }
                 if super::tray_restore_available(cx) {
                     #[cfg(target_os = "linux")]
                     { cx.global_mut::<super::Services>().main_hidden = true; }
                     tracing::info!(event = "application_started_hidden");
-                    return Some(false);
+                    return Step::Stop;
                 }
-                (executor.now() >= deadline || !tray_installed(cx.global::<super::Services>())).then_some(true)
+                if executor.now() >= deadline || !tray_installed(cx.global::<super::Services>()) { Step::Show } else { Step::Wait }
             });
-            if let Some(should_show) = decision {
-                if should_show { cx.update(show); }
-                return;
+            match step {
+                Step::Stop => return,
+                Step::Show => return cx.update(show),
+                Step::Wait => executor.timer(std::time::Duration::from_millis(40).min(deadline.saturating_duration_since(executor.now()))).await,
             }
-            executor.timer(std::time::Duration::from_millis(40).min(deadline.saturating_duration_since(executor.now()))).await;
         }
     }).detach();
 }
+
+/// 隐藏启动等待的单轮结论：托盘已接管或意图失效、回退显示、继续等待。
+enum Step { Stop, Show, Wait }
 
 /// 测试仅替换托盘存在性及恢复事实，生产仍由实际托盘对象拥有生命周期。
 fn tray_installed(service: &super::Services) -> bool {

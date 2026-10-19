@@ -3,7 +3,7 @@
 use gpui_kit::{GraphicalEnvironment, Window};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::sync::OnceLock;
-use x11rb::{protocol::xproto::{AtomEnum, ClientMessageEvent, ConnectionExt as _, EventMask, MapState, PropMode}, wrapper::ConnectionExt as _};
+use x11rb::{connection::Connection as _, protocol::xproto::{AtomEnum, ClientMessageEvent, ConnectionExt as _, EventMask, MapState, PropMode}, rust_connection::RustConnection, wrapper::ConnectionExt as _};
 
 /// 启动前解码并缓存有限尺寸；窗口线程只提交已准备的 ARGB 像素。
 static ICON: OnceLock<Vec<u32>> = OnceLock::new();
@@ -27,39 +27,101 @@ impl TaskbarRequest {
     pub(crate) fn invalidate(&mut self) { self.0 = None; }
 }
 
-/// 从主窗真实句柄申请跳过任务栏；仅 map 前允许准备初始属性，map 后必须只发消息。
-pub(crate) fn set_skip_taskbar(window: &Window, skip: bool, prepare_initial_state: bool) -> anyhow::Result<()> {
-    let handle = x11_window_id(window)?;
-    let (connection, _) = x11rb::connect(None)?;
-    request_skip_taskbar(&connection, handle, skip, prepare_initial_state)
+/// 从已映射主窗的真实句柄申请跳过任务栏；只发 EWMH 消息，不改写 WM 拥有的属性。
+pub(crate) fn set_skip_taskbar(window: &Window, skip: bool) -> anyhow::Result<()> {
+    X11Window::capture(window)?.request_skip_taskbar(skip, false)
 }
 
-/// 撤回窗口合并初始状态；最小化及已管理窗口只发 EWMH 请求，保留 WM 拥有的其它状态。
-/// 协议依据：https://specifications.freedesktop.org/wm/latest/ar01s05.html 的 5.7 节。
-fn request_skip_taskbar(connection: &impl x11rb::connection::Connection, handle: u32, skip: bool, prepare_initial_state: bool) -> anyhow::Result<()> {
-    let root = connection.get_geometry(handle)?.reply()?.root;
-    let state = connection.intern_atom(false, b"_NET_WM_STATE")?.reply()?.atom;
-    let skip_atom = connection.intern_atom(false, b"_NET_WM_STATE_SKIP_TASKBAR")?.reply()?.atom;
-    if prepare_initial_state {
-        let wm_state = connection.intern_atom(false, b"WM_STATE")?.reply()?.atom;
-        let attributes = connection.get_window_attributes(handle)?.reply()?;
-        let managed = connection.get_property(false, handle, wm_state, wm_state, 0, 2)?.reply()?
-            .value32().and_then(|mut values| values.next()).is_some_and(|value| value != 0);
-        if attributes.map_state == MapState::UNMAPPED && !managed {
-            let property = connection.get_property(false, handle, state, AtomEnum::ATOM, 0, 256)?.reply()?;
-            anyhow::ensure!(property.bytes_after == 0 && (property.type_ == u32::from(AtomEnum::NONE)
-                || (property.type_ == u32::from(AtomEnum::ATOM) && property.format == 32)), "invalid window state property");
-            let mut states: Vec<_> = property.value32().map(Iterator::collect).unwrap_or_default();
-            states.retain(|atom| *atom != skip_atom);
-            if skip { states.push(skip_atom); }
-            connection.change_property32(PropMode::REPLACE, handle, state, AtomEnum::ATOM, &states)?.check()?;
-        }
+/// 显窗复用同一连接：map 前准备初始状态，MapRequest 后无条件补发，不依赖 WM 是否删除或重建 _NET_WM_STATE。
+pub(crate) fn show_skipping_taskbar(window: &Window, skip: bool, map: impl FnOnce(&Window) -> anyhow::Result<()>) -> bool {
+    let native = X11Window::capture(window);
+    let request = |prepare_initial_state| {
+        let failed = match &native {
+            Ok(native) => native.request_skip_taskbar(skip, prepare_initial_state).is_err(),
+            Err(_) => true,
+        };
+        if failed { tracing::warn!(event="linux_taskbar_request_failed"); }
+    };
+    request(true);
+    let mapped = map(window).is_ok();
+    request(false);
+    mapped
+}
+
+/// 主窗与桌宠共用的 X11 活窗；每次操作重新核对活窗，连接只拥有本次协议请求，不跨窗口缓存 XID。
+pub(crate) struct X11Window {
+    /// 本次操作独占的 X11 连接。
+    pub(crate) connection: RustConnection,
+    /// 目标窗口 XID，已经 GetGeometry 验证存活。
+    pub(crate) window: u32,
+    /// 目标窗口所在屏幕的 root 窗口。
+    pub(crate) root: u32,
+}
+
+impl X11Window {
+    /// X11 和 XWayland 共用原生协议；Wayland toplevel 不具备全局定位和 EWMH 合同。
+    pub(crate) fn capture(window: &Window) -> anyhow::Result<Self> {
+        Self::connect(x11_window_id(window)?)
     }
-    // 即使初始属性刚写入，也补发请求，覆盖另一连接的 MapWindow 已在途的情形。
-    let event = ClientMessageEvent::new(32, handle, state, [u32::from(skip), skip_atom, 0, 1, 0]);
-    connection.send_event(false, root, EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY, event)?.check()?;
-    connection.flush()?;
-    Ok(())
+    /// GetGeometry 验证 XID 仍属于当前服务器，并从窗口取得真实 root。
+    pub(crate) fn connect(window: u32) -> anyhow::Result<Self> {
+        let (connection, _) = x11rb::connect(None)?;
+        let root = connection.get_geometry(window)?.reply()?.root;
+        Ok(Self { connection, window, root })
+    }
+    /// 原子名由服务器分配，不使用跨服务器静态缓存。
+    pub(crate) fn atom(&self, name: &[u8]) -> anyhow::Result<u32> {
+        Ok(self.connection.intern_atom(false, name)?.reply()?.atom)
+    }
+    /// 有界读取 32 位属性；类型不匹配或字段缺失由调用方确定回退。
+    pub(crate) fn property(&self, window: u32, name: &[u8], kind: AtomEnum, limit: u32) -> anyhow::Result<Vec<u32>> {
+        Ok(self.connection.get_property(false, window, self.atom(name)?, kind, 0, limit)?
+            .reply()?.value32().map(Iterator::collect).unwrap_or_default())
+    }
+    /// 已映射窗口始终交由 WM 解释 EWMH；回执只证明请求被服务器接受，确认交给调用方读回。
+    pub(crate) fn request_state(&self, atom: u32, enabled: bool) -> anyhow::Result<()> {
+        let event = ClientMessageEvent::new(32, self.window, self.atom(b"_NET_WM_STATE")?, [u32::from(enabled), atom, 0, 1, 0]);
+        self.connection.send_event(false, self.root,
+            EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY, event)?.check()?;
+        Ok(())
+    }
+    /// 只有撤回窗口允许客户端直接写入 _NET_WM_STATE，否则交由 WM 解释请求。
+    pub(crate) fn state(&self, atom: u32, enabled: bool) -> anyhow::Result<()> {
+        let states = self.property(self.window, b"_NET_WM_STATE", AtomEnum::ATOM, 256)?;
+        if states.contains(&atom) == enabled { return Ok(()); }
+        if self.withdrawn()? { self.write_initial_state(atom, enabled)?; } else { self.request_state(atom, enabled)?; }
+        self.connection.flush()?;
+        Ok(())
+    }
+    /// 撤回窗口合并初始状态后仍补发请求，覆盖另一连接的 MapWindow 已在途的情形。
+    fn request_skip_taskbar(&self, skip: bool, prepare_initial_state: bool) -> anyhow::Result<()> {
+        let atom = self.atom(b"_NET_WM_STATE_SKIP_TASKBAR")?;
+        if prepare_initial_state && self.withdrawn()? { self.write_initial_state(atom, skip)?; }
+        self.request_state(atom, skip)?;
+        self.connection.flush()?;
+        Ok(())
+    }
+    /// 未映射且 WM 未登记 WM_STATE 才是撤回窗口；最小化窗口仍归 WM 管理。
+    /// 协议依据：https://specifications.freedesktop.org/wm/latest/ar01s05.html 的 5.7 节。
+    fn withdrawn(&self) -> anyhow::Result<bool> {
+        if self.connection.get_window_attributes(self.window)?.reply()?.map_state != MapState::UNMAPPED { return Ok(false); }
+        let wm_state = self.atom(b"WM_STATE")?;
+        let managed = self.connection.get_property(false, self.window, wm_state, wm_state, 0, 2)?.reply()?
+            .value32().and_then(|mut values| values.next()).is_some_and(|value| value != 0);
+        Ok(!managed)
+    }
+    /// 只替换目标 atom，保留其它初始状态；损坏属性失败关闭而不是覆盖。
+    fn write_initial_state(&self, atom: u32, enabled: bool) -> anyhow::Result<()> {
+        let state = self.atom(b"_NET_WM_STATE")?;
+        let property = self.connection.get_property(false, self.window, state, AtomEnum::ATOM, 0, 256)?.reply()?;
+        anyhow::ensure!(property.bytes_after == 0 && (property.type_ == u32::from(AtomEnum::NONE)
+            || (property.type_ == u32::from(AtomEnum::ATOM) && property.format == 32)), "invalid window state property");
+        let mut states: Vec<_> = property.value32().map(Iterator::collect).unwrap_or_default();
+        states.retain(|value| *value != atom);
+        if enabled { states.push(atom); }
+        self.connection.change_property32(PropMode::REPLACE, self.window, state, AtomEnum::ATOM, &states)?.check()?;
+        Ok(())
+    }
 }
 
 /// 本会话有 X11/XWayland 时显式选择；不改写进程环境或伪造纯 Wayland 能力。
@@ -90,9 +152,8 @@ pub(crate) fn prepare_icon() {
 
 /// EWMH 图标属于当前活窗；ARGB 顺序、尺寸头及 app-id 对应最终包的桌面身份。
 pub(crate) fn install_icon(window: &Window) -> anyhow::Result<()> {
-    let handle = x11_window_id(window)?;
-    let (connection, _) = x11rb::connect(None)?;
-    write_icon(&connection, handle)
+    let native = X11Window::capture(window)?;
+    write_icon(&native.connection, native.window)
 }
 
 /// 对具体活 XID 写入有限像素，协议错误在调用栈返回，不把资源存在当作已提供窗口图标。

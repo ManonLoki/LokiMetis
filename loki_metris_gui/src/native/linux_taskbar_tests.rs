@@ -36,9 +36,8 @@ fn failed_dock_request_retries_before_caching() {
 
 /// 每个协议测试独占连接和未映射窗口；销毁只影响自身 XID，不改变用户窗口及 root 属性。
 struct ServerWindow {
-    connection: x11rb::rust_connection::RustConnection,
-    root: u32,
-    window: u32,
+    /// 生产共用的活窗协议对象，测试直接复用其连接创建和观察窗口。
+    native: X11Window,
     state: u32,
     skip: u32,
     above: u32,
@@ -53,23 +52,22 @@ impl ServerWindow {
         connection.create_window(x11rb::COPY_DEPTH_FROM_PARENT, window, root, 0, 0, 1, 1, 0,
             WindowClass::INPUT_OUTPUT, x11rb::COPY_FROM_PARENT, &CreateWindowAux::new().override_redirect(1))
             .unwrap().check().unwrap();
-        let atom = |name: &[u8]| connection.intern_atom(false, name).unwrap().reply().unwrap().atom;
-        let state = atom(b"_NET_WM_STATE");
-        let skip = atom(b"_NET_WM_STATE_SKIP_TASKBAR");
-        let above = atom(b"_NET_WM_STATE_ABOVE");
-        Self { connection, root, window, state, skip, above }
+        let native = X11Window { connection, window, root };
+        let (state, skip, above) = (native.atom(b"_NET_WM_STATE").unwrap(),
+            native.atom(b"_NET_WM_STATE_SKIP_TASKBAR").unwrap(), native.atom(b"_NET_WM_STATE_ABOVE").unwrap());
+        Self { native, state, skip, above }
     }
 
     /// 读取真实 ATOM 列表，缺失或错误类型均不能作为隐藏状态成功。
     fn states(&self) -> Vec<u32> {
-        self.connection.get_property(false, self.window, self.state, AtomEnum::ATOM, 0, 256)
+        self.native.connection.get_property(false, self.native.window, self.state, AtomEnum::ATOM, 0, 256)
             .unwrap().reply().unwrap().value32().unwrap().collect()
     }
 }
 
 impl Drop for ServerWindow {
     /// 断言失败也释放本测试窗口，不留下桌面入口或长驻客户端。
-    fn drop(&mut self) { let _ = self.connection.destroy_window(self.window); let _ = self.connection.flush(); }
+    fn drop(&mut self) { let _ = self.native.connection.destroy_window(self.native.window); let _ = self.native.connection.flush(); }
 }
 
 /// 初次显示和撤回窗口只改变 skip atom，保留最大化、置顶及未知状态，重复开启没有重复 atom。
@@ -77,17 +75,19 @@ impl Drop for ServerWindow {
 #[ignore = "requires a live X11 server; run explicitly for native Linux verification"]
 fn native_x11_taskbar_initial_state_preserves_other_atoms() {
     let f = ServerWindow::new();
-    let maximum = f.connection.intern_atom(false, b"_NET_WM_STATE_MAXIMIZED_VERT").unwrap().reply().unwrap().atom;
-    f.connection.change_property32(PropMode::REPLACE, f.window, f.state, AtomEnum::ATOM, &[f.above, maximum])
+    let (connection, window) = (&f.native.connection, f.native.window);
+    let maximum = f.native.atom(b"_NET_WM_STATE_MAXIMIZED_VERT").unwrap();
+    connection.change_property32(PropMode::REPLACE, window, f.state, AtomEnum::ATOM, &[f.above, maximum])
         .unwrap().check().unwrap();
     for skip in [true, true, false, false, true] {
-        request_skip_taskbar(&f.connection, f.window, skip, true).unwrap();
+        f.native.request_skip_taskbar(skip, true).unwrap();
         assert_eq!(f.states(), if skip { vec![f.above, maximum, f.skip] } else { vec![f.above, maximum] });
     }
-    request_skip_taskbar(&f.connection, f.window, false, false).unwrap();
+    f.native.request_skip_taskbar(false, false).unwrap();
     assert_eq!(f.states(), [f.above, maximum, f.skip], "map后或轮询只发消息，即使WM尚未映射也不能覆写属性");
-    f.connection.destroy_window(f.window).unwrap().check().unwrap();
-    assert!(request_skip_taskbar(&f.connection, f.window, true, false).is_err(), "失效窗口不能报告请求成功");
+    connection.destroy_window(window).unwrap().check().unwrap();
+    // 生产每次请求都经 GetGeometry 重新捕获活窗；发往 root 的消息本身不会校验目标 XID。
+    assert!(X11Window::connect(window).and_then(|native| native.request_skip_taskbar(true, false)).is_err(), "失效窗口不能报告请求成功");
 }
 
 /// 已映射或 Iconic 主窗始终交由 WM 解释 root 消息，客户端不得覆写已有状态列表。
@@ -95,19 +95,20 @@ fn native_x11_taskbar_initial_state_preserves_other_atoms() {
 #[ignore = "requires a live X11 server; run explicitly for native Linux verification"]
 fn native_x11_taskbar_managed_and_iconic_windows_send_state_messages() {
     let f = ServerWindow::new();
-    f.connection.change_window_attributes(f.root, &ChangeWindowAttributesAux::new().event_mask(EventMask::SUBSTRUCTURE_NOTIFY))
+    let (connection, window) = (&f.native.connection, f.native.window);
+    connection.change_window_attributes(f.native.root, &ChangeWindowAttributesAux::new().event_mask(EventMask::SUBSTRUCTURE_NOTIFY))
         .unwrap().check().unwrap();
-    let wm_state = f.connection.intern_atom(false, b"WM_STATE").unwrap().reply().unwrap().atom;
+    let wm_state = f.native.atom(b"WM_STATE").unwrap();
     for mapped in [false, true] {
-        if mapped { f.connection.map_window(f.window).unwrap().check().unwrap(); }
-        f.connection.change_property32(PropMode::REPLACE, f.window, wm_state, wm_state, &[3, 0]).unwrap().check().unwrap();
+        if mapped { connection.map_window(window).unwrap().check().unwrap(); }
+        connection.change_property32(PropMode::REPLACE, window, wm_state, wm_state, &[3, 0]).unwrap().check().unwrap();
         for skip in [true, true, false] {
-            f.connection.change_property32(PropMode::REPLACE, f.window, f.state, AtomEnum::ATOM, &[f.above])
+            connection.change_property32(PropMode::REPLACE, window, f.state, AtomEnum::ATOM, &[f.above])
                 .unwrap().check().unwrap();
-            request_skip_taskbar(&f.connection, f.window, skip, !mapped).unwrap();
+            f.native.request_skip_taskbar(skip, !mapped).unwrap();
             assert_eq!(f.states(), [f.above], "动态请求不能冒充 WM 修改属性");
-            let event = std::iter::from_fn(|| f.connection.poll_for_event().unwrap()).find_map(|event| match event {
-                Event::ClientMessage(event) if event.window == f.window && event.type_ == f.state => Some(event),
+            let event = std::iter::from_fn(|| connection.poll_for_event().unwrap()).find_map(|event| match event {
+                Event::ClientMessage(event) if event.window == window && event.type_ == f.state => Some(event),
                 _ => None,
             }).expect("必须向 root 提交任务栏状态消息");
             assert_eq!(event.format, 32);

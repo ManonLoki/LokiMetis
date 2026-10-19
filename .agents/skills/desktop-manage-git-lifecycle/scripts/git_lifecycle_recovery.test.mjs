@@ -75,6 +75,32 @@ scenario("recover_preserves_exact_bytes_resources_refs_and_unknown_historical_ac
   assert.equal(item.helper(item.repository, item.args).payload.status, "already-recovered");
 });
 
+scenario("recover_preserves_valid_pending_changes_after_the_exact_finalized_baseline", (item) => {
+  const file = join(item.repository, ".harness/version-state.json");
+  const versionState = JSON.parse(readFileSync(file, "utf8"));
+  versionState.target_version = "0.3.14";
+  versionState.applied_bug_ids.push("AUTOSTART-HOME-001");
+  versionState.pending_changes.push({ change_id: "AUTOSTART-HOME-001", kind: "bug-fix", required_version: "0.3.14" });
+  item.commitFile(item.repository, "Cargo.toml", readFileSync(join(item.repository, "Cargo.toml"), "utf8").replace("0.3.13", "0.3.14"));
+  item.commitFile(item.repository, ".harness/version-state.json", JSON.stringify(versionState, null, 2) + "\n");
+  const before = readFileSync(file);
+  const refs = item.git(item.repository, "show-ref").stdout;
+  const resources = item.state(item.repository).cycle;
+  assert.equal(item.helper(item.repository, item.args).payload.status, "release-recovered");
+  assert.deepEqual(readFileSync(file), before);
+  assert.deepEqual(item.state(item.repository).cycle, resources);
+  assert.equal(item.git(item.repository, "show-ref").stdout, refs);
+  assert.equal(item.state(item.repository).lastRelease.head, item.context.head);
+});
+
+scenario("recover_rejects_invalid_pending_changes_without_writing", (item) => {
+  const file = join(item.repository, ".harness/version-state.json");
+  const versionState = JSON.parse(readFileSync(file, "utf8"));
+  versionState.pending_changes.push({ change_id: "INVALID-001", kind: "bug-fix", required_version: "0.3.14" });
+  item.commitFile(item.repository, ".harness/version-state.json", JSON.stringify(versionState));
+  rejectsWithoutWrites(item, item.args, "recovery-state-conflict");
+});
+
 /** 断言拒绝不会改变清单、引用或生成恢复备份。 */
 function rejectsWithoutWrites(item, args, code) {
   const before = readFileSync(item.stateFile);

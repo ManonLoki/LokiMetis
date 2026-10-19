@@ -118,7 +118,7 @@ fn encoded_path(path: &str) -> Result<String, String> {
     #[cfg(windows)]
     { if path.contains('"') { return Err("autostart_unsafe_path".into()) }
       let command = format!("\"{path}\"");
-      if windows_launch_command(&command).encode_utf16().count() + 1 > 260 { return Err("autostart_unsafe_path".into()) }
+      if launch_command(&command).encode_utf16().count() + 1 > 260 { return Err("autostart_unsafe_path".into()) }
       Ok(command) }
     #[cfg(target_os = "macos")]
     { if path.contains(['&', '<', '>']) { return Err("autostart_unsafe_path".into()) } Ok(path.into()) }
@@ -129,7 +129,7 @@ fn encoded_path(path: &str) -> Result<String, String> {
 /// 查询当前用户的完整登录命令；Linux 不再把旧 XDG 文件存在当作已启用。
 fn read(handle: &AutoLaunch) -> Result<bool, String> {
     #[cfg(windows)]
-    { windows::is_enabled("com.loki-metris.app", &windows_launch_command(handle.get_app_path())).map_err(|_| "autostart_read_failed".into()) }
+    { windows::is_enabled("com.loki-metris.app", handle.get_app_path()).map_err(|_| "autostart_read_failed".into()) }
     #[cfg(target_os = "linux")]
     { linux::is_enabled(handle).map_err(|_| "autostart_read_failed".into()) }
     #[cfg(not(any(windows, target_os = "linux")))]
@@ -172,19 +172,18 @@ fn windows_command(bytes: &[u8]) -> std::io::Result<String> {
     if value.trim().is_empty() || value.chars().any(char::is_control) { return Err(std::io::ErrorKind::InvalidData.into()) }
     Ok(value)
 }
-/// 只认可当前完整登录命令；旧副本、无标记旧项和额外参数均要求显式重新开启。
+/// 只认可当前可执行文件加登录标记；旧副本、无标记旧项和额外参数均要求显式重新开启。
 #[cfg(any(windows, test))]
-fn windows_command_matches(bytes: &[u8], expected: &str) -> std::io::Result<bool> {
+fn windows_command_matches(bytes: &[u8], executable: &str) -> std::io::Result<bool> {
     let command = windows_command(bytes)?;
-    let suffix = format!(" {}", super::startup::AUTOSTART_ARGUMENT);
-    let Some(executable) = command.trim_end_matches(' ').strip_suffix(&suffix) else { return Ok(false); };
-    let Some(expected_executable) = expected.strip_suffix(&suffix) else { return Ok(false); };
+    let registered = command.trim_end_matches(' ').strip_suffix(super::startup::AUTOSTART_ARGUMENT)
+        .and_then(|command| command.strip_suffix(' '));
     // Windows 路径大小写不敏感，但启动标记与实际参数识别一样必须精确匹配。
-    Ok(executable.eq_ignore_ascii_case(expected_executable))
+    Ok(registered.is_some_and(|registered| registered.eq_ignore_ascii_case(executable)))
 }
-/// 与 auto-launch 的 Run 值拼接保持一致，标记必须纳入路径长度和状态复读。
-#[cfg(any(windows, test))]
-fn windows_launch_command(executable: &str) -> String {
+/// 与 auto-launch 写入的 Run 值/XDG Exec 拼接一致，标记纳入路径长度和状态复读。
+#[cfg(any(windows, target_os = "linux", test))]
+fn launch_command(executable: &str) -> String {
     format!("{executable} {}", super::startup::AUTOSTART_ARGUMENT)
 }
 /// 按完整 DWORD 识别已知开关；未知/损坏值返回失败，不猜测 OS 状态。
@@ -244,10 +243,10 @@ mod tests {
     fn stale_windows_run_command_is_repaired_only_on_explicit_enable() {
         let bytes = |value: &str| value.encode_utf16().chain(Some(0)).flat_map(u16::to_le_bytes).collect::<Vec<_>>();
         let executable = r#""C:\Program Files\LokiMetris\app.exe""#;
-        let expected = super::windows_launch_command(executable);
+        let expected = super::launch_command(executable);
         let registered = std::cell::RefCell::new(Some(bytes(r#""C:\Old LokiMetris\app.exe" "#)));
         let writes = std::cell::Cell::new(0);
-        let read = || registered.borrow().as_ref().map(|bytes| windows_command_matches(bytes, &expected)).unwrap_or(Ok(false));
+        let read = || registered.borrow().as_ref().map(|bytes| windows_command_matches(bytes, executable)).unwrap_or(Ok(false));
         assert_eq!(apply(None, read, |_| -> std::io::Result<()> { panic!("查询不能修复旧路径") }), (Some(false), false));
         #[cfg(any(windows, target_os = "linux"))]
         {
@@ -267,11 +266,11 @@ mod tests {
         }), (Some(true), false));
         assert_eq!(writes.get(), 1);
         assert_eq!(apply(Some(true), read, |_| -> std::io::Result<()> { panic!("已匹配命令不能重复写入") }), (Some(true), false));
-        assert!(!windows_command_matches(&bytes(executable), &expected).unwrap());
-        assert!(!windows_command_matches(&bytes(&format!("{expected} --other")), &expected).unwrap());
-        assert!(!windows_command_matches(&bytes(&format!("{executable} --AUTOSTART")), &expected).unwrap());
-        assert!(windows_command_matches(&bytes(&format!("{} ", expected.to_ascii_lowercase())), &expected).unwrap());
-        assert!(windows_command_matches(&[65, 0], &expected).is_err());
+        assert!(!windows_command_matches(&bytes(executable), executable).unwrap());
+        assert!(!windows_command_matches(&bytes(&format!("{expected} --other")), executable).unwrap());
+        assert!(!windows_command_matches(&bytes(&format!("{executable} --AUTOSTART")), executable).unwrap());
+        assert!(windows_command_matches(&bytes(&format!("{} ", expected.to_ascii_lowercase())), executable).unwrap());
+        assert!(windows_command_matches(&[65, 0], executable).is_err());
     }
     /// 未读取的系统状态不能冒充已开启或已关闭，也不授权注册。
     #[test]

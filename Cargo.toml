@@ -45,6 +45,8 @@ tracing-appender = { version = "0.2.5", default-features = false }
 # 本地 HRESULT 修复仅对已核验的原包生效，避免重新解析时绕过同版本补丁。
 tray-icon = { version = "=0.26.1", default-features = false }
 auto-launch = "0.6.0"
+# Linux 读取 XDG 登录项时与 auto-launch 写入使用同一 home 解析（含 passwd 回退）。
+dirs = "6.0.0"
 interprocess = "2.4.5"
 global-hotkey = "0.8.0"
 # Linux热键分别使用桌面Portal与可确认注册结果的X11连接，仅由Linux GUI继承。
