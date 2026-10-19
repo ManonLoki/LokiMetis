@@ -56,7 +56,7 @@ sidebar_mode: compact
 
 macOS 正常启动使用 Accessory 策略并通过包内 `LSUIElement` 隐藏 Dock，旧无参数 LaunchAgent 兼容自身精确服务身份；托盘失败回退普通 Dock 身份。Dock 行为仍待新版包实测。
 
-Linux主窗与辅助窗使用相同`app_id`，最终Debian桌面入口以相同`StartupWMClass`绑定；X11/XWayland活窗从已批准Logo取得64/128像素`_NET_WM_ICON`。桌宠通过真实宿主控制显隐、几何、置顶、锁定与Shape输入穿透；托盘仅在Watcher及本进程`main_tray`均确认时作为隐藏主窗的恢复入口。协议、失败和纯Wayland边界见Linux工程知识库，源码接入不代表Dock呈现或原生交互已验收。
+Linux主窗与辅助窗使用相同`app_id`，最终Debian桌面入口以相同`StartupWMClass`绑定；X11/XWayland活窗从已批准Logo取得64/128像素`_NET_WM_ICON`。托盘恢复入口确认后，主窗申请隐藏Dock/任务栏条目；入口丢失时恢复条目及已隐藏的主窗，纯Wayland保留普通窗口入口，新版Dock行为仍为Unverified。桌宠通过真实宿主控制显隐、几何、置顶、锁定与Shape输入穿透；托盘仅在Watcher及本进程`main_tray`均确认时作为隐藏主窗的恢复入口。协议、失败和纯Wayland边界见Linux工程知识库，源码接入不代表Dock呈现或原生交互已验收。
 
 首次桌宠设置缓存命中不得短路统一Agent启用集合的发布。桌宠偏好保存与Hooks启用门禁分别消费各自权威事实，不能因一次先到的偏好读取让Hooks继续沿用默认空集合；实际事件仍须通过生命周期状态机后才能驱动桌宠和通知。
 

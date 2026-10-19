@@ -3,10 +3,64 @@
 use gpui_kit::{GraphicalEnvironment, Window};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::sync::OnceLock;
-use x11rb::{protocol::xproto::{AtomEnum, ConnectionExt as _, PropMode}, wrapper::ConnectionExt as _};
+use x11rb::{protocol::xproto::{AtomEnum, ClientMessageEvent, ConnectionExt as _, EventMask, MapState, PropMode}, wrapper::ConnectionExt as _};
 
 /// 启动前解码并缓存有限尺寸；窗口线程只提交已准备的 ARGB 像素。
 static ICON: OnceLock<Vec<u32>> = OnceLock::new();
+
+/// 只缓存已发送的任务栏意图；托盘变化、显窗或请求失败后需要重新提交，不代表 WM 已确认。
+#[derive(Clone, Copy, Default)]
+pub(crate) struct TaskbarRequest(Option<bool>);
+
+impl TaskbarRequest {
+    /// 恢复入口可靠时跳过任务栏；请求失败保留重试，成功后同一意图不逐帧访问 X11。
+    pub(crate) fn sync(&mut self, restore_available: bool, request: impl FnOnce(bool) -> anyhow::Result<()>) -> anyhow::Result<()> {
+        if self.0 == Some(restore_available) { return Ok(()); }
+        // 请求可能部分成功；失败后连旧意图也不再可信，托盘重新可用仍须重发。
+        self.0 = None;
+        request(restore_available)?;
+        self.0 = Some(restore_available);
+        Ok(())
+    }
+
+    /// WM 在窗口撤回时可删除状态；下次显示后的轮询必须重发同一个意图。
+    pub(crate) fn invalidate(&mut self) { self.0 = None; }
+}
+
+/// 从主窗真实句柄申请跳过任务栏；仅 map 前允许准备初始属性，map 后必须只发消息。
+pub(crate) fn set_skip_taskbar(window: &Window, skip: bool, prepare_initial_state: bool) -> anyhow::Result<()> {
+    let handle = x11_window_id(window)?;
+    let (connection, _) = x11rb::connect(None)?;
+    request_skip_taskbar(&connection, handle, skip, prepare_initial_state)
+}
+
+/// 撤回窗口合并初始状态；最小化及已管理窗口只发 EWMH 请求，保留 WM 拥有的其它状态。
+/// 协议依据：https://specifications.freedesktop.org/wm/latest/ar01s05.html 的 5.7 节。
+fn request_skip_taskbar(connection: &impl x11rb::connection::Connection, handle: u32, skip: bool, prepare_initial_state: bool) -> anyhow::Result<()> {
+    let root = connection.get_geometry(handle)?.reply()?.root;
+    let state = connection.intern_atom(false, b"_NET_WM_STATE")?.reply()?.atom;
+    let skip_atom = connection.intern_atom(false, b"_NET_WM_STATE_SKIP_TASKBAR")?.reply()?.atom;
+    if prepare_initial_state {
+        let wm_state = connection.intern_atom(false, b"WM_STATE")?.reply()?.atom;
+        let attributes = connection.get_window_attributes(handle)?.reply()?;
+        let managed = connection.get_property(false, handle, wm_state, wm_state, 0, 2)?.reply()?
+            .value32().and_then(|mut values| values.next()).is_some_and(|value| value != 0);
+        if attributes.map_state == MapState::UNMAPPED && !managed {
+            let property = connection.get_property(false, handle, state, AtomEnum::ATOM, 0, 256)?.reply()?;
+            anyhow::ensure!(property.bytes_after == 0 && (property.type_ == u32::from(AtomEnum::NONE)
+                || (property.type_ == u32::from(AtomEnum::ATOM) && property.format == 32)), "invalid window state property");
+            let mut states: Vec<_> = property.value32().map(Iterator::collect).unwrap_or_default();
+            states.retain(|atom| *atom != skip_atom);
+            if skip { states.push(skip_atom); }
+            connection.change_property32(PropMode::REPLACE, handle, state, AtomEnum::ATOM, &states)?.check()?;
+        }
+    }
+    // 即使初始属性刚写入，也补发请求，覆盖另一连接的 MapWindow 已在途的情形。
+    let event = ClientMessageEvent::new(32, handle, state, [u32::from(skip), skip_atom, 0, 1, 0]);
+    connection.send_event(false, root, EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY, event)?.check()?;
+    connection.flush()?;
+    Ok(())
+}
 
 /// 本会话有 X11/XWayland 时显式选择；不改写进程环境或伪造纯 Wayland 能力。
 pub(crate) fn desktop_environment(mut environment: GraphicalEnvironment) -> GraphicalEnvironment {
@@ -58,6 +112,10 @@ pub(crate) fn x11_window_id(window: &Window) -> anyhow::Result<u32> {
         _ => anyhow::bail!("window is not an X11 or XWayland surface"),
     })
 }
+
+#[cfg(test)]
+#[path = "linux_taskbar_tests.rs"]
+mod taskbar_tests;
 
 #[cfg(test)]
 mod tests {

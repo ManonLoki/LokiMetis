@@ -41,9 +41,12 @@ pub struct Services {
     window_revision: u64,
     /// 显示/隐藏意图代次；较新的相反意图会让旧的延迟命令失效。
     window_action_generation: u64,
-    /// Linux 显式隐藏不同于遮挡/最小化；托盘入口消失时只恢复真实隐藏的主窗。
+    /// Linux 显式隐藏或显窗请求失败时保持恢复意图；托盘入口消失后继续重试显窗。
     #[cfg(target_os = "linux")]
     main_hidden: bool,
+    /// Linux 只记录已发送的 Dock 意图；窗口重映射后失效，不能当作 WM 确认。
+    #[cfg(target_os = "linux")]
+    main_taskbar_request: linux::TaskbarRequest,
     /// 每 40ms 处理托盘、菜单、单实例唤醒与热键的前台轮询任务，随 Global 释放而取消。
     _poll: Task<()>,
     /// 测试窗口没有原生宿主事务，显示时直接操作捕获的 HWND。
@@ -121,7 +124,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                 #[cfg(target_os = "linux")]
                 {
                     let available = tray_restore_available(cx);
-                    if !available && cx.global::<Services>().main_hidden { show(handle, cx); }
+                    sync_linux_main(available, cx);
                 }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
                 for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::OpenPetSettings => crate::pet::open_settings(cx), tray::Event::ToggleMousePassthrough => crate::pet::toggle_mouse_passthrough(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);}, tray::Event::ToggleAutostart=>toggle_autostart(cx) } }
@@ -159,6 +162,8 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         window_action_generation: 0,
         #[cfg(target_os = "linux")]
         main_hidden: false,
+        #[cfg(target_os = "linux")]
+        main_taskbar_request: linux::TaskbarRequest::default(),
         _poll: poll,
         #[cfg(all(windows, test))]
         window: native_window,
@@ -175,6 +180,19 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
         let services = cx.remove_global::<Services>();
         async move { drop(services); }
     }).detach();
+}
+
+/// 同步托盘变化与重映射后的 Dock 意图；恢复入口丢失时继续重试仍隐藏的 X11 主窗。
+#[cfg(target_os = "linux")]
+fn sync_linux_main(available: bool, cx: &mut App) {
+    let service = cx.global::<Services>();
+    if !service.main_is_x11 { return; }
+    let (main, mut request) = (service.main, service.main_taskbar_request);
+    if request.sync(available, |skip| main.update(cx, |_, window, _| linux::set_skip_taskbar(window, skip, false))?).is_err() {
+        tracing::warn!(event="linux_taskbar_request_failed");
+    }
+    cx.global_mut::<Services>().main_taskbar_request = request;
+    if !available && cx.global::<Services>().main_hidden { show(main, cx); }
 }
 
 /// 原生主窗的 key 状态是菜单可用性的唯一依据，尚未安装宿主时保持禁用。
@@ -224,12 +242,31 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
         cx.activate(true);
         let _ = handle.update(cx, |_, window, cx| {
             #[cfg(target_os = "linux")]
-            if linux::x11_window_id(window).is_ok() {
-                if crate::pet::host::set_visible(window, true).is_err() {
+            let is_x11 = linux::x11_window_id(window).is_ok();
+            // 虚拟窗口仅在显式夹具中复用已捕获的能力事实，原生显隐仍走测试宿主驱动。
+            #[cfg(all(target_os = "linux", test))]
+            let is_x11 = is_x11 || cx.try_global::<Services>().is_some_and(|service| service.main_is_x11);
+            #[cfg(target_os = "linux")]
+            if is_x11 {
+                // 首次映射前准备状态；映射后的下一轮再发请求，覆盖 WM 撤回时删除属性的情况。
+                if linux::set_skip_taskbar(window, tray_restore_available(cx), true).is_err() {
+                    tracing::warn!(event="linux_taskbar_request_failed");
+                }
+                let mapped = crate::pet::host::set_visible(window, true).is_ok();
+                if !mapped {
                     tracing::warn!(event="main_window_show_failed");
                 }
+                // MapRequest 后无条件补发；不依赖 WM 是否已经删除或重建了 _NET_WM_STATE。
+                if linux::set_skip_taskbar(window, tray_restore_available(cx), false).is_err() {
+                    tracing::warn!(event="linux_taskbar_request_failed");
+                }
                 // 最小化时 WM 的父框可能尚未映射；仍须发 _NET_ACTIVE_WINDOW 解除隐藏。
-                if cx.has_global::<Services>() { cx.global_mut::<Services>().main_hidden = false; }
+                if cx.has_global::<Services>() {
+                    let service = cx.global_mut::<Services>();
+                    // 失败也可能发生于首次隐藏启动；保留恢复事实供无托盘轮询继续尝试。
+                    service.main_hidden = !mapped;
+                    service.main_taskbar_request.invalidate();
+                }
             }
             #[cfg(not(target_os = "linux"))]
             let _ = cx;

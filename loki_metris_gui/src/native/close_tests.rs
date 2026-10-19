@@ -46,6 +46,7 @@ fn fixture_with_visibility(cx: &mut TestAppContext, main_is_x11: bool, restore_a
         main_is_x11,
         window_action_generation: 0,
         main_hidden: false,
+        main_taskbar_request: linux::TaskbarRequest::default(),
         _poll: Task::ready(()),
         tray: None,
         tray_restore_available_for_test: Some(restore_available),
@@ -229,4 +230,28 @@ fn startup_shutdown_cancels_pending_tray_wait(cx: &mut TestAppContext) {
     finish(f, cx);
     cx.executor().advance_clock(Duration::from_secs(4));
     cx.run_until_parked();
+}
+
+/// 隐藏启动和关闭隐藏的显窗失败均保留恢复意图；无托盘下一轮成功后才清除。
+#[gpui_kit::test]
+fn failed_main_show_retries_after_restore_entry_is_lost(cx: &mut TestAppContext) {
+    for previously_hidden in [false, true] {
+        let f = fixture_with_visibility(cx, true, false, false);
+        cx.update(|cx| {
+            cx.global_mut::<Services>().main_hidden = previously_hidden;
+            crate::pet::host::fail_next_visibility();
+            show(f.handle, cx);
+        });
+        cx.run_until_parked();
+        assert!(cx.read(|cx| cx.global::<Services>().main_hidden), "失败不能丢弃仍需显窗的事实");
+        assert!(crate::pet::host::take_visibility_events(f.handle).is_empty());
+        cx.update(|cx| sync_linux_main(false, cx));
+        cx.run_until_parked();
+        assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
+        assert_eq!(crate::pet::host::take_visibility_events(f.handle), [true]);
+        cx.update(|cx| sync_linux_main(false, cx));
+        cx.run_until_parked();
+        assert!(crate::pet::host::take_visibility_events(f.handle).is_empty(), "成功后不得重复显窗");
+        finish(f, cx);
+    }
 }

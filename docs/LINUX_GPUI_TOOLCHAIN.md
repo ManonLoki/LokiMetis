@@ -91,6 +91,8 @@ X11/XWayland窗口通过真实XID执行map/unmap、root全局客户区位置/尺
 
 Dock/任务栏身份统一为`com.loki-metris.app`：窗口`app_id`、Debian桌面入口和`StartupWMClass`必须一致。事件循环前由已批准Logo准备64/128像素ARGB图标，活窗写入`_NET_WM_ICON`。该属性不保证GNOME Dock已识别应用：宿主还须能解析有效的桌面入口与可执行入口；隔离解包运行时，宿主看不到沙箱内安装路径，须明确记录临时启动映射及恢复，不能把属性读回当作Dock图标已呈现。包内桌面入口及图标仍须通过最终包核验；桌面分组、图标呈现、混合DPI和热插拔须真实运行验证。
 
+X11/XWayland主窗保留普通窗口类型，仅在托盘恢复入口确认后申请`_NET_WM_STATE_SKIP_TASKBAR`，入口失效则撤销并恢复已隐藏主窗。依照[EWMH 5.7](https://specifications.freedesktop.org/wm/latest/ar01s05.html)，撤回窗口的初始状态只增删该atom，已管理或最小化窗口通过root ClientMessage申请，保留最大化、置顶等状态。显窗在map前准备状态、map后无条件补发，下一轮托盘同步重发一次，避免WM撤回时删除属性；常态仅在托盘可用性变化时发送，请求失败可重试。请求回执仅表示服务器接受，不证明Dock呈现；纯Wayland无此实现并保留普通入口，当前新版实机行为为Unverified。
+
 ## 静态图片首帧
 
 图片资源可能在prepaint阶段才就绪，而本帧paint闭包仍持有render阶段的空快照。在绘制中直接notify只留下dirty标记，不能据此假定平台会再发送帧；动画计时器可能掩盖同一问题。首次接纳结果后，在当前绘制栈退出时请求一次正式重绘，并以弱实体、挂载状态及代次撤销过期任务。静态图片不增加周期计时器。回归须禁用Test模式自动绘制，仅消费平台真实帧请求，同时覆盖暂停、卸载及关闭的取消边界。

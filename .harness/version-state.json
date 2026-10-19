@@ -70,7 +70,8 @@
     "LMDESK-LINUX-HICOLOR-ICON-001",
     "LMDESK-CLAUDE-SUBAGENT-NOTIFICATION-001",
     "LMDESK-PANEL-TEXT-LEFT-ALIGN-001",
-    "LMDESK-AUTOSTART-HIDDEN-002"
+    "LMDESK-AUTOSTART-HIDDEN-002",
+    "LMDESK-LINUX-TASKBAR-HIDE-001"
   ],
   "applied_reconciliations": [
     {
@@ -97,8 +98,13 @@
       "change_id": "LMDESK-AUTOSTART-HIDDEN-002",
       "kind": "bug-fix",
       "required_version": "0.4.1"
+    },
+    {
+      "change_id": "LMDESK-LINUX-TASKBAR-HIDE-001",
+      "kind": "bug-fix",
+      "required_version": "0.4.2"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.4.1"
+  "target_version": "0.4.2"
 }

@@ -97,6 +97,8 @@ mod test_host {
     std::thread_local! {
         /// 仅虚拟宿主记录原生显隐命令，不代表真实操作系统可见性。
         static VISIBILITY: std::cell::RefCell<std::collections::VecDeque<(gpui_kit::AnyWindowHandle, bool)>> = Default::default();
+        /// 下一次显隐请求失败，验证主窗恢复不能把宿主失败当成已显示。
+        static VISIBILITY_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
         /// 仅当前测试线程的下一次原生属性提交失败，用于验证设置窗不能吞掉宿主错误。
         static APPLY_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
         /// 只在明确测试中延迟原生确认，不阻塞测试或 GPUI 前台执行器。
@@ -106,6 +108,8 @@ mod test_host {
     }
     /// 原生调用的显式失败夹具不会污染其它线程或后续成功操作。
     pub fn fail_next_apply() { APPLY_FAILURE.with(|failure| failure.set(true)); }
+    /// 单次显隐失败只作用于当前测试线程，不影响后续恢复请求。
+    pub fn fail_next_visibility() { VISIBILITY_FAILURE.with(|failure| failure.set(true)); }
     /// 让指定轮数返回未确认，用真实 timer 驱动 controller 等待回归。
     pub fn delay_settle(turns: usize) { SETTLE_PENDING.with(|pending| pending.set(turns)); }
     /// 单次确认失败不伪造后续回滚成功或磁盘回执。
@@ -139,6 +143,7 @@ mod test_host {
     }
     /// 假平台只验证GPUI实体/窗口时序，实际原生属性由Computer Use检查。
     pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
+        if VISIBILITY_FAILURE.with(|failure| failure.replace(false)) { anyhow::bail!("injected native visibility failure"); }
         VISIBILITY.with(|events| {
             let mut events = events.borrow_mut();
             if events.len() >= 64 { events.pop_front(); }
