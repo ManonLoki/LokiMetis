@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "40b94740ace9eb4c3fe976b66910c3c7d0ffd651",
-  "version": "0.3.11",
-  "releaseDate": "2026-10-18",
-  "expectedTag": "v0.3.11-20261018",
+  "sourceHead": "64d4c3b9d0d70077de6864a734957ccbcaab82c5",
+  "version": "0.3.12",
+  "releaseDate": "2026-10-19",
+  "expectedTag": "v0.3.12-20261019",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "89f5e5a90ee71778b0570cc3fa2ff622e821f0a3",
-    "sourceHead": "40b94740ace9eb4c3fe976b66910c3c7d0ffd651",
-    "scopeDiffSha256": "35556613bc501c12f407fea30666fe9e3cbefdfa540907b5a19ecd69f8c5fd2a",
-    "reviewedSourceCommit": "40b94740ace9eb4c3fe976b66910c3c7d0ffd651",
+    "scopeBase": "9eb59c14cfdf93ec8abcc7734b898f0051033ceb",
+    "sourceHead": "64d4c3b9d0d70077de6864a734957ccbcaab82c5",
+    "scopeDiffSha256": "87e6481108d70eb3bdaf7a48d181f9780413f786e4341c127688395da3abd50c",
+    "reviewedSourceCommit": "64d4c3b9d0d70077de6864a734957ccbcaab82c5",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Behavior: strict static-frame RED/GREEN4, image46, native53, package43 and verifier13 passed; validate passed. Boundary: domain remains core; changes are rendering, native and packaging adapters. Contracts: installed identity preserved; actual hicolor lookup verified. Responsibility/size: focused modules within limits. Temporary markers: none added; lifetime cancellation covered. Final candidate E2E required.",
+    "evidenceSummary": "Reviewed scope: Claude child failures stay scoped; main-agent errors and waits preserved (154 Hook tests). Skin/dashboard/Linux refactors preserve function bodies, UI events and native contracts. Hook rules remain in core; no new dependencies or formats. Validate passed; responsibilities and temporary markers checked. Windows/Linux runtime and live /simplify remain unverified.",
     "reason": null,
     "remainingRisk": null
   }

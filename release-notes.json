@@ -2,6 +2,17 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-19",
+      "version": "v0.3.12",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复Claude子Agent工具或API失败被误报为主任务错误，保留主Agent的真实错误与独立询问状态。",
+          "en-US": "Prevent Claude subagent tool and API failures from being reported as main-task errors while preserving genuine main-agent failures and independent decision requests."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-18",
       "version": "v0.3.11",
       "featureOptimizations": [
