@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "64d4c3b9d0d70077de6864a734957ccbcaab82c5",
-  "version": "0.3.12",
+  "sourceHead": "475f02ad8744803ed413e2cfd2857ec3d3e0b481",
+  "version": "0.3.13",
   "releaseDate": "2026-10-19",
-  "expectedTag": "v0.3.12-20261019",
+  "expectedTag": "v0.3.13-20261019",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "9eb59c14cfdf93ec8abcc7734b898f0051033ceb",
-    "sourceHead": "64d4c3b9d0d70077de6864a734957ccbcaab82c5",
-    "scopeDiffSha256": "87e6481108d70eb3bdaf7a48d181f9780413f786e4341c127688395da3abd50c",
-    "reviewedSourceCommit": "64d4c3b9d0d70077de6864a734957ccbcaab82c5",
+    "scopeBase": "1e1c4f687bad40f11b624a6b3408b8fcb5b12d68",
+    "sourceHead": "475f02ad8744803ed413e2cfd2857ec3d3e0b481",
+    "scopeDiffSha256": "c1b1f833bf52378e76a41a7b2a273fc367341e96e47db490f71155291f363ff4",
+    "reviewedSourceCommit": "475f02ad8744803ed413e2cfd2857ec3d3e0b481",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed scope: Claude child failures stay scoped; main-agent errors and waits preserved (154 Hook tests). Skin/dashboard/Linux refactors preserve function bodies, UI events and native contracts. Hook rules remain in core; no new dependencies or formats. Validate passed; responsibilities and temporary markers checked. Windows/Linux runtime and live /simplify remain unverified.",
+    "evidenceSummary": "Reviewed exact 1e1c4f6..475f02a diff: two GUI alignment substitutions plus consistent v0.3.13 lifecycle metadata. Behavior correctness, core/adapter boundary, external contracts, responsibility/size and temporary markers passed. Existing overview material/copy unit regression and incidental Metal test passed. No blocking findings; live visual alignment and Windows/Linux remain unverified.",
     "reason": null,
     "remainingRisk": null
   }
