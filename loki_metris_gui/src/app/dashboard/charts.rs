@@ -38,7 +38,7 @@ impl Shell {
     /// 控件变化只替换当前查询，背景扫描继续独立运行。
     fn chart_controls(&self,cx:&mut Context<Self>)->AnyElement {
         let selected=self.dashboard.chart.ranges[self.dashboard.client];
-        let ranges=div().flex().rounded(px(12.)).p_1().children(["today","yesterday","this_week","last_week","this_month","last_month"].into_iter().enumerate().map(|(index,key)|
+        let ranges=div().flex().rounded(px(12.)).p_1().children(super::NATURAL_WINDOW_KEYS.into_iter().enumerate().map(|(index,key)|
             Button::new(("chart-window",index)).ghost().when(self.dashboard.client==4,|button|button.flex_1()).h(px(28.)).px_3().label(self.t(&format!("dashboard.{key}")))
                 .when(selected==index,|button|button.font_weight(FontWeight::SEMIBOLD))
                 .on_click(cx.listener(move|this,_,_,cx|{this.dashboard.chart.ranges[this.dashboard.client]=index;this.reload_usage(false,cx);} ))));

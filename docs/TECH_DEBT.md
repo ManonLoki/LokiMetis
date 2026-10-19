@@ -15,4 +15,4 @@
   - `loki_metris_gui/src/skins/mod.rs` 用约 40 个 `include!` 把目录、导入导出、校验、CDP、注入、平台进程等不同职责并入同一模块作用域，共约 1.25 万行；这超出工程规则第 2.3 节“整块 `impl`/测试分片”的用途，应按职责逐步改为真实子模块并收窄可见性。依赖源码文本的契约测试需随之改读新路径。
   - `backend/local_index/claude` 与 `grok` 的 discovery/scan/index/signature 为复制后分别演化的实现（取消检查、链接跳过计数等已不一致），宜提取共享的有界目录遍历与签名骨架，以工具差异作参数；合并前须先用回归锁定两侧现行行为。
   - Windows `ShellExecuteW("open")` 在 `native/links.rs` 先初始化 COM，`skins/file_manager.rs` 未初始化；统一为单一 Shell 打开入口会改变后者行为，须在 Windows 真机验证后处理。Linux 下 `open_repository` 固定返回 false，而文件管理器已有可信 `xdg-open`/`gio` 入口，属于产品能力缺口而非重构项。
-  - 项目 Rust 源未纳入 rustfmt：按默认配置格式化后总行数约增加 14%，且 `app/dashboard/{mod,calls,statistics}.rs` 与 `app/mod_test.rs` 将超过 800 行。引入格式化门禁须同步拆分这些文件，并核对按源码文本断言的测试。
+  - 项目 Rust 源未纳入 rustfmt：按默认配置格式化后总行数约增加 14%，看板已按职责拆出 `overview`、`metric_display` 与 `calls/column_widths`，格式化后均不超过 800 行；`app/mod_test.rs` 格式化后仍约 854 行。引入格式化门禁前须先拆分该测试文件，并核对按源码文本断言的测试。

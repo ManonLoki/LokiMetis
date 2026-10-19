@@ -3,7 +3,7 @@
 use super::*;
 use gpui_kit::{AppContext, Bounds, Pixels, TestAppContext, Window, point, test::TestWindowExt};
 use loki_metris_core::{
-    LocalRecordsSummary, LocalUsageWindow, MetricFact, MetricScope, ProviderKind, TimeStandard,
+    Completeness, Confidence, Freshness, LocalIndexState, LocalRecordsSummary, LocalUsageWindow, MetricFact, MetricScope, ProviderKind, TimeStandard,
     UsageChartDimension, WindowUsage, build_usage_chart_with_standard, canonicalize_usage_calls,
     empty_coverage, empty_local_usage_aggregate_for_provider,
 };

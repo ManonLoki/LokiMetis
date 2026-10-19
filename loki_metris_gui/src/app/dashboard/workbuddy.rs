@@ -32,7 +32,7 @@ impl Shell {
             ("workbuddy.trace_cancelled", format::compact(value.trace_cancelled_count)),
             ("workbuddy.trace_duration", format!("{:.0} {}", value.trace_average_duration_ms, self.t("workbuddy.milliseconds"))),
         ];
-        let range = self.t(&format!("dashboard.{}", ["today", "yesterday", "this_week", "last_week", "this_month", "last_month"][selected]));
+        let range = self.t(&format!("dashboard.{}", super::NATURAL_WINDOW_KEYS[selected]));
         div().w_full().flex().flex_col().gap_4().child(cards)
             .child(self.spot_panel("workbuddy-breakdown", cx).test_support()
                 .child(div().text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight::SEMIBOLD)
