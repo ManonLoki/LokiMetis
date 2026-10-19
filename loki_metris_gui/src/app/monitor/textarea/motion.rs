@@ -5,11 +5,17 @@ use std::time::{Duration, Instant};
 
 /// 每个输入独立拥有颜色时间线，未变的目标不会因编辑或父页面刷新重新计时。
 pub(in crate::app::monitor) struct BorderTransition {
+    /// 本段过渡的起始颜色。
     from: Rgba,
+    /// 目标颜色；首次设置前为 None。
     target: Option<Rgba>,
+    /// CSS 过渡规范的 reversing-adjusted start value：中途反向时的参考起点。
     reversing_start: Rgba,
+    /// CSS 过渡规范的 reversing shortening factor，用于缩短中途反向的时长。
     reversing_factor: f32,
+    /// 本段过渡开始的时刻。
     started: Option<Instant>,
+    /// 本段过渡时长。
     duration: Duration,
 }
 

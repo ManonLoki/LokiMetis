@@ -10,11 +10,17 @@ use loki_metris_core::{AiTool, HookBehavior};
 
 /// 图片字段包装没有辅助角色、键盘动作或文本状态，内部 Button 独占交互。
 struct PickerFocusElement {
+    /// 被包装的选择器按钮。
     child: AnyElement,
+    /// 滚入状态。
     state: Entity<RevealState>,
+    /// 页面滚动。
     target: PageScroll,
+    /// 所属 Agent。
     tool: AiTool,
+    /// 所属行为。
     behavior: HookBehavior,
+    /// 选择器中的焦点种类。
     kind: PickerFocus,
 }
 

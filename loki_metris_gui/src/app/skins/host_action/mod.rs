@@ -10,8 +10,11 @@ use std::future::Future;
 /// 用户动作进入三种独立阶段，确认后的直接安装不再次启动或选择宿主。
 #[derive(Clone, Copy)]
 pub(super) enum ApplyStep {
+    /// 解析目标实例并检查外观。
     Resolve,
+    /// 确认后重启选中的实例再应用。
     RestartSelected,
+    /// 确认后直接安装，不再启动或选择宿主。
     InstallDirect,
 }
 

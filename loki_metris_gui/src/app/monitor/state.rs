@@ -16,20 +16,28 @@ type ImageViews = Rc<RefCell<HashMap<String, (u64, Entity<MonitorImageView>)>>>;
 /// 已实现子页；未接通的功能不渲染占位操作。
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(super) enum Route {
+    /// 工作台。
     #[default]
     Workbench,
+    /// 形象配置管理。
     Management,
+    /// 图库。
     Images,
+    /// Hook 配置。
     Hooks,
 }
 
 /// 各选择器独立保留格式筛选，切换 Agent 时与原版卸载面板一致重置。
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(super) enum Category {
+    /// 全部格式。
     #[default]
     All,
+    /// 仅 JPEG。
     Jpeg,
+    /// 仅 PNG。
     Png,
+    /// 仅 GIF。
     Gif,
 }
 impl Category {
@@ -50,19 +58,28 @@ impl Category {
 /// 原生图库去掉领域兼容 data URL，保留真实字节与可修复错误。
 #[derive(Clone)]
 pub(super) struct ImageEntry {
+    /// 图片 ID。
     pub id: String,
+    /// 原始文件名。
     pub filename: String,
+    /// 图片格式。
     pub format: ImageFormat,
+    /// 可播放的图片源；资源缺失或损坏时为可修复错误。
     pub source: Result<MonitorImageSource, HookError>,
+    /// 各展示位置的播放视图。
     pub views: ImageViews,
+    /// 本条目在各位置的驻留与可见性记录。
     pub residency: Rc<ImageResidency>,
 }
 
 /// 每个图像可同时用于图库与多个选择器，完整帧结束后统一判断是否仍可见。
 #[derive(Default)]
 pub(super) struct ImageResidency {
+    /// 已向驻留登记器请求解码。
     pub requested: Cell<bool>,
+    /// 已安排在帧结束后清理不可见位置，避免重复安排。
     pub cleanup_pending: Cell<bool>,
+    /// 按位置 ID 记录 (最近登记的帧代次, 本帧是否可见)。
     pub placements: RefCell<HashMap<String, (u64, bool)>>,
 }
 impl ImageResidency {
@@ -85,10 +102,15 @@ impl ImageResidency {
 
 /// 同一 Agent 的输入实体跨页面保持，避免重绘覆盖 IME 和未提交文案。
 pub(super) struct Editor {
+    /// 该 Agent 的形象配置草稿。
     pub draft: AiProfileDraft,
+    /// 草稿修订号；每次编辑递增。
     pub revision: u64,
+    /// 四个文案输入框，依次对应四种行为；首次进入时创建。
     pub inputs: Option<[Entity<TextareaState>; 4]>,
+    /// 下一帧需要用草稿重写输入框内容。
     pub reset_inputs: bool,
+    /// 输入变化的订阅。
     pub subscriptions: Vec<Subscription>,
 }
 impl Editor {
@@ -107,37 +129,64 @@ impl Editor {
 /// 成功提示只保留展示参数，避免跨页保留的回执冻结旧语言译文。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum CatalogSuccess {
+    /// 上传了若干图片。
     ImagesUploaded { count: usize },
+    /// 在选择器中上传并选中一张图片。
     UploadedAndSelected { filename: String },
 }
 
 /// 页面保留查询、保存与导入任务直到回执，页面切换不撤销已接受写入。
 #[derive(Default)]
 pub(super) struct Catalog {
+    /// 图片帧代次；每帧开始时递增，帧结束时未在本代次登记的位置被暂停或释放。
     pub frame_epoch: Cell<u64>,
+    /// 各 Agent 的形象配置编辑器。
     pub editors: Vec<Editor>,
+    /// 配置草稿至少成功读取过一次。
     pub profiles_loaded: bool,
+    /// 配置草稿读取在途。
     pub profiles_loading: bool,
+    /// 配置草稿读取失败的原因。
     pub profiles_error: Option<HookError>,
+    /// 当前图库条目。
     pub images: Vec<ImageEntry>,
+    /// 已被新快照替换、待下一帧释放像素的旧条目。
     pub retired_images: Vec<ImageEntry>,
+    /// 图库至少成功读取过一次。
     pub images_loaded: bool,
+    /// 图库读取在途。
     pub images_loading: bool,
+    /// 图库读取失败的原因。
     pub images_error: Option<HookError>,
+    /// 当前编辑的 Agent。
     pub selected: Option<AiTool>,
+    /// 图库页的格式筛选。
     pub category: Category,
+    /// 打开中的图片选择器所属行为。
     pub picker: Option<HookBehavior>,
+    /// 选择器内的格式筛选。
     pub picker_category: Category,
+    /// 最近一次图库或配置操作的反馈。
     pub feedback: Option<Result<CatalogSuccess, HookError>>,
+    /// 刚保存成功的 Agent，用于在对应行显示已保存提示。
     pub saved_tool: Option<AiTool>,
+    /// 配置保存在途。
     pub saving: bool,
+    /// 图片上传在途。
     pub uploading: bool,
+    /// 正在删除的图片 ID。
     pub deleting: Option<String>,
+    /// 配置读取代次；旧读取结果被丢弃。
     pub profile_query: u64,
+    /// 图库读取代次；旧读取结果被丢弃。
     pub image_query: u64,
+    /// 配置读取任务。
     pub profile_task: Option<Task<()>>,
+    /// 图库读取任务。
     pub image_task: Option<Task<()>>,
+    /// 配置保存任务。
     pub save_task: Option<Task<()>>,
+    /// 上传或删除任务。
     pub mutation_task: Option<Task<()>>,
 }
 impl Catalog {

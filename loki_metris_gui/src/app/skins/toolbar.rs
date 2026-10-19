@@ -44,18 +44,26 @@ pub(super) fn default_icon_button(id: &'static str, disabled: bool, cx: &App) ->
 
 /// 只有颜色改变时申请下一帧；静态标签不保留轮询或常驻动画。
 struct TabMotion {
+    /// 指针悬停。
     hovered: bool,
+    /// 背景色过渡。
     background: CssMotion<4>,
+    /// 文字色过渡。
     foreground: CssMotion<4>,
 }
 
 #[derive(IntoElement)]
 /// 单个宿主标签的绘制适配器，业务动作和原生焦点由内层Button保留。
 pub(super) struct HostTab {
+    /// 内层按钮，持有业务动作与焦点。
     button: Button,
+    /// 宿主键，用于元素 ID。
     key: String,
+    /// 当前选中。
     selected: bool,
+    /// 禁用。
     disabled: bool,
+    /// 按钮焦点。
     focus: FocusHandle,
 }
 

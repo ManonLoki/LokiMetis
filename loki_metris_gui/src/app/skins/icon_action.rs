@@ -8,8 +8,11 @@ use gpui_kit::{
 
 /// 只保存瞬时绘制状态；一次性订阅在失焦、隐藏和停用时清除持键反馈。
 struct PressState {
+    /// 按钮焦点。
     focus: FocusHandle,
+    /// 按键按住中，显示按下反馈。
     held: bool,
+    /// 失焦、隐藏与停用的一次性订阅。
     _subscriptions: Vec<Subscription>,
 }
 impl PressState {
@@ -45,8 +48,11 @@ impl PressState {
 /// 已配置按钮的最后一层绘制适配，业务回调仍绑定同一个原生按钮。
 #[derive(IntoElement)]
 pub(in crate::app) struct IconAction {
+    /// 已配置的原生按钮。
     button: Button,
+    /// 图标键，用于元素 ID。
     key: &'static str,
+    /// 禁用。
     disabled: bool,
 }
 /// 调用方完成尺寸、图标与动作配置后，再附加局部持键反馈。

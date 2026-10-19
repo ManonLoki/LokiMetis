@@ -13,7 +13,9 @@ pub(in crate::app::monitor) enum PickerFocus { Clear, Trigger }
 /// 在途回调只保留弱编辑身份或值类型字段身份；原生 FocusHandle 由 keyed 状态拥有。
 #[derive(Clone)]
 enum Subject {
+    /// 文案输入框。
     Textarea(WeakEntity<TextareaState>),
+    /// 图片选择器按钮。
     Picker { tool: AiTool, behavior: HookBehavior, kind: PickerFocus },
 }
 
@@ -37,11 +39,17 @@ impl Subject {
 /// 原请求的焦点、页面和手动滚动权限不因几何重试而重新取得。
 #[derive(Clone, Copy)]
 struct RevealLease {
+    /// 请求时的页面代次。
     page_revision: u64,
+    /// 请求时的手动滚动代次；用户滚动后租约失效。
     manual_revision: u64,
+    /// 请求时的焦点代次。
     focus_generation: u64,
+    /// 请求时的滚动偏移。
     offset: Point<Pixels>,
+    /// 请求时的视口尺寸。
     viewport: Size<Pixels>,
+    /// 请求时的缩放比例。
     scale: f32,
 }
 
@@ -62,11 +70,17 @@ impl RevealLease {
 
 /// keyed 生命周期内记录实际焦点边沿和最近几何，不持续追赶手动滚动。
 pub(in crate::app::monitor) struct RevealState {
+    /// 输入框当前持有焦点。
     focused: bool,
+    /// 获得焦点的次数；每次焦点边沿递增。
     focus_generation: u64,
+    /// 几何修订号。
     revision: u64,
+    /// 最近一次绘制的边界。
     bounds: Bounds<Pixels>,
+    /// 几何未就绪时等待重试的滚入租约。
     retry: Option<RevealLease>,
+    /// 选择器按钮的焦点句柄。
     button_focus: Option<FocusHandle>,
 }
 

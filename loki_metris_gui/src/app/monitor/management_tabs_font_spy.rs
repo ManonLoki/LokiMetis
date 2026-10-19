@@ -13,17 +13,25 @@ use std::{
 /// 只保留消费者实际送入原生排版的行，不根据预期字重制造排版结果。
 #[derive(Clone, Debug)]
 pub(super) struct ObservedLine {
+    /// 排版的文本。
     pub text: String,
+    /// 字号。
     pub size: Pixels,
+    /// 请求排版时的字体 ID。
     pub input: Vec<FontId>,
+    /// 实际排版结果使用的字体 ID。
     pub output: Vec<FontId>,
+    /// 排版宽度。
     pub width: Pixels,
 }
 
 /// 委托同一个 macOS 文字系统，记录原生身份与消费者排版之间的关联。
 pub(super) struct NativeFontSpy {
+    /// 被委托的原生文字系统。
     pub native: Arc<dyn PlatformTextSystem>,
+    /// 字体 ID 到字体描述的映射。
     fonts: Mutex<HashMap<FontId, Font>>,
+    /// 已观察到的排版行。
     lines: Mutex<Vec<ObservedLine>>,
 }
 

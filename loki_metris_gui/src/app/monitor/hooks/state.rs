@@ -5,24 +5,37 @@ use loki_metris_core::{AiTool, HookConfigLocation, HookConfigWriteResult, HookEr
 
 /// 成功只来自实际writer回执，错误直接映射稳定领域码。
 pub(crate) enum Feedback {
+    /// 写入成功，附写入结果。
     Written(HookConfigWriteResult),
+    /// 写入失败。
     Failed(HookError),
 }
 
 /// 一个工具的草稿在切换标签后保留，文件路径输入为可复制的只读投影。
 pub(crate) struct Editor {
+    /// 最近一次读取或保存成功的配置位置。
     pub saved: HookConfigLocation,
+    /// 目录输入框的草稿。
     pub draft: String,
+    /// 路径输入框；首次进入时创建。
     pub inputs: Option<Vec<Entity<InputState>>>,
+    /// 下一帧需要用已保存值重写输入框。
     pub reset: bool,
+    /// 目录保存在途。
     pub saving: bool,
     /// 仅标记已接受的目录保存动作，两个按钮各自显示对应 loading。
     pub saving_default: bool,
+    /// Hook 配置写入在途。
     pub writing: bool,
+    /// 系统目录选择框打开中。
     pub picking: bool,
+    /// 输入变化的订阅。
     pub subscriptions: Vec<Subscription>,
+    /// 目录保存任务。
     pub save_task: Option<Task<()>>,
+    /// 配置写入任务。
     pub write_task: Option<Task<()>>,
+    /// 目录选择任务。
     pub pick_task: Option<Task<()>>,
 }
 impl Editor {
@@ -52,14 +65,23 @@ impl Editor {
 /// 已接受的操作任务跨标签保留，各工具忙状态互不影响。
 #[derive(Default)]
 pub(in crate::app::monitor) struct HooksView {
+    /// 各 Agent 的 Hook 配置编辑器。
     pub editors: Vec<Editor>,
+    /// 当前选中的 Agent。
     pub selected: Option<AiTool>,
+    /// 配置位置至少成功读取过一次。
     pub loaded: bool,
+    /// 读取在途。
     pub loading: bool,
+    /// 读取失败的原因。
     pub error: Option<HookError>,
+    /// 最近一次写入的反馈及所属 Agent。
     pub feedback: Option<(AiTool, Feedback)>,
+    /// 反馈代次；新反馈或切换时递增，迟到的目录选择不覆盖较新反馈。
     pub feedback_revision: u64,
+    /// 读取代次；旧读取结果被丢弃。
     pub query: u64,
+    /// 读取任务。
     pub query_task: Option<Task<()>>,
 }
 impl HooksView {

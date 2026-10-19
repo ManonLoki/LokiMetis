@@ -26,9 +26,13 @@ use reveal::RevealState;
 
 /// 四个真实输入各自保留状态 ID，包装不增加辅助节点或代理动作。
 pub(super) struct MonitorTextarea {
+    /// 文案输入状态。
     input: Entity<TextareaState>,
+    /// 深色主题。
     dark: bool,
+    /// 可访问名称。
     label: SharedString,
+    /// 获得焦点时滚入所用的页面滚动；None 表示不滚入。
     reveal: Option<PageScroll>,
 }
 
@@ -65,7 +69,9 @@ impl IntoElement for MonitorTextarea {
 
 /// 预绘制采样描边和焦点滚动请求，不修改命中几何或编辑器状态。
 pub(super) struct PaintState {
+    /// 本帧描边颜色。
     border: Rgba,
+    /// 描边过渡仍在进行，需要继续请求下一帧。
     running: bool,
 }
 

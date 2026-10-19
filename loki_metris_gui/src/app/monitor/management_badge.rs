@@ -9,10 +9,15 @@ use loki_metris_core::HookBehavior;
 /// 徽标颜色只控制展示，行为头部彩条仍保留自己的强调色。
 #[derive(Clone, Copy)]
 pub(super) enum BadgeColor {
+    /// 品牌色。
     Brand,
+    /// 青色。
     Teal,
+    /// 灰色。
     Gray,
+    /// 黄色。
     Yellow,
+    /// 红色。
     Red,
 }
 

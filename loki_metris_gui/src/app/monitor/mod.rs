@@ -39,11 +39,17 @@ use gpui_kit::{AnyElement,Context,FontWeight,IntoElement,Role,base::TestSupportE
 /// 窗口只保留已读投影，端口、计数和事件由监控宿主拥有。
 #[derive(Default)]
 pub(super) struct MonitorView {
+    /// 当前子页。
     route:state::Route,
+    /// 形象配置与图库状态。
     catalog:state::Catalog,
+    /// Hook 配置页状态。
     hooks:hooks::HooksView,
+    /// 最近读取的 relay 状态。
     status:Option<HookRelayStatus>,
+    /// 最近一次状态读取失败的类别。
     error:Option<&'static str>,
+    /// 最近一次读取状态的时刻。
     last_read:Option<std::time::Instant>,
 }
 

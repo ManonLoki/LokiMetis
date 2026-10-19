@@ -7,9 +7,13 @@ use gpui_kit::{
 /// 标签类别只决定展示，不包含资源选择或应用动作。
 #[derive(Clone, Copy)]
 pub(super) enum SkinBadge {
+    /// 主题 CSS 包。
     Theme,
+    /// 旧版可执行皮肤。
     Legacy,
+    /// 来源标记；user 为 true 表示用户导入。
     Source { user: bool },
+    /// 明暗模式支持。
     Mode,
 }
 

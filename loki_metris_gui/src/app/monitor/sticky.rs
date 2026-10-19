@@ -25,8 +25,11 @@ fn painted_bounds(edge: Edge, bounds: Bounds<Pixels>, viewport: Bounds<Pixels>, 
 
 /// deferred 顺序与 Tab 顺序分别拥有明确职责，不用第二套按钮或编辑实体。
 pub(super) struct MonitorFlow {
+    /// 被包装的内容。
     child: Option<AnyElement>,
+    /// 页面滚动。
     target: PageScroll,
+    /// 粘滞区域类型。
     kind: Kind,
 }
 
