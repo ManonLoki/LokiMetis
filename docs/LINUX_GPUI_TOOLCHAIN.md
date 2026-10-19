@@ -1,6 +1,6 @@
 # Linux GPUI 工程知识库
 
-本文件是本项目Linux兼容、双架构构建和打包工具链的技术事实源。目标来自根Cargo metadata；声明支持不等于运行验收。Linux当前承接已批准的x64与ARM64工具链扩展，Windows/macOS路径继续独立维护。
+本文件是本项目Linux兼容、双架构构建和打包工具链的技术事实源。目标来自根Cargo metadata；声明支持不等于运行验收。Linux当前承接已批准的x64与ARM64工具链扩展，Windows/macOS路径继续独立维护。跨平台依赖声明、features与本地补丁索引见[技术选型清单](TECHNOLOGY.md)。
 
 ## 支持矩阵与宿主边界
 

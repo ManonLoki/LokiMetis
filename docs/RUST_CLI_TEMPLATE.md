@@ -2,13 +2,15 @@
 
 当前只选择 GPUI GUI，接口和平台取根 Cargo metadata。没有 CLI/TUI/MCP 或前端运行时，不因文档文件名附加接口。文件、中文注释、测试、记忆事件和例外详见 ENGINEERING_RULES。
 
+当前依赖声明、features、平台继承、本地兼容层和 Harness 工具版本统一见[技术选型与依赖清单](TECHNOLOGY.md)。它按根 Cargo 与 package.json 整理，不把保留初始化模板或本机忽略锁文件当作当前版本合同。
+
 ## 工作区
 
 - resolver 3、edition 2024、MSRV 1.98.1，根 workspace.package.version 是当前版本事实；core/gui 的 version/edition/rust-version 继承 workspace。
 - loki_metris_core 已按批准复刻规格迁入历史纯 Rust 领域模型、SQLite 索引、解析与聚合；声明的项目内依赖见根 Cargo.toml。产品定义已完成，具体复刻进度见自身 Work Plan。core 不依赖 GPUI、Tauri 或 WebView。
 - loki_metris_gui 使用 gpui-kit 0.7.3、rust-i18n 4.2.4 兼容范围、sys-locale 0.3.2、tracing 0.1.44、tracing-subscriber 0.3.23、tracing-appender 0.2.5；实际解析结果以 Cargo 为准。
-- 已选原生机制使用 tray-icon 0.26.1、auto-launch 0.6.0、interprocess 2.4.5、global-hotkey 0.8.0；Windows 条件 raw-window-handle，Kit test-support 仅 dev-dependencies。依赖统一 workspace，成员不另定版本。
-- Linux支持准备使用同一tray-icon的`ksni`特性，通过会话D-Bus承载托盘，不启用GTK/AppIndicator后端；Linux GUI另显式继承ashpd 0.13.13（async-io/global_shortcuts）和x11rb 0.13.2（xkb）。Linux双架构构建与打包合同见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。Portal/X11热键服务尚未接线，不把依赖编译当作完整Linux能力验收，也不改变空热键合同。
+- 已选原生机制使用精确约束 tray-icon =0.26.1 及本地 HRESULT 补丁、auto-launch 0.6.0、interprocess 2.4.5、global-hotkey 0.8.0；三平台按 target 条件继承 raw-window-handle，Kit test-support 仅 dev-dependencies。依赖统一 workspace，成员不另定版本。
+- Linux已接通同一tray-icon的`ksni`特性与恢复入口探测，通过会话D-Bus承载托盘，不启用GTK/AppIndicator后端；Linux GUI另显式继承ashpd 0.13.13（async-io/global_shortcuts）和x11rb 0.13.2（根xkb，成员另启用shape/randr）。Linux双架构构建与打包合同见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。Portal/X11热键服务尚未接线，不把依赖编译当作完整Linux能力验收，也不改变空热键合同。
 - 优先标准库/现有依赖，不预建运行时/驱动接口；真正必要新依赖先说明确认，显式声明在项目内隔离，不安装全局包。
 - macOS标题辅助功能通过项目内`accesskit_macos 0.26.3`路径补丁修正原生Heading角色与层级，保持原公开接口和依赖。官方归档原样保留，标准库生成器只在OUT_DIR应用严格补丁；来源、完整许可、原生selector回归及移除条件见[vendor说明](../vendor/accesskit_macos/README.md)。本地与正式包装均携带三份原样许可及修改声明。
 
@@ -16,7 +18,7 @@
 
 GUI 只解析语法、持有展示/交互状态、调用 core 并映射错误。值域、跨字段关系、业务默认值、权限/幂等、权威状态、迁移/持久化策略、工作流和稳定领域错误属于 core。多个 core 调用间的业务编排应提升为一个用例 API。输入/输出使用 core 自有类型，不泄漏 GPUI/宿主类型。
 
-GPUI loop 运行同步主线程，不使用 Tokio 根任务包裹或嵌套 runtime。未来业务异步复用 adapter 拥有的 runtime；render/handler 零阻塞 I/O，长任务有 owner、取消、有界输入/输出与退出回收。偏好仅启动前有界读取，后台合并/同目录临时文件原子替换；正常退出等待最后快照。业务持久化不落 GUI 偏好。
+GPUI loop 运行同步主线程，不使用 Tokio 根任务包裹或嵌套 runtime。当前 `UsageService` 在事件循环前建立并拥有双 worker Tokio runtime，扫描、查询、通知、Hooks 与后台任务复用其 handle；core 不建立根 runtime。render/handler 零阻塞 I/O，长任务有 owner、取消、有界输入/输出与退出回收。偏好仅启动前有界读取，后台合并/同目录临时文件原子替换；正常退出等待最后快照。业务持久化不落 GUI 偏好。
 
 端侧唯一 tracing subscriber，INFO 以上结构化事件经有界队列同时写 stderr 和本地按日滚动日志，最多七份，退出刷新。core 只发事件不装 subscriber；不记录秘密、PII、原始业务内容或任意用户路径，错误用稳定类别。普通页面会话由根原生视图持有，同进程跨页保留、真正退出重置。
 
@@ -30,7 +32,7 @@ GPUI 当前 updater、通用原生 dialog、深链接 unavailable；通知、原
 
 ## 真实命令
 
-在项目根执行 pnpm run test（cargo test --workspace --all-targets --all-features）、cargo build --workspace、cargo run -p loki_metris_gui、pnpm run validate。根 package.json 仅 Node 标准库工程入口，无 JS 前端或 npm 运行依赖。
+源码启动使用 `pnpm run dev`，它由 Node 标准库设置 debug 皮肤资源路径再调用 `cargo run -p loki_metris_gui`；直接 cargo run 不会自动设置该资源路径。相关单元测试按本次修改选取；显式全量测试入口为 `pnpm run test`（cargo test --workspace --all-targets --all-features），编译入口为 `cargo build --workspace`，治理检查入口为 `pnpm run validate`。根 package.json 无 JS 前端或 npm 运行依赖，不因列出命令就自动执行全部步骤。
 
 需要 macOS 通知身份或包内皮肤资源的开发对照使用 `pnpm gpui:preview`，完成后通过 Computer Use 打开 `target/gpui-preview/LokiMetris.app`。此命令复用 Cargo 已配置的 host debug 缓存，核对源码／资源、完整 ad-hoc 签名与严格身份验证后才替换旧预览；旧包保留为同目录 `previous-*.app`。运行中的同路径预览必须先正常退出。工具不启动应用、不使用证书、不公证、不生成分发候选；候选继续使用下述独立打包入口。
 

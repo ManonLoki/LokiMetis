@@ -9,6 +9,8 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 修改 GUI 时先读取根 Cargo metadata 的 `gui-framework`，既有 GUI 缺失时兼容 `tauri`。下文 React/Mantine/Jotai/Query、浏览器存储、`$mantine-list-view`、TypeScript与Tauri能力只约束Tauri路径。`gpui` 按 `$desktop-add-gpui-adapter` 与 `docs/design_standards/gpui_gui.md` 使用原生Rust视图、gpui-kit与rust-i18n；页面会话由同一原生根视图在进程内持有，页面切换保留、退出重置，不复制core权威数据。控件自身动作与周围父级不串扰、core-first、中文声明注释和本次相关非空Rust回归同样适用；GPUI 同样使用 Node.js/pnpm 运行项目根验证、发布和打包脚本；不得因为通用Skill提到前端而为GPUI安装React或Mantine。五项原生能力只按 profile 与已批准配置启用，依赖标准和选择后问询由 GPUI adapter Skill 管理；深链接仍 unavailable/disabled。
 
+技术选型、当前依赖声明、平台条件和本地补丁先查[项目技术清单](../../../docs/TECHNOLOGY.md)与根Cargo；不要把保留初始化renderer的旧版本当作当前项目下界，也不要把本机忽略锁文件当固定解析合同。
+
 ## 工作流程
 
 用户可见 Task 的序号按同一 `hostId` 和精确 `projectId` 清点：先读取 `list_threads`，再逐页读取 `list_archived_threads` 清点归档 Task，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填。内部 Subagent 不使用标题合同且不占用序号。Git Task 还必须用 `git rev-parse --path-format=absolute --git-common-dir` 和 `git worktree list --porcelain` 证明独立 Worktree 绑定正确。

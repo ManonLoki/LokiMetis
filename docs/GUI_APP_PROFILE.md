@@ -7,6 +7,8 @@
 - Logo: candidate-1 金色神谕之眼；用户在本次 Codex 表单明确选择
 - unavailable fixed capabilities: updater / general native dialog / deep_link
 
+当前技术栈、依赖声明与本地补丁归属见[技术选型清单](TECHNOLOGY.md)。受管GPUI设计标准仍完整保留；其中中性托盘/热键平台限制按下述已批准Linux产品扩展解释，不据旧模板回退当前配置。
+
 Linux GNU x64/ARM64扩展已批准，构建及原生能力的实现边界统一见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。存在`DISPLAY`时选择X11/XWayland桌宠宿主；窗口、托盘恢复探测及通知已接线，真实候选E2E仍待验证。纯Wayland没有XWayland时不宣称支持桌宠全局定位/置顶。下列九字段仍表达产品选择；Portal/X11后台热键服务尚未接线，空action合同保持不变。
 
 ```gui-initialization-config
@@ -68,13 +70,13 @@ AI监控已接通工作台、监控管理、图片管理与Hooks设置。工作�
 
 GPUI皮肤页使用统一启用Agent集合筛选Codex／WorkBuddy宿主，提供响应式卡片、搜索、用户资源多选、创建纯主题与生成提示词、原生ZIP选择／预检／信任／导入、导出及转换／删除确认。资源事务属于应用级后台owner；页面离开后预检暂存取消，已接受提交仍完成并清理。宿主操作保留实例身份、代码／外观／Windows整宿主恢复授权，排队操作失去页面授权后不能启动新副作用；已进入事务的补偿不被GUI授权检查阻断。
 
-六套内置皮肤和生成器随包进入macOS `Contents/Resources/skins` 或Windows安装根 `resources/skins`；release只读取包内资源，缺失明确报错。注入runtime、兼容层与事务标记使用LokiMetris独立命名空间，发现原版owner后拒绝接管；自有旧回调停止并保留共享状态清理账本。创建／预检／纯主题提交／导出已有macOS开发预览观察；WorkBuddy已完成当次授权的应用／停用及正常实例恢复，Codex与Windows宿主、最终视觉仍未验收；本地App包内资源实际运行已观察。预览保留参考Card.Section负边距：内部176px高、左右扩16px并上移16px，外层实际可见160px；居中Cover不改原图。安装参考版v0.3.12的实际Brotli嵌入代码／CSS与历史dist完整匹配，六套预览资源三方字节相同。图片圆角沿外卡片1px边框内缘使用19px，选择框同步分区位置；真实窗口几何／图元4项与消费者3项通过。选择框圆角外的绘制／命中仍有真实差异，实物构图待新版对照。
+六套内置皮肤和生成器随包进入macOS `Contents/Resources/skins` 或Windows/Linux安装根 `resources/skins`；release只读取包内资源，缺失明确报错。注入runtime、兼容层与事务标记使用LokiMetris独立命名空间，发现原版owner后拒绝接管；自有旧回调停止并保留共享状态清理账本。创建／预检／纯主题提交／导出已有macOS开发预览观察；WorkBuddy已完成当次授权的应用／停用及正常实例恢复，Codex与Windows宿主、最终视觉仍未验收；本地App包内资源实际运行已观察。预览保留参考Card.Section负边距：内部176px高、左右扩16px并上移16px，外层实际可见160px；居中Cover不改原图。安装参考版v0.3.12的实际Brotli嵌入代码／CSS与历史dist完整匹配，六套预览资源三方字节相同。图片圆角沿外卡片1px边框内缘使用19px，选择框同步分区位置；真实窗口几何／图元4项与消费者3项通过。选择框圆角外的绘制／命中仍有真实差异，实物构图待新版对照。
 
 主窗与独立桌宠设置窗无初始焦点时，Tab／Shift+Tab进入各自原生tab stop；只在成功获焦后消费首键，已有Input／模态焦点和未安装入口的其它窗口继续原生分发，订阅分别随所属实体释放。桌宠尺寸滑块参与正反Tab遍历，关闭重开不继承旧焦点。数据源弹窗使用独立命名Dialog、Heading、描述及关闭／输入名称，模态打开时隐藏后台辅助树；子按钮拥有自己的Enter动作。完整新版Computer Use仍待核对。
 
 监控行为卡标题、图片／内容／可选标签、light徽标和22px清除动作已按参考尺寸设置，更换图片保留原trigger动作并增加独立装饰图标。管理／Hooks／工作台显示名称消费core公开目录，Grok协议身份保持原样。桌宠首图定位仅在成功保存后完成；失败延迟重试，等待当前Agent／桌宠／图库版本的新鲜快照，用户手动翻页终止自动定位。上述原生展示与生命周期回归已通过，混字号字形基线、徽标字距和实际新版窗口仍待比对。
 
-macOS 主字体使用历史 @fontsource-variable 5.3.0 的原样 Geist／Geist Mono Latin WOFF2；两字体各自 OFL 与既有静态 OFL 随包保留。Windows 暂沿用原十份静态 TTF。gpui-pre-macos 的完整固定上游17文件仅在 OUT_DIR 应用字重／原生字体身份补丁，不安装系统字体；19项原生与身份回归通过；第14次开发预览已观察实际文字，但完整字形像素仍未验收。未知字体上下文只临时 CFEqual 比较，缓存不持有CFType；首次未命中扫描已有字体，额外变化轴及Windows可变字体仍未验收。
+macOS 主字体使用历史 @fontsource-variable 5.3.0 的原样 Geist／Geist Mono Latin WOFF2；两字体各自 OFL 与既有静态 OFL 随包保留。Windows 暂沿用原十份静态 TTF。当前 GPUI 0.3.9 已将 CoreText 与字重／原生字体身份补丁迁入 gpui-pre-apple（完整固定上游19文件），gpui-pre-macos 保留15文件窗口兼容层；补丁仍仅在 OUT_DIR 应用，不安装系统字体；19项原生与身份回归通过；第14次开发预览已观察实际文字，但完整字形像素仍未验收。未知字体上下文只临时 CFEqual 比较，缓存不持有CFType；首次未命中扫描已有字体，额外变化轴及Windows可变字体仍未验收。
 
 监控补充内容使用真实Kit Textarea的局部外观适配：历史CSS推导两行56.4px、14px／400／1.55、1px边框／12px圆角，暗色#2e2e2e／#424242／占位#696969，浅色白／#ced4da／占位#adb5bd；焦点仅单层品牌描边，100ms标准CSS ease，原生编辑／AX路径继续保留。Hooks目录动作采用历史30px xs内容层，恢复默认为subtle，后台保存仅映射提交操作的loading。真实编辑器／Metal投影和相关Monitor46项通过；第14次预览已观察焦点细边框、多行中文粘贴及撤销恢复。直接中文typeText未插入，真实系统IME组合输入未验收；右键菜单缺少原版系统文字工具，Tab移出／返回已观察但下一焦点可见性与完整顺序仍待修正。
 

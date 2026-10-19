@@ -8,28 +8,29 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 
 产品复刻过程中有若干行为无法在应用层实现，必须改框架本身（图片独立圆角视口、父圆角裁剪、按需帧调度、可变字体 wght 实例、macOS 窗口 zoom／全屏／reopen 事件、AccessKit 标题层级等）。`vendor/` 的作用就是在**不 fork、不改版本号、不手改第三方源码**的前提下，对这几个固定版本的 crate 施加一组可审阅、可复现、失败关闭的补丁：
 
-- 根 `Cargo.toml` 的 `[patch.crates-io]` 把六个 crate 名重定向到 `vendor/` 下的同名本地包；其余依赖链（`gpui-kit`、`gpui-pre-platform`、`gpui-pre-linux` 等）仍从 crates.io 解析，不感知替换。
+- 根 `Cargo.toml` 的 `[patch.crates-io]` 把七个 crate 名重定向到 `vendor/` 下的同名本地包；其余依赖链（`gpui-kit`、`gpui-pre-platform`、`gpui-pre-linux` 等）仍从 crates.io 解析，不感知替换。
 - 每个本地包的 `upstream/` 原样保存官方 `.crate` 归档的全部普通文件，逐字节不可变。
 - 补丁以"原文片段 → 替换片段"模板形式登记，构建时由仅使用标准库的生成器在 Cargo `OUT_DIR` 内生成完整补丁镜像；源码树里不存在被修改过的上游文件。
 - 来源（归档 SHA-256、固定清单 SHA-256、逐文件 SHA-256）、补丁匹配唯一性、生成结果 SHA-256 三层校验任一失败即终止编译。
 
-`[workspace].exclude` 把这六个包排除在工作区成员之外：它们不参与 `cargo test --workspace`，自身的测试需按各包 README 显式运行（见第 6 节）。`vendor/` 不是 `cargo vendor` 产物，与 `.cargo/config` 的 `source.vendored-sources` 无关。
+`[workspace].exclude` 把这七个包排除在工作区成员之外：它们不参与 `cargo test --workspace`，自身的测试需按各包 README 显式运行（见第 6 节）。`vendor/` 不是 `cargo vendor` 产物，与 `.cargo/config` 的 `source.vendored-sources` 无关。
 
 ## 2. 目录总览
 
-| 目录 | 替换的 crate | 上游 | 作用 | 补丁数 | 生成校验文件数 |
-|---|---|---|---|---|---|
-| `gpui-patch-support/` | 无（共享维护代码） | — | 标准库 SHA-256 生成器、`patch!` 宏、共用 scene 补丁、独立 Node 验证器 | 24（scene，供两包复用） | — |
-| `gpui-pre/` | `gpui-pre 0.3.9`（lib 名 `gpui`） | zed@93d7456，160 文件 | GPUI core：图片圆角视口、父圆角裁剪、按需帧、deferred AX、hitbox 排除、元素仿射、焦点代数 | 24 + 146 = 170 | 15 |
-| `gpui-pre-apple/` | `gpui-pre-apple 0.3.9`（`gpui_apple`） | zed@93d7456，19 文件 | Metal 渲染器与 shader：圆角视口、父裁剪接线、图集延迟回收；CoreText 可变字体（0.3.9 自 macos 迁入） | 24 + 36 + 3 = 63 | 6 |
-| `gpui-pre-macos/` | `gpui-pre-macos 0.3.9`（`gpui_macos`） | zed@93d7456，15 文件 | AppKit 平台层：菜单锁、reopen／zoom／全屏事件、CVDisplayLink 需求位 | 24 | 4 |
-| `gpui-pre-windows/` | `gpui-pre-windows 0.3.9`（`gpui_windows`） | zed@93d7456，28 文件 | DirectX 平台层：HLSL 圆角视口 ABI、调试 shader 路径、原生命中与外部显示 | 9 | 5 |
-| `gpui-pre-wgpu/` | `gpui-pre-wgpu 0.3.9`（`gpui_wgpu`） | zed@93d7456，14 文件 | WGPU 后端：WGSL／WebGL 圆角视口 ABI、测试字体夹具路径 | 9 | 5 |
-| `accesskit_macos/` | `accesskit_macos 0.26.3` | AccessKit@c88605b，15 文件 | macOS AX 适配：Heading 角色、`AXHeadingLevel`、整数 `AXValue` | 7（独立 FNV 生成器） | 1（`node.rs`） |
+| 目录 | 替换的 crate | 上游来源 | 作用 / 维护入口 |
+| --- | --- | --- | --- |
+| `gpui-patch-support/` | 无（共享维护代码） | — | 标准库生成器、scene补丁、`patch-inputs.mjs`与只读验证器 |
+| `gpui-pre/` | `gpui-pre 0.3.9`（lib名 `gpui`） | zed@93d7456，160文件 | 公共图元、圆角/父裁剪、按需帧、AX、hitbox与焦点；`build.rs`及`src/*_patches.rs` |
+| `gpui-pre-apple/` | `gpui-pre-apple 0.3.9`（`gpui_apple`） | zed@93d7456，19文件 | Metal/图集回收/父裁剪及迁入的CoreText字体；`build.rs`及Metal/font登记 |
+| `gpui-pre-macos/` | `gpui-pre-macos 0.3.9`（`gpui_macos`） | zed@93d7456，15文件 | AppKit菜单、reopen/zoom/全屏及需求位；`build.rs` |
+| `gpui-pre-windows/` | `gpui-pre-windows 0.3.9`（`gpui_windows`） | zed@93d7456，28文件 | DirectX/HLSL圆角ABI、实时命中与外部显示；`build.rs` |
+| `gpui-pre-wgpu/` | `gpui-pre-wgpu 0.3.9`（`gpui_wgpu`） | zed@93d7456，14文件 | Linux所用WGPU及WebGL的圆角ABI、测试夹具；`build.rs` |
+| `accesskit_macos/` | `accesskit_macos 0.26.3` | 官方归档15文件；来源登记18项含额外三份许可 | Heading/层级/整数值；独立`build.rs`与`verify-source.mjs` |
+| `tray-icon/` | `tray-icon 0.26.1` | 官方归档26文件 | Windows接受非负成功HRESULT；共享生成器，入口为`build.rs`，见[包说明](../tray-icon/README.md) |
 
-补丁数按 `build.rs`／补丁登记模块中的 `Patch` 条目计数，`root-prefix.before` 不计入。所有 `gpui-pre*` 包的 Zed 源 revision 一致（`93d745668805029476e6d7fbb19652116fed51de`；0.3.8 为 `279fe070…`，2026-10-15 升级），因此 ABI 变更可以跨包保持一致。
+精确补丁与输出文件集合取各包登记模块和 `Spec.generated_hashes`，不在概览复制总量。所有 `gpui-pre*` 包的Zed源revision一致（`93d745668805029476e6d7fbb19652116fed51de`；0.3.8为`279fe070…`，2026-10-15升级），ABI变更必须跨后端同步。当前依赖及平台条件另见[技术选型清单](../../docs/TECHNOLOGY.md)。
 
-## 3. 统一的工作机制（gpui-pre 五包）
+## 3. 统一的工作机制（GPUI 五包及 tray-icon）
 
 ### 3.1 每个包的文件分层
 
@@ -63,7 +64,7 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 - `gpui-pre`：`GPUI_LEAK_DETECTION`／`leak-detection` cfg；Windows 下 `windows-manifest` feature 从 `生成树/resources/windows/` 嵌入资源。
 - `gpui-pre-apple`：`cbindgen` 读取生成树的 `vendor/gpui/src/{scene,geometry,color,window,platform}.rs` 与 `src/metal_renderer.rs` 产出 `scene.h`；再用 `xcrun metal`／`metallib` 编译生成树的 `src/shaders.metal`（或 `runtime_shaders` 拼接）。启用 `parent-rounded-clip` 时额外在头文件顶部写 `#define GPUI_PARENT_ROUNDED_CLIP 1`，使 C 宏与 Rust feature 同步。
 - `gpui-pre-windows`：release 且目标为 Windows 时用 `fxc.exe`（`GPUI_FXC_PATH` → PATH → 最新 Windows SDK）编译生成树的 HLSL。
-- `gpui-pre-macos`：先经 `fixture_verify.rs` 校验 `test-fixtures/` 七份字体与 OFL 的完整文件集，再生成。
+- `gpui-pre-apple`：生成前经 `fixture_verify.rs` 校验 `test-fixtures/` 七份字体与 OFL 的完整文件集，再生成。
 - `gpui-pre-wgpu`：先校验 `test-fixtures/` 五文件（三字体 + 两 OFL，共 596 542 字节，清单 SHA 固定于 `FONT_FIXTURE_MANIFEST_SHA256`），再生成。
 
 ### 3.3 为什么用"模板替换"而不是 `.patch` 文件或 fork
@@ -79,8 +80,8 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 |---|---|
 | `generator.rs` | `Patch`、`Spec`、`generate`；内含自测（临时夹具下验证三层校验、只写 OUT_DIR）。各包 `build.rs` 用 `#[path]` 引入。 |
 | `sha256.rs` | 纯标准库 SHA-256，供生成器及 wgpu 字体夹具校验复用。 |
-| `scene_patches.rs` + `scene_patches/` | `gpui-pre` 与 `gpui-pre-apple` 的上游 `scene.rs` 字节相同（前者在 `src/scene.rs`，后者在 `vendor/gpui/src/scene.rs`），24 对补丁只维护一份，`all(path)` 以包内路径实例化。两包的 `generated_hashes` 中 `scene.rs` 摘要相同（`f8e1a899…`）即为此证据。 |
-| `verify-source.mjs` | 独立 Node 验证器：核对 `provenance.json`、清单、上游文件集、入口前缀，再用正则从 **`build.rs` 文本**提取 `Patch { … include_str!(…) }` 字面量复现替换并比对 `generated_hashes`；对 `gpui-pre-wgpu` 额外核对字体夹具。不写入任何目录。它不解析 `patch!` 宏或 `src/*_patches.rs`，因此当前只对 macos／windows／wgpu 三包有效（见第 9 节）。 |
+| `scene_patches.rs` + `scene_patches/` | `gpui-pre` 与 `gpui-pre-apple` 的上游 `scene.rs` 字节相同（前者在 `src/scene.rs`，后者在 `vendor/gpui/src/scene.rs`），24 对补丁只维护一份，`all(path)` 以包内路径实例化。两包的 `generated_hashes` 中 `scene.rs` 摘要应保持一致，精确值取两包 `build.rs`。 |
+| `verify-source.mjs` | 独立Node验证器：核对provenance、清单、上游文件集和入口前缀，经`patch-inputs.mjs`按真实顺序读取共享`all(path)`、模块`PATCHES`、`patch!`与内联`Patch`，复现替换并比较`generated_hashes`；WGPU另核字体夹具。全程只读。 |
 | `README.md` | 维护约定摘要。 |
 
 `patch!("目录/", "名称", "目标路径")` 宏约定 `目录/名称.before` 与 `.after` 同名成对，`名称` 同时用于错误信息。同一目标文件上的补丁组顺序不可调换（后组的 `before` 可能依赖前组产生的上下文）。
@@ -98,6 +99,8 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 | `parent_clip_patches.rs` | 39 | `window.rs`、`view.rs`、`style.rs`、`styled.rs`、`elements/div.rs`、`debug_overlay.rs`、`app/test_context.rs` | `Styled::clip_rounded_children()` opt-in：子元素按祖先圆角链在 GPU 侧裁剪；hitbox／deferred／视图缓存携带父裁剪链 |
 | `demand_patches.rs` | 12 | `window.rs`、`svg_renderer.rs`、`randomized_element_tree.rs` | 帧重入唤醒器、deferred presentation 状态、sustain 调度；两处仅在 `frame-demand-regression` feature 下隔离上游无法在独立包中编译的测试 |
 | `element_transform_patches.rs` | 36 | `window.rs`（30）、`view.rs`（4）、`element.rs`、`window/a11y/debug.rs` | 新模块 `src/element_transform.rs`：`Window::with_element_transform()` 对元素绘制、命中与 AX 边界施加正比例缩放＋平移，不改布局与纹理缓存键 |
+
+`build.rs`末尾另登记`label-value`、`style-tests-perf-attribute`、`test-window-frame-demand-access`，维护Label值映射、独立包测试属性与平台真实帧需求观测，按声明顺序一并应用。
 
 本地 feature：`parent-rounded-clip`（当前仅 macOS Metal，其它目标 `compile_error!`）、`frame-demand-regression`。新增测试 target `tests/rounded_clip_window.rs`（需 `test-support`）；`src/frame_demand_tests.rs` 由补丁引入。
 
@@ -131,11 +134,11 @@ Feature `parent-rounded-clip` 透传到 `gpui/parent-rounded-clip`；根 `Cargo.
 
 ### 5.4 `gpui-pre-windows/`（DirectX 平台层）
 
-入口 `src/gpui_windows.rs`。3 个补丁：`hlsl-clip-layout`、`hlsl-clip-distance`（`shaders.hlsl` 与 Rust `PolychromeSprite` 对齐并以独立视口算距离）、`debug-generated-shader-path`（`directx_renderer.rs` 调试模式从生成树读取 shader）。此包尚无 Windows 实机渲染验证记录；父圆角裁剪未接入 HLSL。
+入口 `src/gpui_windows.rs`。`build.rs`登记9个补丁：HLSL布局/圆角距离与调试生成树shader路径，以及`live-resize-*`、`live-maximize-*`、`external-show-*`维护原生边缘命中、最大化和外部显示几何。父圆角裁剪尚未接入HLSL，真实渲染按候选另行验证。
 
 ### 5.5 `gpui-pre-wgpu/`（WGPU／WebGL 后端）
 
-入口 `src/gpui_wgpu.rs`，`root-prefix.before` 为空（上游入口无根属性）。9 个补丁：WGSL／WebGL 的圆角视口字段与距离（3）、Rust 步幅与 Naga 测试导入（2）、四处 `cfg(test)` 字体 `include` 改指 `CARGO_MANIFEST_DIR/test-fixtures/…`（4）。`test-fixtures/assets/fonts/{lilex,ibm-plex-sans}/` 补齐官方归档缺失的三份字体与两份 OFL，来源同一 Zed revision（`test-fixtures-provenance.json`）。`tests/rounded_clip.rs` 用 Naga Validator 校验两种 shader 结构偏移与 Rust ABI 一致。该包在当前产品目标（macOS／Windows）中由 `gpui-pre-platform`／`gpui-pre-web` 传递引入，补丁的目的是维持跨后端 ABI 一致，而非产品实际渲染路径。
+入口 `src/gpui_wgpu.rs`，`root-prefix.before` 为空（上游入口无根属性）。9 个补丁：WGSL／WebGL 的圆角视口字段与距离（3）、Rust 步幅与 Naga 测试导入（2）、四处 `cfg(test)` 字体 `include` 改指 `CARGO_MANIFEST_DIR/test-fixtures/…`（4）。`test-fixtures/assets/fonts/{lilex,ibm-plex-sans}/` 补齐官方归档缺失的三份字体与两份 OFL，来源同一 Zed revision（`test-fixtures-provenance.json`）。`tests/rounded_clip.rs` 用 Naga Validator 校验两种 shader 结构偏移与 Rust ABI 一致。当前Linux产品经`gpui-pre-linux`进入WGPU渲染路径；WebGL属于上游后端，不代表本项目新增Web接口。补丁仍须保持跨后端ABI一致，各平台真实渲染分别取证。
 
 ### 5.6 `accesskit_macos/`（独立于 gpui-patch-support）
 
@@ -153,11 +156,11 @@ Feature `parent-rounded-clip` 透传到 `gpui/parent-rounded-clip`；根 `Cargo.
 全部在项目根执行。来源完整性（不写任何文件）：
 
 ```sh
-node vendor/gpui-patch-support/verify-source.mjs vendor/gpui-pre-macos vendor/gpui-pre-windows vendor/gpui-pre-wgpu
+node vendor/gpui-patch-support/verify-source.mjs vendor/gpui-pre vendor/gpui-pre-apple vendor/gpui-pre-macos vendor/gpui-pre-windows vendor/gpui-pre-wgpu vendor/tray-icon
 node vendor/accesskit_macos/verify-source.mjs
 ```
 
-2026-10-11 实际运行：上述三包与 accesskit 通过；`vendor/gpui-pre`、`vendor/gpui-pre-apple` 以 `generated output drift: src/element.rs` 失败——原因不是来源漂移，而是验证器读不到 `patch!` 宏登记的补丁（第 9 节）。这两个包目前只有 Rust 构建期生成器在校验，证据是产品构建成功。
+历史记录（2026-10-11）：当时macos/windows/wgpu三包与accesskit通过；`vendor/gpui-pre`、`vendor/gpui-pre-apple`以`generated output drift: src/element.rs`失败，原因是当时Node验证器无法读取宏登记。该限制现已由`patch-inputs.mjs`处理，不能据历史失败继续宣称验证器失效；Rust构建期生成器仍独立校验。本轮文档整理未重跑这些来源检查，不新增通过结论。
 
 生成器自测：
 
@@ -203,28 +206,28 @@ cargo test --manifest-path vendor/gpui-pre-apple/Cargo.toml --lib \
 3. 比对上游 `Cargo.toml` 与本地 `Cargo.toml`，同步依赖与 feature，保留本地 `[lib]`／`build`／`publish = false`／测试 target。
 4. 核对 `root-prefix.before` 仍是入口文件的精确前缀。
 5. 逐个重新匹配补丁；上游已自带等效修改的补丁应删除而不是硬凑 `before`。
-6. 重算 `generated_hashes`，更新 `docs/ENGINEERING_RULES.md` 2.3 节登记的文件数（当前 18／160／19／15／28／14）及 `verified_third_party.mjs` 的锚点与项数。
+6. 重算 `generated_hashes`，同步`docs/ENGINEERING_RULES.md`第2.3节和`verified_third_party.mjs`的精确根、清单摘要及项数，包含tray-icon登记；不在概览维护第二套数量合同。
 7. 五个 `gpui-pre*` 包必须同一 Zed revision 同步升级，否则 scene 共享补丁与跨后端 ABI 失效。
 
 ### 7.3 移除条件
 
-各 README 与 ADR-005 一致：当官方 GPUI／AccessKit 已提供等效能力，并通过本项目相同的几何、资源、真实像素和两平台 Computer Use 回归后，删除对应 `vendor/` 子目录与根 `[patch.crates-io]` 条目。不得只为去掉补丁而跨版本替换框架、改变其它角色语义或取消失败验证。
+各 README 与 ADR-005 一致：当官方 GPUI／AccessKit 已提供等效能力，并通过本项目相同的几何、资源、真实像素和受影响目标平台 Computer Use 回归后，删除对应 `vendor/` 子目录与根 `[patch.crates-io]` 条目。不得只为去掉补丁而跨版本替换框架、改变其它角色语义或取消失败验证。
 
 ## 8. 与仓库其它规则的关系
 
-- `docs/ENGINEERING_RULES.md` 2.3：行数门禁对 `vendor/` 的豁免是封闭定义——仅六份 `source-content.sha256` 登记且逐文件 SHA 匹配的原样文件；缺失或漂移必须失败，不能改成跳过整个目录。补丁、shim、生成器、测试、`README.md` 和本文都按人工维护文本计数并要求中文注释。
+- `docs/ENGINEERING_RULES.md` 2.3：行数门禁对 `vendor/` 的豁免是封闭定义——仅七份 `source-content.sha256` 登记且逐文件 SHA 匹配的原样文件；缺失或漂移必须失败，不能改成跳过整个目录。补丁、shim、生成器、测试、`README.md` 和本文都按人工维护文本计数并要求中文注释。
 - `docs/RUST_CLI_TEMPLATE.md`：`upstream/Cargo.lock` 仅作来源证据跟踪（各包 `.gitignore` 显式 `!upstream/Cargo.lock`），不是工作区解析锁。
 - 根 `Cargo.toml` 注释：`gpui_apple` 工作区依赖存在的唯一理由是统一开启 `parent-rounded-clip`，删除会静默关闭父圆角裁剪。
 - 性能文档 `docs/performance/gpu-01`、`gpu-03`、`案例-2` 分别解释图集回收、CVDisplayLink 需求位与帧调度补丁的动机与证据。
 
 ## 9. 已观察到的不一致与风险
 
-以下为整理本文时发现的事实，未在本文中修改：
+以下区分当前边界与历史问题；本轮只同步说明，不修改第三方包或新增运行验收：
 
-- **Node 验证器对 gpui-pre／gpui-pre-apple 失效。** `verify-source.mjs` 仅用正则扫描 `build.rs` 中的 `Patch { … }` 字面量；这两个包的补丁已迁入 `src/*_patches.rs`（`patch!` 宏）与共享 `scene_patches.rs`，验证器提取到 0 个补丁，随后在比对 `generated_hashes` 时必然报 `generated output drift`。各包 `README.md` 与 `gpui-patch-support/README.md` 列出的五包一并验证命令因此在这两个包上无法通过。Rust 构建期生成器不受影响。
-- `gpui-pre-macos/Cargo.toml` 保留了上游的 `publish = true`，其它五包均为 `publish = false`。
-- `gpui-pre-apple/README.md` 与 `gpui-pre-windows/README.md` 是 `gpui-pre/README.md` 早期版本的复制，未描述各自的 Metal 图集回收／父裁剪、HLSL 补丁。
+- Node验证器曾因无法读取宏/共享补丁而失败，2026-10-11失败事实保留在第6节；当前已支持这些登记形式。文档同步不替代任一实际验证结果。
+- `gpui-pre-macos/Cargo.toml` 保留了上游的 `publish = true`，其它六个包装包为 `publish = false`；本项目仅消费路径补丁，不执行crate发布。
+- 部分README仍保留通用圆角说明；包专属机制同时查本概览、各`build.rs`与登记模块。Apple已有字体迁移说明、Windows已有宿主行为说明，不再将两者描述为完全未更新的复制。
 - `gpui-pre-wgpu/provenance.json` 同时含两套字段命名（`crate_archive_sha256` 与 `archive_sha256`、`crate_archive_regular_file_count` 与 `upstream_file_count`），值一致但与其它四包的 schema 不同。
-- `gpui-pre-macos/fixture-provenance.json` 记录的 `source` 是开发机绝对路径（含历史项目 `loki_metis` 的 `node_modules`），不可在其它机器复现下载。
+- `gpui-pre-apple/fixture-provenance.json` 记录的 `source` 是开发机绝对路径（含历史项目 `loki_metis` 的 `node_modules`），不可在其它机器复现下载。
 - Windows（`gpui-pre-windows` HLSL／DirectX）与 WGPU 的真实渲染均无实机验证记录；父圆角裁剪仅 Metal 实现。
-- 补丁总量（168 + 59 + 27 + 9 + 3 + 7）使上游升级成本显著；每次升级需逐一重匹配，无自动迁移。
+- 补丁跨共享scene、模块及内联登记，升级须按各包真实入口逐项重匹配，不以会漂移的总量公式代替源码登记，无自动迁移。

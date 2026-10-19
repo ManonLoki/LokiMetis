@@ -1,6 +1,6 @@
 # 版本、Git 发布与 GPUI 候选
 
-当前版本唯一取根 Cargo.toml；每次受管 Git 发布由 schema v3 上下文、生命周期清单及对应默认主分支/tag 共同绑定，实际发布锚点从这些事实复读，不在本规则文档固定旧版本。当前产品目标见批准规格及持续计划，开发预览不能作为最终产品交付。目标平台取根Cargo metadata，Linux双架构工程合同见[Linux GPUI工具链](LINUX_GPUI_TOOLCHAIN.md)；各平台候选构建及真实运行验收单独取证。
+当前版本唯一取根 Cargo.toml；每次受管 Git 发布由 schema v3 上下文、生命周期清单及对应默认主分支/tag 共同绑定，实际发布锚点从这些事实复读，不在本规则文档固定旧版本。当前产品目标见批准规格及持续计划，开发预览不能作为最终产品交付。目标平台取根Cargo metadata，Linux双架构工程合同见[Linux GPUI工具链](LINUX_GPUI_TOOLCHAIN.md)；各平台候选构建及真实运行验收单独取证。当前依赖和打包工具版本索引见[技术选型清单](TECHNOLOGY.md)，具体参数取根清单和打包Skill。
 
 ## 版本与开发周期
 
@@ -24,7 +24,9 @@ macOS local 试包对完整 App 进行无证书 ad-hoc 签名并验证稳定身�
 
 candidate 模式只接受 clean 已发布默认主分支/tag，构建前及写 manifest 前复核上下文摘要/提交/tag/审查选择一致。每次先单独解析当前 E2E；产品/渠道硬要求优先，否则复用请求或以 e2e_hint 建议询问。全 workspace/all-targets/all-features 非空测试失败即阻断。依赖锁 ignored 不冻结，tracked 先核对跟踪与清单一致后冻结。
 
-macOS 在原生宿主形成 app/DMG，Windows x64 NSIS 在真实 Windows 宿主形成；GPUI 不复用 Tauri/xwin 管线。签名缺省 disabled/not-requested，不主动探测本机身份；仅已批准配置/当次主动要求/渠道硬要求启用，来源优先级 channel-required > requested > configured。启用后签名、公证、stapling 完整执行，不降级。渠道资格、商店、签名与第三方 NOTICE 依据当次明确要求核对，不虚构凭据或渠道授权。
+macOS 在原生宿主形成 app/DMG，Windows x64 NSIS 在真实 Windows 宿主形成；Linux GNU x64/ARM64形成deb/tar.gz，允许同系统跨架构构建。GPUI不复用Tauri/xwin管线。签名缺省disabled/not-requested，不主动探测本机身份；来源优先级channel-required > requested > configured。当前GPUI工具未实现macOS Developer ID签名/公证/stapling及Linux签名，启用请求或渠道硬要求必须在测试前阻断，不能声称这些路径已完成。Windows仅在明确启用且已有批准证书指纹/时间戳配置时执行signtool签名与验证。渠道资格、商店、签名与第三方NOTICE依据当次明确要求核对，不虚构凭据或渠道授权。
+
+当前项目的macOS正式候选还受系统通知门禁阻断：profile中`system_notification: enabled`要求candidate显式启用签名，而工具尚未实现该签名路径，因此disabled与enabled都不能生成该候选；local ad-hoc试包仍按上节执行。Windows的`windows.extractor`当前为null，NSIS正式候选同样须先有已批准的项目内解包器；普通local试包不因此升级为已验收候选。不能通过文档同步、关闭硬门禁或沿用旧产物声称这些候选已可用。
 
 候选包含用户可访问的两份完整商业许可证，名称与当前身份一致；第三方许可/NOTICE 单独核对，不被专有许可覆盖。固定母版衍生 ICNS/ICO、660×400 中性 DMG 背景按 GPUI packaging 配置读取；macOS 最终 DMG 只读挂载核对唯一 app、背景、Applications 目标、DS_Store 以及发布日志资源字节。任何后补布局/签名/重包都重新算摘要和验收。
 

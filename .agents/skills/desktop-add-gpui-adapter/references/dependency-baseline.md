@@ -1,4 +1,10 @@
-# GPUI 初始化基础技术选型
+# GPUI 依赖参考：当前项目与保留模板
+
+本项目当前声明以根Cargo为准，完整版本、features、平台条件和补丁见[技术选型清单](../../../../docs/TECHNOLOGY.md)。当前使用gpui-kit `0.7.3`、rust-i18n `4.2.4`、interprocess `2.4.5`；下文旧版本是保留的中性模板/示例快照，不能据此降低当前依赖或重新运行初始化。
+
+`add_gpui_adapter.mjs`仍生成gpui-kit `0.7.1`与rust-i18n `4.2.0`，`gpui_native_capabilities.mjs`仍生成interprocess `2.4.4`并拒绝Linux托盘/热键生成。本轮文档同步不改变这些脚本；当前产品Linux扩展取[Linux工程知识库](../../../../docs/LINUX_GPUI_TOOLCHAIN.md)。以下记录用于解释helper原有输出，不代表本项目的当前安装列表。
+
+## 中性模板与示例快照
 
 初始化必须读取本表，按用途选择依赖，并在完成报告中列出实际声明项。来源是用户指定的 gpui-demo 示例工程直接 Cargo 依赖及其 2026-10-09 锁文件快照；版本是已知兼容参考，不代表 registry 最新版本，也不把示例业务变成中性脚手架要求。表中全部库纳入基础选型标准，具体安装仍遵守标准库优先、项目本地显式声明、按能力选择的已批准边界。不得全局安装。
 
@@ -18,7 +24,7 @@
 | `raw-window-handle` | `0.6.2` | 已选原生服务的 Windows 窗口恢复/托盘隐藏桥；只由 Windows member 继承 |
 | `global-hotkey` | `0.8.0` | 新增的真实后台热键选型；示例只有窗口内 KeyBinding。仅快捷键启用时加入；当前模板限 macOS/Windows，Linux 上游不能可靠报告注册失败，因此失败关闭 |
 
-根 `[workspace.dependencies]` 声明实际使用的库，GUI member 使用 `workspace = true`；禁用能力的直接依赖、源码、设置、资源和专属测试全部缺席。系统通知复用 Kit，不增加通知 crate。托盘图标在工程阶段由 Node 标准库转换为 RGBA，不为运行时解码再加入 `png`。
+根 `[workspace.dependencies]` 声明实际使用的库，GUI member 使用 `workspace = true`；禁用能力的直接依赖、源码、设置、资源和专属测试全部缺席。系统通知复用 Kit，不增加通知 crate。中性托盘图标在工程阶段由 Node 标准库转换为 RGBA，不为该模板单独加入 `png`；本项目已因图库/APNG等实际业务声明 `image` 和 `png`。
 
 ## 示例中按实际用途采用的基础库
 
@@ -40,6 +46,6 @@
 | `tokio-tungstenite` | `0.30.0`；关闭默认 features，`handshake` | 明确 WebSocket 需求时采用；示例此配置不提供 TLS，`wss` 需另核对 TLS features |
 | `reqwest` | `0.13.5`；关闭默认 features，`json,rustls,system-proxy` | 明确 HTTP/JSON 需求时采用；不凭初始化产生网络请求 |
 
-新增或提高直接版本下界必须按工程规则在最低工具链完成最低直接版本解析与非空测试。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。后续升级先核对官方文档与真实兼容结果，再调整本表及对应 renderer；不能只改文案。
+新增或提高直接版本下界必须按工程规则在最低工具链完成最低直接版本解析与非空测试。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。若升级保留生成器，先核对官方文档与真实兼容结果，再同步本表对应快照及renderer；仅维护当前产品文档时引用当前清单，不假称生成器已升级。
 
 原生 API 来源：[GPUI Kit 通知](https://gpui-kit.com/docs/system-notification/)、[tray-icon](https://docs.rs/tray-icon/0.26.1/tray_icon/)、[auto-launch](https://docs.rs/auto-launch/0.6.0/auto_launch/)、[interprocess](https://docs.rs/interprocess/2.4.4/interprocess/)、[global-hotkey](https://docs.rs/global-hotkey/0.8.0/global_hotkey/)。

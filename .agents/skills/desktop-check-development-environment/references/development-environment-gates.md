@@ -26,7 +26,7 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 | 环境 | 适用条件 | 探测命令 | 缺失或低于下界时行为 |
 |---|---|---|---|
 | Git | 始终 | `git --version` | 要求稳定版 `>=2.36.0`，以覆盖 Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`；缺失时安装，低于 2.36.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
-| Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | Rust 没有 LTS 通道；截至 2026-09-12 以当前稳定版 `1.98.1` 作为 MSRV。rustc/cargo 必须属于同一 stable minor 且版本 `>=1.98.1`；任何更高稳定版直接通过。缺失时从已验证的官方 rustup 制品安装稳定版 Rust，可证明低于 MSRV 时升级 stable，然后重复全部探测。 |
+| Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | Rust 没有 LTS 通道；本项目根Cargo的MSRV为 `1.98.1`，它是兼容门槛而非当前最新稳定版声明。rustc/cargo 必须属于同一 stable minor 且版本 `>=1.98.1`；任何更高稳定版直接通过。缺失时从已验证的官方 rustup 制品安装稳定版 Rust，可证明低于 MSRV 时升级 stable，然后重复全部探测。 |
 | MSVC Build Tools | Windows Rust 目标 | `cl`，随后使用 `vswhere` 查找 VC 工具组件 | 安装 Microsoft 已签名的 Visual Studio Build Tools C++ 工作负载，然后重新探测。 |
 | Node.js | 所有下游接口 | `node --version`、`npm --version` | 作为 Harness helper 的通用工程运行时，要求正式稳定版 `>=24.21.0` 且 npm 可解析；已装 25.x、26.x 或任何更高正式版本直接通过。缺失或低于下界时，从官方索引识别最高 LTS 系列并选择该系列的最新稳定补丁，验证宿主归档校验和后安装或升级并重新探测。 |
 | pnpm | 已选择 `GUI` | `pnpm --version` | 要求稳定版 `>=12.4.1`；缺失或低于下界时使用 Node.js 的 npm 客户端，从官方 npm 软件包仓库以 `pnpm@>=12.4.1` 解析当前稳定版并安装或升级到标准用户级全局前缀，然后重新探测。 |

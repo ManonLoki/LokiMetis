@@ -126,7 +126,8 @@
 | `docs/product_spec/YYYYMMDD_product_spec.md` | 当日完整产品目标、范围、约束和成功标准；最新日期文件是当前规格 |
 | `docs/AGENT_POLICY.md` | 下游 Agent 能力开关、用户可见 Task 标题与创建门禁、候选验收偏好和发布后动作的持久执行语义 |
 | `docs/ENGINEERING_RULES.md` | 文件、注释、文档、测试、例外和机械检查详细规则 |
-| `docs/RUST_CLI_TEMPLATE.md` | 下游 Rust 共享核心与可选适配器初始化基线 |
+| `docs/RUST_CLI_TEMPLATE.md` | 当前 Rust core、GPUI 运行时、架构与工程命令 |
+| `docs/TECHNOLOGY.md` | 从 Cargo/package.json 派生的当前技术选型、依赖声明、平台条件与 Harness 工具索引；不替代清单和构建实际解析 |
 | `docs/GUI_SUPPORT_SURFACES.md` | 仅在终端下游修改 GUI 固定本地基线、增加支持界面或出站能力时创建；保存差异、资源、所有权与出站实例，Harness 模板不得预创建 |
 | `docs/project_status/README.md` | 产品状态日期规则和索引 |
 | `docs/project_status/YYYYMMDD_product_status.md` | 当日完整阶段、已完成、待确认和下一步；最新日期文件是当前状态 |

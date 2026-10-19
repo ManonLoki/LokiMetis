@@ -2,6 +2,10 @@
 
 本文件管理 GPUI 能力的实现边界与选择后的配置问询；九项开关仍以 `docs/GUI_APP_PROFILE.md` 的 `gui-initialization-config` 为唯一事实。Tauri 继续使用各自的能力 Skill，不混装 Tauri 插件。
 
+## 当前产品与中性模板的区别
+
+当前依赖见[技术选型清单](../../../../docs/TECHNOLOGY.md)，已批准能力配置见[GUI profile](../../../../docs/GUI_APP_PROFILE.md)。本项目已实现macOS UserNotifications、Windows Toast及Linux freedesktop通知owner与点击恢复，详见[GUI支持界面](../../../../docs/GUI_SUPPORT_SURFACES.md)。下文Kit-only通知与未配置时行为是保留中性模板合同，不能用于撤销产品已批准配置或宣称当前产品没有通知触发器。Linux托盘已接线，后台热键服务仍未接线，空action合同继续零注册。
+
 ## 选择后的询问
 
 初始化先按既有顺序解析九项配置。所有能力选择结束后，必须汇总已选的托盘、系统通知、开机自启、单实例与全局快捷键，询问是否需要协助配置；不能仅给出一句“以后可以配置”。已明确提供的答案直接复用，禁用项不问，整组没有启用项时跳过。
@@ -20,9 +24,9 @@ Harness 源只确认中性能力及其固定边界。产品动作、通知内容
 
 配置只能写入下游 profile 的专用块及对应产品事实，不能添加第十个初始化字段或 Agent Policy frontmatter 字段。全局快捷键继续独占既有 contract；未获明确绑定时保持空数组。
 
-## 系统通知官方接口
+## 中性模板的系统通知接口快照
 
-2026-10-09 核对 [GPUI Kit SystemNotification](https://gpui-kit.com/docs/system-notification/) 与 [gpui-kit 0.7.1 API](https://docs.rs/gpui-kit/0.7.1/gpui_kit/)。复用已经声明的 GPUI Kit，不另装通知 crate。启动在 `gpui_kit::init` 后、打开窗口前设置与打包身份一致的 `set_app_identity`。
+2026-10-09 核对 [GPUI Kit SystemNotification](https://gpui-kit.com/docs/system-notification/) 与 [gpui-kit 0.7.1 API](https://docs.rs/gpui-kit/0.7.1/gpui_kit/)。这是当时模板的已核对接口，不代表当前产品版本或原生通知桥。中性模板复用已经声明的 GPUI Kit，不另装通知 crate。启动在 `gpui_kit::init` 后、打开窗口前设置与打包身份一致的 `set_app_identity`。
 
 原生投递使用 `App::show_system_notification(SystemNotification { tag, title, body, actions })`；仅已批准产品路径可调用，内容有界且不进入日志。返回 `()` 只证明提交，不证明 OS 授权或送达；应用偏好不代表系统权限。中性初始化不发送通知，不覆盖 Kit 安装的全局响应处理器。
 

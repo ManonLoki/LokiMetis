@@ -57,7 +57,7 @@ pub const RELEASE_NOTES_JSON: &[u8] = &[];
 pub const RELEASE_NOTES: &[(&str, &str, &[(&str, &str)], &[(&str, &str)])] = &[];
 ```
 
-每个元组依次是 ISO 日期、带一个小写 `v` 的版本、功能优化的中文/英文条目对、问题修复的条目对。候选且 `about_page: enabled` 时 helper 填入真实日志，并要求二进制实际保留原始字节，例如 `std::hint::black_box(RELEASE_NOTES_JSON)`，避免编译器移除证据；文本展示用静态条目，未知 locale 回退英文。local 或关于页禁用时不设置 `HARNESS_GPUI_RELEASE_NOTES_RS`，`build.rs` 写空模块；关于页禁用仍核对包内独立 JSON 资源。此标记本身不证明 UI 行为，真实候选 E2E 仍按当前选择执行。
+每个元组依次是 ISO 日期、带一个小写 `v` 的版本、功能优化的中文/英文条目对、问题修复的条目对。候选且 `about_page: enabled` 或 `releaseNotesUi: true` 时 helper 填入真实日志，并要求二进制实际保留原始字节，例如 `std::hint::black_box(RELEASE_NOTES_JSON)`，避免编译器移除证据；文本展示用静态条目，未知 locale 回退英文。local 或两个日志UI入口都关闭时不设置 `HARNESS_GPUI_RELEASE_NOTES_RS`，`build.rs` 写空模块；candidate的设置页日志入口同样必须注入并核对二进制原始字节，关于页禁用仍核对包内独立 JSON 资源。此标记本身不证明 UI 行为，真实候选 E2E 仍按当前选择执行。
 
 配置/产物字段已在 2026-10-08 核对 [cargo-packager 0.11.8 API](https://docs.rs/cargo-packager/0.11.8/cargo_packager/config/struct.Config.html)、[资源映射](https://docs.crabnebula.dev/packager/configuration/#resources) 与 [DMG 配置](https://docs.rs/cargo-packager/0.11.8/cargo_packager/config/struct.DmgConfig.html)。固定版本沿用已验证示例的 `0.11.8`，不随全局工具版本变化。示例的 Docker/Windows 着色器路线未移入当前管线。
 

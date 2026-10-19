@@ -14,7 +14,7 @@ Linux任务先读[项目Linux工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN
 - 普通“构建/打包/安装试一下”使用 `local`：允许 dirty，但全量非空 Rust workspace 单元测试必须通过；只写项目忽略的 `target/gpui-packaging/local-*`。macOS 对完整 App 做无证书 ad-hoc 签名并验证身份、plist 与资源封印；Windows 保持 unsigned。试包未安装、未运行且仅供本机检查，不询问 E2E、不生成发布上下文或日志。
 - 用户明确要求发布候选，或 Git 发布已确认 `local_package`，才使用 `candidate`：只消费 clean 已发布默认主分支、精确本地 tag 和已跟踪 `.harness/release-context.json`。每次单独解析当前请求的 E2E；先复用本次明确选择，否则结合 `e2e_hint` 询问一次。选择关闭时记录原因与风险，硬要求不能关闭。
 
-读取 `AGENTS.md`、`docs/AGENT_POLICY.md` 的构建相关字段、`docs/RELEASE.md`、`docs/VERIFICATION.md` 与 [配置合同](references/configuration.md)。候选只读复用 `$desktop-prepare-release` 的发布上下文和日志校验、`$desktop-manage-version` 的版本检查；缺失时阻断，不在构建中补写。
+读取 `AGENTS.md`、`docs/AGENT_POLICY.md` 的构建相关字段、`docs/RELEASE.md`、存在时的 `docs/VERIFICATION.md` 与 [配置合同](references/configuration.md)。候选只读复用 `$desktop-prepare-release` 的发布上下文和日志校验、`$desktop-manage-version` 的版本检查；缺失时阻断，不在构建中补写。
 
 ## 原生执行
 
@@ -48,7 +48,7 @@ pnpm run gpui:package build --root . --mode local --format dmg
 pnpm run gpui:package build --root . --mode local --target x86_64-pc-windows-msvc --format nsis
 ```
 
-显式候选示例；参数须来自当前选择：
+通用候选参数示例；参数须来自当前选择，且须满足下文平台硬门禁。本项目当前macOS通知签名门禁不允许直接使用此disabled示例生成候选：
 
 ```sh
 pnpm run gpui:package build --root . --mode candidate --format dmg --e2e disabled --e2e-reason "本次未选择 E2E" --e2e-risk "安装与运行行为尚未验收" --signing disabled --signing-source not-requested
@@ -61,6 +61,8 @@ helper 在测试前验证独立 Git 根、clean 默认主分支/tag、发布上�
 关于页启用，或包装配置明确 `releaseNotesUi: true`（例如日志位于设置页）时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，日志界面直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。两种入口均关闭时不注入日志 UI。所有情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选日志界面的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
 
 macOS candidate 默认 `disabled/not-requested`、unsigned，不探测身份/凭据；当前 Skill 未实现完整 Developer ID 签名公证，任何启用请求或渠道要求在测试前失败关闭。不能关闭渠道要求继续构建。Windows 有批准的证书指纹与 HTTPS 时间戳配置时，显式 `--signing enabled --signing-source configured|requested|channel-required` 才执行 `signtool sign` 与 `verify /pa /all`，任何失败停止；不创建或输出凭据。机器恰有工具/环境变量不改变选择。
+
+macOS candidate在profile启用系统通知时必须显式选择enabled signing；当前实现随后会因正式签名/公证尚不可用而失败关闭。因此本项目当前不能形成macOS candidate，不能改选disabled绕过；local ad-hoc是独立试包路径。Windows当前包装配置没有已批准的extractor时，NSIS candidate也在测试前阻断。具体项目事实见[发布规则](../../../docs/RELEASE.md)。
 
 上述候选签名门禁不变；local macOS 的 ad-hoc 只绑定本机应用身份，不使用证书或公证。App ZIP 在归档前签完整 bundle 并在解包后验证；DMG 使用固定内部 hook 在封盘前签 App，记录签名前后可执行文件摘要，在最终只读挂载卷再次验证。任何签名或身份验证失败都阻断试包，不退回 unsigned，不宣称通知授权、横幅或渠道信任已通过。`macos.agent: true` 同时固化 `LSUIElement`，与产品运行时的 Accessory 策略配合隐藏 Dock。
 
