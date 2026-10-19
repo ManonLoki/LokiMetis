@@ -3,6 +3,25 @@
   "releases": [
     {
       "releaseDate": "2026-10-19",
+      "version": "v0.4.2",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Windows、Linux 登录自启未静默隐藏主窗的问题，统一识别登录标记，并在托盘未就绪时有界等待与回退显示。",
+          "en-US": "Fix Windows and Linux login launches showing the main window by recognizing the autostart marker consistently and waiting within a bounded deadline for tray availability before falling back to a visible window."
+        },
+        {
+          "zh-CN": "修复 Linux X11/XWayland 主窗任务栏条目与托盘状态不同步的问题，重映射后重新申请隐藏条目，并在恢复入口丢失时恢复窗口。",
+          "en-US": "Keep the Linux X11/XWayland main-window taskbar entry in sync with tray availability, reapply the hide request after remapping, and restore the window if its tray recovery entry disappears."
+        },
+        {
+          "zh-CN": "修复 Linux 显窗请求失败后丢失恢复意图的问题，托盘不可用时继续重试，成功后停止重复显窗。",
+          "en-US": "Preserve the Linux window recovery intent after a failed show request, retry while the tray is unavailable, and stop repeating show requests after success."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-19",
       "version": "v0.4.0",
       "featureOptimizations": [
         {

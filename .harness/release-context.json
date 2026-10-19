@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "fbce28eb9109af3697f538f6519495899b058625",
-  "version": "0.4.0",
+  "sourceHead": "edf20299cc542b0eb6dba715e990b01d47318555",
+  "version": "0.4.2",
   "releaseDate": "2026-10-19",
-  "expectedTag": "v0.4.0-20261019",
+  "expectedTag": "v0.4.2-20261019",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "1518ca4c81aae9dcef294cb382a2020827a6dfcb",
-    "sourceHead": "fbce28eb9109af3697f538f6519495899b058625",
-    "scopeDiffSha256": "7df8094a07471df1038643e184616bb52241e7ed9fb99473fab0fc611566dd80",
-    "reviewedSourceCommit": "fbce28eb9109af3697f538f6519495899b058625",
+    "scopeBase": "1ccc52fc60f00e936e4c25a61a49ef626418ec4d",
+    "sourceHead": "edf20299cc542b0eb6dba715e990b01d47318555",
+    "scopeDiffSha256": "dbcda76e00f547b31d678bc91ab197487a872029adb35afde3e84424e03dc90d",
+    "reviewedSourceCommit": "edf20299cc542b0eb6dba715e990b01d47318555",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed 1518ca4..fbce28e: five checks passed for recovery, exact push binding, Harness tools and version reconciliation. Product Rust code and dependencies unchanged. Recovery 13, Git 74, version 35 regressions and engineering checks passed. The generic Windows watcher descendant-cleanup limit is documented and outside this product dev entry. No blocking findings for this Linux release. New candidate runtime and Windows/macOS remain unverified; E2E disabled.",
+    "evidenceSummary": "五项源码审查通过；两条登记分支均已纳入。显窗失败回归先红后绿；相关 native 33 项、真实 X11 协议 2 项、原生能力工具 5 项通过，GPUI 来源与补丁摘要一致。真实桌面 E2E 按本次选择关闭，未验收平台保持 Unverified。",
     "reason": null,
     "remainingRisk": null
   }
