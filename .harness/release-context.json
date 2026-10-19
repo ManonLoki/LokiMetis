@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "edf20299cc542b0eb6dba715e990b01d47318555",
-  "version": "0.4.2",
-  "releaseDate": "2026-10-19",
-  "expectedTag": "v0.4.2-20261019",
+  "sourceHead": "ccf193febfc4ed17eca6936a6b1d78fe2fcfae85",
+  "version": "0.5.0",
+  "releaseDate": "2026-10-20",
+  "expectedTag": "v0.5.0-20261020",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "1ccc52fc60f00e936e4c25a61a49ef626418ec4d",
-    "sourceHead": "edf20299cc542b0eb6dba715e990b01d47318555",
-    "scopeDiffSha256": "dbcda76e00f547b31d678bc91ab197487a872029adb35afde3e84424e03dc90d",
-    "reviewedSourceCommit": "edf20299cc542b0eb6dba715e990b01d47318555",
+    "scopeBase": "8202ef75705b043b8c32c38f7098fe9eec03d8ad",
+    "sourceHead": "ccf193febfc4ed17eca6936a6b1d78fe2fcfae85",
+    "scopeDiffSha256": "6e97d7c856485ea97ebe5338ad58c214a0fa54328260f7059c6ce78a40a6c9d4",
+    "reviewedSourceCommit": "ccf193febfc4ed17eca6936a6b1d78fe2fcfae85",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "五项源码审查通过；两条登记分支均已纳入。显窗失败回归先红后绿；相关 native 33 项、真实 X11 协议 2 项、原生能力工具 5 项通过，GPUI 来源与补丁摘要一致。真实桌面 E2E 按本次选择关闭，未验收平台保持 Unverified。",
+    "evidenceSummary": "五项源码审查通过：原生启动与 Linux X11 变更保持宿主边界；恢复限定精确历史基线，所有待发最低版本严格高于基线并保留原字节备份。原生回归50项、行数脚本16项、恢复专项16项通过；硬行数、中文注释与core-first检查通过。Windows/Linux本机未编译运行，最终E2E按用户选择关闭。",
     "reason": null,
     "remainingRisk": null
   }

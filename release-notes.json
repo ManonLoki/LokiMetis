@@ -2,6 +2,26 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-20",
+      "version": "v0.5.0",
+      "featureOptimizations": [
+        {
+          "zh-CN": "统一原生启动与 X11 窗口状态处理，减少重复的宿主协议逻辑。",
+          "en-US": "Unify native startup and X11 window-state handling to reduce duplicated platform logic."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "Linux 自启状态读取与注册共用用户目录解析，避免 HOME 缺失时误判。",
+          "en-US": "Use the same home-directory resolution for Linux autostart registration and status reads, including when HOME is absent."
+        },
+        {
+          "zh-CN": "修复本机发布登记落后导致的版本门禁阻断，并完整保留后续待发变更。",
+          "en-US": "Recover stale local release tracking without losing subsequent pending changes or bypassing version checks."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-19",
       "version": "v0.4.2",
       "featureOptimizations": [],
@@ -211,49 +231,6 @@
         {
           "zh-CN": "修复长期运行时换肤监视任务句柄持续累积的问题，及时释放已结束任务。",
           "en-US": "Fix accumulated skin watcher handles during long-running sessions by releasing completed tasks."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-14",
-      "version": "v0.2.52",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "macOS 启动隐藏 Dock 图标，托盘恢复入口不可用时显示主窗口。",
-          "en-US": "Hide the Dock icon on macOS and show the main window if tray recovery is unavailable."
-        },
-        {
-          "zh-CN": "macOS 开机自启默认隐藏主窗口，重复自启不唤醒已有实例。",
-          "en-US": "Keep the main window hidden at macOS login and avoid activating an existing instance during repeated login launches."
-        },
-        {
-          "zh-CN": "修正 macOS 通知权限错误判定，并为本地 App/DMG 补齐完整应用身份签名与核验。",
-          "en-US": "Correct macOS notification permission error handling and bind and verify complete application identities in local App and DMG packages."
-        },
-        {
-          "zh-CN": "修正 Windows 主窗口恢复、托盘显示、应用图标与当前用户自启路径处理。",
-          "en-US": "Correct Windows main-window recovery, tray display, application icons and current-user login paths."
-        },
-        {
-          "zh-CN": "修正桌宠尺寸上下限、拖动缩放回滚与设置窗口键盘遍历。",
-          "en-US": "Correct pet resize limits, resize rollback and keyboard traversal in pet settings."
-        },
-        {
-          "zh-CN": "Hooks 首次注册要求明确操作，完善 Windows/WSL 路径、流转发与运行位置保护。",
-          "en-US": "Require explicit first-time Hook registration and improve Windows/WSL paths, stream forwarding and installation-location safeguards."
-        },
-        {
-          "zh-CN": "修正增量索引的文件内容身份、缓存更新与重复来源发现后的通知档位保留。",
-          "en-US": "Correct content identity and cache refresh in incremental indexing and preserve notification milestones across repeated source discovery."
-        },
-        {
-          "zh-CN": "修正换肤图片解码、刷新时键盘焦点、语言切换反馈与 ZIP 导出覆盖处理。",
-          "en-US": "Correct skin image decoding, keyboard focus during refresh, localized feedback and ZIP export overwrite handling."
-        },
-        {
-          "zh-CN": "Windows 安装卸载精确处理本安装拥有的进程、自启项与资源目录。",
-          "en-US": "Make Windows installation and removal handle only the processes, login entries and resource directories owned by this installation."
         }
       ]
     }
