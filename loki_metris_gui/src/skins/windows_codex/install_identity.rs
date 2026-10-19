@@ -34,14 +34,18 @@ const MAX_PUBLISHER_NAME_CHARS: u32 = 512;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// 传统桌面宿主必须匹配的 Authenticode 发行方集合。
 pub(super) enum TrustedPublisher {
+    /// OpenAI 发行的 Codex。
     OpenAi,
+    /// 腾讯发行的 WorkBuddy。
     Tencent,
 }
 
 /// 保存由 Windows Known Folder API 返回且已规范化的安装根。
 #[derive(Debug)]
 pub(super) struct KnownInstallRoots {
+    /// 当前用户的 LocalAppData。
     pub(super) local_app_data: Option<PathBuf>,
+    /// 各 Program Files 目录。
     pub(super) program_files: Vec<PathBuf>,
 }
 

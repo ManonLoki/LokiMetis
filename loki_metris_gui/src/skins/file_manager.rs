@@ -54,9 +54,13 @@ async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
 /// 描述文件管理器 launcher 的启动、超时、回收或非零退出。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FileManagerCommandError {
+    /// launcher 启动失败。
     Spawn,
+    /// 运行超时，已终止回收。
     TimedOut,
+    /// 回收超时。
     ReapTimedOut,
+    /// 非零退出或其它失败。
     Failed,
 }
 

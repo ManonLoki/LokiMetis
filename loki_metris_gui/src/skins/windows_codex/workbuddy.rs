@@ -28,21 +28,27 @@ use super::{
 #[derive(Debug)]
 /// 保存已通过官方路径验证的 WorkBuddy 进程及其直接父进程。
 struct WorkBuddyProcess {
+    /// 已验证的进程。
     process: GuiProcess,
+    /// 直接父进程 PID。
     parent_pid: u32,
 }
 
 #[derive(Debug)]
 /// 保存同一次 ToolHelp 快照中的可信 WorkBuddy 进程与完整父进程关系。
 struct WorkBuddySnapshot {
+    /// 可信 WorkBuddy 进程。
     processes: Vec<WorkBuddyProcess>,
+    /// 进程到父进程的映射。
     parents: HashMap<u32, u32>,
 }
 
 #[derive(Debug)]
 /// 保存可信 WorkBuddy 进程树及可选命令行；命令行不参与进程身份判定。
 struct InspectedWorkBuddyProcesses {
+    /// 可信进程及其命令行。
     processes: Vec<(WorkBuddyProcess, String)>,
+    /// 进程到父进程的映射。
     parents: HashMap<u32, u32>,
 }
 

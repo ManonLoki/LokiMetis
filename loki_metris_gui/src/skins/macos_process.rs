@@ -37,23 +37,32 @@ const PROCESS_EXIT_POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// 保存有界命令的退出状态与经过大小限制的标准输出。
 #[derive(Debug)]
 struct BoundedCommandOutput {
+    /// 退出状态。
     status: ExitStatus,
+    /// 标准输出，受大小上限约束。
     stdout: Vec<u8>,
+    /// 输出被截断。
     truncated: bool,
 }
 
 /// 保留输出上限以及是否仍读到额外字节，供身份快照拒绝不完整数据。
 struct LimitedCommandOutput {
+    /// 上限内的标准输出。
     stdout: Vec<u8>,
+    /// 上限之后仍读到额外字节。
     truncated: bool,
 }
 
 /// 描述外部命令启动、I/O、超时或回收阶段的可观察失败。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum BoundedCommandError {
+    /// 启动失败。
     Spawn,
+    /// 读取输出失败。
     Io,
+    /// 运行超时。
     TimedOut,
+    /// 回收超时。
     ReapTimedOut,
 }
 

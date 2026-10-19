@@ -78,8 +78,11 @@ unsafe extern "C" {
 /// 描述一个受支持宿主不可由运行时覆盖的签名身份。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct MacHostIdentity {
+    /// 宿主类型。
     host: SkinHostKind,
+    /// 必须匹配的 bundle ID。
     bundle_identifier: &'static str,
+    /// 必须匹配的签名团队 ID。
     team_identifier: &'static str,
 }
 
@@ -160,7 +163,9 @@ impl MacHostIdentity {
 /// 都必须再调用 `verify_host_executable` 建立 mutation trust。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct VerifiedMacApp {
+    /// 已验证的 .app 路径。
     pub(crate) bundle: PathBuf,
+    /// 已验证的主程序路径。
     pub(crate) executable: PathBuf,
 }
 

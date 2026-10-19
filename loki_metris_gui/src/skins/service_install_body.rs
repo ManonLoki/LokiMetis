@@ -3,6 +3,7 @@
 
 /// 在完整安装事务退出前持续占用 shutdown completion 登记。
 struct InstallCompletionGuard {
+    /// 持续占用的关闭完成登记。
     _registration: ActiveWatchRegistration,
 }
 

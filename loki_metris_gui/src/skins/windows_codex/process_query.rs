@@ -17,8 +17,11 @@ const MAX_COMMAND_LINE_BYTES: usize = 128 * 1024;
 #[repr(C)]
 /// 描述 `NtQueryInformationProcess` 返回缓冲区开头的 UTF-16 字符串。
 struct NativeUnicodeString {
+    /// 字符串字节长度，不含结尾 NUL。
     length: u16,
+    /// 缓冲区字节容量。
     maximum_length: u16,
+    /// UTF-16 缓冲区，指向同一返回缓冲区内部。
     buffer: *mut u16,
 }
 

@@ -194,8 +194,11 @@ fn verified_process_identity(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// 将零等待的 Win32 结果归一化，避免把查询失败误当成进程退出。
 enum ProcessWaitState {
+    /// 进程已退出。
     Exited,
+    /// 进程仍在运行。
     Running,
+    /// 查询失败，不能当作已退出。
     Failed,
 }
 

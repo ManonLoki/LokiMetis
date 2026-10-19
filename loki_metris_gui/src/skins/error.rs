@@ -7,8 +7,11 @@ use thiserror::Error;
 #[derive(Clone, Debug, Error, Serialize)]
 #[error("{message}")]
 pub struct AppError {
+    /// 稳定错误码。
     pub code: &'static str,
+    /// 脱敏说明。
     pub message: String,
+    /// 可选详情。
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub details: Vec<String>,
 }

@@ -7,8 +7,11 @@ const WATCH_ABORT_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 /// 描述 watcher 合作停止、总截止和 abort 终态确认的预算。
 #[derive(Clone, Copy)]
 struct WatchStopBudget {
+    /// 合作停止的等待时长。
     cooperative: Duration,
+    /// 总截止时长。
     total: Duration,
+    /// abort 后确认终态的时长。
     abort_reap: Duration,
 }
 
@@ -36,7 +39,9 @@ impl WatchStopBudget {
 
 /// 区分端点清理已返回（含显式错误）与外层共同截止耗尽。
 enum EndpointCleanupOutcome {
+    /// 清理已返回，附结果。
     Completed(Result<usize, AppError>),
+    /// 共同截止耗尽。
     DeadlineElapsed,
 }
 

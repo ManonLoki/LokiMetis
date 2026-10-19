@@ -19,28 +19,42 @@ const PROCESS_REAPER_STATE_POLL: Duration = Duration::from_millis(10);
 /// 子进程 owner 在启动、等待或最终回收阶段的稳定错误。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum OwnedProcessError {
+    /// 启动失败。
     Spawn,
+    /// 等待或读写失败。
     Io,
+    /// 回收超时，子进程已移交给进程级回收器。
     ReapTimedOut,
+    /// 应用正在关闭，拒绝启动。
     ShuttingDown,
+    /// 进程数达到上限。
     CapacityExceeded,
 }
 
 /// 尚未确认终态的子进程登记表；锁内只移动句柄，不执行等待。
 #[derive(Default)]
 struct ProcessReaperState {
+    /// 已移交、待最终回收的子进程。
     retained: Vec<Child>,
+    /// 运行中进程的关闭信号发送端，按登记 ID 索引。
     active: HashMap<u64, watch::Sender<bool>>,
+    /// 已预约尚未启动的槽位数。
     spawn_reservations: usize,
+    /// 当前拥有的进程数，含预约与待回收。
     owned_processes: usize,
+    /// 下一个登记 ID。
     next_registration_id: u64,
+    /// 已开始关闭，不再接受新进程。
     shutting_down: bool,
+    /// 首次关闭确定的共同截止时间。
     shutdown_deadline: Option<tokio::time::Instant>,
 }
 
 /// 持有进程登记表与非阻塞变化通知，不在锁内运行进程操作。
 struct ProcessReaper {
+    /// 登记表。
     state: Mutex<ProcessReaperState>,
+    /// 登记变化时唤醒等待者。
     changed: Notify,
 }
 
@@ -77,8 +91,11 @@ fn lock_process_reaper() -> std::sync::MutexGuard<'static, ProcessReaperState> {
 
 /// spawn 前占用有界槽位；失败归还，已启动 Child 在 panic 或关闭竞态中转 retained。
 struct ProcessSpawnReservation {
+    /// 进程级回收器。
     reaper: &'static ProcessReaper,
+    /// 已启动的子进程；启动前为 None。
     child: Option<Child>,
+    /// 预约仍有效；为 true 时析构会归还槽位。
     active: bool,
 }
 
@@ -196,7 +213,9 @@ fn allocate_registration_id(state: &mut ProcessReaperState) -> u64 {
 
 /// 在批量回收 future 被取消时把尚未轮到的句柄全部交还 owner。
 struct RetainedChildBatch {
+    /// 本批待回收的子进程。
     children: Vec<Child>,
+    /// 进程级回收器。
     reaper: &'static ProcessReaper,
 }
 
@@ -213,10 +232,15 @@ impl Drop for RetainedChildBatch {
 
 /// 单个外部命令的所有权守卫；显式失败和 future 取消都不会 detach 子进程。
 pub(super) struct OwnedProcessChild {
+    /// 拥有的子进程；移交后为 None。
     child: Option<Child>,
+    /// 活动登记 ID。
     registration_id: Option<u64>,
+    /// 关闭信号接收端。
     shutdown: Option<watch::Receiver<bool>>,
+    /// 进程级回收器。
     reaper: &'static ProcessReaper,
+    /// 已计入待回收数量，避免重复计数。
     counted_as_retained: bool,
 }
 

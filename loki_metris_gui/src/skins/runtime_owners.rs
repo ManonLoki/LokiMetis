@@ -3,17 +3,25 @@
 
 /// 持续监视宿主新页面并补注入的后台任务句柄，含取消信号、CDP handler 中止句柄与回收 owner。
 struct WatchTask {
+    /// 宿主类型。
     host: SkinHostKind,
+    /// 取消信号。
     cancel: watch::Sender<bool>,
+    /// 任务句柄。
     join: Option<JoinHandle<Result<usize, AppError>>>,
+    /// CDP handler 的中止句柄。
     handler_abort: Option<AbortHandle>,
+    /// 监视的 CDP 端点。
     endpoint: CdpEndpoint,
+    /// 所属回收器的弱引用。
     owner: StdWeak<StdMutex<WatchTaskReaper>>,
 }
 
 /// 保存已经离开运行态、但尚未完成终态确认或端点清理的监视任务。
 struct RetainedWatchTask {
+    /// 宿主类型。
     host: SkinHostKind,
+    /// 需要清理的 CDP 端点。
     endpoint: CdpEndpoint,
     /// `None` 表示任务已经确认终止，只剩端点清理需要在后续操作重试。
     join: Option<JoinHandle<Result<usize, AppError>>>,
@@ -26,11 +34,13 @@ struct RetainedWatchTask {
 #[derive(Default)]
 /// 由 `SkinService` 持有的监视任务回收器；同步锁只保护短暂的句柄移交。
 struct WatchTaskReaper {
+    /// 待确认终态或清理的监视任务。
     retained: Vec<RetainedWatchTask>,
     /// 已构造且任务 future 尚未到终态的 watcher 取消发送端。
     active: HashMap<u64, watch::Sender<bool>>,
     /// 下一个 active watcher 登记 ID。
     next_registration_id: u64,
+    /// 已开始关闭。
     shutting_down: bool,
     /// `SkinService::drop` 已开始，后续迟到句柄必须交给进程级 owner。
     service_dropped: bool,
@@ -40,7 +50,9 @@ struct WatchTaskReaper {
 
 /// watcher future 持有的 active 登记守卫；终态或 abort 都会从 service owner 注销。
 struct ActiveWatchRegistration {
+    /// 登记 ID；已注销时为 None。
     registration_id: Option<u64>,
+    /// 所属回收器。
     owner: Arc<StdMutex<WatchTaskReaper>>,
 }
 
@@ -92,13 +104,17 @@ impl Drop for HandlerTaskGuard {
 
 /// 当前在途的宿主操作：操作代次与取消信号。
 struct CodexOperation {
+    /// 操作 ID。
     id: u64,
+    /// 取消信号。
     cancel: watch::Sender<bool>,
 }
 
 /// 在途宿主操作的作用域守卫；结束时只清除仍属于自己的操作登记。
 struct CodexOperationGuard<'a> {
+    /// 守卫所属的操作 ID。
     id: u64,
+    /// 当前在途操作登记。
     active: &'a StdMutex<Option<CodexOperation>>,
 }
 
@@ -119,6 +135,7 @@ impl Drop for CodexOperationGuard<'_> {
 
 /// 在宿主变更期间把运行代次保持为奇数，结束（包括错误返回）后恢复为新的偶数代次。
 struct HostRuntimeMutationGuard<'a> {
+    /// 被保护的运行代次。
     generation: &'a AtomicU64,
 }
 

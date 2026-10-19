@@ -7,17 +7,25 @@ const MAX_OWNED_HANDLER_TASKS: usize = 256;
 #[derive(Default)]
 /// 进程级持有全部 handler 容量令牌，以及已取消但尚未确认终态的任务。
 struct HandlerTaskReaper {
+    /// 运行中的 handler 任务。
     active: HashMap<tokio::task::Id, AbortHandle>,
+    /// 已取消待确认终态的任务。
     retained: Vec<JoinHandle<()>>,
+    /// 正在回收的任务 ID。
     reaping: HashSet<tokio::task::Id>,
+    /// 当前占用的容量。
     owned_tasks: usize,
+    /// 所有预约（含清理用途）已关闭。
     reservations_closed: bool,
+    /// 普通预约已关闭，只剩清理用途可以预约。
     normal_closed: bool,
 }
 
 /// spawn 前取得的容量令牌；未绑定任务就析构时自动归还名额。
 struct HandlerTaskReservation {
+    /// 预约仍有效；为 true 时析构会归还名额。
     active: bool,
+    /// 清理用途预约，在普通预约关闭后仍可取得。
     cleanup: bool,
 }
 

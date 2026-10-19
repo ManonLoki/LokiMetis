@@ -146,6 +146,7 @@ impl Drop for ActiveWatchRegistration {
 
 /// 在任意 await 取消点保护一个已离开运行态的 watcher 所有权。
 struct RetainedWatchTaskGuard {
+    /// 受保护的监视任务；交还后为 None。
     task: Option<RetainedWatchTask>,
 }
 

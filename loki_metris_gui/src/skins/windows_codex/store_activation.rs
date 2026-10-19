@@ -31,11 +31,17 @@ pub(super) type StoreActivationResult = Result<(), StoreActivationFailure>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// 不向 IPC 暴露 HRESULT 的 Store 激活失败阶段。
 pub(super) enum StoreActivationFailure {
+    /// 调用方已取消。
     Cancelled,
+    /// COM 初始化失败。
     ComInitialization,
+    /// 无法建立 COM 取消。
     CancellationSetup,
+    /// 无法创建应用激活管理器。
     ManagerCreation,
+    /// 激活调用失败。
     Activation,
+    /// 激活线程 panic。
     WorkerPanicked,
 }
 
@@ -56,17 +62,24 @@ impl StoreActivationFailure {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// owner 无法开始或在总期限内回收一次激活的原因。
 enum StoreActivationLifecycleFailure {
+    /// 已有激活在进行。
     Busy,
+    /// 无法启动激活线程。
     ThreadStart,
+    /// 总期限内没有回收；附是否已请求 COM 取消。
     Timeout { cancellation_requested: bool },
 }
 
 #[derive(Default)]
 /// 一次原生线程激活的协作取消与结果槽。
 struct StoreActivationControl {
+    /// 协作取消标志。
     cancelled: AtomicBool,
+    /// 激活阶段，只有处于 COM 调用阶段时才发出 COM 取消。
     phase: AtomicU8,
+    /// 激活线程的系统线程 ID，用于 COM 取消。
     thread_id: AtomicU32,
+    /// 激活结果槽。
     outcome: Mutex<Option<StoreActivationResult>>,
 }
 
@@ -121,20 +134,25 @@ impl StoreActivationControl {
 
 /// owner 持有仍可能位于 COM 内的原生线程句柄。
 struct OwnedStoreActivation {
+    /// 激活 ID。
     id: u64,
+    /// 原生线程句柄。
     handle: JoinHandle<()>,
 }
 
 #[derive(Default)]
 /// 保存当前唯一受管 Store 激活线程，确保句柄不会脱离 owner。
 struct StoreActivationOwnerState {
+    /// 当前唯一受管激活线程。
     task: Option<OwnedStoreActivation>,
 }
 
 #[derive(Default)]
 /// 每个进程唯一的 Store 激活 owner；同一时刻只允许一个有副作用的 COM 调用。
 struct StoreActivationOwner {
+    /// 下一个激活 ID。
     next_id: AtomicU64,
+    /// 当前受管激活。
     state: Mutex<StoreActivationOwnerState>,
 }
 
@@ -266,9 +284,13 @@ impl StoreActivationOwner {
 
 /// 调用方 lease 在 future 被取消或 runtime 关闭而销毁时仍会请求 COM 取消。
 struct StoreActivationLease {
+    /// 进程级激活 owner。
     owner: Arc<StoreActivationOwner>,
+    /// 激活 ID。
     id: u64,
+    /// 取消与结果控制。
     control: Arc<StoreActivationControl>,
+    /// 已取得结果；为 false 时析构会请求取消。
     completed: bool,
 }
 

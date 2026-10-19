@@ -48,9 +48,13 @@ const PROCESS_PATH_CAPACITY: usize = 32_768;
 #[derive(Debug, PartialEq, Eq)]
 /// 启动 Codex 的决策：已经由应用商店激活启动、改用传统安装入口、商店版存在但激活失败，或找不到任何安装。
 enum LaunchDecision {
+    /// 已通过应用商店激活启动。
     StartedStore,
+    /// 改用传统安装入口启动，附可执行文件路径。
     StartTraditional(PathBuf),
+    /// 商店版存在但激活失败。
     StoreFailed,
+    /// 找不到任何安装。
     NotFound,
 }
 
@@ -66,16 +70,22 @@ unsafe impl Sync for OwnedHandle {}
 #[derive(Clone, Copy)]
 /// 窗口枚举收集到的候选：所属进程、是否可见及是否为附属窗口。
 struct WindowCandidate {
+    /// 窗口句柄。
     handle: HWND,
+    /// 所属进程 PID。
     pid: u32,
+    /// 窗口可见。
     visible: bool,
+    /// 是附属窗口。
     owned: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 /// 已通过安装身份校验的 Codex 图形进程。
 pub(crate) struct GuiProcess {
+    /// 进程 PID。
     pid: u32,
+    /// 已校验的可执行文件路径。
     path: PathBuf,
 }
 
@@ -94,7 +104,9 @@ impl GuiProcess {
 #[derive(Debug)]
 /// 保存同一次 ToolHelp 快照中的可信 Codex 进程与完整父进程关系。
 struct CodexProcessSnapshot {
+    /// 可信 Codex 进程。
     processes: Vec<GuiProcess>,
+    /// 进程到父进程的映射。
     parents: std::collections::HashMap<u32, u32>,
 }
 
