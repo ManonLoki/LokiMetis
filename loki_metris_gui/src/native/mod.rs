@@ -339,7 +339,7 @@ fn window_action_current(generation: u64, cx: &App) -> bool {
 /// 语言切换更新已创建的双语托盘菜单。
 pub fn set_language(locale: &str, cx: &mut App) {
     menu::set_language(locale, cx);
-    if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.set_language(locale);}
+    if let Some(service)=notification_service(cx) {service.set_language(locale);}
     crate::pet::set_language(locale,cx);
     if cx.has_global::<Services>() && let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); }
 }
@@ -385,12 +385,15 @@ pub fn set_pet_visibility(visible:bool,cx:&mut App) {if cx.has_global::<Services
 pub fn notification_state(cx:&App)->notifications::State {cx.try_global::<Services>().map(|services|services.notifications.state()).unwrap_or_default()}
 
 /// 系统授权与偏好保存串行归属原生服务；初始化从不调用。
-pub fn set_notification(enabled:bool,cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|services|services.notifications.clone()) {service.set(enabled,cx);}}
+pub fn set_notification(enabled:bool,cx:&mut App) {if let Some(service)=notification_service(cx) {service.set(enabled,cx);}}
 
 /// 激活或进入设置只触发有界只读权限查询。
-pub fn refresh_notification_permission(cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.refresh_permission(cx);}}
+pub fn refresh_notification_permission(cx:&mut App) {if let Some(service)=notification_service(cx) {service.refresh_permission(cx);}}
 /// 明确按钮重试由同一应用 owner 处理。
-pub fn retry_notifications(cx:&mut App) {if let Some(service)=cx.try_global::<Services>().map(|s|s.notifications.clone()) {service.retry(cx);}}
+pub fn retry_notifications(cx:&mut App) {if let Some(service)=notification_service(cx) {service.retry(cx);}}
+
+/// 克隆通知 owner 句柄后释放 Global 借用，调用方才能以 `&mut App` 驱动服务。
+fn notification_service(cx:&App)->Option<notifications::Service> {cx.try_global::<Services>().map(|services|services.notifications.clone())}
 
 #[cfg(all(target_os = "linux", test))]
 mod close_tests;

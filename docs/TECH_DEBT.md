@@ -11,3 +11,8 @@
 - 尚无 upstream-lock，也未发现可核验版本、提交和干净状态的独立 Harness 源。本次工程工具与知识更新为本地维护；首次真实上游同步仍须明确来源并完成初始基线审计。版本门禁与完整升级工具已保留，不以本地维护伪造来源锁或声称上游升级完成。
 - 本次 Computer Use 无法读取系统菜单栏；托盘图标、恢复、退出由用户真实本机检查确认，其余原生窗口和系统状态由工具观察。未来发布候选仍按当次 E2E/渠道要求独立验收。
 - Windows 测试构建用测试宿主替换原生桌宠/窗口宿主，`cargo check --tests --target x86_64-pc-windows-gnu` 因此对原生 Windows 宿主模块报告约 40 条 dead_code 警告（生产 Windows 构建已无警告）。若要消除，需要让原生宿主模块在测试配置下不参与编译，并保持真实 HWND 回归可用。
+- 2026-10-19 全仓重构检查发现的范围外结构问题（本次未改，均需可执行回归后再动）：
+  - `loki_metris_gui/src/skins/mod.rs` 用约 40 个 `include!` 把目录、导入导出、校验、CDP、注入、平台进程等不同职责并入同一模块作用域，共约 1.25 万行；这超出工程规则第 2.3 节“整块 `impl`/测试分片”的用途，应按职责逐步改为真实子模块并收窄可见性。依赖源码文本的契约测试需随之改读新路径。
+  - `backend/local_index/claude` 与 `grok` 的 discovery/scan/index/signature 为复制后分别演化的实现（取消检查、链接跳过计数等已不一致），宜提取共享的有界目录遍历与签名骨架，以工具差异作参数；合并前须先用回归锁定两侧现行行为。
+  - Windows `ShellExecuteW("open")` 在 `native/links.rs` 先初始化 COM，`skins/file_manager.rs` 未初始化；统一为单一 Shell 打开入口会改变后者行为，须在 Windows 真机验证后处理。Linux 下 `open_repository` 固定返回 false，而文件管理器已有可信 `xdg-open`/`gio` 入口，属于产品能力缺口而非重构项。
+  - 项目 Rust 源未纳入 rustfmt：按默认配置格式化后总行数约增加 14%，且 `app/dashboard/{mod,calls,statistics}.rs` 与 `app/mod_test.rs` 将超过 800 行。引入格式化门禁须同步拆分这些文件，并核对按源码文本断言的测试。

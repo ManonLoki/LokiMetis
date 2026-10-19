@@ -104,6 +104,7 @@ impl HookStateMachine {
     }
 
     /// 真实宿主附带交互归属；无关并行工具或子 Agent 收尾不能解除其它用户询问。
+    #[allow(clippy::too_many_arguments)]
     pub fn apply_event_with_scope_at(
         &mut self,
         tool: AiTool,
@@ -136,6 +137,7 @@ impl HookStateMachine {
     }
 
     /// 原有会话和轮次归约，不改变直通协议及生命周期语义。
+    #[allow(clippy::too_many_arguments)]
     fn apply_event_inner(
         &mut self,
         tool: AiTool,

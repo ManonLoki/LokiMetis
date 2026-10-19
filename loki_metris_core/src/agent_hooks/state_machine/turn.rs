@@ -11,6 +11,7 @@ use crate::agent_hooks::{HookBehavior, HookEventKind};
 
 impl HookStateMachine {
     /// 推进一条轮次事件，只在最终聚合阶段变化时产出展示迁移。
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn apply_turn_event(
         &mut self,
         session_key: String,

@@ -12,12 +12,9 @@ const FILE_MANAGER_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// 规范化并确认目录存在后，用系统文件管理器打开它。
 async fn open_in_file_manager(directory: &Path) -> Result<(), AppError> {
-    let directory = tokio::fs::canonicalize(directory)
-        .await
-        .map_err(|_| AppError::new("skin.open_failed", "无法读取皮肤目录。"))?;
-    let metadata = tokio::fs::metadata(&directory)
-        .await
-        .map_err(|_| AppError::new("skin.open_failed", "无法读取皮肤目录。"))?;
+    let unreadable = |_| AppError::new("skin.open_failed", "无法读取皮肤目录。");
+    let directory = tokio::fs::canonicalize(directory).await.map_err(unreadable)?;
+    let metadata = tokio::fs::metadata(&directory).await.map_err(unreadable)?;
     if !metadata.is_dir() {
         return Err(AppError::new(
             "skin.open_failed",

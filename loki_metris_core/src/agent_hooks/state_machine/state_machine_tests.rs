@@ -263,12 +263,10 @@ mod tests {
             apply(&mut machine, "Stop", Some("goal"), Some("turn-1"), 3),
             HookEventDecision::Forward(HookTransition::Display(HookBehavior::Idle))
         );
-        for event in ["PostToolUse"] {
-            assert_eq!(
-                apply(&mut machine, event, Some("goal"), Some("turn-1"), 4),
-                HookEventDecision::Ignore
-            );
-        }
+        assert_eq!(
+            apply(&mut machine, "PostToolUse", Some("goal"), Some("turn-1"), 4),
+            HookEventDecision::Ignore
+        );
         assert_eq!(
             apply(&mut machine, "PreToolUse", Some("goal"), Some("turn-2"), 5,),
             HookEventDecision::Forward(HookTransition::Display(HookBehavior::Running))

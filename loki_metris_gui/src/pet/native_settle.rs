@@ -10,9 +10,11 @@ use std::time::Duration;
 pub(super) enum Lease {
     /// 尚未交给服务的字段意图保持同一设置代次。
     Preference(u64),
-    /// 迁屏和显隐只接受同一显示代次与可见意图。
+    /// 迁屏和显隐只接受同一显示代次与可见意图；macOS/Windows 正式构建改由原生宿主事务确认。
+    #[cfg(any(not(any(target_os = "macos", windows)), test))]
     Display { generation: u64, visible: bool },
     /// 设置窗另有自身句柄与显示代次，关闭不能影响桌宠保存事务。
+    #[cfg(any(not(any(target_os = "macos", windows)), test))]
     Settings(u64),
 }
 
@@ -27,8 +29,10 @@ pub(super) async fn wait(owner: &WeakEntity<Controller>, handle: AnyWindowHandle
                 let owner = owner.read(cx);
                 !owner.quitting && match lease {
                     Lease::Preference(generation) => owner.overlay == Some(handle) && owner.busy && owner.settings_generation == generation,
+                    #[cfg(any(not(any(target_os = "macos", windows)), test))]
                     Lease::Display { generation, visible } => owner.overlay == Some(handle)
                         && owner.display_generation == generation && owner.visible == visible,
+                    #[cfg(any(not(any(target_os = "macos", windows)), test))]
                     Lease::Settings(generation) => owner.settings_window == Some(handle) && owner.settings_window_generation == generation,
                 }
             };

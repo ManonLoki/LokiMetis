@@ -368,13 +368,11 @@ fn codex_goal_mode_resumes_with_a_new_turn_without_another_user_prompt() {
     );
 
     // Stop可续跑，但孤立的工具完成不能作为续跑起点。
-    for event in ["PostToolUse"] {
-        assert_eq!(
-            machine.apply_event(AiTool::Codex, event, Some("goal-session"), Some("turn-1"),),
-            HookEventDecision::Ignore,
-            "同一已停止轮次的迟到事件 {event} 应被抑制"
-        );
-    }
+    assert_eq!(
+        machine.apply_event(AiTool::Codex, "PostToolUse", Some("goal-session"), Some("turn-1"),),
+        HookEventDecision::Ignore,
+        "同一已停止轮次的迟到事件 PostToolUse 应被抑制"
+    );
 
     // Goal 模式恢复不会再次提交用户 prompt；新 turn 的首个工作进度必须能
     // 建立隐式轮次并恢复 Running。
