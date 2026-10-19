@@ -189,6 +189,7 @@ mod tests {
 
     /// 探针只上传一个4×4纹理，使atlas断言来自实际paint_image调用。
     struct Probe {
+        /// 上传到 atlas 的 4×4 测试纹理。
         image: Arc<RenderImage>,
     }
 

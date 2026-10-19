@@ -12,9 +12,10 @@ pub(crate) struct FileStamp {
     len: u64,
     /// 修改时间；读取失败时为 None，此时不可缓存。
     modified: Option<SystemTime>,
-    /// 宿主文件身份：Unix 为 (设备, inode, ctime 秒, ctime 纳秒)；Windows 为 (卷序列号, 128 位文件 ID, ChangeTime)，读取失败时为 None。
+    /// Unix 宿主文件身份：(设备, inode, ctime 秒, ctime 纳秒)。
     #[cfg(unix)]
     identity: (u64, u64, i64, i64),
+    /// Windows 宿主文件身份：(卷序列号, 128 位文件 ID, ChangeTime)；读取失败时为 None，此时不可缓存。
     #[cfg(windows)]
     identity: Option<(u64, [u8; 16], i64)>,
 }

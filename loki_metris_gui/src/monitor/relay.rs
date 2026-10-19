@@ -52,14 +52,19 @@ struct HookRelayArguments {
 /// relay 参数形状错误；命中 relay 标志后绝不回落到 GUI 启动。
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 enum RelayArgumentError {
+    /// 缺少 AI 工具参数。
     #[error("缺少 AI 工具参数")]
     MissingTool,
+    /// 缺少 Hook 事件参数。
     #[error("缺少 Hook 事件参数")]
     MissingEvent,
+    /// 缺少 `--managed-by` 参数或其值。
     #[error("缺少 --managed-by 参数或其值")]
     MissingMarker,
+    /// 参数不是有效 UTF-8。
     #[error("Hook relay 参数不是有效 UTF-8")]
     InvalidUtf8,
+    /// 存在重复或无法识别的参数。
     #[error("存在重复或无法识别的 Hook relay 参数")]
     UnexpectedArgument,
 }

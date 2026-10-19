@@ -157,6 +157,7 @@ pub(super) struct LoadingPaint {
     loader: f32,
     /// 加载指示器旋转角度。
     angle: f32,
+    /// 任一过渡或旋转仍在进行，需要继续请求下一帧。
     pub(super) running: bool,
 }
 impl LoadingPaint {

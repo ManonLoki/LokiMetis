@@ -236,6 +236,7 @@ mod tests {
 
     /// owner以外的绘制闭包只有弱引用，卸载时不延长资源生命周期。
     struct Probe {
+        /// 被探测的材质 owner；卸载后为 None。
         owner: Option<Entity<MaterialState>>,
     }
 
