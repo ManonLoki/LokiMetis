@@ -15,4 +15,3 @@
 | `pnpm run gpui:package preview --root .` | 原独立 GPUI 构建 helper；`setup`、`icons`、`build` 与 E2E/签名/候选边界仍由构建 Skill 管理。 |
 
 升级继续把根 `package.json` 视为 protected，不由通用升级器覆盖。确认需要迁移入口后，显式运行 `node .agents/skills/desktop-add-gpui-adapter/scripts/merge_gpui_node_tooling.mjs merge --root .`；该受限迁移仅接受已有 GPUI workspace 和实际保留工具，只写 package，冲突零写入，重复调用保留文件原字节。pnpm 参数直接跟在脚本后，不添加额外 `--` 分隔。
-

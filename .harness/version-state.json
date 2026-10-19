@@ -71,14 +71,41 @@
     "LMDESK-CLAUDE-SUBAGENT-NOTIFICATION-001",
     "LMDESK-PANEL-TEXT-LEFT-ALIGN-001"
   ],
-  "applied_reconciliations": [],
+  "applied_reconciliations": [
+    {
+      "change_id": "LM-RELEASE-HISTORY-RECONCILIATION-20261019",
+      "conflict_evidence": {
+        "confirmed": true,
+        "event_id": "LM-RELEASE-HISTORY-CROSS-HOST-20261019",
+        "record_a": ".git/agent-first-harness/recovery-audits/96a1b2a124a515300da1b0dcbc4a724480872056a2f74099f47d58ccc17fa66f.json#lastRelease.version",
+        "record_b": ".harness/version-state.json#last_release.version",
+        "value_a": "0.3.11",
+        "value_b": "0.3.13"
+      },
+      "required_version": "0.4.0"
+    }
+  ],
   "cycle_base_version": "0.3.13",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": {
     "source_commit": "1518ca4c81aae9dcef294cb382a2020827a6dfcb",
     "version": "0.3.13"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LM-RELEASE-HISTORY-RECONCILIATION-20261019",
+      "conflict_evidence": {
+        "confirmed": true,
+        "event_id": "LM-RELEASE-HISTORY-CROSS-HOST-20261019",
+        "record_a": ".git/agent-first-harness/recovery-audits/96a1b2a124a515300da1b0dcbc4a724480872056a2f74099f47d58ccc17fa66f.json#lastRelease.version",
+        "record_b": ".harness/version-state.json#last_release.version",
+        "value_a": "0.3.11",
+        "value_b": "0.3.13"
+      },
+      "kind": "record-reconciliation",
+      "required_version": "0.4.0"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.3.13"
+  "target_version": "0.4.0"
 }
