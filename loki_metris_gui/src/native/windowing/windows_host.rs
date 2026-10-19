@@ -8,15 +8,20 @@ use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::*};
 
 /// 主线程共享的几何信号；仅 bounds 回调更新，空闲轮询不持续读拓扑或写文件。
 struct Signals {
+    /// bounds 回调次数，环绕递增。
     revision: Cell<u64>,
+    /// 最近一次几何变化的时刻；静默 250ms 后才视为已稳定。
     changed: Cell<Option<Instant>>,
 }
 
 /// HWND 始终借用 GPUI 所有权；Rc 防止跨线程，原生操作前核对活窗与进程。
 #[derive(Clone)]
 pub(crate) struct WindowHost {
+    /// GPUI 主窗的 HWND，仅借用。
     hwnd: HWND,
+    /// 用于显示和激活主窗的原生句柄封装。
     activation: crate::native::windows::MainWindow,
+    /// 主线程共享的几何信号。
     signals: Rc<Signals>,
 }
 

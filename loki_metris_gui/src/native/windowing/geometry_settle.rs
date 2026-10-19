@@ -7,16 +7,22 @@ const GEOMETRY_QUIET_PERIOD: Duration = Duration::from_millis(250);
 /// zoom delegate 提供的原生 AppKit 外框，只在宿主边界使用。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct NativeFrame {
+    /// 外框左下角在 AppKit 全局坐标中的横坐标（点）。
     pub x: f64,
+    /// 外框左下角在 AppKit 全局坐标中的纵坐标（点，原点在主屏底部）。
     pub y: f64,
+    /// 外框宽度（点）。
     pub width: f64,
+    /// 外框高度（点）。
     pub height: f64,
 }
 
 /// 明确目标保护 zoom/unzoom 中间帧；未知终态不会因计时到期而自动接受。
 #[derive(Clone, Default, PartialEq)]
 pub(super) struct ZoomGuard {
+    /// 进行中的 zoom/unzoom 期望外框；到达前的中间帧都被拒绝。
     target: Option<NativeFrame>,
+    /// 目标外框不可用（含非有限值）；此时须等显式恢复，不因计时到期而接受。
     invalid: bool,
 }
 
@@ -47,6 +53,7 @@ impl ZoomGuard {
 /// 只合并宿主事件；空闲时不创建 task、不读取屏幕，也不触发偏好写入。
 #[derive(Default)]
 pub(super) struct GeometrySettle {
+    /// 最近一次几何变化的时刻；经过静默期后才视为稳定。
     last_change: Option<Instant>,
 }
 

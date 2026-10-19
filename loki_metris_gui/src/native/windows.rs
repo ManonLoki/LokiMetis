@@ -69,7 +69,9 @@ unsafe extern "system" {
 /// 捕捉已经创建的 GPUI 主窗；原始指针使此类型不能跨线程移动。
 #[derive(Clone, Copy)]
 pub(crate) struct MainWindow {
+    /// GPUI 主窗的 HWND。
     window: Handle,
+    /// 创建该窗口的线程 ID；原生操作前核对仍为同一线程的活窗。
     thread: u32,
 }
 

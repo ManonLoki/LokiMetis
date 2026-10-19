@@ -7,7 +7,9 @@ use std::{sync::mpsc::SyncSender, time::Instant};
 #[cfg(windows)]
 #[derive(Clone)]
 pub(super) struct Authorization {
+    /// 授权必须完成的截止时刻；同步宿主边界前后都会检查。
     deadline:Instant,
+    /// 与 AuthorizationGuard 共享的取消位；等待的 future 被丢弃时置位。
     cancelled:std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 /// 只由等待该授权的 future 持有，不能移入无法中断的同步 WinRT worker。

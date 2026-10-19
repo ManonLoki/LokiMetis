@@ -12,12 +12,19 @@ use std::{ptr::NonNull, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU6
 /// 通知只更新信号、目标外框和单调时间，不进入 GPUI，也不借用应用实体。
 #[derive(Default)]
 struct Signals {
+    /// 窗口几何变化次数；轮询比较它决定是否同步窗口状态。
     revision: AtomicU64,
+    /// key 窗口变化次数，用于刷新菜单可用性。
     focus_revision: AtomicU64,
+    /// 原生窗口事务失败次数。
     failure_revision: AtomicU64,
+    /// 全屏等系统过渡动画进行中，期间不读取几何。
     transition: AtomicBool,
+    /// 用户正在拖动改变窗口大小，期间不读取几何。
     live_resize: AtomicBool,
+    /// 几何变化后的静默期判定。
     geometry: Mutex<super::geometry_settle::GeometrySettle>,
+    /// zoom/unzoom 目标外框保护，拦截中间帧。
     zoom: Mutex<super::geometry_settle::ZoomGuard>,
 }
 
@@ -35,8 +42,11 @@ impl Signals {
 
 /// 保留原生对象和有界观察租约；最后一个引用释放时注销。
 struct Owner {
+    /// 主窗的 NSWindow。
     window: Retained<NSWindow>,
+    /// 与通知回调共享的几何信号。
     signals: Arc<Signals>,
+    /// 已注册的 NSNotification 观察者，最后一个引用释放时逐个注销。
     observers: Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>,
 }
 

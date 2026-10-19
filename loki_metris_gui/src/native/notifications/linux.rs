@@ -12,12 +12,19 @@ struct Delivery { id: String, title: String, body: String, receipt: oneshot::Sen
 
 /// 生命周期随原生通知 owner 释放；点击合并为一位，不受提交队列占用影响。
 pub(super) struct Host {
+    /// 向唯一 D-Bus worker 投递通知的有界邮箱（容量 16）。
     sender: Mutex<mpsc::Sender<Delivery>>,
+    /// worker 收到本应用通知 default 动作后置位，前台轮询读取后清零。
     clicked: Arc<AtomicBool>,
+    /// 尚未完成的提交取消令牌，最多 17 个；关闭或撤销时逐个置位。
     pending: Mutex<Vec<Weak<AtomicBool>>>,
+    /// 当前是否允许提交：本地开关开启且服务可用。
     allowed: AtomicBool,
+    /// 撤销代次；每次禁止提交时递增，登记过程中代次变化的请求立即取消。
     revocation: AtomicU64,
+    /// 用于创建提交超时计时器的后台执行器。
     executor: BackgroundExecutor,
+    /// 独占 D-Bus 连接与通知 ID 的后台 worker，随 Host 释放而取消。
     _worker: Task<()>,
 }
 
@@ -109,9 +116,13 @@ async fn proxy(connection: &Connection) -> ashpd::zbus::Result<Proxy<'_>> {
 
 /// 点击和替换 ID 只属于同一唯一总线名，通知服务重启后不能操作其它应用的新 ID。
 struct Session {
+    /// 固定到 `owner` 唯一名的通知服务代理。
     proxy: Proxy<'static>,
+    /// ActionInvoked 信号流，用于识别本应用通知的点击。
     actions: SignalStream<'static>,
+    /// 通知服务当前的唯一总线名；服务重启后名字变化，旧会话随之作废。
     owner: String,
+    /// 本应用通知 ID 到桌面数值 ID 的映射，只用于替换和点击归属。
     owned: HashMap<String, u32>,
 }
 

@@ -25,32 +25,43 @@ use std::time::Duration;
 
 /// 平台窗口与已选服务由唯一 Global 持有，不增加第二条事件循环。
 pub struct Services {
+    /// 应用唯一主窗句柄；Dock 重开与托盘恢复都复用它。
     main:AnyWindowHandle,
     /// 主窗后端在安装时捕获；关闭回调已借用Window，不能再次update同一窗口探测句柄。
     #[cfg(target_os = "linux")]
     main_is_x11: bool,
+    /// 根视图的弱引用，原生宿主事件经它进入窗口状态逻辑。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     shell: gpui_kit::WeakEntity<crate::app::Shell>,
+    /// 主窗原生宿主；捕获失败时为 None，退回 GPUI 自身的显隐。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_host: Option<windowing::WindowHost>,
+    /// 已处理到的宿主几何修订号；轮询发现新修订才同步窗口状态。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_revision: u64,
+    /// 显示/隐藏意图代次；较新的相反意图会让旧的延迟命令失效。
     #[cfg(any(target_os="macos", target_os="linux", all(windows, not(test))))]
     window_action_generation: u64,
     /// Linux 显式隐藏不同于遮挡/最小化；托盘入口消失时只恢复真实隐藏的主窗。
     #[cfg(target_os = "linux")]
     main_hidden: bool,
+    /// 每 40ms 处理托盘、菜单、单实例唤醒与热键的前台轮询任务，随 Global 释放而取消。
     _poll: Task<()>,
     /// 测试窗口没有原生宿主事务，显示时直接操作捕获的 HWND。
     #[cfg(all(windows, test))]
     window: Option<windows::MainWindow>,
+    /// 系统托盘；创建失败时为 None，此时关闭窗口不会隐藏到托盘。
     tray: Option<tray::Tray>,
     /// 虚拟平台只替换恢复入口事实，不创建真实托盘或伪装原生显隐已通过。
     #[cfg(all(target_os = "linux", test))]
     tray_restore_available_for_test: Option<bool>,
+    /// 登录自启的后台读写服务。
     pub autostart: autostart::Service,
+    /// 系统通知的应用级服务。
     pub notifications: notifications::Service,
+    /// 单实例锁与本地 IPC 监听；持有到退出，防止第二个实例启动。
     _instance: instance::Instance,
+    /// 全局热键服务；当前为空登记，不占用系统键位。
     pub shortcuts: shortcuts::Service,
 }
 impl Global for Services {}

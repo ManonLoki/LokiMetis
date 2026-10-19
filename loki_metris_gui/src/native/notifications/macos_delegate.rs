@@ -24,7 +24,9 @@ impl Center for UNUserNotificationCenter {
 }
 /// 回调只发送有界纯值；既有 GPUI 代理被强持有并继续处理自己的通知。
 struct DelegateIvars {
+    /// 把通知点击投递到前台的有界通道。
     clicked: SyncSender<super::driver::Event>,
+    /// 安装前已存在的通知代理（如 GPUI 自身的），强持有并继续转发其通知。
     previous: Option<Retained<ProtocolObject<dyn UNUserNotificationCenterDelegate>>>,
 }
 impl DelegateIvars {
@@ -95,6 +97,7 @@ define_class!(
 );
 /// weak 槽位的单 owner 租约；原代理由 ivars 持有，恢复前后都不会悬空。
 pub(super) struct Lease {
+    /// 当前安装在通知中心 weak 槽位上的本应用代理。
     delegate: Retained<NotificationDelegate>,
 }
 impl Lease {

@@ -34,18 +34,26 @@ use std::{
 /// 平台权限与保存失败分别保留；只有保存失败才保留原有本地开关。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
+    /// 系统明确拒绝通知权限，保持关闭并引导到系统设置。
     Denied,
+    /// 当前平台或会话没有可用的通知服务。
     Unavailable,
+    /// 授权在 10 秒期限内没有得到结果。
     Timeout,
+    /// 本地偏好保存失败，开关保留原值。
     Save,
 }
 
 /// 本地偏好是展示权威；启动只读查询权限，不申请或隐式重写已经保存的值。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct State {
+    /// 已保存的本地通知开关，是展示的唯一权威。
     pub enabled: bool,
+    /// 开关切换进行中，期间控件禁用。
     pub busy: bool,
+    /// 切换进行中的目标值；空闲时为 None。
     pub desired: Option<bool>,
+    /// 最近一次切换失败的类别；成功或重新开始切换时清除。
     pub error: Option<Error>,
     /// OS 权限与本地开关分别呈现。
     pub permission: loki_metris_core::usage_milestones::NotificationPermission,
@@ -58,12 +66,19 @@ pub struct State {
 /// 高频宿主轮询只比较展示键；业务快照仍由 owner 持有最新读取时间。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct RefreshKey {
+    /// 本地通知偏好是否开启。
     enabled: bool,
+    /// 是否有开关切换在途。
     busy: bool,
+    /// 切换在途时的目标值。
     desired: Option<bool>,
+    /// 最近一次切换的失败类别。
     error: Option<Error>,
+    /// 最近读取的系统通知权限。
     permission: loki_metris_core::usage_milestones::NotificationPermission,
+    /// 平台通知宿主是否可用。
     host_available: bool,
+    /// 持久通知进度的修订号；只比较修订号即可判断进度是否变化。
     progress_revision: u64,
 }
 
@@ -80,25 +95,40 @@ impl State {
 
 /// 唯一前台任务拥有操作代次；退出先失效，再排空已经接受的偏好写入。
 struct Owner {
+    /// 设置页与托盘读取的通知展示状态。
     state: State,
+    /// 开关操作代次；每次切换或退出递增，迟到的授权与保存结果按代次丢弃。
     generation: u64,
+    /// 应用正在退出；置位后不再接受新操作或调度任何系统调用。
     closing: bool,
+    /// 当前开关切换（授权加偏好保存）任务；同一时刻只有一个。
     task: Option<Task<()>>,
+    /// 平台通知宿主；平台不支持或创建失败时为 None，提交暂停。
     host: Option<Rc<driver::Host>>,
+    /// 每 200ms 处理回调、进度、权限复查与调度的前台轮询任务。
     poll: Option<Task<()>>,
+    /// 在途的只读权限查询；存在时暂停新的发送。
     permission_task: Option<Task<()>>,
+    /// 在途的单次通知提交；同一时刻至多一个系统调用。
     delivery_task: Option<Task<()>>,
+    /// 在途的 Unknown 回执历史核对任务。
     reconciliation_task: Option<Task<()>>,
+    /// 提供待发送预约与回执落盘的用量服务；安装前为 None。
     usage: Option<std::sync::Arc<crate::usage_service::UsageService>>,
+    /// 通知标题与正文使用的当前语言。
     locale: String,
+    /// 最近一次权限查询开始的时刻，用于限制轮询每 30 秒最多复查一次。
     permission_at: Option<Instant>,
+    /// 已核对过的 Unknown 通知 ID；同一 ID 只核对一次。
     checked_unknown: Option<String>,
 }
 
 /// 克隆仅共享应用级状态，不依赖任何页面 Entity 的生命周期。
 #[derive(Clone)]
 pub struct Service {
+    /// 前台共享的唯一 owner；所有克隆共享同一状态。
     owner: Rc<RefCell<Owner>>,
+    /// 后台串行写入通知偏好的写入器。
     writer: Writer,
 }
 

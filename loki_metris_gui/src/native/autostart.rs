@@ -9,10 +9,15 @@ mod windows;
 /// 未知和关闭必须区分；失败后也以重新读取的实际系统状态展示。
 #[derive(Clone, Debug, Default)]
 pub struct State {
+    /// 最近读取的系统自启状态；None 表示尚未读取或读取失败。
     pub enabled: Option<bool>,
+    /// 读写命令进行中，期间不接受新命令。
     pub busy: bool,
+    /// 进行中的写入目标；纯读取或空闲时为 None。
     pub desired:Option<bool>,
+    /// 最近一次读写失败。
     pub error: bool,
+    /// 每次命令完成递增，托盘与菜单据此刷新。
     pub revision: u64,
 }
 
@@ -21,8 +26,11 @@ enum Command { Read, Set(bool), Stop }
 
 /// 应用生命周期持有线程与发送端，退出时等待本模块工作完成。
 pub struct Service {
+    /// 与 worker 共享的展示状态。
     state: Arc<Mutex<State>>,
+    /// 向 worker 投递读写命令的有界通道。
     sender: mpsc::SyncSender<Command>,
+    /// 执行系统读写的专用线程，退出时 join。
     worker: Option<thread::JoinHandle<()>>,
 }
 

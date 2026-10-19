@@ -6,16 +6,21 @@ use std::collections::HashSet;
 
 /// 每项明确绑定一个编译期函数；不解析脚本或使用 wildcard/no-op 动作兜底。
 pub struct Binding {
+    /// 稳定的绑定标识。
 #[allow(dead_code, reason = "预留给下游登记 typed handler 的扩展点，中性初始化暂无调用者")]
     pub id: &'static str,
+    /// 注册到系统的组合键。
     pub chord: HotKey,
+    /// 热键触发后在前台调用的编译期函数。
     pub dispatch: fn(&mut App),
 }
 
 /// 管理器只在非空登记时创建；模块仅拥有自己成功登记的键位。
 #[derive(Default)]
 pub struct Service {
+    /// 系统热键管理器；只在有非空登记时创建。
     manager: Option<GlobalHotKeyManager>,
+    /// 本模块成功注册的绑定，退出时只注销这些键位。
     owned: Vec<Binding>,
 }
 

@@ -9,7 +9,9 @@ use tokio::sync::oneshot;
 
 /// 前台持有中心与桥接租约，退出只恢复仍由自身拥有的槽位。
 pub(super) struct Host {
+    /// 当前进程的通知中心。
     center: Retained<UNUserNotificationCenter>,
+    /// 代理槽位租约；释放时只在槽位仍属于本应用时恢复原代理。
     lease: super::macos_delegate::Lease,
 }
 impl Host {

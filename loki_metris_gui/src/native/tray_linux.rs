@@ -7,7 +7,9 @@ use std::{sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
 
 /// 唯一异步查询由托盘持有；主线程只读内存，退出取消轮询与在途连接。
 pub(super) struct RestoreEntry {
+    /// worker 最近一次确认的托盘恢复入口可用性；未知或失败均为 false。
     available: Arc<AtomicBool>,
+    /// 周期查询 StatusNotifierWatcher 的后台任务，随托盘释放而取消。
     _worker: Task<()>,
 }
 

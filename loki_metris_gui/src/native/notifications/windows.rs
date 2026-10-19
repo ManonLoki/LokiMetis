@@ -44,8 +44,11 @@ impl Drop for Apartment {
 }
 /// 保留两类事件注册令牌，淘汰或退出时均撤销。
 struct Live {
+    /// 已提交的 Toast 对象。
     toast: ToastNotification,
+    /// Activated 事件的注册令牌，淘汰或退出时撤销。
     activated: i64,
+    /// Failed 事件的注册令牌，淘汰或退出时撤销。
     failed: i64,
 }
 impl Drop for Live {
@@ -58,9 +61,13 @@ impl Drop for Live {
 /// 上限128个活动回调对象，不能随长期 Token 消费无限增长。
 #[derive(Clone)]
 pub(super) struct Host {
+    /// 向前台投递晚到失败回执的有界通道。
     events: SyncSender<Event>,
+    /// 仍在注册回调的 Toast，最多 128 个，超出时先淘汰最旧的。
     live: Arc<Mutex<VecDeque<Live>>>,
+    /// 失败回执因通道已满被丢弃时置位，前台读取后上报。
     overflow: Arc<AtomicBool>,
+    /// Toast 被点击时置位；点击经此标志轮询，不占用事件通道容量。
     pending_click: Arc<AtomicBool>,
 }
 impl Host {
