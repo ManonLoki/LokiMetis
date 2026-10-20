@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "ccf193febfc4ed17eca6936a6b1d78fe2fcfae85",
-  "version": "0.5.0",
+  "sourceHead": "3d8fc9bf7fc7a6b41ff82171cf60b36bdef209ce",
+  "version": "0.5.1",
   "releaseDate": "2026-10-20",
-  "expectedTag": "v0.5.0-20261020",
+  "expectedTag": "v0.5.1-20261020",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "8202ef75705b043b8c32c38f7098fe9eec03d8ad",
-    "sourceHead": "ccf193febfc4ed17eca6936a6b1d78fe2fcfae85",
-    "scopeDiffSha256": "6e97d7c856485ea97ebe5338ad58c214a0fa54328260f7059c6ce78a40a6c9d4",
-    "reviewedSourceCommit": "ccf193febfc4ed17eca6936a6b1d78fe2fcfae85",
+    "scopeBase": "058c5433451f246213cc6387511500604660f87d",
+    "sourceHead": "3d8fc9bf7fc7a6b41ff82171cf60b36bdef209ce",
+    "scopeDiffSha256": "d6d465e07c35ff318317d68a707245562f06e0a961876305fc87a00a64f25f90",
+    "reviewedSourceCommit": "3d8fc9bf7fc7a6b41ff82171cf60b36bdef209ce",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "五项源码审查通过：原生启动与 Linux X11 变更保持宿主边界；恢复限定精确历史基线，所有待发最低版本严格高于基线并保留原字节备份。原生回归50项、行数脚本16项、恢复专项16项通过；硬行数、中文注释与core-first检查通过。Windows/Linux本机未编译运行，最终E2E按用户选择关闭。",
+    "evidenceSummary": "五项发布审查通过：Linux目录生成仅属宿主打包，未改变core业务或依赖方向；包名、桌面入口与图标同源，DEP-11字段及转义兼容已核解析器。模块职责及规模适当，无秘密或新增临时标记；重复历史ADR已改原文引用。相关回归45项通过、1项macOS跳过；发布行数、中文注释及core-first门禁通过。应用中心实机安装、发现与卸载尚未执行，未标为通过。",
     "reason": null,
     "remainingRisk": null
   }

@@ -3,6 +3,17 @@
   "releases": [
     {
       "releaseDate": "2026-10-20",
+      "version": "v0.5.1",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "补齐 Linux 应用目录元数据，为软件中心关联已安装应用、包身份与卸载入口。",
+          "en-US": "Include Linux AppStream catalog metadata so software centers can associate the installed application with its package and removal action."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-20",
       "version": "v0.5.0",
       "featureOptimizations": [
         {
@@ -211,26 +222,6 @@
         {
           "zh-CN": "移除不属于项目负责人的 QQ 联系信息；窗口标题只保留应用名称和版本，界面模板不再生成该联系入口。",
           "en-US": "Remove the QQ contact that does not belong to the project owner. Window titles now contain only the app name and version, and retained UI templates no longer generate that contact entry."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-14",
-      "version": "v0.2.55",
-      "featureOptimizations": [
-        {
-          "zh-CN": "优化调用明细表分页渲染，追加记录时复用已有列宽测量。",
-          "en-US": "Improve call-table pagination by reusing column measurements for previously loaded rows."
-        },
-        {
-          "zh-CN": "统计和图表在索引、覆盖状态及时间范围未变化时复用结果，减少自动刷新时的重复读取与聚合。",
-          "en-US": "Reuse statistics and chart results while index, coverage and time scope remain unchanged, reducing repeated reads and aggregation during refresh."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复长期运行时换肤监视任务句柄持续累积的问题，及时释放已结束任务。",
-          "en-US": "Fix accumulated skin watcher handles during long-running sessions by releasing completed tasks."
         }
       ]
     }
