@@ -131,6 +131,11 @@
       "change_id": "LMDESK-TERMINAL-MENUS-001",
       "kind": "feature",
       "required_version": "0.6.0"
+    },
+    {
+      "change_id": "LMDESK-IOS-WIDGETS-001",
+      "kind": "feature",
+      "required_version": "0.6.0"
     }
   ],
   "schema_version": 1,

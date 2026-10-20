@@ -1,5 +1,13 @@
 # 2026-10-21 开发变更
 
+## LMDESK-IOS-WIDGETS-001 · iOS桌面与锁屏小组件
+
+分类：feature。required_version：`0.6.0`（沿用本周期功能版本）。
+
+移动项目新增WidgetKit扩展，支持桌面小号/中号和锁屏单行/圆形/矩形，App设置页提供添加说明。组件展示最近同步的Token总量/分量与Hooks状态摘要，保留日期、质量与缓存时间；未收到真实数据时显示尚未同步。App成功解密的snapshot入口接到同一展示投影及App Group原子文件，组件只读缓存，不包含密钥、Hook正文/图片或持续网络任务。
+
+开发验证：8项Swift宿主单元测试通过，覆盖u64/质量/零与缺失、私密字段丢弃、释放后的完整替换、无效更新与失败写入保留、损坏/超大文件和链接拒绝。使用真实iOS模拟器SDK进行Widget扩展及App全量Swift源的类型检查通过（复用已有Kotlin框架头文件）；Xcode目标列表与实际扩展配置解析通过。未执行完整App构建、签名App Group授权、iPhone锁屏/常亮实测或端到端局域网同步；主联动目标继续实施中，没有增加云推送或发布。
+
 ## LMDESK-LAN-DESKTOP-SERVICE-001 · 桌面局域网数据服务
 
 分类：feature。required_version：`0.6.0`（本周期功能锁已开启，不重复提升Minor）。
