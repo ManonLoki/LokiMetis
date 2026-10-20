@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["loki_metris_pairing","loki_metris_core","loki_metris_gui"]
+members = ["loki_metris_pairing","loki_metris_core","loki_metris_gui","loki_metris_mobile_bridge"]
 exclude = ["vendor/accesskit_macos", "vendor/gpui-pre", "vendor/gpui-pre-apple", "vendor/gpui-pre-macos", "vendor/gpui-pre-windows", "vendor/gpui-pre-wgpu", "vendor/tray-icon"]
 
 [workspace.package]

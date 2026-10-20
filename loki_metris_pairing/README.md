@@ -20,4 +20,4 @@ AwaitingAck::verify → PairingMaterial
 cargo +1.98.1 test -p loki_metris_pairing --lib
 ```
 
-已选定Android通过JNI、iOS通过C ABI薄桥调用相同Rust状态机；Apple Watch/watchOS的产品模式与目标架构仍待验证。平台接入及备选方案取舍见[技术选型](../docs/DEVICE_PAIRING_TECHNOLOGY.md)。本次仅提供Rust API，未创建原生桥、移动构建或系统安全存储。当前crate继承根workspace清单，接入其它项目时应保持整套依赖版本、suite和协议合同一致。
+已选定Android通过JNI、iOS通过C ABI薄桥调用相同Rust状态机；Apple Watch已选iPhone协作模式，真实目标与运行仍待验证。平台接入及备选方案取舍见[技术选型](../docs/DEVICE_PAIRING_TECHNOLOGY.md)。已加入独立[移动协议桥](../loki_metris_mobile_bridge/README.md)，并共享窗口和资源校验；JNI/Swift及系统安全存储驱动正在移动项目接线，尚未形成手机实物互通证据。当前crate继承根workspace清单，接入其它项目时应保持整套依赖版本、suite和协议合同一致。

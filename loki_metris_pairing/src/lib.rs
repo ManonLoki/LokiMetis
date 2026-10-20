@@ -6,9 +6,11 @@
 
 mod handshake;
 pub mod session;
+pub mod window;
+pub mod assets;
 #[cfg(test)]
 mod tests;
-pub use handshake::{AwaitingAck, ReceiverSession, SenderSession};
+pub use handshake::{AwaitingAck, ReceiverSession, PendingReceiverCommit, SenderSession};
 use serde::{Deserialize, Serialize};
 
 /// 精确算法套件是互操作合同，不能只按“SPAKE2”名称选择另一个变体。

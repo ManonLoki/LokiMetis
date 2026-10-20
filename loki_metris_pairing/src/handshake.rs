@@ -13,6 +13,8 @@ pub struct SenderSession { hello: PairingHello, exchange: Spake2<Ed25519Group> }
 pub struct AwaitingAck { hello: PairingHello, reply: PairingReply, keys: ConfirmationKeys }
 /// 接收端只保留当前轮的认证上下文；窗口期限和总尝试预算由宿主统一拥有。
 pub struct ReceiverSession { hello: PairingHello, reply: PairingReply, keys: ConfirmationKeys }
+/// A确认已通过但尚未持久保存；不产生ACK，不允许复制、调试或自动序列化。
+pub struct PendingReceiverCommit { material: PairingMaterial, receiver: [u8;32], transcript: [u8;32] }
 /// 每个方向只发送一次确认，持久密钥单独派生，不能复用固定nonce发业务数据。
 struct ConfirmationKeys { sender: [u8; 32], receiver: [u8; 32], persistent: [u8; 32], transcript: [u8; 32] }
 
@@ -52,6 +54,8 @@ impl AwaitingAck {
 }
 
 impl ReceiverSession {
+    /// 窗口把本轮不可混淆的公开transcript绑定到线性尝试凭据。
+    pub(crate) fn binding(&self) -> [u8;32] { self.keys.transcript }
     /// 宿主先预约当前码的全局尝试预算，再调用B交换；目标、套件和角色均严格复核。
     pub fn start(hello: PairingHello, own_id: &str, name: &str, code: &str, nonce: String) -> Result<(Self, PairingReply), PairingError> {
         if hello.version != 1 || hello.suite != PAIRING_SUITE || hello.device_id != own_id || hello.client_id == own_id
@@ -68,10 +72,28 @@ impl ReceiverSession {
     /// 先验证A再调用一次私有保存；回调返回成功才构造B回执，失败绝不假成功。
     /// 宿主必须在回调中再次原子检查60秒窗口/取消状态，并完成真实持久化。
     pub fn confirm_and_commit(self, confirmation: PairingConfirmation, commit: impl FnOnce(&PairingMaterial) -> Result<(), ()>) -> Result<PairingAck, PairingError> {
+        let pending = self.verify_confirmation(confirmation)?;
+        let result = commit(pending.material());
+        pending.finish_commit(result)
+    }
+
+    /// 原生桥先验证A，再把不可伪造的材料交OS私有存储；此时仍没有成功回执。
+    pub fn verify_confirmation(self, confirmation: PairingConfirmation) -> Result<PendingReceiverCommit, PairingError> {
         open(&self.keys.sender, &self.keys.transcript, &confirmation.confirmation, b"LokiMetris/sender-confirm/1")?;
         let material = PairingMaterial { client_id: self.hello.client_id, device_id: self.reply.device_id, name: self.reply.name, secret: self.keys.persistent };
-        commit(&material).map_err(|_| PairingError::CommitFailed)?;
-        Ok(PairingAck { confirmation: seal(&self.keys.receiver, &self.keys.transcript, b"LokiMetris/receiver-saved/1")? })
+        Ok(PendingReceiverCommit { material, receiver:self.keys.receiver, transcript:self.keys.transcript })
+    }
+}
+
+impl PendingReceiverCommit {
+    /// 不同随机交换即使复用session字段也不能混用保存资格。
+    pub(crate) fn binding(&self) -> [u8;32] { self.transcript }
+    /// 仅供同一owner的OS私有保存，不得发送网络、日志或界面。
+    pub fn material(&self) -> &PairingMaterial { &self.material }
+    /// 宿主确认真实保存及窗口仍有效后消费状态，失败或放弃均不产生ACK。
+    pub fn finish_commit(self, result: Result<(), ()>) -> Result<PairingAck, PairingError> {
+        result.map_err(|_| PairingError::CommitFailed)?;
+        Ok(PairingAck { confirmation:seal(&self.receiver, &self.transcript, b"LokiMetris/receiver-saved/1")? })
     }
 }
 
