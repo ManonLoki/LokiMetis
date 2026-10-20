@@ -165,8 +165,9 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         let mut stream = TcpStream::connect(address).await.unwrap();
         let mut channel = phone(&mut stream, serde_json::json!({"deviceId":DEVICE,"name":"Test phone","platform":"ios","appVersion":"1.0"})).await;
         let mut reader = FrameReader::new(MAX_ENCRYPTED_FRAME_BYTES);
-        let HostMessage::Snapshot { snapshot:first } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("initial snapshot"); };
+        let HostMessage::Snapshot { snapshot:first, capabilities } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("initial snapshot"); };
         assert_eq!(first.assets, vec![descriptor.clone()]);
+        assert!(capabilities.iter().any(|value| value == "watchCompanionV1"));
         // 持续预发合法资源请求时，最新状态仍须优先得到服务，不能等请求流结束。
         for _ in 0..24 {
             let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::AssetRequest { hash:descriptor.hash.clone(), offset:0 }).unwrap()).unwrap();
@@ -178,7 +179,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         let mut chunks_before_update = 0;
         for _ in 0..25 {
             match application_message(&mut stream, &mut reader, &mut channel).await {
-                HostMessage::Snapshot { snapshot } => { assert_eq!(snapshot.token_error.as_deref(),Some("pipelined-update")); saw_update=true; },
+                HostMessage::Snapshot { snapshot, .. } => { assert_eq!(snapshot.token_error.as_deref(),Some("pipelined-update")); saw_update=true; },
                 HostMessage::AssetChunk { .. } => { if !saw_update { chunks_before_update += 1; } },
                 _ => panic!("unexpected response"),
             }
@@ -194,7 +195,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         assert_eq!(receiver.finish().unwrap().1, bytes);
         let mut next = snapshot; next.catalog_error = Some("device_catalog_unavailable".into()); next.assets.clear();
         publisher.publications.send_replace(Arc::new(super::super::publication::Publication { snapshot:next, bytes:Default::default() }));
-        let HostMessage::Snapshot { snapshot:updated } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("updated snapshot"); };
+        let HostMessage::Snapshot { snapshot:updated, .. } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("updated snapshot"); };
         assert!(updated.assets.is_empty());
         let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::AssetRequest { hash:descriptor.hash.clone(), offset:0 }).unwrap()).unwrap();
         write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
@@ -216,5 +217,55 @@ async fn application_message(stream: &mut TcpStream, reader: &mut FrameReader, c
             write_frame(stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap(); continue;
         }
         return serde_json::from_slice(&plain).unwrap();
+    }
+}
+
+/// 真实加密TCP验证能力广告、心跳时间锚、iOS父资格及暂停撤销；不冒充模拟器WC互通。
+#[tokio::test]
+async fn companion_status_requires_authenticated_ios_parent_and_known_heartbeat_anchor() {
+    use loki_metris_core::devices::{companion::{WatchCompanionReport, WatchInfo, CompanionObservation}, link::data::{DeviceMessage, HostMessage}};
+    for scenario in ["valid", "unknown-anchor", "android"] {
+        let temp = tempfile::tempdir().unwrap();
+        let owner = Arc::new(crate::usage_service::background::BackgroundTaskOwner::with_runtime(
+            Arc::new(loki_metris_core::RootDiscoveryCoordinator::default()), tokio::runtime::Handle::current()));
+        let devices = Arc::new(Devices::new(temp.path(), owner.clone())); devices.finish(Ok(link_book()), None);
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap(); let address = listener.local_addr().unwrap();
+        let permits = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS)); let (_cancel, cancelled) = watch::channel(false);
+        let desktop = devices.clone(); let observer = devices.clone();
+        let server = async {
+            let (stream, _) = listener.accept().await.unwrap();
+            desktop.serve_peer(stream, "192.168.1.20:51000".parse().unwrap(), permits.acquire_owned().await.unwrap(), cancelled).await;
+        };
+        let client = async {
+            let mut stream = TcpStream::connect(address).await.unwrap();
+            let mut channel = phone(&mut stream, serde_json::json!({"deviceId":DEVICE,"name":"Phone","platform":if scenario == "android" {"android"} else {"ios"},"appVersion":"1.0"})).await;
+            let mut framing = FrameReader::new(MAX_ENCRYPTED_FRAME_BYTES);
+            let packet: EncryptedPacket = framing.read(&mut stream).await.unwrap();
+            let HostMessage::Snapshot { capabilities, .. } = serde_json::from_slice(&channel.open(&packet).unwrap()).unwrap() else { panic!("snapshot"); };
+            assert!(capabilities.iter().any(|value| value == "watchCompanionV1"));
+            let packet: EncryptedPacket = framing.read(&mut stream).await.unwrap();
+            let LinkControl::Ping { nonce } = serde_json::from_slice(&channel.open(&packet).unwrap()).unwrap() else { panic!("ping"); };
+            let report = WatchCompanionReport { info: WatchInfo { device_id:"c169da9b-4716-4774-bdcb-a33bfd6e1ac1".into(), name:"Watch".into(), app_version:"1.0".into() },
+                reachable:true, contact:Some(CompanionObservation { sequence:1, age_ms:0 }), sync:Some(CompanionObservation { sequence:1, age_ms:0 }) };
+            let message = DeviceMessage::CompanionStatus { nonce: if scenario == "unknown-anchor" { nonce + 1 } else { nonce }, report };
+            let packet = channel.seal(&serde_json::to_vec(&message).unwrap()).unwrap();
+            write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
+            if scenario == "valid" {
+                // 顺序处理的ping回执证明前面的Watch状态已经由server应用。
+                let packet = channel.seal(&serde_json::to_vec(&LinkControl::Ping { nonce:77 }).unwrap()).unwrap();
+                write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
+                let packet: EncryptedPacket = framing.read(&mut stream).await.unwrap();
+                assert!(matches!(serde_json::from_slice::<LinkControl>(&channel.open(&packet).unwrap()).unwrap(), LinkControl::Pong { nonce:77 }));
+                assert!(observer.snapshot().presence[0].companion.as_ref().unwrap().reachable);
+                let packet = channel.seal(&serde_json::to_vec(&LinkControl::Pause {}).unwrap()).unwrap();
+                write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
+            }
+            let mut byte = [0]; assert!(matches!(tokio::time::timeout(Duration::from_secs(2), stream.read(&mut byte)).await.unwrap(), Ok(0) | Err(_)));
+        };
+        tokio::time::timeout(Duration::from_secs(5), async { tokio::join!(server, client); }).await.unwrap();
+        let view = devices.snapshot();
+        if scenario == "valid" { assert!(!view.presence[0].companion.as_ref().unwrap().reachable); }
+        else { assert!(view.presence[0].companion.is_none()); }
+        owner.shutdown().await;
     }
 }

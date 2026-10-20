@@ -227,7 +227,7 @@ impl Devices {
         let (mut reader, mut writer) = stream.into_split(); let mut framing = FrameReader::new(MAX_ENCRYPTED_FRAME_BYTES);
         if *server_cancelled.borrow() || *cancelled.borrow() { return UnavailableReason::Disconnected; }
         let mut heartbeat = tokio::time::interval(DEVICE_HEARTBEAT_INTERVAL); heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        let mut nonce = 0u64; let mut outstanding = None;
+        let mut nonce = 0u64; let mut outstanding = None; let mut recent_pings = std::collections::VecDeque::new();
         let mut publications = self.publications.subscribe();
         let first = publications.borrow_and_update().message(super::super::current_epoch_ms());
         if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &first)).await, Ok(Ok(()))) { return UnavailableReason::Disconnected; }
@@ -248,7 +248,10 @@ impl Devices {
                     }
                     if outstanding.is_none() {
                         let ping = LinkControl::Ping { nonce };
+                        let sent_at = Instant::now();
                         if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &ping)).await, Ok(Ok(()))) { break; }
+                        recent_pings.push_back((nonce, sent_at));
+                        if recent_pings.len() > 4 { recent_pings.pop_front(); }
                         outstanding = Some(nonce); let Some(next) = nonce.checked_add(1) else { break; }; nonce = next;
                     }
                 },
@@ -267,6 +270,14 @@ impl Devices {
                     }
                     let control = match message {
                         loki_metris_core::devices::link::data::DeviceMessage::Control(control) => control,
+                        loki_metris_core::devices::link::data::DeviceMessage::CompanionStatus { nonce, report } => {
+                            // 同时在途的上一轮状态可引用旧ping，但仍受当前租约及45秒时间锚约束。
+                            let Some((_, anchor)) = recent_pings.iter().find(|(expected, _)| *expected == nonce) else { break; };
+                            let anchor = *anchor;
+                            let mut state = self.state(); let Some(book) = state.book.clone() else { break; };
+                            if state.presence.companion(&book, lease, report, anchor, Instant::now()).is_err() { break; }
+                            continue;
+                        },
                         loki_metris_core::devices::link::data::DeviceMessage::AssetRequest { hash, offset } => {
                             let response = publications.borrow().asset(&hash, offset);
                             let Ok(response) = response else { break; };

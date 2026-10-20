@@ -901,6 +901,13 @@
     "unreachable": "Temporarily unreachable",
     "ip": "IP: {{ip}}",
     "lastIp": "Last IP: {{ip}}",
-    "lastContact": "Last communication: {{seconds}}s ago"
+    "lastContact": "Last communication: {{seconds}}s ago",
+    "watch": {
+      "viaPhone": "via iPhone",
+      "connected": "Connected",
+      "unavailable": "Sync unavailable · cache retained",
+      "noSync": "No full snapshot sync confirmed",
+      "lastSync": "Last confirmed sync: at most {{seconds}}s ago"
+    }
   }
 }

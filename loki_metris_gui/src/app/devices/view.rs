@@ -85,6 +85,23 @@ impl Shell {
                     details = details.child(div().text_size(px(12.)).text_color(cx.theme().muted_foreground)
                         .child(self.t("devices.lastContact").replace("{{seconds}}", &age.as_secs().to_string())));
                 }
+                if let Some(watch) = &presence.companion {
+                    let watch_status = self.t(if connection == DeviceConnectionState::Reachable && watch.reachable { "devices.watch.connected" } else { "devices.watch.unavailable" });
+                    let sync = watch.since_last_sync.map_or_else(|| self.t("devices.watch.noSync"), |age|
+                        self.t("devices.watch.lastSync").replace("{{seconds}}", &age.as_secs().to_string()));
+                    let mut row = div().id(SharedString::from(format!("device-watch-{}", device.id))).test_support().mt_2().pl_3().flex().flex_col().gap_1()
+                        .child(div().font_weight(FontWeight::SEMIBOLD).child(format!("Watch · {}", watch.info.name)))
+                        .child(div().text_size(px(12.)).child(watch.info.device_id.clone()))
+                        .child(div().text_size(px(12.)).child(format!("watchOS · {} · {}", watch.info.app_version, self.t("devices.watch.viaPhone"))))
+                        .child(div().id(SharedString::from(format!("device-watch-status-{}", device.id))).test_support().role(Role::Label)
+                            .aria_label(watch_status.clone()).text_size(px(12.)).child(watch_status))
+                        .child(div().id(SharedString::from(format!("device-watch-sync-{}", device.id))).test_support().role(Role::Label)
+                            .aria_label(sync.clone()).text_size(px(12.)).child(sync));
+                    if let Some(age) = watch.since_last_contact {
+                        row = row.child(div().text_size(px(12.)).child(self.t("devices.lastContact").replace("{{seconds}}", &age.as_secs().to_string())));
+                    }
+                    details = details.child(row);
+                }
             }
             if found && connection == DeviceConnectionState::NotConnected {
                 details = details.child(div().text_size(px(12.)).text_color(cx.theme().muted_foreground).child(self.t("devices.seen")));

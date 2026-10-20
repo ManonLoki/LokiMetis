@@ -88,7 +88,7 @@ fn broadcast_only_candidates_have_accessible_disabled_pairing(cx: &mut TestAppCo
 /// 已认证IP与后台状态独立显示，只有发现广告时不能伪造在线或可信IP。
 #[gpui_kit::test]
 fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut TestAppContext) {
-    use loki_metris_core::devices::{link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState, UnavailableReason}};
+    use loki_metris_core::devices::{companion::{WatchInfo, WatchCompanionView}, link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState, UnavailableReason}};
     for (locale, connected, background, not_connected, ip, last_ip) in [
         ("en-US", "Connected", "In background · sync resumes when opened", "Not connected", "IP: 192.168.1.20", "Last IP: 192.168.1.20"),
         ("zh-CN", "当前可通信", "已进入后台，打开终端后恢复同步", "尚未连接", "IP：192.168.1.20", "上次 IP：192.168.1.20"),
@@ -100,16 +100,24 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
                 this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved name".into() });
                 this.devices.snapshot.presence.push(DevicePresenceView { device_id: DEVICE.into(),
                     info: Some(DeviceInfo { device_id: DEVICE.into(), name: "Authenticated phone".into(), platform: DevicePlatform::Ios, app_version: "1.0".into() }),
-                    state: DeviceConnectionState::Reachable, peer: Some("192.168.1.20:51000".parse().unwrap()), since_last_contact: Some(std::time::Duration::ZERO) });
+                    state: DeviceConnectionState::Reachable, peer: Some("192.168.1.20:51000".parse().unwrap()), since_last_contact: Some(std::time::Duration::ZERO), companion: None });
+                this.devices.snapshot.presence[0].companion = Some(WatchCompanionView {
+                    info: WatchInfo { device_id: "c169da9b-4716-4774-bdcb-a33bfd6e1ac1".into(), name: "My Watch".into(), app_version: "1.0".into() },
+                    reachable: true, since_last_contact: Some(std::time::Duration::ZERO), since_last_sync: Some(std::time::Duration::from_secs(2)) });
                 cx.notify();
             });
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
             assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
+            assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(connected));
+            assert_eq!(window.find(format!("device-watch-sync-{DEVICE}")).label(), Some(if locale == "en-US" { "Last confirmed sync: at most 2s ago" } else { "最近确认同步：至多 2 秒前" }));
+            assert!(window.try_find("device-ip-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
+            assert!(window.try_find("device-remove-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
             shell.update(cx, |this, cx| { this.devices.snapshot.presence[0].state = DeviceConnectionState::Unavailable(UnavailableReason::Background); cx.notify(); });
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(background));
             assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(last_ip));
+            assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(if locale == "en-US" { "Sync unavailable · cache retained" } else { "暂不可同步 · 保留缓存" }));
             shell.update(cx, |this, cx| { this.devices.snapshot.presence.clear(); prepare_target(this); cx.notify(); });
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(not_connected));

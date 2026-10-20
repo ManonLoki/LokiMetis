@@ -110,7 +110,13 @@ impl Devices {
         view.discovered.extend(state.candidates.values().filter_map(|(device, _)| ids.insert(device.id.clone()).then_some(device.clone())));
         if let Some(book) = &state.book {
             view.presence = state.presence.snapshot(book, Instant::now());
-            for presence in &mut view.presence { presence.since_last_contact = presence.since_last_contact.map(|age| Duration::from_secs(age.as_secs())); }
+            for presence in &mut view.presence {
+                presence.since_last_contact = presence.since_last_contact.map(|age| Duration::from_secs(age.as_secs()));
+                if let Some(watch) = &mut presence.companion {
+                    watch.since_last_contact = watch.since_last_contact.map(|age| Duration::from_secs(age.as_secs()));
+                    watch.since_last_sync = watch.since_last_sync.map(|age| Duration::from_secs(age.as_secs()));
+                }
+            }
         }
         view
     }

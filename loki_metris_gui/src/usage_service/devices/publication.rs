@@ -21,7 +21,7 @@ impl Publication {
         if snapshot.tokens.as_ref().is_some_and(|t| !t.day.contains(now) || !(0..=90_000).contains(&now.saturating_sub(t.observed_ms))) {
             snapshot.tokens = None; snapshot.token_error = Some("device_data_refreshing".into());
         }
-        HostMessage::Snapshot { snapshot }
+        HostMessage::Snapshot { snapshot, capabilities: vec![loki_metris_core::devices::companion::WATCH_COMPANION_CAPABILITY.into()] }
     }
     /// 不接受路径/URL，且只从当前完整清单查找内容；下载期间修改清单返回失效。
     pub(super) fn asset(&self, hash: &str, offset: u64) -> Result<HostMessage, &'static str> {

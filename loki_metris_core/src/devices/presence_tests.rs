@@ -108,3 +108,103 @@ fn endpoint_scope_and_generation_limits_fail_closed() {
     let (_, mut reconnected, _) = link_fixture();
     assert_eq!(connect(&mut presence, &book, &mut reconnected, "Phone", peer, now), Err(LinkError::Limit));
 }
+
+/// 每次真实回执的序号与单调年龄形成独立Watch报告，完整快照ACK共享该次序号。
+fn watch_report(sequence: u64, age_ms: u64) -> super::super::companion::WatchCompanionReport {
+    use super::super::companion::{WatchCompanionReport, WatchInfo, CompanionObservation};
+    WatchCompanionReport { info: WatchInfo { device_id: "c169da9b-4716-4774-bdcb-a33bfd6e1ac1".into(), name: "My Watch".into(), app_version: "1.0".into() },
+        reachable: true, contact: Some(CompanionObservation { sequence, age_ms }), sync: Some(CompanionObservation { sequence, age_ms }) }
+}
+
+/// 手机心跳或重复报告不能延长Watch通信/同步，撤销后相同回执也不能复活。
+#[test]
+fn companion_has_independent_expiry_and_duplicate_proof_cannot_revive() {
+    let (book, mut session, _) = link_fixture(); let now = Instant::now(); let mut presence = DevicePresence::default();
+    let lease = connect(&mut presence, &book, &mut session, "Phone", "192.168.1.8:40000".parse().unwrap(), now).unwrap();
+    let report = watch_report(1, 0); presence.companion(&book, &lease, report.clone(), now, now).unwrap();
+    presence.received(&book, &lease, now + Duration::from_secs(30)).unwrap();
+    presence.companion(&book, &lease, report.clone(), now + Duration::from_secs(30), now + Duration::from_secs(30)).unwrap();
+    let view = presence.snapshot(&book, now + Duration::from_secs(45));
+    assert_eq!(view[0].state, DeviceConnectionState::Reachable);
+    let watch = view[0].companion.as_ref().unwrap(); assert!(!watch.reachable);
+    assert_eq!(watch.since_last_contact, Some(Duration::from_secs(45))); assert_eq!(watch.since_last_sync, Some(Duration::from_secs(45)));
+    let mut pause = watch_report(2, 0); pause.reachable = false;
+    presence.companion(&book, &lease, pause, now + Duration::from_secs(31), now + Duration::from_secs(31)).unwrap();
+    presence.companion(&book, &lease, watch_report(2, 0), now + Duration::from_secs(32), now + Duration::from_secs(32)).unwrap();
+    assert!(!presence.snapshot(&book, now + Duration::from_secs(32))[0].companion.as_ref().unwrap().reachable);
+    let mut contact = watch_report(3, 0); contact.sync = watch_report(2, 1_000).sync;
+    presence.companion(&book, &lease, contact, now + Duration::from_secs(33), now + Duration::from_secs(33)).unwrap();
+    let view = presence.snapshot(&book, now + Duration::from_secs(33)); let watch = view[0].companion.as_ref().unwrap();
+    assert!(watch.reachable); assert_eq!(watch.since_last_sync, Some(Duration::from_secs(2)));
+    assert_eq!(presence.companion(&book, &lease, watch_report(1, 0), now + Duration::from_secs(34), now + Duration::from_secs(34)), Err(LinkError::Stale));
+}
+
+/// 新序号即使第一次到达也必须扣除桌面challenge至收到报告的全部延迟，历史年龄不依赖开机时长。
+#[test]
+fn companion_heartbeat_anchor_bounds_delayed_new_proof() {
+    let (book, mut session, _) = link_fixture(); let now = Instant::now(); let mut presence = DevicePresence::default();
+    let lease = connect(&mut presence, &book, &mut session, "Phone", "192.168.1.8:40000".parse().unwrap(), now).unwrap();
+    presence.companion(&book, &lease, watch_report(1, 35_000), now, now + Duration::from_secs(20)).unwrap();
+    assert_eq!(presence.companion(&book, &lease, watch_report(2, 0), now, now + Duration::from_secs(19)), Err(LinkError::Invalid));
+    presence.received(&book, &lease, now + Duration::from_secs(30)).unwrap();
+    assert!(!presence.snapshot(&book, now + Duration::from_secs(20))[0].companion.as_ref().unwrap().reachable);
+    assert_eq!(presence.companion(&book, &lease, watch_report(2, 0), now, now + Duration::from_secs(45)), Err(LinkError::Expired));
+    assert_eq!(presence.companion(&book, &lease, watch_report(2, 0), now + Duration::from_secs(40), now + Duration::from_secs(35)), Err(LinkError::Expired));
+    let mut history = watch_report(2, 0); history.sync.as_mut().unwrap().age_ms = 604_800_000;
+    presence.companion(&book, &lease, history, now + Duration::from_secs(31), now + Duration::from_secs(31)).unwrap();
+    assert_eq!(presence.snapshot(&book, now + Duration::from_secs(31))[0].companion.as_ref().unwrap().since_last_sync, Some(Duration::from_millis(604_800_000)));
+}
+
+/// 父租约暂停/撤销/换代与忘记都撤销子设备，Android及身份碰撞不能创建Watch。
+#[test]
+fn companion_is_bound_to_current_ios_parent_trust_and_generation() {
+    let (book, mut session, _) = link_fixture(); let now = Instant::now(); let mut presence = DevicePresence::default();
+    let lease = connect(&mut presence, &book, &mut session, "Phone", "192.168.1.8:40000".parse().unwrap(), now).unwrap();
+    presence.companion(&book, &lease, watch_report(1, 0), now, now).unwrap();
+    presence.disconnected(&lease, UnavailableReason::Background).unwrap();
+    assert!(!presence.snapshot(&book, now)[0].companion.as_ref().unwrap().reachable);
+    assert_eq!(presence.companion(&book, &lease, watch_report(2, 0), now, now), Err(LinkError::Expired));
+    let (_, mut resumed, _) = link_fixture();
+    let next = connect(&mut presence, &book, &mut resumed, "Phone", "192.168.1.9:50000".parse().unwrap(), now).unwrap();
+    assert!(presence.snapshot(&book, now)[0].companion.is_none());
+    assert_eq!(presence.companion(&book, &lease, watch_report(2, 0), now, now), Err(LinkError::Stale));
+    let mut report = watch_report(2, 0); report.info.device_id = book.client_id().into();
+    assert_eq!(presence.companion(&book, &next, report, now, now), Err(LinkError::Invalid));
+    presence.entries.get_mut(session.device_id()).unwrap().info.platform = DevicePlatform::Android;
+    assert_eq!(presence.companion(&book, &next, watch_report(2, 0), now, now), Err(LinkError::Invalid));
+    presence.entries.get_mut(session.device_id()).unwrap().info.platform = DevicePlatform::Ios;
+    let mut revoked = book.clone(); revoked.devices[0].key.0 = [0x55;32];
+    assert_eq!(presence.companion(&revoked, &next, watch_report(2, 0), now, now), Err(LinkError::Untrusted));
+    assert!(presence.snapshot(&revoked, now)[0].companion.is_none());
+    presence.forget(session.device_id()); assert!(presence.snapshot(&book, now)[0].companion.is_none());
+}
+
+/// 45秒边界、计数上限和年龄关系严格校验，拒绝的报告不损坏先前有效状态。
+#[test]
+fn companion_rejects_contradictory_or_unbounded_facts() {
+    let mut report = watch_report(1, 45_000); assert_eq!(report.validate(), Err(LinkError::Invalid));
+    report.reachable = false; assert!(report.validate().is_ok());
+    report.contact.as_mut().unwrap().sequence = 0; assert_eq!(report.validate(), Err(LinkError::Invalid));
+    report = watch_report(1, 0); report.sync.as_mut().unwrap().sequence = 2; assert_eq!(report.validate(), Err(LinkError::Invalid));
+    report = watch_report(1, 5); report.sync.as_mut().unwrap().age_ms = 4; assert_eq!(report.validate(), Err(LinkError::Invalid));
+    report = watch_report(9_007_199_254_740_992, 0); assert_eq!(report.validate(), Err(LinkError::Invalid));
+}
+
+/// 换表只替换展示身份，父租约的序号高水位继续防止旧表报告重新创建可达证明。
+#[test]
+fn companion_identity_switch_cannot_bypass_parent_sequence_high_watermark() {
+    let (book, mut session, _) = link_fixture(); let now = Instant::now(); let mut presence = DevicePresence::default();
+    let lease = connect(&mut presence, &book, &mut session, "Phone", "192.168.1.8:40000".parse().unwrap(), now).unwrap();
+    presence.companion(&book, &lease, watch_report(5, 0), now, now).unwrap();
+    let mut pause = watch_report(5, 0); pause.reachable = false;
+    presence.companion(&book, &lease, pause, now, now).unwrap();
+    let mut other = watch_report(6, 0); other.info.device_id = "c169da9b-4716-4774-bdcb-a33bfd6e1ac2".into();
+    presence.companion(&book, &lease, other.clone(), now, now).unwrap();
+    assert_eq!(presence.companion(&book, &lease, watch_report(5, 0), now, now), Err(LinkError::Stale));
+    let view = presence.snapshot(&book, now); assert_eq!(view[0].companion.as_ref().unwrap().info, other.info);
+    let mut stale_sync = watch_report(7, 0); stale_sync.sync = watch_report(5, 0).sync;
+    assert_eq!(presence.companion(&book, &lease, stale_sync, now, now), Err(LinkError::Stale));
+    let mut returned = watch_report(7, 0); returned.sync = None;
+    presence.companion(&book, &lease, returned, now, now).unwrap();
+    assert!(presence.snapshot(&book, now)[0].companion.as_ref().unwrap().since_last_sync.is_none());
+}

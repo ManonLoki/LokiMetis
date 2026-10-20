@@ -8,6 +8,10 @@ use super::{LinkControl, LinkError, assets::{AssetChunk, AssetDescriptor}};
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum DeviceMessage {
+    /// 仅已广告扩展能力的当前iPhone会话可以报告系统配套Watch。
+    CompanionStatus { /// 当前桌面ping的时间锚，必须来自本次认证连接。
+        nonce: u64, /// 无IP且有独立通信回执的子设备状态。
+        report: crate::devices::companion::WatchCompanionReport },
     /// 只能请求当前清单中的摘要与对齐偏移。
     AssetRequest { /// SHA-256小写十六进制摘要。
         hash: String, /// 从零开始的字节偏移。
@@ -23,7 +27,10 @@ pub enum DeviceMessage {
 pub enum HostMessage {
     /// 新连接及每次更新都携带完整投影，重连无需回放旧事件。
     Snapshot { /// 本连接当前展示事实。
-        snapshot: DisplaySnapshot },
+        snapshot: DisplaySnapshot,
+        /// 扩展只在当前认证连接协商，旧接收端可忽略外壳字段。
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        capabilities: Vec<String> },
     /// 当前清单资源的一块正文。
     AssetChunk { /// 有界且经过摘要绑定的块。
         chunk: AssetChunk },
@@ -146,6 +153,21 @@ mod tests {
         assert!(matches!(serde_json::from_str::<DeviceMessage>(r#"{"type":"assetRequest","hash":"a","offset":0}"#).unwrap(), DeviceMessage::AssetRequest { .. }));
         assert!(serde_json::from_str::<DeviceMessage>(r#"{"type":"pause","ip":"192.168.1.1"}"#).is_err());
         assert!(serde_json::from_str::<DeviceMessage>(r#"{"type":"assetRequest","hash":"a","offset":0,"path":"secret"}"#).is_err());
+    }
+    /// Watch扩展外壳兼容旧快照，子设备不允许混入IP、密钥或未知字段。
+    #[test]
+    fn companion_wire_is_strict_and_snapshot_capability_is_optional() {
+        let snapshot = DisplaySnapshot { version: 1, ..Default::default() };
+        let bytes = serde_json::to_vec(&HostMessage::Snapshot { snapshot, capabilities: vec![] }).unwrap();
+        assert!(!String::from_utf8_lossy(&bytes).contains("capabilities"));
+        let HostMessage::Snapshot { capabilities, .. } = serde_json::from_slice(&bytes).unwrap() else { panic!("snapshot"); };
+        assert!(capabilities.is_empty());
+        let mut value = serde_json::json!({"type":"companionStatus","nonce":0,"report":{
+            "info":{"deviceId":"c169da9b-4716-4774-bdcb-a33bfd6e1ac1","name":"Watch","appVersion":"1.0"},
+            "reachable":true,"contact":{"sequence":1,"ageMs":0},"sync":null}});
+        assert!(matches!(serde_json::from_value::<DeviceMessage>(value.clone()).unwrap(), DeviceMessage::CompanionStatus { .. }));
+        value["report"]["info"]["ip"] = "192.168.1.20".into();
+        assert!(serde_json::from_value::<DeviceMessage>(value).is_err());
     }
     /// u64整数完整保留，跨轮分量与重复Agent不能混入总量。
     #[test]

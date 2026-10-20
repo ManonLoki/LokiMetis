@@ -3,6 +3,7 @@
 mod pairing;
 pub mod link;
 pub mod presence;
+pub mod companion;
 #[cfg(test)]
 mod tests;
 

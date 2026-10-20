@@ -901,6 +901,13 @@
     "unreachable": "暂不可达",
     "ip": "IP：{{ip}}",
     "lastIp": "上次 IP：{{ip}}",
-    "lastContact": "最近通信：{{seconds}} 秒前"
+    "lastContact": "最近通信：{{seconds}} 秒前",
+    "watch": {
+      "viaPhone": "经由 iPhone",
+      "connected": "当前可通信",
+      "unavailable": "暂不可同步 · 保留缓存",
+      "noSync": "尚未确认完整快照同步",
+      "lastSync": "最近确认同步：至多 {{seconds}} 秒前"
+    }
   }
 }
