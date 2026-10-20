@@ -11,6 +11,7 @@ import { safeRoot, safePath, sha256 } from '../.agents/skills/desktop-build-gpui
 import { collectResources, assertResourcesStable, stageResources } from '../.agents/skills/desktop-build-gpui-release/scripts/gpui_resources.mjs';
 import { verifyResources } from '../.agents/skills/desktop-build-gpui-release/scripts/gpui_packager.mjs';
 import { assertDependencyLocks, readDependencyLockPolicy } from '../.agents/skills/desktop-implement-change/scripts/project_lock_policy.mjs';
+import { renderLocalNetworkPlist } from '../.agents/skills/desktop-build-gpui-release/scripts/gpui_macos_network.mjs';
 
 const PREVIEW_ROOT = 'target/gpui-preview';
 const PREVIEW_APP = `${PREVIEW_ROOT}/LokiMetris.app`;
@@ -90,6 +91,7 @@ export function renderPreviewPlist(config, facts) {
     LSMinimumSystemVersion: config.macos.minimumSystemVersion, NSPrincipalClass: 'NSApplication',
   };
   const fields = Object.entries(values).map(([key, value]) => `  <key>${key}</key><string>${xml(value)}</string>`);
+  fields.push(renderLocalNetworkPlist(config.macos.localNetwork));
   return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n${fields.join('\n')}\n  <key>LSUIElement</key><${config.macos.agent ? 'true' : 'false'}/>\n  <key>NSHighResolutionCapable</key><true/>\n  <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>\n</dict></plist>\n`;
 }
 

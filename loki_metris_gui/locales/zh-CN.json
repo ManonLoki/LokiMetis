@@ -4,7 +4,8 @@
     "about": "关于",
     "dashboard": "用量看板",
     "monitor": "AI监控",
-    "skins": "应用换肤"
+    "skins": "应用换肤",
+    "devices": "设备"
   },
   "settings": {
     "application": "应用信息",
@@ -846,5 +847,52 @@
     "skin_success": "%{name} 皮肤更换成功",
     "skin_failure": "%{name} 皮肤更换失败，请在应用内查看详情",
     "rules": "当天 Token 总量首次突破 1B、Hooks 询问/结束/错误状态变化、皮肤更换成功或失败时通知。"
+  },
+  "devices": {
+    "title": "设备",
+    "subtitle": "发现并配对同一局域网中的接收设备。",
+    "compatibility": "显示局域网中的 LokiMetris 接收端；启用配对后方可保存。本阶段不会发送业务数据。",
+    "discover": "发现设备",
+    "scanning": "正在发现…",
+    "saved": "已配对设备",
+    "discovered": "发现的设备",
+    "noSaved": "还没有已配对设备。",
+    "searching": "正在搜索同一局域网中的接收端…",
+    "noDiscovered": "未发现兼容设备。请确认接收端已启动并连接同一网络，然后重新发现。",
+    "loading": "正在读取设备…",
+    "notLoaded": "尚未读取设备，请重试发现。",
+    "pair": "配对",
+    "remove": "移除",
+    "seen": "近期已发现（尚未验证连接）",
+    "notSeen": "当前未发现",
+    "working": "正在处理设备请求…",
+    "cancel": "取消",
+    "paired": "配对成功，设备已保存。",
+    "removed": "已移除本机的设备配对记录。",
+    "pairTitle": "配对设备",
+    "pairDescription": "请输入“{{name}}”上显示的 4 位配对码。配对码短时有效，失败后请检查接收端再手动重试。",
+    "codeLabel": "4 位配对码",
+    "codePlaceholder": "4 位数字（保留前导零）",
+    "removeTitle": "移除设备？",
+    "removeDescription": "将移除本机对“{{name}}”的信任记录，再次使用需要重新配对。此操作不会删除接收端的数据。",
+    "errors": {
+      "codeInvalid": "请输入完整的 4 位数字配对码。",
+      "pairingFailed": "配对验证失败。请检查配对码或接收端的配对窗口后手动重试。",
+      "timeout": "配对超时，设备未保存。",
+      "connectionFailed": "无法连接接收端，请重新发现设备。",
+      "discoveryFailed": "局域网发现失败，请检查网络、组播与本地网络访问权限后重试。",
+      "storageCorrupt": "设备记录损坏，已保留原文件；不会以空列表覆盖。",
+      "storagePermissions": "设备存储权限不安全，已停止读取或保存。",
+      "storageFailed": "设备记录读取或保存失败，已有记录保持不变。",
+      "notDiscovered": "发现记录已过期，请重新发现设备。",
+      "alreadySaved": "该设备已配对，请先移除原记录后再重新配对。",
+      "limit": "最多保存 64 台设备，请先移除不再使用的设备。",
+      "cancelled": "已取消配对，设备未保存。",
+      "busy": "另一项设备操作正在处理，请稍候。",
+      "protocolInvalid": "接收端协议不兼容或响应无效。",
+      "unavailable": "设备服务当前不可用，请稍后重试。",
+      "pairingUnavailable": "此设备尚未启用配对"
+    },
+    "pairingUnavailable": "此设备尚未启用配对"
   }
 }

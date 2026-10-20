@@ -19,6 +19,8 @@ mod discovery;
 mod settings;
 mod agents;
 mod receipt;
+mod devices;
+pub(crate) use devices::DeviceView;
 pub(crate) use receipt::{poll_receipt, receipt};
 mod pet;
 mod skins;
@@ -77,6 +79,8 @@ pub struct ScanStatus {
 
 /// 共享的是扫描元数据和 writer 许可；聚合结果不跨查询缓存。
 struct ServiceContext {
+    /// 局域网设备能力只在用户进入设备页后加载或联网。
+    devices: Arc<devices::Devices>,
     /// 应用私有数据目录，各 Agent 的索引、设置与资源都在其下。
     directory: PathBuf,
     /// 当日摘要需要重新读取时唤醒后台 worker。
@@ -161,7 +165,8 @@ impl UsageService {
         let notification_source_epoch=Arc::new(std::sync::atomic::AtomicU64::new(0));
         let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone(),today_refresh.clone(),notification_source_epoch.clone()));
         let skins=Arc::new(skins::OwnedSkins::new(&directory));
-        let context = Arc::new(ServiceContext { directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
+        let devices = Arc::new(devices::Devices::new(&directory, background.clone()));
+        let context = Arc::new(ServiceContext { devices, directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
             settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default() });
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
@@ -230,6 +235,9 @@ impl UsageService {
             if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}
             runtime.block_on(self.context.skins.shutdown());
             runtime.block_on(self.background.shutdown());
+            if runtime.block_on(self.context.devices.cleanup_daemon()).is_err() {
+                tracing::warn!(event="device_mdns_shutdown_unconfirmed");
+            }
             self.context.skins.cleanup_imports();
             for change in plan.changes {
                 if let Err(error)=self.context.agents.save_pet_blocking(Some(change),None) {tracing::warn!(code=error.code,"pet shutdown preference failed");}

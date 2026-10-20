@@ -19,6 +19,10 @@
     "windows": "packaging/icons/app.ico"
   },
   "macos": {
+    "localNetwork": {
+      "usageDescription": "发现并配对同一局域网中的接收设备。Discover and pair receivers on your local network.",
+      "bonjourServices": ["_loki-metris._tcp"]
+    },
     "agent": true,
     "minimumSystemVersion": "12.0",
     "signingIdentity": null,

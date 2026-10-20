@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { safePath, relativePath } from './gpui_filesystem.mjs';
+import { validateLocalNetwork } from './gpui_macos_network.mjs';
 
 export const PACKAGER_VERSION = '0.11.8';
 export const TARGETS = {
@@ -53,7 +54,8 @@ export function validateConfig(value) {
   keys(value.icons, ['source','macos','windows'], 'icons');
   for (const icon of Object.values(value.icons)) relativePath(icon);
   if (!value.icons.source.endsWith('.png') || !value.icons.macos.endsWith('.icns') || !value.icons.windows.endsWith('.ico')) throw new Error('icons require PNG/ICNS/ICO paths');
-  keys(value.macos, ['minimumSystemVersion','signingIdentity','background',...(Object.hasOwn(value.macos ?? {},'agent')?['agent']:[])], 'macos');
+  keys(value.macos, ['minimumSystemVersion','signingIdentity','background',...(Object.hasOwn(value.macos ?? {},'agent')?['agent']:[]),...(Object.hasOwn(value.macos ?? {},'localNetwork')?['localNetwork']:[])], 'macos');
+  validateLocalNetwork(value.macos.localNetwork);
   if (value.macos.agent !== undefined && typeof value.macos.agent !== 'boolean') throw new Error('macos.agent must be a boolean');
   if (!/^\d+\.\d+(?:\.\d+)?$/u.test(value.macos.minimumSystemVersion) || Number(value.macos.minimumSystemVersion.split('.')[0]) < 11) throw new Error('GPUI macOS minimum must be >= 11.0');
   relativePath(value.macos.background);

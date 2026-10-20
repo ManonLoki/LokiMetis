@@ -5,6 +5,7 @@ mod surface;
 mod monitor;
 mod skins;
 mod dashboard;
+mod devices;
 mod window_title;
 #[cfg(target_os="macos")]
 mod window_state;
@@ -29,6 +30,8 @@ pub enum Page {
     Monitor,
     /// 换肤。
     Skins,
+    /// 局域网设备发现与配对。
+    Devices,
     /// 设置。
     Settings,
 
@@ -64,6 +67,8 @@ struct PageRegions {
 
 /// 所有壳层可变视图状态由唯一 GPUI 实体拥有，不镜像业务数据。
 pub struct Shell {
+    /// 设备页无凭据展示快照和临时配对草稿。
+    devices: devices::DevicesView,
     /// 主窗几何恢复与保存状态。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_state: window_state::MainWindowState,
@@ -153,6 +158,7 @@ impl Shell {
         let keyboard_entry = crate::native::keyboard_entry::install(window.window_handle(), cx);
         let locale = preferences.locale();
         let mut value = Self {
+            devices: Default::default(),
             #[cfg(any(target_os="macos", all(windows, not(test))))]
             window_state: window_state::MainWindowState::capture(window),
             skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default(), regions: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
@@ -172,7 +178,7 @@ impl Shell {
     fn update_window_visibility(&mut self,window:&mut Window,cx:&mut Context<Self>) {
         if !self.window_active && window.is_window_active() {crate::native::refresh_notification_permission(cx);crate::native::reload_autostart(cx);if let Some(service)=&self.dashboard.service {service.refresh_today();}}
         self.window_active=window.is_window_active();self.window_visible=window.is_visible();
-        if !self.window_visible {self.release_monitor_images(window,cx);}
+        if !self.window_visible {self.release_monitor_images(window,cx);if self.page==Page::Devices {self.leave_devices();}}
         cx.notify();
     }
 
@@ -280,9 +286,11 @@ impl Shell {
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.page != page {self.page_scroll.invalidate();self.dashboard.sources.reset();self.dashboard.usage_settings.reset();self.release_notes_modal=None;}
         if self.page==Page::Skins&&page!=Page::Skins {self.leave_skins();}
+        if self.page==Page::Devices&&page!=Page::Devices {self.leave_devices();}
         self.page = page;
         if page==Page::Skins {self.refresh_skins(true,cx);}
         if page==Page::Monitor {self.refresh_monitor(true,cx);}
+        if page==Page::Devices {self.enter_devices(cx);}
         if page==Page::Settings {self.load_agent_settings(cx);crate::native::refresh_notification_permission(cx);crate::native::reload_autostart(cx);}
         if page==Page::Dashboard {self.reload_usage(false,cx);}
         cx.notify();
@@ -295,6 +303,7 @@ impl Shell {
             Page::Dashboard=>&include_bytes!("../../assets/icons/squares-four.svg")[..],
             Page::Monitor=>&include_bytes!("../../assets/icons/chart-line-up.svg")[..],
             Page::Skins=>&include_bytes!("../../assets/icons/palette.svg")[..],
+            Page::Devices=>&include_bytes!("../../assets/icons/devices.svg")[..],
             Page::Settings=>&include_bytes!("../../assets/icons/gear-six.svg")[..],
         });
         gpui_kit::base::Button::new(id).h_auto().min_h(px(56.)).py_1().px_0().w_full().flex().items_center().justify_center().rounded(px(12.))
@@ -328,6 +337,7 @@ impl Shell {
         sidebar = sidebar.child(self.navigation_item(Page::Dashboard, "nav-dashboard", "navigation.dashboard", cx));
         sidebar = sidebar.child(self.navigation_item(Page::Monitor,"nav-monitor","navigation.monitor",cx));
         sidebar = sidebar.child(self.navigation_item(Page::Skins,"nav-skins","navigation.skins",cx));
+        sidebar = sidebar.child(self.navigation_item(Page::Devices,"nav-devices","navigation.devices",cx));
         sidebar = sidebar.child(div().flex_1());
 
         sidebar = sidebar.child(self.sidebar_divider(cx));
@@ -351,6 +361,7 @@ impl Render for Shell {
             Page::Dashboard => self.dashboard_page(window,cx),
             Page::Monitor => self.monitor_page(window,cx),
             Page::Skins => self.skins_page(window,cx),
+            Page::Devices => self.devices_page(cx),
             Page::Settings => self.settings_page(cx),
 
         };
@@ -361,7 +372,7 @@ impl Render for Shell {
             .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);
         // 原生模态打开时只隔离背景的辅助树，仍保留其绘制和控件身份。
-        let modal_open=self.release_notes_modal.is_some() || self.skin_modal_open() || self.source_modal_open();
+        let modal_open=self.release_notes_modal.is_some() || self.skin_modal_open() || self.source_modal_open() || self.device_modal_open();
         let underlay=div().id("application-underlay").role(gpui_kit::Role::Group).size_full().min_w_0().min_h_0().flex()
             .a11y_synthetic_children(move|builder| {if modal_open {builder.parent_node().set_hidden();}})
             .child(self.sidebar(cx))
@@ -370,6 +381,7 @@ impl Render for Shell {
             .child(underlay)
             .when_some(self.skin_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
+            .when_some(self.device_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.release_notes_dialog(window,cx),|shell,dialog|shell.child(dialog))
 
     }

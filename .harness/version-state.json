@@ -101,7 +101,7 @@
     }
   ],
   "cycle_base_version": "0.5.0",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": {
     "source_commit": "058c5433451f246213cc6387511500604660f87d",
     "version": "0.5.0"
@@ -111,8 +111,13 @@
       "change_id": "LMDESK-LINUX-APP-CENTER-CATALOG-001",
       "kind": "bug-fix",
       "required_version": "0.5.1"
+    },
+    {
+      "change_id": "LMDESK-LAN-DEVICES-001",
+      "kind": "feature",
+      "required_version": "0.6.0"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.5.1"
+  "target_version": "0.6.0"
 }

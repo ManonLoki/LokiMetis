@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { sha256 } from './gpui_filesystem.mjs';
+import { renderLocalNetworkPlist } from './gpui_macos_network.mjs';
 
 /** 完整应用必须绑定正确 identifier、Info.plist 和资源封印，不能接受仅 Mach-O 链接签名。 */
 export function verifyLocalBundle(run, app, identifier, env) {
@@ -49,8 +50,8 @@ if (process.env.CARGO_PACKAGER_FORMAT === 'dmg') {
 }
 
 /** Dock 代理身份在打包时固化，和运行时的 Accessory 策略一致。 */
-export function macosAgentPlist(work, agent) {
+export function macosAgentPlist(work, agent, localNetwork) {
   const plist = path.join(work, 'macos-info.plist');
-  fs.writeFileSync(plist, `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>LSUIElement</key><${agent ? 'true' : 'false'}/></dict></plist>\n`);
+  fs.writeFileSync(plist, `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>LSUIElement</key><${agent ? 'true' : 'false'}/>\n${renderLocalNetworkPlist(localNetwork)}</dict></plist>\n`);
   return plist;
 }

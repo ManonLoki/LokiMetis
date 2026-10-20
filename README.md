@@ -1,6 +1,6 @@
 # 诡秘神谕 · LokiMetris
 
-LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261018_product_spec.md`](docs/product_spec/20261018_product_spec.md)，进度见 [持续计划](docs/work_plan/20261018_work_plan.md)。整体体验复刻尚未完成。
+LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261020_product_spec.md`](docs/product_spec/20261020_product_spec.md)，进度见 [持续计划](docs/work_plan/20261018_work_plan.md)。整体体验复刻尚未完成。
 
 ## 当前状态
 
@@ -17,6 +17,7 @@ LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面
 - Codex、Claude Code、Grok 读取本机会话并写当前 App 自己的派生索引；WorkBuddy 只读其两个固定根的 project JSONL，联合视图遵循 core 核算口径。
 - 看板、调用/统计/图表、来源发现与索引、用量设置、监控档案/图库/Hooks、独立桌宠与公共偏好。
 - 皮肤页已接入六套内置资源、用户主题创建、ZIP 预检/导入/导出和宿主应用编排。
+- 设备页支持mDNS发现兼容接收端、4位码配对后私有保存及移除；本阶段不创建接收端或发送业务数据，见[配对协议](docs/DEVICE_PAIRING_PROTOCOL.md)。
 - 字体随 App 内嵌，不进行全局包或字体安装；历史源码目录和已安装参考 App 都不是运行时依赖。
 - 保留已选金色神谕之眼 Logo 和独立 `com.loki-metris.app` 身份，不会覆盖参考 App。
 

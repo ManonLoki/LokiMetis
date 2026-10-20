@@ -1,10 +1,10 @@
 [workspace]
 resolver = "3"
-members = ["loki_metris_core","loki_metris_gui"]
+members = ["loki_metris_pairing","loki_metris_core","loki_metris_gui"]
 exclude = ["vendor/accesskit_macos", "vendor/gpui-pre", "vendor/gpui-pre-apple", "vendor/gpui-pre-macos", "vendor/gpui-pre-windows", "vendor/gpui-pre-wgpu", "vendor/tray-icon"]
 
 [workspace.package]
-version = "0.5.1"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.98.1"
 authors = ["ManonLoki"]
@@ -24,6 +24,12 @@ sea-orm = { version = "2.0.4", default-features = false, features = ["runtime-to
 sea-orm-migration = { version = "2.0.4", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+mdns-sd = { version = "0.21.6", default-features = false, features = ["async"] }
+sha2 = { version = "0.11.1", default-features = false }
+spake2 = { version = "=0.4.0", default-features = false, features = ["getrandom"] }
+hkdf = { version = "0.13.0", default-features = false }
+chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["alloc"] }
+loki_metris_pairing = { path = "loki_metris_pairing" }
 thiserror = "2.0.21"
 toml = "1.1.8"
 tokio = { version = "1.53.3", default-features = false, features = ["fs", "io-util", "macros", "net", "process", "rt", "rt-multi-thread", "sync", "time"] }

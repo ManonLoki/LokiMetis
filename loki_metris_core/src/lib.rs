@@ -30,6 +30,7 @@ mod codex_skin;
 mod combined_view;
 mod display_label;
 mod display_name;
+pub mod devices;
 mod local_index;
 mod local_view;
 mod monitor_gallery;

@@ -1,13 +1,14 @@
 # 技术选型与依赖清单
 
-本清单于 2026-10-19 按仓库已采用的配置和源码核对，不表示软件包仓库最新版本或本轮兼容性测试结果。版本、features、平台条件的事实源仍是[根 Cargo.toml](../Cargo.toml)、[core 清单](../loki_metris_core/Cargo.toml)、[GUI 清单](../loki_metris_gui/Cargo.toml)及[根 package.json](../package.json)；变更这些配置时同步本清单。
+本清单于 2026-10-20 按仓库已采用的配置和源码核对，不表示软件包仓库最新版本或本轮兼容性测试结果。版本、features、平台条件的事实源仍是[根 Cargo.toml](../Cargo.toml)、[配对库清单](../loki_metris_pairing/Cargo.toml)、[core 清单](../loki_metris_core/Cargo.toml)、[GUI 清单](../loki_metris_gui/Cargo.toml)及[根 package.json](../package.json)；变更这些配置时同步本清单。
 
 ## 工程与运行时
 
 | 层次 | 当前选择 | 事实与边界 |
 | --- | --- | --- |
 | 产品接口 | GPUI 原生 Rust GUI | 根 metadata：`interfaces = ["gui"]`、`gui-framework = "gpui"`；没有产品 CLI/TUI/MCP 接口或 WebView 前端 |
-| Rust 工程 | edition `2024`、resolver `3`、MSRV `1.98.1` | 两个成员继承 workspace 的版本、edition 和 rust-version；产品版本只取根清单 |
+| Rust 工程 | edition `2024`、resolver `3`、MSRV `1.98.1` | 三个成员继承 workspace 的版本、edition 和 rust-version；产品版本只取根清单 |
+| 共享配对层 | `loki_metris_pairing` | 发送/接收双方共用密码状态机与协议编码；不依赖GUI、SQLite、网络或异步运行时，移动JNI/C桥待后续实现 |
 | 领域层 | `loki_metris_core` | 解析、核算、查询、SQLite 索引、工作流和稳定领域错误；不依赖 GPUI |
 | 桌面层 | `loki_metris_gui` | 视图、原生服务、I/O 驱动与运行时装配；GPUI 事件循环位于同步主线程 |
 | 异步执行 | Tokio，由 GUI 的 `UsageService` 拥有 | [服务初始化](../loki_metris_gui/src/usage_service/mod.rs)建立 2-worker runtime，承载扫描、查询、后台服务和通知；不把 GPUI loop 包进 Tokio 根任务 |
@@ -36,10 +37,16 @@
 | `sea-orm-migration` | `2.0.4` | 同上，SQLite 迁移 |
 | `serde` | `1` | `derive`，结构化类型序列化 |
 | `serde_json` | `1` | JSON / JSONL 协议与持久化 |
+| `mdns-sd` | `0.21.6` | GUI局域网发现；关闭默认特征，仅启用`async` |
+| `spake2` | `=0.4.0` | 共享配对库密码交换；关闭默认特征，仅启用`getrandom` |
+| `hkdf` | `0.13.0` | 共享配对库方向确认密钥与持久密钥派生；关闭默认特征 |
+| `sha2` | `0.11.1` | 共享配对库transcript摘要；关闭默认特征 |
+| `chacha20poly1305` | `0.11.0` | 共享配对库双向认证确认；关闭默认特征，仅启用`alloc` |
 | `thiserror` | `2.0.21` | 稳定错误类型 |
 | `toml` | `1.1.8` | TOML 配置 |
 | `tokio` | `1.53.3` | 关闭默认特征，`fs,io-util,macros,net,process,rt,rt-multi-thread,sync,time` |
 | `tracing` | `0.1.44` | 关闭默认特征，`std`；core 只发事件 |
+| `loki_metris_pairing` | 本地路径 `loki_metris_pairing` | core继承同一轻量A/B协议库；精确SPAKE2变体，不宣称任意RFC9382实现兼容 |
 | `loki_metris_core` | 本地路径 `loki_metris_core` | GUI 继承同一领域库；`test-support` 仅开发测试启用 |
 
 ### GUI、资源与诊断

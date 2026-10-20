@@ -23,7 +23,7 @@ export function packagerConfig({ root, work, config, facts, target, format, reso
     result.nsis = { ...config.nsis, installerIcon: result.icons[0], template: writeNsisTemplate(work, config.productNameEn, result.resources.map(file => file.target)) };
   } else {
     result.macos = { minimumSystemVersion: config.macos.minimumSystemVersion };
-    result.macos.infoPlistPath = macosAgentPlist(work, config.macos.agent === true);
+    result.macos.infoPlistPath = macosAgentPlist(work, config.macos.agent === true, config.macos.localNetwork);
     if (localAdhoc && format === 'dmg') result.beforeEachPackageCommand = localDmgSigningHook(work, path.join(result.outDir, `${config.productName}.app`), config.identifier, config.binary, binarySha256);
     if (signing.selection === 'enabled') result.macos.signingIdentity = config.macos.signingIdentity;
     if (format === 'dmg') result.dmg = {

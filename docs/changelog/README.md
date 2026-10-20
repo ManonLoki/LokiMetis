@@ -9,3 +9,5 @@
 - [2026-10-16](20261016_changelog.md)：托盘开机自启、每日1B与Hooks/换肤结果通知。
 
 - [2026-10-18](20261018_changelog.md)：Linux GNU x64/ARM64工具链、deb/tar.gz打包与Harness知识路由。
+
+- [2026-10-20](20261020_changelog.md)：设备发现与4位码配对，以及发布登记纠正。

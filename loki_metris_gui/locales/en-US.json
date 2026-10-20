@@ -4,7 +4,8 @@
     "about": "About",
     "dashboard": "Usage Dashboard",
     "monitor": "AI Monitor",
-    "skins": "App Skins"
+    "skins": "App Skins",
+    "devices": "Devices"
   },
   "settings": {
     "application": "Application",
@@ -846,5 +847,52 @@
     "skin_success": "%{name} skin changed successfully",
     "skin_failure": "%{name} skin change failed. Open the app for details.",
     "rules": "Notify when today’s tokens first exceed 1B, Hooks change to asking/finished/error, or a skin change succeeds or fails."
+  },
+  "devices": {
+    "title": "Devices",
+    "subtitle": "Discover and pair with receivers on your local network.",
+    "compatibility": "LokiMetris receivers on your local network appear here. Pairing must be enabled before saving a device. Business data is not sent in this phase.",
+    "discover": "Discover devices",
+    "scanning": "Discovering…",
+    "saved": "Paired devices",
+    "discovered": "Discovered devices",
+    "noSaved": "No paired devices yet.",
+    "searching": "Looking for receivers on your local network…",
+    "noDiscovered": "No compatible receivers found. Start a receiver on the same network, then discover again.",
+    "loading": "Loading devices…",
+    "notLoaded": "Devices have not loaded. Try discovering again.",
+    "pair": "Pair",
+    "remove": "Remove",
+    "seen": "Recently discovered (connection unverified)",
+    "notSeen": "Not currently discovered",
+    "working": "Processing device request…",
+    "cancel": "Cancel",
+    "paired": "Pairing succeeded. Device saved.",
+    "removed": "Local pairing record removed.",
+    "pairTitle": "Pair device",
+    "pairDescription": "Enter the 4-digit code shown on “{{name}}”. Codes expire shortly. After a failure, check the receiver before trying again manually.",
+    "codeLabel": "4-digit pairing code",
+    "codePlaceholder": "4 digits, including leading zeros",
+    "removeTitle": "Remove device?",
+    "removeDescription": "Remove this device’s local trust record for “{{name}}”. Pair again to use it later. This does not delete data on the receiver.",
+    "errors": {
+      "codeInvalid": "Enter a complete 4-digit pairing code.",
+      "pairingFailed": "Pairing verification failed. Check the code or the receiver’s pairing window, then try again manually.",
+      "timeout": "Pairing timed out. Device not saved.",
+      "connectionFailed": "Could not connect to the receiver. Discover devices again.",
+      "discoveryFailed": "Local discovery failed. Check your network, multicast, and local network access permissions, then retry.",
+      "storageCorrupt": "Device records are corrupt. The original file was preserved and will not be replaced with an empty list.",
+      "storagePermissions": "Device storage permissions are unsafe. Reading or saving was stopped.",
+      "storageFailed": "Could not read or save device records. Existing records are unchanged.",
+      "notDiscovered": "The discovery record expired. Discover devices again.",
+      "alreadySaved": "This device is already paired. Remove its existing record before pairing again.",
+      "limit": "You can save up to 64 devices. Remove an unused device first.",
+      "cancelled": "Pairing cancelled. Device not saved.",
+      "busy": "Another device operation is in progress. Please wait.",
+      "protocolInvalid": "The receiver’s protocol is incompatible or its response is invalid.",
+      "unavailable": "The device service is unavailable. Try again later.",
+      "pairingUnavailable": "Pairing is not enabled on this device"
+    },
+    "pairingUnavailable": "Pairing is not enabled on this device"
   }
 }
