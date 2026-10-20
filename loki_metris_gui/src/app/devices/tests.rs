@@ -47,11 +47,13 @@ fn devices_navigation_rows_and_modal_use_semantic_controls(cx: &mut TestAppConte
 /// 两种语言均从真实词典显示空列表；新根不继承另一个页面会话。
 #[gpui_kit::test]
 fn devices_empty_state_is_localized_and_new_root_is_empty(cx: &mut TestAppContext) {
-    for (locale, label) in [("en-US", "Pair device"), ("zh-CN", "配对设备")] {
+    for (locale, label, title) in [("en-US", "Pair device", "Device management"), ("zh-CN", "配对设备", "设备管理")] {
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
         cx.update_window(handle, |_, window, cx| {
             shell.update(cx, |this, cx| { this.locale = locale; this.page = crate::app::Page::Devices; cx.notify(); });
             window.render_frame(cx); assert!(window.try_find("devices-empty").is_some());
+            assert_eq!(window.find("devices-title").label(), Some(title));
+            assert_eq!(window.find("nav-devices").label(), Some(title));
             shell.update(cx, |this, cx| { prepare_target(this); this.open_device_dialog(DEVICE.into(), "Receiver".into(), false, window, cx); });
             window.render_frame(cx); assert_eq!(window.find("device-dialog").label(), Some(label));
             window.click("device-dialog-cancel", cx);

@@ -15,4 +15,4 @@ macOS使用本产品bundle的UserNotifications权限与协作delegate，显式�
 macOS 通知要求完整 bundle 的签名身份与 `Info.plist` 中本产品标识一致。开发预览可使用仅本地的 ad-hoc 签名并严格校验；它不代表 Developer ID 签名、公证或分发候选。裸 debug 二进制或仅有链接器签名的复制 bundle 不能作为通知权限验收依据，正式候选仍遵守独立签名门禁。系统拒绝、权限查询失败和超时必须保留真实失败，不能以本地偏好模拟授权。
 
 
-设备页的原发现/配对入口（`LMDESK-LAN-DEVICES-001`，required_version `0.6.0`）继续保留。用户于2026-10-21扩大为纯局域网联动（`LMDESK-TERMINAL-LINK-001`，required_version `0.6.0`）：进入设备页启动桌面连接服务，已有保存设备时在下次应用启动恢复；空安装未进入设备页保持零局域网活动。离页/隐藏撤销临时发现及配对，已保存设备的应用级服务继续拥有连接。当前桌面已接入认证设备信息、IP、心跳、同轮Token总量/分量、Hooks快照及按需图片分块；移动端桥、真实缓存、恢复与Watch仍在实施。配对码/密钥不进入日志或页面快照，真实私有保存后才授信。首次配对合同见[设备协议](DEVICE_PAIRING_PROTOCOL.md)，后续会话及准确实施边界见[终端联动协议](DEVICE_LINK_PROTOCOL.md)。macOS预览与正式包共用两类Bonjour声明，不自动授予本地网络权限。
+设备管理页的原发现/配对入口（`LMDESK-LAN-DEVICES-001`，required_version `0.6.0`）继续保留。用户于2026-10-21扩大为纯局域网联动（`LMDESK-TERMINAL-LINK-001`，required_version `0.6.0`）：进入设备页启动桌面连接服务，已有保存设备时在下次应用启动恢复；空安装未进入设备页保持零局域网活动。离页/隐藏撤销临时发现及配对，已保存设备的应用级服务继续拥有连接。当前桌面已接入认证设备信息、IP、心跳、同轮Token总量/分量、Hooks快照及按需图片分块；移动端桥、真实缓存、恢复与Watch仍在实施。配对码/密钥不进入日志或页面快照，真实私有保存后才授信。首次配对合同见[设备协议](DEVICE_PAIRING_PROTOCOL.md)，后续会话及准确实施边界见[终端联动协议](DEVICE_LINK_PROTOCOL.md)。macOS预览与正式包共用两类Bonjour声明，不自动授予本地网络权限。

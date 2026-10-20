@@ -5,7 +5,7 @@
     "dashboard": "用量看板",
     "monitor": "AI监控",
     "skins": "应用换肤",
-    "devices": "设备"
+    "devices": "设备管理"
   },
   "settings": {
     "application": "应用信息",
@@ -849,7 +849,7 @@
     "rules": "当天 Token 总量首次突破 1B、Hooks 询问/结束/错误状态变化、皮肤更换成功或失败时通知。"
   },
   "devices": {
-    "title": "设备",
+    "title": "设备管理",
     "subtitle": "连接同一局域网中的手机与显示终端。",
     "compatibility": "在显示终端中选择这台电脑，再在此输入终端上的4位码。局域网同步在后台可能暂停。",
     "discover": "发现设备",
