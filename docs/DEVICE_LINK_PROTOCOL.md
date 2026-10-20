@@ -66,4 +66,8 @@ Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,content
 
 桌面完成项单独登记为`LMDESK-LAN-DESKTOP-SERVICE-001`，required_version `0.6.0`。独立共享C ABI桥已有回归，窗口及资产校验在桌面与桥之间只保留同一实现。移动原生驱动/私有存储、终端真实缓存、重连和Watch协作仍在实施；不能把桌面能力或纯接收状态机测试报告为移动产品已完成。
 
+iOS显示项目已写入应用级`LanLinkEngine`与`LanSocket`接线：主动浏览桌面服务、显式配对、Keychain真实保存后ACK、新socket恢复、裸DeviceInfo、加密心跳/完整快照与逐块图片请求。前后台由App拥有，切页或保存名称不重启连接；显式停止在当前进程内优先于自动恢复。每轮最多8次传输重试，真实前台恢复或目标新广告可开启新轮，不能修改共享密码窗口预算。读进度、8帧写队列、半写超时和主线程最新投影各自有owner与容量边界。
+
+手机完整展示快照写入App私有`DisplayCache/display-lan-v1.json`，供进程重启后的历史展示；摘要另经App Group供Widget使用，正文/图片与配对秘密不进入组件文件。iOS图片只下载当前Hook实际引用的摘要，Rust逐块及完整校验后同步磁盘、重读校验并原子提交，成功缓存直接复用。后台缩略图解码限制为512像素，当前展示静态缩略图；图片缓存保留当前引用并按复用时间收敛到512MiB，精确回收本产品崩溃遗留半成品。源码接线不等于两端实际运行已通过，Android连接owner、Watch协作及完整移动互通仍须完成。
+
 本次已运行的测试事实以提交说明和实际输出为准。隔离环回TCP、模拟时钟及固定测试密钥不替代真实局域网、Android/iOS/Watch或桌面跨平台运行证据。
