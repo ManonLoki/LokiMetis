@@ -68,6 +68,10 @@ Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,content
 
 iOS显示项目已写入应用级`LanLinkEngine`与`LanSocket`接线：主动浏览桌面服务、显式配对、Keychain真实保存后ACK、新socket恢复、裸DeviceInfo、加密心跳/完整快照与逐块图片请求。前后台由App拥有，切页或保存名称不重启连接；显式停止在当前进程内优先于自动恢复。每轮最多8次传输重试，真实前台恢复或目标新广告可开启新轮，不能修改共享密码窗口预算。读进度、8帧写队列、半写超时和主线程最新投影各自有owner与容量边界。
 
-手机完整展示快照写入App私有`DisplayCache/display-lan-v1.json`，供进程重启后的历史展示；摘要另经App Group供Widget使用，正文/图片与配对秘密不进入组件文件。iOS图片只下载当前Hook实际引用的摘要，Rust逐块及完整校验后同步磁盘、重读校验并原子提交，成功缓存直接复用。后台缩略图解码限制为512像素，当前展示静态缩略图；图片缓存保留当前引用并按复用时间收敛到512MiB，精确回收本产品崩溃遗留半成品。源码接线不等于两端实际运行已通过，Android连接owner、Watch协作及完整移动互通仍须完成。
+手机完整展示快照写入App私有`DisplayCache/display-lan-v1.json`，供进程重启后的历史展示；摘要另经App Group供Widget使用，正文/图片与配对秘密不进入组件文件。iOS图片只下载当前Hook实际引用的摘要，Rust逐块及完整校验后同步磁盘、重读校验并原子提交，成功缓存直接复用。后台缩略图解码限制为512像素，当前展示静态缩略图；图片缓存保留当前引用并按复用时间收敛到512MiB，精确回收本产品崩溃遗留半成品。源码接线不等于两端实际运行已通过，Android完整构建、Watch协作及完整移动互通仍须完成。
+
+Android显示项目已写入应用级`AndroidLanEngine`、非阻塞`AndroidLanSocket`与DNS-SD浏览接线，移除旧的仅广播owner。`DisplayApplication`统一前后台与屏幕旋转，界面不拥有socket；主动选择、共享配对、Keystore真实保存后ACK、新TCP认证及裸DeviceInfo顺序同iOS。API34以上持续跟踪服务信息，旧版串行解析并刷新临时地址；发现停止或后台释放旧系统前台多播锁。地址不作为持久信任。
+
+Android已提交信任映射只在系统同步提交成功后更新，避免SharedPreferences失败写入的内存变化被读成已保存；每次持久化完整映射，最多64个桌面。完整快照与图片均在应用私有目录，真实原子提交后读回校验；完成前的部分文件不可被展示。严格JSON语法及64层上限在系统递归解析前执行。Kotlin相关行为回归与应用Kotlin编译通过，完整APK构建因缺Rust Android目标停止，尚无真实配对、断线重连或缓存互通运行结论。iOS模拟器也仍待缺失目标安装授权；不能将源码接线或扩展独立编译写成App E2E通过。
 
 本次已运行的测试事实以提交说明和实际输出为准。隔离环回TCP、模拟时钟及固定测试密钥不替代真实局域网、Android/iOS/Watch或桌面跨平台运行证据。
