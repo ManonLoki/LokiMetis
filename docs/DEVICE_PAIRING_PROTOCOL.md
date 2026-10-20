@@ -13,7 +13,7 @@ change_id：`LMDESK-LAN-DEVICES-001`；required_version：`0.6.0`。本文件定
 
 双方复用项目内轻量Rust库[`loki_metris_pairing`](../loki_metris_pairing/README.md)，精确固定`spake2 =0.4.0`的Ed25519变体。发送端`SenderSession → AwaitingAck → PairingMaterial`和接收端`ReceiverSession::confirm_and_commit`执行同一身份编码、transcript、派生及双向确认，避免不同语言库在同名算法下采用不同线协议。
 
-该库无GPUI、SQLite、网络或Tokio依赖，可通过`cargo test -p loki_metris_pairing --lib`单独验证依赖闭包。Android JNI和iOS C ABI薄桥、原生构建与系统安全存储属于后续接收端工作，本次未实现或验证。接收端宿主负责系统随机UUID、全局尝试预算、有效期、单在途和真实持久化；必须在保存回调中原子复核窗口/取消状态。库不会把内存回调成功冒充磁盘存储保证。
+该库无GPUI、SQLite、网络或Tokio依赖，可通过`cargo test -p loki_metris_pairing --lib`单独验证依赖闭包。已确认Android JNI、iOS C ABI薄桥方向；原生桥、原生构建与系统安全存储属于后续接收端工作，本次未实现或验证。Apple Watch/watchOS的产品模式、架构覆盖与共享核心接入仍待验证，具体取舍见[技术选型](DEVICE_PAIRING_TECHNOLOGY.md)。接收端宿主负责系统随机UUID、全局尝试预算、有效期、单在途和真实持久化；必须在保存回调中原子复核窗口/取消状态。库不会把内存回调成功冒充磁盘存储保证。
 
 ## 四位码与接收端前置条件
 
@@ -32,7 +32,7 @@ change_id：`LMDESK-LAN-DEVICES-001`；required_version：`0.6.0`。本文件定
 
 TCP每帧为`4字节大端无符号长度 || UTF-8 JSON`，载荷长度`1..4096`。拒绝未知字段、无效版本、错误身份、错误消息方向及超限帧。没有HTTP、代理或重定向。
 
-套件精确名称：`spake2-0.4-ed25519-hkdfsha256-chacha20poly1305-v1`。采用RustCrypto `spake2 0.4.0`的`Ed25519Group`；这是该库的消息/哈希变体（[官方RFC差异讨论](https://github.com/RustCrypto/PAKEs/issues/186)），不能仅凭“SPAKE2”或“RFC9382”名称推断其它实现互通。消息为33字节（含角色前缀`A`/`B`），以标准带padding的Base64编码。
+套件精确名称：`spake2-0.4-ed25519-hkdfsha256-chacha20poly1305-v1`。采用RustCrypto `spake2 0.4.0`的`Ed25519Group`；这是该库的消息/哈希变体，并非最终RFC9382互通套件（[官方RFC差异讨论](https://github.com/RustCrypto/PAKEs/issues/186)），不能仅凭“SPAKE2”或“RFC9382”名称推断其它实现互通。消息为33字节（含角色前缀`A`/`B`），以标准带padding的Base64编码。
 
 A固定为本发送端，B固定为接收端。双方传入相同身份字节：
 

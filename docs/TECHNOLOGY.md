@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 产品接口 | GPUI 原生 Rust GUI | 根 metadata：`interfaces = ["gui"]`、`gui-framework = "gpui"`；没有产品 CLI/TUI/MCP 接口或 WebView 前端 |
 | Rust 工程 | edition `2024`、resolver `3`、MSRV `1.98.1` | 三个成员继承 workspace 的版本、edition 和 rust-version；产品版本只取根清单 |
-| 共享配对层 | `loki_metris_pairing` | 发送/接收双方共用密码状态机与协议编码；不依赖GUI、SQLite、网络或异步运行时，移动JNI/C桥待后续实现 |
+| 共享配对层 | `loki_metris_pairing` | 桌面直接调用；已选Android JNI、Apple C ABI薄封装方向，桥接未实现，watchOS待验证；不依赖GUI、SQLite、网络或异步运行时 |
 | 领域层 | `loki_metris_core` | 解析、核算、查询、SQLite 索引、工作流和稳定领域错误；不依赖 GPUI |
 | 桌面层 | `loki_metris_gui` | 视图、原生服务、I/O 驱动与运行时装配；GPUI 事件循环位于同步主线程 |
 | 异步执行 | Tokio，由 GUI 的 `UsageService` 拥有 | [服务初始化](../loki_metris_gui/src/usage_service/mod.rs)建立 2-worker runtime，承载扫描、查询、后台服务和通知；不把 GPUI loop 包进 Tokio 根任务 |
@@ -19,6 +19,10 @@
 | Git 工具门槛 | `>=2.36.0` | 取[环境门禁](../.agents/skills/desktop-check-development-environment/references/development-environment-gates.md)；只在真实环境失败或明确配置工具链时进入恢复流程 |
 
 架构与退出所有权见 [Rust/GPUI 基线](RUST_CLI_TEMPLATE.md)，产品范围与未完成项分别见[最新规格](product_spec/README.md)和[持续计划](work_plan/README.md)。
+
+## 局域网配对技术路线
+
+已确认采用共享Rust配对核心与移动端薄封装；BoringSSL各端SDK路线本次不采用。各平台接入、Watch待验证项、备选方案和实际证据边界统一见[设备配对技术选型](DEVICE_PAIRING_TECHNOLOGY.md)，精确套件及四帧合同见[设备配对协议](DEVICE_PAIRING_PROTOCOL.md)。本次选型记录不新增依赖、不改变桌面目标平台，也不表示移动接收端已实现。
 
 ## 版本口径
 
