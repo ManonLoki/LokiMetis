@@ -11,6 +11,7 @@ import {TARGETS,renderDefaultConfig,validateConfig} from './gpui_config.mjs';
 import {collectResources} from './gpui_resources.mjs';
 import {sha256} from './gpui_filesystem.mjs';
 import {decodePng,encodePng} from './gpui_icons.mjs';
+import {linuxAppstreamCatalog} from './gpui_linux_appstream.mjs';
 
 /** 外部工具保留真实stdout和非零退出，避免把打包失败当成通过。 */
 function run(program,args,options={}) {
@@ -88,6 +89,40 @@ test('Linux resources require an explicit mapping and reject binary collisions',
   validateConfig(config); assert.equal(collectResources(root,config,'linux',false).length,3);
 });
 
+/** 产品目录文案保持双语并严格声明，缺失译文或额外执行字段都不能进入包。 */
+test('linux_catalog_metadata_rejects_incomplete_translations_and_unknown_fields',()=>{
+  const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:'Sample',owner:'Owner'});
+  config.linux={summary:'Agent usage',summaryZh:'用量',description:'Local activity',descriptionZh:'本机活动'};
+  assert.equal(validateConfig(config),config);
+  delete config.linux.descriptionZh;
+  assert.throws(()=>validateConfig(config),/linux fields/);
+  config.linux.descriptionZh='本机活动'; config.linux.postinstall='arbitrary command';
+  assert.throws(()=>validateConfig(config),/linux fields/);
+  delete config.linux.postinstall; config.linux.summaryZh='';
+  assert.throws(()=>validateConfig(config),/linux summaryZh/);
+});
+
+/** 原生AppStream解析生成目录，证明包关联、桌面启动、图标及带标记的双语文案可被真实消费者读取。 */
+test('linux_catalog_native_parser_preserves_package_launchable_icon_and_escaped_text',{skip:process.platform!=='linux'},t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'gpui-appstream-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:'Sample',owner:'Owner'});
+  config.linux={summary:'Usage: "Agent" # local',summaryZh:'用量："Agent"',description:'A & B <monitor> with "quotes"',descriptionZh:'本机 <监控> & 桌宠'};
+  validateConfig(config);
+  const input=path.join(root,'catalog.yml'), output=path.join(root,'catalog.xml');
+  fs.writeFileSync(input,linuxAppstreamCatalog(config,{project:'sample_app'}));
+  const converted=spawnSync('appstreamcli',['convert',input,output],{encoding:'utf8'});
+  if(converted.error?.code==='ENOENT') { t.skip('optional native AppStream validator is not installed'); return; }
+  assert.equal(converted.status,0,converted.error?.message ?? converted.stderr);
+  const xml=fs.readFileSync(output,'utf8');
+  assert.match(xml,/<pkgname>sample-app<\/pkgname>/u);
+  assert.match(xml,/<launchable type="desktop-id">com\.sample\.app\.desktop<\/launchable>/u);
+  assert.match(xml,/<icon type="stock">com\.sample\.app<\/icon>/u);
+  assert.match(xml,/<name xml:lang="zh_CN">示例<\/name>/u);
+  assert.match(xml,/<summary>Usage: "Agent" # local<\/summary>/u);
+  assert.match(xml,/<p>A &amp; B &lt;monitor&gt; with "quotes"<\/p>/u);
+  assert.match(xml,/<p>本机 &lt;监控&gt; &amp; 桌宠<\/p>/u);
+});
+
 for(const format of ['deb','tar.gz']) test(`real ${format} preserves final binary, resources, executable modes and Debian identity`,{skip:process.platform!=='linux'},t=>{
   const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-linux-package-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   const config=renderDefaultConfig({projectId:'sample',nameZh:'示例',nameEn:format==='tar.gz'?'--help':'Sample',owner:'Owner'});
@@ -110,6 +145,15 @@ for(const format of ['deb','tar.gz']) test(`real ${format} preserves final binar
     const desktop=fs.readFileSync(path.join(work,'extracted/usr/share/applications/com.sample.app.desktop'),'utf8');
     assert.match(desktop,/^Icon=com\.sample\.app$/mu);
     assert.match(desktop,/^StartupWMClass=com\.sample\.app$/mu);
+    const catalogPath=path.join(work,'extracted/usr/share/swcatalog/yaml/com.sample.app.yml');
+    assert.ok(fs.existsSync(catalogPath),'installed applications need a catalog associated with their Debian package');
+    const catalog=fs.readFileSync(catalogPath,'utf8');
+    assert.match(catalog,/^File: DEP-11$/mu);
+    assert.match(catalog,/^Package: "sample"$/mu);
+    assert.match(catalog,/^ID: "com\.sample\.app"$/mu);
+    assert.match(catalog,/^  stock: "com\.sample\.app"$/mu);
+    assert.match(catalog,/^    - "com\.sample\.app\.desktop"$/mu);
+    assert.ok(!files.some(item=>item.path.startsWith('usr/share/swcatalog/xml/')),'Ubuntu App Center reads the standard YAML subdirectory');
     const iconPath=path.join(work,'extracted/usr/share/icons/hicolor/512x512/apps/com.sample.app.png');
     assert.ok(fs.existsSync(iconPath),'hicolor must expose the icon in a standard indexed directory');
     assert.ok(!files.some(item=>item.path.startsWith('usr/share/icons/hicolor/1024x1024/')));
@@ -156,7 +200,10 @@ for(const format of ['deb','tar.gz']) test(`real ${format} remains readable and 
     assert.equal(item.mode,item.type==='directory'||executables.has(item.path)?0o755:0o644,`unsafe installed mode: ${item.path}`);
   }
   assert.ok(files.some(item=>item.path===`${application}/resources/skins/theme.txt`&&item.mode===0o644));
-  if(format==='deb') assert.ok(files.some(item=>item.path==='usr/share/applications/com.sample.app.desktop'&&item.mode===0o644));
+  if(format==='deb') {
+    assert.ok(files.some(item=>item.path==='usr/share/applications/com.sample.app.desktop'&&item.mode===0o644));
+    assert.ok(files.some(item=>item.path==='usr/share/swcatalog/yaml/com.sample.app.yml'&&item.mode===0o644));
+  }
 });
 
 for(const target of ['aarch64-unknown-linux-gnu','x86_64-unknown-linux-gnu']) test(`installed ${target} links real graphics libraries and packages both formats without executing target code`,{skip:process.platform!=='linux'},t=>{

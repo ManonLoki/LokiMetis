@@ -124,6 +124,8 @@ pnpm run gpui:package build --root . --mode local --target x86_64-unknown-linux-
 
 便携归档使用`LokiMetris/主程序`与相邻`resources/skins`，附`launch`入口。Debian包使用`/opt/<应用identifier>/主程序`与相邻资源，`/usr/bin/<项目slug>`只作转发；同时安装`.desktop`与hicolor图标。Debian图标从已批准母版实际派生为512×512 PNG，并安装到标准主题登记的`hicolor/512x512/apps`，最终解包核尺寸；不把1024像素原图塞进512目录，也不依赖未被主题索引登记的1024目录。版本只取Cargo，架构只取Rust目标。Debian依赖披露从真实ELF读取的glibc最低版本及所需运行库；不自带另一发行版的glibc，不安装或运行生成的应用。
 
+Debian同时包含`/usr/share/swcatalog/yaml/com.loki-metris.app.yml`，将AppStream中的双语产品名、摘要、描述和包名`loki-metris`关联，供应用中心发现已安装应用并提供既有卸载入口。只修复包内目录元数据；Ubuntu应用中心的本地deb按钮和Snap图标可见性限制见[Linux打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)。新增目录的最终应用中心展示/卸载仍为Unverified，单元夹具解析通过不代表宿主安装已验证。
+
 资源配置必须逐项显式声明`linux`目标，不默认复用macOS/Windows映射。两份根许可证、皮肤、生成器和第三方许可证均进入最终包；正式候选还需相同字节的更新日志。发行目录、二进制及启动入口显式规范为`0755`，普通资源为`0644`，不能继承开发者的`umask`。构建前后验证源码与资源快照；最终包真实解包后检查文件集合、权限、ELF64机器类型、二进制与资源摘要，以及Debian控制文件和桌面入口。
 
 local仅写忽略的`target/gpui-packaging/local-linux-*`，生成包、相邻SHA-256和manifest。candidate继续要求clean已发布默认主分支/tag、冻结上下文、版本门禁及当次E2E选择；未实现Linux签名，任何启用请求都明确阻断。构建及验收原始结果只保存在忽略目录；知识库仅维护能力状态、适用范围和证据链接，不复制或改写原始验收记录。

@@ -9,7 +9,7 @@ node .agents/skills/desktop-add-gpui-adapter/scripts/merge_gpui_node_tooling.mjs
 pnpm run gpui:package --help
 ```
 
-根 `packaging/gpui.json` 只持有打包身份/资产；版本来自选定 Cargo workspace package。生成器调用 `scripts/gpui_config.mjs` 的 `renderDefaultConfig({projectId,nameZh,nameEn,owner,logoPath})`，不得手抄示例产品身份。
+根 `packaging/gpui.json` 只持有打包身份、资产及应用目录文案；版本来自选定 Cargo workspace package。生成器调用 `scripts/gpui_config.mjs` 的 `renderDefaultConfig({projectId,nameZh,nameEn,owner,logoPath})`，不得手抄示例产品身份。
 
 ```json
 {
@@ -40,7 +40,8 @@ pnpm run gpui:package --help
 }
 ```
 
-- 除向后兼容的可选 `resources` 外所有字段必须存在；未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件；全局 CLI 名称例外由独立字段校验。`minimumSystemVersion` 至少 11.0。
+- 除下述可选扩展字段外，基础配置字段必须存在；未知字段、重复 JSON 键、控制字符、`${`、不规范/越界/符号链接路径均拒绝。原生图标、DMG 背景与两份许可证必须是项目内普通文件；全局 CLI 名称例外由独立字段校验。`minimumSystemVersion` 至少 11.0。
+- 可选 `linux` 只包含 `summary`、`summaryZh`、`description`、`descriptionZh` 四个非空字符串（各最多200字符），用于Debian AppStream目录的英文/中文摘要与描述。缺省使用中性原生桌面应用文案；包名、产品名、桌面入口和图标身份均从既有配置/Cargo事实生成，不重复配置版本，也不接受安装脚本或软件源配置。
 - `resources`缺省为空数组，每项包含`source`、`macos`、`windows`及可选`linux`目标；Linux构建要求每项显式声明linux路径，不从其它平台猜测。目录递归拒绝链接、特殊文件、空目录、大小写/前缀冲突及保留文件覆盖。完整Linux布局、双架构工具链和示例见[Linux打包合同](linux-packaging.md)；原macOS/Windows映射保持不变。
 - 可选 `releaseNotesUi` 必须为布尔值；`true` 表示设置页等关于页之外的入口也消费构建嵌入更新日志，候选仍必须检查二进制内的原始 JSON 字节。缺省保持原关于页判断；`false` 不能关闭已启用关于页的嵌入合同。普通本地试包不生成发布记录。
 - 测试前捕获排序文件清单及SHA-256，测试后、打包前和manifest前复算，Git忽略文件也参与漂移检测。复制和最终app/zip/DMG/NSIS核对相同摘要；资源根本身或其祖先为链接时拒绝。manifest的 `bundledResources` 记录目标路径与摘要；该证据不替代实际运行验收。

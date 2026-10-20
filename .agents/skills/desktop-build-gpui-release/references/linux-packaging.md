@@ -27,6 +27,10 @@ pnpm run gpui:package build --root . --mode local --target aarch64-unknown-linux
 
 tar.gz 含产品目录、可执行程序、相邻 resources 与 launch；deb 含 /opt/<identifier>、/usr/bin 转发入口、.desktop 和真实派生的 hicolor/512x512 PNG。资源逐项声明 linux 映射；不从其他平台猜测。双语许可证与第三方许可证按配置进入，candidate 另含相同日志字节。tar 清除 TAR_OPTIONS，并用 -- 结束选项。
 
+deb同时安装`/usr/share/swcatalog/yaml/<identifier>.yml`的标准DEP-11应用目录；`Package`关联同一Debian包名，`Launchable.desktop-id`和`Icon.stock`关联同一桌面身份。目录不配置APT源或网络图标，不增加维护脚本。Ubuntu应用中心的已安装列表按AppStream目录匹配包名；只有.desktop或MetaInfo不足以被其Dart目录实现发现。此为宿主包集成，不进入Rust core业务。
+
+2026-10-20核对Ubuntu App Center `d7d3fbe8`及其`appstream 0.2.11`：YAML子目录可被读取，XML子目录未被该实现枚举；标准YAML同时供原生AppStream消费。该版[本地deb按钮](https://github.com/ubuntu/app-center/blob/d7d3fbe8/packages/app_center/lib/deb/local_deb_page.dart#L132-L153)不比较版本、已安装即禁用；[图标解析](https://github.com/ubuntu/app-center/blob/d7d3fbe8/packages/app_center/lib/appstream/appstream_utils.dart#L82-L101)仅消费stock/remote，而Snap主题目录未包含宿主安装的自有图标。目录修复不能据此声称双击升级按钮或Logo已修好。目标应用中心中的发现、图标和卸载仍须最终候选真实安装验证。
+
 发行树的目录、主程序和启动入口显式规范为0755，普通资源0644，不继承构建账户umask；`umask 077`下真实deb/tar.gz解包回归逐项核对。hicolor图标尺寸须为实际512×512，窗口app_id、desktop标识、StartupWMClass与图标名同源；包内属性验证不代替宿主可解析Exec及真实Dock呈现。
 
 最终包真实解包核对精确集合、权限、ELF64机器类型、二进制/资源摘要；deb 还核对控制文件、架构、glibc最低需求、桌面身份与启动入口。构建不安装或运行应用。manifest 分开 hostTarget、target、native/cross-architecture、宿主测试与 runtimeVerification:Unverified。

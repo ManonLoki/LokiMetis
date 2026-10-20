@@ -5,6 +5,7 @@ import { safePath, sha256 } from './gpui_filesystem.mjs';
 import { stageResources } from './gpui_resources.mjs';
 import { verifyResources } from './gpui_packager.mjs';
 import { decodePng, renderPngIcon } from './gpui_icons.mjs';
+import { linuxAppstreamCatalog } from './gpui_linux_appstream.mjs';
 
 /** 直接核对ELF64小端头和机器编号，交叉目标无需执行即可拒绝错误架构。 */
 export function verifyElf(file, info) {
@@ -63,6 +64,8 @@ export function stageLinuxTree({root, work, config, facts, info, binary, resourc
     fs.writeFileSync(path.join(desktop, `${config.identifier}.desktop`), desktopEntry(config, `/${wrapper}`), {flag:'wx'});
     const icons = path.join(image,'usr/share/icons/hicolor/512x512/apps'); fs.mkdirSync(icons, {recursive:true});
     fs.writeFileSync(path.join(icons, `${config.identifier}.png`), renderPngIcon(fs.readFileSync(path.join(application,'app.png')),512), {flag:'wx'});
+    const catalog = path.join(image,'usr/share/swcatalog/yaml'); fs.mkdirSync(catalog,{recursive:true});
+    fs.writeFileSync(path.join(catalog,`${config.identifier}.yml`),linuxAppstreamCatalog(config,facts),{flag:'wx'});
     const control = path.join(image, 'DEBIAN'); fs.mkdirSync(control);
     const glibc = glibcRequirement(run, binary);
     const dependencies = [`libc6 (>= ${glibc})`, 'libgcc-s1', 'libstdc++6', 'libfontconfig1', 'libfreetype6',
