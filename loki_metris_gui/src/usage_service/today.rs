@@ -13,6 +13,12 @@ pub(super) async fn load(
     zone: TimeZone,
     cancellation: ScanCancellation,
 ) -> Result<(UsageData, TodayUsageSnapshot), &'static str> {
+    load_with_components(context, now, zone, cancellation).await.map(|(data, all, _)| (data, all))
+}
+
+/// 终端消费同轮总量与分量，页面和通知继续沿用原返回形状。
+pub(super) async fn load_with_components(context: Arc<ServiceContext>, now: i64, zone: TimeZone,
+    cancellation: ScanCancellation) -> Result<(UsageData, TodayUsageSnapshot, Vec<(AiTool, TodayUsageSnapshot)>), &'static str> {
     let day = UsageDay::capture(now, &zone).ok_or("usage_time_unavailable")?;
     let generation = context.notification_source_epoch.load(Ordering::Acquire);
     let selection = context.agents.dashboard_selection().await?;
@@ -24,18 +30,22 @@ pub(super) async fn load(
     let key = today_cache::key_for(&context, today_cache::Scope::Combined, &clients, &day).await;
     let cached = key.as_ref().and_then(|key| context.today_cache.lookup(key));
     let mut signature = vec![];
-    let mut inputs = vec![];
+    let mut raw_inputs = vec![];
+    let mut components = vec![];
     let mut all_ready = true;
     if let Some(cached) = &cached {
         signature = cached.signature.clone();
         all_ready = cached.all_ready;
+        components = cached.components.clone();
+        for (_, records, _) in &mut components { today_cache::restamp(records, now); }
     } else {
         for client in &selection.0 {
             let snapshot = query::read_snapshot(&context.directory, *client, now, &zone).await?;
-            all_ready &= snapshot.read_ready && matches!(
-                snapshot.index_state,
-                LocalIndexState::Ready | LocalIndexState::ReadyNoCalls
-            ) && snapshot.roots.iter().any(|r| r.enabled);
+            let ready = snapshot.read_ready && matches!(snapshot.index_state,
+                LocalIndexState::Ready | LocalIndexState::ReadyNoCalls) && snapshot.roots.iter().any(|r| r.enabled);
+            all_ready &= ready;
+            let coverage = query::coverage(&context, *client);
+            let label = query::provider(*client).parser_source_label(client.parser_version());
             signature.push(format!("{client:?}:{}", client.parser_version()));
             signature.extend(
                 snapshot
@@ -43,12 +53,7 @@ pub(super) async fn load(
                     .iter()
                     .map(|r| format!("{client:?}:{}:{}", r.root_id, r.enabled)),
             );
-            inputs.push(AgentUsageSnapshot::new(
-                *client,
-                snapshot,
-                query::coverage(&context, *client),
-                Some(query::provider(*client).parser_source_label(client.parser_version())),
-            ));
+            raw_inputs.push((*client, snapshot, coverage, label, ready));
         }
     }
     // 保存用的签名与就绪度须在合并 WorkBuddy 之前取得，它们只描述索引侧。
@@ -92,8 +97,19 @@ pub(super) async fn load(
         records
     });
     let day_for_cache = day.clone();
-    let result = tokio::task::spawn_blocking(move || {
+    let permit = context.today_aggregate_gate.clone().acquire_owned().await.map_err(|_| "usage_aggregate_failed")?;
+    let work = move || {
         // 命中缓存时跳过联合快照构造；新算出的索引侧汇总随结果返回，供读后校验保存。
+        let mut inputs = Vec::new();
+        for (client, snapshot, coverage, label, ready) in raw_inputs {
+            let effective = snapshot.effective_coverage(coverage.clone());
+            let records = build_local_windows_with_standard(&snapshot.canonical, &effective, snapshot.index_state,
+                now, query::provider(client), Some(&label), TimeStandard::Local, &zone_for_aggregate)
+                .map_err(|_| "usage_aggregate_failed")?;
+            components.push((client, records, ready));
+            inputs.push(AgentUsageSnapshot::new(client, snapshot, coverage, Some(label)));
+        }
+        let components_for_cache = components.clone();
         let mut index_records = None;
         let base = match cached_records {
             Some(records) => Some(records),
@@ -145,6 +161,23 @@ pub(super) async fn load(
                 )
             }
         };
+        let mut agents = Vec::new();
+        for (client, records, ready) in components {
+            let agent = match client { SourceClientKind::Codex => AiTool::Codex,
+                SourceClientKind::ClaudeCode => AiTool::ClaudeCode, SourceClientKind::GrokBuildCli => AiTool::Grok, SourceClientKind::WorkBuddy => AiTool::WorkBuddy };
+            let value = TodayUsageSnapshot::from_records(day.clone(), source.clone(), &records, now, ready, false)
+                .ok_or("usage_aggregate_failed")?;
+            agents.push((agent, value));
+        }
+        if selection.1 {
+            let value = if let Some(wb) = &workbuddy {
+                let records = build_workbuddy_only_local_windows(&wb.windows, &wb.coverage, now, ProviderKind::WorkbuddyProjectJsonl);
+                TodayUsageSnapshot::from_records(day.clone(), source.clone(), &records, now, true, false).ok_or("usage_aggregate_failed")?
+            } else { TodayUsageSnapshot { day: day.clone(), source: source.clone(), total_tokens: 0, observed_ms: now,
+                availability: if failed { TodayAvailability::Unavailable } else { TodayAvailability::NoRecords },
+                completeness: Completeness::Unknown, confidence: Confidence::Exact } };
+            agents.push((AiTool::WorkBuddy, value));
+        }
         let today = TodayUsageSnapshot::from_records(day, source, &records, now, all_ready, failed)
             .ok_or("usage_aggregate_failed")?;
         Ok((
@@ -155,11 +188,20 @@ pub(super) async fn load(
             },
             today,
             index_records,
+            agents,
+            components_for_cache,
         ))
-    })
-    .await
-    .map_err(|_| "usage_aggregate_failed")??;
-    let (data, today, index_records) = result;
+    };
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let aggregate_cancel = cancellation.clone();
+    context.background.spawn_blocking("today-aggregate", move |shutdown| {
+        let _permit = permit;
+        let result = if shutdown.is_cancelled() || aggregate_cancel.is_cancelled() { Err("usage_scan_cancelled") } else { work() };
+        let _ = tx.send(result);
+    })?;
+    let result = rx.await.map_err(|_| "usage_aggregate_failed")??;
+    if cancellation.is_cancelled() { return Err("usage_scan_cancelled"); }
+    let (data, today, index_records, agents, components_for_cache) = result;
     if selection != context.agents.dashboard_selection().await?
         || generation != context.notification_source_epoch.load(Ordering::Acquire)
     {
@@ -169,8 +211,8 @@ pub(super) async fn load(
     if let (Some(key), Some(records)) = (key, index_records) {
         let after = today_cache::key_for(&context, today_cache::Scope::Combined, &clients, &day_for_cache).await;
         if after.as_ref() == Some(&key) {
-            context.today_cache.store(key, index_signature, index_ready, records);
+            context.today_cache.store_components(key, index_signature, index_ready, records, components_for_cache);
         }
     }
-    Ok((data, today))
+    Ok((data, today, agents))
 }

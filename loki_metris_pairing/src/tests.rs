@@ -9,7 +9,7 @@ const SESSION: &str = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const NONCE: &str = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 /// 模拟两端语言桥的JSON边界，不把内部密码状态序列化。
-fn wire<T: serde::Serialize + serde::de::DeserializeOwned>(value: &T) -> T {
+pub(crate) fn wire<T: serde::Serialize + serde::de::DeserializeOwned>(value: &T) -> T {
     serde_json::from_slice(&serde_json::to_vec(value).unwrap()).unwrap()
 }
 

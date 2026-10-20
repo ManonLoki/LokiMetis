@@ -1,6 +1,6 @@
 # 技术选型与依赖清单
 
-本清单于 2026-10-20 按仓库已采用的配置和源码核对，不表示软件包仓库最新版本或本轮兼容性测试结果。版本、features、平台条件的事实源仍是[根 Cargo.toml](../Cargo.toml)、[配对库清单](../loki_metris_pairing/Cargo.toml)、[core 清单](../loki_metris_core/Cargo.toml)、[GUI 清单](../loki_metris_gui/Cargo.toml)及[根 package.json](../package.json)；变更这些配置时同步本清单。
+本清单于 2026-10-21 按仓库已采用的配置和源码核对，不表示软件包仓库最新版本或本轮兼容性测试结果。版本、features、平台条件的事实源仍是[根 Cargo.toml](../Cargo.toml)、[配对库清单](../loki_metris_pairing/Cargo.toml)、[core 清单](../loki_metris_core/Cargo.toml)、[GUI 清单](../loki_metris_gui/Cargo.toml)及[根 package.json](../package.json)；变更这些配置时同步本清单。
 
 ## 工程与运行时
 
@@ -44,7 +44,7 @@
 | `mdns-sd` | `0.21.6` | GUI局域网发现；关闭默认特征，仅启用`async` |
 | `spake2` | `=0.4.0` | 共享配对库密码交换；关闭默认特征，仅启用`getrandom` |
 | `hkdf` | `0.13.0` | 共享配对库方向确认密钥与持久密钥派生；关闭默认特征 |
-| `sha2` | `0.11.1` | 共享配对库transcript摘要；关闭默认特征 |
+| `sha2` | `0.11.1` | 共享配对库transcript与core内容寻址图片摘要；关闭默认特征 |
 | `chacha20poly1305` | `0.11.0` | 共享配对库双向认证确认；关闭默认特征，仅启用`alloc` |
 | `thiserror` | `2.0.21` | 稳定错误类型 |
 | `toml` | `1.1.8` | TOML 配置 |

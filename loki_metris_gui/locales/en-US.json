@@ -850,8 +850,8 @@
   },
   "devices": {
     "title": "Devices",
-    "subtitle": "Discover and pair with receivers on your local network.",
-    "compatibility": "LokiMetris receivers on your local network appear here. Pairing must be enabled before saving a device. Business data is not sent in this phase.",
+    "subtitle": "Connect phones and displays on your local network.",
+    "compatibility": "Choose this computer in the display app, then enter its 4-digit code here. Local sync may pause in the background.",
     "discover": "Discover devices",
     "scanning": "Discovering…",
     "saved": "Paired devices",
@@ -893,6 +893,14 @@
       "unavailable": "The device service is unavailable. Try again later.",
       "pairingUnavailable": "Pairing is not enabled on this device"
     },
-    "pairingUnavailable": "Pairing is not enabled on this device"
+    "pairingUnavailable": "Pairing is not enabled on this device",
+    "serviceReady": "Local connection service is ready.",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "background": "In background · sync resumes when opened",
+    "unreachable": "Temporarily unreachable",
+    "ip": "IP: {{ip}}",
+    "lastIp": "Last IP: {{ip}}",
+    "lastContact": "Last communication: {{seconds}}s ago"
   }
 }

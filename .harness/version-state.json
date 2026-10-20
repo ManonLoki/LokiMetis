@@ -116,6 +116,11 @@
       "change_id": "LMDESK-LAN-DEVICES-001",
       "kind": "feature",
       "required_version": "0.6.0"
+    },
+    {
+      "change_id": "LMDESK-LAN-DESKTOP-SERVICE-001",
+      "kind": "feature",
+      "required_version": "0.6.0"
     }
   ],
   "schema_version": 1,

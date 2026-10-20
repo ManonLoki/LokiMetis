@@ -5,7 +5,7 @@ use super::*;
 use loki_metris_core::*;
 
 /// 以隔离目录建立只含一个 Codex 根的服务，返回服务、来源根与根 ID。
-fn indexed_service(temp: &std::path::Path) -> (Arc<UsageService>, std::path::PathBuf, String) {
+pub(super) fn indexed_service(temp: &std::path::Path) -> (Arc<UsageService>, std::path::PathBuf, String) {
     let source = fixture_root(temp);
     let service = UsageService::in_directory(temp.join("data")).unwrap();
     let id = register_fixture(&service, &source);
@@ -131,5 +131,30 @@ fn single_agent_overview_reuses_summary_until_index_changes() {
         .unwrap();
     let third = overview(&service);
     assert_ne!(sum(&second), sum(&third), "索引改写后概览必须反映新数据");
+    service.finish();
+}
+
+/// 总量和各Agent分量来自同轮输入；缓存命中、索引更新、跨日均保持一致且不伪造Cursor统计。
+#[test]
+fn terminal_token_components_follow_same_observation_and_cache_generation() {
+    let temp = tempfile::tempdir().unwrap();
+    let (service, source, id) = indexed_service(temp.path());
+    let now = "2026-10-09T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+    let read = |at| {
+        let runtime = service.runtime.lock().unwrap();
+        runtime.as_ref().unwrap().block_on(super::today::load_with_components(service.context.clone(), at, jiff::tz::TimeZone::UTC, ScanCancellation::new())).unwrap()
+    };
+    for at in [now, now + 30_000] {
+        let (_, all, agents) = read(at);
+        assert_eq!(agents.len(),1); assert_eq!(agents[0].0,AiTool::Codex);
+        assert_eq!(agents[0].1.total_tokens,all.total_tokens); assert_eq!(all.total_tokens,110);
+        assert_eq!(agents[0].1.observed_ms,at); assert_eq!(agents[0].1.day,all.day);
+    }
+    let file=source.join("sessions/rollout-source.jsonl"); let mut raw=std::fs::read_to_string(&file).unwrap();
+    raw.push_str("{\"timestamp\":\"2026-10-09T00:02:00Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":200,\"cached_input_tokens\":0,\"output_tokens\":0,\"total_tokens\":200}}}}\n");
+    std::fs::write(&file,raw).unwrap();
+    service.mutate_source(SourceClientKind::Codex,SourceOperation::Reindex { root_id:id }).unwrap().blocking_recv().unwrap().unwrap();
+    let (_,all,agents)=read(now+60_000); assert_eq!(all.total_tokens,310);assert_eq!(agents[0].1.total_tokens,310);
+    let (_,all,agents)=read(now+86_400_000); assert_eq!(all.total_tokens,0);assert_eq!(agents[0].1.total_tokens,0);assert_eq!(agents[0].1.day,all.day);
     service.finish();
 }

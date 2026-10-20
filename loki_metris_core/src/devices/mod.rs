@@ -1,6 +1,8 @@
 //! 局域网设备身份、配对凭据与保存规则；发现广告本身不授予信任。
 
 mod pairing;
+pub mod link;
+pub mod presence;
 #[cfg(test)]
 mod tests;
 

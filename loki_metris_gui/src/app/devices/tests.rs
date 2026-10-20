@@ -82,3 +82,36 @@ fn broadcast_only_candidates_have_accessible_disabled_pairing(cx: &mut TestAppCo
         }).unwrap();
     }
 }
+
+/// 已认证IP与后台状态独立显示，只有发现广告时不能伪造在线或可信IP。
+#[gpui_kit::test]
+fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut TestAppContext) {
+    use loki_metris_core::devices::{link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState, UnavailableReason}};
+    for (locale, connected, background, not_connected, ip, last_ip) in [
+        ("en-US", "Connected", "In background · sync resumes when opened", "Not connected", "IP: 192.168.1.20", "Last IP: 192.168.1.20"),
+        ("zh-CN", "当前可通信", "已进入后台，打开终端后恢复同步", "尚未连接", "IP：192.168.1.20", "上次 IP：192.168.1.20"),
+    ] {
+        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| {
+                this.locale = locale; this.page = crate::app::Page::Devices; this.devices.snapshot.loaded = true;
+                this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved name".into() });
+                this.devices.snapshot.presence.push(DevicePresenceView { device_id: DEVICE.into(),
+                    info: Some(DeviceInfo { device_id: DEVICE.into(), name: "Authenticated phone".into(), platform: DevicePlatform::Ios, app_version: "1.0".into() }),
+                    state: DeviceConnectionState::Reachable, peer: Some("192.168.1.20:51000".parse().unwrap()), since_last_contact: Some(std::time::Duration::ZERO) });
+                cx.notify();
+            });
+            window.render_frame(cx);
+            assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
+            assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
+            shell.update(cx, |this, cx| { this.devices.snapshot.presence[0].state = DeviceConnectionState::Unavailable(UnavailableReason::Background); cx.notify(); });
+            window.render_frame(cx);
+            assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(background));
+            assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(last_ip));
+            shell.update(cx, |this, cx| { this.devices.snapshot.presence.clear(); prepare_target(this); cx.notify(); });
+            window.render_frame(cx);
+            assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(not_connected));
+            assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
+        }).unwrap();
+    }
+}

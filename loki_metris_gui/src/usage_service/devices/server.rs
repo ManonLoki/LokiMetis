@@ -1,0 +1,288 @@
+//! 桌面拥有监听、广播和所有连接JoinSet；离开页面只撤销临时配对，不关闭已配对联动。
+
+use super::{Devices, Duration, Instant, framing::FrameReader, link_transport, transport};
+use crate::usage_service::background::BackgroundTaskShutdown;
+use loki_metris_core::devices::{DiscoveredDevice, VerifiedPairing, is_lan_endpoint, MAX_SAVED_DEVICES,
+    link::{ConnectionIntroduction, HOST_SERVICE_TYPE, LinkControl, PairingOffer, EncryptedPacket, MAX_ENCRYPTED_FRAME_BYTES},
+    presence::{PresenceLease, UnavailableReason, DEVICE_HEARTBEAT_INTERVAL}};
+use std::{collections::BTreeMap, net::SocketAddr, sync::Arc};
+use tokio::{net::{TcpListener, TcpStream}, sync::{Semaphore, OwnedSemaphorePermit, oneshot, watch}, task::JoinSet};
+
+#[cfg(test)]
+#[path = "server_tests.rs"]
+mod tests;
+
+/// 限制未认证连接数量，不能用任意慢速连接耗尽应用任务或内存。
+const MAX_PENDING_CONNECTIONS: usize = 8;
+/// 报到最多等待用户60秒，终端自己的配对窗口仍是最终有效期权威。
+const PAIRING_OFFER_LIFETIME: Duration = Duration::from_secs(60);
+/// 每次发送有界等待，失败或中断后绝不在同一socket重发半帧。
+const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// 桌面用户选择候选后才传递四位码，任务完成结果仍由原有文件提交入口消费。
+pub(super) struct PairingCommand { pub(super) code: String, pub(super) client: String, pub(super) result: oneshot::Sender<Result<VerifiedPairing, &'static str>> }
+/// 临时介绍只持有实际连接地址与一次性命令槽，不保存配对码。
+pub(super) struct PendingOffer { pub(super) target: DiscoveredDevice, pub(super) expires: Instant, pub(super) command: oneshot::Sender<PairingCommand>, ticket: u64 }
+/// 活动连接只由精确租约撤销；旧连接退出不能删除新连接的取消入口。
+pub(super) struct ActiveSession { pub(super) lease: PresenceLease, pub(super) cancel: watch::Sender<bool> }
+/// 监听状态与连接表受Devices短锁拥有，所有网络等待都在锁外。
+#[derive(Default)]
+pub(super) struct ServerState {
+    pub(super) offers: BTreeMap<String, PendingOffer>, pub(super) sessions: BTreeMap<String, ActiveSession>,
+    pub(super) cancel: Option<watch::Sender<bool>>, pub(super) restart: bool, ticket: u64,
+    /// 当前进程曾由设备页或已保存设备明确请求服务，配对落盘后可恢复被关闭的启动轮。
+    pub(super) requested: bool,
+    /// 空账本离页撤销旧重启令牌；耗尽时停止启动，不能回绕复用旧代次。
+    pub(super) epoch: u64,
+}
+
+impl Devices {
+    /// 用户进入设备页时启动唯一数据服务；快速取消再进入只预约一次重启。
+    pub(super) fn start_server(self: &Arc<Self>) -> Result<(), &'static str> {
+        self.start_server_for(None)
+    }
+
+    /// 锁外重启须持原取消代次重新预约，离页后的旧令牌保持零监听、零广播。
+    fn start_server_for(self: &Arc<Self>, expected_epoch: Option<u64>) -> Result<(), &'static str> {
+        let (cancel, mut cancelled) = watch::channel(false);
+        {
+            let mut state = self.state();
+            if expected_epoch.is_some_and(|epoch| epoch != state.server.epoch) { return Ok(()); }
+            if state.server.epoch == u64::MAX { return Err("device_link_unavailable"); }
+            state.server.requested = true;
+            if let Some(running) = &state.server.cancel {
+                if *running.borrow() { state.server.restart = true; } return Ok(());
+            }
+            state.server.cancel = Some(cancel); state.server.restart = false; state.view.link_error = None;
+        }
+        let this = self.clone();
+        if let Err(error) = self.owner.spawn("device-data-server", move |mut shutdown| async move {
+            let result = this.run_server(&mut shutdown, &mut cancelled).await;
+            let restart = this.finish_server(result);
+            if let Some(epoch) = restart && !shutdown.is_cancelled() { let _ = this.start_server_for(Some(epoch)); }
+        }) {
+            let mut state = self.state(); state.server.cancel = None; state.view.link_error = Some(error); return Err(error);
+        } Ok(())
+    }
+
+    /// 监听和子连接终态后清理当前投影，只返回带代次的重启意图。
+    fn finish_server(&self, result: Result<(), &'static str>) -> Option<u64> {
+        let mut state = self.state(); state.view.listening_port = None; state.server.cancel = None;
+        state.server.offers.clear();
+        for session in std::mem::take(&mut state.server.sessions).into_values() {
+            let _ = session.cancel.send(true);
+            let _ = state.presence.disconnected(&session.lease, UnavailableReason::Disconnected);
+        }
+        if let Err(error) = result { state.view.link_error = Some(error); }
+        std::mem::take(&mut state.server.restart).then_some(state.server.epoch)
+    }
+
+    /// 应用启动仅在私有账本确有已配对设备时恢复服务，空安装不广播、不写文件。
+    pub(in crate::usage_service) fn resume_saved_server(self: &Arc<Self>) -> Result<(), &'static str> {
+        let this = self.clone();
+        self.owner.spawn_blocking("device-resume", move |shutdown| {
+            if shutdown.is_cancelled() { return; }
+            match this.store.load() {
+                Ok(book) if !book.summaries().is_empty() => {
+                    if this.publish_startup_book(book) && !shutdown.is_cancelled() { let _ = this.start_server(); }
+                },
+                Ok(_) => {},
+                Err(error) => {
+                    let mut state = this.state();
+                    if state.book.is_none() && !state.view.pending { state.view.link_error = Some(error); }
+                },
+            }
+        })
+    }
+
+    /// 启动只读快照只能填充未初始化状态，绝不覆盖用户更新或清除正在进行的写入。
+    fn publish_startup_book(&self, book: loki_metris_core::devices::DeviceBook) -> bool {
+        let mut state = self.state();
+        if state.book.is_none() && !state.view.pending && !state.view.loaded {
+            state.view.loaded = true; state.view.saved = book.summaries(); state.book = Some(book);
+        }
+        state.book.as_ref().is_some_and(|book| !book.summaries().is_empty())
+    }
+
+    /// 初始化I/O、广播和监听在同一任务；全部连接由JoinSet有界拥有并在退出时回收。
+    async fn run_server(self: &Arc<Self>, shutdown: &mut BackgroundTaskShutdown, cancelled: &mut watch::Receiver<bool>) -> Result<(), &'static str> {
+        let book = self.disk(|store| store.prepare_service()).await?;
+        if shutdown.is_cancelled() || *cancelled.borrow() { return Ok(()); }
+        let listener = TcpListener::bind("0.0.0.0:0").await.map_err(|_| "device_link_unavailable")?;
+        let port = listener.local_addr().map_err(|_| "device_link_unavailable")?.port();
+        super::discovery::cleanup_mdns(&self.host_daemon).await?;
+        let daemon = mdns_sd::ServiceDaemon::new().map_err(|_| "device_discovery_failed")?;
+        *self.host_daemon.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(daemon.clone());
+        let mut connections = JoinSet::new();
+        let result = async {
+            // 首版监听IPv4；不发布无法接受连接的IPv6或环回端点。
+            daemon.disable_interface(vec![mdns_sd::IfKind::IPv6, mdns_sd::IfKind::LoopbackV4]).map_err(|_| "device_discovery_failed")?;
+            let instance = format!("LokiMetris-{}", &book.client_id()[..8]); let host = format!("loki-{}.local.", book.client_id());
+            let properties = [("v", "1"), ("id", book.client_id()), ("name", instance.as_str())];
+            let info = mdns_sd::ServiceInfo::new(HOST_SERVICE_TYPE, &instance, &host, "", port, properties.as_slice())
+                .map_err(|_| "device_discovery_failed")?.enable_addr_auto();
+            let monitor = daemon.monitor().map_err(|_| "device_discovery_failed")?;
+            daemon.register(info).map_err(|_| "device_discovery_failed")?;
+            { let mut state = self.state(); state.book.get_or_insert(book); state.view.listening_port = Some(port); }
+            let pending = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS));
+            let publisher = self.clone(); let publisher_cancelled = cancelled.clone();
+            connections.spawn(async move { publisher.publish_loop(publisher_cancelled).await; });
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = shutdown.cancelled() => break,
+                    _ = cancelled.changed() => break,
+                    event = monitor.recv_async() => {
+                        if matches!(event, Ok(mdns_sd::DaemonEvent::Error(_)) | Err(_)) { return Err("device_discovery_failed"); }
+                    },
+                    result = connections.join_next(), if !connections.is_empty() => {
+                        if matches!(result, Some(Err(_))) { return Err("device_link_unavailable"); }
+                    },
+                    accepted = listener.accept() => {
+                        let (stream, peer) = accepted.map_err(|_| "device_link_unavailable")?;
+                        if !is_lan_endpoint(peer) || connections.len() >= MAX_SAVED_DEVICES + MAX_PENDING_CONNECTIONS { continue; }
+                        let Ok(permit) = pending.clone().try_acquire_owned() else { continue; };
+                        let this = self.clone(); let cancellation = cancelled.clone();
+                        connections.spawn(async move { this.serve_peer(stream, peer, permit, cancellation).await; });
+                    },
+                }
+            } Ok(())
+        }.await;
+        drop(listener); self.state().view.listening_port = None;
+        connections.shutdown().await;
+        let cleanup = super::discovery::cleanup_mdns(&self.host_daemon).await;
+        result.and(cleanup)
+    }
+
+    /// 首帧也受15秒总预算及未认证并发槽约束，所有错误路径销毁整个socket。
+    async fn serve_peer(self: Arc<Self>, mut stream: TcpStream, peer: SocketAddr, permit: OwnedSemaphorePermit, mut cancelled: watch::Receiver<bool>) {
+        if *cancelled.borrow() { return; }
+        let deadline = tokio::time::Instant::now() + link_transport::AUTHENTICATION_TIMEOUT;
+        let introduction = tokio::select! {
+            biased;
+            _ = cancelled.changed() => return,
+            result = tokio::time::timeout_at(deadline, transport::read_frame::<ConnectionIntroduction>(&mut stream)) => match result { Ok(Ok(value)) => value, _ => return },
+        };
+        match introduction {
+            ConnectionIntroduction::Pairing(offer) => { self.serve_offer(&mut stream, peer, offer, &mut cancelled).await; },
+            ConnectionIntroduction::Resume(hello) => {
+                let Some(book) = self.state().book.clone() else { return; };
+                let result = tokio::select! {
+                    biased;
+                    _ = cancelled.changed() => return,
+                    result = tokio::time::timeout_at(deadline, link_transport::authenticate(&mut stream, &book, hello)) => result,
+                };
+                let Ok(Ok(mut authenticated)) = result else { return; };
+                let (cancel, cancellation) = watch::channel(false);
+                let lease = {
+                    let mut state = self.state(); let Some(book) = state.book.clone() else { return; };
+                    let Ok(lease) = state.presence.connected(&book, &mut authenticated.session, authenticated.info, peer, Instant::now()) else { return; };
+                    if let Some(old) = state.server.sessions.insert(lease.device_id().into(), ActiveSession { lease: lease.clone(), cancel }) { let _ = old.cancel.send(true); }
+                    lease
+                };
+                drop(permit);
+                self.publication_refresh.notify_one();
+                let reason = self.run_session(stream, &lease, authenticated.session, cancelled, cancellation).await;
+                let mut state = self.state(); let _ = state.presence.disconnected(&lease, reason);
+                if state.server.sessions.get(lease.device_id()).is_some_and(|active| active.lease == lease) { state.server.sessions.remove(lease.device_id()); }
+            },
+        }
+    }
+
+    /// 临时介绍等待原有配对按钮命令；取消命令接收或握手后不重用半写连接。
+    async fn serve_offer(&self, stream: &mut TcpStream, peer: SocketAddr, offer: PairingOffer, cancelled: &mut watch::Receiver<bool>) {
+        let (command, received) = oneshot::channel();
+        let (ticket, target) = {
+            let mut state = self.state(); let Some(book) = &state.book else { return; };
+            if offer.validate_for(book.client_id()).is_err() || state.server.offers.contains_key(&offer.device_id)
+                || book.summaries().iter().any(|saved| saved.id == offer.device_id) { return; }
+            let Ok(target) = DiscoveredDevice::new(offer.device_id, offer.name, vec![peer]) else { return; };
+            let target = target.with_pairing_protocol(Some("1"));
+            let Some(ticket) = state.server.ticket.checked_add(1) else { return; }; state.server.ticket = ticket;
+            state.server.offers.insert(target.id.clone(), PendingOffer { target: target.clone(), expires: Instant::now() + PAIRING_OFFER_LIFETIME, command, ticket });
+            (ticket, target)
+        };
+        let received = tokio::select! {
+            biased;
+            _ = cancelled.changed() => None,
+            result = tokio::time::timeout(PAIRING_OFFER_LIFETIME, received) => result.ok().and_then(Result::ok),
+        };
+        {
+            let mut state = self.state();
+            if state.server.offers.get(&target.id).is_some_and(|offer| offer.ticket == ticket) { state.server.offers.remove(&target.id); }
+        }
+        let Some(mut command) = received else { return; };
+        let result = tokio::select! {
+            biased;
+            _ = cancelled.changed() => Err("device_cancelled"),
+            _ = command.result.closed() => return,
+            result = tokio::time::timeout(Duration::from_secs(15), transport::pair_stream(stream, &target, &command.client, &command.code)) => result.unwrap_or(Err("device_timeout")),
+        };
+        let _ = command.result.send(result);
+    }
+
+    /// 单owner驱动读写；认证包/语义/超时/取消任一失败均退出并销毁读写两半socket。
+    async fn run_session(&self, stream: TcpStream, lease: &PresenceLease, mut session: loki_metris_core::devices::link::AuthenticatedLinkSession,
+        mut server_cancelled: watch::Receiver<bool>, mut cancelled: watch::Receiver<bool>) -> UnavailableReason {
+        let (mut reader, mut writer) = stream.into_split(); let mut framing = FrameReader::new(MAX_ENCRYPTED_FRAME_BYTES);
+        if *server_cancelled.borrow() || *cancelled.borrow() { return UnavailableReason::Disconnected; }
+        let mut heartbeat = tokio::time::interval(DEVICE_HEARTBEAT_INTERVAL); heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut nonce = 0u64; let mut outstanding = None;
+        let mut publications = self.publications.subscribe();
+        let first = publications.borrow_and_update().message(super::super::current_epoch_ms());
+        if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &first)).await, Ok(Ok(()))) { return UnavailableReason::Disconnected; }
+        loop {
+            tokio::select! {
+                biased;
+                _ = server_cancelled.changed() => break,
+                _ = cancelled.changed() => break,
+                _ = heartbeat.tick() => {
+                    {
+                        let mut state = self.state(); let Some(book) = state.book.clone() else { break; };
+                        let expired = state.presence.expire(&book, Instant::now());
+                        for expired in &expired {
+                            if let Some(active) = state.server.sessions.get(expired.device_id()) && &active.lease == expired { let _ = active.cancel.send(true); }
+                        }
+                        if expired.iter().any(|expired| expired == lease) { return UnavailableReason::HeartbeatTimeout; }
+                        if state.server.sessions.get(lease.device_id()).is_none_or(|active| &active.lease != lease) { break; }
+                    }
+                    if outstanding.is_none() {
+                        let ping = LinkControl::Ping { nonce };
+                        if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &ping)).await, Ok(Ok(()))) { break; }
+                        outstanding = Some(nonce); let Some(next) = nonce.checked_add(1) else { break; }; nonce = next;
+                    }
+                },
+                result = publications.changed() => {
+                    if result.is_err() { break; }
+                    let message = publications.borrow_and_update().message(super::super::current_epoch_ms());
+                    if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &message)).await, Ok(Ok(()))) { break; }
+                },
+                result = framing.read::<EncryptedPacket>(&mut reader) => {
+                    let Ok(packet) = result else { break; };
+                    let Ok(plaintext) = session.open(&packet) else { break; };
+                    let Ok(message) = serde_json::from_slice::<loki_metris_core::devices::link::data::DeviceMessage>(&plaintext) else { break; };
+                    {
+                        let mut state = self.state(); let Some(book) = state.book.clone() else { break; };
+                        if state.presence.received(&book, lease, Instant::now()).is_err() { break; }
+                    }
+                    let control = match message {
+                        loki_metris_core::devices::link::data::DeviceMessage::Control(control) => control,
+                        loki_metris_core::devices::link::data::DeviceMessage::AssetRequest { hash, offset } => {
+                            let response = publications.borrow().asset(&hash, offset);
+                            let Ok(response) = response else { break; };
+                            if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &response)).await, Ok(Ok(()))) { break; }
+                            continue;
+                        },
+                    };
+                    match control {
+                        LinkControl::Pause {} => return UnavailableReason::Background,
+                        LinkControl::Pong { nonce } => { if outstanding != Some(nonce) { break; } outstanding = None; },
+                        LinkControl::Ping { nonce } => {
+                            if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &LinkControl::Pong { nonce })).await, Ok(Ok(()))) { break; }
+                        },
+                    }
+                },
+            }
+        } UnavailableReason::Disconnected
+    }
+}

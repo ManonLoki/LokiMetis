@@ -66,7 +66,7 @@ LokiMetris/pair/1/receiver-confirm
 LokiMetris/pair/1/persistent
 ```
 
-确认消息使用ChaCha20Poly1305，AAD为transcript摘要，nonce为12字节全零，输出密文含认证tag后用标准Base64编码。每次交换使用全新SPAKE2状态，每个独立方向key只加密一次，因此固定nonce不在同一key下重复。持久key单独派生，当前仅保存，**不能直接复用本节nonce规则发送业务数据**；后续数据类型、连接认证、消息nonce/重放保护、撤销与传输协议另行协商。
+确认消息使用ChaCha20Poly1305，AAD为transcript摘要，nonce为12字节全零，输出密文含认证tag后用标准Base64编码。每次交换使用全新SPAKE2状态，每个独立方向key只加密一次，因此固定nonce不在同一key下重复。持久key单独派生，**不能直接复用本节nonce规则发送业务数据**；后续数据类型和应用接线仍在实施；已新增独立随机恢复握手、方向密钥和消息序号规则，详见[终端联动协议](DEVICE_LINK_PROTOCOL.md)，不能复用本配对确认的固定nonce发业务数据。
 
 ## 本地保存与失败语义
 

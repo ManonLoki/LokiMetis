@@ -20,8 +20,8 @@
   },
   "macos": {
     "localNetwork": {
-      "usageDescription": "发现并配对同一局域网中的接收设备。Discover and pair receivers on your local network.",
-      "bonjourServices": ["_loki-metris._tcp"]
+      "usageDescription": "发现、配对并同步同一局域网中的显示终端。Discover, pair and sync display devices on your local network.",
+      "bonjourServices": ["_loki-metris._tcp", "_loki-host._tcp"]
     },
     "agent": true,
     "minimumSystemVersion": "12.0",

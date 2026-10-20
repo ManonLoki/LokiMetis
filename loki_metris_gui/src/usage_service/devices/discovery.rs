@@ -77,21 +77,12 @@ impl Devices {
 
     /// 命令拥塞时有界重试；超时不释放句柄，后续发现或正式退出继续承担回收责任。
     pub(in crate::usage_service) async fn cleanup_daemon(&self) -> Result<(), &'static str> {
-        let daemon = self.daemon.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
-        let Some(daemon) = daemon else { return Ok(()); };
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-        loop {
-            let stopped = match daemon.shutdown() {
-                Ok(receiver) => matches!(tokio::time::timeout_at(deadline, receiver.recv_async()).await, Ok(Ok(DaemonStatus::Shutdown))),
-                Err(mdns_sd::Error::DaemonShutdown) => true,
-                Err(_) => false,
-            };
-            if stopped {
-                self.daemon.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take(); return Ok(());
-            }
-            if tokio::time::Instant::now() >= deadline { return Err("device_discovery_failed"); }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+        cleanup_mdns(&self.daemon).await
+    }
+
+    /// 数据服务独立回收，临时发现不能关闭长期服务的广播。
+    pub(in crate::usage_service) async fn cleanup_host_daemon(&self) -> Result<(), &'static str> {
+        cleanup_mdns(&self.host_daemon).await
     }
 
     /// 校验后才替换同一服务实例的广告，本地30秒租约限制浏览结束后的可用期。
@@ -104,12 +95,33 @@ impl Devices {
     }
 }
 
+/// 两种mDNS职责共用有界确认退出；失败保留精确句柄供下次或应用退出重试。
+pub(super) async fn cleanup_mdns(slot: &std::sync::Mutex<Option<ServiceDaemon>>) -> Result<(), &'static str> {
+        let daemon = slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+        let Some(daemon) = daemon else { return Ok(()); };
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        loop {
+            let stopped = match daemon.shutdown() {
+                Ok(receiver) => matches!(tokio::time::timeout_at(deadline, receiver.recv_async()).await, Ok(Ok(DaemonStatus::Shutdown))),
+                Err(mdns_sd::Error::DaemonShutdown) => true,
+                Err(_) => false,
+            };
+            if stopped {
+                slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take(); return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline { return Err("device_discovery_failed"); }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+}
+
 impl Drop for Devices {
     /// 异常销毁仍发送关闭请求；正常路径在应用退出时已经确认Shutdown。
     fn drop(&mut self) {
-        if let Some(daemon) = self.daemon.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner).take()
+        for slot in [&mut self.daemon, &mut self.host_daemon] {
+          if let Some(daemon) = slot.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner).take()
             && daemon.shutdown().is_err() {
                 tracing::warn!(event = "device_mdns_shutdown_unconfirmed");
+          }
             }
     }
 }

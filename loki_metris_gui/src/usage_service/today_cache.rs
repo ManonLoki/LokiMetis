@@ -50,6 +50,8 @@ pub(super) struct Cached {
     pub(super) all_ready: bool,
     /// 缓存的当日窗口摘要。
     pub(super) records: LocalRecordsSummary,
+    /// 联合口径与分量必须来自同一批读取；单Agent页面缓存此处为空。
+    pub(super) components: Vec<(SourceClientKind, LocalRecordsSummary, bool)>,
 }
 
 /// 条目数硬上限：联合口径一份，加每个物理 Agent 一份，不为历史键组合保留内容。
@@ -85,7 +87,13 @@ impl TodayCache {
         all_ready: bool,
         records: LocalRecordsSummary,
     ) {
-        let cached = Arc::new(Cached { key, signature, all_ready, records });
+        self.store_components(key, signature, all_ready, records, Vec::new());
+    }
+
+    /// 同时提交联合值与所有分量，不能命中总量后重新读取分量。
+    pub(super) fn store_components(&self, key: IndexKey, signature: Vec<String>, all_ready: bool,
+        records: LocalRecordsSummary, components: Vec<(SourceClientKind, LocalRecordsSummary, bool)>) {
+        let cached = Arc::new(Cached { key, signature, all_ready, records, components });
         let mut entries = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let same_slot = |other: &Arc<Cached>| {
             other.key.scope == cached.key.scope

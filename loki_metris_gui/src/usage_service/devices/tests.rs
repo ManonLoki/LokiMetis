@@ -4,9 +4,16 @@ use super::*;
 use loki_metris_core::devices::{DEVICE_SERVICE_TYPE, PairingConfirmation, PairingHello, PairingSession, pairing_test_reply};
 use tokio::net::TcpListener;
 
-const CLIENT: &str = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const DEVICE: &str = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+pub(super) const CLIENT: &str = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+pub(super) const DEVICE: &str = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const SESSION: &str = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+/// 仅隔离网络夹具使用固定秘密，产品账本仍只能由真实配对证明生成。
+pub(super) fn link_book() -> DeviceBook {
+    let bytes = serde_json::to_vec(&serde_json::json!({"schemaVersion":1,"clientId":CLIENT,
+        "devices":[{"id":DEVICE,"name":"Phone","key":vec![0xa7u8;32]}]})).unwrap();
+    DeviceBook::decode(&bytes).unwrap()
+}
 
 /// 构造真实双向认证证明，供文件事务回归使用。
 fn proof(client: &str) -> loki_metris_core::devices::VerifiedPairing {

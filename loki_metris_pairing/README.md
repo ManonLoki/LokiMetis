@@ -12,6 +12,8 @@ AwaitingAck::verify → PairingMaterial
 
 接收端的保存回调只在A确认认证成功后调用一次，返回成功才生成B回执。回调必须原子复核当前配对窗口、取消状态并完成持久化。宿主负责四位码和UUID的系统随机生成、60秒期限、跨连接最多5次预算和单在途限制。网络驱动负责帧上限、超时与取消。不要记录配对材料或把确认消息的固定nonce规则用于未来业务数据。
 
+配对后恢复会话位于`session`：终端B主动连接后发送`SessionHello`，桌面A返回`SessionReply`，终端验证后发送`SessionConfirmation`，双方才使用各自独立方向的`SecureChannel`。每次恢复以保存秘密进行全新随机交换，严格序号与AEAD拒绝反射、重放和错序；收到无效包永久关闭双向通道。线协议及上游未经审计/未保证防时序攻击的边界见[终端联动协议](../docs/DEVICE_LINK_PROTOCOL.md)。该库API不等于移动应用已接通。
+
 本库没有GUI、SQLite、网络或异步运行时依赖。工作区内独立测试：
 
 ```sh

@@ -10,13 +10,14 @@ import { readConfig, validateConfig } from '../.agents/skills/desktop-build-gpui
 import { macosAgentPlist } from '../.agents/skills/desktop-build-gpui-release/scripts/gpui_macos_identity.mjs';
 import { renderLocalNetworkPlist } from '../.agents/skills/desktop-build-gpui-release/scripts/gpui_macos_network.mjs';
 
-test('preview and package declare exactly the approved receiver service', t => {
+test('preview and package declare receiver discovery and desktop data service', t => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const config = readConfig(root);
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'loki-network-plist-'));
   t.after(() => fs.rmSync(directory, { recursive: true }));
   const fragment = renderLocalNetworkPlist(config.macos.localNetwork);
   assert.match(fragment, /<string>_loki-metris\._tcp<\/string>/u);
+  assert.match(fragment, /<string>_loki-host\._tcp<\/string>/u);
   assert.ok(renderPreviewPlist(config, { version: '0.6.0' }).includes(fragment));
   const plist = macosAgentPlist(directory, true, config.macos.localNetwork);
   assert.ok(fs.readFileSync(plist, 'utf8').includes(fragment));

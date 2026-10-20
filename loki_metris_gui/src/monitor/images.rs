@@ -203,6 +203,14 @@ fn snapshot_from_records(
     })
 }
 
+/// 局域网发布在同一图库读事务内取得档案与资源，避免并发删除产生混合引用。
+pub(crate) fn link_catalog(data: &Path) -> Result<(loki_metris_core::AiProfileDraftSet, MonitorGallerySnapshot), HookError> {
+    let _guard = super::catalog::read_lock()?;
+    let profiles = super::profiles::load_profile_drafts_unlocked(&data.join("monitor"))?;
+    let images = snapshot_from_records(data, &load_index(data)?)?;
+    Ok((profiles, images))
+}
+
 /// 完整快照读取不会与导入、删除或档案保存穿插。
 pub(crate) fn list_monitor_images(data: &Path) -> Result<MonitorGallerySnapshot, HookError> {
     let _guard = super::catalog::read_lock()?;

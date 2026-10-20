@@ -76,7 +76,7 @@ impl ReceiverSession {
 }
 
 /// 消息必须是规范Base64的33字节，先限制分配和异常群元素长度。
-fn exchange_bytes(encoded: &str) -> Result<Vec<u8>, PairingError> {
+pub(crate) fn exchange_bytes(encoded: &str) -> Result<Vec<u8>, PairingError> {
     if encoded.len() != 44 { return Err(PairingError::VerificationFailed); }
     let bytes = STANDARD.decode(encoded).map_err(|_| PairingError::VerificationFailed)?;
     if bytes.len() != 33 || STANDARD.encode(&bytes) != encoded { return Err(PairingError::VerificationFailed); } Ok(bytes)
@@ -84,15 +84,21 @@ fn exchange_bytes(encoded: &str) -> Result<Vec<u8>, PairingError> {
 
 /// 固定顺序长度前缀UTF-8字段不依赖JSON键顺序；方向与名称全部参与认证。
 fn derive_keys(hello: &PairingHello, reply: &PairingReply, shared: &[u8]) -> Result<ConfirmationKeys, PairingError> {
-    let mut digest = Sha256::new();
-    for field in ["LokiMetris/pair/1", &hello.suite, &hello.client_id, &hello.device_id, &hello.session, &hello.exchange, &reply.nonce, &reply.exchange, &reply.name] {
-        digest.update((field.len() as u32).to_be_bytes()); digest.update(field.as_bytes());
-    }
-    let transcript: [u8; 32] = digest.finalize().into(); let hkdf = Hkdf::<Sha256>::new(Some(&transcript), shared);
+    let transcript = transcript_hash(&["LokiMetris/pair/1", &hello.suite, &hello.client_id, &hello.device_id, &hello.session, &hello.exchange, &reply.nonce, &reply.exchange, &reply.name]);
+    let hkdf = Hkdf::<Sha256>::new(Some(&transcript), shared);
     let mut keys = ConfirmationKeys { sender: [0; 32], receiver: [0; 32], persistent: [0; 32], transcript };
     hkdf.expand(b"LokiMetris/pair/1/sender-confirm", &mut keys.sender).map_err(|_| PairingError::VerificationFailed)?;
     hkdf.expand(b"LokiMetris/pair/1/receiver-confirm", &mut keys.receiver).map_err(|_| PairingError::VerificationFailed)?;
     hkdf.expand(b"LokiMetris/pair/1/persistent", &mut keys.persistent).map_err(|_| PairingError::VerificationFailed)?; Ok(keys)
+}
+
+/// 逐字段加入UTF-8字节长度后摘要，供配对与业务会话使用各自独立的协议域。
+pub(crate) fn transcript_hash(fields: &[&str]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    for field in fields {
+        digest.update((field.len() as u32).to_be_bytes()); digest.update(field.as_bytes());
+    }
+    digest.finalize().into()
 }
 
 /// 每个新会话、每个独立方向key仅加密一次固定确认，nonce0不得复用于其它消息。

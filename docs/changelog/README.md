@@ -11,3 +11,5 @@
 - [2026-10-18](20261018_changelog.md)：Linux GNU x64/ARM64工具链、deb/tar.gz打包与Harness知识路由。
 
 - [2026-10-20](20261020_changelog.md)：设备发现与4位码配对，以及发布登记纠正。
+
+- [2026-10-21](20261021_changelog.md)：桌面局域网数据服务、认证心跳与Token/Hooks/图片传输。

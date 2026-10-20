@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 
 mod handshake;
+pub mod session;
 #[cfg(test)]
 mod tests;
 pub use handshake::{AwaitingAck, ReceiverSession, SenderSession};

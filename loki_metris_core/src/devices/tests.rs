@@ -4,6 +4,16 @@ const CLIENT: &str = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const DEVICE: &str = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const SESSION: &str = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
+/// 构造已保存的隔离账本并执行真实恢复握手，供联动与在线状态回归复用。
+pub(super) fn link_fixture() -> (DeviceBook, link::AuthenticatedLinkSession, loki_metris_pairing::session::SecureChannel) {
+    let mut book = DeviceBook::new(CLIENT.into()).unwrap();
+    book.devices.push(SavedDevice { id: DEVICE.into(), name: "Receiver".into(), key: PairingKey([0xa7; 32]) });
+    let (device, hello) = loki_metris_pairing::session::DeviceSession::start(CLIENT, DEVICE, &[0xa7; 32], SESSION.into()).unwrap();
+    let (desktop, reply) = book.begin_link_session(hello, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb".into()).unwrap();
+    let (device, confirmation) = device.accept(reply).unwrap();
+    (book, desktop.verify(confirmation).unwrap(), device)
+}
+
 /// 夹具仍经过真实广告规则，包含合法私网端点。
 fn target() -> DiscoveredDevice {
     DiscoveredDevice::new(DEVICE.into(), "Receiver".into(), vec!["192.168.1.8:1024".parse().unwrap()]).unwrap().with_pairing_protocol(Some("1"))

@@ -23,6 +23,14 @@ impl DeviceStore {
         *book = Some(value.clone()); Ok(value)
     }
 
+    /// 用户启用设备服务前真实保存稳定本机身份，广播不能使用重启即变的临时ID。
+    pub(super) fn prepare_service(&self) -> Result<DeviceBook, &'static str> {
+        self.load()?;
+        let book = self.book.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let value = book.as_ref().ok_or("device_storage_failed")?;
+        save_file(&self.path, value)?; Ok(value.clone())
+    }
+
     /// 在任何网络尝试前保存稳定本机身份；已有设备不受新失败配对影响。
     pub(super) fn prepare_pairing(&self, id: &str) -> Result<String, &'static str> {
         self.load()?;

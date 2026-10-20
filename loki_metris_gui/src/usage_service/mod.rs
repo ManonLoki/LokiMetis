@@ -79,6 +79,10 @@ pub struct ScanStatus {
 
 /// 共享的是扫描元数据和 writer 许可；聚合结果不跨查询缓存。
 struct ServiceContext {
+    /// 所有阻塞摘要计算登记应用owner，取消网络等待不会脱离退出回收。
+    background: Arc<background::BackgroundTaskOwner>,
+    /// 大摘要聚合跨消费者串行，反复取消或重连不会叠加大快照计算。
+    today_aggregate_gate: Arc<tokio::sync::Semaphore>,
     /// 局域网设备能力只在用户进入设备页后加载或联网。
     devices: Arc<devices::Devices>,
     /// 应用私有数据目录，各 Agent 的索引、设置与资源都在其下。
@@ -150,7 +154,11 @@ impl UsageService {
         let directory = current_user_home().map(|home| home.join(".local/share/app-loki-metris"));
         let directory = std::env::var_os("LOKI_METRIS_DATA_DIR").map(PathBuf::from).or(directory)
             .filter(|path| path.is_absolute()).ok_or("usage_directory_unavailable")?;
-        Self::in_directory(directory)
+        let service = Self::in_directory(directory)?;
+        if let Err(error) = service.context.devices.resume_saved_server() {
+            tracing::warn!(code = error, "paired device service could not resume");
+        }
+        Ok(service)
     }
 
     /// 显式目录入口供隔离回归使用，不重定向 HOME 或读取参考 App 配置。
@@ -166,9 +174,10 @@ impl UsageService {
         let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone(),today_refresh.clone(),notification_source_epoch.clone()));
         let skins=Arc::new(skins::OwnedSkins::new(&directory));
         let devices = Arc::new(devices::Devices::new(&directory, background.clone()));
-        let context = Arc::new(ServiceContext { devices, directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
+        let context = Arc::new(ServiceContext { background: background.clone(), today_aggregate_gate: Arc::new(tokio::sync::Semaphore::new(1)), devices, directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
             settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default() });
+        context.devices.bind_context(Arc::downgrade(&context));
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
         let worker = scans.clone(); let state = context.clone();
@@ -237,6 +246,9 @@ impl UsageService {
             runtime.block_on(self.background.shutdown());
             if runtime.block_on(self.context.devices.cleanup_daemon()).is_err() {
                 tracing::warn!(event="device_mdns_shutdown_unconfirmed");
+            }
+            if runtime.block_on(self.context.devices.cleanup_host_daemon()).is_err() {
+                tracing::warn!(event="device_host_mdns_shutdown_unconfirmed");
             }
             self.context.skins.cleanup_imports();
             for change in plan.changes {
