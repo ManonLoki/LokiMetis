@@ -158,6 +158,11 @@
       "change_id": "LMDESK-QUOTA-PLAN-TAG-001",
       "kind": "bug-fix",
       "required_version": "0.7.2"
+    },
+    {
+      "change_id": "FEAT-PAIRING-RECOVERY-V1",
+      "kind": "feature",
+      "required_version": "0.7.2"
     }
   ],
   "schema_version": 1,

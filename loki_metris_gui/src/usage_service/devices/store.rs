@@ -5,8 +5,8 @@ use std::{fs, io::{Read, Write}, path::{Path, PathBuf}, sync::Mutex};
 
 /// 单锁覆盖设备读取、领域变更、原子落盘与内存提交，不把秘密交给页面。
 pub(super) struct DeviceStore {
-    path: PathBuf,
-    book: Mutex<Option<DeviceBook>>,
+    pub(super) path: PathBuf,
+    pub(super) book: Mutex<Option<DeviceBook>>,
 }
 
 impl DeviceStore {
@@ -74,7 +74,7 @@ fn validate_private(path: &Path, directory: bool) -> Result<(), &'static str> {
 }
 
 /// 新安装缺文件允许创建内存身份；已存在损坏快照不得自动覆盖。
-fn load_file(path: &Path) -> Result<DeviceBook, &'static str> {
+pub(super) fn load_file(path: &Path) -> Result<DeviceBook, &'static str> {
     let parent = path.parent().ok_or("device_storage_failed")?;
     match fs::symlink_metadata(parent) {
         Ok(_) => validate_private(parent, true)?,
@@ -93,7 +93,7 @@ fn load_file(path: &Path) -> Result<DeviceBook, &'static str> {
 }
 
 /// 先同步同目录0600临时文件再原子替换，失败保留旧文件并由tempfile清理临时物。
-fn save_file(path: &Path, book: &DeviceBook) -> Result<(), &'static str> {
+pub(super) fn save_file(path: &Path, book: &DeviceBook) -> Result<(), &'static str> {
     let parent = path.parent().ok_or("device_storage_failed")?;
     let root = parent.parent().ok_or("device_storage_failed")?;
     fs::create_dir_all(root).map_err(|_| "device_storage_failed")?;

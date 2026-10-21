@@ -4,8 +4,12 @@ mod dialog;
 mod view;
 mod paired_card;
 mod artwork;
+mod recovery;
+mod recovery_view;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod recovery_tests;
 
 use super::Shell;
 use crate::usage_service::DeviceView;
@@ -17,6 +21,9 @@ pub(super) struct DevicesView {
     snapshot: DeviceView,
     error: Option<&'static str>,
     modal: Option<dialog::DeviceDialog>,
+    recovery: Option<recovery::RecoveryDialog>,
+    recovery_task: Option<gpui_kit::Task<()>>,
+    recovery_busy: bool,
 }
 
 impl Shell {
@@ -29,7 +36,7 @@ impl Shell {
         }
     }
     /// 模态状态由设备模块拥有，不向壳层泄漏私有草稿类型。
-    pub(in crate::app) fn device_modal_open(&self) -> bool { self.devices.modal.is_some() }
+    pub(in crate::app) fn device_modal_open(&self) -> bool { self.devices.modal.is_some() || self.devices.recovery.is_some() }
     /// 进入页面只读取保存列表并确保服务运行，不再发起旧终端浏览。
     pub(in crate::app) fn enter_devices(&mut self, cx: &mut Context<Self>) {
         self.devices.error = None;
@@ -69,7 +76,7 @@ impl Shell {
             !self.devices.snapshot.requests.iter().any(|current| current.ticket == request.ticket && current.device.id == request.device.id))) {
             self.close_device_dialog(window, cx);
         }
-        if self.devices.modal.is_some() || self.devices.snapshot.pending || !self.devices.snapshot.loaded
+        if self.device_modal_open() || self.devices.recovery_busy || self.devices.snapshot.pending || !self.devices.snapshot.loaded
             || self.release_notes_modal.is_some() || self.skin_modal_open() || self.source_modal_open() { return; }
         if let Some(request) = self.devices.snapshot.requests.first().cloned() {
             self.open_device_dialog(request.device.id, request.device.name, false, window, cx);
@@ -95,6 +102,10 @@ impl Shell {
             "device_cancelled" => "cancelled",
             "device_busy" => "busy",
             "device_protocol_invalid" => "protocolInvalid",
+            "device_recovery_invalid" => "recoveryInvalid",
+            "device_recovery_conflict" => "recoveryConflict",
+            "device_recovery_file_failed" => "recoveryFileFailed",
+            "device_recovery_file_exists" => "recoveryFileExists",
             _ => "unavailable",
         };
         self.t(&format!("devices.errors.{suffix}"))

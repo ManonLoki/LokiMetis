@@ -155,7 +155,7 @@ impl Devices {
         let result = async {
             // 首版监听IPv4；不发布无法接受连接的IPv6或环回端点。
             daemon.disable_interface(vec![mdns_sd::IfKind::IPv6, mdns_sd::IfKind::LoopbackV4]).map_err(|_| "device_discovery_failed")?;
-            let instance = format!("LokiMetris-{}", &book.client_id()[..8]); let host = format!("loki-{}.local.", book.client_id());
+            let instance = self.instance_name(&book); let host = format!("loki-{}.local.", book.client_id());
             let properties = [("v", "1"), ("id", book.client_id()), ("name", instance.as_str())];
             let info = mdns_sd::ServiceInfo::new(HOST_SERVICE_TYPE, &instance, &host, "", port, properties.as_slice())
                 .map_err(|_| "device_discovery_failed")?.enable_addr_auto();

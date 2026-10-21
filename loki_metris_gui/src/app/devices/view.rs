@@ -5,7 +5,7 @@ use crate::app::surface::{StaticCard, StaticMaterial, SurfaceButton, SurfaceButt
 use gpui_kit::assets::IconName;
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role,
-    base::TestSupportExt as _, component::{ActiveTheme, Icon},
+    base::TestSupportExt as _, component::{ActiveTheme, Disableable, Icon},
     div, prelude::*, px,
 };
 
@@ -25,7 +25,7 @@ impl Shell {
                 .aria_label(self.device_error_text(error)).text_color(cx.theme().danger)
                 .child(self.device_error_text(error)));
         } else if let Some(completed) = state.completed {
-            let feedback = self.t(if completed == "paired" { "devices.paired" } else { "devices.removed" });
+            let feedback = self.t(match completed { "paired" => "devices.paired", "restored" => "devices.recovery.restored", _ => "devices.removed" });
             page = page.child(div().id("devices-feedback").test_support().role(Role::Status)
                 .aria_label(feedback.clone()).child(feedback));
         }
@@ -58,7 +58,31 @@ impl Shell {
             saved = saved.child(div().id("devices-saved-grid").test_support().w_full().grid().grid_cols(columns)
                 .gap_5().children(state.saved.iter().map(|device| self.paired_device_card(device, cx))));
         }
-        page.child(saved).into_any_element()
+        page.child(self.device_recovery_controls(cx)).child(saved).into_any_element()
+    }
+
+    /// 正式/测试身份与恢复入口位于设备页；按钮只提交显式用户动作。
+    fn device_recovery_controls(&self, cx: &mut Context<Self>) -> AnyElement {
+        let dark = cx.theme().mode.is_dark();
+        let disabled = self.devices.snapshot.pending || self.devices.recovery_busy || self.device_modal_open();
+        let mut identity = div().id("devices-instance").test_support().flex().flex_col().gap_2();
+        if let Some((id, name, isolated)) = &self.devices.snapshot.instance {
+            identity = identity.child(div().id("devices-instance-name").test_support().role(Role::Label)
+                .aria_label(name.clone()).font_weight(FontWeight::SEMIBOLD).child(name.clone()))
+                .child(div().text_size(px(12.)).text_color(cx.theme().muted_foreground).child(id.clone()))
+                .child(div().id("devices-instance-kind").test_support().role(Role::Label)
+                    .aria_label(self.t(if *isolated { "devices.recovery.testInstance" } else { "devices.recovery.standardInstance" }))
+                    .child(self.t(if *isolated { "devices.recovery.testInstance" } else { "devices.recovery.standardInstance" })));
+        }
+        identity.child(div().text_size(px(13.)).text_color(cx.theme().muted_foreground).child(self.t("devices.recovery.hint")))
+            .child(div().flex().flex_wrap().gap_2()
+                .child(SurfaceButton::new("devices-recovery-export", SurfaceButtonVariant::SubtleBrand, dark)
+                    .label(self.t("devices.recovery.export")).disabled(disabled || !self.devices.snapshot.loaded)
+                    .on_click(cx.listener(|this, _, window, cx| this.choose_device_recovery_export(window, cx))))
+                .child(SurfaceButton::new("devices-recovery-import", SurfaceButtonVariant::SubtleBrand, dark)
+                    .label(self.t("devices.recovery.import")).disabled(disabled || !self.devices.snapshot.loaded)
+                    .on_click(cx.listener(|this, _, window, cx| this.choose_device_recovery_import(window, cx)))))
+            .into_any_element()
     }
 
     /// 分区标题统一使用原生二级标题及轻量计数，避免再套一层卡片。

@@ -5,6 +5,7 @@ pub mod link;
 pub mod presence;
 pub mod companion;
 pub mod widget;
+pub mod recovery;
 #[cfg(test)]
 mod tests;
 
@@ -94,7 +95,7 @@ pub struct SavedDeviceSummary {
 }
 
 /// 共享密钥仅在领域与私有存储之间流动；Debug始终脱敏。
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct PairingKey([u8; 32]);
 impl std::fmt::Debug for PairingKey {
     /// 调试输出不泄露设备共享密钥。
@@ -112,7 +113,7 @@ pub struct VerifiedPairing {
 }
 
 /// 本地单条保存记录；端点不持久化，避免IP变化或复用绕过身份绑定。
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct SavedDevice {
     id: String,
     name: String,
@@ -120,7 +121,7 @@ struct SavedDevice {
 }
 
 /// 设备权威列表在完整校验后加载；损坏文件不能按空列表覆盖。
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeviceBook {
     schema_version: u8,

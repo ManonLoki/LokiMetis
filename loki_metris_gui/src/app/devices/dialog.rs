@@ -83,6 +83,7 @@ impl Shell {
 
     /// 模态使用现有原生焦点陷阱，按钮自己处理Enter，背景辅助树由壳层隔离。
     pub(in crate::app) fn device_dialog(&self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if self.devices.recovery.is_some() { return self.device_recovery_dialog(cx); }
         let modal = self.devices.modal.as_ref()?;
         let title = self.t(if modal.remove { "devices.removeTitle" } else { "devices.pairTitle" });
         let description = self.t(if modal.remove { "devices.removeDescription" } else { "devices.pairDescription" }).replace("{{name}}", &modal.name);

@@ -7,6 +7,9 @@ mod server;
 mod publication;
 mod widget_http;
 mod store;
+mod recovery_store;
+mod recovery;
+pub(crate) use recovery::DeviceRecoveryPreview;
 mod transport;
 #[cfg(test)]
 mod tests;
@@ -20,6 +23,8 @@ use tokio::sync::{oneshot, watch};
 /// 页面只读无秘密的当前投影；“已发现”只表示近期广告，不能宣称已认证在线。
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub(crate) struct DeviceView {
+    /// 当前数据根的桌面身份及正式/测试名称，不包含任何凭据。
+    pub instance: Option<(String, String, bool)>,
     /// 已成功读取过保存列表。
     pub loaded: bool,
     /// 读取、配对或移除正在执行；同一时刻只有一项。
@@ -60,6 +65,8 @@ pub(crate) struct DevicePairingRequest {
 /// 服务状态只在短锁内访问；磁盘读写与网络等待均在锁外执行。
 #[derive(Default)]
 struct DeviceState {
+    /// 解密预览留在应用服务，只有精确票据可消费，GUI不持有账本。
+    recovery: Option<(String, loki_metris_core::devices::recovery::RecoveryPlan)>,
     view: DeviceView,
     candidates: BTreeMap<String, (DiscoveredDevice, Instant)>,
     scan_cancel: Option<watch::Sender<bool>>,
@@ -77,6 +84,8 @@ struct DeviceState {
 
 /// 领域账本与网络会话的应用级唯一owner，页面切换不改变监听与连接寿命。
 pub(super) struct Devices {
+    /// 隔离运行只标识自己的数据根，不读取或复制正式配对信任。
+    pub(in crate::usage_service) isolated: bool,
     store: Arc<store::DeviceStore>,
     owner: Arc<BackgroundTaskOwner>,
     state: Mutex<DeviceState>,
@@ -97,7 +106,7 @@ pub(super) struct Devices {
 impl Devices {
     /// 构造不加载文件、不发包，不建立第二套Tokio运行时。
     pub(super) fn new(directory: &Path, owner: Arc<BackgroundTaskOwner>) -> Self {
-        Self { store: Arc::new(store::DeviceStore::new(directory)), owner, state: Mutex::new(DeviceState::default()), daemon: Mutex::new(None), host_daemon: Mutex::new(None),
+        Self { isolated: true, store: Arc::new(store::DeviceStore::new(directory)), owner, state: Mutex::new(DeviceState::default()), daemon: Mutex::new(None), host_daemon: Mutex::new(None),
             context: Default::default(), publications: watch::channel(Arc::new(publication::Publication::default())).0, publication_refresh: Default::default(), catalog_gate: Arc::new(tokio::sync::Semaphore::new(1)) }
     }
 
@@ -126,6 +135,7 @@ impl Devices {
         view.requests.sort_by_key(|request| request.ticket);
         view.discovered.extend(state.candidates.values().filter_map(|(device, _)| ids.insert(device.id.clone()).then_some(device.clone())));
         if let Some(book) = &state.book {
+            view.instance = Some((book.client_id().into(), self.instance_name(book), self.isolated));
             view.presence = state.presence.snapshot(book, Instant::now());
             for presence in &mut view.presence {
                 presence.since_last_contact = presence.since_last_contact.map(|age| Duration::from_secs(age.as_secs()));

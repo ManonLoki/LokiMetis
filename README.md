@@ -18,6 +18,7 @@ LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面
 - 看板、调用/统计/图表、来源发现与索引、用量设置、监控档案/图库/Hooks、独立桌宠与公共偏好。
 - 皮肤页已接入六套内置资源、用户主题创建、ZIP 预检/导入/导出和宿主应用编排。
 - “终端设备”页提供桌面LAN服务与四位码配对，Android/iPhone主动发现和连接；推送Token/Hooks，缺失图片按摘要补取并缓存。Watch经iPhone配套同步，iOS组件读取最近缓存，见[联动协议](docs/DEVICE_LINK_PROTOCOL.md)。
+- 终端设备页显示当前桌面UUID与正式/测试实例；隔离数据根的Bonjour名称带`TEST`，配对信任各自独立。重装前可导出加密配对备份，将随机恢复码单独保管；新安装选择备份、输入恢复码、核对原桌面身份后明确恢复。冲突记录不覆盖，覆盖安装保留原用户数据目录即可沿用配对。恢复的边界见[配对备份](docs/DEVICE_PAIRING_PROTOCOL.md#加密配对备份与恢复)。
 - 字体随 App 内嵌，不进行全局包或字体安装；历史源码目录和已安装参考 App 都不是运行时依赖。
 - 保留已选金色神谕之眼 Logo 和独立 `com.loki-metris.app` 身份，不会覆盖参考 App。
 

@@ -911,7 +911,11 @@
       "busy": "另一项设备操作正在处理，请稍候。",
       "protocolInvalid": "接收端协议不兼容或响应无效。",
       "unavailable": "设备服务当前不可用，请稍后重试。",
-      "pairingUnavailable": "此设备尚未启用配对"
+      "pairingUnavailable": "此设备尚未启用配对",
+      "recoveryInvalid": "备份文件或恢复码无效。",
+      "recoveryConflict": "配对记录冲突或预览后已变化，未覆盖任何记录。仅空账本或与备份完全相同的记录可恢复。",
+      "recoveryFileFailed": "无法读取或保存配对备份。",
+      "recoveryFileExists": "此文件已存在，请选择新文件名。"
     },
     "pairingUnavailable": "此设备尚未启用配对",
     "online": "在线",
@@ -934,6 +938,23 @@
     "generic": "设备",
     "illustration": "{{name}}的设备示意图",
     "ipPending": "IP · 等待连接",
-    "appVersion": "应用版本"
+    "appVersion": "应用版本",
+    "recovery": {
+      "restored": "配对已恢复，正在连接原设备…",
+      "testInstance": "测试实例 · 配对记录独立",
+      "standardInstance": "正式实例",
+      "hint": "重装前可导出加密配对备份，并将恢复码单独保存。",
+      "export": "导出配对备份",
+      "import": "恢复配对备份",
+      "exported": "加密配对备份已保存",
+      "codeHint": "请将恢复码与备份文件分开保管。恢复配对必须使用此码，关闭窗口后不再显示。",
+      "copyCode": "复制恢复码",
+      "enterCode": "输入所选备份的恢复码。",
+      "previewHint": "恢复以下桌面身份及其已配对设备？已有冲突配对记录会保留，并拒绝本次恢复。",
+      "peerRevocationHint": "旧备份可能包含后来在本机忘记的配对，确认恢复将重新授予这些本地权限。对端已忘记配对时仍需重新配对。同一身份请仅运行一个桌面实例。",
+      "preview": "预览恢复内容",
+      "confirm": "恢复此身份",
+      "done": "完成"
+    }
   }
 }

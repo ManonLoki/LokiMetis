@@ -21,6 +21,7 @@ mod agents;
 mod receipt;
 mod devices;
 pub(crate) use devices::{DeviceView, DevicePairingRequest};
+pub(crate) use devices::DeviceRecoveryPreview;
 pub(crate) use receipt::{poll_receipt, receipt};
 mod pet;
 mod skins;
@@ -155,9 +156,13 @@ impl UsageService {
         let directory = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).map(|root| root.join("app-loki-metris/data"));
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let directory = current_user_home().map(|home| home.join(".local/share/app-loki-metris"));
-        let directory = std::env::var_os("LOKI_METRIS_DATA_DIR").map(PathBuf::from).or(directory)
+        let override_directory = std::env::var_os("LOKI_METRIS_DATA_DIR").map(PathBuf::from);
+        let isolated = override_directory.as_ref().is_some_and(|selected| directory.as_ref().is_none_or(|normal| {
+            selected != normal && std::fs::canonicalize(selected).ok().zip(std::fs::canonicalize(normal).ok()).is_none_or(|(a,b)| a != b)
+        }));
+        let directory = override_directory.or(directory)
             .filter(|path| path.is_absolute()).ok_or("usage_directory_unavailable")?;
-        let service = Self::in_directory(directory)?;
+        let service = Self::in_directory_profile(directory, isolated)?;
         if let Err(error) = service.context.devices.start_application_server() {
             tracing::warn!(code = error, "device service could not start");
         }
@@ -165,7 +170,13 @@ impl UsageService {
     }
 
     /// 显式目录入口供隔离回归使用，不重定向 HOME 或读取参考 App 配置。
+    #[cfg(test)]
     fn in_directory(directory: PathBuf) -> Result<Arc<Self>, &'static str> {
+        Self::in_directory_profile(directory, true)
+    }
+
+    /// 数据根与实例类型一起冻结，正式/隔离运行从不隐式共享或迁移配对账本。
+    fn in_directory_profile(directory: PathBuf, isolated: bool) -> Result<Arc<Self>, &'static str> {
         let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2)
             .thread_name("loki-metris-usage").thread_stack_size(16 * 1024 * 1024)
             .enable_all().build().map_err(|_| "usage_runtime_unavailable")?;
@@ -176,7 +187,9 @@ impl UsageService {
         let notification_source_epoch=Arc::new(std::sync::atomic::AtomicU64::new(0));
         let agents=Arc::new(agents::AgentSettingsStore::new(directory.join("monitor"),background.clone(),today_refresh.clone(),notification_source_epoch.clone()));
         let skins=Arc::new(skins::OwnedSkins::new(&directory));
-        let devices = Arc::new(devices::Devices::new(&directory, background.clone()));
+        let mut devices = devices::Devices::new(&directory, background.clone());
+        devices.isolated = isolated;
+        let devices = Arc::new(devices);
         let context = Arc::new(ServiceContext { background: background.clone(), today_aggregate_gate: Arc::new(tokio::sync::Semaphore::new(1)), devices, directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
             settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default(), quota: Arc::new(provider_quota::QuotaBoard::new()) });
