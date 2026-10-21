@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "5c092932aa45f42927af93a2997519e61c79aa9e",
-  "version": "0.7.8",
+  "sourceHead": "4393dfb7b525134024362ec7c6430fe4117ad419",
+  "version": "0.7.9",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.8-20261022",
+  "expectedTag": "v0.7.9-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "cf7ab411b4ae68a2af9ed9d4f0db1652b3c79494",
-    "sourceHead": "5c092932aa45f42927af93a2997519e61c79aa9e",
-    "scopeDiffSha256": "6b6f4c95fde5b9f507602f709eafa1be6c70e9206f8f24005f16920b7b20253d",
-    "reviewedSourceCommit": "5c092932aa45f42927af93a2997519e61c79aa9e",
+    "scopeBase": "be11cd83987ae877397d892bf5f11a128e5fd996",
+    "sourceHead": "4393dfb7b525134024362ec7c6430fe4117ad419",
+    "scopeDiffSha256": "f5b24c36595ff67408fa5c8d6457d89b94f37b70e5878969e15cd620bb59ab40",
+    "reviewedSourceCommit": "4393dfb7b525134024362ec7c6430fe4117ad419",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "只读审查确认Windows原生PowerShell、显式MSVC链接器和环境参数匹配；证书导入诊断脱敏且复读批准身份，不改变业务或数据契约。2项发布完整性回归与Node/YAML解析通过。原P12默认格式失败已复现，兼容格式临时钥匙串导入及Developer ID指纹校验通过；秘密仅更新Actions secrets。新宿主全量构建、公证和最终字节校验由CI继续执行，本次E2E关闭。",
+    "evidenceSummary": "修复GitHub服务端实际422诊断：step shell不消费runner上下文，改为矩阵显式shell。矩阵解析验证Windows为pwsh、其余为bash；变更仅工作流与受管版本状态，无业务或对外数据契约变化，无临时/秘密标记。其余已审查的原生链接、双公证和制品校验路径不变，本次E2E仍关闭。",
     "reason": null,
     "remainingRisk": null
   }
