@@ -98,9 +98,10 @@ impl QuotaWindow {
 }
 
 impl ProviderQuota {
-    /// 只有真实短窗口才具备额度卡展示资格，周窗口不能替代五小时窗口。
-    pub const fn has_five_hour_window(&self) -> bool {
+    /// 任一真实额度窗口都能展示；缺少短窗不能遮掉已有周额度。
+    pub const fn has_usage_window(&self) -> bool {
         matches!(self.five_hour, Some(QuotaWindow { kind: QuotaWindowKind::FiveHour, .. }))
+            || matches!(self.weekly, Some(QuotaWindow { kind: QuotaWindowKind::Weekly, .. }))
     }
 }
 

@@ -14,18 +14,19 @@ fn providers_follow_requested_order_and_omit_unavailable_tools() {
     assert!(providers.into_iter().all(|provider| !matches!(provider.ai_tool(), AiTool::ClaudeCode | AiTool::WorkBuddy)));
 }
 
-/// 缺失、仅周窗口与错放的窗口均不能获得展示资格，零余额仍是有效短窗。
+/// 周额度可以单独展示，错放类型不算有效窗口，零余额仍是有效短窗。
 #[test]
-fn quota_display_requires_a_real_five_hour_window() {
+fn quota_display_keeps_either_real_window_including_weekly_only() {
     let mut quota = parse_provider_quota(QuotaProvider::Codex, "{}").unwrap();
-    assert!(!quota.has_five_hour_window());
+    assert!(!quota.has_usage_window());
     let weekly = super::QuotaWindow { kind: QuotaWindowKind::Weekly, used_tenths: 1000, reset_at_unix: None };
     quota.weekly = Some(weekly);
-    assert!(!quota.has_five_hour_window());
+    assert!(quota.has_usage_window());
+    quota.weekly = None;
     quota.five_hour = Some(weekly);
-    assert!(!quota.has_five_hour_window());
+    assert!(!quota.has_usage_window());
     quota.five_hour = Some(super::QuotaWindow { kind: QuotaWindowKind::FiveHour, ..weekly });
-    assert!(quota.has_five_hour_window());
+    assert!(quota.has_usage_window());
 }
 
 #[test]

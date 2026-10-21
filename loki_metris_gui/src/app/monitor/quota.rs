@@ -25,7 +25,7 @@ impl Shell {
         }
     }
 
-    /// 仅挂载带真实五小时窗口的卡；全部不可用时连同标题和刷新按钮一起隐藏。
+    /// 任一窗口有数据即可挂载卡片；全部不可用时隐藏面板。
     pub(super) fn monitor_quota_board(&self, cx: &Context<Self>) -> Option<AnyElement> {
         let quotas: Vec<_> = self.monitor.quota.cards.iter().filter_map(visible_quota).collect();
         if quotas.is_empty() {
@@ -76,10 +76,10 @@ impl Shell {
     }
 }
 
-/// 将后台阶段映射为可展示额度；等待、失败和只有周窗口都隐藏。
+/// 将后台阶段映射为可展示额度，等待和失败隐藏，已有周额度独立展示。
 fn visible_quota(card: &QuotaCard) -> Option<&ProviderQuota> {
     match &card.phase {
-        QuotaCardPhase::Ready(quota) if quota.has_five_hour_window() => Some(quota),
+        QuotaCardPhase::Ready(quota) if quota.has_usage_window() => Some(quota),
         _ => None,
     }
 }

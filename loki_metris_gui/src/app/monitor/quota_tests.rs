@@ -46,14 +46,12 @@ fn reset_and_remaining_text_follow_the_injected_clock() {
     assert_eq!(reset_text(7_200, 0, &t).as_deref(), Some("2 小时后重置"));
 }
 
-/// 所有失败阶段、等待、无目标窗口和只有周额度的提供商都不占位。
+/// 所有失败阶段、等待和无目标窗口的提供商都不占位。
 #[gpui_kit::test]
-fn quota_board_hides_unavailable_and_weekly_only_cards(cx: &mut gpui_kit::TestAppContext) {
+fn quota_board_hides_unavailable_cards(cx: &mut gpui_kit::TestAppContext) {
     let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
     cx.update_window(handle, |_, window, cx| {
-        let mut weekly_only = quota(QuotaProvider::Codex, 500, Some(800));
-        weekly_only.five_hour = None;
-        let mut phases = vec![QuotaCardPhase::Pending, QuotaCardPhase::NoWindow { plan: Some("pro".to_owned()) }, QuotaCardPhase::Ready(weekly_only)];
+        let mut phases = vec![QuotaCardPhase::Pending, QuotaCardPhase::NoWindow { plan: Some("pro".to_owned()) }];
         phases.extend([QuotaFailure::MissingCredentials, QuotaFailure::CredentialLocked, QuotaFailure::Unauthorized, QuotaFailure::Transport, QuotaFailure::Malformed].map(QuotaCardPhase::Failed));
         for phase in phases {
             shell.update(cx, |this, cx| {
@@ -67,6 +65,27 @@ fn quota_board_hides_unavailable_and_weekly_only_cards(cx: &mut gpui_kit::TestAp
                 assert!(window.try_find(id).is_none(), "不可用时不应挂载 {id}");
             }
         }
+    }).unwrap();
+}
+
+/// 真实Codex字段把周额度放在primary时仍展示周进度，只隐藏缺失的五小时行。
+#[gpui_kit::test]
+fn quota_board_renders_codex_weekly_primary_without_five_hour(cx: &mut gpui_kit::TestAppContext) {
+    let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+    cx.update_window(handle, |_, window, cx| {
+        let body = r#"{"payload":{"type":"token_count","rate_limits":{"limit_id":"codex","plan_type":"pro","primary":{"used_percent":97.0,"window_minutes":10080,"resets_at":1900000000}}}}"#;
+        let quota = loki_metris_core::parse_provider_quota(QuotaProvider::Codex, body).unwrap();
+        shell.update(cx, |this, cx| {
+            this.page = crate::app::Page::Monitor;
+            this.monitor.status = None;
+            this.monitor.quota.cards[0].phase = QuotaCardPhase::Ready(quota);
+            cx.notify();
+        });
+        window.render_frame(cx);
+        assert!(window.try_find("monitor-quota").is_some());
+        assert!(window.try_find("monitor-quota-codex").is_some());
+        assert!(window.try_find("monitor-quota-codex-five-hour").is_none());
+        assert_bar(window, "monitor-quota-codex-weekly", 30, cx.theme().danger);
     }).unwrap();
 }
 
