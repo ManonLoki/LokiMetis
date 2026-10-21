@@ -12,7 +12,7 @@ change_id：`LMDESK-TERMINAL-LINK-001`；required_version：`0.6.0`。日期：2
 
 每条新连接的第一帧是严格`ConnectionIntroduction { kind, value }`：`kind=pairing`时value为`PairingOffer { version:1, clientId, deviceId, name }`；`kind=resume`时value为下述`SessionHello`。临时报到仅在终端主动配对窗口内发送：移动端TCP就绪后、报到前建立至多60秒窗口；桌面收到介绍后最多等待60秒，用户输入四位码后执行原四帧配对，实际剩余期限仍由接收端窗口约束，真实本地保存后才授信。首次介绍、恢复认证及开始密码交换后的阶段各有15秒预算；最多8条未认证连接，全部已保存及未认证连接合计至多72条，由同一JoinSet拥有。未知身份、取消、任一协议错误均关闭该socket。
 
-用户最终选择纯局域网，不做息屏推送：后台保留已接收缓存，恢复时重新认证并补齐最新快照。iOS挂起、Android Doze都不能由长连接或轮询绕过。Watch选iPhone配套传输，不复用手机IP或在线状态。官方依据：[iOS后台](https://developer.apple.com/documentation/uikit/extending-your-app-s-background-execution-time)、[Android Doze](https://developer.android.com/training/monitoring-device-state/doze-standby)、[watchOS低层网络限制](https://developer.apple.com/documentation/technotes/tn3135-low-level-networking-on-watchos)、[WatchConnectivity](https://developer.apple.com/documentation/watchconnectivity/wcsession)；核对日期2026-10-21。
+用户最终选择纯局域网，不做息屏推送：后台清空Token与Hooks展示，仅保留配对及图片缓存；恢复时重新认证并等待最新快照。iOS挂起、Android Doze都不能由长连接或轮询绕过。Watch选iPhone配套传输，不复用手机IP或在线状态。官方依据：[iOS后台](https://developer.apple.com/documentation/uikit/extending-your-app-s-background-execution-time)、[Android Doze](https://developer.android.com/training/monitoring-device-state/doze-standby)、[watchOS低层网络限制](https://developer.apple.com/documentation/technotes/tn3135-low-level-networking-on-watchos)、[WatchConnectivity](https://developer.apple.com/documentation/watchconnectivity/wcsession)；核对日期2026-10-21。
 
 ## 已实现的配对后认证会话
 
@@ -66,7 +66,7 @@ core只允许当前、未过期且仍受账本信任的租约更新形态。形�
 
 ## 已实现的宿主接线与剩余验证边界
 
-桌面网络适配器已接入握手总期限、连接并发上限、应用退出回收，以及在当前账本下原子提交presence。加密控制消息为`{ type:"ping", nonce }`、`{ type:"pong", nonce }`或`{ type:"pause" }`；Pong必须匹配在途Ping。JSON分帧读进度由连接owner持有，select取消不丢失半帧；半写取消或任何解码/认证错误均关闭socket。启动只读快照不能覆盖用户移除结果，空账本的旧重启令牌不能跨越离页取消。设备页区分认证当前IP与不可达时的上次IP。
+桌面网络适配器已接入握手总期限、连接并发上限、应用退出回收，以及在当前账本下原子提交presence。加密控制消息为`{ type:"ping", nonce }`、`{ type:"pong", nonce }`或`{ type:"pause" }`；Pong必须匹配在途Ping。JSON分帧读进度由连接owner持有，select取消不丢失半帧；半写取消或任何解码/认证错误均关闭socket。启动只读快照不能覆盖用户移除结果，页面切换与隐藏不关闭应用服务。设备页区分认证当前IP与不可达时的上次IP。
 
 桌面已实现业务快照和资源传输：首条桌面业务消息为`{type:"snapshot", snapshot, capabilities:["watchCompanionV1","deviceFormFactorV1"]}`，之后每次更新沿同一通道推送完整快照。`snapshot.version=1`；`tokens`含`day {date,zone,startMs,endMs}`、同轮`observedMs`、`all`及`agents [{agent,amount}]`。每份amount含十进制字符串或null的`total`、`availability`及完整度/置信度；未扫描与读取失败不冒充零。Token每30秒最多重读一次，连接归零停止周期读取；初连重新读取，超过90秒或跨日的旧值不作为当前值发送。
 
@@ -78,11 +78,11 @@ Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,content
 
 iOS显示项目已写入应用级`LanLinkEngine`与`LanSocket`接线：主动浏览桌面服务、显式配对、Keychain真实保存后ACK、新socket恢复、裸DeviceInfo、加密心跳/完整快照与逐块图片请求。前后台由App拥有，切页或保存名称不重启连接；显式停止在当前进程内优先于自动恢复。每轮最多8次传输重试，真实前台恢复或目标新广告可开启新轮，不能修改共享密码窗口预算。读进度、8帧写队列、半写超时和主线程最新投影各自有owner与容量边界。
 
-手机完整展示快照写入App私有`DisplayCache/display-lan-v1.json`，供进程重启后的历史展示；摘要另经App Group供Widget使用，正文/图片与配对秘密不进入组件文件。iOS图片只下载当前Hook实际引用的摘要，Rust逐块及完整校验后同步磁盘、重读校验并原子提交，成功缓存直接复用。后台缩略图解码限制为512像素，当前展示静态缩略图；图片缓存保留当前引用并按复用时间收敛到512MiB，精确回收本产品崩溃遗留半成品。源码接线不等于任意构建或宿主已验收，具体运行范围由相应开发证据限定。
+手机完整展示快照仅保留在当前认证连接内存，不保存或恢复历史Token与Hooks；断开、后台、换目标和重启清空投影，旧`DisplayCache/display-lan-v1.json`只作精确迁移删除。App Group仅共享schema 2的当前摘要，认证心跳维持45秒租约，连接失效请求删除，过期/旧格式为空态，主App不从组件恢复。WidgetKit刷新仍由系统安排。正文/图片与配对秘密不进入组件文件。iOS图片只下载当前Hook实际引用的摘要，Rust逐块及完整校验后同步磁盘、重读校验并原子提交，成功缓存直接复用。后台缩略图解码限制为512像素，当前展示静态缩略图；图片缓存保留当前引用并按复用时间收敛到512MiB，精确回收本产品崩溃遗留半成品。源码接线不等于任意构建或宿主已验收，具体运行范围由相应开发证据限定。
 
 Android显示项目已写入应用级`AndroidLanEngine`、非阻塞`AndroidLanSocket`与DNS-SD浏览接线，移除旧的仅广播owner。`DisplayApplication`统一前后台与屏幕旋转，界面不拥有socket；主动选择、共享配对、Keystore真实保存后ACK、新TCP认证及裸DeviceInfo顺序同iOS。API34以上持续跟踪服务信息，旧版串行解析并刷新临时地址；发现停止或后台释放旧系统前台多播锁。地址不作为持久信任。
 
-Android已提交信任映射只在系统同步提交成功后更新，避免SharedPreferences失败写入的内存变化被读成已保存；每次持久化完整映射，最多64个桌面。完整快照与图片均在应用私有目录，真实原子提交后读回校验；完成前的部分文件不可被展示。严格JSON语法及64层上限在系统递归解析前执行。Android JNI与iOS静态库由移动构建脚本按目标编译并嵌入应用。原生加载、系统存储和完整数据链路需运行完整App验证，不能以源码或扩展独立编译代替E2E。
+Android已提交信任映射只在系统同步提交成功后更新，避免SharedPreferences失败写入的内存变化被读成已保存；每次持久化完整映射，最多64个桌面。Token与Hooks不再持久化，启动精确清理旧`lan-display-v1.json`及`.new/.bak`；失联/后台/换目标时清空内存投影。图片仍在应用私有目录，真实原子提交后读回校验，部分文件不展示。严格JSON语法及64层上限在系统递归解析前执行。Android JNI与iOS静态库由移动构建脚本按目标编译并嵌入应用。原生加载、系统存储和完整数据链路需运行完整App验证，不能以源码或扩展独立编译代替E2E。
 
 本次已运行的测试事实以提交说明和实际输出为准。隔离环回TCP、模拟时钟及固定测试密钥不替代真实局域网、Android/iOS/Watch或桌面跨平台运行证据。
 
@@ -90,11 +90,11 @@ Android已提交信任映射只在系统同步提交成功后更新，避免Shar
 
 移动项目已增加单target watchOS SwiftUI App与应用级`PhoneWatchBridge`/`WatchLinkEngine`。Watch默认展示，设备管理负责配套同步，名称与稳定UUID放设置。系统已配对的iPhone作为中转，Watch不建立桌面TCP或复用iPhone的配对秘密；桌面到iPhone走LAN，iPhone到Watch由系统配套通道决定蓝牙或Wi-Fi路径，不声称API可强制仅LAN。
 
-首版只使用带回执的`sendMessageData`：`version=1`，请求为`probe/requestSync/pause/snapshotBegin/snapshotChunk/assetBegin/assetChunk`；编码后的单RPC最多32KiB，正文块16KiB。完整快照包装最多96KiB，含来源桌面UUID、iPhone UUID、手机接收时刻及已通过完整解析的展示投影，不包含秘密。包装SHA-256绑定原始传输字节，Watch完整重组、解析、私有原子保存后才回复complete；cached只表示旧缓存重新核验，不把命中时刻写成新同步。
+首版只使用带回执的`sendMessageData`：`version=1`，请求为`probe/requestSync/pause/snapshotBegin/snapshotChunk/assetBegin/assetChunk`；编码后的单RPC最多32KiB，正文块16KiB。完整快照包装最多96KiB，含来源桌面UUID、iPhone UUID、手机接收时刻及已通过完整解析的展示投影，不包含秘密。包装SHA-256绑定原始传输字节，Watch完整重组、解析并接纳到当前前台内存后回复complete；不持久化Token与Hooks。cached只表示当前前台会话中相同完整快照重新核验，不把命中时刻写成新同步。
 
-两端各持一个物理请求槽和一份最新待发送投影。已开始的有界快照固定其字节与清单，提交后优先补齐已提交和最新Hooks共同引用的缺失图片，再发送合并后的最新快照；更新不能反复清零大图进度。资源撤销或代次变化取消在途作业，图片失败立即让位于新快照。引用移除时收敛旧图片ACK，重新引用须再核验缓存。8秒无回执只撤销逻辑资格，系统回调终态前不另排无限请求；旧请求结果受手机LAN代次和Watch前台UUID约束。Watch每次真正进入active建立新UUID，inactive/background立即撤销。iPhone只在当前LAN已认证且未退后台时转发；Watch唤醒手机的请求不会启动后台LAN。WC激活、已配对或isReachable都只作发送前提，必须有Watch前台回复才产生可通信投影；逐块有效ACK续45秒通信租约，完整快照落盘ACK才更新最近同步。
+两端各持一个物理请求槽和一份最新待发送投影。已开始的有界快照固定其字节与清单，提交后优先补齐已提交和最新Hooks共同引用的缺失图片，再发送合并后的最新快照；更新不能反复清零大图进度。资源撤销或代次变化取消在途作业，图片失败立即让位于新快照。引用移除时收敛旧图片ACK，重新引用须再核验缓存。8秒无回执只撤销逻辑资格，系统回调终态前不另排无限请求；旧请求结果受手机LAN代次和Watch前台UUID约束。Watch每次真正进入active建立新UUID，inactive/background立即撤销。iPhone只在当前LAN已认证且未退后台时转发；Watch唤醒手机的请求不会启动后台LAN。WC激活、已配对或isReachable都只作发送前提，必须有Watch前台回复才产生可通信投影；逐块有效ACK续45秒通信租约，完整快照校验并接纳到当前前台内存的ACK才更新最近同步。
 
-图片仍只包含当前Hook实际引用摘要。Watch检查元信息、严格偏移、完整长度、MIME魔数及SHA-256后原子提交；相同摘要命中不传正文，损坏后可重取。Watch私有不备份`WatchLink`目录分别保存安装身份、完整原始快照和资源，不把iPhone App Group视为跨设备目录。缩略图限制256像素，当前为静态展示；当前引用优先，其余缓存限制512MiB/512文件，取消和启动仅清理精确半成品。
+图片仍只包含当前Hook实际引用摘要。Watch检查元信息、严格偏移、完整长度、MIME魔数及SHA-256后原子提交；相同摘要命中不传正文，损坏后可重取。Watch私有不备份`WatchLink`目录只保存安装身份与资源，启动精确清理旧`watch-display-v1.json`，完整快照仅在当前前台内存中，不把iPhone App Group视为跨设备目录。缩略图限制256像素，当前为静态展示；当前引用优先，其余缓存限制512MiB/512文件，取消和启动仅清理精确半成品。
 
 没有接入application context或后台文件队列，不承诺息屏接收。官方依据：[WC即时数据与回执](https://developer.apple.com/documentation/watchconnectivity/wcsession/sendmessagedata(_:replyhandler:errorhandler:))、[可达性边界](https://developer.apple.com/documentation/watchconnectivity/wcsession/isreachable)、[单target Watch](https://developer.apple.com/documentation/watchos-apps/migrating-to-a-single-target-watchos-app)；核对日期2026-10-21。
 
@@ -102,8 +102,12 @@ Android已提交信任映射只在系统同步提交成功后更新，避免Shar
 
 手机在pong后或撤销Watch可达时发送`{type:"companionStatus",nonce,report:{info:{deviceId,name,appVersion},reachable,contact:{sequence,ageMs}|null,sync:{sequence,ageMs}|null}}`。只允许当前iOS父租约且仍保存原信任；一只Watch不创建第二份账本或凭据。nonce必须是该连接已发送且尚未过期的ping，网络owner有界保留最近四个，容许上一轮状态与下一轮ping交叉在途。未知nonce、旧父租约或Android报告关闭通道。
 
-实际Watch回执的序号在手机owner内递增，父连接/前台/换表不回退计数。contact的ageMs在发送前由手机单调时钟向上取整；完整快照持久化ACK才更新sync，缓存命中与图片ACK只更新contact。序号范围1..9007199254740991，历史年龄最多七天，更旧事实省略。同步序号不得大于通信序号，同步年龄不得小于通信年龄。
+实际Watch回执的序号在手机owner内递增，父连接/前台/换表不回退计数。contact的ageMs在发送前由手机单调时钟向上取整；完整快照通过校验并被当前前台内存接纳的ACK才更新sync，缓存命中与图片ACK只更新contact。序号范围1..9007199254740991，历史年龄最多七天，更旧事实省略。同步序号不得大于通信序号，同步年龄不得小于通信年龄。
 
 桌面用`收到状态时刻 − ping发送时刻 + ageMs`作为年龄上界，把排队和传输延迟也算入；上界不足45秒、父连接可达且新回执有效才显示可通信。相同序号不更新时间，倒退序号拒绝，false撤销后同序号true不能复活。父连接换代清除子状态，暂停/断线/超时/撤销立即使子投影不可达；父手机心跳不能续Watch租约。最近确认同步显示保守年龄，不使用两端墙钟计算在线。
 
 桌面、手机与Watch的源码接线、隔离回归和完整应用运行各自独立。真实图文传输、缓存复用和缺图恢复的证据绑定相应构建，不能将模拟器结果扩张为物理设备、常亮硬件或其它桌面宿主的结论。
+
+## 当前连接展示与失效
+
+change_id：`LMDESK-TERMINAL-LIVE-DISPLAY-001`；required_version：`0.6.2`。手机/Watch只显示当前连接收到的Token和Hooks，不恢复历史快照；配对身份与内容寻址图片文件保留。iPhone父连接失效时，单个待pause意图等待旧物理RPC终态后优先发送，Watch清空展示并更换前台接收代次；RPC超时、45秒通信租约过期和系统不可达也清空，迟到旧块不能恢复。新连接必须收到新完整快照才重新显示。Widget是当前连接摘要的有限共享，不是离线历史：45秒租约与预排空Timeline限制崩溃/挂起后的残留，系统调度可能延迟清屏，不能承诺断开瞬间刷新。

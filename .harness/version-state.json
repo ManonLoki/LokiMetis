@@ -178,6 +178,11 @@
       "change_id": "LMDESK-INCOMING-PAIRING-DIALOG-001",
       "kind": "feature",
       "required_version": "0.6.2"
+    },
+    {
+      "change_id": "LMDESK-TERMINAL-LIVE-DISPLAY-001",
+      "kind": "feature",
+      "required_version": "0.6.2"
     }
   ],
   "schema_version": 1,
