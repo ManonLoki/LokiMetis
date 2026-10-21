@@ -54,7 +54,7 @@ fn discovery_refresh_belongs_to_section_and_respects_busy_state(cx: &mut TestApp
     }
 }
 
-/// 宽窄窗口、双语和双主题保持紧凑卡片；IP与状态、版本与通信各自同行且长文不溢出。
+/// 宽窄窗口、双语和双主题保持三行卡片；平台与状态、名称与版本、IP与通信同行且不溢出。
 #[gpui_kit::test]
 fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppContext) {
     use gpui_kit::{px, component::{Theme, ThemeMode}};
@@ -115,19 +115,31 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                     assert!(card.size.height <= details.size.height.max(image.size.height) + px(35.), "卡片只保留内容高度与边框/内边距");
                 }
                 let status = window.find(format!("device-status-{id}")).bounds();
+                let platform = window.find(format!("device-platform-{id}")).bounds();
+                let remove = window.find(format!("device-remove-{id}")).bounds();
+                let header = window.find(format!("device-header-{id}")).bounds();
                 let address = window.find(format!("device-address-{id}")).bounds();
                 let version = window.find(format!("device-version-{id}")).bounds();
                 let contact = window.find(format!("device-contact-{id}")).bounds();
-                for content in [name, ip, address, status, version, contact, window.find(format!("device-metadata-{id}")).bounds()] {
+                for content in [name, ip, address, platform, status, version, contact, window.find(format!("device-metadata-{id}")).bounds()] {
                     assert!(content.left() >= details.left() && content.right() <= details.right() + px(1.));
                     assert!(content.top() >= details.top() && content.bottom() <= details.bottom() + px(1.));
                 }
                 assert!(address.size.height < px(40.));
-                assert!(status.left() >= address.right() + px(7.), "状态标签与IP不重叠");
-                assert!((status.center().y - address.center().y).abs() <= px(1.), "IP和状态标签保持同行");
-                assert!(contact.left() >= version.right(), "通信时间不能覆盖版本");
-                assert!((version.center().y - contact.center().y).abs() <= px(1.), "版本和通信时间保持同行");
-                assert!(version.size.width > px(20.) && contact.size.width > px(20.), "长文本不能挤掉另一项");
+                assert!((status.left() - platform.right() - px(8.)).abs() <= px(1.), "状态标签紧随平台");
+                assert!((status.center().y - platform.center().y).abs() <= px(1.), "平台和状态标签保持同行");
+                assert!(status.right() <= remove.left() - px(7.), "状态标签不覆盖移除按钮");
+                assert!(name.top() >= header.bottom(), "名称位于平台行下方");
+                assert!(version.left() >= name.right() + px(7.), "版本不能覆盖设备名");
+                assert!((version.center().y - name.center().y).abs() <= px(1.), "名称和版本保持同行");
+                assert!((version.right() - details.right()).abs() <= px(1.), "版本位于名称行最右侧");
+                assert!((ip.left() - details.left()).abs() <= px(1.), "IP与设备名左侧对齐");
+                assert!(address.top() >= name.bottom(), "IP位于名称行下方");
+                assert!(contact.left() >= address.right() + px(7.), "通信时间不能覆盖IP");
+                assert!((address.center().y - contact.center().y).abs() <= px(1.), "IP和通信时间保持同行");
+                assert!((contact.right() - details.right()).abs() <= px(1.), "通信时间位于IP行最右侧");
+                assert!(name.size.width > px(20.) && version.size.width > px(20.) && ip.size.width > px(20.) && contact.size.width > px(20.), "长文本不能挤掉同一行的另一项");
+                assert_eq!(window.find(format!("device-version-{id}")).label(), Some("1".repeat(64).as_str()), "版本只显示原始版本号");
                 if index >= columns { assert!(card.size.height <= px(160.), "无Watch的卡片不再为各元数据保留独立行"); }
                 let expected_name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
                 assert_eq!(window.find(format!("device-name-{id}")).label(), Some(expected_name.as_str()), "截断不丢失完整辅助名称");
@@ -283,6 +295,7 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
             assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Online" } else { "在线" }));
+            assert_eq!(window.find(format!("device-version-{DEVICE}")).label(), Some("1.0"));
             assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
             assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(connected));
             assert_eq!(window.find(format!("device-watch-sync-{DEVICE}")).label(), Some(if locale == "en-US" { "Last confirmed sync: at most 2s ago" } else { "最近确认同步：至多 2 秒前" }));
