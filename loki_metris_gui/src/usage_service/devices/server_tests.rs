@@ -197,7 +197,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
     let mut bytes = b"GIF89a".to_vec(); bytes.resize(20_001, 7);
     let descriptor = AssetDescriptor::from_bytes(&bytes).unwrap();
     let snapshot = DisplaySnapshot { version:1, assets:vec![descriptor.clone()], ..Default::default() };
-    devices.publications.send_replace(Arc::new(super::super::publication::Publication { snapshot:snapshot.clone(), bytes:[(descriptor.hash.clone(),Arc::from(bytes.clone()))].into() }));
+    devices.publications.send_replace(Arc::new(super::super::publication::Publication { refreshed_at:None, snapshot:snapshot.clone(), bytes:[(descriptor.hash.clone(),Arc::from(bytes.clone()))].into() }));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap(); let address = listener.local_addr().unwrap();
     let permits = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS)); let (_cancel, cancelled) = watch::channel(false);
     let desktop = devices.clone(); let publisher = devices.clone();
@@ -209,7 +209,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         let mut stream = TcpStream::connect(address).await.unwrap();
         let mut channel = phone(&mut stream, serde_json::json!({"deviceId":DEVICE,"name":"Test phone","platform":"ios","appVersion":"1.0"})).await;
         let mut reader = FrameReader::new(MAX_ENCRYPTED_FRAME_BYTES);
-        let HostMessage::Snapshot { snapshot:first, capabilities } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("initial snapshot"); };
+        let HostMessage::Snapshot { snapshot:first, capabilities, .. } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("initial snapshot"); };
         assert_eq!(first.assets, vec![descriptor.clone()]);
         assert!(capabilities.iter().any(|value| value == "watchCompanionV1"));
         assert!(capabilities.iter().any(|value| value == "deviceFormFactorV1"));
@@ -222,7 +222,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
             write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
         }
         let mut pipelined = snapshot.clone(); pipelined.token_error = Some("pipelined-update".into());
-        publisher.publications.send_replace(Arc::new(super::super::publication::Publication { snapshot:pipelined, bytes:[(descriptor.hash.clone(),Arc::from(bytes.clone()))].into() }));
+        publisher.publications.send_replace(Arc::new(super::super::publication::Publication { refreshed_at:None, snapshot:pipelined, bytes:[(descriptor.hash.clone(),Arc::from(bytes.clone()))].into() }));
         let mut saw_update = false;
         let mut chunks_before_update = 0;
         for _ in 0..25 {
@@ -243,7 +243,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         }
         assert_eq!(receiver.finish().unwrap().1, bytes);
         let mut next = snapshot; next.catalog_error = Some("device_catalog_unavailable".into()); next.assets.clear();
-        publisher.publications.send_replace(Arc::new(super::super::publication::Publication { snapshot:next, bytes:Default::default() }));
+        publisher.publications.send_replace(Arc::new(super::super::publication::Publication { refreshed_at:None, snapshot:next, bytes:Default::default() }));
         let HostMessage::Snapshot { snapshot:updated, .. } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("updated snapshot"); };
         assert!(updated.assets.is_empty());
         let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::AssetRequest { hash:descriptor.hash.clone(), offset:0 }).unwrap()).unwrap();

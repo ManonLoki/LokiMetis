@@ -7,12 +7,14 @@ use tokio::sync::watch;
 
 /// 最新投影与不可变正文共享；慢终端最多保留当前与正在读的一份Arc。
 pub(super) struct Publication {
+    /// 完成真实读取的单调时间；默认等待态不能完成HTTP刷新。
+    pub(super) refreshed_at: Option<std::time::Instant>,
     pub(super) snapshot: DisplaySnapshot,
     pub(super) bytes: BTreeMap<String, Arc<[u8]>>,
 }
 impl Default for Publication {
     /// 尚未读取时明确等待刷新，不能发送虚构零统计。
-    fn default() -> Self { Self { snapshot: DisplaySnapshot { version: 1, token_error: Some("device_data_refreshing".into()), ..Default::default() }, bytes: BTreeMap::new() } }
+    fn default() -> Self { Self { refreshed_at: None, snapshot: DisplaySnapshot { version: 1, token_error: Some("device_data_refreshing".into()), ..Default::default() }, bytes: BTreeMap::new() } }
 }
 impl Publication {
     /// 快照只发送当前日且仍新鲜的数字，长时间无终端后的首包不展示旧数值。
@@ -22,7 +24,7 @@ impl Publication {
             snapshot.tokens = None; snapshot.token_error = Some("device_data_refreshing".into());
         }
         HostMessage::Snapshot { snapshot, capabilities: vec![loki_metris_core::devices::companion::WATCH_COMPANION_CAPABILITY.into(),
-            loki_metris_core::devices::link::DEVICE_FORM_FACTOR_CAPABILITY.into()] }
+            loki_metris_core::devices::link::DEVICE_FORM_FACTOR_CAPABILITY.into()], widget_endpoint: None }
     }
     /// 不接受路径/URL，且只从当前完整清单查找内容；下载期间修改清单返回失效。
     pub(super) fn asset(&self, hash: &str, offset: u64) -> Result<HostMessage, &'static str> {
@@ -79,7 +81,7 @@ impl Devices {
         let mut value = DisplaySnapshot { version: 1, ..Default::default() };
         loop {
             if *cancelled.borrow() { return; }
-            if self.state().server.sessions.is_empty() {
+            if { let state = self.state(); state.server.sessions.is_empty() && state.server.widget_readers == 0 } {
                 catalog_value = Catalog::default(); value = DisplaySnapshot { version: 1, ..Default::default() };
                 self.publications.send_replace(Arc::new(Publication::default()));
                 catalog_revision = None; hook_key = None; token_due = 0;
@@ -126,7 +128,7 @@ impl Devices {
             }
             drop(context);
             if changed {
-                self.publications.send_replace(Arc::new(Publication { snapshot: value.clone(), bytes: catalog_value.bytes.clone() }));
+                self.publications.send_replace(Arc::new(Publication { refreshed_at: Some(std::time::Instant::now()), snapshot: value.clone(), bytes: catalog_value.bytes.clone() }));
             }
             tokio::select! { biased; _ = cancelled.changed() => return, _ = self.publication_refresh.notified() => { token_due = 0; },
                 _ = tokio::time::sleep(Duration::from_millis(500)) => {} }

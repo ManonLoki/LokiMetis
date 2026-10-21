@@ -5,6 +5,7 @@ mod framing;
 mod link_transport;
 mod server;
 mod publication;
+mod widget_http;
 mod store;
 mod transport;
 #[cfg(test)]

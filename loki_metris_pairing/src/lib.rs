@@ -8,6 +8,7 @@ mod handshake;
 pub mod session;
 pub mod window;
 pub mod assets;
+pub mod widget;
 #[cfg(test)]
 mod tests;
 pub use handshake::{AwaitingAck, ReceiverSession, PendingReceiverCommit, SenderSession};

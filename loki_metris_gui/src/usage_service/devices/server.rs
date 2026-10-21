@@ -42,6 +42,10 @@ pub(super) struct ServerState {
     pub(super) requested: bool,
     /// 服务轮次身份耗尽时停止启动，不能回绕复用旧代次。
     pub(super) epoch: u64,
+    /// 有界HTTP请求等待期间唤醒发布器，不伪造在线TCP会话。
+    pub(super) widget_readers: usize,
+    /// 每设备保留有界近期请求nonce，重复网络请求不重复触发统计扫描。
+    pub(super) widget_nonces: BTreeMap<String, std::collections::VecDeque<String>>,
 }
 
 impl Devices {
@@ -189,9 +193,25 @@ impl Devices {
     }
 
     /// 首帧也受15秒总预算及未认证并发槽约束，所有错误路径销毁整个socket。
-    async fn serve_peer(self: Arc<Self>, mut stream: TcpStream, peer: SocketAddr, permit: OwnedSemaphorePermit, mut cancelled: watch::Receiver<bool>) {
+    pub(super) async fn serve_peer(self: Arc<Self>, mut stream: TcpStream, peer: SocketAddr, permit: OwnedSemaphorePermit, mut cancelled: watch::Receiver<bool>) {
         if *cancelled.borrow() { return; }
         let deadline = tokio::time::Instant::now() + link_transport::AUTHENTICATION_TIMEOUT;
+        // HTTP与原有有界帧复用同一实际监听端口；不新增广告或任意URL入口。
+        let mut prefix = [0; 1];
+        let peek = tokio::select! {
+            biased;
+            _ = cancelled.changed() => return,
+            result = tokio::time::timeout_at(deadline, stream.peek(&mut prefix)) => result,
+        };
+        if !matches!(peek, Ok(Ok(1))) { return; }
+        if prefix[0] == b'P' {
+            tokio::select! {
+                biased;
+                _ = cancelled.changed() => {},
+                _ = tokio::time::timeout(Duration::from_secs(5), self.serve_widget_http(&mut stream)) => {},
+            }
+            return;
+        }
         let introduction = tokio::select! {
             biased;
             _ = cancelled.changed() => return,
@@ -265,7 +285,8 @@ impl Devices {
         let mut heartbeat = tokio::time::interval(DEVICE_HEARTBEAT_INTERVAL); heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut nonce = 0u64; let mut outstanding = None; let mut recent_pings = std::collections::VecDeque::new();
         let mut publications = self.publications.subscribe();
-        let first = publications.borrow_and_update().message(super::super::current_epoch_ms());
+        let port = writer.as_ref().local_addr().ok().map(|value| value.port());
+        let first = self.with_widget_endpoint(publications.borrow_and_update().message(super::super::current_epoch_ms()), lease.device_id(), port);
         if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &first)).await, Ok(Ok(()))) { return UnavailableReason::Disconnected; }
         loop {
             tokio::select! {
@@ -293,7 +314,7 @@ impl Devices {
                 },
                 result = publications.changed() => {
                     if result.is_err() { break; }
-                    let message = publications.borrow_and_update().message(super::super::current_epoch_ms());
+                    let message = self.with_widget_endpoint(publications.borrow_and_update().message(super::super::current_epoch_ms()), lease.device_id(), port);
                     if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &message)).await, Ok(Ok(()))) { break; }
                 },
                 result = framing.read::<EncryptedPacket>(&mut reader) => {
@@ -336,6 +357,17 @@ impl Devices {
                 },
             }
         } UnavailableReason::Disconnected
+    }
+}
+
+impl Devices {
+    /// 元数据只在已认证会话中附加，并从当前账本派生读取权限。
+    fn with_widget_endpoint(&self, mut message: loki_metris_core::devices::link::data::HostMessage, device: &str, port: Option<u16>) -> loki_metris_core::devices::link::data::HostMessage {
+        if let loki_metris_core::devices::link::data::HostMessage::Snapshot { widget_endpoint, capabilities, .. } = &mut message {
+            *widget_endpoint = port.and_then(|port| self.state().book.as_ref()?.widget_endpoint(device, port).ok());
+            if widget_endpoint.is_some() { capabilities.push("widgetHttpV1".into()); }
+        }
+        message
     }
 }
 

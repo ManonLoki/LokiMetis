@@ -106,7 +106,7 @@
     }
   ],
   "cycle_base_version": "0.6.3",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": {
     "source_commit": "7b3df464188a560f66400b1f52fedfae228ad64f",
     "version": "0.6.3"
@@ -121,8 +121,13 @@
       "change_id": "BUG-AGENT-DISPLAY-NAME-UNIFY",
       "kind": "bug-fix",
       "required_version": "0.6.5"
+    },
+    {
+      "change_id": "FEAT-WIDGET-HTTP-V1",
+      "kind": "feature",
+      "required_version": "0.7.0"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.6.5"
+  "target_version": "0.7.0"
 }

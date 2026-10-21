@@ -4,6 +4,7 @@ mod pairing;
 pub mod link;
 pub mod presence;
 pub mod companion;
+pub mod widget;
 #[cfg(test)]
 mod tests;
 

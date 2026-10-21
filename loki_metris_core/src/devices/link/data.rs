@@ -34,7 +34,10 @@ pub enum HostMessage {
         snapshot: DisplaySnapshot,
         /// 扩展只在当前认证连接协商，旧接收端可忽略外壳字段。
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        capabilities: Vec<String> },
+        capabilities: Vec<String>,
+        /// HTTP摘要读取能力只发给当前已认证设备。
+        #[serde(default, rename = "widgetEndpoint", skip_serializing_if = "Option::is_none")]
+        widget_endpoint: Option<crate::devices::widget::WidgetEndpoint> },
     /// 当前清单资源的一块正文。
     AssetChunk { /// 有界且经过摘要绑定的块。
         chunk: AssetChunk },
@@ -178,7 +181,7 @@ mod tests {
     #[test]
     fn companion_wire_is_strict_and_snapshot_capability_is_optional() {
         let snapshot = DisplaySnapshot { version: 1, ..Default::default() };
-        let bytes = serde_json::to_vec(&HostMessage::Snapshot { snapshot, capabilities: vec![] }).unwrap();
+        let bytes = serde_json::to_vec(&HostMessage::Snapshot { snapshot, capabilities: vec![], widget_endpoint: None }).unwrap();
         assert!(!String::from_utf8_lossy(&bytes).contains("capabilities"));
         let HostMessage::Snapshot { capabilities, .. } = serde_json::from_slice(&bytes).unwrap() else { panic!("snapshot"); };
         assert!(capabilities.is_empty());

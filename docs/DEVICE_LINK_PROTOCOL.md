@@ -10,7 +10,7 @@ change_id：`LMDESK-TERMINAL-LINK-001`；required_version：`0.6.0`。日期：2
 
 客户端报到后由应用级弹窗串行显示名称、UUID和实际连接来源IP，这些初始信息明确标为未认证；系统、形态和版本仍仅在认证后取得。其他模态优先，新请求等待或按期限过期。弹窗的确认与拒绝都绑定本机单调ticket，不能作用到同ID的新连接；取消、客户端断开、提前发帧或超时立即释放请求。确认后模态保留到真实握手/落盘终态，失败在原模态显示；四位码明文显示并保留前导零，不自动提交或重试。change_id：`LMDESK-INCOMING-PAIRING-DIALOG-001`；required_version：`0.6.2`。
 
-每条新连接的第一帧是严格`ConnectionIntroduction { kind, value }`：`kind=pairing`时value为`PairingOffer { version:1, clientId, deviceId, name }`；`kind=resume`时value为下述`SessionHello`。临时报到仅在终端主动配对窗口内发送：移动端TCP就绪后、报到前建立至多60秒窗口；桌面收到介绍后最多等待60秒，用户输入四位码后执行原四帧配对，实际剩余期限仍由接收端窗口约束，真实本地保存后才授信。首次介绍、恢复认证及开始密码交换后的阶段各有15秒预算；最多8条未认证连接，全部已保存及未认证连接合计至多72条，由同一JoinSet拥有。未知身份、取消、任一协议错误均关闭该socket。
+除下述固定HTTP摘要入口外，每条新连接的第一帧是严格`ConnectionIntroduction { kind, value }`：`kind=pairing`时value为`PairingOffer { version:1, clientId, deviceId, name }`；`kind=resume`时value为下述`SessionHello`。临时报到仅在终端主动配对窗口内发送：移动端TCP就绪后、报到前建立至多60秒窗口；桌面收到介绍后最多等待60秒，用户输入四位码后执行原四帧配对，实际剩余期限仍由接收端窗口约束，真实本地保存后才授信。首次介绍、恢复认证及开始密码交换后的阶段各有15秒预算；最多8条未认证连接，全部已保存及未认证连接合计至多72条，由同一JoinSet拥有。未知身份、取消、任一协议错误均关闭该socket。
 
 用户最终选择纯局域网，不做息屏推送：后台清空Token与Hooks展示，仅保留配对及图片缓存；恢复时重新认证并等待最新快照。iOS挂起、Android Doze都不能由长连接或轮询绕过。Watch选iPhone配套传输，不复用手机IP或在线状态。官方依据：[iOS后台](https://developer.apple.com/documentation/uikit/extending-your-app-s-background-execution-time)、[Android Doze](https://developer.android.com/training/monitoring-device-state/doze-standby)、[watchOS低层网络限制](https://developer.apple.com/documentation/technotes/tn3135-low-level-networking-on-watchos)、[WatchConnectivity](https://developer.apple.com/documentation/watchconnectivity/wcsession)；核对日期2026-10-21。
 
@@ -111,3 +111,18 @@ Android已提交信任映射只在系统同步提交成功后更新，避免Shar
 ## 当前连接展示与失效
 
 change_id：`LMDESK-TERMINAL-LIVE-DISPLAY-001`；required_version：`0.6.2`。手机/Watch只显示当前连接收到的Token和Hooks，不恢复历史快照；配对身份与内容寻址图片文件保留。iPhone父连接失效时，单个待pause意图等待旧物理RPC终态后优先发送，Watch清空展示并更换前台接收代次；RPC超时、45秒通信租约过期和系统不可达也清空，迟到旧块不能恢复。新连接必须收到新完整快照才重新显示。Widget是当前连接摘要的有限共享，不是离线历史：45秒租约与预排空Timeline限制崩溃/挂起后的残留，系统调度可能延迟清屏，不能承诺断开瞬间刷新。
+
+
+## 小组件独立HTTP摘要读取
+
+change_id：`FEAT-WIDGET-HTTP-V1`；required_version：`0.7.0`。用户于2026-10-21要求小组件独立获取桌面数据、记录当前服务地址并在下次连通时更新。
+
+桌面在同一IPv4监听端口识别固定`POST /api/widget/v1/snapshot HTTP/1.1`，不增加HTTP广告。原有帧连接保持兼容；认证快照增加能力`widgetHttpV1`及可选外壳`widgetEndpoint {version:1,port,key}`。key是每对桌面/设备独立的32字节只读密钥，标准带padding Base64，只通过原有加密通道下发。手机使用系统当前TCP实际对端地址，不能采用任意远端URL；每次合法认证快照更新共享读取配置，地址/端口/密钥变化使在途旧请求失效。
+
+密钥使用HKDF-SHA256，IKM为32字节配对秘密，salt为UTF8 `clientId + "/" + deviceId`，info为UTF8 `LokiMetris/widget-http/1/read-only`，输出32字节。Widget只取得此读取密钥，无法用它恢复TCP认证。请求JSON为`{clientId,deviceId,nonce,ciphertext}`；nonce为每次新生成12字节随机数的Base64，ciphertext为ChaCha20-Poly1305的密文拼接16字节tag后Base64。请求明文及AAD均为UTF8 `loki-widget-request-v1`。身份绑定由每对身份的派生密钥和当前账本共同保证。
+
+响应外壳为`{nonce,ciphertext}`，使用新的随机12字节nonce；AAD为UTF8 `loki-widget-response-v1`拼接原请求12字节nonce。解密后为`{type:"snapshot",sourceId,snapshot}`，snapshot仅包含version、tokens、tokenError、hooksAvailable、hooks；每条Hook仅保留agent/slot/behavior，不传正文、图片、资源表或宿主路径。Widget验证来源、完整性、原始u64字符串及现有展示边界后才写入共享摘要。
+
+HTTP头部最多4096字节，请求正文1..1024字节，必须声明唯一Content-Length及application/json，拒绝Transfer-Encoding/Expect和其他方法/路径；桌面请求处理5秒预算，客户端6秒总期限，响应外壳最多96KiB、解密摘要最多64KiB，禁止重定向、缓存、Cookie和HTTP认证。沿用最多8条待处理连接许可；每设备保留最近32个nonce，重复请求不触发再次扫描。认证请求才临时登记读取需求，唤醒休眠发布器并等待完成读取；所有TCP设备断开时也能执行，完成/超时/取消撤销需求，不将HTTP读取标记为设备在线。响应前复核当前配对，解除配对后拒绝。
+
+App与Widget使用固定文件锁协调摘要与读取配置。切换来源、忘记配对、服务换代及较新摘要到达后，迟到HTTP不能覆盖。Timeline由`.never`改为`.after`，申请约15分钟后再次执行，实际时间由WidgetKit调度，离线保留真实上次同步时间；不承诺10分钟或15分钟准点更新，不增加云推送。主App仍不恢复历史Token/Hooks。独立读取配置排除备份并使用首次解锁后可读保护。Apple机制依据：[WidgetKit刷新](https://developer.apple.com/documentation/widgetkit/keeping-a-widget-up-to-date)、[扩展网络请求](https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension)、[本地HTTP配置](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking)，核对日期2026-10-21。
