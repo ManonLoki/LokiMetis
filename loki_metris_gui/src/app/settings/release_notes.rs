@@ -213,7 +213,8 @@ mod tests {
                 window.render_frame(cx);
                 assert!(shell.read(cx).release_notes_modal.is_some());
                 assert!(window.try_find("release-notes-scroll").is_some());
-                window.click("release-notes-empty", cx);
+                // 开发构建为空，候选嵌入真实日志；两种状态都点击实际内容视口。
+                window.click("release-notes-scroll", cx);
                 assert!(shell.read(cx).release_notes_modal.is_some());
                 previous
             })

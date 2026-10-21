@@ -66,7 +66,7 @@ async fn windows_workbuddy_install_replaces_old_pid_watchers() {
         },
     );
 
-    let tasks = super::take_replaced_watch_tasks(
+    let tasks = super::service_install_body::take_replaced_watch_tasks(
         &mut runtime,
         super::SkinHostKind::WorkBuddy,
         "workBuddy:new-pid",
@@ -99,7 +99,7 @@ async fn windows_workbuddy_install_replaces_old_pid_watchers() {
         super::SkinHostKind::WorkBuddy,
         "workBuddy:stale-last-target".into(),
     );
-    let uninstall_tasks = super::take_uninstall_watch_tasks(
+    let uninstall_tasks = super::service_install_body::take_uninstall_watch_tasks(
         &mut runtime,
         super::SkinHostKind::WorkBuddy,
         Some("workBuddy:current-pid"),
