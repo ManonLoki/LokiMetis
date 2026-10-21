@@ -78,7 +78,8 @@
     "LMDESK-WEBP-INNER-DIMENSIONS-001",
     "BUG-DEVICE-ADVERTISING-RETRY",
     "BUG-AGENT-DISPLAY-NAME-UNIFY",
-    "LMDESK-QUOTA-WEEKLY-VISIBILITY-001"
+    "LMDESK-QUOTA-WEEKLY-VISIBILITY-001",
+    "LMDESK-QUOTA-PLAN-TAG-001"
   ],
   "applied_reconciliations": [
     {
@@ -152,8 +153,13 @@
       "change_id": "LMDESK-TERMINAL-PROVIDER-QUOTA-001",
       "kind": "feature",
       "required_version": "0.7.1"
+    },
+    {
+      "change_id": "LMDESK-QUOTA-PLAN-TAG-001",
+      "kind": "bug-fix",
+      "required_version": "0.7.2"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.7.1"
+  "target_version": "0.7.2"
 }

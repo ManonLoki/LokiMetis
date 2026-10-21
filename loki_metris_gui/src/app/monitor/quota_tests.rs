@@ -89,6 +89,41 @@ fn quota_board_renders_codex_weekly_primary_without_five_hour(cx: &mut gpui_kit:
     }).unwrap();
 }
 
+/// 明暗主题中套餐标签紧跟名称；缺少套餐的邻卡仍与同类额度进度条对齐。
+#[gpui_kit::test]
+fn quota_plan_tag_stays_beside_name_and_keeps_usage_rows_aligned(cx: &mut gpui_kit::TestAppContext) {
+    let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+    cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, cx| {
+            this.page = crate::app::Page::Monitor;
+            this.monitor.status = None;
+            for (index, plan) in [(0, Some("pro".to_owned())), (2, None)] {
+                let card = &mut this.monitor.quota.cards[index];
+                let mut value = quota(card.provider, 970, Some(920));
+                value.five_hour = None;
+                value.plan = plan;
+                card.phase = QuotaCardPhase::Ready(value);
+            }
+            cx.notify();
+        });
+        for mode in [gpui_kit::component::ThemeMode::Light, gpui_kit::component::ThemeMode::Dark] {
+            gpui_kit::component::Theme::change(mode, Some(window), cx);
+            window.render_frame(cx);
+            let name = window.find("monitor-quota-codex-name").bounds();
+            let tag = window.find("monitor-quota-codex-plan");
+            let badge = tag.bounds();
+            assert_eq!(tag.label(), Some("Pro"));
+            assert_eq!(badge.size.height, px(20.));
+            assert!((f32::from(badge.origin.x - name.right()) - 8.).abs() < 1.);
+            assert!((f32::from(badge.center().y - name.center().y)).abs() < 1.);
+            assert!(window.try_find("monitor-quota-grok-plan").is_none());
+            assert_eq!(window.find("monitor-quota-codex-weekly").bounds().origin.y,
+                window.find("monitor-quota-grok-weekly").bounds().origin.y);
+            assert!(window.find("monitor-quota-codex").label().unwrap_or_default().contains("Pro"));
+        }
+    }).unwrap();
+}
+
 /// 不依赖Hook状态；三提供商按指定顺序，填充比例及红黄绿在明暗主题均真实绘制。
 #[gpui_kit::test]
 fn quota_board_renders_ordered_three_color_bars_without_relay_status(cx: &mut gpui_kit::TestAppContext) {

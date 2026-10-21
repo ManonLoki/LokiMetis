@@ -44,15 +44,22 @@ impl Shell {
             .into_any_element())
     }
 
-    /// 卡片只负责展示，周窗口缺失时不创建文字或空进度条。
+    /// 名称与可选套餐标签共用固定高标题行，避免套餐信息推低额度进度条。
     fn quota_provider_cell(&self, quota: &ProviderQuota, now_unix: i64, cx: &Context<Self>) -> AnyElement {
         let label = quota_card_label(quota, now_unix, |key| self.t(key));
         let id = quota_element_id(quota.provider);
-        let mut cell = div().id(id).test_support().role(Role::Label).aria_label(label).w_full().min_w_0().p(px(14.)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark() { 0x26231f } else { 0xf0ebe3 })).flex().flex_col().gap_3()
-            .child(div().text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).child(super::monitor_tool_display_name(quota.provider.ai_tool())));
+        let name = super::monitor_tool_display_name(quota.provider.ai_tool());
+        let mut heading = div().w_full().min_w_0().h(px(20.)).flex().items_center().gap(px(8.))
+            .child(div().id(format!("{id}-name")).test_support().role(Role::Label).aria_label(name)
+                .flex_shrink_0().text_size(px(14.)).line_height(px(20.)).font_weight(FontWeight::SEMIBOLD).child(name));
         if let Some(plan) = plan_line(&quota.plan, &|key| self.t(key)) {
-            cell = cell.child(div().text_size(px(13.)).text_color(cx.theme().muted_foreground).child(plan));
+            heading = heading.child(div().id(format!("{id}-plan")).test_support().role(Role::Label).aria_label(plan.clone())
+                .min_w_0().max_w(px(160.)).h(px(20.)).px(px(8.)).flex().items_center().rounded(px(6.))
+                .border_1().border_color(cx.theme().border).bg(cx.theme().muted)
+                .text_size(px(11.)).font_weight(FontWeight::SEMIBOLD).text_color(cx.theme().muted_foreground)
+                .child(div().min_w_0().truncate().child(plan)));
         }
+        let mut cell = div().id(id).test_support().role(Role::Label).aria_label(label).w_full().min_w_0().p(px(14.)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark() { 0x26231f } else { 0xf0ebe3 })).flex().flex_col().gap_3().child(heading);
         for window in [quota.five_hour, quota.weekly].into_iter().flatten() {
             cell = cell.child(self.quota_window_bar(id, window, now_unix, cx));
         }
@@ -112,9 +119,12 @@ fn window_slug(kind: QuotaWindowKind) -> &'static str {
     }
 }
 
-/// 已消毒方案名的本地化展示。
+/// 套餐名只在展示层规范Pro写法，其它名称保留来源拼写，不改变同步数据。
 fn plan_line(plan: &Option<String>, t: &impl Fn(&str) -> String) -> Option<String> {
-    plan.as_ref().map(|plan| t("monitor.quota.plan").replace("%{plan}", plan))
+    plan.as_ref().map(|plan| {
+        let label = if plan.eq_ignore_ascii_case("pro") { "Pro" } else { plan.as_str() };
+        t("monitor.quota.plan").replace("%{plan}", label)
+    })
 }
 
 /// 展示真实窗口的剩余比例和可选重置时间。
