@@ -41,7 +41,7 @@ impl Shell {
                         let id = device.id.clone(); let name = name.clone();
                         cx.listener(move |this, _, window, cx| this.open_device_dialog(id.clone(), name.clone(), true, window, cx))
                     })))
-            .child(device_artwork(&device.id, artwork_path(info.map(|info| info.platform), &name),
+            .child(device_artwork(&device.id, artwork_path(info.map(|info| info.platform), presence.and_then(|presence| presence.form_factor)),
                 self.t("devices.illustration").replace("{{name}}", &name)))
             .child(div().id(SharedString::from(format!("device-name-{}", device.id))).test_support()
                 .role(Role::Label).aria_label(name.clone()).truncate().text_size(px(20.))

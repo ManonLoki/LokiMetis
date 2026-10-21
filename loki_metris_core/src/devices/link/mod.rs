@@ -91,6 +91,19 @@ pub enum DevicePlatform {
     Ios,
 }
 
+/// 只有当前认证快照广告此能力时，终端才可发送独立形态报告，保持旧端兼容。
+pub const DEVICE_FORM_FACTOR_CAPABILITY: &str = "deviceFormFactorV1";
+
+/// 终端从系统取得的展示形态，不由设备名称或网络地址推断。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DeviceFormFactor {
+    /// 手机尺寸类终端。
+    Phone,
+    /// 平板尺寸类终端。
+    Tablet,
+}
+
 /// 仅在加密会话内接收的展示元信息；IP由实际socket取得，不允许在此自报覆盖。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

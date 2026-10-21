@@ -1,28 +1,19 @@
-//! 本地产品示意图只服务展示，不把名称提示当作已认证的硬件型号。
+//! 本地产品示意图只消费当前认证会话的系统平台与终端形态。
 
 use crate::assets;
 use gpui_kit::assets::IconName;
 use gpui_kit::{AnyElement, IntoElement, ObjectFit, Role, SharedString,
     base::TestSupportExt as _, component::Icon, div, img, prelude::*, px};
-use loki_metris_core::devices::link::DevicePlatform;
+use loki_metris_core::devices::link::{DevicePlatform, DeviceFormFactor};
 
-/// 已认证平台优先；名称中的明确机型词只选择装饰图，不影响平台文字、信任或在线状态。
-pub(super) fn artwork_path(platform: Option<DevicePlatform>, name: &str) -> Option<&'static str> {
-    let name = name.to_lowercase();
-    let words: Vec<_> = name.split(|c: char| !c.is_alphanumeric()).collect();
-    let tablet = name.contains("ipad") || name.contains("平板")
-        || words.iter().any(|word| matches!(*word, "pad" | "tablet"));
-    let platform = platform.or_else(|| {
-        if name.contains("iphone") || name.contains("ipad") { Some(DevicePlatform::Ios) }
-        else if words.contains(&"android") { Some(DevicePlatform::Android) }
-        else { None }
-    });
-    match (platform, tablet) {
-        (Some(DevicePlatform::Ios), false) => Some(assets::DEVICE_IPHONE),
-        (Some(DevicePlatform::Ios), true) => Some(assets::DEVICE_IPAD),
-        (Some(DevicePlatform::Android), false) => Some(assets::DEVICE_ANDROID_PHONE),
-        (Some(DevicePlatform::Android), true) => Some(assets::DEVICE_ANDROID_TABLET),
-        (None, _) => None,
+/// 仅按设备上报的平台与形态选择示意图；缺少任一事实时使用中性图标。
+pub(super) fn artwork_path(platform: Option<DevicePlatform>, form_factor: Option<DeviceFormFactor>) -> Option<&'static str> {
+    match (platform, form_factor) {
+        (Some(DevicePlatform::Ios), Some(DeviceFormFactor::Phone)) => Some(assets::DEVICE_IPHONE),
+        (Some(DevicePlatform::Ios), Some(DeviceFormFactor::Tablet)) => Some(assets::DEVICE_IPAD),
+        (Some(DevicePlatform::Android), Some(DeviceFormFactor::Phone)) => Some(assets::DEVICE_ANDROID_PHONE),
+        (Some(DevicePlatform::Android), Some(DeviceFormFactor::Tablet)) => Some(assets::DEVICE_ANDROID_TABLET),
+        _ => None,
     }
 }
 
@@ -45,18 +36,19 @@ pub(super) fn device_artwork(id: &str, path: Option<&'static str>, label: String
 mod tests {
     use super::*;
 
-    /// 图片选择不根据未知名称伪造平台，认证平台也不能被名称中的系统词覆盖。
+    /// 图片只由明确上报决定，旧终端缺少形态时不再默认成手机。
     #[test]
-    fn illustrations_use_platform_and_explicit_name_hints_only() {
-        assert_eq!(artwork_path(Some(DevicePlatform::Ios), "My phone"), Some(assets::DEVICE_IPHONE));
-        assert_eq!(artwork_path(Some(DevicePlatform::Ios), "Manon's iPad"), Some(assets::DEVICE_IPAD));
-        assert_eq!(artwork_path(Some(DevicePlatform::Android), "Android tablet"), Some(assets::DEVICE_ANDROID_TABLET));
-        assert_eq!(artwork_path(Some(DevicePlatform::Android), "Work phone"), Some(assets::DEVICE_ANDROID_PHONE));
-        assert_eq!(artwork_path(Some(DevicePlatform::Android), "iPhone"), Some(assets::DEVICE_ANDROID_PHONE));
-        assert_eq!(artwork_path(None, "iPad"), Some(assets::DEVICE_IPAD));
-        assert_eq!(artwork_path(None, "Android Pad"), Some(assets::DEVICE_ANDROID_TABLET));
-        assert_eq!(artwork_path(None, "Receiver"), None);
-        assert_eq!(artwork_path(None, "Notepad"), None);
+    fn illustrations_use_reported_platform_and_form_factor_only() {
+        for (platform, phone, tablet) in [
+            (DevicePlatform::Ios, assets::DEVICE_IPHONE, assets::DEVICE_IPAD),
+            (DevicePlatform::Android, assets::DEVICE_ANDROID_PHONE, assets::DEVICE_ANDROID_TABLET),
+        ] {
+            assert_eq!(artwork_path(Some(platform), Some(DeviceFormFactor::Phone)), Some(phone));
+            assert_eq!(artwork_path(Some(platform), Some(DeviceFormFactor::Tablet)), Some(tablet));
+            assert_eq!(artwork_path(Some(platform), None), None);
+        }
+        assert_eq!(artwork_path(None, Some(DeviceFormFactor::Tablet)), None);
+        assert_eq!(artwork_path(None, None), None);
     }
 
     /// 四种实际嵌入图必须能够通过同一资源源读取、解码并保留透明边缘。

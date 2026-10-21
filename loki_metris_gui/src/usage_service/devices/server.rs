@@ -269,6 +269,11 @@ impl Devices {
                         if state.presence.received(&book, lease, Instant::now()).is_err() { break; }
                     }
                     let control = match message {
+                        loki_metris_core::devices::link::data::DeviceMessage::DeviceFormFactor { form_factor } => {
+                            let mut state = self.state(); let Some(book) = state.book.clone() else { break; };
+                            if state.presence.report_form_factor(&book, lease, form_factor, Instant::now()).is_err() { break; }
+                            continue;
+                        },
                         loki_metris_core::devices::link::data::DeviceMessage::Control(control) => control,
                         loki_metris_core::devices::link::data::DeviceMessage::CompanionStatus { nonce, report } => {
                             // 同时在途的上一轮状态可引用旧ping，但仍受当前租约及45秒时间锚约束。

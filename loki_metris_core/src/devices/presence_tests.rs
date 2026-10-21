@@ -1,6 +1,30 @@
 use super::*;
 use crate::devices::{link::DevicePlatform, tests::link_fixture};
 
+/// 形态只来自当前认证租约，断线保留最后报告但重连、撤销和超时不能复用旧资格。
+#[test]
+fn reported_form_factor_is_bound_to_current_authenticated_lease() {
+    use crate::devices::link::DeviceFormFactor::{Phone, Tablet};
+    let (book, mut session, _) = link_fixture(); let now = Instant::now(); let mut presence = DevicePresence::default();
+    let peer = "192.168.1.8:40000".parse().unwrap();
+    let first = connect(&mut presence, &book, &mut session, "Lenovo TB-J606F", peer, now).unwrap();
+    assert_eq!(presence.snapshot(&book, now)[0].form_factor, None);
+    presence.report_form_factor(&book, &first, Tablet, now).unwrap();
+    assert_eq!(presence.snapshot(&book, now)[0].form_factor, Some(Tablet));
+    presence.disconnected(&first, UnavailableReason::Background).unwrap();
+    assert_eq!(presence.snapshot(&book, now)[0].form_factor, Some(Tablet));
+    assert_eq!(presence.report_form_factor(&book, &first, Phone, now), Err(LinkError::Expired));
+    let (_, mut resumed, _) = link_fixture();
+    let second = connect(&mut presence, &book, &mut resumed, "Renamed", peer, now).unwrap();
+    assert_eq!(presence.snapshot(&book, now)[0].form_factor, None);
+    assert_eq!(presence.report_form_factor(&book, &first, Phone, now), Err(LinkError::Stale));
+    let mut revoked = book.clone(); revoked.devices[0].key.0 = [0xb8; 32];
+    assert_eq!(presence.report_form_factor(&revoked, &second, Phone, now), Err(LinkError::Untrusted));
+    assert_eq!(presence.report_form_factor(&book, &second, Tablet, now + DEVICE_HEARTBEAT_TIMEOUT), Err(LinkError::Expired));
+    presence.report_form_factor(&book, &second, Phone, now).unwrap();
+    assert_eq!(presence.snapshot(&book, now)[0].form_factor, Some(Phone));
+}
+
 /// 元信息是应用内名称，IP另由适配器的socket事实提供。
 fn connect(presence: &mut DevicePresence, book: &DeviceBook, session: &mut AuthenticatedLinkSession, name: &str, peer: SocketAddr, now: Instant) -> Result<PresenceLease, LinkError> {
     let info = DeviceInfo { device_id: session.device_id().into(), name: name.into(), platform: DevicePlatform::Ios, app_version: "1.0".into() };

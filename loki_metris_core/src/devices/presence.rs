@@ -2,7 +2,7 @@
 
 use super::{DeviceBook, is_lan_endpoint, MAX_SAVED_DEVICES, link::{AuthenticatedLinkSession, DeviceInfo, LinkError, PresenceTrust}};
 use std::{collections::BTreeMap, net::SocketAddr, time::{Duration, Instant}};
-use super::{companion::{CompanionRecord, WatchCompanionReport, WatchCompanionView}, link::DevicePlatform};
+use super::{companion::{CompanionRecord, WatchCompanionReport, WatchCompanionView}, link::{DevicePlatform, DeviceFormFactor}};
 
 /// 应用运行且网络可达时的心跳周期；后台挂起不承诺持续保活。
 pub const DEVICE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
@@ -40,6 +40,8 @@ pub struct DevicePresenceView {
     pub device_id: String,
     /// 只有认证连接能更新的当前名称与平台。
     pub info: Option<DeviceInfo>,
+    /// 当前认证会话上报的形态；旧终端和重新连接尚未报告时为空。
+    pub form_factor: Option<DeviceFormFactor>,
     /// 当前通信状态。
     pub state: DeviceConnectionState,
     /// 最近认证socket的实际地址；不可达时作为历史信息保留。
@@ -60,7 +62,7 @@ impl PresenceLease {
 
 /// 单设备进程内通信记录，不写入配对账本或配置。
 struct Entry { info: DeviceInfo, peer: SocketAddr, generation: u64, last_contact: Instant, unavailable: Option<UnavailableReason>, trust: PresenceTrust,
-    companion: Option<CompanionRecord>, companion_sequence: u64, companion_sync_sequence: u64 }
+    form_factor: Option<DeviceFormFactor>, companion: Option<CompanionRecord>, companion_sequence: u64, companion_sync_sequence: u64 }
 /// 所有已保存终端的进程内权威连接状态；全局代次在忘记设备时也不回退。
 #[derive(Default)]
 pub struct DevicePresence { entries: BTreeMap<String, Entry>, generation: u64 }
@@ -75,7 +77,7 @@ impl DevicePresence {
         let generation = self.generation.checked_add(1).ok_or(LinkError::Limit)?;
         let trust = session.claim_presence(book)?;
         self.generation = generation;
-        self.entries.insert(info.device_id.clone(), Entry { info, peer, generation, last_contact: now, unavailable: None, trust, companion: None, companion_sequence: 0, companion_sync_sequence: 0 });
+        self.entries.insert(info.device_id.clone(), Entry { info, peer, generation, last_contact: now, unavailable: None, trust, form_factor: None, companion: None, companion_sequence: 0, companion_sync_sequence: 0 });
         Ok(PresenceLease { device_id: session.device_id().into(), generation })
     }
 
@@ -87,6 +89,16 @@ impl DevicePresence {
         if entry.unavailable.is_some() { return Err(LinkError::Expired); }
         if elapsed >= DEVICE_HEARTBEAT_TIMEOUT { entry.unavailable = Some(UnavailableReason::HeartbeatTimeout); return Err(LinkError::Expired); }
         entry.last_contact = now; Ok(())
+    }
+
+    /// 只有当前、未过期且仍受信任的租约可更新形态；本操作不伪造心跳续期。
+    pub fn report_form_factor(&mut self, book: &DeviceBook, lease: &PresenceLease, form_factor: DeviceFormFactor, now: Instant) -> Result<(), LinkError> {
+        let entry = self.current(lease)?;
+        if !entry.trust.authorized_by(book) { return Err(LinkError::Untrusted); }
+        if entry.unavailable.is_some() || !now.checked_duration_since(entry.last_contact).is_some_and(|age| age < DEVICE_HEARTBEAT_TIMEOUT) {
+            return Err(LinkError::Expired);
+        }
+        entry.form_factor = Some(form_factor); Ok(())
     }
 
     /// 当前iOS认证租约才可报告Watch；此操作不续父心跳，网络owner另登记真实入站消息。
@@ -137,7 +149,7 @@ impl DevicePresence {
     pub fn snapshot(&self, book: &DeviceBook, now: Instant) -> Vec<DevicePresenceView> {
         book.summaries().into_iter().map(|saved| {
             let Some(entry) = self.entries.get(&saved.id).filter(|entry| entry.trust.authorized_by(book)) else {
-                return DevicePresenceView { device_id: saved.id, info: None, state: DeviceConnectionState::NotConnected, peer: None, since_last_contact: None, companion: None };
+                return DevicePresenceView { device_id: saved.id, info: None, form_factor: None, state: DeviceConnectionState::NotConnected, peer: None, since_last_contact: None, companion: None };
             };
             let age = now.checked_duration_since(entry.last_contact);
             let reason = entry.unavailable.or_else(|| match age {
@@ -145,7 +157,7 @@ impl DevicePresence {
                 Some(age) if age >= DEVICE_HEARTBEAT_TIMEOUT => Some(UnavailableReason::HeartbeatTimeout),
                 _ => None,
             });
-            DevicePresenceView { device_id: saved.id, info: Some(entry.info.clone()), peer: Some(entry.peer), since_last_contact: age,
+            DevicePresenceView { device_id: saved.id, info: Some(entry.info.clone()), form_factor: entry.form_factor, peer: Some(entry.peer), since_last_contact: age,
                 state: reason.map_or(DeviceConnectionState::Reachable, DeviceConnectionState::Unavailable), companion: entry.companion.as_ref().map(|value| value.snapshot(reason.is_none(), now)) }
         }).collect()
     }

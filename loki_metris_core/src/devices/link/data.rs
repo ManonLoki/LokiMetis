@@ -8,6 +8,10 @@ use super::{LinkControl, LinkError, assets::{AssetChunk, AssetDescriptor}};
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum DeviceMessage {
+    /// 仅收到当前连接的deviceFormFactorV1广告后报告，不扩充旧版首条DeviceInfo。
+    DeviceFormFactor { /// 由终端系统分类提供的手机/平板形态。
+        #[serde(rename = "formFactor")]
+        form_factor: super::DeviceFormFactor },
     /// 仅已广告扩展能力的当前iPhone会话可以报告系统配套Watch。
     CompanionStatus { /// 当前桌面ping的时间锚，必须来自本次认证连接。
         nonce: u64, /// 无IP且有独立通信回执的子设备状态。
@@ -153,6 +157,22 @@ mod tests {
         assert!(matches!(serde_json::from_str::<DeviceMessage>(r#"{"type":"assetRequest","hash":"a","offset":0}"#).unwrap(), DeviceMessage::AssetRequest { .. }));
         assert!(serde_json::from_str::<DeviceMessage>(r#"{"type":"pause","ip":"192.168.1.1"}"#).is_err());
         assert!(serde_json::from_str::<DeviceMessage>(r#"{"type":"assetRequest","hash":"a","offset":0,"path":"secret"}"#).is_err());
+    }
+    /// 类型报告严格限定两种值及字段，不能夹带身份或自报IP绕过既有认证。
+    #[test]
+    fn form_factor_report_requires_explicit_known_type_and_exact_fields() {
+        for factor in [super::super::DeviceFormFactor::Phone, super::super::DeviceFormFactor::Tablet] {
+            let message = DeviceMessage::DeviceFormFactor { form_factor: factor };
+            let value = serde_json::to_value(message).unwrap();
+            assert_eq!(value["formFactor"], if factor == super::super::DeviceFormFactor::Phone { "phone" } else { "tablet" });
+            assert!(matches!(serde_json::from_value::<DeviceMessage>(value).unwrap(), DeviceMessage::DeviceFormFactor { form_factor } if form_factor == factor));
+        }
+        for invalid in [
+            r#"{"type":"deviceFormFactor","formFactor":"desktop"}"#,
+            r#"{"type":"deviceFormFactor","formFactor":true}"#,
+            r#"{"type":"deviceFormFactor"}"#,
+            r#"{"type":"deviceFormFactor","formFactor":"tablet","ip":"192.168.1.1"}"#,
+        ] { assert!(serde_json::from_str::<DeviceMessage>(invalid).is_err()); }
     }
     /// Watch扩展外壳兼容旧快照，子设备不允许混入IP、密钥或未知字段。
     #[test]

@@ -168,6 +168,10 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         let HostMessage::Snapshot { snapshot:first, capabilities } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("initial snapshot"); };
         assert_eq!(first.assets, vec![descriptor.clone()]);
         assert!(capabilities.iter().any(|value| value == "watchCompanionV1"));
+        assert!(capabilities.iter().any(|value| value == "deviceFormFactorV1"));
+        let report = DeviceMessage::DeviceFormFactor { form_factor: loki_metris_core::devices::link::DeviceFormFactor::Tablet };
+        let packet = channel.seal(&serde_json::to_vec(&report).unwrap()).unwrap();
+        write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
         // 持续预发合法资源请求时，最新状态仍须优先得到服务，不能等请求流结束。
         for _ in 0..24 {
             let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::AssetRequest { hash:descriptor.hash.clone(), offset:0 }).unwrap()).unwrap();
@@ -185,6 +189,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
             }
         }
         assert!(saw_update); assert!(chunks_before_update < 24, "状态发布不能排在所有ready请求之后");
+        assert_eq!(publisher.snapshot().presence[0].form_factor, Some(loki_metris_core::devices::link::DeviceFormFactor::Tablet));
         let mut receiver = AssetReceiver::new(descriptor.clone()).unwrap();
         while receiver.offset() < descriptor.length {
             let request = DeviceMessage::AssetRequest { hash:descriptor.hash.clone(), offset:receiver.offset() };

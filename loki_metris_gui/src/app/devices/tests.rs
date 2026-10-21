@@ -70,7 +70,7 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                     let id = format!("00000000-0000-4000-8000-{index:012}");
                     let name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
                     this.devices.snapshot.saved.push(SavedDeviceSummary { id: id.clone(), name: "Saved".into() });
-                    this.devices.snapshot.presence.push(DevicePresenceView {
+                    this.devices.snapshot.presence.push(DevicePresenceView { form_factor: Some(if index < 2 { loki_metris_core::devices::link::DeviceFormFactor::Phone } else { loki_metris_core::devices::link::DeviceFormFactor::Tablet }),
                         device_id: id.clone(), info: Some(DeviceInfo { device_id: id, name,
                             platform: if index % 2 == 0 { DevicePlatform::Ios } else { DevicePlatform::Android },
                             app_version: "1".repeat(64) }), state: DeviceConnectionState::Reachable,
@@ -120,7 +120,7 @@ fn discovered_saved_device_without_authenticated_contact_keeps_pending_ip(cx: &m
             this.devices.snapshot.loaded = true;
             prepare_target(this);
             this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved receiver".into() });
-            this.devices.snapshot.presence.push(DevicePresenceView { device_id: DEVICE.into(), info: None,
+            this.devices.snapshot.presence.push(DevicePresenceView { form_factor: None, device_id: DEVICE.into(), info: None,
                 state: DeviceConnectionState::NotConnected, peer: None, since_last_contact: None, companion: None });
             cx.notify();
         });
@@ -225,7 +225,7 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
             shell.update(cx, |this, cx| {
                 this.locale = locale; this.page = crate::app::Page::Devices; this.devices.snapshot.loaded = true;
                 this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved name".into() });
-                this.devices.snapshot.presence.push(DevicePresenceView { device_id: DEVICE.into(),
+                this.devices.snapshot.presence.push(DevicePresenceView { form_factor: None, device_id: DEVICE.into(),
                     info: Some(DeviceInfo { device_id: DEVICE.into(), name: "Authenticated phone".into(), platform: DevicePlatform::Ios, app_version: "1.0".into() }),
                     state: DeviceConnectionState::Reachable, peer: Some("192.168.1.20:51000".parse().unwrap()), since_last_contact: Some(std::time::Duration::ZERO), companion: None });
                 this.devices.snapshot.presence[0].companion = Some(WatchCompanionView {

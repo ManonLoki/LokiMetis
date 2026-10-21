@@ -48,6 +48,14 @@ TCP帧仍为`u32大端长度 || UTF-8 JSON`。握手载荷上限4096字节；认
 
 业务恢复完成后的第一条终端加密明文是严格`DeviceInfo { deviceId, name, platform, appVersion }`。platform为`android`或`ios`，名称沿用160字节/无控制符限制；版本非空白、无控制符、最多64字节。元信息不得改变本轮已认证身份，也不接受自报`ip`字段。IP取实际认证socket的`peer_addr()`，保留IPv6链路本地scope；IP不写入配对账本。
 
+### 终端自行上报设备形态
+
+change_id：`LMDESK-DEVICE-REPORTED-FORM-001`；required_version：`0.6.0`。首条严格DeviceInfo仍保持四字段，避免旧桌面拒绝新终端。新桌面在当前认证snapshot外壳增加`deviceFormFactorV1`能力；新终端仅在完整校验本连接真实snapshot后发送一次`{type:"deviceFormFactor",formFactor:"phone"|"tablet"}`。缺省能力、缓存快照和未知系统类型均不发送；连接切换/失败/关闭撤销已报告状态，新连接重新协商。未知类型、额外字段或无效消息保持失败关闭。旧终端仍可正常认证和心跳。
+
+Android在应用级owner创建时读取系统`Configuration.smallestScreenWidthDp`：正数且≥600dp报告tablet，其余正数报告phone，未定义不报告；它是系统尺寸类别，不承诺所有折叠/桌面窗口设备的物理形态识别，也不读取Compose页面宽度或型号。iOS在主线程读取`UIDevice.userInterfaceIdiom`，phone/pad分别报告phone/tablet，其它类别不报告。Watch仍按已有iPhone子设备合同展示，不创建独立直连类型。系统API依据：[Android最小宽度](https://developer.android.com/reference/android/content/res/Configuration#smallestScreenWidthDp)、[Apple界面类型](https://developer.apple.com/documentation/uikit/uidevice/userinterfaceidiom)（2026-10-21核对）。
+
+core只允许当前、未过期且仍受账本信任的租约更新形态。形态只保存在进程内presence，断线保留，重连清空并等待重新报告；不迁移配对账本、不影响信任或IP。GUI仅按认证平台与形态选择四套插图；无报告时显示中性图标，设备名称不参与判断。
+
 ## 已实现的在线领域规则
 
 `DeviceBook::begin_link_session`不把持久秘密交给GUI；验证后获得不可伪造的会话。在线租约只允许同次认证绑定一次，坏包关闭的通道不能上线；当前账本移除或同ID换密钥会撤销原会话资格。
@@ -58,7 +66,7 @@ TCP帧仍为`u32大端长度 || UTF-8 JSON`。握手载荷上限4096字节；认
 
 桌面网络适配器已接入握手总期限、连接并发上限、应用退出回收，以及在当前账本下原子提交presence。加密控制消息为`{ type:"ping", nonce }`、`{ type:"pong", nonce }`或`{ type:"pause" }`；Pong必须匹配在途Ping。JSON分帧读进度由连接owner持有，select取消不丢失半帧；半写取消或任何解码/认证错误均关闭socket。启动只读快照不能覆盖用户移除结果，空账本的旧重启令牌不能跨越离页取消。设备页区分认证当前IP与不可达时的上次IP。
 
-桌面已实现业务快照和资源传输：首条桌面业务消息为`{type:"snapshot", snapshot, capabilities:["watchCompanionV1"]}`，之后每次更新沿同一通道推送完整快照。`snapshot.version=1`；`tokens`含`day {date,zone,startMs,endMs}`、同轮`observedMs`、`all`及`agents [{agent,amount}]`。每份amount含十进制字符串或null的`total`、`availability`及完整度/置信度；未扫描与读取失败不冒充零。Token每30秒最多重读一次，连接归零停止周期读取；初连重新读取，超过90秒或跨日的旧值不作为当前值发送。
+桌面已实现业务快照和资源传输：首条桌面业务消息为`{type:"snapshot", snapshot, capabilities:["watchCompanionV1","deviceFormFactorV1"]}`，之后每次更新沿同一通道推送完整快照。`snapshot.version=1`；`tokens`含`day {date,zone,startMs,endMs}`、同轮`observedMs`、`all`及`agents [{agent,amount}]`。每份amount含十进制字符串或null的`total`、`availability`及完整度/置信度；未扫描与读取失败不冒充零。Token每30秒最多重读一次，连接归零停止周期读取；初连重新读取，超过90秒或跨日的旧值不作为当前值发送。
 
 Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,contentTruncated,image}]`，沿用本机十二槽位覆盖/释放规则，只发送公开且启用Agent的最终状态。slot为1..12；文案最多512 UTF-8字节，截断显式标记；image为内容摘要或null。发布器每500毫秒检查内存状态，只在变化时推送。Token错误与目录错误分别用`tokenError`/`catalogError`明确表达。已连接终端共享一次读取结果，慢设备只保留最新快照；心跳、状态发送优先于持续入站请求。
 
@@ -88,7 +96,7 @@ Android已提交信任映射只在系统同步提交成功后更新，避免Shar
 
 没有接入application context或后台文件队列，不承诺息屏接收。官方依据：[WC即时数据与回执](https://developer.apple.com/documentation/watchconnectivity/wcsession/sendmessagedata(_:replyhandler:errorhandler:))、[可达性边界](https://developer.apple.com/documentation/watchconnectivity/wcsession/isreachable)、[单target Watch](https://developer.apple.com/documentation/watchos-apps/migrating-to-a-single-target-watchos-app)；核对日期2026-10-21。
 
-桌面已在iPhone行下增加独立Watch名称、ID、应用版本、通信与最近确认同步投影，没有Watch IP或独立配对按钮。直连`DeviceInfo`仍只接受android/ios。当前认证snapshot外壳才广告`capabilities:["watchCompanionV1"]`；旧移动端忽略扩展外壳，旧桌面缺少广告时新iPhone绝不发送新消息，能力和心跳nonce随LAN代次清空，缓存快照不参与协商。
+桌面已在iPhone行下增加独立Watch名称、ID、应用版本、通信与最近确认同步投影，没有Watch IP或独立配对按钮。直连`DeviceInfo`仍只接受android/ios。当前认证snapshot外壳才广告`capabilities:["watchCompanionV1","deviceFormFactorV1"]`；旧移动端忽略扩展外壳，旧桌面缺少广告时新iPhone绝不发送新消息，能力和心跳nonce随LAN代次清空，缓存快照不参与协商。
 
 手机在pong后或撤销Watch可达时发送`{type:"companionStatus",nonce,report:{info:{deviceId,name,appVersion},reachable,contact:{sequence,ageMs}|null,sync:{sequence,ageMs}|null}}`。只允许当前iOS父租约且仍保存原信任；一只Watch不创建第二份账本或凭据。nonce必须是该连接已发送且尚未过期的ping，网络owner有界保留最近四个，容许上一轮状态与下一轮ping交叉在途。未知nonce、旧父租约或Android报告关闭通道。
 

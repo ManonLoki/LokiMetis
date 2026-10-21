@@ -72,7 +72,8 @@
     "LMDESK-PANEL-TEXT-LEFT-ALIGN-001",
     "LMDESK-AUTOSTART-HIDDEN-002",
     "LMDESK-LINUX-TASKBAR-HIDE-001",
-    "LMDESK-LINUX-APP-CENTER-CATALOG-001"
+    "LMDESK-LINUX-APP-CENTER-CATALOG-001",
+    "LMDESK-DEVICE-PAIR-OTP-001"
   ],
   "applied_reconciliations": [
     {
@@ -156,8 +157,18 @@
       "change_id": "LMDESK-IMAGE-BMP-WEBP-001",
       "kind": "feature",
       "required_version": "0.6.0"
+    },
+    {
+      "change_id": "LMDESK-DEVICE-REPORTED-FORM-001",
+      "kind": "feature",
+      "required_version": "0.6.0"
+    },
+    {
+      "change_id": "LMDESK-DEVICE-PAIR-OTP-001",
+      "kind": "bug-fix",
+      "required_version": "0.6.1"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.6.0"
+  "target_version": "0.6.1"
 }

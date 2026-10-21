@@ -381,7 +381,7 @@ impl Render for Shell {
             .child(underlay)
             .when_some(self.skin_dialog(cx),|shell,dialog|shell.child(dialog))
             .when_some(self.source_dialog(cx),|shell,dialog|shell.child(dialog))
-            .when_some(self.device_dialog(cx),|shell,dialog|shell.child(dialog))
+            .when_some(self.device_dialog(window, cx),|shell,dialog|shell.child(dialog))
             .when_some(self.release_notes_dialog(window,cx),|shell,dialog|shell.child(dialog))
 
     }
