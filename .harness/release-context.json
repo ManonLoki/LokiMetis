@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "c42b5cb786e875fe34a1cf2c3d681ebd22dcc578",
-  "version": "0.6.3",
+  "sourceHead": "820fd68db72d17dd91cee6fd0d00f113a4d419b2",
+  "version": "0.7.4",
   "releaseDate": "2026-10-21",
-  "expectedTag": "v0.6.3-20261021",
+  "expectedTag": "v0.7.4-20261021",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "058c5433451f246213cc6387511500604660f87d",
-    "sourceHead": "c42b5cb786e875fe34a1cf2c3d681ebd22dcc578",
-    "scopeDiffSha256": "3440894bcc8a23251d0462ca2a93852acfc804c7c2e334755f35a48cdd7510cf",
-    "reviewedSourceCommit": "c42b5cb786e875fe34a1cf2c3d681ebd22dcc578",
+    "scopeBase": "7b3df464188a560f66400b1f52fedfae228ad64f",
+    "sourceHead": "820fd68db72d17dd91cee6fd0d00f113a4d419b2",
+    "scopeDiffSha256": "36f87714fb09d32ec634c6282ff53ddb70b5f9a5607ac3002d1ae49b9a092577",
+    "reviewedSourceCommit": "820fd68db72d17dd91cee6fd0d00f113a4d419b2",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计差异审查五项通过：核对配对票据、窗口预算、保存ACK、会话分域与旧租约隔离；追踪adapter到共享core及非空核心回归；复核协议兼容、文件职责与临时标记。修复WebP内外尺寸绕过并保留未知动画尾块，12项图片回归通过；pnpm validate通过，相关Node回归10通过、7项因平台跳过。外部移动项目不在本次推送范围，未把宿主测试等同实机互通或候选验收。",
+    "evidenceSummary": "Reviewed cumulative released-base to sourceHead across behavior, core/adapter ownership, external contracts, responsibility/size and temporary markers. Fixed default curl/SQLite config inheritance, rejected nonzero process exits and bounded stdin writes, corrected fractional percent units. All 1765 top-level workspace/all-targets/all-features tests and line/comment/dependency checks passed. No unresolved release-review blockers; E2E explicitly disabled; Windows/Linux runtime unverified.",
     "reason": null,
     "remainingRisk": null
   }
