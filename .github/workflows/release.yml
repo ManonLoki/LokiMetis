@@ -35,18 +35,22 @@ jobs:
         include:
           - name: windows-x64
             runner: windows-2025
+            shell: pwsh
             target: x86_64-pc-windows-msvc
             formats: nsis
           - name: macos-arm64-notarized
             runner: macos-15
+            shell: bash
             target: aarch64-apple-darwin
             formats: dmg
           - name: linux-amd64
             runner: ubuntu-26.04
+            shell: bash
             target: x86_64-unknown-linux-gnu
             formats: deb,tar.gz
           - name: linux-arm64
             runner: ubuntu-26.04-arm
+            shell: bash
             target: aarch64-unknown-linux-gnu
             formats: deb,tar.gz
     runs-on: ${{ matrix.runner }}
@@ -140,7 +144,7 @@ jobs:
           APPLE_NOTARIZATION_ISSUER: ${{ secrets.APPLE_NOTARIZATION_ISSUER }}
         run: node scripts/github_macos_credentials.mjs import
       - name: Build tested candidates
-        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        shell: ${{ matrix.shell }}
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
           BUILD_TARGET: ${{ matrix.target }}
