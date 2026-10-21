@@ -185,4 +185,4 @@ Linux扩展稳定change_id：`LINUX-NATIVE-TOOLCHAIN-001`；分类：feature；r
 
 ## 终端仅展示当前连接数据
 
-2026-10-21用户明确要求“客户端不要缓存之前的Token用量和状态”。change_id：`LMDESK-TERMINAL-LIVE-DISPLAY-001`；分类：feature；required_version：`0.6.2`。Android、iPhone与Watch不再持久化/恢复完整展示快照，断开、后台、换目标、失效或重启清空Token/Hooks与展开的旧详情，显示等待当前同步；配对凭据、安装身份、面板偏好和图片正文缓存保留。Widget暂按短时当前连接摘要方案：45秒租约、认证心跳续期、失效请求删除及预排过期空Timeline，不作主App历史恢复；实际刷新服从系统，不能承诺即时清屏。此条取代先前“离线保留最近展示”的范围，不影响图片复用或纯局域网边界。关联ADR-20261021-009。
+2026-10-21用户明确要求“客户端不要缓存之前的Token用量和状态”。change_id：`LMDESK-TERMINAL-LIVE-DISPLAY-001`；分类：feature；required_version：`0.6.2`。Android、iPhone与Watch不再持久化/恢复完整展示快照，断开、后台、换目标、失效或重启清空Token/Hooks与展开的旧详情，显示等待当前同步；配对凭据、安装身份、面板偏好和图片正文缓存保留。Widget采用用户已明确确认的短时当前连接摘要方案：45秒租约、认证心跳续期、失效请求删除及预排过期空Timeline，不作主App历史恢复；实际刷新服从系统，不能承诺即时清屏。此条取代先前“离线保留最近展示”的范围，不影响图片复用或纯局域网边界。关联ADR-20261021-009。
