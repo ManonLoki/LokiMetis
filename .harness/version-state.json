@@ -75,7 +75,8 @@
     "LMDESK-LINUX-APP-CENTER-CATALOG-001",
     "LMDESK-DEVICE-PAIR-OTP-001",
     "LMDESK-DEVICE-CARD-COMPACT-001",
-    "LMDESK-WEBP-INNER-DIMENSIONS-001"
+    "LMDESK-WEBP-INNER-DIMENSIONS-001",
+    "BUG-DEVICE-ADVERTISING-RETRY"
   ],
   "applied_reconciliations": [
     {
@@ -103,94 +104,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.5.0",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.6.3",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "058c5433451f246213cc6387511500604660f87d",
-    "version": "0.5.0"
+    "source_commit": "7b3df464188a560f66400b1f52fedfae228ad64f",
+    "version": "0.6.3"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-LINUX-APP-CENTER-CATALOG-001",
+      "change_id": "BUG-DEVICE-ADVERTISING-RETRY",
       "kind": "bug-fix",
-      "required_version": "0.5.1"
-    },
-    {
-      "change_id": "LMDESK-LAN-DEVICES-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-LAN-DESKTOP-SERVICE-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-MOBILE-PROTOCOL-BRIDGE-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-TERMINAL-MENUS-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-IOS-WIDGETS-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-TERMINAL-LINK-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-DEVICE-CARDS-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-DEVICE-DISCOVERY-REFRESH-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-IMAGE-BMP-WEBP-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-DEVICE-REPORTED-FORM-001",
-      "kind": "feature",
-      "required_version": "0.6.0"
-    },
-    {
-      "change_id": "LMDESK-DEVICE-PAIR-OTP-001",
-      "kind": "bug-fix",
-      "required_version": "0.6.1"
-    },
-    {
-      "change_id": "LMDESK-DEVICE-CARD-COMPACT-001",
-      "kind": "bug-fix",
-      "required_version": "0.6.2"
-    },
-    {
-      "change_id": "LMDESK-INCOMING-PAIRING-DIALOG-001",
-      "kind": "feature",
-      "required_version": "0.6.2"
-    },
-    {
-      "change_id": "LMDESK-TERMINAL-LIVE-DISPLAY-001",
-      "kind": "feature",
-      "required_version": "0.6.2"
-    },
-    {
-      "change_id": "LMDESK-WEBP-INNER-DIMENSIONS-001",
-      "kind": "bug-fix",
-      "required_version": "0.6.3"
+      "required_version": "0.6.4"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.6.3"
+  "target_version": "0.6.4"
 }

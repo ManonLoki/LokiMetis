@@ -18,6 +18,14 @@ const MAX_PENDING_CONNECTIONS: usize = 8;
 const PAIRING_OFFER_LIFETIME: Duration = Duration::from_secs(60);
 /// 每次发送有界等待，失败或中断后绝不在同一socket重发半帧。
 const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
+/// 服务轮失败后的首次重试等待；之后指数退避，持续失败也不会停止广播尝试。
+const SERVER_RETRY_BASE: Duration = Duration::from_secs(1);
+/// 退避上限保证网络或权限恢复后半分钟内重新可被发现。
+const SERVER_RETRY_MAX: Duration = Duration::from_secs(30);
+/// 一轮稳定运行超过此时长后视为已恢复，下次失败重新从首档退避。
+const SERVER_RETRY_RESET_AFTER: Duration = Duration::from_secs(60);
+/// accept瞬时失败（连接中止、句柄暂满）只短暂让出，不拆除广播与已认证连接。
+const ACCEPT_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 /// 桌面用户选择候选后才传递四位码，任务完成结果仍由原有文件提交入口消费。
 pub(super) struct PairingCommand { pub(super) code: String, pub(super) client: String, pub(super) result: oneshot::Sender<Result<VerifiedPairing, &'static str>> }
@@ -57,7 +65,23 @@ impl Devices {
         }
         let this = self.clone();
         if let Err(error) = self.owner.spawn("device-data-server", move |mut shutdown| async move {
-            let result = this.run_server(&mut shutdown, &mut cancelled).await;
+            let mut failures = 0;
+            let result = loop {
+                let started = Instant::now();
+                let result = this.run_server(&mut shutdown, &mut cancelled).await;
+                let Err(error) = result else { break result; };
+                if shutdown.is_cancelled() || *cancelled.borrow() { break result; }
+                // 失败轮保留同一取消令牌退避重建监听与广播，期间重复启动请求不会派生第二个服务。
+                if started.elapsed() >= SERVER_RETRY_RESET_AFTER { failures = 0; }
+                failures += 1;
+                this.reset_server_round(Some(error));
+                tokio::select! {
+                    biased;
+                    _ = shutdown.cancelled() => break Ok(()),
+                    _ = cancelled.changed() => break Ok(()),
+                    _ = tokio::time::sleep(server_retry_delay(failures)) => {},
+                }
+            };
             let restart = this.finish_server(result);
             if let Some(epoch) = restart && !shutdown.is_cancelled() { let _ = this.start_server_for(Some(epoch)); }
         }) {
@@ -67,14 +91,20 @@ impl Devices {
 
     /// 监听和子连接终态后清理当前投影，只返回带代次的重启意图。
     fn finish_server(&self, result: Result<(), &'static str>) -> Option<u64> {
-        let mut state = self.state(); state.view.listening_port = None; state.server.cancel = None;
+        self.reset_server_round(result.err());
+        let mut state = self.state(); state.server.cancel = None;
+        std::mem::take(&mut state.server.restart).then_some(state.server.epoch)
+    }
+
+    /// 单轮服务退出后撤销被中止连接的投影；重试轮沿用取消令牌，错误留给页面披露。
+    fn reset_server_round(&self, error: Option<&'static str>) {
+        let mut state = self.state(); state.view.listening_port = None;
         state.server.offers.clear();
         for session in std::mem::take(&mut state.server.sessions).into_values() {
             let _ = session.cancel.send(true);
             let _ = state.presence.disconnected(&session.lease, UnavailableReason::Disconnected);
         }
-        if let Err(error) = result { state.view.link_error = Some(error); }
-        std::mem::take(&mut state.server.restart).then_some(state.server.epoch)
+        if let Some(error) = error { state.view.link_error = Some(error); }
     }
 
     /// 应用启动加载私有账本并接受首个客户端请求，不依赖设备页或已有配对。
@@ -88,8 +118,12 @@ impl Devices {
                     if !shutdown.is_cancelled() { let _ = this.start_server(); }
                 },
                 Err(error) => {
-                    let mut state = this.state();
-                    if state.book.is_none() && !state.view.pending { state.view.link_error = Some(error); }
+                    {
+                        let mut state = this.state();
+                        if state.book.is_none() && !state.view.pending { state.view.link_error = Some(error); }
+                    }
+                    // 账本暂不可读也交给服务退避重试，存储恢复后无需用户进入设备页即可重新广播。
+                    if !shutdown.is_cancelled() { let _ = this.start_server(); }
                 },
             }
         })
@@ -123,7 +157,7 @@ impl Devices {
                 .map_err(|_| "device_discovery_failed")?.enable_addr_auto();
             let monitor = daemon.monitor().map_err(|_| "device_discovery_failed")?;
             daemon.register(info).map_err(|_| "device_discovery_failed")?;
-            { let mut state = self.state(); state.book.get_or_insert(book); state.view.listening_port = Some(port); }
+            { let mut state = self.state(); state.book.get_or_insert(book); state.view.listening_port = Some(port); state.view.link_error = None; }
             let pending = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS));
             let publisher = self.clone(); let publisher_cancelled = cancelled.clone();
             connections.spawn(async move { publisher.publish_loop(publisher_cancelled).await; });
@@ -139,7 +173,7 @@ impl Devices {
                         if matches!(result, Some(Err(_))) { return Err("device_link_unavailable"); }
                     },
                     accepted = listener.accept() => {
-                        let (stream, peer) = accepted.map_err(|_| "device_link_unavailable")?;
+                        let Ok((stream, peer)) = accepted else { tokio::time::sleep(ACCEPT_RETRY_DELAY).await; continue; };
                         if !is_lan_endpoint(peer) || connections.len() >= MAX_SAVED_DEVICES + MAX_PENDING_CONNECTIONS { continue; }
                         let Ok(permit) = pending.clone().try_acquire_owned() else { continue; };
                         let this = self.clone(); let cancellation = cancelled.clone();
@@ -303,4 +337,9 @@ impl Devices {
             }
         } UnavailableReason::Disconnected
     }
+}
+
+/// 第N次连续失败的重试等待：1、2、4、8、16秒后封顶30秒。
+fn server_retry_delay(failures: u32) -> Duration {
+    SERVER_RETRY_BASE.saturating_mul(1 << failures.saturating_sub(1).min(5)).min(SERVER_RETRY_MAX)
 }

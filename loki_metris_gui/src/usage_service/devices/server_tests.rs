@@ -105,6 +105,32 @@ async fn cancel_pairing_keeps_empty_device_service_alive() {
     assert!(devices.state().server.cancel.is_some()); owner.shutdown().await;
 }
 
+/// 服务轮失败不终止广播职责：保留唯一令牌退避重试，退出仍能及时打断等待。
+#[tokio::test]
+async fn failed_service_round_keeps_retrying_until_shutdown() {
+    let temp = tempfile::tempdir().unwrap();
+    // 设备目录被普通文件占据，存储校验必然失败且不会触达真实网络。
+    std::fs::write(temp.path().join("devices"), b"").unwrap();
+    let owner = Arc::new(crate::usage_service::background::BackgroundTaskOwner::with_runtime(
+        Arc::new(loki_metris_core::RootDiscoveryCoordinator::default()), tokio::runtime::Handle::current()));
+    let devices = Arc::new(Devices::new(temp.path(), owner.clone()));
+    devices.start_server().unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while devices.snapshot().link_error.is_none() { tokio::time::sleep(Duration::from_millis(10)).await; }
+    }).await.unwrap();
+    assert!(devices.state().server.cancel.is_some());
+    devices.start_server().unwrap();
+    assert!(!devices.state().server.restart);
+    tokio::time::timeout(Duration::from_secs(5), owner.shutdown()).await.unwrap();
+    assert!(devices.state().server.cancel.is_none());
+}
+
+#[test]
+fn service_retry_delay_backs_off_to_cap() {
+    let delays: Vec<u64> = (1..=8).map(|failures| server_retry_delay(failures).as_secs()).collect();
+    assert_eq!(delays, [1, 2, 4, 8, 16, 30, 30, 30]);
+}
+
 /// 握手完成时撤销同ID的排队连接，避免成功后又弹出重复配对请求。
 #[tokio::test]
 async fn saved_device_commit_rejects_duplicate_queued_request() {
