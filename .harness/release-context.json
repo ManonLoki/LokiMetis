@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "ddfff179fee48a4cde00a0d8aae7d767257c6094",
-  "version": "0.7.10",
+  "sourceHead": "093453e1a606def49a20fa73252abf7a32f9a5e3",
+  "version": "0.7.11",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.10-20261022",
+  "expectedTag": "v0.7.11-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "bd767f35ad8f87ca34342a25f0a26e9a270a61a4",
-    "sourceHead": "ddfff179fee48a4cde00a0d8aae7d767257c6094",
-    "scopeDiffSha256": "32aa4fd4927a2f21d117d7f31e275c8a95ddbfb569ce11373ba513c7ba7cd45e",
-    "reviewedSourceCommit": "ddfff179fee48a4cde00a0d8aae7d767257c6094",
+    "scopeBase": "2f75130524a94e38cc5386dfc4524ee1e7d2b5ed",
+    "sourceHead": "093453e1a606def49a20fa73252abf7a32f9a5e3",
+    "scopeDiffSha256": "ee438033e7b3e518e2ea595ca876af6fde844e38921be14f55c27d02b26455ac",
+    "reviewedSourceCommit": "093453e1a606def49a20fa73252abf7a32f9a5e3",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "按GitHub服务端解析失败改成独立静态shell步骤，移除未使用的矩阵shell字段。YAML解析及步骤完整性检查确认Windows使用pwsh、Unix使用bash，所有step shell均无动态表达式。只修改工作流及版本状态，不改变业务、外部数据或签名/资源门禁；无临时或秘密标记。当前E2E关闭，原生测试构建由CI继续执行。",
+    "evidenceSummary": "两处测试修正保留原断言，空/真实日志模态回归已通过；Windows使用函数实际所属模块。源差异不改运行时业务、core职责、协议、权限、签名公证或矩阵。用户明确批准仅此次维护升0.7.11；ADR限定helper映射、去重和例外结束条件，永久规则不变。五项只读审查通过，无跳过测试、降级、秘密或临时标记。本轮CI仍须四平台真实完整测试及制品验证。",
     "reason": null,
     "remainingRisk": null
   }
