@@ -39,10 +39,14 @@ pub(super) enum Category {
     Png,
     /// 仅 GIF。
     Gif,
+    /// 仅 BMP。
+    Bmp,
+    /// 仅 WebP。
+    Webp,
 }
 impl Category {
     /// 固定筛选顺序。
-    pub const ALL: [Self; 4] = [Self::All, Self::Jpeg, Self::Png, Self::Gif];
+    pub const ALL: [Self; 6] = [Self::All, Self::Jpeg, Self::Png, Self::Gif, Self::Bmp, Self::Webp];
     /// 格式由 core 识别，文件扩展名不决定筛选结果。
     pub fn accepts(self, format: ImageFormat) -> bool {
         self == Self::All
@@ -51,6 +55,8 @@ impl Category {
                 (Self::Jpeg, ImageFormat::Jpeg)
                     | (Self::Png, ImageFormat::Png)
                     | (Self::Gif, ImageFormat::Gif)
+                    | (Self::Bmp, ImageFormat::Bmp)
+                    | (Self::Webp, ImageFormat::Webp)
             )
     }
 }

@@ -36,6 +36,8 @@ impl AssetDescriptor {
         let mime = if bytes.starts_with(b"\x89PNG\r\n\x1a\n") { "image/png" }
             else if bytes.starts_with(b"\xff\xd8\xff") { "image/jpeg" }
             else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") { "image/gif" }
+            else if bytes.starts_with(b"BM") { "image/bmp" }
+            else if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" { "image/webp" }
             else { return Err(AssetError::Invalid); };
         Ok(Self { hash: digest(bytes), mime:mime.into(), length: bytes.len() as u64 })
     }
@@ -45,7 +47,7 @@ impl AssetDescriptor {
     pub fn validate(&self) -> Result<(), AssetError> {
         if self.length == 0 || self.length > MAX_ASSET_BYTES as u64 || self.hash.len() != 64
             || !self.hash.bytes().all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
-            || !matches!(self.mime.as_str(), "image/png" | "image/jpeg" | "image/gif") { return Err(AssetError::Invalid); }
+            || !matches!(self.mime.as_str(), "image/bmp" | "image/png" | "image/jpeg" | "image/webp" | "image/gif") { return Err(AssetError::Invalid); }
         Ok(())
     }
     /// 请求只允许固定块边界，最后一块按实际长度收尾。
@@ -103,6 +105,32 @@ fn digest(bytes: &[u8]) -> String { Sha256::digest(bytes).iter().map(|byte| form
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// 五种公开格式以实际魔数识别，MIME错配和短RIFF头均拒绝复用。
+    #[test]
+    fn main_image_formats_preserve_mime_and_digest_verification() {
+        for (bytes, mime) in [
+            (b"BMbody".as_slice(), "image/bmp"),
+            (b"RIFF\x08\0\0\0WEBPbody".as_slice(), "image/webp"),
+            (b"\x89PNG\r\n\x1a\nbody".as_slice(), "image/png"),
+            (b"\xff\xd8\xffbody".as_slice(), "image/jpeg"),
+            (b"GIF89abody".as_slice(), "image/gif"),
+        ] {
+            let descriptor = AssetDescriptor::from_bytes(bytes).unwrap();
+            descriptor.validate().unwrap();
+            assert_eq!(descriptor.mime, mime);
+            let mut receiver = AssetReceiver::new(descriptor.clone()).unwrap();
+            assert!(receiver.accept(&descriptor.chunk(bytes, 0).unwrap()).unwrap());
+            assert_eq!(receiver.finish().unwrap().1, bytes);
+            let mut mismatched = descriptor;
+            mismatched.mime = "image/unsupported".into();
+            assert!(!mismatched.matches(bytes));
+            assert!(mismatched.validate().is_err());
+        }
+        for bytes in [b"R".as_slice(), b"RIFF", b"RIFF....WEB", b"RIFF....WAVE", b"B"] {
+            assert!(AssetDescriptor::from_bytes(bytes).is_err());
+        }
+    }
+
     /// 多块图片校验后可复用；篡改及乱序不能提交部分资源。
     #[test]
     fn chunks_require_exact_order_and_full_digest_before_commit() {

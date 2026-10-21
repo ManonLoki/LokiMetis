@@ -69,7 +69,7 @@
 | `zip` | `9.0.3` | 关闭默认特征，`deflate`；主题 ZIP 导入导出 |
 | `anyhow` | `1.0.104` | 宿主调用错误上下文 |
 | `uuid` | `1.28.0` | `v4,v7`；资源与事务标识 |
-| `image` | `0.25.10` | 关闭默认特征，`jpeg,png,gif` |
+| `image` | `0.25.10` | 关闭默认特征，`jpeg,png,gif,bmp,webp`；WebP 复用已解析的 `image-webp` |
 | `png` | `0.18.1` | PNG/APNG 资源处理 |
 | `tempfile` | `3.27.0` | GUI 临时资源与 core 测试夹具；core 仅 dev-dependency |
 | `same-file` | `1.0.6` | 文件身份核对 |

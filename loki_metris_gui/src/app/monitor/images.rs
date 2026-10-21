@@ -144,6 +144,8 @@ impl Shell {
                     match category {
                         Category::Jpeg => "JPEG",
                         Category::Png => "PNG",
+                        Category::Bmp => "BMP",
+                        Category::Webp => "WebP",
                         _ => "GIF",
                     }
                 )

@@ -103,7 +103,7 @@ fn validate_records(records: &[MonitorImageRecord]) -> Result<(), HookError> {
                 path.components().next(),
                 Some(std::path::Component::Normal(_))
             )
-            || !matches!(extension, Some("jpg" | "png" | "gif"))
+            || !matches!(extension, Some("jpg" | "png" | "gif" | "bmp" | "webp"))
             || !ids.insert(&record.id)
             || !names.insert(&record.stored_name)
         {
@@ -191,6 +191,8 @@ fn snapshot_from_records(
                 {
                     Some("gif") => loki_metris_core::ImageFormat::Gif,
                     Some("png") => loki_metris_core::ImageFormat::Png,
+                    Some("bmp") => loki_metris_core::ImageFormat::Bmp,
+                    Some("webp") => loki_metris_core::ImageFormat::Webp,
                     _ => loki_metris_core::ImageFormat::Jpeg,
                 },
             }),

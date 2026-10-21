@@ -1,4 +1,4 @@
-//! 本机监控图库：JPEG/PNG/GIF 识别、计数与预览 data URL。
+//! 本机监控图库：BMP/PNG/JPEG/WebP/GIF 识别、计数与预览 data URL。
 //!
 //! 不依赖设备 ID 或远端传输；非法格式在进入存储前被拒绝。
 
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::HookError;
 
-/// 本机图库允许持久化的三种格式。
+/// 本机图库允许持久化的五种格式。
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ImageFormat {
@@ -16,6 +16,10 @@ pub enum ImageFormat {
     Png,
     /// GIF（含动图）。
     Gif,
+    /// BMP。
+    Bmp,
+    /// WebP（含动图）。
+    Webp,
 }
 
 impl ImageFormat {
@@ -39,6 +43,10 @@ impl ImageFormat {
         if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
             return Some(Self::Gif);
         }
+        if bytes.starts_with(b"BM") { return Some(Self::Bmp); }
+        if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
+            return Some(Self::Webp);
+        }
         None
     }
 
@@ -48,6 +56,8 @@ impl ImageFormat {
             Self::Jpeg => "image/jpeg",
             Self::Png => "image/png",
             Self::Gif => "image/gif",
+            Self::Bmp => "image/bmp",
+            Self::Webp => "image/webp",
         }
     }
 
@@ -57,6 +67,8 @@ impl ImageFormat {
             Self::Jpeg => "jpg",
             Self::Png => "png",
             Self::Gif => "gif",
+            Self::Bmp => "bmp",
+            Self::Webp => "webp",
         }
     }
 }
@@ -83,6 +95,10 @@ pub struct MonitorImageCounts {
     pub png: usize,
     /// GIF 张数。
     pub gif: usize,
+    /// BMP 张数。
+    pub bmp: usize,
+    /// WebP 张数。
+    pub webp: usize,
 }
 
 impl MonitorImageCounts {
@@ -92,6 +108,8 @@ impl MonitorImageCounts {
             jpeg: 0,
             png: 0,
             gif: 0,
+            bmp: 0,
+            webp: 0,
         }
     }
 }
@@ -102,7 +120,7 @@ impl MonitorImageCounts {
 pub struct MonitorImageCatalog {
     /// 元数据条目，顺序与调用方提供的一致。
     pub images: Vec<MonitorImageMetadata>,
-    /// JPEG/PNG/GIF 计数。
+    /// 五种已支持格式的独立计数。
     pub counts: MonitorImageCounts,
 }
 
@@ -114,6 +132,8 @@ pub fn assemble_image_catalog(images: Vec<MonitorImageMetadata>) -> MonitorImage
             ImageFormat::Jpeg => counts.jpeg += 1,
             ImageFormat::Png => counts.png += 1,
             ImageFormat::Gif => counts.gif += 1,
+            ImageFormat::Bmp => counts.bmp += 1,
+            ImageFormat::Webp => counts.webp += 1,
         }
     }
     MonitorImageCatalog { images, counts }
@@ -188,24 +208,35 @@ mod tests {
     const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
     const GIF: &[u8] = b"GIF89a\x01\x00";
     const WEBP: &[u8] = b"RIFF....WEBP";
+    const BMP: &[u8] = b"BM....";
 
-    /// 验证三种受支持格式按魔数识别、计入目录，并生成匹配 MIME 的 data URL。
+    /// 五种受支持格式按魔数识别、独立计数，并生成匹配 MIME 和扩展名。
     #[test]
-    fn catalog_counts_jpeg_png_gif_and_data_url_uses_mime() {
+    fn catalog_counts_all_five_formats_and_data_url_uses_mime() {
         let jpeg = metadata_from_bytes("j1", "a.jpg", JPEG).expect("jpeg");
         let png = metadata_from_bytes("p1", "b.png", PNG).expect("png");
         let gif = metadata_from_bytes("g1", "c.gif", GIF).expect("gif");
+        let bmp = metadata_from_bytes("b1", "d.bmp", BMP).expect("bmp");
+        let webp = metadata_from_bytes("w1", "e.webp", WEBP).expect("webp");
         assert_eq!(jpeg.format, ImageFormat::Jpeg);
         assert_eq!(png.format, ImageFormat::Png);
         assert_eq!(gif.format, ImageFormat::Gif);
+        assert_eq!(bmp.format, ImageFormat::Bmp);
+        assert_eq!(webp.format, ImageFormat::Webp);
+        assert_eq!(bmp.format.extension(), "bmp");
+        assert_eq!(webp.format.extension(), "webp");
         assert!(image_data_url(jpeg.format, JPEG).starts_with("data:image/jpeg;base64,"));
         assert!(image_data_url(png.format, PNG).starts_with("data:image/png;base64,"));
         assert!(image_data_url(gif.format, GIF).starts_with("data:image/gif;base64,"));
-        let catalog = assemble_image_catalog(vec![jpeg, png, gif]);
+        assert!(image_data_url(bmp.format, BMP).starts_with("data:image/bmp;base64,"));
+        assert!(image_data_url(webp.format, WEBP).starts_with("data:image/webp;base64,"));
+        let catalog = assemble_image_catalog(vec![jpeg, png, gif, bmp, webp]);
         assert_eq!(catalog.counts.jpeg, 1);
         assert_eq!(catalog.counts.png, 1);
         assert_eq!(catalog.counts.gif, 1);
-        assert_eq!(catalog.images.len(), 3);
+        assert_eq!(catalog.counts.bmp, 1);
+        assert_eq!(catalog.counts.webp, 1);
+        assert_eq!(catalog.images.len(), 5);
     }
 
     /// 验证空输入生成无条目且各格式计数均为零的目录。
@@ -216,13 +247,17 @@ mod tests {
         assert_eq!(catalog.counts.jpeg, 0);
         assert_eq!(catalog.counts.png, 0);
         assert_eq!(catalog.counts.gif, 0);
+        assert_eq!(catalog.counts.bmp, 0);
+        assert_eq!(catalog.counts.webp, 0);
     }
 
     /// 验证空字节和不受支持的文件魔数会返回各自的稳定错误。
     #[test]
     fn illegal_format_and_empty_bytes_are_rejected() {
-        let unsupported = metadata_from_bytes("w1", "x.webp", WEBP).expect_err("webp");
-        assert_eq!(unsupported.code, "error.monitor.imageUnsupportedType");
+        for bytes in [b"RIFF....WAVE".as_slice(), b"RIFF....WEB", b"B", b"arbitrary"] {
+            let unsupported = metadata_from_bytes("bad", "renamed.webp", bytes).expect_err("unsupported");
+            assert_eq!(unsupported.code, "error.monitor.imageUnsupportedType");
+        }
         let empty = metadata_from_bytes("e1", "empty.png", &[]).expect_err("empty");
         assert_eq!(empty.code, "error.monitor.imageEmpty");
     }

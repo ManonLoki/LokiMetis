@@ -6,6 +6,27 @@ use loki_metris_core::{AiProfileDraft, AiTool, HookBehavior};
 /// 两帧 GIF89a，可由实际渲染器完整解码而非只满足魔数。
 const GIF: &[u8] = include_bytes!("../../tests/fixtures/monitor-loop.gif");
 
+/// 新格式可导入后跨读取恢复；资源丢失仍保留正确格式供图库筛选和删除。
+#[test]
+fn bmp_and_webp_roundtrip_gallery_and_preserve_missing_format() {
+    for (format, codec) in [(loki_metris_core::ImageFormat::Bmp, image::ImageFormat::Bmp), (loki_metris_core::ImageFormat::Webp, image::ImageFormat::WebP)] {
+        let root = tempfile::tempdir().unwrap();
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(1, 1).write_to(&mut encoded, codec).unwrap();
+        let bytes = encoded.into_inner();
+        let imported = save_monitor_image(root.path(), "untrusted-extension.png", &bytes).unwrap();
+        let path = root.path().join("monitor-images").join(format!("{}.{}", imported.id, format.extension()));
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        let snapshot = list_monitor_images(root.path()).unwrap();
+        assert_eq!(snapshot.gallery.images[0].format, format);
+        assert_eq!(&*snapshot.bytes[&imported.id], bytes);
+        std::fs::remove_file(path).unwrap();
+        let missing = list_monitor_images(root.path()).unwrap();
+        assert_eq!(missing.unavailable.len(), 1);
+        assert_eq!(missing.unavailable[0].format, format);
+    }
+}
+
 /// 导入、引用阻止删除、清空引用并删除的完整存储闭环。
 #[test]
 fn import_bind_reload_and_delete_preserves_reference_integrity() {

@@ -1,4 +1,4 @@
-//! 原生图片资源解码：保留 GIF 多帧、透明度和 JPEG 方向，并限制解码资源。
+//! 原生图片资源解码：支持五种图片、保留动画与透明度，并限制解码资源。
 
 use gpui_kit::{App, Asset, DevicePixels, RenderImage, Size, size};
 use image::{AnimationDecoder, ImageDecoder, Limits};
@@ -13,7 +13,7 @@ use std::{
 pub(super) const MAX_DIMENSION: u32 = 8192;
 /// 解码器内部工作内存的 best-effort 预算，不等同进程峰值。
 pub(super) const WORK_BYTES: u64 = 64 * 1024 * 1024;
-/// GIF 已保留帧像素预算，另有一帧在解码器内部生成的临时占用。
+/// 动画已保留帧像素预算，另有一帧在解码器内部生成的临时占用。
 pub(super) const RETAINED_BYTES: u64 = 128 * 1024 * 1024;
 /// 防止极小图片通过极多帧耗尽对象和定时器资源。
 pub(super) const MAX_FRAMES: usize = 2048;
@@ -157,9 +157,22 @@ fn decode(
         } else {
             frames = vec![static_frame(decoder)?];
         }
+    } else if source.format == ImageFormat::Webp {
+        let mut decoder = image::codecs::webp::WebPDecoder::new(Cursor::new(&*source.bytes))?;
+        decoder.set_limits(limits())?;
+        if decoder.has_animation() {
+            if decoder.total_bytes().saturating_mul(2) > WORK_BYTES {
+                anyhow::bail!("monitor WebP working set exceeded")
+            }
+            plays = match decoder.loop_count() {
+                image::metadata::LoopCount::Infinite => None,
+                image::metadata::LoopCount::Finite(count) => Some(count.get()),
+            };
+            frames = animation_frames(decoder.into_frames())?;
+        } else { frames = vec![static_frame(decoder)?]; }
     } else {
         let format = match source.format {
-            ImageFormat::Png => image::ImageFormat::Png,
+            ImageFormat::Bmp => image::ImageFormat::Bmp,
             _ => image::ImageFormat::Jpeg,
         };
         let mut reader = image::ImageReader::with_format(Cursor::new(&*source.bytes), format);
@@ -189,7 +202,7 @@ fn decode(
     }))
 }
 
-/// GIF/APNG 均逐帧累计已保留内存，任何损坏帧都明确失败。
+/// GIF/APNG/WebP 均逐帧累计已保留内存，任何损坏帧都明确失败。
 fn animation_frames(input: image::Frames<'_>) -> anyhow::Result<Vec<image::Frame>> {
     let mut frames = Vec::new();
     let mut retained = Limits::default();
@@ -361,5 +374,70 @@ mod tests {
             [255, 255, 255, 255].repeat(9)
         );
         assert_eq!(decoded.image.delay(0).numer_denom_ms(), (200, 1));
+    }
+
+    /// BMP 和静态 WebP 都走真实编码后的字节，保留尺寸、像素和单次播放。
+    #[test]
+    fn bmp_and_static_webp_decode_their_actual_pixels() {
+        for (format, codec) in [(ImageFormat::Bmp, image::ImageFormat::Bmp), (ImageFormat::Webp, image::ImageFormat::WebP)] {
+            let pixel = image::RgbaImage::from_pixel(1, 1, image::Rgba([12, 34, 56, 255]));
+            let mut bytes = Cursor::new(Vec::new());
+            image::DynamicImage::ImageRgba8(pixel).write_to(&mut bytes, codec).unwrap();
+            let source = MonitorImageSource { id: format!("static-{format:?}"), format, bytes: Arc::from(bytes.into_inner()) };
+            let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
+            assert_eq!(decoded.natural_size, size(DevicePixels(1), DevicePixels(1)));
+            assert_eq!(decoded.plays, Some(1));
+            assert_eq!(decoded.image.frame_count(), 1);
+            assert_eq!(decoded.image.as_bytes(0).unwrap(), [56, 34, 12, 255].repeat(9));
+        }
+    }
+
+    /// 用现有无损编码器构造两帧 WebP 容器，循环次数和延迟都由正式解码器读取。
+    fn animated_webp(loops: u16) -> Vec<u8> {
+        let mut body = b"WEBP".to_vec();
+        let chunk = |output: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]| {
+            output.extend_from_slice(kind); output.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            output.extend_from_slice(data);
+            if data.len() % 2 != 0 { output.push(0); }
+        };
+        chunk(&mut body, b"VP8X", &[2, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        let mut animation = vec![0, 0, 0, 0]; animation.extend_from_slice(&loops.to_le_bytes());
+        chunk(&mut body, b"ANIM", &animation);
+        for (pixel, delay) in [([0, 0, 0, 255], 120u32), ([255, 255, 255, 255], 230u32)] {
+            let mut encoded = Vec::new();
+            image::codecs::webp::WebPEncoder::new_lossless(&mut encoded)
+                .encode(&pixel, 1, 1, image::ExtendedColorType::Rgba8).unwrap();
+            let mut frame = vec![0; 16]; frame[12..15].copy_from_slice(&delay.to_le_bytes()[..3]);
+            frame[15] = 2; // 测试帧完整替换画布，不叠加上一帧的颜色。
+            frame.extend_from_slice(&encoded[12..]);
+            chunk(&mut body, b"ANMF", &frame);
+        }
+        let mut bytes = b"RIFF".to_vec(); bytes.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        bytes.extend(body); bytes
+    }
+
+    /// 动态 WebP 必须保留两帧、各自延迟及有限或无限播放，不能退化成首帧静图。
+    #[test]
+    fn animated_webp_keeps_frames_delays_and_loop_count() {
+        for (loops, plays) in [(0, None), (3, Some(3))] {
+            let source = MonitorImageSource { id: format!("animated-webp-{loops}"), format: ImageFormat::Webp, bytes: Arc::from(animated_webp(loops)) };
+            let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
+            assert_eq!(decoded.plays, plays);
+            assert_eq!(decoded.image.frame_count(), 2);
+            assert_eq!(decoded.natural_size, size(DevicePixels(1), DevicePixels(1)));
+            assert_eq!(decoded.image.as_bytes(0).unwrap(), [0, 0, 0, 255].repeat(9));
+            assert_eq!(decoded.image.as_bytes(1).unwrap(), [255, 255, 255, 255].repeat(9));
+            assert_eq!(decoded.image.delay(0).numer_denom_ms(), (120, 1));
+            assert_eq!(decoded.image.delay(1).numer_denom_ms(), (230, 1));
+        }
+    }
+
+    /// 魔数合法但无图像数据的 BMP/WebP 必须失败，不能伪装为已解码图片。
+    #[test]
+    fn corrupt_bmp_and_webp_fail_decoding() {
+        for (format, bytes) in [(ImageFormat::Bmp, b"BM....".as_slice()), (ImageFormat::Webp, b"RIFF....WEBP".as_slice())] {
+            let source = MonitorImageSource { id: "corrupt".into(), format, bytes: Arc::from(bytes) };
+            assert!(decode(&source, &super::super::image_memory::DecodeResources::new()).is_err());
+        }
     }
 }
