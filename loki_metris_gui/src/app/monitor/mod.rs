@@ -108,7 +108,7 @@ impl Shell {
                 .child(Button::new("monitor-retry").label(self.t("ui.retry")).on_click(cx.listener(|this,_,_,cx|this.refresh_monitor(true,cx)))));
         }
         let Some(status)=&self.monitor.status else {
-            page=page.child(self.monitor_quota_board(cx));
+            page=page.when_some(self.monitor_quota_board(cx), |page, board| page.child(board));
             return sticky::MonitorFlow::scope(div().w_full().flex().flex_col().gap_5().child(tabs).child(sticky::MonitorFlow::ordered(page,self.page_scroll.clone(),1)),self.page_scroll.clone()).into_any_element()
         };
         let listening=if status.listening {self.t("monitor.workbench.listening").replace("%{address}",&status.bind_address)}else{self.t("monitor.workbench.offline")};
@@ -126,7 +126,7 @@ impl Shell {
                 div().id("monitor-last-event").test_support().role(Role::Label).aria_label(label.clone()).text_size(px(14.)).child(label)
             }else{div().id("monitor-last-event").test_support().role(Role::Label).aria_label(self.t("monitor.workbench.noEvent")).text_size(px(14.)).text_color(cx.theme().muted_foreground).child(self.t("monitor.workbench.noEvent"))})
             .when_some(status.last_error.as_ref(),|card,error|card.child(div().id("monitor-last-error").role(Role::Alert).aria_label(error.clone()).rounded(px(12.)).p_4().bg(cx.theme().danger.opacity(0.1)).text_color(cx.theme().danger).child(self.t("monitor.workbench.lastError").replace("%{error}",error)))));
-        page=page.child(self.monitor_quota_board(cx));
+        page=page.when_some(self.monitor_quota_board(cx), |page, board| page.child(board));
         sticky::MonitorFlow::scope(div().w_full().flex().flex_col().gap_5().child(tabs).child(sticky::MonitorFlow::ordered(page,self.page_scroll.clone(),1)),self.page_scroll.clone()).into_any_element()
     }
 

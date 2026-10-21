@@ -35,11 +35,11 @@ pub(crate) struct QuotaCard {
     pub phase: QuotaCardPhase,
 }
 
-/// 四张卡的最近快照。
+/// 活动提供商的最近快照，失败和缺窗口阶段保留在后台供下次刷新。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct QuotaBoardSnapshot {
     /// 与 [`supported_quota_providers`] 相同的顺序。
-    pub cards: [QuotaCard; 4],
+    pub cards: [QuotaCard; supported_quota_providers().len()],
     /// 最近一次写回某张卡的 Unix 秒。
     pub fetched_at_unix: Option<i64>,
 }
@@ -61,7 +61,7 @@ pub(crate) struct QuotaBoard {
 }
 
 impl QuotaBoard {
-    /// 建立四张等待中的卡。
+    /// 按活动目录建立等待中的卡。
     pub(crate) fn new() -> Self {
         Self { snapshot: Mutex::new(QuotaBoardSnapshot::default()), in_flight: AtomicBool::new(false), last_kick: Mutex::new(None) }
     }

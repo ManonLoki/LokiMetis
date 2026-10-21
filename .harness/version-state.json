@@ -136,6 +136,11 @@
       "change_id": "LMDESK-MONITOR-QUOTA-LOCAL-001",
       "kind": "feature",
       "required_version": "0.7.0"
+    },
+    {
+      "change_id": "LMDESK-MONITOR-QUOTA-DISPLAY-001",
+      "kind": "feature",
+      "required_version": "0.7.0"
     }
   ],
   "schema_version": 1,

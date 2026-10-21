@@ -1,13 +1,13 @@
 //! 提供商 5 小时与周用量窗口。只解释上游响应，不读取凭据、不发起网络。
 //!
-//! Claude 不在目录内。窗口只按持续时长归类：约 5 小时或约 7 日才进入对应槽，
+//! Claude 与 WorkBuddy 不在活动目录内。窗口只按持续时长归类：约 5 小时或约 7 日才进入对应槽，
 //! 月度账单不会被标成周用量。
 
 mod parse;
 
 use crate::AiTool;
 
-/// 允许尝试读取用量的提供商。顺序与公开监控目录一致，不含 Claude。
+/// 用量正文的提供商身份；实际读取范围由活动目录限制。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum QuotaProvider {
     /// Codex 订阅额度。
@@ -16,7 +16,7 @@ pub enum QuotaProvider {
     Cursor,
     /// Grok Build 订阅额度。
     Grok,
-    /// WorkBuddy / CodeBuddy 订阅额度。
+    /// 保留已有 WorkBuddy / CodeBuddy 正文解释，不进入活动读取目录。
     WorkBuddy,
 }
 
@@ -97,13 +97,19 @@ impl QuotaWindow {
     }
 }
 
-/// 当前会尝试读取用量的提供商。Claude 不在其中。
-pub const fn supported_quota_providers() -> [QuotaProvider; 4] {
+impl ProviderQuota {
+    /// 只有真实短窗口才具备额度卡展示资格，周窗口不能替代五小时窗口。
+    pub const fn has_five_hour_window(&self) -> bool {
+        matches!(self.five_hour, Some(QuotaWindow { kind: QuotaWindowKind::FiveHour, .. }))
+    }
+}
+
+/// 活动读取顺序为 Codex、Cursor、Grok；Claude 缺少本地额度来源，WorkBuddy 已排除。
+pub const fn supported_quota_providers() -> [QuotaProvider; 3] {
     [
         QuotaProvider::Codex,
         QuotaProvider::Cursor,
         QuotaProvider::Grok,
-        QuotaProvider::WorkBuddy,
     ]
 }
 
