@@ -54,17 +54,24 @@ fn discovery_refresh_belongs_to_section_and_respects_busy_state(cx: &mut TestApp
     }
 }
 
-/// 宽窄窗口与双主题均保持真实卡片栅格；长名称、IPv6和图片不得溢出，候选按行排列。
+/// 宽窄窗口、双语和双主题保持紧凑卡片；IP与状态、版本与通信各自同行且长文不溢出。
 #[gpui_kit::test]
 fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppContext) {
     use gpui_kit::{px, component::{Theme, ThemeMode}};
     use loki_metris_core::devices::{link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState}};
-    for (width, columns, dark) in [(960., 2, false), (960., 2, true), (1280., 3, false), (1280., 3, true), (1440., 3, false), (1440., 3, true)] {
+    for (width, columns, dark, locale) in [
+        (960., 2, false, "en-US"), (960., 2, true, "en-US"),
+        (1280., 3, false, "en-US"), (1280., 3, true, "en-US"),
+        (1440., 3, false, "en-US"), (1440., 3, true, "en-US"),
+        (960., 2, false, "zh-CN"), (960., 2, true, "zh-CN"),
+        (1280., 3, false, "zh-CN"), (1280., 3, true, "zh-CN"),
+        (1440., 3, false, "zh-CN"), (1440., 3, true, "zh-CN"),
+    ] {
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, width, 1100.);
         cx.update(|cx| Theme::change(if dark { ThemeMode::Dark } else { ThemeMode::Light }, None, cx));
         cx.update_window(handle, |_, window, cx| {
             shell.update(cx, |this, cx| {
-                this.page = crate::app::Page::Devices;
+                this.locale = locale; this.page = crate::app::Page::Devices;
                 this.devices.snapshot.loaded = true;
                 for index in 0..4 {
                     let id = format!("00000000-0000-4000-8000-{index:012}");
@@ -75,7 +82,7 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                             platform: if index % 2 == 0 { DevicePlatform::Ios } else { DevicePlatform::Android },
                             app_version: "1".repeat(64) }), state: DeviceConnectionState::Reachable,
                         peer: Some("[fe80:abcd:abcd:abcd:abcd:abcd:abcd:abcd%12]:4200".parse().unwrap()),
-                        since_last_contact: Some(std::time::Duration::from_secs(4)), companion: None,
+                        since_last_contact: Some(std::time::Duration::from_secs(if index == 3 { u64::MAX } else { 4 })), companion: None,
                     });
                 }
                 this.devices.snapshot.presence[0].companion = Some(loki_metris_core::devices::companion::WatchCompanionView {
@@ -107,11 +114,21 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                 if index == 0 || index >= columns {
                     assert!(card.size.height <= details.size.height.max(image.size.height) + px(35.), "卡片只保留内容高度与边框/内边距");
                 }
-                for content in [name, ip, window.find(format!("device-status-{id}")).bounds(), window.find(format!("device-metadata-{id}")).bounds()] {
+                let status = window.find(format!("device-status-{id}")).bounds();
+                let address = window.find(format!("device-address-{id}")).bounds();
+                let version = window.find(format!("device-version-{id}")).bounds();
+                let contact = window.find(format!("device-contact-{id}")).bounds();
+                for content in [name, ip, address, status, version, contact, window.find(format!("device-metadata-{id}")).bounds()] {
                     assert!(content.left() >= details.left() && content.right() <= details.right() + px(1.));
                     assert!(content.top() >= details.top() && content.bottom() <= details.bottom() + px(1.));
                 }
-                assert!(window.find(format!("device-address-{id}")).bounds().size.height < px(40.));
+                assert!(address.size.height < px(40.));
+                assert!(status.left() >= address.right() + px(7.), "状态标签与IP不重叠");
+                assert!((status.center().y - address.center().y).abs() <= px(1.), "IP和状态标签保持同行");
+                assert!(contact.left() >= version.right(), "通信时间不能覆盖版本");
+                assert!((version.center().y - contact.center().y).abs() <= px(1.), "版本和通信时间保持同行");
+                assert!(version.size.width > px(20.) && contact.size.width > px(20.), "长文本不能挤掉另一项");
+                if index >= columns { assert!(card.size.height <= px(160.), "无Watch的卡片不再为各元数据保留独立行"); }
                 let expected_name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
                 assert_eq!(window.find(format!("device-name-{id}")).label(), Some(expected_name.as_str()), "截断不丢失完整辅助名称");
                 if index < columns { assert_eq!(card.top(), first.top()); }
@@ -127,7 +144,7 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
             let details = window.find(format!("device-details-{id}")).bounds();
             assert!(watch.left() >= details.left() && watch.right() <= details.right() + px(1.));
             assert!(watch.bottom() <= details.bottom() + px(1.));
-            for target in ["device-saved", "device-artwork", "device-name", "device-ip", "device-watch"] {
+            for target in ["device-saved", "device-artwork", "device-name", "device-ip", "device-status", "device-version", "device-contact", "device-watch"] {
                 window.click(format!("{target}-{id}"), cx); window.render_frame(cx);
                 assert!(shell.read(cx).devices.modal.is_none());
                 assert_eq!(shell.read(cx).devices.snapshot.saved.len(), 4);
@@ -157,6 +174,7 @@ fn discovered_saved_device_without_authenticated_contact_keeps_pending_ip(cx: &m
         assert_eq!(window.find(format!("device-seen-{DEVICE}")).label(), Some("Recently discovered (connection unverified)"));
         assert_eq!(window.find(format!("device-ip-pending-{DEVICE}")).label(), Some("IP · waiting for a connection"));
         assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some("Not connected"));
+        assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some("Offline"));
         assert!(window.try_find(format!("device-found-{DEVICE}")).is_none());
         assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
     }).unwrap();
@@ -264,6 +282,7 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
             });
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
+            assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Online" } else { "在线" }));
             assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
             assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(connected));
             assert_eq!(window.find(format!("device-watch-sync-{DEVICE}")).label(), Some(if locale == "en-US" { "Last confirmed sync: at most 2s ago" } else { "最近确认同步：至多 2 秒前" }));
@@ -272,11 +291,13 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
             shell.update(cx, |this, cx| { this.devices.snapshot.presence[0].state = DeviceConnectionState::Unavailable(UnavailableReason::Background); cx.notify(); });
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(background));
+            assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
             assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(last_ip));
             assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(if locale == "en-US" { "Sync unavailable · cache retained" } else { "暂不可同步 · 保留缓存" }));
             shell.update(cx, |this, cx| { this.devices.snapshot.presence.clear(); prepare_target(this); cx.notify(); });
             window.render_frame(cx);
             assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(not_connected));
+            assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
             assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
         }).unwrap();
     }

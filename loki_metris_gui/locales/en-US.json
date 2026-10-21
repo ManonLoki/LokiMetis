@@ -894,6 +894,8 @@
       "pairingUnavailable": "Pairing is not enabled on this device"
     },
     "pairingUnavailable": "Pairing is not enabled on this device",
+    "online": "Online",
+    "offline": "Offline",
     "connected": "Connected",
     "notConnected": "Not connected",
     "background": "In background · sync resumes when opened",

@@ -894,6 +894,8 @@
       "pairingUnavailable": "此设备尚未启用配对"
     },
     "pairingUnavailable": "此设备尚未启用配对",
+    "online": "在线",
+    "offline": "离线",
     "connected": "当前可通信",
     "notConnected": "尚未连接",
     "background": "已进入后台，打开终端后恢复同步",
