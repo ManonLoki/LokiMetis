@@ -87,7 +87,8 @@
     "LMDESK-CI-NATIVE-ENVIRONMENT-001",
     "LMDESK-CI-WINDOWS-LINKER-001",
     "LMDESK-CI-SHELL-MATRIX-001",
-    "LMDESK-CI-STATIC-SHELLS-001"
+    "LMDESK-CI-STATIC-SHELLS-001",
+    "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022"
   ],
   "applied_reconciliations": [
     {
@@ -121,7 +122,13 @@
     "source_commit": "2f75130524a94e38cc5386dfc4524ee1e7d2b5ed",
     "version": "0.7.10"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022",
+      "kind": "bug-fix",
+      "required_version": "0.7.11"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.7.10"
+  "target_version": "0.7.11"
 }
