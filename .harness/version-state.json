@@ -126,6 +126,11 @@
       "change_id": "FEAT-WIDGET-HTTP-V1",
       "kind": "feature",
       "required_version": "0.7.0"
+    },
+    {
+      "change_id": "LMDESK-MONITOR-QUOTA-001",
+      "kind": "feature",
+      "required_version": "0.7.0"
     }
   ],
   "schema_version": 1,

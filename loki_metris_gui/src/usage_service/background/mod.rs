@@ -40,6 +40,11 @@ impl BackgroundTaskShutdown {
         *self.receiver.borrow()
     }
 
+    /// 复制关闭观察端，供一次性读取任务在取消时回收子进程。
+    pub(crate) fn receiver(&self) -> watch::Receiver<bool> {
+        self.receiver.clone()
+    }
+
     /// 等待 owner 发起关闭；发送端消失同样按关闭处理。
     pub(crate) async fn cancelled(&mut self) {
         loop {

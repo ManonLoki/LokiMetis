@@ -34,6 +34,7 @@ pub(crate) use pet::PetShutdownPlan;
 pub(crate) use agents::shutdown_tests::{block_pet_mutations, pet_background_task_count};
 mod monitor_catalog;
 mod hooks;
+pub(crate) mod provider_quota;
 #[cfg(test)]
 mod source_tests;
 
@@ -111,6 +112,8 @@ struct ServiceContext {
     page_cache: page_cache::PageCache,
     /// Hook 与换肤终态的瞬时通知邮箱。
     activity_notifications: Arc<activity_notifications::ActivityQueue>,
+    /// 提供商 5 小时与周用量快照。窗口线程只复制它。
+    quota: Arc<provider_quota::QuotaBoard>,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -176,7 +179,7 @@ impl UsageService {
         let devices = Arc::new(devices::Devices::new(&directory, background.clone()));
         let context = Arc::new(ServiceContext { background: background.clone(), today_aggregate_gate: Arc::new(tokio::sync::Semaphore::new(1)), devices, directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default() });
+            settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default(), quota: Arc::new(provider_quota::QuotaBoard::new()) });
         context.devices.bind_context(Arc::downgrade(&context));
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());
@@ -212,6 +215,20 @@ impl UsageService {
     /// 返回真实中继状态；宿主尚未启动时显式失败，不伪造离线或成功快照。
     pub fn monitor_status(&self)->Result<crate::monitor::listener::HookRelayStatus,&'static str> {
         self.context.agents.listener.get().map(|control|control.snapshot()).ok_or("monitor_service_unavailable")
+    }
+
+    /// 复制提供商用量快照。不读取登录文件。
+    pub fn provider_quota_snapshot(&self) -> provider_quota::QuotaBoardSnapshot {
+        self.context.quota.snapshot()
+    }
+
+    /// 请求后台刷新用量。测试构建直接返回，避免单元测试触碰本机登录态。
+    pub fn kick_provider_quota(&self, force: bool) -> bool {
+        if cfg!(test) {
+            let _ = force;
+            return true;
+        }
+        self.context.quota.kick(force, &self.context.background)
     }
 
     /// 查询只读既有派生库，快速切页只合并查询意图，不取消 writer。

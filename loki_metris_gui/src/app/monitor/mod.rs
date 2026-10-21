@@ -1,4 +1,4 @@
-//! 原生监控工作台直接展示环回宿主快照，不访问第三方配置。
+//! 原生监控工作台展示环回宿主快照，以及后台读取的提供商 5 小时与周用量。
 
 use super::Shell;
 mod state;
@@ -9,6 +9,7 @@ mod behavior_surface;
 mod picker;
 mod images;
 mod hooks;
+mod quota;
 mod sticky;
 mod focus;
 #[cfg(test)]
@@ -51,6 +52,8 @@ pub(super) struct MonitorView {
     error:Option<&'static str>,
     /// 最近一次读取状态的时刻。
     last_read:Option<std::time::Instant>,
+    /// 提供商 5 小时与周用量快照。刷新失败时保留上一份。
+    quota: crate::usage_service::provider_quota::QuotaBoardSnapshot,
 }
 
 /// 监控展示名消费唯一公开能力目录；未公开协议工具仍使用既有名称回退。
@@ -64,7 +67,11 @@ fn monitor_tool_display_name(tool: loki_metris_core::AiTool) -> &'static str {
 impl Shell {
     /// 工作台以参考三秒节奏刷新；可见但失焦的窗口仍显示最新中继状态。
     pub(super) fn refresh_monitor(&mut self,force:bool,cx:&mut Context<Self>) {
-        if !force&&self.monitor.last_read.is_some_and(|read|read.elapsed()<std::time::Duration::from_secs(3)) {return}
+        let quota_changed=self.monitor.route==state::Route::Workbench&&self.sync_provider_quota(false);
+        if !force&&self.monitor.last_read.is_some_and(|read|read.elapsed()<std::time::Duration::from_secs(3)) {
+            if quota_changed {cx.notify();}
+            return
+        }
         self.monitor.last_read=Some(std::time::Instant::now());
         let next=self.dashboard.service.as_ref().ok_or("monitor_service_unavailable").and_then(|service|service.monitor_status());
         let changed=match next {
@@ -77,7 +84,7 @@ impl Shell {
                 self.monitor.error=Some(error);changed
             },
         };
-        if changed {cx.notify();}
+        if changed||quota_changed {cx.notify();}
     }
 
     /// 当前检查点提供真实工作台；其它监控子页在各自闭环接入后增加导航。
@@ -100,7 +107,10 @@ impl Shell {
             page=page.child(div().id("monitor-error").test_support().role(Role::Alert).aria_label(self.t(error)).rounded(px(12.)).p_4().bg(cx.theme().danger.opacity(0.1)).text_color(cx.theme().danger).child(self.t(error))
                 .child(Button::new("monitor-retry").label(self.t("ui.retry")).on_click(cx.listener(|this,_,_,cx|this.refresh_monitor(true,cx)))));
         }
-        let Some(status)=&self.monitor.status else {return sticky::MonitorFlow::scope(div().w_full().flex().flex_col().gap_5().child(tabs).child(sticky::MonitorFlow::ordered(page,self.page_scroll.clone(),1)),self.page_scroll.clone()).into_any_element()};
+        let Some(status)=&self.monitor.status else {
+            page=page.child(self.monitor_quota_board(cx));
+            return sticky::MonitorFlow::scope(div().w_full().flex().flex_col().gap_5().child(tabs).child(sticky::MonitorFlow::ordered(page,self.page_scroll.clone(),1)),self.page_scroll.clone()).into_any_element()
+        };
         let listening=if status.listening {self.t("monitor.workbench.listening").replace("%{address}",&status.bind_address)}else{self.t("monitor.workbench.offline")};
         let color=rgb(if status.listening {0x40c057}else{0xfa5252});
         page=page.child(super::surface::SpotlightCard::new("monitor-workbench-card",cx.theme().mode.is_dark()).test_support().gap_4().p_4()
@@ -116,6 +126,7 @@ impl Shell {
                 div().id("monitor-last-event").test_support().role(Role::Label).aria_label(label.clone()).text_size(px(14.)).child(label)
             }else{div().id("monitor-last-event").test_support().role(Role::Label).aria_label(self.t("monitor.workbench.noEvent")).text_size(px(14.)).text_color(cx.theme().muted_foreground).child(self.t("monitor.workbench.noEvent"))})
             .when_some(status.last_error.as_ref(),|card,error|card.child(div().id("monitor-last-error").role(Role::Alert).aria_label(error.clone()).rounded(px(12.)).p_4().bg(cx.theme().danger.opacity(0.1)).text_color(cx.theme().danger).child(self.t("monitor.workbench.lastError").replace("%{error}",error)))));
+        page=page.child(self.monitor_quota_board(cx));
         sticky::MonitorFlow::scope(div().w_full().flex().flex_col().gap_5().child(tabs).child(sticky::MonitorFlow::ordered(page,self.page_scroll.clone(),1)),self.page_scroll.clone()).into_any_element()
     }
 

@@ -12,7 +12,7 @@
 //!   adapter 读出索引后只调用这些构建函数，不自行聚合。
 //! - 扫描与数据根策略：`policy`（扫描窗口、来源访问判定、数据根校验与变更结果）、`scan`、`root_discovery`、
 //!   `source_root`、`client_ports`。
-//! - 监控与桌宠：`agent_hooks`（Hook 协议、配置生成与显示状态机）、`ai_capabilities`、`monitor_profile`、
+//! - 监控与桌宠：`agent_hooks`（Hook 协议、配置生成与显示状态机）、`provider_quota`（5 小时与周窗口解释）、`ai_capabilities`、`monitor_profile`、
 //!   `monitor_gallery`、`pet_overlay`、`pet_overlay_position`、`pet_preferences`、`window_placement`。
 //! - 设置与展示辅助：`settings`、`bounded_minutes`、`display_label`、`display_name`、`codex_skin`。
 
@@ -41,6 +41,7 @@ mod pet_preferences;
 mod policy;
 mod private_sqlite;
 mod provider;
+mod provider_quota;
 mod root_discovery;
 mod scan;
 mod settings;
@@ -171,6 +172,10 @@ pub use policy::{
 pub use provider::{
     Completeness, Confidence, Freshness, MetricFact, MetricScope, ProviderKind,
     empty_token_usage_for_provider,
+};
+pub use provider_quota::{
+    ProviderQuota, QuotaFailure, QuotaProvider, QuotaWindow, QuotaWindowKind,
+    classify_window_seconds, parse_provider_quota, supported_quota_providers,
 };
 pub use root_discovery::{
     RootActivationState, RootCandidate, RootCandidateEvidence, RootCandidateSelectionError,

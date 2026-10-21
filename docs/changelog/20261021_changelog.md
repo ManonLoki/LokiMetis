@@ -2,6 +2,14 @@
 
 下文保留当日各独立变更及其开发验证范围。
 
+## LMDESK-MONITOR-QUOTA-001 · AI 监控显示 5 小时与周用量
+
+分类：feature。required_version：`0.7.0`（本周期功能锁已开启，不重复提升 Minor）。
+
+AI 监控工作台在 Hook 快照之外显示 Codex、Cursor、Grok、WorkBuddy 的「5 小时剩余」和「本周剩余」。Claude Code 不查询、不出现用量卡。本机登录材料只读，请求携带各官方客户端的 User-Agent 与身份头，只访问固定 HTTPS 主机。约 5 小时和约 7 日按窗口秒数归类；月度账单不标成周用量。两种窗口都没有时显示已连通但暂无，加密登录显示暂无法读取，失败保留上一份数字。用量约五分钟刷新，与三秒 Hook 快照分开。决定见 [ADR-20261021-011](../adr/20261021_ADR.md#adr-20261021-011ai监控读取四个提供商的5小时与周用量)。
+
+开发验证：`cargo test -p loki_metris_core --lib provider_quota` 15 项通过；`cargo test -p loki_metris_gui --bin loki_metris_gui -- quota monitor_refresh_failure_keeps_previous_metrics workbench_projection_has_two_readable_metric_columns refresh_notifies_only_changed_status_or_error` 12 项通过。夹具进程代替真实 curl 与 sqlite3。未调用真实提供商，未在 Windows 或 Linux 验证外部程序，未解开 WorkBuddy 加密，未做界面预览、最终候选、发布或推送。
+
 ## LMDESK-TERMINAL-LIVE-DISPLAY-001 · 终端只展示当前连接数据
 
 分类：feature。required_version：`0.6.2`（本周期功能锁已开启，不重复提升Minor）。

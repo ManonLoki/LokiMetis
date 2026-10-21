@@ -538,6 +538,24 @@
       "noEvent": "尚未收到 Hook 事件",
       "lastError": "最近错误：%{error}"
     },
+    "quota": {
+      "title": "提供商用量",
+      "fiveHour": "5 小时剩余",
+      "weekly": "本周剩余",
+      "pending": "正在读取",
+      "noWindow": "已连通，上游没有 5 小时或周窗口",
+      "windowAbsent": "暂无",
+      "missingCredentials": "未找到本机登录态",
+      "credentialLocked": "凭据已加密，暂无法读取",
+      "unauthorized": "登录已失效",
+      "transport": "暂时无法连接用量服务",
+      "malformed": "用量响应无法解释",
+      "retry": "重新读取",
+      "resetDays": "%{count} 天后重置",
+      "resetHours": "%{count} 小时后重置",
+      "resetSoon": "即将重置",
+      "plan": "%{plan}"
+    },
     "navigation": {
       "pagesAria": "监控页面",
       "itemAria": "{{label}}：{{description}}",

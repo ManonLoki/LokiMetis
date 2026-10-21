@@ -538,6 +538,24 @@
       "noEvent": "No Hook events yet",
       "lastError": "Last error: %{error}"
     },
+    "quota": {
+      "title": "Provider usage",
+      "fiveHour": "5-hour remaining",
+      "weekly": "Weekly remaining",
+      "pending": "Reading",
+      "noWindow": "Connected, but the upstream has no 5-hour or weekly window",
+      "windowAbsent": "None",
+      "missingCredentials": "No local sign-in found",
+      "credentialLocked": "Credentials are encrypted and cannot be read yet",
+      "unauthorized": "Sign-in was rejected",
+      "transport": "The usage service is unreachable",
+      "malformed": "The usage response could not be read",
+      "retry": "Read again",
+      "resetDays": "Resets in %{count} days",
+      "resetHours": "Resets in %{count} hours",
+      "resetSoon": "Resets soon",
+      "plan": "%{plan}"
+    },
     "navigation": {
       "pagesAria": "Monitor pages",
       "itemAria": "{{label}}: {{description}}",
