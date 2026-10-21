@@ -73,7 +73,8 @@
     "LMDESK-AUTOSTART-HIDDEN-002",
     "LMDESK-LINUX-TASKBAR-HIDE-001",
     "LMDESK-LINUX-APP-CENTER-CATALOG-001",
-    "LMDESK-DEVICE-PAIR-OTP-001"
+    "LMDESK-DEVICE-PAIR-OTP-001",
+    "LMDESK-DEVICE-CARD-COMPACT-001"
   ],
   "applied_reconciliations": [
     {
@@ -167,8 +168,13 @@
       "change_id": "LMDESK-DEVICE-PAIR-OTP-001",
       "kind": "bug-fix",
       "required_version": "0.6.1"
+    },
+    {
+      "change_id": "LMDESK-DEVICE-CARD-COMPACT-001",
+      "kind": "bug-fix",
+      "required_version": "0.6.2"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.6.1"
+  "target_version": "0.6.2"
 }

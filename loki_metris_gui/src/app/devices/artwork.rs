@@ -20,14 +20,12 @@ pub(super) fn artwork_path(platform: Option<DevicePlatform>, form_factor: Option
 /// 固定图像槽和比例，解码前后尺寸一致；未知平台用中性图标，不猜测系统。
 pub(super) fn device_artwork(id: &str, path: Option<&'static str>, label: String) -> AnyElement {
     let mut frame = div().id(SharedString::from(format!("device-artwork-{id}")))
-        .test_support().role(Role::Image).aria_label(label).h(px(184.)).w_full()
+        .test_support().role(Role::Image).aria_label(label).w(px(96.)).h(px(112.))
         .flex_shrink_0().flex().items_center().justify_center();
     frame = if let Some(path) = path {
-        let ratio = if path == assets::DEVICE_ANDROID_TABLET { 1.5 } else { 1. };
-        frame.child(img(path).w(px(184. * ratio)).h(px(184.)).max_w_full().max_h(px(184.))
-            .min_w_0().min_h_0().aspect_ratio(ratio).object_fit(ObjectFit::Contain))
+        frame.child(img(path).w(px(96.)).h(px(112.)).object_fit(ObjectFit::Contain))
     } else {
-        frame.child(Icon::new(IconName::MonitorSmartphone).size(px(64.)))
+        frame.child(Icon::new(IconName::MonitorSmartphone).size(px(40.)))
     };
     frame.into_any_element()
 }

@@ -59,7 +59,7 @@ fn discovery_refresh_belongs_to_section_and_respects_busy_state(cx: &mut TestApp
 fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppContext) {
     use gpui_kit::{px, component::{Theme, ThemeMode}};
     use loki_metris_core::devices::{link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState}};
-    for (width, columns, dark) in [(960., 2, false), (960., 2, true), (1440., 3, false), (1440., 3, true)] {
+    for (width, columns, dark) in [(960., 2, false), (960., 2, true), (1280., 3, false), (1280., 3, true), (1440., 3, false), (1440., 3, true)] {
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, width, 1100.);
         cx.update(|cx| Theme::change(if dark { ThemeMode::Dark } else { ThemeMode::Light }, None, cx));
         cx.update_window(handle, |_, window, cx| {
@@ -75,9 +75,14 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                             platform: if index % 2 == 0 { DevicePlatform::Ios } else { DevicePlatform::Android },
                             app_version: "1".repeat(64) }), state: DeviceConnectionState::Reachable,
                         peer: Some("[fe80:abcd:abcd:abcd:abcd:abcd:abcd:abcd%12]:4200".parse().unwrap()),
-                        since_last_contact: None, companion: None,
+                        since_last_contact: Some(std::time::Duration::from_secs(4)), companion: None,
                     });
                 }
+                this.devices.snapshot.presence[0].companion = Some(loki_metris_core::devices::companion::WatchCompanionView {
+                    info: loki_metris_core::devices::companion::WatchInfo {
+                        device_id: "c169da9b-4716-4774-bdcb-a33bfd6e1ac1".into(), name: "Long Watch name ".repeat(10), app_version: "1".repeat(64),
+                    }, reachable: true, since_last_contact: Some(std::time::Duration::from_secs(4)), since_last_sync: None,
+                });
                 prepare_target(this);
                 this.devices.snapshot.discovered.push(DiscoveredDevice::new("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa".into(),
                     "Another nearby device".into(), vec!["192.168.1.3:4000".parse().unwrap()]).unwrap().with_pairing_protocol(Some("1")));
@@ -90,13 +95,25 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                 let id = format!("00000000-0000-4000-8000-{index:012}");
                 let card = window.find(format!("device-saved-{id}")).bounds();
                 let image = window.find(format!("device-artwork-{id}")).bounds();
+                let details = window.find(format!("device-details-{id}")).bounds();
                 let name = window.find(format!("device-name-{id}")).bounds();
                 let ip = window.find(format!("device-ip-{id}")).bounds();
                 assert!(card.left() >= grid.left() && card.right() <= grid.right() + px(1.));
                 assert!((card.size.width - first.size.width).abs() < px(1.));
-                assert_eq!(image.size.height, px(184.));
-                assert!(image.left() >= card.left() && image.right() <= card.right());
-                assert!(name.right() <= card.right() && ip.right() <= card.right());
+                assert_eq!(image.size, gpui_kit::size(px(96.), px(112.)));
+                assert!(image.left() >= card.left() + px(16.) && image.top() >= card.top() + px(16.));
+                assert!(details.left() >= image.right() + px(16.));
+                assert!(details.right() <= card.right() - px(16.) && details.bottom() <= card.bottom() - px(16.) + px(1.));
+                if index == 0 || index >= columns {
+                    assert!(card.size.height <= details.size.height.max(image.size.height) + px(35.), "卡片只保留内容高度与边框/内边距");
+                }
+                for content in [name, ip, window.find(format!("device-status-{id}")).bounds(), window.find(format!("device-metadata-{id}")).bounds()] {
+                    assert!(content.left() >= details.left() && content.right() <= details.right() + px(1.));
+                    assert!(content.top() >= details.top() && content.bottom() <= details.bottom() + px(1.));
+                }
+                assert!(window.find(format!("device-address-{id}")).bounds().size.height < px(40.));
+                let expected_name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
+                assert_eq!(window.find(format!("device-name-{id}")).label(), Some(expected_name.as_str()), "截断不丢失完整辅助名称");
                 if index < columns { assert_eq!(card.top(), first.top()); }
                 else { assert!(card.top() >= first.bottom()); }
             }
@@ -105,6 +122,18 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
             assert_eq!(first_row.size.width, second_row.size.width);
             assert!(second_row.top() >= first_row.bottom());
             assert!(window.try_find(format!("device-artwork-{DEVICE}")).is_none());
+            let id = "00000000-0000-4000-8000-000000000000";
+            let watch = window.find(format!("device-watch-{id}")).bounds();
+            let details = window.find(format!("device-details-{id}")).bounds();
+            assert!(watch.left() >= details.left() && watch.right() <= details.right() + px(1.));
+            assert!(watch.bottom() <= details.bottom() + px(1.));
+            for target in ["device-saved", "device-artwork", "device-name", "device-ip", "device-watch"] {
+                window.click(format!("{target}-{id}"), cx); window.render_frame(cx);
+                assert!(shell.read(cx).devices.modal.is_none());
+                assert_eq!(shell.read(cx).devices.snapshot.saved.len(), 4);
+            }
+            window.click(format!("device-remove-{id}"), cx); window.render_frame(cx);
+            assert!(shell.read(cx).devices.modal.is_some());
         }).unwrap();
     }
 }
