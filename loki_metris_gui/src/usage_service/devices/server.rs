@@ -22,7 +22,7 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 /// 桌面用户选择候选后才传递四位码，任务完成结果仍由原有文件提交入口消费。
 pub(super) struct PairingCommand { pub(super) code: String, pub(super) client: String, pub(super) result: oneshot::Sender<Result<VerifiedPairing, &'static str>> }
 /// 临时介绍只持有实际连接地址与一次性命令槽，不保存配对码。
-pub(super) struct PendingOffer { pub(super) target: DiscoveredDevice, pub(super) expires: Instant, pub(super) command: oneshot::Sender<PairingCommand>, ticket: u64 }
+pub(super) struct PendingOffer { pub(super) target: DiscoveredDevice, pub(super) expires: Instant, pub(super) command: oneshot::Sender<PairingCommand>, pub(super) ticket: u64 }
 /// 活动连接只由精确租约撤销；旧连接退出不能删除新连接的取消入口。
 pub(super) struct ActiveSession { pub(super) lease: PresenceLease, pub(super) cancel: watch::Sender<bool> }
 /// 监听状态与连接表受Devices短锁拥有，所有网络等待都在锁外。
@@ -30,14 +30,14 @@ pub(super) struct ActiveSession { pub(super) lease: PresenceLease, pub(super) ca
 pub(super) struct ServerState {
     pub(super) offers: BTreeMap<String, PendingOffer>, pub(super) sessions: BTreeMap<String, ActiveSession>,
     pub(super) cancel: Option<watch::Sender<bool>>, pub(super) restart: bool, ticket: u64,
-    /// 当前进程曾由设备页或已保存设备明确请求服务，配对落盘后可恢复被关闭的启动轮。
+    /// 当前进程曾请求应用服务，配对落盘后可恢复被中断的启动轮。
     pub(super) requested: bool,
-    /// 空账本离页撤销旧重启令牌；耗尽时停止启动，不能回绕复用旧代次。
+    /// 服务轮次身份耗尽时停止启动，不能回绕复用旧代次。
     pub(super) epoch: u64,
 }
 
 impl Devices {
-    /// 用户进入设备页时启动唯一数据服务；快速取消再进入只预约一次重启。
+    /// 应用启动或页面重试确保唯一数据服务存在，重复请求只预约一次重启。
     pub(super) fn start_server(self: &Arc<Self>) -> Result<(), &'static str> {
         self.start_server_for(None)
     }
@@ -77,16 +77,16 @@ impl Devices {
         std::mem::take(&mut state.server.restart).then_some(state.server.epoch)
     }
 
-    /// 应用启动仅在私有账本确有已配对设备时恢复服务，空安装不广播、不写文件。
-    pub(in crate::usage_service) fn resume_saved_server(self: &Arc<Self>) -> Result<(), &'static str> {
+    /// 应用启动加载私有账本并接受首个客户端请求，不依赖设备页或已有配对。
+    pub(in crate::usage_service) fn start_application_server(self: &Arc<Self>) -> Result<(), &'static str> {
         let this = self.clone();
         self.owner.spawn_blocking("device-resume", move |shutdown| {
             if shutdown.is_cancelled() { return; }
             match this.store.load() {
-                Ok(book) if !book.summaries().is_empty() => {
-                    if this.publish_startup_book(book) && !shutdown.is_cancelled() { let _ = this.start_server(); }
+                Ok(book) => {
+                    this.publish_startup_book(book);
+                    if !shutdown.is_cancelled() { let _ = this.start_server(); }
                 },
-                Ok(_) => {},
                 Err(error) => {
                     let mut state = this.state();
                     if state.book.is_none() && !state.view.pending { state.view.link_error = Some(error); }
@@ -189,7 +189,7 @@ impl Devices {
         }
     }
 
-    /// 临时介绍等待原有配对按钮命令；取消命令接收或握手后不重用半写连接。
+    /// 临时介绍等待弹窗命令；客户端断开或提前发送协议数据立即撤销请求。
     async fn serve_offer(&self, stream: &mut TcpStream, peer: SocketAddr, offer: PairingOffer, cancelled: &mut watch::Receiver<bool>) {
         let (command, received) = oneshot::channel();
         let (ticket, target) = {
@@ -202,10 +202,12 @@ impl Devices {
             state.server.offers.insert(target.id.clone(), PendingOffer { target: target.clone(), expires: Instant::now() + PAIRING_OFFER_LIFETIME, command, ticket });
             (ticket, target)
         };
+        let mut unexpected = [0u8; 1];
         let received = tokio::select! {
             biased;
             _ = cancelled.changed() => None,
             result = tokio::time::timeout(PAIRING_OFFER_LIFETIME, received) => result.ok().and_then(Result::ok),
+            _ = stream.peek(&mut unexpected) => None,
         };
         {
             let mut state = self.state();

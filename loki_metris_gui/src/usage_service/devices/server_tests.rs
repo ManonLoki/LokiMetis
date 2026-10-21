@@ -90,19 +90,34 @@ async fn stale_startup_snapshot_cannot_undo_removal_or_release_operation_gate() 
     assert!(devices.state().book.as_ref().unwrap().summaries().is_empty()); owner.shutdown().await;
 }
 
-/// 重启意图取出后再次离页，原代次不能在锁外重新建立监听或广播。
+/// 取消握手不关闭应用监听；空账本也保留首次配对入口。
 #[tokio::test]
-async fn cancelled_restart_epoch_cannot_reopen_empty_device_service() {
+async fn cancel_pairing_keeps_empty_device_service_alive() {
     let temp = tempfile::tempdir().unwrap();
     let owner = Arc::new(crate::usage_service::background::BackgroundTaskOwner::with_runtime(
         Arc::new(loki_metris_core::RootDiscoveryCoordinator::default()), tokio::runtime::Handle::current()));
     let devices = Arc::new(Devices::new(temp.path(), owner.clone()));
-    devices.finish(Ok(loki_metris_core::devices::DeviceBook::new(CLIENT.into()).unwrap()), None);
-    { let mut state = devices.state(); state.server.restart = true; }
-    let epoch = devices.finish_server(Ok(())).unwrap(); devices.cancel();
-    devices.start_server_for(Some(epoch)).unwrap();
-    assert!(devices.state().server.cancel.is_none()); assert!(devices.snapshot().listening_port.is_none());
-    assert_eq!(owner.owned_task_count(), 0); assert!(!temp.path().join("devices").exists()); owner.shutdown().await;
+    let (server_cancel, server_cancelled) = watch::channel(false);
+    let (pair_cancel, pair_cancelled) = watch::channel(false);
+    { let mut state = devices.state(); state.server.cancel = Some(server_cancel); state.pair_cancel = Some(pair_cancel); }
+    devices.cancel();
+    assert!(!*server_cancelled.borrow()); assert!(*pair_cancelled.borrow());
+    assert!(devices.state().server.cancel.is_some()); owner.shutdown().await;
+}
+
+/// 握手完成时撤销同ID的排队连接，避免成功后又弹出重复配对请求。
+#[tokio::test]
+async fn saved_device_commit_rejects_duplicate_queued_request() {
+    let temp = tempfile::tempdir().unwrap();
+    let owner = Arc::new(crate::usage_service::background::BackgroundTaskOwner::with_runtime(
+        Arc::new(loki_metris_core::RootDiscoveryCoordinator::default()), tokio::runtime::Handle::current()));
+    let devices = Arc::new(Devices::new(temp.path(), owner.clone()));
+    let (command, received) = oneshot::channel();
+    let target = DiscoveredDevice::new(DEVICE.into(), "Duplicate phone".into(), vec!["192.168.1.21:51002".parse().unwrap()]).unwrap();
+    devices.state().server.offers.insert(DEVICE.into(), PendingOffer { target, expires: Instant::now() + PAIRING_OFFER_LIFETIME, command, ticket: 2 });
+    devices.finish(Ok(link_book()), Some("paired"));
+    assert!(devices.snapshot().requests.is_empty()); assert!(received.await.is_err());
+    owner.shutdown().await;
 }
 
 /// 终端主动连接报到后，桌面原配对按钮仍执行四帧验证并真实落盘；错码不增加设备。
@@ -131,8 +146,11 @@ async fn incoming_pairing_offer_uses_existing_pairing_and_private_commit() {
             if let Ok(ack) = confirm(confirmation) { transport::write_frame(&mut stream, &ack).await.unwrap(); }
         };
         let ui = async {
-            while !ui_devices.snapshot().discovered.iter().any(|device| device.id == DEVICE) { tokio::task::yield_now().await; }
-            ui_devices.pair(DEVICE, code.into()).unwrap();
+            while ui_devices.snapshot().requests.is_empty() { tokio::task::yield_now().await; }
+            let request = ui_devices.snapshot().requests[0].clone();
+            assert_eq!(request.device.name, "Pairing phone");
+            assert_eq!(request.device.endpoints, vec!["192.168.1.21:51001".parse().unwrap()]);
+            ui_devices.pair_target(DEVICE, Some(request.ticket), code.into()).unwrap();
             while ui_devices.snapshot().pending { tokio::task::yield_now().await; }
         };
         tokio::time::timeout(Duration::from_secs(5), async { tokio::join!(server, phone, ui); }).await.unwrap();
@@ -272,5 +290,48 @@ async fn companion_status_requires_authenticated_ios_parent_and_known_heartbeat_
         if scenario == "valid" { assert!(!view.presence[0].companion.as_ref().unwrap().reachable); }
         else { assert!(view.presence[0].companion.is_none()); }
         owner.shutdown().await;
+    }
+}
+
+/// 当前请求取消、客户端断开或提前发帧均关闭socket并清除投影，旧票据不能拒绝新请求。
+#[tokio::test]
+async fn incoming_request_rejection_and_disconnect_release_exact_connection() {
+    for scenario in ["reject", "disconnect", "unexpected-frame"] {
+        let temp = tempfile::tempdir().unwrap();
+        let owner = Arc::new(crate::usage_service::background::BackgroundTaskOwner::with_runtime(
+            Arc::new(loki_metris_core::RootDiscoveryCoordinator::default()), tokio::runtime::Handle::current()));
+        let devices = Arc::new(Devices::new(temp.path(), owner.clone()));
+        let book = devices.store.load().unwrap(); let client_id = book.client_id().to_owned(); devices.finish(Ok(book), None);
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap(); let address = listener.local_addr().unwrap();
+        let permits = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS)); let (_cancel, cancelled) = watch::channel(false);
+        let desktop = devices.clone(); let observer = devices.clone();
+        let server = async {
+            let (stream, _) = listener.accept().await.unwrap();
+            desktop.serve_peer(stream, "192.168.1.21:51001".parse().unwrap(), permits.acquire_owned().await.unwrap(), cancelled).await;
+        };
+        let client = async {
+            let mut stream = TcpStream::connect(address).await.unwrap();
+            transport::write_frame(&mut stream, &ConnectionIntroduction::Pairing(PairingOffer { version:1, client_id, device_id:DEVICE.into(), name:"Phone".into() })).await.unwrap();
+            while observer.snapshot().requests.is_empty() { tokio::task::yield_now().await; }
+            let ticket = observer.snapshot().requests[0].ticket;
+            assert_eq!(observer.pair_target(DEVICE, Some(ticket + 1), "0007".into()), Err("device_request_expired"));
+            assert!(!observer.snapshot().pending);
+            observer.reject_request(DEVICE, ticket + 1);
+            assert_eq!(observer.snapshot().requests.len(), 1, "旧票据不能取消另一条连接");
+            match scenario {
+                "reject" => {
+                    observer.reject_request(DEVICE, ticket);
+                    let mut byte = [0]; assert_eq!(stream.read(&mut byte).await.unwrap(), 0);
+                },
+                "disconnect" => drop(stream),
+                _ => {
+                    use tokio::io::AsyncWriteExt;
+                    stream.write_all(b"unexpected").await.unwrap();
+                    let mut byte = [0]; assert!(matches!(stream.read(&mut byte).await, Ok(0) | Err(_)));
+                },
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(5), async { tokio::join!(server, client); }).await.unwrap();
+        assert!(devices.snapshot().requests.is_empty()); assert!(devices.snapshot().saved.is_empty()); owner.shutdown().await;
     }
 }

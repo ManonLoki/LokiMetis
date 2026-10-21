@@ -20,7 +20,7 @@ mod settings;
 mod agents;
 mod receipt;
 mod devices;
-pub(crate) use devices::DeviceView;
+pub(crate) use devices::{DeviceView, DevicePairingRequest};
 pub(crate) use receipt::{poll_receipt, receipt};
 mod pet;
 mod skins;
@@ -155,8 +155,8 @@ impl UsageService {
         let directory = std::env::var_os("LOKI_METRIS_DATA_DIR").map(PathBuf::from).or(directory)
             .filter(|path| path.is_absolute()).ok_or("usage_directory_unavailable")?;
         let service = Self::in_directory(directory)?;
-        if let Err(error) = service.context.devices.resume_saved_server() {
-            tracing::warn!(code = error, "paired device service could not resume");
+        if let Err(error) = service.context.devices.start_application_server() {
+            tracing::warn!(code = error, "device service could not start");
         }
         Ok(service)
     }

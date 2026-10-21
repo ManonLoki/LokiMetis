@@ -30,7 +30,7 @@ pub enum Page {
     Monitor,
     /// 换肤。
     Skins,
-    /// 局域网设备发现与配对。
+    /// 终端设备管理。
     Devices,
     /// 设置。
     Settings,
@@ -178,7 +178,7 @@ impl Shell {
     fn update_window_visibility(&mut self,window:&mut Window,cx:&mut Context<Self>) {
         if !self.window_active && window.is_window_active() {crate::native::refresh_notification_permission(cx);crate::native::reload_autostart(cx);if let Some(service)=&self.dashboard.service {service.refresh_today();}}
         self.window_active=window.is_window_active();self.window_visible=window.is_visible();
-        if !self.window_visible {self.release_monitor_images(window,cx);if self.page==Page::Devices {self.leave_devices();}}
+        if !self.window_visible {self.release_monitor_images(window,cx);}
         cx.notify();
     }
 
@@ -286,7 +286,6 @@ impl Shell {
     fn navigate(&mut self, page: Page, cx: &mut Context<Self>) {
         if self.page != page {self.page_scroll.invalidate();self.dashboard.sources.reset();self.dashboard.usage_settings.reset();self.release_notes_modal=None;}
         if self.page==Page::Skins&&page!=Page::Skins {self.leave_skins();}
-        if self.page==Page::Devices&&page!=Page::Devices {self.leave_devices();}
         self.page = page;
         if page==Page::Skins {self.refresh_skins(true,cx);}
         if page==Page::Monitor {self.refresh_monitor(true,cx);}
@@ -355,6 +354,7 @@ impl Render for Shell {
         self.sync_monitor_inputs(window,cx);
         self.sync_monitor_hook_inputs(window,cx);
         self.sync_skin_inputs(window,cx);
+        self.sync_device_requests(window,cx);
         self.begin_monitor_image_frame();
         self.request_window_title(window);
         let content = match self.page {

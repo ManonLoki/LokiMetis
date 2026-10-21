@@ -122,7 +122,7 @@ impl Shell {
                     if !this.agent_settings.loading&&!this.agent_settings.pending&&this.agent_settings.service_revision!=service.agent_settings_revision() {this.load_agent_settings(cx);}
                     if this.page==super::Page::Monitor && this.window_visible {this.refresh_monitor(false,cx);}
                     if this.page==super::Page::Skins && this.window_visible {this.refresh_skins(false,cx);}
-                    if this.page==super::Page::Devices && this.window_visible {this.refresh_devices(cx);}
+                    this.refresh_devices(cx);
                     if changed {cx.notify();}
                     this.window_visible
                 }) { Ok(visible) => visible, Err(_) => return };

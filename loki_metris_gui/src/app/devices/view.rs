@@ -1,4 +1,4 @@
-//! 设备页将已配对卡片与发现列表分区，网络状态和动作仍消费既有服务快照。
+//! 设备页只管理已配对卡片；新的客户端配对请求由全局模态接收。
 
 use super::Shell;
 use crate::app::surface::{StaticCard, StaticMaterial, SurfaceButton, SurfaceButtonVariant};
@@ -49,7 +49,8 @@ impl Shell {
             saved = saved.child(StaticCard::new("devices-saved-empty", dark, StaticMaterial::Panel)
                 .p_6().flex().items_center().gap_3()
                 .child(Icon::new(IconName::MonitorSmartphone).size(px(32.)).text_color(cx.theme().muted_foreground))
-                .child(div().font_weight(FontWeight::SEMIBOLD).child(self.t(message)))
+                .child(div().id("devices-empty-message").test_support().role(Role::Label).aria_label(self.t(message))
+                    .font_weight(FontWeight::SEMIBOLD).child(self.t(message)))
                 .child(div().text_size(px(13.)).text_color(cx.theme().muted_foreground).child(self.t("devices.savedHint"))));
         } else {
             // 宽度扣除80px侧栏和现有页面padding后，每卡至少约320px；不保留空白卡槽。
@@ -57,7 +58,7 @@ impl Shell {
             saved = saved.child(div().id("devices-saved-grid").test_support().w_full().grid().grid_cols(columns)
                 .gap_5().children(state.saved.iter().map(|device| self.paired_device_card(device, cx))));
         }
-        page.child(self.discovered_devices(cx)).child(saved).into_any_element()
+        page.child(saved).into_any_element()
     }
 
     /// 分区标题统一使用原生二级标题及轻量计数，避免再套一层卡片。

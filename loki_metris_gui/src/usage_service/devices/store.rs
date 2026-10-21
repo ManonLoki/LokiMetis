@@ -10,7 +10,7 @@ pub(super) struct DeviceStore {
 }
 
 impl DeviceStore {
-    /// 构造不访问磁盘；只有用户进入设备页或提交操作后才读取。
+    /// 构造不访问磁盘；应用启动或显式操作在后台读取。
     pub(super) fn new(directory: &Path) -> Self {
         Self { path: directory.join("devices").join("paired.json"), book: Mutex::new(None) }
     }
@@ -23,7 +23,7 @@ impl DeviceStore {
         *book = Some(value.clone()); Ok(value)
     }
 
-    /// 用户启用设备服务前真实保存稳定本机身份，广播不能使用重启即变的临时ID。
+    /// 应用设备服务启动前真实保存稳定本机身份，广播不能使用重启即变的临时ID。
     pub(super) fn prepare_service(&self) -> Result<DeviceBook, &'static str> {
         self.load()?;
         let book = self.book.lock().unwrap_or_else(std::sync::PoisonError::into_inner);

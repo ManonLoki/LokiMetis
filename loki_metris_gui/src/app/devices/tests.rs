@@ -6,50 +6,17 @@ use loki_metris_core::devices::{DiscoveredDevice, SavedDeviceSummary};
 
 const DEVICE: &str = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-/// 刷新位于发现栏头且双语可见；仅按钮触发发现，扫描和保存期间均阻止重复操作。
+/// 设备页只展示已配对列表，不再提供发现、刷新或未认证候选入口。
 #[gpui_kit::test]
-fn discovery_refresh_belongs_to_section_and_respects_busy_state(cx: &mut TestAppContext) {
-    for (width, locale, refresh, scanning) in [
-        (960., "zh-CN", "刷新", "正在发现…"),
-        (1440., "en-US", "Refresh", "Discovering…"),
-    ] {
+fn devices_page_has_no_discovery_controls(cx: &mut TestAppContext) {
+    for (width, locale) in [(960., "zh-CN"), (1440., "en-US")] {
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, width, 900.);
         cx.update_window(handle, |_, window, cx| {
-            shell.update(cx, |this, cx| {
-                this.locale = locale; this.page = crate::app::Page::Devices;
-                this.devices.error = Some("device_timeout");
-                cx.notify();
-            });
+            shell.update(cx, |this, cx| { this.locale = locale; this.page = crate::app::Page::Devices; prepare_target(this); cx.notify(); });
             window.render_frame(cx);
-            let header = window.find("devices-discovered-header").bounds();
-            let button = window.find("devices-discover");
-            assert_eq!(button.role(), Some(Role::Button));
-            assert_eq!(button.label(), Some(refresh));
-            assert!(button.bounds().left() >= header.left() && button.bounds().right() <= header.right());
-            assert!(button.bounds().top() >= header.top() && button.bounds().bottom() <= header.bottom());
-            assert!(button.bounds().left() >= window.find("devices-discovered-title").bounds().right());
-            window.click("devices-discovered-header", cx);
-            assert_eq!(shell.read(cx).devices.error, Some("device_timeout"));
-            for (is_scanning, pending) in [(true, false), (false, true)] {
-                shell.update(cx, |this, cx| {
-                    this.devices.snapshot.scanning = is_scanning;
-                    this.devices.snapshot.pending = pending;
-                    cx.notify();
-                });
-                window.render_frame(cx);
-                let button = window.find("devices-discover");
-                assert_eq!(button.label(), Some(if is_scanning { scanning } else { refresh }));
-                window.click("devices-discover", cx);
-                assert_eq!(shell.read(cx).devices.error, Some("device_timeout"));
-            }
-            shell.update(cx, |this, cx| {
-                this.devices.snapshot.pending = false;
-                cx.notify();
-            });
-            window.render_frame(cx);
-            window.click("devices-discover", cx);
-            // 测试根没有服务，真实发现入口必须返回不可用，证明点击确实到达该入口。
-            assert_eq!(shell.read(cx).devices.error, Some("device_unavailable"));
+            assert!(window.try_find("devices-saved").is_some());
+            for id in ["devices-discover", "devices-discovered", "devices-discovered-header"] { assert!(window.try_find(id).is_none()); }
+            assert!(shell.read(cx).devices.modal.is_none(), "普通广告不能触发弹窗");
         }).unwrap();
     }
 }
@@ -146,11 +113,6 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                 if index < columns { assert_eq!(card.top(), first.top()); }
                 else { assert!(card.top() >= first.bottom()); }
             }
-            let first_row = window.find(format!("device-found-{DEVICE}")).bounds();
-            let second_row = window.find("device-found-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").bounds();
-            assert_eq!(first_row.size.width, second_row.size.width);
-            assert!(second_row.top() >= first_row.bottom());
-            assert!(window.try_find(format!("device-artwork-{DEVICE}")).is_none());
             let id = "00000000-0000-4000-8000-000000000000";
             let watch = window.find(format!("device-watch-{id}")).bounds();
             let details = window.find(format!("device-details-{id}")).bounds();
@@ -198,7 +160,16 @@ pub(super) fn prepare_target(shell: &mut Shell) {
         vec!["192.168.1.2:4000".parse().unwrap()]).unwrap().with_pairing_protocol(Some("1"))];
 }
 
-/// 新导航保持80px侧栏，发现行周围点击不代替配对按钮，移除同样只有按钮拥有。
+/// 请求夹具显式模拟真实连接，普通广告夹具保持不触发自动弹窗。
+pub(super) fn prepare_request(shell: &mut Shell) {
+    prepare_target(shell);
+    shell.devices.snapshot.loaded = true;
+    shell.devices.snapshot.requests = vec![crate::usage_service::DevicePairingRequest {
+        ticket: 1, device: shell.devices.snapshot.discovered[0].clone(),
+    }];
+}
+
+/// 新导航保持80px侧栏，客户端弹窗全局展示，移除只有按钮拥有。
 #[gpui_kit::test]
 fn devices_navigation_rows_and_modal_use_semantic_controls(cx: &mut TestAppContext) {
     let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 960., 640.);
@@ -212,9 +183,9 @@ fn devices_navigation_rows_and_modal_use_semantic_controls(cx: &mut TestAppConte
         window.render_frame(cx);
         assert_eq!(window.find("sidebar").bounds().size.width, gpui_kit::px(80.));
         assert!(window.try_find("devices-page").is_some());
-        window.click(format!("device-found-{DEVICE}"), cx);
         assert!(shell.read(cx).devices.modal.is_none());
-        window.click(format!("device-pair-{DEVICE}"), cx); window.render_frame(cx);
+        shell.update(cx, |this, cx| { prepare_request(this); cx.notify(); });
+        window.render_frame(cx);
         assert!(shell.read(cx).devices.modal.is_some());
         assert_eq!(window.find("device-dialog").role(), Some(Role::Dialog));
         assert_eq!(window.find("device-dialog").label(), Some("Pair device"));
@@ -237,10 +208,10 @@ fn devices_empty_state_is_localized_and_new_root_is_empty(cx: &mut TestAppContex
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
         cx.update_window(handle, |_, window, cx| {
             shell.update(cx, |this, cx| { this.locale = locale; this.page = crate::app::Page::Devices; cx.notify(); });
-            window.render_frame(cx); assert!(window.try_find("devices-empty").is_some());
+            window.render_frame(cx); assert!(window.try_find("devices-empty-message").is_some());
             assert_eq!(window.find("devices-title").label(), Some(title));
             assert_eq!(window.find("nav-devices").label(), Some(title));
-            shell.update(cx, |this, cx| { prepare_target(this); this.open_device_dialog(DEVICE.into(), "Receiver".into(), false, window, cx); });
+            shell.update(cx, |this, cx| { prepare_request(this); this.open_device_dialog(DEVICE.into(), "Receiver".into(), false, window, cx); });
             window.render_frame(cx); assert_eq!(window.find("device-dialog").label(), Some(label));
             window.click("device-dialog-cancel", cx);
             assert!(shell.read(cx).devices.snapshot.saved.is_empty());
@@ -248,27 +219,48 @@ fn devices_empty_state_is_localized_and_new_root_is_empty(cx: &mut TestAppContex
     }
 }
 
-/// 仅广播候选仍展示并导出禁用原因，点击按钮不能打开配对弹窗；成功反馈有名称。
+/// 自动弹窗跨页面接收请求、展示来源信息，取消后同一请求不重开而新连接可再次提示。
 #[gpui_kit::test]
-fn broadcast_only_candidates_have_accessible_disabled_pairing(cx: &mut TestAppContext) {
-    for advertised in [None, Some("off")] {
-        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
-        cx.update_window(handle, |_, window, cx| {
-            shell.update(cx, |this, cx| {
-                this.page = crate::app::Page::Devices; this.devices.snapshot.loaded = true;
-                this.devices.snapshot.completed = Some("paired"); prepare_target(this);
-                this.devices.snapshot.discovered[0] = this.devices.snapshot.discovered[0].clone().with_pairing_protocol(advertised);
-                cx.notify();
-            });
-            window.render_frame(cx);
-            let reason = window.find(format!("device-pairing-unavailable-{DEVICE}"));
-            assert_eq!(reason.role(), Some(Role::Label));
-            assert_eq!(reason.label(), Some("Pairing is not enabled on this device"));
-            assert_eq!(window.find("devices-feedback").label(), Some("Pairing succeeded. Device saved."));
-            window.click(format!("device-pair-{DEVICE}"), cx); window.render_frame(cx);
-            assert!(shell.read(cx).devices.modal.is_none());
-        }).unwrap();
-    }
+fn incoming_requests_open_globally_and_cancel_per_ticket(cx: &mut TestAppContext) {
+    let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+    assert!(cx.simulate_accessibility_activation(handle).is_some());
+    cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, cx| { this.page = crate::app::Page::Settings; prepare_request(this); cx.notify(); });
+        window.render_frame(cx);
+        assert_eq!(window.find("device-request-name").label(), Some("Receiver"));
+        assert_eq!(window.find("device-request-id").label(), Some(DEVICE));
+        assert_eq!(window.find("device-request-ip").label(), Some("192.168.1.2"));
+        assert_eq!(shell.read(cx).page, crate::app::Page::Settings);
+        window.input("0007", cx); window.render_frame(cx);
+        shell.update(cx, |this, cx| { this.navigate(crate::app::Page::Dashboard, cx); });
+        window.render_frame(cx);
+        assert!(shell.read(cx).devices.modal.is_some(), "切页不取消应用级请求");
+        window.click("device-dialog-cancel", cx); window.render_frame(cx); window.render_frame(cx);
+        assert!(shell.read(cx).devices.modal.is_none());
+        shell.update(cx, |this, cx| { prepare_request(this); this.devices.snapshot.requests[0].ticket = 2; cx.notify(); });
+        window.render_frame(cx);
+        assert!(shell.read(cx).devices.modal.is_some());
+        assert!(!window.debug_a11y_tree_json().unwrap().contains("0007"), "新连接不能继承旧配对码");
+    }).unwrap();
+}
+
+/// 现有模态不被配对请求抢占；请求消失后丢弃输入，并给下一连接创建新草稿。
+#[gpui_kit::test]
+fn incoming_requests_wait_for_other_modals_and_expire(cx: &mut TestAppContext) {
+    let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+    cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, cx| {
+            prepare_request(this); this.open_device_dialog(DEVICE.into(), "Saved".into(), true, window, cx); cx.notify();
+        });
+        window.render_frame(cx);
+        assert_eq!(window.find("device-dialog").label(), Some("Remove device?"));
+        window.click("device-dialog-cancel", cx); window.render_frame(cx);
+        assert_eq!(window.find("device-dialog").label(), Some("Pair device"));
+        window.input("0007", cx);
+        shell.update(cx, |this, cx| { this.devices.snapshot.requests.clear(); cx.notify(); });
+        window.render_frame(cx);
+        assert!(shell.read(cx).devices.modal.is_none());
+    }).unwrap();
 }
 
 /// 已认证IP与后台状态独立显示，只有发现广告时不能伪造在线或可信IP。

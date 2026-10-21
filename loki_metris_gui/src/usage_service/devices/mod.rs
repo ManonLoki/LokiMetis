@@ -31,6 +31,8 @@ pub(crate) struct DeviceView {
     pub saved: Vec<SavedDeviceSummary>,
     /// 当前短时有效的未认证广告。
     pub discovered: Vec<DiscoveredDevice>,
+    /// 仅真实客户端连接产生的待配对请求；票据区分同一设备的不同连接。
+    pub requests: Vec<DevicePairingRequest>,
     /// 真实失败类别；UI负责双语映射。
     pub error: Option<&'static str>,
     /// 发现错误独立于存储操作，成功读取不能吞掉并发的组播失败。
@@ -43,6 +45,15 @@ pub(crate) struct DeviceView {
     pub link_error: Option<&'static str>,
     /// 仅来自已认证会话的在线、平台和IP投影。
     pub presence: Vec<DevicePresenceView>,
+}
+
+/// 未认证的客户端介绍与本机生成的请求身份，不包含配对码或可信平台信息。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct DevicePairingRequest {
+    /// 桌面本进程生成的单调请求票据，同ID重连也不得复用。
+    pub ticket: u64,
+    /// 未认证介绍与实际连接地址，仅供用户核对。
+    pub device: DiscoveredDevice,
 }
 
 /// 服务状态只在短锁内访问；磁盘读写与网络等待均在锁外执行。
@@ -63,7 +74,7 @@ struct DeviceState {
     server: server::ServerState,
 }
 
-/// 领域账本与网络会话的应用级唯一owner，离页只撤销临时发现和未完成握手。
+/// 领域账本与网络会话的应用级唯一owner，页面切换不改变监听与连接寿命。
 pub(super) struct Devices {
     store: Arc<store::DeviceStore>,
     owner: Arc<BackgroundTaskOwner>,
@@ -104,9 +115,14 @@ impl Devices {
         let mut ids = std::collections::BTreeSet::new();
         let mut view = state.view.clone();
         view.discovered.clear();
+        view.requests.clear();
         for offer in state.server.offers.values() {
-            if offer.expires > Instant::now() && ids.insert(offer.target.id.clone()) { view.discovered.push(offer.target.clone()); }
+            if offer.expires > Instant::now() && ids.insert(offer.target.id.clone()) {
+                view.discovered.push(offer.target.clone());
+                view.requests.push(DevicePairingRequest { ticket: offer.ticket, device: offer.target.clone() });
+            }
         }
+        view.requests.sort_by_key(|request| request.ticket);
         view.discovered.extend(state.candidates.values().filter_map(|(device, _)| ids.insert(device.id.clone()).then_some(device.clone())));
         if let Some(book) = &state.book {
             view.presence = state.presence.snapshot(book, Instant::now());
@@ -134,6 +150,9 @@ impl Devices {
         match result {
             Ok(book) => {
                 state.view.loaded = true; state.view.saved = book.summaries(); state.view.error = None; state.view.completed = completed;
+                // 握手期间同ID的另一条报到不能在保存成功后再次要求配对。
+                let trusted: std::collections::BTreeSet<_> = state.view.saved.iter().map(|saved| saved.id.clone()).collect();
+                state.server.offers.retain(|id, _| !trusted.contains(id));
                 let removed: Vec<_> = state.server.sessions.keys().filter(|id| !state.view.saved.iter().any(|device| &device.id == *id)).cloned().collect();
                 for id in removed {
                     if let Some(session) = state.server.sessions.remove(&id) { let _ = session.cancel.send(true); }
@@ -162,6 +181,11 @@ impl Devices {
 
     /// 用户主动配对仅消费一项当前候选，四位码不进入状态、文件或日志。
     fn pair(self: &Arc<Self>, id: &str, code: String) -> Result<(), &'static str> {
+        self.pair_target(id, None, code)
+    }
+
+    /// 配对弹窗必须绑定精确请求；旧弹窗不能把配对码交给同ID的新连接。
+    fn pair_target(self: &Arc<Self>, id: &str, ticket: Option<u64>, code: String) -> Result<(), &'static str> {
         if !valid_pairing_code(&code) { return Err("device_code_invalid"); }
         let view = self.snapshot();
         if !view.loaded { return Err("device_storage_failed"); }
@@ -169,6 +193,13 @@ impl Devices {
         if view.saved.iter().any(|device| device.id == id) { return Err("device_already_saved"); }
         if !target.pairing_available { return Err("device_pairing_unavailable"); }
         self.begin()?;
+        let offered = {
+            let mut state = self.state();
+            if ticket.is_some_and(|ticket| state.server.offers.get(id).is_none_or(|offer| offer.ticket != ticket || offer.expires <= Instant::now())) {
+                drop(state); self.finish(Err("device_request_expired"), None); return Err("device_request_expired");
+            }
+            state.server.offers.remove(id)
+        };
         let (cancel, mut cancelled) = watch::channel(false);
         { let mut state = self.state(); state.pair_cancel = Some(cancel); state.view.pairing = true; }
         let this = self.clone();
@@ -177,7 +208,6 @@ impl Devices {
                 let id = target.id.clone();
                 let prepare_id = id.clone();
                 let client = this.disk(move |store| store.prepare_pairing(&prepare_id)).await?;
-                let offered = this.state().server.offers.remove(&id);
                 let proof = tokio::select! {
                     biased;
                     _ = shutdown.cancelled() => return Err("device_cancelled"),
@@ -200,6 +230,12 @@ impl Devices {
         Ok(())
     }
 
+    /// 只拒绝弹窗所属连接，取消旧票据不会撤销同ID的新请求。
+    fn reject_request(&self, id: &str, ticket: u64) {
+        let mut state = self.state();
+        if state.server.offers.get(id).is_some_and(|offer| offer.ticket == ticket) { state.server.offers.remove(id); }
+    }
+
     /// 已接受的忘记操作由应用持有至落盘，与页面寿命无关。
     fn remove(self: &Arc<Self>, id: String) -> Result<(), &'static str> {
         self.begin()?; let this = self.clone();
@@ -208,7 +244,7 @@ impl Devices {
         }) { self.finish(Err(error), None); return Err(error); } Ok(())
     }
 
-    /// 离开页面和取消动作撤销发现及握手；已经进入原子提交的记录仍真实收尾。
+    /// 用户取消只撤销临时发现及握手，应用级监听与其他待处理请求继续运行。
     fn cancel(&self) {
         let mut state = self.state();
         state.restart_scan = false;
@@ -216,12 +252,6 @@ impl Devices {
         if let Some(cancel) = state.scan_cancel.as_ref() { let _ = cancel.send(true); }
         if let Some(cancel) = state.pair_cancel.as_ref() { let _ = cancel.send(true); }
         state.candidates.clear();
-        state.server.offers.clear();
-        if state.view.saved.is_empty() {
-            state.server.restart = false;
-            state.server.epoch = state.server.epoch.saturating_add(1);
-            if let Some(cancel) = state.server.cancel.as_ref() { let _ = cancel.send(true); }
-        }
     }
 }
 
@@ -230,14 +260,18 @@ impl UsageService {
     pub(crate) fn devices(&self) -> DeviceView { self.context.devices.snapshot() }
     /// 用户进入页面时加载保存列表，失败通过快照披露。
     pub(crate) fn load_devices(&self) -> Result<(), &'static str> { self.context.devices.load() }
-    /// 用户进入设备页时开始桌面数据服务，同时保留旧终端的有界发现。
-    pub(crate) fn discover_devices(&self) -> Result<(), &'static str> {
-        self.context.devices.start_server()?; self.context.devices.discover()
+    /// 启动或恢复设备面板只确保应用服务存在，不再主动浏览旧终端。
+    pub(crate) fn start_device_service(&self) -> Result<(), &'static str> { self.context.devices.start_server() }
+    /// 对当前客户端连接明确提交用户输入，不能退回旧广告地址。
+    pub(crate) fn pair_device_request(&self, id: &str, ticket: u64, code: String) -> Result<(), &'static str> {
+        self.context.devices.pair_target(id, Some(ticket), code)
     }
+    /// 模态关闭拒绝精确请求，释放其连接与未认证并发槽。
+    pub(crate) fn reject_device_request(&self, id: &str, ticket: u64) { self.context.devices.reject_request(id, ticket); }
     /// 传入用户明确选中身份和四位草稿；不会自动重试配对。
     pub(crate) fn pair_device(&self, id: &str, code: String) -> Result<(), &'static str> { self.context.devices.pair(id, code) }
     /// 忘记一条本机保存记录；没有远端撤销或业务数据副作用。
     pub(crate) fn remove_device(&self, id: String) -> Result<(), &'static str> { self.context.devices.remove(id) }
-    /// 离页或隐藏暂停临时联网会话，保留已保存设备。
+    /// 用户明确取消在途握手，保留应用服务与其他待配对请求。
     pub(crate) fn cancel_device_activity(&self) { self.context.devices.cancel(); }
 }

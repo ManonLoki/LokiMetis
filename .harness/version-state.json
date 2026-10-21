@@ -173,6 +173,11 @@
       "change_id": "LMDESK-DEVICE-CARD-COMPACT-001",
       "kind": "bug-fix",
       "required_version": "0.6.2"
+    },
+    {
+      "change_id": "LMDESK-INCOMING-PAIRING-DIALOG-001",
+      "kind": "feature",
+      "required_version": "0.6.2"
     }
   ],
   "schema_version": 1,
