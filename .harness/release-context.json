@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "bced503ac18933aa23d3953e5287162e81e5818c",
-  "version": "0.7.6",
+  "sourceHead": "d9ec24dd436bca4e763e60b8d937bf7e12d14e22",
+  "version": "0.7.7",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.6-20261022",
+  "expectedTag": "v0.7.7-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "b4003702b76f96bb0cda70afa81db146f04a7a22",
-    "sourceHead": "bced503ac18933aa23d3953e5287162e81e5818c",
-    "scopeDiffSha256": "dcdbd8a5c86fc1988b0b51c85a6dbf5c2c95dd91cd48ed9a021c2933cd676570",
-    "reviewedSourceCommit": "bced503ac18933aa23d3953e5287162e81e5818c",
+    "scopeBase": "6737feb0d627ed4ee77585ddd9bb03d65e9965bc",
+    "sourceHead": "d9ec24dd436bca4e763e60b8d937bf7e12d14e22",
+    "scopeDiffSha256": "579c34e9d08fb980feb63bfb413977ee94f1a1c94a149b1e492483c3f5508543",
+    "reviewedSourceCommit": "d9ec24dd436bca4e763e60b8d937bf7e12d14e22",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已审查额度行、实例区块移除及原生CI流程；GUI只展示core快照，配对信任和额度规则不变。CI要求App/DMG独立Apple票据、CDHash、附票、Gatekeeper及最终资源一致，六包和远端附件完整复算后才公开。8项GUI与36项打包发布回归及发布机械检查通过。新增模块职责集中，无临时或私钥标记。本次E2E关闭，目标交互仍Unverified。",
+    "evidenceSummary": "审查Linux软件包名与GNU前缀分离、Windows受限PATH和SDK变量持久化；不改变core/GUI业务或对外数据契约。6项隔离回归及Shell/YAML解析通过，新增文件无临时或秘密标记。发布候选继续执行非空全量测试、双公证及最终包校验；本次E2E仍关闭。",
     "reason": null,
     "remainingRisk": null
   }

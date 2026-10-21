@@ -3,6 +3,21 @@
   "releases": [
     {
       "releaseDate": "2026-10-22",
+      "version": "v0.7.7",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修正 Linux AMD64 的原生编译器依赖包名，保留正确 GNU 工具前缀。",
+          "en-US": "Correct Linux AMD64 compiler package names while preserving the GNU tool prefix."
+        },
+        {
+          "zh-CN": "修复 Windows CI 导入 Visual Studio 后覆盖 Node 路径的问题，并保留实际 SDK 编译环境。",
+          "en-US": "Preserve the selected Node runtime and native SDK environment after importing Visual Studio settings in Windows CI."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-22",
       "version": "v0.7.6",
       "featureOptimizations": [
         {
@@ -203,46 +218,6 @@
         {
           "zh-CN": "修复GNOME找不到包内图标，实际生成512像素PNG并安装到标准hicolor目录。",
           "en-US": "Fix missing GNOME package icons by generating a real 512-pixel PNG in the standard hicolor directory."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-18",
-      "version": "v0.3.8",
-      "featureOptimizations": [
-        {
-          "zh-CN": "增加Linux GNU x64/ARM64原生及交叉构建，支持deb与tar.gz打包并校验最终资源。",
-          "en-US": "Add native and cross-architecture Linux GNU x64/ARM64 builds with deb and tar.gz packaging and final resource verification."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复桌宠先读取设置后Hooks启用配置未发布的问题，覆盖五种Agent的真实命令链路。",
-          "en-US": "Publish enabled Agent settings after pet-first loads so Hooks work through the real command paths of all five Agents."
-        },
-        {
-          "zh-CN": "修复X11/XWayland桌宠设置保存、悬浮置顶、尺寸锁定和鼠标穿透，异步确认后落盘并保留退出前意图。",
-          "en-US": "Fix X11/XWayland pet preference persistence, topmost state, size locking and mouse passthrough; confirm native changes asynchronously and preserve shutdown intent."
-        },
-        {
-          "zh-CN": "补齐Linux窗口Logo和一致的桌面身份，修复Dock及任务栏图标缺失。",
-          "en-US": "Provide the Linux window Logo and consistent desktop identity to restore Dock and taskbar icons."
-        },
-        {
-          "zh-CN": "确认真实托盘恢复入口后才隐藏主窗，入口消失时恢复窗口。",
-          "en-US": "Hide the main window only after confirming a real tray recovery entry, and restore it if that entry disappears."
-        },
-        {
-          "zh-CN": "补齐Linux系统通知，修复权限重试、关闭重开及退出时的迟到投递。",
-          "en-US": "Implement Linux system notifications and fix late delivery after permission retry, disable/re-enable and shutdown."
-        },
-        {
-          "zh-CN": "修复受限umask导致的Linux包权限错误，避免提权安装误操作root Rust工具链。",
-          "en-US": "Fix Linux package permissions under restrictive umask and prevent elevated setup from modifying the root Rust toolchain."
-        },
-        {
-          "zh-CN": "同步本地Harness的Linux打包能力及知识库，精确校验封存生成物和工程回归。",
-          "en-US": "Synchronize local Harness Linux packaging capabilities and knowledge, with exact archived-generation verification and engineering regressions."
         }
       ]
     }
