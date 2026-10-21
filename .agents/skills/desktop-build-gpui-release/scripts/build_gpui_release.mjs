@@ -208,7 +208,8 @@ export function executeBuild(options, hooks = {}) {
   assertSourceStable(root,run,identity);
   assertResourcesStable(root,config,info.platform,candidate,resources);
   if (candidate && !isDeepStrictEqual((hooks.context ?? releasedContext)(root,facts),context)) throw new Error('release context changed before packaging');
-  const packageResult = run(tool,['--config',packagerFile],{ env: packageEnv, quiet: macosSigning, timeout: (macosSigning ? 40 : 10) * 60 * 1000 });
+  if (macosSigning) packageEnv.RUST_LOG = 'info';
+  const packageResult = run(tool,[...(macosSigning ? ['--verbose'] : []),'--config',packagerFile],{ env: packageEnv, quiet: macosSigning, timeout: (macosSigning ? 40 : 10) * 60 * 1000 });
   let artifact = packagePath(work,config,facts,target,format);
   const app = format === 'nsis' ? null : packagePath(work,config,facts,target,'app');
   if (app) {

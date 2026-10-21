@@ -82,10 +82,13 @@ export function validateArtifacts(directory, context, runId = process.env.GITHUB
 /** 先创建草稿、上传并下载复算每个附件，全部精确后才公开；不自动清理旧 Releases。 */
 function publish(tag, directory) {
   const context = prepare(tag), files = validateArtifacts(directory,context);
+  const candidates = files.filter(name => name.endsWith('.manifest.json')).map(name => JSON.parse(fs.readFileSync(path.join(directory,name),'utf8')));
+  if (new Set(candidates.map(item => item.e2eSelection)).size !== 1) throw new Error('Candidate E2E selections differ');
+  const e2eDescription = candidates[0].e2eSelection === 'disabled' ? 'Not run (user selected disabled). Target installation and interactive runtime: Unverified.' : 'Passed on the final candidates; see each manifest for evidence.';
   const body = path.join(process.env.RUNNER_TEMP,'loki-release-notes.md');
   const notes = JSON.parse(fs.readFileSync(path.join(root,'release-notes.json'),'utf8')).releases[0];
   const section = (locale,heading) => `${heading}\n\n${[...notes.featureOptimizations,...notes.bugFixes].map(item => `- ${item[locale]}`).join('\n')}\n`;
-  fs.writeFileSync(body,`${section('zh-CN',`LokiMetris v${context.version}`)}\n${section('en-US','Changes')}\nWindows x64 · macOS Apple Silicon (Developer ID signed and notarized) · Linux AMD64/ARM64 (deb and tar.gz).\n\nE2E: Not run (user selected disabled). Target installation and interactive runtime: Unverified.\n\nSource: ${context.sourceCommit}\nBuild: https://github.com/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}\n`);
+  fs.writeFileSync(body,`${section('zh-CN',`LokiMetris v${context.version}`)}\n${section('en-US','Changes')}\nWindows x64 · macOS Apple Silicon (Developer ID signed and notarized) · Linux AMD64/ARM64 (deb and tar.gz).\n\nE2E: ${e2eDescription}\n\nSource: ${context.sourceCommit}\nBuild: https://github.com/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}\n`);
   const query = spawnSync('gh',['release','view',tag,'--repo',repository,'--json','isDraft'],{ encoding:'utf8' });
   if (query.status === 0) {
     if (!JSON.parse(query.stdout).isDraft) throw new Error('Refusing to replace an already published release');
