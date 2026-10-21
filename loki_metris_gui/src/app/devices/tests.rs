@@ -6,6 +6,85 @@ use loki_metris_core::devices::{DiscoveredDevice, SavedDeviceSummary};
 
 const DEVICE: &str = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
+/// 宽窄窗口与双主题均保持真实卡片栅格；长名称、IPv6和图片不得溢出，候选按行排列。
+#[gpui_kit::test]
+fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppContext) {
+    use gpui_kit::{px, component::{Theme, ThemeMode}};
+    use loki_metris_core::devices::{link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState}};
+    for (width, columns, dark) in [(960., 2, false), (960., 2, true), (1440., 3, false), (1440., 3, true)] {
+        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, width, 1100.);
+        cx.update(|cx| Theme::change(if dark { ThemeMode::Dark } else { ThemeMode::Light }, None, cx));
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| {
+                this.page = crate::app::Page::Devices;
+                this.devices.snapshot.loaded = true;
+                for index in 0..4 {
+                    let id = format!("00000000-0000-4000-8000-{index:012}");
+                    let name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
+                    this.devices.snapshot.saved.push(SavedDeviceSummary { id: id.clone(), name: "Saved".into() });
+                    this.devices.snapshot.presence.push(DevicePresenceView {
+                        device_id: id.clone(), info: Some(DeviceInfo { device_id: id, name,
+                            platform: if index % 2 == 0 { DevicePlatform::Ios } else { DevicePlatform::Android },
+                            app_version: "1".repeat(64) }), state: DeviceConnectionState::Reachable,
+                        peer: Some("[fe80:abcd:abcd:abcd:abcd:abcd:abcd:abcd%12]:4200".parse().unwrap()),
+                        since_last_contact: None, companion: None,
+                    });
+                }
+                prepare_target(this);
+                this.devices.snapshot.discovered.push(DiscoveredDevice::new("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa".into(),
+                    "Another nearby device".into(), vec!["192.168.1.3:4000".parse().unwrap()]).unwrap().with_pairing_protocol(Some("1")));
+                cx.notify();
+            });
+            window.render_frame(cx);
+            let grid = window.find("devices-saved-grid").bounds();
+            let first = window.find("device-saved-00000000-0000-4000-8000-000000000000").bounds();
+            for index in 0..4 {
+                let id = format!("00000000-0000-4000-8000-{index:012}");
+                let card = window.find(format!("device-saved-{id}")).bounds();
+                let image = window.find(format!("device-artwork-{id}")).bounds();
+                let name = window.find(format!("device-name-{id}")).bounds();
+                let ip = window.find(format!("device-ip-{id}")).bounds();
+                assert!(card.left() >= grid.left() && card.right() <= grid.right() + px(1.));
+                assert!((card.size.width - first.size.width).abs() < px(1.));
+                assert_eq!(image.size.height, px(184.));
+                assert!(image.left() >= card.left() && image.right() <= card.right());
+                assert!(name.right() <= card.right() && ip.right() <= card.right());
+                if index < columns { assert_eq!(card.top(), first.top()); }
+                else { assert!(card.top() >= first.bottom()); }
+            }
+            let first_row = window.find(format!("device-found-{DEVICE}")).bounds();
+            let second_row = window.find("device-found-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").bounds();
+            assert_eq!(first_row.size.width, second_row.size.width);
+            assert!(second_row.top() >= first_row.bottom());
+            assert!(window.try_find(format!("device-artwork-{DEVICE}")).is_none());
+        }).unwrap();
+    }
+}
+
+/// 真实服务为尚未连接设备也保留presence，发现提示与等待IP仍必须显示且不误示在线。
+#[gpui_kit::test]
+fn discovered_saved_device_without_authenticated_contact_keeps_pending_ip(cx: &mut TestAppContext) {
+    use loki_metris_core::devices::presence::{DevicePresenceView, DeviceConnectionState};
+    let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 960., 640.);
+    cx.update_window(handle, |_, window, cx| {
+        shell.update(cx, |this, cx| {
+            this.page = crate::app::Page::Devices;
+            this.devices.snapshot.loaded = true;
+            prepare_target(this);
+            this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved receiver".into() });
+            this.devices.snapshot.presence.push(DevicePresenceView { device_id: DEVICE.into(), info: None,
+                state: DeviceConnectionState::NotConnected, peer: None, since_last_contact: None, companion: None });
+            cx.notify();
+        });
+        window.render_frame(cx);
+        assert_eq!(window.find(format!("device-seen-{DEVICE}")).label(), Some("Recently discovered (connection unverified)"));
+        assert_eq!(window.find(format!("device-ip-pending-{DEVICE}")).label(), Some("IP · waiting for a connection"));
+        assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some("Not connected"));
+        assert!(window.try_find(format!("device-found-{DEVICE}")).is_none());
+        assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
+    }).unwrap();
+}
+
 /// 直接打开模态的测试仍需提供一项当前可配对的真实领域候选。
 pub(super) fn prepare_target(shell: &mut Shell) {
     shell.devices.snapshot.discovered = vec![DiscoveredDevice::new(DEVICE.into(), "Receiver".into(),

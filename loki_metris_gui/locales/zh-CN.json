@@ -908,6 +908,11 @@
       "unavailable": "暂不可同步 · 保留缓存",
       "noSync": "尚未确认完整快照同步",
       "lastSync": "最近确认同步：至多 {{seconds}} 秒前"
-    }
+    },
+    "savedHint": "从下方列表配对设备，开始局域网同步。",
+    "generic": "设备",
+    "illustration": "{{name}}的设备示意图",
+    "ipPending": "IP · 等待连接",
+    "appVersion": "应用版本"
   }
 }

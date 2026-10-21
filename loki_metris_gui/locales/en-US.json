@@ -908,6 +908,11 @@
       "unavailable": "Sync unavailable · cache retained",
       "noSync": "No full snapshot sync confirmed",
       "lastSync": "Last confirmed sync: at most {{seconds}}s ago"
-    }
+    },
+    "savedHint": "Pair a device from the list below to start local sync.",
+    "generic": "Device",
+    "illustration": "Device illustration for {{name}}",
+    "ipPending": "IP · waiting for a connection",
+    "appVersion": "App"
   }
 }

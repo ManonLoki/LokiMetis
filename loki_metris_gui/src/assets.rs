@@ -10,6 +10,12 @@ pub const SPONSOR_WECHAT:&str="app-support/wechat-pay.png";
 /// 原样迁入的本地支付宝收款图，只用于显示。
 pub const SPONSOR_ALIPAY:&str="app-support/alipay.jpg";
 
+/// 设备卡片使用固定本地产品示意图，不请求远程图片。
+pub const DEVICE_IPHONE: &str = "app-devices/iphone.png";
+pub const DEVICE_ANDROID_PHONE: &str = "app-devices/android-phone.png";
+pub const DEVICE_IPAD: &str = "app-devices/ipad.png";
+pub const DEVICE_ANDROID_TABLET: &str = "app-devices/android-tablet.png";
+
 /// 固定本地资源源不接受任意文件路径或远程 URL。
 pub struct Assets;
 
@@ -21,6 +27,10 @@ impl AssetSource for Assets {
         }
 
         match path {
+            DEVICE_IPHONE => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/iphone.png")))),
+            DEVICE_ANDROID_PHONE => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/android-phone.png")))),
+            DEVICE_IPAD => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/ipad.png")))),
+            DEVICE_ANDROID_TABLET => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/android-tablet.png")))),
             SPONSOR_WECHAT=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/wechat-pay.png")))),
             SPONSOR_ALIPAY=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/alipay.jpg")))),
             _=>gpui_kit::assets::Assets.load(path),
@@ -30,7 +40,9 @@ impl AssetSource for Assets {
     /// 只枚举当前编译包实际含有的资源。
     fn list(&self, prefix: &str) -> Result<Vec<SharedString>> {
         let mut paths = gpui_kit::assets::Assets.list(prefix)?;
-        for path in [LOGO,SPONSOR_WECHAT,SPONSOR_ALIPAY] {if path.starts_with(prefix) {paths.push(path.into());}}
+        for path in [LOGO, SPONSOR_WECHAT, SPONSOR_ALIPAY, DEVICE_IPHONE, DEVICE_ANDROID_PHONE, DEVICE_IPAD, DEVICE_ANDROID_TABLET] {
+            if path.starts_with(prefix) { paths.push(path.into()); }
+        }
 
         Ok(paths)
     }

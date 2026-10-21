@@ -2,6 +2,9 @@
 
 mod dialog;
 mod view;
+mod paired_card;
+mod discovered;
+mod artwork;
 #[cfg(test)]
 mod tests;
 
