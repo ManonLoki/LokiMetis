@@ -3,7 +3,7 @@
 use super::{Shell,format,plot::{self,Series,Value,Scale}};
 use gpui_kit::{AnyElement,Context,FontWeight,div,prelude::*,px,rgb,
     component::{ActiveTheme,button::Button,menu::{DropdownMenu,PopupMenuItem}}};
-use loki_metris_core::WorkbuddyDailyBucket;
+use loki_metris_core::WorkBuddyDailyBucket;
 use gpui_kit::base::TestSupportExt as _;
 
 impl Shell {
@@ -47,7 +47,7 @@ impl Shell {
     }
 
     /// 民用日与 Trace 状态互斥；切换分组回到该分组的首个合法指标。
-    fn workbuddy_distribution(&self,daily:Vec<&WorkbuddyDailyBucket>,window:&loki_metris_core::WorkbuddyWindowAggregate,cx:&mut Context<Self>)->AnyElement {
+    fn workbuddy_distribution(&self,daily:Vec<&WorkBuddyDailyBucket>,window:&loki_metris_core::WorkBuddyWindowAggregate,cx:&mut Context<Self>)->AnyElement {
         let group=self.dashboard.chart.workbuddy_group;
         let selected=self.dashboard.chart.workbuddy_metric;
         let entity=cx.entity().downgrade();

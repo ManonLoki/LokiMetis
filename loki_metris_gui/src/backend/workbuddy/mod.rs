@@ -20,8 +20,8 @@ use std::path::{Path, PathBuf};
 
 use loki_metris_core::{
     CoverageReport, LocalUsageWindow, SourceClientKind, TimeStandard, UsageDimension,
-    UsageStatisticsPage, WorkbuddyModelUsageWindow, WorkbuddyScanSource,
-    WorkbuddyStatisticsSnapshot, WorkbuddyTraceRecord, WorkbuddyTraceStatus,
+    UsageStatisticsPage, WorkBuddyModelUsageWindow, WorkBuddyScanSource,
+    WorkBuddyStatisticsSnapshot, WorkBuddyTraceRecord, WorkBuddyTraceStatus,
     build_workbuddy_usage_details, combine_workbuddy_root_coverage,
     compute_workbuddy_statistics_with_standard, discover_workbuddy_scan_sources, path_key,
     source_root_alias_from_path, stable_id,
@@ -31,7 +31,7 @@ use serde::Deserialize;
 use crate::backend::local_index::current_user_home;
 
 use self::jsonl::{open_fixed_prefix, read_project_usage};
-use self::projects::{WorkbuddyProjectFiles, discover_project_files};
+use self::projects::{WorkBuddyProjectFiles, discover_project_files};
 
 /// WorkBuddy trace 记录子目录固定名称。
 const WORKBUDDY_TRACES_DIR_NAME: &str = "traces";
@@ -46,7 +46,7 @@ const MAX_TRACE_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
 
 /// 标识 WorkBuddy 本地统计读取失败的稳定类别，不携带路径细节。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum WorkbuddyReadError {
+pub(crate) enum WorkBuddyReadError {
     /// 未定位任何安装目录，或获批 `projects` 根缺失/不是普通目录。
     SourceUnavailable,
     /// 目录或文件在读取过程中不可安全读取。
@@ -55,7 +55,7 @@ pub(crate) enum WorkbuddyReadError {
 
 /// 数据源页可展示的 project JSONL 结构证据；不包含任何路径。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct WorkbuddyProjectSourceEvidence {
+pub(crate) struct WorkBuddyProjectSourceEvidence {
     /// 顶层与 subagent transcript 文件总数。
     pub(crate) file_count: u64,
     /// 顶层 transcript 文件数。
@@ -70,9 +70,9 @@ pub(crate) struct WorkbuddyProjectSourceEvidence {
     pub(crate) budget_exhausted: bool,
 }
 
-impl WorkbuddyProjectSourceEvidence {
+impl WorkBuddyProjectSourceEvidence {
     /// 从内部枚举结果复制无路径计数。
-    fn from_files(files: &WorkbuddyProjectFiles) -> Self {
+    fn from_files(files: &WorkBuddyProjectFiles) -> Self {
         Self {
             file_count: files.file_count(),
             top_level_file_count: files.top_level_file_count,
@@ -85,11 +85,11 @@ impl WorkbuddyProjectSourceEvidence {
 }
 
 /// 一个已发现固定根的探测结果，供数据源页逐根展示。
-pub(crate) struct WorkbuddySourceInspection {
+pub(crate) struct WorkBuddySourceInspection {
     /// 已确认存在的固定只读根身份。
-    pub(crate) source: WorkbuddyScanSource,
+    pub(crate) source: WorkBuddyScanSource,
     /// 该根的获批 project JSONL 布局证据；读取失败时携带稳定错误类别。
-    pub(crate) evidence: Result<WorkbuddyProjectSourceEvidence, WorkbuddyReadError>,
+    pub(crate) evidence: Result<WorkBuddyProjectSourceEvidence, WorkBuddyReadError>,
 }
 
 /// 按稳定顺序返回当前用户真实存在的 WorkBuddy 固定安装目录；都未安装时返回空。
@@ -101,7 +101,7 @@ pub(crate) fn resolve_workbuddy_homes() -> Vec<PathBuf> {
 }
 
 /// 只读探测当前用户存在的全部 WorkBuddy 固定只读来源。
-pub(crate) fn discover_workbuddy_sources() -> Vec<WorkbuddyScanSource> {
+pub(crate) fn discover_workbuddy_sources() -> Vec<WorkBuddyScanSource> {
     let Some(home) = current_user_home() else {
         return Vec::new();
     };
@@ -110,14 +110,14 @@ pub(crate) fn discover_workbuddy_sources() -> Vec<WorkbuddyScanSource> {
 
 /// 逐根检查获批 project JSONL 布局并返回无路径证据；不解析记录正文。
 pub(crate) fn inspect_workbuddy_project_sources(
-    sources: &[WorkbuddyScanSource],
-) -> Vec<WorkbuddySourceInspection> {
+    sources: &[WorkBuddyScanSource],
+) -> Vec<WorkBuddySourceInspection> {
     sources
         .iter()
-        .map(|source| WorkbuddySourceInspection {
+        .map(|source| WorkBuddySourceInspection {
             source: source.clone(),
             evidence: discover_project_files(&source.path)
-                .map(|files| WorkbuddyProjectSourceEvidence::from_files(&files)),
+                .map(|files| WorkBuddyProjectSourceEvidence::from_files(&files)),
         })
         .collect()
 }
@@ -127,7 +127,7 @@ pub(crate) async fn read_workbuddy_statistics(
     workbuddy_homes: &[PathBuf],
     now_epoch_ms: i64,
     time_standard: TimeStandard,
-) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
+) -> Result<WorkBuddyStatisticsSnapshot, WorkBuddyReadError> {
     // 用量与 Trace 走两棵互不相关的目录树，先各自起线程再一起等待。
     let trace_homes = workbuddy_homes.to_vec();
     let trace_task = tokio::task::spawn_blocking(move || read_all_traces(&trace_homes));
@@ -149,7 +149,7 @@ pub(crate) async fn read_workbuddy_usage_snapshot(
     workbuddy_homes: &[PathBuf],
     now_epoch_ms: i64,
     time_standard: TimeStandard,
-) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
+) -> Result<WorkBuddyStatisticsSnapshot, WorkBuddyReadError> {
     read_workbuddy_usage_snapshot_in_zone(workbuddy_homes, now_epoch_ms, time_standard, &jiff::tz::TimeZone::system()).await
 }
 
@@ -157,7 +157,7 @@ pub(crate) async fn read_workbuddy_usage_snapshot(
 pub(crate) async fn read_workbuddy_usage_snapshot_in_zone(
     workbuddy_homes: &[PathBuf], now_epoch_ms: i64, time_standard: TimeStandard,
     zone: &jiff::tz::TimeZone,
-) -> Result<WorkbuddyStatisticsSnapshot, WorkbuddyReadError> {
+) -> Result<WorkBuddyStatisticsSnapshot, WorkBuddyReadError> {
     let inputs = read_workbuddy_usage_inputs(workbuddy_homes).await?;
     Ok(compute_workbuddy_statistics_with_standard(
         &inputs.records,
@@ -170,11 +170,11 @@ pub(crate) async fn read_workbuddy_usage_snapshot_in_zone(
 }
 
 /// 一次 WorkBuddy 读取返回同一快照下的通用统计页与逐模型明细。
-pub(crate) struct WorkbuddyUsageDetails {
+pub(crate) struct WorkBuddyUsageDetails {
     /// 通用统计页。
     pub(crate) statistics: UsageStatisticsPage,
     /// 逐模型明细。
-    pub(crate) model_usage: WorkbuddyModelUsageWindow,
+    pub(crate) model_usage: WorkBuddyModelUsageWindow,
 }
 
 /// 用同一批 JSONL 记录构造统计页和模型表，避免跨午夜或活跃追加造成漂移。
@@ -184,7 +184,7 @@ pub(crate) async fn read_workbuddy_usage_details(
     dimension: UsageDimension,
     now_epoch_ms: i64,
     time_standard: TimeStandard,
-) -> Result<WorkbuddyUsageDetails, WorkbuddyReadError> {
+) -> Result<WorkBuddyUsageDetails, WorkBuddyReadError> {
     let inputs = read_workbuddy_usage_inputs(workbuddy_homes).await?;
     let device_tz = jiff::tz::TimeZone::system();
     let (statistics, model_usage) = build_workbuddy_usage_details(
@@ -197,17 +197,17 @@ pub(crate) async fn read_workbuddy_usage_details(
         &time_standard,
         &device_tz,
     )
-    .map_err(|_| WorkbuddyReadError::Read)?;
-    Ok(WorkbuddyUsageDetails {
+    .map_err(|_| WorkBuddyReadError::Read)?;
+    Ok(WorkBuddyUsageDetails {
         statistics,
         model_usage,
     })
 }
 
 /// adapter 内一次读取的全部安全输入。
-struct WorkbuddyUsageInputs {
+struct WorkBuddyUsageInputs {
     /// 读取到的用量记录。
-    records: Vec<loki_metris_core::WorkbuddyUsageEventRecord>,
+    records: Vec<loki_metris_core::WorkBuddyUsageEventRecord>,
     /// 覆盖报告。
     coverage: CoverageReport,
     /// 根 ID 到展示别名的映射。
@@ -217,11 +217,11 @@ struct WorkbuddyUsageInputs {
 /// 在阻塞线程中读取全部固定根的用量；调用方按界面需要决定是否另读 Trace。
 async fn read_workbuddy_usage_inputs(
     workbuddy_homes: &[PathBuf],
-) -> Result<WorkbuddyUsageInputs, WorkbuddyReadError> {
+) -> Result<WorkBuddyUsageInputs, WorkBuddyReadError> {
     let homes = workbuddy_homes.to_vec();
     tokio::task::spawn_blocking(move || read_usage_inputs_blocking(&homes))
         .await
-        .map_err(|_| WorkbuddyReadError::Read)?
+        .map_err(|_| WorkBuddyReadError::Read)?
 }
 
 /// 按稳定顺序逐根读取用量并合并；无任何可读布局时按未安装来源处理。
@@ -231,7 +231,7 @@ async fn read_workbuddy_usage_inputs(
 /// 获批布局却读取失败时立即向上传播，整体失败关闭。
 fn read_usage_inputs_blocking(
     workbuddy_homes: &[PathBuf],
-) -> Result<WorkbuddyUsageInputs, WorkbuddyReadError> {
+) -> Result<WorkBuddyUsageInputs, WorkBuddyReadError> {
     let mut records = Vec::new();
     let mut coverages: Vec<CoverageReport> = Vec::new();
     let mut root_aliases = BTreeMap::new();
@@ -247,14 +247,14 @@ fn read_usage_inputs_blocking(
                 coverages.push(usage.coverage);
                 root_aliases.insert(root_id, root_alias);
             }
-            Err(WorkbuddyReadError::SourceUnavailable) => {}
+            Err(WorkBuddyReadError::SourceUnavailable) => {}
             Err(error) => return Err(error),
         }
     }
     if root_aliases.is_empty() {
-        return Err(WorkbuddyReadError::SourceUnavailable);
+        return Err(WorkBuddyReadError::SourceUnavailable);
     }
-    Ok(WorkbuddyUsageInputs {
+    Ok(WorkBuddyUsageInputs {
         records,
         coverage: combine_workbuddy_root_coverage(&coverages),
         root_aliases,
@@ -281,7 +281,7 @@ struct TraceMeta {
 }
 
 /// 按稳定顺序读取每个固定根的 Trace 诊断；单一根缺失只贡献空集合。
-fn read_all_traces(workbuddy_homes: &[PathBuf]) -> Vec<WorkbuddyTraceRecord> {
+fn read_all_traces(workbuddy_homes: &[PathBuf]) -> Vec<WorkBuddyTraceRecord> {
     workbuddy_homes
         .iter()
         .flat_map(|home| read_traces(home))
@@ -289,7 +289,7 @@ fn read_all_traces(workbuddy_homes: &[PathBuf]) -> Vec<WorkbuddyTraceRecord> {
 }
 
 /// 只遍历单个根 `traces/<pid>/*.json` 两层普通目录/文件，并应用该根的文件与字节预算。
-fn read_traces(workbuddy_home: &Path) -> Vec<WorkbuddyTraceRecord> {
+fn read_traces(workbuddy_home: &Path) -> Vec<WorkBuddyTraceRecord> {
     let traces_dir = workbuddy_home.join(WORKBUDDY_TRACES_DIR_NAME);
     let Ok(metadata) = fs::symlink_metadata(&traces_dir) else {
         return Vec::new();
@@ -355,7 +355,7 @@ fn sorted_entries(
 }
 
 /// 从固定文件前缀流式解析一个完整 Trace；活动半写文件会自然被忽略。
-fn read_trace_file(path: &Path, remaining_bytes: u64) -> Option<(WorkbuddyTraceRecord, u64)> {
+fn read_trace_file(path: &Path, remaining_bytes: u64) -> Option<(WorkBuddyTraceRecord, u64)> {
     let (file, observed_len) = open_fixed_prefix(path).ok()?;
     if observed_len == 0 || observed_len > MAX_TRACE_FILE_BYTES || observed_len > remaining_bytes {
         return None;
@@ -363,9 +363,9 @@ fn read_trace_file(path: &Path, remaining_bytes: u64) -> Option<(WorkbuddyTraceR
     let reader = BufReader::new(file.take(observed_len));
     let envelope: TraceFileEnvelope = serde_json::from_reader(reader).ok()?;
     let status = match envelope.trace.status.as_str() {
-        "ok" => WorkbuddyTraceStatus::Ok,
-        "error" => WorkbuddyTraceStatus::Error,
-        "cancelled" | "canceled" => WorkbuddyTraceStatus::Cancelled,
+        "ok" => WorkBuddyTraceStatus::Ok,
+        "error" => WorkBuddyTraceStatus::Error,
+        "cancelled" | "canceled" => WorkBuddyTraceStatus::Cancelled,
         _ => return None,
     };
     let started_at_epoch_ms = envelope
@@ -375,7 +375,7 @@ fn read_trace_file(path: &Path, remaining_bytes: u64) -> Option<(WorkbuddyTraceR
         .ok()?
         .as_millisecond();
     Some((
-        WorkbuddyTraceRecord {
+        WorkBuddyTraceRecord {
             started_at_epoch_ms,
             duration_ms: envelope.trace.duration.max(0),
             status,

@@ -18,7 +18,7 @@ pub(crate) async fn sources(directory:&std::path::Path,client:SourceClientKind)-
     if !exists {return Ok(Vec::new())}
     let provider=match client {SourceClientKind::Codex=>loki_metris_core::ProviderKind::RolloutJsonl,
         SourceClientKind::ClaudeCode=>loki_metris_core::ProviderKind::ClaudeTranscriptJsonl,
-        SourceClientKind::GrokBuildCli=>loki_metris_core::ProviderKind::GrokSessionJsonl,
+        SourceClientKind::Grok=>loki_metris_core::ProviderKind::GrokSessionJsonl,
         SourceClientKind::WorkBuddy=>return Err("usage_client_unsupported".into())};
     load_source_root_summaries_for_parser(directory,client.parser_version(),provider.source_environment_label()).await
 }
@@ -30,7 +30,7 @@ pub(crate) async fn reindex(directory:std::path::PathBuf,client:SourceClientKind
     match client {
         SourceClientKind::Codex=>run::run_reindex::<client::CodexClient>(directory,retention,None,request,cancellation,progress).await,
         SourceClientKind::ClaudeCode=>run::run_reindex::<client::ClaudeClient>(directory,retention,None,request,cancellation,progress).await,
-        SourceClientKind::GrokBuildCli=>run::run_reindex::<client::GrokClient>(directory,retention,None,request,cancellation,progress).await,
+        SourceClientKind::Grok=>run::run_reindex::<client::GrokClient>(directory,retention,None,request,cancellation,progress).await,
         SourceClientKind::WorkBuddy=>Err("usage_client_unsupported".into()),
     }
 }
@@ -43,7 +43,7 @@ pub(crate) async fn scan(directory: std::path::PathBuf, client: SourceClientKind
     match client {
         SourceClientKind::Codex => run::run_scan::<client::CodexClient>(directory, retention, None, ScanKind::Quick, origin, cancellation, progress).await,
         SourceClientKind::ClaudeCode => run::run_scan::<client::ClaudeClient>(directory, retention, None, ScanKind::Quick, origin, cancellation, progress).await,
-        SourceClientKind::GrokBuildCli => run::run_scan::<client::GrokClient>(directory, retention, None, ScanKind::Quick, origin, cancellation, progress).await,
+        SourceClientKind::Grok => run::run_scan::<client::GrokClient>(directory, retention, None, ScanKind::Quick, origin, cancellation, progress).await,
         SourceClientKind::WorkBuddy => Err("usage_client_unsupported".into()),
     }
 }

@@ -47,7 +47,7 @@ impl AgentSettingsState {
             .map(|client| match client {
                 SourceClientKind::Codex => 1,
                 SourceClientKind::ClaudeCode => 2,
-                SourceClientKind::GrokBuildCli => 3,
+                SourceClientKind::Grok => 3,
                 SourceClientKind::WorkBuddy => 4,
             })
             .chain(wb.then_some(4))

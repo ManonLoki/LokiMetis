@@ -39,8 +39,8 @@ fn fixture_international_home(root: &Path) -> PathBuf {
 }
 
 /// 把夹具路径包装成只读扫描源；测试只关心探测证据，身份字段只求稳定。
-fn fixture_source(home: &Path) -> WorkbuddyScanSource {
-    WorkbuddyScanSource {
+fn fixture_source(home: &Path) -> WorkBuddyScanSource {
+    WorkBuddyScanSource {
         root_id: "workbuddy-root-fixture".to_owned(),
         alias: "fixture".to_owned(),
         path: home.to_path_buf(),
@@ -50,7 +50,7 @@ fn fixture_source(home: &Path) -> WorkbuddyScanSource {
 /// 读取单个夹具根的项目结构证据，保留读取失败以便断言失败关闭语义。
 fn single_source_evidence(
     home: &Path,
-) -> Result<WorkbuddyProjectSourceEvidence, WorkbuddyReadError> {
+) -> Result<WorkBuddyProjectSourceEvidence, WorkBuddyReadError> {
     inspect_workbuddy_project_sources(&[fixture_source(home)])
         .into_iter()
         .next()
@@ -151,7 +151,7 @@ async fn model_window(
     home: &Path,
     window: LocalUsageWindow,
     now_epoch_ms: i64,
-) -> loki_metris_core::WorkbuddyModelUsageWindow {
+) -> loki_metris_core::WorkBuddyModelUsageWindow {
     read_workbuddy_usage_details(
         &[home.to_path_buf()],
         window,

@@ -29,7 +29,7 @@ fn default_selection_and_explicit_empty_are_distinct() {
 #[test]
 fn combined_queries_only_open_enabled_physical_indexes() {
     let root=tempfile::tempdir().unwrap();let directory=root.path().to_owned();
-    let file=source_client_usage_index_path(&directory,SourceClientKind::GrokBuildCli);
+    let file=source_client_usage_index_path(&directory,SourceClientKind::Grok);
     std::fs::create_dir_all(file.parent().unwrap()).unwrap();std::fs::write(&file,b"bad sqlite").unwrap();
     let service=UsageService::in_directory(directory.clone()).unwrap();
     let read=service.query(UsageQuery::Calls(None,UsageCallsQuery::default())).unwrap();
@@ -77,9 +77,9 @@ fn disabled_automatic_scan_is_a_noop_and_direct_physical_read_remains_available(
     let root=tempfile::tempdir().unwrap();let directory=root.path().to_owned();
     let service=UsageService::in_directory(directory.clone()).unwrap();
     service.runtime.lock().unwrap().as_ref().unwrap().block_on(async {
-        super::super::scan::run(service.context.clone(),super::super::queue::Intent{client:Some(SourceClientKind::GrokBuildCli),origin:loki_metris_core::ScanStartOrigin::InitialAutomatic},loki_metris_core::ScanCancellation::new()).await.unwrap();
-        let response=service.query(UsageQuery::Overview(Some(SourceClientKind::GrokBuildCli))).unwrap().await.unwrap().unwrap();
+        super::super::scan::run(service.context.clone(),super::super::queue::Intent{client:Some(SourceClientKind::Grok),origin:loki_metris_core::ScanStartOrigin::InitialAutomatic},loki_metris_core::ScanCancellation::new()).await.unwrap();
+        let response=service.query(UsageQuery::Overview(Some(SourceClientKind::Grok))).unwrap().await.unwrap().unwrap();
         assert!(matches!(response,UsageResponse::Overview(_)));
     });
-    service.finish();assert!(!directory.join("monitor").exists());assert!(!source_client_usage_index_path(&directory,SourceClientKind::GrokBuildCli).exists());
+    service.finish();assert!(!directory.join("monitor").exists());assert!(!source_client_usage_index_path(&directory,SourceClientKind::Grok).exists());
 }

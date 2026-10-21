@@ -6,7 +6,7 @@ use super::{Shell, format};
 use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px, rgb,
     component::{ActiveTheme, button::{Button, ButtonVariants}, menu::{DropdownMenu, PopupMenuItem},
     table::{Table, TableHeader, TableHead, TableBody, TableRow, TableCell}}};
-use loki_metris_core::{UsageDimension, UsageStatisticsPage, WorkbuddyModelUsageWindow, Completeness, Confidence};
+use loki_metris_core::{UsageDimension, UsageStatisticsPage, WorkBuddyModelUsageWindow, Completeness, Confidence};
 
 /// 页面路由独立于所选 Agent；具体筛选按 Agent 隔离。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub(in crate::app) struct DetailState {
     /// 当前统计结果；切换客户端时清空。
     pub statistics: Option<UsageStatisticsPage>,
     /// WorkBuddy 逐模型用量；仅 WorkBuddy 使用。
-    pub models: Option<WorkbuddyModelUsageWindow>,
+    pub models: Option<WorkBuddyModelUsageWindow>,
 }
 impl Default for DetailState {
     /// 用量默认本周/模型，与概览的今日保持独立。

@@ -133,7 +133,7 @@ fn claude_and_grok_keep_observed_totals() {
             ProviderKind::ClaudeTranscriptJsonl,
         ),
         (
-            SourceClientKind::GrokBuildCli,
+            SourceClientKind::Grok,
             ProviderKind::GrokSessionJsonl,
         ),
     ] {

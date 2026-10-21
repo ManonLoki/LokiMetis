@@ -13,7 +13,7 @@ pub fn empty_token_usage_for_provider(provider: ProviderKind) -> TokenUsage {
         ProviderKind::CombinedLocalAgents => TokenUsage::zero(),
         ProviderKind::GrokSessionJsonl => TokenUsage::zero(),
         ProviderKind::RolloutJsonl => TokenUsage::zero(),
-        ProviderKind::WorkbuddyProjectJsonl => {
+        ProviderKind::WorkBuddyProjectJsonl => {
             TokenUsage::zero_with_component_availability(true, false, false)
         }
     }
@@ -32,7 +32,8 @@ pub enum ProviderKind {
     /// 从多个已开启本机 Agent 的独立 provider 联合得到的只读事实。
     CombinedLocalAgents,
     /// 从用户授权 WorkBuddy 本机根中的项目 JSONL 观察到的逐请求事实。
-    WorkbuddyProjectJsonl,
+    #[serde(rename = "workbuddyProjectJsonl")]
+    WorkBuddyProjectJsonl,
 }
 
 impl ProviderKind {
@@ -43,7 +44,7 @@ impl ProviderKind {
             | Self::ClaudeTranscriptJsonl
             | Self::GrokSessionJsonl
             | Self::CombinedLocalAgents
-            | Self::WorkbuddyProjectJsonl => TotalTokenAccounting::Observed,
+            | Self::WorkBuddyProjectJsonl => TotalTokenAccounting::Observed,
         }
     }
 
@@ -54,7 +55,7 @@ impl ProviderKind {
             Self::ClaudeTranscriptJsonl => "当前 CLAUDE_CONFIG_DIR",
             Self::GrokSessionJsonl => "当前 GROK_HOME",
             Self::CombinedLocalAgents => "已开启 Agent 的独立数据根",
-            Self::WorkbuddyProjectJsonl => "当前 WORKBUDDY_HOME",
+            Self::WorkBuddyProjectJsonl => "当前 WORKBUDDY_HOME",
         }
     }
 
@@ -67,7 +68,7 @@ impl ProviderKind {
             }
             Self::GrokSessionJsonl => format!("grok-session-parser-v{parser_version}"),
             Self::CombinedLocalAgents => format!("combined-local-agents-v{parser_version}"),
-            Self::WorkbuddyProjectJsonl => {
+            Self::WorkBuddyProjectJsonl => {
                 format!("workbuddy-project-jsonl-v{parser_version}")
             }
         }

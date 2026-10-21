@@ -259,8 +259,8 @@ const fn provider_for_client(client: SourceClientKind) -> ProviderKind {
     match client {
         SourceClientKind::Codex => ProviderKind::RolloutJsonl,
         SourceClientKind::ClaudeCode => ProviderKind::ClaudeTranscriptJsonl,
-        SourceClientKind::GrokBuildCli => ProviderKind::GrokSessionJsonl,
-        SourceClientKind::WorkBuddy => ProviderKind::WorkbuddyProjectJsonl,
+        SourceClientKind::Grok => ProviderKind::GrokSessionJsonl,
+        SourceClientKind::WorkBuddy => ProviderKind::WorkBuddyProjectJsonl,
     }
 }
 

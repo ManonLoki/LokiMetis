@@ -1,6 +1,19 @@
 //! 产品公开 AI 类型的唯一目录，以及看板与监控各自的可选能力映射。
 //!
 //! Hook 协议全集仍由 `AiTool::ALL` 拥有；本模块只决定当前产品公开哪些类型。
+//!
+//! 命名约定（新代码须遵循；线标是已持久化的历史合同，不随本表改名）：
+//!
+//! | 展示名 | Rust 类型/变体 | snake / 常量 | 历史线标 |
+//! |---|---|---|---|
+//! | Codex | `Codex` | `codex` / `CODEX` | `codex` |
+//! | Claude Code | `ClaudeCode` | `claude_code` / `CLAUDE_CODE` | `claudeCode`、`claude-code` |
+//! | Cursor | `Cursor` | `cursor` / `CURSOR` | `cursor` |
+//! | Grok | `Grok` | `grok` / `GROK` | `grok`、`grokBuildCli`、`grok-build-cli` |
+//! | WorkBuddy | `WorkBuddy` | `workbuddy` / `WORKBUDDY` | `workbuddy`、`workBuddy`、`workbuddyProjectJsonl` |
+//!
+//! 界面名称一律经 [`SourceClientKind::display_name`]、[`SkinHostKind::display_name`]
+//! 或 `ai_tool_name` 读取本目录，不在适配器中另写字符串。
 
 use crate::{AiTool, SkinHostKind, SourceClientKind};
 
@@ -39,7 +52,7 @@ pub const PUBLIC_AI_CAPABILITIES: [PublicAiCapability; 5] = [
     },
     PublicAiCapability {
         name: "Grok",
-        dashboard_client: Some(SourceClientKind::GrokBuildCli),
+        dashboard_client: Some(SourceClientKind::Grok),
         monitor_tool: Some(AiTool::Grok),
         skin_host: None,
     },
@@ -50,6 +63,30 @@ pub const PUBLIC_AI_CAPABILITIES: [PublicAiCapability; 5] = [
         skin_host: Some(SkinHostKind::WorkBuddy),
     },
 ];
+
+impl SourceClientKind {
+    /// 看板来源的唯一展示名称，直接取自公开目录对应条目。
+    pub const fn display_name(self) -> &'static str {
+        PUBLIC_AI_CAPABILITIES[match self {
+            Self::Codex => 0,
+            Self::ClaudeCode => 1,
+            Self::Grok => 3,
+            Self::WorkBuddy => 4,
+        }]
+        .name
+    }
+}
+
+impl SkinHostKind {
+    /// 换皮宿主的唯一展示名称，界面与稳定错误共用。
+    pub const fn display_name(self) -> &'static str {
+        PUBLIC_AI_CAPABILITIES[match self {
+            Self::Codex => 0,
+            Self::WorkBuddy => 4,
+        }]
+        .name
+    }
+}
 
 /// 返回当前公开 AI 类型目录。
 pub const fn public_ai_capabilities() -> &'static [PublicAiCapability] {
@@ -97,6 +134,22 @@ pub fn dashboard_selection_for_ai_tools(selected: &[AiTool]) -> (Vec<SourceClien
 mod tests {
     use super::*;
 
+    /// 三种身份枚举和 Hook 协议名称都必须回到同一目录条目，杜绝界面出现别名。
+    #[test]
+    fn every_identity_resolves_to_its_catalog_name() {
+        for capability in PUBLIC_AI_CAPABILITIES {
+            if let Some(client) = capability.dashboard_client {
+                assert_eq!(client.display_name(), capability.name);
+            }
+            if let Some(host) = capability.skin_host {
+                assert_eq!(host.display_name(), capability.name);
+            }
+            if let Some(tool) = capability.monitor_tool {
+                assert_eq!(crate::ai_tool_name(tool), capability.name);
+            }
+        }
+    }
+
     /// 唯一目录必须维持产品指定的五项顺序与跨区域映射。
     #[test]
     fn public_catalog_has_five_types_in_product_order() {
@@ -123,7 +176,7 @@ mod tests {
                 },
                 PublicAiCapability {
                     name: "Grok",
-                    dashboard_client: Some(SourceClientKind::GrokBuildCli),
+                    dashboard_client: Some(SourceClientKind::Grok),
                     monitor_tool: Some(AiTool::Grok),
                     skin_host: None,
                 },
@@ -145,7 +198,7 @@ mod tests {
             vec![
                 SourceClientKind::Codex,
                 SourceClientKind::ClaudeCode,
-                SourceClientKind::GrokBuildCli,
+                SourceClientKind::Grok,
                 SourceClientKind::WorkBuddy,
             ]
         );

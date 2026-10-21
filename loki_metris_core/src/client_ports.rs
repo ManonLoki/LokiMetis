@@ -22,7 +22,7 @@ pub fn source_client_app_data_dir(app_data_dir: &Path, client: SourceClientKind)
     match client {
         SourceClientKind::Codex => app_data_dir.to_path_buf(),
         SourceClientKind::ClaudeCode => app_data_dir.join("clients").join("claude-code"),
-        SourceClientKind::GrokBuildCli => app_data_dir.join("clients").join("grok-build-cli"),
+        SourceClientKind::Grok => app_data_dir.join("clients").join("grok-build-cli"),
         SourceClientKind::WorkBuddy => app_data_dir.join("clients").join("workbuddy"),
     }
 }
@@ -134,7 +134,7 @@ mod tests {
             root.join("clients").join("claude-code")
         );
         assert_eq!(
-            source_client_app_data_dir(root, SourceClientKind::GrokBuildCli),
+            source_client_app_data_dir(root, SourceClientKind::Grok),
             root.join("clients").join("grok-build-cli")
         );
     }
@@ -146,7 +146,7 @@ mod tests {
         let clients = [
             SourceClientKind::Codex,
             SourceClientKind::ClaudeCode,
-            SourceClientKind::GrokBuildCli,
+            SourceClientKind::Grok,
         ];
         let paths: Vec<_> = clients
             .into_iter()

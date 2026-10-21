@@ -10,7 +10,7 @@ use super::{HookEvent, HookEventKind, HookProtocol, ManagedCommands, command_gro
 use crate::agent_hooks::{AiTool, HookBehavior, HookWriteOutcome};
 
 // WorkBuddy 协议的静态单例，供 `protocol()` 分发函数按 AiTool::WorkBuddy 取用
-pub(super) static WORK_BUDDY: WorkBuddyProtocol = WorkBuddyProtocol;
+pub(super) static WORKBUDDY: WorkBuddyProtocol = WorkBuddyProtocol;
 
 /// WorkBuddy 的无状态 Hook 协议适配器。
 pub(super) struct WorkBuddyProtocol;

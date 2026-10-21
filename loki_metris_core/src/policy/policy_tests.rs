@@ -7,7 +7,7 @@ use super::*;
 fn parser_generation_matches_shipped_clients() {
     assert_eq!(SourceClientKind::Codex.parser_version(), 11);
     assert_eq!(SourceClientKind::ClaudeCode.parser_version(), 4);
-    assert_eq!(SourceClientKind::GrokBuildCli.parser_version(), 3);
+    assert_eq!(SourceClientKind::Grok.parser_version(), 3);
 }
 
 /// 数据库或 parser 升级只在明确需要重建时触发启动后立即索引。
@@ -251,15 +251,15 @@ fn exposes_source_client_display_labels() {
         "当前 CLAUDE_CONFIG_DIR"
     );
     assert_eq!(
-        SourceClientKind::GrokBuildCli.default_source_root_alias(),
+        SourceClientKind::Grok.default_source_root_alias(),
         "Grok 数据根"
     );
     assert_eq!(
-        SourceClientKind::GrokBuildCli.source_environment_label(),
+        SourceClientKind::Grok.source_environment_label(),
         "当前 GROK_HOME"
     );
     assert_eq!(
-        SourceClientKind::GrokBuildCli.root_id_namespace(),
+        SourceClientKind::Grok.root_id_namespace(),
         "grok-root"
     );
 }

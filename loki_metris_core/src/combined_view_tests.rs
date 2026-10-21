@@ -368,7 +368,7 @@ fn globally_sorts_pages_and_keeps_each_call_origin() {
                     Some(claude_source_version.as_str())
                 );
             }
-            SourceClientKind::GrokBuildCli => panic!("unexpected Grok row"),
+            SourceClientKind::Grok => panic!("unexpected Grok row"),
             SourceClientKind::WorkBuddy => panic!("unexpected WorkBuddy row"),
         }
     }

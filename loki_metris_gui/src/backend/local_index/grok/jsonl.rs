@@ -13,7 +13,7 @@ use super::super::discovery::stable_id;
 use super::super::{CancellationToken, LocalError};
 
 /// Grok 会话用量独立解析语义版本；必须等于 core 读写 generation。
-pub const GROK_PARSER_VERSION: u32 = SourceClientKind::GrokBuildCli.parser_version();
+pub const GROK_PARSER_VERSION: u32 = SourceClientKind::Grok.parser_version();
 
 /// 合成夹具：含进行中轮次、两次完成轮次、嵌套 update 以及缺用量行。
 #[cfg(test)]

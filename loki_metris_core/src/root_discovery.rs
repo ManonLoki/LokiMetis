@@ -97,7 +97,7 @@ pub enum RootCandidateEvidence {
     /// `sessions/<cwd>/<session>/updates.jsonl` 完成轮次用量文件。
     GrokSessionUpdates,
     /// `.workbuddy/projects` 下受限布局的逐请求 JSONL。
-    WorkbuddyProjectJsonl,
+    WorkBuddyProjectJsonl,
 }
 
 /// 发现阶段产生且只在当前进程内存活的候选。

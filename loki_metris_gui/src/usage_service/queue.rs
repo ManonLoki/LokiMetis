@@ -181,12 +181,12 @@ mod tests {
         let first = queue.submit(request(SourceClientKind::Codex)).unwrap();
         assert_eq!(start_receiver.recv_timeout(Duration::from_secs(2)).unwrap(), Some(SourceClientKind::Codex));
         let obsolete = queue.submit(request(SourceClientKind::ClaudeCode)).unwrap();
-        let latest = queue.submit(request(SourceClientKind::GrokBuildCli)).unwrap();
+        let latest = queue.submit(request(SourceClientKind::Grok)).unwrap();
         assert!(runtime.block_on(obsolete).is_err());
         release.send(()).unwrap();
         assert_eq!(runtime.block_on(first).unwrap().err(), Some("test_result"));
         assert_eq!(runtime.block_on(latest).unwrap().err(), Some("test_result"));
-        assert_eq!(start_receiver.recv_timeout(Duration::from_secs(2)).unwrap(), Some(SourceClientKind::GrokBuildCli));
+        assert_eq!(start_receiver.recv_timeout(Duration::from_secs(2)).unwrap(), Some(SourceClientKind::Grok));
         assert!(queue.stop(Duration::from_secs(2)));
         assert!(queue.submit(request(SourceClientKind::Codex)).is_err());
     }

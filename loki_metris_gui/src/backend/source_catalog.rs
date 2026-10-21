@@ -105,7 +105,7 @@ impl SourceRootCatalog for SourceRootCatalogAdapter {
                         .await
                         .map_err(|_| SourceRootCatalogError::CatalogUnavailable)
                 }
-                SourceClientKind::GrokBuildCli => {
+                SourceClientKind::Grok => {
                     let root = crate::backend::local_index::GrokDiscoveredRoot {
                         path: candidate.path.clone(),
                         root_id: candidate.root_id.clone(),

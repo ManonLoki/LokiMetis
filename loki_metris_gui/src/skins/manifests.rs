@@ -299,7 +299,7 @@ pub(super) struct PageProbe {
     pub(super) codex: bool,
     /// 是 WorkBuddy 页面。
     #[serde(default, rename = "workBuddy")]
-    pub(super) work_buddy: bool,
+    pub(super) workbuddy: bool,
     /// 页面 URL。
     pub(super) url: String,
 }
@@ -326,7 +326,7 @@ impl PageProbe {
 
     /// WorkBuddy 只接受其本机 `file:` 渲染页面与稳定标题、根节点组合。
     pub(super) fn is_verified_workbuddy(&self) -> bool {
-        self.work_buddy && self.url.starts_with("file://")
+        self.workbuddy && self.url.starts_with("file://")
     }
 }
 

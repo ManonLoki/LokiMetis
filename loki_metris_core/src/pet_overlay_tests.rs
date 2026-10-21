@@ -85,7 +85,7 @@ mod tests {
         assert!(view.slots[..8].iter().all(|slot| slot.tile.is_none()));
         let tile = view.slots[8].tile.as_ref().expect("position 9 tile");
         assert_eq!(tile.tool, AiTool::Grok);
-        assert_eq!(tile.name, "Grok Build");
+        assert_eq!(tile.name, "Grok");
         assert_eq!(tile.content, "running");
         assert_eq!(tile.image_key.as_deref(), Some("img-running"));
     }

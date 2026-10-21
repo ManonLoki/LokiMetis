@@ -147,7 +147,7 @@ fn codex_preview_uses_pascal_case_and_nested_handlers() {
 
 /// WorkBuddy 写入独立 settings 且使用 POSIX 命令。
 #[test]
-fn work_buddy_preview_targets_its_independent_settings_file() {
+fn workbuddy_preview_targets_its_independent_settings_file() {
     let preview = generate_test_hook_config(AiTool::WorkBuddy).unwrap();
     assert_eq!(preview.filename, ".workbuddy/settings.json");
     assert!(contract_text(&preview).contains("LokiMetris:tool=workbuddy"));

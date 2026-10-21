@@ -25,7 +25,7 @@ fn expected_grok_tokens(usage: TokenUsage) -> TokenUsage {
 fn grok_writer_generation_matches_core_reader() {
     assert_eq!(
         GROK_PARSER_VERSION,
-        SourceClientKind::GrokBuildCli.parser_version()
+        SourceClientKind::Grok.parser_version()
     );
 }
 
@@ -108,7 +108,7 @@ async fn grok_scan_statistics_match_fixture_completed_usage() {
         ProviderKind::GrokSessionJsonl,
         Some(
             ProviderKind::GrokSessionJsonl
-                .parser_source_label(SourceClientKind::GrokBuildCli.parser_version())
+                .parser_source_label(SourceClientKind::Grok.parser_version())
                 .as_str(),
         ),
     )
@@ -138,7 +138,7 @@ async fn force_rebuild_keeps_completed_turns_visible_through_core_parser_version
     )
     .expect("fixture written");
     let app_data = tempdir().expect("isolated app-data");
-    let parser = SourceClientKind::GrokBuildCli.parser_version();
+    let parser = SourceClientKind::Grok.parser_version();
     let mut index = LocalIndex::open_in_app_data(app_data.path(), parser)
         .await
         .expect("index opens");
@@ -382,7 +382,7 @@ async fn load_today_statistics(app_data: &std::path::Path) -> TokenAndCount {
         ProviderKind::GrokSessionJsonl,
         Some(
             ProviderKind::GrokSessionJsonl
-                .parser_source_label(SourceClientKind::GrokBuildCli.parser_version())
+                .parser_source_label(SourceClientKind::Grok.parser_version())
                 .as_str(),
         ),
     )

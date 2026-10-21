@@ -188,9 +188,9 @@ pub struct HookConfigDirectories {
     /// OpenCode 自定义目录。
     #[serde(default)]
     pub open_code: String,
-    /// WorkBuddy 自定义目录。
-    #[serde(default)]
-    pub work_buddy: String,
+    /// WorkBuddy 自定义目录；设置文件键保持历史 `workBuddy`。
+    #[serde(default, rename = "workBuddy")]
+    pub workbuddy: String,
     /// Hermes 自定义目录。
     #[serde(default)]
     pub hermes: String,
@@ -228,7 +228,7 @@ impl HookConfigDirectories {
             AiTool::ClaudeCode => &self.claude_code,
             AiTool::Cursor => &self.cursor,
             AiTool::OpenCode => &self.open_code,
-            AiTool::WorkBuddy => &self.work_buddy,
+            AiTool::WorkBuddy => &self.workbuddy,
             AiTool::Hermes => &self.hermes,
             AiTool::OpenClaw => &self.open_claw,
             AiTool::CodeBuddy => &self.code_buddy,
@@ -248,7 +248,7 @@ impl HookConfigDirectories {
             AiTool::ClaudeCode => self.claude_code = directory,
             AiTool::Cursor => self.cursor = directory,
             AiTool::OpenCode => self.open_code = directory,
-            AiTool::WorkBuddy => self.work_buddy = directory,
+            AiTool::WorkBuddy => self.workbuddy = directory,
             AiTool::Hermes => self.hermes = directory,
             AiTool::OpenClaw => self.open_claw = directory,
             AiTool::CodeBuddy => self.code_buddy = directory,

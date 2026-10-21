@@ -32,16 +32,6 @@ pub enum SkinHostKind {
     WorkBuddy,
 }
 
-impl SkinHostKind {
-    /// 返回界面与稳定错误共同使用的宿主名称。
-    pub const fn display_name(self) -> &'static str {
-        match self {
-            Self::Codex => "Codex",
-            Self::WorkBuddy => "WorkBuddy",
-        }
-    }
-}
-
 /// 区分只读内置资源与可管理的用户资源。
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]

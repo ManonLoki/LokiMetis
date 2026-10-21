@@ -153,7 +153,7 @@ impl Shell {
         let client = match self.dashboard.client {
             1 => Some(SourceClientKind::Codex),
             2 => Some(SourceClientKind::ClaudeCode),
-            3 => Some(SourceClientKind::GrokBuildCli),
+            3 => Some(SourceClientKind::Grok),
             4 => Some(SourceClientKind::WorkBuddy),
             _ => None,
         };
@@ -188,9 +188,9 @@ impl Shell {
                 match result {
                     Ok(UsageResponse::Overview(data)) => { this.dashboard.data = Some(data); this.dashboard.error = None; }
                     Ok(UsageResponse::Statistics(data)) => { this.dashboard.detail.statistics = Some(data); this.dashboard.detail.models = None; }
-                    Ok(UsageResponse::WorkbuddyDetails(data, models)) => { this.dashboard.detail.statistics = Some(data); this.dashboard.detail.models = Some(models); }
+                    Ok(UsageResponse::WorkBuddyDetails(data, models)) => { this.dashboard.detail.statistics = Some(data); this.dashboard.detail.models = Some(models); }
                     Ok(UsageResponse::Chart(data)) => {this.dashboard.chart.data=Some(data);this.dashboard.chart.workbuddy=None;}
-                    Ok(UsageResponse::Workbuddy(data)) => {this.dashboard.chart.workbuddy=Some(data);this.dashboard.chart.data=None;}
+                    Ok(UsageResponse::WorkBuddy(data)) => {this.dashboard.chart.workbuddy=Some(data);this.dashboard.chart.data=None;}
                     Ok(_) => this.dashboard.error = Some("usage_query_failed"),
                     Err(error) => this.dashboard.error = Some(error),
                 }
@@ -203,7 +203,7 @@ impl Shell {
     /// All 没有物理存储；所有页面共用同一客户端身份映射。
     pub(super) fn usage_client(&self)->Option<SourceClientKind> {
         match self.dashboard.client {1=>Some(SourceClientKind::Codex),2=>Some(SourceClientKind::ClaudeCode),
-            3=>Some(SourceClientKind::GrokBuildCli),4=>Some(SourceClientKind::WorkBuddy),_=>None}
+            3=>Some(SourceClientKind::Grok),4=>Some(SourceClientKind::WorkBuddy),_=>None}
     }
 
     /// 客户端变更立即清除旧客户端快照，保留每客户端自己的窗口选择。
@@ -245,7 +245,8 @@ impl Shell {
                 }))
         }));
         let agents = div().flex().items_center().rounded(px(16.)).bg(cx.theme().secondary).p_1()
-            .children([self.t("dashboard.all"), "Codex".into(), "Claude Code".into(), "Grok".into(), "WorkBuddy".into()]
+            .children([self.t("dashboard.all"), SourceClientKind::Codex.display_name().into(), SourceClientKind::ClaudeCode.display_name().into(),
+                SourceClientKind::Grok.display_name().into(), SourceClientKind::WorkBuddy.display_name().into()]
                 .into_iter().enumerate().filter(|(index,_)|*index==0||self.agent_settings.dashboard_indices().contains(index)).map(|(index, label)| {
                     Button::new(("usage-client", index)).ghost().accessibility_label(label.clone()).h(px(23.)).px(px(6.))
                         .child(div().text_size(px(12.)).font_weight(FontWeight::SEMIBOLD)

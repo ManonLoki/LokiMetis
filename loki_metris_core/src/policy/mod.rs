@@ -35,7 +35,7 @@ pub use source_visit::{PersistedSourceQuality, SourceFileObservation, SourceVisi
     retain_ingestable_calls, source_file_needs_visit, source_file_visit_decision};
 pub use workbuddy_scan_source::{
     WORKBUDDY_HOME_DIR_NAME, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME,
-    WorkbuddyScanSource, discover_workbuddy_scan_sources, workbuddy_home_from_user_home,
+    WorkBuddyScanSource, discover_workbuddy_scan_sources, workbuddy_home_from_user_home,
     workbuddy_homes_from_user_home,
 };
 
@@ -124,7 +124,7 @@ pub enum SourceClientKind {
     /// Claude Code 稳定标识前缀 `claude-root-`。
     ClaudeCode,
     /// Grok Build CLI 稳定标识前缀 `grok-root-`。
-    GrokBuildCli,
+    Grok,
     /// WorkBuddy 稳定标识前缀 `workbuddy-root-`。
     WorkBuddy,
 }
@@ -135,7 +135,7 @@ impl SourceClientKind {
         match self {
             Self::Codex => "root-",
             Self::ClaudeCode => "claude-root-",
-            Self::GrokBuildCli => "grok-root-",
+            Self::Grok => "grok-root-",
             Self::WorkBuddy => "workbuddy-root-",
         }
     }
@@ -145,7 +145,7 @@ impl SourceClientKind {
         match self {
             Self::Codex => "root",
             Self::ClaudeCode => "claude-root",
-            Self::GrokBuildCli => "grok-root",
+            Self::Grok => "grok-root",
             Self::WorkBuddy => "workbuddy-root",
         }
     }
@@ -155,7 +155,7 @@ impl SourceClientKind {
         match self {
             Self::Codex => "candidate-codex",
             Self::ClaudeCode => "candidate-claude",
-            Self::GrokBuildCli => "candidate-grok",
+            Self::Grok => "candidate-grok",
             Self::WorkBuddy => "candidate-workbuddy",
         }
     }
@@ -165,7 +165,7 @@ impl SourceClientKind {
         match self {
             Self::Codex => "Codex 数据根",
             Self::ClaudeCode => "Claude Code 数据根",
-            Self::GrokBuildCli => "Grok 数据根",
+            Self::Grok => "Grok 数据根",
             Self::WorkBuddy => "WorkBuddy 数据根",
         }
     }
@@ -175,7 +175,7 @@ impl SourceClientKind {
         match self {
             Self::Codex => "当前 CODEX_HOME",
             Self::ClaudeCode => "当前 CLAUDE_CONFIG_DIR",
-            Self::GrokBuildCli => "当前 GROK_HOME",
+            Self::Grok => "当前 GROK_HOME",
             Self::WorkBuddy => "当前 WORKBUDDY_HOME",
         }
     }
@@ -189,7 +189,7 @@ impl SourceClientKind {
         match self {
             Self::Codex => 11,
             Self::ClaudeCode => 4,
-            Self::GrokBuildCli => 3,
+            Self::Grok => 3,
             Self::WorkBuddy => 1,
         }
     }

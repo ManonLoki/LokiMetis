@@ -7,14 +7,14 @@ use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
 
-use super::WorkbuddyUsageOrigin;
+use super::WorkBuddyUsageOrigin;
 use super::record::ValidatedWorkbuddyUsageRecord;
 use crate::{LocalUsageWindow, TimeStandard, civil_date_for_timestamp, inclusive_calendar_range};
 
 /// 单个实际模型（或未提供模型）的精确逐请求用量。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkbuddyModelUsageGroup {
+pub struct WorkBuddyModelUsageGroup {
     /// 安全实际模型名；`None` 表示上游缺失或名称未通过安全校验。
     pub model: Option<String>,
     /// 上游请求数合计。
@@ -40,11 +40,11 @@ pub struct WorkbuddyModelUsageGroup {
 /// 单个日历窗口内的 WorkBuddy 逐模型精确用量。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkbuddyModelUsageWindow {
+pub struct WorkBuddyModelUsageWindow {
     /// 六个固定日历窗口之一。
     pub window: LocalUsageWindow,
     /// 按总 Token 降序、同量时按安全模型名稳定排序的明细行。
-    pub groups: Vec<WorkbuddyModelUsageGroup>,
+    pub groups: Vec<WorkBuddyModelUsageGroup>,
 }
 
 /// 只聚合调用方请求的那个窗口；日历范围无法解析时返回 None。
@@ -54,9 +54,9 @@ pub(super) fn build_model_usage_window(
     today: Date,
     time_standard: &TimeStandard,
     device_tz: &TimeZone,
-) -> Option<WorkbuddyModelUsageWindow> {
+) -> Option<WorkBuddyModelUsageWindow> {
     let (from, to) = inclusive_calendar_range(window, today).ok()?;
-    let mut groups = BTreeMap::<Option<&str>, WorkbuddyModelUsageGroup>::new();
+    let mut groups = BTreeMap::<Option<&str>, WorkBuddyModelUsageGroup>::new();
     for record in records {
         let Some(date) =
             civil_date_for_timestamp(record.occurred_at_epoch_ms, time_standard, device_tz)
@@ -70,7 +70,7 @@ pub(super) fn build_model_usage_window(
         let group =
             groups
                 .entry(record.model.as_deref())
-                .or_insert_with(|| WorkbuddyModelUsageGroup {
+                .or_insert_with(|| WorkBuddyModelUsageGroup {
                     model: record.model.clone(),
                     call_count: 0,
                     total_tokens: 0,
@@ -96,18 +96,18 @@ pub(super) fn build_model_usage_window(
             .saturating_add(record.usage.output_tokens);
         group.credits = sum_optional_credit(group.credits, record.credit);
         match record.origin {
-            WorkbuddyUsageOrigin::TopLevel => {
+            WorkBuddyUsageOrigin::TopLevel => {
                 group.top_level_call_count = group.top_level_call_count.saturating_add(call_count);
             }
-            WorkbuddyUsageOrigin::Subagent => {
+            WorkBuddyUsageOrigin::Subagent => {
                 group.subagent_call_count = group.subagent_call_count.saturating_add(call_count);
             }
         }
     }
 
-    let mut groups: Vec<WorkbuddyModelUsageGroup> = groups.into_values().collect();
+    let mut groups: Vec<WorkBuddyModelUsageGroup> = groups.into_values().collect();
     groups.sort_by(compare_groups);
-    Some(WorkbuddyModelUsageWindow { window, groups })
+    Some(WorkBuddyModelUsageWindow { window, groups })
 }
 
 /// 只有两侧积分都可用时才相加，避免把部分积分误报为完整。
@@ -118,7 +118,7 @@ pub(super) fn sum_optional_credit(left: Option<f64>, right: Option<f64>) -> Opti
 }
 
 /// 总量高的行在前；同量时命名模型按字典序排列，未归属行稳定放在其后。
-fn compare_groups(left: &WorkbuddyModelUsageGroup, right: &WorkbuddyModelUsageGroup) -> Ordering {
+fn compare_groups(left: &WorkBuddyModelUsageGroup, right: &WorkBuddyModelUsageGroup) -> Ordering {
     right
         .total_tokens
         .cmp(&left.total_tokens)

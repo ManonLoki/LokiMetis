@@ -26,7 +26,7 @@ mod open_claw;
 mod open_code;
 mod qoder;
 mod qwen_code;
-mod work_buddy;
+mod workbuddy;
 mod notifications;
 pub use notifications::{HookNotification, hook_notification};
 
@@ -300,7 +300,7 @@ pub(super) fn protocol(tool: AiTool) -> &'static dyn HookProtocol {
         AiTool::ClaudeCode => &claude_code::CLAUDE_CODE,
         AiTool::Cursor => &cursor::CURSOR,
         AiTool::OpenCode => &open_code::OPEN_CODE,
-        AiTool::WorkBuddy => &work_buddy::WORK_BUDDY,
+        AiTool::WorkBuddy => &workbuddy::WORKBUDDY,
         AiTool::Hermes => &hermes::HERMES,
         AiTool::OpenClaw => &open_claw::OPEN_CLAW,
         AiTool::CodeBuddy => &code_buddy::CODE_BUDDY,
@@ -445,5 +445,5 @@ pub(super) fn hook_transition(tool: AiTool, event: &str) -> Option<HookTransitio
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - agent_hooks_commands.rs：构造 Claude-Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。；按 WSL 状态与编译目标选择应写入配置的命令变体。；判断工具是否应绕过状态机抑制并原样转发每个上游事件。
+// - agent_hooks_commands.rs：构造 Claude Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。；按 WSL 状态与编译目标选择应写入配置的命令变体。；判断工具是否应绕过状态机抑制并原样转发每个上游事件。
 include!("agent_hooks_commands.rs");

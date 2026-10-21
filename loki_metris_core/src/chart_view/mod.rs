@@ -358,7 +358,7 @@ fn build_agent_groups(
         .into_iter()
         .map(|(client, measure)| UsageGroupDisplay {
             id: format!("chart-agent-{}", agent_wire_label(client)),
-            label: agent_display_label(client).to_owned(),
+            label: client.display_name().to_owned(),
             label_code: DisplayLabelCode::Literal,
             disambiguation_index: None,
             total_token_share_basis_points: token_share_basis_points(
@@ -386,16 +386,6 @@ fn build_agent_groups(
     }
 
     Ok((visible, None))
-}
-
-/// 返回物理 Agent 在图表分布中的固定展示名称。
-const fn agent_display_label(client: SourceClientKind) -> &'static str {
-    match client {
-        SourceClientKind::Codex => "Codex",
-        SourceClientKind::ClaudeCode => "Claude Code",
-        SourceClientKind::GrokBuildCli => "Grok",
-        SourceClientKind::WorkBuddy => "WorkBuddy",
-    }
 }
 
 /// 以基点计算 Token 占比，并在总量为零时保持未知。

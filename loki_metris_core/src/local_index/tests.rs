@@ -384,7 +384,7 @@ async fn opening_and_writing_one_agent_index_does_not_touch_another() {
     let clients = [
         SourceClientKind::Codex,
         SourceClientKind::ClaudeCode,
-        SourceClientKind::GrokBuildCli,
+        SourceClientKind::Grok,
     ];
     let paths: Vec<_> = clients
         .into_iter()

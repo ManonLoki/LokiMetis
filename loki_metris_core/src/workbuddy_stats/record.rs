@@ -13,7 +13,7 @@ const MAX_REQUESTS_PER_EVENT: i64 = 10_000;
 /// 区分 WorkBuddy 顶层会话与受限 `subagents` 布局中的请求。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WorkbuddyUsageOrigin {
+pub enum WorkBuddyUsageOrigin {
     /// `projects/<project>/<session>.jsonl` 中的请求。
     TopLevel,
     /// `projects/<project>/<session>/subagents/<agent>.jsonl` 中的请求。
@@ -25,7 +25,7 @@ pub enum WorkbuddyUsageOrigin {
 /// 所有身份字段在进入 core 前已经过稳定哈希；项目标签只允许安全末段。该结构
 /// 不实现 `Debug` 或序列化，避免未来日志误带尚未校验的模型文本。
 #[derive(Clone, PartialEq)]
-pub struct WorkbuddyUsageEventRecord {
+pub struct WorkBuddyUsageEventRecord {
     /// `(sessionId, providerData.messageId)` 生成的内容无关稳定调用 ID。
     pub logical_call_id: String,
     /// 上游 session ID 生成的内容无关稳定线程 ID。
@@ -55,12 +55,12 @@ pub struct WorkbuddyUsageEventRecord {
     /// 上游逐请求积分；缺失时 Token 仍可用，但积分覆盖不完整。
     pub credit: Option<f64>,
     /// 顶层或 subagent 来源。
-    pub origin: WorkbuddyUsageOrigin,
+    pub origin: WorkBuddyUsageOrigin,
 }
 
 /// WorkBuddy usage 记录校验与去重后的质量计数。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct WorkbuddyUsageQuality {
+pub struct WorkBuddyUsageQuality {
     /// 字段或 Token 不变量不合法、因而被排除的记录数。
     pub invalid_record_count: u64,
     /// 相同稳定调用 ID 携带无法排序的冲突事实、因而整组被排除的记录数。
@@ -95,23 +95,23 @@ pub(super) struct ValidatedWorkbuddyUsageRecord {
     /// 上游积分，仅保留有限非负值；缺失或非法时为 None。
     pub(super) credit: Option<f64>,
     /// 顶层会话或 subagent 来源。
-    pub(super) origin: WorkbuddyUsageOrigin,
+    pub(super) origin: WorkBuddyUsageOrigin,
 }
 
 /// 只返回质量计数；当前仅用于核对校验与去重规则。
 #[cfg(test)]
 pub(super) fn workbuddy_usage_quality(
-    records: &[WorkbuddyUsageEventRecord],
-) -> WorkbuddyUsageQuality {
+    records: &[WorkBuddyUsageEventRecord],
+) -> WorkBuddyUsageQuality {
     prepare_workbuddy_usage_records(records).1
 }
 
 /// 校验、稳定归一化并按逻辑调用 ID 去重；只接纳同源递进观察。
 pub(super) fn prepare_workbuddy_usage_records(
-    records: &[WorkbuddyUsageEventRecord],
-) -> (Vec<ValidatedWorkbuddyUsageRecord>, WorkbuddyUsageQuality) {
-    let mut quality = WorkbuddyUsageQuality::default();
-    let mut groups = BTreeMap::<&str, Vec<&WorkbuddyUsageEventRecord>>::new();
+    records: &[WorkBuddyUsageEventRecord],
+) -> (Vec<ValidatedWorkbuddyUsageRecord>, WorkBuddyUsageQuality) {
+    let mut quality = WorkBuddyUsageQuality::default();
+    let mut groups = BTreeMap::<&str, Vec<&WorkBuddyUsageEventRecord>>::new();
     for record in records {
         if record.logical_call_id.trim().is_empty() {
             quality.invalid_record_count = quality.invalid_record_count.saturating_add(1);
@@ -180,7 +180,7 @@ pub(super) fn prepare_workbuddy_usage_records(
 }
 
 /// 把一条 adapter 投影转换为强类型 TokenUsage；失败时不保留局部事实。
-fn validate_record(record: &WorkbuddyUsageEventRecord) -> Option<ValidatedWorkbuddyUsageRecord> {
+fn validate_record(record: &WorkBuddyUsageEventRecord) -> Option<ValidatedWorkbuddyUsageRecord> {
     if record.session_key.trim().is_empty()
         || record.source_id.trim().is_empty()
         || record.root_id.trim().is_empty()

@@ -8,31 +8,31 @@
         assert!(PROBE_SCRIPT.contains("['Codex', 'ChatGPT'].includes(document.title)"));
         assert!(PageProbe {
             codex: true,
-            work_buddy: false,
+            workbuddy: false,
             url: "app://-/index.html".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: true,
-            work_buddy: false,
+            workbuddy: false,
             url: "https://example.com".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: true,
-            work_buddy: false,
+            workbuddy: false,
             url: "app://-/index.html?initialRoute=%2Favatar-overlay".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: true,
-            work_buddy: false,
+            workbuddy: false,
             url: "app://-/avatar-overlay-composition-surface.html".into(),
         }
         .is_verified_codex());
         assert!(!PageProbe {
             codex: false,
-            work_buddy: false,
+            workbuddy: false,
             url: "app://-/index.html".into(),
         }
         .is_verified_codex());
@@ -156,19 +156,19 @@
         assert!(WORKBUDDY_PROBE_SCRIPT.contains("body?.dataset.productName === 'WorkBuddy'"));
         assert!(PageProbe {
             codex: false,
-            work_buddy: true,
+            workbuddy: true,
             url: "file:///Applications/WorkBuddy.app/renderer/index.html".into(),
         }
         .is_verified_workbuddy());
         assert!(!PageProbe {
             codex: true,
-            work_buddy: false,
+            workbuddy: false,
             url: "app://-/index.html".into(),
         }
         .is_verified_workbuddy());
         assert!(!PageProbe {
             codex: false,
-            work_buddy: true,
+            workbuddy: true,
             url: "https://example.com".into(),
         }
         .is_verified_workbuddy());

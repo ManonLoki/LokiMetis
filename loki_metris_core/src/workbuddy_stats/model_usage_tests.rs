@@ -1,7 +1,7 @@
 //! 本文件的测试覆盖：固定观测时刻 2026-07-27T12:00:00Z；观测日内的请求时刻；构造一条实际模型明确的 usage 事件。
 
 use super::*;
-use crate::workbuddy_stats::{WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin};
+use crate::workbuddy_stats::{WorkBuddyUsageEventRecord, WorkBuddyUsageOrigin};
 
 /// 固定观测时刻 2026-07-27T12:00:00Z。
 const OBSERVED_EPOCH_MS: i64 = 1_785_153_600_000;
@@ -18,9 +18,9 @@ fn usage(
     cached: i64,
     output: i64,
     credit: Option<f64>,
-    origin: WorkbuddyUsageOrigin,
-) -> WorkbuddyUsageEventRecord {
-    WorkbuddyUsageEventRecord {
+    origin: WorkBuddyUsageOrigin,
+) -> WorkBuddyUsageEventRecord {
+    WorkBuddyUsageEventRecord {
         logical_call_id: id.to_owned(),
         session_key: "same-session".to_owned(),
         source_id: format!("source-{id}"),
@@ -41,9 +41,9 @@ fn usage(
 
 /// 按固定观测时刻聚合指定模型窗口。
 fn window(
-    records: &[WorkbuddyUsageEventRecord],
+    records: &[WorkBuddyUsageEventRecord],
     target: LocalUsageWindow,
-) -> WorkbuddyModelUsageWindow {
+) -> WorkBuddyModelUsageWindow {
     let (prepared, _) = crate::workbuddy_stats::record::prepare_workbuddy_usage_records(records);
     let today = crate::timeline::civil_date_for_timestamp(
         OBSERVED_EPOCH_MS,
@@ -73,7 +73,7 @@ fn groups_each_event_by_actual_model_and_origin() {
             80,
             20,
             Some(1.5),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "b",
@@ -83,7 +83,7 @@ fn groups_each_event_by_actual_model_and_origin() {
             10,
             5,
             Some(0.5),
-            WorkbuddyUsageOrigin::Subagent,
+            WorkBuddyUsageOrigin::Subagent,
         ),
         usage(
             "c",
@@ -93,7 +93,7 @@ fn groups_each_event_by_actual_model_and_origin() {
             20,
             10,
             Some(0.25),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
     ];
     let today = window(&records, LocalUsageWindow::Today);
@@ -123,7 +123,7 @@ fn missing_credit_does_not_discard_model_tokens() {
             5,
             2,
             Some(0.1),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "b",
@@ -133,7 +133,7 @@ fn missing_credit_does_not_discard_model_tokens() {
             10,
             3,
             None,
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
     ];
     let group = &window(&records, LocalUsageWindow::Today).groups[0];
@@ -161,7 +161,7 @@ fn calendar_membership_and_stable_sort_follow_events() {
             2,
             2,
             Some(0.1),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "a",
@@ -171,7 +171,7 @@ fn calendar_membership_and_stable_sort_follow_events() {
             2,
             2,
             Some(0.1),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "old",
@@ -181,7 +181,7 @@ fn calendar_membership_and_stable_sort_follow_events() {
             5,
             5,
             Some(0.2),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
     ];
     let today = window(&records, LocalUsageWindow::Today);
@@ -211,7 +211,7 @@ fn missing_or_unsafe_model_is_grouped_as_unassigned() {
             0,
             1,
             Some(0.1),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "unsafe",
@@ -221,7 +221,7 @@ fn missing_or_unsafe_model_is_grouped_as_unassigned() {
             0,
             2,
             Some(0.2),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
     ];
     let today = window(&records, LocalUsageWindow::Today);

@@ -212,7 +212,7 @@ fn user_priority_finds_default_grok_home_without_grok_home_env() {
     );
     let submitted = coordinator.candidates();
     assert_eq!(submitted.len(), 1);
-    assert_eq!(submitted[0].client, SourceClientKind::GrokBuildCli);
+    assert_eq!(submitted[0].client, SourceClientKind::Grok);
     eprintln!(
         "gating default grok client={:?} evidence={:?}",
         submitted[0].client, inspection.candidates[0].1
@@ -339,7 +339,7 @@ fn user_priority_finds_default_grok_home_from_production_envelope() {
     );
     let submitted = coordinator.candidates();
     assert_eq!(submitted.len(), 1);
-    assert_eq!(submitted[0].client, SourceClientKind::GrokBuildCli);
+    assert_eq!(submitted[0].client, SourceClientKind::Grok);
     eprintln!(
         "gating production envelope evidence={:?} client={:?}",
         inspection.candidates[0].1, submitted[0].client

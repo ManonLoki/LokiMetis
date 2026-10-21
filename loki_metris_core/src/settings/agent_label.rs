@@ -7,7 +7,7 @@ pub const fn agent_wire_label(client: SourceClientKind) -> &'static str {
     match client {
         SourceClientKind::Codex => "codex",
         SourceClientKind::ClaudeCode => "claudeCode",
-        SourceClientKind::GrokBuildCli => "grokBuildCli",
+        SourceClientKind::Grok => "grokBuildCli",
         SourceClientKind::WorkBuddy => "workbuddy",
     }
 }

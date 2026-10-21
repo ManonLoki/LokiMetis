@@ -49,10 +49,10 @@ impl Shell {
             widths[column]=widths[column].max(measure(&self.t(key),14.,false,true)+if matches!(column,2|3|9) {20.}else{44.});
         }}
         for item in &page.items[cache.measured..] {
-            let labels=[match item.client {SourceClientKind::Codex=>"Codex",SourceClientKind::ClaudeCode=>"Claude Code",SourceClientKind::GrokBuildCli=>"Grok",SourceClientKind::WorkBuddy=>"WorkBuddy"}.to_owned(),
+            let labels=[item.client.display_name().to_owned(),
                 format::observed(item.occurred_at_epoch_ms,self.locale),self.display_label(&item.project_label,item.project_label_code),
                 self.display_label(&item.thread_label,item.thread_label_code),self.display_label(&item.model_label,item.model_label_code),
-                if item.client==SourceClientKind::GrokBuildCli {self.t("dashboard.not_provided")}else{self.display_label(&item.reasoning_effort_label,item.reasoning_effort_label_code)}];
+                if item.client==SourceClientKind::Grok {self.t("dashboard.not_provided")}else{self.display_label(&item.reasoning_effort_label,item.reasoning_effort_label_code)}];
             for (column,label) in labels.iter().enumerate() {widths[column]=widths[column].max(measure(label,14.,false,false)+20.);}
             let tokens=&item.fact.value;
             for (offset,value) in [Some(tokens.input_tokens),Some(tokens.total_tokens),tokens.cached_input_tokens,tokens.cache_write_input_tokens,

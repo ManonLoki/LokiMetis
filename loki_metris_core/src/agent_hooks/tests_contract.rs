@@ -82,7 +82,7 @@ const TOOL_CONTRACTS: [(AiTool, &str, &str, HookWriteOutcome); 14] = [
     ),
     (
         AiTool::Grok,
-        "Grok Build",
+        "Grok",
         "grok",
         HookWriteOutcome::RestartRequired,
     ),

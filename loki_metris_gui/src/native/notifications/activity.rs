@@ -4,7 +4,7 @@ use super::{Service, driver};
 use crate::notification_events::Activity;
 use futures::{FutureExt as _, future::{Either, select}};
 use gpui_kit::App;
-use loki_metris_core::{HookNotification, SkinHostKind, usage_milestones::{MilestoneOutcome, NotificationPermission}};
+use loki_metris_core::{HookNotification, usage_milestones::{MilestoneOutcome, NotificationPermission}};
 use std::time::Duration;
 
 impl Service {
@@ -47,9 +47,7 @@ fn message(locale: &str, activity: Activity) -> (String, String) {
             .find(|capability| capability.monitor_tool == Some(tool))
             .map(|capability| capability.name)
             .unwrap_or_else(|| loki_metris_core::ai_tool_name(tool))),
-        Activity::Skin { host, success } => (if success { "notification.skin_success" } else { "notification.skin_failure" }, match host {
-            SkinHostKind::Codex => "Codex", SkinHostKind::WorkBuddy => "WorkBuddy",
-        }),
+        Activity::Skin { host, success } => (if success { "notification.skin_success" } else { "notification.skin_failure" }, host.display_name()),
     };
     (rust_i18n::t!("notification.title", locale=locale).to_string(), rust_i18n::t!(key, locale=locale, name=name).to_string())
 }
@@ -57,6 +55,7 @@ fn message(locale: &str, activity: Activity) -> (String, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use loki_metris_core::SkinHostKind;
     /// 三种 Hook 与换肤两种终态均解析为完整双语正文。
     #[test]
     fn activity_notification_messages_resolve_both_languages() {

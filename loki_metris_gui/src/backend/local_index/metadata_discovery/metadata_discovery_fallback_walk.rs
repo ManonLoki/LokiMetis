@@ -291,8 +291,8 @@ fn submit_candidate(
         RootCandidateEvidence::ClaudeTranscript | RootCandidateEvidence::ClaudeSubagent => {
             SourceClientKind::ClaudeCode
         }
-        RootCandidateEvidence::GrokSessionUpdates => SourceClientKind::GrokBuildCli,
-        RootCandidateEvidence::WorkbuddyProjectJsonl => SourceClientKind::WorkBuddy,
+        RootCandidateEvidence::GrokSessionUpdates => SourceClientKind::Grok,
+        RootCandidateEvidence::WorkBuddyProjectJsonl => SourceClientKind::WorkBuddy,
     };
     let key = path.to_string_lossy().to_string();
     let candidate = RootCandidate {

@@ -177,14 +177,14 @@ async fn roots_without_projects_layout_are_skipped_until_none_remain() {
         TimeStandard::utc(),
     )
     .await;
-    assert_eq!(result.unwrap_err(), WorkbuddyReadError::SourceUnavailable);
+    assert_eq!(result.unwrap_err(), WorkBuddyReadError::SourceUnavailable);
     assert_eq!(
         single_source_evidence(&domestic).unwrap_err(),
-        WorkbuddyReadError::SourceUnavailable
+        WorkBuddyReadError::SourceUnavailable
     );
     assert_eq!(
         single_source_evidence(&international).unwrap_err(),
-        WorkbuddyReadError::SourceUnavailable
+        WorkBuddyReadError::SourceUnavailable
     );
 
     // 只有国际版产生布局后，该根独立贡献用量，缺失的国内版不影响结果。
@@ -217,10 +217,10 @@ async fn linked_projects_root_fails_the_whole_source_closed() {
 
     let result =
         read_workbuddy_statistics(std::slice::from_ref(&domestic), now, TimeStandard::utc()).await;
-    assert_eq!(result.unwrap_err(), WorkbuddyReadError::Read);
+    assert_eq!(result.unwrap_err(), WorkBuddyReadError::Read);
     assert_eq!(
         single_source_evidence(&domestic).unwrap_err(),
-        WorkbuddyReadError::Read
+        WorkBuddyReadError::Read
     );
 
     // 另一个根即使完全健康，也不能把被链接根的部分结果伪装成完整统计。
@@ -231,7 +231,7 @@ async fn linked_projects_root_fails_the_whole_source_closed() {
     );
     let result =
         read_workbuddy_statistics(&[domestic, international], now, TimeStandard::utc()).await;
-    assert_eq!(result.unwrap_err(), WorkbuddyReadError::Read);
+    assert_eq!(result.unwrap_err(), WorkBuddyReadError::Read);
 }
 
 /// 符号链接 transcript 必须被拒绝，链接目标不得贡献任何用量。
@@ -358,6 +358,6 @@ async fn notification_workbuddy_snapshot_uses_captured_day_zone() {
     let zone=jiff::tz::TimeZone::get("Asia/Shanghai").unwrap();
     let local=read_workbuddy_usage_snapshot_in_zone(std::slice::from_ref(&home),now,TimeStandard::Local,&zone).await.unwrap();
     let utc=read_workbuddy_usage_snapshot_in_zone(&[home],now,TimeStandard::Local,&jiff::tz::TimeZone::UTC).await.unwrap();
-    let tokens=|s:&WorkbuddyStatisticsSnapshot|s.windows.iter().find(|w|w.window==LocalUsageWindow::Today).unwrap().tokens;
+    let tokens=|s:&WorkBuddyStatisticsSnapshot|s.windows.iter().find(|w|w.window==LocalUsageWindow::Today).unwrap().tokens;
     assert_eq!(tokens(&local),110);assert_eq!(tokens(&utc),0);
 }

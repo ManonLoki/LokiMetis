@@ -4,7 +4,7 @@ use crate::app::surface::{StaticCard, StaticMaterial};
 use super::{Shell,format,plot::{self,Series,Value,Scale}};
 use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px, rgb,
     component::{ActiveTheme, button::{Button,ButtonVariants}, checkbox::Checkbox, menu::{DropdownMenu,PopupMenuItem}}};
-use loki_metris_core::{UsageChartPage,UsageChartDimension,UsageMeasure,UsageGroupDisplay,WorkbuddyStatisticsSnapshot};
+use loki_metris_core::{UsageChartPage,UsageChartDimension,UsageMeasure,UsageGroupDisplay,WorkBuddyStatisticsSnapshot};
 use std::{rc::Rc,cell::Cell};
 use gpui_kit::base::TestSupportExt as _;
 
@@ -21,7 +21,7 @@ pub(in crate::app) struct ChartState {
     /// 当前 Agent 的图表数据；切换 Agent 时清空。
     pub data:Option<UsageChartPage>,
     /// WorkBuddy 的统计快照；仅 WorkBuddy 图表使用。
-    pub workbuddy:Option<WorkbuddyStatisticsSnapshot>,
+    pub workbuddy:Option<WorkBuddyStatisticsSnapshot>,
     /// WorkBuddy 图表选中的分组下标。
     pub workbuddy_group:usize,
     /// WorkBuddy 图表选中的指标下标；切换分组时归零。

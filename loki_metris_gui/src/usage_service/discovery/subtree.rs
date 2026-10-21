@@ -316,7 +316,7 @@ pub(super) fn run_manual_subtree_discovery(
                 );
                 (claude_manual_candidates(result.roots), result.coverage)
             }
-            SourceClientKind::GrokBuildCli => {
+            SourceClientKind::Grok => {
                 let progress_control = control.clone();
                 let result = crate::backend::local_index::discover_grok_full_device_with_progress(
                     &options,

@@ -70,7 +70,7 @@ mod tests {
     /// 显式请求可以扫描未开放的 Agent，自动触发不得越过开放边界。
     #[test]
     fn only_explicit_requests_may_target_a_disabled_agent() {
-        let disabled = SourceClientKind::GrokBuildCli;
+        let disabled = SourceClientKind::Grok;
         assert_eq!(
             scan_target_clients(ScanStartOrigin::ExplicitUser, Some(disabled), &ENABLED),
             vec![disabled]

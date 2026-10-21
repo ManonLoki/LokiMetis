@@ -1,7 +1,7 @@
 // 本文件是 mod.rs 的分片（第 2/2 部分），通过 include! 并入同一模块，
-// 与主文件共用作用域，因此无需额外导入。收纳内容：构造 Claude-Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。；按 WSL 状态与编译目标选择应写入配置的命令变体。；判断工具是否应绕过状态机抑制并原样转发每个上游事件。
+// 与主文件共用作用域，因此无需额外导入。收纳内容：构造 Claude Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。；按 WSL 状态与编译目标选择应写入配置的命令变体。；判断工具是否应绕过状态机抑制并原样转发每个上游事件。
 
-/// 构造 Claude-Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。
+/// 构造 Claude Code 兼容协议共用的 `{ hooks: [{ type, command, matcher? }] }` 条目。
 pub(super) fn command_group(command: &str, matcher: Option<&str>) -> Value {
     // 构造基础分组：单个 command 类型 handler
     let mut group = json!({
@@ -14,7 +14,7 @@ pub(super) fn command_group(command: &str, matcher: Option<&str>) -> Value {
     if let Some(matcher) = matcher {
         group["matcher"] = Value::String(matcher.to_owned());
     }
-    // Claude-Code 兼容协议要求该事件的值是一个分组数组，这里只放入这一个分组
+    // Claude Code 兼容协议要求该事件的值是一个分组数组，这里只放入这一个分组
     Value::Array(vec![group])
 }
 

@@ -155,7 +155,7 @@ pub use policy::{
     SourceClientKind, SourceFileObservation, SourceRootAliasValidationError,
     SourceRootDiscoveryVerificationError, SourceRootIdValidationError, SourceRootMutationKind,
     SourceRootMutationOutcome, UsageFilterIdValidationError, WORKBUDDY_HOME_DIR_NAME,
-    WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyScanSource,
+    WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME, WorkBuddyScanSource,
     coverage_completeness, decide_manual_source_add, discover_workbuddy_scan_sources,
     discovery_batch_index_decision, empty_coverage, ensure_primary_source_root_supported,
     ensure_single_verified_source_root, extract_single_verified_source_root,
@@ -226,10 +226,10 @@ pub use usage::{
     TotalTokenAccounting, select_incremental_call_usage, select_single_call_usage,
 };
 pub use workbuddy_stats::{
-    WorkbuddyDailyBucket, WorkbuddyHourlyBucket, WorkbuddyHourlyTrend, WorkbuddyModelUsageGroup,
-    WorkbuddyModelUsageWindow, WorkbuddyStatisticsSnapshot, WorkbuddyTraceRecord,
-    WorkbuddyTraceStatus, WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin, WorkbuddyUsageQuality,
-    WorkbuddyWindowAggregate, build_workbuddy_only_local_windows, build_workbuddy_usage_details,
+    WorkBuddyDailyBucket, WorkBuddyHourlyBucket, WorkBuddyHourlyTrend, WorkBuddyModelUsageGroup,
+    WorkBuddyModelUsageWindow, WorkBuddyStatisticsSnapshot, WorkBuddyTraceRecord,
+    WorkBuddyTraceStatus, WorkBuddyUsageEventRecord, WorkBuddyUsageOrigin, WorkBuddyUsageQuality,
+    WorkBuddyWindowAggregate, build_workbuddy_only_local_windows, build_workbuddy_usage_details,
     combine_workbuddy_root_coverage, complete_workbuddy_coverage,
     compute_workbuddy_statistics_with_standard, mark_workbuddy_unavailable_in_local_windows,
     merge_workbuddy_into_local_windows,

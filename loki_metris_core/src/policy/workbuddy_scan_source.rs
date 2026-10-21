@@ -17,7 +17,7 @@ pub const WORKBUDDY_PROJECTS_DIR_NAME: &str = "projects";
 
 /// 一个可发现或登记的 WorkBuddy 扫描数据根。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorkbuddyScanSource {
+pub struct WorkBuddyScanSource {
     /// 稳定根 ID，前缀为 `workbuddy-root-`。
     pub root_id: String,
     /// 安全展示别名，不含绝对路径。
@@ -43,7 +43,7 @@ pub fn workbuddy_homes_from_user_home(user_home: &Path) -> [PathBuf; 2] {
 ///
 /// 单一版本缺失是正常情况，不构成失败；链接或非目录一律跳过，避免把其它目录
 /// 误标成 WorkBuddy。国内版与国际版都不会在此处合并用量，只提供只读来源身份。
-pub fn discover_workbuddy_scan_sources(user_home: &Path) -> Vec<WorkbuddyScanSource> {
+pub fn discover_workbuddy_scan_sources(user_home: &Path) -> Vec<WorkBuddyScanSource> {
     workbuddy_homes_from_user_home(user_home)
         .into_iter()
         .filter(|path| is_workbuddy_home_directory(path))
@@ -60,9 +60,9 @@ fn is_workbuddy_home_directory(path: &Path) -> bool {
 }
 
 /// 按稳定命名空间从路径生成 WorkBuddy 扫描源身份。
-fn workbuddy_scan_source_from_path(path: PathBuf) -> WorkbuddyScanSource {
+fn workbuddy_scan_source_from_path(path: PathBuf) -> WorkBuddyScanSource {
     let client = SourceClientKind::WorkBuddy;
-    WorkbuddyScanSource {
+    WorkBuddyScanSource {
         root_id: stable_id(client.root_id_namespace(), &path_key(&path)),
         alias: source_root_alias_from_path(&path, client),
         path,

@@ -98,7 +98,7 @@ pub(super) fn build_workbuddy_usage_statistics(
         LocalIndexState::Ready
     };
     let canonical = canonicalize_usage_calls(calls);
-    let source_label = ProviderKind::WorkbuddyProjectJsonl
+    let source_label = ProviderKind::WorkBuddyProjectJsonl
         .parser_source_label(crate::SourceClientKind::WorkBuddy.parser_version());
     build_usage_statistics_with_standard(
         &canonical,
@@ -108,7 +108,7 @@ pub(super) fn build_workbuddy_usage_statistics(
         window,
         dimension,
         observed_at_epoch_ms,
-        ProviderKind::WorkbuddyProjectJsonl,
+        ProviderKind::WorkBuddyProjectJsonl,
         Some(source_label.as_str()),
         time_standard.clone(),
         device_tz,

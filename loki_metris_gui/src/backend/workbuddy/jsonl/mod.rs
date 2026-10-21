@@ -15,7 +15,7 @@ use std::path::Path;
 
 use jiff::Timestamp;
 use loki_metris_core::{
-    CoverageReport, CoverageState, WorkbuddyUsageEventRecord, safe_path_basename, stable_id,
+    CoverageReport, CoverageState, WorkBuddyUsageEventRecord, safe_path_basename, stable_id,
 };
 use serde::Deserialize;
 
@@ -25,8 +25,8 @@ use crate::backend::local_index::{
     walk_ancestors_for_link_component,
 };
 
-use super::WorkbuddyReadError;
-use super::projects::{WorkbuddyProjectFile, discover_project_files};
+use super::WorkBuddyReadError;
+use super::projects::{WorkBuddyProjectFile, discover_project_files};
 
 /// 单次读取允许消耗的 project JSONL 总字节数。
 const MAX_PROJECT_JSONL_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -34,9 +34,9 @@ const MAX_PROJECT_JSONL_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const MAX_USAGE_RECORDS: usize = 500_000;
 
 /// 一次 project JSONL 读取的安全投影与覆盖结论。
-pub(super) struct WorkbuddyProjectUsageRead {
+pub(super) struct WorkBuddyProjectUsageRead {
     /// 读取到的用量记录。
-    pub(super) records: Vec<WorkbuddyUsageEventRecord>,
+    pub(super) records: Vec<WorkBuddyUsageEventRecord>,
     /// 覆盖结论。
     pub(super) coverage: CoverageReport,
 }
@@ -170,7 +170,7 @@ impl ProjectJsonlWarnings {
 /// 完整行投影后的稳定分类；普通消息与工具事件属于 `Ignored`。
 enum LineOutcome {
     /// 形成一条用量记录。
-    Usage(Box<WorkbuddyUsageEventRecord>),
+    Usage(Box<WorkBuddyUsageEventRecord>),
     /// 普通消息或工具事件。
     Ignored,
     /// JSON 损坏。
@@ -187,7 +187,7 @@ enum LineOutcome {
 pub(super) fn read_project_usage(
     workbuddy_home: &Path,
     root_id: &str,
-) -> Result<WorkbuddyProjectUsageRead, WorkbuddyReadError> {
+) -> Result<WorkBuddyProjectUsageRead, WorkBuddyReadError> {
     let files = discover_project_files(workbuddy_home)?;
     let mut records = Vec::new();
     let mut warnings = ProjectJsonlWarnings::default();
@@ -265,7 +265,7 @@ pub(super) fn read_project_usage(
     } else {
         CoverageState::Complete
     };
-    Ok(WorkbuddyProjectUsageRead {
+    Ok(WorkBuddyProjectUsageRead {
         records,
         coverage: CoverageReport {
             state,
@@ -318,9 +318,9 @@ struct ProjectStreamReport {
 /// 固定 16 KiB 缓冲按完整行投影；超长行有界跳过，末尾半行不提交。
 fn parse_project_stream(
     reader: Take<File>,
-    source: &WorkbuddyProjectFile,
+    source: &WorkBuddyProjectFile,
     root_id: &str,
-    records: &mut Vec<WorkbuddyUsageEventRecord>,
+    records: &mut Vec<WorkBuddyUsageEventRecord>,
 ) -> std::io::Result<ProjectStreamReport> {
     let mut reader = BufReader::with_capacity(16 * 1024, reader);
     let mut line = Vec::with_capacity(DEFAULT_MAX_JSONL_LINE_BYTES.min(16 * 1024));
@@ -358,7 +358,7 @@ fn parse_project_stream(
 /// 把一条完整行分类并累计安全结果。
 fn apply_line_outcome(
     outcome: LineOutcome,
-    records: &mut Vec<WorkbuddyUsageEventRecord>,
+    records: &mut Vec<WorkBuddyUsageEventRecord>,
     warnings: &mut ProjectJsonlWarnings,
 ) {
     match outcome {
@@ -380,7 +380,7 @@ fn apply_line_outcome(
 }
 
 /// 从一条完整 JSONL 记录提取直接 provider usage；嵌套 message usage 从未声明，因而不会计数。
-fn parse_complete_line(line: &[u8], source: &WorkbuddyProjectFile, root_id: &str) -> LineOutcome {
+fn parse_complete_line(line: &[u8], source: &WorkBuddyProjectFile, root_id: &str) -> LineOutcome {
     if line.is_empty() {
         return LineOutcome::Ignored;
     }
@@ -423,7 +423,7 @@ fn parse_complete_line(line: &[u8], source: &WorkbuddyProjectFile, root_id: &str
         "workbuddy-source",
         &format!("{root_id}\0{}", source.relative_key),
     );
-    LineOutcome::Usage(Box::new(WorkbuddyUsageEventRecord {
+    LineOutcome::Usage(Box::new(WorkBuddyUsageEventRecord {
         logical_call_id,
         session_key,
         source_id,

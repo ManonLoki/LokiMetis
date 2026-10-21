@@ -3,11 +3,11 @@
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
 
-use loki_metris_core::{WORKBUDDY_PROJECTS_DIR_NAME, WorkbuddyUsageOrigin};
+use loki_metris_core::{WORKBUDDY_PROJECTS_DIR_NAME, WorkBuddyUsageOrigin};
 
 use crate::backend::local_index::{metadata_is_link_like, walk_ancestors_for_link_component};
 
-use super::WorkbuddyReadError;
+use super::WorkBuddyReadError;
 
 /// 单次读取最多处理的项目目录数。
 const MAX_PROJECT_DIRECTORIES: usize = 10_000;
@@ -17,7 +17,7 @@ const MAX_DIRECTORY_ENTRIES: usize = 100_000;
 const MAX_TRANSCRIPT_FILES: usize = 25_000;
 
 /// 一个已经通过相对布局与链接边界检查的 JSONL 候选。
-pub(super) struct WorkbuddyProjectFile {
+pub(super) struct WorkBuddyProjectFile {
     /// 文件路径。
     pub(super) path: PathBuf,
     /// 相对来源键。
@@ -25,14 +25,14 @@ pub(super) struct WorkbuddyProjectFile {
     /// 派生项目键的材料。
     pub(super) project_key_material: String,
     /// 顶层或 subagent 来源。
-    pub(super) origin: WorkbuddyUsageOrigin,
+    pub(super) origin: WorkBuddyUsageOrigin,
 }
 
 /// 路径枚举的文件集合和覆盖计数。
 #[derive(Default)]
-pub(super) struct WorkbuddyProjectFiles {
+pub(super) struct WorkBuddyProjectFiles {
     /// 通过检查的 JSONL 候选。
-    pub(super) files: Vec<WorkbuddyProjectFile>,
+    pub(super) files: Vec<WorkBuddyProjectFile>,
     /// 顶层会话文件数。
     pub(super) top_level_file_count: u64,
     /// subagent 文件数。
@@ -45,7 +45,7 @@ pub(super) struct WorkbuddyProjectFiles {
     pub(super) budget_exhausted: bool,
 }
 
-impl WorkbuddyProjectFiles {
+impl WorkBuddyProjectFiles {
     /// 返回两类受限来源文件总数。
     pub(super) fn file_count(&self) -> u64 {
         self.top_level_file_count
@@ -56,17 +56,17 @@ impl WorkbuddyProjectFiles {
 /// 只枚举 `projects/<project>/<session>.jsonl` 与一层 `subagents/*.jsonl`。
 pub(super) fn discover_project_files(
     workbuddy_home: &Path,
-) -> Result<WorkbuddyProjectFiles, WorkbuddyReadError> {
+) -> Result<WorkBuddyProjectFiles, WorkBuddyReadError> {
     let projects_root = workbuddy_home.join(WORKBUDDY_PROJECTS_DIR_NAME);
     let metadata = fs::symlink_metadata(&projects_root).map_err(map_root_error)?;
     if metadata_is_link_like(&metadata)
         || !metadata.is_dir()
         || walk_ancestors_for_link_component(&projects_root).unwrap_or(true)
     {
-        return Err(WorkbuddyReadError::Read);
+        return Err(WorkBuddyReadError::Read);
     }
 
-    let mut result = WorkbuddyProjectFiles::default();
+    let mut result = WorkBuddyProjectFiles::default();
     let mut entry_budget = MAX_DIRECTORY_ENTRIES;
     let project_entries = read_sorted_entries(&projects_root, &mut result, &mut entry_budget)?;
     let mut project_count = 0_usize;
@@ -95,7 +95,7 @@ pub(super) fn discover_project_files(
 fn enumerate_project(
     project_dir: &Path,
     project_name: &str,
-    result: &mut WorkbuddyProjectFiles,
+    result: &mut WorkBuddyProjectFiles,
     entry_budget: &mut usize,
 ) {
     let Ok(entries) = read_sorted_entries(project_dir, result, entry_budget) else {
@@ -123,7 +123,7 @@ fn enumerate_project(
                 path,
                 format!("{project_name}/{}", entry.file_name().to_string_lossy()),
                 project_name,
-                WorkbuddyUsageOrigin::TopLevel,
+                WorkBuddyUsageOrigin::TopLevel,
                 result,
             );
             continue;
@@ -138,7 +138,7 @@ fn enumerate_project(
 fn enumerate_subagents(
     session_dir: &Path,
     project_name: &str,
-    result: &mut WorkbuddyProjectFiles,
+    result: &mut WorkBuddyProjectFiles,
     entry_budget: &mut usize,
 ) {
     let Some(session_name) = session_dir.file_name().and_then(|name| name.to_str()) else {
@@ -191,7 +191,7 @@ fn enumerate_subagents(
                 entry.file_name().to_string_lossy()
             ),
             project_name,
-            WorkbuddyUsageOrigin::Subagent,
+            WorkBuddyUsageOrigin::Subagent,
             result,
         );
     }
@@ -202,22 +202,22 @@ fn push_file(
     path: PathBuf,
     relative_key: String,
     project_key_material: &str,
-    origin: WorkbuddyUsageOrigin,
-    result: &mut WorkbuddyProjectFiles,
+    origin: WorkBuddyUsageOrigin,
+    result: &mut WorkBuddyProjectFiles,
 ) {
     if walk_ancestors_for_link_component(&path).unwrap_or(true) {
         result.skipped_count = result.skipped_count.saturating_add(1);
         return;
     }
     match origin {
-        WorkbuddyUsageOrigin::TopLevel => {
+        WorkBuddyUsageOrigin::TopLevel => {
             result.top_level_file_count = result.top_level_file_count.saturating_add(1);
         }
-        WorkbuddyUsageOrigin::Subagent => {
+        WorkBuddyUsageOrigin::Subagent => {
             result.subagent_file_count = result.subagent_file_count.saturating_add(1);
         }
     }
-    result.files.push(WorkbuddyProjectFile {
+    result.files.push(WorkBuddyProjectFile {
         path,
         relative_key,
         project_key_material: project_key_material.to_owned(),
@@ -228,12 +228,12 @@ fn push_file(
 /// 读取并按文件名排序目录项，同时应用全局目录项预算。
 fn read_sorted_entries(
     directory: &Path,
-    result: &mut WorkbuddyProjectFiles,
+    result: &mut WorkBuddyProjectFiles,
     entry_budget: &mut usize,
-) -> Result<Vec<DirEntry>, WorkbuddyReadError> {
+) -> Result<Vec<DirEntry>, WorkBuddyReadError> {
     let entries = fs::read_dir(directory).map_err(|error| {
         count_io_error(&error, result);
-        WorkbuddyReadError::Read
+        WorkBuddyReadError::Read
     })?;
     let mut values = Vec::new();
     for entry in entries {
@@ -252,7 +252,7 @@ fn read_sorted_entries(
 }
 
 /// 只接受未链接的普通目录。
-fn ordinary_directory(entry: &DirEntry, result: &mut WorkbuddyProjectFiles) -> Option<PathBuf> {
+fn ordinary_directory(entry: &DirEntry, result: &mut WorkBuddyProjectFiles) -> Option<PathBuf> {
     let path = entry.path();
     match fs::symlink_metadata(&path) {
         Ok(metadata) if !metadata_is_link_like(&metadata) && metadata.is_dir() => Some(path),
@@ -274,16 +274,16 @@ fn has_jsonl_extension(path: &Path) -> bool {
 }
 
 /// 只有根目录确实缺失才属于未安装来源；权限和其它 I/O 错误保持读取失败。
-fn map_root_error(error: std::io::Error) -> WorkbuddyReadError {
+fn map_root_error(error: std::io::Error) -> WorkBuddyReadError {
     if error.kind() == std::io::ErrorKind::NotFound {
-        WorkbuddyReadError::SourceUnavailable
+        WorkBuddyReadError::SourceUnavailable
     } else {
-        WorkbuddyReadError::Read
+        WorkBuddyReadError::Read
     }
 }
 
 /// 把 I/O 错误折叠成无路径覆盖计数。
-fn count_io_error(error: &std::io::Error, result: &mut WorkbuddyProjectFiles) {
+fn count_io_error(error: &std::io::Error, result: &mut WorkBuddyProjectFiles) {
     if error.kind() == std::io::ErrorKind::PermissionDenied {
         result.permission_denied_count = result.permission_denied_count.saturating_add(1);
     } else {

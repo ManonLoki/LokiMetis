@@ -68,9 +68,9 @@ impl HookProtocol for GrokProtocol {
         AiTool::Grok
     }
 
-    /// 返回用于界面展示的 Grok Build 名称。
+    /// 返回与公开目录一致的界面名称。
     fn name(&self) -> &'static str {
-        "Grok Build"
+        "Grok"
     }
 
     /// 返回用于路径和配置标识的稳定短名。

@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::workbuddy_stats::{
-    WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin, complete_workbuddy_coverage,
+    WorkBuddyUsageEventRecord, WorkBuddyUsageOrigin, complete_workbuddy_coverage,
     compute_workbuddy_statistics_with_standard,
 };
 
@@ -20,9 +20,9 @@ fn usage(
     timestamp: i64,
     tokens: i64,
     credit: Option<f64>,
-    origin: WorkbuddyUsageOrigin,
-) -> WorkbuddyUsageEventRecord {
-    WorkbuddyUsageEventRecord {
+    origin: WorkBuddyUsageOrigin,
+) -> WorkBuddyUsageEventRecord {
+    WorkBuddyUsageEventRecord {
         logical_call_id: id.to_owned(),
         session_key: session.to_owned(),
         source_id: format!("source-{id}"),
@@ -79,7 +79,7 @@ fn events_fold_by_hour_with_sessions_and_origins() {
             TODAY_10H_MS,
             100,
             Some(1.5),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "b",
@@ -87,7 +87,7 @@ fn events_fold_by_hour_with_sessions_and_origins() {
             TODAY_10H_MS + 60_000,
             50,
             Some(0.5),
-            WorkbuddyUsageOrigin::Subagent,
+            WorkBuddyUsageOrigin::Subagent,
         ),
         usage(
             "c",
@@ -95,7 +95,7 @@ fn events_fold_by_hour_with_sessions_and_origins() {
             YESTERDAY_23H_MS,
             7,
             Some(0.25),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
     ];
     let snapshot = compute_workbuddy_statistics_with_standard(
@@ -129,7 +129,7 @@ fn hourly_totals_reconcile_with_window_totals() {
             TODAY_10H_MS,
             40,
             Some(1.0),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
         ),
         usage(
             "b",
@@ -137,7 +137,7 @@ fn hourly_totals_reconcile_with_window_totals() {
             TODAY_10H_MS + 3 * 60 * 60 * 1_000,
             60,
             Some(2.0),
-            WorkbuddyUsageOrigin::Subagent,
+            WorkBuddyUsageOrigin::Subagent,
         ),
     ];
     let snapshot = compute_workbuddy_statistics_with_standard(
@@ -178,7 +178,7 @@ fn hour_membership_follows_viewing_time_zone() {
         YESTERDAY_23H_MS,
         7,
         Some(0.25),
-        WorkbuddyUsageOrigin::TopLevel,
+        WorkBuddyUsageOrigin::TopLevel,
     )];
     let snapshot = compute_workbuddy_statistics_with_standard(
         &records,

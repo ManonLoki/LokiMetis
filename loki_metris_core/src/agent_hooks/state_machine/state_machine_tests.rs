@@ -143,7 +143,7 @@ mod tests {
     }
 
     /// WorkBuddy 内置引擎在权限被拒绝或澄清结束后各只发一次收尾事件；
-    /// 缺失这两个事件会让展示永远卡在询问态（真实回归：见 work_buddy.rs）。
+    /// 缺失这两个事件会让展示永远卡在询问态（真实回归：见 workbuddy.rs）。
     #[test]
     fn workbuddy_permission_denied_and_elicitation_result_close_the_asking_state() {
         let mut machine = HookStateMachine::default();

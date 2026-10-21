@@ -5,9 +5,9 @@
 #[test]
 fn traces_never_contribute_usage_or_models() {
     let traces = vec![
-        trace(WorkbuddyTraceStatus::Ok, 1_000),
-        trace(WorkbuddyTraceStatus::Error, 3_000),
-        trace(WorkbuddyTraceStatus::Cancelled, 5_000),
+        trace(WorkBuddyTraceStatus::Ok, 1_000),
+        trace(WorkBuddyTraceStatus::Error, 3_000),
+        trace(WorkBuddyTraceStatus::Cancelled, 5_000),
     ];
     let snapshot = compute_workbuddy_statistics(&[], &traces, OBSERVED_EPOCH_MS);
 
@@ -54,7 +54,7 @@ fn combined_windows_merge_exact_components_and_partial_coverage() {
     coverage.state = crate::CoverageState::Partial;
     let merged = merge_workbuddy_into_local_windows(
         summary,
-        &[WorkbuddyWindowAggregate {
+        &[WorkBuddyWindowAggregate {
             window: LocalUsageWindow::Today,
             session_count: 3,
             request_count: 4,
@@ -152,7 +152,7 @@ fn combined_index_becomes_ready_when_workbuddy_has_calls() {
             ),
         }],
     };
-    let workbuddy = WorkbuddyWindowAggregate {
+    let workbuddy = WorkBuddyWindowAggregate {
         window: LocalUsageWindow::Today,
         session_count: 1,
         request_count: 1,
@@ -189,7 +189,7 @@ fn usage_page_groups_actual_models_with_cache_components() {
             "same-session",
             TODAY_EPOCH_MS,
             Some("model-a"),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
             10,
             8,
             2,
@@ -200,7 +200,7 @@ fn usage_page_groups_actual_models_with_cache_components() {
             "same-session",
             TODAY_EPOCH_MS + 1,
             Some("model-b"),
-            WorkbuddyUsageOrigin::TopLevel,
+            WorkBuddyUsageOrigin::TopLevel,
             20,
             5,
             3,
@@ -250,13 +250,13 @@ fn usage_in_root(
     occurred_at_epoch_ms: i64,
     input_tokens: i64,
     output_tokens: i64,
-) -> WorkbuddyUsageEventRecord {
+) -> WorkBuddyUsageEventRecord {
     let mut record = usage(
         id,
         session,
         occurred_at_epoch_ms,
         Some("model-a"),
-        WorkbuddyUsageOrigin::TopLevel,
+        WorkBuddyUsageOrigin::TopLevel,
         input_tokens,
         0,
         output_tokens,

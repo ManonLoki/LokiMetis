@@ -287,7 +287,7 @@ impl ScanClient for GrokClient {
 
     /// 返回 Grok 客户端固定的 parser generation。
     fn parser_version() -> u32 {
-        loki_metris_core::SourceClientKind::GrokBuildCli.parser_version()
+        loki_metris_core::SourceClientKind::Grok.parser_version()
     }
 
     /// 返回 Grok 会话来源摘要读取用的 provider 类型。

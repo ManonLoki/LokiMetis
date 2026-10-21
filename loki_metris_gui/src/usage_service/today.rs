@@ -1,7 +1,7 @@
 //! 独立 All 摘要读取，不进入会取消页面请求的查询邮箱，也不触发扫描/迁移。
 
 use super::{ServiceContext, UsageData, query, today_cache};
-use crate::backend::workbuddy::{self, WorkbuddyReadError};
+use crate::backend::workbuddy::{self, WorkBuddyReadError};
 use jiff::tz::TimeZone;
 use loki_metris_core::*;
 use std::{sync::Arc, sync::atomic::Ordering};
@@ -75,11 +75,11 @@ pub(super) async fn load_with_components(context: Arc<ServiceContext>, now: i64,
         .await
         {
             Ok(value) => workbuddy = Some(value),
-            Err(WorkbuddyReadError::SourceUnavailable) => {
+            Err(WorkBuddyReadError::SourceUnavailable) => {
                 absent = true;
                 all_ready = false;
             }
-            Err(WorkbuddyReadError::Read) => {
+            Err(WorkBuddyReadError::Read) => {
                 failed = true;
                 all_ready = false;
             }
@@ -164,14 +164,14 @@ pub(super) async fn load_with_components(context: Arc<ServiceContext>, now: i64,
         let mut agents = Vec::new();
         for (client, records, ready) in components {
             let agent = match client { SourceClientKind::Codex => AiTool::Codex,
-                SourceClientKind::ClaudeCode => AiTool::ClaudeCode, SourceClientKind::GrokBuildCli => AiTool::Grok, SourceClientKind::WorkBuddy => AiTool::WorkBuddy };
+                SourceClientKind::ClaudeCode => AiTool::ClaudeCode, SourceClientKind::Grok => AiTool::Grok, SourceClientKind::WorkBuddy => AiTool::WorkBuddy };
             let value = TodayUsageSnapshot::from_records(day.clone(), source.clone(), &records, now, ready, false)
                 .ok_or("usage_aggregate_failed")?;
             agents.push((agent, value));
         }
         if selection.1 {
             let value = if let Some(wb) = &workbuddy {
-                let records = build_workbuddy_only_local_windows(&wb.windows, &wb.coverage, now, ProviderKind::WorkbuddyProjectJsonl);
+                let records = build_workbuddy_only_local_windows(&wb.windows, &wb.coverage, now, ProviderKind::WorkBuddyProjectJsonl);
                 TodayUsageSnapshot::from_records(day.clone(), source.clone(), &records, now, true, false).ok_or("usage_aggregate_failed")?
             } else { TodayUsageSnapshot { day: day.clone(), source: source.clone(), total_tokens: 0, observed_ms: now,
                 availability: if failed { TodayAvailability::Unavailable } else { TodayAvailability::NoRecords },

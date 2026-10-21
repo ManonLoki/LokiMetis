@@ -118,15 +118,15 @@ fn resuming_other_client_registers_its_candidates_without_early_indexing() {
     service.discovery.submit_candidate(RootCandidate{id:"codex-candidate".into(),client:SourceClientKind::Codex,
         absolute_path:source.to_string_lossy().into_owned(),strategy:RootDiscoveryStrategy::MetadataTraversal,evidence:RootCandidateEvidence::CodexRollout});
     let other=temp.path().join("other-agent");std::fs::create_dir(&other).unwrap();
-    service.discovery.submit_candidate(RootCandidate{id:"grok-candidate".into(),client:SourceClientKind::GrokBuildCli,
+    service.discovery.submit_candidate(RootCandidate{id:"grok-candidate".into(),client:SourceClientKind::Grok,
         absolute_path:other.to_string_lossy().into_owned(),strategy:RootDiscoveryStrategy::MetadataTraversal,evidence:RootCandidateEvidence::GrokSessionUpdates});
-    service.resume_discovery(SourceClientKind::GrokBuildCli).unwrap();
+    service.resume_discovery(SourceClientKind::Grok).unwrap();
     let deadline=std::time::Instant::now()+std::time::Duration::from_secs(3);
     while service.discovery.candidates().iter().any(|candidate|candidate.id=="grok-candidate") {
         assert!(std::time::Instant::now()<deadline,"另一个客户端候选应被接续登记");std::thread::sleep(std::time::Duration::from_millis(10));
     }
     assert_eq!(service.discovery.candidates().len(),1);assert_eq!(service.discovery.candidates()[0].client,SourceClientKind::Codex);
-    let rows=service.query(UsageQuery::Sources(SourceClientKind::GrokBuildCli)).unwrap().blocking_recv().unwrap().unwrap();
+    let rows=service.query(UsageQuery::Sources(SourceClientKind::Grok)).unwrap().blocking_recv().unwrap().unwrap();
     assert!(matches!(rows,UsageResponse::Sources(roots) if roots.len()==1&&roots[0].activation_state==RootActivationState::ConfirmedUnindexed&&roots[0].file_count==0));
     assert!(!service.scan_status().running);assert!(service.discovery_view().indexing.is_empty());service.finish();
 }
@@ -151,7 +151,7 @@ fn manual_inspection_does_not_resume_a_second_batch_on_page_remount() {
     let temp=tempfile::tempdir().unwrap();let service=UsageService::in_directory(temp.path().join("data")).unwrap();
     service.discovery_batch.begin_discovery(&service.discovery,RootDiscoveryStrategy::MetadataTraversal,RootDiscoveryScope::ManualSubtree,1).unwrap();
     let owned=service.background.owned_task_count();
-    service.resume_discovery(SourceClientKind::Codex).unwrap();service.resume_discovery(SourceClientKind::GrokBuildCli).unwrap();
+    service.resume_discovery(SourceClientKind::Codex).unwrap();service.resume_discovery(SourceClientKind::Grok).unwrap();
     assert_eq!(service.background.owned_task_count(),owned);assert!(!service.context.directory.exists());service.finish();
 }
 

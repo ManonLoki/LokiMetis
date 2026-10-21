@@ -1,7 +1,7 @@
 //! 只读 loader 直接返回 core 页面模型；CPU 聚合在 blocking 岛，绝不初始化或迁移库。
 
 use super::{ServiceContext, UsageData, page_cache::{CachedPage, PageKey, PageQuery}};
-use crate::backend::{local_index::current_epoch_ms, workbuddy::{self, WorkbuddyReadError}};
+use crate::backend::{local_index::current_epoch_ms, workbuddy::{self, WorkBuddyReadError}};
 use jiff::tz::TimeZone;
 use loki_metris_core::*;
 use std::{collections::BTreeMap, sync::Arc};
@@ -34,9 +34,9 @@ pub enum UsageResponse {
     /// 数据源页的根列表。
     Sources(Vec<SourceRootSummary>),
     /// WorkBuddy 统计快照。
-    Workbuddy(WorkbuddyStatisticsSnapshot),
+    WorkBuddy(WorkBuddyStatisticsSnapshot),
     /// WorkBuddy 统计页分组及模型用量窗口。
-    WorkbuddyDetails(UsageStatisticsPage, WorkbuddyModelUsageWindow),
+    WorkBuddyDetails(UsageStatisticsPage, WorkBuddyModelUsageWindow),
 }
 
 /// 为所选页面取得同一次时间观测和不可变读取快照。
@@ -76,15 +76,15 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
         if let UsageQuery::Statistics(_, window, dimension) = query {
             let details = workbuddy::read_workbuddy_usage_details(&workbuddy::resolve_workbuddy_homes(), window, dimension, now, TimeStandard::Local).await.map_err(workbuddy_error)?;
             check_cancel(&cancellation)?;
-            return Ok(UsageResponse::WorkbuddyDetails(details.statistics, details.model_usage));
+            return Ok(UsageResponse::WorkBuddyDetails(details.statistics, details.model_usage));
         }
         let snapshot = workbuddy::read_workbuddy_statistics(&workbuddy::resolve_workbuddy_homes(), now, TimeStandard::Local).await
             .map_err(workbuddy_error)?;
         check_cancel(&cancellation)?;
         return if matches!(query, UsageQuery::Overview(..)) {
-            let records = build_workbuddy_only_local_windows(&snapshot.windows, &snapshot.coverage, now, ProviderKind::WorkbuddyProjectJsonl);
+            let records = build_workbuddy_only_local_windows(&snapshot.windows, &snapshot.coverage, now, ProviderKind::WorkBuddyProjectJsonl);
             Ok(UsageResponse::Overview(UsageData { records, workbuddy: Some(snapshot), workbuddy_unavailable: false }))
-        } else { Ok(UsageResponse::Workbuddy(snapshot)) };
+        } else { Ok(UsageResponse::WorkBuddy(snapshot)) };
     }
     if let Some(client) = selected {
         // 概览每 10 秒由页面刷新；索引与覆盖未变且仍是同一民用日时直接复用窗口汇总。
@@ -162,8 +162,8 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     if workbuddy_enabled && matches!(query, UsageQuery::Overview(..)) {
         match workbuddy::read_workbuddy_usage_snapshot(&workbuddy::resolve_workbuddy_homes(), now, TimeStandard::Local).await {
             Ok(snapshot) => workbuddy = Some(snapshot),
-            Err(WorkbuddyReadError::SourceUnavailable) => absent = true,
-            Err(WorkbuddyReadError::Read) => failed = true,
+            Err(WorkBuddyReadError::SourceUnavailable) => absent = true,
+            Err(WorkBuddyReadError::Read) => failed = true,
         }
     }
     check_cancel(&cancellation)?;
@@ -255,7 +255,7 @@ pub(super) fn coverage(context: &ServiceContext, client: SourceClientKind) -> Co
 
 /// 物理存储只对应三个支持的 SQLite Agent；WorkBuddy 始终走独立 JSONL 读模型。
 pub(super) fn physical_clients() -> [SourceClientKind; 3] {
-    [SourceClientKind::Codex, SourceClientKind::ClaudeCode, SourceClientKind::GrokBuildCli]
+    [SourceClientKind::Codex, SourceClientKind::ClaudeCode, SourceClientKind::Grok]
 }
 
 /// provider 映射是源身份，不能以统一 parser-vN 代替。
@@ -263,8 +263,8 @@ pub(super) fn provider(client: SourceClientKind) -> ProviderKind {
     match client {
         SourceClientKind::Codex => ProviderKind::RolloutJsonl,
         SourceClientKind::ClaudeCode => ProviderKind::ClaudeTranscriptJsonl,
-        SourceClientKind::GrokBuildCli => ProviderKind::GrokSessionJsonl,
-        SourceClientKind::WorkBuddy => ProviderKind::WorkbuddyProjectJsonl,
+        SourceClientKind::Grok => ProviderKind::GrokSessionJsonl,
+        SourceClientKind::WorkBuddy => ProviderKind::WorkBuddyProjectJsonl,
     }
 }
 
@@ -274,8 +274,8 @@ fn check_cancel(token: &ScanCancellation) -> Result<(), &'static str> {
 }
 
 /// 固定来源不存在与实际读取失败保持不同错误。
-fn workbuddy_error(error: WorkbuddyReadError) -> &'static str {
-    if error == WorkbuddyReadError::SourceUnavailable { "usage_workbuddy_absent" } else { "usage_read_failed" }
+fn workbuddy_error(error: WorkBuddyReadError) -> &'static str {
+    if error == WorkBuddyReadError::SourceUnavailable { "usage_workbuddy_absent" } else { "usage_read_failed" }
 }
 
 #[cfg(test)]

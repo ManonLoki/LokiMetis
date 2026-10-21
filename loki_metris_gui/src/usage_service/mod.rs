@@ -46,7 +46,7 @@ pub(crate) use crate::backend::local_index::ScanProgress;
 /// 通知预约时间戳由本服务按此时钟写入，宿主比较时必须使用同一时钟。
 pub(crate) use crate::backend::local_index::current_epoch_ms;
 use loki_metris_core::{CoverageReport, LocalRecordsSummary, SourceClientKind,
-    WorkbuddyStatisticsSnapshot, ScanStartOrigin};
+    WorkBuddyStatisticsSnapshot, ScanStartOrigin};
 use queue::{Intent, Queue};
 use std::{collections::BTreeMap, path::PathBuf, sync::{Arc, Mutex}, time::Duration};
 use tokio::{runtime::Runtime, sync::oneshot};
@@ -57,7 +57,7 @@ pub struct UsageData {
     /// 所选 Agent 的本地用量窗口摘要。
     pub records: LocalRecordsSummary,
     /// WorkBuddy 统计快照；非 WorkBuddy 视图或读取失败时为 None。
-    pub workbuddy: Option<WorkbuddyStatisticsSnapshot>,
+    pub workbuddy: Option<WorkBuddyStatisticsSnapshot>,
     /// “全部”概览中 WorkBuddy 读取失败：结果只含其他 Agent，界面必须明示不完整，不能静默少算。
     pub workbuddy_unavailable: bool,
 }

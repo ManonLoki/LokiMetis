@@ -14,7 +14,7 @@ use super::Shell;
 use crate::usage_service::{UsageQuery,UsageResponse};
 use gpui_kit::{AnyElement,Context,Task,div,prelude::*,px,FontWeight,
     component::{ActiveTheme,Disableable,Sizable,Size,button::Button,menu::{DropdownMenu,PopupMenuItem}}};
-use loki_metris_core::SourceRootSummary;
+use loki_metris_core::{SourceClientKind, SourceRootSummary};
 
 /// 局部页面状态随卸载丢弃；服务持有已接受的写任务。
 #[derive(Default)]
@@ -102,7 +102,7 @@ impl Shell {
 
     /// 所有提示中的客户端身份来自页面选择，不读取目录路径。
     fn sources_client_name(&self)->&'static str {
-        match self.dashboard.client {2=>"Claude Code",3=>"Grok",4=>"WorkBuddy",_=>"Codex"}
+        self.usage_client().unwrap_or(SourceClientKind::Codex).display_name()
     }
 
     /// 三张固定布局卡片直接投影登记列表；WorkBuddy 仅有固定目录重读。

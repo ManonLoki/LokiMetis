@@ -318,7 +318,7 @@ fn discovery_code(method: SourceDiscoveryMethod, environment_label: &str) -> Sou
             SourceDiscoveryCode::ClaudeEnvironment
         }
         SourceDiscoveryMethod::Environment
-            if environment_label == SourceClientKind::GrokBuildCli.source_environment_label() =>
+            if environment_label == SourceClientKind::Grok.source_environment_label() =>
         {
             SourceDiscoveryCode::GrokEnvironment
         }

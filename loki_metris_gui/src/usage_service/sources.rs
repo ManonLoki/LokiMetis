@@ -117,11 +117,11 @@ async fn apply(context:Arc<ServiceContext>,owner:Arc<super::background::Backgrou
 
 /// WorkBuddy 固定来源只投影结构证据，不创建登记库或读取统计记录正文。
 pub(super) fn workbuddy_sources()->Vec<SourceRootSummary> {
-    use crate::backend::workbuddy::{self,WorkbuddyReadError};
+    use crate::backend::workbuddy::{self,WorkBuddyReadError};
     workbuddy::inspect_workbuddy_project_sources(&workbuddy::discover_workbuddy_sources()).into_iter().map(|inspection| {
         let (file_count,skipped_count,error_count)=match inspection.evidence {
             Ok(evidence)=>(evidence.file_count,evidence.skipped_count.saturating_add(u64::from(evidence.budget_exhausted)),evidence.permission_denied_count),
-            Err(WorkbuddyReadError::Read)=>(0,0,1),Err(WorkbuddyReadError::SourceUnavailable)=>(0,0,0),
+            Err(WorkBuddyReadError::Read)=>(0,0,1),Err(WorkBuddyReadError::SourceUnavailable)=>(0,0,0),
         };
         let activation_state=if file_count>0&&skipped_count==0&&error_count==0 {RootActivationState::Ready}
             else if skipped_count>0||error_count>0 {RootActivationState::ValidationFailed}else{RootActivationState::ConfirmedUnindexed};

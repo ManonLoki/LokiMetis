@@ -76,7 +76,8 @@
     "LMDESK-DEVICE-PAIR-OTP-001",
     "LMDESK-DEVICE-CARD-COMPACT-001",
     "LMDESK-WEBP-INNER-DIMENSIONS-001",
-    "BUG-DEVICE-ADVERTISING-RETRY"
+    "BUG-DEVICE-ADVERTISING-RETRY",
+    "BUG-AGENT-DISPLAY-NAME-UNIFY"
   ],
   "applied_reconciliations": [
     {
@@ -115,8 +116,13 @@
       "change_id": "BUG-DEVICE-ADVERTISING-RETRY",
       "kind": "bug-fix",
       "required_version": "0.6.4"
+    },
+    {
+      "change_id": "BUG-AGENT-DISPLAY-NAME-UNIFY",
+      "kind": "bug-fix",
+      "required_version": "0.6.5"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.6.4"
+  "target_version": "0.6.5"
 }

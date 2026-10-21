@@ -8,12 +8,12 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use loki_metris_core::{WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin};
+use loki_metris_core::{WorkBuddyUsageEventRecord, WorkBuddyUsageOrigin};
 
 use crate::backend::file_stamp::FileStamp;
 
 use super::ProjectJsonlWarnings;
-use super::super::projects::WorkbuddyProjectFile;
+use super::super::projects::WorkBuddyProjectFile;
 
 /// 进程内最多保留的解析记录数；超出后新文件不再入缓存，仍按原路径读取。
 const MAX_CACHED_RECORDS: usize = 100_000;
@@ -27,9 +27,9 @@ pub(super) struct ParsedFile {
     /// 派生项目键的材料。
     project_key_material: String,
     /// 顶层或 subagent 来源。
-    origin: WorkbuddyUsageOrigin,
+    origin: WorkBuddyUsageOrigin,
     /// 解析出的用量记录。
-    pub(super) records: Vec<WorkbuddyUsageEventRecord>,
+    pub(super) records: Vec<WorkBuddyUsageEventRecord>,
     /// 质量计数。
     pub(super) warnings: ProjectJsonlWarnings,
 }
@@ -38,8 +38,8 @@ impl ParsedFile {
     /// 记录一次完整解析的结果，来源属性一并保存以便命中时复核。
     pub(super) fn new(
         stamp: FileStamp,
-        source: &WorkbuddyProjectFile,
-        records: Vec<WorkbuddyUsageEventRecord>,
+        source: &WorkBuddyProjectFile,
+        records: Vec<WorkBuddyUsageEventRecord>,
         warnings: ProjectJsonlWarnings,
     ) -> Self {
         Self {
@@ -53,7 +53,7 @@ impl ParsedFile {
     }
 
     /// 仅当文件戳与路径派生属性都相同才视为同一份解析输入。
-    fn matches(&self, stamp: &FileStamp, source: &WorkbuddyProjectFile) -> bool {
+    fn matches(&self, stamp: &FileStamp, source: &WorkBuddyProjectFile) -> bool {
         self.stamp.is_cacheable() && stamp.is_cacheable() && self.stamp == *stamp
             && self.origin == source.origin
             && self.relative_key == source.relative_key
@@ -74,7 +74,7 @@ fn entries() -> &'static Mutex<Entries> {
 pub(super) fn lookup(
     root_id: &str,
     stamp: &FileStamp,
-    source: &WorkbuddyProjectFile,
+    source: &WorkBuddyProjectFile,
 ) -> Option<Arc<ParsedFile>> {
     let entries = entries().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     entries

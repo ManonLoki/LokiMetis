@@ -344,6 +344,6 @@ fn provider_fingerprint_label(provider: ProviderKind) -> &'static str {
         ProviderKind::ClaudeTranscriptJsonl => "claudeTranscriptJsonl",
         ProviderKind::GrokSessionJsonl => "grokSessionJsonl",
         ProviderKind::CombinedLocalAgents => "combinedLocalAgents",
-        ProviderKind::WorkbuddyProjectJsonl => "workbuddyProjectJsonl",
+        ProviderKind::WorkBuddyProjectJsonl => "workbuddyProjectJsonl",
     }
 }

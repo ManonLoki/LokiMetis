@@ -18,19 +18,19 @@ use crate::{
     UsageStatisticsPage,
 };
 
-pub use hourly::{WorkbuddyHourlyBucket, WorkbuddyHourlyTrend};
-pub use model_usage::{WorkbuddyModelUsageGroup, WorkbuddyModelUsageWindow};
-pub use record::{WorkbuddyUsageEventRecord, WorkbuddyUsageOrigin, WorkbuddyUsageQuality};
+pub use hourly::{WorkBuddyHourlyBucket, WorkBuddyHourlyTrend};
+pub use model_usage::{WorkBuddyModelUsageGroup, WorkBuddyModelUsageWindow};
+pub use record::{WorkBuddyUsageEventRecord, WorkBuddyUsageOrigin, WorkBuddyUsageQuality};
 use windows::average_or_zero;
 pub use windows::{
-    WorkbuddyWindowAggregate, build_workbuddy_only_local_windows, complete_workbuddy_coverage,
+    WorkBuddyWindowAggregate, build_workbuddy_only_local_windows, complete_workbuddy_coverage,
     mark_workbuddy_unavailable_in_local_windows, merge_workbuddy_into_local_windows,
 };
 
 /// Trace 整体状态；只作为独立健康诊断，不参与 Token 或模型统计。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WorkbuddyTraceStatus {
+pub enum WorkBuddyTraceStatus {
     /// trace 内全部 span 正常完成。
     Ok,
     /// trace 内出现未捕获错误。
@@ -41,19 +41,19 @@ pub enum WorkbuddyTraceStatus {
 
 /// 单条 trace 的最小诊断字段。
 #[derive(Debug, Clone, PartialEq)]
-pub struct WorkbuddyTraceRecord {
+pub struct WorkBuddyTraceRecord {
     /// trace 起始时刻的 Unix 毫秒时间戳。
     pub started_at_epoch_ms: i64,
     /// trace 总耗时，单位毫秒。
     pub duration_ms: i64,
     /// trace 整体状态。
-    pub status: WorkbuddyTraceStatus,
+    pub status: WorkBuddyTraceStatus,
 }
 
 /// 单日 WorkBuddy 请求、会话、Token、积分与 Trace 诊断。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkbuddyDailyBucket {
+pub struct WorkBuddyDailyBucket {
     /// 查看时间标准下的民用日期，格式 `YYYY-MM-DD`。
     pub date: String,
     /// 当日产生过请求的去重会话数量。
@@ -93,7 +93,7 @@ pub struct WorkbuddyDailyBucket {
 /// WorkBuddy 本地统计快照；所有用量字段来自同一批 project JSONL 事件。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkbuddyStatisticsSnapshot {
+pub struct WorkBuddyStatisticsSnapshot {
     /// 全历史产生过用量的去重会话总数。
     pub total_sessions: u64,
     /// 全历史上游请求总数。
@@ -117,11 +117,11 @@ pub struct WorkbuddyStatisticsSnapshot {
     /// 去重会话按首末请求计算的平均时长，单位秒。
     pub average_session_duration_seconds: f64,
     /// 按查看时间标准民用日升序排列的每日分布。
-    pub daily_buckets: Vec<WorkbuddyDailyBucket>,
+    pub daily_buckets: Vec<WorkBuddyDailyBucket>,
     /// 六个日历窗口的精确请求用量。
-    pub windows: Vec<WorkbuddyWindowAggregate>,
+    pub windows: Vec<WorkBuddyWindowAggregate>,
     /// 今日与昨日的固定 24 小时趋势。
-    pub hourly_trends: Vec<WorkbuddyHourlyTrend>,
+    pub hourly_trends: Vec<WorkBuddyHourlyTrend>,
     /// trace 诊断记录总数。
     pub trace_total_count: u64,
     /// 错误 trace 数量。
@@ -138,14 +138,14 @@ pub struct WorkbuddyStatisticsSnapshot {
 
 /// core 内部去重会话的首末请求时刻。
 #[derive(Debug, Clone, Copy)]
-struct WorkbuddySessionTiming {
+struct WorkBuddySessionTiming {
     /// 会话内最早请求的 Unix 毫秒时间戳。
     first_epoch_ms: i64,
     /// 会话内最晚请求的 Unix 毫秒时间戳，不早于 `first_epoch_ms`。
     last_epoch_ms: i64,
 }
 
-impl WorkbuddySessionTiming {
+impl WorkBuddySessionTiming {
     /// 使用新请求时间扩展会话边界。
     fn observe(&mut self, occurred_at_epoch_ms: i64) {
         self.first_epoch_ms = self.first_epoch_ms.min(occurred_at_epoch_ms);
@@ -163,10 +163,10 @@ impl WorkbuddySessionTiming {
 /// 按设备当地民用日计算统计快照；测试与无 adapter 调用使用完整覆盖。
 #[cfg(test)]
 fn compute_workbuddy_statistics(
-    records: &[WorkbuddyUsageEventRecord],
-    traces: &[WorkbuddyTraceRecord],
+    records: &[WorkBuddyUsageEventRecord],
+    traces: &[WorkBuddyTraceRecord],
     now_epoch_ms: i64,
-) -> WorkbuddyStatisticsSnapshot {
+) -> WorkBuddyStatisticsSnapshot {
     compute_workbuddy_statistics_with_standard(
         records,
         traces,
@@ -186,7 +186,7 @@ fn compute_workbuddy_statistics(
 /// 两条根都要出现，缺失任一别名会返回错误而不是产生无名来源。
 #[allow(clippy::too_many_arguments)]
 pub fn build_workbuddy_usage_details(
-    records: &[WorkbuddyUsageEventRecord],
+    records: &[WorkBuddyUsageEventRecord],
     coverage: &CoverageReport,
     root_aliases: &BTreeMap<String, String>,
     window: LocalUsageWindow,
@@ -194,7 +194,7 @@ pub fn build_workbuddy_usage_details(
     observed_at_epoch_ms: i64,
     time_standard: &TimeStandard,
     device_tz: &TimeZone,
-) -> Result<(UsageStatisticsPage, WorkbuddyModelUsageWindow), String> {
+) -> Result<(UsageStatisticsPage, WorkBuddyModelUsageWindow), String> {
     let (records, quality) = record::prepare_workbuddy_usage_records(records);
     let coverage = coverage_with_quality(coverage, quality);
     let statistics = usage_page::build_workbuddy_usage_statistics(
@@ -258,18 +258,18 @@ pub fn combine_workbuddy_root_coverage(reports: &[CoverageReport]) -> CoverageRe
 
 /// 按逐请求用量与独立 Trace 诊断生成完整快照。
 pub fn compute_workbuddy_statistics_with_standard(
-    records: &[WorkbuddyUsageEventRecord],
-    traces: &[WorkbuddyTraceRecord],
+    records: &[WorkBuddyUsageEventRecord],
+    traces: &[WorkBuddyTraceRecord],
     coverage: &CoverageReport,
     now_epoch_ms: i64,
     time_standard: &TimeStandard,
     device_tz: &TimeZone,
-) -> WorkbuddyStatisticsSnapshot {
+) -> WorkBuddyStatisticsSnapshot {
     let (records, quality) = record::prepare_workbuddy_usage_records(records);
     let coverage = coverage_with_quality(coverage, quality);
-    let mut daily = BTreeMap::<Date, WorkbuddyDailyBucket>::new();
+    let mut daily = BTreeMap::<Date, WorkBuddyDailyBucket>::new();
     let mut sessions_by_day = BTreeMap::<Date, BTreeSet<&str>>::new();
-    let mut session_timings = BTreeMap::<&str, WorkbuddySessionTiming>::new();
+    let mut session_timings = BTreeMap::<&str, WorkBuddySessionTiming>::new();
     let mut total_requests = 0_u64;
     let mut top_level_requests = 0_u64;
     let mut subagent_requests = 0_u64;
@@ -283,17 +283,17 @@ pub fn compute_workbuddy_statistics_with_standard(
         session_timings
             .entry(record.session_key.as_str())
             .and_modify(|timing| timing.observe(record.occurred_at_epoch_ms))
-            .or_insert(WorkbuddySessionTiming {
+            .or_insert(WorkBuddySessionTiming {
                 first_epoch_ms: record.occurred_at_epoch_ms,
                 last_epoch_ms: record.occurred_at_epoch_ms,
             });
         let request_count = u64::from(record.request_count);
         total_requests = total_requests.saturating_add(request_count);
         match record.origin {
-            WorkbuddyUsageOrigin::TopLevel => {
+            WorkBuddyUsageOrigin::TopLevel => {
                 top_level_requests = top_level_requests.saturating_add(request_count);
             }
-            WorkbuddyUsageOrigin::Subagent => {
+            WorkBuddyUsageOrigin::Subagent => {
                 subagent_requests = subagent_requests.saturating_add(request_count);
             }
         }
@@ -318,11 +318,11 @@ pub fn compute_workbuddy_statistics_with_standard(
             .or_insert_with(|| empty_daily_bucket(date));
         bucket.request_count = bucket.request_count.saturating_add(request_count);
         match record.origin {
-            WorkbuddyUsageOrigin::TopLevel => {
+            WorkBuddyUsageOrigin::TopLevel => {
                 bucket.top_level_request_count =
                     bucket.top_level_request_count.saturating_add(request_count);
             }
-            WorkbuddyUsageOrigin::Subagent => {
+            WorkBuddyUsageOrigin::Subagent => {
                 bucket.subagent_request_count =
                     bucket.subagent_request_count.saturating_add(request_count);
             }
@@ -358,13 +358,13 @@ pub fn compute_workbuddy_statistics_with_standard(
             .or_insert_with(|| empty_daily_bucket(date));
         bucket.trace_total_count = bucket.trace_total_count.saturating_add(1);
         match trace.status {
-            WorkbuddyTraceStatus::Error => {
+            WorkBuddyTraceStatus::Error => {
                 bucket.trace_error_count = bucket.trace_error_count.saturating_add(1);
             }
-            WorkbuddyTraceStatus::Cancelled => {
+            WorkBuddyTraceStatus::Cancelled => {
                 bucket.trace_cancelled_count = bucket.trace_cancelled_count.saturating_add(1);
             }
-            WorkbuddyTraceStatus::Ok => {}
+            WorkBuddyTraceStatus::Ok => {}
         }
         bucket.trace_duration_sum_ms = bucket
             .trace_duration_sum_ms
@@ -393,14 +393,14 @@ pub fn compute_workbuddy_statistics_with_standard(
     let trace_error_count = u64::try_from(
         traces
             .iter()
-            .filter(|trace| trace.status == WorkbuddyTraceStatus::Error)
+            .filter(|trace| trace.status == WorkBuddyTraceStatus::Error)
             .count(),
     )
     .unwrap_or(u64::MAX);
     let trace_cancelled_count = u64::try_from(
         traces
             .iter()
-            .filter(|trace| trace.status == WorkbuddyTraceStatus::Cancelled)
+            .filter(|trace| trace.status == WorkBuddyTraceStatus::Cancelled)
             .count(),
     )
     .unwrap_or(u64::MAX);
@@ -408,7 +408,7 @@ pub fn compute_workbuddy_statistics_with_standard(
         sum.saturating_add(trace.duration_ms.max(0))
     });
     let trace_average_duration_ms = average_or_zero(trace_duration_sum_ms, trace_total_count, 1.0);
-    let daily_buckets: Vec<WorkbuddyDailyBucket> = daily.into_values().collect();
+    let daily_buckets: Vec<WorkBuddyDailyBucket> = daily.into_values().collect();
     let windows = windows::workbuddy_windows_from_usage(
         &records,
         &session_timings,
@@ -420,7 +420,7 @@ pub fn compute_workbuddy_statistics_with_standard(
     .unwrap_or_default();
     let hourly_trends =
         hourly::build_workbuddy_hourly_trends(&records, now_epoch_ms, time_standard, device_tz);
-    WorkbuddyStatisticsSnapshot {
+    WorkBuddyStatisticsSnapshot {
         total_sessions,
         total_requests,
         top_level_requests,
@@ -447,7 +447,7 @@ pub fn compute_workbuddy_statistics_with_standard(
 /// 只把影响 Token 完整性的记录错误计入 coverage；积分缺失由 Option 单独表达。
 fn coverage_with_quality(
     coverage: &CoverageReport,
-    quality: WorkbuddyUsageQuality,
+    quality: WorkBuddyUsageQuality,
 ) -> CoverageReport {
     let mut coverage = coverage.clone();
     let warnings = quality
@@ -461,8 +461,8 @@ fn coverage_with_quality(
 }
 
 /// 为指定民用日构造全零日桶。
-fn empty_daily_bucket(date: Date) -> WorkbuddyDailyBucket {
-    WorkbuddyDailyBucket {
+fn empty_daily_bucket(date: Date) -> WorkBuddyDailyBucket {
+    WorkBuddyDailyBucket {
         date: date.to_string(),
         session_count: 0,
         request_count: 0,

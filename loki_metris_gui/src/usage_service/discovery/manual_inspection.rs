@@ -255,7 +255,7 @@ fn inspect_selected_path(
             let mut budget = ClaudeSignatureBudget::new(options, cancellation);
             classify_claude_inspection(path, inspect_claude_root(path, &mut budget))
         }
-        SourceClientKind::GrokBuildCli => {
+        SourceClientKind::Grok => {
             let mut budget =
                 crate::backend::local_index::GrokSignatureBudget::new(options, cancellation);
             classify_grok_inspection(

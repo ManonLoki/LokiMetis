@@ -206,12 +206,12 @@ impl Shell {
                 .tooltip(move|window,cx|gpui_kit::component::tooltip::Tooltip::new(title.clone()).build(window,cx)).child(value))
         };
         let mut row=BrandTableRow::new(SharedString::from(format!("calls-row-{:?}-{}",item.client,item.id)),cx.theme().mode.is_dark());
-        if all {row=row.child(text_cell(0,match item.client {SourceClientKind::Codex=>"Codex",SourceClientKind::ClaudeCode=>"Claude Code",SourceClientKind::GrokBuildCli=>"Grok",SourceClientKind::WorkBuddy=>"WorkBuddy"}.into()));}
+        if all {row=row.child(text_cell(0,item.client.display_name().into()));}
         row=row.child(text_cell(1,format::observed(item.occurred_at_epoch_ms,self.locale)))
             .child(text_cell(2,self.display_label(&item.project_label,item.project_label_code)))
             .child(text_cell(3,self.display_label(&item.thread_label,item.thread_label_code)))
             .child(text_cell(4,self.display_label(&item.model_label,item.model_label_code)))
-            .child(text_cell(5,if item.client==SourceClientKind::GrokBuildCli {self.t("dashboard.not_provided")}else{self.display_label(&item.reasoning_effort_label,item.reasoning_effort_label_code)}));
+            .child(text_cell(5,if item.client==SourceClientKind::Grok {self.t("dashboard.not_provided")}else{self.display_label(&item.reasoning_effort_label,item.reasoning_effort_label_code)}));
         let tokens=&item.fact.value;
         for (offset,value) in [Some(tokens.input_tokens),Some(tokens.total_tokens),tokens.cached_input_tokens,tokens.cache_write_input_tokens,
             item.uncached_input_tokens,Some(tokens.output_tokens),tokens.reasoning_output_tokens].into_iter().enumerate() {

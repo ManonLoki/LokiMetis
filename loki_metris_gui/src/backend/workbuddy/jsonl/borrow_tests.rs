@@ -3,12 +3,12 @@
 use super::*;
 
 /// 只用于行投影，不创建文件或读取真实用户目录。
-fn source() -> WorkbuddyProjectFile {
-    WorkbuddyProjectFile {
+fn source() -> WorkBuddyProjectFile {
+    WorkBuddyProjectFile {
         path: "unused.jsonl".into(),
         relative_key: "project/session.jsonl".into(),
         project_key_material: "project".into(),
-        origin: loki_metris_core::WorkbuddyUsageOrigin::TopLevel,
+        origin: loki_metris_core::WorkBuddyUsageOrigin::TopLevel,
     }
 }
 

@@ -6,7 +6,7 @@ use jiff::civil::Date;
 use jiff::tz::TimeZone;
 
 use super::record::ValidatedWorkbuddyUsageRecord;
-use super::{WorkbuddyDailyBucket, WorkbuddySessionTiming};
+use super::{WorkBuddyDailyBucket, WorkBuddySessionTiming};
 use crate::{
     Completeness, Confidence, CoverageReport, CoverageState, LocalIndexState, LocalRecordsSummary,
     LocalUsageWindow, MetricFact, MetricScope, ProviderKind, TimeStandard, TimelineError,
@@ -17,7 +17,7 @@ use crate::{
 /// 单个日历窗口的 WorkBuddy 精确请求用量、会话与 Trace 诊断。
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkbuddyWindowAggregate {
+pub struct WorkBuddyWindowAggregate {
     /// 六个固定日历窗口之一。
     pub window: LocalUsageWindow,
     /// 窗口内产生过请求的去重会话数量。
@@ -61,19 +61,19 @@ pub struct WorkbuddyWindowAggregate {
 /// 按查看时间标准把逐请求记录折叠成六个可对账窗口。
 pub(super) fn workbuddy_windows_from_usage(
     records: &[ValidatedWorkbuddyUsageRecord],
-    session_timings: &BTreeMap<&str, WorkbuddySessionTiming>,
-    buckets: &[WorkbuddyDailyBucket],
+    session_timings: &BTreeMap<&str, WorkBuddySessionTiming>,
+    buckets: &[WorkBuddyDailyBucket],
     observed_at_epoch_ms: i64,
     time_standard: &TimeStandard,
     device_tz: &TimeZone,
-) -> Result<Vec<WorkbuddyWindowAggregate>, TimelineError> {
+) -> Result<Vec<WorkBuddyWindowAggregate>, TimelineError> {
     let today = civil_date_for_timestamp(observed_at_epoch_ms, time_standard, device_tz)
         .ok_or(TimelineError::InvalidObservedTimestamp)?;
     LocalUsageWindow::OVERVIEW_WINDOWS
         .into_iter()
         .map(|window| {
             let (from, to) = inclusive_calendar_range(window, today)?;
-            let mut aggregate = WorkbuddyWindowAggregate {
+            let mut aggregate = WorkBuddyWindowAggregate {
                 window,
                 session_count: 0,
                 request_count: 0,
@@ -159,7 +159,7 @@ pub(super) fn workbuddy_windows_from_usage(
                 sum.saturating_add(
                     session_timings
                         .get(*session_key)
-                        .map_or(0, WorkbuddySessionTiming::duration_ms),
+                        .map_or(0, WorkBuddySessionTiming::duration_ms),
                 )
             });
             aggregate.average_session_duration_seconds =
@@ -174,7 +174,7 @@ pub(super) fn workbuddy_windows_from_usage(
 /// 把 WorkBuddy 精确输入/缓存/输出/总量与请求数并入已有本机概览。
 pub fn merge_workbuddy_into_local_windows(
     mut summary: LocalRecordsSummary,
-    workbuddy_windows: &[WorkbuddyWindowAggregate],
+    workbuddy_windows: &[WorkBuddyWindowAggregate],
     coverage: &CoverageReport,
 ) -> LocalRecordsSummary {
     if summary.index_state == LocalIndexState::ReadyNoCalls
@@ -246,7 +246,7 @@ pub fn mark_workbuddy_unavailable_in_local_windows(
 
 /// 在没有任何物理 Agent 开启、仅 WorkBuddy 可用时构造「全部」六个窗口。
 pub fn build_workbuddy_only_local_windows(
-    workbuddy_windows: &[WorkbuddyWindowAggregate],
+    workbuddy_windows: &[WorkBuddyWindowAggregate],
     coverage: &CoverageReport,
     observed_at_epoch_ms: i64,
     provider: ProviderKind,
@@ -280,7 +280,7 @@ pub fn build_workbuddy_only_local_windows(
                     completeness,
                     confidence,
                     Some(match provider {
-                        ProviderKind::WorkbuddyProjectJsonl => "workbuddy-project-jsonl".to_owned(),
+                        ProviderKind::WorkBuddyProjectJsonl => "workbuddy-project-jsonl".to_owned(),
                         ProviderKind::CombinedLocalAgents => {
                             "combined-local-agents-workbuddy".to_owned()
                         }
@@ -298,7 +298,7 @@ pub fn build_workbuddy_only_local_windows(
 
 /// 把一个 WorkBuddy 窗口映射成通用本机聚合。
 fn aggregate_from_workbuddy_window(
-    window: &WorkbuddyWindowAggregate,
+    window: &WorkBuddyWindowAggregate,
 ) -> crate::LocalUsageAggregate {
     let tokens = TokenUsage::new_with_availability(
         window.input_tokens,
