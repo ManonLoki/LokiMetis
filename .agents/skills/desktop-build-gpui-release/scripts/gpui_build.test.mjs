@@ -252,10 +252,10 @@ test('candidate manifest is pending and preserves release review plus explicit E
   assert.ok(fake.calls.find(item => item.program === 'cargo' && item.args[0] === 'build').settings.env.HARNESS_GPUI_RELEASE_NOTES_RS);
 });
 
-test('candidate requires fresh E2E choice and unsupported signing fails before tests', t => {
+test('candidate requires fresh E2E choice and incomplete signing fails before tests', t => {
   const f = fixture(t), fake = fakeRun(f);
   assert.throws(() => executeBuild({ ...candidateOptions(f.root),e2e: undefined },hooks(f,fake)),/explicit/);
-  assert.throws(() => executeBuild({ ...candidateOptions(f.root),signing: 'enabled',signingSource: 'requested' },hooks(f,fake)),/not implemented/);
+  assert.throws(() => executeBuild({ ...candidateOptions(f.root),signing: 'enabled',signingSource: 'requested' },hooks(f,fake)),/approved Developer ID/);
   assert.equal(fake.calls.some(item => item.program === 'cargo' && item.args[0] === 'test'),false);
   assert.throws(() => candidateSelection('disabled','',''),/reason/); assert.throws(() => signingChoice('enabled','not-requested'),/invalid/);
 });
@@ -297,10 +297,10 @@ test('macos_candidate_notification_profile_ambiguity_fails_before_tests', t => {
   }
 });
 
-/** 显式签名仍进入现有未实现阻断，不能把通知要求转换成假签名或 unsigned 回退。 */
+/** 显式签名缺少批准身份仍失败关闭，不能把通知要求转换成假签名或 unsigned 回退。 */
 test('macos_notification_candidate_enabled_signing_still_fails_closed', t => {
   const f = fixture(t,{ systemNotification: 'enabled' }), fake = fakeRun(f);
-  assert.throws(() => executeBuild({ ...candidateOptions(f.root),signing: 'enabled',signingSource: 'requested' },hooks(f,fake)),/signing\/notarization is not implemented/u);
+  assert.throws(() => executeBuild({ ...candidateOptions(f.root),signing: 'enabled',signingSource: 'requested' },hooks(f,fake)),/approved Developer ID/u);
   assert.ok(fake.calls.every(item => item.program === 'git' || (item.program === 'cargo' && item.args[0] === 'metadata')));
   assert.equal(fs.existsSync(path.join(f.root,'release')),false);
 });

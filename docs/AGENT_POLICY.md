@@ -8,7 +8,7 @@ user_owned_tasks: disabled
 parallel_worktree_subagents: disabled
 acceptance_smoke: enabled
 e2e_hint: disabled
-post_release_action: local_package
+post_release_action: push_release_branch
 ---
 
 # Agent 运行策略
@@ -40,7 +40,7 @@ Task 标题、编号、四种进度及真实绑定的操作合同统一见 `$des
 - 首次真实开发才创建 Git common dir 的 agent-first-harness/git-lifecycle.json，精确登记分支、Worktree 与发布进度；不扫描或删除链外资源，不设置保护分支、严格线性、fast-forward-only、lease 或 atomic push。
 - 明确发布时先提交源码/已触发记录并冻结 sourceHead，再生成双语 release-notes.json 与 .harness/release-context.json；这两份是唯一发布元数据提交内容。release 必须传精确 --release-context-sha256，普通合并登记分支到本地默认主分支，创建并复读 v{版本}-{YYYYMMDD} 指向最终 HEAD。
 - 本地默认主分支与 tag 精确一致即完成 Git 发布；这一步不 fetch、push、打包或清理登记资源。下一开发分支复核主分支/tag 后才 finalize-release 复位版本周期。
-- Git 发布开始时冻结已确认的 `post_release_action`，保存为生命周期 pending/last release 的 postReleaseAction；重试消费原快照，未来切换不改旧发布。当前 local_package 随后进入 GPUI 打包 Skill，并检测实际结果；失败不撤销 Git 发布，但不得声称后续流程完成。
+- Git 发布开始时冻结已确认的 `post_release_action`，保存为生命周期 pending/last release 的 postReleaseAction；重试消费原快照，未来切换不改旧发布。当前 push_release_branch 随后同步远端三引用，再按[GitHub Actions 发布](GITHUB_RELEASE.md)的固定目标构建并上传 GitHub Release；失败不撤销 Git 发布，但不得声称后续流程完成。
 - 若未来明确切换 push_release_branch，则独立 `push-release --remote <name>` 从最近发布记录读取固定 HEAD/tag，安全创建或快进本地小写 release 分支，非强制推送具名远端默认主分支、`release` 分支和 tag，三者逐项复读。一个远端可复用，多个须明确选择；缺少远端/凭据时停止，不创建配置或凭据。
 - 普通 publish 仅用于用户明确要求的发布前主分支推送，不创建 tag、不替代发布后推送。发布不自动删除分支或 Worktree，清理由独立请求触发。
 

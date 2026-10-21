@@ -14,7 +14,7 @@ Minor/Patch 为 0..99 base-100，自动进位不等同显式 Major 授权，Majo
 2. 根 release-notes.json 首次正式发布准备才创建，schemaVersion 2，最新在前，含当前版最近十个实际版本，每版功能优化/问题修复各最多十个中英翻译对；缺语言/空白/重复失败关闭。普通修复即使不触发 Changelog 仍进发布日志，不复制历史。
 3. sourceHead 仍精确等于 HEAD 时生成 .harness/release-context.json，与且仅与发布日志同次提交；上下文保存版本/日期/默认主分支/预期 tag/源码身份/审查，不保存候选签名或推送位置。启用审查绑定 sourceHead 的范围证据；关闭保留 Not run 原因和风险。
 4. 生命周期 release 收到精确 --release-context-sha256，普通合并已登记分支至本地默认主分支，创建并复读 v{版本}-{YYYYMMDD} 指向最终 HEAD。主分支/tag/上下文一致即 Git 发布完成，不 fetch/push/打包/清理资源。sourceHead 是审查输入，sourceCommit 是最终发布提交，二者不要求相等。
-5. 发布开始冻结 Policy 的 post_release_action；当前 local_package 随后进入 GPUI candidate 模式并检测真实结果，失败保留 Git 发布事实。未来切换不改旧发布。若切换 push_release_branch，另行安全推送默认主分支、小写 release 和 tag 并逐项复读，不创建远端/凭据。
+5. 发布开始冻结 Policy 的 post_release_action；当前 push_release_branch 安全推送默认主分支、小写 release 和 tag 并逐项复读，再按[GitHub Actions 发布](GITHUB_RELEASE.md)在原生 runner 构建固定桌面矩阵并上传 GitHub Release；失败保留 Git 发布事实。未来切换不改旧发布，不创建新的远端或未经批准的凭据。
 
 ## 本地试包与候选
 
@@ -24,9 +24,9 @@ macOS local 试包对完整 App 进行无证书 ad-hoc 签名并验证稳定身�
 
 candidate 模式只接受 clean 已发布默认主分支/tag，构建前及写 manifest 前复核上下文摘要/提交/tag/审查选择一致。每次先单独解析当前 E2E；产品/渠道硬要求优先，否则复用请求或以 e2e_hint 建议询问。全 workspace/all-targets/all-features 非空测试失败即阻断。依赖锁 ignored 不冻结，tracked 先核对跟踪与清单一致后冻结。
 
-macOS 在原生宿主形成 app/DMG，Windows x64 NSIS 在真实 Windows 宿主形成；Linux GNU x64/ARM64形成deb/tar.gz，允许同系统跨架构构建。GPUI不复用Tauri/xwin管线。签名缺省disabled/not-requested，不主动探测本机身份；来源优先级channel-required > requested > configured。当前GPUI工具未实现macOS Developer ID签名/公证/stapling及Linux签名，启用请求或渠道硬要求必须在测试前阻断，不能声称这些路径已完成。Windows仅在明确启用且已有批准证书指纹/时间戳配置时执行signtool签名与验证。渠道资格、商店、签名与第三方NOTICE依据当次明确要求核对，不虚构凭据或渠道授权。
+macOS 在原生宿主形成 app/DMG，Windows x64 NSIS 在真实 Windows 宿主形成；Linux GNU x64/ARM64形成deb/tar.gz，允许同系统跨架构构建。GPUI不复用Tauri/xwin管线。签名缺省disabled/not-requested，不主动探测本机身份；来源优先级channel-required > requested > configured。macOS正式签名使用已批准Developer ID及显式公证认证，App和DMG分别复读Apple Accepted回执、附票及Gatekeeper校验；缺凭据在测试前阻断，失败不降级。Linux签名仍未实现，启用请求必须在测试前阻断。Windows仅在明确启用且已有批准证书指纹/时间戳配置时执行signtool签名与验证。渠道资格、商店、签名与第三方NOTICE依据当次明确要求核对，不虚构凭据或渠道授权。
 
-当前项目的macOS正式候选还受系统通知门禁阻断：profile中`system_notification: enabled`要求candidate显式启用签名，而工具尚未实现该签名路径，因此disabled与enabled都不能生成该候选；local ad-hoc试包仍按上节执行。Windows的`windows.extractor`当前为null，NSIS正式候选同样须先有已批准的项目内解包器；普通local试包不因此升级为已验收候选。不能通过文档同步、关闭硬门禁或沿用旧产物声称这些候选已可用。
+profile中`system_notification: enabled`要求macOS candidate显式启用正式签名，不能关闭通知或沿用旧产物绕过。Windows的`windows.extractor`已选择全局`7z`，候选必须真实解包最终NSIS并核对二进制、日志、双语许可证和全部资源；该校验不表示安装或交互验收通过。local ad-hoc试包继续沿用上节合同。
 
 候选包含用户可访问的两份完整商业许可证，名称与当前身份一致；第三方许可/NOTICE 单独核对，不被专有许可覆盖。固定母版衍生 ICNS/ICO、660×400 中性 DMG 背景按 GPUI packaging 配置读取；macOS 最终 DMG 只读挂载核对唯一 app、背景、Applications 目标、DS_Store 以及发布日志资源字节。任何后补布局/签名/重包都重新算摘要和验收。
 

@@ -25,12 +25,12 @@
     },
     "agent": true,
     "minimumSystemVersion": "12.0",
-    "signingIdentity": null,
+    "signingIdentity": "Developer ID Application: Manon Loki (GKVE4TEFQ6)",
     "background": "packaging/macos/background.png"
   },
   "windows": {
     "signing": null,
-    "extractor": null
+    "extractor": "7z"
   },
   "resources": [
     {"source": "loki_metris_gui/resources", "macos": "skins", "windows": "resources/skins", "linux": "resources/skins"},

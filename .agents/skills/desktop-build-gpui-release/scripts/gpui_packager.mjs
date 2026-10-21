@@ -6,6 +6,7 @@ import { findGlobalTool } from './gpui_global_tools.mjs';
 import { TARGETS } from './gpui_config.mjs';
 import { writeNsisTemplate } from './gpui_nsis.mjs';
 import { localDmgSigningHook, macosAgentPlist, verifyLocalBundle } from './gpui_macos_identity.mjs';
+import { finalizeMacosSigning, verifyDeveloperSignature } from './gpui_macos_notarization.mjs';
 
 /** 生成工具配置而不运行用户 hook，不继承未批准的自动签名配置。 */
 export function packagerConfig({ root, work, config, facts, target, format, resources, signing, localAdhoc = false, binarySha256 }) {
@@ -50,7 +51,7 @@ export function signingChoice(selection, source = 'not-requested') {
 }
 
 /** macOS 签名后只有完整公证、stapling 和验证成功才产生候选。 */
-export function finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc = false }) {
+export function finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc = false, packageResult }) {
   if (localAdhoc) {
     verifyLocalBundle(run, app, config.identifier, env);
     return { signingStatus: 'ad-hoc', notarizationStatus: 'not-run', signingEvidence: { ...signing, status: 'verified-local-adhoc', remainingRisk: 'Local bundle identity only; notification permission, delivery and distribution trust remain unverified.' } };
@@ -63,7 +64,7 @@ export function finalizeSigning({ run, config, signing, format, artifact, app, e
     run('signtool', ['verify','/pa','/all',artifact], { env, quiet: true });
     return { signingStatus: 'signed', notarizationStatus: 'not-applicable', signingEvidence: { ...signing, status: 'verified-authenticode' } };
   }
-  throw new Error('GPUI macOS signing/notarization is unavailable; enabled selection fails closed');
+  return finalizeMacosSigning({ run, config, format, artifact, app, env, packageResult });
 }
 
 /** 包内资源必须保持源字节，候选每份许可证与更新日志都核对。 */
@@ -87,7 +88,7 @@ export function verifyMacIdentity(run, app, config, facts) {
 }
 
 /** 最终 DMG 只读挂载；不接受 SLA、不修改布局或候选字节。 */
-export function verifyDmg({ run, artifact, mount, root, config, facts, resources, binarySha256, localAdhoc = false, env }) {
+export function verifyDmg({ run, artifact, mount, root, config, facts, resources, binarySha256, localAdhoc = false, env, developerSigned = false }) {
   fs.mkdirSync(mount);
   let attached = false;
   try {
@@ -98,6 +99,10 @@ export function verifyDmg({ run, artifact, mount, root, config, facts, resources
     const app = safePath(mount, apps[0], { type: 'directory' });
     verifyMacIdentity(run,app,config,facts);
     if (localAdhoc) verifyLocalBundle(run, app, config.identifier, env);
+    if (developerSigned) {
+      verifyDeveloperSignature(run, app, config, env);
+      run('xcrun',['stapler','validate',app],{ env, quiet: true });
+    }
     const store = safePath(mount, '.DS_Store', { type: 'file' });
     if (!fs.statSync(store).size) throw new Error('DMG Finder layout is missing');
     const background = safePath(mount, `.background/${path.basename(config.macos.background)}`, { type: 'file' });

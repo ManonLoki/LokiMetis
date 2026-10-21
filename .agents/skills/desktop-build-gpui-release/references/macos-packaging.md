@@ -13,7 +13,7 @@ pnpm run gpui:package build --root . --mode local --format dmg
 
 local 对完整 bundle 做无证书 ad-hoc 并验证 plist/identifier/资源封印。App ZIP 归档前签 bundle、解包后复核；DMG 的固定 hook 在封盘前签，记录签名前后 Mach-O 摘要，最终只读挂载再验证。该身份不等于 Developer ID、公证、系统通知授权或渠道信任。
 
-candidate 的正式 Developer ID 签名/公证尚未实现；启用请求或渠道要求在测试前阻断，不能降为 unsigned。profile 启用系统通知又要求 enabled signing 的候选因此不可形成；具体产品是否命中以其 profile 为准，不能关闭已批准能力绕过。
+candidate 显式启用签名时，要求配置批准的 Developer ID 身份，以及 LM_NOTARIZATION_KEY_PATH、LM_NOTARIZATION_KEY_ID、LM_NOTARIZATION_ISSUER 专用环境。缺失在测试前阻断。cargo-packager 先签名、公证并附票 App；本方复读 Apple 回执、日志及真实 CDHash，DMG再独立公证、附票及 Gatekeeper 校验，最终挂载复核签名和资源。失败不回退 unsigned。profile 启用系统通知时必须启用此正式路径。
 
 DMG Finder 布局限时十分钟，检查 .DS_Store、背景、唯一 .app、/Applications 目标与包内资源；没有可用 Finder 布局就失败。app.zip 使用系统 ditto 并实际解包核对。签名或最终资源变化都会形成新的候选字节。
 

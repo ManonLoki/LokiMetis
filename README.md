@@ -78,7 +78,7 @@ LOKI_METRIS_DATA_DIR="$PWD/target/parity-data" pnpm run dev
 - 版本只由 `$desktop-manage-version` 在真实变化完成并通过相关测试后提交。
 - 正式候选必须来自干净且明确的源码提交，产物写入被忽略的 `release/`。
 - 调试预览不构成安装包或最终候选验收。
-- tag、push、上传、签名、公证和渠道发布均需要各自明确授权。
+- 正式桌面发布已固定采用[GitHub Actions与GitHub Release](docs/GITHUB_RELEASE.md)：Windows x64、macOS Apple Silicon公证DMG、Linux AMD64/ARM64 deb与tar.gz。候选验证和未执行项按各次真实证据报告。
 
 | 原生宿主 / 目标 | 本地试包命令 |
 | --- | --- |

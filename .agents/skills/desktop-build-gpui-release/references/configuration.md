@@ -46,7 +46,7 @@ pnpm run gpui:package --help
 - 可选 `releaseNotesUi` 必须为布尔值；`true` 表示设置页等关于页之外的入口也消费构建嵌入更新日志，候选仍必须检查二进制内的原始 JSON 字节。缺省保持原关于页判断；`false` 不能关闭已启用关于页的嵌入合同。普通本地试包不生成发布记录。
 - 测试前捕获排序文件清单及SHA-256，测试后、打包前和manifest前复算，Git忽略文件也参与漂移检测。复制和最终app/zip/DMG/NSIS核对相同摘要；资源根本身或其祖先为链接时拒绝。manifest的 `bundledResources` 记录目标路径与摘要；该证据不替代实际运行验收。
 - `windows.extractor` 仅可填写已批准全局 PATH 上的 `7z`、`7zr`、`7z.exe` 或 `7zr.exe` 命令名；调用协议为 `x -y -o<本次隔离目录> <最终NSIS>`。Skill 不下载安装它。支持哪种 NSIS 压缩由实际提取结果决定，解包失败或缺资源阻断候选。
-- `windows.signing` 启用时形如 `{ "certificateThumbprint": "40位十六进制公开指纹", "timestampUrl": "https://批准的时间戳服务" }`。证书只通过宿主已授权 store 使用，不保存私钥、密码或秘密路径。macOS Developer ID 签名公证当前不可用，填 `signingIdentity` 不会自动启用。
+- `windows.signing` 启用时形如 `{ "certificateThumbprint": "40位十六进制公开指纹", "timestampUrl": "https://批准的时间戳服务" }`。证书只通过宿主已授权 store 使用，不保存私钥、密码或秘密路径。macOS `signingIdentity` 只记录已批准公开身份，不会自动启用；显式签名还要求专用公证环境并通过完整 App/DMG 票据及最终资源校验。
 - `macos.agent` 为可选布尔值，缺省 false；true 使 App 的 `LSUIElement` 为 true，产品运行时仍须选择 Accessory 激活策略。local macOS 完整 bundle 始终使用无证书 ad-hoc 身份，manifest 的 `signingStatus: ad-hoc` 与 `signingEvidence.status: verified-local-adhoc` 不代表 Developer ID、公证或系统通知实测；候选原有签名门禁不变。
 - Cargo metadata 的 `rust-test-manifests` 默认 `["Cargo.toml"]`；每个独立 workspace 都须列出。`gui-root` 缺省从明确的 GUI package manifest 得出，根 package 可用 `"."`。`dependency-lock-policy` 缺省 `ignored`；`tracked` 走既有锁文件门禁，不生成或暂存锁文件。
 - 初始化器可调用 `scripts/gpui_icons.mjs` 的 `renderPlatformIcons(pngBytes)` 得到 `{macos,windows}` buffers，调用 `renderDmgBackground()` 得到中性背景 PNG；均为纯 Node 标准库，生成时组合到文件 Map，不自行覆盖现有工程。

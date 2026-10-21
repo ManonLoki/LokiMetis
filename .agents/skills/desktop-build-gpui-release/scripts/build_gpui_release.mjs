@@ -15,6 +15,7 @@ import { packagerConfig, packagePath, signingChoice, finalizeSigning, verifyReso
 import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable, stageResources } from './gpui_resources.mjs';
 import { signLocalBundle, verifyLocalBundle } from './gpui_macos_identity.mjs';
+import { notarizationEnvironment, verifyDeveloperSignature } from './gpui_macos_notarization.mjs';
 import { executeLinuxBuild } from './gpui_linux_build.mjs';
 import { findGlobalTool, requirePackager, setupPackager } from './gpui_global_tools.mjs';
 export { setupPackager } from './gpui_global_tools.mjs';
@@ -103,7 +104,7 @@ export function runWorkspaceTests(root, facts, run, env) {
 /** 清除可隐式影响签名和构建产物位置的环境，仅传本次明确选择。 */
 function buildEnvironment(config, target, cargoDirectory, candidate, notesPath, environment) {
   const env = { ...environment, CARGO_TARGET_DIR: cargoDirectory, CARGO_BUILD_TARGET: target };
-  for (const key of Object.keys(env)) if (key.startsWith('APPLE_') || key.startsWith('CARGO_PACKAGER_') || key === 'HARNESS_GPUI_RELEASE_NOTES_RS') delete env[key];
+  for (const key of Object.keys(env)) if (key.startsWith('APPLE_') || key.startsWith('LM_NOTARIZATION_') || key.startsWith('CARGO_PACKAGER_') || key === 'HARNESS_GPUI_RELEASE_NOTES_RS') delete env[key];
   if (candidate) env.HARNESS_GPUI_RELEASE_NOTES_RS = notesPath;
   if (TARGETS[target].platform === 'macos') env.MACOSX_DEPLOYMENT_TARGET = config.macos.minimumSystemVersion;
   return env;
@@ -146,7 +147,8 @@ export function executeBuild(options, hooks = {}) {
   const signing = signingChoice(options.signing ?? 'disabled',options.signingSource ?? 'not-requested');
   if (!candidate && signing.selection !== 'disabled') throw new Error('local packages must be explicitly unsigned');
   if (candidate && info.platform === 'macos') assertMacosNotificationSigning(root,signing);
-  if (info.platform === 'macos' && signing.selection === 'enabled') throw new Error('GPUI macOS signing/notarization is not implemented; enabled selection fails closed, never downgraded');
+  const macosSigning = info.platform === 'macos' && signing.selection === 'enabled';
+  if (macosSigning) notarizationEnvironment(config, environment);
   if (format === 'nsis' && signing.selection === 'enabled' && !config.windows.signing) throw new Error('Windows signing configuration is incomplete');
   const selections = candidate ? candidateSelection(options.e2e,options.e2eReason,options.e2eRisk) : null;
   if (candidate && format === 'nsis' && !config.windows.extractor) throw new Error('NSIS candidate requires an approved global 7z/7zr extractor');
@@ -202,11 +204,11 @@ export function executeBuild(options, hooks = {}) {
   const generated = packagerConfig({ root, work, config, facts, target, format, resources, signing, localAdhoc, binarySha256 });
   const packagerFile = path.join(work,'packager.json'); fs.writeFileSync(packagerFile,JSON.stringify(generated,null,2) + '\n',{ flag: 'wx' });
   // Finder 布局受打包超时限制，避免 CI 开关静默删除已要求的布局。
-  const packageEnv = { ...env }; if (format === 'dmg') delete packageEnv.CI; else packageEnv.CI = 'true';
+  const packageEnv = macosSigning ? notarizationEnvironment(config, { ...env, LM_NOTARIZATION_KEY_PATH: environment.LM_NOTARIZATION_KEY_PATH, LM_NOTARIZATION_KEY_ID: environment.LM_NOTARIZATION_KEY_ID, LM_NOTARIZATION_ISSUER: environment.LM_NOTARIZATION_ISSUER }) : { ...env }; if (format === 'dmg') delete packageEnv.CI; else packageEnv.CI = 'true';
   assertSourceStable(root,run,identity);
   assertResourcesStable(root,config,info.platform,candidate,resources);
   if (candidate && !isDeepStrictEqual((hooks.context ?? releasedContext)(root,facts),context)) throw new Error('release context changed before packaging');
-  run(tool,['--config',packagerFile],{ env: packageEnv, timeout: 10 * 60 * 1000 });
+  const packageResult = run(tool,['--config',packagerFile],{ env: packageEnv, quiet: macosSigning, timeout: (macosSigning ? 40 : 10) * 60 * 1000 });
   let artifact = packagePath(work,config,facts,target,format);
   const app = format === 'nsis' ? null : packagePath(work,config,facts,target,'app');
   if (app) {
@@ -217,13 +219,14 @@ export function executeBuild(options, hooks = {}) {
     if (localAdhoc && format === 'dmg') {
       const receipt = JSON.parse(fs.readFileSync(safePath(work, 'local-dmg-identity.json', { type: 'file' }), 'utf8'));
       if (receipt.before !== binarySha256 || receipt.after !== sha256(bundledBinary)) throw new Error('DMG bundle differs from the local signing receipt');
-    } else if (sha256(bundledBinary) !== binarySha256) throw new Error('app bundle binary differs from this build');
+    } else if (macosSigning) verifyDeveloperSignature(run, app, config, packageEnv);
+    else if (sha256(bundledBinary) !== binarySha256) throw new Error('app bundle binary differs from this build');
     if (localAdhoc && format === 'app') signLocalBundle(run, app, config.identifier, env);
     binarySha256 = sha256(bundledBinary);
   }
-  const signingResult = finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc });
+  const signingResult = finalizeSigning({ run, config, signing, format, artifact, app, env: packageEnv, localAdhoc, packageResult });
   let resourceVerification = format === 'nsis' ? 'Unverified' : 'app-bundle-byte-identical';
-  if (format === 'dmg') resourceVerification = verifyDmg({ run, artifact, mount: path.join(work,'mount'), root, config, facts, resources, binarySha256, localAdhoc, env });
+  if (format === 'dmg') resourceVerification = verifyDmg({ run, artifact, mount: path.join(work,'mount'), root, config, facts, resources, binarySha256, localAdhoc, env: packageEnv, developerSigned: macosSigning });
   if (candidate && format === 'nsis') resourceVerification = verifyNsis({ run, root, config, artifact, destination: path.join(work,'extracted'), resources, binarySha256, environment, platform });
   const extension = format === 'app' ? 'app.zip' : format === 'dmg' ? 'dmg' : 'exe';
   const filename = `${facts.project.replaceAll('_','-')}-v${facts.version}-${info.platform}-${info.arch}.${extension}`;
@@ -234,6 +237,10 @@ export function executeBuild(options, hooks = {}) {
     const extractedApp = safePath(extracted,`${config.productName}.app`,{ type: 'directory' });
     verifyMacIdentity(run,extractedApp,config,facts);
     if (localAdhoc) verifyLocalBundle(run, extractedApp, config.identifier, env);
+    if (macosSigning) {
+      verifyDeveloperSignature(run, extractedApp, config, packageEnv);
+      run('xcrun',['stapler','validate',extractedApp],{ env: packageEnv, quiet: true });
+    }
     verifyResources(path.join(extractedApp,'Contents','Resources'),root,resources);
     if (sha256(safePath(extractedApp,`Contents/MacOS/${config.binary}`,{ type: 'file' })) !== binarySha256) throw new Error('app archive binary differs from this build');
     resourceVerification = 'final-app-archive-byte-identical';

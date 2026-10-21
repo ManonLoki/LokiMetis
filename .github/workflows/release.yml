@@ -1,0 +1,154 @@
+name: Release desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Exact published release tag
+        required: true
+        type: string
+      e2e:
+        description: Explicit E2E choice for this candidate (enabled requires final acceptance before publication)
+        required: true
+        type: choice
+        options: [disabled, enabled]
+
+concurrency:
+  group: desktop-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  E2E_SELECTION: ${{ inputs.e2e }}
+  CARGO_BUILD_JOBS: '2'
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            formats: nsis
+          - name: macos-arm64-notarized
+            runner: macos-15
+            target: aarch64-apple-darwin
+            formats: dmg
+          - name: linux-amd64
+            runner: ubuntu-26.04
+            target: x86_64-unknown-linux-gnu
+            formats: deb,tar.gz
+          - name: linux-arm64
+            runner: ubuntu-26.04-arm
+            target: aarch64-unknown-linux-gnu
+            formats: deb,tar.gz
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.21.0'
+      - name: Verify release identity
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/github_release.mjs prepare "$RELEASE_TAG"
+      - name: Install declared toolchain
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+          rustup target add '${{ matrix.target }}'
+          npm install --global pnpm@12.4.1
+          command -v node pnpm cargo rustc
+          node --version
+          pnpm --version
+          rustc --version
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-packager
+            ~/.cargo/bin/cargo-packager.exe
+          key: release-${{ runner.os }}-${{ runner.arch }}-rust1.98.1-packager0.11.8-${{ hashFiles('Cargo.toml') }}
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --install --target '${{ matrix.target }}'
+      - name: Windows native build tools
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $devcmd = Join-Path $install 'Common7\Tools\VsDevCmd.bat'
+          cmd /c "`"$devcmd`" -arch=x64 -host_arch=x64 >nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1],$matches[2],'Process') }
+          }
+          $env:PATH -split ';' | Where-Object { $_ } | Add-Content $env:GITHUB_PATH
+          "C:\Program Files\7-Zip" | Add-Content $env:GITHUB_PATH
+          & 'C:\Program Files\7-Zip\7z.exe' i | Select-Object -First 5
+      - name: Install global packager
+        if: runner.os != 'Linux'
+        run: pnpm run gpui:package setup --root .
+      - name: Import macOS signing credentials
+        if: runner.os == 'macOS'
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARIZATION_KEY: ${{ secrets.APPLE_NOTARIZATION_KEY }}
+          APPLE_NOTARIZATION_KEY_ID: ${{ secrets.APPLE_NOTARIZATION_KEY_ID }}
+          APPLE_NOTARIZATION_ISSUER: ${{ secrets.APPLE_NOTARIZATION_ISSUER }}
+        run: node scripts/github_macos_credentials.mjs import
+      - name: Build tested candidates
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/github_release.mjs build "$RELEASE_TAG" '${{ matrix.target }}' '${{ matrix.formats }}' "$RUNNER_TEMP/loki-candidates"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: candidates-${{ matrix.name }}
+          path: ${{ runner.temp }}/loki-candidates/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Delete temporary signing credentials
+        if: always() && runner.os == 'macOS'
+        run: node scripts/github_macos_credentials.mjs cleanup
+
+  publish:
+    name: Verify and publish GitHub Release
+    needs: build
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.21.0'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: candidates-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/loki-release
+      - name: Verify all bytes and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/github_release.mjs publish "$RELEASE_TAG" "$RUNNER_TEMP/loki-release"
