@@ -284,6 +284,7 @@ impl Devices {
         if *server_cancelled.borrow() || *cancelled.borrow() { return UnavailableReason::Disconnected; }
         let mut heartbeat = tokio::time::interval(DEVICE_HEARTBEAT_INTERVAL); heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut nonce = 0u64; let mut outstanding = None; let mut recent_pings = std::collections::VecDeque::new();
+        let mut last_snapshot_request: Option<Instant> = None;
         let mut publications = self.publications.subscribe();
         let port = writer.as_ref().local_addr().ok().map(|value| value.port());
         let first = self.with_widget_endpoint(publications.borrow_and_update().message(super::super::current_epoch_ms()), lease.device_id(), port);
@@ -326,6 +327,16 @@ impl Devices {
                         if state.presence.received(&book, lease, Instant::now()).is_err() { break; }
                     }
                     let control = match message {
+                        loki_metris_core::devices::link::data::DeviceMessage::SnapshotRequest {} => {
+                            // 每连接至多每秒唤醒一次；额度继续复用五分钟节流，不由远端强制连续请求上游。
+                            if last_snapshot_request.is_none_or(|at| at.elapsed() >= Duration::from_secs(1)) {
+                                last_snapshot_request = Some(Instant::now());
+                                self.publication_refresh.notify_one();
+                                let response = self.with_widget_endpoint(publications.borrow().message(super::super::current_epoch_ms()), lease.device_id(), port);
+                                if !matches!(tokio::time::timeout(WRITE_TIMEOUT, link_transport::send(&mut writer, &mut session, &response)).await, Ok(Ok(()))) { break; }
+                            }
+                            continue;
+                        },
                         loki_metris_core::devices::link::data::DeviceMessage::DeviceFormFactor { form_factor } => {
                             let mut state = self.state(); let Some(book) = state.book.clone() else { break; };
                             if state.presence.report_form_factor(&book, lease, form_factor, Instant::now()).is_err() { break; }

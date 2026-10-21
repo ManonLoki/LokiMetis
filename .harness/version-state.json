@@ -147,6 +147,11 @@
       "change_id": "LMDESK-QUOTA-WEEKLY-VISIBILITY-001",
       "kind": "bug-fix",
       "required_version": "0.7.1"
+    },
+    {
+      "change_id": "LMDESK-TERMINAL-PROVIDER-QUOTA-001",
+      "kind": "feature",
+      "required_version": "0.7.1"
     }
   ],
   "schema_version": 1,

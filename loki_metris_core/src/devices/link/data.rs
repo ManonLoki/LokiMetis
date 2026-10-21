@@ -8,6 +8,8 @@ use super::{LinkControl, LinkError, assets::{AssetChunk, AssetDescriptor}};
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum DeviceMessage {
+    /// 只在当前认证快照广告snapshotQueryV1后请求最新展示，既有读取节流仍然生效。
+    SnapshotRequest {},
     /// 仅收到当前连接的deviceFormFactorV1广告后报告，不扩充旧版首条DeviceInfo。
     DeviceFormFactor { /// 由终端系统分类提供的手机/平板形态。
         #[serde(rename = "formFactor")]
@@ -130,6 +132,9 @@ pub struct DisplaySnapshot {
     pub assets: Vec<AssetDescriptor>,
     /// 配置/图库读取失败的稳定类别。
     pub catalog_error: Option<String>,
+    /// 可选额度投影兼容旧终端；空providers明确清除旧额度，None表示尚未读取。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_quota: Option<crate::ProviderQuotaSnapshot>,
 }
 
 /// 复用本机十二槽位覆盖/释放规则，仅输出公开且启用Agent的最终展示。
@@ -156,6 +161,8 @@ mod tests {
     /// 控制包与图片请求保持严格字段边界，不能用多余字段混淆解析。
     #[test]
     fn device_messages_accept_control_and_reject_unknown_fields() {
+        assert!(matches!(serde_json::from_str::<DeviceMessage>(r#"{"type":"snapshotRequest"}"#).unwrap(), DeviceMessage::SnapshotRequest {}));
+        assert!(serde_json::from_str::<DeviceMessage>(r#"{"type":"snapshotRequest","url":"https://example.com"}"#).is_err());
         assert!(matches!(serde_json::from_str::<DeviceMessage>(r#"{"type":"pong","nonce":7}"#).unwrap(), DeviceMessage::Control(LinkControl::Pong { nonce:7 })));
         assert!(matches!(serde_json::from_str::<DeviceMessage>(r#"{"type":"assetRequest","hash":"a","offset":0}"#).unwrap(), DeviceMessage::AssetRequest { .. }));
         assert!(serde_json::from_str::<DeviceMessage>(r#"{"type":"pause","ip":"192.168.1.1"}"#).is_err());

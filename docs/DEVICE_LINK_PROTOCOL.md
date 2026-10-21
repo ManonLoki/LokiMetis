@@ -4,7 +4,7 @@ change_id：`LMDESK-TERMINAL-LINK-001`；required_version：`0.6.0`。日期：2
 
 ## 服务与平台职责
 
-桌面提供长期数据服务，Android/iPhone主动发现并连接。桌面沿同一双向连接推送Token/Hooks状态；终端请求缺失图片，首次缓存后按内容哈希复用。TCP发起方与密码学角色无关：桌面仍为SPAKE2 A，终端为B。首次四位码和保存规则继续以[配对协议](DEVICE_PAIRING_PROTOCOL.md)为准。
+桌面提供长期数据服务，Android/iPhone主动发现并连接。桌面沿同一双向连接推送Token/Hooks及提供商额度状态；终端请求缺失图片，首次缓存后按内容哈希复用。TCP发起方与密码学角色无关：桌面仍为SPAKE2 A，终端为B。首次四位码和保存规则继续以[配对协议](DEVICE_PAIRING_PROTOCOL.md)为准。
 
 桌面侧已接入独立的`_loki-host._tcp.local.`广播及TCP监听。应用启动即加载私有账本并启用服务，首次运行通过现有原子存储建立稳定桌面UUID；空账本也能接收首个客户端请求。页面切换或隐藏不停止服务，设备页不再浏览旧接收端或提供发现/刷新入口。首版服务使用私网/链路本地IPv4，广播禁用IPv6与环回，不能把领域层的IPv6规则支持写成当前监听支持。
 
@@ -121,8 +121,23 @@ change_id：`FEAT-WIDGET-HTTP-V1`；required_version：`0.7.0`。用户于2026-1
 
 密钥使用HKDF-SHA256，IKM为32字节配对秘密，salt为UTF8 `clientId + "/" + deviceId`，info为UTF8 `LokiMetris/widget-http/1/read-only`，输出32字节。Widget只取得此读取密钥，无法用它恢复TCP认证。请求JSON为`{clientId,deviceId,nonce,ciphertext}`；nonce为每次新生成12字节随机数的Base64，ciphertext为ChaCha20-Poly1305的密文拼接16字节tag后Base64。请求明文及AAD均为UTF8 `loki-widget-request-v1`。身份绑定由每对身份的派生密钥和当前账本共同保证。
 
-响应外壳为`{nonce,ciphertext}`，使用新的随机12字节nonce；AAD为UTF8 `loki-widget-response-v1`拼接原请求12字节nonce。解密后为`{type:"snapshot",sourceId,snapshot}`，snapshot仅包含version、tokens、tokenError、hooksAvailable、hooks；每条Hook仅保留agent/slot/behavior，不传正文、图片、资源表或宿主路径。Widget验证来源、完整性、原始u64字符串及现有展示边界后才写入共享摘要。
+响应外壳为`{nonce,ciphertext}`，使用新的随机12字节nonce；AAD为UTF8 `loki-widget-response-v1`拼接原请求12字节nonce。解密后为`{type:"snapshot",sourceId,snapshot}`，snapshot仅包含version、tokens、tokenError、hooksAvailable、hooks及可选providerQuota；每条Hook仅保留agent/slot/behavior，不传正文、图片、资源表或宿主路径。Widget验证来源、完整性、原始u64字符串及现有展示边界后才写入共享摘要。
 
 HTTP头部最多4096字节，请求正文1..1024字节，必须声明唯一Content-Length及application/json，拒绝Transfer-Encoding/Expect和其他方法/路径；桌面请求处理5秒预算，客户端6秒总期限，响应外壳最多96KiB、解密摘要最多64KiB，禁止重定向、缓存、Cookie和HTTP认证。沿用最多8条待处理连接许可；每设备保留最近32个nonce，重复请求不触发再次扫描。认证请求才临时登记读取需求，唤醒休眠发布器并等待完成读取；所有TCP设备断开时也能执行，完成/超时/取消撤销需求，不将HTTP读取标记为设备在线。响应前复核当前配对，解除配对后拒绝。
 
 App与Widget使用固定文件锁协调摘要与读取配置。切换来源、忘记配对、服务换代及较新摘要到达后，迟到HTTP不能覆盖。Timeline由`.never`改为`.after`，申请约5分钟后再次执行，实际时间由WidgetKit调度，离线保留真实上次同步时间；不承诺5分钟准点更新，不增加云推送。主App仍不恢复历史Token/Hooks。独立读取配置排除备份并使用首次解锁后可读保护。Apple机制依据：[WidgetKit刷新](https://developer.apple.com/documentation/widgetkit/keeping-a-widget-up-to-date)、[扩展网络请求](https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension)、[本地HTTP配置](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking)，核对日期2026-10-21。
+
+
+## 提供商额度同步与主动查询
+
+change_id：`LMDESK-TERMINAL-PROVIDER-QUOTA-001`；required_version：`0.7.1`。用户于2026-10-21要求额度发给移动终端，终端也能主动查询。
+
+`DisplaySnapshot`增加可选`providerQuota {observedAtUnix, providers}`。observedAtUnix为桌面最近一次额度读取完成的Unix秒；不把查询时刻冒充重新请求上游的时刻。providers最多三项、唯一且按codex/cursor/grok排列，每项为`{provider,plan?,fiveHour?,weekly?}`；每个窗口为`{kind:"fiveHour"|"weekly",usedTenths:0..1000,resetAtUnix?}`。usedTenths为已用整数千分比，终端只做1000减法得到剩余。窗口类型必须与字段相符，方案只接受24字节以内的已消毒ASCII短文本。缺失窗口行隐藏，只有周额度也显示；0%有效。没有完成过读取时省略providerQuota，完成后providers空列表明确撤下旧额度。
+
+发布器在有认证TCP会话或合法HTTP读者时独立触发同一个应用级额度板，与桌面页面是否可见无关；额度变化沿现有加密连接推送完整快照。额度仍约五分钟读取一次，在途读取合并，本地优先规则不变。手机与Watch不读取或保存提供商登录凭据，额度投影不含路径、账号标识或失败正文。
+
+当前认证snapshot外壳广告`snapshotQueryV1`，终端完整校验本次快照后才可发送严格`{type:"snapshotRequest"}`。旧桌面无能力时不发送；断开或换连接清除能力。桌面先复核当前租约，再返回当前快照并唤醒发布器更新；每连接最多每秒处理一次查询，额度读取仍遵守五分钟节流，不允许终端强制连续请求上游。快照查询不创建新配对或在线证明，既有45秒认证入站租约规则继续生效。
+
+现有加密HTTP摘要同时保留providerQuota，不增加URL、认证密钥或允许主机。Android/iOS的实时展示随当前认证连接清空，既有组件摘要可保留最近同步额度及其原始观测时间；组件缓存不表示实时在线。Android私有组件格式写入新版标记并兼容读取旧格式；Apple Codable缺省新字段为nil。Watch经iPhone完整快照和已授权独立HTTP两条路径均保留同一额度。旧终端忽略可选字段，不升级snapshot.version或密码套件。
+
+开发验证包含额度投影值域/排序、仅周窗口与零余额、真实加密TCP推送和主动查询、HTTP裁剪、移动旧格式与缓存往返；构建与实物运行证据按本次开发交付分别报告，不等同于新移动包的真机端到端验收。

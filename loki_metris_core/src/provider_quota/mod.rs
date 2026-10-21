@@ -6,9 +6,11 @@
 mod parse;
 
 use crate::AiTool;
+use serde::{Deserialize, Serialize};
 
 /// 用量正文的提供商身份；实际读取范围由活动目录限制。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum QuotaProvider {
     /// Codex 订阅额度。
     Codex,
@@ -21,7 +23,8 @@ pub enum QuotaProvider {
 }
 
 /// 用量窗口种类。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum QuotaWindowKind {
     /// 约 5 小时的短窗口。
     FiveHour,
@@ -45,27 +48,67 @@ pub enum QuotaFailure {
 }
 
 /// 一个已归类的用量窗口。已用比例以千分比保存，1000 表示 100%。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct QuotaWindow {
     /// 窗口种类。
     pub kind: QuotaWindowKind,
     /// 已用比例，0..=1000。
     pub used_tenths: u16,
     /// 窗口重置的 Unix 秒；上游没给则为空。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reset_at_unix: Option<i64>,
 }
 
 /// 一次成功解释的提供商用量。两个窗口都可以为空。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderQuota {
     /// 提供商。
     pub provider: QuotaProvider,
     /// 已消毒的短方案名，不含邮箱。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan: Option<String>,
     /// 5 小时窗口。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub five_hour: Option<QuotaWindow>,
     /// 周窗口。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weekly: Option<QuotaWindow>,
+}
+
+/// 终端只接收有界额度投影，不携带提供商登录材料或读取错误正文。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderQuotaSnapshot {
+    /// 桌面最近一次读取完成时间，Unix秒，不代表终端查询发起时重新请求过上游。
+    pub observed_at_unix: i64,
+    /// 按活动目录排序，空列表明确撤下之前的额度。
+    pub providers: Vec<ProviderQuota>,
+}
+
+impl ProviderQuotaSnapshot {
+    /// 仅投影有效窗口并按活动目录排序；尚未完成读取时不伪造空结果。
+    pub fn project(observed_at_unix: Option<i64>, quotas: &[ProviderQuota]) -> Option<Self> {
+        let observed_at_unix = observed_at_unix.filter(|time| *time >= 0)?;
+        let providers = supported_quota_providers().into_iter().filter_map(|provider| {
+            quotas.iter().find(|quota| quota.provider == provider && quota.valid_for_terminal()).cloned()
+        }).collect();
+        Some(Self { observed_at_unix, providers })
+    }
+
+    /// 网络/缓存接收端共用值域：有序唯一提供商、正确窗口类型和整数千分比。
+    pub fn validate(&self) -> Result<(), QuotaFailure> {
+        let catalog = supported_quota_providers();
+        let mut previous = None;
+        if self.observed_at_unix < 0 || self.providers.len() > catalog.len() { return Err(QuotaFailure::Malformed); }
+        for quota in &self.providers {
+            let index = catalog.iter().position(|provider| *provider == quota.provider).ok_or(QuotaFailure::Malformed)?;
+            if previous.is_some_and(|old| old >= index) || !quota.valid_for_terminal() { return Err(QuotaFailure::Malformed); }
+            previous = Some(index);
+        }
+        Ok(())
+    }
 }
 
 impl QuotaProvider {
@@ -102,6 +145,16 @@ impl ProviderQuota {
     pub const fn has_usage_window(&self) -> bool {
         matches!(self.five_hour, Some(QuotaWindow { kind: QuotaWindowKind::FiveHour, .. }))
             || matches!(self.weekly, Some(QuotaWindow { kind: QuotaWindowKind::Weekly, .. }))
+    }
+
+    /// 上游不完整值和不可信方案文本不能进入跨端投影。
+    fn valid_for_terminal(&self) -> bool {
+        self.has_usage_window()
+            && [(self.five_hour, QuotaWindowKind::FiveHour), (self.weekly, QuotaWindowKind::Weekly)].into_iter().all(|(window, kind)| {
+                window.is_none_or(|value| value.kind == kind && value.used_tenths <= 1000 && value.reset_at_unix.is_none_or(|time| time >= 0))
+            })
+            && self.plan.as_ref().is_none_or(|plan| !plan.is_empty() && plan.len() <= 24
+                && plan.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, ' ' | '_' | '-' | '.')))
     }
 }
 

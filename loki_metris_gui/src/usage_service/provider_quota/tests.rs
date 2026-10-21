@@ -16,6 +16,25 @@ const GROK_OLD: &str = "expired-grok-session-key";
 const GROK_NEW: &str = "current-grok-session-key";
 const CURSOR_TOKEN: &str = "cursor-test-token";
 
+/// 终端只接收成功额度；全部失败后以空列表明确清除先前数据，不保留秘密或失败正文。
+#[test]
+fn for_terminal_keeps_weekly_only_and_clears_failed_cards() {
+    let mut snapshot = super::QuotaBoardSnapshot::default();
+    assert!(snapshot.for_terminal().is_none());
+    let quota = loki_metris_core::parse_provider_quota(QuotaProvider::Codex,
+        r#"{"rate_limits":{"primary":{"used_percent":97,"window_minutes":10080}}}"#).unwrap();
+    snapshot.cards[0].phase = super::QuotaCardPhase::Ready(quota);
+    snapshot.cards[1].phase = super::QuotaCardPhase::Failed(QuotaFailure::MissingCredentials);
+    snapshot.fetched_at_unix = Some(123);
+    let wire = snapshot.for_terminal().unwrap();
+    wire.validate().unwrap();
+    assert_eq!(wire.providers.len(), 1);
+    assert!(wire.providers[0].five_hour.is_none());
+    assert_eq!(wire.providers[0].weekly.unwrap().remaining_tenths(), 30);
+    snapshot.cards[0].phase = super::QuotaCardPhase::Failed(QuotaFailure::Transport);
+    assert!(snapshot.for_terminal().unwrap().providers.is_empty());
+}
+
 fn layout(home: PathBuf) -> HomeLayout {
     HomeLayout { home, codex_home: None, grok_home: None, app_data: None }
 }

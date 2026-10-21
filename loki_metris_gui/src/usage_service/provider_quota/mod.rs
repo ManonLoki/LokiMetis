@@ -53,6 +53,16 @@ impl Default for QuotaBoardSnapshot {
     }
 }
 
+impl QuotaBoardSnapshot {
+    /// 只把成功解析的非敏感额度交给core统一筛选、排序并形成终端投影。
+    pub(crate) fn for_terminal(&self) -> Option<loki_metris_core::ProviderQuotaSnapshot> {
+        let quotas: Vec<_> = self.cards.iter().filter_map(|card| match &card.phase {
+            QuotaCardPhase::Ready(quota) => Some(quota.clone()), _ => None,
+        }).collect();
+        loki_metris_core::ProviderQuotaSnapshot::project(self.fetched_at_unix, &quotas)
+    }
+}
+
 /// 进程内唯一的用量板。测试构建的 kick 不访问本机登录态。
 pub(crate) struct QuotaBoard {
     snapshot: Mutex<QuotaBoardSnapshot>,

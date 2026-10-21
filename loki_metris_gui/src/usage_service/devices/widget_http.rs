@@ -68,14 +68,18 @@ impl Devices {
             let state = self.state(); let book = state.book.as_ref().ok_or(())?;
             book.widget_request(&request.client_id, &request.device_id, &request.nonce, &request.ciphertext).map_err(|_| ())?;
         }
-        let snapshot = &publication.snapshot;
-        let hooks: Vec<_> = snapshot.hooks.iter().map(|hook| serde_json::json!({"agent":hook.agent,"slot":hook.slot,"behavior":hook.behavior})).collect();
-        let plaintext = serde_json::to_vec(&serde_json::json!({"type":"snapshot","sourceId":request.client_id,
-            "snapshot":{"version":1,"tokens":snapshot.tokens,"tokenError":snapshot.token_error,"hooksAvailable":snapshot.hooks_available,"hooks":hooks}})).map_err(|_| ())?;
+        let plaintext = widget_summary(&request.client_id, &publication.snapshot)?;
         let random = uuid::Uuid::new_v4(); let nonce: [u8; 12] = random.as_bytes()[..12].try_into().map_err(|_| ())?;
         let (nonce, ciphertext) = auth.seal(&nonce, &plaintext).map_err(|_| ())?;
         serde_json::to_vec(&serde_json::json!({"nonce":nonce,"ciphertext":ciphertext})).map_err(|_| ())
     }
+}
+
+/// HTTP摘要保留额度与聚合值，主动裁掉Hook正文、图片和宿主资源元信息。
+fn widget_summary(source: &str, snapshot: &loki_metris_core::devices::link::data::DisplaySnapshot) -> Result<Vec<u8>, ()> {
+    let hooks: Vec<_> = snapshot.hooks.iter().map(|hook| serde_json::json!({"agent":hook.agent,"slot":hook.slot,"behavior":hook.behavior})).collect();
+    serde_json::to_vec(&serde_json::json!({"type":"snapshot","sourceId":source,
+        "snapshot":{"version":1,"tokens":snapshot.tokens,"tokenError":snapshot.token_error,"hooksAvailable":snapshot.hooks_available,"hooks":hooks,"providerQuota":snapshot.provider_quota}})).map_err(|_| ())
 }
 
 /// 长度解析为纯适配器语法，不接收任意资源或代理请求。
@@ -105,6 +109,25 @@ fn request_length(header: &[u8]) -> Result<usize, ()> {
 mod tests {
     use super::*;
     use super::super::tests::{CLIENT, DEVICE, link_book};
+    /// HTTP手动裁剪不能丢额度，也不能把当前Hook正文夹带给独立读取者。
+    #[test]
+    fn widget_summary_preserves_quota_and_discards_private_hook_fields() {
+        let quota = loki_metris_core::parse_provider_quota(loki_metris_core::QuotaProvider::Codex,
+            r#"{"rate_limits":{"primary":{"used_percent":97,"window_minutes":10080}}}"#).unwrap();
+        let mut snapshot = loki_metris_core::devices::link::data::DisplaySnapshot {
+            version: 1, provider_quota: loki_metris_core::ProviderQuotaSnapshot::project(Some(123), &[quota]), ..Default::default()
+        };
+        snapshot.hooks.push(loki_metris_core::devices::link::data::HookDisplay {
+            agent: loki_metris_core::AiTool::Codex, slot: 1, behavior: loki_metris_core::HookBehavior::Running,
+            content: "private-hook-body".into(), content_truncated: false, image: Some("a".repeat(64)),
+        });
+        let body = widget_summary(CLIENT, &snapshot).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(value["snapshot"]["providerQuota"]["providers"][0]["weekly"]["usedTenths"], 970);
+        assert!(value["snapshot"]["hooks"][0].get("content").is_none());
+        assert!(value["snapshot"].get("assets").is_none());
+        assert!(!String::from_utf8_lossy(&body).contains("private-hook-body"));
+    }
     /// 固定读取入口拒绝代理路径、无界正文和含糊的HTTP framing。
     #[test]
     fn widget_http_rejects_ambiguous_or_unbounded_requests() {

@@ -7,6 +7,41 @@ use super::{
     supported_quota_providers,
 };
 
+/// 终端投影独立保留周额度、按活动目录排序，0余额不会被过滤。
+#[test]
+fn terminal_quota_projection_orders_windows_and_omits_unavailable_sources() {
+    let codex = parse_provider_quota(QuotaProvider::Codex, r#"{"rate_limits":{"primary":{"used_percent":100,"window_minutes":10080}}}"#).unwrap();
+    let grok = parse_provider_quota(QuotaProvider::Grok, r#"{"rate_limit":{"five_hour":{"used_percent":8,"limit_window_seconds":18000}}}"#).unwrap();
+    let unsupported = parse_provider_quota(QuotaProvider::WorkBuddy, r#"{"rate_limit":{"five_hour":{"used_percent":8,"limit_window_seconds":18000}}}"#).unwrap();
+    assert!(super::ProviderQuotaSnapshot::project(None, &[]).is_none());
+    let snapshot = super::ProviderQuotaSnapshot::project(Some(123), &[grok, unsupported, codex]).unwrap();
+    snapshot.validate().unwrap();
+    assert_eq!(snapshot.providers.iter().map(|q| q.provider.slug()).collect::<Vec<_>>(), ["codex", "grok"]);
+    assert!(snapshot.providers[0].five_hour.is_none());
+    assert_eq!(snapshot.providers[0].weekly.unwrap().remaining_tenths(), 0);
+    let value = serde_json::to_value(&snapshot).unwrap();
+    assert_eq!(value["providers"][0]["weekly"]["usedTenths"], 1000);
+    assert!(value["providers"][0].get("fiveHour").is_none());
+    let cleared = super::ProviderQuotaSnapshot::project(Some(124), &[]).unwrap();
+    assert!(cleared.providers.is_empty());
+}
+
+/// 跨端额度拒绝越界、错槽、重复提供商与可能包含身份信息的方案名。
+#[test]
+fn terminal_quota_validation_rejects_invalid_values_and_duplicates() {
+    let value = serde_json::json!({"observedAtUnix":123,"providers":[{"provider":"codex","weekly":{"kind":"weekly","usedTenths":970}}]});
+    let quota: super::ProviderQuotaSnapshot = serde_json::from_value(value.clone()).unwrap();
+    quota.validate().unwrap();
+    for (field, invalid) in [("usedTenths", serde_json::json!(1001)), ("kind", serde_json::json!("fiveHour")), ("resetAtUnix", serde_json::json!(-1))] {
+        let mut changed = value.clone(); changed["providers"][0]["weekly"][field] = invalid;
+        assert!(serde_json::from_value::<super::ProviderQuotaSnapshot>(changed).unwrap().validate().is_err());
+    }
+    let mut duplicate = quota.clone(); duplicate.providers.push(quota.providers[0].clone());
+    assert!(duplicate.validate().is_err());
+    let mut private_plan = quota; private_plan.providers[0].plan = Some("user@example.com".into());
+    assert!(private_plan.validate().is_err());
+}
+
 #[test]
 fn providers_follow_requested_order_and_omit_unavailable_tools() {
     let providers = supported_quota_providers();

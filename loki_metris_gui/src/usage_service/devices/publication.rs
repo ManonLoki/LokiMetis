@@ -24,7 +24,7 @@ impl Publication {
             snapshot.tokens = None; snapshot.token_error = Some("device_data_refreshing".into());
         }
         HostMessage::Snapshot { snapshot, capabilities: vec![loki_metris_core::devices::companion::WATCH_COMPANION_CAPABILITY.into(),
-            loki_metris_core::devices::link::DEVICE_FORM_FACTOR_CAPABILITY.into()], widget_endpoint: None }
+            loki_metris_core::devices::link::DEVICE_FORM_FACTOR_CAPABILITY.into(), "snapshotQueryV1".into()], widget_endpoint: None }
     }
     /// 不接受路径/URL，且只从当前完整清单查找内容；下载期间修改清单返回失效。
     pub(super) fn asset(&self, hash: &str, offset: u64) -> Result<HostMessage, &'static str> {
@@ -92,6 +92,10 @@ impl Devices {
             let now = super::super::current_epoch_ms();
             let epoch = context.notification_source_epoch.load(Ordering::Acquire);
             let mut changed = false;
+            // 终端需求独立于桌面页面可见性，复用同一后台额度板及五分钟/进行中合并门禁。
+            context.quota.kick(false, &context.background);
+            let quota = context.quota.snapshot().for_terminal();
+            if value.provider_quota != quota { value.provider_quota = quota; changed = true; }
             if now >= token_due || source_epoch != Some(epoch) || value.tokens.as_ref().is_some_and(|t| !t.day.contains(now)) {
                 let cancellation = ScanCancellation::default();
                 let loaded = tokio::select! {

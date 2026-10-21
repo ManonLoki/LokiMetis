@@ -174,6 +174,7 @@ pub use provider::{
     empty_token_usage_for_provider,
 };
 pub use provider_quota::{
+    ProviderQuotaSnapshot,
     ProviderQuota, QuotaFailure, QuotaProvider, QuotaWindow, QuotaWindowKind,
     classify_window_seconds, parse_provider_quota, supported_quota_providers,
 };

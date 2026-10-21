@@ -196,7 +196,10 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
     let devices = Arc::new(Devices::new(temp.path(), owner.clone())); devices.finish(Ok(link_book()), None);
     let mut bytes = b"GIF89a".to_vec(); bytes.resize(20_001, 7);
     let descriptor = AssetDescriptor::from_bytes(&bytes).unwrap();
-    let snapshot = DisplaySnapshot { version:1, assets:vec![descriptor.clone()], ..Default::default() };
+    let quota = loki_metris_core::parse_provider_quota(loki_metris_core::QuotaProvider::Codex,
+        r#"{"rate_limits":{"primary":{"used_percent":97,"window_minutes":10080}}}"#).unwrap();
+    let snapshot = DisplaySnapshot { version:1, assets:vec![descriptor.clone()],
+        provider_quota: loki_metris_core::ProviderQuotaSnapshot::project(Some(123), &[quota]), ..Default::default() };
     devices.publications.send_replace(Arc::new(super::super::publication::Publication { refreshed_at:None, snapshot:snapshot.clone(), bytes:[(descriptor.hash.clone(),Arc::from(bytes.clone()))].into() }));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap(); let address = listener.local_addr().unwrap();
     let permits = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS)); let (_cancel, cancelled) = watch::channel(false);
@@ -213,6 +216,12 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         assert_eq!(first.assets, vec![descriptor.clone()]);
         assert!(capabilities.iter().any(|value| value == "watchCompanionV1"));
         assert!(capabilities.iter().any(|value| value == "deviceFormFactorV1"));
+        assert!(capabilities.iter().any(|value| value == "snapshotQueryV1"));
+        assert_eq!(first.provider_quota, snapshot.provider_quota);
+        let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::SnapshotRequest {}).unwrap()).unwrap();
+        write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
+        let HostMessage::Snapshot { snapshot:queried, .. } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("queried snapshot"); };
+        assert_eq!(queried.provider_quota, snapshot.provider_quota);
         let report = DeviceMessage::DeviceFormFactor { form_factor: loki_metris_core::devices::link::DeviceFormFactor::Tablet };
         let packet = channel.seal(&serde_json::to_vec(&report).unwrap()).unwrap();
         write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
