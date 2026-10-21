@@ -207,6 +207,113 @@ fn cursor_cookie_and_workbuddy_identity_use_the_fixture_without_touching_secrets
 }
 
 #[cfg(unix)]
+#[test]
+fn local_windows_skip_the_remote_program() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let (_shutdown, mut cancel) = cancel();
+        let root = tempfile::tempdir().unwrap();
+        let program = install_fixture(root.path());
+        let home = root.path().join("home");
+        let limits = CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 };
+        let codex = home.join(".codex").join("sessions").join("2026").join("10").join("21").join("rollout.jsonl");
+        let codex_body = r#"{"type":"event_msg","payload":{"type":"token_count","rate_limits":{"plan_type":"plus","primary":{"used_percent":27,"window_minutes":300,"resets_at":1700000000},"secondary":{"used_percent":4,"window_minutes":10080}}}}"#;
+        write(&codex, codex_body);
+        let grok = home.join(".grok").join("logs").join("unified.jsonl");
+        write(&grok, r#"{"msg":"billing: fetched credits config","ctx":{"config":{"creditUsagePercent":12.5,"currentPeriod":{"start":"2026-04-02T00:00:00Z","end":"2026-04-09T00:00:00Z"}}}}"#);
+        let workbuddy = home.join(".workbuddy").join("usage-data").join("quota.json");
+        write(&workbuddy, r#"{"Accounts":[{"used_percent":33,"limit_window_seconds":18000},{"used_percent":6,"limit_window_seconds":604800}]}"#);
+        let before = [std::fs::read(&codex).unwrap(), std::fs::read(&grok).unwrap(), std::fs::read(&workbuddy).unwrap()];
+        std::fs::write(root.path().join("mode.txt"), "status").unwrap();
+        std::fs::write(root.path().join("body.txt"), r#"{"rate_limit":{"primary_window":{"used_percent":90,"limit_window_seconds":18000},"secondary_window":{"used_percent":80,"limit_window_seconds":604800}}}"#.to_owned() + "\n__LM_HTTP_200").unwrap();
+        let layout = layout(home.clone());
+        for (provider, five_hour, weekly) in [
+            (QuotaProvider::Codex, Some(270_u16), Some(40)),
+            (QuotaProvider::Grok, None, Some(125)),
+            (QuotaProvider::WorkBuddy, Some(330), Some(60)),
+        ] {
+            let phase = fetch::fetch_provider(provider, &layout, Some(&program), Some(&program), limits, 0, &range(), &mut cancel).await;
+            let super::QuotaCardPhase::Ready(quota) = phase else { panic!("{provider:?} should use the local window"); };
+            assert_eq!(quota.five_hour.map(|window| window.used_tenths), five_hour);
+            assert_eq!(quota.weekly.map(|window| window.used_tenths), weekly);
+        }
+        assert!(!root.path().join("argv.txt").exists(), "local windows must not start the remote program");
+        assert_eq!(std::fs::read(&codex).unwrap(), before[0]);
+        assert_eq!(std::fs::read(&grok).unwrap(), before[1]);
+        assert_eq!(std::fs::read(&workbuddy).unwrap(), before[2]);
+
+        let database = credentials::cursor_database(&layout);
+        write(&database, "not-a-real-database");
+        let database_before = std::fs::read(&database).unwrap();
+        std::fs::write(root.path().join("sqlite-out.txt"), r#"{"billingCycleStart":"2026-04-02T00:00:00Z","billingCycleEnd":"2026-04-09T00:00:00Z","individualUsage":{"plan":{"totalPercentUsed":11}}}"#).unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Cursor, &layout, Some(&program), Some(&program), limits, 0, &range(), &mut cancel).await;
+        let super::QuotaCardPhase::Ready(quota) = phase else { panic!("cursor local summary should win"); };
+        assert_eq!(quota.weekly.unwrap().used_tenths, 110);
+        assert!(quota.five_hour.is_none());
+        let argv = std::fs::read_to_string(root.path().join("argv.txt")).unwrap();
+        assert!(argv.contains("cursorai/usageSummary"));
+        assert!(!argv.contains("--config"), "cursor local summary must not start curl");
+        assert!(!argv.contains("https://cursor.com"));
+        assert_eq!(std::fs::read(&database).unwrap(), database_before);
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn missing_or_monthly_local_records_use_the_remote_window() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let (_shutdown, mut cancel) = cancel();
+        let root = tempfile::tempdir().unwrap();
+        let program = install_fixture(root.path());
+        let home = root.path().join("home");
+        let limits = CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 };
+        std::fs::write(root.path().join("mode.txt"), "status").unwrap();
+        std::fs::write(root.path().join("body.txt"), remote_windows(15, 25)).unwrap();
+        write(&home.join(".codex").join("auth.json"), &format!(r#"{{"tokens":{{"access_token":"{TOKEN}","account_id":"account-1"}}}}"#));
+        let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home.clone()), Some(&program), None, limits, 0, &range(), &mut cancel).await;
+        let super::QuotaCardPhase::Ready(quota) = phase else { panic!("missing local record should use the remote windows"); };
+        assert_eq!(quota.five_hour.unwrap().used_tenths, 150);
+        assert_eq!(quota.weekly.unwrap().used_tenths, 250);
+        let stdin = std::fs::read_to_string(root.path().join("stdin.txt")).unwrap();
+        assert!(stdin.contains("https://chatgpt.com/backend-api/wham/usage"));
+        assert!(stdin.contains("codex_cli_rs/0.98.0"));
+
+        let monthly = home.join(".codex").join("sessions").join("rollout.jsonl");
+        let monthly_body = r#"{"rate_limits":{"primary":{"used_percent":50,"window_minutes":43200}}}"#;
+        write(&monthly, monthly_body);
+        let before = std::fs::read(&monthly).unwrap();
+        std::fs::write(root.path().join("body.txt"), remote_windows(12, 22)).unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home.clone()), Some(&program), None, limits, 0, &range(), &mut cancel).await;
+        let super::QuotaCardPhase::Ready(quota) = phase else { panic!("monthly local record should fall through to the remote windows"); };
+        assert_eq!(quota.five_hour.unwrap().used_tenths, 120);
+        assert_eq!(quota.weekly.unwrap().used_tenths, 220);
+        assert_ne!(quota.five_hour.unwrap().used_tenths, 500);
+        assert_eq!(std::fs::read(&monthly).unwrap(), before);
+
+        std::fs::write(root.path().join("body.txt"), "{}\n__LM_HTTP_200").unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home.clone()), Some(&program), None, limits, 0, &range(), &mut cancel).await;
+        assert!(matches!(phase, super::QuotaCardPhase::NoWindow { .. }), "remote without target windows stays empty, got {phase:?}");
+
+        let info = credentials::workbuddy_auth_files(&layout(home.clone()))[0].clone();
+        write(&info, r#"{"auth":{"accessToken":{"$wbEncrypted":1,"envelope":"abc"},"domain":""}}"#);
+        let keyblob = home.join(".workbuddy").join("keyblob");
+        write(&keyblob, "do-not-read");
+        let locked = std::fs::read(&keyblob).unwrap();
+        std::fs::remove_file(root.path().join("argv.txt")).ok();
+        std::fs::write(root.path().join("body.txt"), remote_windows(1, 2)).unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::WorkBuddy, &layout(home), Some(&program), None, limits, 0, &range(), &mut cancel).await;
+        assert_eq!(phase, super::QuotaCardPhase::Failed(QuotaFailure::CredentialLocked));
+        assert_eq!(std::fs::read(&keyblob).unwrap(), locked);
+        assert!(!root.path().join("argv.txt").exists(), "encrypted login must not be sent to the remote program");
+    });
+}
+
+fn remote_windows(five_hour: u16, weekly: u16) -> String {
+    format!(r#"{{"rate_limit":{{"primary_window":{{"used_percent":{five_hour},"limit_window_seconds":18000}},"secondary_window":{{"used_percent":{weekly},"limit_window_seconds":604800}}}}}}"#) + "\n__LM_HTTP_200"
+}
+
+#[cfg(unix)]
 fn install_fixture(dir: &Path) -> PathBuf {
     let path = dir.join("fixture.py");
     std::fs::write(&path, include_str!("fixture.py")).unwrap();

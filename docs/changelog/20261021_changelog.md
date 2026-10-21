@@ -2,6 +2,14 @@
 
 下文保留当日各独立变更及其开发验证范围。
 
+## LMDESK-MONITOR-QUOTA-LOCAL-001 · 用量优先读本机记录
+
+分类：feature。required_version：`0.7.0`（本周期功能锁已开启，不重复提升 Minor）。
+
+AI 监控读取 Codex、Cursor、Grok、WorkBuddy 的 5 小时与周用量时，先解释本机已有记录。只要其中至少一种窗口可归类，就使用本地结果，同一次读取不再请求远程，也不为缺失的另一种窗口补打远程。两种都没有，或只有月度等其它周期时，才沿用只读登录材料、官方客户端标识和既有 HTTPS 主机。Claude 仍不查询。本地读取不改写来源文件。决定见 [ADR-20261021-012](../adr/20261021_ADR.md#adr-20261021-012用量优先读本机记录读不到再走远程)。
+
+开发验证：`cargo test -p loki_metris_core --lib provider_quota` 17 项通过；GUI `local_windows_skip_the_remote_program`、`missing_or_monthly_local_records_use_the_remote_window`、`quota_board_renders_windows_without_relay_status` 通过。夹具家目录与记录型程序代替真实登录文件和上游。未启动完整 GPUI 进程，未连接真实上游，未做发布或推送。
+
 ## LMDESK-MONITOR-QUOTA-001 · AI 监控显示 5 小时与周用量
 
 分类：feature。required_version：`0.7.0`（本周期功能锁已开启，不重复提升 Minor）。

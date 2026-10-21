@@ -16,6 +16,8 @@ pub(super) fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Resul
     quota.plan = plan_label(provider, object);
     absorb_named_windows(&mut quota, object.get("rate_limit"));
     absorb_named_windows(&mut quota, object.get("rateLimit"));
+    absorb_named_windows(&mut quota, object.get("rate_limits"));
+    absorb_named_windows(&mut quota, nested_rate_limits(object));
     match provider {
         QuotaProvider::Codex => absorb_codex_convention(&mut quota, object.get("rate_limit").or_else(|| object.get("rateLimit"))),
         QuotaProvider::Cursor => absorb_cursor(&mut quota, object),
@@ -27,7 +29,7 @@ pub(super) fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Resul
 
 fn absorb_named_windows(quota: &mut ProviderQuota, rate_limit: Option<&Value>) {
     let Some(rate_limit) = rate_limit.and_then(Value::as_object) else { return };
-    for key in ["primary_window", "primaryWindow", "secondary_window", "secondaryWindow", "five_hour", "fiveHour", "weekly"] {
+    for key in ["primary_window", "primaryWindow", "secondary_window", "secondaryWindow", "primary", "secondary", "five_hour", "fiveHour", "weekly"] {
         if let Some(window) = rate_limit.get(key).and_then(window_from_value) {
             assign(quota, window);
         }
@@ -85,7 +87,7 @@ fn cursor_used_tenths(object: &serde_json::Map<String, Value>) -> Option<u16> {
 }
 
 fn absorb_grok(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>) {
-    let config = object.get("config").and_then(Value::as_object).unwrap_or(object);
+    let config = grok_config(object);
     let start = period_unix(config, &["billingPeriodStart", "start"]);
     let end = period_unix(config, &["billingPeriodEnd", "end"]);
     let nested = config.get("currentPeriod").and_then(Value::as_object);
@@ -100,6 +102,17 @@ fn absorb_grok(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value
     });
     let Some(used) = used else { return };
     assign(quota, QuotaWindow { kind, used_tenths: used, reset_at_unix: end });
+}
+
+fn grok_config(object: &serde_json::Map<String, Value>) -> &serde_json::Map<String, Value> {
+    object.get("config").and_then(Value::as_object)
+        .or_else(|| object.get("ctx").and_then(Value::as_object).and_then(|ctx| ctx.get("config")).and_then(Value::as_object))
+        .unwrap_or(object)
+}
+
+fn nested_rate_limits(object: &serde_json::Map<String, Value>) -> Option<&Value> {
+    let payload = object.get("payload")?.as_object()?;
+    payload.get("rate_limits").or_else(|| payload.get("rate_limit")).or_else(|| payload.get("rateLimit"))
 }
 
 fn nested_val(value: &Value) -> Option<f64> {
@@ -153,7 +166,8 @@ fn account_used_tenths(account: &serde_json::Map<String, Value>) -> Option<u16> 
 }
 
 fn window_from_value(value: &Value) -> Option<QuotaWindow> {
-    let seconds = value.get("limit_window_seconds").or_else(|| value.get("limitWindowSeconds")).and_then(Value::as_i64)?;
+    let seconds = value.get("limit_window_seconds").or_else(|| value.get("limitWindowSeconds")).and_then(json_i64)
+        .or_else(|| value.get("window_minutes").or_else(|| value.get("windowMinutes")).and_then(json_i64).map(|minutes| minutes.saturating_mul(60)))?;
     let kind = classify_window_seconds(seconds)?;
     let used = used_tenths(value)?;
     Some(QuotaWindow { kind, used_tenths: used, reset_at_unix: reset_unix(value) })
@@ -181,8 +195,12 @@ fn tenths_from_ratio(ratio: f64) -> Option<u16> {
 }
 
 fn reset_unix(value: &Value) -> Option<i64> {
-    value.get("reset_at").or_else(|| value.get("resetAt")).and_then(Value::as_i64)
-        .or_else(|| value.get("reset_at").or_else(|| value.get("resetAt")).and_then(Value::as_str).and_then(parse_unix))
+    ["reset_at", "resetAt", "resets_at", "resetsAt"].iter().find_map(|key| value.get(*key).and_then(json_i64))
+        .or_else(|| ["reset_at", "resetAt", "resets_at", "resetsAt"].iter().find_map(|key| value.get(*key).and_then(Value::as_str).and_then(parse_unix)))
+}
+
+fn json_i64(value: &Value) -> Option<i64> {
+    value.as_i64().or_else(|| value.as_f64().filter(|number| number.is_finite() && *number >= i64::MIN as f64 && *number <= i64::MAX as f64).map(|number| number as i64))
 }
 
 fn period_unix(object: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<i64> {
@@ -211,7 +229,9 @@ fn assign(quota: &mut ProviderQuota, window: QuotaWindow) {
 
 fn plan_label(provider: QuotaProvider, object: &serde_json::Map<String, Value>) -> Option<String> {
     let raw = match provider {
-        QuotaProvider::Codex => object.get("plan_type").or_else(|| object.get("planType")),
+        QuotaProvider::Codex => object.get("plan_type").or_else(|| object.get("planType"))
+            .or_else(|| object.get("rate_limits").and_then(|limits| limits.get("plan_type").or_else(|| limits.get("planType"))))
+            .or_else(|| nested_rate_limits(object).and_then(|limits| limits.get("plan_type").or_else(|| limits.get("planType")))),
         QuotaProvider::Cursor => object.get("membershipType"),
         QuotaProvider::Grok => object.get("plan").or_else(|| object.get("plan_type")),
         QuotaProvider::WorkBuddy => object.get("plan"),

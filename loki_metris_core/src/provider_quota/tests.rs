@@ -156,3 +156,27 @@ fn workbuddy_matching_cycle_uses_capacity_and_enterprise_without_duration_stays_
     let quota = parse_provider_quota(QuotaProvider::WorkBuddy, unlimited).unwrap();
     assert!(quota.five_hour.is_none() && quota.weekly.is_none());
 }
+
+#[test]
+fn codex_session_snapshot_uses_window_minutes_and_ignores_primary_without_duration() {
+    let body = r#"{"type":"event_msg","payload":{"type":"token_count","rate_limits":{"plan_type":"plus","primary":{"used_percent":27,"window_minutes":300,"resets_at":1700000000},"secondary":{"used_percent":4,"window_minutes":10080,"resets_at":1700604800}}}}"#;
+    let quota = parse_provider_quota(QuotaProvider::Codex, body).unwrap();
+    assert_eq!(quota.plan.as_deref(), Some("plus"));
+    assert_eq!(quota.five_hour.unwrap().used_tenths, 270);
+    assert_eq!(quota.five_hour.unwrap().reset_at_unix, Some(1_700_000_000));
+    assert_eq!(quota.weekly.unwrap().used_tenths, 40);
+    let bare = r#"{"rate_limits":{"primary":{"used_percent":27},"secondary":{"used_percent":4}}}"#;
+    let quota = parse_provider_quota(QuotaProvider::Codex, bare).unwrap();
+    assert!(quota.five_hour.is_none() && quota.weekly.is_none());
+    let month = r#"{"rate_limits":{"primary":{"used_percent":50,"window_minutes":43200}}}"#;
+    let quota = parse_provider_quota(QuotaProvider::Codex, month).unwrap();
+    assert!(quota.five_hour.is_none() && quota.weekly.is_none());
+}
+
+#[test]
+fn grok_log_line_reads_weekly_period_from_context_config() {
+    let body = r#"{"msg":"billing: fetched credits config","ctx":{"config":{"creditUsagePercent":12.5,"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY","start":"2026-04-02T00:00:00Z","end":"2026-04-09T00:00:00Z"}}}}"#;
+    let quota = parse_provider_quota(QuotaProvider::Grok, body).unwrap();
+    assert_eq!(quota.weekly.unwrap().used_tenths, 125);
+    assert!(quota.five_hour.is_none());
+}

@@ -2,6 +2,7 @@
 
 mod credentials;
 mod fetch;
+mod local;
 mod transport;
 #[cfg(test)]
 mod tests;

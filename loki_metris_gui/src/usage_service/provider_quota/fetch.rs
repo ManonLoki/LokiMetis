@@ -33,6 +33,9 @@ pub(crate) async fn fetch_provider(
     if *cancel.borrow() {
         return QuotaCardPhase::Failed(QuotaFailure::Transport);
     }
+    if let Some(quota) = super::local::read_local_quota(provider, layout, sqlite, limits, cancel).await {
+        return QuotaCardPhase::Ready(quota);
+    }
     let result = match provider {
         QuotaProvider::Codex => fetch_codex(layout, curl, limits, cancel).await,
         QuotaProvider::Cursor => fetch_cursor(layout, curl, sqlite, limits, cancel).await,

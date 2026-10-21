@@ -60,6 +60,9 @@ const ALLOWED_HOSTS: &[&str] = &[
 /// Cursor 只读查询。语句是常量，不含令牌。
 pub(crate) const CURSOR_TOKEN_SQL: &str = "SELECT value FROM ItemTable WHERE key = 'cursorAuth/accessToken' LIMIT 1;";
 
+/// 本机缓存的用量摘要。没有这些键就视为本地未获取。
+pub(crate) const CURSOR_USAGE_SQL: &str = "SELECT value FROM ItemTable WHERE key IN ('cursorai/usageSummary','cursorAuth/usageSummary') LIMIT 1;";
+
 /// 在 PATH 中查找同名可执行文件，不经过命令解释器。
 pub(crate) fn find_program(name: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
@@ -97,8 +100,16 @@ pub(crate) fn build_curl_exchange(request: &HttpRequest, limits: &CurlLimits) ->
 
 /// sqlite3 的只读参数。路径不能以 `-` 开头，也不能含控制字符。
 pub(crate) fn cursor_command_args(database: &Path) -> Result<Vec<String>, QuotaFailure> {
+    cursor_query_args(database, CURSOR_TOKEN_SQL)
+}
+
+/// 用固定查询读取 Cursor 状态库。查询本身不能含控制字符。
+pub(crate) fn cursor_query_args(database: &Path, sql: &str) -> Result<Vec<String>, QuotaFailure> {
+    if sql.is_empty() || sql.chars().any(|ch| ch.is_ascii_control()) {
+        return Err(QuotaFailure::Transport);
+    }
     let path = database.to_str().filter(|path| !path.starts_with('-') && !path.chars().any(|ch| ch.is_ascii_control())).ok_or(QuotaFailure::Transport)?;
-    Ok(vec!["-readonly".to_owned(), "-batch".to_owned(), "-noheader".to_owned(), path.to_owned(), CURSOR_TOKEN_SQL.to_owned()])
+    Ok(vec!["-readonly".to_owned(), "-batch".to_owned(), "-noheader".to_owned(), path.to_owned(), sql.to_owned()])
 }
 
 /// 执行已构造的参数向量。取消、超时和输出超限都会结束子进程。
