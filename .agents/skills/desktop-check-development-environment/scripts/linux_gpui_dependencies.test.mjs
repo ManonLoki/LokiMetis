@@ -70,6 +70,9 @@ for(const identity of [{},{SUDO_UID:'1000',SUDO_USER:'owner'},{PKEXEC_UID:'1000'
     assert.equal(apt[1][0],'install'); assert.equal(apt[1][1],'-y');
     assert.ok(apt[1].includes('dbus-daemon'));
     assert.ok(apt[1].includes('libfontconfig1-dev:amd64'));
+    assert.ok(apt[1].includes('gcc-x86-64-linux-gnu'));
+    assert.ok(apt[1].includes('g++-x86-64-linux-gnu'));
+    assert.ok(!apt[1].includes('gcc-x86_64-linux-gnu'));
   });
 }
 

@@ -92,18 +92,31 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $nodeDirectory = Split-Path (Get-Command node -ErrorAction Stop).Source
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           $devcmd = Join-Path $install 'Common7\Tools\VsDevCmd.bat'
           cmd /c "`"$devcmd`" -arch=x64 -host_arch=x64 >nul && set" | ForEach-Object {
             if ($_ -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1],$matches[2],'Process') }
           }
-          $env:PATH -split ';' | Where-Object { $_ } | Add-Content $env:GITHUB_PATH
+          foreach ($tool in @('cl.exe','link.exe','rc.exe','fxc.exe')) {
+            Split-Path (Get-Command $tool -ErrorAction Stop).Source | Add-Content $env:GITHUB_PATH
+          }
+          foreach ($name in @('INCLUDE','LIB','LIBPATH','WindowsSdkDir','WindowsSDKVersion','VCINSTALLDIR','VCToolsInstallDir','UniversalCRTSdkDir','UCRTVersion')) {
+            "$name=$([Environment]::GetEnvironmentVariable($name,'Process'))" | Add-Content $env:GITHUB_ENV
+          }
           "C:\Program Files\7-Zip" | Add-Content $env:GITHUB_PATH
+          $nodeDirectory | Add-Content $env:GITHUB_PATH
+          & (Join-Path $nodeDirectory 'node.exe') --version
           & 'C:\Program Files\7-Zip\7z.exe' i | Select-Object -First 5
       - name: Install global packager
         if: runner.os != 'Linux'
-        run: pnpm run gpui:package setup --root .
+        run: |
+          node --version
+          node -p process.execPath
+          pnpm --version
+          if [[ "$RUNNER_OS" == Windows ]]; then command -v cl.exe link.exe rc.exe fxc.exe; fi
+          pnpm run gpui:package setup --root .
       - name: Import macOS signing credentials
         if: runner.os == 'macOS'
         env:

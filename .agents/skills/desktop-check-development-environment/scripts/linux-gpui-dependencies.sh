@@ -13,8 +13,8 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 case "$target" in
-    aarch64-unknown-linux-gnu) arch=arm64; tuple=aarch64-linux-gnu ;;
-    x86_64-unknown-linux-gnu) arch=amd64; tuple=x86_64-linux-gnu ;;
+    aarch64-unknown-linux-gnu) arch=arm64; tuple=aarch64-linux-gnu; compiler_package=aarch64-linux-gnu ;;
+    x86_64-unknown-linux-gnu) arch=amd64; tuple=x86_64-linux-gnu; compiler_package=x86-64-linux-gnu ;;
     *) printf '仅支持aarch64-unknown-linux-gnu或x86_64-unknown-linux-gnu\n' >&2; exit 2 ;;
 esac
 [ "$(uname -s)" = Linux ] || { printf '需要Linux宿主\n' >&2; exit 2; }
@@ -34,7 +34,7 @@ if [ "$mode" = install ]; then
     fi
     as_root apt-get update
     as_root apt-get install -y build-essential pkg-config curl binutils tar dpkg-dev dbus-daemon \
-        "gcc-$tuple" "g++-$tuple" \
+        "gcc-$compiler_package" "g++-$compiler_package" \
         "libfontconfig1-dev:$arch" "libfreetype-dev:$arch" \
         "libxkbcommon-dev:$arch" "libxkbcommon-x11-dev:$arch" \
         "libwayland-dev:$arch" "libx11-dev:$arch" "libx11-xcb-dev:$arch" "libxcb1-dev:$arch"
