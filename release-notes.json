@@ -3,6 +3,17 @@
   "releases": [
     {
       "releaseDate": "2026-10-22",
+      "version": "v0.7.10",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "为 Windows 与 Unix 分别声明静态 PowerShell、Bash 步骤，消除工作流 Shell 字段的动态表达式解析错误。",
+          "en-US": "Declare separate static PowerShell and Bash steps for Windows and Unix, eliminating dynamic shell expression parsing errors."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-22",
       "version": "v0.7.9",
       "featureOptimizations": [],
       "bugFixes": [
@@ -199,17 +210,6 @@
         {
           "zh-CN": "本地打包之外的当次明确推送绑定精确提交与 tag，保留打包策略并逐项核对远端发布引用。",
           "en-US": "Bind explicitly requested pushes in addition to local packaging to the exact release commit and tag, preserving the packaging policy and verifying each remote release reference."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-19",
-      "version": "v0.3.13",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "将用量看板 Token 构成面板中的紧凑值和精确值统一左对齐，与指标标题保持一致。",
-          "en-US": "Left-align compact and exact token values in the dashboard token breakdown panel to match their labels."
         }
       ]
     }

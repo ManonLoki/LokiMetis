@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "4393dfb7b525134024362ec7c6430fe4117ad419",
-  "version": "0.7.9",
+  "sourceHead": "ddfff179fee48a4cde00a0d8aae7d767257c6094",
+  "version": "0.7.10",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.9-20261022",
+  "expectedTag": "v0.7.10-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "be11cd83987ae877397d892bf5f11a128e5fd996",
-    "sourceHead": "4393dfb7b525134024362ec7c6430fe4117ad419",
-    "scopeDiffSha256": "f5b24c36595ff67408fa5c8d6457d89b94f37b70e5878969e15cd620bb59ab40",
-    "reviewedSourceCommit": "4393dfb7b525134024362ec7c6430fe4117ad419",
+    "scopeBase": "bd767f35ad8f87ca34342a25f0a26e9a270a61a4",
+    "sourceHead": "ddfff179fee48a4cde00a0d8aae7d767257c6094",
+    "scopeDiffSha256": "32aa4fd4927a2f21d117d7f31e275c8a95ddbfb569ce11373ba513c7ba7cd45e",
+    "reviewedSourceCommit": "ddfff179fee48a4cde00a0d8aae7d767257c6094",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "修复GitHub服务端实际422诊断：step shell不消费runner上下文，改为矩阵显式shell。矩阵解析验证Windows为pwsh、其余为bash；变更仅工作流与受管版本状态，无业务或对外数据契约变化，无临时/秘密标记。其余已审查的原生链接、双公证和制品校验路径不变，本次E2E仍关闭。",
+    "evidenceSummary": "按GitHub服务端解析失败改成独立静态shell步骤，移除未使用的矩阵shell字段。YAML解析及步骤完整性检查确认Windows使用pwsh、Unix使用bash，所有step shell均无动态表达式。只修改工作流及版本状态，不改变业务、外部数据或签名/资源门禁；无临时或秘密标记。当前E2E关闭，原生测试构建由CI继续执行。",
     "reason": null,
     "remainingRisk": null
   }
