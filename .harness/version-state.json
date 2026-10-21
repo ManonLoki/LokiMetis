@@ -86,7 +86,8 @@
     "LMDESK-QUOTA-ROW-LABEL-TAG-001",
     "LMDESK-CI-NATIVE-ENVIRONMENT-001",
     "LMDESK-CI-WINDOWS-LINKER-001",
-    "LMDESK-CI-SHELL-MATRIX-001"
+    "LMDESK-CI-SHELL-MATRIX-001",
+    "LMDESK-CI-STATIC-SHELLS-001"
   ],
   "applied_reconciliations": [
     {
@@ -114,19 +115,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.7.8",
+  "cycle_base_version": "0.7.9",
   "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "be11cd83987ae877397d892bf5f11a128e5fd996",
-    "version": "0.7.8"
+    "source_commit": "bd767f35ad8f87ca34342a25f0a26e9a270a61a4",
+    "version": "0.7.9"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-CI-SHELL-MATRIX-001",
+      "change_id": "LMDESK-CI-STATIC-SHELLS-001",
       "kind": "bug-fix",
-      "required_version": "0.7.9"
+      "required_version": "0.7.10"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.7.9"
+  "target_version": "0.7.10"
 }
