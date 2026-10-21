@@ -6,12 +6,14 @@ import time
 
 root = pathlib.Path(__file__).resolve().parent
 argv = sys.argv[1:]
+mode = (root / "mode.txt").read_text(encoding="utf-8").strip()
+if mode == "ignore-stdin":
+    time.sleep(30)
 stdin = sys.stdin.read()
 with (root / "argv.txt").open("a", encoding="utf-8") as handle:
     handle.write("\n".join(argv))
     handle.write("\n")
 (root / "stdin.txt").write_text(stdin, encoding="utf-8")
-mode = (root / "mode.txt").read_text(encoding="utf-8").strip()
 if "-readonly" in argv:
     text = (root / "sqlite-out.txt").read_text(encoding="utf-8")
     # LIMIT 1 只回第一行，用来观察查询有没有把另一行丢掉。
@@ -23,7 +25,9 @@ if mode == "sleep":
     time.sleep(30)
 elif mode == "huge":
     sys.stdout.write("y" * 400000)
-elif mode == "status":
+elif mode in ("status", "nonzero"):
     sys.stdout.write((root / "body.txt").read_text(encoding="utf-8"))
+    if mode == "nonzero":
+        raise SystemExit(1)
 else:
     sys.stdout.write("{}\n__LM_HTTP_200")

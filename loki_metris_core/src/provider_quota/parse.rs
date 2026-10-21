@@ -34,6 +34,7 @@ pub(super) fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Resul
     Ok(quota)
 }
 
+/// 从已知窗口字段和窗口数组中收集带明确时长的额度。
 fn absorb_named_windows(quota: &mut ProviderQuota, rate_limit: Option<&Value>) {
     let Some(rate_limit) = rate_limit.and_then(Value::as_object) else { return };
     for key in ["primary_window", "primaryWindow", "secondary_window", "secondaryWindow", "primary", "secondary", "five_hour", "fiveHour", "weekly"] {
@@ -65,6 +66,7 @@ fn absorb_codex_convention(quota: &mut ProviderQuota, rate_limit: Option<&Value>
     }
 }
 
+/// 仅在秒数缺席时按 Codex 固定窗口约定解释用量。
 fn conventional_window(rate_limit: &serde_json::Map<String, Value>, keys: &[&str], kind: QuotaWindowKind) -> Option<QuotaWindow> {
     let value = keys.iter().find_map(|key| rate_limit.get(*key))?;
     if value.get("limit_window_seconds").or_else(|| value.get("limitWindowSeconds")).is_some() {
@@ -110,6 +112,7 @@ pub(super) fn claude_statusline_record(input: &[u8]) -> Option<Vec<u8>> {
     serde_json::to_vec(&serde_json::json!({ "rate_limits": kept })).ok()
 }
 
+/// 按账单周期时长归类 Cursor 额度并保留真实重置时间。
 fn absorb_cursor(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>) {
     let start = object.get("billingCycleStart").and_then(Value::as_str).and_then(parse_unix);
     let end = object.get("billingCycleEnd").and_then(Value::as_str).and_then(parse_unix);
@@ -119,6 +122,7 @@ fn absorb_cursor(quota: &mut ProviderQuota, object: &serde_json::Map<String, Val
     assign(quota, QuotaWindow { kind, used_tenths: used, reset_at_unix: end });
 }
 
+/// 优先读取明确百分数，缺失时才由已用量和上限计算比例。
 fn cursor_used_tenths(object: &serde_json::Map<String, Value>) -> Option<u16> {
     let plan = object.get("individualUsage")?.get("plan")?.as_object()?;
     if let Some(percent) = plan.get("totalPercentUsed").and_then(number_tenths) {
@@ -129,6 +133,7 @@ fn cursor_used_tenths(object: &serde_json::Map<String, Value>) -> Option<u16> {
     tenths_from_ratio(used / limit)
 }
 
+/// 从 Grok 账单周期和积分字段解释具有明确时长的窗口。
 fn absorb_grok(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>) {
     let config = grok_config(object);
     let start = period_unix(config, &["billingPeriodStart", "start"]);
@@ -147,21 +152,25 @@ fn absorb_grok(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value
     assign(quota, QuotaWindow { kind, used_tenths: used, reset_at_unix: end });
 }
 
+/// 定位直接或日志上下文中嵌套的 Grok 账单配置。
 fn grok_config(object: &serde_json::Map<String, Value>) -> &serde_json::Map<String, Value> {
     object.get("config").and_then(Value::as_object)
         .or_else(|| object.get("ctx").and_then(Value::as_object).and_then(|ctx| ctx.get("config")).and_then(Value::as_object))
         .unwrap_or(object)
 }
 
+/// 从会话事件正文提取嵌套额度对象。
 fn nested_rate_limits(object: &serde_json::Map<String, Value>) -> Option<&Value> {
     let payload = object.get("payload")?.as_object()?;
     payload.get("rate_limits").or_else(|| payload.get("rate_limit")).or_else(|| payload.get("rateLimit"))
 }
 
+/// 兼容数值本身及带 val 字段的积分表示。
 fn nested_val(value: &Value) -> Option<f64> {
     value.get("val").and_then(Value::as_f64).or_else(|| value.as_f64())
 }
 
+/// 仅将具有可确认周期的账户额度映射为目标窗口。
 fn absorb_workbuddy(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>) {
     let accounts = workbuddy_accounts(object);
     for account in accounts {
@@ -177,6 +186,7 @@ fn absorb_workbuddy(quota: &mut ProviderQuota, object: &serde_json::Map<String, 
     }
 }
 
+/// 按已知响应封装收集 WorkBuddy 账户记录。
 fn workbuddy_accounts(object: &serde_json::Map<String, Value>) -> Vec<&Value> {
     let mut found = Vec::new();
     if let Some(list) = object.get("Accounts").and_then(Value::as_array) {
@@ -190,12 +200,14 @@ fn workbuddy_accounts(object: &serde_json::Map<String, Value>) -> Vec<&Value> {
     found
 }
 
+/// 由完整周期起止时间计算窗口长度，缺一端时拒绝猜测。
 fn cycle_seconds(account: &serde_json::Map<String, Value>) -> Option<i64> {
     let start = account.get("CycleStartTime").and_then(Value::as_str).and_then(parse_unix)?;
     let end = account.get("CycleEndTime").and_then(Value::as_str).and_then(parse_unix)?;
     Some(end.saturating_sub(start))
 }
 
+/// 优先使用百分数，否则从容量与已用或剩余量推导用量。
 fn account_used_tenths(account: &serde_json::Map<String, Value>) -> Option<u16> {
     if let Some(percent) = account.get("used_percent").or_else(|| account.get("usedPercent")).and_then(number_tenths) {
         return Some(percent);
@@ -208,6 +220,7 @@ fn account_used_tenths(account: &serde_json::Map<String, Value>) -> Option<u16> 
     tenths_from_ratio(used / size)
 }
 
+/// 用明确秒数或分钟数归类窗口并解释百分数和重置时间。
 fn window_from_value(value: &Value) -> Option<QuotaWindow> {
     let seconds = value.get("limit_window_seconds").or_else(|| value.get("limitWindowSeconds")).and_then(json_i64)
         .or_else(|| value.get("window_minutes").or_else(|| value.get("windowMinutes")).and_then(json_i64).map(|minutes| minutes.saturating_mul(60)))?;
@@ -216,19 +229,21 @@ fn window_from_value(value: &Value) -> Option<QuotaWindow> {
     Some(QuotaWindow { kind, used_tenths: used, reset_at_unix: reset_unix(value) })
 }
 
+/// 按已知字段名读取百分数，保持百分数单位。
 fn used_tenths(value: &Value) -> Option<u16> {
     value.get("used_percent").or_else(|| value.get("usedPercent")).and_then(number_tenths)
 }
 
+/// 将零到一百的百分数转换为十分之一百分点，不猜测比例单位。
 fn number_tenths(value: &Value) -> Option<u16> {
-    let number = value.as_f64()?;
-    let percent = if (0.0..=1.0).contains(&number) && number != 0.0 && number != 1.0 { number * 100.0 } else { number };
+    let percent = value.as_f64()?;
     if !(0.0..=100.0).contains(&percent) {
         return None;
     }
     Some((percent * 10.0).round().clamp(0.0, 1000.0) as u16)
 }
 
+/// 只对已用量除以上限的比例换算百分数并限制最大值。
 fn tenths_from_ratio(ratio: f64) -> Option<u16> {
     if !ratio.is_finite() || ratio < 0.0 {
         return None;
@@ -237,19 +252,23 @@ fn tenths_from_ratio(ratio: f64) -> Option<u16> {
     Some((percent * 10.0).round() as u16)
 }
 
+/// 兼容已知重置字段中的 Unix 秒和带时区时间。
 fn reset_unix(value: &Value) -> Option<i64> {
     ["reset_at", "resetAt", "resets_at", "resetsAt"].iter().find_map(|key| value.get(*key).and_then(json_i64))
         .or_else(|| ["reset_at", "resetAt", "resets_at", "resetsAt"].iter().find_map(|key| value.get(*key).and_then(Value::as_str).and_then(parse_unix)))
 }
 
+/// 读取有界整数或有限浮点秒数，拒绝超出整数范围的值。
 fn json_i64(value: &Value) -> Option<i64> {
     value.as_i64().or_else(|| value.as_f64().filter(|number| number.is_finite() && *number >= i64::MIN as f64 && *number <= i64::MAX as f64).map(|number| number as i64))
 }
 
+/// 按字段优先序读取账单周期的时间字符串。
 fn period_unix(object: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<i64> {
     keys.iter().find_map(|key| object.get(*key).and_then(Value::as_str).and_then(parse_unix))
 }
 
+/// 解析带时区时间，兼容无时区账单日期的 UTC 跨度计算。
 fn parse_unix(text: &str) -> Option<i64> {
     let text = text.trim();
     if let Ok(timestamp) = text.parse::<jiff::Timestamp>() {
@@ -260,6 +279,7 @@ fn parse_unix(text: &str) -> Option<i64> {
     format!("{date}T{time}Z").parse::<jiff::Timestamp>().ok().map(|timestamp| timestamp.as_second())
 }
 
+/// 按窗口类型填充首个合法值，避免后续弱来源覆盖既有窗口。
 fn assign(quota: &mut ProviderQuota, window: QuotaWindow) {
     let slot = match window.kind {
         QuotaWindowKind::FiveHour => &mut quota.five_hour,
@@ -271,6 +291,7 @@ fn assign(quota: &mut ProviderQuota, window: QuotaWindow) {
     }
 }
 
+/// 按提供商提取有界套餐名，过滤邮箱及不安全字符。
 fn plan_label(provider: QuotaProvider, object: &serde_json::Map<String, Value>) -> Option<String> {
     let raw = match provider {
         QuotaProvider::Codex => object.get("plan_type").or_else(|| object.get("planType"))

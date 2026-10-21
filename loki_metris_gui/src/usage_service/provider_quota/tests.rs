@@ -35,10 +35,12 @@ fn for_terminal_keeps_weekly_only_and_clears_failed_cards() {
     assert!(snapshot.for_terminal().unwrap().providers.is_empty());
 }
 
+/// 为夹具构造隔离的凭据目录布局。
 fn layout(home: PathBuf) -> HomeLayout {
     HomeLayout { home, codex_home: None, grok_home: None, app_data: None, claude_record: None }
 }
 
+/// 在夹具目录内创建父目录并写入指定文本。
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap();
@@ -46,14 +48,17 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap();
 }
 
+/// 创建当前测试拥有的刷新取消通道。
 fn cancel() -> (watch::Sender<bool>, watch::Receiver<bool>) {
     watch::channel(false)
 }
 
+/// 提供与真实时钟无关的固定账单查询范围。
 fn range() -> TimeRange {
     TimeRange { begin: "2026-04-02 00:00:00".to_owned(), end: "2027-04-02 00:00:00".to_owned() }
 }
 
+/// 核对稳定领域失败类型，避免暴露凭据正文。
 fn expect_failure<T>(result: Result<T, QuotaFailure>, expected: QuotaFailure) {
     match result {
         Err(actual) if actual == expected => {}
@@ -62,6 +67,7 @@ fn expect_failure<T>(result: Result<T, QuotaFailure>, expected: QuotaFailure) {
     }
 }
 
+/// 凭据仅进入标准输入配置，拒绝非法主机及请求头注入。
 #[test]
 fn curl_config_keeps_the_token_out_of_argv_and_rejects_other_hosts() {
     let request = HttpRequest {
@@ -71,7 +77,7 @@ fn curl_config_keeps_the_token_out_of_argv_and_rejects_other_hosts() {
         body: None,
     };
     let exchange = transport::build_curl_exchange(&request, &CurlLimits::production()).unwrap();
-    assert_eq!(exchange.args, ["--config", "-"]);
+    assert_eq!(exchange.args, ["--disable", "--config", "-"]);
     assert!(exchange.args.iter().all(|arg| !arg.contains(TOKEN)));
     assert!(exchange.config.contains(&format!("Authorization: Bearer {TOKEN}")));
     let rejected = HttpRequest { method: "GET", url: "https://evil.example/usage".to_owned(), headers: vec![("Accept", "application/json".to_owned())], body: None };
@@ -83,6 +89,54 @@ fn curl_config_keeps_the_token_out_of_argv_and_rejects_other_hosts() {
     assert_eq!(transport::curl_quote(r#"{"a":1}"#).unwrap(), r#""{\"a\":1}""#);
 }
 
+/// 真实 curl 忽略隔离目录中会改变请求行为的默认配置，测试只查询版本而不联网。
+#[cfg(unix)]
+#[test]
+fn curl_skips_default_config_before_reading_stdin_config() {
+    let curl = transport::find_program("curl").expect("quota transport tests require curl");
+    let root = tempfile::tempdir().unwrap();
+    write(&root.path().join(".curlrc"), "not-a-valid-curl-option = true\n");
+    let request = HttpRequest { method: "GET", url: "https://chatgpt.com/usage".to_owned(), headers: vec![], body: None };
+    let exchange = transport::build_curl_exchange(&request, &CurlLimits::production()).unwrap();
+    let mut child = std::process::Command::new(&curl).args(&exchange.args).arg("--version")
+        .env("CURL_HOME", root.path()).stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+    child.stdin.take().unwrap().write_all(exchange.config.as_bytes()).unwrap();
+    let result = child.wait_with_output().unwrap();
+    assert!(result.status.success());
+    assert!(!String::from_utf8_lossy(&result.stderr).contains("not-a-valid-curl-option"));
+    let unsafe_result = std::process::Command::new(&curl).arg("--version").env("CURL_HOME", root.path()).output().unwrap();
+    assert!(String::from_utf8_lossy(&unsafe_result.stderr).contains("not-a-valid-curl-option"));
+}
+
+/// SQLite 通过显式空启动文件运行固定只读查询，路径不会触发用户初始化命令。
+#[test]
+fn sqlite_query_explicitly_replaces_user_startup_file() {
+    let args = transport::cursor_query_args(Path::new("state.vscdb"), transport::CURSOR_USAGE_SQL).unwrap();
+    assert_eq!(&args[..3], ["-init", if cfg!(windows) { "NUL" } else { "/dev/null" }, "-readonly"]);
+    assert_eq!(args.last().unwrap(), transport::CURSOR_USAGE_SQL);
+    assert!(!args.last().unwrap().contains("LIMIT 1"));
+}
+
+/// 子进程不读取大块标准输入时，超时仍覆盖写入阶段并回收本次进程。
+#[cfg(unix)]
+#[test]
+fn command_timeout_also_bounds_stdin_writes() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let root = tempfile::tempdir().unwrap();
+        let program = install_fixture(root.path());
+        write(&root.path().join("mode.txt"), "ignore-stdin");
+        let (_shutdown, mut cancel) = cancel();
+        let start = std::time::Instant::now();
+        let result = transport::run_command(&program, &[], Some("x".repeat(1024 * 1024)),
+            CurlLimits { timeout: Duration::from_millis(200), max_body: 1024 }, &mut cancel).await;
+        expect_failure(result, QuotaFailure::Transport);
+        assert!(start.elapsed() < Duration::from_secs(3));
+    });
+}
+
+/// 凭据只读且拒绝跟随源文件链接。
 #[test]
 fn credential_files_are_not_rewritten_and_symlinks_are_not_followed() {
     let root = tempfile::tempdir().unwrap();
@@ -107,6 +161,7 @@ fn credential_files_are_not_rewritten_and_symlinks_are_not_followed() {
     }
 }
 
+/// Grok 选择有效会话，WorkBuddy 加密材料不被解密或改写。
 #[test]
 fn grok_prefers_the_newest_unexpired_key_and_workbuddy_locked_stays_locked() {
     let root = tempfile::tempdir().unwrap();
@@ -126,6 +181,7 @@ fn grok_prefers_the_newest_unexpired_key_and_workbuddy_locked_stays_locked() {
     assert_eq!(std::fs::read(&keyblob).unwrap(), before);
 }
 
+/// 超限登录材料与包含多行的令牌输出被拒绝。
 #[test]
 fn oversized_auth_is_malformed_and_cursor_output_rejects_extra_lines() {
     let root = tempfile::tempdir().unwrap();
@@ -138,6 +194,7 @@ fn oversized_auth_is_malformed_and_cursor_output_rejects_extra_lines() {
     expect_failure(credentials::cursor_token_from_output("one\ntwo"), QuotaFailure::Malformed);
 }
 
+/// 真实夹具进程覆盖成功、失败退出、认证失败、缺失、超时与输出超限。
 #[cfg(unix)]
 #[test]
 fn fixture_process_covers_success_status_missing_program_timeout_and_output_cap() {
@@ -163,6 +220,11 @@ fn fixture_process_covers_success_status_missing_program_timeout_and_output_cap(
         assert!(stdin.contains("originator: codex_cli_rs"));
         assert_eq!(std::fs::read(home.join(".codex").join("auth.json")).unwrap(), before);
 
+        std::fs::write(root.path().join("mode.txt"), "nonzero").unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home.clone()), Some(&program), None, CurlLimits::production(), 0, &range(), &mut cancel).await;
+        assert_eq!(phase, super::QuotaCardPhase::Failed(QuotaFailure::Transport));
+        std::fs::write(root.path().join("mode.txt"), "status").unwrap();
+
         std::fs::write(root.path().join("body.txt"), "{}\n__LM_HTTP_401").unwrap();
         let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home.clone()), Some(&program), None, CurlLimits::production(), 0, &range(), &mut cancel).await;
         assert_eq!(phase, super::QuotaCardPhase::Failed(QuotaFailure::Unauthorized));
@@ -185,6 +247,7 @@ fn fixture_process_covers_success_status_missing_program_timeout_and_output_cap(
     });
 }
 
+/// Cursor 与 WorkBuddy 的请求身份仅经夹具标准输入传输。
 #[cfg(unix)]
 #[test]
 fn cursor_cookie_and_workbuddy_identity_use_the_fixture_without_touching_secrets() {
@@ -227,6 +290,7 @@ fn cursor_cookie_and_workbuddy_identity_use_the_fixture_without_touching_secrets
     });
 }
 
+/// 存在任一真实本地窗口时不启动远程查询。
 #[cfg(unix)]
 #[test]
 fn local_windows_skip_the_remote_program() {
@@ -279,6 +343,7 @@ fn local_windows_skip_the_remote_program() {
     });
 }
 
+/// 本机无目标窗口时才允许使用远程返回的真实窗口。
 #[cfg(unix)]
 #[test]
 fn missing_or_monthly_local_records_use_the_remote_window() {
@@ -330,6 +395,7 @@ fn missing_or_monthly_local_records_use_the_remote_window() {
     });
 }
 
+/// JSONL 尾部截到多字节残行时仍能读取后续完整额度。
 #[cfg(unix)]
 #[test]
 fn jsonl_tail_cut_on_a_continuation_byte_still_uses_the_local_window() {
@@ -368,6 +434,7 @@ fn jsonl_tail_cut_on_a_continuation_byte_still_uses_the_local_window() {
     });
 }
 
+/// 较新空记录不阻止继续查找较旧的真实本地窗口。
 #[cfg(unix)]
 #[test]
 fn older_local_window_wins_when_newer_files_have_no_target_window() {
@@ -400,6 +467,7 @@ fn older_local_window_wins_when_newer_files_have_no_target_window() {
     });
 }
 
+/// Cursor 同时读取两个缓存键，第二条真实窗口阻止远程回退。
 #[cfg(unix)]
 #[test]
 fn cursor_reads_both_cached_summary_rows_before_remote() {
@@ -431,16 +499,19 @@ fn cursor_reads_both_cached_summary_rows_before_remote() {
     });
 }
 
+/// 为用量测试写入夹具文件并设置可比较的修改时间。
 #[cfg(unix)]
 fn touch(path: &Path, secs: u64) {
     let file = std::fs::OpenOptions::new().write(true).open(path).unwrap();
     file.set_modified(std::time::UNIX_EPOCH + Duration::from_secs(secs)).unwrap();
 }
 
+/// 构造仅供进程夹具返回的固定远程额度正文。
 fn remote_windows(five_hour: u16, weekly: u16) -> String {
     format!(r#"{{"rate_limit":{{"primary_window":{{"used_percent":{five_hour},"limit_window_seconds":18000}},"secondary_window":{{"used_percent":{weekly},"limit_window_seconds":604800}}}}}}"#) + "\n__LM_HTTP_200"
 }
 
+/// 在隔离目录安装测试脚本并授予当前宿主执行权限。
 #[cfg(unix)]
 fn install_fixture(dir: &Path) -> PathBuf {
     let path = dir.join("fixture.py");

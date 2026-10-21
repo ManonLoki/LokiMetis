@@ -45,6 +45,7 @@ pub(crate) struct QuotaBoardSnapshot {
 }
 
 impl Default for QuotaBoardSnapshot {
+    /// 按活动提供商顺序建立尚未读取的卡片，不伪造观测时间。
     fn default() -> Self {
         Self {
             cards: supported_quota_providers().map(|provider| QuotaCard { provider, phase: QuotaCardPhase::Pending }),
@@ -90,6 +91,7 @@ impl QuotaBoard {
         self.kick_live(force, background)
     }
 
+    /// 合并在途刷新并执行五分钟节流，将实际读取登记到应用后台 owner。
     #[cfg_attr(test, allow(dead_code))]
     fn kick_live(self: &Arc<Self>, force: bool, background: &BackgroundTaskOwner) -> bool {
         if !force && self.last_kick.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some_and(|at| at.elapsed() < Duration::from_secs(5 * 60)) {
@@ -112,6 +114,7 @@ impl QuotaBoard {
         true
     }
 
+    /// 按活动目录顺序读取各提供商，复用同一取消信号与受限外部程序配置。
     async fn refresh_all(&self, shutdown: BackgroundTaskShutdown) {
         let mut cancel = shutdown.receiver();
         let Some(home) = crate::backend::local_index::current_user_home() else {
@@ -133,6 +136,7 @@ impl QuotaBoard {
         }
     }
 
+    /// 在短锁内替换单个提供商阶段，并记录真实写回时间。
     fn publish(&self, provider: QuotaProvider, phase: QuotaCardPhase) {
         let mut snapshot = self.snapshot.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(card) = snapshot.cards.iter_mut().find(|card| card.provider == provider) {
@@ -141,6 +145,7 @@ impl QuotaBoard {
         snapshot.fetched_at_unix = Some(unix_now());
     }
 
+    /// 将无法建立读取环境的失败统一写入全部活动卡片。
     fn fail_all(&self, failure: QuotaFailure) {
         for provider in supported_quota_providers() {
             self.publish(provider, QuotaCardPhase::Failed(failure));
@@ -148,13 +153,16 @@ impl QuotaBoard {
     }
 }
 
+/// 读取当前 Unix 秒，为额度快照记录完成时间。
 fn unix_now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|duration| duration.as_secs() as i64).unwrap_or(0)
 }
 
+/// 持有本轮刷新的在途标记，保证正常结束或取消后都能重新刷新。
 struct FlightGuard<'a>(&'a AtomicBool);
 
 impl Drop for FlightGuard<'_> {
+    /// 释放在途标记，使后续刷新请求重新取得执行资格。
     fn drop(&mut self) {
         self.0.store(false, Ordering::Release);
     }

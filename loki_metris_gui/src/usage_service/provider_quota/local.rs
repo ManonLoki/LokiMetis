@@ -40,23 +40,28 @@ pub(crate) fn claude_window(layout: &HomeLayout, now_unix: i64) -> Option<Provid
     quota.has_usage_window().then_some(quota)
 }
 
+/// 读取当前 Unix 秒，供 Claude 本地窗口的过期判断使用。
 fn unix_now() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|duration| duration.as_secs() as i64).unwrap_or(0)
 }
 
+/// 定位当前 Codex 数据根的活动与归档会话目录。
 fn codex_session_roots(layout: &HomeLayout) -> Vec<PathBuf> {
     let root = layout.codex_home.clone().unwrap_or_else(|| layout.home.join(".codex"));
     vec![root.join("sessions"), root.join("archived_sessions")]
 }
 
+/// 定位当前 Grok 数据根的统一日志文件。
 fn grok_log(layout: &HomeLayout) -> PathBuf {
     layout.grok_home.clone().unwrap_or_else(|| layout.home.join(".grok")).join("logs").join("unified.jsonl")
 }
 
+/// 列出 CodeBuddy 与 WorkBuddy 的本地用量记录目录。
 fn workbuddy_usage_dirs(layout: &HomeLayout) -> Vec<PathBuf> {
     vec![layout.home.join(".codebuddy").join("usage-data"), layout.home.join(".workbuddy").join("usage-data")]
 }
 
+/// 按文件修改时间从新到旧寻找首份含目标窗口的记录，不因较新空记录提前回退远程。
 fn newest_window(provider: QuotaProvider, roots: &[PathBuf]) -> Option<ProviderQuota> {
     let mut files = Vec::new();
     for root in roots {
@@ -66,11 +71,13 @@ fn newest_window(provider: QuotaProvider, roots: &[PathBuf]) -> Option<ProviderQ
     files.into_iter().find_map(|(_, path)| file_window(provider, &path))
 }
 
+/// 有界读取一份本地记录，并交给统一正文解释路径寻找额度窗口。
 fn file_window(provider: QuotaProvider, path: &Path) -> Option<ProviderQuota> {
     let text = read_record(path)?;
     quota_in_text(provider, &text)
 }
 
+/// 在限定目录深度内收集普通 JSON 记录及修改时间，跳过符号链接。
 fn collect_records(dir: &Path, depth: usize, out: &mut Vec<(u64, PathBuf)>) {
     if depth > 4 {
         return;
@@ -95,11 +102,13 @@ fn collect_records(dir: &Path, depth: usize, out: &mut Vec<(u64, PathBuf)>) {
     }
 }
 
+/// 仅将 JSON 与 JSONL 文件名纳入本地额度记录候选。
 fn is_record_name(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|name| name.to_str()) else { return false };
     name.ends_with(".jsonl") || name.ends_with(".json")
 }
 
+/// 整读有界 JSON 或读取 JSONL 尾部，先丢弃截断残行再解码 UTF-8。
 fn read_record(path: &Path) -> Option<String> {
     let metadata = std::fs::symlink_metadata(path).ok()?;
     if metadata.file_type().is_symlink() || !metadata.is_file() {
@@ -122,6 +131,7 @@ fn read_record(path: &Path) -> Option<String> {
     String::from_utf8(buffer).ok()
 }
 
+/// 优先解释完整 JSON，失败后逐行保留最后一份含目标窗口的记录。
 fn quota_in_text(provider: QuotaProvider, text: &str) -> Option<ProviderQuota> {
     if let Some(quota) = window_in_document(provider, text.trim()) {
         return Some(quota);
@@ -135,6 +145,7 @@ fn quota_in_text(provider: QuotaProvider, text: &str) -> Option<ProviderQuota> {
     found
 }
 
+/// 仅将对象正文交给 core 解释，无目标窗口时返回未获取。
 fn window_in_document(provider: QuotaProvider, text: &str) -> Option<ProviderQuota> {
     if !text.starts_with('{') {
         return None;
@@ -143,6 +154,7 @@ fn window_in_document(provider: QuotaProvider, text: &str) -> Option<ProviderQuo
     quota.has_usage_window().then_some(quota)
 }
 
+/// 有界只读查询两个 Cursor 缓存键，存在可解释窗口时直接使用本地结果。
 async fn cursor_window(layout: &HomeLayout, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Option<ProviderQuota> {
     let database = credentials::cursor_database(layout);
     credentials::ensure_regular_file(&database).ok()?;

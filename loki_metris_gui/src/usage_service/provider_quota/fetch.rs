@@ -57,6 +57,7 @@ pub(crate) fn local_package_range() -> TimeRange {
     TimeRange { begin: format_zoned(&now), end: format_zoned(&end) }
 }
 
+/// 将认证失败、传输失败及成功正文映射为额度卡阶段，窗口解释统一交给 core。
 pub(crate) fn phase_from_http(provider: QuotaProvider, response: HttpResponse) -> QuotaCardPhase {
     if response.status == 401 || response.status == 403 {
         return QuotaCardPhase::Failed(QuotaFailure::Unauthorized);
@@ -71,16 +72,19 @@ pub(crate) fn phase_from_http(provider: QuotaProvider, response: HttpResponse) -
     }
 }
 
+/// 只读 Codex 登录材料后访问固定用量入口，失败不改写本机登录态。
 async fn fetch_codex(layout: &HomeLayout, curl: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
     let login = credentials::read_codex(layout)?;
     exchange(curl, codex_request(&login)?, limits, cancel).await
 }
 
+/// 按当前时间选择 Grok 会话材料，再通过受限传输读取账单额度。
 async fn fetch_grok(layout: &HomeLayout, curl: Option<&Path>, limits: CurlLimits, now_unix: i64, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
     let login = credentials::read_grok(layout, now_unix)?;
     exchange(curl, grok_request(&login)?, limits, cancel).await
 }
 
+/// 以有界只读查询取得 Cursor 令牌，再访问固定额度入口。
 async fn fetch_cursor(layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
     let database = credentials::cursor_database(layout);
     credentials::ensure_regular_file(&database)?;
@@ -93,11 +97,13 @@ async fn fetch_cursor(layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&
     exchange(curl, cursor_request(&token)?, limits, cancel).await
 }
 
+/// 读取可用明文登录材料并发起对应站点的受限账单查询。
 async fn fetch_workbuddy(layout: &HomeLayout, curl: Option<&Path>, limits: CurlLimits, range: &TimeRange, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
     let login = credentials::read_workbuddy(layout)?;
     exchange(curl, workbuddy_request(&login, range)?, limits, cancel).await
 }
 
+/// 通过受限 curl 配置执行单次请求，再拆分 HTTP 状态与正文。
 async fn exchange(curl: Option<&Path>, request: HttpRequest, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
     let program = curl.ok_or(QuotaFailure::Transport)?;
     let exchange = transport::build_curl_exchange(&request, &limits)?;
@@ -105,6 +111,7 @@ async fn exchange(curl: Option<&Path>, request: HttpRequest, limits: CurlLimits,
     transport::split_http(&bytes)
 }
 
+/// 构造固定 Codex 用量请求，仅在请求头中携带令牌与账户身份。
 fn codex_request(login: &CodexLogin) -> Result<HttpRequest, QuotaFailure> {
     Ok(HttpRequest {
         method: "GET",
@@ -120,6 +127,7 @@ fn codex_request(login: &CodexLogin) -> Result<HttpRequest, QuotaFailure> {
     })
 }
 
+/// 构造固定 Cursor 用量请求，将令牌编码为会话 Cookie。
 fn cursor_request(token: &Secret) -> Result<HttpRequest, QuotaFailure> {
     Ok(HttpRequest {
         method: "GET",
@@ -135,6 +143,7 @@ fn cursor_request(token: &Secret) -> Result<HttpRequest, QuotaFailure> {
     })
 }
 
+/// 构造固定 Grok 额度请求并附加官方客户端身份头。
 fn grok_request(login: &GrokLogin) -> Result<HttpRequest, QuotaFailure> {
     Ok(HttpRequest {
         method: "GET",
@@ -151,6 +160,7 @@ fn grok_request(login: &GrokLogin) -> Result<HttpRequest, QuotaFailure> {
     })
 }
 
+/// 按登录域和企业身份选择固定账单入口，生成所需身份头与查询正文。
 fn workbuddy_request(login: &WorkBuddyLogin, range: &TimeRange) -> Result<HttpRequest, QuotaFailure> {
     let global = is_global_domain(&login.domain);
     let enterprise = !global && login.enterprise_id.is_some();
@@ -186,6 +196,7 @@ fn workbuddy_request(login: &WorkBuddyLogin, range: &TimeRange) -> Result<HttpRe
     Ok(HttpRequest { method: "POST", url, headers, body: Some(body) })
 }
 
+/// 生成个人套餐的固定分页与时间范围正文，不接受任意查询字段。
 fn personal_body(range: &TimeRange) -> String {
     serde_json::json!({
         "PageNumber": 1,
@@ -197,11 +208,13 @@ fn personal_body(range: &TimeRange) -> String {
     }).to_string()
 }
 
+/// 仅将 WorkBuddy 国际站域名及其子域识别为国际登录域。
 fn is_global_domain(domain: &str) -> bool {
     let domain = domain.trim().to_ascii_lowercase();
     domain == "workbuddy.ai" || domain.ends_with(".workbuddy.ai")
 }
 
+/// 按目标平台返回 Cursor 用量请求使用的固定浏览器标识。
 fn cursor_user_agent() -> &'static str {
     #[cfg(target_os = "windows")]
     { "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" }
@@ -211,14 +224,17 @@ fn cursor_user_agent() -> &'static str {
     { "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" }
 }
 
+/// 将带时区时间格式化为账单接口要求的本地日期时间字符串。
 fn format_zoned(zoned: &jiff::Zoned) -> String {
     let date = zoned.date();
     format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", date.year(), date.month(), date.day(), zoned.hour(), zoned.minute(), zoned.second())
 }
 
+/// 为 Cursor 登录库查询提供独立的超时上限选择。
 struct DurationCap;
 
 impl DurationCap {
+    /// 选择调用方预算与 Cursor 查询上限中较短的时长。
     fn min(left: std::time::Duration, right: std::time::Duration) -> std::time::Duration {
         left.min(right)
     }

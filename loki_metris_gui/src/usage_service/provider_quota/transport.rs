@@ -35,7 +35,7 @@ pub(crate) struct HttpRequest {
 
 /// curl 的参数与标准输入配置。参数中没有令牌。
 pub(crate) struct CurlExchange {
-    /// 仅 `--config` 与 `-`。
+    /// 首项禁用用户默认配置，后续只从标准输入读取受限配置。
     pub args: Vec<String>,
     /// 传给 curl 标准输入的配置。
     pub config: String,
@@ -95,7 +95,7 @@ pub(crate) fn build_curl_exchange(request: &HttpRequest, limits: &CurlLimits) ->
     }
     push(&mut config, "output = \"-\"");
     push(&mut config, r#"write-out = "\n__LM_HTTP_%{http_code}""#);
-    Ok(CurlExchange { args: vec!["--config".to_owned(), "-".to_owned()], config })
+    Ok(CurlExchange { args: vec!["--disable".to_owned(), "--config".to_owned(), "-".to_owned()], config })
 }
 
 /// sqlite3 的只读参数。路径不能以 `-` 开头，也不能含控制字符。
@@ -109,7 +109,9 @@ pub(crate) fn cursor_query_args(database: &Path, sql: &str) -> Result<Vec<String
         return Err(QuotaFailure::Transport);
     }
     let path = database.to_str().filter(|path| !path.starts_with('-') && !path.chars().any(|ch| ch.is_ascii_control())).ok_or(QuotaFailure::Transport)?;
-    Ok(vec!["-readonly".to_owned(), "-batch".to_owned(), "-noheader".to_owned(), path.to_owned(), sql.to_owned()])
+    // 显式空启动文件兼容旧版 sqlite3，避免 ~/.sqliterc 改写输出或执行额外命令。
+    let empty_init = if cfg!(windows) { "NUL" } else { "/dev/null" };
+    Ok(vec!["-init".to_owned(), empty_init.to_owned(), "-readonly".to_owned(), "-batch".to_owned(), "-noheader".to_owned(), path.to_owned(), sql.to_owned()])
 }
 
 /// 执行已构造的参数向量。取消、超时和输出超限都会结束子进程。
@@ -122,31 +124,40 @@ pub(crate) async fn run_command(program: &Path, args: &[String], stdin: Option<S
     #[cfg(unix)]
     { command.process_group(0); }
     let mut child = command.spawn().map_err(|_| QuotaFailure::Transport)?;
-    if let Some(payload) = stdin {
-        let mut pipe = child.stdin.take().ok_or(QuotaFailure::Transport)?;
-        pipe.write_all(payload.as_bytes()).await.map_err(|_| QuotaFailure::Transport)?;
-        pipe.shutdown().await.map_err(|_| QuotaFailure::Transport)?;
-    } else {
-        drop(child.stdin.take());
-    }
+    let child_stdin = child.stdin.take();
     let mut stdout = child.stdout.take().ok_or(QuotaFailure::Transport)?;
     let stderr = child.stderr.take();
     let drain = tokio::spawn(async move { drain_stderr(stderr).await; });
-    let read = read_capped(&mut stdout, limits.max_body);
-    tokio::pin!(read);
-    let read_result = tokio::select! {
-        biased;
-        _ = watch_cancelled(cancel) => Err(QuotaFailure::Transport),
-        _ = tokio::time::sleep(limits.timeout) => Err(QuotaFailure::Transport),
-        value = &mut read => value,
+    // 同一预算覆盖写入、读取和退出，子进程拒读 stdin 时也可取消并回收。
+    let result = {
+        let operation = async {
+            if let Some(payload) = stdin {
+                let mut pipe = child_stdin.ok_or(QuotaFailure::Transport)?;
+                pipe.write_all(payload.as_bytes()).await.map_err(|_| QuotaFailure::Transport)?;
+                pipe.shutdown().await.map_err(|_| QuotaFailure::Transport)?;
+            } else {
+                drop(child_stdin);
+            }
+            let bytes = read_capped(&mut stdout, limits.max_body).await?;
+            let status = child.wait().await.map_err(|_| QuotaFailure::Transport)?;
+            if !status.success() {
+                return Err(QuotaFailure::Transport);
+            }
+            Ok(bytes)
+        };
+        tokio::pin!(operation);
+        tokio::select! {
+            biased;
+            _ = watch_cancelled(cancel) => Err(QuotaFailure::Transport),
+            _ = tokio::time::sleep(limits.timeout) => Err(QuotaFailure::Transport),
+            value = &mut operation => value,
+        }
     };
-    if read_result.is_err() {
+    if result.is_err() {
         stop_child(&mut child).await;
-    } else {
-        let _ = tokio::time::timeout(Duration::from_secs(2), child.wait()).await;
     }
     drain.abort();
-    read_result
+    result
 }
 
 /// 拆出 curl `write-out` 附上的状态码。没有标记视为传输失败。
@@ -160,6 +171,7 @@ pub(crate) fn split_http(bytes: &[u8]) -> Result<HttpResponse, QuotaFailure> {
     Ok(HttpResponse { status, body: body.to_owned() })
 }
 
+/// 仅允许明确的 HTTPS 提供商主机，拒绝用户信息与控制字符。
 fn allow_url(url: &str) -> Result<(), QuotaFailure> {
     let rest = url.strip_prefix("https://").ok_or(QuotaFailure::Transport)?;
     if rest.contains('@') || rest.contains('\\') || rest.chars().any(|ch| ch.is_ascii_control()) {
@@ -170,6 +182,7 @@ fn allow_url(url: &str) -> Result<(), QuotaFailure> {
     if ALLOWED_HOSTS.iter().any(|allowed| allowed.eq_ignore_ascii_case(host)) { Ok(()) } else { Err(QuotaFailure::Transport) }
 }
 
+/// 安全引用 curl 配置值，拒绝可注入新配置行的字符。
 pub(crate) fn curl_quote(value: &str) -> Result<String, QuotaFailure> {
     if value.chars().any(|ch| ch == '\n' || ch == '\r' || ch == '\0') {
         return Err(QuotaFailure::Transport);
@@ -185,19 +198,23 @@ pub(crate) fn curl_quote(value: &str) -> Result<String, QuotaFailure> {
     Ok(quoted)
 }
 
+/// 请求头名称只允许非空 ASCII 字母数字与连字符。
 fn header_name_safe(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-')
 }
 
+/// 限制请求头值长度，拒绝控制字符和引用分隔符。
 fn header_value_safe(value: &str) -> bool {
     !value.is_empty() && value.len() <= 8192 && value.chars().all(|ch| ch == ' ' || ch == '\t' || (ch.is_ascii() && !ch.is_ascii_control() && ch != '"' && ch != '\\'))
 }
 
+/// 将已验证配置项写为独立一行。
 fn push(config: &mut String, line: &str) {
     config.push_str(line);
     config.push('\n');
 }
 
+/// 有界读取子进程正文，超限立即返回传输失败。
 async fn read_capped(stdout: &mut tokio::process::ChildStdout, max_body: usize) -> Result<Vec<u8>, QuotaFailure> {
     let mut buffer = Vec::new();
     let mut chunk = [0_u8; 8192];
@@ -213,6 +230,7 @@ async fn read_capped(stdout: &mut tokio::process::ChildStdout, max_body: usize) 
     }
 }
 
+/// 丢弃有界错误输出，不把含凭据的外部诊断带入日志。
 async fn drain_stderr(stderr: Option<tokio::process::ChildStderr>) {
     let Some(mut stderr) = stderr else { return };
     let mut chunk = [0_u8; 1024];
@@ -225,6 +243,7 @@ async fn drain_stderr(stderr: Option<tokio::process::ChildStderr>) {
     }
 }
 
+/// 等待刷新 owner 的取消或关闭信号。
 async fn watch_cancelled(cancel: &mut watch::Receiver<bool>) {
     loop {
         if *cancel.borrow_and_update() {
@@ -236,6 +255,7 @@ async fn watch_cancelled(cancel: &mut watch::Receiver<bool>) {
     }
 }
 
+/// 终止本次拥有的进程并限时等待回收。
 async fn stop_child(child: &mut tokio::process::Child) {
     let _ = child.start_kill();
     let _ = tokio::time::timeout(Duration::from_secs(2), child.wait()).await;

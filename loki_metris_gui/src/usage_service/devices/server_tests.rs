@@ -125,6 +125,7 @@ async fn failed_service_round_keeps_retrying_until_shutdown() {
     assert!(devices.state().server.cancel.is_none());
 }
 
+/// 服务失败重试逐步退避并受最大延迟限制。
 #[test]
 fn service_retry_delay_backs_off_to_cap() {
     let delays: Vec<u64> = (1..=8).map(|failures| server_retry_delay(failures).as_secs()).collect();

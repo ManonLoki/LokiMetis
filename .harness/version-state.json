@@ -79,7 +79,9 @@
     "BUG-DEVICE-ADVERTISING-RETRY",
     "BUG-AGENT-DISPLAY-NAME-UNIFY",
     "LMDESK-QUOTA-WEEKLY-VISIBILITY-001",
-    "LMDESK-QUOTA-PLAN-TAG-001"
+    "LMDESK-QUOTA-PLAN-TAG-001",
+    "LMDESK-QUOTA-TOOL-CONFIG-ISOLATION-001",
+    "LMDESK-QUOTA-FRACTIONAL-PERCENT-001"
   ],
   "applied_reconciliations": [
     {
@@ -168,8 +170,18 @@
       "change_id": "LMDESK-QUOTA-CLAUDE-CURSOR-MONTHLY-001",
       "kind": "feature",
       "required_version": "0.7.2"
+    },
+    {
+      "change_id": "LMDESK-QUOTA-TOOL-CONFIG-ISOLATION-001",
+      "kind": "bug-fix",
+      "required_version": "0.7.3"
+    },
+    {
+      "change_id": "LMDESK-QUOTA-FRACTIONAL-PERCENT-001",
+      "kind": "bug-fix",
+      "required_version": "0.7.4"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.7.2"
+  "target_version": "0.7.4"
 }

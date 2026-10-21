@@ -25,6 +25,7 @@ impl Secret {
 }
 
 impl std::fmt::Debug for Secret {
+    /// 调试输出固定隐藏令牌，避免凭据随错误诊断泄露。
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("Secret([redacted])")
     }
@@ -162,6 +163,7 @@ pub(crate) fn read_workbuddy(layout: &HomeLayout) -> Result<WorkBuddyLogin, Quot
     Err(if locked { QuotaFailure::CredentialLocked } else { QuotaFailure::MissingCredentials })
 }
 
+/// 按宿主平台定位 WorkBuddy 登录目录，不创建或读取文件。
 fn workbuddy_auth_root(layout: &HomeLayout) -> PathBuf {
     #[cfg(target_os = "macos")]
     let root = layout.home.join("Library/Application Support");
@@ -172,6 +174,7 @@ fn workbuddy_auth_root(layout: &HomeLayout) -> PathBuf {
     root.join("CodeBuddyExtension").join("Data").join("Public").join("auth")
 }
 
+/// 解析明文登录字段，区分缺失凭据与加密信封，并过滤请求头身份值。
 fn parse_workbuddy(text: &str) -> Result<WorkBuddyLogin, QuotaFailure> {
     let value: Value = serde_json::from_str(text).map_err(|_| QuotaFailure::Malformed)?;
     let auth = value.get("auth").unwrap_or(&value);
@@ -193,6 +196,7 @@ fn parse_workbuddy(text: &str) -> Result<WorkBuddyLogin, QuotaFailure> {
     })
 }
 
+/// 递归收集对象中的合法会话密钥及可解释的到期时间。
 fn collect_grok_keys(value: &Value, found: &mut Vec<(String, Option<i64>)>) {
     let Some(object) = value.as_object() else { return };
     if let Some(token) = object.get("key").and_then(Value::as_str).filter(|token| token_safe(token)) {
@@ -206,6 +210,7 @@ fn collect_grok_keys(value: &Value, found: &mut Vec<(String, Option<i64>)>) {
     }
 }
 
+/// 优先选择未过期且到期较晚的候选，保留最终认证失败的稳定映射。
 fn choose_grok_key(mut found: Vec<(String, Option<i64>)>, now_unix: i64) -> Option<String> {
     found.sort_by(|(left_token, left_expiry), (right_token, right_expiry)| {
         let left_open = left_expiry.is_none_or(|expires| expires > now_unix);
@@ -215,6 +220,7 @@ fn choose_grok_key(mut found: Vec<(String, Option<i64>)>, now_unix: i64) -> Opti
     found.into_iter().next().map(|(token, _)| token)
 }
 
+/// 将秒、毫秒整数或带时区时间字符串统一转换为 Unix 秒。
 fn expires_unix(value: &Value) -> Option<i64> {
     if let Some(number) = value.as_i64() {
         return Some(if number.abs() > 1_000_000_000_000 { number / 1000 } else { number });
@@ -222,10 +228,12 @@ fn expires_unix(value: &Value) -> Option<i64> {
     value.as_str().and_then(|text| text.parse::<jiff::Timestamp>().ok()).map(|timestamp| timestamp.as_second())
 }
 
+/// 按键顺序提取首个可安全放入请求头的非空身份值。
 fn first_id(value: &Value, keys: &[&str]) -> Option<String> {
     keys.iter().find_map(|key| value.get(*key).and_then(Value::as_str).filter(|text| header_id_safe(text)).map(str::to_owned))
 }
 
+/// 拒绝链接、非普通文件和超限正文，只读有界 UTF-8 登录材料。
 fn read_regular_text(path: &Path) -> Result<String, QuotaFailure> {
     let metadata = match std::fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
@@ -251,23 +259,28 @@ fn read_regular_text(path: &Path) -> Result<String, QuotaFailure> {
     String::from_utf8(buffer).map_err(|_| QuotaFailure::Malformed)
 }
 
+/// 将文件缺失映射为无凭据，其余读取错误统一映射为传输失败。
 fn io_failure(error: std::io::Error) -> QuotaFailure {
     if error.kind() == std::io::ErrorKind::NotFound { QuotaFailure::MissingCredentials } else { QuotaFailure::Transport }
 }
 
+/// 仅接受绝对路径环境覆盖，避免读取位置随工作目录变化。
 fn absolute_env(name: &str) -> Option<PathBuf> {
     std::env::var_os(name).map(PathBuf::from).filter(|path| path.is_absolute())
 }
 
+/// 限制令牌长度与字符，拒绝空白及可能破坏请求头的内容。
 fn token_safe(value: &str) -> bool {
     (8..=8192).contains(&value.len())
         && value.chars().all(|ch| ch.is_ascii() && !ch.is_ascii_control() && !ch.is_ascii_whitespace() && ch != '"' && ch != '\\' && ch != ';')
 }
 
+/// 将请求头身份值限制为有界 ASCII 标识，拒绝控制字符和分隔符。
 fn header_id_safe(value: &str) -> bool {
     (1..=128).contains(&value.len()) && value.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
 }
 
+/// 仅允许有界 ASCII 域名字符，避免登录域夹带请求头语法。
 fn domain_safe(value: &str) -> bool {
     value.len() <= 128 && value.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-'))
 }
