@@ -33,12 +33,7 @@ impl AssetDescriptor {
     /// 只为允许的非空有界图片生成摘要。
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, AssetError> {
         if bytes.is_empty() || bytes.len() > MAX_ASSET_BYTES { return Err(AssetError::Limit); }
-        let mime = if bytes.starts_with(b"\x89PNG\r\n\x1a\n") { "image/png" }
-            else if bytes.starts_with(b"\xff\xd8\xff") { "image/jpeg" }
-            else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") { "image/gif" }
-            else if bytes.starts_with(b"BM") { "image/bmp" }
-            else if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" { "image/webp" }
-            else { return Err(AssetError::Invalid); };
+        let mime = sniff_image_mime(bytes).ok_or(AssetError::Invalid)?;
         Ok(Self { hash: digest(bytes), mime:mime.into(), length: bytes.len() as u64 })
     }
     /// 任何持久缓存复用前均验证完整摘要、魔数及长度。
@@ -47,7 +42,7 @@ impl AssetDescriptor {
     pub fn validate(&self) -> Result<(), AssetError> {
         if self.length == 0 || self.length > MAX_ASSET_BYTES as u64 || self.hash.len() != 64
             || !self.hash.bytes().all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
-            || !matches!(self.mime.as_str(), "image/bmp" | "image/png" | "image/jpeg" | "image/webp" | "image/gif") { return Err(AssetError::Invalid); }
+            || !IMAGE_MIMES.iter().any(|(mime, _)| *mime == self.mime) { return Err(AssetError::Invalid); }
         Ok(())
     }
     /// 请求只允许固定块边界，最后一块按实际长度收尾。
@@ -100,12 +95,26 @@ impl AssetReceiver {
     }
 }
 /// 摘要固定小写十六进制，跨端无需平台哈希差异。
+/// 一种允许传输的图片：MIME 及其魔数判定。
+type ImageMime = (&'static str, fn(&[u8]) -> bool);
+/// 允许传输的图片 MIME 表；识别与校验共用此表，core 本机图库亦复用同一识别。
+const IMAGE_MIMES: [ImageMime; 5] = [
+    ("image/png", |b| b.starts_with(b"\x89PNG\r\n\x1a\n")),
+    ("image/jpeg", |b| b.starts_with(b"\xff\xd8\xff")),
+    ("image/gif", |b| b.starts_with(b"GIF87a") || b.starts_with(b"GIF89a")),
+    ("image/bmp", |b| b.starts_with(b"BM")),
+    ("image/webp", |b| b.starts_with(b"RIFF") && b.get(8..12) == Some(b"WEBP")),
+];
+/// 按魔数返回允许的 MIME；未知格式返回 `None`。
+pub fn sniff_image_mime(bytes: &[u8]) -> Option<&'static str> {
+    IMAGE_MIMES.iter().find(|(_, sniff)| sniff(bytes)).map(|(mime, _)| *mime)
+}
 fn digest(bytes: &[u8]) -> String { Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect() }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    /// 五种公开格式以实际魔数识别，MIME错配和短RIFF头均拒绝复用。
+    /// 各公开格式以实际魔数识别，MIME错配和短RIFF头均拒绝复用。
     #[test]
     fn main_image_formats_preserve_mime_and_digest_verification() {
         for (bytes, mime) in [

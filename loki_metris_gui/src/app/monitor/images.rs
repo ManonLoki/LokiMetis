@@ -131,24 +131,15 @@ impl Shell {
             } else {
                 state.count(category)
             };
-            let label = if category == Category::All {
-                self.t(if picker {
-                    "monitor.picker.allCount"
-                } else {
-                    "monitor.images.allCount"
-                })
-                .replace("%{count}", &count.to_string())
-            } else {
-                format!(
-                    "{} {count}",
-                    match category {
-                        Category::Jpeg => "JPEG",
-                        Category::Png => "PNG",
-                        Category::Bmp => "BMP",
-                        Category::Webp => "WebP",
-                        _ => "GIF",
-                    }
-                )
+            let label = match category {
+                Category::All => self
+                    .t(if picker {
+                        "monitor.picker.allCount"
+                    } else {
+                        "monitor.images.allCount"
+                    })
+                    .replace("%{count}", &count.to_string()),
+                Category::Format(format) => format!("{} {count}", format.label()),
             };
             row = row.child(
                 gpui_kit::base::Button::new((

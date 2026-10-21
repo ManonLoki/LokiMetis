@@ -14,7 +14,7 @@
 | 桌面层 | `loki_metris_gui` | 视图、原生服务、I/O 驱动与运行时装配；GPUI 事件循环位于同步主线程 |
 | 异步执行 | Tokio，由 GUI 的 `UsageService` 拥有 | [服务初始化](../loki_metris_gui/src/usage_service/mod.rs)建立 2-worker runtime，承载扫描、查询、后台服务和通知；不把 GPUI loop 包进 Tokio 根任务 |
 | 本地数据 | SeaORM + SQLite | core 定义索引与迁移，适配器驱动具体读写；原始 Agent 会话与本产品派生库分离 |
-| 图像与字体 | `image` / `png`，内嵌 Geist / Geist Mono | 静态图、GIF/APNG 与受控解码工作集；字体不安装到系统，许可见[字体目录](../loki_metris_gui/assets/fonts/) |
+| 图像与字体 | `image` / `png` / `image-webp`，内嵌 Geist / Geist Mono | 静态图、GIF/APNG/WebP 与受控解码工作集；字体不安装到系统，许可见[字体目录](../loki_metris_gui/assets/fonts/) |
 | 换肤 | `chromiumoxide`、ZIP 与本地皮肤资源 | 已批准的宿主 CDP/文件编排；不是应用自身的 WebView 运行时 |
 | 工程脚本 | Node.js `>=24.21.0`、pnpm `>=12.4.1` | Node 标准库工具，无 npm 第三方依赖，无需先执行 `pnpm install` |
 | Git 工具门槛 | `>=2.36.0` | 取[环境门禁](../.agents/skills/desktop-check-development-environment/references/development-environment-gates.md)；只在真实环境失败或明确配置工具链时进入恢复流程 |
@@ -71,6 +71,7 @@
 | `uuid` | `1.28.0` | `v4,v7`；资源与事务标识 |
 | `image` | `0.25.10` | 关闭默认特征，`jpeg,png,gif,bmp,webp`；WebP 复用已解析的 `image-webp` |
 | `png` | `0.18.1` | PNG/APNG 资源处理 |
+| `image-webp` | `0.2.4` | 与 `image` 共用同一锁定版本；仅读取 WebP 容器头，在解码像素前完成帧数与内存预算 |
 | `tempfile` | `3.27.0` | GUI 临时资源与 core 测试夹具；core 仅 dev-dependency |
 | `same-file` | `1.0.6` | 文件身份核对 |
 | `whichdisk` | `0.7.0` | 关闭默认特征，`list`；卷能力识别 |

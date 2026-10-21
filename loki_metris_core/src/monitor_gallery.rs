@@ -1,4 +1,4 @@
-//! 本机监控图库：BMP/PNG/JPEG/WebP/GIF 识别、计数与预览 data URL。
+//! 本机监控图库：图片格式识别、计数与预览 data URL。
 //!
 //! 不依赖设备 ID 或远端传输；非法格式在进入存储前被拒绝。
 
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::HookError;
 
-/// 本机图库允许持久化的五种格式。
+/// 本机图库允许持久化的格式；新增格式只在本枚举及其映射中登记。
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ImageFormat {
@@ -23,31 +23,17 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
+    /// 全部已支持格式，顺序即 GUI 筛选顺序。
+    pub const ALL: [Self; 5] = [Self::Jpeg, Self::Png, Self::Gif, Self::Bmp, Self::Webp];
+
     /// 从文件魔数识别格式；无法识别时返回 `None`。
+    ///
+    /// 魔数表只在 pairing 登记一份，本机图库与设备传输对同一字节的判定始终一致。
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        if bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
-            return Some(Self::Jpeg);
-        }
-        if bytes.len() >= 8
-            && bytes[0] == 0x89
-            && bytes[1] == b'P'
-            && bytes[2] == b'N'
-            && bytes[3] == b'G'
-            && bytes[4] == 0x0D
-            && bytes[5] == 0x0A
-            && bytes[6] == 0x1A
-            && bytes[7] == 0x0A
-        {
-            return Some(Self::Png);
-        }
-        if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
-            return Some(Self::Gif);
-        }
-        if bytes.starts_with(b"BM") { return Some(Self::Bmp); }
-        if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
-            return Some(Self::Webp);
-        }
-        None
+        let mime = loki_metris_pairing::assets::sniff_image_mime(bytes)?;
+        Self::ALL
+            .into_iter()
+            .find(|format| format.mime_type() == mime)
     }
 
     /// 规范 MIME 类型，供 data URL 与 `<input accept>` 共用。
@@ -69,6 +55,24 @@ impl ImageFormat {
             Self::Gif => "gif",
             Self::Bmp => "bmp",
             Self::Webp => "webp",
+        }
+    }
+
+    /// 由存储扩展名反查格式，与 [`Self::extension`] 互逆。
+    pub fn from_extension(extension: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|format| format.extension() == extension)
+    }
+
+    /// 界面展示的格式名称，属于品牌名而非翻译文案。
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Jpeg => "JPEG",
+            Self::Png => "PNG",
+            Self::Gif => "GIF",
+            Self::Bmp => "BMP",
+            Self::Webp => "WebP",
         }
     }
 }
@@ -120,7 +124,7 @@ impl MonitorImageCounts {
 pub struct MonitorImageCatalog {
     /// 元数据条目，顺序与调用方提供的一致。
     pub images: Vec<MonitorImageMetadata>,
-    /// 五种已支持格式的独立计数。
+    /// 各已支持格式的独立计数。
     pub counts: MonitorImageCounts,
 }
 
@@ -151,7 +155,11 @@ pub fn metadata_from_bytes(
     let Some(format) = ImageFormat::from_bytes(bytes) else {
         return Err(HookError::new("error.monitor.imageUnsupportedType"));
     };
-    Ok(MonitorImageMetadata { id: id.into(), filename: filename.into(), format })
+    Ok(MonitorImageMetadata {
+        id: id.into(),
+        filename: filename.into(),
+        format,
+    })
 }
 
 /// 生成 CSP 允许的 data URL。
@@ -210,9 +218,9 @@ mod tests {
     const WEBP: &[u8] = b"RIFF....WEBP";
     const BMP: &[u8] = b"BM....";
 
-    /// 五种受支持格式按魔数识别、独立计数，并生成匹配 MIME 和扩展名。
+    /// 各受支持格式按魔数识别、独立计数，并生成匹配 MIME 和扩展名。
     #[test]
-    fn catalog_counts_all_five_formats_and_data_url_uses_mime() {
+    fn catalog_counts_every_format_and_data_url_uses_mime() {
         let jpeg = metadata_from_bytes("j1", "a.jpg", JPEG).expect("jpeg");
         let png = metadata_from_bytes("p1", "b.png", PNG).expect("png");
         let gif = metadata_from_bytes("g1", "c.gif", GIF).expect("gif");
@@ -251,11 +259,29 @@ mod tests {
         assert_eq!(catalog.counts.webp, 0);
     }
 
+    /// 扩展名反查覆盖全部格式，未登记扩展名不回退为任何格式。
+    #[test]
+    fn extension_roundtrips_for_every_format() {
+        for format in ImageFormat::ALL {
+            assert_eq!(
+                ImageFormat::from_extension(format.extension()),
+                Some(format)
+            );
+        }
+        assert_eq!(ImageFormat::from_extension("jpeg"), None);
+    }
+
     /// 验证空字节和不受支持的文件魔数会返回各自的稳定错误。
     #[test]
     fn illegal_format_and_empty_bytes_are_rejected() {
-        for bytes in [b"RIFF....WAVE".as_slice(), b"RIFF....WEB", b"B", b"arbitrary"] {
-            let unsupported = metadata_from_bytes("bad", "renamed.webp", bytes).expect_err("unsupported");
+        for bytes in [
+            b"RIFF....WAVE".as_slice(),
+            b"RIFF....WEB",
+            b"B",
+            b"arbitrary",
+        ] {
+            let unsupported =
+                metadata_from_bytes("bad", "renamed.webp", bytes).expect_err("unsupported");
             assert_eq!(unsupported.code, "error.monitor.imageUnsupportedType");
         }
         let empty = metadata_from_bytes("e1", "empty.png", &[]).expect_err("empty");

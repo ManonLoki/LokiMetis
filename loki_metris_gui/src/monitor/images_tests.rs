@@ -9,13 +9,25 @@ const GIF: &[u8] = include_bytes!("../../tests/fixtures/monitor-loop.gif");
 /// 新格式可导入后跨读取恢复；资源丢失仍保留正确格式供图库筛选和删除。
 #[test]
 fn bmp_and_webp_roundtrip_gallery_and_preserve_missing_format() {
-    for (format, codec) in [(loki_metris_core::ImageFormat::Bmp, image::ImageFormat::Bmp), (loki_metris_core::ImageFormat::Webp, image::ImageFormat::WebP)] {
+    for (format, codec) in [
+        (loki_metris_core::ImageFormat::Bmp, image::ImageFormat::Bmp),
+        (
+            loki_metris_core::ImageFormat::Webp,
+            image::ImageFormat::WebP,
+        ),
+    ] {
         let root = tempfile::tempdir().unwrap();
         let mut encoded = std::io::Cursor::new(Vec::new());
-        image::DynamicImage::new_rgba8(1, 1).write_to(&mut encoded, codec).unwrap();
+        image::DynamicImage::new_rgba8(1, 1)
+            .write_to(&mut encoded, codec)
+            .unwrap();
         let bytes = encoded.into_inner();
         let imported = save_monitor_image(root.path(), "untrusted-extension.png", &bytes).unwrap();
-        let path = root.path().join("monitor-images").join(format!("{}.{}", imported.id, format.extension()));
+        let path = root.path().join("monitor-images").join(format!(
+            "{}.{}",
+            imported.id,
+            format.extension()
+        ));
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
         let snapshot = list_monitor_images(root.path()).unwrap();
         assert_eq!(snapshot.gallery.images[0].format, format);
@@ -313,7 +325,6 @@ fn malformed_profile_behavior_structure_is_rejected_at_read_boundary() {
     }
 }
 
-
 /// 原生图库快照只返回识别元数据与原始资源，不能为每轮读取重新构造data URL。
 #[test]
 fn native_gallery_snapshot_has_metadata_and_raw_bytes_without_encoded_payload() {
@@ -326,7 +337,10 @@ fn native_gallery_snapshot_has_metadata_and_raw_bytes_without_encoded_payload() 
     let entry = &json["images"][0];
     assert_eq!(entry["id"], imported.id);
     assert_eq!(entry["filename"], "native.gif");
-    assert!(entry.get("image").is_none(), "native metadata cannot contain full Base64 payload");
+    assert!(
+        entry.get("image").is_none(),
+        "native metadata cannot contain full Base64 payload"
+    );
     assert!(serde_json::to_string(&json).unwrap().len() < 512);
 }
 

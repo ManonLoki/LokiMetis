@@ -33,31 +33,23 @@ pub(super) enum Category {
     /// 全部格式。
     #[default]
     All,
-    /// 仅 JPEG。
-    Jpeg,
-    /// 仅 PNG。
-    Png,
-    /// 仅 GIF。
-    Gif,
-    /// 仅 BMP。
-    Bmp,
-    /// 仅 WebP。
-    Webp,
+    /// 仅指定格式。
+    Format(ImageFormat),
 }
 impl Category {
-    /// 固定筛选顺序。
-    pub const ALL: [Self; 6] = [Self::All, Self::Jpeg, Self::Png, Self::Gif, Self::Bmp, Self::Webp];
+    /// 固定筛选顺序：全部在前，其后沿用 core 的格式顺序。
+    pub const ALL: [Self; ImageFormat::ALL.len() + 1] = {
+        let mut all = [Self::All; ImageFormat::ALL.len() + 1];
+        let mut index = 0;
+        while index < ImageFormat::ALL.len() {
+            all[index + 1] = Self::Format(ImageFormat::ALL[index]);
+            index += 1;
+        }
+        all
+    };
     /// 格式由 core 识别，文件扩展名不决定筛选结果。
     pub fn accepts(self, format: ImageFormat) -> bool {
-        self == Self::All
-            || matches!(
-                (self, format),
-                (Self::Jpeg, ImageFormat::Jpeg)
-                    | (Self::Png, ImageFormat::Png)
-                    | (Self::Gif, ImageFormat::Gif)
-                    | (Self::Bmp, ImageFormat::Bmp)
-                    | (Self::Webp, ImageFormat::Webp)
-            )
+        self == Self::All || self == Self::Format(format)
     }
 }
 

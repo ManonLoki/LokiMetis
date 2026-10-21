@@ -103,7 +103,9 @@ fn validate_records(records: &[MonitorImageRecord]) -> Result<(), HookError> {
                 path.components().next(),
                 Some(std::path::Component::Normal(_))
             )
-            || !matches!(extension, Some("jpg" | "png" | "gif" | "bmp" | "webp"))
+            || extension
+                .and_then(loki_metris_core::ImageFormat::from_extension)
+                .is_none()
             || !ids.insert(&record.id)
             || !names.insert(&record.stored_name)
         {
@@ -185,16 +187,12 @@ fn snapshot_from_records(
                 id: record.id.clone(),
                 filename: record.filename.clone(),
                 error,
-                format: match Path::new(&record.stored_name)
+                // validate_records 已保证扩展名属于已登记格式。
+                format: Path::new(&record.stored_name)
                     .extension()
                     .and_then(|value| value.to_str())
-                {
-                    Some("gif") => loki_metris_core::ImageFormat::Gif,
-                    Some("png") => loki_metris_core::ImageFormat::Png,
-                    Some("bmp") => loki_metris_core::ImageFormat::Bmp,
-                    Some("webp") => loki_metris_core::ImageFormat::Webp,
-                    _ => loki_metris_core::ImageFormat::Jpeg,
-                },
+                    .and_then(loki_metris_core::ImageFormat::from_extension)
+                    .unwrap_or(loki_metris_core::ImageFormat::Jpeg),
             }),
         }
     }

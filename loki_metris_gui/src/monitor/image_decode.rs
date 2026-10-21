@@ -1,4 +1,4 @@
-//! 原生图片资源解码：支持五种图片、保留动画与透明度，并限制解码资源。
+//! 原生图片资源解码：支持全部图库格式、保留动画与透明度，并限制解码资源。
 
 use gpui_kit::{App, Asset, DevicePixels, RenderImage, Size, size};
 use image::{AnimationDecoder, ImageDecoder, Limits};
@@ -142,64 +142,107 @@ fn decode(
     resources: &super::image_memory::DecodeResources,
 ) -> anyhow::Result<Arc<DecodedMonitorImage>> {
     let mut plays = Some(1);
-    let frames;
-    if source.format == ImageFormat::Gif {
-        let mut decoder = image::codecs::gif::GifDecoder::new(Cursor::new(&*source.bytes))?;
-        decoder.set_limits(limits())?;
-        plays = super::animation_metadata::gif_plays(&source.bytes)?;
-        frames = animation_frames(decoder.into_frames())?;
-    } else if source.format == ImageFormat::Png {
-        let decoder =
-            image::codecs::png::PngDecoder::with_limits(Cursor::new(&*source.bytes), limits())?;
-        if decoder.is_apng()? {
-            drop(decoder);
-            (frames, plays) = super::png_animation::decode(&source.bytes)?;
-        } else {
-            frames = vec![static_frame(decoder)?];
+    // 穷尽匹配：core 新增格式时必须在此显式选择解码路径。
+    let frames = match source.format {
+        ImageFormat::Gif => {
+            let mut decoder = image::codecs::gif::GifDecoder::new(Cursor::new(&*source.bytes))?;
+            decoder.set_limits(limits())?;
+            plays = super::animation_metadata::gif_plays(&source.bytes)?;
+            texture_frames(animation_frames(decoder.into_frames())?)?
         }
-    } else if source.format == ImageFormat::Webp {
-        let mut decoder = image::codecs::webp::WebPDecoder::new(Cursor::new(&*source.bytes))?;
-        decoder.set_limits(limits())?;
-        if decoder.has_animation() {
-            if decoder.total_bytes().saturating_mul(2) > WORK_BYTES {
-                anyhow::bail!("monitor WebP working set exceeded")
+        ImageFormat::Png => {
+            let decoder =
+                image::codecs::png::PngDecoder::with_limits(Cursor::new(&*source.bytes), limits())?;
+            if decoder.is_apng()? {
+                drop(decoder);
+                let (frames, count) = super::png_animation::decode(&source.bytes)?;
+                plays = count;
+                texture_frames(frames)?
+            } else {
+                vec![static_frame(decoder)?]
             }
-            plays = match decoder.loop_count() {
-                image::metadata::LoopCount::Infinite => None,
-                image::metadata::LoopCount::Finite(count) => Some(count.get()),
+        }
+        ImageFormat::Webp => {
+            let mut decoder = image::codecs::webp::WebPDecoder::new(Cursor::new(&*source.bytes))?;
+            // WebP 的 set_limits 只检查宽高，不执行 max_alloc，预算在解码像素前由容器头核对。
+            decoder.set_limits(limits())?;
+            check_webp_budget(&source.bytes)?;
+            if decoder.has_animation() {
+                plays = match decoder.loop_count() {
+                    image::metadata::LoopCount::Infinite => None,
+                    image::metadata::LoopCount::Finite(count) => Some(count.get()),
+                };
+                texture_frames(animation_frames(decoder.into_frames())?)?
+            } else {
+                vec![static_frame(decoder)?]
+            }
+        }
+        ImageFormat::Jpeg | ImageFormat::Bmp => {
+            let format = if source.format == ImageFormat::Bmp {
+                image::ImageFormat::Bmp
+            } else {
+                image::ImageFormat::Jpeg
             };
-            frames = animation_frames(decoder.into_frames())?;
-        } else { frames = vec![static_frame(decoder)?]; }
-    } else {
-        let format = match source.format {
-            ImageFormat::Bmp => image::ImageFormat::Bmp,
-            _ => image::ImageFormat::Jpeg,
-        };
-        let mut reader = image::ImageReader::with_format(Cursor::new(&*source.bytes), format);
-        reader.limits(limits());
-        frames = vec![static_frame(reader.into_decoder()?)?];
-    }
+            let mut reader = image::ImageReader::with_format(Cursor::new(&*source.bytes), format);
+            reader.limits(limits());
+            vec![static_frame(reader.into_decoder()?)?]
+        }
+    };
     if frames.is_empty() {
         anyhow::bail!("monitor image has no frames")
     }
+    // 各分支产出的帧均已含一圈边缘保护像素，天然尺寸需扣除。
     let natural_size = size(
-        DevicePixels(frames[0].buffer().width() as i32),
-        DevicePixels(frames[0].buffer().height() as i32),
+        DevicePixels(frames[0].buffer().width() as i32 - 2),
+        DevicePixels(frames[0].buffer().height() as i32 - 2),
     );
     let retained = frames
         .iter()
-        .map(|frame| {
-            u64::from(frame.buffer().width() + 2) * u64::from(frame.buffer().height() + 2) * 4
-        })
+        .map(|frame| frame.buffer().as_raw().len() as u64)
         .sum();
     let memory = resources.reserve(retained)?;
-    let frames = texture_frames(frames)?;
     Ok(Arc::new(DecodedMonitorImage {
         image: Arc::new(RenderImage::new(frames)),
         natural_size,
         plays,
         _memory: memory,
     }))
+}
+
+/// WebP 只解析容器头即可得到画布、帧数与编码方式，在产生任何像素前完成全部预算。
+///
+/// 动态图逐帧解码时同时存在常驻 RGBA 画布、子帧缓冲与输出帧；无 alpha 时解码器
+/// 先产出 RGB 帧再转 RGBA，另多一份 RGB。静态无损无 alpha 图在解码器内部另有一份
+/// RGBA 临时缓冲，叠加在 `static_frame` 的解码结果与 RGBA 副本之上。
+fn check_webp_budget(bytes: &[u8]) -> anyhow::Result<()> {
+    let mut header = image_webp::WebPDecoder::new(Cursor::new(bytes))?;
+    let (width, height) = header.dimensions();
+    if width > MAX_DIMENSION || height > MAX_DIMENSION {
+        anyhow::bail!("monitor WebP dimensions exceeded")
+    }
+    let pixels = u64::from(width) * u64::from(height);
+    let rgb_extra = if header.has_alpha() { 0 } else { 3 };
+    if header.is_animated() {
+        let frames = header.num_frames() as usize;
+        let retained = frames as u64 * u64::from(width + 2) * u64::from(height + 2) * 4;
+        if frames == 0 || frames > MAX_FRAMES || retained > RETAINED_BYTES {
+            anyhow::bail!("monitor WebP frame budget exceeded")
+        }
+        if pixels * (4 * 3 + rgb_extra) > WORK_BYTES {
+            anyhow::bail!("monitor WebP working set exceeded")
+        }
+    } else {
+        let decoded = pixels * if header.has_alpha() { 4 } else { 3 };
+        let lossless_temp = if header.is_lossy() || header.has_alpha() {
+            0
+        } else {
+            pixels * 4
+        };
+        if decoded + pixels * 4 + lossless_temp > RETAINED_BYTES {
+            anyhow::bail!("monitor WebP pixel budget exceeded")
+        }
+    }
+    Ok(())
 }
 
 /// GIF/APNG/WebP 均逐帧累计已保留内存，任何损坏帧都明确失败。
@@ -219,22 +262,35 @@ fn animation_frames(input: image::Frames<'_>) -> anyhow::Result<Vec<image::Frame
     Ok(frames)
 }
 
-/// 静态图先验像素预算，再应用 EXIF 方向并转换通道。
+/// 静态图先验像素预算，再应用 EXIF 方向；一次遍历直接生成带边缘保护的 BGRA 纹理，
+/// RGB 来源不再先整幅复制为 RGBA。
 fn static_frame(mut decoder: impl ImageDecoder) -> anyhow::Result<image::Frame> {
     let orientation = decoder.orientation()?;
     let (width, height) = decoder.dimensions();
-    let rgba = u64::from(width) * u64::from(height) * 4;
+    let texture = u64::from(width + 2) * u64::from(height + 2) * 4;
     if width > MAX_DIMENSION
         || height > MAX_DIMENSION
-        || decoder.total_bytes().saturating_add(rgba) > RETAINED_BYTES
+        || decoder.total_bytes().saturating_add(texture) > RETAINED_BYTES
     {
         anyhow::bail!("monitor pixel budget exceeded")
     }
     let mut decoded = image::DynamicImage::from_decoder(decoder)?;
     decoded.apply_orientation(orientation);
-    let mut rgba = decoded.into_rgba8();
-    bgra(&mut rgba);
-    Ok(image::Frame::new(rgba))
+    let texture = match decoded {
+        image::DynamicImage::ImageRgb8(source) => padded_texture(&source, |pixel| {
+            let [red, green, blue] = pixel.0;
+            image::Rgba([blue, green, red, 255])
+        }),
+        image::DynamicImage::ImageRgba8(source) => padded_texture(&source, rgba_to_bgra),
+        other => padded_texture(&other.into_rgba8(), rgba_to_bgra),
+    };
+    Ok(image::Frame::new(texture))
+}
+
+/// 单像素 RGBA 到 BGRA。
+fn rgba_to_bgra(pixel: image::Rgba<u8>) -> image::Rgba<u8> {
+    let [red, green, blue, alpha] = pixel.0;
+    image::Rgba([blue, green, red, alpha])
 }
 
 /// GPUI 纹理使用 BGRA，保留原 alpha 不做背景合成。
@@ -244,7 +300,7 @@ pub(super) fn bgra(rgba: &mut image::RgbaImage) {
     }
 }
 
-/// GPUI atlas 无边距且采用线性采样，复制一圈边缘避免放大小图时混入透明或邻块。
+/// 动画帧已是 BGRA，只补边缘保护像素并累计纹理预算。
 fn texture_frames(frames: Vec<image::Frame>) -> anyhow::Result<Vec<image::Frame>> {
     let mut retained = 0u64;
     frames
@@ -252,22 +308,30 @@ fn texture_frames(frames: Vec<image::Frame>) -> anyhow::Result<Vec<image::Frame>
         .map(|frame| {
             let delay = frame.delay();
             let source = frame.into_buffer();
-            let (width, height) = source.dimensions();
-            let (padded_width, padded_height) = (width + 2, height + 2);
-            retained =
-                retained.saturating_add(u64::from(padded_width) * u64::from(padded_height) * 4);
+            retained = retained
+                .saturating_add(u64::from(source.width() + 2) * u64::from(source.height() + 2) * 4);
             if retained > RETAINED_BYTES {
                 anyhow::bail!("monitor texture budget exceeded")
             }
-            let padded = image::RgbaImage::from_fn(padded_width, padded_height, |x, y| {
-                *source.get_pixel(
-                    x.saturating_sub(1).min(width - 1),
-                    y.saturating_sub(1).min(height - 1),
-                )
-            });
+            let padded = padded_texture(&source, |pixel| pixel);
             Ok(image::Frame::from_parts(padded, 0, 0, delay))
         })
         .collect()
+}
+
+/// GPUI atlas 无边距且采用线性采样，复制一圈边缘避免放大小图时混入透明或邻块；
+/// `to_bgra` 在同一遍历中把来源像素转换为纹理像素。
+fn padded_texture<P: image::Pixel<Subpixel = u8>>(
+    source: &image::ImageBuffer<P, Vec<u8>>,
+    to_bgra: impl Fn(P) -> image::Rgba<u8>,
+) -> image::RgbaImage {
+    let (width, height) = source.dimensions();
+    image::RgbaImage::from_fn(width + 2, height + 2, |x, y| {
+        to_bgra(*source.get_pixel(
+            x.saturating_sub(1).min(width - 1),
+            y.saturating_sub(1).min(height - 1),
+        ))
+    })
 }
 
 #[cfg(test)]
@@ -379,64 +443,117 @@ mod tests {
     /// BMP 和静态 WebP 都走真实编码后的字节，保留尺寸、像素和单次播放。
     #[test]
     fn bmp_and_static_webp_decode_their_actual_pixels() {
-        for (format, codec) in [(ImageFormat::Bmp, image::ImageFormat::Bmp), (ImageFormat::Webp, image::ImageFormat::WebP)] {
+        for (format, codec) in [
+            (ImageFormat::Bmp, image::ImageFormat::Bmp),
+            (ImageFormat::Webp, image::ImageFormat::WebP),
+        ] {
             let pixel = image::RgbaImage::from_pixel(1, 1, image::Rgba([12, 34, 56, 255]));
             let mut bytes = Cursor::new(Vec::new());
-            image::DynamicImage::ImageRgba8(pixel).write_to(&mut bytes, codec).unwrap();
-            let source = MonitorImageSource { id: format!("static-{format:?}"), format, bytes: Arc::from(bytes.into_inner()) };
-            let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
+            image::DynamicImage::ImageRgba8(pixel)
+                .write_to(&mut bytes, codec)
+                .unwrap();
+            let source = MonitorImageSource {
+                id: format!("static-{format:?}"),
+                format,
+                bytes: Arc::from(bytes.into_inner()),
+            };
+            let decoded =
+                decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
             assert_eq!(decoded.natural_size, size(DevicePixels(1), DevicePixels(1)));
             assert_eq!(decoded.plays, Some(1));
             assert_eq!(decoded.image.frame_count(), 1);
-            assert_eq!(decoded.image.as_bytes(0).unwrap(), [56, 34, 12, 255].repeat(9));
+            assert_eq!(
+                decoded.image.as_bytes(0).unwrap(),
+                [56, 34, 12, 255].repeat(9)
+            );
         }
     }
 
-    /// 用现有无损编码器构造两帧 WebP 容器，循环次数和延迟都由正式解码器读取。
-    fn animated_webp(loops: u16) -> Vec<u8> {
+    /// 用现有无损编码器构造 1×1 动态 WebP 容器，循环次数和延迟都由正式解码器读取。
+    fn animated_webp(loops: u16, frames: &[([u8; 4], u32)]) -> Vec<u8> {
         let mut body = b"WEBP".to_vec();
+        // RIFF 子块：四字节类型、小端长度、正文，奇数长度补一字节对齐。
         let chunk = |output: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]| {
-            output.extend_from_slice(kind); output.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            output.extend_from_slice(kind);
+            output.extend_from_slice(&(data.len() as u32).to_le_bytes());
             output.extend_from_slice(data);
-            if data.len() % 2 != 0 { output.push(0); }
+            if !data.len().is_multiple_of(2) {
+                output.push(0);
+            }
         };
+        // 首字节 2 为动画标志；画布宽高均以“减一”存储，0 即 1 像素。
         chunk(&mut body, b"VP8X", &[2, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        let mut animation = vec![0, 0, 0, 0]; animation.extend_from_slice(&loops.to_le_bytes());
+        // ANIM：四字节背景色后接两字节循环次数，0 表示无限循环。
+        let mut animation = vec![0, 0, 0, 0];
+        animation.extend_from_slice(&loops.to_le_bytes());
         chunk(&mut body, b"ANIM", &animation);
-        for (pixel, delay) in [([0, 0, 0, 255], 120u32), ([255, 255, 255, 255], 230u32)] {
+        for &(pixel, delay) in frames {
             let mut encoded = Vec::new();
             image::codecs::webp::WebPEncoder::new_lossless(&mut encoded)
-                .encode(&pixel, 1, 1, image::ExtendedColorType::Rgba8).unwrap();
-            let mut frame = vec![0; 16]; frame[12..15].copy_from_slice(&delay.to_le_bytes()[..3]);
+                .encode(&pixel, 1, 1, image::ExtendedColorType::Rgba8)
+                .unwrap();
+            // ANMF 头 16 字节：偏移与“减一”宽高均为 0，第 12..15 字节是三字节延迟。
+            let mut frame = vec![0; 16];
+            frame[12..15].copy_from_slice(&delay.to_le_bytes()[..3]);
             frame[15] = 2; // 测试帧完整替换画布，不叠加上一帧的颜色。
+            // 去掉编码结果的 RIFF/WEBP 12 字节文件头，只嵌入 VP8L 子块。
             frame.extend_from_slice(&encoded[12..]);
             chunk(&mut body, b"ANMF", &frame);
         }
-        let mut bytes = b"RIFF".to_vec(); bytes.extend_from_slice(&(body.len() as u32).to_le_bytes());
-        bytes.extend(body); bytes
+        let mut bytes = b"RIFF".to_vec();
+        bytes.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        bytes.extend(body);
+        bytes
     }
 
     /// 动态 WebP 必须保留两帧、各自延迟及有限或无限播放，不能退化成首帧静图。
     #[test]
     fn animated_webp_keeps_frames_delays_and_loop_count() {
         for (loops, plays) in [(0, None), (3, Some(3))] {
-            let source = MonitorImageSource { id: format!("animated-webp-{loops}"), format: ImageFormat::Webp, bytes: Arc::from(animated_webp(loops)) };
-            let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
+            let source = MonitorImageSource {
+                id: format!("animated-webp-{loops}"),
+                format: ImageFormat::Webp,
+                bytes: Arc::from(animated_webp(
+                    loops,
+                    &[([0, 0, 0, 255], 120), ([255, 255, 255, 255], 230)],
+                )),
+            };
+            let decoded =
+                decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
             assert_eq!(decoded.plays, plays);
             assert_eq!(decoded.image.frame_count(), 2);
             assert_eq!(decoded.natural_size, size(DevicePixels(1), DevicePixels(1)));
             assert_eq!(decoded.image.as_bytes(0).unwrap(), [0, 0, 0, 255].repeat(9));
-            assert_eq!(decoded.image.as_bytes(1).unwrap(), [255, 255, 255, 255].repeat(9));
+            assert_eq!(
+                decoded.image.as_bytes(1).unwrap(),
+                [255, 255, 255, 255].repeat(9)
+            );
             assert_eq!(decoded.image.delay(0).numer_denom_ms(), (120, 1));
             assert_eq!(decoded.image.delay(1).numer_denom_ms(), (230, 1));
         }
     }
 
+    /// 帧数超限的动态 WebP 只凭容器头即被拒绝，不进入逐帧解码。
+    #[test]
+    fn animated_webp_over_frame_budget_fails_before_decoding() {
+        let frames = vec![([0, 0, 0, 255], 10); MAX_FRAMES + 1];
+        let bytes = animated_webp(0, &frames);
+        assert!(check_webp_budget(&bytes).is_err());
+        assert!(check_webp_budget(&animated_webp(0, &frames[..2])).is_ok());
+    }
+
     /// 魔数合法但无图像数据的 BMP/WebP 必须失败，不能伪装为已解码图片。
     #[test]
     fn corrupt_bmp_and_webp_fail_decoding() {
-        for (format, bytes) in [(ImageFormat::Bmp, b"BM....".as_slice()), (ImageFormat::Webp, b"RIFF....WEBP".as_slice())] {
-            let source = MonitorImageSource { id: "corrupt".into(), format, bytes: Arc::from(bytes) };
+        for (format, bytes) in [
+            (ImageFormat::Bmp, b"BM....".as_slice()),
+            (ImageFormat::Webp, b"RIFF....WEBP".as_slice()),
+        ] {
+            let source = MonitorImageSource {
+                id: "corrupt".into(),
+                format,
+                bytes: Arc::from(bytes),
+            };
             assert!(decode(&source, &super::super::image_memory::DecodeResources::new()).is_err());
         }
     }
