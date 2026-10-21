@@ -32,7 +32,7 @@ macOS Intel、Windows ARM、移动端及额外格式不属于此固定桌面矩�
 
 用户已授权将本机既有 Developer ID 及公证材料配置为本仓库 Actions secrets。只允许下列专用秘密字段，不提交秘密文件或值到源码：
 
-- `MACOS_CERTIFICATE_BASE64`：只含已批准 Developer ID 身份的 P12。
+- `MACOS_CERTIFICATE_BASE64`：只含已批准 Developer ID 身份、采用 macOS Security 兼容格式且经独立临时钥匙串导入及身份复读校验的 P12；不能仅凭 OpenSSL 解码成功判定可导入。
 - `MACOS_CERTIFICATE_PASSWORD`：该导出包的随机密码。
 - `APPLE_NOTARIZATION_KEY`：既有 App Store Connect P8。
 - `APPLE_NOTARIZATION_KEY_ID`、`APPLE_NOTARIZATION_ISSUER`：对应公证标识。

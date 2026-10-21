@@ -84,7 +84,8 @@
     "LMDESK-QUOTA-FRACTIONAL-PERCENT-001",
     "LMDESK-INSTANCE-PANEL-REMOVAL-001",
     "LMDESK-QUOTA-ROW-LABEL-TAG-001",
-    "LMDESK-CI-NATIVE-ENVIRONMENT-001"
+    "LMDESK-CI-NATIVE-ENVIRONMENT-001",
+    "LMDESK-CI-WINDOWS-LINKER-001"
   ],
   "applied_reconciliations": [
     {
@@ -112,19 +113,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.7.6",
+  "cycle_base_version": "0.7.7",
   "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "6737feb0d627ed4ee77585ddd9bb03d65e9965bc",
-    "version": "0.7.6"
+    "source_commit": "cf7ab411b4ae68a2af9ed9d4f0db1652b3c79494",
+    "version": "0.7.7"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-CI-NATIVE-ENVIRONMENT-001",
+      "change_id": "LMDESK-CI-WINDOWS-LINKER-001",
       "kind": "bug-fix",
-      "required_version": "0.7.7"
+      "required_version": "0.7.8"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.7.7"
+  "target_version": "0.7.8"
 }

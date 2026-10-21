@@ -107,7 +107,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     const [command,tag,...args] = process.argv.slice(2);
     if (command === 'prepare') console.log(JSON.stringify(prepare(tag)));
-    else if (command === 'build') build(tag,...args);
+    else if (command === 'build') build(tag ?? process.env.RELEASE_TAG,args[0] ?? process.env.BUILD_TARGET,args[1] ?? process.env.BUILD_FORMATS,args[2] ?? path.join(process.env.RUNNER_TEMP,'loki-candidates'));
     else if (command === 'publish') publish(tag,...args);
     else throw new Error('Expected prepare, build or publish');
   } catch (error) { console.error(error.message); process.exitCode = 1; }

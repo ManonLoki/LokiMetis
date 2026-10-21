@@ -102,6 +102,10 @@ jobs:
           foreach ($tool in @('cl.exe','link.exe','rc.exe','fxc.exe')) {
             Split-Path (Get-Command $tool -ErrorAction Stop).Source | Add-Content $env:GITHUB_PATH
           }
+          $compilerDirectory = Split-Path (Get-Command cl.exe -ErrorAction Stop).Source
+          $linker = Join-Path $compilerDirectory 'link.exe'
+          if (!(Test-Path -LiteralPath $linker -PathType Leaf)) { throw 'MSVC linker is missing' }
+          "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=$linker" | Add-Content $env:GITHUB_ENV
           foreach ($name in @('INCLUDE','LIB','LIBPATH','WindowsSdkDir','WindowsSDKVersion','VCINSTALLDIR','VCToolsInstallDir','UniversalCRTSdkDir','UCRTVersion')) {
             "$name=$([Environment]::GetEnvironmentVariable($name,'Process'))" | Add-Content $env:GITHUB_ENV
           }
@@ -110,12 +114,21 @@ jobs:
           & (Join-Path $nodeDirectory 'node.exe') --version
           & 'C:\Program Files\7-Zip\7z.exe' i | Select-Object -First 5
       - name: Install global packager
-        if: runner.os != 'Linux'
+        if: runner.os == 'macOS'
         run: |
           node --version
           node -p process.execPath
           pnpm --version
-          if [[ "$RUNNER_OS" == Windows ]]; then command -v cl.exe link.exe rc.exe fxc.exe; fi
+          pnpm run gpui:package setup --root .
+      - name: Install Windows global packager
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node --version
+          node -p process.execPath
+          pnpm --version
+          Get-Command cl.exe,link.exe,rc.exe,fxc.exe | Select-Object Name,Source
+          if (!(Test-Path -LiteralPath $env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER -PathType Leaf)) { throw 'Explicit MSVC linker is missing' }
           pnpm run gpui:package setup --root .
       - name: Import macOS signing credentials
         if: runner.os == 'macOS'
@@ -127,9 +140,12 @@ jobs:
           APPLE_NOTARIZATION_ISSUER: ${{ secrets.APPLE_NOTARIZATION_ISSUER }}
         run: node scripts/github_macos_credentials.mjs import
       - name: Build tested candidates
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: node scripts/github_release.mjs build "$RELEASE_TAG" '${{ matrix.target }}' '${{ matrix.formats }}' "$RUNNER_TEMP/loki-candidates"
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_FORMATS: ${{ matrix.formats }}
+        run: node scripts/github_release.mjs build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: candidates-${{ matrix.name }}
