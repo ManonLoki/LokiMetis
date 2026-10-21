@@ -5,7 +5,7 @@ use crate::app::surface::{StaticCard, StaticMaterial, SurfaceButton, SurfaceButt
 use gpui_kit::assets::IconName;
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role,
-    base::TestSupportExt as _, component::{ActiveTheme, Disableable, Icon},
+    base::TestSupportExt as _, component::{ActiveTheme, Icon},
     div, prelude::*, px,
 };
 
@@ -15,17 +15,11 @@ impl Shell {
         let state = &self.devices.snapshot;
         let dark = cx.theme().mode.is_dark();
         let mut page = div().id("devices-page").test_support().flex().flex_col().gap(px(28.))
-            .child(div().flex().items_center().justify_between().gap_4()
-                .child(div().min_w_0().flex().flex_col().gap_2()
-                    .child(div().id("devices-title").test_support().role(Role::Heading).aria_level(1)
-                        .aria_label(self.t("devices.title")).font_weight(FontWeight::BOLD)
-                        .text_size(px(24.)).child(self.t("devices.title")))
-                    .child(div().text_color(cx.theme().muted_foreground).child(self.t("devices.subtitle"))))
-                .child(SurfaceButton::new("devices-discover", SurfaceButtonVariant::FilledBrand, dark)
-                    .h(px(36.)).px_4().left_icon(Icon::new(IconName::RefreshCw).size(px(16.)))
-                    .label(self.t(if state.scanning { "devices.scanning" } else { "devices.discover" }))
-                    .disabled(state.scanning || state.pending)
-                    .on_click(cx.listener(|this, _, _, cx| this.enter_devices(cx)))));
+            .child(div().min_w_0().flex().flex_col().gap_2()
+                .child(div().id("devices-title").test_support().role(Role::Heading).aria_level(1)
+                    .aria_label(self.t("devices.title")).font_weight(FontWeight::BOLD)
+                    .text_size(px(24.)).child(self.t("devices.title")))
+                .child(div().text_color(cx.theme().muted_foreground).child(self.t("devices.subtitle"))));
         if let Some(error) = self.devices.error.or(state.error).or(state.discovery_error).or(state.link_error) {
             page = page.child(div().id("devices-error").test_support().role(Role::Status)
                 .aria_label(self.device_error_text(error)).text_color(cx.theme().danger)

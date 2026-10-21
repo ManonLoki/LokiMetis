@@ -47,7 +47,13 @@ impl Shell {
                     .on_click(cx.listener(move |this, _, window, cx| this.open_device_dialog(target.id.clone(), target.name.clone(), false, window, cx)))));
         }
         div().id("devices-discovered").test_support().flex().flex_col().gap_4()
-            .child(self.device_section_title("devices-discovered-title", "devices.discovered", candidates.len(), cx))
+            .child(div().id("devices-discovered-header").test_support().flex().items_center().justify_between().gap_4()
+                .child(self.device_section_title("devices-discovered-title", "devices.discovered", candidates.len(), cx))
+                .child(SurfaceButton::new("devices-discover", SurfaceButtonVariant::LightBrand, dark)
+                    .h(px(32.)).px_3().left_icon(Icon::new(IconName::RefreshCw).size(px(16.)))
+                    .label(self.t(if state.scanning { "devices.scanning" } else { "devices.refresh" }))
+                    .disabled(state.scanning || state.pending)
+                    .on_click(cx.listener(|this, _, _, cx| this.enter_devices(cx)))))
             .child(list)
             .into_any_element()
     }

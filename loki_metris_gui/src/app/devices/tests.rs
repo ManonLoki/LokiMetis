@@ -6,6 +6,54 @@ use loki_metris_core::devices::{DiscoveredDevice, SavedDeviceSummary};
 
 const DEVICE: &str = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
+/// 刷新位于发现栏头且双语可见；仅按钮触发发现，扫描和保存期间均阻止重复操作。
+#[gpui_kit::test]
+fn discovery_refresh_belongs_to_section_and_respects_busy_state(cx: &mut TestAppContext) {
+    for (width, locale, refresh, scanning) in [
+        (960., "zh-CN", "刷新", "正在发现…"),
+        (1440., "en-US", "Refresh", "Discovering…"),
+    ] {
+        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, width, 900.);
+        cx.update_window(handle, |_, window, cx| {
+            shell.update(cx, |this, cx| {
+                this.locale = locale; this.page = crate::app::Page::Devices;
+                this.devices.error = Some("device_timeout");
+                cx.notify();
+            });
+            window.render_frame(cx);
+            let header = window.find("devices-discovered-header").bounds();
+            let button = window.find("devices-discover");
+            assert_eq!(button.role(), Some(Role::Button));
+            assert_eq!(button.label(), Some(refresh));
+            assert!(button.bounds().left() >= header.left() && button.bounds().right() <= header.right());
+            assert!(button.bounds().top() >= header.top() && button.bounds().bottom() <= header.bottom());
+            assert!(button.bounds().left() >= window.find("devices-discovered-title").bounds().right());
+            window.click("devices-discovered-header", cx);
+            assert_eq!(shell.read(cx).devices.error, Some("device_timeout"));
+            for (is_scanning, pending) in [(true, false), (false, true)] {
+                shell.update(cx, |this, cx| {
+                    this.devices.snapshot.scanning = is_scanning;
+                    this.devices.snapshot.pending = pending;
+                    cx.notify();
+                });
+                window.render_frame(cx);
+                let button = window.find("devices-discover");
+                assert_eq!(button.label(), Some(if is_scanning { scanning } else { refresh }));
+                window.click("devices-discover", cx);
+                assert_eq!(shell.read(cx).devices.error, Some("device_timeout"));
+            }
+            shell.update(cx, |this, cx| {
+                this.devices.snapshot.pending = false;
+                cx.notify();
+            });
+            window.render_frame(cx);
+            window.click("devices-discover", cx);
+            // 测试根没有服务，真实发现入口必须返回不可用，证明点击确实到达该入口。
+            assert_eq!(shell.read(cx).devices.error, Some("device_unavailable"));
+        }).unwrap();
+    }
+}
+
 /// 宽窄窗口与双主题均保持真实卡片栅格；长名称、IPv6和图片不得溢出，候选按行排列。
 #[gpui_kit::test]
 fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppContext) {

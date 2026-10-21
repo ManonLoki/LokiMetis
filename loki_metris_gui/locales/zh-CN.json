@@ -852,6 +852,7 @@
     "title": "终端设备",
     "subtitle": "连接同一局域网中的手机与显示终端。",
     "discover": "发现设备",
+    "refresh": "刷新",
     "scanning": "正在发现…",
     "saved": "已配对设备",
     "discovered": "发现的设备",

@@ -852,6 +852,7 @@
     "title": "Terminal devices",
     "subtitle": "Connect phones and displays on your local network.",
     "discover": "Discover devices",
+    "refresh": "Refresh",
     "scanning": "Discovering…",
     "saved": "Paired devices",
     "discovered": "Discovered devices",
