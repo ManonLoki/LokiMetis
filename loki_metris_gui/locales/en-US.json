@@ -941,21 +941,7 @@
     "ipPending": "IP · waiting for a connection",
     "appVersion": "App",
     "recovery": {
-      "restored": "Pairing restored. Connecting to the original devices…",
-      "testInstance": "Test instance · separate pairing records",
-      "standardInstance": "Standard instance",
-      "hint": "Export an encrypted pairing backup before reinstalling. Keep its recovery code separately.",
-      "export": "Export pairing backup",
-      "import": "Restore pairing backup",
-      "exported": "Encrypted pairing backup saved",
-      "codeHint": "Save this recovery code separately from the backup file. It is shown only in this window and is required to restore pairing.",
-      "copyCode": "Copy recovery code",
-      "enterCode": "Enter the recovery code for the selected backup.",
-      "previewHint": "Restore this desktop identity and its paired devices? Existing conflicting pairing records will be kept and restoration will be refused.",
-      "peerRevocationHint": "An old backup may include pairings later forgotten on this desktop. Confirming restores those local permissions. A peer that forgot its pairing still requires pairing again. Keep only one desktop instance with this identity online.",
-      "preview": "Preview restoration",
-      "confirm": "Restore this identity",
-      "done": "Done"
+      "restored": "Pairing restored. Connecting to the original devices…"
     }
   }
 }

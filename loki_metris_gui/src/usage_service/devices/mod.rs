@@ -9,7 +9,6 @@ mod widget_http;
 mod store;
 mod recovery_store;
 mod recovery;
-pub(crate) use recovery::DeviceRecoveryPreview;
 mod transport;
 #[cfg(test)]
 mod tests;

@@ -81,7 +81,8 @@
     "LMDESK-QUOTA-WEEKLY-VISIBILITY-001",
     "LMDESK-QUOTA-PLAN-TAG-001",
     "LMDESK-QUOTA-TOOL-CONFIG-ISOLATION-001",
-    "LMDESK-QUOTA-FRACTIONAL-PERCENT-001"
+    "LMDESK-QUOTA-FRACTIONAL-PERCENT-001",
+    "LMDESK-INSTANCE-PANEL-REMOVAL-001"
   ],
   "applied_reconciliations": [
     {
@@ -109,79 +110,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.6.3",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.7.4",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "7b3df464188a560f66400b1f52fedfae228ad64f",
-    "version": "0.6.3"
+    "source_commit": "b4003702b76f96bb0cda70afa81db146f04a7a22",
+    "version": "0.7.4"
   },
   "pending_changes": [
     {
-      "change_id": "BUG-DEVICE-ADVERTISING-RETRY",
+      "change_id": "LMDESK-INSTANCE-PANEL-REMOVAL-001",
       "kind": "bug-fix",
-      "required_version": "0.6.4"
-    },
-    {
-      "change_id": "BUG-AGENT-DISPLAY-NAME-UNIFY",
-      "kind": "bug-fix",
-      "required_version": "0.6.5"
-    },
-    {
-      "change_id": "FEAT-WIDGET-HTTP-V1",
-      "kind": "feature",
-      "required_version": "0.7.0"
-    },
-    {
-      "change_id": "LMDESK-MONITOR-QUOTA-001",
-      "kind": "feature",
-      "required_version": "0.7.0"
-    },
-    {
-      "change_id": "LMDESK-MONITOR-QUOTA-LOCAL-001",
-      "kind": "feature",
-      "required_version": "0.7.0"
-    },
-    {
-      "change_id": "LMDESK-MONITOR-QUOTA-DISPLAY-001",
-      "kind": "feature",
-      "required_version": "0.7.0"
-    },
-    {
-      "change_id": "LMDESK-QUOTA-WEEKLY-VISIBILITY-001",
-      "kind": "bug-fix",
-      "required_version": "0.7.1"
-    },
-    {
-      "change_id": "LMDESK-TERMINAL-PROVIDER-QUOTA-001",
-      "kind": "feature",
-      "required_version": "0.7.1"
-    },
-    {
-      "change_id": "LMDESK-QUOTA-PLAN-TAG-001",
-      "kind": "bug-fix",
-      "required_version": "0.7.2"
-    },
-    {
-      "change_id": "FEAT-PAIRING-RECOVERY-V1",
-      "kind": "feature",
-      "required_version": "0.7.2"
-    },
-    {
-      "change_id": "LMDESK-QUOTA-CLAUDE-CURSOR-MONTHLY-001",
-      "kind": "feature",
-      "required_version": "0.7.2"
-    },
-    {
-      "change_id": "LMDESK-QUOTA-TOOL-CONFIG-ISOLATION-001",
-      "kind": "bug-fix",
-      "required_version": "0.7.3"
-    },
-    {
-      "change_id": "LMDESK-QUOTA-FRACTIONAL-PERCENT-001",
-      "kind": "bug-fix",
-      "required_version": "0.7.4"
+      "required_version": "0.7.5"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.7.4"
+  "target_version": "0.7.5"
 }

@@ -1,6 +1,6 @@
 # 诡秘神谕 · LokiMetris
 
-LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261021_product_spec.md`](docs/product_spec/20261021_product_spec.md)，进度见 [持续计划](docs/work_plan/20261018_work_plan.md)。整体体验复刻尚未完成。
+LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面应用，提供本机 AI Agent 用量看板、Hooks 监控与桌宠展示，并整合应用换肤。当前目标是参照历史 LokiMetis 源码和已安装 App 复刻整体体验；批准范围见 [`docs/product_spec/20261022_product_spec.md`](docs/product_spec/20261022_product_spec.md)，进度见 [持续计划](docs/work_plan/20261018_work_plan.md)。整体体验复刻尚未完成。
 
 ## 当前状态
 
@@ -18,7 +18,7 @@ LokiMetris 是一个面向 Windows、macOS 与 Linux 的 GPUI 原生 Rust 桌面
 - 看板、调用/统计/图表、来源发现与索引、用量设置、监控档案/图库/Hooks、独立桌宠与公共偏好。
 - 皮肤页已接入六套内置资源、用户主题创建、ZIP 预检/导入/导出和宿主应用编排。
 - “终端设备”页提供桌面LAN服务与四位码配对，Android/iPhone主动发现和连接；推送Token/Hooks，缺失图片按摘要补取并缓存。Watch经iPhone配套同步，iOS组件读取最近缓存，见[联动协议](docs/DEVICE_LINK_PROTOCOL.md)。
-- 终端设备页显示当前桌面UUID与正式/测试实例；隔离数据根的Bonjour名称带`TEST`，配对信任各自独立。重装前可导出加密配对备份，将随机恢复码单独保管；新安装选择备份、输入恢复码、核对原桌面身份后明确恢复。冲突记录不覆盖，覆盖安装保留原用户数据目录即可沿用配对。恢复的边界见[配对备份](docs/DEVICE_PAIRING_PROTOCOL.md#加密配对备份与恢复)。
+- 终端设备页只展示已配对卡片，不再显示本机实例身份或配对备份/恢复入口。正式与隔离数据根的配对账本各自独立，隔离根的Bonjour名称仍带`TEST`；覆盖安装保留原用户数据目录即可沿用配对。保留的底层加密备份能力与边界见[配对备份](docs/DEVICE_PAIRING_PROTOCOL.md#加密配对备份与恢复)。
 - 字体随 App 内嵌，不进行全局包或字体安装；历史源码目录和已安装参考 App 都不是运行时依赖。
 - 保留已选金色神谕之眼 Logo 和独立 `com.loki-metris.app` 身份，不会覆盖参考 App。
 

@@ -21,7 +21,6 @@ mod agents;
 mod receipt;
 mod devices;
 pub(crate) use devices::{DeviceView, DevicePairingRequest};
-pub(crate) use devices::DeviceRecoveryPreview;
 pub(crate) use receipt::{poll_receipt, receipt};
 mod pet;
 mod skins;
