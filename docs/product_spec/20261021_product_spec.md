@@ -216,6 +216,11 @@ Linux扩展稳定change_id：`LINUX-NATIVE-TOOLCHAIN-001`；分类：feature；r
 - 用量约五分钟刷新；存在可见额度面板时重试可以立即再读，刷新进行中保留已有快照，读取失败后隐藏对应卡。Hook 三秒快照独立。中继状态尚未成功时，取得任一真实窗口的用量卡仍然显示。
 - 不把邮箱、令牌或登录路径显示出来。窗口线程不读来源文件，也不等待网络。
 
+同日用户确认 Claude 与 Cursor 使用本机信息读取周／月额度：Cursor 按月，其它提供商按周。change_id：`LMDESK-QUOTA-CLAUDE-CURSOR-MONTHLY-001`；分类：feature；required_version：`0.7.2`。
+
+- 活动读取顺序改为 Codex、Claude、Cursor、Grok。Claude 只读 Claude Code statusLine 交给本机的订阅额度（5 小时与 7 日），过了重置时刻的窗口不显示，不读取钥匙串，不请求远程。用户已有自己的 statusLine 时不接管，Claude 额度保持不可用。
+- Cursor 账单月（约 27～32 日）显示为「本月剩余」；其它提供商的月度周期仍不展示，也不标成周用量。终端协议同步增加 `claude` 与 `monthly`，终端须同版升级。
+
 当前显示范围由[ADR-20261021-013](../adr/20261021_ADR.md#adr-20261021-013额度卡只展示真实五小时窗口)维护；读取顺序保留[ADR-20261021-012](../adr/20261021_ADR.md#adr-20261021-012用量优先读本机记录读不到再走远程)。真实远程提供商连通、Windows 与 Linux 外部程序未在本次验证。
 
 

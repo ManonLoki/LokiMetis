@@ -138,7 +138,7 @@ App与Widget使用固定文件锁协调摘要与读取配置。切换来源、�
 
 change_id：`LMDESK-TERMINAL-PROVIDER-QUOTA-001`；required_version：`0.7.1`。用户于2026-10-21要求额度发给移动终端，终端也能主动查询。
 
-`DisplaySnapshot`增加可选`providerQuota {observedAtUnix, providers}`。observedAtUnix为桌面最近一次额度读取完成的Unix秒；不把查询时刻冒充重新请求上游的时刻。providers最多三项、唯一且按codex/cursor/grok排列，每项为`{provider,plan?,fiveHour?,weekly?}`；每个窗口为`{kind:"fiveHour"|"weekly",usedTenths:0..1000,resetAtUnix?}`。usedTenths为已用整数千分比，终端只做1000减法得到剩余。窗口类型必须与字段相符，方案只接受24字节以内的已消毒ASCII短文本。缺失窗口行隐藏，只有周额度也显示；0%有效。没有完成过读取时省略providerQuota，完成后providers空列表明确撤下旧额度。
+`DisplaySnapshot`增加可选`providerQuota {observedAtUnix, providers}`。observedAtUnix为桌面最近一次额度读取完成的Unix秒；不把查询时刻冒充重新请求上游的时刻。providers最多四项、唯一且按codex/claude/cursor/grok排列，每项为`{provider,plan?,fiveHour?,weekly?,monthly?}`；每个窗口为`{kind:"fiveHour"|"weekly"|"monthly",usedTenths:0..1000,resetAtUnix?}`，monthly当前只由cursor提供。claude与monthly为不兼容扩展（ADR-20261021-017），旧终端须同版升级。usedTenths为已用整数千分比，终端只做1000减法得到剩余。窗口类型必须与字段相符，方案只接受24字节以内的已消毒ASCII短文本。缺失窗口行隐藏，只有周额度或只有月额度也显示；0%有效。没有完成过读取时省略providerQuota，完成后providers空列表明确撤下旧额度。
 
 发布器在有认证TCP会话或合法HTTP读者时独立触发同一个应用级额度板，与桌面页面是否可见无关；额度变化沿现有加密连接推送完整快照。额度仍约五分钟读取一次，在途读取合并，本地优先规则不变。手机与Watch不读取或保存提供商登录凭据，额度投影不含路径、账号标识或失败正文。
 

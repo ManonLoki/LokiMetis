@@ -63,7 +63,7 @@ mod workbuddy_stats;
 #[cfg(any(test, feature = "test-support"))]
 pub use agent_hooks::ai_tool_descriptors;
 pub use agent_hooks::{
-    AiTool, AiToolDescriptor, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
+    AiTool, AiToolDescriptor, CLAUDE_STATUS_LINE_EVENT, HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_EPHEMERAL_PORT,
     HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
     HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, HookBehavior, HookConfigDirectories, HookConfigLocation,
     HookConfigPreview, HookConfigWriteResult, HookError, HookEventDecision, HookRegistrationMode, HookStateMachine,
@@ -176,6 +176,7 @@ pub use provider::{
 pub use provider_quota::{
     ProviderQuotaSnapshot,
     ProviderQuota, QuotaFailure, QuotaProvider, QuotaWindow, QuotaWindowKind,
+    CLAUDE_STATUSLINE_QUOTA_FILENAME, claude_statusline_quota_record,
     classify_window_seconds, parse_provider_quota, supported_quota_providers,
 };
 pub use root_discovery::{

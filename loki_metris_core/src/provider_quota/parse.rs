@@ -1,4 +1,4 @@
-//! 各提供商用量正文的纯解释。未知字段忽略，不把月度周期写成周窗口。
+//! 各提供商用量正文的纯解释。未知字段忽略，月度周期只进入月窗口。
 
 use serde_json::Value;
 
@@ -7,12 +7,14 @@ use super::{
 };
 
 const MAX_PLAN_CHARS: usize = 24;
+/// statusline 输入只含会话元数据，超过该上限按异常输入处理。
+const MAX_STATUSLINE_INPUT: usize = 256 * 1024;
 
 /// 解释一份用量正文。空对象是合法的“没有目标窗口”，坏 JSON 才是格式错误。
 pub(super) fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Result<ProviderQuota, QuotaFailure> {
     let value: Value = serde_json::from_str(body).map_err(|_| QuotaFailure::Malformed)?;
     let object = value.as_object().ok_or(QuotaFailure::Malformed)?;
-    let mut quota = ProviderQuota { provider, plan: None, five_hour: None, weekly: None };
+    let mut quota = ProviderQuota { provider, plan: None, five_hour: None, weekly: None, monthly: None };
     quota.plan = plan_label(provider, object);
     absorb_named_windows(&mut quota, object.get("rate_limit"));
     absorb_named_windows(&mut quota, object.get("rateLimit"));
@@ -20,9 +22,14 @@ pub(super) fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Resul
     absorb_named_windows(&mut quota, nested_rate_limits(object));
     match provider {
         QuotaProvider::Codex => absorb_codex_convention(&mut quota, object.get("rate_limit").or_else(|| object.get("rateLimit"))),
+        QuotaProvider::Claude => absorb_claude(&mut quota, object.get("rate_limits")),
         QuotaProvider::Cursor => absorb_cursor(&mut quota, object),
         QuotaProvider::Grok => absorb_grok(&mut quota, object),
         QuotaProvider::WorkBuddy => absorb_workbuddy(&mut quota, object),
+    }
+    // 只有 Cursor 按账单月计额度；其它提供商的月度周期不是目标窗口。
+    if provider != QuotaProvider::Cursor {
+        quota.monthly = None;
     }
     Ok(quota)
 }
@@ -65,6 +72,42 @@ fn conventional_window(rate_limit: &serde_json::Map<String, Value>, keys: &[&str
     }
     let used = used_tenths(value)?;
     Some(QuotaWindow { kind, used_tenths: used, reset_at_unix: reset_unix(value) })
+}
+
+/// Claude Code statusline 的窗口名本身就是时长，`used_percentage` 恒为 0..100 的百分数。
+fn absorb_claude(quota: &mut ProviderQuota, rate_limits: Option<&Value>) {
+    let Some(rate_limits) = rate_limits.and_then(Value::as_object) else { return };
+    for (key, kind) in [("five_hour", QuotaWindowKind::FiveHour), ("seven_day", QuotaWindowKind::Weekly)] {
+        let Some(window) = rate_limits.get(key).and_then(Value::as_object) else { continue };
+        let Some(percent) = window.get("used_percentage").and_then(Value::as_f64).filter(|percent| percent.is_finite() && *percent >= 0.0) else { continue };
+        let used = (percent.min(100.0) * 10.0).round() as u16;
+        let reset = window.get("resets_at").and_then(json_i64).filter(|reset| *reset >= 0);
+        assign(quota, QuotaWindow { kind, used_tenths: used, reset_at_unix: reset });
+    }
+}
+
+/// statusline 输入可能带完整会话信息，落盘前只复制两个已知窗口的两个数值字段。
+pub(super) fn claude_statusline_record(input: &[u8]) -> Option<Vec<u8>> {
+    if input.len() > MAX_STATUSLINE_INPUT {
+        return None;
+    }
+    let value: Value = serde_json::from_slice(input).ok()?;
+    let rate_limits = value.get("rate_limits")?.as_object()?;
+    let mut kept = serde_json::Map::new();
+    for key in ["five_hour", "seven_day"] {
+        let Some(window) = rate_limits.get(key).and_then(Value::as_object) else { continue };
+        let Some(used) = window.get("used_percentage").filter(|used| used.is_number()) else { continue };
+        let mut copy = serde_json::Map::new();
+        copy.insert("used_percentage".to_owned(), used.clone());
+        if let Some(reset) = window.get("resets_at").filter(|reset| reset.is_number()) {
+            copy.insert("resets_at".to_owned(), reset.clone());
+        }
+        kept.insert(key.to_owned(), Value::Object(copy));
+    }
+    if kept.is_empty() {
+        return None;
+    }
+    serde_json::to_vec(&serde_json::json!({ "rate_limits": kept })).ok()
 }
 
 fn absorb_cursor(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>) {
@@ -221,6 +264,7 @@ fn assign(quota: &mut ProviderQuota, window: QuotaWindow) {
     let slot = match window.kind {
         QuotaWindowKind::FiveHour => &mut quota.five_hour,
         QuotaWindowKind::Weekly => &mut quota.weekly,
+        QuotaWindowKind::Monthly => &mut quota.monthly,
     };
     if slot.is_none() {
         *slot = Some(window);
@@ -232,6 +276,7 @@ fn plan_label(provider: QuotaProvider, object: &serde_json::Map<String, Value>) 
         QuotaProvider::Codex => object.get("plan_type").or_else(|| object.get("planType"))
             .or_else(|| object.get("rate_limits").and_then(|limits| limits.get("plan_type").or_else(|| limits.get("planType"))))
             .or_else(|| nested_rate_limits(object).and_then(|limits| limits.get("plan_type").or_else(|| limits.get("planType")))),
+        QuotaProvider::Claude => None,
         QuotaProvider::Cursor => object.get("membershipType"),
         QuotaProvider::Grok => object.get("plan").or_else(|| object.get("plan_type")),
         QuotaProvider::WorkBuddy => object.get("plan"),

@@ -2,6 +2,14 @@
 
 下文保留当日各独立变更及其开发验证范围。
 
+## LMDESK-QUOTA-CLAUDE-CURSOR-MONTHLY-001 · Claude 周额度与 Cursor 月额度
+
+分类：feature。required_version：`0.7.2`（本周期功能锁已开启，不重复提升Minor）。
+
+额度卡新增 Claude：写入 Claude Code Hook 时，若用户没有自己的 statusLine，同时登记受管 statusLine，把其中的 5 小时与 7 日已用比例写成本机私有记录，过了重置时刻的窗口不显示。Cursor 的账单月周期以「本月剩余」显示，不再因不是周窗口而整卡隐藏；其它提供商仍只显示 5 小时与周窗口。顺序为 Codex、Claude、Cursor、Grok。终端协议同步出现 `claude` 与 `monthly`，需要终端同版升级。决定见[ADR-20261021-017](../adr/20261021_ADR.md#adr-20261021-017claude额度取自statuslinecursor账单月进入月窗口)。
+
+开发验证：`cargo test -p loki_metris_core` 512 项、`cargo test -p loki_metris_gui` 1207 项通过。未在真实 Claude Code 会话、真实 Cursor 上游或 Windows/Linux 验证。
+
 ## LMDESK-TERMINAL-PROVIDER-QUOTA-001 · 移动终端同步并查询额度
 
 分类：feature。required_version：`0.7.1`（本周期功能锁已开启，不重复提升Minor）。

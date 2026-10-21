@@ -457,3 +457,32 @@ fn delivery_failure_does_not_skip_required_native_json() {
         assert!(result.is_err());assert_eq!(output,if tool==AiTool::Codex {b"".as_slice()}else{b"{}\n".as_slice()});
     }
 }
+
+/// statusLine 只把额度数值写进私有记录；没有额度的输入不覆盖上一份记录。
+#[test]
+fn claude_status_line_writes_only_rate_limits_and_keeps_previous_record() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("lokimetris").join(loki_metris_core::CLAUDE_STATUSLINE_QUOTA_FILENAME);
+    let input = br#"{"session_id":"secret-session","cwd":"/Users/me/private","rate_limits":{"five_hour":{"used_percentage":30,"resets_at":1700000000},"seven_day":{"used_percentage":5,"resets_at":1700600000}}}"#;
+    write_claude_status_line_record(&mut &input[..], &path).unwrap();
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert!(saved.contains("five_hour") && saved.contains("seven_day"));
+    assert!(!saved.contains("secret-session") && !saved.contains("private"));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    write_claude_status_line_record(&mut &br#"{"session_id":"api-key-user"}"#[..], &path).unwrap();
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), saved);
+}
+
+/// Claude 的 statusLine 伪事件走专用分支，参数形状与普通 relay 相同。
+#[test]
+fn claude_status_line_uses_the_regular_relay_argument_shape() {
+    let marker = loki_metris_core::managed_hook_marker(AiTool::ClaudeCode);
+    let parsed = parse_relay_arguments(["LokiMetris", HOOK_RELAY_ARGUMENT, "claude-code", loki_metris_core::CLAUDE_STATUS_LINE_EVENT, "--managed-by", marker.as_str()])
+        .unwrap()
+        .unwrap();
+    assert_eq!(parsed.event, "StatusLine");
+}

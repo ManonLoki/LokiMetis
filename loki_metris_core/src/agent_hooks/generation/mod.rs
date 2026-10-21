@@ -84,12 +84,34 @@ fn generate_hook_config_with_executable(
         }
     }
 
+    // 交给协议的 render_config 把 hooks 渲染成最终文件内容（默认是 JSON）
+    let mut content = protocol.render_config(hooks)?;
+    if let Some(event) = protocol.status_line_event() {
+        let commands = managed_commands(protocol, event, relay_executable, wsl_executable);
+        let mut root = serde_json::from_str::<Value>(&content).map_err(|error| {
+            HookError::new("error.hooks.generatedConfigInvalid").param("detail", error.to_string())
+        })?;
+        root.as_object_mut()
+            .ok_or_else(|| HookError::new("error.hooks.generatedConfigRootNotObject"))?
+            .insert(STATUS_LINE_KEY.to_owned(), json!({ "type": "command", "command": super::platform_command(&commands) }));
+        content = serde_json::to_string_pretty(&root).map_err(|error| {
+            HookError::new("error.hooks.mergeFailed").param("detail", error.to_string())
+        })?;
+    }
+
     Ok(HookConfigPreview {
         // 主配置文件的预览路径由协议给出
         filename: protocol.preview_filename().to_owned(),
-        // 交给协议的 render_config 把 hooks 渲染成最终文件内容（默认是 JSON）
-        content: protocol.render_config(hooks)?,
+        content,
     })
+}
+
+/// 主配置根上的单值 statusLine 键。
+const STATUS_LINE_KEY: &str = "statusLine";
+
+/// 现有 statusLine 是否由本应用为该工具写入；用户或其它工具的 statusLine 永不接管。
+fn status_line_is_managed(protocol: &dyn HookProtocol, root: &Map<String, Value>) -> bool {
+    root.get(STATUS_LINE_KEY).is_some_and(|entry| super::entry_is_managed(entry, protocol))
 }
 
 /// 把新生成的配置与现有文件合并，只替换带管理标识的条目。
@@ -136,7 +158,11 @@ pub fn merge_hook_config(
 
     // 遍历新生成配置根对象的每个键值对，用于同步除 hooks 外的根级元数据字段
     for (key, value) in generated_root {
-        if key != "hooks" {
+        if key == STATUS_LINE_KEY {
+            if !existing_root.contains_key(STATUS_LINE_KEY) || status_line_is_managed(protocol, existing_root) {
+                existing_root.insert(key.clone(), value.clone());
+            }
+        } else if key != "hooks" {
             // `version` 等由协议生成的根元数据属于该 Hook 文件契约；每次写入都
             // 恢复为当前受支持值，同时继续保留生成器未声明的用户根字段。
             existing_root.insert(key.clone(), value.clone());
@@ -239,13 +265,17 @@ pub fn remove_managed_hook_entries(
     let existing_root = existing
         .as_object_mut()
         .ok_or_else(|| HookError::new("error.hooks.existingConfigRootNotObject"))?;
+    let mut changed = false;
+    if protocol.status_line_event().is_some() && status_line_is_managed(protocol, existing_root) {
+        existing_root.remove(STATUS_LINE_KEY);
+        changed = true;
+    }
     let Some(existing_hooks) = existing_root.get_mut("hooks") else {
-        return Ok(Some(existing_content.to_owned()));
+        return Ok(Some(if changed { serialize_cleaned(&existing)? } else { existing_content.to_owned() }));
     };
     let existing_hooks = existing_hooks
         .as_object_mut()
         .ok_or_else(|| HookError::new("error.hooks.existingHooksNotObject"))?;
-    let mut changed = false;
     for event in existing_hooks.keys().cloned().collect::<Vec<_>>() {
         let should_remove = existing_hooks.get_mut(&event).is_some_and(|entries| {
             let Some(entries) = entries.as_array_mut() else {
@@ -273,11 +303,14 @@ pub fn remove_managed_hook_entries(
     if only_empty_hooks {
         return Ok(None);
     }
-    serde_json::to_string_pretty(&existing)
-        .map(Some)
-        .map_err(|error| {
-            HookError::new("error.hooks.mergeFailed").param("detail", error.to_string())
-        })
+    serialize_cleaned(&existing).map(Some)
+}
+
+/// 清理结果统一按 pretty JSON 输出。
+fn serialize_cleaned(existing: &Value) -> Result<String, HookError> {
+    serde_json::to_string_pretty(existing).map_err(|error| {
+        HookError::new("error.hooks.mergeFailed").param("detail", error.to_string())
+    })
 }
 
 /// 为一个事件生成 POSIX、Windows CMD 与 PowerShell 宿主三种托管命令。

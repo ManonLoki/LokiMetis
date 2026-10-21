@@ -49,6 +49,7 @@ use serde_json::{Map, Value, json};
 use generation::command_has_marker;
 // 对外重新导出配置生成、WSL 配置生成、配置合并三个公开入口
 pub use error::HookError;
+pub use claude_code::CLAUDE_STATUS_LINE_EVENT;
 pub use generation::{
     HookRegistrationMode, generate_hook_config, generate_wsl_hook_config, merge_hook_config, remove_managed_hook_entries,
 };
@@ -242,6 +243,13 @@ pub(super) trait HookProtocol: Sync {
     fn session_start_revives_tombstone(&self) -> bool {
         // 默认允许
         true
+    }
+
+    /// 需要在主配置根写入受管 `statusLine` 时返回 relay 使用的伪事件名。
+    ///
+    /// statusLine 是单值配置：只在用户没有自己的 statusLine 时写入，移除时只删本应用那一项。
+    fn status_line_event(&self) -> Option<&'static str> {
+        None
     }
 
     /// 默认返回 `Null`：走 `standalone_config` 独立文件路线的工具无需实现。

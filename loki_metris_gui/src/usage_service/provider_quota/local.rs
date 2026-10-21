@@ -1,4 +1,4 @@
-//! 从本机已有记录里找 5 小时或周窗口。找不到就返回空，调用方再走远程。
+//! 从本机已有记录里找 5 小时、周或月窗口。找不到就返回空，调用方再走远程。
 
 use std::{io::{Read, Seek, SeekFrom}, path::{Path, PathBuf}, time::Duration};
 
@@ -26,10 +26,22 @@ pub(crate) async fn read_local_quota(
     }
     match provider {
         QuotaProvider::Codex => newest_window(provider, &codex_session_roots(layout)),
+        QuotaProvider::Claude => claude_window(layout, unix_now()),
         QuotaProvider::Grok => file_window(provider, &grok_log(layout)),
         QuotaProvider::Cursor => cursor_window(layout, sqlite, limits, cancel).await,
         QuotaProvider::WorkBuddy => newest_window(provider, &workbuddy_usage_dirs(layout)),
     }
+}
+
+/// statusLine 记录只在 Claude Code 运行时刷新，已过重置时刻的窗口不再展示。
+pub(crate) fn claude_window(layout: &HomeLayout, now_unix: i64) -> Option<ProviderQuota> {
+    let mut quota = file_window(QuotaProvider::Claude, layout.claude_record.as_deref()?)?;
+    quota.drop_expired_windows(now_unix);
+    quota.has_usage_window().then_some(quota)
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|duration| duration.as_secs() as i64).unwrap_or(0)
 }
 
 fn codex_session_roots(layout: &HomeLayout) -> Vec<PathBuf> {
@@ -128,7 +140,7 @@ fn window_in_document(provider: QuotaProvider, text: &str) -> Option<ProviderQuo
         return None;
     }
     let quota = parse_provider_quota(provider, text).ok()?;
-    (quota.five_hour.is_some() || quota.weekly.is_some()).then_some(quota)
+    quota.has_usage_window().then_some(quota)
 }
 
 async fn cursor_window(layout: &HomeLayout, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Option<ProviderQuota> {

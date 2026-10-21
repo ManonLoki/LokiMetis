@@ -36,7 +36,7 @@ fn for_terminal_keeps_weekly_only_and_clears_failed_cards() {
 }
 
 fn layout(home: PathBuf) -> HomeLayout {
-    HomeLayout { home, codex_home: None, grok_home: None, app_data: None }
+    HomeLayout { home, codex_home: None, grok_home: None, app_data: None, claude_record: None }
 }
 
 fn write(path: &Path, text: &str) {
@@ -201,7 +201,9 @@ fn cursor_cookie_and_workbuddy_identity_use_the_fixture_without_touching_secrets
         std::fs::write(root.path().join("sqlite-out.txt"), CURSOR_TOKEN).unwrap();
         std::fs::write(root.path().join("body.txt"), r#"{"billingCycleStart":"2026-04-02T00:00:00Z","billingCycleEnd":"2026-05-02T00:00:00Z","membershipType":"enterprise","individualUsage":{"plan":{"totalPercentUsed":100,"used":1,"limit":1}}}"#.to_owned() + "\n__LM_HTTP_200").unwrap();
         let phase = fetch::fetch_provider(QuotaProvider::Cursor, &layout(home.clone()), Some(&program), Some(&program), CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 }, 0, &range(), &mut cancel).await;
-        assert!(matches!(phase, super::QuotaCardPhase::NoWindow { plan: Some(ref plan) } if plan == "enterprise"));
+        // 月度账单周期进入月窗口，不再被当作“没有目标窗口”。
+        assert!(matches!(phase, super::QuotaCardPhase::Ready(ref quota)
+            if quota.plan.as_deref() == Some("enterprise") && quota.monthly.is_some_and(|window| window.used_tenths == 1000) && quota.weekly.is_none()));
         let stdin = std::fs::read_to_string(root.path().join("stdin.txt")).unwrap();
         let argv = std::fs::read_to_string(root.path().join("argv.txt")).unwrap();
         assert!(stdin.contains("WorkosCursorSessionToken=cursor-test-token"));
@@ -448,4 +450,23 @@ fn install_fixture(dir: &Path) -> PathBuf {
     permissions.set_mode(0o755);
     std::fs::set_permissions(&path, permissions).unwrap();
     path
+}
+
+/// Claude 只读 statusLine 记录：过期窗口丢弃，全部过期或没有记录都不算有额度。
+#[test]
+fn claude_local_record_drops_expired_windows() {
+    let root = tempfile::tempdir().unwrap();
+    let record = root.path().join("claude-rate-limits.json");
+    let mut home = layout(root.path().to_path_buf());
+    assert!(super::local::claude_window(&home, 100).is_none());
+    home.claude_record = Some(record.clone());
+    assert!(super::local::claude_window(&home, 100).is_none());
+    write(&record, r#"{"rate_limits":{"five_hour":{"used_percentage":40,"resets_at":150},"seven_day":{"used_percentage":12.5,"resets_at":900}}}"#);
+    let quota = super::local::claude_window(&home, 100).unwrap();
+    assert_eq!(quota.provider, QuotaProvider::Claude);
+    assert_eq!(quota.five_hour.unwrap().used_tenths, 400);
+    assert_eq!(quota.weekly.unwrap().used_tenths, 125);
+    let later = super::local::claude_window(&home, 200).unwrap();
+    assert!(later.five_hour.is_none() && later.weekly.is_some());
+    assert!(super::local::claude_window(&home, 900).is_none());
 }

@@ -17,6 +17,9 @@ use super::{
 // 引入 AI 工具枚举与 Hook 展示行为枚举
 use crate::agent_hooks::{AiTool, HookBehavior};
 
+/// relay 识别 Claude Code statusLine 调用的伪事件名，不属于原生 Hook 事件表。
+pub const CLAUDE_STATUS_LINE_EVENT: &str = "StatusLine";
+
 // Claude Code 协议的单例静态实例，供注册表引用
 pub(super) static CLAUDE_CODE: ClaudeCodeProtocol = ClaudeCodeProtocol;
 
@@ -135,6 +138,11 @@ impl HookProtocol for ClaudeCodeProtocol {
             ("PostToolUseFailure", Some("cancelled")) => HookEventKind::WorkCompletion(HookBehavior::Running),
             _ => event.kind,
         }
+    }
+
+    /// statusLine 输入带订阅额度 `rate_limits`，relay 只取额度写入本机私有记录。
+    fn status_line_event(&self) -> Option<&'static str> {
+        Some(CLAUDE_STATUS_LINE_EVENT)
     }
 
     /// 按当前平台命令和可选 matcher 构造事件处理配置。

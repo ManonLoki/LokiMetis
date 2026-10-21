@@ -12,7 +12,8 @@ use std::{
 use anyhow::{Context, anyhow, bail};
 use loki_metris_core::{
     HOOK_EVENT_TYPE_HEADER, HOOK_RELAY_INSTANCE_HEADER, HOOK_RELAY_RENDEZVOUS_FILENAME,
-    HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION, MAX_NATIVE_HOOK_INPUT_BYTES, PreparedNativeHook,
+    CLAUDE_STATUS_LINE_EVENT, CLAUDE_STATUSLINE_QUOTA_FILENAME, HOOK_RELAY_RENDEZVOUS_SCHEMA_VERSION,
+    MAX_NATIVE_HOOK_INPUT_BYTES, PreparedNativeHook, claude_statusline_quota_record,
     managed_hook_marker, prepare_native_hook, tool_from_slug,
 };
 use serde::{Deserialize, Serialize};
@@ -128,6 +129,13 @@ pub fn run_hook_relay_if_requested() -> Option<i32> {
             return Some(1);
         }
     };
+    if tool == loki_metris_core::AiTool::ClaudeCode && arguments.event == CLAUDE_STATUS_LINE_EVENT {
+        // statusLine 失败只影响额度记录，不能让 Claude Code 的状态栏报错。
+        if let Err(error) = run_claude_status_line(&mut std::io::stdin()) {
+            report_relay_error(&error);
+        }
+        return Some(0);
+    }
     match run_relay(tool, &arguments.tool_slug, &arguments.event) {
         Ok(()) => Some(0),
         Err(error) => {
@@ -198,6 +206,34 @@ where
 /// 读取 stdin、生成最小信封并按领域决策投递或返回合法空 JSON。
 fn run_relay(tool: loki_metris_core::AiTool, tool_slug: &str, event: &str) -> anyhow::Result<()> {
     relay_native_input(tool, tool_slug, event, &mut std::io::stdin(), &mut std::io::stdout(), post_local_hook)
+}
+
+/// statusLine 输入只交给 core 取出额度数值，原子写入私有记录；不输出状态栏文字。
+fn run_claude_status_line(reader: &mut impl Read) -> anyhow::Result<()> {
+    let path = claude_statusline_quota_path()?;
+    write_claude_status_line_record(reader, &path)
+}
+
+/// 没有订阅额度的输入保留上一份记录，由读取端按重置时刻判定过期。
+fn write_claude_status_line_record(reader: &mut impl Read, path: &Path) -> anyhow::Result<()> {
+    let mut stdin = Vec::new();
+    reader.take(MAX_NATIVE_HOOK_INPUT_BYTES as u64 + 1).read_to_end(&mut stdin).context("无法读取 Claude Code statusLine 输入")?;
+    let Some(record) = claude_statusline_quota_record(&stdin) else { return Ok(()) };
+    ensure_private_rendezvous_directory(path)?;
+    super::atomic_file::write_monitor_file_atomically(path, &record, "error.hookRelay.rendezvousWriteFailed")
+        .context("无法原子写入 Claude 额度记录")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).context("无法收紧 Claude 额度记录权限")?;
+    }
+    Ok(())
+}
+
+/// Claude 额度记录与 rendezvous 同在每用户私有目录，用量服务从同一位置读取。
+pub(crate) fn claude_statusline_quota_path() -> anyhow::Result<PathBuf> {
+    Ok(hook_relay_rendezvous_path()?.with_file_name(CLAUDE_STATUSLINE_QUOTA_FILENAME))
 }
 
 /// 原生载荷读取、隐私归约与投递共用一个路径，隔离回归可注入自己的端点传输。

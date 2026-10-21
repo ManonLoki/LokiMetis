@@ -163,6 +163,11 @@
       "change_id": "FEAT-PAIRING-RECOVERY-V1",
       "kind": "feature",
       "required_version": "0.7.2"
+    },
+    {
+      "change_id": "LMDESK-QUOTA-CLAUDE-CURSOR-MONTHLY-001",
+      "kind": "feature",
+      "required_version": "0.7.2"
     }
   ],
   "schema_version": 1,

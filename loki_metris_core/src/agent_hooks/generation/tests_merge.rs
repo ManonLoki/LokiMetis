@@ -299,3 +299,51 @@ fn hook_transitions_are_owned_by_each_tool_protocol() {
     );
     assert_eq!(hook_transition(AiTool::Codex, "Unknown"), None);
 }
+
+/// Claude Code 的受管 statusLine 只在空位写入，用户自己的 statusLine 合并和清理都原样保留。
+#[test]
+fn claude_status_line_is_written_only_when_free_and_removed_only_when_managed() {
+    let generated = generate_test_hook_config(AiTool::ClaudeCode).unwrap();
+    let value: Value = serde_json::from_str(&generated.content).unwrap();
+    let command = value["statusLine"]["command"].as_str().unwrap();
+    assert_eq!(value["statusLine"]["type"], "command");
+    assert!(command_has_marker(command, &managed_hook_marker(AiTool::ClaudeCode)));
+    assert!(command.contains("StatusLine"));
+
+    let first = merge_hook_config(None, &generated, AiTool::ClaudeCode).unwrap();
+    let again = merge_hook_config(Some(&first.content), &generated, AiTool::ClaudeCode).unwrap();
+    assert_eq!(first.content, again.content);
+    let cleaned = remove_managed_hook_entries(AiTool::ClaudeCode, &first.content).unwrap();
+    assert!(cleaned.is_none());
+
+    let foreign = r#"{"statusLine":{"type":"command","command":"my-status"},"model":"opus"}"#;
+    let merged = merge_hook_config(Some(foreign), &generated, AiTool::ClaudeCode).unwrap();
+    let value: Value = serde_json::from_str(&merged.content).unwrap();
+    assert_eq!(value["statusLine"]["command"], "my-status");
+    assert_eq!(managed_count(&value["hooks"], AiTool::ClaudeCode), managed_count(&serde_json::from_str::<Value>(&generated.content).unwrap()["hooks"], AiTool::ClaudeCode));
+    let cleaned: Value = serde_json::from_str(&remove_managed_hook_entries(AiTool::ClaudeCode, &merged.content).unwrap().unwrap()).unwrap();
+    assert_eq!(cleaned["statusLine"]["command"], "my-status");
+    assert_eq!(cleaned["model"], "opus");
+
+    // 只有受管 statusLine、没有 hooks 的旧文件也能清理掉本应用那一项。
+    let only_status = serde_json::json!({ "statusLine": value_status(&generated), "model": "opus" }).to_string();
+    let cleaned: Value = serde_json::from_str(&remove_managed_hook_entries(AiTool::ClaudeCode, &only_status).unwrap().unwrap()).unwrap();
+    assert!(cleaned.get("statusLine").is_none());
+    assert_eq!(cleaned["model"], "opus");
+}
+
+/// 读取生成配置里的受管 statusLine 对象。
+fn value_status(generated: &HookConfigPreview) -> Value {
+    serde_json::from_str::<Value>(&generated.content).unwrap()["statusLine"].clone()
+}
+
+/// 只有 Claude Code 写 statusLine，其它 Claude 兼容协议不受影响。
+#[test]
+fn other_tools_do_not_generate_status_line() {
+    for tool in [AiTool::Codex, AiTool::QwenCode, AiTool::CodeBuddy] {
+        let generated = generate_test_hook_config(tool).unwrap();
+        if let Ok(value) = serde_json::from_str::<Value>(&generated.content) {
+            assert!(value.get("statusLine").is_none(), "{tool:?}");
+        }
+    }
+}

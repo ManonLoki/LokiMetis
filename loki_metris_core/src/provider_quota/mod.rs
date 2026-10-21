@@ -1,7 +1,7 @@
-//! 提供商 5 小时与周用量窗口。只解释上游响应，不读取凭据、不发起网络。
+//! 提供商 5 小时、周与月用量窗口。只解释上游响应，不读取凭据、不发起网络。
 //!
-//! Claude 与 WorkBuddy 不在活动目录内。窗口只按持续时长归类：约 5 小时或约 7 日才进入对应槽，
-//! 月度账单不会被标成周用量。
+//! WorkBuddy 不在活动目录内。窗口只按持续时长归类：约 5 小时、约 7 日或约一个账单月才进入对应槽，
+//! 月度账单不会被标成周用量。Claude 只来自 Claude Code statusline 交给本机的 `rate_limits`。
 
 mod parse;
 
@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 pub enum QuotaProvider {
     /// Codex 订阅额度。
     Codex,
+    /// Claude 订阅额度，来自 Claude Code statusline。
+    Claude,
     /// Cursor 订阅额度。
     Cursor,
     /// Grok Build 订阅额度。
@@ -30,6 +32,8 @@ pub enum QuotaWindowKind {
     FiveHour,
     /// 约 7 日的周窗口。
     Weekly,
+    /// 约一个账单月的窗口。
+    Monthly,
 }
 
 /// 读取或解释用量失败的稳定类别。不含路径、正文或凭据。
@@ -60,7 +64,7 @@ pub struct QuotaWindow {
     pub reset_at_unix: Option<i64>,
 }
 
-/// 一次成功解释的提供商用量。两个窗口都可以为空。
+/// 一次成功解释的提供商用量。各窗口都可以为空。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderQuota {
@@ -75,6 +79,9 @@ pub struct ProviderQuota {
     /// 周窗口。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weekly: Option<QuotaWindow>,
+    /// 账单月窗口。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub monthly: Option<QuotaWindow>,
 }
 
 /// 终端只接收有界额度投影，不携带提供商登录材料或读取错误正文。
@@ -116,6 +123,7 @@ impl QuotaProvider {
     pub const fn ai_tool(self) -> AiTool {
         match self {
             Self::Codex => AiTool::Codex,
+            Self::Claude => AiTool::ClaudeCode,
             Self::Cursor => AiTool::Cursor,
             Self::Grok => AiTool::Grok,
             Self::WorkBuddy => AiTool::WorkBuddy,
@@ -126,6 +134,7 @@ impl QuotaProvider {
     pub const fn slug(self) -> &'static str {
         match self {
             Self::Codex => "codex",
+            Self::Claude => "claude",
             Self::Cursor => "cursor",
             Self::Grok => "grok",
             Self::WorkBuddy => "workbuddy",
@@ -141,16 +150,31 @@ impl QuotaWindow {
 }
 
 impl ProviderQuota {
-    /// 任一真实额度窗口都能展示；缺少短窗不能遮掉已有周额度。
+    /// 任一真实额度窗口都能展示；缺少短窗不能遮掉已有周或月额度。
     pub const fn has_usage_window(&self) -> bool {
         matches!(self.five_hour, Some(QuotaWindow { kind: QuotaWindowKind::FiveHour, .. }))
             || matches!(self.weekly, Some(QuotaWindow { kind: QuotaWindowKind::Weekly, .. }))
+            || matches!(self.monthly, Some(QuotaWindow { kind: QuotaWindowKind::Monthly, .. }))
+    }
+
+    /// 展示顺序固定为 5 小时、周、月，缺失窗口跳过。
+    pub fn windows(&self) -> impl Iterator<Item = QuotaWindow> {
+        [self.five_hour, self.weekly, self.monthly].into_iter().flatten()
+    }
+
+    /// 本机缓存的窗口过了重置时刻就不再代表当前额度，丢弃后由调用方判断是否仍有窗口。
+    pub fn drop_expired_windows(&mut self, now_unix: i64) {
+        for slot in [&mut self.five_hour, &mut self.weekly, &mut self.monthly] {
+            if slot.is_some_and(|window| window.reset_at_unix.is_some_and(|reset| reset <= now_unix)) {
+                *slot = None;
+            }
+        }
     }
 
     /// 上游不完整值和不可信方案文本不能进入跨端投影。
     fn valid_for_terminal(&self) -> bool {
         self.has_usage_window()
-            && [(self.five_hour, QuotaWindowKind::FiveHour), (self.weekly, QuotaWindowKind::Weekly)].into_iter().all(|(window, kind)| {
+            && [(self.five_hour, QuotaWindowKind::FiveHour), (self.weekly, QuotaWindowKind::Weekly), (self.monthly, QuotaWindowKind::Monthly)].into_iter().all(|(window, kind)| {
                 window.is_none_or(|value| value.kind == kind && value.used_tenths <= 1000 && value.reset_at_unix.is_none_or(|time| time >= 0))
             })
             && self.plan.as_ref().is_none_or(|plan| !plan.is_empty() && plan.len() <= 24
@@ -158,30 +182,43 @@ impl ProviderQuota {
     }
 }
 
-/// 活动读取顺序为 Codex、Cursor、Grok；Claude 缺少本地额度来源，WorkBuddy 已排除。
-pub const fn supported_quota_providers() -> [QuotaProvider; 3] {
+/// 活动读取顺序为 Codex、Claude、Cursor、Grok；WorkBuddy 已排除。
+pub const fn supported_quota_providers() -> [QuotaProvider; 4] {
     [
         QuotaProvider::Codex,
+        QuotaProvider::Claude,
         QuotaProvider::Cursor,
         QuotaProvider::Grok,
     ]
 }
 
-/// 把上游正文解释成 5 小时与周窗口。
+/// 把上游正文解释成 5 小时、周与月窗口。
 pub fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Result<ProviderQuota, QuotaFailure> {
     parse::parse_provider_quota(provider, body)
 }
 
-/// 按持续秒数归类。落在边界外的月度或其它周期返回空。
+/// 按持续秒数归类。账单月按 27～32 日容纳 2 月和时区偏差，其它周期返回空。
 pub const fn classify_window_seconds(seconds: i64) -> Option<QuotaWindowKind> {
     if seconds >= 14_400 && seconds <= 21_600 {
         Some(QuotaWindowKind::FiveHour)
     } else if seconds >= 518_400 && seconds <= 691_200 {
         Some(QuotaWindowKind::Weekly)
+    } else if seconds >= 2_332_800 && seconds <= 2_764_800 {
+        Some(QuotaWindowKind::Monthly)
     } else {
         None
     }
 }
+
+/// Claude Code statusline 输入里只保留 `rate_limits` 的 5 小时和 7 日窗口，形成可落盘的最小记录。
+///
+/// 没有订阅额度、正文过大或格式不对时返回空，调用方保留上一份记录。记录不含会话、路径或模型等信息。
+pub fn claude_statusline_quota_record(input: &[u8]) -> Option<Vec<u8>> {
+    parse::claude_statusline_record(input)
+}
+
+/// statusline 记录在 Hook relay 私有目录下的文件名。
+pub const CLAUDE_STATUSLINE_QUOTA_FILENAME: &str = "claude-rate-limits.json";
 
 #[cfg(test)]
 mod tests;

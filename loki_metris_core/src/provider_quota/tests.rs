@@ -1,4 +1,4 @@
-//! 用量解释的成功路径与最高风险误读：月度周期不得变成周窗口，Claude 不在目录中。
+//! 用量解释的成功路径与最高风险误读：月度周期不得变成周窗口，只有 Cursor 保留月窗口。
 
 use crate::AiTool;
 
@@ -45,8 +45,9 @@ fn terminal_quota_validation_rejects_invalid_values_and_duplicates() {
 #[test]
 fn providers_follow_requested_order_and_omit_unavailable_tools() {
     let providers = supported_quota_providers();
-    assert_eq!(providers.map(QuotaProvider::slug), ["codex", "cursor", "grok"]);
-    assert!(providers.into_iter().all(|provider| !matches!(provider.ai_tool(), AiTool::ClaudeCode | AiTool::WorkBuddy)));
+    assert_eq!(providers.map(QuotaProvider::slug), ["codex", "claude", "cursor", "grok"]);
+    assert_eq!(QuotaProvider::Claude.ai_tool(), AiTool::ClaudeCode);
+    assert!(providers.into_iter().all(|provider| provider.ai_tool() != AiTool::WorkBuddy));
 }
 
 /// 周额度可以单独展示，错放类型不算有效窗口，零余额仍是有效短窗。
@@ -65,7 +66,7 @@ fn quota_display_keeps_either_real_window_including_weekly_only() {
 }
 
 #[test]
-fn window_seconds_only_match_five_hours_or_seven_days() {
+fn window_seconds_match_five_hours_seven_days_or_a_billing_month() {
     assert_eq!(classify_window_seconds(14_399), None);
     assert_eq!(classify_window_seconds(14_400), Some(QuotaWindowKind::FiveHour));
     assert_eq!(classify_window_seconds(18_000), Some(QuotaWindowKind::FiveHour));
@@ -76,7 +77,11 @@ fn window_seconds_only_match_five_hours_or_seven_days() {
     assert_eq!(classify_window_seconds(604_800), Some(QuotaWindowKind::Weekly));
     assert_eq!(classify_window_seconds(691_200), Some(QuotaWindowKind::Weekly));
     assert_eq!(classify_window_seconds(691_201), None);
-    assert_eq!(classify_window_seconds(2_592_000), None);
+    assert_eq!(classify_window_seconds(2_332_799), None);
+    assert_eq!(classify_window_seconds(2_332_800), Some(QuotaWindowKind::Monthly));
+    assert_eq!(classify_window_seconds(2_592_000), Some(QuotaWindowKind::Monthly));
+    assert_eq!(classify_window_seconds(2_764_800), Some(QuotaWindowKind::Monthly));
+    assert_eq!(classify_window_seconds(2_764_801), None);
 }
 
 #[test]
@@ -145,7 +150,7 @@ fn plan_label_drops_email_and_non_ascii() {
 }
 
 #[test]
-fn cursor_monthly_billing_cycle_is_not_weekly() {
+fn cursor_monthly_billing_cycle_fills_only_the_monthly_window() {
     let body = r#"{
         "billingCycleStart":"2026-04-02T14:11:55.000Z",
         "billingCycleEnd":"2026-05-02T14:11:55.000Z",
@@ -156,6 +161,13 @@ fn cursor_monthly_billing_cycle_is_not_weekly() {
     assert_eq!(quota.plan.as_deref(), Some("enterprise"));
     assert!(quota.five_hour.is_none());
     assert!(quota.weekly.is_none());
+    let monthly = quota.monthly.unwrap();
+    assert_eq!((monthly.kind, monthly.used_tenths), (QuotaWindowKind::Monthly, 1000));
+    assert_eq!(monthly.reset_at_unix, Some(1_777_731_115));
+    assert!(quota.has_usage_window());
+    let snapshot = super::ProviderQuotaSnapshot::project(Some(1), &[quota]).unwrap();
+    snapshot.validate().unwrap();
+    assert_eq!(serde_json::to_value(&snapshot).unwrap()["providers"][0]["monthly"]["kind"], "monthly");
 }
 
 #[test]
@@ -176,7 +188,7 @@ fn grok_monthly_credits_stay_outside_both_windows() {
     let body = r#"{"plan":"pro","config":{"creditUsagePercent":40,"billingPeriodStart":"2026-04-01T00:00:00Z","billingPeriodEnd":"2026-05-01T00:00:00Z"}}"#;
     let quota = parse_provider_quota(QuotaProvider::Grok, body).unwrap();
     assert_eq!(quota.plan.as_deref(), Some("pro"));
-    assert!(quota.five_hour.is_none() && quota.weekly.is_none());
+    assert!(quota.five_hour.is_none() && quota.weekly.is_none() && quota.monthly.is_none());
 }
 
 #[test]
@@ -229,4 +241,36 @@ fn grok_log_line_reads_weekly_period_from_context_config() {
     let quota = parse_provider_quota(QuotaProvider::Grok, body).unwrap();
     assert_eq!(quota.weekly.unwrap().used_tenths, 125);
     assert!(quota.five_hour.is_none());
+}
+
+/// statusline 记录只带两个窗口的数值，丢掉会话、路径、模型等其它字段。
+#[test]
+fn claude_statusline_record_keeps_only_rate_limit_numbers() {
+    let input = br#"{"session_id":"s","cwd":"/private/path","model":{"id":"m"},"rate_limits":{"five_hour":{"used_percentage":12.5,"resets_at":1700000000,"extra":"x"},"seven_day":{"used_percentage":0.4,"resets_at":1700600000},"spend_limit":{"used_percentage":3,"resets_at":1}}}"#;
+    let record = super::claude_statusline_quota_record(input).unwrap();
+    let text = String::from_utf8(record).unwrap();
+    assert!(!text.contains("private") && !text.contains("session") && !text.contains("spend_limit") && !text.contains("extra"));
+    let quota = parse_provider_quota(QuotaProvider::Claude, &text).unwrap();
+    assert_eq!(quota.five_hour.unwrap().used_tenths, 125);
+    assert_eq!(quota.five_hour.unwrap().reset_at_unix, Some(1_700_000_000));
+    // 0.4 是百分数，不能按 0..1 比例放大成 40%。
+    assert_eq!(quota.weekly.unwrap().used_tenths, 4);
+    assert!(quota.monthly.is_none() && quota.plan.is_none());
+    assert!(super::claude_statusline_quota_record(br#"{"session_id":"s"}"#).is_none());
+    assert!(super::claude_statusline_quota_record(br#"{"rate_limits":{"five_hour":{"resets_at":1}}}"#).is_none());
+    assert!(super::claude_statusline_quota_record(b"not json").is_none());
+    assert!(super::claude_statusline_quota_record(&vec![b' '; 256 * 1024 + 1]).is_none());
+}
+
+/// 过了重置时刻的本机窗口被丢弃，未给重置时刻的窗口保留。
+#[test]
+fn expired_windows_are_dropped_against_the_current_time() {
+    let body = r#"{"rate_limits":{"five_hour":{"used_percentage":50,"resets_at":100},"seven_day":{"used_percentage":10,"resets_at":200}}}"#;
+    let mut quota = parse_provider_quota(QuotaProvider::Claude, body).unwrap();
+    quota.drop_expired_windows(100);
+    assert!(quota.five_hour.is_none());
+    assert_eq!(quota.weekly.unwrap().used_tenths, 100);
+    assert_eq!(quota.windows().count(), 1);
+    quota.drop_expired_windows(200);
+    assert!(!quota.has_usage_window());
 }

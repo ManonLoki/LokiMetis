@@ -18,9 +18,9 @@ use super::background::{BackgroundTaskOwner, BackgroundTaskShutdown};
 pub(crate) enum QuotaCardPhase {
     /// 还没有完成过读取。
     Pending,
-    /// 至少有一个 5 小时或周窗口。
+    /// 至少有一个 5 小时、周或月窗口。
     Ready(ProviderQuota),
-    /// 已连通，但上游没有这两种窗口。
+    /// 已连通，但上游没有目标窗口。
     NoWindow { plan: Option<String> },
     /// 稳定失败类别。
     Failed(QuotaFailure),

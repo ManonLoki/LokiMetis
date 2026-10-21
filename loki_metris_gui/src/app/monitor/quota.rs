@@ -60,7 +60,7 @@ impl Shell {
                 .child(div().min_w_0().truncate().child(plan)));
         }
         let mut cell = div().id(id).test_support().role(Role::Label).aria_label(label).w_full().min_w_0().p(px(14.)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark() { 0x26231f } else { 0xf0ebe3 })).flex().flex_col().gap_3().child(heading);
-        for window in [quota.five_hour, quota.weekly].into_iter().flatten() {
+        for window in quota.windows() {
             cell = cell.child(self.quota_window_bar(id, window, now_unix, cx));
         }
         cell.into_any_element()
@@ -83,7 +83,7 @@ impl Shell {
     }
 }
 
-/// 将后台阶段映射为可展示额度，等待和失败隐藏，已有周额度独立展示。
+/// 将后台阶段映射为可展示额度，等待和失败隐藏，已有周或月额度独立展示。
 fn visible_quota(card: &QuotaCard) -> Option<&ProviderQuota> {
     match &card.phase {
         QuotaCardPhase::Ready(quota) if quota.has_usage_window() => Some(quota),
@@ -97,7 +97,7 @@ pub(super) fn quota_card_label(quota: &ProviderQuota, now_unix: i64, t: impl Fn(
     if let Some(plan) = plan_line(&quota.plan, &t) {
         lines.push(plan);
     }
-    for window in [quota.five_hour, quota.weekly].into_iter().flatten() {
+    for window in quota.windows() {
         lines.push(window_line(&t(window_key(window.kind)), window, now_unix, &t));
     }
     lines.join(" ")
@@ -108,6 +108,7 @@ fn window_key(kind: QuotaWindowKind) -> &'static str {
     match kind {
         QuotaWindowKind::FiveHour => "monitor.quota.fiveHour",
         QuotaWindowKind::Weekly => "monitor.quota.weekly",
+        QuotaWindowKind::Monthly => "monitor.quota.monthly",
     }
 }
 
@@ -116,6 +117,7 @@ fn window_slug(kind: QuotaWindowKind) -> &'static str {
     match kind {
         QuotaWindowKind::FiveHour => "five-hour",
         QuotaWindowKind::Weekly => "weekly",
+        QuotaWindowKind::Monthly => "monthly",
     }
 }
 
@@ -160,6 +162,7 @@ fn percent_text(tenths: u16) -> String {
 fn quota_element_id(provider: QuotaProvider) -> &'static str {
     match provider {
         QuotaProvider::Codex => "monitor-quota-codex",
+        QuotaProvider::Claude => "monitor-quota-claude",
         QuotaProvider::Cursor => "monitor-quota-cursor",
         QuotaProvider::Grok => "monitor-quota-grok",
         QuotaProvider::WorkBuddy => "monitor-quota-workbuddy",

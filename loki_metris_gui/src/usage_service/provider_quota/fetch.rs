@@ -38,6 +38,8 @@ pub(crate) async fn fetch_provider(
     }
     let result = match provider {
         QuotaProvider::Codex => fetch_codex(layout, curl, limits, cancel).await,
+        // Claude 没有远程读取：statusLine 记录缺失或已过期就视为本机没有额度来源。
+        QuotaProvider::Claude => Err(QuotaFailure::MissingCredentials),
         QuotaProvider::Cursor => fetch_cursor(layout, curl, sqlite, limits, cancel).await,
         QuotaProvider::Grok => fetch_grok(layout, curl, limits, now_unix, cancel).await,
         QuotaProvider::WorkBuddy => fetch_workbuddy(layout, curl, limits, range, cancel).await,
@@ -63,7 +65,7 @@ pub(crate) fn phase_from_http(provider: QuotaProvider, response: HttpResponse) -
         return QuotaCardPhase::Failed(QuotaFailure::Transport);
     }
     match parse_provider_quota(provider, &response.body) {
-        Ok(quota) if quota.five_hour.is_some() || quota.weekly.is_some() => QuotaCardPhase::Ready(quota),
+        Ok(quota) if quota.has_usage_window() => QuotaCardPhase::Ready(quota),
         Ok(quota) => QuotaCardPhase::NoWindow { plan: quota.plan },
         Err(failure) => QuotaCardPhase::Failed(failure),
     }

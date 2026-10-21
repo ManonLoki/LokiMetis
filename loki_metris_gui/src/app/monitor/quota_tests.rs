@@ -11,6 +11,7 @@ fn quota(provider: QuotaProvider, remaining: u16, weekly: Option<u16>) -> Provid
         plan: Some("plus".to_owned()),
         five_hour: Some(QuotaWindow { kind: QuotaWindowKind::FiveHour, used_tenths: 1000 - remaining, reset_at_unix: None }),
         weekly: weekly.map(|remaining| QuotaWindow { kind: QuotaWindowKind::Weekly, used_tenths: 1000 - remaining, reset_at_unix: None }),
+        monthly: None,
     }
 }
 
@@ -97,7 +98,7 @@ fn quota_plan_tag_stays_beside_name_and_keeps_usage_rows_aligned(cx: &mut gpui_k
         shell.update(cx, |this, cx| {
             this.page = crate::app::Page::Monitor;
             this.monitor.status = None;
-            for (index, plan) in [(0, Some("pro".to_owned())), (2, None)] {
+            for (index, plan) in [(0, Some("pro".to_owned())), (3, None)] {
                 let card = &mut this.monitor.quota.cards[index];
                 let mut value = quota(card.provider, 970, Some(920));
                 value.five_hour = None;
@@ -124,7 +125,7 @@ fn quota_plan_tag_stays_beside_name_and_keeps_usage_rows_aligned(cx: &mut gpui_k
     }).unwrap();
 }
 
-/// 不依赖Hook状态；三提供商按指定顺序，填充比例及红黄绿在明暗主题均真实绘制。
+/// 不依赖Hook状态；四提供商按指定顺序两列排布，填充比例及红黄绿在明暗主题均真实绘制。
 #[gpui_kit::test]
 fn quota_board_renders_ordered_three_color_bars_without_relay_status(cx: &mut gpui_kit::TestAppContext) {
     let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
@@ -132,7 +133,7 @@ fn quota_board_renders_ordered_three_color_bars_without_relay_status(cx: &mut gp
         shell.update(cx, |this, _| {
             this.page = crate::app::Page::Monitor;
             this.monitor.status = None;
-            for (card, remaining) in this.monitor.quota.cards.iter_mut().zip([730, 500, 200]) {
+            for (card, remaining) in this.monitor.quota.cards.iter_mut().zip([730, 600, 500, 200]) {
                 card.phase = QuotaCardPhase::Ready(quota(card.provider, remaining, Some(960)));
             }
         });
@@ -141,15 +142,17 @@ fn quota_board_renders_ordered_three_color_bars_without_relay_status(cx: &mut gp
             window.render_frame(cx);
             assert!(window.try_find("monitor-received").is_none());
             let codex = window.find("monitor-quota-codex").bounds();
+            let claude = window.find("monitor-quota-claude").bounds();
             let cursor = window.find("monitor-quota-cursor").bounds();
             let grok = window.find("monitor-quota-grok").bounds();
-            assert_eq!(codex.origin.y, cursor.origin.y);
-            assert!(cursor.origin.x > codex.right());
-            assert!(grok.origin.y > codex.origin.y);
-            assert_eq!(grok.origin.x, codex.origin.x);
+            assert_eq!(codex.origin.y, claude.origin.y);
+            assert!(claude.origin.x > codex.right());
+            assert!(cursor.origin.y > codex.origin.y);
+            assert_eq!(cursor.origin.x, codex.origin.x);
+            assert_eq!(grok.origin.y, cursor.origin.y);
             assert!(window.try_find("monitor-quota-workbuddy").is_none());
-            assert!(window.try_find("monitor-quota-claude").is_none());
             assert_bar(window, "monitor-quota-codex-five-hour", 730, cx.theme().success);
+            assert_bar(window, "monitor-quota-claude-five-hour", 600, cx.theme().success);
             assert_bar(window, "monitor-quota-cursor-five-hour", 500, cx.theme().warning);
             assert_bar(window, "monitor-quota-grok-five-hour", 200, cx.theme().danger);
             assert_bar(window, "monitor-quota-codex-weekly", 960, cx.theme().success);
@@ -189,4 +192,15 @@ fn quota_board_keeps_zero_balance_and_omits_missing_weekly_window(cx: &mut gpui_
         assert!(window.try_find("monitor-quota-codex").is_none());
         assert!(window.try_find("monitor-quota").is_none());
     }).unwrap();
+}
+
+/// Cursor 只有月窗口时也展示，并使用月度文案与稳定元素标识。
+#[test]
+fn monthly_only_quota_uses_monthly_label() {
+    let quota = ProviderQuota { provider: QuotaProvider::Cursor, plan: None, five_hour: None, weekly: None,
+        monthly: Some(QuotaWindow { kind: QuotaWindowKind::Monthly, used_tenths: 250, reset_at_unix: None }) };
+    assert!(visible_quota(&QuotaCard { provider: QuotaProvider::Cursor, phase: QuotaCardPhase::Ready(quota.clone()) }).is_some());
+    let label = quota_card_label(&quota, 0, |key| key.to_owned());
+    assert!(label.contains("monitor.quota.monthly 75%"), "{label}");
+    assert_eq!(window_slug(QuotaWindowKind::Monthly), "monthly");
 }

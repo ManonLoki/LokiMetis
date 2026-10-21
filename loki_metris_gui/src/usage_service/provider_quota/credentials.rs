@@ -66,7 +66,8 @@ pub(crate) struct HomeLayout {
     pub grok_home: Option<PathBuf>,
     /// Windows 的 Roaming 目录。其它系统用主目录下的固定位置，因此这里只在 Windows 上被读取。
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
-    pub app_data: Option<PathBuf>,
+    pub app_data: Option<PathBuf>,    /// Claude Code statusLine 写下的额度记录；无法确定私有目录时为空。
+    pub claude_record: Option<PathBuf>,
 }
 
 impl HomeLayout {
@@ -77,6 +78,7 @@ impl HomeLayout {
             codex_home: absolute_env("CODEX_HOME"),
             grok_home: absolute_env("GROK_HOME"),
             app_data: absolute_env("APPDATA"),
+            claude_record: crate::monitor::relay::claude_statusline_quota_path().ok(),
         }
     }
 }
