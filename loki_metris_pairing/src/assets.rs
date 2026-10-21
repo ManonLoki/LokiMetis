@@ -94,7 +94,6 @@ impl AssetReceiver {
         Ok((self.descriptor, self.bytes))
     }
 }
-/// 摘要固定小写十六进制，跨端无需平台哈希差异。
 /// 一种允许传输的图片：MIME 及其魔数判定。
 type ImageMime = (&'static str, fn(&[u8]) -> bool);
 /// 允许传输的图片 MIME 表；识别与校验共用此表，core 本机图库亦复用同一识别。
@@ -109,6 +108,7 @@ const IMAGE_MIMES: [ImageMime; 5] = [
 pub fn sniff_image_mime(bytes: &[u8]) -> Option<&'static str> {
     IMAGE_MIMES.iter().find(|(_, sniff)| sniff(bytes)).map(|(mime, _)| *mime)
 }
+/// 摘要固定小写十六进制，跨端无需平台哈希差异。
 fn digest(bytes: &[u8]) -> String { Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect() }
 
 #[cfg(test)]
