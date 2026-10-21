@@ -46,15 +46,9 @@ impl Shell {
                     .accessibility_label(format!("{} {}", self.t("devices.pair"), device.name))
                     .on_click(cx.listener(move |this, _, window, cx| this.open_device_dialog(target.id.clone(), target.name.clone(), false, window, cx)))));
         }
-        let mut section = div().id("devices-discovered").test_support().flex().flex_col().gap_4()
+        div().id("devices-discovered").test_support().flex().flex_col().gap_4()
             .child(self.device_section_title("devices-discovered-title", "devices.discovered", candidates.len(), cx))
             .child(list)
-            .child(div().text_size(px(12.)).text_color(cx.theme().muted_foreground).child(self.t("devices.compatibility")));
-        if state.listening_port.is_some() {
-            section = section.child(div().id("devices-service-ready").test_support().role(Role::Status)
-                .aria_label(self.t("devices.serviceReady")).text_size(px(12.))
-                .text_color(cx.theme().muted_foreground).child(self.t("devices.serviceReady")));
-        }
-        section.into_any_element()
+            .into_any_element()
     }
 }

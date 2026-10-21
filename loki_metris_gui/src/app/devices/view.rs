@@ -63,7 +63,7 @@ impl Shell {
             saved = saved.child(div().id("devices-saved-grid").test_support().w_full().grid().grid_cols(columns)
                 .gap_5().children(state.saved.iter().map(|device| self.paired_device_card(device, cx))));
         }
-        page.child(saved).child(self.discovered_devices(cx)).into_any_element()
+        page.child(self.discovered_devices(cx)).child(saved).into_any_element()
     }
 
     /// 分区标题统一使用原生二级标题及轻量计数，避免再套一层卡片。

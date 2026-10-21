@@ -851,7 +851,6 @@
   "devices": {
     "title": "设备管理",
     "subtitle": "连接同一局域网中的手机与显示终端。",
-    "compatibility": "在显示终端中选择这台电脑，再在此输入终端上的4位码。局域网同步在后台可能暂停。",
     "discover": "发现设备",
     "scanning": "正在发现…",
     "saved": "已配对设备",
@@ -894,7 +893,6 @@
       "pairingUnavailable": "此设备尚未启用配对"
     },
     "pairingUnavailable": "此设备尚未启用配对",
-    "serviceReady": "本机连接服务已就绪。",
     "connected": "当前可通信",
     "notConnected": "尚未连接",
     "background": "已进入后台，打开终端后恢复同步",

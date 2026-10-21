@@ -851,7 +851,6 @@
   "devices": {
     "title": "Device management",
     "subtitle": "Connect phones and displays on your local network.",
-    "compatibility": "Choose this computer in the display app, then enter its 4-digit code here. Local sync may pause in the background.",
     "discover": "Discover devices",
     "scanning": "Discovering…",
     "saved": "Paired devices",
@@ -894,7 +893,6 @@
       "pairingUnavailable": "Pairing is not enabled on this device"
     },
     "pairingUnavailable": "Pairing is not enabled on this device",
-    "serviceReady": "Local connection service is ready.",
     "connected": "Connected",
     "notConnected": "Not connected",
     "background": "In background · sync resumes when opened",
