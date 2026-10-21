@@ -13,7 +13,11 @@ with (root / "argv.txt").open("a", encoding="utf-8") as handle:
 (root / "stdin.txt").write_text(stdin, encoding="utf-8")
 mode = (root / "mode.txt").read_text(encoding="utf-8").strip()
 if "-readonly" in argv:
-    sys.stdout.write((root / "sqlite-out.txt").read_text(encoding="utf-8"))
+    text = (root / "sqlite-out.txt").read_text(encoding="utf-8")
+    # LIMIT 1 只回第一行，用来观察查询有没有把另一行丢掉。
+    if any("LIMIT 1" in arg for arg in argv):
+        text = text.split("\n", 1)[0]
+    sys.stdout.write(text)
     raise SystemExit(0)
 if mode == "sleep":
     time.sleep(30)

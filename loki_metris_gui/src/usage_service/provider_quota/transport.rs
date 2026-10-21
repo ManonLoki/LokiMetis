@@ -60,8 +60,8 @@ const ALLOWED_HOSTS: &[&str] = &[
 /// Cursor 只读查询。语句是常量，不含令牌。
 pub(crate) const CURSOR_TOKEN_SQL: &str = "SELECT value FROM ItemTable WHERE key = 'cursorAuth/accessToken' LIMIT 1;";
 
-/// 本机缓存的用量摘要。没有这些键就视为本地未获取。
-pub(crate) const CURSOR_USAGE_SQL: &str = "SELECT value FROM ItemTable WHERE key IN ('cursorai/usageSummary','cursorAuth/usageSummary') LIMIT 1;";
+/// 本机缓存的用量摘要。两个键都取出；没有这些键就视为本地未获取。
+pub(crate) const CURSOR_USAGE_SQL: &str = "SELECT value FROM ItemTable WHERE key IN ('cursorai/usageSummary','cursorAuth/usageSummary');";
 
 /// 在 PATH 中查找同名可执行文件，不经过命令解释器。
 pub(crate) fn find_program(name: &str) -> Option<PathBuf> {

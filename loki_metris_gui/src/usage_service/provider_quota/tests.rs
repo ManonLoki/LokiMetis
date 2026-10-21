@@ -309,6 +309,113 @@ fn missing_or_monthly_local_records_use_the_remote_window() {
     });
 }
 
+#[cfg(unix)]
+#[test]
+fn jsonl_tail_cut_on_a_continuation_byte_still_uses_the_local_window() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let (_shutdown, mut cancel) = cancel();
+        let root = tempfile::tempdir().unwrap();
+        let program = install_fixture(root.path());
+        let home = root.path().join("home");
+        let path = home.join(".codex").join("sessions").join("rollout.jsonl");
+        let window = r#"{"payload":{"rate_limits":{"primary":{"used_percent":17,"window_minutes":300,"resets_at":1700000000}}}}"#;
+        let tail_bytes = super::local::TAIL_BYTES as usize;
+        let mut tail = Vec::with_capacity(tail_bytes);
+        tail.push(0xA9);
+        tail.push(b'\n');
+        tail.extend(window.as_bytes());
+        tail.push(b'\n');
+        tail.resize(tail_bytes, b'a');
+        let mut bytes = vec![0xC2];
+        bytes.extend_from_slice(&tail);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&path, &bytes).unwrap();
+        let cut = bytes.len() - tail_bytes;
+        assert_eq!(bytes[cut] & 0b1100_0000, 0b1000_0000);
+        let before = std::fs::read(&path).unwrap();
+        std::fs::write(root.path().join("mode.txt"), "status").unwrap();
+        std::fs::write(root.path().join("body.txt"), remote_windows(90, 80)).unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home), Some(&program), Some(&program), CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 }, 0, &range(), &mut cancel).await;
+        let super::QuotaCardPhase::Ready(quota) = phase else { panic!("split utf-8 tail should keep the local window, got {phase:?}"); };
+        assert_eq!(quota.five_hour.unwrap().used_tenths, 170);
+        assert!(quota.weekly.is_none());
+        assert!(!root.path().join("argv.txt").exists(), "local window must not start the remote program");
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn older_local_window_wins_when_newer_files_have_no_target_window() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let (_shutdown, mut cancel) = cancel();
+        let root = tempfile::tempdir().unwrap();
+        let program = install_fixture(root.path());
+        let home = root.path().join("home");
+        let sessions = home.join(".codex").join("sessions");
+        let monthly = r#"{"rate_limits":{"primary":{"used_percent":50,"window_minutes":43200}}}"#;
+        for index in 0..8 {
+            let path = sessions.join(format!("newer-{index}.jsonl"));
+            write(&path, monthly);
+            touch(&path, 1_700_000_000 + index);
+        }
+        let older = sessions.join("older.jsonl");
+        let older_body = r#"{"payload":{"rate_limits":{"primary":{"used_percent":21,"window_minutes":300,"resets_at":1700000000}}}}"#;
+        write(&older, older_body);
+        touch(&older, 1_600_000_000);
+        let before = std::fs::read(&older).unwrap();
+        std::fs::write(root.path().join("mode.txt"), "status").unwrap();
+        std::fs::write(root.path().join("body.txt"), remote_windows(90, 80)).unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Codex, &layout(home), Some(&program), Some(&program), CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 }, 0, &range(), &mut cancel).await;
+        let super::QuotaCardPhase::Ready(quota) = phase else { panic!("ninth newest local window should win, got {phase:?}"); };
+        assert_eq!(quota.five_hour.unwrap().used_tenths, 210);
+        assert!(quota.weekly.is_none());
+        assert!(!root.path().join("argv.txt").exists(), "older local window must not start the remote program");
+        assert_eq!(std::fs::read(&older).unwrap(), before);
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn cursor_reads_both_cached_summary_rows_before_remote() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let (_shutdown, mut cancel) = cancel();
+        let root = tempfile::tempdir().unwrap();
+        let program = install_fixture(root.path());
+        let home = root.path().join("home");
+        let layout = layout(home);
+        let database = credentials::cursor_database(&layout);
+        write(&database, "not-a-real-database");
+        let before = std::fs::read(&database).unwrap();
+        let monthly = r#"{"billingCycleStart":"2026-04-02T00:00:00Z","billingCycleEnd":"2026-05-02T00:00:00Z","individualUsage":{"plan":{"totalPercentUsed":44}}}"#;
+        let weekly = r#"{"billingCycleStart":"2026-04-02T00:00:00Z","billingCycleEnd":"2026-04-09T00:00:00Z","individualUsage":{"plan":{"totalPercentUsed":13}}}"#;
+        std::fs::write(root.path().join("sqlite-out.txt"), format!("{monthly}\n{weekly}\n")).unwrap();
+        std::fs::write(root.path().join("mode.txt"), "status").unwrap();
+        std::fs::write(root.path().join("body.txt"), "{\"billingCycleStart\":\"2026-04-02T00:00:00Z\",\"billingCycleEnd\":\"2026-04-09T00:00:00Z\",\"individualUsage\":{\"plan\":{\"totalPercentUsed\":90}}}\n__LM_HTTP_200").unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Cursor, &layout, Some(&program), Some(&program), CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 }, 0, &range(), &mut cancel).await;
+        let super::QuotaCardPhase::Ready(quota) = phase else { panic!("second cached cursor row should win, got {phase:?}"); };
+        assert_eq!(quota.weekly.unwrap().used_tenths, 130);
+        assert!(quota.five_hour.is_none());
+        let argv = std::fs::read_to_string(root.path().join("argv.txt")).unwrap();
+        assert!(argv.contains("cursorai/usageSummary"));
+        assert!(argv.contains("cursorAuth/usageSummary"));
+        assert!(!argv.contains("LIMIT 1"));
+        assert!(!argv.contains("--config"), "a local weekly row must not start curl");
+        assert_eq!(std::fs::read(&database).unwrap(), before);
+    });
+}
+
+#[cfg(unix)]
+fn touch(path: &Path, secs: u64) {
+    let file = std::fs::OpenOptions::new().write(true).open(path).unwrap();
+    file.set_modified(std::time::UNIX_EPOCH + Duration::from_secs(secs)).unwrap();
+}
+
 fn remote_windows(five_hour: u16, weekly: u16) -> String {
     format!(r#"{{"rate_limit":{{"primary_window":{{"used_percent":{five_hour},"limit_window_seconds":18000}},"secondary_window":{{"used_percent":{weekly},"limit_window_seconds":604800}}}}}}"#) + "\n__LM_HTTP_200"
 }

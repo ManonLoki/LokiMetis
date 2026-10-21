@@ -10,8 +10,7 @@ use super::{
     transport::{self, CurlLimits},
 };
 
-const TAIL_BYTES: u64 = 1024 * 1024;
-const MAX_LOCAL_FILES: usize = 8;
+pub(crate) const TAIL_BYTES: u64 = 1024 * 1024;
 const MAX_WHOLE_FILE: u64 = 256 * 1024;
 
 /// 本地只要解释出一种目标窗口就返回它。读取失败、没有文件或只有其它周期都视为未获取。
@@ -52,7 +51,6 @@ fn newest_window(provider: QuotaProvider, roots: &[PathBuf]) -> Option<ProviderQ
         collect_records(root, 0, &mut files);
     }
     files.sort_by(|left, right| right.0.cmp(&left.0));
-    files.truncate(MAX_LOCAL_FILES);
     files.into_iter().find_map(|(_, path)| file_window(provider, &path))
 }
 
@@ -104,15 +102,12 @@ fn read_record(path: &Path) -> Option<String> {
     file.seek(SeekFrom::Start(size - tail)).ok()?;
     let mut buffer = Vec::new();
     file.take(tail).read_to_end(&mut buffer).ok()?;
-    let mut text = String::from_utf8(buffer).ok()?;
+    // 切点可能落在 UTF-8 续字节上。先按字节丢掉第一个换行之前的残段，再解码其后的完整行。
     if size > tail {
-        if let Some(index) = text.find('\n') {
-            text.replace_range(..index + 1, "");
-        } else {
-            return None;
-        }
+        let Some(split) = buffer.iter().position(|byte| *byte == b'\n') else { return None };
+        buffer.drain(..split + 1);
     }
-    Some(text)
+    String::from_utf8(buffer).ok()
 }
 
 fn quota_in_text(provider: QuotaProvider, text: &str) -> Option<ProviderQuota> {

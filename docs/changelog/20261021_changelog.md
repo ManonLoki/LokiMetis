@@ -8,7 +8,7 @@
 
 AI 监控读取 Codex、Cursor、Grok、WorkBuddy 的 5 小时与周用量时，先解释本机已有记录。只要其中至少一种窗口可归类，就使用本地结果，同一次读取不再请求远程，也不为缺失的另一种窗口补打远程。两种都没有，或只有月度等其它周期时，才沿用只读登录材料、官方客户端标识和既有 HTTPS 主机。Claude 仍不查询。本地读取不改写来源文件。决定见 [ADR-20261021-012](../adr/20261021_ADR.md#adr-20261021-012用量优先读本机记录读不到再走远程)。
 
-开发验证：`cargo test -p loki_metris_core --lib provider_quota` 17 项通过；GUI `local_windows_skip_the_remote_program`、`missing_or_monthly_local_records_use_the_remote_window`、`quota_board_renders_windows_without_relay_status` 通过。夹具家目录与记录型程序代替真实登录文件和上游。未启动完整 GPUI 进程，未连接真实上游，未做发布或推送。
+开发验证：`cargo test -p loki_metris_core --lib provider_quota` 17 项通过；GUI `local_windows_skip_the_remote_program`、`missing_or_monthly_local_records_use_the_remote_window`、`quota_board_renders_windows_without_relay_status` 通过。另有三条回归：jsonl 尾部切在 UTF-8 续字节上仍用本地窗口，较新的 8 个无窗口文件不会挡住更旧的目标窗口，Cursor 两个用量摘要行都会解释。夹具家目录与记录型程序代替真实登录文件和上游。未启动完整 GPUI 进程，未连接真实上游，未做发布或推送。
 
 ## LMDESK-MONITOR-QUOTA-001 · AI 监控显示 5 小时与周用量
 
