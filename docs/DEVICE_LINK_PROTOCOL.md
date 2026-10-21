@@ -70,7 +70,7 @@ core只允许当前、未过期且仍受账本信任的租约更新形态。形�
 
 桌面已实现业务快照和资源传输：首条桌面业务消息为`{type:"snapshot", snapshot, capabilities:["watchCompanionV1","deviceFormFactorV1"]}`，之后每次更新沿同一通道推送完整快照。`snapshot.version=1`；`tokens`含`day {date,zone,startMs,endMs}`、同轮`observedMs`、`all`及`agents [{agent,amount}]`。每份amount含十进制字符串或null的`total`、`availability`及完整度/置信度；未扫描与读取失败不冒充零。Token每30秒最多重读一次，连接归零停止周期读取；初连重新读取，超过90秒或跨日的旧值不作为当前值发送。
 
-Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,contentTruncated,image}]`，沿用本机十二槽位覆盖/释放规则，只发送公开且启用Agent的最终状态。slot为1..12；文案最多512 UTF-8字节，截断显式标记；image为内容摘要或null。发布器每500毫秒检查内存状态，只在变化时推送。Token错误与目录错误分别用`tokenError`/`catalogError`明确表达。已连接终端共享一次读取结果，慢设备只保留最新快照；心跳、状态发送优先于持续入站请求。
+Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,contentTruncated,image}]`。当前实现沿用本机十二槽位覆盖/释放规则，发送其中公开且启用Agent的活跃项，尚未按桌宠当前页裁剪；该范围须按下述已确认约束对齐，不能据现有实现声明四格已一致。slot为1..12；文案最多512 UTF-8字节，截断显式标记；image为内容摘要或null。发布器每500毫秒检查内存状态，只在变化时推送。Token错误与目录错误分别用`tokenError`/`catalogError`明确表达。已连接终端共享一次读取结果，慢设备只保留最新快照；心跳、状态发送优先于持续入站请求。
 
 `assets [{hash,mime,length}]`仅含公开档案实际引用的可用图片，最多64个摘要；同内容去重。SHA-256为64位小写十六进制，MIME限PNG/JPEG/GIF，单资源最多32MiB。终端只发送`{type:"assetRequest",hash,offset}`请求当前清单资源；offset从0开始，按16384原始字节对齐。桌面返回`{type:"assetChunk",chunk:{hash,offset,data}}`，data为规范Base64；旧清单摘要返回`{type:"assetUnavailable",hash}`。每次请求只响应一块，没有无界发送队列。接收器严格检查顺序、长度、最后完整摘要与魔数，校验完成才能交平台原子保存；缺失/损坏缓存须重新下载。清单变化不会把不同正文拼成同一资源。
 
@@ -85,6 +85,12 @@ Android显示项目已写入应用级`AndroidLanEngine`、非阻塞`AndroidLanSo
 Android已提交信任映射只在系统同步提交成功后更新，避免SharedPreferences失败写入的内存变化被读成已保存；每次持久化完整映射，最多64个桌面。Token与Hooks不再持久化，启动精确清理旧`lan-display-v1.json`及`.new/.bak`；失联/后台/换目标时清空内存投影。图片仍在应用私有目录，真实原子提交后读回校验，部分文件不展示。严格JSON语法及64层上限在系统递归解析前执行。Android JNI与iOS静态库由移动构建脚本按目标编译并嵌入应用。原生加载、系统存储和完整数据链路需运行完整App验证，不能以源码或扩展独立编译代替E2E。
 
 本次已运行的测试事实以提交说明和实际输出为准。隔离环回TCP、模拟时钟及固定测试密钥不替代真实局域网、Android/iOS/Watch或桌面跨平台运行证据。
+
+## 桌宠当前页同步约束
+
+change_id：`LMDESK-TERMINAL-PET-PANEL-RULE-001`；required_version：`0.7.1`。用户已确认的发送范围与一致性标准唯一维护于[产品规格：移动端四格与桌宠当前页一致](product_spec/20261021_product_spec.md#移动端四格与桌宠当前页一致)。本次仅固化规则，不改线格式或声明接线已完成。
+
+当前`project_hooks`遍历十二槽位，发布器没有消费桌宠的布局与当前页；后续需让桌宠与发送端使用同一当前页投影，并将翻页纳入快照变化条件。槽位仍使用1..12的绝对编号，不能裁剪后重编号而改变归属。TCP完整快照、iPhone向Watch转发及HTTP摘要的Hooks选择应追溯同一投影；HTTP仍只保留既有摘要字段，不增加正文或图片权限。既有大小限制、显式截断、认证与当前连接失效规则继续生效。
 
 ## Watch配套前台协议
 
