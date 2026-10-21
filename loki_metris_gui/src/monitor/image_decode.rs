@@ -163,6 +163,7 @@ fn decode(
             }
         }
         ImageFormat::Webp => {
+            super::webp_budget::validate_dimensions(&source.bytes)?;
             let mut decoder = image::codecs::webp::WebPDecoder::new(Cursor::new(&*source.bytes))?;
             // WebP 的 set_limits 只检查宽高，不执行 max_alloc，预算在解码像素前由容器头核对。
             decoder.set_limits(limits())?;
@@ -472,21 +473,12 @@ mod tests {
     /// 用现有无损编码器构造 1×1 动态 WebP 容器，循环次数和延迟都由正式解码器读取。
     fn animated_webp(loops: u16, frames: &[([u8; 4], u32)]) -> Vec<u8> {
         let mut body = b"WEBP".to_vec();
-        // RIFF 子块：四字节类型、小端长度、正文，奇数长度补一字节对齐。
-        let chunk = |output: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]| {
-            output.extend_from_slice(kind);
-            output.extend_from_slice(&(data.len() as u32).to_le_bytes());
-            output.extend_from_slice(data);
-            if !data.len().is_multiple_of(2) {
-                output.push(0);
-            }
-        };
         // 首字节 2 为动画标志；画布宽高均以“减一”存储，0 即 1 像素。
-        chunk(&mut body, b"VP8X", &[2, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        webp_chunk(&mut body, b"VP8X", &[2, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         // ANIM：四字节背景色后接两字节循环次数，0 表示无限循环。
         let mut animation = vec![0, 0, 0, 0];
         animation.extend_from_slice(&loops.to_le_bytes());
-        chunk(&mut body, b"ANIM", &animation);
+        webp_chunk(&mut body, b"ANIM", &animation);
         for &(pixel, delay) in frames {
             let mut encoded = Vec::new();
             image::codecs::webp::WebPEncoder::new_lossless(&mut encoded)
@@ -498,12 +490,100 @@ mod tests {
             frame[15] = 2; // 测试帧完整替换画布，不叠加上一帧的颜色。
             // 去掉编码结果的 RIFF/WEBP 12 字节文件头，只嵌入 VP8L 子块。
             frame.extend_from_slice(&encoded[12..]);
-            chunk(&mut body, b"ANMF", &frame);
+            webp_chunk(&mut body, b"ANMF", &frame);
         }
         let mut bytes = b"RIFF".to_vec();
         bytes.extend_from_slice(&(body.len() as u32).to_le_bytes());
         bytes.extend(body);
         bytes
+    }
+
+    /// 测试容器共用规范 RIFF 长度与偶数字节填充，不依赖像素解码器生成坏头。
+    fn webp_chunk(output: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
+        output.extend_from_slice(kind);
+        output.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        output.extend_from_slice(data);
+        if !data.len().is_multiple_of(2) { output.push(0); }
+    }
+
+    /// 构造小画布与独立编码头；故意不提供熵编码正文，拒绝必须发生在像素分配前。
+    fn mismatched_webp(kind: &[u8; 4], data: &[u8], animated: bool, alpha: bool) -> Vec<u8> {
+        let mut body = b"WEBP".to_vec();
+        let flags = if animated { 2 } else { 0 } | if alpha { 16 } else { 0 };
+        webp_chunk(&mut body, b"VP8X", &[flags, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        if animated {
+            webp_chunk(&mut body, b"ANIM", &[0; 6]);
+            let mut frame = vec![0; 16];
+            if alpha { webp_chunk(&mut frame, b"ALPH", &[0, 255]); }
+            webp_chunk(&mut frame, kind, data);
+            webp_chunk(&mut body, b"ANMF", &frame);
+        } else {
+            webp_chunk(&mut body, kind, data);
+        }
+        let mut bytes = b"RIFF".to_vec();
+        bytes.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        bytes.extend(body);
+        bytes
+    }
+
+    /// 静态、动画及 ALPH+VP8 路径均不能让小容器触发内层超大像素分配。
+    #[test]
+    fn webp_inner_dimensions_are_rejected_before_pixel_decoding() {
+        for (kind, data) in [
+            (b"VP8 ", vec![0x10, 0, 0, 0x9d, 1, 0x2a, 0xff, 0x3f, 0xff, 0x3f]),
+            (b"VP8L", vec![0x2f, 0xff, 0xff, 0xff, 0x0f]),
+            // 2×1 仍在全局尺寸上限内，但不匹配 1×1 的容器，同样必须提前拒绝。
+            (b"VP8 ", vec![0x10, 0, 0, 0x9d, 1, 0x2a, 2, 0, 1, 0]),
+            (b"VP8L", vec![0x2f, 1, 0, 0, 0]),
+        ] {
+            for (animated, alpha) in [(false, false), (true, false), (true, true)] {
+                if alpha && kind == b"VP8L" { continue; }
+                let source = MonitorImageSource {
+                    id: "invalid-inner-dimensions".into(), format: ImageFormat::Webp,
+                    bytes: Arc::from(mismatched_webp(kind, &data, animated, alpha)),
+                };
+                let error = decode(&source, &super::super::image_memory::DecodeResources::new()).err().unwrap();
+                assert!(error.to_string().contains("dimensions"), "{error}");
+            }
+        }
+    }
+
+    /// ALPH 后不允许伪装成未知子块，RIFF 长度、截断头和缺失填充也必须提前拒绝。
+    #[test]
+    fn webp_chunk_bounds_and_alpha_bitstream_type_are_checked() {
+        let header = [0x10, 0, 0, 0x9d, 1, 0x2a, 1, 0, 1, 0];
+        let valid = mismatched_webp(b"VP8 ", &header, true, true);
+        assert!(super::super::webp_budget::validate_dimensions(&valid).is_ok());
+        let wrong_kind = mismatched_webp(b"JUNK", &header, true, true);
+        assert!(super::super::webp_budget::validate_dimensions(&wrong_kind).is_err());
+        for length in 0..valid.len() {
+            assert!(super::super::webp_budget::validate_dimensions(&valid[..length]).is_err());
+            if length >= 12 {
+                let mut truncated = valid[..length].to_vec();
+                truncated[4..8].copy_from_slice(&((length - 8) as u32).to_le_bytes());
+                assert!(super::super::webp_budget::validate_dimensions(&truncated).is_err());
+            }
+        }
+        let mut overflow = valid;
+        overflow[16..20].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(super::super::webp_budget::validate_dimensions(&overflow).is_err());
+    }
+
+    /// ANMF 编码帧后允许规范未知扩展块，奇数正文的填充不能改变实际像素和播放。
+    #[test]
+    fn animated_webp_preserves_unknown_padded_frame_chunks() {
+        let mut bytes = animated_webp(0, &[([12, 34, 56, 255], 120)]);
+        let frame = bytes.windows(4).position(|kind| kind == b"ANMF").unwrap();
+        let original = u32::from_le_bytes(bytes[frame + 4..frame + 8].try_into().unwrap());
+        webp_chunk(&mut bytes, b"JUNK", b"x");
+        bytes[frame + 4..frame + 8].copy_from_slice(&(original + 10).to_le_bytes());
+        let length = (bytes.len() - 8) as u32;
+        bytes[4..8].copy_from_slice(&length.to_le_bytes());
+        let source = MonitorImageSource { id: "unknown-frame-chunk".into(), format: ImageFormat::Webp, bytes: Arc::from(bytes) };
+        let decoded = decode(&source, &super::super::image_memory::DecodeResources::new()).unwrap();
+        assert_eq!(decoded.image.as_bytes(0).unwrap(), [56, 34, 12, 255].repeat(9));
+        assert_eq!(decoded.image.delay(0).numer_denom_ms(), (120, 1));
+        assert_eq!(decoded.plays, None);
     }
 
     /// 动态 WebP 必须保留两帧、各自延迟及有限或无限播放，不能退化成首帧静图。

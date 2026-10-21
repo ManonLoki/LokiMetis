@@ -10,6 +10,7 @@ pub(crate) mod images;
 pub(crate) mod image_decode;
 mod image_memory;
 mod png_animation;
+mod webp_budget;
 mod animation_metadata;
 pub(crate) mod image_playback;
 pub(crate) mod image_residency;
