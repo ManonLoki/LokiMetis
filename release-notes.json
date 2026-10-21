@@ -2,13 +2,42 @@
   "schemaVersion": 2,
   "releases": [
     {
-      "releaseDate": "2026-10-20",
-      "version": "v0.5.1",
-      "featureOptimizations": [],
+      "releaseDate": "2026-10-21",
+      "version": "v0.6.3",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增局域网终端配对与加密连接，同步今日 Token 用量、Hooks 状态及按需图片资源。",
+          "en-US": "Add LAN device pairing and encrypted connections for today's token usage, Hook status and on-demand image resources."
+        },
+        {
+          "zh-CN": "客户端发起配对时自动显示全局弹窗，展示名称与连接地址，四位配对码明文输入并保留前导零。",
+          "en-US": "Automatically show a global dialog for incoming pairing requests, with the reported name, connection address and visible four-digit code entry preserving leading zeros."
+        },
+        {
+          "zh-CN": "终端设备页采用紧凑配图卡片，按认证上报区分手机与平板，并展示 iPhone 所属 Watch 的独立通信状态。",
+          "en-US": "Use compact illustrated device cards, distinguish phones and tablets from authenticated reports, and show separate communication status for an iPhone's Watch."
+        },
+        {
+          "zh-CN": "新增共用 Rust 配对与移动协议桥，双向认证成功且私有存储完成后才确认配对。",
+          "en-US": "Add shared Rust pairing and mobile protocol bridges, confirming pairing only after mutual authentication and successful private storage."
+        },
+        {
+          "zh-CN": "图库支持 BMP 及静态、动态 WebP，保留透明度、动画延迟与循环次数。",
+          "en-US": "Support BMP and static or animated WebP images while preserving transparency, frame timing and loop counts."
+        }
+      ],
       "bugFixes": [
         {
-          "zh-CN": "补齐 Linux 应用目录元数据，为软件中心关联已安装应用、包身份与卸载入口。",
-          "en-US": "Include Linux AppStream catalog metadata so software centers can associate the installed application with its package and removal action."
+          "zh-CN": "校验 WebP 内部编码帧与容器尺寸，防止畸形图片绕过解码内存预算，并保留合法动画扩展块兼容性。",
+          "en-US": "Validate encoded WebP frame dimensions against their containers to prevent malformed images from bypassing decode memory budgets, while preserving valid animation extension chunks."
+        },
+        {
+          "zh-CN": "配对请求按独立票据处理取消、断开与过期，避免旧窗口或迟到回调影响新连接。",
+          "en-US": "Bind pairing cancellation, disconnects and expiry to individual tickets so stale dialogs and late callbacks cannot affect a new connection."
+        },
+        {
+          "zh-CN": "补齐 Linux 应用目录元数据，供软件中心关联已安装应用、包身份与卸载入口。",
+          "en-US": "Include Linux AppStream catalog metadata so software centers can associate installed applications with their packages and removal actions."
         }
       ]
     },
