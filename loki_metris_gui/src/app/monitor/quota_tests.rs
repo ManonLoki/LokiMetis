@@ -42,7 +42,8 @@ fn reset_and_remaining_text_follow_the_injected_clock() {
         other => other.to_owned(),
     };
     let window = QuotaWindow { kind: QuotaWindowKind::FiveHour, used_tenths: 275, reset_at_unix: Some(86_400 + 3_600) };
-    assert_eq!(window_line("5 小时剩余", window, 0, &t), "5 小时剩余 72.5% 1 天后重置");
+    assert_eq!(window_line("5h", window, 0, &t), "5h 1 天后重置 72.5%");
+    assert_eq!(window_line("5h", QuotaWindow { reset_at_unix: None, ..window }, 0, &t), "5h 72.5%");
     assert_eq!(reset_text(10, 0, &t).as_deref(), Some("即将重置"));
     assert_eq!(reset_text(7_200, 0, &t).as_deref(), Some("2 小时后重置"));
 }
@@ -203,4 +204,39 @@ fn monthly_only_quota_uses_monthly_label() {
     let label = quota_card_label(&quota, 0, |key| key.to_owned());
     assert!(label.contains("monitor.quota.monthly 75%"), "{label}");
     assert_eq!(window_slug(QuotaWindowKind::Monthly), "monthly");
+}
+
+/// 短标题、重置Tag和右侧剩余百分比在双语、明暗及窄窗口中保持同一行。
+#[gpui_kit::test]
+fn quota_window_row_orders_label_reset_tag_and_remaining(cx: &mut gpui_kit::TestAppContext) {
+    let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 960., 700.);
+    cx.update_window(handle, |_, window, cx| {
+        for language in [crate::preferences::LanguageChoice::Chinese, crate::preferences::LanguageChoice::English] {
+            shell.update(cx, |this, cx| {
+                this.preferences.language = language;
+                this.locale = this.preferences.locale();
+                this.page = crate::app::Page::Monitor;
+                let mut value = quota(QuotaProvider::Codex, 725, Some(880));
+                value.five_hour.as_mut().unwrap().reset_at_unix = Some(unix_now() + 7_200);
+                this.monitor.quota.cards[0].phase = QuotaCardPhase::Ready(value);
+                cx.notify();
+            });
+            for mode in [gpui_kit::component::ThemeMode::Light, gpui_kit::component::ThemeMode::Dark] {
+                gpui_kit::component::Theme::change(mode, Some(window), cx);
+                window.render_frame(cx);
+                let label = window.find("monitor-quota-codex-five-hour-label");
+                let reset = window.find("monitor-quota-codex-five-hour-reset");
+                let remaining = window.find("monitor-quota-codex-five-hour-remaining");
+                assert_eq!(label.label(), Some("5h"));
+                assert_eq!(remaining.label(), Some("72.5%"));
+                assert_eq!(reset.bounds().size.height, px(20.));
+                assert!(label.bounds().right() < reset.bounds().origin.x);
+                assert!(reset.bounds().right() < remaining.bounds().origin.x);
+                assert!((f32::from(label.bounds().center().y - reset.bounds().center().y)).abs() < 1.);
+                assert!((f32::from(remaining.bounds().center().y - reset.bounds().center().y)).abs() < 1.);
+                assert!(window.try_find("monitor-quota-codex-weekly-reset").is_none());
+                assert_bar(window, "monitor-quota-codex-five-hour", 725, cx.theme().success);
+            }
+        }
+    }).unwrap();
 }

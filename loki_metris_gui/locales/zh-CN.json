@@ -540,9 +540,9 @@
     },
     "quota": {
       "title": "提供商用量",
-      "fiveHour": "5 小时剩余",
-      "weekly": "本周剩余",
-      "monthly": "本月剩余",
+      "fiveHour": "5h",
+      "weekly": "本周",
+      "monthly": "本月",
       "pending": "正在读取",
       "noWindow": "已连通，上游没有 5 小时、周或月窗口",
       "windowAbsent": "暂无",

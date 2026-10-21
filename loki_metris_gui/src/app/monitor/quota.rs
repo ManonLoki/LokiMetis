@@ -73,8 +73,21 @@ impl Shell {
         let label = window_line(&self.t(key), window, now_unix, &|key| self.t(key));
         let remaining = window.remaining_tenths();
         let color = if remaining <= 200 { cx.theme().danger } else if remaining <= 500 { cx.theme().warning } else { cx.theme().success };
+        let mut details = div().min_w_0().flex().items_center().gap(px(8.))
+            .child(div().id(format!("{provider_id}-{kind}-label")).test_support().role(Role::Label).aria_label(self.t(key))
+                .flex_shrink_0().child(self.t(key)));
+        if let Some(reset) = window.reset_at_unix.and_then(|reset| reset_text(reset, now_unix, &|key| self.t(key))) {
+            details = details.child(div().id(format!("{provider_id}-{kind}-reset")).test_support().role(Role::Label).aria_label(reset.clone())
+                .min_w_0().h(px(20.)).px(px(8.)).flex().items_center().rounded(px(6.))
+                .border_1().border_color(cx.theme().border).bg(cx.theme().muted)
+                .text_size(px(11.)).text_color(cx.theme().muted_foreground)
+                .child(div().min_w_0().truncate().child(reset)));
+        }
         div().w_full().flex().flex_col().gap_1()
-            .child(div().text_size(px(13.)).text_color(cx.theme().muted_foreground).child(label.clone()))
+            .child(div().w_full().h(px(20.)).flex().items_center().justify_between().gap(px(8.))
+                .text_size(px(13.)).text_color(cx.theme().muted_foreground).child(details)
+                .child(div().id(format!("{provider_id}-{kind}-remaining")).test_support().role(Role::Label).aria_label(percent_text(remaining))
+                    .flex_shrink_0().font_weight(FontWeight::SEMIBOLD).child(percent_text(remaining))))
             .child(div().id(format!("{provider_id}-{kind}")).test_support().role(Role::ProgressIndicator).aria_label(label)
                 .w_full().h(px(8.)).rounded_full().overflow_hidden().bg(cx.theme().border)
                 .child(div().id(format!("{provider_id}-{kind}-fill")).test_support()
@@ -131,11 +144,13 @@ fn plan_line(plan: &Option<String>, t: &impl Fn(&str) -> String) -> Option<Strin
 
 /// 展示真实窗口的剩余比例和可选重置时间。
 fn window_line(label: &str, window: QuotaWindow, now_unix: i64, t: &impl Fn(&str) -> String) -> String {
-    let mut line = format!("{label} {}", percent_text(window.remaining_tenths()));
+    let mut line = label.to_owned();
     if let Some(reset) = window.reset_at_unix.and_then(|reset| reset_text(reset, now_unix, t)) {
         line.push(' ');
         line.push_str(&reset);
     }
+    line.push(' ');
+    line.push_str(&percent_text(window.remaining_tenths()));
     line
 }
 

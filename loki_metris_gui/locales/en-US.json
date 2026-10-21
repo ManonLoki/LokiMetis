@@ -540,9 +540,9 @@
     },
     "quota": {
       "title": "Provider usage",
-      "fiveHour": "5-hour remaining",
-      "weekly": "Weekly remaining",
-      "monthly": "Monthly remaining",
+      "fiveHour": "5h",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
       "pending": "Reading",
       "noWindow": "Connected, but the upstream has no 5-hour, weekly or monthly window",
       "windowAbsent": "None",
