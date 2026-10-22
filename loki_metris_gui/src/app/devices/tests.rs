@@ -116,9 +116,21 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
             let id = "00000000-0000-4000-8000-000000000000";
             let watch = window.find(format!("device-watch-{id}")).bounds();
             let details = window.find(format!("device-details-{id}")).bounds();
+            let watch_image = window.find(format!("device-watch-artwork-{id}")).bounds();
+            let watch_details = window.find(format!("device-watch-details-{id}")).bounds();
+            let watch_name = window.find(format!("device-watch-name-{id}")).bounds();
+            let watch_status = window.find(format!("device-watch-status-{id}")).bounds();
             assert!(watch.left() >= details.left() && watch.right() <= details.right() + px(1.));
             assert!(watch.bottom() <= details.bottom() + px(1.));
-            for target in ["device-saved", "device-artwork", "device-name", "device-ip", "device-status", "device-version", "device-contact", "device-watch"] {
+            assert_eq!(watch_image.size, gpui_kit::size(px(40.), px(48.)));
+            assert!(watch_image.left() >= watch.left() && watch_image.bottom() <= watch.bottom());
+            assert!((watch_details.left() - watch_image.right() - px(8.)).abs() <= px(1.));
+            assert!(watch_details.right() <= watch.right() + px(1.));
+            assert!(watch_name.size.width > px(20.) && watch_status.left() >= watch_name.right() + px(7.));
+            assert!((watch_name.center().y - watch_status.center().y).abs() <= px(1.));
+            assert!(watch_status.right() <= watch_details.right() + px(1.));
+            assert_eq!(window.find(format!("device-watch-name-{id}")).label(), Some(format!("Watch · {}", "Long Watch name ".repeat(10)).as_str()));
+            for target in ["device-saved", "device-artwork", "device-name", "device-ip", "device-status", "device-version", "device-contact", "device-watch", "device-watch-artwork", "device-watch-name", "device-watch-status"] {
                 window.click(format!("{target}-{id}"), cx); window.render_frame(cx);
                 assert!(shell.read(cx).devices.modal.is_none());
                 assert_eq!(shell.read(cx).devices.snapshot.saved.len(), 4);
@@ -266,44 +278,75 @@ fn incoming_requests_wait_for_other_modals_and_expire(cx: &mut TestAppContext) {
 /// 已认证IP与后台状态独立显示，只有发现广告时不能伪造在线或可信IP。
 #[gpui_kit::test]
 fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut TestAppContext) {
+    use gpui_kit::component::{ActiveTheme, Theme, ThemeMode};
     use loki_metris_core::devices::{companion::{WatchInfo, WatchCompanionView}, link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState, UnavailableReason}};
     for (locale, connected, background, not_connected, ip, last_ip) in [
         ("en-US", "Connected", "In background · sync resumes when opened", "Not connected", "IP: 192.168.1.20", "Last IP: 192.168.1.20"),
         ("zh-CN", "当前可通信", "已进入后台，打开终端后恢复同步", "尚未连接", "IP：192.168.1.20", "上次 IP：192.168.1.20"),
     ] {
-        let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
-        cx.update_window(handle, |_, window, cx| {
-            shell.update(cx, |this, cx| {
-                this.locale = locale; this.page = crate::app::Page::Devices; this.devices.snapshot.loaded = true;
-                this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved name".into() });
-                this.devices.snapshot.presence.push(DevicePresenceView { form_factor: None, device_id: DEVICE.into(),
-                    info: Some(DeviceInfo { device_id: DEVICE.into(), name: "Authenticated phone".into(), platform: DevicePlatform::Ios, app_version: "1.0".into() }),
-                    state: DeviceConnectionState::Reachable, peer: Some("192.168.1.20:51000".parse().unwrap()), since_last_contact: Some(std::time::Duration::ZERO), companion: None });
-                this.devices.snapshot.presence[0].companion = Some(WatchCompanionView {
-                    info: WatchInfo { device_id: "c169da9b-4716-4774-bdcb-a33bfd6e1ac1".into(), name: "My Watch".into(), app_version: "1.0".into() },
-                    reachable: true, since_last_contact: Some(std::time::Duration::ZERO), since_last_sync: Some(std::time::Duration::from_secs(2)) });
-                cx.notify();
-            });
-            window.render_frame(cx);
-            assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
-            assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Online" } else { "在线" }));
-            assert_eq!(window.find(format!("device-version-{DEVICE}")).label(), Some("1.0"));
-            assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
-            assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(connected));
-            assert_eq!(window.find(format!("device-watch-sync-{DEVICE}")).label(), Some(if locale == "en-US" { "Last confirmed sync: at most 2s ago" } else { "最近确认同步：至多 2 秒前" }));
-            assert!(window.try_find("device-ip-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
-            assert!(window.try_find("device-remove-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
-            shell.update(cx, |this, cx| { this.devices.snapshot.presence[0].state = DeviceConnectionState::Unavailable(UnavailableReason::Background); cx.notify(); });
-            window.render_frame(cx);
-            assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(background));
-            assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
-            assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(last_ip));
-            assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(if locale == "en-US" { "Sync unavailable · cache retained" } else { "暂不可同步 · 保留缓存" }));
-            shell.update(cx, |this, cx| { this.devices.snapshot.presence.clear(); prepare_target(this); cx.notify(); });
-            window.render_frame(cx);
-            assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(not_connected));
-            assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
-            assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
-        }).unwrap();
+        for dark in [false, true] {
+            let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
+            cx.update(|cx| Theme::change(if dark { ThemeMode::Dark } else { ThemeMode::Light }, None, cx));
+            cx.update_window(handle, |_, window, cx| {
+                shell.update(cx, |this, cx| {
+                    this.locale = locale; this.page = crate::app::Page::Devices; this.devices.snapshot.loaded = true;
+                    this.devices.snapshot.saved.push(SavedDeviceSummary { id: DEVICE.into(), name: "Saved name".into() });
+                    this.devices.snapshot.presence.push(DevicePresenceView { form_factor: None, device_id: DEVICE.into(),
+                        info: Some(DeviceInfo { device_id: DEVICE.into(), name: "Authenticated phone".into(), platform: DevicePlatform::Ios, app_version: "1.0".into() }),
+                        state: DeviceConnectionState::Reachable, peer: Some("192.168.1.20:51000".parse().unwrap()), since_last_contact: Some(std::time::Duration::ZERO), companion: None });
+                    this.devices.snapshot.presence[0].companion = Some(WatchCompanionView {
+                        info: WatchInfo { device_id: "c169da9b-4716-4774-bdcb-a33bfd6e1ac1".into(), name: "My Watch".into(), app_version: "1.0".into() },
+                        reachable: true, since_last_contact: Some(std::time::Duration::ZERO), since_last_sync: Some(std::time::Duration::from_secs(2)) });
+                    cx.notify();
+                });
+                window.render_frame(cx);
+                assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Online" } else { "在线" }));
+                assert_eq!(window.find(format!("device-version-{DEVICE}")).label(), Some("1.0"));
+                assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
+                assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(connected));
+                let online = if locale == "en-US" { "Online" } else { "在线" };
+                let offline = if locale == "en-US" { "Offline" } else { "离线" };
+                assert_eq!(window.find(format!("device-watch-status-tag-{DEVICE}")).label(), Some(online));
+                for prefix in ["device-status", "device-watch-status"] {
+                    assert_connection_tag_background(window, &format!("{prefix}-{DEVICE}"), cx.theme().success.opacity(0.12));
+                }
+                assert_eq!(window.find(format!("device-watch-sync-{DEVICE}")).label(), Some(if locale == "en-US" { "Last confirmed sync: at most 2s ago" } else { "最近确认同步：至多 2 秒前" }));
+                assert!(window.try_find("device-ip-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
+                assert!(window.try_find("device-remove-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
+                shell.update(cx, |this, cx| { this.devices.snapshot.presence[0].companion.as_mut().unwrap().reachable = false; cx.notify(); });
+                window.render_frame(cx);
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(online), "手机在线不能代替Watch独立回执");
+                assert_eq!(window.find(format!("device-watch-status-tag-{DEVICE}")).label(), Some(offline));
+                assert_connection_tag_background(window, &format!("device-watch-status-{DEVICE}"), cx.theme().secondary);
+                shell.update(cx, |this, cx| {
+                    this.devices.snapshot.presence[0].companion.as_mut().unwrap().reachable = true;
+                    this.devices.snapshot.presence[0].state = DeviceConnectionState::Unavailable(UnavailableReason::Background); cx.notify();
+                });
+                window.render_frame(cx);
+                assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(background));
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
+                assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(last_ip));
+                assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(if locale == "en-US" { "Sync unavailable · cache retained" } else { "暂不可同步 · 保留缓存" }));
+                assert_eq!(window.find(format!("device-watch-status-tag-{DEVICE}")).label(), Some(offline));
+                for prefix in ["device-status", "device-watch-status"] {
+                    assert_connection_tag_background(window, &format!("{prefix}-{DEVICE}"), cx.theme().secondary);
+                }
+                shell.update(cx, |this, cx| { this.devices.snapshot.presence.clear(); prepare_target(this); cx.notify(); });
+                window.render_frame(cx);
+                assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(not_connected));
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
+                assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
+                assert!(window.try_find(format!("device-watch-{DEVICE}")).is_none());
+                assert!(window.try_find(format!("device-watch-artwork-{DEVICE}")).is_none());
+            }).unwrap();
+        }
     }
+}
+
+/// 直接核对真实绘制Tag背景，防止在线只改文字却仍然使用品牌红色或离线误示绿色。
+fn assert_connection_tag_background(window: &gpui_kit::Window, id: &str, color: gpui_kit::Hsla) {
+    let bounds = window.find(id.to_owned()).bounds().scale(window.scale_factor());
+    assert!(window.painted_quads().iter().any(|quad| quad.bounds == bounds && quad.background.as_solid() == Some(color)),
+        "{id}必须绘制当前通信状态对应的背景色{color:?}");
 }

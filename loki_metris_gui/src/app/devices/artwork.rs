@@ -30,6 +30,15 @@ pub(super) fn device_artwork(id: &str, path: Option<&'static str>, label: String
     frame.into_any_element()
 }
 
+/// 附属Watch使用固定40×48小图槽；插图不代表型号，也不生成独立设备入口。
+pub(super) fn watch_artwork(id: &str, label: String) -> AnyElement {
+    div().id(SharedString::from(format!("device-watch-artwork-{id}")))
+        .test_support().role(Role::Image).aria_label(label).w(px(40.)).h(px(48.))
+        .flex_shrink_0().flex().items_center().justify_center()
+        .child(img(assets::DEVICE_WATCH).w(px(40.)).h(px(48.)).object_fit(ObjectFit::Contain))
+        .into_any_element()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -49,14 +58,14 @@ mod tests {
         assert_eq!(artwork_path(None, None), None);
     }
 
-    /// 四种实际嵌入图必须能够通过同一资源源读取、解码并保留透明边缘。
+    /// 手机、平板和Watch实际嵌入图必须能够通过同一资源源读取、解码并保留透明边缘。
     #[test]
     fn bundled_device_images_are_decodable_transparent_and_registered() {
         use gpui_kit::AssetSource;
         let source = assets::Assets;
         let listed = source.list("app-devices/").unwrap();
-        assert_eq!(listed.len(), 4);
-        for path in [assets::DEVICE_IPHONE, assets::DEVICE_ANDROID_PHONE, assets::DEVICE_IPAD, assets::DEVICE_ANDROID_TABLET] {
+        assert_eq!(listed.len(), 5);
+        for path in [assets::DEVICE_IPHONE, assets::DEVICE_ANDROID_PHONE, assets::DEVICE_IPAD, assets::DEVICE_ANDROID_TABLET, assets::DEVICE_WATCH] {
             let bytes = source.load(path).unwrap().unwrap();
             let image = image::load_from_memory(&bytes).unwrap().to_rgba8();
             assert!(image.width() >= 512 && image.height() >= 512);

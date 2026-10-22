@@ -1,6 +1,6 @@
 //! 已配对卡片突出设备图、名称和可信IP，移除与Watch信息保留独立语义。
 
-use super::{Shell, artwork::{artwork_path, device_artwork}};
+use super::{Shell, artwork::{artwork_path, device_artwork, watch_artwork}};
 use crate::app::surface::{StaticCard, StaticMaterial, SurfaceButton, SurfaceButtonVariant};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, SharedString,
@@ -29,15 +29,7 @@ impl Shell {
         let platform = info.map_or_else(|| self.t("devices.generic"), |info| match info.platform {
             DevicePlatform::Android => "Android".into(), DevicePlatform::Ios => "iOS".into(),
         });
-        let tag = self.t(if connected { "devices.online" } else { "devices.offline" });
-        let status_tag = div().id(SharedString::from(format!("device-status-{}", device.id))).test_support()
-            .role(Role::Label).aria_label(status.clone()).flex_shrink_0().px_2().py(px(2.))
-            .rounded(px(6.)).text_size(px(11.))
-            .bg(if connected { cx.theme().primary.opacity(0.12) } else { cx.theme().secondary })
-            .text_color(if connected { cx.theme().primary } else { cx.theme().muted_foreground })
-            .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(status.clone()).build(window, cx))
-            .child(div().id(SharedString::from(format!("device-status-tag-{}", device.id))).test_support()
-                .role(Role::Label).aria_label(tag.clone()).child(tag));
+        let status_tag = self.device_connection_tag("device-status", &device.id, status, connected, cx);
         let mut identity = div().min_w_0().flex().items_center().gap_2()
             .child(div().id(SharedString::from(format!("device-name-{}", device.id))).test_support()
                 .role(Role::Label).aria_label(name.clone()).min_w_0().flex_1().truncate().text_size(px(18.))
@@ -108,23 +100,43 @@ impl Shell {
         card.into_any_element()
     }
 
-    /// Watch只投影在其iPhone之内，不生成独立图片、地址或配对/移除入口。
+    /// 手机和附属Watch共用绿色在线Tag，辅助名称与悬停提示保留完整通信原因。
+    fn device_connection_tag(&self, prefix: &str, id: &str, status: String, connected: bool, cx: &Context<Self>) -> AnyElement {
+        let tag = self.t(if connected { "devices.online" } else { "devices.offline" });
+        div().id(SharedString::from(format!("{prefix}-{id}"))).test_support()
+            .role(Role::Label).aria_label(status.clone()).flex_shrink_0().px_2().py(px(2.))
+            .rounded(px(6.)).text_size(px(11.))
+            .bg(if connected { cx.theme().success.opacity(0.12) } else { cx.theme().secondary })
+            .text_color(if connected { cx.theme().success } else { cx.theme().muted_foreground })
+            .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(status.clone()).build(window, cx))
+            .child(div().id(SharedString::from(format!("{prefix}-tag-{id}"))).test_support()
+                .role(Role::Label).aria_label(tag.clone()).child(tag)).into_any_element()
+    }
+
+    /// Watch在iPhone内以小图和真实名称展示；独立回执与父连接共同决定在线，不提供独立设备操作。
     fn paired_watch_status(&self, id: &str, watch: &WatchCompanionView, connected: bool, cx: &Context<Self>) -> AnyElement {
-        let status = self.t(if connected && watch.reachable { "devices.watch.connected" } else { "devices.watch.unavailable" });
+        let reachable = connected && watch.reachable;
+        let status = self.t(if reachable { "devices.watch.connected" } else { "devices.watch.unavailable" });
+        let name = format!("Watch · {}", watch.info.name);
         let sync = watch.since_last_sync.map_or_else(|| self.t("devices.watch.noSync"), |age|
             self.t("devices.watch.lastSync").replace("{{seconds}}", &age.as_secs().to_string()));
-        let mut row = div().id(SharedString::from(format!("device-watch-{id}"))).test_support()
-            .pt_3().border_t_1().border_color(cx.theme().border).flex().flex_col().gap_1()
+        let mut details = div().id(SharedString::from(format!("device-watch-details-{id}"))).test_support()
+            .min_w_0().flex_1().flex().flex_col().gap_1()
             .text_size(px(12.)).text_color(cx.theme().muted_foreground)
-            .child(div().truncate().font_weight(FontWeight::SEMIBOLD).child(format!("Watch · {}", watch.info.name)))
+            .child(div().min_w_0().flex().items_center().gap_2()
+                .child(div().id(SharedString::from(format!("device-watch-name-{id}"))).test_support()
+                    .role(Role::Label).aria_label(name.clone()).min_w_0().flex_1().truncate()
+                    .font_weight(FontWeight::SEMIBOLD).text_color(cx.theme().foreground).child(name))
+                .child(self.device_connection_tag("device-watch-status", id, status, reachable, cx)))
             .child(div().truncate().child(format!("watchOS · {} · {}", watch.info.app_version, self.t("devices.watch.viaPhone"))))
-            .child(div().id(SharedString::from(format!("device-watch-status-{id}"))).test_support().role(Role::Label)
-                .aria_label(status.clone()).child(status))
             .child(div().id(SharedString::from(format!("device-watch-sync-{id}"))).test_support().role(Role::Label)
-                .aria_label(sync.clone()).child(sync));
+                .aria_label(sync.clone()).truncate().child(sync));
         if let Some(age) = watch.since_last_contact {
-            row = row.child(self.t("devices.lastContact").replace("{{seconds}}", &age.as_secs().to_string()));
+            details = details.child(div().truncate().child(self.t("devices.lastContact").replace("{{seconds}}", &age.as_secs().to_string())));
         }
-        row.into_any_element()
+        div().id(SharedString::from(format!("device-watch-{id}"))).test_support()
+            .min_w_0().pt_3().border_t_1().border_color(cx.theme().border).flex().items_start().gap_2()
+            .child(watch_artwork(id, self.t("devices.illustration").replace("{{name}}", &watch.info.name)))
+            .child(details).into_any_element()
     }
 }

@@ -120,7 +120,7 @@
     }
   ],
   "cycle_base_version": "0.8.0",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": {
     "source_commit": "d1ae57628a64f87e3b7226d4179299988c440901",
     "version": "0.8.0"
@@ -130,8 +130,13 @@
       "change_id": "LMDESK-CURSOR-DAILY-REFRESH-001",
       "kind": "bug-fix",
       "required_version": "0.8.1"
+    },
+    {
+      "change_id": "LMDESK-WATCH-DEVICE-CARD-001",
+      "kind": "feature",
+      "required_version": "0.9.0"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.8.1"
+  "target_version": "0.9.0"
 }

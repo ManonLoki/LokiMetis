@@ -1,5 +1,13 @@
 # 2026-10-22 开发变更
 
+## LMDESK-WATCH-DEVICE-CARD-001 · 绿色在线状态与Watch小图
+
+分类：feature；required_version：`0.9.0`。本周期首项新功能，将版本从`0.8.1`提升至`0.9.0`。
+
+终端设备卡片的在线标签改为绿色；有附属Watch时，在iPhone卡片内显示40×48px透明手表小图、真实名称和独立在线标签，保留版本、同步与通信时间。手机在线但手表不可达、或手机进入后台时，手表显示离线。现有协议没有型号字段，因此本次不推断型号。展示约定见[ADR-20261022-005](../adr/20261022_ADR.md#adr-20261022-005设备在线使用绿色并在iphone内显示watch小图)。
+
+开发验证：`cargo test -p loki_metris_gui --bin loki_metris_gui app::devices:: -- --nocapture`共16项通过，覆盖双语、明暗主题、长名称、原生布局、实际Tag背景及五张图片的资源注册/透明解码。未打包、发布或执行真机联动及Windows/Linux验收。
+
 ## LMDESK-CURSOR-TOKEN-USAGE-001 · Cursor 账户 Token 明细
 
 分类：feature；required_version：`0.8.0`。
