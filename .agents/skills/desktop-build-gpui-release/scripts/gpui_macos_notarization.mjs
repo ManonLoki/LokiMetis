@@ -2,6 +2,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** Apple 已接受后票据服务仍可能短暂未同步，只对服务未就绪的退出码做有限重试。 */
+export function runStapler({ run, action, artifact, env, pause = milliseconds => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,milliseconds) }) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return run('xcrun',['stapler',action,artifact],{ env, quiet: true }); }
+    catch (error) {
+      // EX_NOHOST/EX_TEMPFAIL 可来自票据服务；撤销、无效数据和写入失败不重试。
+      if (attempt === 2 || ![68,75].includes(error.exitCode)) throw error;
+      pause(20_000);
+    }
+  }
+}
+
 /** 仅显式启用的调用可把专用认证映射给 cargo-packager，构建和测试不接触认证。 */
 export function notarizationEnvironment(config, environment) {
   const identity = config.macos.signingIdentity;
@@ -42,7 +54,7 @@ export function finalizeMacosSigning({ run, config, format, artifact, app, env, 
   const signature = verifyDeveloperSignature(run, app, config, env);
   const application = acceptedReceipt(run, ids[0], authentication, env);
   if (!application.log.ticketContents?.some(item => item.cdhash === signature.cdhash)) throw new Error('Notarization ticket does not contain this signed application');
-  run('xcrun', ['stapler','validate',app], { env, quiet: true });
+  runStapler({ run, action: 'validate', artifact: app, env });
   const policy = run('spctl',['--status'],{ env, quiet: true }).stdout.trim();
   if (policy !== 'assessments enabled') throw new Error('Gatekeeper assessments must be enabled for candidate verification');
   run('spctl', ['--assess','--type','execute','--verbose=4',app], { env, quiet: true });
@@ -52,8 +64,8 @@ export function finalizeMacosSigning({ run, config, format, artifact, app, env, 
     verifyDeveloperSignature(run, artifact, config, env, false);
     const submission = JSON.parse(run('xcrun', ['notarytool','submit',artifact,...authentication,'--wait','--timeout','30m','--output-format','json'], { env, quiet: true, timeout: 31 * 60_000 }).stdout);
     dmg = acceptedReceipt(run, submission.id, authentication, env);
-    run('xcrun', ['stapler','staple',artifact], { env, quiet: true });
-    run('xcrun', ['stapler','validate',artifact], { env, quiet: true });
+    runStapler({ run, action: 'staple', artifact, env });
+    runStapler({ run, action: 'validate', artifact, env });
     verifyDeveloperSignature(run, artifact, config, env, false);
     run('spctl', ['--assess','--type','open','--context','context:primary-signature','--verbose=4',artifact], { env, quiet: true });
   }

@@ -6,7 +6,7 @@ import { findGlobalTool } from './gpui_global_tools.mjs';
 import { TARGETS } from './gpui_config.mjs';
 import { writeNsisTemplate } from './gpui_nsis.mjs';
 import { localDmgSigningHook, macosAgentPlist, verifyLocalBundle } from './gpui_macos_identity.mjs';
-import { finalizeMacosSigning, verifyDeveloperSignature } from './gpui_macos_notarization.mjs';
+import { finalizeMacosSigning, verifyDeveloperSignature, runStapler } from './gpui_macos_notarization.mjs';
 
 /** 生成工具配置而不运行用户 hook，不继承未批准的自动签名配置。 */
 export function packagerConfig({ root, work, config, facts, target, format, resources, signing, localAdhoc = false, binarySha256 }) {
@@ -101,7 +101,7 @@ export function verifyDmg({ run, artifact, mount, root, config, facts, resources
     if (localAdhoc) verifyLocalBundle(run, app, config.identifier, env);
     if (developerSigned) {
       verifyDeveloperSignature(run, app, config, env);
-      run('xcrun',['stapler','validate',app],{ env, quiet: true });
+      runStapler({ run, action: 'validate', artifact: app, env });
     }
     const store = safePath(mount, '.DS_Store', { type: 'file' });
     if (!fs.statSync(store).size) throw new Error('DMG Finder layout is missing');

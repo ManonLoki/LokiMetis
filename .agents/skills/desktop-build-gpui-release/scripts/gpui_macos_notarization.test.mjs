@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { notarizationEnvironment, finalizeMacosSigning } from './gpui_macos_notarization.mjs';
+import { notarizationEnvironment, finalizeMacosSigning, runStapler } from './gpui_macos_notarization.mjs';
 
 const config = { identifier:'com.example.app',macos:{signingIdentity:'Developer ID Application: Example (ABCDEFGHIJ)'} };
 const appId = '11111111-1111-1111-1111-111111111111', dmgId = '22222222-2222-2222-2222-222222222222';
@@ -56,4 +56,21 @@ test('rejected receipts wrong binary disabled Gatekeeper and stapling failure ne
   }
   const f=fixture();f.options.packageResult.stdout='Skipping app notarization';
   assert.throws(()=>finalizeMacosSigning(f.options),/receipt/);
+});
+
+test('ticket service retries are bounded and never retry permanent stapling errors',()=>{
+  const calls=[],delays=[];
+  const transient=Object.assign(new Error('ticket service unavailable'),{exitCode:68});
+  const run=(program,args)=>{calls.push([program,...args]);if(calls.length<3)throw transient;return {status:0};};
+  assert.equal(runStapler({run,action:'staple',artifact:'verified.dmg',env:{},pause:value=>delays.push(value)}).status,0);
+  assert.equal(calls.length,3);assert.deepEqual(delays,[20_000,20_000]);
+  assert.ok(calls.every(args=>args.join(' ')==='xcrun stapler staple verified.dmg'));
+  for(const exitCode of [65,66,73,77]) {
+    let attempts=0;
+    assert.throws(()=>runStapler({run:()=>{attempts++;throw Object.assign(new Error('permanent'),{exitCode});},action:'validate',artifact:'verified.dmg',env:{},pause:()=>assert.fail('must not wait')}),/permanent/);
+    assert.equal(attempts,1);
+  }
+  let attempts=0;
+  assert.throws(()=>runStapler({run:()=>{attempts++;throw transient;},action:'staple',artifact:'verified.dmg',env:{},pause:()=>{}}),/ticket service unavailable/);
+  assert.equal(attempts,3);
 });

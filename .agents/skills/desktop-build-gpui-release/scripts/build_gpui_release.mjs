@@ -15,7 +15,8 @@ import { packagerConfig, packagePath, signingChoice, finalizeSigning, verifyReso
 import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable, stageResources } from './gpui_resources.mjs';
 import { signLocalBundle, verifyLocalBundle } from './gpui_macos_identity.mjs';
-import { notarizationEnvironment, verifyDeveloperSignature } from './gpui_macos_notarization.mjs';
+import { notarizationEnvironment, verifyDeveloperSignature, runStapler } from './gpui_macos_notarization.mjs';
+import { processFailure, redactDiagnostic } from './gpui_process_diagnostics.mjs';
 import { executeLinuxBuild } from './gpui_linux_build.mjs';
 import { findGlobalTool, requirePackager, setupPackager } from './gpui_global_tools.mjs';
 export { setupPackager } from './gpui_global_tools.mjs';
@@ -27,15 +28,12 @@ export function assertNodeRuntime(version = process.versions.node) {
   if (!supported) throw new Error('GPUI packaging requires stable Node.js >=24.21.0');
 }
 
-/** 命令以 argv 执行；签名命令隐藏诊断，任何非零/超时直接阻断。 */
+/** 命令以 argv 执行；签名成功日志隐藏，失败保留脱敏诊断并直接阻断。 */
 export function commandRunner(root) {
   return (program, args, { env = process.env, quiet = false, timeout = 30 * 60 * 1000 } = {}) => {
     const result = spawnSync(program,args,{ cwd: root, env, encoding: 'utf8', input: '', maxBuffer: 64 * 1024 * 1024, timeout, windowsHide: true });
-    if (result.error || result.status !== 0) {
-      const diagnostic = [result.error?.message,result.stderr?.trim(),result.stdout?.trim()].filter(Boolean).join('\n') || String(result.status);
-      throw new Error(`${path.basename(program)} failed${quiet ? '' : `: ${diagnostic.slice(-8000)}`}`);
-    }
-    if (!quiet && result.stderr) process.stderr.write(result.stderr);
+    if (result.error || result.status !== 0) throw processFailure(program,args,result,env);
+    if (!quiet && result.stderr) process.stderr.write(redactDiagnostic(result.stderr,env));
     return result;
   };
 }
@@ -240,7 +238,7 @@ export function executeBuild(options, hooks = {}) {
     if (localAdhoc) verifyLocalBundle(run, extractedApp, config.identifier, env);
     if (macosSigning) {
       verifyDeveloperSignature(run, extractedApp, config, packageEnv);
-      run('xcrun',['stapler','validate',extractedApp],{ env: packageEnv, quiet: true });
+      runStapler({ run, action: 'validate', artifact: extractedApp, env: packageEnv });
     }
     verifyResources(path.join(extractedApp,'Contents','Resources'),root,resources);
     if (sha256(safePath(extractedApp,`Contents/MacOS/${config.binary}`,{ type: 'file' })) !== binarySha256) throw new Error('app archive binary differs from this build');

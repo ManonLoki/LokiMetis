@@ -14,11 +14,11 @@ import { encodePng, decodePng, renderPlatformIcons, renderDmgBackground } from '
 import { collectResources, assertResourcesStable } from './gpui_resources.mjs';
 import { localDmgSigningHook, signLocalDmgApp, verifyLocalBundle } from './gpui_macos_identity.mjs';
 
-test('failed real subprocess retains captured test stdout alongside compiler stderr and quiet remains private', () => {
+test('failed real subprocess retains captured test stdout alongside compiler stderr even in quiet mode', () => {
   const run = commandRunner(fs.realpathSync(os.tmpdir()));
   const args = ['-e', 'process.stdout.write("FAILED regression case"); process.stderr.write("error: test failed"); process.exitCode=1'];
   assert.throws(() => run(process.execPath,args), error => error.message.includes('FAILED regression case') && error.message.includes('error: test failed'));
-  assert.throws(() => run(process.execPath,args,{quiet:true}), error => error.message === `${path.basename(process.execPath)} failed`);
+  assert.throws(() => run(process.execPath,args,{quiet:true}), error => error.message.includes('FAILED regression case') && error.message.includes('error: test failed'));
 });
 
 /** 临时根使用 canonical 路径，避免 macOS /var 别名误入路径门禁。 */
