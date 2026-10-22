@@ -1,0 +1,571 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "诡秘神谕 · 当前桌面架构",
+    "locale": "zh-CN",
+    "output": ".archify/architecture-desktop-20261022-144530/desktop.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/ManonLoki/LokiMetis.git",
+      "revision": "950d9eb0cf39b9f57f08a98cdd45c81dd8effac1",
+      "provider": "github",
+      "link_mode": "web"
+    }
+  },
+  "components": [
+    {
+      "id": "interface",
+      "type": "frontend",
+      "label": "GPUI 界面与原生宿主",
+      "sublabel": "看板 · 桌宠 · 托盘与通知",
+      "pos": [
+        450,
+        40
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/main.rs",
+          "line": 80,
+          "end_line": 140,
+          "label": "服务装配与窗口"
+        },
+        {
+          "path": "loki_metris_gui/src/pet/mod.rs",
+          "line": 201,
+          "end_line": 240,
+          "label": "桌宠读取投影"
+        },
+        {
+          "path": "loki_metris_gui/src/native/notifications/activity.rs",
+          "line": 10,
+          "end_line": 35,
+          "label": "原生通知消费"
+        }
+      ]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "UsageService",
+      "sublabel": "应用级 Tokio · 扫描/查询邮箱",
+      "pos": [
+        450,
+        270
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/usage_service/mod.rs",
+          "line": 153,
+          "end_line": 227,
+          "label": "后台 owner 与任务"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/scan.rs",
+          "line": 27,
+          "end_line": 57,
+          "label": "串行 writer 扫描"
+        },
+        {
+          "path": "loki_metris_gui/src/app/dashboard/mod.rs",
+          "line": 188,
+          "end_line": 223,
+          "label": "请求与异步回执"
+        }
+      ]
+    },
+    {
+      "id": "readers",
+      "type": "backend",
+      "label": "本机来源适配器",
+      "sublabel": "JSONL 解析 · WorkBuddy 只读支路",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/backend/scan_orchestration/run.rs",
+          "line": 67,
+          "end_line": 119,
+          "label": "索引与来源发现"
+        },
+        {
+          "path": "loki_metris_gui/src/backend/local_index/rollout_ingest.rs",
+          "line": 201,
+          "end_line": 262,
+          "label": "解析与批次写入"
+        },
+        {
+          "path": "loki_metris_gui/src/backend/workbuddy/mod.rs",
+          "line": 125,
+          "end_line": 169,
+          "label": "独立读取与核算"
+        }
+      ]
+    },
+    {
+      "id": "source-files",
+      "type": "external",
+      "label": "AI 工具本机记录",
+      "sublabel": "Codex · Claude Code · Grok · WorkBuddy",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/backend/local_index/file_source.rs",
+          "line": 139,
+          "end_line": 175,
+          "label": "实际打开会话文件"
+        },
+        {
+          "path": "loki_metris_gui/src/backend/workbuddy/jsonl/mod.rs",
+          "line": 282,
+          "end_line": 288,
+          "label": "项目 JSONL 文件"
+        }
+      ]
+    },
+    {
+      "id": "index",
+      "type": "backend",
+      "label": "core SQLite 持久层",
+      "sublabel": "连接 · 迁移 · 事务与查询",
+      "pos": [
+        40,
+        500
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_core/src/local_index/mod.rs",
+          "line": 59,
+          "end_line": 125,
+          "label": "数据库连接及迁移"
+        },
+        {
+          "path": "loki_metris_core/src/local_index/call_store/mod.rs",
+          "line": 61,
+          "end_line": 99,
+          "label": "批次事务提交"
+        },
+        {
+          "path": "loki_metris_core/src/local_index/snapshot_usage_reads.rs",
+          "line": 157,
+          "end_line": 189,
+          "label": "查询与标准化"
+        }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "应用私有 SQLite",
+      "sublabel": "Codex / Claude / Grok 派生索引",
+      "pos": [
+        40,
+        730
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_core/src/private_sqlite.rs",
+          "line": 33,
+          "end_line": 65,
+          "label": "真实文件与连接 I/O"
+        },
+        {
+          "path": "loki_metris_core/src/client_ports.rs",
+          "line": 13,
+          "end_line": 35,
+          "label": "三类数据库槽位"
+        }
+      ]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "core 业务规则",
+      "sublabel": "核算 · 六窗口 · Hooks 状态与布局",
+      "pos": [
+        450,
+        500
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_core/src/aggregate/canonicalization.rs",
+          "line": 51,
+          "end_line": 90,
+          "label": "逻辑调用归并"
+        },
+        {
+          "path": "loki_metris_core/src/local_view.rs",
+          "line": 113,
+          "end_line": 169,
+          "label": "时间窗口与核算"
+        },
+        {
+          "path": "loki_metris_core/src/agent_hooks/state_machine/mod.rs",
+          "line": 109,
+          "end_line": 137,
+          "label": "Hook 状态机"
+        }
+      ]
+    },
+    {
+      "id": "accounts",
+      "type": "backend",
+      "label": "账户用量与额度驱动",
+      "sublabel": "本地记录优先 · Cursor 独立内存视图",
+      "pos": [
+        860,
+        270
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/usage_service/cursor_usage/mod.rs",
+          "line": 75,
+          "end_line": 125,
+          "label": "Cursor 分页与缓存"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/provider_quota/fetch.rs",
+          "line": 36,
+          "end_line": 71,
+          "label": "本地优先与纯解析"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/provider_quota/transport.rs",
+          "line": 73,
+          "end_line": 114,
+          "label": "受限 HTTPS 与只读 sqlite3"
+        }
+      ]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "提供商官方接口",
+      "sublabel": "复用已有登录态 · 受限 HTTPS",
+      "pos": [
+        860,
+        40
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/usage_service/provider_quota/fetch.rs",
+          "line": 112,
+          "end_line": 166,
+          "label": "固定官方端点"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/provider_quota/transport.rs",
+          "line": 118,
+          "end_line": 153,
+          "label": "curl 调用与超时取消"
+        }
+      ]
+    },
+    {
+      "id": "extensions",
+      "type": "backend",
+      "label": "Hooks 与换肤服务",
+      "sublabel": "环回事件 · 档案图库 · CDP 注入",
+      "pos": [
+        860,
+        500
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/monitor/listener/lifecycle.rs",
+          "line": 101,
+          "end_line": 203,
+          "label": "状态推进与活动通知"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/hooks.rs",
+          "line": 98,
+          "end_line": 128,
+          "label": "配置 writer owner"
+        },
+        {
+          "path": "loki_metris_gui/src/skins/injection.rs",
+          "line": 69,
+          "end_line": 131,
+          "label": "宿主页注入"
+        }
+      ]
+    },
+    {
+      "id": "hosts",
+      "type": "external",
+      "label": "Agent 与宿主应用",
+      "sublabel": "Hooks 发出方 · Codex/WorkBuddy 换肤",
+      "pos": [
+        860,
+        730
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/monitor/relay.rs",
+          "line": 440,
+          "end_line": 461,
+          "label": "环回 HTTP 中继"
+        },
+        {
+          "path": "loki_metris_gui/src/skins/cdp_connect.rs",
+          "line": 17,
+          "end_line": 106,
+          "label": "CDP 连接与宿主"
+        },
+        {
+          "path": "loki_metris_gui/src/skins/platform/mod.rs",
+          "line": 348,
+          "end_line": 394,
+          "label": "换肤平台边界"
+        }
+      ]
+    },
+    {
+      "id": "devices",
+      "type": "backend",
+      "label": "局域网设备服务",
+      "sublabel": "mDNS · 四位码配对 · 加密会话",
+      "pos": [
+        450,
+        730
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/usage_service/devices/server.rs",
+          "line": 114,
+          "end_line": 243,
+          "label": "启动、发现与连接分流"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/devices/publication.rs",
+          "line": 76,
+          "end_line": 136,
+          "label": "用量、额度与全槽 Hooks"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/devices/store.rs",
+          "line": 6,
+          "end_line": 58,
+          "label": "配对账本落盘"
+        }
+      ]
+    },
+    {
+      "id": "mobile",
+      "type": "external",
+      "label": "移动展示与只读组件",
+      "sublabel": "手机/平板 · Watch · Widget",
+      "pos": [
+        450,
+        960
+      ],
+      "size": [
+        260,
+        84
+      ],
+      "sources": [
+        {
+          "path": "loki_metris_gui/src/usage_service/devices/server.rs",
+          "line": 280,
+          "end_line": 381,
+          "label": "TCP 图文与只读授权"
+        },
+        {
+          "path": "loki_metris_gui/src/usage_service/devices/widget_http.rs",
+          "line": 23,
+          "end_line": 104,
+          "label": "认证只读 HTTP 摘要"
+        },
+        {
+          "path": "loki_metris_core/src/devices/pairing.rs",
+          "line": 5,
+          "end_line": 30,
+          "label": "调用共享配对协议"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ui-requests",
+      "from": "interface",
+      "to": "runtime",
+      "label": "意图与回执",
+      "variant": "emphasis"
+    },
+    {
+      "id": "schedule-scan",
+      "from": "runtime",
+      "to": "readers",
+      "label": "扫描 / 读取"
+    },
+    {
+      "id": "read-files",
+      "from": "readers",
+      "to": "source-files",
+      "label": "只读原始文件"
+    },
+    {
+      "id": "ingest-index",
+      "from": "readers",
+      "to": "index",
+      "label": "增量写入"
+    },
+    {
+      "id": "query-index",
+      "from": "runtime",
+      "to": "index",
+      "label": "只读查询"
+    },
+    {
+      "id": "persist-db",
+      "from": "index",
+      "to": "sqlite",
+      "label": "SQL 事务"
+    },
+    {
+      "id": "compute-model",
+      "from": "runtime",
+      "to": "domain",
+      "label": "纯业务核算"
+    },
+    {
+      "id": "load-accounts",
+      "from": "runtime",
+      "to": "accounts",
+      "label": "后台读取"
+    },
+    {
+      "id": "request-official",
+      "from": "accounts",
+      "to": "providers",
+      "label": "必要时 HTTPS"
+    },
+    {
+      "id": "extension-command",
+      "from": "runtime",
+      "to": "extensions",
+      "label": "受控功能任务"
+    },
+    {
+      "id": "apply-skin",
+      "from": "extensions",
+      "to": "hosts",
+      "label": "CDP 换肤",
+      "variant": "dashed"
+    },
+    {
+      "id": "receive-hooks",
+      "from": "hosts",
+      "to": "extensions",
+      "label": "环回 Hooks",
+      "fromSide": "left",
+      "toSide": "left"
+    },
+    {
+      "id": "start-lan",
+      "from": "runtime",
+      "to": "devices",
+      "label": "启动并管理"
+    },
+    {
+      "id": "publish-mobile",
+      "from": "devices",
+      "to": "mobile",
+      "label": "认证后 TCP / HTTP",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "用量链路",
+      "items": [
+        "UsageService 编排扫描与查询；适配器读取原始文件。",
+        "core 持有 SQLite I/O，也包含独立的纯业务计算。",
+        "WorkBuddy 直接只读项目记录，不写入三类会话索引。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "独立账户与原生界面",
+      "items": [
+        "Cursor 账户用量是独立内存视图，不并入本机 Token 总量。",
+        "GPUI 主线程消费回执；阻塞 I/O 在后台 owner 中执行。",
+        "退出统一收尾服务、偏好与日志，隐藏窗口不等于退出。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Hooks、桌宠与皮肤",
+      "items": [
+        "桌宠与 LAN 发布器分别消费状态；手机不跟随桌宠当前页。",
+        "Hook 状态机属于 core；档案与图库由应用驱动读写。",
+        "宿主换肤仅 macOS / Windows，通过可信实例 CDP 注入。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "移动信任边界",
+      "items": [
+        "mDNS 仅发现端点；配对落盘与每次 Resume 认证才授信。",
+        "TCP 同步图文；只读 HTTP 摘要移除正文与图片。",
+        "pairing 是共享密码库；mobile_bridge 编入移动 App。"
+      ]
+    }
+  ]
+}

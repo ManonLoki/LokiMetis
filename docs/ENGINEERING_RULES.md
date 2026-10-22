@@ -55,7 +55,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 - 建议重构或语义复核区间不改变日常任务结论。只有当次发布选择启用审查时才基于真实业务边界集中判断；内容不再高内聚、未围绕单一职责或各部分职责不相近时，返回开发循环按职责拆分并修正引用后再发布。
 - Rust 超过 800 行、前端超过 1000 行或其他人工维护文本超过 2000 行时必须拆分；计划说明、审查结论、警告或 ADR 都不能把硬超限改判为通过。
 - 工具生成且禁止手工编辑的锁文件/生成物，以及原样内嵌且明确隔离的第三方文件，不属于人工维护文件。这是封闭的范围定义，不是任意路径豁免；生成器、模板、补丁和维护说明仍按自身文件类型受分层规模治理。
-- 封存生成物由行数工具的 `verified_generated.mjs` 精确登记，目前仅含 `.archify/architecture-lokimetris-20261011-2240/lokimetris.html`。必须同时通过固定生成物路径/字节数/SHA-256、固定 `lokimetris.finalize.json` 路径/字节数/SHA-256、生成器标记及各阶段同字节回执校验；任一缺失、漂移、文件或父目录链接均失败关闭。相邻文件、同名副本、生成器、模板和完成回执仍按自身类型检查，不对 `.archify/` 或其它目录整体豁免。
+- 封存生成物由行数工具的 `verified_generated.mjs` 精确登记，包含历史 `.archify/architecture-lokimetris-20261011-2240/lokimetris.html` 和当前 `.archify/architecture-desktop-20261022-144530/desktop.html`；完成回执分别绑定历史目录的 `lokimetris.finalize.json` 与当前目录的 `review-2/desktop.finalize.json`。必须同时通过固定生成物路径/字节数/SHA-256、固定完成回执路径/字节数/SHA-256、生成器标记及各阶段同字节回执校验；任一缺失、漂移、文件或父目录链接均失败关闭。相邻文件、同名副本、生成器、模板和完成回执仍按自身类型检查，不对 `.archify/` 或其它目录整体豁免。
 - 公共 `check_file_line_limits.mjs` 及其测试与上游原样同步；`scripts/check_project_line_limits.mjs` 复用公共扫描、阈值与退出码，只移除已通过上述固定登记校验的精确路径，保留所有公共扫描错误并合并登记错误。两个登记器及产品场景回归属于本地受保护扩展，不能在工程升级中删除或替换为宽泛目录跳过。
 - 当前原样第三方登记为`vendor/accesskit_macos/source-content.sha256`中的18项、五个GPUI 0.3.9包`vendor/gpui-pre{,-apple,-macos,-windows,-wgpu}/source-content.sha256`中的160／19／15／28／14项，以及`vendor/tray-icon/source-content.sha256`中的26项；GPUI 与 tray-icon 清单路径相对各包的`upstream/`。清单摘要和精确根固定注册于行数检查的`verified_third_party.mjs`。仅清单和逐文件SHA-256均匹配、且路径无链接／越界时排除；额外文件、shim、生成器、补丁、测试及维护说明照常计数。原样内容缺失或漂移必须失败，不能改成整个vendor目录跳过。
 - 文件规模治理与职责判断同时成立：文件未达到对应建议阈值不证明职责合理，adapter 未超限也不证明其符合 core-first；语义边界仍按本节其余规则审查。

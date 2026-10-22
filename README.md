@@ -143,7 +143,7 @@ Rust 2024、GPUI / gpui-kit 原生界面，SeaORM + SQLite 存储派生数据，
 └── Cargo.toml                 # 工作区、依赖与当前版本
 ```
 
-进一步阅读：[技术选型与依赖](docs/TECHNOLOGY.md)、[Rust / GPUI 运行时与命令](docs/RUST_CLI_TEMPLATE.md)、[Hooks 协议](docs/HOOKS_PROTOCOLS.md)、[设备联动协议](docs/DEVICE_LINK_PROTOCOL.md)、[已知问题](docs/TECH_DEBT.md)。
+进一步阅读：[当前架构与 Archify 图](docs/ARCHITECTURE.md)、[技术选型与依赖](docs/TECHNOLOGY.md)、[Rust / GPUI 运行时与命令](docs/RUST_CLI_TEMPLATE.md)、[Hooks 协议](docs/HOOKS_PROTOCOLS.md)、[设备联动协议](docs/DEVICE_LINK_PROTOCOL.md)、[已知问题](docs/TECH_DEBT.md)。
 
 ## 许可
 

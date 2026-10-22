@@ -14,6 +14,15 @@ const REGISTERED_ARTIFACTS = Object.freeze([
     receiptBytes: 35802,
     generator: '<meta name="generator" content="archify 3.0.1">',
   }),
+  Object.freeze({
+    artifact: ".archify/architecture-desktop-20261022-144530/desktop.html",
+    sha256: "4663994d0a059b0a60d564a1199f9db4b774e51dea439651d8f6569cfcc41c84",
+    bytes: 783111,
+    receipt: ".archify/architecture-desktop-20261022-144530/review-2/desktop.finalize.json",
+    receiptSha256: "5c66e85ac6925bcc8a8c0d37592de9599993583bfd1292c9b72edce2f1fb7d7f",
+    receiptBytes: 38677,
+    generator: '<meta name="generator" content="archify 3.0.1">',
+  }),
 ]);
 
 /** 摘要只接受实际文件字节，不使用回执自行声明的值建立信任。 */

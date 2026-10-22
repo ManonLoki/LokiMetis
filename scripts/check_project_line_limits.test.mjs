@@ -91,6 +91,29 @@ test("registered architecture remains excluded while its finalize receipt is mai
   assert.equal(report.checkedTextFiles, 1);
 });
 
+/** 当前架构封存只信任已完成回执绑定的原字节，等长篡改不能继承生成物排除。 */
+test("current architecture registration accepts its finalized bytes and rejects corruption", () => {
+  const directory = ".archify/architecture-desktop-20261022-144530";
+  const files = ["desktop.html", "review-2/desktop.finalize.json"];
+  for (const relative of files) {
+    const source = fileURLToPath(new URL(`../${directory}/${relative}`, import.meta.url));
+    const target = path.join(root, directory, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(source, target);
+  }
+  const artifact = `${directory}/desktop.html`;
+  const accepted = inspectRepository(root);
+  assert.equal(accepted.ok, true, JSON.stringify(accepted));
+  assert.deepEqual(accepted.excludedGeneratedFiles, [artifact]);
+  const payload = readFileSync(path.join(root, artifact));
+  payload[100] ^= 1;
+  write(artifact, payload);
+  const rejected = inspectRepository(root);
+  assert.deepEqual(rejected.excludedGeneratedFiles, []);
+  assert.ok(rejected.errors.some(error => error.includes("生成物 SHA256")));
+  assert.deepEqual(rejected.violations.map(item => item.path), [artifact]);
+});
+
 test("copying a genuine generated pair to another directory does not grant exclusion", () => {
   const artifact = installGeneratedArchitecture(".archify/unregistered");
   const report = inspectRepository(root);
