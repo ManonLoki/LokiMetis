@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "7874ac3153e54c4a7d156ee997c5dae31c93dd8c",
+  "sourceHead": "e902a4980c1d232b725ed75b327d59ee0a21b48d",
   "version": "0.9.0",
   "releaseDate": "2026-10-22",
   "expectedTag": "v0.9.0-20261022",
@@ -8,10 +8,10 @@
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "d1ae57628a64f87e3b7226d4179299988c440901",
-    "sourceHead": "7874ac3153e54c4a7d156ee997c5dae31c93dd8c",
-    "scopeDiffSha256": "ed285db9d97e6ffd82630190b8f8c6fcf8ebfe354f2f30d87e15d33d1ffd9a53",
-    "reviewedSourceCommit": "7874ac3153e54c4a7d156ee997c5dae31c93dd8c",
+    "scopeBase": "66bbf827b5eb5894d1fa3273977cd35978ed2d98",
+    "sourceHead": "e902a4980c1d232b725ed75b327d59ee0a21b48d",
+    "scopeDiffSha256": "dc691d0f22af4047a68bbe5d23dcc216aaca2fb3f8a08339083305fe57e43d1b",
+    "reviewedSourceCommit": "e902a4980c1d232b725ed75b327d59ee0a21b48d",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已审查本周期累计差异：行为与成功/失败回归通过；名单与额度规则由 core 拥有，GUI 保留传输和展示；enabledAgents 缺失/null/空列表兼容且仓内移动桥可透传；受影响 Rust 文件不超过400行，语言表保持单语言职责；未发现临时标记或秘密。pnpm test 全 workspace/all-targets/all-features 与 pnpm run validate 均通过，diff --check 通过；仓外手机 UI 和最终产物运行不在本次源码审查结论内。",
+    "evidenceSummary": "累计审查通过：行为正确性、core/adapter边界、对外契约、职责规模及临时标记均已复核；54项常规发布与8项替换/制品回归通过，项目validate通过。固定旧身份及旧记录归档，经主分支整合、精确lease与原子推送保护；平台全量Rust测试和最终包验证由本轮Actions独立执行。",
     "reason": null,
     "remainingRisk": null
   }

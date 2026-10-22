@@ -12,12 +12,20 @@
         {
           "zh-CN": "终端完整快照与小组件摘要同步桌面 Agent 启用名单，提供商额度随设置筛选。",
           "en-US": "Sync enabled Agents to terminal snapshots and widget summaries, and filter provider quotas using desktop settings."
+        },
+        {
+          "zh-CN": "新增真实界面展示、分步使用教程与架构说明，并对齐项目文档和源码注释。",
+          "en-US": "Add real interface screenshots, step-by-step usage instructions, and architecture documentation, and align project docs and source comments."
         }
       ],
       "bugFixes": [
         {
           "zh-CN": "修复 Cursor 今日空响应处理，统一日期筛选，并按已保存的扫描间隔自动更新账户数据。",
           "en-US": "Fix Cursor empty-day responses, unify date filters, and refresh account data using the saved scan interval."
+        },
+        {
+          "zh-CN": "Cursor账户用量表格文字统一左对齐，并清理概览顶部重复统计与说明。",
+          "en-US": "Left-align the Cursor account usage tables and remove duplicate statistics and explanatory text above the overview."
         }
       ]
     },
