@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "27a81efb90b22de17969eeace185fb2a00ecfa2e",
-  "version": "0.8.0",
+  "sourceHead": "7874ac3153e54c4a7d156ee997c5dae31c93dd8c",
+  "version": "0.9.0",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.8.0-20261022",
+  "expectedTag": "v0.9.0-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "ae8d231021ebafe6f7076ee9546239259c42abc2",
-    "sourceHead": "27a81efb90b22de17969eeace185fb2a00ecfa2e",
-    "scopeDiffSha256": "c45676de77bb5b6f418831e0a523ad5fa8d02ca34f83bd970de4e9bf52e7b356",
-    "reviewedSourceCommit": "27a81efb90b22de17969eeace185fb2a00ecfa2e",
+    "scopeBase": "d1ae57628a64f87e3b7226d4179299988c440901",
+    "sourceHead": "7874ac3153e54c4a7d156ee997c5dae31c93dd8c",
+    "scopeDiffSha256": "ed285db9d97e6ffd82630190b8f8c6fcf8ebfe354f2f30d87e15d33d1ffd9a53",
+    "reviewedSourceCommit": "7874ac3153e54c4a7d156ee997c5dae31c93dd8c",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "五项审查通过：core拥有分页完整性、ID去重、字段缺失与零、溢出及日期模型聚合；GUI负责选择、查询代次、后台owner与受限驱动。Cursor只读POST限固定HTTPS地址、分页和时间，复用只读SQLite及经校验会话，凭据仅curl标准输入，禁重定向并保留超时、输出与取消回收限制。账户结果不计入本机总量，不落盘原始事件，不新增依赖；25个受影响文件中Rust均不超过370行，无裸临时标记，差异格式检查通过。既有相关回归记录已复核，四平台全量测试与包校验由当前Actions独立执行。",
+    "evidenceSummary": "已审查本周期累计差异：行为与成功/失败回归通过；名单与额度规则由 core 拥有，GUI 保留传输和展示；enabledAgents 缺失/null/空列表兼容且仓内移动桥可透传；受影响 Rust 文件不超过400行，语言表保持单语言职责；未发现临时标记或秘密。pnpm test 全 workspace/all-targets/all-features 与 pnpm run validate 均通过，diff --check 通过；仓外手机 UI 和最终产物运行不在本次源码审查结论内。",
     "reason": null,
     "remainingRisk": null
   }
