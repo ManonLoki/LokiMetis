@@ -210,8 +210,8 @@ fn cursor_usage_driver_rejects_partial_and_reaps_cancelled_process() {
         std::fs::write(root.path().join("mode.txt"),"unauthorized").unwrap();
         assert_eq!(read_pages(&secret,Some(&program),range,now,&TimeZone::UTC,limits,&mut cancel).await,Err(Error::Unauthorized));
         std::fs::write(root.path().join("mode.txt"),"sleep").unwrap();
-        let short=CurlLimits{timeout:Duration::from_millis(100),..limits};
-        assert_eq!(read_pages(&secret,Some(&program),range,now,&TimeZone::UTC,short,&mut cancel).await,Err(Error::Transport));
+        // 预算包含全量并发时的解释器启动；两秒仍早于夹具的三十秒退出，并保留真实回收断言。
+        assert_eq!(read_pages(&secret,Some(&program),range,now,&TimeZone::UTC,limits,&mut cancel).await,Err(Error::Transport));
         let pid=std::fs::read_to_string(root.path().join("sleep-pid.txt")).unwrap();
         assert!(!std::process::Command::new("/bin/kill").args(["-0",pid.trim()]).stderr(std::process::Stdio::null()).status().unwrap().success());
         std::fs::remove_file(root.path().join("sleep-pid.txt")).unwrap();
