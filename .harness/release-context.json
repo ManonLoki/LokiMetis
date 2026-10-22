@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "e19c8b9ff72fc7d824b0d148dc915ffb6b9afd71",
-  "version": "0.7.12",
+  "sourceHead": "3f94dfd1bc6f1611f3016e58cc69ba531e4c5404",
+  "version": "0.7.13",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.12-20261022",
+  "expectedTag": "v0.7.13-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
     "scopeBase": "962af1c948f5b065694d9ec7fa8bc8f05f03aede",
-    "sourceHead": "e19c8b9ff72fc7d824b0d148dc915ffb6b9afd71",
-    "scopeDiffSha256": "4e06bcc9b4b670ab48a60af8b5f0af47c6a810b0a500d3873dbcd717bdbc6786",
-    "reviewedSourceCommit": "e19c8b9ff72fc7d824b0d148dc915ffb6b9afd71",
+    "sourceHead": "3f94dfd1bc6f1611f3016e58cc69ba531e4c5404",
+    "scopeDiffSha256": "12a2505632e828193f21f79163494119feafbe643d716004108e6a8e8cb4d87a",
+    "reviewedSourceCommit": "3f94dfd1bc6f1611f3016e58cc69ba531e4c5404",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "五项审查通过：生产业务、core/adapter归属及API/数据契约不变；签名诊断脱敏且有限重试不放松Accepted/CDHash/Gatekeeper门禁。Windows命令测试解码后断言；候选登记测试单快照先检查后台失败、正常等待有界且保留最终DB/未提前索引断言。最大变更代码文件472行，无新增裸临时标记，临时预检入口已移除。40项Node回归及版本/差异检查通过；Windows第二次全量预检、Mac预检和正式四平台候选仍须实际通过。",
+    "evidenceSummary": "五项审查通过：Cursor会话属提供商协议适配，凭据仅stdin且拒绝注入、损坏身份及超长头；core额度规则/API/数据不变。签名诊断脱敏、有限重试保留全部信任门禁；测试修正不跳过语义断言。553行provider集成回归共享隔离夹具，纯Cursor协议测试已独立，职责内聚且未超硬上限。按用户确认清理旧文档并保留Git历史/长期规则，遗留vendor引用已修复；无裸临时标记。40项Node、Cursor44项相关回归及原生Win1721/Mac1773预检通过，正式0.7.13四平台仍须完整重测。",
     "reason": null,
     "remainingRisk": null
   }

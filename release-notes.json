@@ -3,9 +3,13 @@
   "releases": [
     {
       "releaseDate": "2026-10-22",
-      "version": "v0.7.12",
+      "version": "v0.7.13",
       "featureOptimizations": [],
       "bugFixes": [
+        {
+          "zh-CN": "修复 Cursor 独立访问令牌缺少用户标识前缀导致额度请求返回 401 的问题，兼容已有会话格式。",
+          "en-US": "Fix Cursor quota requests returning 401 when a standalone access token lacks its user-ID session prefix, while preserving existing session formats."
+        },
         {
           "zh-CN": "发布工具在公证失败时保留脱敏后的具体步骤、退出码与诊断，便于定位错误。",
           "en-US": "Preserve the failing notarization operation, exit code and redacted diagnostics in release-tool errors."
