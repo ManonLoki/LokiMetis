@@ -432,6 +432,27 @@ function verifyReleaseNotesVersion(repository, head, version) {
   }
 }
 
+/** 项目显式同版替换入口复用全部源码、登记分支与发布元数据门禁；不改变普通 release 的递增规则。 */
+export async function prepareReviewedReleaseHead(repository, state, args) {
+  requireClean(repository);
+  const identity = releaseIdentity(repository, args.version, args.date);
+  const context = await releaseContextBinding(repository, args.releaseContextSha256, identity);
+  if (context.releaseReview.selection !== "enabled" || context.defaultBranch !== state.defaultBranch) {
+    throw new LifecycleError("replacement-review-required", "Replacement requires enabled review and the recorded default branch.");
+  }
+  const reviewed = reviewedReleaseMetadata(repository, context, state);
+  const action = configuredPostReleaseAction(repository);
+  const prepared = prepareLocalRelease(repository, state);
+  verifyReleaseNotesVersion(repository, prepared.head, identity.version);
+  verifyHeadReleaseContextBytes(repository, args.releaseContextSha256, prepared.head);
+  verifyReviewedFinalHead(repository, reviewed, prepared.head);
+  await verifyFinalReleaseVersion(repository, identity.version);
+  if (configuredPostReleaseAction(repository) !== action) {
+    throw new LifecycleError("post-release-action-changed", "Replacement policy changed during integration.");
+  }
+  return { ...identity, ...prepared, postReleaseAction: action, releaseContextSha256: args.releaseContextSha256 };
+}
+
 /** 整合本地登记分支并冻结主分支最终 HEAD。 */
 async function freezePendingReleaseHead(repository, state, reviewed) {
   const pending = state.cycle.pendingRelease;

@@ -55,12 +55,12 @@ function gitEnvironment() {
 export function runGit(
   cwd,
   args,
-  { check = true, code = "git-error", message = "Git operation failed.", bytes = false } = {},
+  { check = true, code = "git-error", message = "Git operation failed.", bytes = false, input = Buffer.alloc(0) } = {},
 ) {
   const result = spawnSync("git", ["-C", cwd, ...args], {
     env: gitEnvironment(),
     encoding: bytes ? undefined : "utf8",
-    input: Buffer.alloc(0),
+    input,
     timeout: 60_000,
     maxBuffer: 16 * 1024 * 1024,
   });
