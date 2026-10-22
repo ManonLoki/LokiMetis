@@ -3,6 +3,25 @@
   "releases": [
     {
       "releaseDate": "2026-10-22",
+      "version": "v0.7.12",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "发布工具在公证失败时保留脱敏后的具体步骤、退出码与诊断，便于定位错误。",
+          "en-US": "Preserve the failing notarization operation, exit code and redacted diagnostics in release-tool errors."
+        },
+        {
+          "zh-CN": "仅对票据服务的临时错误有限重试，签名、公证回执或附票验证失败仍阻断发布。",
+          "en-US": "Retry transient ticket-service errors a bounded number of times while continuing to block publication on failed signature, receipt or stapling checks."
+        },
+        {
+          "zh-CN": "Windows 状态栏命令回归测试先解码已有 PowerShell 命令，再检查原有行为。",
+          "en-US": "Decode the existing PowerShell command in Windows status-line regression tests before checking its behavior."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-22",
       "version": "v0.7.11",
       "featureOptimizations": [],
       "bugFixes": [
@@ -186,25 +205,6 @@
         {
           "zh-CN": "修复本机发布登记落后导致的版本门禁阻断，并完整保留后续待发变更。",
           "en-US": "Recover stale local release tracking without losing subsequent pending changes or bypassing version checks."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-19",
-      "version": "v0.4.2",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 Windows、Linux 登录自启未静默隐藏主窗的问题，统一识别登录标记，并在托盘未就绪时有界等待与回退显示。",
-          "en-US": "Fix Windows and Linux login launches showing the main window by recognizing the autostart marker consistently and waiting within a bounded deadline for tray availability before falling back to a visible window."
-        },
-        {
-          "zh-CN": "修复 Linux X11/XWayland 主窗任务栏条目与托盘状态不同步的问题，重映射后重新申请隐藏条目，并在恢复入口丢失时恢复窗口。",
-          "en-US": "Keep the Linux X11/XWayland main-window taskbar entry in sync with tray availability, reapply the hide request after remapping, and restore the window if its tray recovery entry disappears."
-        },
-        {
-          "zh-CN": "修复 Linux 显窗请求失败后丢失恢复意图的问题，托盘不可用时继续重试，成功后停止重复显窗。",
-          "en-US": "Preserve the Linux window recovery intent after a failed show request, retry while the tray is unavailable, and stop repeating show requests after success."
         }
       ]
     }

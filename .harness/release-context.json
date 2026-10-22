@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "093453e1a606def49a20fa73252abf7a32f9a5e3",
-  "version": "0.7.11",
+  "sourceHead": "efcea46b1ff33d2b1b6c9172afc5470b46d85ce9",
+  "version": "0.7.12",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.11-20261022",
+  "expectedTag": "v0.7.12-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "2f75130524a94e38cc5386dfc4524ee1e7d2b5ed",
-    "sourceHead": "093453e1a606def49a20fa73252abf7a32f9a5e3",
-    "scopeDiffSha256": "ee438033e7b3e518e2ea595ca876af6fde844e38921be14f55c27d02b26455ac",
-    "reviewedSourceCommit": "093453e1a606def49a20fa73252abf7a32f9a5e3",
+    "scopeBase": "962af1c948f5b065694d9ec7fa8bc8f05f03aede",
+    "sourceHead": "efcea46b1ff33d2b1b6c9172afc5470b46d85ce9",
+    "scopeDiffSha256": "b5fc49c90aa5a93f303c81bda4d31adab046ddd85bd0a98d476d18d1f5d73567",
+    "reviewedSourceCommit": "efcea46b1ff33d2b1b6c9172afc5470b46d85ce9",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "两处测试修正保留原断言，空/真实日志模态回归已通过；Windows使用函数实际所属模块。源差异不改运行时业务、core职责、协议、权限、签名公证或矩阵。用户明确批准仅此次维护升0.7.11；ADR限定helper映射、去重和例外结束条件，永久规则不变。五项只读审查通过，无跳过测试、降级、秘密或临时标记。本轮CI仍须四平台真实完整测试及制品验证。",
+    "evidenceSummary": "固定源码五项审查通过：业务逻辑、core/adapter归属及外部API和数据契约不变；诊断仅显示公开动作并在截断前脱敏；票据仅68/75有限重试，其余失败及Accepted/CDHash/Gatekeeper门禁保留；最大变更文件472行、无新增裸临时标记；三个临时预检入口已移除。40项Node相关回归、版本与差异检查通过。原生Windows/Mac预检及正式四平台候选仍须真实通过，未冒充产物验收。",
     "reason": null,
     "remainingRisk": null
   }
