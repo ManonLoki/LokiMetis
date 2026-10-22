@@ -17,6 +17,10 @@
         {
           "zh-CN": "Windows 状态栏命令回归测试先解码已有 PowerShell 命令，再检查原有行为。",
           "en-US": "Decode the existing PowerShell command in Windows status-line regression tests before checking its behavior."
+        },
+        {
+          "zh-CN": "候选目录接续登记测试明确区分后台失败与有界等待，保留未提前索引和真实数据库断言。",
+          "en-US": "Distinguish background failure from bounded waiting in candidate-registration tests while retaining real database and no-early-indexing assertions."
         }
       ]
     },
