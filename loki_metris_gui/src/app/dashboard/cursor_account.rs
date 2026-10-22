@@ -114,9 +114,9 @@ impl Shell {
     /// 只投影五个数字列及字段覆盖，不在行或单元格代理刷新动作。
     fn cursor_count_cells(&self, row: TableRow, counts: &CursorTokenCounts) -> TableRow {
         row.children([&counts.input, &counts.output, &counts.cache_read, &counts.cache_write].into_iter().map(|field|
-            TableCell::new().px_3().py_3().text_right().child(div().child(self.cursor_tokens(field))
+            TableCell::new().px_3().py_3().child(div().child(self.cursor_tokens(field))
                 .when(field.missing > 0, |cell| cell.child(div().text_xs().child(self.cursor_coverage(field)))))))
-            .child(TableCell::new().px_3().py_3().text_right().child(format::exact(counts.events)))
+            .child(TableCell::new().px_3().py_3().child(format::exact(counts.events)))
     }
 }
 
