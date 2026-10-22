@@ -88,7 +88,8 @@
     "LMDESK-CI-WINDOWS-LINKER-001",
     "LMDESK-CI-SHELL-MATRIX-001",
     "LMDESK-CI-STATIC-SHELLS-001",
-    "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022"
+    "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022",
+    "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001"
   ],
   "applied_reconciliations": [
     {
@@ -122,7 +123,13 @@
     "source_commit": "962af1c948f5b065694d9ec7fa8bc8f05f03aede",
     "version": "0.7.11"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001",
+      "kind": "bug-fix",
+      "required_version": "0.7.12"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.7.11"
+  "target_version": "0.7.12"
 }
