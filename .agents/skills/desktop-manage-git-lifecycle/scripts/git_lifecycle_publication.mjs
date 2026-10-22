@@ -650,6 +650,12 @@ function remoteReleaseRefs(repository, remote, tag) {
   return { defaultBranch, defaultHead: heads.get(defaultBranch), branch, tag: peeled ?? direct };
 }
 
+/** 专用替换路径复用普通推送的大小写冲突与advertised HEAD核验，不改变普通推送行为。 */
+export function inspectReleasePushReferences(repository, remote, tag) {
+  assertNoLocalReleaseCaseVariant(repository);
+  return remoteReleaseRefs(repository, remote, tag);
+}
+
 /** 精确读取本地 release 分支，不把任意本地引用解释为受管发布。 */
 function localReleaseBranchTarget(repository) {
   const result = runGit(repository.root, ["rev-parse", "--verify", "refs/heads/release^{commit}"], { check: false });

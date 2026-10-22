@@ -7,7 +7,8 @@ import {
   resolveRepository, requireClean, currentHead, currentBranchOrNone, loadState,
   saveState, statePath, localTagTarget, runGit, withLifecycleStateLock,
 } from '../.agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_core.mjs';
-import { prepareReviewedReleaseHead } from '../.agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_publication.mjs';
+import { prepareReviewedReleaseHead, inspectReleasePushReferences } from '../.agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_publication.mjs';
+import { inspect as inspectPostReleaseAction } from '../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs';
 
 /** 此固定身份是一次性授权边界，不能通过CLI传入另一旧发布。 */
 export const approved = Object.freeze({
@@ -22,6 +23,10 @@ const journalPath = repository => path.join(repository.commonDir, 'agent-first-h
 
 /** 副作用前验证精确旧发布、原始tag对象和周期状态；拒绝猜测或使用恢复命令绕过。 */
 export function assertPrevious(repository, state, previous, expectedStateSha256) {
+  if (currentBranchOrNone(repository) !== 'main') throw new Error('Integrate on main before replacement');
+  for (const branch of state.cycle?.branches ?? []) {
+    if (runGit(repository.root,['merge-base','--is-ancestor',`refs/heads/${branch.name}`,'HEAD'],{check:false}).returncode !== 0) throw new Error('Integrate every registered branch before replacement');
+  }
   if (sha(fs.readFileSync(statePath(repository))) !== expectedStateSha256) throw new Error('Lifecycle snapshot changed');
   const last = state.lastRelease;
   if (!last || ['tag','version','date','head','releaseContextSha256'].some(key => last[key] !== previous[key]) ||
@@ -41,6 +46,7 @@ export async function replaceLocal(repository, args, previous = approved) {
   if (fs.existsSync(journalPath(repository))) throw new Error('Replacement journal already exists; inspect it before any retry');
   const oldBytes = fs.readFileSync(statePath(repository)), state = loadState(repository);
   assertPrevious(repository, state, previous, args.expectedStateSha256);
+  if (inspectPostReleaseAction(repository.root,{requireConfigured:true}).post_release_action !== 'push_release_branch') throw new Error('Replacement requires push_release_branch');
   const next = await prepareReviewedReleaseHead(repository,state,{ version:previous.version,date:previous.date,releaseContextSha256:args.releaseContextSha256 });
   if (next.head === previous.head || next.branch !== 'main' || next.postReleaseAction !== 'push_release_branch') throw new Error('Replacement identity or action invalid');
   const backup = archiveTag(previous);
@@ -64,6 +70,7 @@ export function pushReplacement(repository, expected = approved) {
   const {previous,next,archiveTag:backup} = journal, last = loadState(repository).lastRelease;
   if (last.head !== next.head || last.releaseContextSha256 !== next.releaseContextSha256 || currentHead(repository) !== next.head || currentBranchOrNone(repository) !== 'main' ||
       localTagTarget(repository,previous.tag) !== next.head || localTagTarget(repository,backup) !== previous.head) throw new Error('Local replacement changed');
+  if (inspectReleasePushReferences(repository,'origin',previous.tag).defaultBranch !== 'main') throw new Error('Remote default branch changed');
   const local = runGit(repository.root,['rev-parse','--verify','refs/heads/release'],{check:false});
   const old = local.returncode===0 ? local.stdout.trim() : '0'.repeat(40);
   if (![previous.head,next.head,'0'.repeat(40)].includes(old) || runGit(repository.root,['worktree','list','--porcelain']).stdout.split(/\r?\n/u).includes('branch refs/heads/release')) throw new Error('Unexpected local release branch');
@@ -80,6 +87,8 @@ export function pushReplacement(repository, expected = approved) {
   runGit(repository.root,['push','--atomic',`--force-with-lease=${names[2]}:${previous.head}`,'origin',`${next.head}:${names[0]}`,`${next.head}:${names[1]}`,`refs/tags/${previous.tag}:${names[2]}`,`refs/tags/${backup}:${names[3]}`]);
   const after = read();
   if (names.some((name,index)=>after.get(name) !== (index===3 ? previous.head : next.head))) throw new Error('Remote replacement verification failed');
+  const confirmed = inspectReleasePushReferences(repository,'origin',previous.tag);
+  if (confirmed.defaultBranch !== 'main' || confirmed.defaultHead !== next.head || confirmed.branch !== next.head || confirmed.tag !== next.head) throw new Error('Remote default or release identity changed');
   confirmLocal();
   return {status:'replacement-pushed',head:next.head,tag:next.tag,archiveTag:backup};
 }
