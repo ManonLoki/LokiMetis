@@ -1,6 +1,6 @@
 //! 出站入口固定指向用户提供的历史源码仓库，返回系统是否接受打开请求。
 
-/// 当前下游未配置远端；此地址仅代表参考 LokiMetis，不代表 LokiMetris 发布仓库。
+/// 固定地址指向参考 LokiMetis 的历史源码入口，不随本地 Git remote 改变。
 pub const REFERENCE_REPOSITORY: &str = "https://github.com/ManonLoki/LokiMetis";
 
 /// 在后台执行系统 URL 打开 API，不启动 shell，也不将来源地址拼为命令。

@@ -1,6 +1,6 @@
 //! Claude Code 数据根发现：只承认直属 `projects` 中的有界 transcript 结构签名。
-//! 整体结构和思路与父模块 `discovery.rs`/`discovery/quick.rs`/
-//! `discovery/full_device.rs` 几乎一一对应（快速三类候选 + 主动全设备
+//! 整体结构与父目录的 `discovery/quick/mod.rs`、`discovery/full_device/mod.rs`
+//! 及 `discovery/inspection.rs` 对应（快速三类候选 + 主动全设备
 //! 递归遍历 + 有界签名探测），差异只在于“什么样的文件/目录结构才算
 //! 一个合法的 Claude 数据源”：Codex 认的是 `sessions/rollout-*.jsonl`，
 //! 这里认的是 `projects/<project>/<session>.jsonl`

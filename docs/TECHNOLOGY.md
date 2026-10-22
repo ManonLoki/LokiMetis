@@ -1,6 +1,6 @@
 # 技术选型与依赖清单
 
-本清单于 2026-10-21 按仓库已采用的配置和源码核对，不表示软件包仓库最新版本或本轮兼容性测试结果。版本、features、平台条件的事实源仍是[根 Cargo.toml](../Cargo.toml)、[配对库清单](../loki_metris_pairing/Cargo.toml)、[core 清单](../loki_metris_core/Cargo.toml)、[GUI 清单](../loki_metris_gui/Cargo.toml)及[根 package.json](../package.json)；变更这些配置时同步本清单。
+本清单于 2026-10-22 按仓库已采用的配置和源码核对，不表示软件包仓库最新版本或本轮兼容性测试结果。版本、features、平台条件的事实源仍是[根 Cargo.toml](../Cargo.toml)、[配对库清单](../loki_metris_pairing/Cargo.toml)、[core 清单](../loki_metris_core/Cargo.toml)、[GUI 清单](../loki_metris_gui/Cargo.toml)、[移动桥清单](../loki_metris_mobile_bridge/Cargo.toml)及[根 package.json](../package.json)；变更这些配置时同步本清单。
 
 ## 工程与运行时
 
@@ -9,7 +9,7 @@
 | 产品接口 | GPUI 原生 Rust GUI | 根 metadata：`interfaces = ["gui"]`、`gui-framework = "gpui"`；没有产品 CLI/TUI/MCP 接口或 WebView 前端 |
 | Rust 工程 | edition `2024`、resolver `3`、MSRV `1.98.1` | 四个成员继承 workspace 的版本、edition 和 rust-version；产品版本只取根清单 |
 | 共享配对层 | `loki_metris_pairing` | 桌面与移动桥直接调用；共享配对/恢复会话、窗口与图片校验；不依赖GUI、SQLite、网络或异步运行时 |
-| 移动协议桥 | `loki_metris_mobile_bridge` | 独立C ABI句柄/缓冲适配器，复用pairing；Android JNI/iOS C ABI已接入手机驱动；Watch通过iPhone的系统配套通道同步 |
+| 移动协议桥 | `loki_metris_mobile_bridge` | 独立 C ABI 句柄/缓冲适配器，复用 pairing；本 crate 不含 JNI 导出。JNI/Swift 调用封装、手机网络及系统存储驱动由外部移动项目维护，Watch 经 iPhone 系统配套通道同步；平台接入与运行证据分别核对 |
 | 领域层 | `loki_metris_core` | 解析、核算、查询、SQLite 索引、工作流和稳定领域错误；不依赖 GPUI |
 | 桌面层 | `loki_metris_gui` | 视图、原生服务、I/O 驱动与运行时装配；GPUI 事件循环位于同步主线程 |
 | 异步执行 | Tokio，由 GUI 的 `UsageService` 拥有 | [服务初始化](../loki_metris_gui/src/usage_service/mod.rs)建立 2-worker runtime，承载扫描、查询、后台服务和通知；不把 GPUI loop 包进 Tokio 根任务 |

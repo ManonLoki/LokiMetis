@@ -1,4 +1,4 @@
-/** 渠道上传前的六平台格式集合与实际字节校验，避免混入历史或不完整候选。 */
+/** 渠道上传前校验四个目标的六份安装包及实际字节，避免混入历史或不完整候选。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

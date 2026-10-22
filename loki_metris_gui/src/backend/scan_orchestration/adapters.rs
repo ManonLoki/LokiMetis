@@ -1,5 +1,5 @@
-//! 把 Codex/Claude 各自的本机发现结果类型接入 [`super::client::ScanClient`]
-//! 骨架所需的 core 通用 trait，使两条管线能共享同一份编排代码。
+//! 把 Codex/Claude/Grok 的本机发现结果接入 [`super::client::ScanClient`]
+//! 骨架所需的 core 通用 trait，使三条索引管线共享同一份编排代码。
 
 use std::path::Path;
 

@@ -78,7 +78,7 @@ pub struct UsageGroup {
     pub measure: UsageMeasure,
 }
 
-/// 生成稳定、不可逆向推导原始 key 的跨端展示行 ID。
+/// 按维度和分组键生成稳定的 FNV-1a 展示行 ID；不提供匿名化或保密保证。
 pub fn stable_group_id(dimension: UsageDimension, key: Option<&str>) -> String {
     let namespace = match dimension {
         UsageDimension::Model => "model",

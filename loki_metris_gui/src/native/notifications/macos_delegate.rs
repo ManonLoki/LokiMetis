@@ -30,7 +30,7 @@ struct DelegateIvars {
     previous: Option<Retained<ProtocolObject<dyn UNUserNotificationCenterDelegate>>>,
 }
 impl DelegateIvars {
-    /// 当前协议仅匹配 core 生成的 m1 命名空间及完整十六进制 ID，不能劫持 Kit tag。
+    /// 仅匹配 core 生成的 m1/m2 里程碑及 a1 瞬时通知 ID，不能接管其它 Kit tag。
     fn response(&self, id: &str, done: impl FnOnce(), foreign: impl FnOnce()) {
         if owns(id) {
             let _ = self.clicked.try_send(super::driver::Event::Clicked);
@@ -58,7 +58,7 @@ define_class!(
     #[unsafe(super(NSObject))]
     #[name = "LokiMetrisMilestoneNotificationDelegate"]
     #[ivars = DelegateIvars]
-    /// 里程碑的原生桥接代理，不替换 Kit 注册的 App 回调。
+    /// 本应用所拥有通知的原生桥接代理，不替换 Kit 注册的 App 回调。
     struct NotificationDelegate;
     // SAFETY: NotificationDelegate 由 define_class! 声明为 NSObject 子类，满足 NSObjectProtocol 的要求。
     unsafe impl NSObjectProtocol for NotificationDelegate {}
@@ -75,7 +75,7 @@ define_class!(
                 }
             });
         }
-        /// 里程碑前台静音展示，非里程碑保留框架的展示决定。
+        /// 本应用拥有的通知以前台静音横幅和列表呈现，其余通知保留框架的展示决定。
         #[unsafe(method(userNotificationCenter:willPresentNotification:withCompletionHandler:))]
         fn present(&self, center: &UNUserNotificationCenter, notification: &UNNotification, done: &DynBlock<dyn Fn(UNNotificationPresentationOptions)>) {
             if owns(&notification.request().identifier().to_string()) {

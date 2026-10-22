@@ -64,14 +64,14 @@ pub struct UsageData {
     pub workbuddy_unavailable: bool,
 }
 
-/// 后台扫描的展示投影；revision 只在一轮完成/失败/取消收尾后增加。
+/// 后台扫描的展示投影；revision 在扫描收尾或派生来源/清理变更后递增。
 #[derive(Clone, Default)]
 pub struct ScanStatus {
     /// 当前有扫描在途。
     pub running: bool,
     /// 在途扫描的 Agent；全部 Agent 扫描时为 None。
     pub client:Option<SourceClientKind>,
-    /// 扫描轮次修订号，只在一轮完成、失败或取消收尾后递增。
+    /// 展示刷新代数，由扫描收尾、候选登记、来源操作及清理等变更递增。
     pub revision: u64,
     /// 最近一轮扫描的失败类别。
     pub error: Option<&'static str>,
@@ -79,13 +79,13 @@ pub struct ScanStatus {
     pub progress: Option<ScanProgress>,
 }
 
-/// 共享的是扫描元数据和 writer 许可；聚合结果不跨查询缓存。
+/// 共享扫描元数据、writer 许可与受输入键约束的派生汇总/页面缓存。
 struct ServiceContext {
     /// 所有阻塞摘要计算登记应用owner，取消网络等待不会脱离退出回收。
     background: Arc<background::BackgroundTaskOwner>,
     /// 大摘要聚合跨消费者串行，反复取消或重连不会叠加大快照计算。
     today_aggregate_gate: Arc<tokio::sync::Semaphore>,
-    /// 局域网设备能力只在用户进入设备页后加载或联网。
+    /// 应用启动即拥有局域网设备服务；页面只消费投影及临时配对交互。
     devices: Arc<devices::Devices>,
     /// 应用私有数据目录，各 Agent 的索引、设置与资源都在其下。
     directory: PathBuf,

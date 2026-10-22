@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// 返回 OS API 解析的当前用户主目录，不直接读取 Windows/macOS 的 HOME/USERPROFILE。
 pub(crate) fn current_user_home() -> Option<PathBuf> {
-    // 仅性能测量构建启用：把全部用户目录读写重定向到隔离目录，避免触碰真实数据与 Hook 配置。
+    // 仅性能测量构建启用：重定向本函数调用方的主目录锚点；不隔离其它 HOME 读取或显式来源覆盖。
     #[cfg(feature = "isolated-measurement")]
     if let Some(path) = std::env::var_os("LOKI_METRIS_MEASURE_HOME").map(PathBuf::from).filter(|path| path.is_absolute()) {
         return Some(path);

@@ -1,16 +1,16 @@
 //! WorkBuddy 扫描数据源策略：是否进入扫描集合、根 ID/别名与本机目录发现。
-//! 文件系统探测只依赖调用方注入的用户主目录，便于用临时目录覆盖开启/关闭/未安装。
+//! 文件系统探测只依赖调用方注入的用户主目录，便于用临时目录覆盖开启/关闭/数据目录缺失。
 //!
-//! WorkBuddy 国内版与国际版使用两个互不相同的固定安装目录，但共同构成同一个
+//! WorkBuddy 国内版与国际版使用两个互不相同的固定数据目录，但共同构成同一个
 //! 可选逻辑来源；本模块只负责按稳定顺序推导这两个候选根，不负责合并用量。
 
 use std::path::{Path, PathBuf};
 
 use crate::{SourceClientKind, path_key, source_root_alias_from_path, stable_id};
 
-/// WorkBuddy 固定安装目录名，位于当前用户主目录下。
+/// WorkBuddy 固定数据目录名，位于当前用户主目录下。
 pub const WORKBUDDY_HOME_DIR_NAME: &str = ".workbuddy";
-/// WorkBuddy 国际版固定安装目录名，位于当前用户主目录下。
+/// WorkBuddy 国际版固定数据目录名，位于当前用户主目录下。
 pub const WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME: &str = ".workbuddy-ai";
 /// WorkBuddy 逐请求项目记录固定目录名，用作可统计结构证据。
 pub const WORKBUDDY_PROJECTS_DIR_NAME: &str = "projects";
@@ -39,7 +39,7 @@ pub fn workbuddy_homes_from_user_home(user_home: &Path) -> [PathBuf; 2] {
     ]
 }
 
-/// 按稳定顺序返回主目录下真实存在的 WorkBuddy 普通目录；两个都未安装时返回空。
+/// 按稳定顺序返回主目录下真实存在的 WorkBuddy 普通数据目录；两个都缺失时返回空。
 ///
 /// 单一版本缺失是正常情况，不构成失败；链接或非目录一律跳过，避免把其它目录
 /// 误标成 WorkBuddy。国内版与国际版都不会在此处合并用量，只提供只读来源身份。
@@ -90,7 +90,7 @@ mod tests {
         home
     }
 
-    /// 已安装的国内版目录生成稳定命名空间根身份，路径与固定目录一致。
+    /// 存在的国内版数据目录生成稳定命名空间根身份，路径与固定目录一致。
     #[test]
     fn installed_workbuddy_home_is_discovered_with_stable_identity() {
         let home = install_workbuddy_home();
@@ -101,7 +101,7 @@ mod tests {
         assert_eq!(discovered[0].path, workbuddy_home_from_user_home(home.path()));
     }
 
-    /// 两个版本同时安装时按国内版、国际版稳定顺序返回且身份互不相同。
+    /// 两版数据目录同时存在时按国内版、国际版稳定顺序返回且身份互不相同。
     #[test]
     fn both_editions_are_discovered_in_stable_order() {
         let home = install_both_workbuddy_homes();
@@ -120,7 +120,7 @@ mod tests {
         assert_ne!(discovered[0].root_id, discovered[1].root_id);
     }
 
-    /// 主目录下没有任何 WorkBuddy 安装目录时不发现来源。
+    /// 主目录下没有任何 WorkBuddy 数据目录时不发现来源。
     #[test]
     fn missing_workbuddy_home_is_not_discovered() {
         let home = tempfile::tempdir().expect("empty home");
@@ -128,7 +128,7 @@ mod tests {
         assert!(discover_workbuddy_scan_sources(home.path()).is_empty());
     }
 
-    /// 只安装国际版时也必须被发现，单一版本缺失不得让整个来源消失。
+    /// 仅国际版数据目录存在时也必须被发现，单一版本缺失不得让整个来源消失。
     #[test]
     fn international_only_installation_is_discovered() {
         let home = tempfile::tempdir().expect("temp home");
@@ -139,7 +139,7 @@ mod tests {
         assert_eq!(discovered[0].alias, WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME);
     }
 
-    /// 候选根为链接或普通文件时不得被当成 WorkBuddy 安装目录。
+    /// 候选根为链接或普通文件时不得被当成 WorkBuddy 数据目录。
     #[test]
     fn non_directory_candidates_are_rejected() {
         let home = tempfile::tempdir().expect("temp home");

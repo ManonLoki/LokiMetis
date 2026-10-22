@@ -52,7 +52,8 @@ impl MobileClient {
         let command:Command=serde_json::from_slice(command_json).map_err(|_|"mobile_invalid")?;
         self.execute(command,Instant::now())
     }
-    /// 操作消费独占状态；错误结束本次握手/数据通道，窗口失败次数不返还。
+    /// 操作消费独占状态；密码验证失败或显式断开终止本轮，尝试预算不返还。
+    /// 旧 commitId 被拒绝且不消费当前 pending，避免迟到回调破坏新尝试。
     fn execute(&mut self, command:Command, now:Instant) -> Result<Value,&'static str> {
         match command {
             Command::OpenPairing { client_id } => {

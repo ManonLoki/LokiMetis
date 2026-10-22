@@ -1,4 +1,4 @@
-//! 定义换皮 IPC 使用的稳定、可序列化错误。
+//! 换肤适配层通过服务回执传递的稳定、可序列化错误。
 
 use serde::Serialize;
 use thiserror::Error;

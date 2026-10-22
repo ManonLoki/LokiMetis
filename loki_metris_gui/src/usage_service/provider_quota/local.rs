@@ -1,4 +1,4 @@
-//! 从本机已有记录里找 5 小时、周或月窗口。找不到就返回空，调用方再走远程。
+//! 从本机已有记录里找 5 小时、周或月窗口；找不到返回空，支持远程回退的提供商再由调用方请求，Claude 仅读本地。
 
 use std::{io::{Read, Seek, SeekFrom}, path::{Path, PathBuf}, time::Duration};
 

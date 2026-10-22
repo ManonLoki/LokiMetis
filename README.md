@@ -273,7 +273,7 @@ GIF、APNG、动态 WebP 可用于动画展示。正在被展示配置引用的�
 ### 10. 连接手机、平板、Watch 与小组件
 
 1. 安装 [LokiMetisMobileDisplay](https://github.com/ManonLoki/LokiMetisMobileDisplay)，让电脑与手机或平板连接同一局域网，保持桌面应用运行。
-2. 在移动端设置中选择自动发现的电脑并发起配对，允许所需的本地网络访问。
+2. 在移动端的 **设备管理** 中选择自动发现的电脑并发起配对，允许所需的本地网络访问。
 3. 电脑会自动弹出配对窗口，输入 **移动端显示的四位码**，再点击 **配对**。
 4. 在电脑 **终端设备** 页确认设备已列出，检查在线状态与最近通信时间；回到移动端展示台查看今日 Token、额度和 Hooks 状态。
 5. 以后打开移动端会自动认证重连。Apple Watch 沿用已配对 iPhone 的连接；小组件的配置步骤见移动端 README，后台刷新频率由系统调度。
@@ -335,7 +335,7 @@ Rust 2024、GPUI / gpui-kit 原生界面，SeaORM + SQLite 存储派生数据，
 ├── loki_metris_core/           # 业务规则、用量统计、监控与设备领域逻辑
 ├── loki_metris_gui/            # GPUI 界面、桌宠、原生系统集成与数据读取
 ├── loki_metris_pairing/        # 共享配对与加密协议
-├── loki_metris_mobile_bridge/  # 移动端 JNI / C ABI 桥接
+├── loki_metris_mobile_bridge/  # 共享移动状态机与 C ABI；JNI / Swift 调用侧在移动仓库
 ├── vendor/                    # 原生依赖兼容补丁
 ├── packaging/                 # 平台打包配置
 ├── scripts/                   # 开发与打包脚本
@@ -357,7 +357,7 @@ Rust 2024、GPUI / gpui-kit 原生界面，SeaORM + SQLite 存储派生数据，
 
 交互图可下载后在浏览器打开，节点附有对应源码位置。移动端的连接、缓存与平台模块关系见[移动架构说明](https://github.com/ManonLoki/LokiMetisMobileDisplay/blob/main/docs/07-当前架构.md)。
 
-进一步阅读：[当前架构与 Archify 图](docs/ARCHITECTURE.md)、[技术选型与依赖](docs/TECHNOLOGY.md)、[Rust / GPUI 运行时与命令](docs/RUST_CLI_TEMPLATE.md)、[Hooks 协议](docs/HOOKS_PROTOCOLS.md)、[设备联动协议](docs/DEVICE_LINK_PROTOCOL.md)、[已知问题](docs/TECH_DEBT.md)。
+进一步阅读：[文档导航与事实来源](docs/README.md)、[当前架构与 Archify 图](docs/ARCHITECTURE.md)、[技术选型与依赖](docs/TECHNOLOGY.md)、[Rust / GPUI 运行时与命令](docs/RUST_CLI_TEMPLATE.md)、[Hooks 协议](docs/HOOKS_PROTOCOLS.md)、[设备联动协议](docs/DEVICE_LINK_PROTOCOL.md)、[已知问题](docs/TECH_DEBT.md)。
 
 ## 许可
 

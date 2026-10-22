@@ -70,13 +70,11 @@ fn push_hex_byte(output: &mut String, byte: u8) {
     output.push(char::from(HEX[usize::from(byte & 0x0f)]));
 }
 
-/// 使用固定 FNV-1a 算法生成内容无关、跨进程稳定的短 ID。
-/// 这是全模块共用的“匿名化 ID 生成器”：namespace 区分 ID 用途
-/// （"root"/"source"/"thread"/"project"/"scan"/"call" 等，见各调用点），
-/// 避免不同用途但巧合内容相同的值哈希出同一个 ID；输出格式固定为
-/// `{namespace}-{16位十六进制哈希}`，同一输入永远得到同一输出（稳定），
-/// 但不能从输出反推原始 value（单向），是本产品“索引不保存真实路径/
-/// session id，只保存可去重比较的匿名指纹”这条隐私原则的底层工具函数。
+/// 使用固定、无盐的 FNV-1a 生成跨进程稳定的内部短 ID。
+/// namespace 区分用途；输出为 `{namespace}-{16位十六进制哈希}`。
+/// 相同输入产生相同输出，用于索引关联和去重；不提供加密、匿名化、
+/// 不可反推或无碰撞保证，已知候选输入仍可枚举比对。
+/// 数据根 registry 另行保存访问路径，不能据此声称索引不保存真实路径。
 pub fn stable_id(namespace: &str, value: &str) -> String {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in namespace.bytes().chain([0]).chain(value.bytes()) {

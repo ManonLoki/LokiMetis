@@ -1,16 +1,16 @@
-//! GUI backend 内的本机 Codex 数据根发现、rollout JSONL 解析与增量索引。
+//! GUI backend 内 Codex、Claude Code、Grok 数据根发现、会话解析与增量索引。
 //! 这是整个仓库体量最大的模块；按数据流顺序理解会更容易：
 //! `volume_roots`/`discovery` 先在磁盘上找到合法数据根 ->
-//! `jsonl`/`claude::jsonl` 把单个文件解析成结构化调用记录 ->
+//! `jsonl`/`claude::jsonl`/`grok::jsonl` 把单个文件解析成结构化调用记录 ->
 //! `scan` 编排一次完整/快速扫描的进度与取消 ->
-//! `rollout_ingest`/`claude::index` 负责调用
+//! `rollout_ingest`/`claude::index`/`grok::index` 负责调用
 //! `loki_metris_core::LocalIndex` 把结果写入并读回 ->
 //! `snapshot`（core 侧）组装最终提供给 GUI 视图层的数据形状。
 //!
 //! 物理存储层（schema、迁移、批次写入、数据根 registry、只读快照）已经
 //! 随 SeaORM 迁移一并挪进了 core（见 [`loki_metris_core`]
 //! 的 `local_index` 模块），本模块只保留操作系统数据源相关、天然与
-//! GUI/Codex/Claude 客户端绑定的发现与解析逻辑，通过 core 暴露的最小
+//! Codex/Claude/Grok 本机客户端绑定的发现与解析逻辑，通过 core 暴露的最小
 //! 异步 checkpoint 原语落盘。
 //!
 //! `LocalIndex` 的公开方法是真正的 `async fn`（core 内部用 SeaORM

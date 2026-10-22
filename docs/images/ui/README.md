@@ -15,7 +15,7 @@
 | `settings.jpg` | 左下角设置 |
 | `data-sources.jpg` | 用量看板 → Codex → 数据源 |
 | `usage-settings.jpg` | 用量看板 → Codex → 设置 |
-| `cursor-usage.jpg` | 用量看板 → Cursor 账户 → 今日 |
+| `cursor-usage.jpg` | 用量看板 → Cursor 账户 → 今日；本地 v0.9.0 清理页首说明后的真实界面 |
 | `hooks-settings.jpg` | AI监控 → Hooks 设置 → Codex |
 | `monitor-profiles.jpg` | AI监控 → 监控管理 → Codex |
 | `pet-settings.jpg` | 设置 → 桌宠设置 |

@@ -1,4 +1,4 @@
-//! 原生监控工作台展示环回宿主快照，以及后台读取的提供商 5 小时与周用量。
+//! 原生监控页展示环回宿主快照、提供商短时/周/月额度、展示配置、图库与 Hooks 设置。
 
 use super::Shell;
 mod state;
@@ -52,7 +52,7 @@ pub(super) struct MonitorView {
     error:Option<&'static str>,
     /// 最近一次读取状态的时刻。
     last_read:Option<std::time::Instant>,
-    /// 提供商 5 小时与周用量快照。刷新失败时保留上一份。
+    /// 最近的提供商短时、周或月额度快照；等待和失败不挂载旧卡。
     quota: crate::usage_service::provider_quota::QuotaBoardSnapshot,
 }
 
@@ -87,7 +87,7 @@ impl Shell {
         if changed||quota_changed {cx.notify();}
     }
 
-    /// 当前检查点提供真实工作台；其它监控子页在各自闭环接入后增加导航。
+    /// 工作台、监控管理、图片管理与 Hooks 设置共用原生导航和粘滞布局。
     pub(super) fn monitor_page(&self,window:&mut gpui_kit::Window,cx:&mut Context<Self>)->AnyElement {
         let mut tabs=div().w_full().flex().items_center().p_2().gap_1().border_y_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark(){0x191a1c}else{0xf9f7f4})).block_mouse_except_scroll();
         for (route,id,key) in [(state::Route::Workbench,"monitor-workbench-tab","workbench"),(state::Route::Management,"monitor-management-tab","management"),(state::Route::Images,"monitor-images-tab","images"),(state::Route::Hooks,"monitor-hooks-tab","settings")] {

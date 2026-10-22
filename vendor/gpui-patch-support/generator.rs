@@ -18,7 +18,7 @@ macro_rules! patch {
     };
 }
 
-/// 每个维护片段必须在指定原文件中恰好出现一次，不接受模糊匹配。
+/// 每个维护片段必须在目标文件当前生成上下文中恰好出现一次，不接受模糊匹配。
 #[derive(Clone, Copy)]
 pub struct Patch {
     pub name: &'static str,

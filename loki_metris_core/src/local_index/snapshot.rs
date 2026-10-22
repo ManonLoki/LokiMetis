@@ -357,5 +357,5 @@ pub(super) async fn load_canonical_call_count<C: ConnectionTrait>(
 
 // 为控制单个文件的长度，下列内容拆到同目录的分片文件中；它们用 include! 并入本模块，
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
-// - snapshot_usage_reads.rs：用有界聚合与 EXISTS 查询保持已覆盖持久化不变量的 fail-closed 边界，；从指定数据库快照读取当前 generation 调用并由 core 执行 canonical 去重。；从指定时间下界读取当前…
+// - snapshot_usage_reads.rs：索引就绪判定、当前 generation 调用读取与有界时间范围查询。
 include!("snapshot_usage_reads.rs");

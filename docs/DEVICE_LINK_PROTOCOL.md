@@ -72,7 +72,7 @@ core只允许当前、未过期且仍受账本信任的租约更新形态。形�
 
 Hooks投影包含`hooksAvailable`和`hooks [{agent,slot,behavior,content,contentTruncated,image}]`。当前实现沿用本机十二槽位覆盖/释放规则，发送其中公开且启用Agent的活跃项，尚未按桌宠当前页裁剪；该范围须按下述已确认约束对齐，不能据现有实现声明四格已一致。slot为1..12；文案最多512 UTF-8字节，截断显式标记；image为内容摘要或null。发布器每500毫秒检查内存状态，只在变化时推送。Token错误与目录错误分别用`tokenError`/`catalogError`明确表达。已连接终端共享一次读取结果，慢设备只保留最新快照；心跳、状态发送优先于持续入站请求。
 
-`assets [{hash,mime,length}]`仅含公开档案实际引用的可用图片，最多64个摘要；同内容去重。SHA-256为64位小写十六进制，MIME限PNG/JPEG/GIF，单资源最多32MiB。终端只发送`{type:"assetRequest",hash,offset}`请求当前清单资源；offset从0开始，按16384原始字节对齐。桌面返回`{type:"assetChunk",chunk:{hash,offset,data}}`，data为规范Base64；旧清单摘要返回`{type:"assetUnavailable",hash}`。每次请求只响应一块，没有无界发送队列。接收器严格检查顺序、长度、最后完整摘要与魔数，校验完成才能交平台原子保存；缺失/损坏缓存须重新下载。清单变化不会把不同正文拼成同一资源。
+`assets [{hash,mime,length}]`仅含公开档案实际引用的可用图片，最多64个摘要；同内容去重。SHA-256为64位小写十六进制，MIME限PNG/JPEG/GIF/BMP/WebP，由 pairing 的共享魔数表识别，单资源最多32MiB。终端只发送`{type:"assetRequest",hash,offset}`请求当前清单资源；offset从0开始，按16384原始字节对齐。桌面返回`{type:"assetChunk",chunk:{hash,offset,data}}`，data为规范Base64；旧清单摘要返回`{type:"assetUnavailable",hash}`。每次请求只响应一块，没有无界发送队列。接收器严格检查顺序、长度、最后完整摘要与魔数，校验完成才能交平台原子保存；缺失/损坏缓存须重新下载。清单变化不会把不同正文拼成同一资源。
 
 桌面完成项单独登记为`LMDESK-LAN-DESKTOP-SERVICE-001`，required_version `0.6.0`。独立共享C ABI桥已有回归，窗口及资产校验在桌面与桥之间只保留同一实现。移动原生驱动、系统私有存储与Watch协作均已接线；真实缓存、重连和互通按对应宿主与构建留存运行证据，纯状态机测试不替代产品运行。
 
@@ -138,7 +138,7 @@ App与Widget使用固定文件锁协调摘要与读取配置。切换来源、�
 
 change_id：`LMDESK-TERMINAL-AGENT-VISIBILITY-001`；required_version：`0.9.0`。用户要求用量与额度面板只显示桌面设置启用的Agent，完整TCP快照与加密HTTP摘要统一携带可选`snapshot.enabledAgents`。
 
-该字段是独立的camelCase字符串数组，值来自`AiTool`目录：codex/claudeCode/cursor/openCode/workBuddy/hermes/openClaw/codeBuddy/qwenCode/kimiCode/qoder/geminiCli/gitHubCopilot/grok。缺失或null表示旧桌面或尚无成功设置读取，`[]`明确表示全关闭；不能从tokens.agents、Hooks、额度成功与否或非空条目推断。Token读取失败、尚无数据及Cursor仅支持Hooks均不影响真实名单。设置读取失败保留最近成功名单，首次未知保持未提供且不发送未知配置下的额度。
+该字段是独立的camelCase字符串数组，值来自`AiTool`目录：codex/claudeCode/cursor/openCode/workBuddy/hermes/openClaw/codeBuddy/qwenCode/kimiCode/qoder/geminiCli/gitHubCopilot/grok。缺失或null表示旧桌面或尚无成功设置读取，`[]`明确表示全关闭；不能从tokens.agents、Hooks、额度成功与否或非空条目推断。Token读取失败、尚无数据及Cursor不进入终端本机Token汇总均不影响真实名单。Cursor账户Token仍仅由桌面独立视图展示，终端可同步其额度及Hooks。设置读取失败保留最近成功名单，首次未知保持未提供且不发送未知配置下的额度。
 
 发布器每轮读取已确认设置，并通过原有500ms轮询比较完整名单变化；Cursor启停不依赖统计来源epoch。额度先由core使用同份名单筛选，再与上一份已发布投影比较；保留真实窗口、观测时间和原始Token总量/质量。全关闭明确撤下旧额度，不伪造新的额度读取。HTTP透传同一名单，手机、Watch和小组件保持其缺失/null/空数组语义；旧桌面未提供时保留移动端原行为。该扩展不改变snapshot.version、配对或认证权限。
 

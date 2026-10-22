@@ -19,7 +19,7 @@ cargo build --release -p loki_metris_gui --features isolated-measurement
 LOKI_METRIS_MEASURE_HOME=/private/tmp/lmm HOME=/private/tmp/lmm ./loki_metris_gui
 ```
 
-启用后用 `LOKI_METRIS_MEASURE_HOME` 重定向全部用户目录读写。发布构建不带这个特性，不受影响。
+该特性只重定向 `current_user_home()` 返回的目录；上面的历史实验还设置了 HOME，以隔离 macOS GUI 偏好和单实例目录。显式来源环境变量、已保存的自定义目录、宿主资源及系统集成不由该变量统一隔离。常规打包默认不带此特性。
 
 ## 2. 路径别太长
 

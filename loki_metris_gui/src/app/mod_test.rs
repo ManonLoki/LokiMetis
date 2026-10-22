@@ -1,4 +1,4 @@
-//! 使用 Kit 真实布局树验证侧栏和内容坐标，偏好写入只在内存中发生。
+//! 使用 Kit 真实布局树验证侧栏和内容坐标，偏好使用内存或测试独占临时目录。
 
 use super::*;
 use gpui_kit::{AnyWindowHandle, AppContext, Bounds, Entity, TestAppContext, WindowBounds, WindowOptions, point, size, test::TestWindowExt};
@@ -172,7 +172,7 @@ fn overview_copies_exact_value_and_preserves_window_across_navigation(cx: &mut T
     }).expect("验证真实事件与复制结果");
 }
 
-/// 统计和图表的窗口按 Agent 隔离；全部可继续看图，不能误入物理统计页。
+/// 统计和图表窗口按 Agent 隔离；切到全部回退概览，并保留原 Agent 的图表选择。
 #[gpui_kit::test]
 fn analytics_filters_are_independent_across_routes_and_agents(cx:&mut TestAppContext) {
     let (handle,shell,_finish)=open_shell(cx,1440.,900.);

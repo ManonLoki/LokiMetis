@@ -36,9 +36,9 @@ pub enum SkinHostKind {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub enum SkinSource {
-    /// 随 LokiMetis 打包且不可原地修改的资源。
+    /// 随 LokiMetris 打包且不可原地修改的资源。
     Builtin,
-    /// 位于 LokiMetis 应用数据目录、可由用户管理的资源。
+    /// 位于 LokiMetris 应用数据目录、可由用户管理的资源。
     User,
 }
 

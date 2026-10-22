@@ -74,7 +74,7 @@ impl Shell {
         page.into_any_element()
     }
 
-    /// 没有任何返回值时显示缺失；只有确实查询到空窗口才显示零。
+    /// 字段全部缺失时显示未提供；空窗口或已上报的真实零值显示零。
     fn cursor_tokens(&self, field: &ReportedTokens) -> String {
         if field.reported == 0 && field.missing > 0 { self.t("dashboard.not_provided") }
         else { format::exact(field.tokens) }

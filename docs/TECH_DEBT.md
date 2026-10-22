@@ -7,10 +7,10 @@
 - Codex/Grok Stop会在其它Hook可能阻止续跑之前触发，公开协议没有所有门禁通过后的成功信号；本次保守禁用它们的Stop“已完成”提示，仍显示空闲且允许同ID续跑。Grok task_complete是后台作业结束，不用于替代整个Agent成功。后续以第一方新增权威终态契约解除此降级。
 - 通用GPUI开发watcher的Windows后代回收缺口：`.agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.mjs`在leader关闭后把Windows句柄直接标为gone，子孙进程仍可能存活；对应真实后代回归跳过Windows。解除条件为接入真实进程所有权机制并在Windows验证leader先退出的回收路径。当前产品`pnpm dev`使用独立`scripts/dev.mjs`，本次Linux候选不消费该通用watcher；不得据此声称Windows后代回收已验证。
 - Windows 剩余宿主验收：托盘指针交互、通知横幅、自启登录、真实 Agent／WSL Hooks、Codex／WorkBuddy 换肤、混合 DPI 热插拔及 NSIS 安装仍需对应真实场景，单元测试和开发预览不能替代。
-- macOS正式候选当前被既有签名门禁阻断：系统通知enabled要求candidate启用签名，而构建工具尚未实现Developer ID签名/公证，不能用disabled绕过。解除条件为按批准范围实现正式签名并通过相应候选验证；现有local ad-hoc试包不替代该路径。具体门禁见[发布规则](RELEASE.md)。
+- macOS Developer ID 签名、公证与 stapling 已接入，原“构建工具尚未实现”的阻断已解除，[2026-10-22 渠道记录](verification/20261022_verification.md)保留当次 App/DMG 的 Accepted 与 Gatekeeper 证据。后续 candidate 仍受[正式签名门禁](RELEASE.md)约束，local ad-hoc 包不代表系统通知或渠道信任通过。
 - GPUI 固定基线当前不提供 updater 服务、通用原生 dialog 与深链接；未来确有需求时独立批准并接入真实实现。当前更新检查零出站。
 - 上游传递依赖 block 0.1.6 曾被 Cargo 报告未来 Rust 不兼容；既有 Rust 1.99.0 构建/测试记录不等于未来工具链兼容保证，升级时仍须核对上游修复。空热键接口的未使用项已用带原因的 `allow(dead_code)` 标注（初始化无动作/注册是已确认行为），既有 macOS 与 Windows 生产构建记录无编译警告，各次候选仍独立核对。
-- 本次 Computer Use 无法读取系统菜单栏；托盘图标、恢复、退出由用户真实本机检查确认，其余原生窗口和系统状态由工具观察。未来发布候选仍按当次 E2E/渠道要求独立验收。
+- 早期 Computer Use 未能读取系统菜单栏，相关托盘图标、恢复、退出结果当时由用户真实本机检查确认；这段历史不表示当前工具始终无法读取菜单。工具可读取应用菜单也不能替代真实托盘点击或各平台候选验收，未来发布仍按当次 E2E/渠道要求独立核对。
 - Windows 测试构建用测试宿主替换原生桌宠/窗口宿主，`cargo check --tests --target x86_64-pc-windows-gnu` 因此对原生 Windows 宿主模块报告约 40 条 dead_code 警告（生产 Windows 构建已无警告）。若要消除，需要让原生宿主模块在测试配置下不参与编译，并保持真实 HWND 回归可用。
 - 2026-10-19 全仓重构检查发现的范围外结构问题（本次未改，均需可执行回归后再动）：
   - `backend/local_index/claude` 与 `grok` 的 discovery/scan/index/signature 为复制后分别演化的实现（取消检查、链接跳过计数等已不一致），宜提取共享的有界目录遍历与签名骨架，以工具差异作参数；合并前须先用回归锁定两侧现行行为。

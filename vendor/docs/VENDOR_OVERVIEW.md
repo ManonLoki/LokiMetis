@@ -100,7 +100,7 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 | `demand_patches.rs` | 12 | `window.rs`、`svg_renderer.rs`、`randomized_element_tree.rs` | 帧重入唤醒器、deferred presentation 状态、sustain 调度；两处仅在 `frame-demand-regression` feature 下隔离上游无法在独立包中编译的测试 |
 | `element_transform_patches.rs` | 36 | `window.rs`（30）、`view.rs`（4）、`element.rs`、`window/a11y/debug.rs` | 新模块 `src/element_transform.rs`：`Window::with_element_transform()` 对元素绘制、命中与 AX 边界施加正比例缩放＋平移，不改布局与纹理缓存键 |
 
-`build.rs`末尾另登记`label-value`、`style-tests-perf-attribute`、`test-window-frame-demand-access`，维护Label值映射、独立包测试属性与平台真实帧需求观测，按声明顺序一并应用。
+[`build.rs`](../gpui-pre/build.rs)末尾还登记 Label 值映射、独立包测试属性、平台真实帧需求观测、Linux 隐藏窗口首次映射及测试映射计数补丁，按实际声明顺序一并应用；精确条目以该入口为准。
 
 本地 feature：`parent-rounded-clip`（当前仅 macOS Metal，其它目标 `compile_error!`）、`frame-demand-regression`。新增测试 target `tests/rounded_clip_window.rs`（需 `test-support`）；`src/frame_demand_tests.rs` 由补丁引入。
 

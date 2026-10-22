@@ -1,4 +1,5 @@
-//! 本文件的测试覆盖：表示一次数据源发现批次对后续统一 Token 索引的稳定决策；发现尚未达到终态，必须继续等待并禁止逐候选索引；发现已完成、部分完成或取消，可以在候选登记收敛后统一索引一次。
+//! 数据源发现批次的索引决策：运行中等待，完成或部分完成后统一索引。
+//! 显式发现取消时索引已登记结果，首次初始化取消或发现失败时跳过。
 
 use crate::root_discovery::RootDiscoveryLifecycle;
 
@@ -7,9 +8,9 @@ use crate::root_discovery::RootDiscoveryLifecycle;
 pub enum DiscoveryBatchIndexDecision {
     /// 发现尚未达到终态，必须继续等待并禁止逐候选索引。
     Wait,
-    /// 发现已完成、部分完成或取消，可以在候选登记收敛后统一索引一次。
+    /// 完成、部分完成或显式发现取消后，在候选登记收敛后统一索引一次。
     Index,
-    /// 发现失败，不自动读取已登记根，等待用户显式重试。
+    /// 发现失败或首次初始化取消，不自动读取已登记根，等待用户显式重试。
     Skip,
 }
 
@@ -46,7 +47,7 @@ pub const fn discovery_batch_index_decision(
 mod tests {
     use super::*;
 
-    /// 发现运行期间不得逐候选索引，完成、部分完成或取消后只开放统一索引。
+    /// 运行中不逐候选索引；完成/部分完成与显式取消可统一索引，初始化取消及失败跳过。
     #[test]
     fn discovery_batch_index_waits_for_approved_terminal_states() {
         for lifecycle in [

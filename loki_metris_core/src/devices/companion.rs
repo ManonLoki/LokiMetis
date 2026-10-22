@@ -49,7 +49,7 @@ pub struct WatchCompanionReport {
     pub reachable: bool,
     /// 最近实际通信，后台/失联不能用手机心跳代替。
     pub contact: Option<CompanionObservation>,
-    /// 仅完整快照持久化成功ACK，缓存命中不能生成新同步事实。
+    /// 完整快照校验并接纳到当前前台内存后的 ACK，缓存命中不能生成新同步事实。
     pub sync: Option<CompanionObservation>,
 }
 impl WatchCompanionReport {
@@ -76,7 +76,7 @@ pub struct WatchCompanionView {
     pub reachable: bool,
     /// 桌面本机单调年龄。
     pub since_last_contact: Option<Duration>,
-    /// 完整快照被Watch确认持久化的最近年龄。
+    /// 完整快照被 Watch 确认接纳的最近年龄。
     pub since_last_sync: Option<Duration>,
 }
 

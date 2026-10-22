@@ -154,7 +154,7 @@ mod tests {
         }).await.expect("Agent设置应由现有500ms轮询发布")
     }
 
-    /// Cursor没有Token来源且启停不改变统计epoch，真实发布器仍独立发送名单及明确全关闭。
+    /// Cursor 不进入本机 Token 汇总且启停不改变统计 epoch；发布器仍独立发送启用名单及明确全关闭。
     #[test]
     fn cursor_visibility_publishes_without_tokens_or_source_epoch_change() {
         let temp = tempfile::tempdir().unwrap();

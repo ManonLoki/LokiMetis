@@ -181,12 +181,12 @@ async fn poll_until_cdp_ready(
     Err(cdp_unavailable_for(host))
 }
 
-/// WorkBuddy 可避开被其它本机进程占用的默认端口；Codex 保持既有固定端点。
+/// Windows WorkBuddy 可避开其它进程占用的默认端口；首次启动 Codex 或 macOS WorkBuddy 仍用固定端点。
 fn available_launch_endpoint(host: SkinHostKind) -> Result<CdpEndpoint, AppError> {
     available_launch_endpoint_excluding(host, &[])
 }
 
-/// 为 WorkBuddy 选择未被占用且未在本轮失败过的端口，Codex 则保持固定端点。
+/// 仅为 Windows WorkBuddy 选择未占用且本轮未失败的端口，其余首次启动路径保持固定端点。
 fn available_launch_endpoint_excluding(
     host: SkinHostKind,
     excluded_ports: &[u16],

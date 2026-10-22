@@ -10,7 +10,7 @@ const keychain = path.join(temporary,'loki-signing.keychain-db');
 const certificate = path.join(temporary,'loki-certificate.p12');
 const key = path.join(temporary,'loki-notarization.p8');
 
-/** 签名工具错误只输出类别；禁止把参数、凭据或环境回显进 CI 日志。 */
+/** 签名工具失败时输出操作名及截断诊断，先遮蔽已知秘密环境值，不回显完整参数或环境。 */
 function security(args) {
   const result = spawnSync('/usr/bin/security',args,{ encoding: 'utf8',timeout: 60_000 });
   if (result.error || result.status !== 0) {

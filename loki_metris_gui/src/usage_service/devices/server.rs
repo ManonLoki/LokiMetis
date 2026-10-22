@@ -20,7 +20,7 @@ const PAIRING_OFFER_LIFETIME: Duration = Duration::from_secs(60);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 /// 服务轮失败后的首次重试等待；之后指数退避，持续失败也不会停止广播尝试。
 const SERVER_RETRY_BASE: Duration = Duration::from_secs(1);
-/// 退避上限保证网络或权限恢复后半分钟内重新可被发现。
+/// 失败重试退避最长 30 秒；恢复可见时间仍取决于初始化、权限与网络状态。
 const SERVER_RETRY_MAX: Duration = Duration::from_secs(30);
 /// 一轮稳定运行超过此时长后视为已恢复，下次失败重新从首档退避。
 const SERVER_RETRY_RESET_AFTER: Duration = Duration::from_secs(60);

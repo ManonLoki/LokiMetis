@@ -34,7 +34,7 @@
 - 运行时按基础、浅色覆盖、深色覆盖顺序把已校验变量表追加到统一 CSS 后方，通过 `data-dream-shell` 自动切换。原生层将基础及模式背景经 JSON 载荷传递并分别转换为 Blob URL，以内联同名变量选择当前模式背景；模式未覆盖时回退基础背景，停用时撤销全部 URL、监听器和变量。
 - ZIP 可把文件放在根目录或唯一一层包装目录。LokiMetris只导入 `schemaVersion: 3` 新主题与旧版兼容皮肤包；`schemaVersion: 2` 过渡主题需要先转换为 v3。
 - ZIP 的 ID 可以与用户库已有资源重复。安装时LokiMetris只改写暂存副本：目录与 ID 依次追加 `_1`、`_2`，显示名称同步追加 `(1)`、`(2)`；原 ZIP 和已有资源保持不变。
-- 也可以把完成校验的目录直接发布到当前用户的 `LokiMetris/skins/<id>/`，无需制作 ZIP；应先在同一资源库的点号隐藏草稿目录完成全部文件和正式校验，再一次重命名为最终 ID。LokiMetris会自动发现合法目录，忽略草稿与无效目录。
+- 也可以把完成校验的目录直接发布到 `<业务数据目录>/skins/<id>/`，无需制作 ZIP。以应用生成提示词给出的用户库绝对路径为准；业务数据目录由平台布局决定，显式数据目录覆盖也会改变皮肤库位置，不应猜测目录名称。应先在同一资源库的点号隐藏草稿目录完成全部文件和正式校验，再一次重命名为最终 ID。LokiMetris会自动发现合法目录，忽略草稿与无效目录。
 
 以下六文件格式仅用于兼容既有皮肤。
 
@@ -144,13 +144,25 @@ LokiMetris构建载荷时会对 `renderer-inject.js` 做字面替换。旧六文
 
 ## 注入生命周期
 
-为了与宿主卸载逻辑互操作，采用以下公共状态：
+兼容皮肤源模板沿用以下公共状态，LokiMetris 在执行前会转换运行身份：
 
 - 根 class：`codex-dream-skin`。
 - 样式节点：`#codex-dream-skin-style`。
 - 装饰根节点：`#codex-dream-skin-chrome`。
 - 运行状态：`window.__CODEX_DREAM_SKIN_STATE__`。
 - 禁用标记：`window.__CODEX_DREAM_SKIN_DISABLED__`。
+
+存储文件及模板占位符保持原协议；兼容载荷在执行时转换下列身份，避免与历史应用争用资源：
+
+| 源模板标识 | LokiMetris 运行标识 |
+| --- | --- |
+| `__CODEX_DREAM_SKIN_STATE__` | `__LOKI_METRIS_DREAM_SKIN_STATE__` |
+| `__CODEX_DREAM_SKIN_DISABLED__` | `__LOKI_METRIS_DREAM_SKIN_DISABLED__` |
+| `__BIFANG_CODEX_SKIN_COMPAT__` | `__LOKI_METRIS_CODEX_SKIN_COMPAT__` |
+| `codex-dream-skin-style` | `loki-metris-dream-skin-style` |
+| `codex-dream-skin-chrome` | `loki-metris-dream-skin-chrome` |
+
+根 class `codex-dream-skin` 保持不变以复用样式选择器。发现外来应用的 owner 标记时拒绝接管；清理只作用于本应用拥有的运行资源。
 
 状态对象至少暴露 `cleanup()`。注入新版本前先调用旧状态的清理逻辑或逐项停止旧资源。清理应覆盖：
 
@@ -164,7 +176,7 @@ LokiMetris构建载荷时会对 `renderer-inject.js` 做字面替换。旧六文
 
 LokiMetris宿主从皮肤载荷 `1.2.0` 起可在注入前运行独立版本的兼容适配器。适配器不是皮肤包的一部分，不会改写六文件目录或 ZIP；旧皮肤仍可继续使用原有 class 选择器。
 
-- 兼容状态为 `window.__BIFANG_CODEX_SKIN_COMPAT__`，当前适配器版本为 `5`。Codex 主表面优先使用唯一 `main[data-app-shell-main-surface]`，并保留唯一 `#root main` 的旧版回退，三条既有兼容规则及其规则标识保持不变。WorkBuddy 使用独立宿主适配器：只接受已验证的 WorkBuddy body 标记，把外壳、侧栏、主区、标题栏、详情区映射到自有别名，并从聊天根内的稳定工具栏标记与唯一语义编辑器派生 composer；不把 WorkBuddy 伪装成 Codex DOM。两类适配器都会释放已经脱离文档的自有别名节点，并忽略不包含兼容锚点的普通内容变化。
+- 当前内置适配器直接使用 `window.__LOKI_METRIS_CODEX_SKIN_COMPAT__`，版本为 `5`；上表的旧 BIFANG 键只用于兼容历史载荷字符串和识别外来 owner。Codex 主表面优先使用唯一 `main[data-app-shell-main-surface]`，并保留唯一 `#root main` 的旧版回退，三条既有兼容规则及其规则标识保持不变。WorkBuddy 使用独立宿主适配器：只接受已验证的 WorkBuddy body 标记，把外壳、侧栏、主区、标题栏、详情区映射到自有别名，并从聊天根内的稳定工具栏标记与唯一语义编辑器派生 composer；不把 WorkBuddy 伪装成 Codex DOM。两类适配器都会释放已经脱离文档的自有别名节点，并忽略不包含兼容锚点的普通内容变化。
 - 适配器只在稳定候选唯一时补充 `main-surface`、`app-header-tint` 与 `composer-surface-chrome`。
 - 原生已有的旧 class 归宿主所有；清理只删除适配器自己添加的 class。
 - 宿主可能在首次水合时重写稳定候选的 `class`；适配器会防抖恢复自有别名，皮肤不应自行增加全局 DOM 监听来补救该时序。

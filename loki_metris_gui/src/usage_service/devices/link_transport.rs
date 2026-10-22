@@ -33,7 +33,7 @@ pub(super) async fn send(writer: &mut (impl AsyncWrite + Unpin), session: &mut A
     write_frame(writer, &packet, MAX_ENCRYPTED_FRAME_BYTES).await
 }
 
-/// 同一framer可跨select取消保留半帧；认证先于JSON解析，坏包由owner关闭连接。
+/// framer 跨 select 取消保留半帧；先解析有界密文信封，认证解密成功后才解析业务 JSON，坏包由 owner 关闭连接。
 pub(super) async fn receive<T: DeserializeOwned>(framing: &mut FrameReader, reader: &mut (impl AsyncRead + Unpin), session: &mut AuthenticatedLinkSession) -> Result<T, &'static str> {
     let packet: EncryptedPacket = framing.read(reader).await?;
     let plaintext = session.open(&packet).map_err(|_| "device_link_authentication_failed")?;

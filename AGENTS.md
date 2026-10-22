@@ -44,7 +44,7 @@ GUI 依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI
 - Task 的编号、标题、绑定、授权继承和恢复统一由 `$desktop-task-workflow` 管理，项目选择取 Policy。现有 schema 4 的确认事实与限制保留；缺少 `task_worktrees` 不推断默认值，只有实际需要新环境选择时由 `$desktop-configure-agent-policy` 取得明确选择后迁移。内部单元不占 Task 编号，也不为自动自检增加人工批准。
 - 新功能/独立修复写入前经生命周期 Skill 建立 `feature-{ascii-kebab摘要}-{YYYYMMDD}`。初始化后首次真实开发才创建 common-dir 生命周期清单；不按前缀扫描或删除未登记资源。
 - 版本只经 `$desktop-manage-version`；受保护 `.harness/version-state.json` 不手改。疑似新需求优先 `feature`，本周期首个完成且通过相关测试的功能提升 Minor；确认非新需求的修复/可感知优化按稳定 ID `bug-fix` 提升 Patch。Minor/Patch 为 `0..99` base-100，历史 `100` 失败关闭。事实冲突先查底层漂移，再以稳定 ID/证据走 `record-reconciliation`，不重复消费事件。
-- 明确发布时提交上下文，普通合并登记分支到本地默认主分支并复读 `v{版本}-{YYYYMMDD}`。主分支/tag 同一最终 HEAD 即完成 Git 发布；之后执行本次冻结的 `post_release_action`。当前 `local_package` 走 GPUI 打包；未来切换不改旧发布。推送、远端、凭据、签名和渠道分发遵守独立授权/门禁。
+- 明确发布时提交上下文，普通合并登记分支到本地默认主分支并复读 `v{版本}-{YYYYMMDD}`。主分支/tag 同一最终 HEAD 即完成 Git 发布；之后执行本次冻结的 `post_release_action`。当前 `push_release_branch` 同步远端三引用，再按 GitHub Actions 渠道构建；未来切换不改旧发布。推送、远端、凭据、签名和渠道分发遵守独立授权/门禁。
 - 安全/隐私、不可逆操作、迁移、对外契约、生产/付费/凭据、签名、发布和跨平台最终候选进入专用门禁，偏好不绕过硬要求。普通实现细节不新增范围会议，真正产品边界歧义先确认。
 - 完成/可用/已验证必须有真实可观察结果；中性 scaffold、开发预览、Mock/stub 不等于产品候选验收，人工批准不能把失败或未执行改为通过。
 - 项目记忆只由独立事件触发，不迁移上游历史、不预建空规格/ADR/计划/变更/验证。候选构建/E2E/验收/就绪证据只写忽略的 `release/`；范围外问题写 `docs/TECH_DEBT.md`。

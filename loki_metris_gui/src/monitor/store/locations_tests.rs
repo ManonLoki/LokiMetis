@@ -117,7 +117,7 @@ fn default_locations_use_the_injected_tauri_home_directory() {
     );
 }
 
-/// WorkBuddy 国内版与国际版是两个固定安装目录，默认写入必须同时维护两份配置。
+/// WorkBuddy 国内版与国际版是两个固定数据目录，默认写入必须同时维护两份配置。
 #[test]
 fn workbuddy_default_write_owns_both_fixed_edition_roots() {
     let root = tempdir().expect("temp");

@@ -14,7 +14,7 @@ impl FrameReader {
         Self { header: [0; 4], header_read: 0, payload: Vec::new(), payload_read: 0, limit }
     }
 
-    /// 读取长度前先限界再分配；每次已读字节立即提交进度，可安全被select取消。
+    /// 读完长度头后先检查上限再分配载荷；每次已读字节立即提交进度，可安全被 select 取消。
     pub(super) async fn read<T: DeserializeOwned>(&mut self, reader: &mut (impl AsyncRead + Unpin)) -> Result<T, &'static str> {
         while self.header_read < 4 {
             let count = reader.read(&mut self.header[self.header_read..]).await.map_err(|_| "device_connection_failed")?;

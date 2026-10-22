@@ -1,4 +1,4 @@
-//! 本文件收纳：为一个工具生成完整的主配置文件内容；为运行在 WSL 内的客户端生成 POSIX Hook 命令。relay 本身仍是 Windows；LokiMetris GUI 可执行文件，但 executable 已由 application 层通过 wslpat…。
+//! 按工具协议生成、合并和清理 Hooks 配置，并构造本机与 WSL relay 命令。
 
 // 引入 Path，用于接收 relay 可执行文件的路径参数
 use std::path::Path;

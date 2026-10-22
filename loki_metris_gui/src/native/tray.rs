@@ -1,4 +1,4 @@
-//! 主线程原生托盘，提取参考项目的双语菜单和窗口恢复接线，移除全部产品菜单。
+//! 主线程原生托盘，提供双语窗口恢复、桌宠、通知、自启与退出入口。
 
 use std::io;
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent, menu::{Menu, MenuEvent, MenuItem, CheckMenuItem}};
@@ -9,7 +9,7 @@ pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, 
     restore: super::tray_linux::RestoreEntry,
 }
 
-/// 托盘输入只拥有恢复与退出两种宿主语义，不承载业务动作。
+/// 托盘事件只投递明确宿主意图，业务状态与持久化由各自 owner 处理。
 pub enum Event {
     /// 显示主窗。
     Show,

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::HookError;
 
-/// 本机图库允许持久化的格式；新增格式只在本枚举及其映射中登记。
+/// 本机图库允许持久化的格式；枚举与映射在此登记，魔数识别统一维护于 pairing 的共享表。
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ImageFormat {

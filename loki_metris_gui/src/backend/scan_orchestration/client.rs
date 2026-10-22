@@ -1,6 +1,6 @@
-//! 统一 Codex / Claude 两条本机扫描客户端管线的差异点。
+//! 统一 Codex / Claude / Grok 三条本机索引扫描管线的差异点；WorkBuddy 独立读取。
 //!
-//! 两条客户端管线（打开索引 -> 快速重验证已知根 -> 可选全设备发现 ->
+//! 三条客户端管线（打开索引 -> 快速重验证已知根 -> 可选全设备发现 ->
 //! 合并发现结果 -> 登记根 -> 增量扫描 -> 合并覆盖 -> 读回来源摘要）结构
 //! 完全相同，只在“怎么发现”“怎么登记”“怎么扫描”“用哪个 parser
 //! generation/provider”上不同；这个 trait 把这几个差异点收拢成关联类型
@@ -13,7 +13,7 @@ use crate::backend::local_index::{
     ScanProgress, ScanSummary,
 };
 
-/// 单一客户端（Codex 或 Claude）的本机扫描能力集合。
+/// 单一客户端（Codex、Claude 或 Grok）的本机索引扫描能力集合。
 pub(super) trait ScanClient {
     /// 该客户端结构签名确认的发现根类型。
     type DiscoveredRoot: DiscoveredRootIdentity + Clone + Send + 'static;
@@ -24,12 +24,11 @@ pub(super) trait ScanClient {
     fn parser_version() -> u32;
     /// 来源摘要读取用的 provider 类型。
     fn provider_kind() -> ProviderKind;
-    /// 全设备发现进度上限（两个客户端的预算换算方式不同，见各自实现）。
+    /// 全设备发现进度上限，各客户端的预算换算方式见各自实现。
     fn full_device_max_directories() -> u64;
 
-    /// 把本机索引层错误映射为面向用户的稳定文案。两个客户端历史上力度
-    /// 不同——Codex 统一折叠成一句通用文案，Claude 保留错误类别给出更
-    /// 具体的提示——这里保留各自原有行为，不在统一编排骨架时顺带改变。
+    /// 把本机索引层错误映射为面向用户的稳定文案；保留各客户端原有的
+    /// 通用提示或错误类别映射，不在统一编排骨架时改变提示粒度。
     fn map_local_error(error: LocalError) -> String;
 
     /// 阻塞岛内对已知根做一次快速结构签名重验证。

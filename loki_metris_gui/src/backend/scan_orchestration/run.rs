@@ -2,8 +2,8 @@
 //! -> 并发执行快速重验证已知根与（可选）全设备发现 -> 合并发现结果 ->
 //! 登记根 -> 增量扫描 -> 合并覆盖 -> 读回来源摘要。全设备发现与快速
 //! 重验证互不依赖（前者不读写索引），因此全设备遍历一开始就被派发到
-//! 阻塞线程池，与快速校验及其后的数据库写入真正并发执行。Codex 与
-//! Claude 只在 `execute_scan`/`execute_claude_scan` 里各自提供一个
+//! 阻塞线程池，与快速校验及其后的数据库写入真正并发执行。Codex、Claude、
+//! Grok 在各自的 execute 扫描入口提供一个
 //! `ScanClient` 实现，本函数不知道也不需要知道自己驱动的是哪一个。
 
 use std::path::PathBuf;
@@ -50,10 +50,10 @@ pub(super) fn scan_retention_policy(
 }
 
 /// 打开索引、编排一次完整发现 -> 登记 -> 扫描流程，返回统一扫描输出。
-/// `app_data_dir` 是该客户端独占的用量库目录；`settings_app_data_dir`
-/// 必须是产品 app-data 根，才能读到用户已保存的保留天数。
+/// `app_data_dir` 是该客户端独占的用量库目录；`retention_days`
+/// 是调用方已读取并校验的保留天数，此处不再读取设置目录。
 /// `account_context_gate` 只有 Codex 客户端提供（登记/覆盖写入需要和
-/// 主数据目录切换串行化）；Claude 客户端传 `None`，直接跳过加锁。
+/// 主数据目录切换串行化）；其它客户端传 `None`，跳过此锁。
 pub(super) async fn run_scan<C: ScanClient>(
     app_data_dir: PathBuf,
     retention_days: loki_metris_core::RetentionDays,

@@ -84,7 +84,7 @@ impl QuotaBoard {
         self.snapshot.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 
-    /// 请求后台刷新。五分钟内的重复请求和进行中的读取都会跳过。
+    /// 请求后台刷新；非 force 请求受五分钟节流，进行中的读取始终合并。
     pub(crate) fn kick(self: &Arc<Self>, force: bool, background: &BackgroundTaskOwner) -> bool {
         if cfg!(test) {
             let _ = (force, background);
@@ -93,7 +93,7 @@ impl QuotaBoard {
         self.kick_live(force, background)
     }
 
-    /// 合并在途刷新并执行五分钟节流，将实际读取登记到应用后台 owner。
+    /// 合并在途刷新，对非 force 请求执行五分钟节流，并将实际读取登记到应用后台 owner。
     #[cfg_attr(test, allow(dead_code))]
     fn kick_live(self: &Arc<Self>, force: bool, background: &BackgroundTaskOwner) -> bool {
         if !force && self.last_kick.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some_and(|at| at.elapsed() < Duration::from_secs(5 * 60)) {

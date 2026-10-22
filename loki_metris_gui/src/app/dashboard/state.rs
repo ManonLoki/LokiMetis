@@ -1,4 +1,4 @@
-//! 查询加载与四态索引提示共享展示，扫描仍只由显式来源页动作触发。
+//! 查询加载与四态索引提示共享展示，扫描由应用服务的自动生命周期或显式来源动作触发。
 
 use super::{Shell,Route};
 use gpui_kit::{AnyElement,Context,FontWeight,div,prelude::*,px,rgb,

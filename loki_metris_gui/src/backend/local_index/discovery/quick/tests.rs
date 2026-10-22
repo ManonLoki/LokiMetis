@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use loki_metris_core::CoverageState;
 use tempfile::tempdir;
 
-// 本文件测的是 discovery/quick.rs：快速发现只检查默认主目录、
+// 本文件测的是 discovery/quick/mod.rs：快速发现只检查默认主目录、
 // CODEX_HOME 环境变量、用户已登记根这三类固定候选，不做任何磁盘递归
 // 遍历。
 use super::*;

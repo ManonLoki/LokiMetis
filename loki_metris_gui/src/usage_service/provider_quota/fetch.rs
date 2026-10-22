@@ -19,7 +19,7 @@ pub(crate) struct TimeRange {
     pub end: String,
 }
 
-/// 读取一个提供商。缺少 curl 或 sqlite3 时返回传输失败，不改用其它程序。
+/// 本地优先读取额度；需要远程时依赖 curl，Cursor 登录材料另需 sqlite3，不改用其它程序。
 pub(crate) async fn fetch_provider(
     provider: QuotaProvider,
     layout: &HomeLayout,

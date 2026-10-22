@@ -273,7 +273,7 @@ fn has_jsonl_extension(path: &Path) -> bool {
     path.extension().and_then(|value| value.to_str()) == Some("jsonl")
 }
 
-/// 只有根目录确实缺失才属于未安装来源；权限和其它 I/O 错误保持读取失败。
+/// 只有根目录确实缺失才属于来源缺失；权限和其它 I/O 错误保持读取失败。
 fn map_root_error(error: std::io::Error) -> WorkBuddyReadError {
     if error.kind() == std::io::ErrorKind::NotFound {
         WorkBuddyReadError::SourceUnavailable

@@ -34,7 +34,7 @@ use std::{
 /// 平台权限与保存失败分别保留；只有保存失败才保留原有本地开关。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
-    /// 系统明确拒绝通知权限，保持关闭并引导到系统设置。
+    /// 系统明确拒绝通知权限，暂停投递并引导到系统设置；本地开关由偏好保存回执决定。
     Denied,
     /// 当前平台或会话没有可用的通知服务。
     Unavailable,

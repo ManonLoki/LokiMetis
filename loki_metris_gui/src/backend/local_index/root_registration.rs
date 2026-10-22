@@ -1,4 +1,4 @@
-//! 把 GUI 专属的 [`DiscoveredRoot`]/[`ClaudeDiscoveredRoot`] 适配到
+//! 把 GUI 专属的 [`DiscoveredRoot`]/[`ClaudeDiscoveredRoot`]/[`GrokDiscoveredRoot`] 适配到
 //! `core::LocalIndex` 的原始字段存储原语。
 //!
 //! `LocalIndex` 现在定义在 `loki_metris_core`，Rust 不允许
@@ -17,7 +17,7 @@ use super::discovery::{
 };
 use super::grok::GrokDiscoveredRoot;
 
-/// Codex 与 Claude 发现结果共享的四个身份字段；写入存储层时不需要关心
+/// Codex、Claude 与 Grok 发现结果共享的四个身份字段；写入存储层时不需要关心
 /// 候选具体是哪一种发现结果类型，只需要能读出这四个字段。
 trait RootIdentityFields {
     /// 内容无关、按规范化访问位置生成的稳定根 ID。

@@ -7,10 +7,10 @@ use super::{
 };
 
 const MAX_PLAN_CHARS: usize = 24;
-/// statusline 输入只含会话元数据，超过该上限按异常输入处理。
+/// statusline 输入大小上限；解析后仅保留已知额度字段。
 const MAX_STATUSLINE_INPUT: usize = 256 * 1024;
 
-/// 解释一份用量正文。空对象是合法的“没有目标窗口”，坏 JSON 才是格式错误。
+/// 解释一份用量正文。空对象是合法的“没有目标窗口”；无效 JSON 或非对象根为格式错误。
 pub(super) fn parse_provider_quota(provider: QuotaProvider, body: &str) -> Result<ProviderQuota, QuotaFailure> {
     let value: Value = serde_json::from_str(body).map_err(|_| QuotaFailure::Malformed)?;
     let object = value.as_object().ok_or(QuotaFailure::Malformed)?;

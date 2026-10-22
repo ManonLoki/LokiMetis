@@ -1,4 +1,4 @@
-//! 统一 Agent 选择只保存于监控配置；看板、扫描和未来桌宠均消费同一权威快照。
+//! 统一 Agent 选择只保存于监控配置；看板、扫描、桌宠与设备发布均消费同一权威快照。
 
 use super::{UsageService, background::BackgroundTaskOwner};
 use crate::monitor::settings::{MonitorSettings, load_monitor_settings, update_monitor_settings};

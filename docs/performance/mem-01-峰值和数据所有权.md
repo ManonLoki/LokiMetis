@@ -16,7 +16,7 @@ cargo run --release -p loki_metris_core --example alloc_peak
 
 输入是 5 万条贴近真实形状的调用（本身约 34 MiB）。每次结果几乎一样，才能比较。
 
-## 找到的三处多余副本
+## 找到的四处多余副本
 
 ### 1. canonical 去重：多出一倍
 

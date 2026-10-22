@@ -69,11 +69,11 @@ impl From<&TodayUsageSnapshot> for TokenAmount {
             completeness: value.completeness, confidence: value.confidence }
     }
 }
-/// 单个支持统计的Agent；Cursor等仅支持Hooks的工具不伪造零用量。
+/// 单个参与本机 Token 汇总的 Agent；Cursor 等不参与此汇总的工具不伪造零用量。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentTokens { /// 公开工具身份。
-    pub agent: AiTool, /// 同轮观测的金额与质量。
+    pub agent: AiTool, /// 同轮观测的 Token 数量与质量。
     pub amount: TokenAmount }
 /// 一轮一致的总量与分量，只表示桌面当前民用日。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

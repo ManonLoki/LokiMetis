@@ -10,7 +10,7 @@ use gpui_kit::{
 };
 
 impl Shell {
-    /// 页面只投影真实状态；发现、取消和配对继续由各自语义按钮拥有。
+    /// 页面投影已配对卡片、状态反馈和在途取消；配对请求由全局模态处理。
     pub(in crate::app) fn devices_page(&self, cx: &mut Context<Self>) -> AnyElement {
         let state = &self.devices.snapshot;
         let dark = cx.theme().mode.is_dark();

@@ -2,7 +2,7 @@
 
 use super::*;
 
-/// Codex 调试端口的默认起点；被占用时会顺延选择空闲端口。
+/// 新启动 Codex 的固定调试端口；定向重启已选实例时可在受限区间另选端口。
 pub(super) const DEFAULT_CDP_PORT: u16 = 9341;
 /// WorkBuddy 调试端口的默认起点，与 Codex 错开，避免两个宿主抢同一个端口。
 pub(super) const WORKBUDDY_DEFAULT_CDP_PORT: u16 = 9441;

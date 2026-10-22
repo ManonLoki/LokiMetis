@@ -174,7 +174,8 @@ impl Shell {
         value
     }
 
-    /// 后台或完全不可见窗口暂停页面轮询；恢复前台后由既有计时器补读。
+    /// 同步可见与激活状态；隐藏时释放主窗图片需求，恢复激活时补查权限、自启与今日摘要。
+    /// 页面读取按各模块的可见性与时间门禁执行，失焦不等于隐藏。
     fn update_window_visibility(&mut self,window:&mut Window,cx:&mut Context<Self>) {
         if !self.window_active && window.is_window_active() {crate::native::refresh_notification_permission(cx);crate::native::reload_autostart(cx);if let Some(service)=&self.dashboard.service {service.refresh_today();}}
         self.window_active=window.is_window_active();self.window_visible=window.is_visible();

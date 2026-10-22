@@ -206,7 +206,7 @@ pub(super) fn synthesize_legacy_manifest_if_missing(source: &Path, directory: &P
     })
 }
 
-/// 由归档名推导旧版皮肤 ID：取 ASCII 字母数字组成短标识，再拼接名称的 FNV-1a 哈希保证唯一。
+/// 由归档名推导旧版皮肤 ID，拼接 FNV-1a 降低同名冲突；最终唯一性由导入身份分配校验。
 fn inferred_legacy_id(name: &str) -> String {
     let mut slug = String::new();
     let mut separator_pending = false;

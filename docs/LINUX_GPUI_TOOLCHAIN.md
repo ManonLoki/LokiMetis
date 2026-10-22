@@ -6,7 +6,7 @@
 
 2026-10-19回顾核对：下表“已验证”绑定 **v0.3.11、Linux ARM64、GNOME X11/XWayland** 最终候选，源码`9eb59c14cfdf93ec8abcc7734b898f0051033ceb`，buildRun=`6f9a33c8-02ef-4df5-ba47-0cd18207586a`。它证明这些方案已有真实运行验证；当前版本取根Cargo，后续版本不自动继承旧候选的验收状态。
 
-权威结论为[最终E2E结果](../release/e2e-evidence/e2e-result.json)的16项`passed`及[候选manifest](../release/loki-metris-v0.3.11-linux-aarch64.deb.manifest.json)的`runtimeVerification`/`milestoneAcceptance`。包SHA-256为`56f37cbae017fd274f5dc83596b475d745e80ac93a559e883c6061256fa143ce`；751项证据文件已逐项复算一致（文件数不代表测试数），复算结果见[本次知识审计回执](../release/linux-knowledge-audit-20261019.json)。原始截图、日志、计划及首尾完整性快照保留于忽略的`release/`，本节仅索引。首尾快照中的`acceptanceDecision:not-performed`是完整性检查自身的状态，不覆盖后续E2E结论。
+权威结论为最终E2E结果 `release/e2e-evidence/e2e-result.json`的16项`passed`及候选manifest `release/loki-metris-v0.3.11-linux-aarch64.deb.manifest.json`的`runtimeVerification`/`milestoneAcceptance`。包SHA-256为`56f37cbae017fd274f5dc83596b475d745e80ac93a559e883c6061256fa143ce`；751项证据文件已逐项复算一致（文件数不代表测试数），复算结果见本次知识审计回执 `release/linux-knowledge-audit-20261019.json`。原始截图、日志、计划及首尾完整性快照保留于忽略的`release/`，本节仅索引。这些历史本地路径不随源码分发；缺失时应查找绑定同一候选身份的原始保留集合，不能补造证据。首尾快照中的`acceptanceDecision:not-performed`是完整性检查自身的状态，不覆盖后续E2E结论。
 
 | 解决方案/能力 | 状态与真实观察 | E2E场景ID |
 | --- | --- | --- |
@@ -24,7 +24,7 @@
 | 更新日志和包内资源 | 已验证：日志可重开，看板、图表、来源、监控及换肤资源页面可见 | `release_notes_modal`、`navigation_packaged_resources` |
 | 正常退出与完整性 | 已验证：日志刷新、owned端点回收，候选字节及临时宿主登记恢复 | `normal_quit_cleanup`、`final_integrity_and_registration_cleanup` |
 
-**双架构打包已验证，目标运行分开标记。** v0.3.13的[ARM64本机包manifest](../target/gpui-packaging/local-linux-4Cixl2/loki-metris-v0.3.13-linux-aarch64.deb.manifest.json)和[x64交叉包manifest](../target/gpui-packaging/local-linux-f1mWPO/loki-metris-v0.3.13-linux-x86_64.deb.manifest.json)绑定源码`1518ca4c81aae9dcef294cb382a2020827a6dfcb`；工具链、宿主1565项测试和最终包检查通过，两者`runtimeVerification`仍为`Unverified`、`milestoneAcceptance`仍为`pending`。deb/tar.gz的格式、资源和受限umask权限另有真实打包回归，不据此声称每种格式均完成产品E2E。
+**双架构打包已验证，目标运行分开标记。** v0.3.13的ARM64本机包manifest `target/gpui-packaging/local-linux-4Cixl2/loki-metris-v0.3.13-linux-aarch64.deb.manifest.json`和x64交叉包manifest `target/gpui-packaging/local-linux-f1mWPO/loki-metris-v0.3.13-linux-x86_64.deb.manifest.json`绑定源码`1518ca4c81aae9dcef294cb382a2020827a6dfcb`；工具链、宿主1565项测试和最终包检查通过，两者`runtimeVerification`仍为`Unverified`、`milestoneAcceptance`仍为`pending`。deb/tar.gz的格式、资源和受限umask权限另有真实打包回归，不据此声称每种格式均完成产品E2E。
 
 未覆盖范围保持明确：v0.3.13运行、Linux x64运行、纯Wayland桌宠、真实登录自启、混合DPI/热插拔、第三方Agent自行消费新Hooks及未测宿主换肤Apply/Stop。Portal/X11后台热键服务尚未接线，空actions不等于已验证热键。此处也不将产品实现推广为中性renderer的Linux托盘/热键生成支持。
 

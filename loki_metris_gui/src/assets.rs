@@ -1,4 +1,4 @@
-//! 应用图标在编译期嵌入；其他图标继续使用 GPUI Kit 自带的资源。
+//! 应用身份、赞助媒体与设备示意图在编译期嵌入；其余资源交由 GPUI Kit。
 
 use gpui_kit::{AssetSource, Result, SharedString};
 use std::borrow::Cow;
@@ -22,7 +22,7 @@ pub const DEVICE_WATCH: &str = "app-devices/watch.png";
 pub struct Assets;
 
 impl AssetSource for Assets {
-    /// 精确匹配应用图标，其他资源交由组件库自有资源处理。
+    /// 精确匹配本产品的固定嵌入资源，其余路径交由组件库资源源处理。
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
         if path == LOGO {
             return Ok(Some(Cow::Borrowed(include_bytes!("../assets/logo.png"))));

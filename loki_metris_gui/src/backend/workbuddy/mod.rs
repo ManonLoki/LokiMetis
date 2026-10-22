@@ -47,7 +47,7 @@ const MAX_TRACE_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
 /// 标识 WorkBuddy 本地统计读取失败的稳定类别，不携带路径细节。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WorkBuddyReadError {
-    /// 未定位任何安装目录，或获批 `projects` 根缺失/不是普通目录。
+    /// 未定位任何数据目录，或获批 `projects` 根缺失/不是普通目录。
     SourceUnavailable,
     /// 目录或文件在读取过程中不可安全读取。
     Read,
@@ -92,7 +92,7 @@ pub(crate) struct WorkBuddySourceInspection {
     pub(crate) evidence: Result<WorkBuddyProjectSourceEvidence, WorkBuddyReadError>,
 }
 
-/// 按稳定顺序返回当前用户真实存在的 WorkBuddy 固定安装目录；都未安装时返回空。
+/// 按稳定顺序返回当前用户真实存在的 WorkBuddy 固定数据目录；都缺失时返回空。
 pub(crate) fn resolve_workbuddy_homes() -> Vec<PathBuf> {
     discover_workbuddy_sources()
         .into_iter()
@@ -224,7 +224,7 @@ async fn read_workbuddy_usage_inputs(
         .map_err(|_| WorkBuddyReadError::Read)?
 }
 
-/// 按稳定顺序逐根读取用量并合并；无任何可读布局时按未安装来源处理。
+/// 按稳定顺序逐根读取用量并合并；无任何可读布局时按来源不可用处理。
 ///
 /// 每个根各自计算稳定根 ID 与展示别名，使合并后的记录仍能按根还原来源归属。
 /// 固定根存在但没有 `projects` 目录时该版本尚未产生用量，只跳过该根；已经产生

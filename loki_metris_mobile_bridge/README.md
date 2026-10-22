@@ -1,8 +1,8 @@
 # 共享移动协议桥
 
-Android JNI和Swift C ABI调用同一Rust配对、窗口、恢复认证与图片校验实现。此crate复用已有workspace依赖，不依赖GUI、SQLite、Tokio或平台网络库；unsafe只在缓冲映射入口。头文件为[公开C ABI](include/loki_metris_mobile.h)。
+此 crate 提供 Rust 配对、窗口、恢复认证与图片校验状态机，并导出[公开 C ABI](include/loki_metris_mobile.h)，供外部移动项目的 Android JNI 封装与 Swift 调用侧使用；本 crate 不含 JNI 导出。它复用已有 workspace 依赖，不依赖 GUI、SQLite、Tokio 或平台网络库；unsafe 仅限缓冲映射入口。
 
-这是已可运行单元回归的协议桥，不表示手机应用已经连通或完成平台验收。移动项目中的JNI、Keystore、Keychain及构建入口正逐项接线，最终以真实运行证据为准。
+共享桥与移动项目原生驱动的接入路线见[设备技术选型](../docs/DEVICE_PAIRING_TECHNOLOGY.md)。本仓库的单元回归只验证共享状态机与 ABI 合同；JNI/Swift、Keystore/Keychain、平台构建和手机实物互通由移动项目维护并分别取证。
 
 ## 调用合同
 
