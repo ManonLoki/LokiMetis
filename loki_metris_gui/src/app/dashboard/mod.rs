@@ -7,6 +7,7 @@ mod charts;
 mod plot;
 mod workbuddy_charts;
 mod state;
+mod cursor_account;
 mod calls;
 mod overview;
 mod metric_display;
@@ -33,10 +34,12 @@ const NATURAL_WINDOW_KEYS: [&str; 6] = ["today", "yesterday", "this_week", "last
 
 /// 看板进程内会话保持客户端和自然日窗口，不把筛选写入业务库。
 pub(super) struct Dashboard {
-    /// 看板客户端下标：0 全部、1 Codex、2 Claude Code、3 Grok、4 WorkBuddy；各长度为 5 的数组都按它索引。
+    /// 看板客户端下标：0 全部、1 Codex、2 Claude Code、3 Grok、4 WorkBuddy、5 Cursor账户；本地子页仍只使用前五槽。
     pub client: usize,
     /// 各客户端概览页选中的自然日窗口下标（对应 `NATURAL_WINDOW_KEYS`）。
-    pub ranges: [usize; 5],
+    pub ranges: [usize; 6],
+    /// Cursor 账户查询快照，不参与本机总量。
+    pub cursor_account: Option<Arc<loki_metris_core::cursor_usage::CursorUsageSummary>>,
     /// 在途扫描的进度。
     pub progress: Option<crate::usage_service::ScanProgress>,
     /// 当前子页。
@@ -88,7 +91,7 @@ pub(super) struct Dashboard {
 impl Default for Dashboard {
     /// 首次与参考 App 一样选中 Codex、今日和概览；业务数据尚未查询。
     fn default() -> Self {
-        Self { client: 1, ranges: [0; 5], progress: None, route: Route::Overview, detail: DetailState::default(), chart: charts::ChartState::default(), calls: calls::CallsState::default(), sources: sources::SourcesState::default(), usage_settings:Default::default(), scanning: false, scan_error: None, watch_task: None, data: None, error: None,
+        Self { client: 1, ranges: [0; 6], cursor_account: None, progress: None, route: Route::Overview, detail: DetailState::default(), chart: charts::ChartState::default(), calls: calls::CallsState::default(), sources: sources::SourcesState::default(), usage_settings:Default::default(), scanning: false, scan_error: None, watch_task: None, data: None, error: None,
             loading: false, revision: 0, last_read: std::time::Instant::now(), service: None, task: None, copied: false, copied_metric: None, copy_task: None,manual_pending:false,manual_task:None,scanning_client:None }
     }
 }
@@ -140,6 +143,7 @@ impl Shell {
             self.dashboard.revision=self.dashboard.revision.wrapping_add(1);self.dashboard.task.take();
             self.dashboard.data=None;self.dashboard.loading=false;self.dashboard.error=None;cx.notify();return;
         }
+        if self.dashboard.client == 5 { self.reload_cursor_account(scan, cx); return; }
         if self.dashboard.route==Route::Calls {self.load_calls(false,cx);return}
         if self.dashboard.route==Route::Sources {self.load_sources(cx);return}
         if self.dashboard.route==Route::Settings {self.dashboard.revision+=1;self.dashboard.task.take();self.dashboard.error=None;self.dashboard.loading=false;self.load_usage_settings(cx);return}
@@ -216,6 +220,7 @@ impl Shell {
         self.dashboard.copied_metric = None;
         self.dashboard.copy_task.take();
         self.dashboard.data = None;
+        self.dashboard.cursor_account = None;
         self.dashboard.detail.statistics = None;
         self.dashboard.detail.models = None;
         self.dashboard.chart.data=None;self.dashboard.chart.workbuddy=None;
@@ -223,7 +228,7 @@ impl Shell {
         self.dashboard.sources.reset();
         for hover in &self.dashboard.chart.hover {hover.set(None);}
         if index==0 {self.dashboard.usage_settings.reset();}
-        if (index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Charts|Route::Sources|Route::Settings)) || (index==4 && self.dashboard.route==Route::Calls) { self.dashboard.route = Route::Overview; }
+        if index == 5 || (index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Charts|Route::Sources|Route::Settings)) || (index==4 && self.dashboard.route==Route::Calls) { self.dashboard.route = Route::Overview; }
         self.reload_usage(false, cx);
         cx.notify();
     }
@@ -232,7 +237,7 @@ impl Shell {
     pub(super) fn dashboard_page(&self, window:&gpui_kit::Window, cx: &mut Context<Self>) -> AnyElement {
         let mut items = vec![(Route::Overview, "overview")];
         if self.dashboard.client==0 {items.push((Route::Calls,"calls"));}
-        else {items.extend([(Route::Statistics,"usage"),(Route::Charts,"charts"),(Route::Sources,"sources"),(Route::Settings,"settings")]);}
+        else if self.dashboard.client != 5 {items.extend([(Route::Statistics,"usage"),(Route::Charts,"charts"),(Route::Sources,"sources"),(Route::Settings,"settings")]);}
         let tabs = div().flex().items_center().gap_1().children(items.into_iter().map(|(route, key)| {
             let selected = self.dashboard.route == route;
             Button::new(gpui_kit::SharedString::from(format!("dashboard-{key}"))).ghost().h(px(40.))
@@ -246,7 +251,7 @@ impl Shell {
         }));
         let agents = div().flex().items_center().rounded(px(16.)).bg(cx.theme().secondary).p_1()
             .children([self.t("dashboard.all"), SourceClientKind::Codex.display_name().into(), SourceClientKind::ClaudeCode.display_name().into(),
-                SourceClientKind::Grok.display_name().into(), SourceClientKind::WorkBuddy.display_name().into()]
+                SourceClientKind::Grok.display_name().into(), SourceClientKind::WorkBuddy.display_name().into(), self.t("cursor_account.title")]
                 .into_iter().enumerate().filter(|(index,_)|*index==0||self.agent_settings.dashboard_indices().contains(index)).map(|(index, label)| {
                     Button::new(("usage-client", index)).ghost().accessibility_label(label.clone()).h(px(23.)).px(px(6.))
                         .child(div().text_size(px(12.)).font_weight(FontWeight::SEMIBOLD)
@@ -268,11 +273,12 @@ impl Shell {
             .when(empty,|column|column.child(self.panel(cx)
                 .child(div().text_size(px(20.)).font_weight(FontWeight::SEMIBOLD).child(self.t("shell.noEnabledAgents.title")))
                 .child(self.t("shell.noEnabledAgents.body"))))
-            .when(self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
+            .when(self.dashboard.client != 5 && self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
                 .when_some(self.dashboard.progress.as_ref(), |line, progress| line.child(format!(" {} / {} · {} {} · {} {}",
                     progress.roots_completed, progress.roots_total, progress.files_scanned, self.t("dashboard.files"), progress.calls_added, self.t("dashboard.calls"))))))
-            .when(!empty&&self.dashboard.route!=Route::Settings && (self.dashboard.error.is_some() || self.dashboard.scan_error.is_some()), |column| column.child(self.usage_error(cx)))
-            .when(!empty&&self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
+            .when(!empty&&self.dashboard.client != 5&&self.dashboard.route!=Route::Settings && (self.dashboard.error.is_some() || self.dashboard.scan_error.is_some()), |column| column.child(self.usage_error(cx)))
+            .when(!empty && self.dashboard.client == 5, |column| column.child(self.cursor_account_page(cx)))
+            .when(!empty&&self.dashboard.client != 5&&self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
                 Route::Calls => self.usage_calls(window,cx),
                 Route::Sources => self.usage_sources(cx),
                 Route::Settings=>self.usage_settings_page(cx),

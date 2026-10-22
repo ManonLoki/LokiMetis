@@ -51,6 +51,7 @@ impl AgentSettingsState {
                 SourceClientKind::WorkBuddy => 4,
             })
             .chain(wb.then_some(4))
+            .chain(settings.enabled_ai_tools.contains(&AiTool::Cursor).then_some(5))
             .collect()
     }
 }
@@ -328,7 +329,7 @@ mod tests {
     use super::*;
     /// Cursor 在统一选择中保留，但不能伪装成看板物理来源。
     #[test]
-    fn selection_indices_keep_stable_client_identity_and_ignore_cursor() {
+    fn selection_indices_keep_local_identity_and_separate_cursor_account() {
         let state = AgentSettingsState {
             value: Some(MonitorSettings {
                 enabled_ai_tools: vec![AiTool::Cursor, AiTool::Grok, AiTool::WorkBuddy],
@@ -336,7 +337,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        assert_eq!(state.dashboard_indices(), vec![3, 4]);
+        assert_eq!(state.dashboard_indices(), vec![3, 4, 5]);
     }
 
     /// 保存后的能力收缩自动回退并清除不支持路由，旧控件回调不能重选停用项。
@@ -360,7 +361,7 @@ mod tests {
                     },
                     cx,
                 );
-                assert_eq!(this.dashboard.client, 0);
+                assert_eq!(this.dashboard.client, 5);
                 assert_eq!(this.dashboard.route, crate::app::dashboard::Route::Overview);
             })
         })

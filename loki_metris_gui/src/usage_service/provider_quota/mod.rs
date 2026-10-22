@@ -1,9 +1,9 @@
 //! 提供商用量的后台读取与快照。窗口线程只复制结果，不读登录文件、不发网络。
 
-mod credentials;
-mod fetch;
+pub(super) mod credentials;
+pub(super) mod fetch;
 mod local;
-mod transport;
+pub(super) mod transport;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

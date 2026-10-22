@@ -16,3 +16,6 @@ macOS 通知要求完整 bundle 的签名身份与 `Info.plist` 中本产品标�
 
 
 “终端设备”页的原发现/配对入口（`LMDESK-LAN-DEVICES-001`，required_version `0.6.0`）继续保留。用户于2026-10-21扩大为纯局域网联动（`LMDESK-TERMINAL-LINK-001`，required_version `0.6.0`）：进入设备页启动桌面连接服务，已有保存设备时在下次应用启动恢复；空安装未进入设备页保持零局域网活动。离页/隐藏撤销临时发现及配对，已保存设备的应用级服务继续拥有连接。当前桌面已接入认证设备信息、IP、心跳、同轮Token总量/分量、Hooks快照及按需图片分块；移动端桥、真实缓存、恢复与Watch仍在实施。配对码/密钥不进入日志或页面快照，真实私有保存后才授信。首次配对合同见[设备协议](DEVICE_PAIRING_PROTOCOL.md)，后续会话及准确实施边界见[终端联动协议](DEVICE_LINK_PROTOCOL.md)。macOS预览与正式包共用两类Bonjour声明，不自动授予本地网络权限。
+
+
+Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR-TOKEN-USAGE-001`，required_version：`0.8.0`。只在启用Cursor且选择该入口时读取当前本机登录态，向固定`https://cursor.com/api/dashboard/get-filtered-usage-events`发出只读POST；请求仅含冻结时间和分页，不发送项目、会话正文或本机路径。令牌只进入curl标准输入，不读写浏览器或钥匙串，不改写Cursor数据库，不接受重定向。读取任务归应用后台owner，退出/取消发送信号后等待自有进程回收。结果仅在内存中按账户/时区/窗口节流，不写原始事件、用户标识、会话ID或Token历史；完整性与缺失规则见最新产品规格。

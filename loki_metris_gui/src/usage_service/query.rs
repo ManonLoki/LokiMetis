@@ -9,6 +9,8 @@ use std::{collections::BTreeMap, sync::Arc};
 /// 查询输入只包含业务筛选；All 不拥有另一个物理存储。
 #[derive(Clone)]
 pub enum UsageQuery {
+    /// 独立 Cursor 账户窗口；布尔值只控制显式刷新是否绕过内存节流。
+    CursorAccount(LocalUsageWindow, bool),
     /// 概览；None 表示全部 Agent。
     Overview(Option<SourceClientKind>),
     /// 单个 Agent 在指定窗口与维度上的分组统计。
@@ -23,6 +25,8 @@ pub enum UsageQuery {
 
 /// 类型化页面响应避免从概览聚合值反推调用或图表。
 pub enum UsageResponse {
+    /// 账户范围的分项与缺失覆盖，不能映射成本机事实。
+    CursorAccount(Arc<cursor_usage::CursorUsageSummary>),
     /// 概览页数据。
     Overview(UsageData),
     /// 统计页一页分组。
@@ -43,6 +47,18 @@ pub enum UsageResponse {
 pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancellation: ScanCancellation)
     -> Result<UsageResponse, &'static str>
 {
+    if let UsageQuery::CursorAccount(window, force) = query {
+        return super::cursor_usage::load(context, window, force, cancellation).await
+            .map(UsageResponse::CursorAccount).map_err(|error| match error {
+                cursor_usage::CursorUsageError::Credentials => "cursor_usage_credentials",
+                cursor_usage::CursorUsageError::Unauthorized => "cursor_usage_unauthorized",
+                cursor_usage::CursorUsageError::Incomplete => "cursor_usage_incomplete",
+                cursor_usage::CursorUsageError::Malformed => "cursor_usage_malformed",
+                cursor_usage::CursorUsageError::Overflow => "cursor_usage_overflow",
+                cursor_usage::CursorUsageError::Cancelled => "usage_scan_cancelled",
+                cursor_usage::CursorUsageError::Transport => "cursor_usage_transport",
+            });
+    }
     if matches!(query, UsageQuery::Overview(None)) {
         return super::today::load(context, current_epoch_ms(), TimeZone::system(), cancellation).await
             .map(|(data,_)| UsageResponse::Overview(data));
@@ -51,6 +67,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     let requested_client = match &query {
         UsageQuery::Overview(client) | UsageQuery::Chart(client, ..) | UsageQuery::Calls(client, ..) => *client,
         UsageQuery::Statistics(client, ..) | UsageQuery::Sources(client) => Some(*client),
+        UsageQuery::CursorAccount(..) => unreachable!("account query handled above"),
     };
     // 参考宿主允许显式读取停用物理索引；WorkBuddy 停用则完全不探测本机文件。
     if requested_client == Some(SourceClientKind::WorkBuddy) && !workbuddy_enabled { return Err("usage_agents_disabled") }
@@ -68,6 +85,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
     let selected = match &query {
         UsageQuery::Overview(client) | UsageQuery::Chart(client, ..) | UsageQuery::Calls(client, ..) => *client,
         UsageQuery::Statistics(client, ..)|UsageQuery::Sources(client) => Some(*client),
+        UsageQuery::CursorAccount(..) => unreachable!("account query handled above"),
     };
     let now = current_epoch_ms();
     let zone = TimeZone::system();
@@ -190,7 +208,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancel
                 &combined.map_err(combined_error)?, window, dimension, now, TimeStandard::Local, &zone).map_err(|_| "usage_aggregate_failed")?)),
             UsageQuery::Calls(_, query) => Ok(UsageResponse::Calls(build_combined_usage_calls_page(
                 &combined.map_err(combined_error)?, &query, now).map_err(|_| "usage_query_failed")?)),
-            UsageQuery::Statistics(..)|UsageQuery::Sources(..) => Err("usage_client_unsupported"),
+            UsageQuery::Statistics(..)|UsageQuery::Sources(..)|UsageQuery::CursorAccount(..) => Err("usage_client_unsupported"),
         }
     }).await.map_err(|_| "usage_aggregate_failed")?
 }
@@ -244,7 +262,7 @@ fn build_single(query: UsageQuery, snapshot: UsageSnapshot, coverage: CoverageRe
             provider, Some(&source), TimeStandard::Local, zone).map_err(|_| "usage_aggregate_failed")?)),
         UsageQuery::Calls(_, query) => Ok(UsageResponse::Calls(build_usage_calls_page(&snapshot.canonical.calls, snapshot.index_state,
             &aliases, &query, now, client, provider, Some(&source)).map_err(|_| "usage_query_failed")?)),
-        UsageQuery::Sources(..)=>Err("usage_client_unsupported"),
+        UsageQuery::Sources(..)|UsageQuery::CursorAccount(..)=>Err("usage_client_unsupported"),
     }
 }
 

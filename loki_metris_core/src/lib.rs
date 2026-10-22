@@ -27,6 +27,7 @@ mod calls_view;
 mod chart_view;
 mod client_ports;
 mod codex_skin;
+pub mod cursor_usage;
 mod combined_view;
 mod display_label;
 mod display_name;

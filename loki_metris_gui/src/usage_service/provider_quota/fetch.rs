@@ -86,6 +86,12 @@ async fn fetch_grok(layout: &HomeLayout, curl: Option<&Path>, limits: CurlLimits
 
 /// 以有界只读查询取得 Cursor 令牌，再访问固定额度入口。
 async fn fetch_cursor(layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
+    let token = read_cursor_token(layout, sqlite, limits, cancel).await?;
+    exchange(curl, cursor_request(&token)?, limits, cancel).await
+}
+
+/// 额度与 Token 明细共享同一只读凭据入口。
+pub(crate) async fn read_cursor_token(layout: &HomeLayout, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<Secret, QuotaFailure> {
     let database = credentials::cursor_database(layout);
     credentials::ensure_regular_file(&database)?;
     let program = sqlite.ok_or(QuotaFailure::Transport)?;
@@ -93,8 +99,7 @@ async fn fetch_cursor(layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&
     let sqlite_limits = CurlLimits { timeout: DurationCap::min(limits.timeout, std::time::Duration::from_secs(8)), max_body: 8 * 1024 };
     let output = transport::run_command(program, &args, None, sqlite_limits, cancel).await?;
     let text = String::from_utf8(output).map_err(|_| QuotaFailure::Malformed)?;
-    let token = credentials::cursor_token_from_output(&text)?;
-    exchange(curl, cursor_request(&token)?, limits, cancel).await
+    credentials::cursor_token_from_output(&text)
 }
 
 /// 读取可用明文登录材料并发起对应站点的受限账单查询。
@@ -104,7 +109,7 @@ async fn fetch_workbuddy(layout: &HomeLayout, curl: Option<&Path>, limits: CurlL
 }
 
 /// 通过受限 curl 配置执行单次请求，再拆分 HTTP 状态与正文。
-async fn exchange(curl: Option<&Path>, request: HttpRequest, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
+pub(crate) async fn exchange(curl: Option<&Path>, request: HttpRequest, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<HttpResponse, QuotaFailure> {
     let program = curl.ok_or(QuotaFailure::Transport)?;
     let exchange = transport::build_curl_exchange(&request, &limits)?;
     let bytes = transport::run_command(program, &exchange.args, Some(exchange.config), limits, cancel).await?;
@@ -128,7 +133,7 @@ fn codex_request(login: &CodexLogin) -> Result<HttpRequest, QuotaFailure> {
 }
 
 /// 构造固定 Cursor 用量请求，将令牌编码为会话 Cookie。
-fn cursor_request(token: &Secret) -> Result<HttpRequest, QuotaFailure> {
+pub(crate) fn cursor_request(token: &Secret) -> Result<HttpRequest, QuotaFailure> {
     let session = credentials::cursor_session_cookie(token)?;
     Ok(HttpRequest {
         method: "GET",

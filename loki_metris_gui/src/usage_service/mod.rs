@@ -12,6 +12,7 @@ mod notifications;
 use crate::notification_events as activity_notifications;
 pub(crate) use notifications::Progress as NotificationProgress;
 mod query;
+mod cursor_usage;
 mod scan;
 mod sources;
 mod background;
@@ -114,6 +115,8 @@ struct ServiceContext {
     activity_notifications: Arc<activity_notifications::ActivityQueue>,
     /// 提供商 5 小时与周用量快照。窗口线程只复制它。
     quota: Arc<provider_quota::QuotaBoard>,
+    /// Cursor 云端账户的内存窗口，不参与本机汇总或终端本机 Token。
+    cursor_usage: cursor_usage::Reader,
 }
 
 /// 两个各限 active+latest 的邮箱分别拥有查询与扫描，关闭时均合作收尾。
@@ -191,7 +194,7 @@ impl UsageService {
         let devices = Arc::new(devices);
         let context = Arc::new(ServiceContext { background: background.clone(), today_aggregate_gate: Arc::new(tokio::sync::Semaphore::new(1)), devices, directory, today_refresh, notification_source_epoch, skins, coverage: Mutex::new(BTreeMap::new()),
             status: Mutex::new(ScanStatus::default()), writer: ScanCoordinator::default(),
-            settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default(), quota: Arc::new(provider_quota::QuotaBoard::new()) });
+            settings, agents,monitor_revision:Default::default(),today_cache:Default::default(),page_cache:Default::default(),activity_notifications:Default::default(), quota: Arc::new(provider_quota::QuotaBoard::new()), cursor_usage: Default::default() });
         context.devices.bind_context(Arc::downgrade(&context));
         let scans: Arc<Queue<Intent, ()>> = Arc::new(Queue::default());
         let queries: Arc<Queue<UsageQuery, UsageResponse>> = Arc::new(Queue::default());

@@ -22,7 +22,7 @@ use crate::{AiTool, SkinHostKind, SourceClientKind};
 pub struct PublicAiCapability {
     /// 跨区域一致的用户可见名称。
     pub name: &'static str,
-    /// 看板可识别的数据源；`None` 表示看板忽略该类型。
+    /// 本机看板的数据源；账户级 Cursor 入口独立于物理来源集合。
     pub dashboard_client: Option<SourceClientKind>,
     /// 监控可识别的 Hook 工具；`None` 表示监控忽略该类型。
     pub monitor_tool: Option<AiTool>,
