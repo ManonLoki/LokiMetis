@@ -143,6 +143,20 @@ Rust 2024、GPUI / gpui-kit 原生界面，SeaORM + SQLite 存储派生数据，
 └── Cargo.toml                 # 工作区、依赖与当前版本
 ```
 
+## 项目架构
+
+桌面端采用原生界面、后台服务与业务核心分层，移动端通过局域网读取桌面提供的数据。
+
+![LokiMetris 桌面架构总览](.archify/architecture-desktop-20261022-144530/visual-check/desktop.visual-check.2048x1320.light.png)
+
+[查看大图](.archify/architecture-desktop-20261022-144530/visual-check/desktop.visual-check.2048x1320.light.png) · [Archify 交互图](.archify/architecture-desktop-20261022-144530/desktop.html) · [架构说明与源码位置](docs/ARCHITECTURE.md)
+
+- **界面与后台**：GPUI 主线程负责看板、桌宠和原生交互；`UsageService` 通过后台任务与查询回执连接界面和数据驱动，磁盘与网络操作在后台执行。
+- **业务与存储**：`loki_metris_core` 提供 Token 核算、时间窗口、Hooks 状态机、布局投影和 SQLite 持久层；GUI 中的来源适配器负责发现、读取与解析本机会话。
+- **共享协议与移动联动**：`loki_metris_pairing` 提供共享配对与加密规则，`loki_metris_mobile_bridge` 编入移动 App。桌面设备服务负责发现、配对、图文推送及只读摘要，手机、Watch 与小组件按各自通道接收。
+
+交互图可下载后在浏览器打开，节点附有对应源码位置。移动端的连接、缓存与平台模块关系见[移动架构说明](https://github.com/ManonLoki/LokiMetisMobileDisplay/blob/main/docs/07-当前架构.md)。
+
 进一步阅读：[当前架构与 Archify 图](docs/ARCHITECTURE.md)、[技术选型与依赖](docs/TECHNOLOGY.md)、[Rust / GPUI 运行时与命令](docs/RUST_CLI_TEMPLATE.md)、[Hooks 协议](docs/HOOKS_PROTOCOLS.md)、[设备联动协议](docs/DEVICE_LINK_PROTOCOL.md)、[已知问题](docs/TECH_DEBT.md)。
 
 ## 许可
