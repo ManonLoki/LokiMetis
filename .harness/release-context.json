@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "3f94dfd1bc6f1611f3016e58cc69ba531e4c5404",
-  "version": "0.7.13",
+  "sourceHead": "27a81efb90b22de17969eeace185fb2a00ecfa2e",
+  "version": "0.8.0",
   "releaseDate": "2026-10-22",
-  "expectedTag": "v0.7.13-20261022",
+  "expectedTag": "v0.8.0-20261022",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "962af1c948f5b065694d9ec7fa8bc8f05f03aede",
-    "sourceHead": "3f94dfd1bc6f1611f3016e58cc69ba531e4c5404",
-    "scopeDiffSha256": "12a2505632e828193f21f79163494119feafbe643d716004108e6a8e8cb4d87a",
-    "reviewedSourceCommit": "3f94dfd1bc6f1611f3016e58cc69ba531e4c5404",
+    "scopeBase": "ae8d231021ebafe6f7076ee9546239259c42abc2",
+    "sourceHead": "27a81efb90b22de17969eeace185fb2a00ecfa2e",
+    "scopeDiffSha256": "c45676de77bb5b6f418831e0a523ad5fa8d02ca34f83bd970de4e9bf52e7b356",
+    "reviewedSourceCommit": "27a81efb90b22de17969eeace185fb2a00ecfa2e",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "五项审查通过：Cursor会话属提供商协议适配，凭据仅stdin且拒绝注入、损坏身份及超长头；core额度规则/API/数据不变。签名诊断脱敏、有限重试保留全部信任门禁；测试修正不跳过语义断言。553行provider集成回归共享隔离夹具，纯Cursor协议测试已独立，职责内聚且未超硬上限。按用户确认清理旧文档并保留Git历史/长期规则，遗留vendor引用已修复；无裸临时标记。40项Node、Cursor44项相关回归及原生Win1721/Mac1773预检通过，正式0.7.13四平台仍须完整重测。",
+    "evidenceSummary": "五项审查通过：core拥有分页完整性、ID去重、字段缺失与零、溢出及日期模型聚合；GUI负责选择、查询代次、后台owner与受限驱动。Cursor只读POST限固定HTTPS地址、分页和时间，复用只读SQLite及经校验会话，凭据仅curl标准输入，禁重定向并保留超时、输出与取消回收限制。账户结果不计入本机总量，不落盘原始事件，不新增依赖；25个受影响文件中Rust均不超过370行，无裸临时标记，差异格式检查通过。既有相关回归记录已复核，四平台全量测试与包校验由当前Actions独立执行。",
     "reason": null,
     "remainingRisk": null
   }

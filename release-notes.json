@@ -3,6 +3,21 @@
   "releases": [
     {
       "releaseDate": "2026-10-22",
+      "version": "v0.8.0",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增独立 Cursor 账户用量看板，支持今日、昨日、本周、上周、本月和上月的云端 Token 分项及日期、模型汇总。",
+          "en-US": "Add a separate Cursor account usage dashboard with cloud token breakdowns and daily and model summaries for today, yesterday, this week, last week, this month, and last month."
+        },
+        {
+          "zh-CN": "明确区分缺失与零值并显示字段覆盖条数；账户用量独立于本机统计，支持取消读取和主动重新读取。",
+          "en-US": "Distinguish missing fields from zero and show field coverage counts; keep account usage separate from local statistics and support cancellation and explicit refresh."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
+      "releaseDate": "2026-10-22",
       "version": "v0.7.13",
       "featureOptimizations": [],
       "bugFixes": [
@@ -193,26 +208,6 @@
         {
           "zh-CN": "补齐 Linux 应用目录元数据，供软件中心关联已安装应用、包身份与卸载入口。",
           "en-US": "Include Linux AppStream catalog metadata so software centers can associate installed applications with their packages and removal actions."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-20",
-      "version": "v0.5.0",
-      "featureOptimizations": [
-        {
-          "zh-CN": "统一原生启动与 X11 窗口状态处理，减少重复的宿主协议逻辑。",
-          "en-US": "Unify native startup and X11 window-state handling to reduce duplicated platform logic."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "Linux 自启状态读取与注册共用用户目录解析，避免 HOME 缺失时误判。",
-          "en-US": "Use the same home-directory resolution for Linux autostart registration and status reads, including when HOME is absent."
-        },
-        {
-          "zh-CN": "修复本机发布登记落后导致的版本门禁阻断，并完整保留后续待发变更。",
-          "en-US": "Recover stale local release tracking without losing subsequent pending changes or bypassing version checks."
         }
       ]
     }
