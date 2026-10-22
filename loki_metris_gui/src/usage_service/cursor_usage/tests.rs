@@ -64,17 +64,18 @@ fn cursor_usage_driver_cache_refresh_and_account_isolation() {
         let now="2026-10-22T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
         std::fs::write(root.path().join("page-1.json"),response(1,now,12)).unwrap();
         let reader=Reader::default();let (_sender,mut cancel)=watch::channel(false);
-        let first=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let interval=ScanIntervalMinutes::default();
+        let first=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
         assert_eq!(first.counts.input.tokens,12);
         std::fs::write(root.path().join("page-1.json"),response(1,now,99)).unwrap();
-        let cached=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let cached=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
         assert_eq!(cached.counts.input.tokens,12);
         assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(),1);
-        let forced=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,true,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let forced=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,true,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
         assert_eq!(forced.counts.input.tokens,99);
         std::fs::write(root.path().join("token.txt"),token("second")).unwrap();
         std::fs::write(root.path().join("page-1.json"),response(2,now,7)).unwrap();
-        let switched=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let switched=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
         assert_eq!(switched.counts.input.tokens,7);
         let args=std::fs::read_to_string(root.path().join("argv.txt")).unwrap();assert!(!args.contains(&token("first")));assert!(!args.contains(&token("second")));
         assert!(args.contains("-readonly"));
@@ -84,51 +85,111 @@ fn cursor_usage_driver_cache_refresh_and_account_isolation() {
         assert!(config.contains("get-filtered-usage-events"));assert!(config.contains("startDate"));
         std::fs::write(root.path().join("token.txt"),token("third")).unwrap();
         std::fs::write(root.path().join("mode.txt"),"unauthorized").unwrap();
-        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Unauthorized));
+        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Unauthorized));
         std::fs::write(root.path().join("mode.txt"),"").unwrap();
-        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Unauthorized),"failed account query must not expose another account cache");
-        let recovered=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,true,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Unauthorized),"failed account query must not expose another account cache");
+        let recovered=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,true,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
         assert_eq!(recovered.counts.input.tokens,7);
         std::fs::write(root.path().join("token.txt"),"").unwrap();
-        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Credentials));
+        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Credentials));
     });
 }
 
-/// 空窗、成功和失败均在下一轮十秒读取时重新请求；不依赖刷新按钮或真实等待。
+/// 空窗、成功和失败遵循配置分钟数；十秒页面重读不出站，到期后自动恢复。
 #[cfg(unix)]
 #[test]
 fn cursor_usage_driver_empty_window_refreshes_and_recovers_automatically() {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     runtime.block_on(async {
+        for minutes in [1, 7] {
+            let root = tempfile::tempdir().unwrap();
+            let (layout, program) = fixture(root.path());
+            let now = "2026-10-22T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+            let reader = Reader::default();
+            let interval = ScanIntervalMinutes::new(minutes).unwrap();
+            let (_sender, mut cancel) = watch::channel(false);
+            std::fs::write(root.path().join("page-1.json"), "{}").unwrap();
+            let empty = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            assert_eq!(empty.counts.events, 0);
+            std::fs::write(root.path().join("page-1.json"), response(1, now, 42)).unwrap();
+            let cached = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            assert_eq!(cached.counts.events, 0);
+            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
+            let displayed = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            assert_eq!(displayed.counts.events, 0);
+            assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 1);
+            // 只推进单调时刻，不进行真实等待；下一次普通页面查询才读取新的云端事实。
+            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - interval.duration();
+            let fresh = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            assert_eq!(fresh.counts.input.tokens, 42);
+            std::fs::write(root.path().join("mode.txt"), "unauthorized").unwrap();
+            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - interval.duration();
+            assert_eq!(reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await, Err(Error::Unauthorized));
+            std::fs::write(root.path().join("mode.txt"), "").unwrap();
+            let failed = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await;
+            assert_eq!(failed, Err(Error::Unauthorized));
+            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - interval.duration();
+            let recovered = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            assert_eq!(recovered.counts.input.tokens, 42);
+            assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 4);
+        }
+    });
+}
+
+/// 缩短设置不提前打断旧等待；完成下一轮后才按新间隔获取后续事件。
+#[cfg(unix)]
+#[test]
+fn cursor_usage_driver_interval_change_preserves_started_wait() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
         let root = tempfile::tempdir().unwrap();
         let (layout, program) = fixture(root.path());
-        let now = "2026-10-22T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
         let reader = Reader::default();
         let (_sender, mut cancel) = watch::channel(false);
-        std::fs::write(root.path().join("page-1.json"), "{}").unwrap();
-        let empty = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
-        assert_eq!(empty.counts.events, 0);
-        std::fs::write(root.path().join("page-1.json"), response(1, now, 42)).unwrap();
-        let cached = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
-        assert_eq!(cached.counts.events, 0);
-        // 显式推进缓存的单调时刻，证明十秒到期后普通轮询会获取新事件。
-        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
-        let fresh = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
-        assert_eq!(fresh.counts.input.tokens, 42);
-        std::fs::write(root.path().join("mode.txt"), "unauthorized").unwrap();
-        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
-        assert_eq!(reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, now, &TimeZone::UTC, &mut cancel).await, Err(Error::Unauthorized));
-        std::fs::write(root.path().join("mode.txt"), "").unwrap();
-        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
-        let recovered = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
-        assert_eq!(recovered.counts.input.tokens, 42);
-        assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 4);
+        let now = "2026-10-22T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        let old = ScanIntervalMinutes::new(7).unwrap();
+        let new = ScanIntervalMinutes::new(1).unwrap();
+        std::fs::write(root.path().join("page-1.json"), response(1, now, 12)).unwrap();
+        reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, old, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        std::fs::write(root.path().join("page-1.json"), response(1, now, 99)).unwrap();
+        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(120);
+        let waiting = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, new, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(waiting.counts.input.tokens, 12);
+        assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 1);
+        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - old.duration();
+        let updated = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, new, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(updated.counts.input.tokens, 99);
+        std::fs::write(root.path().join("page-1.json"), response(1, now, 7)).unwrap();
+        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - new.duration();
+        let next = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, new, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(next.counts.input.tokens, 7);
     });
+}
+
+/// 损坏的权威配置使账户查询失败，不回退到写死间隔或触碰真实登录材料。
+#[test]
+fn cursor_usage_query_rejects_unreadable_interval_settings() {
+    use crate::usage_service::{UsageService, UsageQuery};
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("data");
+    std::fs::create_dir_all(&directory).unwrap();
+    std::fs::write(directory.join("usage-settings.json"), b"invalid json").unwrap();
+    let service = UsageService::in_directory(directory).unwrap();
+    let reply = service.query(UsageQuery::CursorAccount(LocalUsageWindow::Today, false)).unwrap();
+    let result = service.runtime.lock().unwrap().as_ref().unwrap().block_on(reply).unwrap();
+    assert!(matches!(result, Err("cursor_usage_transport")));
+    service.finish();
 }
 
 /// 分页中断不能发布部分结果；认证错误、取消、超时均返回稳定失败。

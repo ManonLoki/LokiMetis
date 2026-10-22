@@ -12,9 +12,6 @@ use crate::{LocalUsageWindow, TimeStandard, dates_for_window, day_start_epoch_ms
 pub const PAGE_SIZE: usize = 100;
 /// 单次查询的事件上限。
 pub const MAX_EVENTS: usize = 10_000;
-/// 成功与失败查询至多缓存十秒，与看板自动读取周期一致。
-pub const REFRESH_INTERVAL_MS: i64 = 10_000;
-
 /// 不携带正文、身份或凭据的稳定读取错误。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum CursorUsageError {

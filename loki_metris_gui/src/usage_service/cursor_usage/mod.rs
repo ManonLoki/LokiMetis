@@ -5,18 +5,20 @@ mod tests;
 
 use std::{path::Path, sync::{Arc, Mutex}, time::Duration};
 use jiff::tz::TimeZone;
-use loki_metris_core::{AiTool, LocalUsageWindow, QuotaFailure, ScanCancellation,
-    cursor_usage::{CursorUsageError as Error, CursorUsagePages, CursorUsageRange, CursorUsageSummary, PAGE_SIZE, REFRESH_INTERVAL_MS}};
+use loki_metris_core::{AiTool, LocalUsageWindow, QuotaFailure, ScanCancellation, ScanIntervalMinutes,
+    cursor_usage::{CursorUsageError as Error, CursorUsagePages, CursorUsageRange, CursorUsageSummary, PAGE_SIZE}};
 use tokio::sync::watch;
 use super::{ServiceContext, provider_quota::{credentials::{self, HomeLayout}, fetch, transport::{self, CurlLimits}}};
 
-/// 一个查询窗口的最近终态；只在看板下一轮十秒自动读取前复用。
+/// 一个查询窗口的最近终态；配置控制采集间隔，页面重读复用此终态。
 struct Entry {
     window: LocalUsageWindow,
     day: String,
     zone: TimeZone,
     start_ms: i64,
     at: std::time::Instant,
+    /// 本轮采用的采集间隔；保存新配置不提前打断已经开始的等待。
+    interval: ScanIntervalMinutes,
     result: Result<Arc<CursorUsageSummary>, Error>,
 }
 
@@ -32,6 +34,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow,
 {
     let settings = context.agents.snapshot().await.map_err(|_| Error::Transport)?;
     if !settings.enabled_ai_tools.contains(&AiTool::Cursor) { return Err(Error::Credentials) }
+    let interval = context.settings.snapshot().await.map_err(|_| Error::Transport)?.scan_interval;
     // 常规服务单元测试没有读取真实家目录的隐式入口，驱动测试显式注入隔离布局。
     if cfg!(test) { return Err(Error::Credentials) }
     let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -43,7 +46,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow,
             let layout = HomeLayout::from_process(home);
             let curl = transport::find_program(if cfg!(windows) { "curl.exe" } else { "curl" });
             let sqlite = transport::find_program(if cfg!(windows) { "sqlite3.exe" } else { "sqlite3" });
-            state.cursor_usage.read(&layout, curl.as_deref(), sqlite.as_deref(), window, force,
+            state.cursor_usage.read(&layout, curl.as_deref(), sqlite.as_deref(), window, force, interval,
                 super::current_epoch_ms(), &TimeZone::system(), &mut watch).await
         };
         tokio::pin!(work);
@@ -62,9 +65,10 @@ pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow,
 }
 
 impl Reader {
-    /// 每次先核对当前登录账户，再决定是否复用内存窗口；不保存令牌或事件正文。
+    /// 账户与日期边界仍实时核对；成功或失败按已冻结的配置间隔复用，不保存原始正文。
     async fn read(&self, layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&Path>,
-        window: LocalUsageWindow, force: bool, now: i64, zone: &TimeZone, cancel: &mut watch::Receiver<bool>)
+        window: LocalUsageWindow, force: bool, interval: ScanIntervalMinutes,
+        now: i64, zone: &TimeZone, cancel: &mut watch::Receiver<bool>)
         -> Result<Arc<CursorUsageSummary>, Error>
     {
         if *cancel.borrow() { return Err(Error::Cancelled) }
@@ -81,7 +85,7 @@ impl Reader {
             if cache.0.as_ref() != Some(&account) { *cache = (Some(account.clone()), Vec::new()); }
             if !force && let Some(entry) = cache.1.iter().find(|entry| entry.window == window && entry.day == day
                 && &entry.zone == zone && entry.start_ms == range.start_ms
-                && entry.at.elapsed().as_millis() < REFRESH_INTERVAL_MS as u128) {
+                && entry.at.elapsed() < entry.interval.duration()) {
                 return entry.result.clone();
             }
         }
@@ -90,7 +94,8 @@ impl Reader {
             let mut cache = self.cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if cache.0.as_ref() == Some(&account) {
                 cache.1.retain(|entry| entry.window != window);
-                cache.1.push(Entry { window, day, zone: zone.clone(), start_ms: range.start_ms, at: std::time::Instant::now(), result: result.clone() });
+                cache.1.push(Entry { window, day, zone: zone.clone(), start_ms: range.start_ms,
+                    at: std::time::Instant::now(), interval, result: result.clone() });
             }
         }
         result
