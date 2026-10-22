@@ -24,8 +24,7 @@ impl CursorUsagePages {
         };
         // 账户网页接口在零条时返回 {}，并省略默认值和空数组；仅接受已知空形状。
         let total = match object.get("totalUsageEventsCount") {
-            None if object.is_empty() || (object.len() == 1 && rows.is_empty()
-                && object.contains_key("usageEventsDisplay")) => 0,
+            None if rows.is_empty() && object.keys().all(|key| key == "usageEventsDisplay") => 0,
             total => total.and_then(Value::as_u64).filter(|total| *total <= MAX_EVENTS as u64)
                 .ok_or(Error::Incomplete)? as usize,
         };

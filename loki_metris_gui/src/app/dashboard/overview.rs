@@ -21,7 +21,7 @@ impl Shell {
             .into_any_element()
     }
 
-    /// 所有概览共用满宽等分的日期筛选；账户窗口变化由同一查询入口加载。
+    /// 所有概览共用满宽等分的日期筛选；窗口切换后的加载方式由看板按客户端决定。
     pub(super) fn overview_window_controls(&self, cx: &mut Context<Self>) -> AnyElement {
         let client = self.dashboard.client;
         let selected = self.dashboard.ranges[client];
@@ -34,12 +34,7 @@ impl Shell {
                             .text_color(if selected == index { cx.theme().foreground } else { cx.theme().muted_foreground }).child(self.t(&format!("dashboard.{key}"))))
                         .when(selected == index, |button| button.font_weight(FontWeight::BOLD).text_color(cx.theme().foreground))
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            if this.dashboard.client != client || this.dashboard.ranges[client] == index { return }
-                            this.dashboard.ranges[client] = index;
-                            if client == 5 {
-                                this.dashboard.cursor_account = None;
-                                this.reload_usage(false, cx);
-                            } else { cx.notify(); }
+                            if this.dashboard.client == client { this.select_overview_window(index, cx); }
                         }))
                 })).into_any_element()
     }

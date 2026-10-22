@@ -16,9 +16,8 @@ struct Entry {
     day: String,
     zone: TimeZone,
     start_ms: i64,
-    at: std::time::Instant,
-    /// 本轮采用的采集间隔；保存新配置不提前打断已经开始的等待。
-    interval: ScanIntervalMinutes,
+    /// 写入时按当时配置冻结的到期时刻；保存新配置不提前打断已经开始的等待。
+    expires: std::time::Instant,
     result: Result<Arc<CursorUsageSummary>, Error>,
 }
 
@@ -29,12 +28,12 @@ pub(super) struct Reader {
 }
 
 /// 查询邮箱和后台 owner 共同拥有读取，退出或换页都会合作回收子进程。
-pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow, force: bool,
+pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow,
     cancellation: ScanCancellation) -> Result<Arc<CursorUsageSummary>, Error>
 {
     let settings = context.agents.snapshot().await.map_err(|_| Error::Transport)?;
     if !settings.enabled_ai_tools.contains(&AiTool::Cursor) { return Err(Error::Credentials) }
-    let interval = context.settings.snapshot().await.map_err(|_| Error::Transport)?.scan_interval;
+    let interval = context.settings.scan_interval().await.map_err(|_| Error::Transport)?;
     // 常规服务单元测试没有读取真实家目录的隐式入口，驱动测试显式注入隔离布局。
     if cfg!(test) { return Err(Error::Credentials) }
     let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -46,7 +45,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow,
             let layout = HomeLayout::from_process(home);
             let curl = transport::find_program(if cfg!(windows) { "curl.exe" } else { "curl" });
             let sqlite = transport::find_program(if cfg!(windows) { "sqlite3.exe" } else { "sqlite3" });
-            state.cursor_usage.read(&layout, curl.as_deref(), sqlite.as_deref(), window, force, interval,
+            state.cursor_usage.read(&layout, curl.as_deref(), sqlite.as_deref(), window, interval,
                 super::current_epoch_ms(), &TimeZone::system(), &mut watch).await
         };
         tokio::pin!(work);
@@ -67,7 +66,7 @@ pub(super) async fn load(context: Arc<ServiceContext>, window: LocalUsageWindow,
 impl Reader {
     /// 账户与日期边界仍实时核对；成功或失败按已冻结的配置间隔复用，不保存原始正文。
     async fn read(&self, layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&Path>,
-        window: LocalUsageWindow, force: bool, interval: ScanIntervalMinutes,
+        window: LocalUsageWindow, interval: ScanIntervalMinutes,
         now: i64, zone: &TimeZone, cancel: &mut watch::Receiver<bool>)
         -> Result<Arc<CursorUsageSummary>, Error>
     {
@@ -83,9 +82,9 @@ impl Reader {
         {
             let mut cache = self.cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if cache.0.as_ref() != Some(&account) { *cache = (Some(account.clone()), Vec::new()); }
-            if !force && let Some(entry) = cache.1.iter().find(|entry| entry.window == window && entry.day == day
+            if let Some(entry) = cache.1.iter().find(|entry| entry.window == window && entry.day == day
                 && &entry.zone == zone && entry.start_ms == range.start_ms
-                && entry.at.elapsed() < entry.interval.duration()) {
+                && std::time::Instant::now() < entry.expires) {
                 return entry.result.clone();
             }
         }
@@ -95,7 +94,7 @@ impl Reader {
             if cache.0.as_ref() == Some(&account) {
                 cache.1.retain(|entry| entry.window != window);
                 cache.1.push(Entry { window, day, zone: zone.clone(), start_ms: range.start_ms,
-                    at: std::time::Instant::now(), interval, result: result.clone() });
+                    expires: std::time::Instant::now() + interval.duration(), result: result.clone() });
             }
         }
         result

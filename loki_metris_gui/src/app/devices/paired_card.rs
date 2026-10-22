@@ -1,6 +1,7 @@
 //! 已配对卡片突出设备图、名称和可信IP，移除与Watch信息保留独立语义。
 
 use super::{Shell, artwork::{artwork_path, device_artwork, watch_artwork}};
+use crate::app::dashboard::tone_badge;
 use crate::app::surface::{StaticCard, StaticMaterial, SurfaceButton, SurfaceButtonVariant};
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, SharedString,
@@ -76,7 +77,7 @@ impl Shell {
             .min_w_0().flex().items_center().gap_2().child(address);
         if let Some(presence) = presence {
             if let Some(age) = presence.since_last_contact {
-                let contact = self.t("devices.lastContact").replace("{{seconds}}", &age.as_secs().to_string());
+                let contact = self.seconds_ago("devices.lastContact", age);
                 metadata = metadata.child(div().id(SharedString::from(format!("device-contact-{}", device.id)))
                     .test_support().role(Role::Label).aria_label(contact.clone()).min_w_0().flex_shrink_0().truncate()
                     .max_w(gpui_kit::relative(0.6)).text_size(px(11.))
@@ -100,14 +101,17 @@ impl Shell {
         card.into_any_element()
     }
 
-    /// 手机和附属Watch共用绿色在线Tag，辅助名称与悬停提示保留完整通信原因。
+    /// 设备卡片的相对时刻文案只按整秒替换占位符。
+    fn seconds_ago(&self, key: &str, age: std::time::Duration) -> String {
+        self.t(key).replace("{{seconds}}", &age.as_secs().to_string())
+    }
+
+    /// 手机和附属Watch共用看板语义胶囊：在线绿色、离线弱化色，辅助名称与悬停提示保留完整通信原因。
     fn device_connection_tag(&self, prefix: &str, id: &str, status: String, connected: bool, cx: &Context<Self>) -> AnyElement {
         let tag = self.t(if connected { "devices.online" } else { "devices.offline" });
-        div().id(SharedString::from(format!("{prefix}-{id}"))).test_support()
-            .role(Role::Label).aria_label(status.clone()).flex_shrink_0().px_2().py(px(2.))
-            .rounded(px(6.)).text_size(px(11.))
-            .bg(if connected { cx.theme().success.opacity(0.12) } else { cx.theme().secondary })
-            .text_color(if connected { cx.theme().success } else { cx.theme().muted_foreground })
+        let color = if connected { cx.theme().success } else { cx.theme().muted_foreground };
+        tone_badge(div().id(SharedString::from(format!("{prefix}-{id}"))).test_support()
+            .role(Role::Label).aria_label(status.clone()).flex_shrink_0(), color)
             .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(status.clone()).build(window, cx))
             .child(div().id(SharedString::from(format!("{prefix}-tag-{id}"))).test_support()
                 .role(Role::Label).aria_label(tag.clone()).child(tag)).into_any_element()
@@ -119,7 +123,7 @@ impl Shell {
         let status = self.t(if reachable { "devices.watch.connected" } else { "devices.watch.unavailable" });
         let name = format!("Watch · {}", watch.info.name);
         let sync = watch.since_last_sync.map_or_else(|| self.t("devices.watch.noSync"), |age|
-            self.t("devices.watch.lastSync").replace("{{seconds}}", &age.as_secs().to_string()));
+            self.seconds_ago("devices.watch.lastSync", age));
         let mut details = div().id(SharedString::from(format!("device-watch-details-{id}"))).test_support()
             .min_w_0().flex_1().flex().flex_col().gap_1()
             .text_size(px(12.)).text_color(cx.theme().muted_foreground)
@@ -132,7 +136,7 @@ impl Shell {
             .child(div().id(SharedString::from(format!("device-watch-sync-{id}"))).test_support().role(Role::Label)
                 .aria_label(sync.clone()).truncate().child(sync));
         if let Some(age) = watch.since_last_contact {
-            details = details.child(div().truncate().child(self.t("devices.lastContact").replace("{{seconds}}", &age.as_secs().to_string())));
+            details = details.child(div().truncate().child(self.seconds_ago("devices.lastContact", age)));
         }
         div().id(SharedString::from(format!("device-watch-{id}"))).test_support()
             .min_w_0().pt_3().border_t_1().border_color(cx.theme().border).flex().items_start().gap_2()

@@ -23,7 +23,6 @@
     "autostart_detail": "登录系统后正常显示应用，实际状态以操作系统登录项为准。",
     "autostart_error": "无法更新开机自启。开关已回滚为可读取的实际状态；请检查系统登录项后重试。",
     "autostart_unknown": "当前无法读取操作系统登录项，请稍后重新读取。",
-    "reload": "重新读取",
     "agent_panel_title": "启用的 Agent",
     "agent_panel_badge": "全局设置",
     "localized_name": "中文名",

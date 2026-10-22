@@ -9,8 +9,8 @@ use std::{collections::BTreeMap, sync::Arc};
 /// 查询输入只包含业务筛选；All 不拥有另一个物理存储。
 #[derive(Clone)]
 pub enum UsageQuery {
-    /// 独立 Cursor 账户窗口；布尔值只控制显式刷新是否绕过内存节流。
-    CursorAccount(LocalUsageWindow, bool),
+    /// 独立 Cursor 账户窗口；读取按已保存的扫描间隔节流。
+    CursorAccount(LocalUsageWindow),
     /// 概览；None 表示全部 Agent。
     Overview(Option<SourceClientKind>),
     /// 单个 Agent 在指定窗口与维度上的分组统计。
@@ -47,8 +47,8 @@ pub enum UsageResponse {
 pub(super) async fn load(context: Arc<ServiceContext>, query: UsageQuery, cancellation: ScanCancellation)
     -> Result<UsageResponse, &'static str>
 {
-    if let UsageQuery::CursorAccount(window, force) = query {
-        return super::cursor_usage::load(context, window, force, cancellation).await
+    if let UsageQuery::CursorAccount(window) = query {
+        return super::cursor_usage::load(context, window, cancellation).await
             .map(UsageResponse::CursorAccount).map_err(|error| match error {
                 cursor_usage::CursorUsageError::Credentials => "cursor_usage_credentials",
                 cursor_usage::CursorUsageError::Unauthorized => "cursor_usage_unauthorized",

@@ -51,7 +51,7 @@ impl AgentSettingsState {
                 SourceClientKind::WorkBuddy => 4,
             })
             .chain(wb.then_some(4))
-            .chain(settings.enabled_ai_tools.contains(&AiTool::Cursor).then_some(5))
+            .chain(settings.enabled_ai_tools.contains(&AiTool::Cursor).then_some(crate::app::dashboard::CURSOR_CLIENT))
             .collect()
     }
 }

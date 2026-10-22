@@ -32,6 +32,15 @@ const COPY_FEEDBACK: std::time::Duration = std::time::Duration::from_millis(1500
 /// 六个自然日窗口的稳定顺序与翻译键后缀；下标即 core 窗口事实的索引。
 const NATURAL_WINDOW_KEYS: [&str; 6] = ["today", "yesterday", "this_week", "last_week", "this_month", "last_month"];
 
+/// Cursor 账户在看板客户端下标中的固定槽位，按单窗口查询且不参与本机子页。
+pub(in crate::app) const CURSOR_CLIENT: usize = 5;
+
+/// 语义色胶囊的唯一外观：二十像素高、浅色底与淡描边，标识、辅助语义和交互由调用方附加。
+pub(in crate::app) fn tone_badge<E: Styled>(element: E, color: gpui_kit::Hsla) -> E {
+    element.px(px(10.)).h(px(20.)).flex().items_center().rounded_full().border_1().border_color(color.opacity(0.4))
+        .bg(color.opacity(0.10)).text_color(color).text_size(px(11.)).font_weight(FontWeight::SEMIBOLD)
+}
+
 /// 看板进程内会话保持客户端和自然日窗口，不把筛选写入业务库。
 pub(super) struct Dashboard {
     /// 看板客户端下标：0 全部、1 Codex、2 Claude Code、3 Grok、4 WorkBuddy、5 Cursor账户；本地子页仍只使用前五槽。
@@ -137,13 +146,24 @@ impl Shell {
         self.reload_usage(false, cx);
     }
 
+    /// 本机概览一次载入全部窗口，换窗口只需重绘；账户概览按窗口查询，丢弃旧窗口后重新读取。
+    pub(super) fn select_overview_window(&mut self, index: usize, cx: &mut Context<Self>) {
+        let client = self.dashboard.client;
+        if self.dashboard.ranges[client] == index { return }
+        self.dashboard.ranges[client] = index;
+        if client == CURSOR_CLIENT {
+            self.dashboard.cursor_account = None;
+            self.reload_cursor_account(cx);
+        } else { cx.notify(); }
+    }
+
     /// 异步完成后用请求代数丢弃旧响应；切 Agent 不会被旧页面查询覆盖。
     pub(in crate::app) fn reload_usage(&mut self, scan: bool, cx: &mut Context<Self>) {
         if self.agent_settings.value.is_none()||self.agent_settings.dashboard_indices().is_empty() {
             self.dashboard.revision=self.dashboard.revision.wrapping_add(1);self.dashboard.task.take();
             self.dashboard.data=None;self.dashboard.loading=false;self.dashboard.error=None;cx.notify();return;
         }
-        if self.dashboard.client == 5 { self.reload_cursor_account(scan, cx); return; }
+        if self.dashboard.client == CURSOR_CLIENT { self.reload_cursor_account(cx); return; }
         if self.dashboard.route==Route::Calls {self.load_calls(false,cx);return}
         if self.dashboard.route==Route::Sources {self.load_sources(cx);return}
         if self.dashboard.route==Route::Settings {self.dashboard.revision+=1;self.dashboard.task.take();self.dashboard.error=None;self.dashboard.loading=false;self.load_usage_settings(cx);return}
@@ -228,7 +248,7 @@ impl Shell {
         self.dashboard.sources.reset();
         for hover in &self.dashboard.chart.hover {hover.set(None);}
         if index==0 {self.dashboard.usage_settings.reset();}
-        if index == 5 || (index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Charts|Route::Sources|Route::Settings)) || (index==4 && self.dashboard.route==Route::Calls) { self.dashboard.route = Route::Overview; }
+        if index == CURSOR_CLIENT || (index == 0 && matches!(self.dashboard.route,Route::Statistics|Route::Charts|Route::Sources|Route::Settings)) || (index==4 && self.dashboard.route==Route::Calls) { self.dashboard.route = Route::Overview; }
         self.reload_usage(false, cx);
         cx.notify();
     }
@@ -237,7 +257,7 @@ impl Shell {
     pub(super) fn dashboard_page(&self, window:&gpui_kit::Window, cx: &mut Context<Self>) -> AnyElement {
         let mut items = vec![(Route::Overview, "overview")];
         if self.dashboard.client==0 {items.push((Route::Calls,"calls"));}
-        else if self.dashboard.client != 5 {items.extend([(Route::Statistics,"usage"),(Route::Charts,"charts"),(Route::Sources,"sources"),(Route::Settings,"settings")]);}
+        else if self.dashboard.client != CURSOR_CLIENT {items.extend([(Route::Statistics,"usage"),(Route::Charts,"charts"),(Route::Sources,"sources"),(Route::Settings,"settings")]);}
         let tabs = div().flex().items_center().gap_1().children(items.into_iter().map(|(route, key)| {
             let selected = self.dashboard.route == route;
             Button::new(gpui_kit::SharedString::from(format!("dashboard-{key}"))).ghost().h(px(40.))
@@ -273,12 +293,12 @@ impl Shell {
             .when(empty,|column|column.child(self.panel(cx)
                 .child(div().text_size(px(20.)).font_weight(FontWeight::SEMIBOLD).child(self.t("shell.noEnabledAgents.title")))
                 .child(self.t("shell.noEnabledAgents.body"))))
-            .when(self.dashboard.client != 5 && self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
+            .when(self.dashboard.client != CURSOR_CLIENT && self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
                 .when_some(self.dashboard.progress.as_ref(), |line, progress| line.child(format!(" {} / {} · {} {} · {} {}",
                     progress.roots_completed, progress.roots_total, progress.files_scanned, self.t("dashboard.files"), progress.calls_added, self.t("dashboard.calls"))))))
-            .when(!empty&&self.dashboard.client != 5&&self.dashboard.route!=Route::Settings && (self.dashboard.error.is_some() || self.dashboard.scan_error.is_some()), |column| column.child(self.usage_error(cx)))
-            .when(!empty && self.dashboard.client == 5, |column| column.child(self.cursor_account_page(cx)))
-            .when(!empty&&self.dashboard.client != 5&&self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
+            .when(!empty&&self.dashboard.client != CURSOR_CLIENT&&self.dashboard.route!=Route::Settings && (self.dashboard.error.is_some() || self.dashboard.scan_error.is_some()), |column| column.child(self.usage_error(cx)))
+            .when(!empty && self.dashboard.client == CURSOR_CLIENT, |column| column.child(self.cursor_account_page(cx)))
+            .when(!empty&&self.dashboard.client != CURSOR_CLIENT&&self.dashboard.error.is_none(), |column| column.child(match self.dashboard.route {
                 Route::Calls => self.usage_calls(window,cx),
                 Route::Sources => self.usage_sources(cx),
                 Route::Settings=>self.usage_settings_page(cx),
@@ -306,9 +326,7 @@ impl Shell {
 
     /// 质量标记只投影 core 的事实元数据，不推断缺失数据为完整覆盖。
     pub(in crate::app) fn quality_badge(&self, label: String, color: gpui_kit::Hsla) -> AnyElement {
-        div().px(px(10.)).h(px(20.)).flex().items_center().rounded_full().border_1().border_color(color.opacity(0.4))
-            .bg(color.opacity(0.10)).text_color(color).text_size(px(11.)).font_weight(FontWeight::SEMIBOLD)
-            .child(label).into_any_element()
+        tone_badge(div(), color).child(label).into_any_element()
     }
 
     /// 参考页面的卡片尺寸与留白归属展示层，所有颜色沿用完整语义主题。

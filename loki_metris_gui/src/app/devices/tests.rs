@@ -284,6 +284,8 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
         ("en-US", "Connected", "In background · sync resumes when opened", "Not connected", "IP: 192.168.1.20", "Last IP: 192.168.1.20"),
         ("zh-CN", "当前可通信", "已进入后台，打开终端后恢复同步", "尚未连接", "IP：192.168.1.20", "上次 IP：192.168.1.20"),
     ] {
+        let online = if locale == "en-US" { "Online" } else { "在线" };
+        let offline = if locale == "en-US" { "Offline" } else { "离线" };
         for dark in [false, true] {
             let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
             cx.update(|cx| Theme::change(if dark { ThemeMode::Dark } else { ThemeMode::Light }, None, cx));
@@ -301,15 +303,13 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
                 });
                 window.render_frame(cx);
                 assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(connected));
-                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Online" } else { "在线" }));
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(online));
                 assert_eq!(window.find(format!("device-version-{DEVICE}")).label(), Some("1.0"));
                 assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(ip));
                 assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(connected));
-                let online = if locale == "en-US" { "Online" } else { "在线" };
-                let offline = if locale == "en-US" { "Offline" } else { "离线" };
                 assert_eq!(window.find(format!("device-watch-status-tag-{DEVICE}")).label(), Some(online));
                 for prefix in ["device-status", "device-watch-status"] {
-                    assert_connection_tag_background(window, &format!("{prefix}-{DEVICE}"), cx.theme().success.opacity(0.12));
+                    assert_connection_tag_background(window, &format!("{prefix}-{DEVICE}"), cx.theme().success.opacity(0.10));
                 }
                 assert_eq!(window.find(format!("device-watch-sync-{DEVICE}")).label(), Some(if locale == "en-US" { "Last confirmed sync: at most 2s ago" } else { "最近确认同步：至多 2 秒前" }));
                 assert!(window.try_find("device-ip-c169da9b-4716-4774-bdcb-a33bfd6e1ac1").is_none());
@@ -318,24 +318,24 @@ fn authenticated_device_metadata_and_unreachable_state_are_localized(cx: &mut Te
                 window.render_frame(cx);
                 assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(online), "手机在线不能代替Watch独立回执");
                 assert_eq!(window.find(format!("device-watch-status-tag-{DEVICE}")).label(), Some(offline));
-                assert_connection_tag_background(window, &format!("device-watch-status-{DEVICE}"), cx.theme().secondary);
+                assert_connection_tag_background(window, &format!("device-watch-status-{DEVICE}"), cx.theme().muted_foreground.opacity(0.10));
                 shell.update(cx, |this, cx| {
                     this.devices.snapshot.presence[0].companion.as_mut().unwrap().reachable = true;
                     this.devices.snapshot.presence[0].state = DeviceConnectionState::Unavailable(UnavailableReason::Background); cx.notify();
                 });
                 window.render_frame(cx);
                 assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(background));
-                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(offline));
                 assert_eq!(window.find(format!("device-ip-{DEVICE}")).label(), Some(last_ip));
                 assert_eq!(window.find(format!("device-watch-status-{DEVICE}")).label(), Some(if locale == "en-US" { "Sync unavailable · cache retained" } else { "暂不可同步 · 保留缓存" }));
                 assert_eq!(window.find(format!("device-watch-status-tag-{DEVICE}")).label(), Some(offline));
                 for prefix in ["device-status", "device-watch-status"] {
-                    assert_connection_tag_background(window, &format!("{prefix}-{DEVICE}"), cx.theme().secondary);
+                    assert_connection_tag_background(window, &format!("{prefix}-{DEVICE}"), cx.theme().muted_foreground.opacity(0.10));
                 }
                 shell.update(cx, |this, cx| { this.devices.snapshot.presence.clear(); prepare_target(this); cx.notify(); });
                 window.render_frame(cx);
                 assert_eq!(window.find(format!("device-status-{DEVICE}")).label(), Some(not_connected));
-                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(if locale == "en-US" { "Offline" } else { "离线" }));
+                assert_eq!(window.find(format!("device-status-tag-{DEVICE}")).label(), Some(offline));
                 assert!(window.try_find(format!("device-ip-{DEVICE}")).is_none());
                 assert!(window.try_find(format!("device-watch-{DEVICE}")).is_none());
                 assert!(window.try_find(format!("device-watch-artwork-{DEVICE}")).is_none());

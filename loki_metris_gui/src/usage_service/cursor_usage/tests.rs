@@ -54,7 +54,21 @@ fn response(id: usize, at: i64, input: u64) -> String {
         "timestamp":at.to_string(),"model":"model-a","tokenUsage":{"inputTokens":input,"outputTokens":0}}]}).to_string()
 }
 
-/// 实际参数向量不带令牌、只读库不变；内存节流、显式刷新与换账户分别验证。
+/// 固定今日窗口与夹具程序，各用例只改变采集间隔。
+#[cfg(unix)]
+async fn read_today(reader: &Reader, layout: &HomeLayout, program: &Path, interval: ScanIntervalMinutes,
+    now: i64, cancel: &mut watch::Receiver<bool>) -> Result<Arc<CursorUsageSummary>, Error>
+{
+    reader.read(layout, Some(program), Some(program), LocalUsageWindow::Today, interval, now, &TimeZone::UTC, cancel).await
+}
+
+/// 只把首个缓存终态的到期时刻提前，模拟单调时钟流逝而不真实等待。
+#[cfg(unix)]
+fn age_entry(reader: &Reader, by: Duration) {
+    reader.cache.lock().unwrap().1[0].expires -= by;
+}
+
+/// 实际参数向量不带令牌、只读库不变；内存节流、到期重读与换账户分别验证。
 #[cfg(unix)]
 #[test]
 fn cursor_usage_driver_cache_refresh_and_account_isolation() {
@@ -65,17 +79,18 @@ fn cursor_usage_driver_cache_refresh_and_account_isolation() {
         std::fs::write(root.path().join("page-1.json"),response(1,now,12)).unwrap();
         let reader=Reader::default();let (_sender,mut cancel)=watch::channel(false);
         let interval=ScanIntervalMinutes::default();
-        let first=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let first=read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
         assert_eq!(first.counts.input.tokens,12);
         std::fs::write(root.path().join("page-1.json"),response(1,now,99)).unwrap();
-        let cached=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let cached=read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
         assert_eq!(cached.counts.input.tokens,12);
         assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(),1);
-        let forced=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,true,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
-        assert_eq!(forced.counts.input.tokens,99);
+        age_entry(&reader, interval.duration());
+        let expired=read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
+        assert_eq!(expired.counts.input.tokens,99);
         std::fs::write(root.path().join("token.txt"),token("second")).unwrap();
         std::fs::write(root.path().join("page-1.json"),response(2,now,7)).unwrap();
-        let switched=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        let switched=read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
         assert_eq!(switched.counts.input.tokens,7);
         let args=std::fs::read_to_string(root.path().join("argv.txt")).unwrap();assert!(!args.contains(&token("first")));assert!(!args.contains(&token("second")));
         assert!(args.contains("-readonly"));
@@ -85,13 +100,14 @@ fn cursor_usage_driver_cache_refresh_and_account_isolation() {
         assert!(config.contains("get-filtered-usage-events"));assert!(config.contains("startDate"));
         std::fs::write(root.path().join("token.txt"),token("third")).unwrap();
         std::fs::write(root.path().join("mode.txt"),"unauthorized").unwrap();
-        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Unauthorized));
+        assert_eq!(read_today(&reader, &layout, &program, interval, now, &mut cancel).await,Err(Error::Unauthorized));
         std::fs::write(root.path().join("mode.txt"),"").unwrap();
-        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Unauthorized),"failed account query must not expose another account cache");
-        let recovered=reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,true,interval,now,&TimeZone::UTC,&mut cancel).await.unwrap();
+        assert_eq!(read_today(&reader, &layout, &program, interval, now, &mut cancel).await,Err(Error::Unauthorized),"failed account query must not expose another account cache");
+        age_entry(&reader, interval.duration());
+        let recovered=read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
         assert_eq!(recovered.counts.input.tokens,7);
         std::fs::write(root.path().join("token.txt"),"").unwrap();
-        assert_eq!(reader.read(&layout,Some(&program),Some(&program),LocalUsageWindow::Today,false,interval,now,&TimeZone::UTC,&mut cancel).await,Err(Error::Credentials));
+        assert_eq!(read_today(&reader, &layout, &program, interval, now, &mut cancel).await,Err(Error::Credentials));
     });
 }
 
@@ -109,34 +125,27 @@ fn cursor_usage_driver_empty_window_refreshes_and_recovers_automatically() {
             let interval = ScanIntervalMinutes::new(minutes).unwrap();
             let (_sender, mut cancel) = watch::channel(false);
             std::fs::write(root.path().join("page-1.json"), "{}").unwrap();
-            let empty = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            let empty = read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
             assert_eq!(empty.counts.events, 0);
             std::fs::write(root.path().join("page-1.json"), response(1, now, 42)).unwrap();
-            let cached = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            let cached = read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
             assert_eq!(cached.counts.events, 0);
-            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
-            let displayed = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            age_entry(&reader, Duration::from_secs(10));
+            let displayed = read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
             assert_eq!(displayed.counts.events, 0);
             assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 1);
             // 只推进单调时刻，不进行真实等待；下一次普通页面查询才读取新的云端事实。
-            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - interval.duration();
-            let fresh = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            age_entry(&reader, interval.duration());
+            let fresh = read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
             assert_eq!(fresh.counts.input.tokens, 42);
             std::fs::write(root.path().join("mode.txt"), "unauthorized").unwrap();
-            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - interval.duration();
-            assert_eq!(reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await, Err(Error::Unauthorized));
+            age_entry(&reader, interval.duration());
+            assert_eq!(read_today(&reader, &layout, &program, interval, now, &mut cancel).await, Err(Error::Unauthorized));
             std::fs::write(root.path().join("mode.txt"), "").unwrap();
-            let failed = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await;
+            let failed = read_today(&reader, &layout, &program, interval, now, &mut cancel).await;
             assert_eq!(failed, Err(Error::Unauthorized));
-            reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - interval.duration();
-            let recovered = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-                false, interval, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+            age_entry(&reader, interval.duration());
+            let recovered = read_today(&reader, &layout, &program, interval, now, &mut cancel).await.unwrap();
             assert_eq!(recovered.counts.input.tokens, 42);
             assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 4);
         }
@@ -157,22 +166,18 @@ fn cursor_usage_driver_interval_change_preserves_started_wait() {
         let old = ScanIntervalMinutes::new(7).unwrap();
         let new = ScanIntervalMinutes::new(1).unwrap();
         std::fs::write(root.path().join("page-1.json"), response(1, now, 12)).unwrap();
-        reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, old, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        read_today(&reader, &layout, &program, old, now, &mut cancel).await.unwrap();
         std::fs::write(root.path().join("page-1.json"), response(1, now, 99)).unwrap();
-        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(120);
-        let waiting = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, new, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        age_entry(&reader, Duration::from_secs(120));
+        let waiting = read_today(&reader, &layout, &program, new, now, &mut cancel).await.unwrap();
         assert_eq!(waiting.counts.input.tokens, 12);
         assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 1);
-        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - old.duration();
-        let updated = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, new, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        age_entry(&reader, old.duration());
+        let updated = read_today(&reader, &layout, &program, new, now, &mut cancel).await.unwrap();
         assert_eq!(updated.counts.input.tokens, 99);
         std::fs::write(root.path().join("page-1.json"), response(1, now, 7)).unwrap();
-        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - new.duration();
-        let next = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
-            false, new, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        age_entry(&reader, new.duration());
+        let next = read_today(&reader, &layout, &program, new, now, &mut cancel).await.unwrap();
         assert_eq!(next.counts.input.tokens, 7);
     });
 }
@@ -186,7 +191,7 @@ fn cursor_usage_query_rejects_unreadable_interval_settings() {
     std::fs::create_dir_all(&directory).unwrap();
     std::fs::write(directory.join("usage-settings.json"), b"invalid json").unwrap();
     let service = UsageService::in_directory(directory).unwrap();
-    let reply = service.query(UsageQuery::CursorAccount(LocalUsageWindow::Today, false)).unwrap();
+    let reply = service.query(UsageQuery::CursorAccount(LocalUsageWindow::Today)).unwrap();
     let result = service.runtime.lock().unwrap().as_ref().unwrap().block_on(reply).unwrap();
     assert!(matches!(result, Err("cursor_usage_transport")));
     service.finish();

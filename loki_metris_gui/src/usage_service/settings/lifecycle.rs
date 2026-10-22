@@ -19,7 +19,8 @@ impl UsageService {
                 if shutdown.is_cancelled() {return}
                 if let Err(error)=super::super::scan::run(context.clone(),super::super::queue::Intent{client:None,origin:ScanStartOrigin::PeriodicAutomatic},ScanCancellation::new()).await {tracing::warn!(event="usage_periodic_scan_failed",code=error);}
                 if shutdown.is_cancelled() {return}
-                let interval=match context.settings.snapshot().await {Ok(settings)=>settings.scan_interval.duration(),Err(_)=>loki_metris_core::ScanIntervalMinutes::default().duration()};
+                // 后台节拍无法向界面报告失败且不能停摆，只有这里记录后退回默认间隔；账户查询直接失败关闭。
+                let interval=match context.settings.scan_interval().await {Ok(interval)=>interval,Err(error)=>{tracing::warn!(event="usage_scan_interval_unavailable",code=error);loki_metris_core::ScanIntervalMinutes::default()}}.duration();
                 // 每轮结束后读取间隔；已开始的等待不会因设置保存而被提前唤醒。
                 tokio::select! {_=tokio::time::sleep(interval)=>{},_=shutdown.cancelled()=>return}
             }

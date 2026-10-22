@@ -19,24 +19,23 @@ pub(super) fn artwork_path(platform: Option<DevicePlatform>, form_factor: Option
 
 /// 固定图像槽和比例，解码前后尺寸一致；未知平台用中性图标，不猜测系统。
 pub(super) fn device_artwork(id: &str, path: Option<&'static str>, label: String) -> AnyElement {
-    let mut frame = div().id(SharedString::from(format!("device-artwork-{id}")))
-        .test_support().role(Role::Image).aria_label(label).w(px(96.)).h(px(112.))
-        .flex_shrink_0().flex().items_center().justify_center();
-    frame = if let Some(path) = path {
-        frame.child(img(path).w(px(96.)).h(px(112.)).object_fit(ObjectFit::Contain))
-    } else {
-        frame.child(Icon::new(IconName::MonitorSmartphone).size(px(40.)))
-    };
-    frame.into_any_element()
+    artwork_frame(format!("device-artwork-{id}"), path, label, 96., 112.)
 }
 
 /// 附属Watch使用固定40×48小图槽；插图不代表型号，也不生成独立设备入口。
 pub(super) fn watch_artwork(id: &str, label: String) -> AnyElement {
-    div().id(SharedString::from(format!("device-watch-artwork-{id}")))
-        .test_support().role(Role::Image).aria_label(label).w(px(40.)).h(px(48.))
-        .flex_shrink_0().flex().items_center().justify_center()
-        .child(img(assets::DEVICE_WATCH).w(px(40.)).h(px(48.)).object_fit(ObjectFit::Contain))
-        .into_any_element()
+    artwork_frame(format!("device-watch-artwork-{id}"), Some(assets::DEVICE_WATCH), label, 40., 48.)
+}
+
+/// 手机和Watch共用同一图像槽结构，只由调用方决定标识和尺寸。
+fn artwork_frame(id: String, path: Option<&'static str>, label: String, width: f32, height: f32) -> AnyElement {
+    let frame = div().id(SharedString::from(id))
+        .test_support().role(Role::Image).aria_label(label).w(px(width)).h(px(height))
+        .flex_shrink_0().flex().items_center().justify_center();
+    match path {
+        Some(path) => frame.child(img(path).w(px(width)).h(px(height)).object_fit(ObjectFit::Contain)),
+        None => frame.child(Icon::new(IconName::MonitorSmartphone).size(px(40.))),
+    }.into_any_element()
 }
 
 #[cfg(test)]

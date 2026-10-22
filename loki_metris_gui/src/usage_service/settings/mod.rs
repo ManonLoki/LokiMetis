@@ -34,6 +34,11 @@ impl SettingsStore {
         rx.await.map_err(|_|"usage_settings_unavailable")?
     }
 
+    /// 周期扫描与账户查询共用的采集间隔读取；失败如实返回，由调用方决定是否回退。
+    pub(super) async fn scan_interval(self:&Arc<Self>)->Result<loki_metris_core::ScanIntervalMinutes,&'static str> {
+        Ok(self.snapshot().await?.scan_interval)
+    }
+
     /// 同步存储锁仅在真实阻塞任务内持有，不在异步 worker 中执行磁盘 I/O。
     fn snapshot_blocking(&self)->Result<UsageSettings,&'static str> {
         let mut value=self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);

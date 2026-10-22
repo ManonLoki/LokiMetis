@@ -1,6 +1,6 @@
 //! 独立账户视图：原样展示 core 的分项和覆盖，日期筛选保持进程会话。
 
-use super::{Shell, format, UsageQuery, UsageResponse};
+use super::{CURSOR_CLIENT, Shell, format, UsageQuery, UsageResponse};
 use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px,
     base::TestSupportExt as _, component::{ActiveTheme,
     table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow}}};
@@ -8,8 +8,8 @@ use loki_metris_core::cursor_usage::{CursorTokenCounts, CursorUsageGroup, Report
 
 impl Shell {
     /// 复用查询邮箱和页面代次，账户结果不会落入本机 Overview 响应。
-    pub(super) fn reload_cursor_account(&mut self, force: bool, cx: &mut Context<Self>) {
-        if self.dashboard.client != 5 { return }
+    pub(super) fn reload_cursor_account(&mut self, cx: &mut Context<Self>) {
+        if self.dashboard.client != CURSOR_CLIENT { return }
         self.dashboard.revision += 1;
         self.dashboard.task.take();
         self.dashboard.last_read = std::time::Instant::now();
@@ -17,8 +17,8 @@ impl Shell {
         self.dashboard.loading = false;
         self.dashboard.scan_error = None;
         let Some(service) = &self.dashboard.service else { cx.notify(); return };
-        let window = loki_metris_core::LocalUsageWindow::OVERVIEW_WINDOWS[self.dashboard.ranges[5]];
-        let work = match service.query(UsageQuery::CursorAccount(window, force)) {
+        let window = loki_metris_core::LocalUsageWindow::OVERVIEW_WINDOWS[self.dashboard.ranges[CURSOR_CLIENT]];
+        let work = match service.query(UsageQuery::CursorAccount(window)) {
             Ok(work) => work,
             Err(error) => { self.dashboard.error = Some(error); cx.notify(); return; }
         };
@@ -28,7 +28,7 @@ impl Shell {
             let result = crate::usage_service::poll_receipt(work, cx.background_executor().clone(),
                 std::time::Duration::from_millis(100)).await.unwrap_or(Err("usage_scan_cancelled"));
             let _ = entity.update(cx, |this, cx| {
-                if this.dashboard.revision != revision || this.dashboard.client != 5 { return }
+                if this.dashboard.revision != revision || this.dashboard.client != CURSOR_CLIENT { return }
                 this.dashboard.loading = false;
                 this.dashboard.last_read = std::time::Instant::now();
                 match result {
@@ -225,7 +225,7 @@ mod tests {
             }
             this.dashboard.loading=true;
             let revision=this.dashboard.revision;
-            this.reload_cursor_account(true, cx);
+            this.reload_cursor_account(cx);
             assert_eq!(this.dashboard.revision,revision,"stale account action cannot replace the local query");
         });
     }

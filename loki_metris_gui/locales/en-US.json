@@ -23,7 +23,6 @@
     "autostart_detail": "Show this app normally after sign-in. The operating system registration is authoritative.",
     "autostart_error": "The login item could not be updated. The switch was restored to the readable system state. Check system login items and try again.",
     "autostart_unknown": "The operating system login item cannot be read right now. Reload it later.",
-    "reload": "Reload",
     "agent_panel_title": "Enabled Agents",
     "agent_panel_badge": "Global setting",
     "localized_name": "Chinese name",
