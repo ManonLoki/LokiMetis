@@ -118,12 +118,21 @@ fn resuming_other_client_registers_its_candidates_without_early_indexing() {
     service.discovery.submit_candidate(RootCandidate{id:"codex-candidate".into(),client:SourceClientKind::Codex,
         absolute_path:source.to_string_lossy().into_owned(),strategy:RootDiscoveryStrategy::MetadataTraversal,evidence:RootCandidateEvidence::CodexRollout});
     let other=temp.path().join("other-agent");std::fs::create_dir(&other).unwrap();
+    local_index::validate_local_plain_directory(&other).expect("Grok 夹具必须是允许的本地普通目录");
     service.discovery.submit_candidate(RootCandidate{id:"grok-candidate".into(),client:SourceClientKind::Grok,
         absolute_path:other.to_string_lossy().into_owned(),strategy:RootDiscoveryStrategy::MetadataTraversal,evidence:RootCandidateEvidence::GrokSessionUpdates});
     service.resume_discovery(SourceClientKind::Grok).unwrap();
-    let deadline=std::time::Instant::now()+std::time::Duration::from_secs(3);
-    while service.discovery.candidates().iter().any(|candidate|candidate.id=="grok-candidate") {
-        assert!(std::time::Instant::now()<deadline,"另一个客户端候选应被接续登记");std::thread::sleep(std::time::Duration::from_millis(10));
+    // 原生卷校验和冷 SQLite 迁移没有三秒时限；真实后台失败必须立即失败而非等到超时。
+    let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+    loop {
+        let view=service.discovery_view();
+        assert!(!view.failed_ids.contains("grok-candidate"),"候选登记失败：failed={:?}, error={:?}",view.failed_ids,view.error);
+        if !view.candidates.iter().any(|candidate|candidate.id=="grok-candidate") {break;}
+        assert!(std::time::Instant::now()<deadline,
+            "候选登记超时：lifecycle={:?}, failed={:?}, error={:?}, candidates={:?}, indexing={:?}, retrying={:?}",
+            view.status.lifecycle,view.failed_ids,view.error,
+            view.candidates.iter().map(|candidate|(&candidate.id,candidate.client)).collect::<Vec<_>>(),view.indexing,view.retrying_ids);
+        std::thread::sleep(std::time::Duration::from_millis(10));
     }
     assert_eq!(service.discovery.candidates().len(),1);assert_eq!(service.discovery.candidates()[0].client,SourceClientKind::Codex);
     let rows=service.query(UsageQuery::Sources(SourceClientKind::Grok)).unwrap().blocking_recv().unwrap().unwrap();
