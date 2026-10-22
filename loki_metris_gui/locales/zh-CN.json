@@ -946,7 +946,6 @@
   },
   "cursor_account": {
     "title": "Cursor 账户",
-    "scope": "Cursor 云端账户用量，可能包含其他设备；不计入本机“全部”用量或终端本机 Token。",
     "events": "记录数",
     "with_details": "有 Token 明细",
     "reported": "已上报记录",
@@ -958,9 +957,9 @@
     "daily": "按日期汇总",
     "models": "按模型汇总",
     "credentials": "未发现可读取的 Cursor 登录信息。请先在 Cursor 登录。",
-    "unauthorized": "Cursor 登录已失效或被拒绝。请在 Cursor 重新登录后再次读取。",
-    "incomplete": "Cursor 分页未完整返回、总数变化或超出读取上限。本次数据未发布，请稍后重新读取。",
+    "unauthorized": "Cursor 登录已失效或被拒绝。请在 Cursor 重新登录，页面将自动重试。",
+    "incomplete": "Cursor 分页未完整返回、总数变化或超出读取上限。本次数据未发布，页面将自动重试。",
     "malformed": "Cursor 返回的字段或数值不符合当前协议。本次数据未发布。",
-    "transport": "无法读取 Cursor 用量。请检查网络及 curl、sqlite3 可用性后重新读取。"
+    "transport": "无法读取 Cursor 用量。请检查网络及 curl、sqlite3 可用性，页面将自动重试。"
   }
 }

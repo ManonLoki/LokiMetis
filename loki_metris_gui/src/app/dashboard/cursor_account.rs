@@ -2,7 +2,7 @@
 
 use super::{Shell, format, UsageQuery, UsageResponse};
 use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px,
-    base::{TestSupportExt as _, Disableable}, component::{ActiveTheme, button::{Button, ButtonVariants},
+    base::TestSupportExt as _, component::{ActiveTheme,
     table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow}}};
 use loki_metris_core::cursor_usage::{CursorTokenCounts, CursorUsageGroup, ReportedTokens};
 
@@ -44,29 +44,10 @@ impl Shell {
         cx.notify();
     }
 
-    /// 筛选和刷新按钮自身拥有动作，周围卡片仅用于展示。
+    /// 账户概览沿用通用日期筛选和定时读取，不增加独立说明卡或刷新动作。
     pub(super) fn cursor_account_page(&self, cx: &mut Context<Self>) -> AnyElement {
-        let mut page = div().id("cursor-account-page").test_support().w_full().flex().flex_col().gap_5()
-            .child(self.panel(cx)
-                .child(div().text_lg().font_weight(FontWeight::SEMIBOLD).child(self.t("cursor_account.title")))
-                .child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("cursor_account.scope"))));
-        let controls = div().id("cursor-account-controls").test_support().w_full().flex().flex_wrap().items_center().gap_2()
-            .children(super::NATURAL_WINDOW_KEYS.into_iter().enumerate().map(|(index, key)| {
-                Button::new(("cursor-window", index)).ghost().label(self.t(&format!("dashboard.{key}")))
-                    .accessibility_label(self.t(&format!("dashboard.{key}")))
-                    .when(index == self.dashboard.ranges[5], |button| button.bg(cx.theme().accent).text_color(cx.theme().accent_foreground))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if this.dashboard.client != 5 { return }
-                        this.dashboard.ranges[5] = index;
-                        this.dashboard.cursor_account = None;
-                        this.reload_cursor_account(false, cx);
-                    }))
-            }))
-            .child(div().flex_1())
-            .child(Button::new("cursor-account-refresh").outline().disabled(self.dashboard.loading)
-                .label(self.t("settings.reload")).accessibility_label(self.t("settings.reload"))
-                .on_click(cx.listener(|this, _, _, cx| this.reload_cursor_account(true, cx))));
-        page = page.child(controls);
+        let mut page = div().id("cursor-account-page").test_support().w_full().px_2().flex().flex_col().gap_4()
+            .child(self.overview_window_controls(cx));
         if let Some(error) = self.dashboard.error {
             let key = match error {
                 "cursor_usage_credentials" => "credentials",
@@ -156,9 +137,9 @@ mod tests {
         std::sync::Arc::new(pages.finish(at,&jiff::tz::TimeZone::UTC).unwrap())
     }
 
-    /// Cursor-only 使用独立入口，渲染包含范围说明和两张表；卡片不代理筛选动作。
+    /// Cursor 使用两张汇总表和通用日期筛选；空白区不代理按钮动作，离页保留窗口。
     #[gpui_kit::test]
-    fn cursor_account_view_has_account_scope_and_owned_window_buttons(cx: &mut TestAppContext) {
+    fn cursor_account_view_has_shared_owned_window_buttons(cx: &mut TestAppContext) {
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 1400.);
         shell.update(cx, |this, cx| {
             this.agent_settings.value = Some(crate::monitor::settings::MonitorSettings {
@@ -176,9 +157,11 @@ mod tests {
             assert!(window.find("cursor_account.daily").bounds().size.height > px(0.));
             assert!(window.find("cursor_account.models").bounds().size.height > px(0.));
             let revision = shell.read(cx).dashboard.revision;
-            window.click_at("cursor-account-page", point(px(8.),px(8.)), cx);
+            assert!(window.try_find("cursor-account-refresh").is_none());
+            assert_eq!(window.find("usage-windows").bounds().origin.y, window.find("cursor-account-page").bounds().origin.y);
+            window.click_at("usage-windows", point(px(1.),px(1.)), cx);
             assert_eq!(shell.read(cx).dashboard.revision, revision);
-            window.click(("cursor-window",2usize),cx);
+            window.click(("usage-window",2usize),cx);
             assert_eq!(shell.read(cx).dashboard.ranges[5],2);
             assert_eq!(shell.read(cx).dashboard.ranges[1],0);
             shell.update(cx,|this,cx| {
@@ -192,6 +175,40 @@ mod tests {
         assert_eq!(super::super::Dashboard::default().ranges[5],0);
     }
 
+    /// 宽窄窗口下账户和本机日期条位置、等分宽度及高度一致，失败时筛选仍可用。
+    #[gpui_kit::test]
+    fn cursor_account_window_geometry_matches_local_overview(cx: &mut TestAppContext) {
+        for width in [960., 1440.] {
+            let (handle, shell, _finish) = crate::app::tests::open_shell(cx, width, 900.);
+            cx.update_window(handle, |_, window, cx| {
+                window.render_frame(cx);
+                let local_bar = window.find("usage-windows").bounds();
+                let local_buttons: Vec<_> = (0usize..6).map(|index| window.find(("usage-window", index)).bounds()).collect();
+                shell.update(cx, |this, cx| {
+                    this.select_usage_client(5, cx);
+                    this.dashboard.error = Some("cursor_usage_incomplete");
+                    cx.notify();
+                });
+                window.render_frame(cx);
+                let cursor_bar = window.find("usage-windows").bounds();
+                assert_eq!(cursor_bar.origin.x, local_bar.origin.x);
+                assert_eq!(cursor_bar.size, local_bar.size);
+                for (index, local) in local_buttons.iter().enumerate() {
+                    let bounds = window.find(("usage-window", index)).bounds();
+                    assert_eq!(bounds.origin - cursor_bar.origin, local.origin - local_bar.origin);
+                    assert_eq!(bounds.size, local.size);
+                    assert_eq!(bounds.size.height, px(28.));
+                    let width_difference = bounds.size.width - local_buttons[0].size.width;
+                    assert!(width_difference > px(-1.) && width_difference < px(1.));
+                }
+                assert!(window.try_find("cursor-account-refresh").is_none());
+                window.click(("usage-window", 1usize), cx);
+                assert_eq!(shell.read(cx).dashboard.ranges[5], 1);
+                assert!(shell.read(cx).dashboard.error.is_none());
+            }).unwrap();
+        }
+    }
+
     /// 中文、英文翻译和缺失字段投影不将部分合计改写为零或完整总量。
     #[gpui_kit::test]
     fn cursor_account_translations_and_missing_values(cx: &mut TestAppContext) {
@@ -201,7 +218,7 @@ mod tests {
             assert_eq!(this.cursor_tokens(&data.counts.cache_write),this.t("dashboard.not_provided"));
             assert_eq!(this.cursor_tokens(&data.counts.input),"12");
             for locale in ["zh-CN","en-US"] {
-                for key in ["title","scope","partial_notice","input","output","cache_read","cache_write","daily","models","credentials","unauthorized","incomplete","malformed","transport"] {
+                for key in ["title","partial_notice","input","output","cache_read","cache_write","daily","models","credentials","unauthorized","incomplete","malformed","transport"] {
                     let key=format!("cursor_account.{key}");
                     assert_ne!(rust_i18n::t!(&key,locale=locale).to_string(),key);
                 }

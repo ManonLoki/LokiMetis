@@ -94,6 +94,43 @@ fn cursor_usage_driver_cache_refresh_and_account_isolation() {
     });
 }
 
+/// 空窗、成功和失败均在下一轮十秒读取时重新请求；不依赖刷新按钮或真实等待。
+#[cfg(unix)]
+#[test]
+fn cursor_usage_driver_empty_window_refreshes_and_recovers_automatically() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    runtime.block_on(async {
+        let root = tempfile::tempdir().unwrap();
+        let (layout, program) = fixture(root.path());
+        let now = "2026-10-22T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        let reader = Reader::default();
+        let (_sender, mut cancel) = watch::channel(false);
+        std::fs::write(root.path().join("page-1.json"), "{}").unwrap();
+        let empty = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(empty.counts.events, 0);
+        std::fs::write(root.path().join("page-1.json"), response(1, now, 42)).unwrap();
+        let cached = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(cached.counts.events, 0);
+        // 显式推进缓存的单调时刻，证明十秒到期后普通轮询会获取新事件。
+        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
+        let fresh = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(fresh.counts.input.tokens, 42);
+        std::fs::write(root.path().join("mode.txt"), "unauthorized").unwrap();
+        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
+        assert_eq!(reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, now, &TimeZone::UTC, &mut cancel).await, Err(Error::Unauthorized));
+        std::fs::write(root.path().join("mode.txt"), "").unwrap();
+        reader.cache.lock().unwrap().1[0].at = std::time::Instant::now() - Duration::from_secs(10);
+        let recovered = reader.read(&layout, Some(&program), Some(&program), LocalUsageWindow::Today,
+            false, now, &TimeZone::UTC, &mut cancel).await.unwrap();
+        assert_eq!(recovered.counts.input.tokens, 42);
+        assert_eq!(std::fs::read_to_string(root.path().join("pages.txt")).unwrap().lines().count(), 4);
+    });
+}
+
 /// 分页中断不能发布部分结果；认证错误、取消、超时均返回稳定失败。
 #[cfg(unix)]
 #[test]

@@ -90,7 +90,8 @@
     "LMDESK-CI-STATIC-SHELLS-001",
     "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022",
     "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001",
-    "LMDESK-CURSOR-QUOTA-SESSION-001"
+    "LMDESK-CURSOR-QUOTA-SESSION-001",
+    "LMDESK-CURSOR-DAILY-REFRESH-001"
   ],
   "applied_reconciliations": [
     {
@@ -118,19 +119,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.7.13",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.8.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "ae8d231021ebafe6f7076ee9546239259c42abc2",
-    "version": "0.7.13"
+    "source_commit": "d1ae57628a64f87e3b7226d4179299988c440901",
+    "version": "0.8.0"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-CURSOR-TOKEN-USAGE-001",
-      "kind": "feature",
-      "required_version": "0.8.0"
+      "change_id": "LMDESK-CURSOR-DAILY-REFRESH-001",
+      "kind": "bug-fix",
+      "required_version": "0.8.1"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.8.0"
+  "target_version": "0.8.1"
 }

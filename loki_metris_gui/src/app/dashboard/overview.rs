@@ -21,10 +21,11 @@ impl Shell {
             .into_any_element()
     }
 
-    /// 六个自然日窗口仅选择已有 core 事实；没有可信索引时不伪造零指标。
-    pub(super) fn usage_overview(&self, cx: &mut Context<Self>) -> AnyElement {
-        let selected = self.dashboard.ranges[self.dashboard.client];
-        let ranges = div().w_full().flex().rounded(px(12.)).bg(cx.theme().secondary).p_1()
+    /// 所有概览共用满宽等分的日期筛选；账户窗口变化由同一查询入口加载。
+    pub(super) fn overview_window_controls(&self, cx: &mut Context<Self>) -> AnyElement {
+        let client = self.dashboard.client;
+        let selected = self.dashboard.ranges[client];
+        div().id("usage-windows").test_support().w_full().flex().rounded(px(12.)).bg(cx.theme().secondary).p_1()
             .children(super::NATURAL_WINDOW_KEYS
                 .into_iter().enumerate().map(|(index, key)| {
                     Button::new(("usage-window", index)).ghost().flex_1().h(px(28.))
@@ -33,10 +34,20 @@ impl Shell {
                             .text_color(if selected == index { cx.theme().foreground } else { cx.theme().muted_foreground }).child(self.t(&format!("dashboard.{key}"))))
                         .when(selected == index, |button| button.font_weight(FontWeight::BOLD).text_color(cx.theme().foreground))
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.dashboard.ranges[this.dashboard.client] = index; cx.notify();
+                            if this.dashboard.client != client || this.dashboard.ranges[client] == index { return }
+                            this.dashboard.ranges[client] = index;
+                            if client == 5 {
+                                this.dashboard.cursor_account = None;
+                                this.reload_usage(false, cx);
+                            } else { cx.notify(); }
                         }))
-                }));
-        let mut page = div().w_full().px_2().flex().flex_col().gap_4().child(ranges);
+                })).into_any_element()
+    }
+
+    /// 六个自然日窗口仅选择已有 core 事实；没有可信索引时不伪造零指标。
+    pub(super) fn usage_overview(&self, cx: &mut Context<Self>) -> AnyElement {
+        let selected = self.dashboard.ranges[self.dashboard.client];
+        let mut page = div().w_full().px_2().flex().flex_col().gap_4().child(self.overview_window_controls(cx));
         let Some(data) = &self.dashboard.data else { return page.into_any_element() };
         if self.dashboard.client == 0 && data.workbuddy_unavailable {
             // “全部”缺少 WorkBuddy 时必须明示，避免把少算的总量当成完整结果。

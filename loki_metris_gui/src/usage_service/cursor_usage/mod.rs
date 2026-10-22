@@ -10,7 +10,7 @@ use loki_metris_core::{AiTool, LocalUsageWindow, QuotaFailure, ScanCancellation,
 use tokio::sync::watch;
 use super::{ServiceContext, provider_quota::{credentials::{self, HomeLayout}, fetch, transport::{self, CurlLimits}}};
 
-/// 一个查询窗口的最近终态；失败也节流，防止十秒页面轮询重复请求上游。
+/// 一个查询窗口的最近终态；只在看板下一轮十秒自动读取前复用。
 struct Entry {
     window: LocalUsageWindow,
     day: String,

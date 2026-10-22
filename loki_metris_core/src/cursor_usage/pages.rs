@@ -17,10 +17,19 @@ impl CursorUsagePages {
         if self.next_page() != Some(page) || page > MAX_EVENTS / PAGE_SIZE { return Err(Error::Incomplete) }
         if body.len() > 1024 * 1024 { return Err(Error::Malformed) }
         let value: Value = serde_json::from_str(body).map_err(|_| Error::Malformed)?;
-        let total = value.get("totalUsageEventsCount").and_then(Value::as_u64)
-            .filter(|total| *total <= MAX_EVENTS as u64).ok_or(Error::Incomplete)? as usize;
+        let object = value.as_object().ok_or(Error::Malformed)?;
+        let rows = match object.get("usageEventsDisplay") {
+            None => &[][..],
+            Some(value) => value.as_array().ok_or(Error::Malformed)?.as_slice(),
+        };
+        // 账户网页接口在零条时返回 {}，并省略默认值和空数组；仅接受已知空形状。
+        let total = match object.get("totalUsageEventsCount") {
+            None if object.is_empty() || (object.len() == 1 && rows.is_empty()
+                && object.contains_key("usageEventsDisplay")) => 0,
+            total => total.and_then(Value::as_u64).filter(|total| *total <= MAX_EVENTS as u64)
+                .ok_or(Error::Incomplete)? as usize,
+        };
         if self.expected.is_some_and(|old| old != total) { return Err(Error::Incomplete) }
-        let rows = value.get("usageEventsDisplay").and_then(Value::as_array).ok_or(Error::Malformed)?;
         let remaining = total.checked_sub(self.events.len()).ok_or(Error::Incomplete)?;
         if rows.len() != remaining.min(PAGE_SIZE) { return Err(Error::Incomplete) }
         let mut batch = std::collections::BTreeMap::new();

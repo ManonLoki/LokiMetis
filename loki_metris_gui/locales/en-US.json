@@ -946,7 +946,6 @@
   },
   "cursor_account": {
     "title": "Cursor account",
-    "scope": "Cloud account usage may include other devices. Excluded from local All usage and terminal device Token totals.",
     "events": "Events",
     "with_details": "With Token details",
     "reported": "Reported events",
@@ -958,9 +957,9 @@
     "daily": "By date",
     "models": "By model",
     "credentials": "No readable Cursor login found. Sign in to Cursor first.",
-    "unauthorized": "Cursor rejected this login. Sign in again in Cursor, then reload.",
-    "incomplete": "Cursor pages were incomplete, changed during reading, or exceeded the read limit. This result was not published. Reload later.",
+    "unauthorized": "Cursor rejected this login. Sign in again in Cursor; this page will retry automatically.",
+    "incomplete": "Cursor pages were incomplete, changed during reading, or exceeded the read limit. This result was not published. This page will retry automatically.",
     "malformed": "Cursor returned unsupported fields or invalid numbers. This result was not published.",
-    "transport": "Unable to read Cursor usage. Check the network and availability of curl and sqlite3, then reload."
+    "transport": "Unable to read Cursor usage. Check the network and availability of curl and sqlite3. This page will retry automatically."
   }
 }

@@ -107,6 +107,29 @@ fn cursor_usage_empty_is_explicit_and_out_of_range_is_rejected() {
     assert!(pages.push(1,&page(1,vec![row])).is_err());
 }
 
+/// 真实空响应省略默认字段仍是可信零；未知正文及后续空页不能冒充完整窗口。
+#[test]
+fn cursor_usage_accepts_omitted_zero_defaults_only_for_empty_windows() {
+    for body in ["{}", r#"{"totalUsageEventsCount":0}"#, r#"{"usageEventsDisplay":[]}"#] {
+        let mut pages = CursorUsagePages::new(range()).unwrap();
+        pages.push(1, body).unwrap();
+        let data = pages.finish(0, &TimeZone::UTC).unwrap();
+        assert_eq!(data.counts.events, 0);
+        assert_eq!(data.counts.input.tokens, 0);
+        assert!(data.daily.iter().all(|day| day.counts.events == 0));
+    }
+    for body in [r#"{"error":"unavailable"}"#, r#"{"totalUsageEventsCount":null}"#,
+        r#"{"usageEventsDisplay":null}"#, "null", "[]", ""] {
+        assert!(CursorUsagePages::new(range()).unwrap().push(1, body).is_err());
+    }
+    let mut pages = CursorUsagePages::new(range()).unwrap();
+    let row = event(1, json!({"inputTokens":1}));
+    assert_eq!(pages.push(1, &json!({"usageEventsDisplay":[row]}).to_string()), Err(CursorUsageError::Incomplete));
+    pages.push(1, &page(101, (0..100).map(|id|event(id,json!({}))).collect())).unwrap();
+    assert_eq!(pages.push(2, "{}"), Err(CursorUsageError::Incomplete));
+    assert_eq!(pages.finish(0, &TimeZone::UTC), Err(CursorUsageError::Incomplete));
+}
+
 /// 费用对象、空对象和全 null 不能被标为有 Token 明细。
 #[test]
 fn cursor_usage_empty_token_objects_remain_unknown() {
