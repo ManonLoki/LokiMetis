@@ -307,3 +307,22 @@ fn expired_windows_are_dropped_against_the_current_time() {
     quota.drop_expired_windows(200);
     assert!(!quota.has_usage_window());
 }
+
+/// 仅启用Codex和Cursor时额度严格随开关裁剪，全禁用明确撤下旧列表。
+#[test]
+fn terminal_quota_follows_enabled_agents_without_changing_windows() {
+    let quotas = supported_quota_providers().map(|provider| {
+        let mut quota = parse_provider_quota(provider, "{}").unwrap();
+        quota.weekly = Some(super::QuotaWindow { kind: QuotaWindowKind::Weekly, used_tenths: 370, reset_at_unix: Some(456) });
+        quota
+    });
+    let snapshot = super::ProviderQuotaSnapshot::project(Some(123), &quotas).unwrap();
+    let visible = snapshot.clone().for_enabled_agents(&[AiTool::Codex, AiTool::Cursor]);
+    assert_eq!(visible.providers.iter().map(|quota| quota.provider).collect::<Vec<_>>(), [QuotaProvider::Codex, QuotaProvider::Cursor]);
+    assert_eq!(visible.observed_at_unix, snapshot.observed_at_unix);
+    assert_eq!(visible.providers[0], snapshot.providers[0]);
+    assert_eq!(visible.providers[1], snapshot.providers[2]);
+    assert_eq!(visible.clone().for_enabled_agents(&[AiTool::Codex, AiTool::Cursor]), visible);
+    assert_eq!(snapshot.clone().for_enabled_agents(&[AiTool::ClaudeCode]).providers, vec![snapshot.providers[1].clone()]);
+    assert!(snapshot.for_enabled_agents(&[]).providers.is_empty());
+}

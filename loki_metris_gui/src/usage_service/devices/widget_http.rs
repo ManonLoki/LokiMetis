@@ -75,11 +75,11 @@ impl Devices {
     }
 }
 
-/// HTTP摘要保留额度与聚合值，主动裁掉Hook正文、图片和宿主资源元信息。
+/// HTTP摘要保留独立启用名单、额度与聚合值，主动裁掉Hook正文、图片和宿主资源元信息。
 fn widget_summary(source: &str, snapshot: &loki_metris_core::devices::link::data::DisplaySnapshot) -> Result<Vec<u8>, ()> {
     let hooks: Vec<_> = snapshot.hooks.iter().map(|hook| serde_json::json!({"agent":hook.agent,"slot":hook.slot,"behavior":hook.behavior})).collect();
     serde_json::to_vec(&serde_json::json!({"type":"snapshot","sourceId":source,
-        "snapshot":{"version":1,"tokens":snapshot.tokens,"tokenError":snapshot.token_error,"hooksAvailable":snapshot.hooks_available,"hooks":hooks,"providerQuota":snapshot.provider_quota}})).map_err(|_| ())
+        "snapshot":{"version":1,"enabledAgents":snapshot.enabled_agents,"tokens":snapshot.tokens,"tokenError":snapshot.token_error,"hooksAvailable":snapshot.hooks_available,"hooks":hooks,"providerQuota":snapshot.provider_quota}})).map_err(|_| ())
 }
 
 /// 长度解析为纯适配器语法，不接收任意资源或代理请求。
@@ -115,7 +115,9 @@ mod tests {
         let quota = loki_metris_core::parse_provider_quota(loki_metris_core::QuotaProvider::Codex,
             r#"{"rate_limits":{"primary":{"used_percent":97,"window_minutes":10080}}}"#).unwrap();
         let mut snapshot = loki_metris_core::devices::link::data::DisplaySnapshot {
-            version: 1, provider_quota: loki_metris_core::ProviderQuotaSnapshot::project(Some(123), &[quota]), ..Default::default()
+            version: 1, enabled_agents: Some(vec![loki_metris_core::AiTool::Codex, loki_metris_core::AiTool::Cursor]),
+            token_error: Some("usage_sources_not_configured".into()),
+            provider_quota: loki_metris_core::ProviderQuotaSnapshot::project(Some(123), &[quota]), ..Default::default()
         };
         snapshot.hooks.push(loki_metris_core::devices::link::data::HookDisplay {
             agent: loki_metris_core::AiTool::Codex, slot: 1, behavior: loki_metris_core::HookBehavior::Running,
@@ -124,9 +126,18 @@ mod tests {
         let body = widget_summary(CLIENT, &snapshot).unwrap();
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(value["snapshot"]["providerQuota"]["providers"][0]["weekly"]["usedTenths"], 970);
+        assert_eq!(value["snapshot"]["enabledAgents"], serde_json::json!(["codex", "cursor"]));
+        assert!(value["snapshot"]["tokens"].is_null());
+        assert_eq!(value["snapshot"]["tokenError"], "usage_sources_not_configured");
         assert!(value["snapshot"]["hooks"][0].get("content").is_none());
         assert!(value["snapshot"].get("assets").is_none());
         assert!(!String::from_utf8_lossy(&body).contains("private-hook-body"));
+        for enabled in [None, Some(vec![])] {
+            snapshot.enabled_agents = enabled.clone();
+            let body = widget_summary(CLIENT, &snapshot).unwrap();
+            let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(value["snapshot"]["enabledAgents"], serde_json::to_value(enabled).unwrap());
+        }
     }
     /// 固定读取入口拒绝代理路径、无界正文和含糊的HTTP framing。
     #[test]

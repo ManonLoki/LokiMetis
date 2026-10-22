@@ -199,7 +199,7 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
     let descriptor = AssetDescriptor::from_bytes(&bytes).unwrap();
     let quota = loki_metris_core::parse_provider_quota(loki_metris_core::QuotaProvider::Codex,
         r#"{"rate_limits":{"primary":{"used_percent":97,"window_minutes":10080}}}"#).unwrap();
-    let snapshot = DisplaySnapshot { version:1, assets:vec![descriptor.clone()],
+    let snapshot = DisplaySnapshot { version:1, assets:vec![descriptor.clone()], enabled_agents:Some(vec![loki_metris_core::AiTool::Codex,loki_metris_core::AiTool::Cursor]),
         provider_quota: loki_metris_core::ProviderQuotaSnapshot::project(Some(123), &[quota]), ..Default::default() };
     devices.publications.send_replace(Arc::new(super::super::publication::Publication { refreshed_at:None, snapshot:snapshot.clone(), bytes:[(descriptor.hash.clone(),Arc::from(bytes.clone()))].into() }));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap(); let address = listener.local_addr().unwrap();
@@ -219,10 +219,12 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
         assert!(capabilities.iter().any(|value| value == "deviceFormFactorV1"));
         assert!(capabilities.iter().any(|value| value == "snapshotQueryV1"));
         assert_eq!(first.provider_quota, snapshot.provider_quota);
+        assert_eq!(first.enabled_agents, snapshot.enabled_agents);
         let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::SnapshotRequest {}).unwrap()).unwrap();
         write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
         let HostMessage::Snapshot { snapshot:queried, .. } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("queried snapshot"); };
         assert_eq!(queried.provider_quota, snapshot.provider_quota);
+        assert_eq!(queried.enabled_agents, snapshot.enabled_agents);
         let report = DeviceMessage::DeviceFormFactor { form_factor: loki_metris_core::devices::link::DeviceFormFactor::Tablet };
         let packet = channel.seal(&serde_json::to_vec(&report).unwrap()).unwrap();
         write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
@@ -252,10 +254,11 @@ async fn authenticated_session_pushes_latest_snapshot_and_serves_content_address
             receiver.accept(&chunk).unwrap();
         }
         assert_eq!(receiver.finish().unwrap().1, bytes);
-        let mut next = snapshot; next.catalog_error = Some("device_catalog_unavailable".into()); next.assets.clear();
+        let mut next = snapshot; next.catalog_error = Some("device_catalog_unavailable".into()); next.assets.clear(); next.enabled_agents = Some(vec![]);
         publisher.publications.send_replace(Arc::new(super::super::publication::Publication { refreshed_at:None, snapshot:next, bytes:Default::default() }));
         let HostMessage::Snapshot { snapshot:updated, .. } = application_message(&mut stream, &mut reader, &mut channel).await else { panic!("updated snapshot"); };
         assert!(updated.assets.is_empty());
+        assert_eq!(updated.enabled_agents, Some(vec![]));
         let packet = channel.seal(&serde_json::to_vec(&DeviceMessage::AssetRequest { hash:descriptor.hash.clone(), offset:0 }).unwrap()).unwrap();
         write_frame(&mut stream, &packet, MAX_ENCRYPTED_FRAME_BYTES).await.unwrap();
         assert!(matches!(application_message(&mut stream, &mut reader, &mut channel).await, HostMessage::AssetUnavailable { .. }));

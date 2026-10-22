@@ -91,11 +91,11 @@ impl Devices {
             let Some(context) = weak.upgrade() else { return; };
             let now = super::super::current_epoch_ms();
             let epoch = context.notification_source_epoch.load(Ordering::Acquire);
-            let mut changed = false;
+            let enabled = context.agents.snapshot().await.ok().map(|settings| settings.enabled_ai_tools);
             // 终端需求独立于桌面页面可见性，复用同一后台额度板及五分钟/进行中合并门禁。
             context.quota.kick(false, &context.background);
-            let quota = context.quota.snapshot().for_terminal();
-            if value.provider_quota != quota { value.provider_quota = quota; changed = true; }
+            let mut changed = value.update_agent_visibility(enabled, context.quota.snapshot().for_terminal());
+            let enabled = value.enabled_agents.clone().unwrap_or_default();
             if now >= token_due || source_epoch != Some(epoch) || value.tokens.as_ref().is_some_and(|t| !t.day.contains(now)) {
                 let cancellation = ScanCancellation::default();
                 let loaded = tokio::select! {
@@ -122,8 +122,6 @@ impl Devices {
             }
             let status = context.agents.listener.get().map(|l| l.snapshot());
             let key = status.as_ref().map(|s| (s.listening, s.revision));
-            let settings = context.agents.snapshot().await;
-            let enabled = settings.map(|s| s.enabled_ai_tools).unwrap_or_default();
             let current_key = (key, enabled.clone());
             if hook_key.as_ref() != Some(&current_key) {
                 value.hooks_available = status.as_ref().is_some_and(|s| s.listening);
@@ -137,5 +135,55 @@ impl Devices {
             tokio::select! { biased; _ = cancelled.changed() => return, _ = self.publication_refresh.notified() => { token_due = 0; },
                 _ = tokio::time::sleep(Duration::from_millis(500)) => {} }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use loki_metris_core::AiTool;
+
+    /// 等待实际后台发布指定名单，跳过其它真实刷新，不依赖固定睡眠或改写发布状态。
+    async fn next_enabled(updates: &mut watch::Receiver<Arc<Publication>>, enabled: &[AiTool]) -> Arc<Publication> {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                updates.changed().await.unwrap();
+                let publication = updates.borrow_and_update().clone();
+                if publication.snapshot.enabled_agents.as_deref() == Some(enabled) { return publication; }
+            }
+        }).await.expect("Agent设置应由现有500ms轮询发布")
+    }
+
+    /// Cursor没有Token来源且启停不改变统计epoch，真实发布器仍独立发送名单及明确全关闭。
+    #[test]
+    fn cursor_visibility_publishes_without_tokens_or_source_epoch_change() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = crate::usage_service::UsageService::in_test_directory(temp.path().join("data")).unwrap();
+        service.save_enabled_ai_tools(vec![AiTool::Cursor]).unwrap().blocking_recv().unwrap().unwrap();
+        let devices = service.context.devices.clone();
+        devices.state().server.widget_readers = 1;
+        let runtime = service.runtime.lock().unwrap().as_ref().unwrap().handle().clone();
+        runtime.block_on(async {
+            let epoch = service.context.notification_source_epoch.load(Ordering::Acquire);
+            let (cancel, cancelled) = watch::channel(false);
+            let mut updates = devices.publications.subscribe();
+            let publisher = tokio::spawn(devices.clone().publish_loop(cancelled));
+            let initial = next_enabled(&mut updates, &[AiTool::Cursor]).await;
+            assert!(initial.snapshot.tokens.is_none());
+            assert_eq!(initial.snapshot.token_error.as_deref(), Some("usage_agents_disabled"));
+            for enabled in [vec![], vec![AiTool::Cursor]] {
+                service.save_enabled_ai_tools(enabled.clone()).unwrap().await.unwrap().unwrap();
+                assert_eq!(service.context.notification_source_epoch.load(Ordering::Acquire), epoch);
+                let publication = next_enabled(&mut updates, &enabled).await;
+                assert!(publication.snapshot.tokens.is_none());
+                assert_eq!(publication.snapshot.token_error.as_deref(), Some("usage_agents_disabled"));
+                let HostMessage::Snapshot { snapshot, .. } = publication.message(super::super::super::current_epoch_ms()) else { panic!("snapshot"); };
+                assert_eq!(snapshot.enabled_agents, Some(enabled));
+            }
+            cancel.send(true).unwrap();
+            publisher.await.unwrap();
+        });
+        devices.state().server.widget_readers = 0;
+        service.finish();
     }
 }

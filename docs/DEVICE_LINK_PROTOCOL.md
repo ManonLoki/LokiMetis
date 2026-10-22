@@ -127,12 +127,20 @@ change_id：`FEAT-WIDGET-HTTP-V1`；required_version：`0.7.0`。用户于2026-1
 
 密钥使用HKDF-SHA256，IKM为32字节配对秘密，salt为UTF8 `clientId + "/" + deviceId`，info为UTF8 `LokiMetris/widget-http/1/read-only`，输出32字节。Widget只取得此读取密钥，无法用它恢复TCP认证。请求JSON为`{clientId,deviceId,nonce,ciphertext}`；nonce为每次新生成12字节随机数的Base64，ciphertext为ChaCha20-Poly1305的密文拼接16字节tag后Base64。请求明文及AAD均为UTF8 `loki-widget-request-v1`。身份绑定由每对身份的派生密钥和当前账本共同保证。
 
-响应外壳为`{nonce,ciphertext}`，使用新的随机12字节nonce；AAD为UTF8 `loki-widget-response-v1`拼接原请求12字节nonce。解密后为`{type:"snapshot",sourceId,snapshot}`，snapshot仅包含version、tokens、tokenError、hooksAvailable、hooks及可选providerQuota；每条Hook仅保留agent/slot/behavior，不传正文、图片、资源表或宿主路径。Widget验证来源、完整性、原始u64字符串及现有展示边界后才写入共享摘要。
+响应外壳为`{nonce,ciphertext}`，使用新的随机12字节nonce；AAD为UTF8 `loki-widget-response-v1`拼接原请求12字节nonce。解密后为`{type:"snapshot",sourceId,snapshot}`，snapshot仅包含version、tokens、tokenError、hooksAvailable、hooks及可选enabledAgents/providerQuota；名单语义见[终端Agent启用名单](#终端agent启用名单)。每条Hook仅保留agent/slot/behavior，不传正文、图片、资源表或宿主路径。Widget验证来源、完整性、原始u64字符串及现有展示边界后才写入共享摘要。
 
 HTTP头部最多4096字节，请求正文1..1024字节，必须声明唯一Content-Length及application/json，拒绝Transfer-Encoding/Expect和其他方法/路径；桌面请求处理5秒预算，客户端6秒总期限，响应外壳最多96KiB、解密摘要最多64KiB，禁止重定向、缓存、Cookie和HTTP认证。沿用最多8条待处理连接许可；每设备保留最近32个nonce，重复请求不触发再次扫描。认证请求才临时登记读取需求，唤醒休眠发布器并等待完成读取；所有TCP设备断开时也能执行，完成/超时/取消撤销需求，不将HTTP读取标记为设备在线。响应前复核当前配对，解除配对后拒绝。
 
 App与Widget使用固定文件锁协调摘要与读取配置。切换来源、忘记配对、服务换代及较新摘要到达后，迟到HTTP不能覆盖。Timeline由`.never`改为`.after`，申请约5分钟后再次执行，实际时间由WidgetKit调度，离线保留真实上次同步时间；不承诺5分钟准点更新，不增加云推送。主App仍不恢复历史Token/Hooks。独立读取配置排除备份并使用首次解锁后可读保护。Apple机制依据：[WidgetKit刷新](https://developer.apple.com/documentation/widgetkit/keeping-a-widget-up-to-date)、[扩展网络请求](https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension)、[本地HTTP配置](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking)，核对日期2026-10-21。
 
+
+## 终端Agent启用名单
+
+change_id：`LMDESK-TERMINAL-AGENT-VISIBILITY-001`；required_version：`0.9.0`。用户要求用量与额度面板只显示桌面设置启用的Agent，完整TCP快照与加密HTTP摘要统一携带可选`snapshot.enabledAgents`。
+
+该字段是独立的camelCase字符串数组，值来自`AiTool`目录：codex/claudeCode/cursor/openCode/workBuddy/hermes/openClaw/codeBuddy/qwenCode/kimiCode/qoder/geminiCli/gitHubCopilot/grok。缺失或null表示旧桌面或尚无成功设置读取，`[]`明确表示全关闭；不能从tokens.agents、Hooks、额度成功与否或非空条目推断。Token读取失败、尚无数据及Cursor仅支持Hooks均不影响真实名单。设置读取失败保留最近成功名单，首次未知保持未提供且不发送未知配置下的额度。
+
+发布器每轮读取已确认设置，并通过原有500ms轮询比较完整名单变化；Cursor启停不依赖统计来源epoch。额度先由core使用同份名单筛选，再与上一份已发布投影比较；保留真实窗口、观测时间和原始Token总量/质量。全关闭明确撤下旧额度，不伪造新的额度读取。HTTP透传同一名单，手机、Watch和小组件保持其缺失/null/空数组语义；旧桌面未提供时保留移动端原行为。该扩展不改变snapshot.version、配对或认证权限。
 
 ## 提供商额度同步与主动查询
 

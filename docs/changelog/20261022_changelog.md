@@ -1,5 +1,13 @@
 # 2026-10-22 开发变更
 
+## LMDESK-TERMINAL-AGENT-VISIBILITY-001 · 终端Agent随桌面设置动态显示
+
+分类：feature；required_version：`0.9.0`。本周期功能提升已应用，本项保持版本不变。
+
+桌面完整快照与HTTP摘要新增独立可选`enabledAgents`，原样表达真实设置：缺失/null为未知或旧端，空数组为全关闭。名单不依赖Token/Hooks或额度成功；设置读取失败保留最近成功值。core按同一名单筛选额度、保留原始窗口和观测时间，并比较过滤后结果，防止无变化时重复发布；Cursor开关即使不改变统计epoch也能通过既有轮询更新。原始Token总量、分量和质量不被改写。合同见[终端联动协议](../DEVICE_LINK_PROTOCOL.md#终端agent启用名单)。
+
+开发验证：core协议7项、core额度24项、桌面设备服务27项，共58项通过；覆盖三态名单、14种camelCase身份、无Token/读取失败、仅Codex与Cursor、全关闭、重复过滤、独立Cursor轮询及加密TCP/HTTP透传。用户已明确批准本次在已有脏开发分支整合，仅提交本项并保留原有23项差异；例外见[ADR-20261022-006](../adr/20261022_ADR.md#adr-20261022-006终端同步独立启用名单并保留本次脏工作区)。移动端显示与实机同步由移动端聊天分别验证。
+
 ## LMDESK-WATCH-DEVICE-CARD-001 · 绿色在线状态与Watch小图
 
 分类：feature；required_version：`0.9.0`。本周期首项新功能，将版本从`0.8.1`提升至`0.9.0`。

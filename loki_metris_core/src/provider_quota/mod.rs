@@ -95,6 +95,12 @@ pub struct ProviderQuotaSnapshot {
 }
 
 impl ProviderQuotaSnapshot {
+    /// 终端额度仅展示设置中启用的Agent，保留观测时间与真实窗口；全关闭时显式清空。
+    pub fn for_enabled_agents(mut self, enabled: &[AiTool]) -> Self {
+        self.providers.retain(|quota| enabled.contains(&quota.provider.ai_tool()));
+        self
+    }
+
     /// 仅投影有效窗口并按活动目录排序；尚未完成读取时不伪造空结果。
     pub fn project(observed_at_unix: Option<i64>, quotas: &[ProviderQuota]) -> Option<Self> {
         let observed_at_unix = observed_at_unix.filter(|time| *time >= 0)?;

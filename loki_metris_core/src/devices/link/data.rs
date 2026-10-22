@@ -120,6 +120,9 @@ pub struct HookDisplay {
 pub struct DisplaySnapshot {
     /// 协议版本。
     pub version: u8,
+    /// 桌面设置中的完整启用集合；缺失兼容旧快照，空集合明确关闭全部Agent。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled_agents: Option<Vec<AiTool>>,
     /// Token读取成功时存在。
     pub tokens: Option<TokenSnapshot>,
     /// Token读取失败的稳定类别。
@@ -135,6 +138,18 @@ pub struct DisplaySnapshot {
     /// 可选额度投影兼容旧终端；空providers明确清除旧额度，None表示尚未读取。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_quota: Option<crate::ProviderQuotaSnapshot>,
+}
+
+impl DisplaySnapshot {
+    /// 成功设置独立决定可见名单；未知读取保留最近确认值，额度先裁剪再比较，避免无变化时重复发布。
+    pub fn update_agent_visibility(&mut self, enabled: Option<Vec<AiTool>>, quota: Option<crate::ProviderQuotaSnapshot>) -> bool {
+        let enabled = enabled.or_else(|| self.enabled_agents.clone());
+        let quota = quota.map(|quota| quota.for_enabled_agents(enabled.as_deref().unwrap_or(&[])));
+        let changed = self.enabled_agents != enabled || self.provider_quota != quota;
+        self.enabled_agents = enabled;
+        self.provider_quota = quota;
+        changed
+    }
 }
 
 /// 复用本机十二槽位覆盖/释放规则，仅输出公开且启用Agent的最终展示。
@@ -158,6 +173,51 @@ pub fn project_hooks(drafts: &[crate::AiProfileDraft], states: &[crate::PetOverl
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// 可选名单区分旧端、未知和全关闭，完整目录使用稳定camelCase且不依赖Token读取成功。
+    #[test]
+    fn enabled_agents_wire_preserves_unknown_empty_and_all_tool_names() {
+        let mut value = serde_json::to_value(DisplaySnapshot { version: 1, token_error: Some("unavailable".into()), ..Default::default() }).unwrap();
+        assert!(value.get("enabledAgents").is_none());
+        assert_eq!(serde_json::from_value::<DisplaySnapshot>(value.clone()).unwrap().enabled_agents, None);
+        value["enabledAgents"] = serde_json::Value::Null;
+        assert_eq!(serde_json::from_value::<DisplaySnapshot>(value.clone()).unwrap().enabled_agents, None);
+        value["enabledAgents"] = serde_json::json!([]);
+        assert_eq!(serde_json::from_value::<DisplaySnapshot>(value.clone()).unwrap().enabled_agents, Some(vec![]));
+        let names = serde_json::json!(["codex", "claudeCode", "cursor", "openCode", "workBuddy", "hermes", "openClaw", "codeBuddy", "qwenCode", "kimiCode", "qoder", "geminiCli", "gitHubCopilot", "grok"]);
+        value["enabledAgents"] = names.clone();
+        let snapshot: DisplaySnapshot = serde_json::from_value(value).unwrap();
+        assert_eq!(snapshot.enabled_agents.as_deref(), Some(AiTool::ALL.as_slice()));
+        assert!(snapshot.tokens.is_none());
+        assert_eq!(snapshot.token_error.as_deref(), Some("unavailable"));
+        assert_eq!(serde_json::to_value(snapshot).unwrap()["enabledAgents"], names);
+    }
+
+    /// 比较前按真实名单过滤额度；相同原始输入不重复通知，读取失败不伪造全关闭或泄漏未知配置额度。
+    #[test]
+    fn agent_visibility_compares_filtered_quota_and_preserves_confirmed_settings() {
+        let quotas = crate::supported_quota_providers().map(|provider| crate::ProviderQuota {
+            provider, plan: None, five_hour: None, monthly: None,
+            weekly: Some(crate::QuotaWindow { kind: crate::QuotaWindowKind::Weekly, used_tenths: 370, reset_at_unix: Some(456) }),
+        });
+        let quota = crate::ProviderQuotaSnapshot::project(Some(123), &quotas);
+        let mut snapshot = DisplaySnapshot { version: 1, token_error: Some("unavailable".into()), ..Default::default() };
+        assert!(!snapshot.update_agent_visibility(None, None));
+        assert!(snapshot.update_agent_visibility(None, quota.clone()));
+        assert!(snapshot.enabled_agents.is_none());
+        assert!(snapshot.provider_quota.as_ref().unwrap().providers.is_empty());
+        let enabled = vec![AiTool::Codex, AiTool::Cursor];
+        assert!(snapshot.update_agent_visibility(Some(enabled.clone()), quota.clone()));
+        assert_eq!(snapshot.provider_quota.as_ref().unwrap().providers, vec![quotas[0].clone(), quotas[2].clone()]);
+        assert!(!snapshot.update_agent_visibility(Some(enabled.clone()), quota.clone()));
+        assert!(!snapshot.update_agent_visibility(None, quota.clone()));
+        assert_eq!(snapshot.enabled_agents, Some(enabled));
+        assert!(snapshot.tokens.is_none());
+        assert_eq!(snapshot.token_error.as_deref(), Some("unavailable"));
+        assert!(snapshot.update_agent_visibility(Some(vec![]), quota));
+        assert_eq!(snapshot.enabled_agents, Some(vec![]));
+        assert!(snapshot.provider_quota.as_ref().unwrap().providers.is_empty());
+    }
+
     /// 控制包与图片请求保持严格字段边界，不能用多余字段混淆解析。
     #[test]
     fn device_messages_accept_control_and_reject_unknown_fields() {
@@ -207,6 +267,9 @@ mod tests {
             completeness:Completeness::Complete, confidence:Confidence::Exact };
         let snapshot = TokenSnapshot::from_observation(&value, &[(AiTool::Codex,value.clone())]).unwrap();
         assert_eq!(snapshot.all.total.as_deref(), Some("18446744073709551615"));
+        let mut display = DisplaySnapshot { version: 1, tokens: Some(snapshot.clone()), ..Default::default() };
+        assert!(display.update_agent_visibility(Some(vec![AiTool::Cursor]), None));
+        assert_eq!(display.tokens, Some(snapshot), "名单只约束显示，不能篡改原始总量、分量和质量");
         let mut stale = value.clone(); stale.observed_ms -= 1;
         assert!(TokenSnapshot::from_observation(&value, &[(AiTool::Codex,stale)]).is_err());
         assert!(TokenSnapshot::from_observation(&value, &[(AiTool::Codex,value.clone()),(AiTool::Codex,value.clone())]).is_err());
