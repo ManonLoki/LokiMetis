@@ -1,6 +1,6 @@
 # vendor 目录说明
 
-本文解释 `vendor/` 为什么存在、它如何接入根工作区、每个子目录各自承担什么职责、补丁如何被生成和校验，以及维护和移除的条件。事实来源为根 `Cargo.toml`、各包 `Cargo.toml`／`build.rs`／`provenance.json`／`README.md`、`vendor/gpui-patch-support/`、`docs/ENGINEERING_RULES.md` 第 2.3 节和 ADR-005（`docs/adr/20261009_ADR.md`）。本文只是汇总，与上述文件冲突时以它们为准。
+本文解释 `vendor/` 为什么存在、它如何接入根工作区、每个子目录各自承担什么职责、补丁如何被生成和校验，以及维护和移除的条件。事实来源为根 `Cargo.toml`、各包 `Cargo.toml`／`build.rs`／`provenance.json`／`README.md`、`vendor/gpui-patch-support/`、`docs/ENGINEERING_RULES.md` 第 2.3 节和 [GPUI 圆角兼容层说明](../gpui-pre/README.md)。本文只是汇总，与上述文件冲突时以它们为准。
 
 ## 1. vendor 的定位
 
@@ -196,7 +196,7 @@ cargo test --manifest-path vendor/gpui-pre-apple/Cargo.toml --lib \
 1. 在目标包的 `patches/` 新建 `<名称>.before`／`.after`；`before` 必须在**当前生成树**（而非原始上游，若同文件已有前序补丁）中唯一出现。
 2. 在对应登记处追加 `Patch`（gpui-pre／gpui-pre-apple 用 `src/*_patches.rs` 的 `patch!`；其它直接写 `build.rs`；两包共用的 scene 改动写 `gpui-patch-support/scene_patches.rs`）。注意组内与组间顺序。
 3. 构建一次，让生成器报出 `reviewed generated output drift: <文件> (actual <sha>)`，审阅 `OUT_DIR/gpui-patched/<文件>` 的实际内容后把新摘要写回 `generated_hashes`。若改动文件此前未在列表中，必须新增条目；生成器会拒绝"改动集合 ≠ 摘要集合"。
-4. 若补丁新增了公开 API，补充对应包内测试；若改了 `PolychromeSprite` 等跨后端结构，Metal／HLSL／WGSL／WebGL 四处必须同步（ADR-005）。
+4. 若补丁新增了公开 API，补充对应包内测试；若改了 `PolychromeSprite` 等跨后端结构，Metal／HLSL／WGSL／WebGL 四处必须同步。
 5. 更新该包 `README.md`（及 `licenses/NOTICE.md`，如有）的行为描述。
 
 ### 7.2 升级上游版本
@@ -211,7 +211,7 @@ cargo test --manifest-path vendor/gpui-pre-apple/Cargo.toml --lib \
 
 ### 7.3 移除条件
 
-各 README 与 ADR-005 一致：当官方 GPUI／AccessKit 已提供等效能力，并通过本项目相同的几何、资源、真实像素和受影响目标平台 Computer Use 回归后，删除对应 `vendor/` 子目录与根 `[patch.crates-io]` 条目。不得只为去掉补丁而跨版本替换框架、改变其它角色语义或取消失败验证。
+各 README 约定：当官方 GPUI／AccessKit 已提供等效能力，并通过本项目相同的几何、资源、真实像素和受影响目标平台 Computer Use 回归后，删除对应 `vendor/` 子目录与根 `[patch.crates-io]` 条目。不得只为去掉补丁而跨版本替换框架、改变其它角色语义或取消失败验证。
 
 ## 8. 与仓库其它规则的关系
 
