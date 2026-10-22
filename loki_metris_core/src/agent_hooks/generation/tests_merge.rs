@@ -3,7 +3,7 @@
 use serde_json::Value;
 
 use super::super::{hook_transition, managed_hook_marker};
-use super::{command_has_marker, tests::{generate_test_hook_config, contract_text}};
+use super::{command_has_marker, tests::{generate_test_hook_config, contract_text, command_text}};
 use crate::agent_hooks::{
     AiTool, HookBehavior, HookConfigPreview, HookTransition, merge_hook_config,
     remove_managed_hook_entries,
@@ -308,7 +308,7 @@ fn claude_status_line_is_written_only_when_free_and_removed_only_when_managed() 
     let command = value["statusLine"]["command"].as_str().unwrap();
     assert_eq!(value["statusLine"]["type"], "command");
     assert!(command_has_marker(command, &managed_hook_marker(AiTool::ClaudeCode)));
-    assert!(command.contains("StatusLine"));
+    assert!(command_text(command).contains("StatusLine"));
 
     let first = merge_hook_config(None, &generated, AiTool::ClaudeCode).unwrap();
     let again = merge_hook_config(Some(&first.content), &generated, AiTool::ClaudeCode).unwrap();

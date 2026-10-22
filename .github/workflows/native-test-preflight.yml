@@ -1,0 +1,57 @@
+name: Native test preflight
+
+on:
+  push:
+    branches: [feature-ci-native-test-preflight-20261022]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-tests:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.21.0'
+      - name: Install declared Rust toolchain
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+          rustup target add x86_64-pc-windows-msvc
+      - name: Native Windows SDK
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $devcmd = Join-Path $install 'Common7\Tools\VsDevCmd.bat'
+          cmd /c "`"$devcmd`" -arch=x64 -host_arch=x64 >nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1],$matches[2],'Process') }
+          }
+          foreach ($tool in @('cl.exe','rc.exe','fxc.exe')) {
+            Split-Path (Get-Command $tool -ErrorAction Stop).Source | Add-Content $env:GITHUB_PATH
+          }
+          $linker = Join-Path (Split-Path (Get-Command cl.exe -ErrorAction Stop).Source) 'link.exe'
+          if (!(Test-Path -LiteralPath $linker -PathType Leaf)) { throw 'MSVC linker is missing' }
+          "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=$linker" | Add-Content $env:GITHUB_ENV
+          foreach ($name in @('INCLUDE','LIB','LIBPATH','WindowsSdkDir','WindowsSDKVersion','VCINSTALLDIR','VCToolsInstallDir','UniversalCRTSdkDir','UCRTVersion')) {
+            "$name=$([Environment]::GetEnvironmentVariable($name,'Process'))" | Add-Content $env:GITHUB_ENV
+          }
+      - name: Embed current verified release notes
+        shell: bash
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; import {releaseNotes,renderReleaseNotesRust} from "./.agents/skills/desktop-build-gpui-release/scripts/gpui_evidence.mjs"; const file=path.join(process.env.RUNNER_TEMP,"preflight-notes.rs"); fs.writeFileSync(file,renderReleaseNotesRust(releaseNotes(process.cwd(),"0.7.11"))); fs.appendFileSync(process.env.GITHUB_ENV,`HARNESS_GPUI_RELEASE_NOTES_RS=${file}\n`);'
+      - name: Run all native tests and report all failing suites
+        run: cargo test --workspace --all-targets --all-features --no-fail-fast
