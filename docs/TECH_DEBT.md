@@ -1,6 +1,7 @@
 # 已知边界与技术债
 
 - 产品边界以最新 `docs/product_spec/` 为准；完整候选仍需按当次构建与渠道要求独立验收。
+- Windows异步界面测试等待预算：2026-10-22 [Actions首次执行](https://github.com/ManonLoki/LokiMetis/actions/runs/39765773399/job/119780731065)中，`hook_directory_controls_preserve_tool_drafts_and_disable_unsaved_write`回执等待超时；同源码完整重跑通过。现有[`settle`](../loki_metris_gui/src/app/monitor/hooks/tests.rs)固定500轮、每轮sleep 2ms，推进GPUI假时钟不能代表真实Tokio文件线程和全局设置写锁已完成；负载下的等待预算脆弱性尚未修正。解除条件为改用有界真实时间deadline、保留真实落盘和跨标签归属断言，并通过Hooks模块及Windows全量回归；本次重试不将首次失败改写为通过。
 - Ubuntu 26应用中心本地deb集成：本机snap-store 1448（`d7d3fbe8`）已安装即禁用本地deb按钮，不比较版本；安装详情页不接入产品图标，已安装页的stock图标也受Snap主题目录可见性限制。包已补标准AppStream YAML目录，实际升级后在应用中心的发现/卸载仍待对应候选验证。上游限制及来源见[Linux打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)；解除条件为上游支持本地deb版本比较、可读取本地图标，或另行批准软件源/商店渠道。不改包名伪装新应用、不写Snap私有目录、不自动配置外部软件源。
 - Linux已有真实验证范围：v0.3.11 ARM64 GNOME XWayland的桌宠、Dock、托盘恢复、Hook通知及其它16项必需场景通过；[能力证据索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)保留精确候选绑定。剩余缺口为v0.3.13及后续版本、x64运行、登录自启、混合DPI/热插拔、第三方Agent自行消费Hooks与未测宿主换肤。纯Wayland桌宠全局定位/置顶和Portal/X11后台热键服务仍未接通，空action合同不注册键位，旧global-hotkey 0.8断连回执不能作为注册成功。新版本及未覆盖环境仍须真实候选验证。
 - Hooks上游信息边界：没有轮次/序号的旧终态若在新提示后迟到，无法可靠判断所属；并行同名工具权限请求或同服务器MCP表单缺少调用ID时，保守保留询问至明确新轮次/终态。WorkBuddy FinalStop依据本机5.7.7第一方引擎；更早版本未提供该事件时不能保证完成提示，需对应版本另行核验。详细协议来源见[Hooks协议依据](HOOKS_PROTOCOLS.md)。
