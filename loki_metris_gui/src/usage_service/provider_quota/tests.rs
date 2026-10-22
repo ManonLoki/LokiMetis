@@ -14,7 +14,6 @@ use super::{
 const TOKEN: &str = "test-codex-access-token";
 const GROK_OLD: &str = "expired-grok-session-key";
 const GROK_NEW: &str = "current-grok-session-key";
-const CURSOR_TOKEN: &str = "cursor-test-token";
 
 /// 终端只接收成功额度；全部失败后以空列表明确清除先前数据，不保留秘密或失败正文。
 #[test]
@@ -261,7 +260,8 @@ fn cursor_cookie_and_workbuddy_identity_use_the_fixture_without_touching_secrets
         write(&database, "not-a-real-database");
         let before = std::fs::read(&database).unwrap();
         std::fs::write(root.path().join("mode.txt"), "status").unwrap();
-        std::fs::write(root.path().join("sqlite-out.txt"), CURSOR_TOKEN).unwrap();
+        let cursor_token = super::cursor_session_tests::jwt(serde_json::json!({"sub": "auth0|user_fixture"}));
+        std::fs::write(root.path().join("sqlite-out.txt"), &cursor_token).unwrap();
         std::fs::write(root.path().join("body.txt"), r#"{"billingCycleStart":"2026-04-02T00:00:00Z","billingCycleEnd":"2026-05-02T00:00:00Z","membershipType":"enterprise","individualUsage":{"plan":{"totalPercentUsed":100,"used":1,"limit":1}}}"#.to_owned() + "\n__LM_HTTP_200").unwrap();
         let phase = fetch::fetch_provider(QuotaProvider::Cursor, &layout(home.clone()), Some(&program), Some(&program), CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 }, 0, &range(), &mut cancel).await;
         // 月度账单周期进入月窗口，不再被当作“没有目标窗口”。
@@ -269,10 +269,20 @@ fn cursor_cookie_and_workbuddy_identity_use_the_fixture_without_touching_secrets
             if quota.plan.as_deref() == Some("enterprise") && quota.monthly.is_some_and(|window| window.used_tenths == 1000) && quota.weekly.is_none()));
         let stdin = std::fs::read_to_string(root.path().join("stdin.txt")).unwrap();
         let argv = std::fs::read_to_string(root.path().join("argv.txt")).unwrap();
-        assert!(stdin.contains("WorkosCursorSessionToken=cursor-test-token"));
+        assert!(stdin.contains(&format!("WorkosCursorSessionToken=user_fixture%3A%3A{cursor_token}")));
         assert!(stdin.contains("Mozilla/5.0"));
-        assert!(!argv.contains(CURSOR_TOKEN));
+        assert!(!argv.contains(&cursor_token));
         assert!(argv.contains("cursorAuth/accessToken"));
+        assert_eq!(std::fs::read(&database).unwrap(), before);
+
+        // 身份字段损坏时，只读本地库后就终止，不启动远程请求或改写数据库。
+        std::fs::remove_file(root.path().join("argv.txt")).unwrap();
+        std::fs::write(root.path().join("sqlite-out.txt"), super::cursor_session_tests::jwt(serde_json::json!({"sub": "invalid-user"}))).unwrap();
+        let phase = fetch::fetch_provider(QuotaProvider::Cursor, &layout(home.clone()), Some(&program), Some(&program), CurlLimits { timeout: Duration::from_secs(2), max_body: 64 * 1024 }, 0, &range(), &mut cancel).await;
+        assert_eq!(phase, super::QuotaCardPhase::Failed(QuotaFailure::Malformed));
+        let argv = std::fs::read_to_string(root.path().join("argv.txt")).unwrap();
+        assert!(argv.contains("cursorAuth/accessToken"));
+        assert!(!argv.contains("--config"));
         assert_eq!(std::fs::read(&database).unwrap(), before);
 
         let info = credentials::workbuddy_auth_files(&layout(home.clone()))[0].clone();

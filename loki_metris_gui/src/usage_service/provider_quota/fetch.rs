@@ -129,11 +129,12 @@ fn codex_request(login: &CodexLogin) -> Result<HttpRequest, QuotaFailure> {
 
 /// 构造固定 Cursor 用量请求，将令牌编码为会话 Cookie。
 fn cursor_request(token: &Secret) -> Result<HttpRequest, QuotaFailure> {
+    let session = credentials::cursor_session_cookie(token)?;
     Ok(HttpRequest {
         method: "GET",
         url: "https://cursor.com/api/usage-summary".to_owned(),
         headers: vec![
-            ("Cookie", format!("WorkosCursorSessionToken={}", token.expose().replace("::", "%3A%3A"))),
+            ("Cookie", format!("WorkosCursorSessionToken={}", session.expose())),
             ("User-Agent", cursor_user_agent().to_owned()),
             ("Accept", "application/json".to_owned()),
             ("Origin", "https://cursor.com".to_owned()),

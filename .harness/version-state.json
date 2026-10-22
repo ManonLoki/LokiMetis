@@ -89,7 +89,8 @@
     "LMDESK-CI-SHELL-MATRIX-001",
     "LMDESK-CI-STATIC-SHELLS-001",
     "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022",
-    "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001"
+    "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001",
+    "LMDESK-CURSOR-QUOTA-SESSION-001"
   ],
   "applied_reconciliations": [
     {
@@ -128,8 +129,13 @@
       "change_id": "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001",
       "kind": "bug-fix",
       "required_version": "0.7.12"
+    },
+    {
+      "change_id": "LMDESK-CURSOR-QUOTA-SESSION-001",
+      "kind": "bug-fix",
+      "required_version": "0.7.13"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.7.12"
+  "target_version": "0.7.13"
 }

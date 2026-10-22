@@ -2,6 +2,7 @@
 
 use std::{fs::File, io::Read, path::{Path, PathBuf}};
 
+use base64::{Engine as _, engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD}};
 use loki_metris_core::QuotaFailure;
 use serde_json::Value;
 
@@ -137,6 +138,48 @@ pub(crate) fn cursor_token_from_output(text: &str) -> Result<Secret, QuotaFailur
         return Err(QuotaFailure::Malformed);
     }
     Secret::new(token).ok_or(QuotaFailure::Malformed)
+}
+
+/// 将独立 JWT 或已有会话映射成 Cursor Cookie；这里只解释协议字段，认证仍由上游执行。
+pub(crate) fn cursor_session_cookie(token: &Secret) -> Result<Secret, QuotaFailure> {
+    let raw = token.expose();
+    let (user_id, access_token) = if let Some((user_id, access_token)) = cursor_session_parts(raw) {
+        (user_id.to_owned(), access_token)
+    } else {
+        let segments: Vec<_> = raw.split('.').collect();
+        if segments.len() != 3 || segments.iter().any(|part| part.is_empty()) {
+            return Err(QuotaFailure::Malformed);
+        }
+        let payload = URL_SAFE_NO_PAD.decode(segments[1]).or_else(|_| URL_SAFE.decode(segments[1]))
+            .map_err(|_| QuotaFailure::Malformed)?;
+        let value: Value = serde_json::from_slice(&payload).map_err(|_| QuotaFailure::Malformed)?;
+        let subject = value.get("sub").and_then(Value::as_str).ok_or(QuotaFailure::Malformed)?;
+        let user_id = subject.rsplit('|').next().ok_or(QuotaFailure::Malformed)?.to_owned();
+        (user_id, raw)
+    };
+    let suffix = user_id.strip_prefix("user_").ok_or(QuotaFailure::Malformed)?;
+    if suffix.is_empty() || user_id.len() > 128
+        || !suffix.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+        || access_token.is_empty()
+        || !access_token.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'='))
+    {
+        return Err(QuotaFailure::Malformed);
+    }
+    let session = format!("{user_id}%3A%3A{access_token}");
+    // 传输上限覆盖整个 Cookie 头值，包含固定键名。
+    if session.len() + "WorkosCursorSessionToken=".len() > 8192 {
+        return Err(QuotaFailure::Malformed);
+    }
+    Secret::new(session).ok_or(QuotaFailure::Malformed)
+}
+
+/// 只识别会话分隔符，不解码令牌中的其它百分号内容。
+fn cursor_session_parts(raw: &str) -> Option<(&str, &str)> {
+    if let Some(parts) = raw.split_once("::") {
+        return Some(parts);
+    }
+    let split = raw.as_bytes().windows(6).position(|part| part.eq_ignore_ascii_case(b"%3A%3A"))?;
+    Some((&raw[..split], &raw[split + 6..]))
 }
 
 /// WorkBuddy 国内版与国际版登录文件。只返回候选路径，不探测是否存在。

@@ -6,6 +6,8 @@ mod local;
 mod transport;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod cursor_session_tests;
 
 use std::{sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 
