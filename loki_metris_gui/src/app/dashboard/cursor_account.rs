@@ -62,11 +62,6 @@ impl Shell {
             page = page.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading")));
         }
         let Some(data) = &self.dashboard.cursor_account else { return page.into_any_element() };
-        page = page.child(div().flex().flex_wrap().gap_3().text_sm().text_color(cx.theme().muted_foreground)
-            .child(format!("{} {} · {} {} / {}", self.t("cursor_account.events"), format::exact(data.counts.events),
-                self.t("cursor_account.with_details"), format::exact(data.counts.events - data.counts.without_usage), format::exact(data.counts.events)))
-            .child(format!("{} {}", self.t("statistics.observed"), format::observed(data.observed_at_ms, self.locale))))
-            .child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("cursor_account.partial_notice")));
         let counts = &data.counts;
         page = page.child(div().grid().grid_cols(if self.viewport_width >= 1200. {4} else {2}).gap_4()
             .children([("input", &counts.input), ("output", &counts.output), ("cache_read", &counts.cache_read), ("cache_write", &counts.cache_write)]
@@ -218,7 +213,7 @@ mod tests {
             assert_eq!(this.cursor_tokens(&data.counts.cache_write),this.t("dashboard.not_provided"));
             assert_eq!(this.cursor_tokens(&data.counts.input),"12");
             for locale in ["zh-CN","en-US"] {
-                for key in ["title","partial_notice","input","output","cache_read","cache_write","daily","models","credentials","unauthorized","incomplete","malformed","transport"] {
+                for key in ["title","input","output","cache_read","cache_write","daily","models","credentials","unauthorized","incomplete","malformed","transport"] {
                     let key=format!("cursor_account.{key}");
                     assert_ne!(rust_i18n::t!(&key,locale=locale).to_string(),key);
                 }

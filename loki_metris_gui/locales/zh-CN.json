@@ -946,9 +946,7 @@
   "cursor_account": {
     "title": "Cursor 账户",
     "events": "记录数",
-    "with_details": "有 Token 明细",
     "reported": "已上报记录",
-    "partial_notice": "各项仅合计上游已返回的字段；覆盖不全时不是完整总量，缺失不按零处理。缓存读写单独列出，不与输入字段重复相加。数据可能延迟上报。",
     "input": "输入 Token（API 字段）",
     "output": "输出 Token",
     "cache_read": "缓存读取 Token",

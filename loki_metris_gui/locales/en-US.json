@@ -946,9 +946,7 @@
   "cursor_account": {
     "title": "Cursor account",
     "events": "Events",
-    "with_details": "With Token details",
     "reported": "Reported events",
-    "partial_notice": "Each value sums only fields returned by Cursor. Partial coverage is not a complete total; missing fields are not zero. Cache reads and writes remain separate from the input field. Reporting may be delayed.",
     "input": "Input Tokens (API field)",
     "output": "Output Tokens",
     "cache_read": "Cache read Tokens",
