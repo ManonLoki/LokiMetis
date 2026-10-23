@@ -74,6 +74,7 @@ impl Shell {
             page = page.child(
                 div()
                     .id("skins-feedback")
+                    .test_support()
                     .role(Role::Alert)
                     .aria_label(message.clone())
                     .p_4()

@@ -7,6 +7,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "layout_tests.rs"]
+mod layout;
+
 /// 宿主轮询关闭的是进程级owner，真实GUI回归各用独立测试进程。
 fn isolated(name: &str) -> bool {
     const KEY: &str = "LOKI_METRIS_SKIN_UI_TEST";

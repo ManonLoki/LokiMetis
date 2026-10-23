@@ -57,6 +57,8 @@ impl Shell {
             .w_full()
             .flex()
             .flex_col()
+            // 外层页面负责滚动，短窗仍须保留网格的完整自然高度。
+            .flex_shrink_0()
             .gap(px(20.))
             .on_drop(cx.listener(|this, paths: &gpui_kit::ExternalPaths, _, cx| {
                 this.prepare_skin_import(paths.paths().to_vec(), cx)
@@ -109,6 +111,7 @@ impl Shell {
         let active = self.active_skin();
         let cards = div()
             .w_full()
+            .flex_shrink_0()
             .grid()
             .grid_cols(columns)
             .gap(px(20.))
