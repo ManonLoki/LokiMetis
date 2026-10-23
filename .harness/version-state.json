@@ -120,19 +120,13 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.9.0",
+  "cycle_base_version": "0.9.1",
   "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "0e326ceb745d7fa50119d61ab5a2ee59d868c9f6",
-    "version": "0.9.0"
+    "source_commit": "f8bfb3068b838d515ebe5c49654b82a31b77a6fc",
+    "version": "0.9.1"
   },
-  "pending_changes": [
-    {
-      "change_id": "LMDESK-EXPLICIT-REBUILD-091-20261023",
-      "kind": "bug-fix",
-      "required_version": "0.9.1"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.9.1"
 }
