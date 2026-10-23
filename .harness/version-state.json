@@ -91,7 +91,8 @@
     "LMDESK-RELEASE-MAINTENANCE-EXCEPTION-20261022",
     "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001",
     "LMDESK-CURSOR-QUOTA-SESSION-001",
-    "LMDESK-CURSOR-DAILY-REFRESH-001"
+    "LMDESK-CURSOR-DAILY-REFRESH-001",
+    "LMDESK-EXPLICIT-REBUILD-091-20261023"
   ],
   "applied_reconciliations": [
     {
@@ -125,7 +126,13 @@
     "source_commit": "0e326ceb745d7fa50119d61ab5a2ee59d868c9f6",
     "version": "0.9.0"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-EXPLICIT-REBUILD-091-20261023",
+      "kind": "bug-fix",
+      "required_version": "0.9.1"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.9.0"
+  "target_version": "0.9.1"
 }
