@@ -2,6 +2,17 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-23",
+      "version": "v0.9.1",
+      "featureOptimizations": [
+        {
+          "zh-CN": "按明确选择以 v0.9.1 重新构建 Windows、macOS 与 Linux 双架构安装包；本次为维护重发，产品功能与 v0.9.0 一致。",
+          "en-US": "Rebuild the Windows, macOS and both Linux architecture packages as v0.9.1 as explicitly requested; this maintenance reissue preserves the product behavior of v0.9.0."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
       "releaseDate": "2026-10-22",
       "version": "v0.9.0",
       "featureOptimizations": [
@@ -156,46 +167,6 @@
         {
           "zh-CN": "移除设备管理页的本机实例信息和配对备份恢复区块，保留已有设备配对能力。",
           "en-US": "Remove the local instance information and pairing backup/restore sections from device management while preserving device pairing."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-21",
-      "version": "v0.7.4",
-      "featureOptimizations": [
-        {
-          "zh-CN": "在 AI 监控中显示真实提供商额度，优先读取本机记录，支持 Codex、Claude statusLine、Cursor 月额度与 Grok。",
-          "en-US": "Show verified provider quotas in AI monitoring, preferring local records and supporting Codex, Claude statusLine, Cursor monthly quotas and Grok."
-        },
-        {
-          "zh-CN": "向认证终端同步提供商额度并支持主动查询，小组件可通过加密 HTTP 独立读取桌面摘要。",
-          "en-US": "Sync provider quotas to authenticated terminals, support explicit queries, and let widgets fetch encrypted desktop summaries over HTTP."
-        },
-        {
-          "zh-CN": "提供加密配对备份与恢复，展示稳定桌面身份并区分测试实例。",
-          "en-US": "Add encrypted pairing backup and recovery, expose stable desktop identity, and distinguish test instances."
-        },
-        {
-          "zh-CN": "额度卡显示套餐标签、真实五小时及周／月窗口，并使用红黄绿进度条。",
-          "en-US": "Show plan labels, actual five-hour and weekly/monthly windows, and red-yellow-green quota progress bars."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "设备发现服务失败后自动退避重试，并统一 Agent 显示名称。",
-          "en-US": "Retry failed device advertising with bounded backoff and unify Agent display names."
-        },
-        {
-          "zh-CN": "保留只有周额度的卡片，修复 JSONL 截尾、较新空记录及 Cursor 多行缓存导致本地窗口被丢弃的问题。",
-          "en-US": "Keep weekly-only cards and preserve local windows across truncated JSONL tails, newer empty records and multiple Cursor cache rows."
-        },
-        {
-          "zh-CN": "隔离 curl 与 SQLite 的用户默认配置，拒绝外部程序失败退出，并让超时覆盖标准输入写入。",
-          "en-US": "Ignore user curl and SQLite startup configuration, reject failed process exits, and apply timeouts to stdin writes."
-        },
-        {
-          "zh-CN": "修复小于 1% 的百分数被错误放大为比例的问题。",
-          "en-US": "Fix percentages below 1% being incorrectly treated as fractional ratios."
         }
       ]
     }

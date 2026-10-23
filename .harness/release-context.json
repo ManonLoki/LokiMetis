@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "e902a4980c1d232b725ed75b327d59ee0a21b48d",
-  "version": "0.9.0",
-  "releaseDate": "2026-10-22",
-  "expectedTag": "v0.9.0-20261022",
+  "sourceHead": "340a7881de418fdb9d05ea30b83caa389a840234",
+  "version": "0.9.1",
+  "releaseDate": "2026-10-23",
+  "expectedTag": "v0.9.1-20261023",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "66bbf827b5eb5894d1fa3273977cd35978ed2d98",
-    "sourceHead": "e902a4980c1d232b725ed75b327d59ee0a21b48d",
-    "scopeDiffSha256": "dc691d0f22af4047a68bbe5d23dcc216aaca2fb3f8a08339083305fe57e43d1b",
-    "reviewedSourceCommit": "e902a4980c1d232b725ed75b327d59ee0a21b48d",
+    "scopeBase": "0e326ceb745d7fa50119d61ab5a2ee59d868c9f6",
+    "sourceHead": "340a7881de418fdb9d05ea30b83caa389a840234",
+    "scopeDiffSha256": "b64528e3c8024b61a03e9dc5f1aaa0be79016436136f180ff9021bb2b29215d2",
+    "reviewedSourceCommit": "340a7881de418fdb9d05ea30b83caa389a840234",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计审查通过：行为正确性、core/adapter边界、对外契约、职责规模及临时标记均已复核；54项常规发布与8项替换/制品回归通过，项目validate通过。固定旧身份及旧记录归档，经主分支整合、精确lease与原子推送保护；平台全量Rust测试和最终包验证由本轮Actions独立执行。",
+    "evidenceSummary": "累计差异已复核：仅版本、去重状态、发布记录及一次性例外ADR；无Rust业务、依赖、工作流或对外协议变化。行为正确性、core/adapter边界、对外契约、职责规模及临时标记五项通过；90项发布与版本脚本回归、validate三项门禁通过。各平台全量Rust测试及最终包验证由本轮Actions独立执行；E2E按本次明确选择关闭。",
     "reason": null,
     "remainingRisk": null
   }
