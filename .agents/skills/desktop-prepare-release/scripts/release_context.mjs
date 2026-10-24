@@ -64,7 +64,7 @@ export function runGit(root, args, { check = true, text = true } = {}) {
       GCM_INTERACTIVE: "Never",
     },
     input: Buffer.alloc(0),
-    maxBuffer: 16 * 1024 * 1024,
+    maxBuffer: 64 * 1024 * 1024,
   });
   if (result.error) {
     throw new ReleaseContextError("git executable is unavailable");

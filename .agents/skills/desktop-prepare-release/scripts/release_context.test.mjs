@@ -29,7 +29,7 @@ function scopeDiffSha256(root, base, head, env) {
     "--diff-algorithm=myers", "--no-indent-heuristic", "--unified=3",
     "--inter-hunk-context=0", "--submodule=short", "--ignore-submodules=none",
     base, head, "--",
-  ], { env, maxBuffer: 16 * 1024 * 1024 });
+  ], { env, maxBuffer: 64 * 1024 * 1024 });
   if (result.error || result.status !== 0) assert.fail(`cannot compute fixture Git diff: ${result.stderr?.toString("utf8")}`);
   return createHash("sha256").update(result.stdout).digest("hex");
 }
@@ -186,6 +186,27 @@ withFixture("enabled_review_recomputes_real_diff_on_write_check_and_verify", (it
     "verify", "--project-root", item.root, "--expected-head", head, "--expected-sha256", digest,
   );
   assert.equal(verified.status, 0, verified.stderr);
+});
+
+/** 大目录迁移展开为超过16MiB的审查差异时，仍完整重算摘要并拒绝篡改。 */
+withFixture("enabled_review_accepts_large_diff_and_rejects_digest_tampering", (item) => {
+  writeFileSync(join(item.root, "large-source.txt"), "reviewed source line\n".repeat(900_000));
+  item.git("add", "large-source.txt");
+  item.git("commit", "--quiet", "-m", "feat: large review fixture");
+  const sourceHead = item.git("rev-parse", "HEAD").stdout.trim();
+  const digest = scopeDiffSha256(item.root, item.baseline, sourceHead, process.env);
+  const result = item.writeContext([
+    "--source-head", sourceHead, "--scope-diff-sha256", digest,
+  ], "1.2.3", "enabled");
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(item.invoke("check", "--project-root", item.root).status, 0);
+  const contextPath = join(item.root, ".harness/release-context.json");
+  const context = JSON.parse(readFileSync(contextPath, "utf8"));
+  context.releaseReview.scopeDiffSha256 = "0".repeat(64);
+  writeFileSync(contextPath, `${JSON.stringify(context, null, 2)}\n`);
+  const rejected = item.invoke("check", "--project-root", item.root);
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /scopeDiffSha256 does not match the Git diff/);
 });
 
 withFixture("enabled_review_write_rejects_wrong_diff_digest_before_writing", (item) => {
