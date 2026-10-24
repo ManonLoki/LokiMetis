@@ -153,4 +153,3 @@ fn open_fixed_prefix_stamped(path: &Path) -> std::io::Result<(File, FileStamp)> 
     let stamp = FileStamp::of(&file, &opened_metadata);
     Ok((file, stamp))
 }
-
