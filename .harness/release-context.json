@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "a67a20e890a5379f429ddcc0dca42a124c2a3b99",
-  "version": "0.9.2",
-  "releaseDate": "2026-10-23",
-  "expectedTag": "v0.9.2-20261023",
+  "sourceHead": "9bf222e63aa00014b76be9929baada31279aac5c",
+  "version": "0.9.3",
+  "releaseDate": "2026-10-25",
+  "expectedTag": "v0.9.3-20261025",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "f8bfb3068b838d515ebe5c49654b82a31b77a6fc",
-    "sourceHead": "a67a20e890a5379f429ddcc0dca42a124c2a3b99",
-    "scopeDiffSha256": "32320cf0b3862bd6c5cf08b1deeb0b5d1f255f48f21c472f2a8d23de2e77be9a",
-    "reviewedSourceCommit": "a67a20e890a5379f429ddcc0dca42a124c2a3b99",
+    "scopeBase": "a0086b62c51f2c41c9e5b852dccf6ed5fab02eac",
+    "sourceHead": "9bf222e63aa00014b76be9929baada31279aac5c",
+    "scopeDiffSha256": "8502561641e3ebc2214d2feda00c136eee42b836451b2f041f5ff95aa3bd1be8",
+    "reviewedSourceCommit": "9bf222e63aa00014b76be9929baada31279aac5c",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "固定11文件累计差异五项审查通过：皮肤页自然高度及双语动作宽度正确；领域规则和真实Create到core及资源服务调用链保持原样；外部协议、权限与数据格式不变；文件职责集中且规模受控；无新增临时标记、秘密或绕过。45项皮肤页回归和validate三项通过，Windows960×640英文深色卡片、工具栏及搜索清空实测通过。远端历史渠道文档普通整合后产品源码与受保护状态字节不变。正式安装包、其它平台实物及原生CUA截图本轮未验证。",
+    "evidenceSummary": "五项审查通过：扫描、查询、Hooks及换肤保持原行为；gui→service→host→core依赖与业务归属符合已批准ADR，纯Read解析位于core；持久化身份、外部协议与安装资源目标保持；建议区间文件按职责复核且无硬超限；新增内容无临时占位、秘密或缓存。本轮validate三项通过，既有4619f5e报告全workspace测试通过。0.9.3批准版本及ADR复核通过；发布helper改为64MiB有界缓冲，追加审查及32项真实Git回归通过；差异空白检查通过。四平台候选测试、资源及macOS签名公证待本次CI；E2E关闭，安装交互Unverified。",
     "reason": null,
     "remainingRisk": null
   }

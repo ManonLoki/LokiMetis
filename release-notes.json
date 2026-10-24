@@ -2,6 +2,17 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-25",
+      "version": "v0.9.3",
+      "featureOptimizations": [
+        {
+          "zh-CN": "按本次批准以 v0.9.3 维护重发；将后台服务与宿主驱动拆为独立工作区，会话日志解析和数据源身份统一归入核心层，保持现有功能与数据格式。",
+          "en-US": "Publish the approved v0.9.3 maintenance release; separate background services and host drivers into workspace crates, and centralize session-log parsing and source identities in core while preserving existing behavior and data formats."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
       "releaseDate": "2026-10-23",
       "version": "v0.9.2",
       "featureOptimizations": [],
@@ -147,21 +158,6 @@
         {
           "zh-CN": "Windows CI 使用原生 PowerShell 和明确的 MSVC 链接器，避免 Git Bash 同名工具抢占。",
           "en-US": "Use native PowerShell and an explicit MSVC linker in Windows CI to prevent collisions with Git Bash tools."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-22",
-      "version": "v0.7.7",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "修正 Linux AMD64 的原生编译器依赖包名，保留正确 GNU 工具前缀。",
-          "en-US": "Correct Linux AMD64 compiler package names while preserving the GNU tool prefix."
-        },
-        {
-          "zh-CN": "修复 Windows CI 导入 Visual Studio 后覆盖 Node 路径的问题，并保留实际 SDK 编译环境。",
-          "en-US": "Preserve the selected Node runtime and native SDK environment after importing Visual Studio settings in Windows CI."
         }
       ]
     }
