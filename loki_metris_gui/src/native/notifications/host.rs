@@ -1,6 +1,6 @@
 //! 应用级前台连接：内存轮询不查询 OS，权限与系统提交使用独立有界异步任务。
 use super::{Service, driver};
-use crate::usage_service::UsageService;
+use loki_metris_service::usage_service::UsageService;
 use futures::{
     FutureExt as _,
     future::{Either, select},
@@ -169,7 +169,7 @@ impl Service {
         let Some(request) = usage.take_notification() else {
             return;
         };
-        let now = crate::usage_service::current_epoch_ms();
+        let now = loki_metris_service::usage_service::current_epoch_ms();
         let ready = (0..=10_000).contains(&now.saturating_sub(request.reserved_ms))
             && owner.state.enabled
             && owner.state.permission == NotificationPermission::Allowed

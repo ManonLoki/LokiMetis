@@ -1,12 +1,12 @@
 //! 真实GPUI窗口验证Hooks路径草稿、禁用边界与原生选择器回执。
 
-use crate::monitor::hook_test_support::HookCommandText as _;
+use loki_metris_service::monitor::hook_test_support::HookCommandText as _;
 use super::*;
 use gpui_kit::{AppContext, Entity, TestAppContext, test::TestWindowExt};
 use std::{sync::Arc, time::Duration};
 
 /// 每项回归只拥有自己的临时服务，退出等待已接受操作。
-struct Finish(Arc<crate::usage_service::UsageService>);
+struct Finish(Arc<loki_metris_service::usage_service::UsageService>);
 impl Drop for Finish {
     /// 服务收尾先于临时目录销毁。
     fn drop(&mut self) {
@@ -37,8 +37,8 @@ fn directory_placeholder_follows_language_without_resetting_input(cx: &mut TestA
         shell.update(cx, |this, _| {
             this.page = Page::Monitor;
             this.monitor.route = Route::Hooks;
-            this.monitor.hooks.accept_locations(crate::monitor::store::list_hook_config_locations(
-                &crate::monitor::settings::MonitorSettings::default(), root.path()));
+            this.monitor.hooks.accept_locations(loki_metris_service::monitor::store::list_hook_config_locations(
+                &loki_metris_service::monitor::settings::MonitorSettings::default(), root.path()));
         });
         window.render_frame(cx);
         let inputs: Vec<_> = shell.read(cx).monitor.hooks.editors.iter()
@@ -90,7 +90,7 @@ fn hook_directory_controls_preserve_tool_drafts_and_disable_unsaved_write(cx: &m
     let root = tempfile::tempdir().unwrap();
     let directory = root.path().join("data");
     let settings =
-        crate::monitor::settings::update_monitor_settings(&directory.join("monitor"), |settings| {
+        loki_metris_service::monitor::settings::update_monitor_settings(&directory.join("monitor"), |settings| {
             for tool in public_monitor_ai_tools() {
                 settings.hook_directories.set(
                     tool,
@@ -102,7 +102,7 @@ fn hook_directory_controls_preserve_tool_drafts_and_disable_unsaved_write(cx: &m
             }
         })
         .unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(directory.clone()).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(directory.clone()).unwrap();
     let _finish = Finish(service.clone());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
@@ -111,7 +111,7 @@ fn hook_directory_controls_preserve_tool_drafts_and_disable_unsaved_write(cx: &m
         this.monitor.route = Route::Hooks;
         this.monitor
             .hooks
-            .accept_locations(crate::monitor::store::list_hook_config_locations(
+            .accept_locations(loki_metris_service::monitor::store::list_hook_config_locations(
                 &settings,
                 root.path(),
             ));
@@ -154,7 +154,7 @@ fn hook_directory_controls_preserve_tool_drafts_and_disable_unsaved_write(cx: &m
         );
     });
     let saved =
-        crate::monitor::settings::load_monitor_settings(&directory.join("monitor")).unwrap();
+        loki_metris_service::monitor::settings::load_monitor_settings(&directory.join("monitor")).unwrap();
     assert_eq!(saved.hook_directories.codex, new_path.to_string_lossy());
     assert_eq!(
         saved.hook_directories.claude_code,
@@ -168,14 +168,14 @@ fn hook_folder_picker_only_changes_captured_draft_and_cancel_keeps_feedback(
     cx: &mut TestAppContext,
 ) {
     let root = tempfile::tempdir().unwrap();
-    let settings = crate::monitor::settings::MonitorSettings::default();
+    let settings = loki_metris_service::monitor::settings::MonitorSettings::default();
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
         this.page = crate::app::Page::Monitor;
         this.monitor.route = Route::Hooks;
         this.monitor
             .hooks
-            .accept_locations(crate::monitor::store::list_hook_config_locations(
+            .accept_locations(loki_metris_service::monitor::store::list_hook_config_locations(
                 &settings,
                 root.path(),
             ));
@@ -225,7 +225,7 @@ fn hook_workbuddy_additional_path_and_empty_selection_are_real_projections(
     cx: &mut TestAppContext,
 ) {
     let root = tempfile::tempdir().unwrap();
-    let settings = crate::monitor::settings::MonitorSettings::default();
+    let settings = loki_metris_service::monitor::settings::MonitorSettings::default();
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
         this.page = crate::app::Page::Monitor;
@@ -233,7 +233,7 @@ fn hook_workbuddy_additional_path_and_empty_selection_are_real_projections(
         this.monitor.hooks.selected = Some(AiTool::WorkBuddy);
         this.monitor
             .hooks
-            .accept_locations(crate::monitor::store::list_hook_config_locations(
+            .accept_locations(loki_metris_service::monitor::store::list_hook_config_locations(
                 &settings,
                 root.path(),
             ));
@@ -262,8 +262,8 @@ fn hook_workbuddy_additional_path_and_empty_selection_are_real_projections(
 #[test]
 fn refreshed_hook_locations_keep_unsaved_directory_draft() {
     let root = tempfile::tempdir().unwrap();
-    let settings = crate::monitor::settings::MonitorSettings::default();
-    let locations = crate::monitor::store::list_hook_config_locations(&settings, root.path());
+    let settings = loki_metris_service::monitor::settings::MonitorSettings::default();
+    let locations = loki_metris_service::monitor::store::list_hook_config_locations(&settings, root.path());
     let mut state = HooksView::default();
     state.accept_locations(locations.clone());
     state.editors[0].draft = "/unsaved".into();
@@ -276,9 +276,9 @@ fn refreshed_hook_locations_keep_unsaved_directory_draft() {
 #[test]
 fn saved_hook_directory_invalidates_interleaved_query_and_keeps_later_draft() {
     let root = tempfile::tempdir().unwrap();
-    let settings = crate::monitor::settings::MonitorSettings::default();
+    let settings = loki_metris_service::monitor::settings::MonitorSettings::default();
     let mut state = HooksView::default();
-    state.accept_locations(crate::monitor::store::list_hook_config_locations(
+    state.accept_locations(loki_metris_service::monitor::store::list_hook_config_locations(
         &settings,
         root.path(),
     ));
@@ -321,7 +321,7 @@ fn edited_path_hides_old_write_receipt_without_cancelling_owned_write(cx: &mut T
     let directory = root.path().join("data");
     let hook_directory = root.path().join("codex");
     let settings =
-        crate::monitor::settings::update_monitor_settings(&directory.join("monitor"), |settings| {
+        loki_metris_service::monitor::settings::update_monitor_settings(&directory.join("monitor"), |settings| {
             settings.enabled_ai_tools.clear();
             settings.hook_directories.codex = hook_directory.to_string_lossy().into_owned();
         })
@@ -335,7 +335,7 @@ fn edited_path_hides_old_write_receipt_without_cancelling_owned_write(cx: &mut T
         .open(hook_directory.join(".lokimetis-hook-config.lock"))
         .unwrap();
     lock.lock().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(directory).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(directory).unwrap();
     let _finish = Finish(service.clone());
     service
         .start_test_hook_writer("/fixture/LokiMetris".into(), root.path().join("home"))
@@ -347,7 +347,7 @@ fn edited_path_hides_old_write_receipt_without_cancelling_owned_write(cx: &mut T
         this.monitor.route = Route::Hooks;
         this.monitor
             .hooks
-            .accept_locations(crate::monitor::store::list_hook_config_locations(
+            .accept_locations(loki_metris_service::monitor::store::list_hook_config_locations(
                 &settings,
                 root.path(),
             ));
@@ -388,9 +388,9 @@ fn edited_path_hides_old_write_receipt_without_cancelling_owned_write(cx: &mut T
 #[gpui_kit::test]
 fn refreshed_hook_file_projection_does_not_reset_directory_input(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().unwrap();
-    let settings = crate::monitor::settings::MonitorSettings::default();
+    let settings = loki_metris_service::monitor::settings::MonitorSettings::default();
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
-    let locations = crate::monitor::store::list_hook_config_locations(&settings, root.path());
+    let locations = loki_metris_service::monitor::store::list_hook_config_locations(&settings, root.path());
     shell.update(cx, |this, cx| {
         this.page = crate::app::Page::Monitor;
         this.monitor.route = Route::Hooks;

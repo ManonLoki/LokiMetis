@@ -57,7 +57,7 @@ fn repeated_internal_bounds_and_refresh_do_not_restart_pet_save_cycle(cx: &mut T
         "stable bounds must converge without saving"
     );
     assert_eq!(
-        crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor"))
+        loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor"))
             .unwrap()
             .pet_overlay_position,
         Some(position)
@@ -94,7 +94,7 @@ fn same_physical_pixel_jitter_keeps_deadline_and_real_motion_still_saves(cx: &mu
         "same pixel notification must not restart 200ms debounce"
     );
     let saved =
-        crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(
         saved.pet_overlay_position,
         Some(PetOverlayPosition { x: -81, y: 120 })

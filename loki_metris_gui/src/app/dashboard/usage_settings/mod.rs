@@ -38,7 +38,7 @@ impl Shell {
         let service_revision=service.usage_settings_revision();let generation=state.generation;let revision=state.query_revision;
         let work=match service.usage_settings() {Ok(work)=>work,Err(_)=>{state.loading=false;state.failed=true;cx.notify();return}};
         state.query_task=Some(cx.spawn(async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(30)).await.unwrap_or(Err("usage_settings_unavailable"));
+            let result=crate::receipt::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(30)).await.unwrap_or(Err("usage_settings_unavailable"));
             let _=entity.update(cx,|this,cx| {
                 let state=&mut this.dashboard.usage_settings;
                 if state.generation!=generation||state.query_revision!=revision {return}
@@ -62,7 +62,7 @@ impl Shell {
         state.query_task.take();state.query_revision=state.query_revision.wrapping_add(1);
         state.pending[index]=true;state.feedback[index]=None;let generation=state.generation;
         state.save_tasks[index]=Some(cx.spawn(async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(30)).await.unwrap_or(Err("usage_setting_save_failed"));
+            let result=crate::receipt::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(30)).await.unwrap_or(Err("usage_setting_save_failed"));
             let _=entity.update(cx,|this,cx| {
                 let state=&mut this.dashboard.usage_settings;if state.generation!=generation {return}
                 state.pending[index]=false;

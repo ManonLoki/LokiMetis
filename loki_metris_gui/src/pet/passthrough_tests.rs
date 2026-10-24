@@ -1,6 +1,6 @@
 //! 穿透控制沿用真实服务回执；测试适配器只验证映射，不冒充OS投递。
 
-use super::{tests::{fixture, settle}, *};
+use super::{passthrough::toggle_mouse_passthrough, tests::{fixture, settle}, *};
 use gpui_kit::{TestAppContext, test::TestWindowExt};
 
 /// 公开bounds观察独立于被测方法，防止穿透误走几何路径。
@@ -30,7 +30,7 @@ fn mouse_passthrough_control_persists_and_corrupt_store_rolls_back_without_geome
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.mouse_state.confirmed()), Some(true));
     let path = f.root.path().join("monitor/monitor-settings.json");
     let saved = std::fs::read(&path).unwrap();
-    let stored = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let stored = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert!(stored.pet_window.mouse_passthrough);
     assert!(!stored.pet_window.locked);
     f.owner.update(cx, |owner, cx| { owner.close_settings(cx); owner.open_settings(cx); });
@@ -85,7 +85,7 @@ fn mouse_passthrough_busy_queue_survives_settings_close(cx: &mut TestAppContext)
     let f = fixture(cx);
     f.owner.update(cx, |owner, cx| owner.open_settings(cx));
     cx.run_until_parked();
-    let held = crate::usage_service::block_pet_mutations(&f.service);
+    let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(true), cx));
     cx.run_until_parked();
     assert!(f.owner.read_with(cx, |owner, _| owner.busy));
@@ -98,7 +98,7 @@ fn mouse_passthrough_busy_queue_survives_settings_close(cx: &mut TestAppContext)
     held.release();
     settle(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.mouse_state.confirmed()), Some(false));
-    assert!(!crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.mouse_passthrough);
+    assert!(!loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.mouse_passthrough);
     assert_eq!(f.service.pet_settings_revision(), 2);
 }
 
@@ -108,11 +108,11 @@ fn mouse_passthrough_shutdown_drains_final_off(cx: &mut TestAppContext) {
     for accepted in [false, true] {
         let f = fixture(cx);
         cx.update(|cx| cx.set_global(Manager(f.owner.clone())));
-        let held = crate::usage_service::block_pet_mutations(&f.service);
+        let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
         if accepted {
             f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(true), cx));
             cx.run_until_parked();
-            assert_eq!(crate::usage_service::pet_background_task_count(&f.service), 1);
+            assert_eq!(loki_metris_service::usage_service::pet_background_task_count(&f.service), 1);
         }
         let plan = cx.update(|cx| {
             f.owner.update(cx, |owner, cx| {
@@ -124,7 +124,7 @@ fn mouse_passthrough_shutdown_drains_final_off(cx: &mut TestAppContext) {
         assert_eq!(plan.changes.len(), if accepted { 1 } else { 2 });
         held.release();
         f.service.finish_with_pet(plan);
-        assert!(!crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.mouse_passthrough);
+        assert!(!loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.mouse_passthrough);
     }
 }
 
@@ -133,7 +133,7 @@ fn mouse_passthrough_shutdown_drains_final_off(cx: &mut TestAppContext) {
 fn mouse_passthrough_initial_read_cannot_overwrite_explicit_off(cx: &mut TestAppContext) {
     let f = fixture(cx);
     f.service.change_pet_preferences(PetPreferenceChange::MousePassthrough(true), PetSizeRange { min: 64, max: 135 }).unwrap().blocking_recv().unwrap().unwrap();
-    let held = crate::usage_service::block_pet_mutations(&f.service);
+    let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
     cx.update(|cx| cx.set_global(Manager(f.owner.clone())));
     f.owner.update(cx, |owner, cx| owner.refresh(cx));
     assert!(f.owner.read_with(cx, |owner, _| owner.loading));
@@ -150,7 +150,7 @@ fn mouse_passthrough_initial_read_cannot_overwrite_explicit_off(cx: &mut TestApp
     assert!(!f.owner.read_with(cx, |owner, _| owner.loading));
     assert!(!f.owner.read_with(cx, |owner, _| owner.settings.pet_window.mouse_passthrough));
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.mouse_state.confirmed()), Some(false));
-    assert!(!crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.mouse_passthrough);
+    assert!(!loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.mouse_passthrough);
 }
 
 /// 缺失浮窗时拒收原生属性并继续分页，不把测试假平台成功当作可用窗口。
@@ -163,7 +163,7 @@ fn mouse_passthrough_missing_overlay_rejects_and_continues_queue(cx: &mut TestAp
         owner.change(PetPreferenceChange::TurnPage(1), cx);
     });
     settle(cx, &f.owner);
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert!(!saved.pet_window.mouse_passthrough);
     assert_eq!(saved.pet_window.focused_slot, 4);
     assert_eq!(f.service.pet_settings_revision(), 1);
@@ -177,7 +177,7 @@ fn mouse_passthrough_failed_save_and_failed_rollback_remain_recoverable(cx: &mut
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, b"{broken").unwrap();
     let (events, _observe) = watch_bounds(f.overlay, cx);
-    let held = crate::usage_service::block_pet_mutations(&f.service);
+    let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(true), cx));
     cx.run_until_parked();
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.mouse_state.confirmed()), Some(true));
@@ -189,7 +189,7 @@ fn mouse_passthrough_failed_save_and_failed_rollback_remain_recoverable(cx: &mut
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.last_error.as_ref().map(|error| error.code)), Some("error.monitor.petApplyFailed"));
     assert_eq!(std::fs::read(&path).unwrap(), b"{broken");
     assert_eq!(f.service.pet_settings_revision(), 0);
-    crate::monitor::settings::save_monitor_settings(&f.root.path().join("monitor"), &Default::default()).unwrap();
+    loki_metris_service::monitor::settings::save_monitor_settings(&f.root.path().join("monitor"), &Default::default()).unwrap();
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::TurnPage(1), cx));
     settle(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.mouse_state.confirmed()), None);

@@ -69,6 +69,23 @@ impl X11Window {
         let root = connection.get_geometry(window)?.reply()?.root;
         Ok(Self { connection, window, root })
     }
+    /// 映射只作用于当前活窗，不通过应用激活顺便抢焦点；Unmap 保留窗口和播放状态。
+    pub(crate) fn set_visible(&self, visible: bool) -> anyhow::Result<()> {
+        let desired = if visible { MapState::VIEWABLE } else { MapState::UNMAPPED };
+        let confirmed = self.connection.get_window_attributes(self.window)?.reply()?.map_state == desired;
+        if !confirmed {
+            if visible { self.connection.map_window(self.window)?.check()?; }
+            else { self.connection.unmap_window(self.window)?.check()?; }
+            if visible {
+                self.connection.change_property32(PropMode::REPLACE, self.window,
+                    self.atom(b"_LOKI_METRIS_AUXILIARY_REMAP_PENDING")?, AtomEnum::CARDINAL, &[1])?.check()?;
+            }
+        }
+        self.connection.change_property32(PropMode::REPLACE, self.window,
+            self.atom(b"_LOKI_METRIS_AUXILIARY_VISIBLE")?, AtomEnum::CARDINAL, &[u32::from(visible)])?.check()?;
+        self.connection.flush()?;
+        Ok(())
+    }
     /// 原子名由服务器分配，不使用跨服务器静态缓存。
     pub(crate) fn atom(&self, name: &[u8]) -> anyhow::Result<u32> {
         Ok(self.connection.intern_atom(false, name)?.reply()?.atom)

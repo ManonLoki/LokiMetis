@@ -2,6 +2,7 @@
 
 pub(crate) mod windowing;
 pub(crate) mod keyboard_entry;
+pub(crate) mod window_visibility;
 mod tray;
 mod tray_hide;
 #[cfg(target_os = "linux")]
@@ -21,7 +22,56 @@ mod windows;
 pub(crate) use windows::allows_geometry_save;
 
 use gpui_kit::{AnyWindowHandle, App, Global, Task};
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
+
+/// 原生宿主事件进入主窗根视图的端口；由 app 为根视图实现，native 不依赖 app 类型。
+///
+/// 只有 macOS 与非测试 Windows 由根视图持有主窗宿主事务；其它平台的主窗显隐由
+/// [`window_visibility`] 直接完成，因此该端口在那些平台上没有方法。根视图已释放时
+/// 各方法静默返回 `None` 或不产生副作用。
+pub trait MainShell {
+    /// 返回根视图创建时捕获的主窗原生宿主；捕获失败时为 None。
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    fn window_host(&self, cx: &mut App) -> Option<windowing::WindowHost>;
+    /// 宿主几何出现新修订后，把原生窗口状态同步进根视图。
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    fn poll_native_window(&self, window: &gpui_kit::Window, cx: &mut App);
+    /// 隐藏或最小化前取消恢复租约，返回可在 GPUI 借用之外操作的宿主。
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    fn prepare_window_hide(&self, window: &gpui_kit::Window, cx: &mut App) -> Option<windowing::WindowHost>;
+    /// 按捕获的桌面快照请求恢复并显示主窗。
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    fn request_window_restore(&self, desktop: windowing::DesktopSnapshot, window: &gpui_kit::Window, cx: &mut App);
+    /// 取消等待中的恢复并返回宿主，供托盘隐藏在借用之外执行。
+    #[cfg(any(target_os="macos", all(windows, not(test))))]
+    fn cancel_window_restore(&self, cx: &mut App) -> Option<windowing::WindowHost>;
+}
+
+/// 托盘桌宠菜单显示的鼠标穿透状态：托盘只比较和投影，不轮询 OS 或克隆快照。
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub struct MousePassthroughState {
+    /// 已保存的穿透偏好。
+    pub enabled: bool,
+    /// 有偏好事务在途。
+    pub busy: bool,
+    /// 浮窗存在且未退出，可以切换。
+    pub available: bool,
+    /// 原生读回的实际穿透状态。
+    pub confirmed: Option<bool>,
+}
+
+/// 托盘桌宠入口需要的上层动作；由组装入口注入，native 不依赖桌宠模块。
+#[derive(Clone, Copy)]
+pub struct PetTrayActions {
+    /// 切换桌宠可见。
+    pub toggle: fn(&mut App),
+    /// 打开桌宠设置窗。
+    pub open_settings: fn(&mut App),
+    /// 切换桌宠鼠标穿透。
+    pub toggle_mouse_passthrough: fn(&mut App),
+    /// 读取托盘勾选使用的穿透状态快照。
+    pub mouse_passthrough_state: fn(&App) -> MousePassthroughState,
+}
 
 /// 平台窗口与已选服务由唯一 Global 持有，不增加第二条事件循环。
 pub struct Services {
@@ -32,7 +82,7 @@ pub struct Services {
     main_is_x11: bool,
     /// 根视图的弱引用，原生宿主事件经它进入窗口状态逻辑。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
-    shell: gpui_kit::WeakEntity<crate::app::Shell>,
+    shell: Rc<dyn MainShell>,
     /// 主窗原生宿主；捕获失败时为 None，退回 GPUI 自身的显隐。
     #[cfg(any(target_os="macos", all(windows, not(test))))]
     window_host: Option<windowing::WindowHost>,
@@ -73,12 +123,12 @@ impl Services {
 }
 
 /// 主窗口创建后安装宿主机制；不注册登录项，不申请通知权限，不绑定默认热键。
-pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::Shell>, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
+pub fn install(handle: AnyWindowHandle, shell: Rc<dyn MainShell>, pet: PetTrayActions, locale: &str, instance: instance::Instance, receiver: std::sync::mpsc::Receiver<()>, notifications: notifications::Service, cx: &mut App) {
     menu::install(locale, cx);
     #[cfg(target_os = "linux")]
     let main_is_x11 = handle.update(cx, |_, window, _| linux::x11_window_id(window).is_ok()).unwrap_or(false);
     #[cfg(any(target_os="macos", all(windows, not(test))))]
-    let window_host = shell.update(cx, |shell, _| shell.window_host()).ok().flatten();
+    let window_host = shell.window_host(cx);
     #[cfg(windows)]
     let native_window = handle.update(cx, |_, window, _| windows::MainWindow::capture(window)).ok().and_then(Result::ok);
     let _ = locale;
@@ -117,7 +167,7 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                     if let Some(revision) = revision.filter(|revision| *revision != service.window_revision) {
                         service.window_revision = revision;
                         let shell = service.shell.clone();
-                        let _ = handle.update(cx, |_, window, cx| { let _ = shell.update(cx, |shell, cx| shell.poll_native_window(window, cx)); });
+                        let _ = handle.update(cx, |_, window, cx| shell.poll_native_window(window, cx));
                     }
                 }
                 if receiver.try_iter().take(64).count() > 0 { show(handle, cx); }
@@ -127,8 +177,8 @@ pub fn install(handle: AnyWindowHandle, shell: gpui_kit::WeakEntity<crate::app::
                     sync_linux_main(available, cx);
                 }
                 let events = cx.global::<Services>().tray.as_ref().map(|tray| tray.events()).unwrap_or_default();
-                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => crate::pet::toggle(cx), tray::Event::OpenPetSettings => crate::pet::open_settings(cx), tray::Event::ToggleMousePassthrough => crate::pet::toggle_mouse_passthrough(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);}, tray::Event::ToggleAutostart=>toggle_autostart(cx) } }
-                let mouse_state=crate::pet::mouse_passthrough_state(cx);
+                for event in events { match event { tray::Event::Show => show(handle, cx), tray::Event::Quit => cx.quit(), tray::Event::TogglePet => (pet.toggle)(cx), tray::Event::OpenPetSettings => (pet.open_settings)(cx), tray::Event::ToggleMousePassthrough => (pet.toggle_mouse_passthrough)(cx), tray::Event::ToggleNotification=> {let enabled=notification_state(cx).enabled;set_notification(!enabled,cx);}, tray::Event::ToggleAutostart=>toggle_autostart(cx) } }
+                let mouse_state=(pet.mouse_passthrough_state)(cx);
                 if last_mouse_state != Some(mouse_state) {
                     if let Some(tray)=cx.global_mut::<Services>().tray.as_mut() {tray.set_mouse_passthrough(mouse_state);}
                     last_mouse_state=Some(mouse_state);
@@ -222,7 +272,7 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
             Ok(desktop) => show_on_desktop(handle, desktop, cx),
             Err(_) => {
                 tracing::warn!(event="window_desktop_unavailable");
-                let host = handle.update(cx, |_, window, cx| shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()).ok().flatten();
+                let host = handle.update(cx, |_, window, cx| shell.prepare_window_hide(window, cx)).ok().flatten();
                 cx.spawn(async move |cx| {
                     let live = cx.update(|cx| window_action_current(generation, cx) && handle.update(cx, |_, _, _| ()).is_ok());
                     if live && let Some(host) = host { host.show(); cx.update(|cx| cx.activate(true)); }
@@ -246,7 +296,7 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
             let is_x11 = cx.try_global::<Services>().map_or_else(|| linux::x11_window_id(window).is_ok(), |service| service.main_is_x11);
             #[cfg(target_os = "linux")]
             if is_x11 {
-                let mapped = linux::show_skipping_taskbar(window, tray_restore_available(cx), |window| crate::pet::host::set_visible(window, true));
+                let mapped = linux::show_skipping_taskbar(window, tray_restore_available(cx), |window| window_visibility::set_visible(window, true));
                 if !mapped {
                     tracing::warn!(event="main_window_show_failed");
                 }
@@ -271,9 +321,7 @@ pub fn show(handle: AnyWindowHandle, cx: &mut App) {
 pub(crate) fn show_on_desktop(handle: AnyWindowHandle, desktop: windowing::DesktopSnapshot, cx: &mut App) {
     next_window_action(cx);
     let Some(shell) = cx.try_global::<Services>().map(|service| service.shell.clone()) else { return; };
-    let _ = handle.update(cx, |_, window, cx| {
-        let _ = shell.update(cx, |shell, cx| shell.request_window_restore(desktop, window, cx));
-    });
+    let _ = handle.update(cx, |_, window, cx| shell.request_window_restore(desktop, window, cx));
 }
 
 /// 仅最小化接收按键的主窗；先取消恢复租约，再于全部 GPUI 借用之外调用 AppKit。
@@ -287,9 +335,7 @@ pub(crate) fn minimize_main(cx: &mut App) {
     cx.defer(move |cx| {
         cx.spawn(async move |cx| {
             if !host.is_key() { return; }
-            let ready = cx.update(|cx| main.update(cx, |_, window, cx| {
-                shell.update(cx, |shell, cx| shell.prepare_window_hide(window, cx)).ok().flatten()
-            }).ok().flatten());
+            let ready = cx.update(|cx| main.update(cx, |_, window, cx| shell.prepare_window_hide(window, cx)).ok().flatten());
             if let Some(host) = ready { host.minimize_if_key(); }
         }).detach();
     });
@@ -314,7 +360,7 @@ pub fn hide_if_available(cx: &mut App) -> bool {
     {
         let generation = next_window_action(cx);
         let shell = cx.global::<Services>().shell.clone();
-        let host = shell.update(cx, |shell, _| shell.cancel_window_restore()).ok().flatten();
+        let host = shell.cancel_window_restore(cx);
         cx.spawn(async move |cx| {
             let (live, available) = cx.update(|cx| {
                 let live = window_action_current(generation, cx) && main.update(cx, |_, _, _| ()).is_ok();
@@ -338,11 +384,11 @@ pub fn hide_if_available(cx: &mut App) -> bool {
         #[cfg(windows)]
         if let Some(window) = native { window.hide(); }
         #[cfg(target_os = "linux")]
-        if main.update(cx, |_, window, _| crate::pet::host::set_visible(window, false)).is_ok_and(|result| result.is_ok()) {
+        if main.update(cx, |_, window, _| window_visibility::set_visible(window, false)).is_ok_and(|result| result.is_ok()) {
             cx.global_mut::<Services>().main_hidden = true;
         }
         #[cfg(not(any(windows, target_os = "linux")))]
-        let _=main.update(cx,|_,window,_|crate::pet::host::set_visible(window,false));
+        let _=main.update(cx,|_,window,_|window_visibility::set_visible(window,false));
         });
     });
     true
@@ -368,11 +414,10 @@ fn next_window_action(cx: &mut App) -> u64 {
 fn window_action_current(generation: u64, cx: &App) -> bool {
     cx.try_global::<Services>().map_or(generation == 0, |service| service.window_action_generation == generation)
 }
-/// 语言切换更新已创建的双语托盘菜单。
+/// 语言切换更新原生菜单、通知与托盘；桌宠等上层窗口由调用方各自切换。
 pub fn set_language(locale: &str, cx: &mut App) {
     menu::set_language(locale, cx);
     if let Some(service)=notification_service(cx) {service.set_language(locale);}
-    crate::pet::set_language(locale,cx);
     if cx.has_global::<Services>() && let Some(tray) = &mut cx.global_mut::<Services>().tray { tray.set_language(locale); }
 }
 /// 设置视图仅读取内存快照，实际 OS 状态由后台 worker 更新。

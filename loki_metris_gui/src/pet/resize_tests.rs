@@ -106,7 +106,7 @@ fn native_resize_during_pending_save_is_rechecked_after_receipt(cx: &mut TestApp
     let f = fixture(cx);
     save_current_position(&f, cx);
     let revision = f.service.pet_settings_revision();
-    let held = crate::usage_service::block_pet_mutations(&f.service);
+    let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::AlwaysOnTop(false), cx));
     cx.run_until_parked();
     assert!(f.owner.read_with(cx, |owner, _| owner.busy));

@@ -2,28 +2,29 @@
 //!
 //! # 依赖层级
 //!
-//! 上层只依赖下层；业务规则、口径与状态机只存在于 `loki_metris_core`。
+//! crate 依赖由 Cargo 强制为 `gui → service → host → core → pairing`；业务规则、口径与状态机
+//! 只存在于 `loki_metris_core`。
 //!
 //! 1. 领域核心 `loki_metris_core`：用量口径、自然日窗口、聚合与页面模型、Hook 状态机、桌宠布局、
-//!    设置校验与数据根策略；不依赖 GPUI 或任何宿主 API。
-//! 2. 驱动层，彼此不互相依赖，只依赖 core：
-//!    - `backend`：Agent 会话文件发现、JSONL 解析、SQLite 增量索引与扫描编排，WorkBuddy 只读统计；
-//!    - `monitor`：Hook 配置原子写入、环回 listener、命令型中继、图库与图片解码播放；
-//!    - `skins`：Codex/WorkBuddy 换肤资源校验、宿主进程身份与 CDP 注入；
-//!    - `preferences`：窗口与外观偏好的后台单线程写入。
-//! 3. 服务层 `usage_service`：应用拥有的单 writer 扫描队列、只读查询邮箱、今日摘要与里程碑通知 worker，
-//!    以及换肤、监控、数据目录写操作的后台 owner。它把驱动结果交给 core 生成页面模型，再以 oneshot 回执交付。
-//! 4. 展示与宿主层，共享 GPUI 主线程：`app`（主窗口 Shell 与各页面）、`pet`（桌宠浮窗）、
-//!    `native`（托盘、单实例、自启、系统通知、原生窗口几何）。数据读写一律经服务层；只直接复用驱动层的
-//!    DTO 类型与图片播放组件。`native` 持有 `app::Shell` 与桌宠的弱引用，仅用于恢复和显隐窗口。
+//!    设置校验、数据源描述表与 Agent 会话日志的有界流式解析（`session_logs`）；不依赖任何宿主 API。
+//! 2. 宿主驱动 `loki_metris_host`：数据根发现、文件打开与身份校验、扫描编排、应用私有文件与 SQLite 端口；
+//!    逐行解析交给 core。
+//! 3. 服务层 `loki_metris_service`：单 writer 扫描队列、只读查询邮箱、今日摘要与里程碑通知 worker，
+//!    Hook 配置/listener/relay 与图库存储（`monitor`）、换肤（`skins`）和设备联动的后台 owner。
+//!    它只交付 Tokio oneshot 回执与不依赖界面框架的 DTO。
+//! 4. 本 crate 的展示与宿主层，共享 GPUI 主线程：`app`（主窗口 Shell 与各页面）、`pet`（桌宠浮窗）、
+//!    `monitor_media`（监控图片解码与播放）、`receipt`（用 GPUI 计时器轮询服务回执）、
+//!    `preferences`（偏好后台写入）以及 `native`（托盘、单实例、自启、系统通知、原生窗口几何）。
+//!    `native` 位于 `app`/`pet` 之下：根视图经 `native::MainShell` 端口、托盘桌宠菜单经启动时注入的
+//!    `native::PetTrayActions` 接入，`native` 不引用上层模块。
 //! 5. 进程级 `lifecycle`：先捕获主窗/桌宠最终意图，再停止通知和用量服务，最后收尾偏好与日志。
 //!
 //! # 主要业务流向
 //!
-//! - 用量看板：Agent 会话文件 → `backend::local_index` 增量解析入库 → `usage_service::scan` 单 writer 提交覆盖事实
-//!   → `usage_service::query` 只读加载并调用 core 视图（概览、统计、图表、调用页）→ `app::dashboard` 经
-//!   `usage_service::poll_receipt` 取回并渲染。
-//! - Hook 监控与桌宠：Agent 触发 Hook → 本程序以中继模式启动（`monitor::relay`）→ 环回 `monitor::listener`
+//! - 用量看板：Agent 会话文件 → host `local_index` 读取并交 core `session_logs` 解析入库 → 服务层
+//!   `usage_service::scan` 单 writer 提交覆盖事实 → `usage_service::query` 只读加载并调用 core 视图（概览、统计、图表、调用页）→ `app::dashboard` 经
+//!   `receipt::poll_receipt` 取回并渲染。
+//! - Hook 监控与桌宠：Agent 触发 Hook → 本程序以中继模式启动（服务层 `monitor::relay`）→ 环回 `monitor::listener`
 //!   → core Hook 状态机 → `pet` 浮窗与 `app::monitor` 工作台展示。
 //! - 用量里程碑通知：`usage_service::notifications` 读取今日摘要并推进 core 里程碑状态机 → `native::notifications` 投递。
 //! - 换肤：`app::skins` 发起意图 → `usage_service::skins` 后台阻塞岛 → `skins` 校验资源并经 CDP 注入宿主页面。
@@ -33,9 +34,8 @@
 rust_i18n::i18n!("locales", fallback = "en-US");
 
 mod app;
-mod backend;
-mod usage_service;
-mod monitor;
+mod monitor_media;
+mod receipt;
 mod assets;
 mod preferences;
 mod logging;
@@ -45,15 +45,13 @@ mod fonts;
 mod format_tokens;
 
 mod native;
-mod notification_events;
 mod pet;
-mod skins;
 
 use gpui_kit::{App, Bounds, QuitMode, TitlebarOptions, WindowBounds, WindowOptions, prelude::*, px, size};
 
 /// 同步主线程持有原生事件循环，退出钩子完成偏好与日志收尾，循环返回只作一次性回退。
 fn main() -> std::process::ExitCode {
-    if let Some(code)=monitor::relay::run_hook_relay_if_requested() {return std::process::ExitCode::from(code as u8)}
+    if let Some(code)=loki_metris_service::monitor::relay::run_hook_relay_if_requested() {return std::process::ExitCode::from(code as u8)}
     #[cfg(target_os="macos")]
     native::configure_font_smoothing();
     let starts_hidden = native::startup::starts_hidden();
@@ -77,7 +75,7 @@ fn main() -> std::process::ExitCode {
     let notifications=native::notifications::Service::new(preferences.system_notification,writer.clone());
     let shutdown = lifecycle::Shutdown::new(writer.clone(), log_guard);
     shutdown.borrow_mut().own_notifications(notifications.clone());
-    let usage_service = match usage_service::UsageService::new() {
+    let usage_service = match loki_metris_service::usage_service::UsageService::new() {
         Ok(service) => service,
         Err(code) => { tracing::error!(event = code); return std::process::ExitCode::FAILURE; }
     };
@@ -151,7 +149,7 @@ fn main() -> std::process::ExitCode {
             }
         }).detach();
         notifications.attach(usage_service.clone(),locale,handle,cx);
-        native::install(handle, shell.downgrade(), locale, instance, instance_receiver, notifications, cx);
+        native::install(handle, std::rc::Rc::new(shell.downgrade()), pet::tray_actions(), locale, instance, instance_receiver, notifications, cx);
         pet::install(handle,usage_service,locale,cx);
         native::startup::complete(starts_hidden, cx, move |cx| {
             // 托盘创建失败时恢复普通应用身份，保证可见主窗仍有 Dock/退出入口。

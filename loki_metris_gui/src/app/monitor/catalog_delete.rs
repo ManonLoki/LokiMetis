@@ -60,4 +60,4 @@ impl Shell {
 
 
 /// 监控操作共享服务回执桥接，不向外部Tokio线程注册GPUI前台waker。
-pub(super) use crate::usage_service::receipt;
+pub(super) use crate::receipt::hook_receipt as receipt;

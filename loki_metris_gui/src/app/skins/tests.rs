@@ -26,7 +26,7 @@ fn isolated(name: &str) -> bool {
     true
 }
 /// 测试退出仅回收独占资源服务，不启动任何CDP宿主查询。
-struct Finish(Arc<crate::usage_service::UsageService>);
+struct Finish(Arc<loki_metris_service::usage_service::UsageService>);
 impl Drop for Finish {
     /// 测试结束时关闭独占换肤服务。
     fn drop(&mut self) {
@@ -78,15 +78,15 @@ fn finish_export_away(
 /// 成功宿主快照是fixture，生产文件操作仍使用隔离UsageService。
 fn setup(
     this: &mut Shell,
-    service: Arc<crate::usage_service::UsageService>,
-    entries: Vec<crate::usage_service::SkinEntry>,
+    service: Arc<loki_metris_service::usage_service::UsageService>,
+    entries: Vec<crate::app::skins::SkinEntry>,
     cx: &mut gpui_kit::Context<Shell>,
 ) {
     this.page = Page::Skins;
     this.dashboard.service = Some(service);
     this.skins.host = Some(SkinHostKind::Codex);
     this.skins.entries = Some(entries);
-    this.skins.status = Some(crate::skins::SkinStatus {
+    this.skins.status = Some(loki_metris_service::skins::SkinStatus {
         installed: false,
         skin_id: None,
         source: None,
@@ -106,9 +106,9 @@ fn setup(
 fn failed_catalog_receipt_keeps_preview_assets_and_entries(cx: &mut TestAppContext) {
     if isolated("failed_catalog_receipt_keeps_preview_assets_and_entries") { return; }
     let root = tempfile::tempdir().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
-    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
     let preview = entries[0].preview.clone().unwrap();
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
@@ -135,9 +135,9 @@ fn failed_catalog_receipt_keeps_preview_assets_and_entries(cx: &mut TestAppConte
 fn stale_catalog_receipt_does_not_retire_preview_or_update_state(cx: &mut TestAppContext) {
     if isolated("stale_catalog_receipt_does_not_retire_preview_or_update_state") { return; }
     let root = tempfile::tempdir().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
-    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
     let preview = entries[0].preview.clone().unwrap();
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
@@ -173,7 +173,7 @@ fn catalog_search_keeps_native_input_and_card_height(cx: &mut TestAppContext) {
     }
     let root = tempfile::tempdir().unwrap();
     let service =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
     let entries = service
         .skin_catalog()
@@ -187,7 +187,7 @@ fn catalog_search_keeps_native_input_and_card_height(cx: &mut TestAppContext) {
         .map(|entry| format!("skin-card-{}-{:?}", entry.skin.id, entry.skin.source))
         .collect();
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1492., 900.);
-    shell.update(cx, |this, cx| setup(this, service, entries, cx));
+    shell.update(cx, |this, cx| setup(this, service, crate::app::skins::entries_from_catalog(entries), cx));
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         for id in &ids {
@@ -220,7 +220,7 @@ fn failed_create_preserves_draft_and_enter_does_not_discard_dialog(cx: &mut Test
     }
     let root = tempfile::tempdir().unwrap();
     let source =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("source")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("source")).unwrap();
     let _source_finish = Finish(source.clone());
     let entries = source
         .skin_catalog()
@@ -232,10 +232,10 @@ fn failed_create_preserves_draft_and_enter_does_not_discard_dialog(cx: &mut Test
     std::fs::create_dir_all(root.path().join("target")).unwrap();
     std::fs::write(root.path().join("target/skins"), b"blocked directory").unwrap();
     let service =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("target")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("target")).unwrap();
     let _finish = Finish(service.clone());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
-    shell.update(cx, |this, cx| setup(this, service, entries, cx));
+    shell.update(cx, |this, cx| setup(this, service, crate::app::skins::entries_from_catalog(entries), cx));
     let inputs = cx
         .update_window(handle, |_, window, cx| {
             window.render_frame(cx);
@@ -281,7 +281,7 @@ fn late_export_picker_does_not_write_after_leaving_skins(cx: &mut TestAppContext
     }
     let root = tempfile::tempdir().unwrap();
     let service =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
     let entries = service
         .skin_catalog()
@@ -292,7 +292,7 @@ fn late_export_picker_does_not_write_after_leaving_skins(cx: &mut TestAppContext
         .entries;
     let reference = skin_reference(&entries[0].skin);
     let (_, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
-    shell.update(cx, |this, cx| setup(this, service, entries, cx));
+    shell.update(cx, |this, cx| setup(this, service, crate::app::skins::entries_from_catalog(entries), cx));
     shell.update(cx, |this, cx| this.export_skin(reference.clone(), cx));
     assert!(shell.read_with(cx, |this, _| this.skins.picking));
     shell.update(cx, |this, _| {
@@ -318,13 +318,13 @@ fn late_export_picker_does_not_write_after_leaving_skins(cx: &mut TestAppContext
 fn export_without_extension_preserves_existing_zip(cx: &mut TestAppContext) {
     if isolated("export_without_extension_preserves_existing_zip") { return; }
     let root = tempfile::tempdir().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
     let skin = service.skin_work(|service| async move {
         service.create_user_theme("Export fixture", "Fixture").await
     }).unwrap().blocking_recv().unwrap().unwrap();
     let reference = skin_reference(&skin);
-    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
     let (_, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| setup(this, service, entries, cx));
     let chosen = root.path().join("导出 中文 空格");
@@ -345,7 +345,7 @@ fn export_without_extension_preserves_existing_zip(cx: &mut TestAppContext) {
 fn export_new_basename_and_explicit_zip_write_valid_archive(cx: &mut TestAppContext) {
     if isolated("export_new_basename_and_explicit_zip_write_valid_archive") { return; }
     let root = tempfile::tempdir().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
     let skin = service.skin_work(|service| async move {
         service.create_user_theme("Export fixture", "Fixture").await
@@ -355,7 +355,7 @@ fn export_new_basename_and_explicit_zip_write_valid_archive(cx: &mut TestAppCont
     for (filename, explicit) in [("新增 中文 空格", false), ("明确 中文 空格.ZIP", true)] {
         let chosen = root.path().join(filename);
         if explicit { std::fs::write(&chosen, b"Existing explicitly selected archive").unwrap(); }
-        let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+        let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
         shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
         finish_export_away(cx, &shell, reference.clone(), chosen.clone());
         let destination = if explicit { chosen.clone() } else { chosen.with_extension("zip") };
@@ -368,7 +368,7 @@ fn export_new_basename_and_explicit_zip_write_valid_archive(cx: &mut TestAppCont
     let invalid = root.path().join("无效 中文 空格.txt");
     let sentinel = b"Invalid extension must not change this file";
     std::fs::write(&invalid, sentinel).unwrap();
-    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
     shell.update(cx, |this, cx| setup(this, service.clone(), entries, cx));
     finish_export_away(cx, &shell, reference, invalid.clone());
     assert!(std::fs::read(&invalid).unwrap() == sentinel);
@@ -389,7 +389,7 @@ fn skin_success_feedback_follows_language_changes(cx: &mut TestAppContext) {
         this.page = Page::Skins;
         this.skins.host = Some(SkinHostKind::Codex);
         this.skins.entries = Some(Vec::new());
-        this.accept_skin_outcome(Outcome::Created(crate::skins::SkinDescriptor {
+        this.accept_skin_outcome(Outcome::Created(loki_metris_service::skins::SkinDescriptor {
             id: "locale-fixture".into(), source: loki_metris_core::SkinSource::User,
             package_type: loki_metris_core::SkinPackageType::Theme,
             name: name.into(), author: "Fixture".into(), version: "1.0.0".into(),

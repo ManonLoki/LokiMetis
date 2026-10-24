@@ -104,7 +104,7 @@ fn independent_settings_create_resize_close_and_reopen(cx: &mut TestAppContext) 
     })
     .unwrap();
     let saved =
-        crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.layout, PetLayout::Row3);
     cx.update_window(settings, |_, window, cx| {
         window.render_frame(cx);
@@ -176,7 +176,7 @@ fn shutdown_flushes_staged_pending_and_debounced_position_after_active_write(
     assert_eq!(plan.position, Some(position));
     f.service.finish_with_pet(plan);
     let saved =
-        crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 4);
     assert!(saved.pet_window.locked);
     assert_eq!(saved.pet_overlay_position, Some(position));
@@ -284,12 +284,12 @@ fn page_only_mutation_keeps_pager_and_hides_on_exit_or_blur(cx: &mut TestAppCont
     assert_eq!(refreshes.read_with(cx, |count, _| *count), 0, "page-only mutation must not refresh native bounds");
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.page().page_index), 2);
     let saved =
-        crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 6);
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::FocusedSlot(0), cx));
     settle(cx, &f.owner);
     assert_eq!(refreshes.read_with(cx, |count, _| *count), 0, "focused-slot mutation must not refresh native bounds");
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 0);
     cx.update_window(f.overlay, |_, window, cx| {
         assert_eq!(window.mouse_position(), pointer, "page-only changes must preserve the pointer");
@@ -345,7 +345,7 @@ fn page_only_save_failure_rolls_back_without_bounds_refresh(cx: &mut TestAppCont
     }).unwrap();
     let config = f.root.path().join("monitor");
     std::fs::create_dir_all(&config).unwrap();
-    let path = crate::monitor::settings::settings_path(&config);
+    let path = loki_metris_service::monitor::settings::settings_path(&config);
     std::fs::write(&path, b"{broken").unwrap();
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::TurnPage(1), cx));
     settle(cx, &f.owner);
@@ -417,7 +417,7 @@ fn overlay_arrow_keys_consume_once_and_leave_unrelated_keys(cx: &mut TestAppCont
         }).unwrap();
         settle(cx, &f.owner);
         assert_eq!(f.owner.read_with(cx, |owner, _| owner.page().page_index), expected);
-        let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
         assert_eq!(usize::from(saved.pet_window.focused_slot), expected * 3);
     }
     cx.update_window(f.overlay, |_, window, cx| {

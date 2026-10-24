@@ -1,7 +1,7 @@
 //! 宿主编排保留确认授权和稳定实例身份；实际进程/CDP事务仍由SkinService负责。
 
 use super::state::{Outcome, PendingApply, RestartMode};
-use crate::skins::{
+use loki_metris_service::skins::{
     CodexRuntimeState, InstallSkinResult, SkinError, SkinHostInstance, SkinService,
 };
 use loki_metris_core::SkinHostKind;

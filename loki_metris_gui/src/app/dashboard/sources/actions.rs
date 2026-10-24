@@ -1,7 +1,7 @@
 //! 每个显式操作保存自身回执，查询刷新不会吞掉已发生的变更结果。
 
 use super::Shell;
-use crate::usage_service::{SourceOperation,SourceOperationResult};
+use loki_metris_service::usage_service::{SourceOperation,SourceOperationResult};
 use gpui_kit::Context;
 use loki_metris_core::SourceRootMutationKind as Kind;
 
@@ -17,7 +17,7 @@ impl Shell {
         let generation=self.dashboard.sources.generation;
         self.dashboard.sources.pending=true;
         self.dashboard.sources.operation_task=Some(cx.spawn(async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed"));
+            let result=crate::receipt::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.sources.generation!=generation || this.usage_client()!=Some(client) {return}
                 this.dashboard.sources.pending=false;

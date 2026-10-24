@@ -25,7 +25,7 @@ impl Shell {
         let revision = self.dashboard.revision;
         self.dashboard.loading = true;
         self.dashboard.task = Some(cx.spawn(async move |entity, cx| {
-            let result = crate::usage_service::poll_receipt(work, cx.background_executor().clone(),
+            let result = crate::receipt::poll_receipt(work, cx.background_executor().clone(),
                 std::time::Duration::from_millis(100)).await.unwrap_or(Err("usage_scan_cancelled"));
             let _ = entity.update(cx, |this, cx| {
                 if this.dashboard.revision != revision || this.dashboard.client != CURSOR_CLIENT { return }
@@ -137,7 +137,7 @@ mod tests {
     fn cursor_account_view_has_shared_owned_window_buttons(cx: &mut TestAppContext) {
         let (handle, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 1400.);
         shell.update(cx, |this, cx| {
-            this.agent_settings.value = Some(crate::monitor::settings::MonitorSettings {
+            this.agent_settings.value = Some(loki_metris_service::monitor::settings::MonitorSettings {
                 enabled_ai_tools: vec![AiTool::Cursor], ..Default::default()
             });
             this.dashboard.route = super::super::Route::Sources;

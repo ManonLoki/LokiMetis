@@ -35,73 +35,8 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    /// 保存测试发现结果及其扫描范围元数据。
-    struct TestDiscoveryResult {
-        /// 发现的根。
-        roots: Vec<TestDiscoveredRoot>,
-        /// 确认无效的根 ID。
-        confirmed_invalid_root_ids: Vec<String>,
-        /// 未能确认的根 ID。
-        unconfirmed_root_ids: Vec<String>,
-        /// 覆盖报告。
-        coverage: CoverageReport,
-        /// 扫描的目录数。
-        directories_scanned: u64,
-        /// 因符号链接跳过的数量。
-        symlink_skipped_count: u64,
-        /// 因网络卷跳过的数量。
-        network_skipped_count: u64,
-    }
-
-    impl ScanDiscoveryResult for TestDiscoveryResult {
-        /// 使用测试发现根作为可登记来源类型。
-        type Root = TestDiscoveredRoot;
-
-        /// 将测试发现结果拆成范围、候选和错误部分。
-        fn into_parts(
-            self,
-        ) -> (
-            Vec<Self::Root>,
-            Vec<String>,
-            Vec<String>,
-            CoverageReport,
-            u64,
-            u64,
-            u64,
-        ) {
-            (
-                self.roots,
-                self.confirmed_invalid_root_ids,
-                self.unconfirmed_root_ids,
-                self.coverage,
-                self.directories_scanned,
-                self.symlink_skipped_count,
-                self.network_skipped_count,
-            )
-        }
-
-        /// 从编排后的部分重建测试发现结果。
-        fn from_parts(
-            roots: Vec<Self::Root>,
-            confirmed_invalid_root_ids: Vec<String>,
-            unconfirmed_root_ids: Vec<String>,
-            coverage: CoverageReport,
-            directories_scanned: u64,
-            symlink_skipped_count: u64,
-            network_skipped_count: u64,
-        ) -> Self {
-            Self {
-                roots,
-                confirmed_invalid_root_ids,
-                unconfirmed_root_ids,
-                coverage,
-                directories_scanned,
-                symlink_skipped_count,
-                network_skipped_count,
-            }
-        }
-    }
+    /// 测试使用的发现结果：根类型固定为测试发现根。
+    type TestDiscoveryResult = DiscoveryOutcome<TestDiscoveredRoot>;
 
     #[derive(Debug, Clone)]
     /// 表示登记库中已有的数据根测试记录。

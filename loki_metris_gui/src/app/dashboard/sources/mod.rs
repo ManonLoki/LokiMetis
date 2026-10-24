@@ -11,7 +11,7 @@ mod button;
 use button::{SourceButton, SourceButtonVariant};
 
 use super::Shell;
-use crate::usage_service::{UsageQuery,UsageResponse};
+use loki_metris_service::usage_service::{UsageQuery,UsageResponse};
 use gpui_kit::{AnyElement,Context,Task,div,prelude::*,px,FontWeight,
     component::{ActiveTheme,Disableable,Sizable,Size,button::Button,menu::{DropdownMenu,PopupMenuItem}}};
 use loki_metris_core::{SourceClientKind, SourceRootSummary};
@@ -38,7 +38,7 @@ pub(in crate::app) struct SourcesState {
     /// 页面代次；重置时递增，旧结果被丢弃。
     pub generation:u64,
     /// 自动发现的公开状态。
-    pub discovery:crate::usage_service::DiscoveryView,
+    pub discovery:loki_metris_service::usage_service::DiscoveryView,
     /// WorkBuddy 根发现状态。
     pub workbuddy_discovery:Option<loki_metris_core::RootDiscoveryStatus>,
 }
@@ -62,7 +62,7 @@ impl Shell {
         let revision=self.dashboard.revision;let generation=self.dashboard.sources.generation;
         self.dashboard.loading=true;
         self.dashboard.task=Some(cx.spawn(async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
+            let result=crate::receipt::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.revision!=revision || this.dashboard.sources.generation!=generation || this.usage_client()!=Some(client) {return}
                 this.dashboard.loading=false;
@@ -152,12 +152,12 @@ impl Shell {
                         .dropdown_menu(move|mut menu,_,_| {
                             for(id,label)in &options {let id=id.clone();let weak=weak.clone();menu=menu.item(PopupMenuItem::new(label.clone()).checked(selected.as_ref()==Some(&id)).on_click(move|_,_,cx| {
                                 let _=weak.update(cx,|this,cx| {if this.dashboard.sources.generation==generation&&this.usage_client()==Some(client) {
-                                    this.change_source(crate::usage_service::SourceOperation::SetPrimary{root_id:Some(id.clone())},cx);
+                                    this.change_source(loki_metris_service::usage_service::SourceOperation::SetPrimary{root_id:Some(id.clone())},cx);
                                 }});
                             }));}menu
                         })))
                 .child(div().w_full().flex().justify_end().child(SourceButton::new("sources-primary-clear",SourceButtonVariant::SubtleBrand,cx.theme().mode.is_dark()).h(px(26.)).px_2().rounded(px(12.)).text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).disabled(disabled||current.is_none()).label(self.t("sources.primary.clear"))
-                    .on_click(cx.listener(|this,_,_,cx|this.change_source(crate::usage_service::SourceOperation::SetPrimary{root_id:None},cx))))))
+                    .on_click(cx.listener(|this,_,_,cx|this.change_source(loki_metris_service::usage_service::SourceOperation::SetPrimary{root_id:None},cx))))))
             .into_any_element()
     }
 

@@ -4,7 +4,7 @@ use super::{
     Shell,
     state::{CatalogSuccess, Category, ImageEntry},
 };
-use crate::monitor::{image_decode::MonitorImageDecoder, image_playback::MonitorImageView,
+use crate::monitor_media::{image_decode::MonitorImageDecoder, image_playback::MonitorImageView,
     image_residency::{self, ImageOwner}};
 use gpui_kit::{
     AnyElement, Bounds, ContentMask, Context, Corners, FontWeight, IntoElement, ObjectFit, Pixels,

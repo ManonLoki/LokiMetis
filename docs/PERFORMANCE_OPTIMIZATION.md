@@ -100,7 +100,7 @@ bounds 通知 → 位置保存 → pet_revision 变化
              → Pet refresh → 设置/档案/图库读取 → 原生目录构建
 ```
 
-对应入口：[位置队列](../loki_metris_gui/src/pet/position/mod.rs)、[设置写入](../loki_metris_gui/src/monitor/settings.rs)、[保存及 revision](../loki_metris_gui/src/usage_service/agents.rs)、[Pet refresh](../loki_metris_gui/src/pet/mod.rs)、[后台目录读取](../loki_metris_gui/src/usage_service/monitor_catalog.rs)。
+对应入口：[位置队列](../loki_metris_gui/src/pet/position/mod.rs)、[设置写入](../loki_metris_service/src/monitor/settings.rs)、[保存及 revision](../loki_metris_service/src/usage_service/agents.rs)、[Pet refresh](../loki_metris_gui/src/pet/mod.rs)、[后台目录读取](../loki_metris_service/src/usage_service/monitor_catalog.rs)。
 
 建议按下列顺序形成可检验结论：
 

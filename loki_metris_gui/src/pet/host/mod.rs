@@ -48,10 +48,6 @@ mod fallback {
         state.confirmed = None;
         anyhow::bail!("mouse passthrough unsupported")
     }
-    /// 当前产品目标平台之外不假报原生辅助窗能力。
-    pub fn set_visible(_: &Window, _: bool) -> anyhow::Result<()> {
-        anyhow::bail!("auxiliary windows unsupported")
-    }
     /// 未支持平台不能把尚无原生实现的请求确认成成功。
     pub fn settled(_: &Window) -> anyhow::Result<bool> { anyhow::bail!("auxiliary windows unsupported") }
     /// 未支持平台不应用假属性。
@@ -90,15 +86,18 @@ mod fallback {
 #[cfg(all(not(any(windows, target_os = "macos", target_os = "linux")), not(test)))]
 pub use fallback::*;
 
+/// 窗口显隐驱动由 native 唯一拥有；桌宠辅助窗与主窗共用同一实现及测试替身。
+#[cfg(any(test, not(any(windows, target_os = "macos"))))]
+pub(crate) use crate::native::window_visibility::set_visible;
+/// 桌宠测试读取同一显隐替身的命令记录。
+#[cfg(test)]
+pub(crate) use crate::native::window_visibility::take_visibility_events;
+
 #[cfg(test)]
 mod test_host {
     use gpui_kit::{Bounds, Window, point, px, size};
     use loki_metris_core::PetWindowPreferences;
     std::thread_local! {
-        /// 仅虚拟宿主记录原生显隐命令，不代表真实操作系统可见性。
-        static VISIBILITY: std::cell::RefCell<std::collections::VecDeque<(gpui_kit::AnyWindowHandle, bool)>> = Default::default();
-        /// 下一次显隐请求失败，验证主窗恢复不能把宿主失败当成已显示。
-        static VISIBILITY_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
         /// 仅当前测试线程的下一次原生属性提交失败，用于验证设置窗不能吞掉宿主错误。
         static APPLY_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
         /// 只在明确测试中延迟原生确认，不阻塞测试或 GPUI 前台执行器。
@@ -108,9 +107,6 @@ mod test_host {
     }
     /// 原生调用的显式失败夹具不会污染其它线程或后续成功操作。
     pub fn fail_next_apply() { APPLY_FAILURE.with(|failure| failure.set(true)); }
-    /// 单次显隐失败只作用于当前测试线程，不影响后续恢复请求；仅 Linux 主窗恢复回归使用。
-    #[cfg(target_os = "linux")]
-    pub fn fail_next_visibility() { VISIBILITY_FAILURE.with(|failure| failure.set(true)); }
     /// 让指定轮数返回未确认，用真实 timer 驱动 controller 等待回归。
     pub fn delay_settle(turns: usize) { SETTLE_PENDING.with(|pending| pending.set(turns)); }
     /// 单次确认失败不伪造后续回滚成功或磁盘回执。
@@ -124,15 +120,6 @@ mod test_host {
             count == 0
         }))
     }
-    /// 取出当前测试活窗的命令记录，有界缓存防止其它用例无限累积。
-    pub fn take_visibility_events(handle: gpui_kit::AnyWindowHandle) -> Vec<bool> {
-        VISIBILITY.with(|events| {
-            let mut events = events.borrow_mut();
-            let found = events.iter().filter(|(window, _)| *window == handle).map(|(_, visible)| *visible).collect();
-            events.retain(|(window, _)| *window != handle);
-            found
-        })
-    }
     /// 显式测试适配器记录事务与可控失败；不代表OS鼠标投递验证。
     pub fn set_mouse_passthrough(_: &Window, enabled: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
         state.calls += 1;
@@ -140,16 +127,6 @@ mod test_host {
             anyhow::bail!("injected native mouse passthrough failure")
         }
         state.confirmed = Some(enabled);
-        Ok(())
-    }
-    /// 假平台只验证GPUI实体/窗口时序，实际原生属性由Computer Use检查。
-    pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
-        if VISIBILITY_FAILURE.with(|failure| failure.replace(false)) { anyhow::bail!("injected native visibility failure"); }
-        VISIBILITY.with(|events| {
-            let mut events = events.borrow_mut();
-            if events.len() >= 64 { events.pop_front(); }
-            events.push_back((window.window_handle(), visible));
-        });
         Ok(())
     }
     /// 测试平台没有OS句柄，属性调用由显式测试适配器接收。

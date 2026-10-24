@@ -165,7 +165,7 @@ fn exercise_shell() {
         gpui_kit::open_window(Default::default(), cx, |window, cx| {
             cx.new(|cx| {
                 let mut shell = Shell::new(preferences, writer, window, cx);
-                shell.agent_settings.value = Some(crate::monitor::settings::MonitorSettings {
+                shell.agent_settings.value = Some(loki_metris_service::monitor::settings::MonitorSettings {
                     enabled_ai_tools: public_monitor_ai_tools().collect(),
                     ..Default::default()
                 });
@@ -220,7 +220,7 @@ fn exercise_shell() {
     }
     let root = tempfile::tempdir().unwrap();
     let locations =
-        crate::monitor::store::list_hook_config_locations(&Default::default(), root.path());
+        loki_metris_service::monitor::store::list_hook_config_locations(&Default::default(), root.path());
     spy.clear_lines();
     shell.update(&mut cx, |shell, cx| {
         shell.monitor.route = Route::Hooks;

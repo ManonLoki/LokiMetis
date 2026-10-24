@@ -226,11 +226,11 @@ fn shell_textarea_reveal_discards_accepted_agent_settings_round_trip(cx: &mut Te
         window.render_frame(cx);
         let before = scroll.offset();
         shell.update(cx, |shell, cx| {
-            shell.accept_agent_settings(crate::monitor::settings::MonitorSettings {
+            shell.accept_agent_settings(loki_metris_service::monitor::settings::MonitorSettings {
                 enabled_ai_tools: vec![AiTool::ClaudeCode], ..Default::default()
             }, cx);
             assert_eq!(shell.monitor_tool(), Some(AiTool::ClaudeCode));
-            shell.accept_agent_settings(crate::monitor::settings::MonitorSettings {
+            shell.accept_agent_settings(loki_metris_service::monitor::settings::MonitorSettings {
                 enabled_ai_tools: public_monitor_ai_tools().collect(), ..Default::default()
             }, cx);
             assert_eq!(shell.monitor_tool(), Some(AiTool::Codex));
@@ -256,7 +256,7 @@ fn shell_textarea_reveal_survives_accepted_settings_with_same_effective_agent(cx
         let expected = expected_y(target, scroll.bounds(), before.y, scroll.max_offset().y);
         assert_ne!(expected, before.y);
         shell.update(cx, |shell, cx| {
-            shell.accept_agent_settings(crate::monitor::settings::MonitorSettings {
+            shell.accept_agent_settings(loki_metris_service::monitor::settings::MonitorSettings {
                 enabled_ai_tools: vec![AiTool::Codex], ..Default::default()
             }, cx);
         });
@@ -356,7 +356,7 @@ fn native_textarea_reveal_keeps_nonzero_x_and_clamps_page_edges(cx: &mut TestApp
     }, cx, |window, cx| {
         let shell = cx.new(|cx| {
             let mut shell = Shell::new(preferences, writer, window, cx);
-            shell.agent_settings.value = Some(crate::monitor::settings::MonitorSettings {
+            shell.agent_settings.value = Some(loki_metris_service::monitor::settings::MonitorSettings {
                 enabled_ai_tools: public_monitor_ai_tools().collect(), ..Default::default()
             });
             shell.page = Page::Monitor;

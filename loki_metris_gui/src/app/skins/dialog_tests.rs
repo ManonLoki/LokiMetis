@@ -20,7 +20,7 @@ fn open_restart(cx: &mut TestAppContext, locale: &'static str) -> (
             this.locale = locale;
             this.skins.host = Some(SkinHostKind::Codex);
             this.skins.entries = Some(Vec::new());
-            this.skins.status = Some(crate::skins::SkinStatus {
+            this.skins.status = Some(loki_metris_service::skins::SkinStatus {
                 installed: false, skin_id: None, source: None, package_type: None,
                 skin_name: None, version: String::new(), affected_pages: 0,
                 compatibility: None, instance_id: None,

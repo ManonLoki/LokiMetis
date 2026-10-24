@@ -43,7 +43,7 @@ fn size_track_endpoints_save_full_range(cx: &mut TestAppContext) {
         }).unwrap();
         settle(cx, &f.owner);
         assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.pet_size), expected);
-        let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
         assert_eq!(saved.pet_window.pet_size, expected);
     }
 }
@@ -58,7 +58,7 @@ fn failed_size_click_restores_keyboard_start_value(cx: &mut TestAppContext) {
     let before = f.owner.read_with(cx, |owner, _| owner.settings.pet_window.pet_size);
     let directory = f.root.path().join("monitor");
     std::fs::create_dir_all(&directory).unwrap();
-    let path = crate::monitor::settings::settings_path(&directory);
+    let path = loki_metris_service::monitor::settings::settings_path(&directory);
     std::fs::write(&path, b"{broken").unwrap();
     cx.update_window(settings, |_, window, cx| {
         window.render_frame(cx);
@@ -74,7 +74,7 @@ fn failed_size_click_restores_keyboard_start_value(cx: &mut TestAppContext) {
     cx.simulate_keystrokes(settings, "right");
     settle(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.pet_size), before + 1);
-    let saved = crate::monitor::settings::load_monitor_settings(&directory).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&directory).unwrap();
     assert_eq!(saved.pet_window.pet_size, before + 1);
 }
 
@@ -97,7 +97,7 @@ fn size_keyboard_reverses_immediately_after_range_boundary(cx: &mut TestAppConte
             settle(cx, &f.owner);
         }
         assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.pet_size), expected);
-        let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
         assert_eq!(saved.pet_window.pet_size, expected);
     }
 }

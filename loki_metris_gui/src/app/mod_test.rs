@@ -21,7 +21,7 @@ pub(super) fn open_shell(cx: &mut TestAppContext, width: f32, height: f32) -> (A
         gpui_kit::open_window(WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::new(point(px(0.), px(0.)), size(px(width), px(height))))),
             ..Default::default()
-        }, cx, |window, cx| cx.new(|cx| {let mut shell=Shell::new(preferences, writer, window, cx);shell.agent_settings.value=Some(crate::monitor::settings::MonitorSettings{enabled_ai_tools:loki_metris_core::public_monitor_ai_tools().collect(),..Default::default()});shell})).expect("创建真实布局测试窗口")
+        }, cx, |window, cx| cx.new(|cx| {let mut shell=Shell::new(preferences, writer, window, cx);shell.agent_settings.value=Some(loki_metris_service::monitor::settings::MonitorSettings{enabled_ai_tools:loki_metris_core::public_monitor_ai_tools().collect(),..Default::default()});shell})).expect("创建真实布局测试窗口")
     });
     (handle, shell, finish)
 }
@@ -152,7 +152,7 @@ fn overview_copies_exact_value_and_preserves_window_across_navigation(cx: &mut T
             MetricScope::DeviceObserved, 0, Freshness::Fresh, Completeness::Complete, Confidence::Exact, None),
     }).collect();
     shell.update(cx, |shell, cx| {
-        shell.dashboard.data = Some(crate::usage_service::UsageData {
+        shell.dashboard.data = Some(loki_metris_service::usage_service::UsageData {
             records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
             workbuddy: None,
             workbuddy_unavailable: false,
@@ -400,7 +400,7 @@ fn all_overview_flags_unavailable_workbuddy_and_clears_after_recovery(cx: &mut T
             window, fact: MetricFact::new(aggregate.clone(), ProviderKind::CombinedLocalAgents,
                 MetricScope::DeviceObserved, 0, Freshness::Fresh, Completeness::Partial, Confidence::Exact, None),
         }).collect();
-        crate::usage_service::UsageData {
+        loki_metris_service::usage_service::UsageData {
             records: LocalRecordsSummary { index_state: LocalIndexState::Ready, windows },
             workbuddy: None,
             workbuddy_unavailable: unavailable,

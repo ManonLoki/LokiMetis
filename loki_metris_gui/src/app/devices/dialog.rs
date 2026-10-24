@@ -12,7 +12,7 @@ pub(super) struct DeviceDialog {
     name: String,
     remove: bool,
     /// 打开模态时冻结的真实连接，确认与取消都绑定其票据。
-    pub(super) request: Option<crate::usage_service::DevicePairingRequest>,
+    pub(super) request: Option<loki_metris_service::usage_service::DevicePairingRequest>,
     /// 已提交后保留模态到真实终态，跨页面发起也能看到握手失败。
     pub(super) submitted: bool,
     input: Entity<OtpState>,

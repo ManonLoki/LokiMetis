@@ -5,25 +5,18 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-base64.workspace = true
-chromiumoxide.workspace = true
 futures.workspace = true
-zip.workspace = true
 anyhow.workspace = true
 uuid.workspace = true
 image.workspace = true
 png.workspace = true
 image-webp.workspace = true
-thiserror.workspace = true
 jiff.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-mdns-sd.workspace = true
 tokio.workspace = true
 tempfile.workspace = true
-same-file.workspace = true
-whichdisk.workspace = true
 loki_metris_core.workspace = true
+loki_metris_service.workspace = true
 gpui-kit.workspace = true
 rust-i18n.workspace = true
 sys-locale.workspace = true
@@ -58,12 +51,12 @@ objc2-app-kit.workspace = true
 objc2.workspace = true
 block2.workspace = true
 objc2-user-notifications.workspace = true
-libc.workspace = true
 
 
 [dev-dependencies]
+zip.workspace = true
 loki_metris_core = { workspace = true, features = ["test-support"] }
-sea-orm.workspace = true
+loki_metris_service = { workspace = true, features = ["test-support"] }
 gpui-kit = { workspace = true, features = ["test-support"] }
 
 [[test]]
@@ -72,5 +65,5 @@ path = "tests/element_transform_metal.rs"
 harness = false
 
 [features]
-# 仅性能测量使用：LOKI_METRIS_MEASURE_HOME 重定向用户主目录；默认关闭，不进入发布构建。
-isolated-measurement = []
+# 仅性能测量使用：LOKI_METRIS_MEASURE_HOME 重定向用户主目录（实现位于 host，经服务层转发）；默认关闭，不进入发布构建。
+isolated-measurement = ["loki_metris_service/isolated-measurement"]

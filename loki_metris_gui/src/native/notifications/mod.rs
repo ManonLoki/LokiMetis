@@ -60,7 +60,7 @@ pub struct State {
     /// 发送器可用性不冒充 OS 授权状态；缺少 owner 时暂停提交。
     pub host_available: bool,
     /// 已持久化的队列与结果计数。
-    pub progress: crate::usage_service::NotificationProgress,
+    pub progress: loki_metris_service::usage_service::NotificationProgress,
 }
 
 /// 高频宿主轮询只比较展示键；业务快照仍由 owner 持有最新读取时间。
@@ -114,7 +114,7 @@ struct Owner {
     /// 在途的 Unknown 回执历史核对任务。
     reconciliation_task: Option<Task<()>>,
     /// 提供待发送预约与回执落盘的用量服务；安装前为 None。
-    usage: Option<std::sync::Arc<crate::usage_service::UsageService>>,
+    usage: Option<std::sync::Arc<loki_metris_service::usage_service::UsageService>>,
     /// 通知标题与正文使用的当前语言。
     locale: String,
     /// 最近一次权限查询开始的时刻，用于限制轮询每 30 秒最多复查一次。
@@ -255,7 +255,7 @@ impl Service {
                 .mutate(PreferencePatch::SystemNotification(enabled))
                 .map_err(|_| Error::Save);
             let result = match receipt {
-                Ok(receipt) => match crate::usage_service::poll_receipt(
+                Ok(receipt) => match crate::receipt::poll_receipt(
                     receipt,
                     cx.background_executor().clone(),
                     std::time::Duration::from_millis(20),

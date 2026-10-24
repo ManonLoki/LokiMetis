@@ -52,7 +52,7 @@ impl Controller {
                     }).ok().flatten();
                     let Some(work) = work else { return; };
                     match work {
-                        Ok(work) => crate::usage_service::receipt(work, cx.background_executor().clone(),
+                        Ok(work) => crate::receipt::hook_receipt(work, cx.background_executor().clone(),
                             "error.monitor.settingsWriteFailed").await,
                         Err(_) => Err(HookError::new("error.monitor.settingsWriteFailed")),
                     }

@@ -1,7 +1,7 @@
 //! 从真实 Shell 的绘制、焦点与命中边界验证粘滞层；不复制滚动或按钮业务状态。
 
 use super::{Shell, state::{ImageEntry, Route}};
-use crate::{app::Page, monitor::image_decode::MonitorImageSource};
+use crate::{app::Page, monitor_media::image_decode::MonitorImageSource};
 use gpui_kit::{
     AnyWindowHandle, AppContext, Bounds, Entity, Focusable, Pixels, Role, ScrollDelta,
     TestAppContext, Window, component::input::TextareaState, point, px, test::TestWindowExt,

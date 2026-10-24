@@ -1,9 +1,7 @@
 //! 皮肤页面只拥有查询快照、草稿与操作回执，文件事务属于宿主服务。
 
-use crate::{
-    skins::{SkinDescriptor, SkinError, SkinHostInstance, SkinStatus},
-    usage_service::SkinEntry,
-};
+use crate::app::skins::SkinEntry;
+use loki_metris_service::skins::{SkinDescriptor, SkinError, SkinHostInstance, SkinStatus};
 use gpui_kit::{Entity, FocusHandle, Subscription, Task, component::input::InputState};
 use loki_metris_core::{SkinHostKind, SkinReference};
 use std::sync::{Arc, atomic::AtomicU64};
@@ -27,7 +25,7 @@ pub(crate) enum ModalKind {
     /// 确认把旧皮肤转换为主题。
     Convert(SkinDescriptor),
     /// 外观不一致确认。
-    Appearance(crate::skins::SkinAppearanceCheck, PendingApply),
+    Appearance(loki_metris_service::skins::SkinAppearanceCheck, PendingApply),
     /// 重启宿主确认。
     Restart(PendingApply, RestartMode),
     /// 导入预检结果。
@@ -145,9 +143,9 @@ impl Default for Skins {
 /// 单一UI租约持有预检token；选择改变时只重置所选脚本集合的信任。
 pub(crate) struct ImportDraft {
     /// 导入会话租约。
-    pub lease: crate::usage_service::SkinImportLease,
+    pub lease: loki_metris_service::usage_service::SkinImportLease,
     /// 预检批次；预检完成前为 None。
-    pub batch: Option<crate::skins::PreparedSkinImportBatch>,
+    pub batch: Option<loki_metris_service::skins::PreparedSkinImportBatch>,
     /// 选中要安装的条目 ID。
     pub selected: Vec<String>,
     /// 用户已确认信任所选的可执行皮肤；选择变化时重置。
@@ -178,9 +176,9 @@ pub(super) enum Outcome {
     /// 新建了皮肤。
     Created(SkinDescriptor),
     /// 旧皮肤转换为主题。
-    Converted(crate::skins::ThemeConversionResult),
+    Converted(loki_metris_service::skins::ThemeConversionResult),
     /// 批量删除完成。
-    Deleted(crate::skins::BatchDeleteResult),
+    Deleted(loki_metris_service::skins::BatchDeleteResult),
     /// 生成了 AI 创建提示词。
     Prompt(String),
     /// 已在文件管理器中打开目录。
@@ -188,7 +186,7 @@ pub(super) enum Outcome {
     /// 已导出。
     Exported,
     /// 应用流程返回结果，附原始意图以便确认后重试。
-    Applied(crate::skins::InstallSkinResult, PendingApply),
+    Applied(loki_metris_service::skins::InstallSkinResult, PendingApply),
     /// 需要重启宿主才能应用。
     NeedsRestart(PendingApply, RestartMode),
     /// 已停止换肤。

@@ -129,55 +129,114 @@ pub enum SourceClientKind {
     WorkBuddy,
 }
 
+/// 单个物理 Agent 数据源的静态身份描述；新增数据源只需新增一个枚举值与一条描述。
+///
+/// 这些值会进入持久化的根 ID、命名空间与索引 parser generation，修改任一字段都
+/// 等同于数据迁移，必须走独立的迁移流程，不能当作展示调整。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceDescriptor {
+    /// 来源根 ID 的稳定前缀，用于校验调用方传入的根 ID 属于该来源。
+    pub stable_root_id_prefix: &'static str,
+    /// 登记稳定根 ID 时交给 `stable_id` 的命名空间。
+    pub root_id_namespace: &'static str,
+    /// 未确认候选根 `stable_id` 使用的命名空间。
+    pub candidate_namespace: &'static str,
+    /// 默认来源根展示名称。
+    pub default_source_root_alias: &'static str,
+    /// 在来源根列表中展示的环境标签。
+    pub source_environment_label: &'static str,
+    /// 当前 parser generation；读写唯一来源，writer 常量必须等于本值。
+    pub parser_version: u32,
+    /// 该来源的本机 provider 身份；联合 provider 不对应单一来源。
+    pub provider: crate::ProviderKind,
+}
+
+/// Codex rollout 数据源描述。
+const CODEX: SourceDescriptor = SourceDescriptor {
+    stable_root_id_prefix: "root-",
+    root_id_namespace: "root",
+    candidate_namespace: "candidate-codex",
+    default_source_root_alias: "Codex 数据根",
+    source_environment_label: "当前 CODEX_HOME",
+    parser_version: 11,
+    provider: crate::ProviderKind::RolloutJsonl,
+};
+
+/// Claude Code transcript 数据源描述。
+const CLAUDE_CODE: SourceDescriptor = SourceDescriptor {
+    stable_root_id_prefix: "claude-root-",
+    root_id_namespace: "claude-root",
+    candidate_namespace: "candidate-claude",
+    default_source_root_alias: "Claude Code 数据根",
+    source_environment_label: "当前 CLAUDE_CONFIG_DIR",
+    parser_version: 4,
+    provider: crate::ProviderKind::ClaudeTranscriptJsonl,
+};
+
+/// Grok Build CLI 会话数据源描述。
+const GROK: SourceDescriptor = SourceDescriptor {
+    stable_root_id_prefix: "grok-root-",
+    root_id_namespace: "grok-root",
+    candidate_namespace: "candidate-grok",
+    default_source_root_alias: "Grok 数据根",
+    source_environment_label: "当前 GROK_HOME",
+    parser_version: 3,
+    provider: crate::ProviderKind::GrokSessionJsonl,
+};
+
+/// WorkBuddy 项目 JSONL 数据源描述。
+const WORKBUDDY: SourceDescriptor = SourceDescriptor {
+    stable_root_id_prefix: "workbuddy-root-",
+    root_id_namespace: "workbuddy-root",
+    candidate_namespace: "candidate-workbuddy",
+    default_source_root_alias: "WorkBuddy 数据根",
+    source_environment_label: "当前 WORKBUDDY_HOME",
+    parser_version: 1,
+    provider: crate::ProviderKind::WorkBuddyProjectJsonl,
+};
+
 impl SourceClientKind {
+    /// 全部物理数据源，按稳定声明顺序排列。
+    pub const ALL: [Self; 4] = [Self::Codex, Self::ClaudeCode, Self::Grok, Self::WorkBuddy];
+
+    /// 返回该数据源的静态身份描述；这是唯一需要按枚举分派的地方。
+    pub const fn descriptor(self) -> &'static SourceDescriptor {
+        match self {
+            Self::Codex => &CODEX,
+            Self::ClaudeCode => &CLAUDE_CODE,
+            Self::Grok => &GROK,
+            Self::WorkBuddy => &WORKBUDDY,
+        }
+    }
+
     /// 返回来源根 ID 的稳定前缀。
     fn stable_root_id_prefix(self) -> &'static str {
-        match self {
-            Self::Codex => "root-",
-            Self::ClaudeCode => "claude-root-",
-            Self::Grok => "grok-root-",
-            Self::WorkBuddy => "workbuddy-root-",
-        }
+        self.descriptor().stable_root_id_prefix
     }
 
     /// 返回登记稳定根 ID 时交给 `stable_id` 的命名空间。
     pub const fn root_id_namespace(self) -> &'static str {
-        match self {
-            Self::Codex => "root",
-            Self::ClaudeCode => "claude-root",
-            Self::Grok => "grok-root",
-            Self::WorkBuddy => "workbuddy-root",
-        }
+        self.descriptor().root_id_namespace
     }
 
     /// 返回未确认候选根 `stable_id` 使用的命名空间。
     pub const fn candidate_namespace(self) -> &'static str {
-        match self {
-            Self::Codex => "candidate-codex",
-            Self::ClaudeCode => "candidate-claude",
-            Self::Grok => "candidate-grok",
-            Self::WorkBuddy => "candidate-workbuddy",
-        }
+        self.descriptor().candidate_namespace
     }
 
     /// 返回默认来源根展示名称。
     pub const fn default_source_root_alias(self) -> &'static str {
-        match self {
-            Self::Codex => "Codex 数据根",
-            Self::ClaudeCode => "Claude Code 数据根",
-            Self::Grok => "Grok 数据根",
-            Self::WorkBuddy => "WorkBuddy 数据根",
-        }
+        self.descriptor().default_source_root_alias
     }
 
     /// 返回在来源根列表中展示的环境标签。
     pub const fn source_environment_label(self) -> &'static str {
-        match self {
-            Self::Codex => "当前 CODEX_HOME",
-            Self::ClaudeCode => "当前 CLAUDE_CONFIG_DIR",
-            Self::Grok => "当前 GROK_HOME",
-            Self::WorkBuddy => "当前 WORKBUDDY_HOME",
-        }
+        self.descriptor().source_environment_label
+    }
+
+    /// 返回该物理 Agent 的本机 provider 身份；全仓唯一映射来源。
+    pub const fn provider(self) -> crate::ProviderKind {
+        self.descriptor().provider
     }
 
     /// 返回客户端当前 parser generation（用于跨 CLI/MCP 复用一致的解析边界）。
@@ -186,12 +245,7 @@ impl SourceClientKind {
     /// 概览、统计、调用与派生聚合打开索引也必须用本值。writer 单独加一代而
     /// 此处未加，会导致重建后调用已入库、读取仍按旧代当成空索引。
     pub const fn parser_version(self) -> u32 {
-        match self {
-            Self::Codex => 11,
-            Self::ClaudeCode => 4,
-            Self::Grok => 3,
-            Self::WorkBuddy => 1,
-        }
+        self.descriptor().parser_version
     }
 }
 

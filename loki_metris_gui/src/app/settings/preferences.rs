@@ -28,14 +28,14 @@ impl Shell {
         let work=match self.writer.mutate(patch) {Ok(work)=>work,Err(_)=>{self.preference_save.failed=Some(patch);cx.notify();return}};
         self.preference_save.pending=Some(patch);self.preference_save.failed=None;
         self.preference_save.task=Some(cx.spawn_in(window,async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(20)).await;
+            let result=crate::receipt::poll_receipt(work,cx.background_executor().clone(),std::time::Duration::from_millis(20)).await;
             let _=entity.update_in(cx,|this,window,cx| {
                 this.preference_save.pending=None;
                 match result {
                     Some(Ok(PreferencePatch::Theme(theme)))=>{this.preferences.theme=theme;this.apply_theme(window,cx);},
                     Some(Ok(PreferencePatch::Language(language)))=>{
                         this.preferences.language=language;this.locale=this.preferences.locale();
-                        crate::native::set_language(this.locale,cx);this.apply_language();cx.refresh_windows();
+                        crate::native::set_language(this.locale,cx);crate::pet::set_language(this.locale,cx);this.apply_language();cx.refresh_windows();
                     },
                     _=>this.preference_save.failed=Some(patch),
                 }cx.notify();

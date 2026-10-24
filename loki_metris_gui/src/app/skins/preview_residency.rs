@@ -1,7 +1,7 @@
 //! 预览缓存以目录内容为需求边界；已删除的内容同步退役Asset，随后清理原窗口图集。
 
 use super::{Shell, preview::PreviewImageDecoder};
-use crate::usage_service::SkinEntry;
+use crate::app::skins::SkinEntry;
 use gpui_kit::{App, Context, RenderImage};
 use std::{
     cell::RefCell,

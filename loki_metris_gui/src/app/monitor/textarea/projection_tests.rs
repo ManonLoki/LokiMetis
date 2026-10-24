@@ -120,7 +120,7 @@ fn shell_textarea_projects_placeholder_selection_and_caret_on_metal() {
             |window, cx| {
                 cx.new(|cx| {
                     let mut shell = Shell::new(preferences, writer, window, cx);
-                    shell.agent_settings.value = Some(crate::monitor::settings::MonitorSettings {
+                    shell.agent_settings.value = Some(loki_metris_service::monitor::settings::MonitorSettings {
                         enabled_ai_tools: public_monitor_ai_tools().collect(),
                         ..Default::default()
                     });

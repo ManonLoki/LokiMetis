@@ -8,7 +8,7 @@ use crate::{
     Confidence, SessionTokenSnapshot, SourceDiscoveryMethod, SourceRootInput, TokenUsage,
     UsageCall, build_indexed_source_roots,
 };
-use crate::local_view::build_source_roots;
+use crate::views::local::build_source_roots;
 
 use super::{
     DiscoveryMethod, LocalErrorKind, LocalIndex, RootUsageSummaryRecord, SourceParseCheckpoint,

@@ -176,7 +176,7 @@ pub(super) fn prepare_target(shell: &mut Shell) {
 pub(super) fn prepare_request(shell: &mut Shell) {
     prepare_target(shell);
     shell.devices.snapshot.loaded = true;
-    shell.devices.snapshot.requests = vec![crate::usage_service::DevicePairingRequest {
+    shell.devices.snapshot.requests = vec![loki_metris_service::usage_service::DevicePairingRequest {
         ticket: 1, device: shell.devices.snapshot.discovered[0].clone(),
     }];
 }

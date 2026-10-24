@@ -1,7 +1,7 @@
 //! 工作台的提供商用量卡。只展示快照，读取发生在用量服务的后台任务里。
 
 use super::Shell;
-use crate::usage_service::provider_quota::{QuotaCard, QuotaCardPhase};
+use loki_metris_service::usage_service::provider_quota::{QuotaCard, QuotaCardPhase};
 use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Role, base::TestSupportExt as _, component::{ActiveTheme, button::Button}, div, prelude::*, px, rgb};
 use loki_metris_core::{ProviderQuota, QuotaProvider, QuotaWindow, QuotaWindowKind};
 

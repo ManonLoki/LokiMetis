@@ -1,7 +1,7 @@
 //! Agent 复选框只显示成功保存的选择，应用持有异步任务直到收到真实回执。
 
 use super::super::Shell;
-use crate::monitor::settings::MonitorSettings;
+use loki_metris_service::monitor::settings::MonitorSettings;
 use gpui_kit::{
     AnyElement, Context, FontWeight, IntoElement, Role, Task, Text,
     base::{Checkbox, CheckboxState, TestSupportExt as _},

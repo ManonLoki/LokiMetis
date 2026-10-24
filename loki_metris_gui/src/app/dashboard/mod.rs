@@ -19,7 +19,7 @@ use statistics::DetailState;
 pub(super) use statistics::Route;
 
 use super::Shell;
-use crate::usage_service::{UsageData, UsageService, UsageQuery, UsageResponse};
+use loki_metris_service::usage_service::{UsageData, UsageService, UsageQuery, UsageResponse};
 use gpui_kit::{AnyElement, Context, Div, FontWeight, IntoElement, Task,
     base::TestSupportExt as _, component::{ActiveTheme, button::{Button, ButtonVariants}},
     div, prelude::*, px};
@@ -50,7 +50,7 @@ pub(super) struct Dashboard {
     /// Cursor 账户查询快照，不参与本机总量。
     pub cursor_account: Option<Arc<loki_metris_core::cursor_usage::CursorUsageSummary>>,
     /// 在途扫描的进度。
-    pub progress: Option<crate::usage_service::ScanProgress>,
+    pub progress: Option<loki_metris_service::usage_service::ScanProgress>,
     /// 当前子页。
     pub route: Route,
     /// 统计页的筛选与结果。
@@ -202,7 +202,7 @@ impl Shell {
         self.dashboard.loading = true;
         self.dashboard.error = None;
         self.dashboard.task = Some(cx.spawn(async move |entity, cx| {
-            let result = crate::usage_service::poll_receipt(work, cx.background_executor().clone(), std::time::Duration::from_millis(150))
+            let result = crate::receipt::poll_receipt(work, cx.background_executor().clone(), std::time::Duration::from_millis(150))
                 .await
                 .unwrap_or(Err("usage_scan_cancelled"));
             let _ = entity.update(cx, |this, cx| {

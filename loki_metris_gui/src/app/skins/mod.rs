@@ -1,6 +1,8 @@
 //! 换肤目录与原生控件直接消费同一资源服务，不经WebView或前端IPC。
 
 mod actions;
+mod catalog_entry;
+pub(crate) use catalog_entry::{SkinEntry, entries_from_catalog};
 mod host_action;
 mod dialogs;
 mod import_dialog;
@@ -11,7 +13,7 @@ mod preview;
 mod preview_residency;
 
 use super::{Page, Shell};
-use crate::skins::{SkinError, SkinService};
+use loki_metris_service::skins::{SkinError, SkinService};
 use gpui_kit::{
     AppContext, Context, Window,
     component::input::{InputEvent, InputState},
@@ -116,11 +118,17 @@ impl Shell {
         self.skins.query = Some(cx.spawn(async move |entity, cx| {
             let executor = cx.background_executor().clone();
             let catalog = match catalog {
-                Ok(work) => crate::usage_service::skin_receipt(work, executor.clone()).await,
+                Ok(work) => match crate::receipt::skin_receipt(work, executor.clone()).await {
+                    // 预览包装需要对原图字节求哈希，在后台执行器完成，主线程只接收结果。
+                    Ok(catalog) => Ok(executor
+                        .spawn(async move { entries_from_catalog(catalog.entries) })
+                        .await),
+                    Err(error) => Err(error),
+                },
                 Err(code) => Err(SkinError::new(code, "无法读取皮肤资源库。")),
             };
             let host_result = match host_work {
-                Ok(work) => crate::usage_service::skin_receipt(work, executor).await,
+                Ok(work) => crate::receipt::skin_receipt(work, executor).await,
                 Err(code) => Err(SkinError::new(code, "无法读取宿主状态。")),
             };
             let _ = entity.update(cx, |this, cx| {
@@ -130,8 +138,8 @@ impl Shell {
                 this.skins.loading = false;
                 this.skins.last_read = Some(std::time::Instant::now());
                 match catalog {
-                    Ok(catalog) => {
-                        this.adopt_skin_catalog(catalog.entries, cx);
+                    Ok(entries) => {
+                        this.adopt_skin_catalog(entries, cx);
                         this.skins.catalog_error = None;
                     }
                     Err(error) => this.skins.catalog_error = Some(error),
@@ -232,13 +240,13 @@ impl Shell {
         let work = match if host {
             let authority = self.skins.authority.clone();
             service.skin_host_work_observed(move |service| async move {
-                crate::skins::with_host_authority(
+                loki_metris_service::skins::with_host_authority(
                     Arc::new(move || authority.load(Ordering::Acquire) == epoch),
                     async move { work(service).await },
                 ).await
             }, move |result| {
                 if let (Some(host), Some(success)) = (notification_host, host_action::notification_result(result)) {
-                    completed.push(crate::notification_events::Activity::Skin { host, success });
+                    completed.push(loki_metris_service::notification_events::Activity::Skin { host, success });
                 }
             })
         } else {
@@ -247,7 +255,7 @@ impl Shell {
             Ok(work) => work,
             Err(code) => {
                 if let Some(host) = notification_host {
-                    notifications.push(crate::notification_events::Activity::Skin { host, success: false });
+                    notifications.push(loki_metris_service::notification_events::Activity::Skin { host, success: false });
                 }
                 self.skins.feedback = Some(Err(SkinError::new(code, "无法提交皮肤操作。")));
                 cx.notify();
@@ -261,7 +269,7 @@ impl Shell {
         self.skins.feedback = None;
         self.skins.mutation = Some(cx.spawn(async move |entity, cx| {
             let result =
-                crate::usage_service::skin_receipt(work, cx.background_executor().clone()).await;
+                crate::receipt::skin_receipt(work, cx.background_executor().clone()).await;
             let _ = entity.update(cx, |this, cx| {
                 this.skins.busy = false;
                 match result {
@@ -301,7 +309,7 @@ impl Shell {
             Outcome::Opened => return,
             Outcome::Exported => SkinSuccess::Exported,
             Outcome::Stopped => SkinSuccess::Stopped,
-            Outcome::Applied(crate::skins::InstallSkinResult::Installed { .. }, intent) => {
+            Outcome::Applied(loki_metris_service::skins::InstallSkinResult::Installed { .. }, intent) => {
                 SkinSuccess::Applied {
                     name: self
                         .skins
@@ -317,7 +325,7 @@ impl Shell {
                 }
             }
             Outcome::Applied(
-                crate::skins::InstallSkinResult::NeedsConfirmation { check },
+                loki_metris_service::skins::InstallSkinResult::NeedsConfirmation { check },
                 intent,
             ) => {
                 self.defer_skin_dialog(ModalKind::Appearance(check, intent), cx);
@@ -339,7 +347,7 @@ impl Shell {
 }
 
 /// 联合身份贯穿卡片、批量选择与文件操作。
-fn skin_reference(skin: &crate::skins::SkinDescriptor) -> SkinReference {
+fn skin_reference(skin: &loki_metris_service::skins::SkinDescriptor) -> SkinReference {
     SkinReference {
         source: skin.source,
         id: skin.id.clone(),

@@ -15,13 +15,13 @@ fn native_confirmation_is_async_and_precedes_preference_commit(cx: &mut TestAppC
         assert!(owner.scheduled.is_some());
     });
     assert_eq!(f.service.pet_settings_revision(), 0);
-    assert_eq!(crate::usage_service::pet_background_task_count(&f.service), 0);
+    assert_eq!(loki_metris_service::usage_service::pet_background_task_count(&f.service), 0);
     let responsive = cx.new(|_| false);
     responsive.update(cx, |value, _| *value = true);
     assert!(responsive.read_with(cx, |value, _| *value));
     settle(cx, &f.owner);
     assert!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.locked && !owner.native_mutating));
-    let stored = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let stored = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert!(stored.pet_window.locked);
     assert_eq!(f.service.pet_settings_revision(), 1);
 }
@@ -34,12 +34,12 @@ fn shutdown_takes_preference_waiting_for_native_confirmation(cx: &mut TestAppCon
     host::delay_settle(100);
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::Layout(PetLayout::Row3), cx));
     cx.run_until_parked();
-    assert_eq!(crate::usage_service::pet_background_task_count(&f.service), 0);
+    assert_eq!(loki_metris_service::usage_service::pet_background_task_count(&f.service), 0);
     let plan = cx.update(take_shutdown_plan);
     assert_eq!(plan.changes.len(), 1);
     assert!(matches!(plan.changes[0].0, PetPreferenceChange::Layout(PetLayout::Row3)));
     f.service.finish_with_pet(plan);
-    let stored = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let stored = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(stored.pet_window.layout, PetLayout::Row3);
     host::delay_settle(0);
 }
@@ -58,7 +58,7 @@ fn failed_native_confirmation_rolls_back_before_releasing_queue(cx: &mut TestApp
         assert_eq!(owner.mouse_state.confirmed(), Some(false));
     });
     assert_eq!(f.service.pet_settings_revision(), 0);
-    assert!(!crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.locked);
+    assert!(!loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.locked);
 }
 
 /// WM 长期不确认且回滚也未确认时，明确标记未知并禁止保存中间位置，不能假称恢复成功。
@@ -84,16 +84,16 @@ fn native_and_rollback_timeouts_preserve_unknown_geometry(cx: &mut TestAppContex
 fn mouse_only_save_keeps_user_drag_in_shutdown_plan(cx: &mut TestAppContext) {
     let f = fixture(cx);
     let config = f.root.path().join("monitor");
-    crate::monitor::settings::update_monitor_settings(&config, |settings| settings.pet_window.mouse_passthrough = true).unwrap();
+    loki_metris_service::monitor::settings::update_monitor_settings(&config, |settings| settings.pet_window.mouse_passthrough = true).unwrap();
     f.owner.update(cx, |owner, cx| {
         owner.settings.pet_window.mouse_passthrough = true;
         owner.apply_mouse_passthrough(cx).unwrap();
     });
     cx.update(|cx| cx.set_global(Manager(f.owner.clone())));
-    let held = crate::usage_service::block_pet_mutations(&f.service);
+    let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
     f.owner.update(cx, |owner, cx| owner.change(PetPreferenceChange::MousePassthrough(false), cx));
     cx.run_until_parked();
-    assert_eq!(crate::usage_service::pet_background_task_count(&f.service), 1);
+    assert_eq!(loki_metris_service::usage_service::pet_background_task_count(&f.service), 1);
     f.owner.read_with(cx, |owner, _| {
         assert!(owner.busy);
         assert!(!owner.native_mutating);
@@ -105,7 +105,7 @@ fn mouse_only_save_keeps_user_drag_in_shutdown_plan(cx: &mut TestAppContext) {
     assert_eq!(plan.position, Some(final_position));
     held.release();
     f.service.finish_with_pet(plan);
-    let stored = crate::monitor::settings::load_monitor_settings(&config).unwrap();
+    let stored = loki_metris_service::monitor::settings::load_monitor_settings(&config).unwrap();
     assert!(!stored.pet_window.mouse_passthrough);
     assert_eq!(stored.pet_overlay_position, Some(final_position));
 }

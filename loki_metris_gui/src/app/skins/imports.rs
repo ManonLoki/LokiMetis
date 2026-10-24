@@ -175,7 +175,7 @@ impl Shell {
         self.skins.busy = true;
         self.skins.mutation = Some(cx.spawn(async move |entity, cx| {
             let result =
-                crate::usage_service::skin_receipt(work, cx.background_executor().clone()).await;
+                crate::receipt::skin_receipt(work, cx.background_executor().clone()).await;
             let _ = entity.update(cx, |this, cx| {
                 this.skins.busy = false;
                 match result {
@@ -237,7 +237,7 @@ impl Shell {
         self.skins.feedback = None;
         self.skins.mutation = Some(cx.spawn(async move |entity, cx| {
             let result =
-                crate::usage_service::skin_receipt(work, cx.background_executor().clone()).await;
+                crate::receipt::skin_receipt(work, cx.background_executor().clone()).await;
             let _ = entity.update(cx, |this, cx| {
                 this.skins.busy = false;
                 match result {

@@ -82,7 +82,7 @@ fn intent(host: SkinHostKind) -> PendingApply {
 /// 外观差异回执要求后续再次确认，保留同一安装意图。
 fn appearance() -> InstallSkinResult {
     InstallSkinResult::NeedsConfirmation {
-        check: crate::skins::SkinAppearanceCheck {
+        check: loki_metris_service::skins::SkinAppearanceCheck {
             effective_mode: ColorMode::Light,
             supported_color_modes: vec![ColorMode::Light],
             differences: vec![],
@@ -306,7 +306,7 @@ fn confirmed_steps_do_not_reenter_recovery_confirmation() {
 
 /// 构造真实安装回执的最小状态，避免把确认或目录操作当作更换成功。
 fn installed() -> InstallSkinResult {
-    InstallSkinResult::Installed { status: crate::skins::SkinStatus {
+    InstallSkinResult::Installed { status: loki_metris_service::skins::SkinStatus {
         installed: true, skin_id: Some("theme".into()), source: Some(SkinSource::User),
         package_type: Some(loki_metris_core::SkinPackageType::Theme), skin_name: Some("Theme".into()),
         version: "1.0.0".into(), affected_pages: 1, compatibility: None, instance_id: Some("one".into()),

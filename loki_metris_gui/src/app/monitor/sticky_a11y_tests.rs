@@ -10,7 +10,7 @@ struct ActualTree(Value);
 /// Windows Label 名称来自真实 value；计数和事件变化不能只更新不可朗读的 label。
 #[gpui_kit::test]
 fn monitor_actual_a11y_labels_publish_dynamic_values(cx: &mut TestAppContext) {
-    use crate::monitor::listener::{HookRelayLastEvent, HookRelayStatus};
+    use loki_metris_service::monitor::listener::{HookRelayLastEvent, HookRelayStatus};
     let (handle, shell, _writer) = setup(cx, 900.);
     assert!(cx.simulate_accessibility_activation(handle).is_some());
     for (locale, received, failed) in [("zh-CN", 5, 0), ("en-US", 42, 3)] {

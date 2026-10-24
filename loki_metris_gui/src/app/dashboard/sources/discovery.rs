@@ -2,7 +2,7 @@
 
 use crate::app::surface::{StaticCard, StaticMaterial};
 use super::{Shell,SourceButton,SourceButtonVariant};
-use crate::usage_service::ManualAddResult;
+use loki_metris_service::usage_service::ManualAddResult;
 use gpui_kit::{AnyElement,Context,FontWeight,SharedString,div,prelude::*,px,
     base::TestSupportExt as _,component::{ActiveTheme,Disableable}};
 use loki_metris_core::{RootDiscoveryLifecycle as State,RootDiscoveryScope as Scope,RootDiscoveryStatus};
@@ -15,7 +15,7 @@ impl Shell {
         let generation=self.dashboard.sources.generation;let client=self.usage_client();
         self.dashboard.sources.feedback=None;self.dashboard.sources.post_update_error=None;
         let task=cx.spawn(async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed"));
+            let result=crate::receipt::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.sources.generation!=generation||this.usage_client()!=client {return}
                 this.dashboard.sources.feedback=Some(result.map(|()|"sources.messages.sourceRegistered".into()));
@@ -51,7 +51,7 @@ impl Shell {
                 Ok(Ok(paths))=>{
                     let path=paths.and_then(|paths|paths.into_iter().next());
                     match service.accept_manual_directory(client,lease,path) {
-                        Ok(receiver)=>crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed")),
+                        Ok(receiver)=>crate::receipt::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("source_update_failed")),
                         Err(error)=>Err(error),
                     }
                 },

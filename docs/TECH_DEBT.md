@@ -15,6 +15,7 @@
 - 早期 Computer Use 未能读取系统菜单栏，相关托盘图标、恢复、退出结果当时由用户真实本机检查确认；这段历史不表示当前工具始终无法读取菜单。工具可读取应用菜单也不能替代真实托盘点击或各平台候选验收，未来发布仍按当次 E2E/渠道要求独立核对。
 - Windows 测试构建用测试宿主替换原生桌宠/窗口宿主，`cargo check --tests --target x86_64-pc-windows-gnu` 因此对原生 Windows 宿主模块报告约 40 条 dead_code 警告（生产 Windows 构建已无警告）。若要消除，需要让原生宿主模块在测试配置下不参与编译，并保持真实 HWND 回归可用。
 - 2026-10-19 全仓重构检查发现的范围外结构问题（本次未改，均需可执行回归后再动）：
-  - `backend/local_index/claude` 与 `grok` 的 discovery/scan/index/signature 为复制后分别演化的实现（取消检查、链接跳过计数等已不一致），宜提取共享的有界目录遍历与签名骨架，以工具差异作参数；合并前须先用回归锁定两侧现行行为。
+  - `loki_metris_host/src/local_index/claude` 与 `grok` 的 discovery/scan/index/signature 为复制后分别演化的实现（取消检查、链接跳过计数等已不一致），宜提取共享的有界目录遍历与签名骨架，以工具差异作参数；合并前须先用回归锁定两侧现行行为。
   - Windows `ShellExecuteW("open")` 在 `native/links.rs` 先初始化 COM，`skins/file_manager.rs` 未初始化；统一为单一 Shell 打开入口会改变后者行为，须在 Windows 真机验证后处理。Linux 下 `open_repository` 固定返回 false，而文件管理器已有可信 `xdg-open`/`gio` 入口，属于产品能力缺口而非重构项。
   - 项目 Rust 源未纳入 rustfmt：按默认配置格式化后总行数约增加 14%，看板已按职责拆出 `overview`、`metric_display` 与 `calls/column_widths`，格式化后均不超过 800 行；`app/mod_test.rs` 格式化后仍约 854 行。引入格式化门禁前须先拆分该测试文件，并核对按源码文本断言的测试。
+- 设备服务存在生产构建未使用的代码：`loki_metris_service/src/usage_service/devices/` 中的配对（`pair`、`pair_device`）、mDNS 主动发现（`discover*`、`candidate`）与恢复导出/导入（`*_recovery`、`DeviceRecoveryPreview`、`random_bytes`）在 macOS 非测试构建中没有调用方，只由模块内测试覆盖。原 GUI 单 crate 的 `--tests` 检查掩盖了这些警告，2026-10-25 拆出服务层 crate 后显露，`main` 的生产构建同样存在。解除条件为确认这些能力是否仍计划接入界面：接入则补齐调用路径与回归，否则删除并同步测试。

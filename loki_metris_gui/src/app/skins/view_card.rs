@@ -1,7 +1,7 @@
 //! 皮肤卡片：预览图、元数据徽章、应用 / 停止按钮与用户皮肤的更多操作菜单。
 
 use super::*;
-use crate::usage_service::SkinEntry;
+use crate::app::skins::SkinEntry;
 use loki_metris_core::SkinReference;
 
 impl Shell {

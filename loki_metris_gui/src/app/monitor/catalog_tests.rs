@@ -6,7 +6,7 @@ use loki_metris_core::{AiProfileDraft, AiTool, HookBehavior, public_monitor_ai_t
 use std::{sync::Arc, time::Duration};
 
 /// 失败或正常退出都回收测试独占后台服务。
-struct FinishService(Arc<crate::usage_service::UsageService>);
+struct FinishService(Arc<loki_metris_service::usage_service::UsageService>);
 impl Drop for FinishService {
     /// 测试结束时关闭独占后台服务。
     fn drop(&mut self) {
@@ -30,7 +30,7 @@ fn settle(cx: &mut TestAppContext, shell: &Entity<Shell>, done: impl Fn(&Shell) 
 /// 装载真实空档案与图库，不创建中性占位条目。
 fn setup(
     this: &mut Shell,
-    service: Arc<crate::usage_service::UsageService>,
+    service: Arc<loki_metris_service::usage_service::UsageService>,
     cx: &mut Context<Shell>,
 ) {
     this.page = crate::app::Page::Monitor;
@@ -165,7 +165,7 @@ fn management_controls_keep_per_agent_drafts_and_clear_unavailable_reference(
 fn save_receipt_preserves_newer_unsaved_text(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().unwrap();
     let service =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = FinishService(service.clone());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| setup(this, service.clone(), cx));
@@ -216,7 +216,7 @@ fn native_picker_cancel_and_import_receipt_follow_captured_agent(cx: &mut TestAp
     )
     .unwrap();
     let service =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = FinishService(service.clone());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
@@ -289,7 +289,7 @@ fn upload_feedback_follows_language_changes_without_reimport(cx: &mut TestAppCon
         let filename = "审计 %{count} image.gif";
         let path = root.path().join(filename);
         std::fs::write(&path, include_bytes!("../../../tests/fixtures/monitor-loop.gif")).unwrap();
-        let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
         let _finish = FinishService(service.clone());
         let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
         shell.update(cx, |this, cx| {
@@ -372,7 +372,7 @@ fn gallery_toolbar_actions_remain_visible(cx: &mut TestAppContext) {
 /// 三十个真实 GIF 只解码可见格子，离页后 CPU 结果与全部 GPU 帧同时释放。
 #[gpui_kit::test]
 fn gallery_decodes_visible_entries_and_releases_all_frames_on_leave(cx: &mut TestAppContext) {
-    use crate::monitor::image_decode::{MonitorImageDecoder, MonitorImageSource};
+    use crate::monitor_media::image_decode::{MonitorImageDecoder, MonitorImageSource};
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     let sources = (0..30)
         .map(|index| MonitorImageSource {
@@ -496,7 +496,7 @@ fn gallery_decodes_visible_entries_and_releases_all_frames_on_leave(cx: &mut Tes
 /// 删除快照到达与窗口隐藏交错时，旧条目不能等待下一次绘帧才释放。
 #[gpui_kit::test]
 fn hidden_window_releases_retired_image_before_another_frame(cx: &mut TestAppContext) {
-    use crate::monitor::image_decode::{MonitorImageDecoder, MonitorImageSource};
+    use crate::monitor_media::image_decode::{MonitorImageDecoder, MonitorImageSource};
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     let source = MonitorImageSource {
         id: "retired-fixture".into(),

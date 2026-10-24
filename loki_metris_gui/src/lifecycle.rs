@@ -19,7 +19,7 @@ pub struct Shutdown {
     /// 日志 worker 守卫，释放时刷新日志；只刷新一次。
     log_guard: Option<WorkerGuard>,
     /// 用量服务，退出时完成后台收尾。
-    usage: Option<std::sync::Arc<crate::usage_service::UsageService>>,
+    usage: Option<std::sync::Arc<loki_metris_service::usage_service::UsageService>>,
 }
 
 impl Shutdown {
@@ -39,15 +39,15 @@ impl Shutdown {
     }
 
     /// 应用退出钩子拥有业务运行时，窗口隐藏不会停止扫描或销毁服务。
-    pub fn own_usage(&mut self, usage: std::sync::Arc<crate::usage_service::UsageService>) {
+    pub fn own_usage(&mut self, usage: std::sync::Arc<loki_metris_service::usage_service::UsageService>) {
         self.usage = Some(usage);
     }
 
     /// 不可取消退出时先保存最终偏好，再记录停止事件并等待本地日志 worker 刷新。
-    pub fn finish(&mut self) {self.finish_with_pet(crate::usage_service::PetShutdownPlan::default());}
+    pub fn finish(&mut self) {self.finish_with_pet(loki_metris_service::usage_service::PetShutdownPlan::default());}
 
     /// 唯一退出钩子先捕获桌宠意图，避免依赖短期异步退出预算或钩子顺序。
-    fn finish_with_pet(&mut self,plan:crate::usage_service::PetShutdownPlan) {
+    fn finish_with_pet(&mut self,plan:loki_metris_service::usage_service::PetShutdownPlan) {
         let Some(guard) = self.log_guard.take() else { return };
         if let Some(notifications)=self.notifications.take() {notifications.stop();}
         if let Some(usage) = self.usage.take() { usage.finish_with_pet(plan); }

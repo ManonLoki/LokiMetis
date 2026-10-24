@@ -2,7 +2,7 @@
 
 use crate::app::surface::{BrandTableRow, StaticCard, StaticMaterial};
 use super::{Shell,SourceButton,SourceButtonVariant};
-use crate::usage_service::SourceOperation;
+use loki_metris_service::usage_service::SourceOperation;
 use gpui_kit::{AnyElement,Context,FontWeight,SharedString,div,prelude::*,px,
     base::TestSupportExt as _,component::{ActiveTheme,Disableable,table::{Table,TableHeader,TableHead,TableBody,TableRow,TableCell}}};
 use loki_metris_core::{SourceRootSummary,SourceDiscoveryCode as Discovery,RootActivationState as Activation};

@@ -1,7 +1,7 @@
 //! 真实 Monitor 视图的原生名称与标签使用公开目录，Hook 协议名称保持独立。
 
 use super::{Shell, state::Route};
-use crate::monitor::listener::{HookRelayLastEvent, HookRelayStatus};
+use loki_metris_service::monitor::listener::{HookRelayLastEvent, HookRelayStatus};
 use gpui_kit::{AnyWindowHandle, AppContext, Entity, Role, TestAppContext, test::TestWindowExt};
 use loki_metris_core::{AiProfileDraft, AiTool, public_monitor_ai_tools};
 

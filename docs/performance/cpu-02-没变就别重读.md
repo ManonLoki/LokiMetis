@@ -53,6 +53,6 @@
 
 ## 相关代码
 
-- `loki_metris_gui/src/backend/file_stamp.rs`
-- `loki_metris_gui/src/backend/workbuddy/jsonl/cache.rs`
-- `loki_metris_gui/src/usage_service/today_cache.rs`、`today.rs`、`query.rs`
+- `loki_metris_host/src/file_stamp.rs`
+- `loki_metris_host/src/workbuddy/jsonl/cache.rs`
+- `loki_metris_service/src/usage_service/today_cache.rs`、`today.rs`、`query.rs`

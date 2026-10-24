@@ -8,7 +8,7 @@ mod artwork;
 mod tests;
 
 use super::Shell;
-use crate::usage_service::DeviceView;
+use loki_metris_service::usage_service::DeviceView;
 use gpui_kit::Context;
 
 /// 设备页会话跨页面保留列表，配对码草稿离开模态即丢弃。

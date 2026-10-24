@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["loki_metris_pairing","loki_metris_core","loki_metris_gui","loki_metris_mobile_bridge"]
+members = ["loki_metris_pairing","loki_metris_core","loki_metris_host","loki_metris_service","loki_metris_gui","loki_metris_mobile_bridge"]
 exclude = ["vendor/accesskit_macos", "vendor/gpui-pre", "vendor/gpui-pre-apple", "vendor/gpui-pre-macos", "vendor/gpui-pre-windows", "vendor/gpui-pre-wgpu", "vendor/tray-icon"]
 
 [workspace.package]
@@ -40,6 +40,8 @@ whichdisk = { version = "0.7.0", default-features = false, features = ["list"] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSDate", "NSMetadata", "NSMetadataAttributes", "NSObject", "NSPathUtilities", "NSPredicate", "NSRunLoop", "NSString", "NSUserDefaults", "NSDictionary", "NSArray", "NSValue", "NSBundle", "NSURL", "NSNotification", "NSOperation", "block2"] }
 windows = { version = "0.62.2", default-features = false, features = ["Foundation", "Storage", "Storage_Search", "Storage_Streams", "Win32_System_Com", "Win32_UI_Shell", "Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Graphics_Gdi", "Win32_UI_HiDpi", "Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_Security_Cryptography", "Win32_Security_Cryptography_Catalog", "Win32_Security_Cryptography_Sip", "Win32_Security_WinTrust", "Win32_Storage_Packaging_Appx", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WinRT", "Data_Xml_Dom", "UI_Notifications"] }
 loki_metris_core = { path = "loki_metris_core" }
+loki_metris_host = { path = "loki_metris_host" }
+loki_metris_service = { path = "loki_metris_service" }
 gpui-kit = "0.7.3"
 # 现有Apple传递依赖仅供macOS显式开启已验证父圆角能力；
 # 源码不直接引用，仅借特性统一启用，删除会静默关闭父圆角裁剪。

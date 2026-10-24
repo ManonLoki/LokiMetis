@@ -23,36 +23,30 @@ mod agent_hooks;
 mod aggregate;
 mod ai_capabilities;
 mod bounded_minutes;
-mod calls_view;
-mod chart_view;
 mod client_ports;
 mod codex_skin;
 pub mod cursor_usage;
-mod combined_view;
 mod display_label;
 mod display_name;
 pub mod devices;
 mod local_index;
-mod local_view;
-mod monitor_gallery;
-mod monitor_profile;
-mod pet_overlay;
-mod pet_overlay_position;
-mod pet_preferences;
+mod monitor;
+mod pet;
 mod policy;
 mod private_sqlite;
 mod provider;
 mod provider_quota;
 mod root_discovery;
 mod scan;
+pub mod session_logs;
 mod settings;
 mod source;
 mod source_root;
 mod statistics;
-mod statistics_view;
 mod time_standard;
 mod timeline;
 mod usage;
+mod views;
 pub mod window_placement;
 pub mod today_usage;
 pub mod usage_milestones;
@@ -83,13 +77,13 @@ pub use ai_capabilities::{
     PUBLIC_AI_CAPABILITIES, PublicAiCapability, dashboard_selection_for_ai_tools,
     is_public_monitor_tool, public_ai_capabilities, public_monitor_ai_tools,
 };
-pub use calls_view::{
+pub use views::calls::{
     USAGE_CALL_PAGE_SIZE, UsageAvailableFilters, UsageCallFilters, UsageCallItem, UsageCallRow,
     UsageCallSortDirection, UsageCallSortField, UsageCallsPage, UsageCallsQuery,
     UsageFilterOption, build_usage_calls_page, cursor_error, cursor_start, decode_cursor,
     encode_cursor, fingerprint_query, fingerprint_snapshot,
 };
-pub use chart_view::{
+pub use views::chart::{
     UsageChartBucket, UsageChartDimension, UsageChartGranularity, UsageChartPage,
     build_usage_chart_with_standard,
 };
@@ -106,7 +100,7 @@ pub use codex_skin::{
     validate_skin_import_batch_size, validate_skin_reference, validate_supported_color_modes,
     validate_theme_image_name, validate_theme_metadata,
 };
-pub use combined_view::{
+pub use views::combined::{
     AgentUsageSnapshot, CombinedUsageSnapshot, UsageViewError,
     build_combined_local_windows_with_standard, build_combined_usage_calls_page,
     build_combined_usage_chart_with_standard, combine_agent_usage_snapshots,
@@ -122,27 +116,27 @@ pub use local_index::{
     RootRecord, RootUsageSummaryRecord, SourceParseCheckpoint, StoredSourceFile, UsageSnapshot,
     path_key, stable_id,
 };
-pub use local_view::{
+pub use views::local::{
     LocalRecordsSummary, SourceDiscoveryCode, SourceDiscoveryMethod, SourceRootInput,
     SourceRootSummary, WindowUsage, build_indexed_source_roots,
     build_local_windows_with_standard,
 };
-pub use monitor_gallery::{
+pub use monitor::gallery::{
     ImageFormat, MonitorImageCatalog, MonitorImageCounts, MonitorImageMetadata,
     assemble_image_catalog, image_data_url, metadata_from_bytes,
 };
-pub use monitor_profile::{
+pub use monitor::profile::{
     AiProfileDraft, AiProfileDraftSet, DEFAULT_PROFILE_SLOT, HookContent, MAX_PROFILE_SLOT,
     MIN_PROFILE_SLOT, MonitorCapabilityRange, clamp_profile_slot, merge_profile_drafts,
     profile_slot_range, validate_profile_draft, validate_profile_behaviors, ensure_monitor_image_unused,
 };
-pub use pet_overlay::{
+pub use pet::overlay::{
     PET_OVERLAY_SLOT_COUNT, PetLayout, PetOverlayPage, PetOverlaySlot, PetOverlayTile,
     PetOverlayToolState, PetOverlayView, apply_pet_overlay_transition, pet_overlay_page_count,
     project_pet_overlay_from_drafts, project_pet_overlay_page,
     project_available_pet_overlay_page, first_populated_pet_slot, wrap_pet_overlay_page,
 };
-pub use pet_overlay_position::{
+pub use pet::overlay_position::{
     PetOverlayPosition, PetOverlayWorkArea, resolve_pet_overlay_position,
 };
 pub use policy::messages::{
@@ -154,7 +148,7 @@ pub use policy::{
     DiscoveryBatchIndexDecision, DiscoveryBatchKind, LOCAL_DISCOVERY_WORKER_LIMIT,
     LocalIndexScanPolicy, LocalIndexScanWindow, ManualSourceAddDecision,
     ManualSourceInspectOutcome, PrimarySourceRootSupportError, ScanKind, ScanStartOrigin,
-    SourceClientKind, SourceFileObservation, SourceRootAliasValidationError,
+    SourceClientKind, SourceDescriptor, SourceFileObservation, SourceRootAliasValidationError,
     SourceRootDiscoveryVerificationError, SourceRootIdValidationError, SourceRootMutationKind,
     SourceRootMutationOutcome, UsageFilterIdValidationError, WORKBUDDY_HOME_DIR_NAME,
     WORKBUDDY_INTERNATIONAL_HOME_DIR_NAME, WORKBUDDY_PROJECTS_DIR_NAME, WorkBuddyScanSource,
@@ -187,7 +181,7 @@ pub use root_discovery::{
 };
 pub use scan::{
     DiscoveredRootIdentity, LocalScanErrorCategory, LocalScanErrorKindProvider,
-    RegisteredRootIdentity, ScanDiscoveryResult, append_platform_discovery_excludes_for_volumes,
+    RegisteredRootIdentity, DiscoveryOutcome, append_platform_discovery_excludes_for_volumes,
     confirmed_invalid_roots_to_remove, discovery_roots_for_active_registration,
     is_discovery_path_excluded, is_full_discovery_skip_directory_name, local_scan_error_message,
     local_scan_error_message_from, local_scan_task_error_message, merge_discovery_results,
@@ -215,7 +209,7 @@ pub use statistics::{
     BoundedUsageGroups, STATISTICS_GROUP_LIMIT, UsageDimension, UsageGroup, UsageMeasure,
     group_usage, stable_group_id, summarize_usage,
 };
-pub use statistics_view::{
+pub use views::statistics::{
     UsageDailyBucket, UsageGroupDisplay, UsageStatisticsPage, build_usage_statistics,
     build_usage_statistics_with_standard,
 };
@@ -244,4 +238,4 @@ pub use workbuddy_stats::{
 };
 
 // 桌宠运行态的尺寸与字段级偏好规则由core统一。
-pub use pet_preferences::{PetWindowPreferences, PetSizeRange, PetPreferenceChange, normalize_pet_window_preferences, change_pet_preferences, pet_window_dimensions, pet_size_from_resize};
+pub use pet::preferences::{PetWindowPreferences, PetSizeRange, PetPreferenceChange, normalize_pet_window_preferences, change_pet_preferences, pet_window_dimensions, pet_size_from_resize};

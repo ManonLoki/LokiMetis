@@ -4,7 +4,7 @@ use super::super::{
     Shell,
     state::{ImageEntry, Route},
 };
-use crate::monitor::image_decode::MonitorImageSource;
+use crate::monitor_media::image_decode::MonitorImageSource;
 use gpui_kit::{
     AnyWindowHandle, App, AppContext, Corners, Entity, Pixels, TestAppContext, Window,
     component::ActiveTheme, px, test::TestWindowExt,

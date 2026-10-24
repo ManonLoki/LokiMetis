@@ -1,0 +1,31 @@
+[package]
+name = "loki_metris_host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+# core 的宿主驱动：只读 Agent 数据源发现与文件读取、增量索引扫描编排、应用私有文件与 SQLite 端口。
+# 不依赖任何 UI 框架；服务层只经本 crate 的公开 API 调用，依赖方向固定为 service → host → core。
+[dependencies]
+jiff.workspace = true
+loki_metris_core.workspace = true
+same-file.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+whichdisk.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation.workspace = true
+
+[dev-dependencies]
+loki_metris_core = { workspace = true, features = ["test-support"] }
+sea-orm.workspace = true
+
+[features]
+# 仅性能测量使用：LOKI_METRIS_MEASURE_HOME 重定向 current_user_home()；由 GUI 经服务层同名特性转发，默认关闭。
+isolated-measurement = []

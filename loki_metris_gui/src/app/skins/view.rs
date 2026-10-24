@@ -116,7 +116,7 @@ impl Shell {
         page.child(cards).into_any_element()
     }
     /// 稳定码有专用翻译时优先，未知错误保留服务消息及可重试原因。
-    fn skin_error(&self, error: &crate::skins::SkinError) -> String {
+    fn skin_error(&self, error: &loki_metris_service::skins::SkinError) -> String {
         match error.code {
             "skin.choose_instance" | "skin.host_instance_selection_required" => {
                 self.t("skins.error.choose_instance")

@@ -6,7 +6,7 @@ use column_widths::CallWidthCache;
 use crate::app::surface::{BrandTableRow, StaticCard, StaticMaterial};
 use super::{Shell,format};
 use gpui_kit::base::TestSupportExt as _;
-use crate::usage_service::{UsageQuery,UsageResponse};
+use loki_metris_service::usage_service::{UsageQuery,UsageResponse};
 use gpui_kit::{AnyElement,Context,FontWeight,SharedString,div,prelude::*,px,
     component::{ActiveTheme,Disableable,button::{Button,ButtonVariants},menu::{DropdownMenu,PopupMenuItem},
         table::{Table,TableHeader,TableHead,TableBody,TableRow,TableCell}}};
@@ -59,7 +59,7 @@ impl Shell {
         let revision=self.dashboard.revision;
         self.dashboard.loading = !next;self.dashboard.calls.loading_next=next;
         self.dashboard.task=Some(cx.spawn(async move|entity,cx| {
-            let result=crate::usage_service::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
+            let result=crate::receipt::poll_receipt(receiver,cx.background_executor().clone(),std::time::Duration::from_millis(50)).await.unwrap_or(Err("usage_query_failed"));
             let _=entity.update(cx,|this,cx| {
                 if this.dashboard.revision!=revision || this.dashboard.client!=client {return}
                 this.dashboard.loading=false;this.dashboard.calls.loading_next=false;

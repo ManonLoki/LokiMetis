@@ -73,7 +73,7 @@ fn shell_close_uses_cached_x11_capability_and_defers_hide(cx: &mut TestAppContex
     }).unwrap();
     assert!(!VisualTestContext::from_window(f.handle, cx).simulate_close(), "有恢复入口的X11主窗应阻止销毁");
     cx.run_until_parked();
-    assert_eq!(crate::pet::host::take_visibility_events(f.handle), vec![false]);
+    assert_eq!(super::window_visibility::take_visibility_events(f.handle), vec![false]);
     assert!(cx.read(|cx| cx.global::<Services>().main_hidden));
     assert!(cx.update_window(f.handle, |_, _, _| ()).is_ok(), "同一个主窗口仍可恢复");
     finish(f, cx);
@@ -95,7 +95,7 @@ fn platform_close_callback_does_not_reborrow_main_window(cx: &mut TestAppContext
     assert!(!VisualTestContext::from_window(main, cx).simulate_close());
     assert!(nested_update_failed.get(), "本回调确实处于GPUI窗口借用中");
     cx.run_until_parked();
-    assert_eq!(crate::pet::host::take_visibility_events(main), vec![false]);
+    assert_eq!(super::window_visibility::take_visibility_events(main), vec![false]);
     finish(f, cx);
 }
 
@@ -106,7 +106,7 @@ fn close_without_x11_or_restore_entry_remains_normal_close(cx: &mut TestAppConte
         let f = fixture(cx, main_is_x11, available);
         assert!(VisualTestContext::from_window(f.handle, cx).simulate_close());
         cx.run_until_parked();
-        assert!(crate::pet::host::take_visibility_events(f.handle).is_empty());
+        assert!(super::window_visibility::take_visibility_events(f.handle).is_empty());
         assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
         finish(f, cx);
     }
@@ -121,7 +121,7 @@ fn deferred_close_hide_rechecks_the_restore_entry(cx: &mut TestAppContext) {
         cx.global_mut::<Services>().tray_restore_available_for_test = Some(false);
     }).unwrap();
     cx.run_until_parked();
-    assert!(crate::pet::host::take_visibility_events(f.handle).is_empty());
+    assert!(super::window_visibility::take_visibility_events(f.handle).is_empty());
     assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
     finish(f, cx);
 }
@@ -239,19 +239,19 @@ fn failed_main_show_retries_after_restore_entry_is_lost(cx: &mut TestAppContext)
         let f = fixture_with_visibility(cx, true, false, false);
         cx.update(|cx| {
             cx.global_mut::<Services>().main_hidden = previously_hidden;
-            crate::pet::host::fail_next_visibility();
+            super::window_visibility::fail_next_visibility();
             show(f.handle, cx);
         });
         cx.run_until_parked();
         assert!(cx.read(|cx| cx.global::<Services>().main_hidden), "失败不能丢弃仍需显窗的事实");
-        assert!(crate::pet::host::take_visibility_events(f.handle).is_empty());
+        assert!(super::window_visibility::take_visibility_events(f.handle).is_empty());
         cx.update(|cx| sync_linux_main(false, cx));
         cx.run_until_parked();
         assert!(!cx.read(|cx| cx.global::<Services>().main_hidden));
-        assert_eq!(crate::pet::host::take_visibility_events(f.handle), [true]);
+        assert_eq!(super::window_visibility::take_visibility_events(f.handle), [true]);
         cx.update(|cx| sync_linux_main(false, cx));
         cx.run_until_parked();
-        assert!(crate::pet::host::take_visibility_events(f.handle).is_empty(), "成功后不得重复显窗");
+        assert!(super::window_visibility::take_visibility_events(f.handle).is_empty(), "成功后不得重复显窗");
         finish(f, cx);
     }
 }

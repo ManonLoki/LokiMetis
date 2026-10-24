@@ -5,14 +5,14 @@ use gpui_kit::{Entity, TestAppContext};
 use std::{cell::Cell, io::{Read, Write}, net::TcpStream, path::Path, rc::Rc, sync::Arc, time::{Duration, Instant}};
 
 /// 先回收隔离宿主的监听和工作线程，再销毁临时目录。
-struct Finish(Arc<crate::usage_service::UsageService>);
+struct Finish(Arc<loki_metris_service::usage_service::UsageService>);
 impl Drop for Finish {
     /// 测试结束（含断言失败）时一定回收宿主，避免残留线程占住临时目录。
     fn drop(&mut self) {self.0.finish();}
 }
 
 /// 有界等候真实宿主状态，不推进窗口轮询时钟或读取用户配置。
-fn wait_status(service:&crate::usage_service::UsageService, predicate:impl Fn(&HookRelayStatus)->bool)->HookRelayStatus {
+fn wait_status(service:&loki_metris_service::usage_service::UsageService, predicate:impl Fn(&HookRelayStatus)->bool)->HookRelayStatus {
     let deadline=Instant::now()+Duration::from_secs(3);
     loop {
         let status=service.monitor_status().unwrap();
@@ -48,7 +48,7 @@ fn rejected_request(path:&Path) {
 fn refresh_notifies_only_changed_status_or_error(cx:&mut TestAppContext) {
     let root=tempfile::tempdir().unwrap();
     let path=root.path().join("cache/relay.json");
-    let service=crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service=loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish=Finish(service.clone());
     let (_handle,shell,_writer)=crate::app::tests::open_shell(cx,1440.,900.);
     shell.update(cx,|this,_cx|this.page=crate::app::Page::Monitor);

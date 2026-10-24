@@ -87,23 +87,6 @@ impl NativeWindow {
         let clipped: Vec<_> = monitors.iter().filter_map(|monitor| work.map_or(Some(*monitor), |work| monitor.intersect(work))).collect();
         Ok(if clipped.is_empty() { monitors } else { clipped })
     }
-    /// 映射只作用于当前活窗，不通过应用激活顺便抢焦点；Unmap 保留窗口和播放状态。
-    fn set_visible(&self, visible: bool) -> anyhow::Result<()> {
-        let desired = if visible { MapState::VIEWABLE } else { MapState::UNMAPPED };
-        let confirmed = self.connection.get_window_attributes(self.window)?.reply()?.map_state == desired;
-        if !confirmed {
-            if visible { self.connection.map_window(self.window)?.check()?; }
-            else { self.connection.unmap_window(self.window)?.check()?; }
-            if visible {
-                self.connection.change_property32(PropMode::REPLACE, self.window,
-                    self.atom(b"_LOKI_METRIS_AUXILIARY_REMAP_PENDING")?, AtomEnum::CARDINAL, &[1])?.check()?;
-            }
-        }
-        self.connection.change_property32(PropMode::REPLACE, self.window,
-            self.atom(b"_LOKI_METRIS_AUXILIARY_VISIBLE")?, AtomEnum::CARDINAL, &[u32::from(visible)])?.check()?;
-        self.connection.flush()?;
-        Ok(())
-    }
     /// 装饰、工具窗身份及缩放边界不改变鼠标穿透；领域偏好仍由 core 校验。
     fn apply(&self, prefs: PetWindowPreferences, settings: bool, scale: f32) -> anyhow::Result<()> {
         let motif = self.atom(b"_MOTIF_WM_HINTS")?;
@@ -235,11 +218,6 @@ fn select_area(areas: &[PhysicalRect], bounds: PhysicalRect) -> PhysicalRect {
 #[cfg(not(test))]
 pub fn set_mouse_passthrough(window: &Window, enabled: bool, state: &mut super::MousePassthroughState) -> anyhow::Result<()> {
     NativeWindow::capture(window)?.set_mouse_passthrough(enabled, state)
-}
-/// 托盘显示和隐藏命令实际 map/unmap 当前活窗，不把 activate 当作显示。
-#[cfg(not(test))]
-pub fn set_visible(window: &Window, visible: bool) -> anyhow::Result<()> {
-    NativeWindow::capture(window)?.set_visible(visible)
 }
 /// 单次原生读回供 controller 的异步确认屏障使用，不把请求回执当作应用完成。
 #[cfg(not(test))]

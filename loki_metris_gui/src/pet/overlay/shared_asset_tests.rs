@@ -1,7 +1,7 @@
 //! 真实桌宠窗口跨位置共用图库 ID；只观察缓存、解码结果与实际图元，不读取播放器私有状态。
 
 use super::super::tests::{Fixture, fixture};
-use crate::monitor::image_decode::{MonitorImageDecoder, MonitorImageSource};
+use crate::monitor_media::image_decode::{MonitorImageDecoder, MonitorImageSource};
 use gpui_kit::{AppContext, TestAppContext, test::TestWindowExt};
 use loki_metris_core::{
     AiProfileDraft, AiTool, HookBehavior, HookTransition, ImageFormat, PetPreferenceChange,

@@ -1,0 +1,44 @@
+[package]
+name = "loki_metris_service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+# 应用服务层：扫描队列、查询邮箱、通知 worker、换肤、Hook 监控与设备联动的后台 owner。
+# 不依赖任何 UI 框架，只交付 Tokio 回执与 DTO；依赖方向固定为 gui → service → host → core。
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+chromiumoxide.workspace = true
+futures.workspace = true
+jiff.workspace = true
+loki_metris_core.workspace = true
+loki_metris_host.workspace = true
+mdns-sd.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+zip.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-foundation.workspace = true
+objc2-app-kit.workspace = true
+libc.workspace = true
+
+[dev-dependencies]
+image.workspace = true
+loki_metris_core = { workspace = true, features = ["test-support"] }
+
+[features]
+# 仅供 GUI 测试复用本 crate 的测试构造器与 Hook 夹具；默认关闭，不进入发布构建。
+test-support = []
+# 仅性能测量使用：转发到 host 的同名特性并启用今日缓存的隔离路径；默认关闭。
+isolated-measurement = ["loki_metris_host/isolated-measurement"]

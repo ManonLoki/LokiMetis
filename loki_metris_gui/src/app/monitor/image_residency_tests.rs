@@ -4,7 +4,7 @@ use super::super::{
     Shell,
     state::{ImageEntry, Route},
 };
-use crate::monitor::{
+use crate::monitor_media::{
     image_decode::{
         DecodedMonitorImage, LoadProbe, MonitorImageDecoder, MonitorImageSource,
         hold_decoders_for_test, hold_pixel_budget_for_test,
@@ -39,7 +39,7 @@ struct Windows {
     /// 测试临时目录。
     root: tempfile::TempDir,
     /// 测试用量服务。
-    service: Arc<crate::usage_service::UsageService>,
+    service: Arc<loki_metris_service::usage_service::UsageService>,
     /// 主窗句柄。
     main: AnyWindowHandle,
     /// 主窗根视图。
@@ -74,7 +74,7 @@ fn windows(cx: &mut TestAppContext) -> Windows {
     )
     .unwrap();
     let service =
-        crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+        loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let imported = service
         .import_monitor_image(path)
         .unwrap()

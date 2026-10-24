@@ -111,7 +111,7 @@ impl Shell {
     pub(super) fn skin_prompt(&mut self, cx: &mut Context<Self>) {
         self.skin_mutation(
             move |service| async move {
-                let root = crate::usage_service::skin_resource_root()?.join("codex-skin-generator");
+                let root = loki_metris_service::usage_service::skin_resource_root()?.join("codex-skin-generator");
                 service
                     .skin_creation_prompt(&root)
                     .map(|value| Outcome::Prompt(value.prompt))
@@ -167,7 +167,7 @@ impl Shell {
     /// 兼容包直接应用，与历史产品一样仅在导入预检要求代码信任勾选。
     pub(super) fn apply_skin(
         &mut self,
-        skin: &crate::skins::SkinDescriptor,
+        skin: &loki_metris_service::skins::SkinDescriptor,
         cx: &mut Context<Self>,
     ) {
         let Some(host) = self.skins.host else { return };

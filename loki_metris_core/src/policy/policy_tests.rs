@@ -10,6 +10,32 @@ fn parser_generation_matches_shipped_clients() {
     assert_eq!(SourceClientKind::Grok.parser_version(), 3);
 }
 
+/// 锁定会进入持久化根 ID 与命名空间的来源身份；任何变化都等同数据迁移，必须显式改测试。
+#[test]
+fn source_descriptors_keep_persisted_identity() {
+    let identities: Vec<_> = SourceClientKind::ALL
+        .iter()
+        .map(|client| {
+            let d = client.descriptor();
+            (d.stable_root_id_prefix, d.root_id_namespace, d.candidate_namespace, d.provider)
+        })
+        .collect();
+    assert_eq!(
+        identities,
+        [
+            ("root-", "root", "candidate-codex", crate::ProviderKind::RolloutJsonl),
+            ("claude-root-", "claude-root", "candidate-claude", crate::ProviderKind::ClaudeTranscriptJsonl),
+            ("grok-root-", "grok-root", "candidate-grok", crate::ProviderKind::GrokSessionJsonl),
+            ("workbuddy-root-", "workbuddy-root", "candidate-workbuddy", crate::ProviderKind::WorkBuddyProjectJsonl),
+        ]
+    );
+    // 每个来源的前缀必须是其命名空间加连字符，校验根 ID 与生成根 ID 才能互相对应。
+    for client in SourceClientKind::ALL {
+        let d = client.descriptor();
+        assert_eq!(d.stable_root_id_prefix, format!("{}-", d.root_id_namespace));
+    }
+}
+
 /// 数据库或 parser 升级只在明确需要重建时触发启动后立即索引。
 #[test]
 fn only_needs_rescan_requires_immediate_upgrade_reindex() {

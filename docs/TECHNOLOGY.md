@@ -12,7 +12,7 @@
 | 移动协议桥 | `loki_metris_mobile_bridge` | 独立 C ABI 句柄/缓冲适配器，复用 pairing；本 crate 不含 JNI 导出。JNI/Swift 调用封装、手机网络及系统存储驱动由外部移动项目维护，Watch 经 iPhone 系统配套通道同步；平台接入与运行证据分别核对 |
 | 领域层 | `loki_metris_core` | 解析、核算、查询、SQLite 索引、工作流和稳定领域错误；不依赖 GPUI |
 | 桌面层 | `loki_metris_gui` | 视图、原生服务、I/O 驱动与运行时装配；GPUI 事件循环位于同步主线程 |
-| 异步执行 | Tokio，由 GUI 的 `UsageService` 拥有 | [服务初始化](../loki_metris_gui/src/usage_service/mod.rs)建立 2-worker runtime，承载扫描、查询、后台服务和通知；不把 GPUI loop 包进 Tokio 根任务 |
+| 异步执行 | Tokio，由 GUI 的 `UsageService` 拥有 | [服务初始化](../loki_metris_service/src/usage_service/mod.rs)建立 2-worker runtime，承载扫描、查询、后台服务和通知；不把 GPUI loop 包进 Tokio 根任务 |
 | 本地数据 | SeaORM + SQLite | core 定义索引与迁移，适配器驱动具体读写；原始 Agent 会话与本产品派生库分离 |
 | 图像与字体 | `image` / `png` / `image-webp`，内嵌 Geist / Geist Mono | 静态图、GIF/APNG/WebP 与受控解码工作集；字体不安装到系统，许可见[字体目录](../loki_metris_gui/assets/fonts/) |
 | 换肤 | `chromiumoxide`、ZIP 与本地皮肤资源 | 已批准的宿主 CDP/文件编排；不是应用自身的 WebView 运行时 |

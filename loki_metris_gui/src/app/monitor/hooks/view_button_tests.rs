@@ -26,7 +26,7 @@ fn text_width(window: &gpui_kit::Window, text: &str, size: f32) -> gpui_kit::Pix
 fn monitor_hook_write_button_keeps_xs_intrinsic_width(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().unwrap();
     let locations =
-        crate::monitor::store::list_hook_config_locations(&Default::default(), root.path());
+        loki_metris_service::monitor::store::list_hook_config_locations(&Default::default(), root.path());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
         this.page = crate::app::Page::Monitor;
@@ -77,7 +77,7 @@ fn monitor_hook_write_button_keeps_xs_intrinsic_width(cx: &mut TestAppContext) {
 fn monitor_hook_directory_buttons_keep_historical_xs_width(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().unwrap();
     let locations =
-        crate::monitor::store::list_hook_config_locations(&Default::default(), root.path());
+        loki_metris_service::monitor::store::list_hook_config_locations(&Default::default(), root.path());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
         this.page = crate::app::Page::Monitor;
@@ -117,7 +117,7 @@ fn monitor_hook_directory_buttons_keep_historical_xs_width(cx: &mut TestAppConte
 fn monitor_hook_directory_loading_belongs_to_submitted_action(cx: &mut TestAppContext) {
     let root = tempfile::tempdir().unwrap();
     let locations =
-        crate::monitor::store::list_hook_config_locations(&Default::default(), root.path());
+        loki_metris_service::monitor::store::list_hook_config_locations(&Default::default(), root.path());
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     shell.update(cx, |this, cx| {
         this.page = crate::app::Page::Monitor;

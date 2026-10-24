@@ -14,8 +14,7 @@ mod size_control;
 mod position;
 mod window_placement;
 mod passthrough;
-pub(crate) use passthrough::{mouse_passthrough_state, open_settings, toggle_mouse_passthrough};
-pub(crate) use passthrough::State as MousePassthroughState;
+pub(crate) use passthrough::{open_settings, tray_actions};
 #[cfg(test)]
 mod passthrough_tests;
 #[cfg(test)]
@@ -31,7 +30,7 @@ mod first_populated_tests;
 #[cfg(test)]
 mod today_tests;
 
-use crate::{
+use loki_metris_service::{
     monitor::{images::MonitorGallerySnapshot, settings::MonitorSettings},
     usage_service::UsageService,
 };
@@ -97,7 +96,7 @@ struct Controller {
     /// 公开监控工具的当前桌宠展示状态。
     states: Vec<PetOverlayToolState>,
     /// 按图片 ID 索引的已解码图库素材。
-    images: HashMap<String, crate::monitor::image_decode::MonitorImageSource>,
+    images: HashMap<String, crate::monitor_media::image_decode::MonitorImageSource>,
     /// 已消费的修订号：(Agent 设置, 桌宠设置, 图库, 监控状态)；与服务端修订号不同才重新读取。
     observed: (u64, u64, u64, u64),
     /// 设置、草稿与图库的读取任务在途。
@@ -243,7 +242,7 @@ impl Controller {
         let generation = self.settings_generation;
         self.query = Some(cx.spawn(async move |entity, cx| {
             let settings = match work.0 {
-                Ok(work) => crate::usage_service::receipt(
+                Ok(work) => crate::receipt::hook_receipt(
                     work,
                     cx.background_executor().clone(),
                     "error.monitor.settingsReadFailed",
@@ -253,7 +252,7 @@ impl Controller {
                 Err(_) => None,
             };
             let drafts = match work.1 {
-                Ok(work) => crate::usage_service::receipt(
+                Ok(work) => crate::receipt::hook_receipt(
                     work,
                     cx.background_executor().clone(),
                     "error.monitor.settingsReadFailed",
@@ -263,7 +262,7 @@ impl Controller {
                 Err(_) => None,
             };
             let images = match work.2 {
-                Ok(work) => crate::usage_service::receipt(
+                Ok(work) => crate::receipt::hook_receipt(
                     work,
                     cx.background_executor().clone(),
                     "error.monitor.settingsReadFailed",
@@ -308,7 +307,7 @@ impl Controller {
                 snapshot.bytes.remove(&image.id).map(|bytes| {
                     (
                         image.id.clone(),
-                        crate::monitor::image_decode::MonitorImageSource {
+                        crate::monitor_media::image_decode::MonitorImageSource {
                             id: image.id,
                             bytes,
                             format: image.format,

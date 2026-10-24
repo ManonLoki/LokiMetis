@@ -58,7 +58,7 @@ fn open(cx: &mut TestAppContext, width: f32) -> (AnyWindowHandle, Entity<Preview
     cx.update(gpui_kit::init);
     cx.update(|cx| {
         let image = Image::from_bytes(ImageFormat::Png,
-            include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec())
+            include_bytes!("../../../../loki_metris_service/resources/builtin-skins/pikachu/qq2007-sky.png").to_vec())
             .to_image_data(cx.svg_renderer()).expect("解码原始Pikachu素材");
         assert_eq!(image.size(0).width.0, 1920);
         assert_eq!(image.size(0).height.0, 1080);
@@ -122,7 +122,7 @@ fn production_skin_card_preview_matches_installed_section_crop(cx: &mut TestAppC
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1492., 900.);
     let image = Arc::new(Image::from_bytes(
         ImageFormat::Png,
-        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec(),
+        include_bytes!("../../../../loki_metris_service/resources/builtin-skins/pikachu/qq2007-sky.png").to_vec(),
     ));
     let decoded = cx.update(|cx| image.to_image_data(cx.svg_renderer()).expect("解码真实Pikachu原图"));
     assert_eq!(decoded.size(0).width.0, 1920);
@@ -189,8 +189,8 @@ fn populate_catalog(shell: &Entity<crate::app::Shell>, image: Arc<Image>,
     shell.update(cx, |this, cx| {
         this.page = super::Page::Skins;
         this.skins.host = Some(loki_metris_core::SkinHostKind::Codex);
-        this.skins.entries = Some(vec![crate::usage_service::SkinEntry {
-            skin: crate::skins::SkinDescriptor {
+        this.skins.entries = Some(vec![crate::app::skins::SkinEntry {
+            skin: loki_metris_service::skins::SkinDescriptor {
                 id: "pikachu".into(),
                 source,
                 package_type: loki_metris_core::SkinPackageType::LegacySkin,
@@ -202,7 +202,7 @@ fn populate_catalog(shell: &Entity<crate::app::Shell>, image: Arc<Image>,
             },
             preview: Some(image),
         }]);
-        this.skins.status = Some(crate::skins::SkinStatus {
+        this.skins.status = Some(loki_metris_service::skins::SkinStatus {
             installed: false,
             skin_id: None,
             source: None,
@@ -223,7 +223,7 @@ fn populate_catalog(shell: &Entity<crate::app::Shell>, image: Arc<Image>,
 fn user_skin_checkbox_keeps_section_offset_and_own_actions(cx: &mut TestAppContext) {
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1492., 900.);
     let image = Arc::new(Image::from_bytes(ImageFormat::Png,
-        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
+        include_bytes!("../../../../loki_metris_service/resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
     populate_catalog(&shell, image, loki_metris_core::SkinSource::User, cx);
     for scale in [1., 2.] {
         cx.simulate_window_scale_factor_change(handle, scale);
@@ -258,7 +258,7 @@ fn user_skin_checkbox_keeps_section_offset_and_own_actions(cx: &mut TestAppConte
 fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     let image = Arc::new(Image::from_bytes(ImageFormat::Png,
-        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
+        include_bytes!("../../../../loki_metris_service/resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
     populate_catalog(&shell, image, loki_metris_core::SkinSource::User, cx);
     assert!(shell.read_with(cx, |this, _| this.skin_writable()));
     for (width, height, feedback) in [(1440., 900., false), (1440., 900., true), (800., 300., true)] {
@@ -305,7 +305,7 @@ fn user_skin_card_controls_follow_toolbar_tab_order(cx: &mut TestAppContext) {
 fn background_skin_refresh_preserves_keyboard_focus(cx: &mut TestAppContext) {
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 1440., 900.);
     let image = Arc::new(Image::from_bytes(ImageFormat::Png,
-        include_bytes!("../../../resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
+        include_bytes!("../../../../loki_metris_service/resources/builtin-skins/pikachu/qq2007-sky.png").to_vec()));
     populate_catalog(&shell, image, loki_metris_core::SkinSource::User, cx);
     shell.update(cx, |this, cx| {
         let entry = &mut this.skins.entries.as_mut().unwrap()[0];

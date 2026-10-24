@@ -57,5 +57,5 @@
 
 ## 相关代码
 
-- `loki_metris_gui/src/usage_service/today_cache.rs`、`today_cache_tests.rs`
-- `loki_metris_gui/src/backend/workbuddy/jsonl/cache.rs`、`cache_tests.rs`
+- `loki_metris_service/src/usage_service/today_cache.rs`、`today_cache_tests.rs`
+- `loki_metris_host/src/workbuddy/jsonl/cache.rs`、`cache_tests.rs`

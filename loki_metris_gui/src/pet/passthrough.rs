@@ -3,18 +3,8 @@
 use super::{Controller, Manager, host};
 use gpui_kit::{App, Bounds, Pixels};
 
-/// 托盘消费可比较的内存状态，不轮询OS或克隆图片/用量快照。
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct State {
-    /// 已保存的穿透偏好。
-    pub enabled: bool,
-    /// 有偏好事务在途。
-    pub busy: bool,
-    /// 浮窗存在且未退出，可以切换。
-    pub available: bool,
-    /// 原生读回的实际穿透状态。
-    pub confirmed: Option<bool>,
-}
+/// 托盘消费的穿透状态由原生托盘定义，桌宠 owner 只负责产出。
+pub(crate) use crate::native::MousePassthroughState as State;
 
 impl Controller {
     /// 当前overlay固定拥有此状态；全窗输入切换不重建播放器或刷新bounds。
@@ -63,4 +53,14 @@ pub(crate) fn mouse_passthrough_state(cx: &App) -> State {
         let owner = manager.0.read(cx);
         State { enabled: owner.settings.pet_window.mouse_passthrough, busy: owner.busy, available: owner.overlay.is_some() && !owner.quitting, confirmed: owner.mouse_state.confirmed() }
     }).unwrap_or_default()
+}
+
+/// 托盘桌宠菜单动作集合，由组装入口注入原生层，原生层因此不依赖桌宠模块。
+pub(crate) fn tray_actions() -> crate::native::PetTrayActions {
+    crate::native::PetTrayActions {
+        toggle: super::toggle,
+        open_settings,
+        toggle_mouse_passthrough,
+        mouse_passthrough_state,
+    }
 }

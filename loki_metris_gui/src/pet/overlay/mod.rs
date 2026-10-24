@@ -9,7 +9,7 @@ mod image_residency_tests;
 mod shared_asset_tests;
 
 use super::{Controller, host};
-use crate::monitor::{
+use crate::monitor_media::{
     image_decode::MonitorImageSource,
     image_playback::MonitorImageView,
     image_residency::{self, ImageOwner},

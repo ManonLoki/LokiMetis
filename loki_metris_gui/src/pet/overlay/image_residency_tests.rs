@@ -1,7 +1,7 @@
 //! 桌宠与另一原生播放器共用图片，正式分页和关闭必须遵守全 App 最后 owner 清理。
 
 use super::super::tests::{Fixture, fixture};
-use crate::monitor::{
+use crate::monitor_media::{
     image_decode::{DecodedMonitorImage, MonitorImageDecoder, MonitorImageSource},
     image_playback::MonitorImageView,
 };

@@ -4,7 +4,7 @@ use std::io;
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent, menu::{Menu, MenuEvent, MenuItem, CheckMenuItem}};
 
 /// 原生对象只由 GPUI 线程持有，退出在更新栈外释放。
-pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, pet_visible:bool, pet_settings:MenuItem, mouse:CheckMenuItem, mouse_state:crate::pet::MousePassthroughState, notification:CheckMenuItem, notification_state:super::notifications::State, autostart:CheckMenuItem, autostart_state:super::autostart::State, locale:String,
+pub struct Tray { icon: TrayIcon, show: MenuItem, quit: MenuItem, pet:MenuItem, pet_visible:bool, pet_settings:MenuItem, mouse:CheckMenuItem, mouse_state:super::MousePassthroughState, notification:CheckMenuItem, notification_state:super::notifications::State, autostart:CheckMenuItem, autostart_state:super::autostart::State, locale:String,
     #[cfg(target_os = "linux")]
     restore: super::tray_linux::RestoreEntry,
 }
@@ -79,7 +79,7 @@ impl Tray {
     pub fn set_pet_visibility(&mut self,visible:bool) {self.pet_visible=visible;self.pet.set_text(&rust_i18n::t!(if visible {"tray.hide_pet_overlay"} else {"tray.show_pet_overlay"},locale=&self.locale));}
 
     /// 仅根据controller内存状态更新菜单，配置窗在穿透期间仍可独立打开。
-    pub fn set_mouse_passthrough(&mut self,state:crate::pet::MousePassthroughState) {
+    pub fn set_mouse_passthrough(&mut self,state:super::MousePassthroughState) {
         self.mouse.set_checked(state.confirmed == Some(true));
         self.mouse.set_enabled(state.available && !state.busy);
         self.mouse.set_text(&rust_i18n::t!(if state.available && state.confirmed.is_none() {"monitor.pet.mousePassthroughRecover"} else {"monitor.pet.mousePassthrough"},locale=&self.locale));

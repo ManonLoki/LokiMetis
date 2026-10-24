@@ -20,7 +20,7 @@ fn image(color: [u8; 4]) -> Arc<Image> {
 /// 目录fixture只提供合法展示输入，缓存与绘制始终由生产逻辑建立。
 fn entry(id: &str, preview: Arc<Image>) -> SkinEntry {
     SkinEntry {
-        skin: crate::skins::SkinDescriptor {
+        skin: loki_metris_service::skins::SkinDescriptor {
             id: id.into(),
             source: SkinSource::Builtin,
             package_type: SkinPackageType::LegacySkin,
@@ -249,7 +249,7 @@ fn actual_metal_repeated_catalog_changes_retire_every_historical_preview() {
         .open_window(size(px(1440.), px(900.)), move |window, app| {
             app.new(|cx| {
                 let mut shell = Shell::new(preferences, writer, window, cx);
-                shell.agent_settings.value = Some(crate::monitor::settings::MonitorSettings {
+                shell.agent_settings.value = Some(loki_metris_service::monitor::settings::MonitorSettings {
                     enabled_ai_tools: loki_metris_core::public_monitor_ai_tools().collect(),
                     ..Default::default()
                 });

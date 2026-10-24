@@ -147,7 +147,7 @@ impl Controller {
                 };
                 let result = match work {
                     Ok(work) => {
-                        crate::usage_service::receipt(
+                        crate::receipt::hook_receipt(
                             work,
                             cx.background_executor().clone(),
                             "error.monitor.settingsWriteFailed",

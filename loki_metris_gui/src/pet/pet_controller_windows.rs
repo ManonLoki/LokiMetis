@@ -282,7 +282,7 @@ pub fn toggle(cx: &mut App) {
 }
 
 /// 窗口尚存活时同步取出最终意图，之后由服务排空队列并保存。
-pub(crate) fn take_shutdown_plan(cx: &mut App) -> crate::usage_service::PetShutdownPlan {
+pub(crate) fn take_shutdown_plan(cx: &mut App) -> loki_metris_service::usage_service::PetShutdownPlan {
     let Some(manager) = cx.try_global::<Manager>() else {
         return Default::default();
     };
@@ -311,7 +311,7 @@ pub(crate) fn take_shutdown_plan(cx: &mut App) -> crate::usage_service::PetShutd
                 (change, this.range(layout, cx))
             })
             .collect();
-        crate::usage_service::PetShutdownPlan {
+        loki_metris_service::usage_service::PetShutdownPlan {
             changes,
             position: this.position.take_dirty(),
         }

@@ -1,7 +1,8 @@
 //! 监控编辑态只拥有未提交草稿、原生输入与异步回执，不替代磁盘权威记录。
 
-use crate::monitor::image_playback::MonitorImageView;
-use crate::monitor::{image_decode::MonitorImageSource, images::MonitorGallerySnapshot};
+use crate::monitor_media::image_playback::MonitorImageView;
+use crate::monitor_media::image_decode::MonitorImageSource;
+use loki_metris_service::monitor::images::MonitorGallerySnapshot;
 use gpui_kit::{Entity, Subscription, Task, component::input::TextareaState};
 use loki_metris_core::{AiProfileDraft, AiTool, HookBehavior, HookError, ImageFormat};
 use std::{

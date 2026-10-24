@@ -26,19 +26,19 @@ HTML 为独立页面，可下载后在浏览器打开。图展示主要运行关
 
 | 子系统 | 直接证据 |
 | --- | --- |
-| GPUI 界面与原生宿主 | [服务装配与窗口](../loki_metris_gui/src/main.rs#L80) · [桌宠读取投影](../loki_metris_gui/src/pet/mod.rs#L201) · [原生通知消费](../loki_metris_gui/src/native/notifications/activity.rs#L10) |
-| UsageService | [后台 owner 与任务](../loki_metris_gui/src/usage_service/mod.rs#L153) · [串行 writer 扫描](../loki_metris_gui/src/usage_service/scan.rs#L27) · [请求与异步回执](../loki_metris_gui/src/app/dashboard/mod.rs#L188) |
-| 本机来源适配器 | [索引与来源发现](../loki_metris_gui/src/backend/scan_orchestration/run.rs#L67) · [解析与批次写入](../loki_metris_gui/src/backend/local_index/rollout_ingest.rs#L201) · [独立读取与核算](../loki_metris_gui/src/backend/workbuddy/mod.rs#L125) |
-| AI 工具本机记录 | [实际打开会话文件](../loki_metris_gui/src/backend/local_index/file_source.rs#L139) · [项目 JSONL 文件](../loki_metris_gui/src/backend/workbuddy/jsonl/mod.rs#L282) |
+| GPUI 界面与原生宿主 | [服务装配与窗口](../loki_metris_gui/src/main.rs#L79) · [桌宠读取投影](../loki_metris_gui/src/pet/mod.rs#L200) · [原生通知消费](../loki_metris_gui/src/native/notifications/activity.rs#L10) |
+| UsageService | [后台 owner 与任务](../loki_metris_service/src/usage_service/mod.rs#L151) · [串行 writer 扫描](../loki_metris_service/src/usage_service/scan.rs#L27) · [请求与异步回执](../loki_metris_gui/src/app/dashboard/mod.rs#L188) |
+| 本机来源适配器 | [索引与来源发现](../loki_metris_host/src/scan_orchestration/run.rs#L67) · [解析与批次写入](../loki_metris_host/src/local_index/rollout_ingest.rs#L201) · [独立读取与核算](../loki_metris_host/src/workbuddy/mod.rs#L125) |
+| AI 工具本机记录 | [实际打开会话文件](../loki_metris_host/src/local_index/file_source.rs#L139) · [项目 JSONL 文件](../loki_metris_host/src/workbuddy/jsonl/mod.rs#L129) |
 | core SQLite 持久层 | [数据库连接及迁移](../loki_metris_core/src/local_index/mod.rs#L59) · [批次事务提交](../loki_metris_core/src/local_index/call_store/mod.rs#L61) · [查询与标准化](../loki_metris_core/src/local_index/snapshot_usage_reads.rs#L157) |
 | 应用私有 SQLite | [真实文件与连接 I/O](../loki_metris_core/src/private_sqlite.rs#L33) · [三类数据库槽位](../loki_metris_core/src/client_ports.rs#L13) |
-| core 业务规则 | [逻辑调用归并](../loki_metris_core/src/aggregate/canonicalization.rs#L51) · [时间窗口与核算](../loki_metris_core/src/local_view.rs#L113) · [Hook 状态机](../loki_metris_core/src/agent_hooks/state_machine/mod.rs#L109) |
-| 账户用量与额度驱动 | [Cursor 分页与缓存](../loki_metris_gui/src/usage_service/cursor_usage/mod.rs#L75) · [本地优先与纯解析](../loki_metris_gui/src/usage_service/provider_quota/fetch.rs#L36) · [受限 HTTPS 与只读 sqlite3](../loki_metris_gui/src/usage_service/provider_quota/transport.rs#L73) |
-| 提供商官方接口 | [固定官方端点](../loki_metris_gui/src/usage_service/provider_quota/fetch.rs#L112) · [curl 调用与超时取消](../loki_metris_gui/src/usage_service/provider_quota/transport.rs#L118) |
-| Hooks 与换肤服务 | [状态推进与活动通知](../loki_metris_gui/src/monitor/listener/lifecycle.rs#L101) · [配置 writer owner](../loki_metris_gui/src/usage_service/hooks.rs#L98) · [宿主页注入](../loki_metris_gui/src/skins/injection.rs#L69) |
-| Agent 与宿主应用 | [环回 HTTP 中继](../loki_metris_gui/src/monitor/relay.rs#L440) · [CDP 连接与宿主](../loki_metris_gui/src/skins/cdp_connect.rs#L17) · [换肤平台边界](../loki_metris_gui/src/skins/platform/mod.rs#L348) |
-| 局域网设备服务 | [启动、发现与连接分流](../loki_metris_gui/src/usage_service/devices/server.rs#L114) · [用量、额度与全槽 Hooks](../loki_metris_gui/src/usage_service/devices/publication.rs#L76) · [配对账本落盘](../loki_metris_gui/src/usage_service/devices/store.rs#L6) |
-| 移动展示与只读组件 | [TCP 图文与只读授权](../loki_metris_gui/src/usage_service/devices/server.rs#L280) · [认证只读 HTTP 摘要](../loki_metris_gui/src/usage_service/devices/widget_http.rs#L23) · [调用共享配对协议](../loki_metris_core/src/devices/pairing.rs#L5) |
+| core 业务规则 | [逻辑调用归并](../loki_metris_core/src/aggregate/canonicalization.rs#L51) · [时间窗口与核算](../loki_metris_core/src/views/local.rs#L113) · [Hook 状态机](../loki_metris_core/src/agent_hooks/state_machine/mod.rs#L109) |
+| 账户用量与额度驱动 | [Cursor 分页与缓存](../loki_metris_service/src/usage_service/cursor_usage/mod.rs#L75) · [本地优先与纯解析](../loki_metris_service/src/usage_service/provider_quota/fetch.rs#L36) · [受限 HTTPS 与只读 sqlite3](../loki_metris_service/src/usage_service/provider_quota/transport.rs#L73) |
+| 提供商官方接口 | [固定官方端点](../loki_metris_service/src/usage_service/provider_quota/fetch.rs#L112) · [curl 调用与超时取消](../loki_metris_service/src/usage_service/provider_quota/transport.rs#L118) |
+| Hooks 与换肤服务 | [状态推进与活动通知](../loki_metris_service/src/monitor/listener/lifecycle.rs#L101) · [配置 writer owner](../loki_metris_service/src/usage_service/hooks.rs#L98) · [宿主页注入](../loki_metris_service/src/skins/injection.rs#L69) |
+| Agent 与宿主应用 | [环回 HTTP 中继](../loki_metris_service/src/monitor/relay.rs#L440) · [CDP 连接与宿主](../loki_metris_service/src/skins/cdp_connect.rs#L17) · [换肤平台边界](../loki_metris_service/src/skins/platform/mod.rs#L348) |
+| 局域网设备服务 | [启动、发现与连接分流](../loki_metris_service/src/usage_service/devices/server.rs#L114) · [用量、额度与全槽 Hooks](../loki_metris_service/src/usage_service/devices/publication.rs#L76) · [配对账本落盘](../loki_metris_service/src/usage_service/devices/store.rs#L6) |
+| 移动展示与只读组件 | [TCP 图文与只读授权](../loki_metris_service/src/usage_service/devices/server.rs#L280) · [认证只读 HTTP 摘要](../loki_metris_service/src/usage_service/devices/widget_http.rs#L23) · [调用共享配对协议](../loki_metris_core/src/devices/pairing.rs#L5) |
 
 ## 图稿与检查记录
 

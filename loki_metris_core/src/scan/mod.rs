@@ -9,7 +9,7 @@ pub use errors::{
     local_scan_error_message_from, local_scan_task_error_message, scan_cancelled_status_message,
 };
 pub use orchestration::{
-    DiscoveredRootIdentity, RegisteredRootIdentity, ScanDiscoveryResult,
+    DiscoveredRootIdentity, DiscoveryOutcome, RegisteredRootIdentity,
     confirmed_invalid_roots_to_remove, discovery_roots_for_active_registration,
     merge_discovery_results, reuse_registered_root_identities, scan_discovery_for_scan_kind,
 };

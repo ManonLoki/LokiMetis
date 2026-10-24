@@ -7,6 +7,7 @@ mod skins;
 mod dashboard;
 mod devices;
 mod window_title;
+mod main_shell;
 #[cfg(target_os="macos")]
 mod window_state;
 #[cfg(all(windows, not(test)))]

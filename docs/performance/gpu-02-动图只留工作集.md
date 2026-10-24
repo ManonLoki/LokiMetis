@@ -31,5 +31,5 @@
 
 ## 相关代码
 
-- `loki_metris_gui/src/monitor/image_frame_residency.rs`
+- `loki_metris_gui/src/monitor_media/image_frame_residency.rs`
 - 详情：[案例 5.13](案例-1-写入图库与动画缓存.md)

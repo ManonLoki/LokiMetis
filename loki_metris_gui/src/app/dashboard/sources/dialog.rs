@@ -1,7 +1,7 @@
 //! 目录弹窗持有稳定草稿和焦点，关闭草稿不取消已经提交的后台写入。
 
 use super::{Shell, SourceButton, SourceButtonVariant};
-use crate::usage_service::SourceOperation;
+use loki_metris_service::usage_service::SourceOperation;
 use gpui_kit::{
     AnyElement, Context, Entity, FocusHandle, Focusable, FontWeight, Role, Subscription, Window,
     base::{Dialog, DialogBackdrop, DialogPopup, TestSupportExt as _},

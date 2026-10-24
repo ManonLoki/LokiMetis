@@ -7,7 +7,7 @@ use loki_metris_core::{AiTool, HookBehavior, HookTransition, ImageFormat};
 /// 在默认页外构造一条正式迁移和可读素材，同时把观察代数置为当前服务值。
 fn first_image_fixture(cx: &mut TestAppContext) -> Fixture {
     let f = fixture(cx);
-    let image = crate::monitor::image_decode::MonitorImageSource {
+    let image = crate::monitor_media::image_decode::MonitorImageSource {
         id: "first-image".into(),
         bytes: Arc::from(&include_bytes!("../../tests/fixtures/monitor-loop.gif")[..]),
         format: ImageFormat::Gif,
@@ -40,7 +40,7 @@ fn first_image_fixture(cx: &mut TestAppContext) -> Fixture {
 fn broken_settings(f: &Fixture) -> std::path::PathBuf {
     let config = f.root.path().join("monitor");
     std::fs::create_dir_all(&config).unwrap();
-    let path = crate::monitor::settings::settings_path(&config);
+    let path = loki_metris_service::monitor::settings::settings_path(&config);
     std::fs::write(&path, b"{broken").unwrap();
     path
 }
@@ -77,7 +77,7 @@ fn first_image_failed_save_retries_on_poll_without_revision_change(cx: &mut Test
         "unchanged revisions must not permanently consume the automatic focus attempt");
     assert!(f.owner.read_with(cx, |owner, _| owner.last_error.is_none()));
     assert_eq!(f.service.pet_settings_revision(), 1);
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 9);
 }
 
@@ -99,7 +99,7 @@ fn first_image_success_does_not_override_later_manual_page(cx: &mut TestAppConte
     settle(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 0);
     assert_eq!(f.service.pet_settings_revision(), 2);
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 0);
 }
 
@@ -129,7 +129,7 @@ fn pending_focus_keeps_manual_intent(change: PetPreferenceChange, expected: u8, 
     settle(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), expected);
     assert_eq!(f.service.pet_settings_revision(), 1);
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, expected);
 }
 
@@ -214,7 +214,7 @@ fn first_image_retry_waits_for_changed_service_catalog(cx: &mut TestAppContext) 
         "retry must not commit the removed cached image at slot 5");
     assert!(f.owner.read_with(cx, |owner, _| owner.page().page_has_image));
     assert_eq!(f.service.pet_settings_revision(), 1);
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 9);
 }
 
@@ -250,7 +250,7 @@ fn first_image_query_receipt_rechecks_current_catalog_revision(cx: &mut TestAppC
     assert!(position_settled, "initial geometry position receipt must settle");
     let before_focus = f.service.pet_settings_revision();
     assert!(before_focus <= 1, "initial position must not create a save loop");
-    let initial_saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let initial_saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert!(initial_saved.pet_overlay_position.is_some(), "initial position must actually persist");
     assert_eq!(initial_saved.pet_window.focused_slot, 0,
         "older catalog receipt must not commit focus even after position persistence");
@@ -259,7 +259,7 @@ fn first_image_query_receipt_rechecks_current_catalog_revision(cx: &mut TestAppC
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 9);
     assert!(f.owner.read_with(cx, |owner, _| owner.page().page_has_image));
     assert_eq!(f.service.pet_settings_revision(), before_focus + 1, "current catalog must commit focus exactly once");
-    assert_eq!(crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.focused_slot, 9);
+    assert_eq!(loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.focused_slot, 9);
     f.owner.update(cx, |owner, cx| owner.refresh(cx));
     settle_catalog(cx, &f.owner);
     assert_eq!(f.service.pet_settings_revision(), before_focus + 1);
@@ -302,6 +302,6 @@ fn first_image_partial_snapshot_failure_retries_without_new_catalog_revision(cx:
     assert_eq!(f.service.monitor_catalog_revision(), catalog_revision);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 5);
     assert!(f.owner.read_with(cx, |owner, _| owner.page().page_has_image));
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 5);
 }

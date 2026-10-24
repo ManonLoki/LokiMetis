@@ -25,36 +25,26 @@ pub trait RegisteredRootIdentity {
     fn alias(&self) -> &str;
 }
 
-/// 拆解发现结果得到的各部分：发现根列表、失效根 ID、待确认根 ID、覆盖报告，
-/// 以及已遍历目录数、跳过的符号链接数与跳过的网络路径数。
-pub type DiscoveryResultParts<Root> = (
-    Vec<Root>,
-    Vec<String>,
-    Vec<String>,
-    CoverageReport,
-    u64,
-    u64,
-    u64,
-);
-
-/// 表示可合并的发现结果载荷。
-pub trait ScanDiscoveryResult: Sized {
-    /// 该发现结果所使用的具体根身份类型。
-    type Root: DiscoveredRootIdentity + Clone;
-
-    /// 拆解为发现根列表、失效/待确认根 ID、覆盖报告与遍历计数，供合并逻辑消费。
-    fn into_parts(self) -> DiscoveryResultParts<Self::Root>;
-
-    /// 从合并后的各部分重新组装出具体发现结果类型。
-    fn from_parts(
-        roots: Vec<Self::Root>,
-        confirmed_invalid_root_ids: Vec<String>,
-        unconfirmed_root_ids: Vec<String>,
-        coverage: CoverageReport,
-        directories_scanned: u64,
-        symlink_skipped_count: u64,
-        network_skipped_count: u64,
-    ) -> Self;
+/// 一次数据根发现（快速重验证或全设备主动发现）的结果。
+///
+/// 各 Agent 的覆盖模型相同，只有根类型不同；泛型参数保证不同 Agent 的
+/// 根不能混入同一结果。结果不包含绝对路径之外的用户内容，路径只留在根内部。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiscoveryOutcome<Root> {
+    /// 本次确认符合该 Agent 结构签名的数据根。
+    pub roots: Vec<Root>,
+    /// 已完整检查且确认不再符合签名、应从 registry 移除的历史根精确 ID。
+    pub confirmed_invalid_root_ids: Vec<String>,
+    /// 因权限、I/O 或预算未能得出结论、应保留旧登记的历史根精确 ID。
+    pub unconfirmed_root_ids: Vec<String>,
+    /// 使用 core 稳定类型表达的覆盖结论。
+    pub coverage: CoverageReport,
+    /// 主动发现实际读取过目录项的目录数量。
+    pub directories_scanned: u64,
+    /// 因符号链接策略跳过的路径数量。
+    pub symlink_skipped_count: u64,
+    /// 因默认网络卷排除策略跳过的路径数量。
+    pub network_skipped_count: u64,
 }
 
 /// 在全设备发现阶段，优先复用历史登记根的稳定身份（包含停用项）。
@@ -91,43 +81,52 @@ pub fn reuse_registered_root_identities<R, Registered, MatchPath>(
 }
 
 /// 合并“已知有效验证结果”与“主动全设备发现结果”。
-pub fn merge_discovery_results<T: ScanDiscoveryResult>(
-    known_validation: T,
-    full_discovery: T,
-) -> T {
-    let (known_roots, known_civ, known_unc, known_coverage, known_dirs, known_sym, known_net) =
-        known_validation.into_parts();
-    let (full_roots, full_civ, full_unc, full_coverage, full_dirs, full_sym, full_net) =
-        full_discovery.into_parts();
-    let mut merged_roots = full_roots
+///
+/// 同一路径以已知验证结果为准；失效/待确认 ID 去重后保持有序；遍历计数饱和相加，
+/// `roots_discovered` 以合并后的根数量为准。
+pub fn merge_discovery_results<Root: DiscoveredRootIdentity>(
+    known_validation: DiscoveryOutcome<Root>,
+    full_discovery: DiscoveryOutcome<Root>,
+) -> DiscoveryOutcome<Root> {
+    let mut merged_roots = full_discovery
+        .roots
         .into_iter()
         .map(|root| (root.path().to_path_buf(), root))
         .collect::<BTreeMap<_, _>>();
-    for root in known_roots {
+    for root in known_validation.roots {
         merged_roots.insert(root.path().to_path_buf(), root);
     }
 
-    let confirmed_invalid_root_ids = known_civ
+    let confirmed_invalid_root_ids = known_validation
+        .confirmed_invalid_root_ids
         .into_iter()
-        .chain(full_civ)
+        .chain(full_discovery.confirmed_invalid_root_ids)
         .collect::<BTreeSet<_>>();
-    let unconfirmed_root_ids = known_unc
+    let unconfirmed_root_ids = known_validation
+        .unconfirmed_root_ids
         .into_iter()
-        .chain(full_unc)
+        .chain(full_discovery.unconfirmed_root_ids)
         .collect::<BTreeSet<_>>();
 
-    let mut merged_coverage = crate::merge_coverage_reports(known_coverage, &full_coverage);
+    let mut merged_coverage =
+        crate::merge_coverage_reports(known_validation.coverage, &full_discovery.coverage);
     merged_coverage.roots_discovered = u64::try_from(merged_roots.len()).unwrap_or(u64::MAX);
 
-    T::from_parts(
-        merged_roots.into_values().collect(),
-        confirmed_invalid_root_ids.into_iter().collect(),
-        unconfirmed_root_ids.into_iter().collect(),
-        merged_coverage,
-        known_dirs.saturating_add(full_dirs),
-        known_sym.saturating_add(full_sym),
-        known_net.saturating_add(full_net),
-    )
+    DiscoveryOutcome {
+        roots: merged_roots.into_values().collect(),
+        confirmed_invalid_root_ids: confirmed_invalid_root_ids.into_iter().collect(),
+        unconfirmed_root_ids: unconfirmed_root_ids.into_iter().collect(),
+        coverage: merged_coverage,
+        directories_scanned: known_validation
+            .directories_scanned
+            .saturating_add(full_discovery.directories_scanned),
+        symlink_skipped_count: known_validation
+            .symlink_skipped_count
+            .saturating_add(full_discovery.symlink_skipped_count),
+        network_skipped_count: known_validation
+            .network_skipped_count
+            .saturating_add(full_discovery.network_skipped_count),
+    }
 }
 
 /// 按扫描模式返回可直接用于索引的发现结果。
@@ -135,65 +134,35 @@ pub fn merge_discovery_results<T: ScanDiscoveryResult>(
 /// Quick 与 FullDevice 都先用包含停用项的历史 registry 回填已知根身份，避免
 /// 默认/环境自动候选绕过用户禁用、别名或主根选择；FullDevice 再对主动发现
 /// 结果执行同样回填并合并。未提供全量发现结果时回退为已知结果。
-pub fn scan_discovery_for_scan_kind<T, Registered, MatchPath>(
+pub fn scan_discovery_for_scan_kind<Root, Registered, MatchPath>(
     kind: ScanKind,
-    known_validation: T,
-    full_discovery: Option<T>,
+    mut known_validation: DiscoveryOutcome<Root>,
+    full_discovery: Option<DiscoveryOutcome<Root>>,
     registered_roots: &[Registered],
     matches_candidate: MatchPath,
-) -> T
+) -> DiscoveryOutcome<Root>
 where
-    T: ScanDiscoveryResult,
+    Root: DiscoveredRootIdentity,
     Registered: RegisteredRootIdentity,
-    MatchPath: Fn(&Registered, &T::Root) -> bool,
+    MatchPath: Fn(&Registered, &Root) -> bool,
 {
-    let (
-        mut known_roots,
-        known_confirmed_invalid_root_ids,
-        known_unconfirmed_root_ids,
-        known_coverage,
-        known_directories_scanned,
-        known_symlink_skipped_count,
-        known_network_skipped_count,
-    ) = known_validation.into_parts();
-    reuse_registered_root_identities(&mut known_roots, registered_roots, |registered, root| {
-        matches_candidate(registered, root)
-    });
-    let known_validation = T::from_parts(
-        known_roots,
-        known_confirmed_invalid_root_ids,
-        known_unconfirmed_root_ids,
-        known_coverage,
-        known_directories_scanned,
-        known_symlink_skipped_count,
-        known_network_skipped_count,
+    reuse_registered_root_identities(
+        &mut known_validation.roots,
+        registered_roots,
+        |registered, root| matches_candidate(registered, root),
     );
     match kind {
         ScanKind::Quick => known_validation,
         ScanKind::FullDevice => {
-            let Some(full_discovery) = full_discovery else {
+            let Some(mut full_discovery) = full_discovery else {
                 return known_validation;
             };
-            let (
-                mut full_roots,
-                full_confirmed_invalid_root_ids,
-                full_unconfirmed_root_ids,
-                full_coverage,
-                full_directories_scanned,
-                full_symlink_skipped_count,
-                full_network_skipped_count,
-            ) = full_discovery.into_parts();
-            reuse_registered_root_identities(&mut full_roots, registered_roots, matches_candidate);
-            let restored_full_discovery = T::from_parts(
-                full_roots,
-                full_confirmed_invalid_root_ids,
-                full_unconfirmed_root_ids,
-                full_coverage,
-                full_directories_scanned,
-                full_symlink_skipped_count,
-                full_network_skipped_count,
+            reuse_registered_root_identities(
+                &mut full_discovery.roots,
+                registered_roots,
+                matches_candidate,
             );
-            merge_discovery_results(known_validation, restored_full_discovery)
+            merge_discovery_results(known_validation, full_discovery)
         }
     }
 }

@@ -34,7 +34,7 @@ mod sticky_exclusions_tests;
 mod focus_tests;
 #[cfg(test)]
 mod refresh_tests;
-use crate::monitor::listener::HookRelayStatus;
+use loki_metris_service::monitor::listener::HookRelayStatus;
 use gpui_kit::{AnyElement,Context,FontWeight,IntoElement,Role,base::TestSupportExt as _,component::{ActiveTheme,button::Button},div,prelude::*,px,rgb};
 
 /// 窗口只保留已读投影，端口、计数和事件由监控宿主拥有。
@@ -53,7 +53,7 @@ pub(super) struct MonitorView {
     /// 最近一次读取状态的时刻。
     last_read:Option<std::time::Instant>,
     /// 最近的提供商短时、周或月额度快照；等待和失败不挂载旧卡。
-    quota: crate::usage_service::provider_quota::QuotaBoardSnapshot,
+    quota: loki_metris_service::usage_service::provider_quota::QuotaBoardSnapshot,
 }
 
 /// 监控展示名消费唯一公开能力目录；未公开协议工具仍使用既有名称回退。

@@ -11,19 +11,19 @@ fn accepted_b_then_return_a_shutdown_cancels_ui_receipt_but_preserves_final_a(
     let f = fixture(cx);
     let a = PetOverlayPosition { x: -10, y: 20 };
     let b = PetOverlayPosition { x: 30, y: 40 };
-    let initial = crate::monitor::settings::MonitorSettings {
+    let initial = loki_metris_service::monitor::settings::MonitorSettings {
         pet_overlay_position: Some(a),
         ..Default::default()
     };
-    crate::monitor::settings::save_monitor_settings(&f.root.path().join("monitor"), &initial)
+    loki_metris_service::monitor::settings::save_monitor_settings(&f.root.path().join("monitor"), &initial)
         .unwrap();
     f.owner.update(cx, |owner, _| owner.settings = initial);
     cx.update(|cx| cx.set_global(Manager(f.owner.clone())));
     assert_eq!(
-        crate::usage_service::pet_background_task_count(&f.service),
+        loki_metris_service::usage_service::pet_background_task_count(&f.service),
         0
     );
-    let held = crate::usage_service::block_pet_mutations(&f.service);
+    let held = loki_metris_service::usage_service::block_pet_mutations(&f.service);
     let moved = |position: PetOverlayPosition| {
         Bounds::new(
             point(px(position.x as f32), px(position.y as f32 - geometry::HEADER_HEIGHT as f32)),
@@ -36,7 +36,7 @@ fn accepted_b_then_return_a_shutdown_cancels_ui_receipt_but_preserves_final_a(
     cx.executor().advance_clock(Duration::from_millis(210));
     cx.run_until_parked();
     assert_eq!(
-        crate::usage_service::pet_background_task_count(&f.service),
+        loki_metris_service::usage_service::pet_background_task_count(&f.service),
         1,
         "real B has been accepted and stays blocked at actual store lock"
     );
@@ -51,7 +51,7 @@ fn accepted_b_then_return_a_shutdown_cancels_ui_receipt_but_preserves_final_a(
     held.release();
     f.service.finish_with_pet(plan);
     let saved =
-        crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+        loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_overlay_position, Some(a));
     assert!(matches!(
         f.service.save_pet_position(b),

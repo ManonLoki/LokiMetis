@@ -1,7 +1,7 @@
 //! 短时业务通知共用原生发送 owner 与权限，不创建第二个 delegate。
 
 use super::{Service, driver};
-use crate::notification_events::Activity;
+use loki_metris_service::notification_events::Activity;
 use futures::{FutureExt as _, future::{Either, select}};
 use gpui_kit::App;
 use loki_metris_core::{HookNotification, usage_milestones::{MilestoneOutcome, NotificationPermission}};

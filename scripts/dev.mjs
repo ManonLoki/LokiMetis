@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const env = {
   ...process.env,
-  LOKI_METRIS_DEV_SKIN_RESOURCES: process.env.LOKI_METRIS_DEV_SKIN_RESOURCES ?? path.join(root, 'loki_metris_gui', 'resources'),
+  LOKI_METRIS_DEV_SKIN_RESOURCES: process.env.LOKI_METRIS_DEV_SKIN_RESOURCES ?? path.join(root, 'loki_metris_service', 'resources'),
 };
 const child = spawn('cargo', ['run', '-p', 'loki_metris_gui', '--', ...process.argv.slice(2)], { cwd: root, env, stdio: 'inherit' });
 child.on('error', error => { console.error(error.message); process.exit(1); });

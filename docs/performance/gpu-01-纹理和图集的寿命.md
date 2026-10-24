@@ -58,7 +58,7 @@
 
 ## 相关代码
 
-- `loki_metris_gui/src/monitor/image_residency.rs`
+- `loki_metris_gui/src/monitor_media/image_residency.rs`
 - `loki_metris_gui/src/app/skins/preview_residency.rs`
 - `vendor/gpui-pre-apple/src/atlas_retirement.rs`
 - 详情：[案例 5.11](案例-1-写入图库与动画缓存.md)、[案例 5.12](案例-1-写入图库与动画缓存.md)、[案例 5.27](案例-2-帧调度索引与内存.md)

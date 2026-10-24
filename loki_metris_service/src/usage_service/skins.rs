@@ -1,0 +1,206 @@
+//! 换肤操作在应用拥有的阻塞岛执行，文件和CDP future不借用GPUI窗口。
+
+use super::UsageService;
+use crate::skins::{SkinDescriptor, SkinError, SkinService};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use std::{
+    future::Future,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+use tokio::sync::{OnceCell, oneshot};
+
+/// 本地库校验后允许的预览图片格式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkinPreviewFormat {
+    /// PNG 预览。
+    Png,
+    /// JPEG 预览。
+    Jpeg,
+}
+
+/// 已在后台阻塞岛解码的预览原图字节；UI 层再转换为原生图片，主线程不解 Base64 或读取文件。
+pub struct SkinPreview {
+    /// 图片格式。
+    pub format: SkinPreviewFormat,
+    /// 解码后的原图字节。
+    pub bytes: Vec<u8>,
+}
+
+/// 目录中的一个皮肤及其可选预览。
+pub struct SkinCatalogEntry {
+    /// 皮肤描述；预览 data URL 已清空，避免同时保留两份编码。
+    pub skin: SkinDescriptor,
+    /// 已解码的预览；无预览、类型不受支持或解码失败时为 None。
+    pub preview: Option<SkinPreview>,
+}
+
+/// 目录成功与否是单一事实，失败不以空资源库替代。
+pub struct SkinCatalog {
+    /// 目录中的全部皮肤。
+    pub entries: Vec<SkinCatalogEntry>,
+}
+/// 应用唯一资源库owner，首次成功初始化以后不重复清理导入暂存。
+pub(super) struct OwnedSkins {
+    /// 皮肤目录、导入与安装服务。
+    pub(super) service: Arc<SkinService>,
+    /// 当前进行中的导入会话，退出时逐个回收。
+    pub(super) imports: std::sync::Mutex<Vec<Arc<super::skin_import::ImportSession>>>,
+    /// 资源库首次初始化成功的标记。
+    initialized: OnceCell<()>,
+    /// 资源库初始化失败的错误；存在时皮肤功能不可用。
+    resource_error: Option<SkinError>,
+    /// 后台皮肤生命周期已启动。
+    pub(super) started: AtomicBool,
+}
+impl OwnedSkins {
+    /// 仅解析当前安装包或当前工程资源，不读取历史工程运行资源。
+    pub(super) fn new(directory: &Path) -> Self {
+        let resources = super::skin_resources::resource_root();
+        let resource_error = resources.as_ref().err().cloned();
+        let resources = resources.unwrap_or_else(|_| directory.join(".unavailable-bundled-skins"));
+        Self {
+            service: Arc::new(SkinService::new(
+                resources.join("builtin-skins"),
+                directory.join("skins"),
+            )),
+            imports: Default::default(),
+            initialized: OnceCell::new(),
+            resource_error,
+            started: AtomicBool::new(false),
+        }
+    }
+    /// 已接受操作也参与退出门禁，防止先关runtime再丢失事务收尾。
+    pub(super) async fn shutdown(&self) {
+        self.service.close_host_admission();
+        self.cleanup_imports();
+        if self.started.load(Ordering::Acquire) {
+            self.service.shutdown().await;
+        }
+    }
+    /// 关闭前后都清理应用登记的导入，迟到预检仍由同一session标记取消。
+    pub(super) fn cleanup_imports(&self) {
+        let sessions = self
+            .imports
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        for session in sessions {
+            session.abandon();
+            if let Err(error) = session.cancel(&self.service) {
+                tracing::warn!(code = error.code, "skin import cleanup failed");
+            }
+        }
+    }
+}
+
+impl UsageService {
+    /// 后台owner保留任务到终态，接收窗口消失不取消已接受写入。
+    pub fn skin_work<T, F, Fut>(
+        &self,
+        work: F,
+    ) -> Result<oneshot::Receiver<Result<T, SkinError>>, &'static str>
+    where
+        T: Send + 'static,
+        F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
+    {
+        self.skin_work_kind(work, false, |_| {})
+    }
+    /// 只有真实宿主任务才拥有进程级CDP/launcher关闭责任。
+    pub fn skin_host_work<T, F, Fut>(
+        &self,
+        work: F,
+    ) -> Result<oneshot::Receiver<Result<T, SkinError>>, &'static str>
+    where
+        T: Send + 'static,
+        F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
+    {
+        self.skin_work_kind(work, true, |_| {})
+    }
+    /// 终态观察在应用后台 owner 内、回执发送前执行，页面关闭不能吞掉真实结果。
+    pub fn skin_host_work_observed<T, F, Fut>(
+        &self, work: F, completed: impl FnOnce(&Result<T, SkinError>) + Send + 'static,
+    ) -> Result<oneshot::Receiver<Result<T, SkinError>>, &'static str>
+    where T: Send + 'static, F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
+    {
+        self.skin_work_kind(work, true, completed)
+    }
+    /// 资源事务与宿主事务共用阻塞岛，进程级owner仅由宿主入口启用。
+    fn skin_work_kind<T, F, Fut>(
+        &self,
+        work: F,
+        host: bool,
+        completed: impl FnOnce(&Result<T, SkinError>) + Send + 'static,
+    ) -> Result<oneshot::Receiver<Result<T, SkinError>>, &'static str>
+    where
+        T: Send + 'static,
+        F: FnOnce(Arc<SkinService>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, SkinError>> + Send + 'static,
+    {
+        let runtime = self
+            .runtime
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let handle = runtime
+            .as_ref()
+            .ok_or("usage_service_closed")?
+            .handle()
+            .clone();
+        let state = self.context.skins.clone();
+        let (tx, rx) = oneshot::channel();
+        self.background.spawn_blocking("skin-operation", move |_| {
+            let result = handle.block_on(async {
+                if let Some(error) = &state.resource_error { return Err(error.clone()); }
+                state
+                    .initialized
+                    .get_or_try_init(|| async { state.service.initialize() })
+                    .await?;
+                work(state.service.clone()).await
+            });
+            completed(&result);
+            let _ = tx.send(result);
+        })?;
+        if host {
+            self.context.skins.started.store(true, Ordering::Release);
+        }
+        Ok(rx)
+    }
+    /// 原生预览只接受本地库校验后的图片类型。
+    pub fn skin_catalog(
+        &self,
+    ) -> Result<oneshot::Receiver<Result<SkinCatalog, SkinError>>, &'static str> {
+        self.skin_work(|service| async move {
+            let entries = service
+                .list_skins()?
+                .into_iter()
+                .map(|mut skin| {
+                    let preview =
+                        skin.preview_data_url
+                            .split_once(',')
+                            .and_then(|(header, data)| {
+                                let format = match header {
+                                    "data:image/png;base64" => SkinPreviewFormat::Png,
+                                    "data:image/jpeg;base64" => SkinPreviewFormat::Jpeg,
+                                    _ => return None,
+                                };
+                                STANDARD.decode(data).ok().map(|bytes| SkinPreview { format, bytes })
+                            });
+                    // 描述快照不再携带Base64；释放容量，避免每个目录同时保留两份原图编码。
+                    skin.preview_data_url = String::new();
+                    SkinCatalogEntry { skin, preview }
+                })
+                .collect();
+            Ok(SkinCatalog { entries })
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "skin_notification_tests.rs"]
+mod notification_tests;

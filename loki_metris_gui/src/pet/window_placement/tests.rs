@@ -39,7 +39,7 @@ fn startup_read_failure_shows_defaults_without_saving(cx: &mut TestAppContext) {
     host::take_visibility_events(f.overlay);
     let directory = f.root.path().join("monitor");
     std::fs::create_dir_all(&directory).unwrap();
-    let path = crate::monitor::settings::settings_path(&directory);
+    let path = loki_metris_service::monitor::settings::settings_path(&directory);
     std::fs::write(&path, b"{broken").unwrap();
     f.owner.update(cx, |owner, cx| {
         owner.geometry_restored = false;
@@ -109,7 +109,7 @@ fn missing_overlay_does_not_starve_preference_queue(cx: &mut TestAppContext) {
     settle_query(&f.owner, cx);
     f.owner.update(cx, |owner, cx| owner.change(loki_metris_core::PetPreferenceChange::TurnPage(1), cx));
     crate::pet::tests::settle(cx, &f.owner);
-    assert_eq!(crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.focused_slot, 4);
+    assert_eq!(loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_window.focused_slot, 4);
 }
 
 /// 同一回合交错显隐仅执行最后显示；退出撤销尚未运行的显示和隐藏。
@@ -156,7 +156,7 @@ fn pending_preferences_keep_fifo_while_display_waits(cx: &mut TestAppContext) {
         owner.next_pending(cx);
     });
     crate::pet::tests::settle(cx, &f.owner);
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert!(!saved.pet_window.locked);
     assert_eq!(f.service.pet_settings_revision() - revision, 2, "both opposite field intents must execute in FIFO order");
 }
@@ -176,7 +176,7 @@ fn cancelled_display_keeps_late_geometry_feedback_blocked(cx: &mut TestAppContex
     cx.run_until_parked();
     f.service.finish();
     assert_eq!(f.service.pet_settings_revision(), 0);
-    assert!(crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_overlay_position.is_none());
+    assert!(loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap().pet_overlay_position.is_none());
 }
 
 /// 迁屏中间反馈不保存；事务结束通过正式 bounds 回调只保存最终画布位置。
@@ -195,7 +195,7 @@ fn intermediate_display_bounds_do_not_replace_final_position(cx: &mut TestAppCon
     cx.executor().advance_clock(std::time::Duration::from_millis(220));
     cx.run_until_parked();
     f.service.finish();
-    let saved = crate::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
+    let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_overlay_position, Some(PetOverlayPosition {
         x: (f32::from(bounds.origin.x) * scale).round() as i32,
         y: ((f32::from(bounds.origin.y) + geometry::HEADER_HEIGHT as f32) * scale).round() as i32,
