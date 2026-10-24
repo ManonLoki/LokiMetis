@@ -25,9 +25,9 @@ fn label_width(window: &Window, text: String, weight: FontWeight) -> Pixels {
 fn cards_keep_metadata_and_scroll_in_minimum_windows(cx: &mut TestAppContext) {
     if isolated("layout::cards_keep_metadata_and_scroll_in_minimum_windows") { return; }
     let root = tempfile::tempdir().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
-    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
     assert_eq!(entries.len(), 6, "必须覆盖生产六卡多行目录");
     let ids: Vec<_> = entries.iter().map(|entry| {
         let suffix = format!("{}-{:?}", entry.skin.id, entry.skin.source);
@@ -90,9 +90,9 @@ fn cards_keep_metadata_and_scroll_in_minimum_windows(cx: &mut TestAppContext) {
 fn toolbar_fits_translated_actions_and_feedback_without_clipping(cx: &mut TestAppContext) {
     if isolated("layout::toolbar_fits_translated_actions_and_feedback_without_clipping") { return; }
     let root = tempfile::tempdir().unwrap();
-    let service = crate::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
+    let service = loki_metris_service::usage_service::UsageService::in_test_directory(root.path().join("data")).unwrap();
     let _finish = Finish(service.clone());
-    let entries = service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries;
+    let entries = crate::app::skins::entries_from_catalog(service.skin_catalog().unwrap().blocking_recv().unwrap().unwrap().entries);
     let (handle, shell, _writer) = crate::app::tests::open_shell(cx, 960., 640.);
     shell.update(cx, |this, cx| setup(this, service, entries, cx));
     for locale in ["en-US", "zh-CN"] {
