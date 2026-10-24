@@ -93,7 +93,8 @@
     "LMDESK-CURSOR-QUOTA-SESSION-001",
     "LMDESK-CURSOR-DAILY-REFRESH-001",
     "LMDESK-EXPLICIT-REBUILD-091-20261023",
-    "LMDESK-SKIN-NARROW-LAYOUT-001"
+    "LMDESK-SKIN-NARROW-LAYOUT-001",
+    "LMDESK-EXPLICIT-REBUILD-093-20261025"
   ],
   "applied_reconciliations": [
     {
@@ -132,8 +133,13 @@
       "change_id": "LMDESK-SKIN-NARROW-LAYOUT-001",
       "kind": "bug-fix",
       "required_version": "0.9.2"
+    },
+    {
+      "change_id": "LMDESK-EXPLICIT-REBUILD-093-20261025",
+      "kind": "bug-fix",
+      "required_version": "0.9.3"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.9.2"
+  "target_version": "0.9.3"
 }
