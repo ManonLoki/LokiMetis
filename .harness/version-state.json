@@ -92,7 +92,8 @@
     "LMDESK-MACOS-NOTARY-DIAGNOSTIC-001",
     "LMDESK-CURSOR-QUOTA-SESSION-001",
     "LMDESK-CURSOR-DAILY-REFRESH-001",
-    "LMDESK-EXPLICIT-REBUILD-091-20261023"
+    "LMDESK-EXPLICIT-REBUILD-091-20261023",
+    "LMDESK-SKIN-NARROW-LAYOUT-001"
   ],
   "applied_reconciliations": [
     {
@@ -126,7 +127,13 @@
     "source_commit": "f8bfb3068b838d515ebe5c49654b82a31b77a6fc",
     "version": "0.9.1"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-SKIN-NARROW-LAYOUT-001",
+      "kind": "bug-fix",
+      "required_version": "0.9.2"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.9.1"
+  "target_version": "0.9.2"
 }
