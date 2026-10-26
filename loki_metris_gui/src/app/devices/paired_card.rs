@@ -29,6 +29,8 @@ impl Shell {
         });
         let platform = info.map_or_else(|| self.t("devices.generic"), |info| match info.platform {
             DevicePlatform::Android => "Android".into(), DevicePlatform::Ios => "iOS".into(),
+            DevicePlatform::Macos => "macOS".into(), DevicePlatform::Windows => "Windows".into(),
+            DevicePlatform::Linux => "Linux".into(),
         });
         let status_tag = self.device_connection_tag("device-status", &device.id, status, connected, cx);
         let mut identity = div().min_w_0().flex().items_center().gap_2()

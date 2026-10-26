@@ -66,3 +66,26 @@ fn introduction_and_control_messages_have_strict_bounded_semantics() {
     assert!(serde_json::from_str::<LinkControl>(r#"{"type":"pong","nonce":0,"ip":"192.168.1.1"}"#).is_err());
     assert!(serde_json::from_str::<ConnectionIntroduction>(r#"{"kind":"pairing","value":{},"trusted":true}"#).is_err());
 }
+
+
+/// 桌面展示终端使用真实平台值；新增标识不放宽身份绑定或未知平台检查。
+#[test]
+fn display_terminal_platforms_preserve_authenticated_metadata_validation() {
+    let (_, session, _) = link_fixture();
+    for platform in ["android", "ios", "macos", "windows", "linux"] {
+        let value = serde_json::json!({
+            "deviceId": session.device_id(), "name": "Display terminal",
+            "platform": platform, "appVersion": "1.0.0"
+        });
+        let info: DeviceInfo = serde_json::from_value(value.clone()).unwrap();
+        info.validate_for(session.device_id()).unwrap();
+        assert_eq!(serde_json::to_value(info).unwrap(), value);
+        let mut wrong_identity = value;
+        wrong_identity["deviceId"] = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee".into();
+        let info: DeviceInfo = serde_json::from_value(wrong_identity).unwrap();
+        assert_eq!(info.validate_for(session.device_id()), Err(LinkError::Invalid));
+    }
+    for unknown in ["watchos", "unknown", "", "iOS"] {
+        assert!(serde_json::from_value::<DevicePlatform>(unknown.into()).is_err());
+    }
+}

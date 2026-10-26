@@ -48,7 +48,7 @@ TCP帧仍为`u32大端长度 || UTF-8 JSON`。握手载荷上限4096字节；认
 
 密文消息为`EncryptedPacket { sequence, ciphertext }`，ciphertext是含16字节tag的规范Base64。每个方向从序号0严格递增；nonce为`4字节零 || u64大端sequence`，AAD为`transcript的32字节 || u64大端sequence`。两个方向使用不同data key。单方向最多2^32包，之后必须重新认证；不能回绕。重放、跳号、非法编码、长度或认证失败永久关闭双向通道。通道不可复制或序列化。本地尚未发送的空/超限明文拒绝且不消耗nonce。
 
-业务恢复完成后的第一条终端加密明文是严格`DeviceInfo { deviceId, name, platform, appVersion }`。platform为`android`或`ios`，名称沿用160字节/无控制符限制；版本非空白、无控制符、最多64字节。元信息不得改变本轮已认证身份，也不接受自报`ip`字段。IP取实际认证socket的`peer_addr()`，保留IPv6链路本地scope；IP不写入配对账本。
+业务恢复完成后的第一条终端加密明文是严格`DeviceInfo { deviceId, name, platform, appVersion }`。platform为`android`、`ios`、`macos`、`windows`或`linux`，名称沿用160字节/无控制符限制；版本非空白、无控制符、最多64字节。元信息不得改变本轮已认证身份，也不接受自报`ip`字段。IP取实际认证socket的`peer_addr()`，保留IPv6链路本地scope；IP不写入配对账本。
 
 ### 终端自行上报设备形态
 
@@ -104,7 +104,7 @@ change_id：`LMDESK-TERMINAL-PET-PANEL-RULE-001`；required_version：`0.7.1`。
 
 没有接入application context或后台文件队列，不承诺息屏接收。官方依据：[WC即时数据与回执](https://developer.apple.com/documentation/watchconnectivity/wcsession/sendmessagedata(_:replyhandler:errorhandler:))、[可达性边界](https://developer.apple.com/documentation/watchconnectivity/wcsession/isreachable)、[单target Watch](https://developer.apple.com/documentation/watchos-apps/migrating-to-a-single-target-watchos-app)；核对日期2026-10-21。
 
-桌面已在iPhone行下增加独立Watch名称、ID、应用版本、通信与最近确认同步投影，没有Watch IP或独立配对按钮。直连`DeviceInfo`仍只接受android/ios。当前认证snapshot外壳才广告`capabilities:["watchCompanionV1","deviceFormFactorV1"]`；旧移动端忽略扩展外壳，旧桌面缺少广告时新iPhone绝不发送新消息，能力和心跳nonce随LAN代次清空，缓存快照不参与协商。
+桌面已在iPhone行下增加独立Watch名称、ID、应用版本、通信与最近确认同步投影，没有Watch IP或独立配对按钮。直连`DeviceInfo`接受Android/iOS及三种桌面展示终端平台，Watch仍不作为独立TCP类型。当前认证snapshot外壳才广告`capabilities:["watchCompanionV1","deviceFormFactorV1"]`；旧移动端忽略扩展外壳，旧桌面缺少广告时新iPhone绝不发送新消息，能力和心跳nonce随LAN代次清空，缓存快照不参与协商。
 
 手机在pong后或撤销Watch可达时发送`{type:"companionStatus",nonce,report:{info:{deviceId,name,appVersion},reachable,contact:{sequence,ageMs}|null,sync:{sequence,ageMs}|null}}`。只允许当前iOS父租约且仍保存原信任；一只Watch不创建第二份账本或凭据。nonce必须是该连接已发送且尚未过期的ping，网络owner有界保留最近四个，容许上一轮状态与下一轮ping交叉在途。未知nonce、旧父租约或Android报告关闭通道。
 

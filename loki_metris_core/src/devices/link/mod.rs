@@ -81,7 +81,7 @@ pub enum LinkError {
     Limit,
 }
 
-/// 首版直连终端平台；Watch由iPhone协作时不冒充独立TCP对端。
+/// 直连展示终端的平台；Watch仍由iPhone协作，不冒充独立TCP对端。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DevicePlatform {
@@ -89,6 +89,12 @@ pub enum DevicePlatform {
     Android,
     /// iPhone或iPad。
     Ios,
+    /// macOS展示终端。
+    Macos,
+    /// Windows展示终端。
+    Windows,
+    /// Linux展示终端。
+    Linux,
 }
 
 /// 只有当前认证快照广告此能力时，终端才可发送独立形态报告，保持旧端兼容。

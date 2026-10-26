@@ -122,24 +122,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.9.1",
-  "feature_bump_applied": false,
+  "cycle_base_version": "0.9.3",
+  "feature_bump_applied": true,
   "last_release": {
-    "source_commit": "f8bfb3068b838d515ebe5c49654b82a31b77a6fc",
-    "version": "0.9.1"
+    "source_commit": "28b73e602060d750197b2b7384bdb8f3e30f107f",
+    "version": "0.9.3"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-SKIN-NARROW-LAYOUT-001",
-      "kind": "bug-fix",
-      "required_version": "0.9.2"
-    },
-    {
-      "change_id": "LMDESK-EXPLICIT-REBUILD-093-20261025",
-      "kind": "bug-fix",
-      "required_version": "0.9.3"
+      "change_id": "FEAT-DISPLAY-TERMINAL-PLATFORMS",
+      "kind": "feature",
+      "required_version": "0.10.0"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.9.3"
+  "target_version": "0.10.0"
 }
