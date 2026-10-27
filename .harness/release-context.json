@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "4f01fa703c252b76028abff501467aa01f350972",
-  "version": "0.10.1",
+  "sourceHead": "19fa16c8f3e2c81f6a7c301066784b85fc2f4da1",
+  "version": "0.10.7",
   "releaseDate": "2026-10-27",
-  "expectedTag": "v0.10.1-20261027",
+  "expectedTag": "v0.10.7-20261027",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "28b73e602060d750197b2b7384bdb8f3e30f107f",
-    "sourceHead": "4f01fa703c252b76028abff501467aa01f350972",
-    "scopeDiffSha256": "ad51e03b83a0fe3e5160413daa693cd2fca001fd7595eb13f5017815450f04dc",
-    "reviewedSourceCommit": "4f01fa703c252b76028abff501467aa01f350972",
+    "scopeBase": "ae25384555fc0b8d7f26b39e03845cef28b2b9cf",
+    "sourceHead": "19fa16c8f3e2c81f6a7c301066784b85fc2f4da1",
+    "scopeDiffSha256": "577746fceaea8a378958bb31f37c40e13712356bda34c99a5fb9ea27f687a221",
+    "reviewedSourceCommit": "19fa16c8f3e2c81f6a7c301066784b85fc2f4da1",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "审查28b73e6至4f01fa7累计源码：Cursor固定钥匙串与HTTPS入口、秘密隔离、周/月解析及旧接口回退无阻断；平台身份约束在core，PC图示为GUI资源映射；mDNS自愈保留服务owner、原监听与退出回收；已删除退役浏览链且保留恢复API。工程回归94通过/7平台跳过，整合设备25通过，既有Cursor60与图示23相关回归通过；依赖方向及1866份文件规模门禁通过。新增职责内聚，无临时探针、秘密或未完成标记。四平台全量测试和正式签名由后续CI执行，E2E本次关闭。",
+    "evidenceSummary": "审查 ae25384 至 19fa16c 的31文件累计差异：今日部分总量规则在core，严格同轮校验并保留Unknown、最低置信度和通知门禁；Cursor固定键SQLite只读驱动、取消关闭与Windows电源接口在host；受管子进程不弹控制台；mDNS维持原监听、认证和owner；NSIS只清理本安装拥有的HKCU命令；FXC定位与首图回执测试无职责扩张。未发现秘密、占位、临时绕过或阻断缺陷。core-first依赖检查、1874份维护文件规模检查、9项NSIS回归及已绑定干净源码的全量测试通过（发现1768项，1777次通过包含子进程）。本地安装、卸载、重装与设备在线证据不作为正式候选E2E；本次按用户明确要求关闭E2E，跨平台构建及签名由发布CI分别验证。",
     "reason": null,
     "remainingRisk": null
   }

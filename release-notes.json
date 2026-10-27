@@ -3,6 +3,37 @@
   "releases": [
     {
       "releaseDate": "2026-10-27",
+      "version": "v0.10.7",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Windows 后台额度查询可能弹出控制台窗口的问题。",
+          "en-US": "Prevent background quota queries from opening console windows on Windows."
+        },
+        {
+          "zh-CN": "改善未安装 sqlite3 命令时 Windows 上 Cursor 本地账户状态的读取兼容性。",
+          "en-US": "Improve compatibility when reading local Cursor account state on Windows without the sqlite3 command."
+        },
+        {
+          "zh-CN": "修复 Windows 睡眠恢复后局域网设备广播未及时重建的问题。",
+          "en-US": "Rebuild local network device advertising promptly after Windows resumes from sleep."
+        },
+        {
+          "zh-CN": "修复 Windows SDK 编译器路径包含多个匹配结果时的构建失败。",
+          "en-US": "Fix builds when Windows SDK compiler lookup returns multiple matching paths."
+        },
+        {
+          "zh-CN": "卸载时正确清理当前安装拥有的登录启动命令，并保留其它启动配置。",
+          "en-US": "Remove login startup commands owned by the current installation during uninstall while preserving other startup settings."
+        },
+        {
+          "zh-CN": "修复空白或未扫描的 Agent 隐藏其它工具今日总 Token 的问题，桌宠与展示终端保留有效数字及数据质量标记。",
+          "en-US": "Keep valid daily token totals and quality indicators on desktop pets and display clients when another Agent is empty or unscanned."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-27",
       "version": "v0.10.1",
       "featureOptimizations": [
         {
@@ -155,17 +186,6 @@
         {
           "zh-CN": "为 Windows 与 Unix 分别声明静态 PowerShell、Bash 步骤，消除工作流 Shell 字段的动态表达式解析错误。",
           "en-US": "Declare separate static PowerShell and Bash steps for Windows and Unix, eliminating dynamic shell expression parsing errors."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-22",
-      "version": "v0.7.9",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "按构建矩阵显式选择 PowerShell 或 Bash，修复工作流 Shell 字段使用不支持上下文而无法启动的问题。",
-          "en-US": "Select PowerShell or Bash explicitly from the build matrix so unsupported shell contexts no longer prevent workflow dispatch."
         }
       ]
     }
