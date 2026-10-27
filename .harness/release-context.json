@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "9bf222e63aa00014b76be9929baada31279aac5c",
-  "version": "0.9.3",
-  "releaseDate": "2026-10-25",
-  "expectedTag": "v0.9.3-20261025",
+  "sourceHead": "4f01fa703c252b76028abff501467aa01f350972",
+  "version": "0.10.1",
+  "releaseDate": "2026-10-27",
+  "expectedTag": "v0.10.1-20261027",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "a0086b62c51f2c41c9e5b852dccf6ed5fab02eac",
-    "sourceHead": "9bf222e63aa00014b76be9929baada31279aac5c",
-    "scopeDiffSha256": "8502561641e3ebc2214d2feda00c136eee42b836451b2f041f5ff95aa3bd1be8",
-    "reviewedSourceCommit": "9bf222e63aa00014b76be9929baada31279aac5c",
+    "scopeBase": "28b73e602060d750197b2b7384bdb8f3e30f107f",
+    "sourceHead": "4f01fa703c252b76028abff501467aa01f350972",
+    "scopeDiffSha256": "ad51e03b83a0fe3e5160413daa693cd2fca001fd7595eb13f5017815450f04dc",
+    "reviewedSourceCommit": "4f01fa703c252b76028abff501467aa01f350972",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "五项审查通过：扫描、查询、Hooks及换肤保持原行为；gui→service→host→core依赖与业务归属符合已批准ADR，纯Read解析位于core；持久化身份、外部协议与安装资源目标保持；建议区间文件按职责复核且无硬超限；新增内容无临时占位、秘密或缓存。本轮validate三项通过，既有4619f5e报告全workspace测试通过。0.9.3批准版本及ADR复核通过；发布helper改为64MiB有界缓冲，追加审查及32项真实Git回归通过；差异空白检查通过。四平台候选测试、资源及macOS签名公证待本次CI；E2E关闭，安装交互Unverified。",
+    "evidenceSummary": "审查28b73e6至4f01fa7累计源码：Cursor固定钥匙串与HTTPS入口、秘密隔离、周/月解析及旧接口回退无阻断；平台身份约束在core，PC图示为GUI资源映射；mDNS自愈保留服务owner、原监听与退出回收；已删除退役浏览链且保留恢复API。工程回归94通过/7平台跳过，整合设备25通过，既有Cursor60与图示23相关回归通过；依赖方向及1866份文件规模门禁通过。新增职责内聚，无临时探针、秘密或未完成标记。四平台全量测试和正式签名由后续CI执行，E2E本次关闭。",
     "reason": null,
     "remainingRisk": null
   }

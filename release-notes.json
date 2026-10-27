@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-27",
+      "version": "v0.10.1",
+      "featureOptimizations": [
+        {
+          "zh-CN": "支持Windows、macOS和Linux展示终端使用真实平台身份配对与连接。",
+          "en-US": "Support pairing and connecting Windows, macOS, and Linux display clients with their actual platform identity."
+        },
+        {
+          "zh-CN": "设备卡片按PC系统显示笔记本图示，屏幕内包含对应经典壁纸和系统徽标。",
+          "en-US": "Show platform-specific laptop artwork with classic wallpapers and system logos on PC device cards."
+        },
+        {
+          "zh-CN": "兼容Grok与Cursor联名套餐的共享周额度及新版Cursor加密登录态，保留旧额度接口回退。",
+          "en-US": "Support the shared weekly allowance in Grok and Cursor bundles and encrypted Cursor sign-in data, with fallback for older quota endpoints."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "系统睡眠或已配对设备持续离线时重建mDNS广播，改善长时间运行后无法发现的问题。",
+          "en-US": "Rebuild mDNS advertising after system sleep or prolonged offline periods to improve discovery during long-running sessions."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-25",
       "version": "v0.9.3",
       "featureOptimizations": [
@@ -142,22 +166,6 @@
         {
           "zh-CN": "按构建矩阵显式选择 PowerShell 或 Bash，修复工作流 Shell 字段使用不支持上下文而无法启动的问题。",
           "en-US": "Select PowerShell or Bash explicitly from the build matrix so unsupported shell contexts no longer prevent workflow dispatch."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-22",
-      "version": "v0.7.8",
-      "featureOptimizations": [
-        {
-          "zh-CN": "签名凭据导入时复核批准的 Developer ID，并提供不含秘密的具体错误诊断。",
-          "en-US": "Verify the approved Developer ID during signing credential import and provide specific diagnostics without exposing secrets."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "Windows CI 使用原生 PowerShell 和明确的 MSVC 链接器，避免 Git Bash 同名工具抢占。",
-          "en-US": "Use native PowerShell and an explicit MSVC linker in Windows CI to prevent collisions with Git Bash tools."
         }
       ]
     }
