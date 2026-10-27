@@ -1,6 +1,8 @@
 //! 提供商用量的后台读取与快照。窗口线程只复制结果，不读登录文件、不发网络。
 
 pub(super) mod credentials;
+mod cursor_safe_storage;
+mod cursor_dashboard;
 pub(super) mod fetch;
 mod local;
 pub(super) mod transport;
@@ -8,6 +10,8 @@ pub(super) mod transport;
 mod tests;
 #[cfg(test)]
 mod cursor_session_tests;
+#[cfg(all(test, unix))]
+mod cursor_dashboard_tests;
 
 use std::{sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 

@@ -40,7 +40,7 @@ fn layout(home: PathBuf) -> HomeLayout {
 }
 
 /// 在夹具目录内创建父目录并写入指定文本。
-fn write(path: &Path, text: &str) {
+pub(super) fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap();
     }
@@ -523,7 +523,7 @@ fn remote_windows(five_hour: u16, weekly: u16) -> String {
 
 /// 在隔离目录安装测试脚本并授予当前宿主执行权限。
 #[cfg(unix)]
-fn install_fixture(dir: &Path) -> PathBuf {
+pub(super) fn install_fixture(dir: &Path) -> PathBuf {
     let path = dir.join("fixture.py");
     std::fs::write(&path, include_str!("fixture.py")).unwrap();
     use std::os::unix::fs::PermissionsExt;

@@ -326,3 +326,62 @@ fn terminal_quota_follows_enabled_agents_without_changing_windows() {
     assert_eq!(snapshot.clone().for_enabled_agents(&[AiTool::ClaudeCode]).providers, vec![snapshot.providers[1].clone()]);
     assert!(snapshot.for_enabled_agents(&[]).providers.is_empty());
 }
+
+/// 联名套餐以明确的周用量周期和毫秒重置时刻展示，不能沿用账单月。
+#[test]
+fn cursor_dashboard_shared_weekly_pool_uses_plan_period() {
+    let body = serde_json::json!({
+        "enabled": true,
+        "billingCycleStart": "1775088000000",
+        "billingCycleEnd": "1777680000000",
+        "planInfo": {"planName": "Super", "includedUsagePeriod": "INCLUDED_USAGE_PERIOD_WEEKLY", "includedUsageResetsAt": "1775692800000"},
+        "planUsage": {"totalPercentUsed": 12.34, "includedSpend": 1234, "limit": 10000}
+    });
+    let quota = parse_provider_quota(QuotaProvider::Cursor, &body.to_string()).unwrap();
+    assert_eq!(quota.plan.as_deref(), Some("Super"));
+    assert!(quota.monthly.is_none());
+    let weekly = quota.weekly.expect("shared plan must expose a weekly window");
+    assert_eq!(weekly.used_tenths, 123);
+    assert_eq!(weekly.reset_at_unix, Some(1_775_692_800));
+    super::ProviderQuotaSnapshot::project(Some(123), &[quota]).unwrap().validate().unwrap();
+}
+
+/// 新接口月套餐继续显示月额度，缺百分数时由同一额度桶的已用和上限计算。
+#[test]
+fn cursor_dashboard_monthly_plan_and_numeric_enum_keep_units() {
+    let body = serde_json::json!({
+        "enabled": true,
+        "billingCycleEnd": "1777680000000",
+        "planInfo": {"planName": "Pro", "includedUsagePeriod": 1, "billingCycleEnd": "1777680000000"},
+        "planUsage": {"includedSpend": 500, "limit": 2000}
+    });
+    let quota = parse_provider_quota(QuotaProvider::Cursor, &body.to_string()).unwrap();
+    assert_eq!(quota.plan.as_deref(), Some("Pro"));
+    assert!(quota.weekly.is_none());
+    assert_eq!(quota.monthly.unwrap().used_tenths, 250);
+    assert_eq!(quota.monthly.unwrap().reset_at_unix, Some(1_777_680_000));
+    super::ProviderQuotaSnapshot::project(Some(123), &[quota]).unwrap().validate().unwrap();
+}
+
+/// 停用、未知周期、未知比例和坏重置时刻不能伪造成零用量或错误的月窗口。
+#[test]
+fn cursor_dashboard_rejects_unavailable_or_incomplete_pool() {
+    let base = serde_json::json!({
+        "enabled": true,
+        "billingCycleStart": "1775088000000", "billingCycleEnd": "1777680000000",
+        "planInfo": {"planName": "Super", "includedUsagePeriod": 2, "includedUsageResetsAt": "1775692800000"},
+        "planUsage": {"totalPercentUsed": 0}
+    });
+    let mut disabled = base.clone(); disabled["enabled"] = false.into();
+    let mut unknown = base.clone(); unknown["planInfo"]["includedUsagePeriod"] = 3.into();
+    let mut absent = base.clone(); absent["planUsage"] = serde_json::json!({});
+    let mut zero_limit = base.clone(); zero_limit["planUsage"] = serde_json::json!({"includedSpend": 0, "limit": 0});
+    let mut bad_reset = base.clone(); bad_reset["planInfo"]["includedUsageResetsAt"] = "bad".into();
+    for body in [disabled, unknown, absent, zero_limit, bad_reset] {
+        assert!(!parse_provider_quota(QuotaProvider::Cursor, &body.to_string()).unwrap().has_usage_window(), "{body}");
+    }
+    assert_eq!(parse_provider_quota(QuotaProvider::Cursor, &base.to_string()).unwrap().weekly.unwrap().remaining_tenths(), 1000);
+    let mut exceeded = base;
+    exceeded["planUsage"]["totalPercentUsed"] = 123.4.into();
+    assert_eq!(parse_provider_quota(QuotaProvider::Cursor, &exceeded.to_string()).unwrap().weekly.unwrap().remaining_tenths(), 0);
+}

@@ -7,3 +7,5 @@
 - [2026-10-22](20261022_changelog.md)：新增独立 Cursor 账户 Token 分项、日期与模型统计。
 
 - [2026-10-26](20261026_changelog.md)：接纳macOS、Windows和Linux展示终端的真实认证平台。
+
+- [2026-10-27](20261027_changelog.md)：兼容 Grok 与 Cursor 联名周额度和 macOS Cursor 加密登录。

@@ -19,3 +19,5 @@
   - Windows `ShellExecuteW("open")` 在 `native/links.rs` 先初始化 COM，`skins/file_manager.rs` 未初始化；统一为单一 Shell 打开入口会改变后者行为，须在 Windows 真机验证后处理。Linux 下 `open_repository` 固定返回 false，而文件管理器已有可信 `xdg-open`/`gio` 入口，属于产品能力缺口而非重构项。
   - 项目 Rust 源未纳入 rustfmt：按默认配置格式化后总行数约增加 14%，看板已按职责拆出 `overview`、`metric_display` 与 `calls/column_widths`，格式化后均不超过 800 行；`app/mod_test.rs` 格式化后仍约 854 行。引入格式化门禁前须先拆分该测试文件，并核对按源码文本断言的测试。
 - 设备服务存在生产构建未使用的代码：`loki_metris_service/src/usage_service/devices/` 中的配对（`pair`、`pair_device`）、mDNS 主动发现（`discover*`、`candidate`）与恢复导出/导入（`*_recovery`、`DeviceRecoveryPreview`、`random_bytes`）在 macOS 非测试构建中没有调用方，只由模块内测试覆盖。原 GUI 单 crate 的 `--tests` 检查掩盖了这些警告，2026-10-25 拆出服务层 crate 后显露，`main` 的生产构建同样存在。解除条件为确认这些能力是否仍计划接入界面：接入则补齐调用路径与回归，否则删除并同步测试。
+
+- Cursor系统加密登录的跨平台后端：2026-10-27只接入并核对macOS Cursor safeStorage v1/v10（系统Keychain与CommonCrypto）。Windows的Local State/DPAPI/AES-GCM和Linux的Secret Service/KWallet尚未接入，加密包装返回CredentialLocked；旧明文登录继续使用。解除条件为核对对应发行的实际格式，在已批准的OS秘密范围内实现受限驱动，并分别完成目标平台的合成错误路径和真实账户读取验证，不能直接发送密文、猜测密钥或以macOS结果代替。

@@ -9,3 +9,5 @@
 - [2026-10-22：保留既有能力，精简终端设备页实例与备份区块](20261022_product_spec.md)
 
 - [2026-10-26：跨平台展示终端认证](20261026_product_spec.md)
+
+- [2026-10-27：兼容 Grok 与 Cursor 联名周额度及 macOS Cursor 加密登录](20261027_product_spec.md)
