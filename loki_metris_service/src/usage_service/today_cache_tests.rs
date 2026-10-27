@@ -158,3 +158,36 @@ fn terminal_token_components_follow_same_observation_and_cache_generation() {
     let (_,all,agents)=read(now+86_400_000); assert_eq!(all.total_tokens,0);assert_eq!(agents[0].1.total_tokens,0);assert_eq!(agents[0].1.day,all.day);
     service.finish();
 }
+
+/// Claude 已登记却没有可解释记录时，真实联合读取及缓存仍须保留 Codex 的部分总量。
+#[test]
+fn terminal_total_keeps_indexed_usage_when_claude_is_unscanned() {
+    let temp = tempfile::tempdir().unwrap();
+    let (service, _, _) = indexed_service(temp.path());
+    let root = temp.path().join("claude");
+    std::fs::create_dir_all(root.join("projects")).unwrap();
+    let runtime = service.runtime.lock().unwrap().as_ref().unwrap().handle().clone();
+    runtime.block_on(async {
+        let directory = source_client_app_data_dir(&service.context.directory, SourceClientKind::ClaudeCode);
+        let mut index = loki_metris_host::local_index::LocalIndex::open_in_app_data(
+            &directory, SourceClientKind::ClaudeCode.parser_version()).await.unwrap();
+        index.register_confirmed_root_fields(&stable_id("claude-root", "empty-claude"), &root, "空 Claude",
+            loki_metris_host::local_index::DiscoveryMethod::Registered).await.unwrap();
+    });
+    service.save_enabled_ai_tools(vec![AiTool::Codex, AiTool::ClaudeCode]).unwrap().blocking_recv().unwrap().unwrap();
+    let now = "2026-10-09T12:00:00Z".parse::<jiff::Timestamp>().unwrap().as_millisecond();
+    for at in [now, now + 30_000] {
+        let (_, all, agents) = runtime.block_on(super::today::load_with_components(
+            service.context.clone(), at, jiff::tz::TimeZone::UTC, ScanCancellation::new())).unwrap();
+        let wire = loki_metris_core::devices::link::data::TokenSnapshot::from_observation(&all, &agents).unwrap();
+        assert_eq!(wire.all.total.as_deref(), Some("110"));
+        assert_eq!(wire.all.availability, "available");
+        assert_eq!(wire.all.completeness, Completeness::Partial);
+        let claude = wire.agents.iter().find(|agent| agent.agent == AiTool::ClaudeCode).unwrap();
+        assert_eq!(claude.amount.total, None);
+        assert_eq!(claude.amount.availability, "noRecords");
+        assert!(!all.eligible(at, &all.day, &all.source));
+        assert_eq!(wire.observed_ms, at);
+    }
+    service.finish();
+}

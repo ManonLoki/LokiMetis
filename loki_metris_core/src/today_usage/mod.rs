@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 const MAX_OBSERVATION_AGE_MS: i64 = 90_000;
 
 mod display;
+mod components;
 pub use display::{TodayUsageDisplay, project_today_usage_display};
 
 /// 民用日身份使用规则名与实际边界，DST 偏移改变不另建同日身份。

@@ -179,6 +179,7 @@ pub(super) async fn load_with_components(context: Arc<ServiceContext>, now: i64,
             agents.push((AiTool::WorkBuddy, value));
         }
         let today = TodayUsageSnapshot::from_records(day, source, &records, now, all_ready, failed)
+            .and_then(|value| value.with_available_components(&agents))
             .ok_or("usage_aggregate_failed")?;
         Ok((
             UsageData {

@@ -1,5 +1,13 @@
 # 2026-10-27 开发变更
 
+## LMDESK-TODAY-UNREADY-AGENT-TOTAL-001 · 空 Agent 不再隐藏今日总 Token
+
+分类：bug-fix；required_version：`0.10.7`。
+
+ClaudeCode 等已启用来源尚未扫描或待重扫时，今日摘要从同轮可解释的独立 Agent 分量保留部分总量，并明确保持 Partial/Unknown 与最低置信度。缺失分量不补零，全部缺失仍无记录，真实读取失败仍不可用；部分总量不能触发 Token 通知。桌宠与局域网终端共用修复，严格联合调用查询和分页合同保持。
+
+开发验证：10 项今日领域回归、6 项服务缓存回归通过，覆盖首次读取与缓存命中、有效零、缺失成员、失败优先、同轮身份、重复与溢出。Windows 安装包及 Android 平板复测单独取证，不将开发测试表述为最终候选验收。
+
 ## LMDESK-CURSOR-GROK-SHARED-QUOTA-001 · Grok 与 Cursor 联名额度兼容
 
 分类：feature；required_version：`0.10.0`。复用当前发布周期的功能版本，不重复提升Minor。
