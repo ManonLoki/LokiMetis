@@ -34,6 +34,10 @@ const CLEANUP = [
   '      DeleteRegValue HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Run" "${IDENTIFIER}"',
   '    ${ElseIf} $R8 == "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\""',
   '      DeleteRegValue HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Run" "${IDENTIFIER}"',
+  '    ${ElseIf} $R8 == "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\" --autostart"',
+  '      DeleteRegValue HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Run" "${IDENTIFIER}"',
+  '    ${ElseIf} $R8 == "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\" --autostart "',
+  '      DeleteRegValue HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Run" "${IDENTIFIER}"',
   '    ${EndIf}',
   '  ${EndIf}',
 ].join('\n');

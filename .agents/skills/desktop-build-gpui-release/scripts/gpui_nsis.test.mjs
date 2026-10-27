@@ -37,10 +37,28 @@ test('uninstall only removes exact owned current-user Run commands before the ex
   assert.match(cleanup, /\$\{IfNot\} \$\{Errors\}/u);
   assert.ok(cleanup.includes('${If} $R8 == "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\" "'));
   assert.ok(cleanup.includes('${ElseIf} $R8 == "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\""'));
-  assert.equal(cleanup.match(/DeleteRegValue HKCU/gu).length, 2);
+  assert.equal(cleanup.match(/DeleteRegValue HKCU/gu).length, 4);
   assert.equal(cleanup.includes('DeleteRegKey'), false);
   assert.equal(cleanup.includes('HKLM'), false);
   assert.equal(cleanup.includes('StartupApproved'), false);
+});
+
+/** 现行登录标记与旧命令均清理；其它安装目录、额外参数和近似标记不得误删。
+ * 直接解释生成模板的比较操作数，避免只证明某个孤立标记出现在模板中。
+ */
+test('uninstall recognizes the current autostart command without broadening ownership', () => {
+  const section = renderNsisTemplate('ExampleTool').split('Section Uninstall\n')[1];
+  const cleanup = section.slice(0, section.indexOf('  ; Delete the app directory'));
+  const commands = [...cleanup.matchAll(/\$\{(?:If|ElseIf)\} \$R8 == "([^\n]+)"/gu)].map(match =>
+    match[1].replaceAll('$\\"', '"').replaceAll('$INSTDIR', 'C:\\Test App').replaceAll('${MAINBINARYNAME}', 'example'));
+  const executable = '"C:\\Test App\\example.exe"';
+  for (const command of [executable, `${executable} `, `${executable} --autostart`, `${executable} --autostart `]) {
+    assert.ok(commands.includes(command), 'owned current or legacy Run command must be removed');
+  }
+  for (const command of [`${executable} --other`, `${executable} --autostart=false`, `${executable} --autostart --other`,
+    '"C:\\Other App\\example.exe" --autostart', '"C:\\Test App\\example.exe.backup" --autostart']) {
+    assert.ok(!commands.includes(command), 'foreign or extended Run command must be preserved');
+  }
 });
 
 test('source drift fails closed and staging template cannot replace an existing file', t => {

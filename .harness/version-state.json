@@ -99,7 +99,8 @@
     "LMWIN-QUOTA-HIDDEN-PROCESS-001",
     "LMWIN-MDNS-SUSPEND-CLOCK-001",
     "LMWIN-FXC-MULTIPLE-PATH-001",
-    "LMWIN-CURSOR-SQLITE-INPROCESS-001"
+    "LMWIN-CURSOR-SQLITE-INPROCESS-001",
+    "LMWIN-UNINSTALL-AUTOSTART-FLAG-001"
   ],
   "applied_reconciliations": [
     {
@@ -153,8 +154,13 @@
       "change_id": "LMWIN-CURSOR-SQLITE-INPROCESS-001",
       "kind": "bug-fix",
       "required_version": "0.10.5"
+    },
+    {
+      "change_id": "LMWIN-UNINSTALL-AUTOSTART-FLAG-001",
+      "kind": "bug-fix",
+      "required_version": "0.10.6"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.10.5"
+  "target_version": "0.10.6"
 }
