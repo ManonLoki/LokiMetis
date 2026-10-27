@@ -147,11 +147,11 @@ async fn saved_device_commit_rejects_duplicate_queued_request() {
     owner.shutdown().await;
 }
 
-/// 终端主动连接报到后，桌面原配对按钮仍执行四帧验证并真实落盘；错码不增加设备。
+/// 入站请求完成四帧认证后才真实落盘；错码或缺少最终认证回执均不增加设备。
 #[tokio::test]
 async fn incoming_pairing_offer_uses_existing_pairing_and_private_commit() {
     use loki_metris_core::devices::{PairingHello, PairingConfirmation, pairing_test_reply};
-    for (code, success) in [("0007", true), ("0008", false)] {
+    for (code, acknowledge, success) in [("0007", true, true), ("0008", true, false), ("0007", false, false)] {
         let temp = tempfile::tempdir().unwrap();
         let owner = Arc::new(crate::usage_service::background::BackgroundTaskOwner::with_runtime(
             Arc::new(loki_metris_core::RootDiscoveryCoordinator::default()), tokio::runtime::Handle::current()));
@@ -170,14 +170,14 @@ async fn incoming_pairing_offer_uses_existing_pairing_and_private_commit() {
             let hello: PairingHello = transport::read_frame(&mut stream).await.unwrap();
             let (reply, confirm) = pairing_test_reply(&hello, "0007"); transport::write_frame(&mut stream, &reply).await.unwrap();
             let confirmation: PairingConfirmation = transport::read_frame(&mut stream).await.unwrap();
-            if let Ok(ack) = confirm(confirmation) { transport::write_frame(&mut stream, &ack).await.unwrap(); }
+            if let Ok(ack) = confirm(confirmation) && acknowledge { transport::write_frame(&mut stream, &ack).await.unwrap(); }
         };
         let ui = async {
             while ui_devices.snapshot().requests.is_empty() { tokio::task::yield_now().await; }
             let request = ui_devices.snapshot().requests[0].clone();
             assert_eq!(request.device.name, "Pairing phone");
             assert_eq!(request.device.endpoints, vec!["192.168.1.21:51001".parse().unwrap()]);
-            ui_devices.pair_target(DEVICE, Some(request.ticket), code.into()).unwrap();
+            ui_devices.pair_target(DEVICE, request.ticket, code.into()).unwrap();
             while ui_devices.snapshot().pending { tokio::task::yield_now().await; }
         };
         tokio::time::timeout(Duration::from_secs(5), async { tokio::join!(server, phone, ui); }).await.unwrap();
@@ -353,7 +353,7 @@ async fn incoming_request_rejection_and_disconnect_release_exact_connection() {
             transport::write_frame(&mut stream, &ConnectionIntroduction::Pairing(PairingOffer { version:1, client_id, device_id:DEVICE.into(), name:"Phone".into() })).await.unwrap();
             while observer.snapshot().requests.is_empty() { tokio::task::yield_now().await; }
             let ticket = observer.snapshot().requests[0].ticket;
-            assert_eq!(observer.pair_target(DEVICE, Some(ticket + 1), "0007".into()), Err("device_request_expired"));
+            assert_eq!(observer.pair_target(DEVICE, ticket + 1, "0007".into()), Err("device_request_expired"));
             assert!(!observer.snapshot().pending);
             observer.reject_request(DEVICE, ticket + 1);
             assert_eq!(observer.snapshot().requests.len(), 1, "旧票据不能取消另一条连接");

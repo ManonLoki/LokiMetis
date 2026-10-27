@@ -274,9 +274,6 @@ impl UsageService {
             if let Some(listener)=self.context.agents.listener.get() {runtime.block_on(listener.shutdown());}
             runtime.block_on(self.context.skins.shutdown());
             runtime.block_on(self.background.shutdown());
-            if runtime.block_on(self.context.devices.cleanup_daemon()).is_err() {
-                tracing::warn!(event="device_mdns_shutdown_unconfirmed");
-            }
             if runtime.block_on(self.context.devices.cleanup_host_daemon()).is_err() {
                 tracing::warn!(event="device_host_mdns_shutdown_unconfirmed");
             }

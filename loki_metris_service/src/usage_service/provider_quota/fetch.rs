@@ -96,7 +96,7 @@ pub(crate) async fn read_cursor_token(layout: &HomeLayout, sqlite: Option<&Path>
     credentials::ensure_regular_file(&database)?;
     let program = sqlite.ok_or(QuotaFailure::Transport)?;
     let args = transport::cursor_command_args(&database)?;
-    let sqlite_limits = CurlLimits { timeout: DurationCap::min(limits.timeout, std::time::Duration::from_secs(8)), max_body: 8 * 1024 };
+    let sqlite_limits = CurlLimits { timeout: limits.timeout.min(std::time::Duration::from_secs(8)), max_body: 8 * 1024 };
     let output = transport::run_command(program, &args, None, sqlite_limits, cancel).await?;
     let text = String::from_utf8(output).map_err(|_| QuotaFailure::Malformed)?;
     let token = credentials::cursor_token_from_output(&text)?;
@@ -235,14 +235,4 @@ fn cursor_user_agent() -> &'static str {
 fn format_zoned(zoned: &jiff::Zoned) -> String {
     let date = zoned.date();
     format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", date.year(), date.month(), date.day(), zoned.hour(), zoned.minute(), zoned.second())
-}
-
-/// 为 Cursor 登录库查询提供独立的超时上限选择。
-struct DurationCap;
-
-impl DurationCap {
-    /// 选择调用方预算与 Cursor 查询上限中较短的时长。
-    fn min(left: std::time::Duration, right: std::time::Duration) -> std::time::Duration {
-        left.min(right)
-    }
 }
