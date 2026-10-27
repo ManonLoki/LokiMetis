@@ -14,3 +14,5 @@
 更新日志关闭符号与复选钩来自历史项目 Mantine 9.6.0 的 `node_modules/@mantine/core/esm/components/CloseButton/CloseIcon.mjs` 和 `Checkbox/CheckIcon.mjs`；分别保留15×15和10×7 viewBox与evenodd填充规则，完整MIT许可于 `icons/Mantine-LICENSE.txt`。
 
 Monitor 的“更换图片”与清除按钮分别使用上述 ImageSquare、X 的 regular 原路径；SVG 仅封装 256×256 viewBox 与 currentColor，未重绘图形。`icons/image-square.svg` SHA256 `84dc7cfad2eb3f6a5a569443fd7ed5e0552b58e4bd6d5764ea06ee8c6eb2adc5`；`icons/x.svg` SHA256 `e3e5283d0e96f9c50888e13c4ce91cd55780c6f7bb3e57efde07bdce801af2e9`。迁入时已逐字节核对历史包 LICENSE 与现存 `icons/Phosphor-LICENSE.txt` 一致。
+
+设备插图由内置ImageGen生成并编译嵌入，包含手机、平板、Watch及三种PC笔记本。2026-10-27按用户要求在笔记本屏幕加入对应经典壁纸风格与Windows/Apple/Tux徽标，作为系统识别示意；不是厂商提供的产品摄影或真实硬件型号。来源、透明背景、缩放、选择规则和完整提示词统一见[设备媒体说明](devices/README.md)。

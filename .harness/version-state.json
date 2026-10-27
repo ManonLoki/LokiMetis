@@ -138,6 +138,11 @@
       "change_id": "LMDESK-CURSOR-GROK-SHARED-QUOTA-001",
       "kind": "feature",
       "required_version": "0.10.0"
+    },
+    {
+      "change_id": "LMDESK-PC-DEVICE-ARTWORK-001",
+      "kind": "feature",
+      "required_version": "0.10.0"
     }
   ],
   "schema_version": 1,

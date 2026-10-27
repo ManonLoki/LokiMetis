@@ -6,13 +6,16 @@ use gpui_kit::{AnyElement, IntoElement, ObjectFit, Role, SharedString,
     base::TestSupportExt as _, component::Icon, div, img, prelude::*, px};
 use loki_metris_core::devices::link::{DevicePlatform, DeviceFormFactor};
 
-/// 仅按设备上报的平台与形态选择示意图；缺少任一事实时使用中性图标。
+/// PC 按认证平台选择笔记本示意；手机/平板还需上报形态，未认证平台保持中性。
 pub(super) fn artwork_path(platform: Option<DevicePlatform>, form_factor: Option<DeviceFormFactor>) -> Option<&'static str> {
     match (platform, form_factor) {
         (Some(DevicePlatform::Ios), Some(DeviceFormFactor::Phone)) => Some(assets::DEVICE_IPHONE),
         (Some(DevicePlatform::Ios), Some(DeviceFormFactor::Tablet)) => Some(assets::DEVICE_IPAD),
         (Some(DevicePlatform::Android), Some(DeviceFormFactor::Phone)) => Some(assets::DEVICE_ANDROID_PHONE),
         (Some(DevicePlatform::Android), Some(DeviceFormFactor::Tablet)) => Some(assets::DEVICE_ANDROID_TABLET),
+        (Some(DevicePlatform::Windows), _) => Some(assets::DEVICE_WINDOWS_LAPTOP),
+        (Some(DevicePlatform::Macos), _) => Some(assets::DEVICE_MAC_LAPTOP),
+        (Some(DevicePlatform::Linux), _) => Some(assets::DEVICE_LINUX_LAPTOP),
         _ => None,
     }
 }
@@ -27,7 +30,7 @@ pub(super) fn watch_artwork(id: &str, label: String) -> AnyElement {
     artwork_frame(format!("device-watch-artwork-{id}"), Some(assets::DEVICE_WATCH), label, 40., 48.)
 }
 
-/// 手机和Watch共用同一图像槽结构，只由调用方决定标识和尺寸。
+/// 手机、平板、笔记本和 Watch 共用图像槽，只由调用方决定标识和尺寸。
 fn artwork_frame(id: String, path: Option<&'static str>, label: String, width: f32, height: f32) -> AnyElement {
     let frame = div().id(SharedString::from(id))
         .test_support().role(Role::Image).aria_label(label).w(px(width)).h(px(height))
@@ -57,14 +60,29 @@ mod tests {
         assert_eq!(artwork_path(None, None), None);
     }
 
-    /// 手机、平板和Watch实际嵌入图必须能够通过同一资源源读取、解码并保留透明边缘。
+    /// 三种桌面系统按认证平台显示笔记本，不等待手机/平板形态，也不使用设备名称猜测。
+    #[test]
+    fn desktop_platforms_use_laptop_illustrations_without_mobile_form_factor() {
+        for (platform, path) in [
+            (DevicePlatform::Windows, "app-devices/windows-laptop.png"),
+            (DevicePlatform::Macos, "app-devices/mac-laptop.png"),
+            (DevicePlatform::Linux, "app-devices/linux-laptop.png"),
+        ] {
+            for form_factor in [None, Some(DeviceFormFactor::Phone), Some(DeviceFormFactor::Tablet)] {
+                assert_eq!(artwork_path(Some(platform), form_factor), Some(path));
+            }
+        }
+    }
+
+    /// 所有设备嵌入图必须通过真实资源源读取、解码并保留透明边缘。
     #[test]
     fn bundled_device_images_are_decodable_transparent_and_registered() {
         use gpui_kit::AssetSource;
         let source = assets::Assets;
         let listed = source.list("app-devices/").unwrap();
-        assert_eq!(listed.len(), 5);
-        for path in [assets::DEVICE_IPHONE, assets::DEVICE_ANDROID_PHONE, assets::DEVICE_IPAD, assets::DEVICE_ANDROID_TABLET, assets::DEVICE_WATCH] {
+        assert_eq!(listed.len(), 8);
+        for path in [assets::DEVICE_IPHONE, assets::DEVICE_ANDROID_PHONE, assets::DEVICE_IPAD, assets::DEVICE_ANDROID_TABLET, assets::DEVICE_WATCH,
+            assets::DEVICE_WINDOWS_LAPTOP, assets::DEVICE_MAC_LAPTOP, assets::DEVICE_LINUX_LAPTOP] {
             let bytes = source.load(path).unwrap().unwrap();
             let image = image::load_from_memory(&bytes).unwrap().to_rgba8();
             assert!(image.width() >= 512 && image.height() >= 512);

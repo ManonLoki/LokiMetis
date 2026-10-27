@@ -21,11 +21,17 @@ fn devices_page_has_no_discovery_controls(cx: &mut TestAppContext) {
     }
 }
 
-/// 宽窄窗口、双语和双主题保持三行卡片；平台与状态、名称与版本、IP与通信同行且不溢出。
+/// 手机、平板和三种 PC 在宽窄窗口、双语和双主题下保持三行卡片，元信息不溢出。
 #[gpui_kit::test]
 fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppContext) {
     use gpui_kit::{px, component::{Theme, ThemeMode}};
     use loki_metris_core::devices::{link::{DeviceInfo, DevicePlatform}, presence::{DevicePresenceView, DeviceConnectionState}};
+    let devices = [
+        ("Manon's iPhone", DevicePlatform::Ios), ("Work Android phone", DevicePlatform::Android),
+        ("iPad", DevicePlatform::Ios), ("Android Tablet", DevicePlatform::Android),
+        ("Work Windows PC", DevicePlatform::Windows), ("Work Mac", DevicePlatform::Macos),
+        ("Linux workstation", DevicePlatform::Linux),
+    ];
     for (width, columns, dark, locale) in [
         (960., 2, false, "en-US"), (960., 2, true, "en-US"),
         (1280., 3, false, "en-US"), (1280., 3, true, "en-US"),
@@ -40,13 +46,13 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
             shell.update(cx, |this, cx| {
                 this.locale = locale; this.page = crate::app::Page::Devices;
                 this.devices.snapshot.loaded = true;
-                for index in 0..4 {
+                for (index, (base_name, platform)) in devices.iter().enumerate() {
                     let id = format!("00000000-0000-4000-8000-{index:012}");
-                    let name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
+                    let name = base_name.repeat(5);
                     this.devices.snapshot.saved.push(SavedDeviceSummary { id: id.clone(), name: "Saved".into() });
-                    this.devices.snapshot.presence.push(DevicePresenceView { form_factor: Some(if index < 2 { loki_metris_core::devices::link::DeviceFormFactor::Phone } else { loki_metris_core::devices::link::DeviceFormFactor::Tablet }),
+                    this.devices.snapshot.presence.push(DevicePresenceView { form_factor: if index < 4 { Some(if index < 2 { loki_metris_core::devices::link::DeviceFormFactor::Phone } else { loki_metris_core::devices::link::DeviceFormFactor::Tablet }) } else { None },
                         device_id: id.clone(), info: Some(DeviceInfo { device_id: id, name,
-                            platform: if index % 2 == 0 { DevicePlatform::Ios } else { DevicePlatform::Android },
+                            platform: *platform,
                             app_version: "1".repeat(64) }), state: DeviceConnectionState::Reachable,
                         peer: Some("[fe80:abcd:abcd:abcd:abcd:abcd:abcd:abcd%12]:4200".parse().unwrap()),
                         since_last_contact: Some(std::time::Duration::from_secs(if index == 3 { u64::MAX } else { 4 })), companion: None,
@@ -65,7 +71,7 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
             window.render_frame(cx);
             let grid = window.find("devices-saved-grid").bounds();
             let first = window.find("device-saved-00000000-0000-4000-8000-000000000000").bounds();
-            for index in 0..4 {
+            for (index, (base_name, reported_platform)) in devices.iter().enumerate() {
                 let id = format!("00000000-0000-4000-8000-{index:012}");
                 let card = window.find(format!("device-saved-{id}")).bounds();
                 let image = window.find(format!("device-artwork-{id}")).bounds();
@@ -108,8 +114,12 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
                 assert!(name.size.width > px(20.) && version.size.width > px(20.) && ip.size.width > px(20.) && contact.size.width > px(20.), "长文本不能挤掉同一行的另一项");
                 assert_eq!(window.find(format!("device-version-{id}")).label(), Some("1".repeat(64).as_str()), "版本只显示原始版本号");
                 if index >= columns { assert!(card.size.height <= px(160.), "无Watch的卡片不再为各元数据保留独立行"); }
-                let expected_name = ["Manon's iPhone", "Work Android phone", "iPad", "Android Tablet"][index].repeat(5);
+                let expected_name = base_name.repeat(5);
                 assert_eq!(window.find(format!("device-name-{id}")).label(), Some(expected_name.as_str()), "截断不丢失完整辅助名称");
+                if index >= 4 {
+                    let label = match reported_platform { DevicePlatform::Windows => "Windows", DevicePlatform::Macos => "macOS", DevicePlatform::Linux => "Linux", _ => unreachable!("only desktop fixture entries lack mobile form factors") };
+                    assert_eq!(window.find(format!("device-platform-{id}")).label(), Some(label));
+                }
                 if index < columns { assert_eq!(card.top(), first.top()); }
                 else { assert!(card.top() >= first.bottom()); }
             }
@@ -133,7 +143,7 @@ fn device_cards_reflow_and_contain_long_authenticated_metadata(cx: &mut TestAppC
             for target in ["device-saved", "device-artwork", "device-name", "device-ip", "device-status", "device-version", "device-contact", "device-watch", "device-watch-artwork", "device-watch-name", "device-watch-status"] {
                 window.click(format!("{target}-{id}"), cx); window.render_frame(cx);
                 assert!(shell.read(cx).devices.modal.is_none());
-                assert_eq!(shell.read(cx).devices.snapshot.saved.len(), 4);
+                assert_eq!(shell.read(cx).devices.snapshot.saved.len(), devices.len());
             }
             window.click(format!("device-remove-{id}"), cx); window.render_frame(cx);
             assert!(shell.read(cx).devices.modal.is_some());

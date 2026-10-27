@@ -17,6 +17,12 @@ pub const DEVICE_IPAD: &str = "app-devices/ipad.png";
 pub const DEVICE_ANDROID_TABLET: &str = "app-devices/android-tablet.png";
 /// iPhone卡片内的附属Watch示意图，不用于识别实际型号。
 pub const DEVICE_WATCH: &str = "app-devices/watch.png";
+/// Windows 平台的笔记本示意，屏幕含经典蓝色壁纸与四格徽标。
+pub const DEVICE_WINDOWS_LAPTOP: &str = "app-devices/windows-laptop.png";
+/// macOS 平台的笔记本示意，屏幕含 Big Sur 风格壁纸与 Apple 徽标。
+pub const DEVICE_MAC_LAPTOP: &str = "app-devices/mac-laptop.png";
+/// Linux 平台的笔记本示意，屏幕含紫橙壁纸与 Tux 企鹅。
+pub const DEVICE_LINUX_LAPTOP: &str = "app-devices/linux-laptop.png";
 
 /// 固定本地资源源不接受任意文件路径或远程 URL。
 pub struct Assets;
@@ -34,6 +40,9 @@ impl AssetSource for Assets {
             DEVICE_IPAD => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/ipad.png")))),
             DEVICE_ANDROID_TABLET => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/android-tablet.png")))),
             DEVICE_WATCH => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/watch.png")))),
+            DEVICE_WINDOWS_LAPTOP => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/windows-laptop.png")))),
+            DEVICE_MAC_LAPTOP => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/mac-laptop.png")))),
+            DEVICE_LINUX_LAPTOP => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/linux-laptop.png")))),
             SPONSOR_WECHAT=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/wechat-pay.png")))),
             SPONSOR_ALIPAY=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/alipay.jpg")))),
             _=>gpui_kit::assets::Assets.load(path),
@@ -43,7 +52,8 @@ impl AssetSource for Assets {
     /// 只枚举当前编译包实际含有的资源。
     fn list(&self, prefix: &str) -> Result<Vec<SharedString>> {
         let mut paths = gpui_kit::assets::Assets.list(prefix)?;
-        for path in [LOGO, SPONSOR_WECHAT, SPONSOR_ALIPAY, DEVICE_IPHONE, DEVICE_ANDROID_PHONE, DEVICE_IPAD, DEVICE_ANDROID_TABLET, DEVICE_WATCH] {
+        for path in [LOGO, SPONSOR_WECHAT, SPONSOR_ALIPAY, DEVICE_IPHONE, DEVICE_ANDROID_PHONE, DEVICE_IPAD, DEVICE_ANDROID_TABLET, DEVICE_WATCH,
+            DEVICE_WINDOWS_LAPTOP, DEVICE_MAC_LAPTOP, DEVICE_LINUX_LAPTOP] {
             if path.starts_with(prefix) { paths.push(path.into()); }
         }
 

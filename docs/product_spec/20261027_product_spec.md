@@ -1,6 +1,6 @@
 # LokiMetris GPUI 体验复刻、桌面扩展与设备配对
 
-状态：Approved（沿用既有目标；新增 Grok 与 Cursor 联名套餐及已批准的 macOS Cursor 加密登录读取）。日期：2026-10-27。
+状态：Approved（沿用既有目标；新增 Grok 与 Cursor 联名套餐、已批准的 macOS Cursor 加密登录读取及 PC 系统配图）。日期：2026-10-27。
 
 用户在当前目标明确要求参照 `/Users/manonloki/Documents/my-work/loki_metis` 的代码与已安装同名 App，1:1 复刻为 GPUI 实现；每阶段进行 Computer Use 比对，体验一致才完成。用户另已明确批准迁入历史 core 的项目依赖。
 
@@ -284,3 +284,14 @@ Linux扩展稳定change_id：`LINUX-NATIVE-TOOLCHAIN-001`；分类：feature；r
 - 当前只接入 macOS 的加密后端。Windows 和 Linux 的未知或未接入系统加密包装返回锁定，不能把密文当令牌发送；原明文登录路径保持可用。系统拒绝、缺项、超时或未知加密格式不显示伪额度。跨平台后端缺口见[技术债](../TECH_DEBT.md)。
 
 成功标准：新周套餐与旧月套餐、毫秒单位、零/缺失/超额、授权失败和旧接口回退的相关回归通过；在用户批准的 macOS 账户上通过实际生产读取链路核对成功。此开发闭环不包含安装包、渠道发布或各平台最终候选验收。
+
+
+## PC 配对设备笔记本配图
+
+状态：Approved。用户于2026-10-27要求配对设备允许PC，按Windows、Mac和Linux系统标识分别显示笔记本，并追加在屏幕内显示对应经典壁纸与徽标。change_id：`LMDESK-PC-DEVICE-ARTWORK-001`；分类：feature；required_version：`0.10.0`。
+
+- 沿用已批准的五平台认证和PC配对链路；本次补齐已配对卡片的PC图片映射。只按认证DeviceInfo.platform选择本地Windows、macOS、Linux笔记本，不等待可选phone/tablet报告，不用名称推断系统，也不增加Laptop协议值。
+- Windows为蓝色Bloom风格壁纸与四格徽标；Mac为Big Sur风格壁纸与Apple徽标；Linux为Ubuntu风格紫橙壁纸与Tux企鹅。所有PC统一用笔记本示意，图片不代表真实硬件型号或修改其平台事实。
+- 沿用既有图槽、卡片布局、透明背景、名称/平台/IP/连接状态和独立移除语义。手机/平板/Watch及未知平台的中性回退继续使用原规则；精确样式与媒体由[GUI资料](../GUI_APP_PROFILE.md#设备页扩展)维护。
+
+成功标准：PC无需手机形态即可显示正确的本地笔记本图，所有资源可解码并保留透明背景；相关五平台认证和设备页宽窄/明暗/双语回归通过。此次不包含新增桌面客户端、安装分发或各OS实物配对验收。
