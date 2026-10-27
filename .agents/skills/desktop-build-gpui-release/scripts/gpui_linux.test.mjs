@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {spawnSync} from 'node:child_process';
-import {linuxEnvironment,checkLinuxToolchain,probeLinuxLinker,linuxTestTemporary,linuxHostTestEnvironment} from './gpui_linux_build.mjs';
+import {executeLinuxBuild,linuxEnvironment,checkLinuxToolchain,probeLinuxLinker,linuxTestTemporary,linuxHostTestEnvironment} from './gpui_linux_build.mjs';
 import {verifyElf,makeLinuxPackage,treeSnapshot} from './gpui_linux_package.mjs';
 import {TARGETS,renderDefaultConfig,validateConfig} from './gpui_config.mjs';
 import {collectResources} from './gpui_resources.mjs';
@@ -31,13 +31,33 @@ function iconPng() {
   return encodePng(size,size,pixels);
 }
 
+test('Linux candidate rejects missing or invalid E2E choices before commands or filesystem writes',t=>{
+  const root=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-linux-selection-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const release=path.join(root,'release'); fs.mkdirSync(release);
+  fs.writeFileSync(path.join(release,'previous'),'preserve previous candidate');
+  const calls=[], hooks={run:(program,args)=>{calls.push({program,args}); throw new Error('unexpected command');}};
+  for(const choice of [{},{e2e:'unknown'},{e2e:'disabled'},{e2e:'disabled',e2eReason:'requested'}]) {
+    assert.throws(()=>executeLinuxBuild({root,command:'build',mode:'candidate',...choice},hooks),/explicit --e2e|disabled E2E requires/);
+    assert.deepEqual(calls,[]);
+    assert.equal(fs.existsSync(path.join(root,'target')),false);
+    assert.equal(fs.readFileSync(path.join(release,'previous'),'utf8'),'preserve previous candidate');
+    assert.deepEqual(fs.readdirSync(root),['release']);
+  }
+});
+
 test('cross environments isolate target compiler and pkg-config from inherited host overrides',()=>{
-  const env=linuxEnvironment('x86_64-unknown-linux-gnu','aarch64-unknown-linux-gnu',{PKG_CONFIG_PATH:'/host-only',PKG_CONFIG_LIBDIR:'/host-only',PKG_CONFIG_aarch64_unknown_linux_gnu:'wrong',HARNESS_GPUI_RELEASE_NOTES_RS:'/old-notes'});
+  const inherited={PKG_CONFIG_PATH:'/host-only',PKG_CONFIG_LIBDIR:'/host-only',PKG_CONFIG_aarch64_unknown_linux_gnu:'wrong',HARNESS_GPUI_RELEASE_NOTES_RS:'/old-notes'};
+  for(const tool of ['CC','CXX','AR']) for(const suffix of ['', '_x86_64-unknown-linux-gnu','_x86_64_unknown_linux_gnu','_aarch64-unknown-linux-gnu']) inherited[`${tool}${suffix}`]='wrong-host-tool';
+  const env=linuxEnvironment('x86_64-unknown-linux-gnu','aarch64-unknown-linux-gnu',inherited);
   assert.equal(env.CC_x86_64_unknown_linux_gnu,'x86_64-linux-gnu-gcc');
   assert.equal(env.CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER,'x86_64-linux-gnu-gcc');
   assert.equal(env.PKG_CONFIG_LIBDIR,'/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig');
   assert.equal(env.PKG_CONFIG_PATH,''); assert.equal(env.PKG_CONFIG_aarch64_unknown_linux_gnu,undefined);
   assert.equal(env.HARNESS_GPUI_RELEASE_NOTES_RS,undefined);
+  assert.equal(env.CXX_x86_64_unknown_linux_gnu,'x86_64-linux-gnu-g++');
+  assert.equal(env.AR_x86_64_unknown_linux_gnu,'x86_64-linux-gnu-ar');
+  assert.ok(!Object.values(env).includes('wrong-host-tool'));
   assert.throws(()=>linuxEnvironment('x86_64-pc-windows-msvc','aarch64-unknown-linux-gnu'),/Linux GNU/);
 });
 

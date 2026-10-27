@@ -132,6 +132,19 @@ fn service_retry_delay_backs_off_to_cap() {
     assert_eq!(delays, [1, 2, 4, 8, 16, 30, 30, 30]);
 }
 
+/// 只有墙钟明显多于单调时钟才判定睡眠；正常调度抖动和墙钟回拨都不触发广播重建。
+#[test]
+fn sleep_detection_requires_wall_clock_gap() {
+    let start = (Instant::now(), std::time::SystemTime::now());
+    let after = |monotonic: u64, wall: i64| (start.0 + Duration::from_secs(monotonic),
+        if wall >= 0 { start.1 + Duration::from_secs(wall as u64) } else { start.1 - Duration::from_secs(wall.unsigned_abs()) });
+    assert!(!system_slept(start, after(30, 30)));
+    assert!(!system_slept(start, after(30, 40)));
+    assert!(system_slept(start, after(30, 41)));
+    assert!(system_slept(start, after(30, 3600)));
+    assert!(!system_slept(start, after(30, -600)));
+}
+
 /// 握手完成时撤销同ID的排队连接，避免成功后又弹出重复配对请求。
 #[tokio::test]
 async fn saved_device_commit_rejects_duplicate_queued_request() {

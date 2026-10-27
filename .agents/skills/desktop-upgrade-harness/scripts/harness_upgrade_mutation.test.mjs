@@ -101,6 +101,30 @@ test("manual_merge_must_be_named_before_record", (t) => {
   const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MIXED, "v1"); f.write(f.target, MIXED, "v1"); f.bootstrap(); f.write(f.candidate, MIXED, "upstream"); f.write(f.target, MIXED, "reviewed-local-merge"); const { plan, planPath } = f.createPlan(); assert.equal(f.classification(plan, MIXED), "manual_merge"); f.runTool(["record", "--plan", planPath, "--source-version", f.sourceVersion, "--source-commit", f.sourceCommit, "--approval", "record-verified-baseline"], 2); assert.ok(f.record(planPath, [MIXED]).entries > 0);
 });
 
+for (const relative of [MIXED, ".agents/skills/desktop-add-cli-adapter/SKILL.md"]) {
+  for (const change of ["content", "deletion", "permissions"]) {
+    test(`mixed_preserve_local_keeps_baseline_for_${relative}_${change}`, (t) => {
+      if (change === "permissions" && process.platform === "win32") return t.skip("POSIX permission bits required");
+      const f = new HarnessUpgradeFixture(t);
+      f.write(f.candidate, relative, "baseline"); f.write(f.target, relative, "baseline");
+      f.bootstrap();
+      const baseline = JSON.parse(fs.readFileSync(f.lock, "utf8")).entries[relative];
+      const target = path.join(f.target, relative);
+      if (change === "content") fs.writeFileSync(target, "local decision");
+      else if (change === "deletion") fs.rmSync(target);
+      else fs.chmodSync(target, 0o700);
+      const local = fs.existsSync(target) ? snapshotFile(target) : null;
+      const { plan, planPath } = f.createPlan();
+      assert.equal(f.classification(plan, relative), "preserve_local");
+      f.record(planPath);
+      assert.deepEqual(JSON.parse(fs.readFileSync(f.lock, "utf8")).entries[relative], baseline);
+      assert.deepEqual(fs.existsSync(target) ? snapshotFile(target) : null, local);
+      f.write(f.candidate, relative, "upstream changed");
+      assert.equal(f.classification(f.plan(), relative), "manual_merge");
+    });
+  }
+}
+
 test("managed_self_updates_after_other_managed_files", (t) => {
   const f = new HarnessUpgradeFixture(t); for (const relative of [MANAGED, MANAGED_SELF]) { f.write(f.candidate, relative, "v1"); f.write(f.target, relative, "v1"); } f.bootstrap(); for (const relative of [MANAGED, MANAGED_SELF]) f.write(f.candidate, relative, "v2");
   const { planPath } = f.createPlan(); f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", MANAGED_SELF], 2); assert.deepEqual(f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", MANAGED]).applied, [MANAGED]);

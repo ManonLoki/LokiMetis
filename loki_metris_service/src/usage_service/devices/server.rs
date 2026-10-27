@@ -1,9 +1,9 @@
 //! 桌面拥有监听、广播和所有连接JoinSet；离开页面只撤销临时配对，不关闭已配对联动。
 
-use super::{Devices, Duration, Instant, framing::FrameReader, link_transport, transport};
+use super::{Devices, Duration, Instant, discovery::system_slept, framing::FrameReader, link_transport, transport};
 use crate::usage_service::background::BackgroundTaskShutdown;
 use loki_metris_core::devices::{DiscoveredDevice, VerifiedPairing, is_lan_endpoint, MAX_SAVED_DEVICES,
-    link::{ConnectionIntroduction, HOST_SERVICE_TYPE, LinkControl, PairingOffer, EncryptedPacket, MAX_ENCRYPTED_FRAME_BYTES},
+    link::{ConnectionIntroduction, LinkControl, PairingOffer, EncryptedPacket, MAX_ENCRYPTED_FRAME_BYTES},
     presence::{PresenceLease, UnavailableReason, DEVICE_HEARTBEAT_INTERVAL}};
 use std::{collections::BTreeMap, net::SocketAddr, sync::Arc};
 use tokio::{net::{TcpListener, TcpStream}, sync::{Semaphore, OwnedSemaphorePermit, oneshot, watch}, task::JoinSet};
@@ -26,6 +26,10 @@ const SERVER_RETRY_MAX: Duration = Duration::from_secs(30);
 const SERVER_RETRY_RESET_AFTER: Duration = Duration::from_secs(60);
 /// accept瞬时失败（连接中止、句柄暂满）只短暂让出，不拆除广播与已认证连接。
 const ACCEPT_RETRY_DELAY: Duration = Duration::from_millis(100);
+/// 广播健康检查周期；每分钟两次唤醒，远低于mDNS库自身5秒的网卡轮询。
+const ADVERTISEMENT_CHECK_INTERVAL: Duration = Duration::from_secs(30);
+/// 已配对设备全部离线时定期重建广播，自愈睡眠检测覆盖不到的网卡闪断或端口被系统mDNS抢占。
+const IDLE_READVERTISE_INTERVAL: Duration = Duration::from_secs(120);
 
 /// 桌面用户选择候选后才传递四位码，任务完成结果仍由原有文件提交入口消费。
 pub(super) struct PairingCommand { pub(super) code: String, pub(super) client: String, pub(super) result: oneshot::Sender<Result<VerifiedPairing, &'static str>> }
@@ -148,20 +152,14 @@ impl Devices {
         if shutdown.is_cancelled() || *cancelled.borrow() { return Ok(()); }
         let listener = TcpListener::bind("0.0.0.0:0").await.map_err(|_| "device_link_unavailable")?;
         let port = listener.local_addr().map_err(|_| "device_link_unavailable")?.port();
-        super::discovery::cleanup_mdns(&self.host_daemon).await?;
-        let daemon = mdns_sd::ServiceDaemon::new().map_err(|_| "device_discovery_failed")?;
-        *self.host_daemon.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(daemon.clone());
         let mut connections = JoinSet::new();
         let result = async {
-            // 首版监听IPv4；不发布无法接受连接的IPv6或环回端点。
-            daemon.disable_interface(vec![mdns_sd::IfKind::IPv6, mdns_sd::IfKind::LoopbackV4]).map_err(|_| "device_discovery_failed")?;
-            let instance = self.instance_name(&book); let host = format!("loki-{}.local.", book.client_id());
-            let properties = [("v", "1"), ("id", book.client_id()), ("name", instance.as_str())];
-            let info = mdns_sd::ServiceInfo::new(HOST_SERVICE_TYPE, &instance, &host, "", port, properties.as_slice())
-                .map_err(|_| "device_discovery_failed")?.enable_addr_auto();
-            let monitor = daemon.monitor().map_err(|_| "device_discovery_failed")?;
-            daemon.register(info).map_err(|_| "device_discovery_failed")?;
-            { let mut state = self.state(); state.book.get_or_insert(book); state.view.listening_port = Some(port); state.view.link_error = None; }
+            let mut monitor = self.advertise(&book, port).await?;
+            let mut advertised_at = Instant::now();
+            let mut health = tokio::time::interval_at(tokio::time::Instant::now() + ADVERTISEMENT_CHECK_INTERVAL, ADVERTISEMENT_CHECK_INTERVAL);
+            health.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            let mut clocks = (Instant::now(), std::time::SystemTime::now());
+            { let mut state = self.state(); state.book.get_or_insert(book.clone()); state.view.listening_port = Some(port); state.view.link_error = None; }
             let pending = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS));
             let publisher = self.clone(); let publisher_cancelled = cancelled.clone();
             connections.spawn(async move { publisher.publish_loop(publisher_cancelled).await; });
@@ -172,6 +170,16 @@ impl Devices {
                     _ = cancelled.changed() => break,
                     event = monitor.recv_async() => {
                         if matches!(event, Ok(mdns_sd::DaemonEvent::Error(_)) | Err(_)) { return Err("device_discovery_failed"); }
+                    },
+                    _ = health.tick() => {
+                        let now = (Instant::now(), std::time::SystemTime::now());
+                        let slept = system_slept(clocks, now); clocks = now;
+                        let idle = { let state = self.state(); state.server.sessions.is_empty() && state.book.as_ref().is_some_and(|book| !book.summaries().is_empty()) };
+                        if slept || (idle && advertised_at.elapsed() >= IDLE_READVERTISE_INTERVAL) {
+                            // 仅重建广播；监听端口与已认证连接保持不变，小组件缓存的端口继续有效。
+                            tracing::info!(event = "device_mdns_readvertise", slept, idle);
+                            monitor = self.advertise(&book, port).await?; advertised_at = Instant::now();
+                        }
                     },
                     result = connections.join_next(), if !connections.is_empty() => {
                         if matches!(result, Some(Err(_))) { return Err("device_link_unavailable"); }

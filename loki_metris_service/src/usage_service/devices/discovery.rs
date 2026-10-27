@@ -1,10 +1,13 @@
 //! mDNS浏览只解析兼容服务；权限、组播和退出失败均显式反映到页面。
 
 use super::{Devices, Duration, Instant};
-use loki_metris_core::devices::{DEVICE_SERVICE_TYPE, DiscoveredDevice, MAX_DISCOVERED_DEVICES};
+use loki_metris_core::devices::{DEVICE_SERVICE_TYPE, DeviceBook, DiscoveredDevice, MAX_DISCOVERED_DEVICES, link::HOST_SERVICE_TYPE};
 use mdns_sd::{DaemonEvent, DaemonStatus, ResolvedService, ScopedIp, ServiceDaemon, ServiceEvent};
-use std::{net::{SocketAddr, SocketAddrV6}, sync::Arc};
+use std::{net::{SocketAddr, SocketAddrV6}, sync::Arc, time::SystemTime};
 use tokio::sync::watch;
+
+/// 墙钟比单调时钟多走超过此值即视为系统睡眠过；唤醒后网卡可能保留原IP，mDNS库察觉不到组播成员已失效。
+const SLEEP_DETECTION_GAP: Duration = Duration::from_secs(10);
 
 impl Devices {
     /// 每次浏览12秒；重复点击不创建额外daemon，所有退出路径均请求并确认关闭。
@@ -80,6 +83,22 @@ impl Devices {
         cleanup_mdns(&self.daemon).await
     }
 
+    /// 确认旧daemon退出后用全新socket重新加入组播并公告；重建期间旧广播的goodbye让终端开启新一轮重连。
+    pub(super) async fn advertise(&self, book: &DeviceBook, port: u16) -> Result<mdns_sd::Receiver<DaemonEvent>, &'static str> {
+        cleanup_mdns(&self.host_daemon).await?;
+        let daemon = ServiceDaemon::new().map_err(|_| "device_discovery_failed")?;
+        *self.host_daemon.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(daemon.clone());
+        // 首版监听IPv4；不发布无法接受连接的IPv6或环回端点。
+        daemon.disable_interface(vec![mdns_sd::IfKind::IPv6, mdns_sd::IfKind::LoopbackV4]).map_err(|_| "device_discovery_failed")?;
+        let instance = self.instance_name(book); let host = format!("loki-{}.local.", book.client_id());
+        let properties = [("v", "1"), ("id", book.client_id()), ("name", instance.as_str())];
+        let info = mdns_sd::ServiceInfo::new(HOST_SERVICE_TYPE, &instance, &host, "", port, properties.as_slice())
+            .map_err(|_| "device_discovery_failed")?.enable_addr_auto();
+        let monitor = daemon.monitor().map_err(|_| "device_discovery_failed")?;
+        daemon.register(info).map_err(|_| "device_discovery_failed")?;
+        Ok(monitor)
+    }
+
     /// 数据服务独立回收，临时发现不能关闭长期服务的广播。
     pub(in crate::usage_service) async fn cleanup_host_daemon(&self) -> Result<(), &'static str> {
         cleanup_mdns(&self.host_daemon).await
@@ -93,6 +112,12 @@ impl Devices {
         if state.candidates.len() >= MAX_DISCOVERED_DEVICES && !state.candidates.contains_key(info.get_fullname()) { return; }
         state.candidates.insert(info.get_fullname().into(), (device, Instant::now() + Duration::from_secs(30)));
     }
+}
+
+/// 单调时钟在macOS/Linux睡眠期间不走，墙钟照常前进；差值超过阈值即判定期间系统睡眠过。墙钟回拨不误判。
+pub(super) fn system_slept(previous: (Instant, SystemTime), now: (Instant, SystemTime)) -> bool {
+    let monotonic = now.0.saturating_duration_since(previous.0);
+    now.1.duration_since(previous.1).is_ok_and(|wall| wall > monotonic + SLEEP_DETECTION_GAP)
 }
 
 /// 两种mDNS职责共用有界确认退出；失败保留精确句柄供下次或应用退出重试。

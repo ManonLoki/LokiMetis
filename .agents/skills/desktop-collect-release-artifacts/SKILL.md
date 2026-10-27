@@ -9,7 +9,7 @@ description: 在项目根 release 目录中取回、安全合并并验证当前�
 
 GUI 先按根 Cargo metadata 的 `gui-framework` 分派，缺省兼容 Tauri。GPUI 只接收 `$desktop-build-gpui-release` 的 `candidate` 结果；`local` 试包不能进入发布集合。GPUI 保留原生 packager 身份、编译期日志与最终包内资源的字节证据，不加载 Tauri 配置、前端或 updater 专用检查。
 
-GPUI 的 `bundleFormat: app` 对应 `.app.zip` 与 `artifactKind: application-archive`；`dmg|nsis` 对应 `artifactKind: installer`。三者都须核对每次唯一 `buildRun`、`interface: gui` 和 `guiFramework: gpui`，不能把应用归档当作安装行为已验证。
+GPUI 的 `bundleFormat: app` 对应 `.app.zip`，`tar.gz` 对应 Linux 应用归档，两者均为 `artifactKind: application-archive`；`dmg|nsis|deb` 对应 `artifactKind: installer`。所有格式都须核对每次唯一 `buildRun`、`interface: gui` 和 `guiFramework: gpui`，不能把应用归档当作安装行为已验证。Linux 还须核对 GNU x64/ARM64 的 target、ELF、权限与资源证据；同系统交叉架构结果可按明确构建请求收集，实际运行必须在匹配目标架构的宿主验证。
 
 ## 工作流程
 

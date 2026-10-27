@@ -49,6 +49,27 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 - Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装或升级。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 视为损坏并阻断；低于 0.23.1 的可解析稳定 `cargo-xwin` 升级，`>=0.24.0`、预发布、无法解析或损坏的 `cargo-xwin` 阻断。
 - 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退清单依赖、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
 
+## Linux Tauri 系统库人工接续
+
+通用 POSIX helper 不检查或安装 WebKitGTK/GTK；Linux GPUI 专项安装器也不负责 Tauri 系统库。真实 Tauri 测试或构建已经失败，且脱敏诊断证实缺少这些开发库时，保留原命令、退出状态和缺项，按当前发行版提供 [Tauri 官方前置条件](https://v2.tauri.app/start/prerequisites/#linux) 的安装指引并保持阻断（核对：2026-10-20）。不运行无关工具门禁、不临时拼装系统安装器、不静默提权。
+
+用户自行完成安装并告知继续后，只读复探原缺失的 pkg-config 库，如 `webkit2gtk-4.1`、`gtk+-3.0`；确认恢复后仅重试原失败命令一次。探测或重试仍失败时保留原始与新诊断并停止，不以用户转述或通用 Git/Rust/Node 门禁通过代替系统库证据。该人工接续不扩大常规 helper 的自动安装集合，也不授权构建以外的系统或运行操作。
+
+## Linux GPUI 专项恢复
+
+GNU x64/ARM64 的目标系统依赖使用 [linux-gpui-dependencies.sh](../scripts/linux-gpui-dependencies.sh)，不进入 Tauri WebKit 或 xwin 路线。只在用户明确要求该工具链，或真实测试/构建失败已证实相关缺失时调用；默认 `--check-only`，`--install` 才通过既有 apt/dpkg 安装。仅支持既有 Debian/Ubuntu 路线，不安装新包管理器，也不因选择 Linux 目标例行执行。
+
+~~~sh
+bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --check-only --target aarch64-unknown-linux-gnu
+bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --install --target x86_64-unknown-linux-gnu
+~~~
+
+普通用户运行时只让 apt 步骤通过正常 sudo 交互提权，Rust target 在原用户账户准备并复探。整个入口已为 root 时只做系统依赖阶段，不运行 root 的 Rust 工具、不猜测原用户 HOME；`linux.status=pending-original-user` 和退出码 `20` 要求回原用户执行输出的 `rustup target add <target>`，随后重新 `--check-only`。这不是工具链已通过。宿主若已有 pkexec，可由正常 Polkit 认证接续管理员阶段；脚本不会自行调用或安装 pkexec，不注入密码或修改 sudo 策略。
+
+脚本检查成功与打包 `setup` 的真实目标 C++ 编译链接、ELF 核对是两阶段证据；setup 不执行目标程序，也不安装系统依赖。GNU 前缀、开发库、交叉 pkg-config 隔离与链接器合同取 [Linux 打包引用](../../desktop-build-gpui-release/references/linux-packaging.md)。协议测试的 dbus-daemon 仅用于 owned 私有地址，实际桌面可使用 dbus-broker，不要求替换用户 session bus。
+
+工具已安装而旧 Agent 仍报 `command not found` 时，先核对受影响命令的新登录 shell 解析或门禁返回路径，不重复安装。若出现 Snap curl 私有临时目录导致的 `curl: (23)` 写入失败，核对后可使用已安装的原生 `/usr/bin/curl`，或为本次恢复将标准 TMPDIR 指向用户已有可访问目录；这是条件排障，不是 helper 自动选择行为。保持下载 TLS/摘要校验与原 HOME，不能用测试覆盖绕过安装安全措施。
+
 ## Windows 自动安装受阻后的人工接续
 
 Windows 写入门禁先尝试现有静默路线：Git 使用 `winget --silent --disable-interactivity`，Rust、Node.js、pnpm 安装到当前用户环境，MSVC 使用验签后的微软 Build Tools 引导程序 `--quiet --wait --norestart`。静默表示安装界面最少，不代表可以绕过 UAC、管理员授权或组织策略；微软的 Visual Studio 安装要求管理员权限，标准用户不能以 `--quiet` 绕过。Agent 能在已授权的管理员上下文继续时，仍优先完成自动安装和复探。

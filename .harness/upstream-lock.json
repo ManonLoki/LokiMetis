@@ -69,12 +69,12 @@
     ".agents/skills/desktop-add-gpui-adapter/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "56630400d8c4c0be84d6a892992da2241a3be8affafd5d6cd0737fe8beb2d267"
+        "sha256": "3326a38b2f854ca4141d3c15f1650daf8680250f960062cb316632ac11d2a6b6"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "56630400d8c4c0be84d6a892992da2241a3be8affafd5d6cd0737fe8beb2d267"
+        "sha256": "3326a38b2f854ca4141d3c15f1650daf8680250f960062cb316632ac11d2a6b6"
       }
     },
     ".agents/skills/desktop-add-gpui-adapter/agents/openai.yaml": {
@@ -594,26 +594,48 @@
         "sha256": "e87084bd2d8a923a958dc1f2dc1945bfb7db5a5ee0672ef1fd9c9abd0aa3de1d"
       }
     },
-    ".agents/skills/desktop-add-gpui-adapter/references/native-capabilities.md": {
+    ".agents/skills/desktop-add-gpui-adapter/references/existing-gui-capabilities.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "67ba1cef4cd8c796add56e53f524bec827544546c5a0eda6b7d4f2e501bfd97e"
+        "sha256": "c324f0c887cd05816e52dfb2562810f7c848ec96da7fdd60853401ff552ee8bb"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "67ba1cef4cd8c796add56e53f524bec827544546c5a0eda6b7d4f2e501bfd97e"
+        "sha256": "c324f0c887cd05816e52dfb2562810f7c848ec96da7fdd60853401ff552ee8bb"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/linux-native.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "bde03fe34be5c76a1951abb6d7f13376a5d97fc4e016342acd9c098642007591"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "bde03fe34be5c76a1951abb6d7f13376a5d97fc4e016342acd9c098642007591"
+      }
+    },
+    ".agents/skills/desktop-add-gpui-adapter/references/native-capabilities.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "1654b913e19784677f3016b15e1c77cafc943d2e3722ae4d4a30e8ff51500bd4"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "1654b913e19784677f3016b15e1c77cafc943d2e3722ae4d4a30e8ff51500bd4"
       }
     },
     ".agents/skills/desktop-add-gpui-adapter/references/runtime-and-native.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "53fe45bc882dd01c57da2ed6b35f32b34bd15341a02e8d3d1a6da6a730427162"
+        "sha256": "44fe5d0b66cf7c67839e2c690a0feb7e7667f5109654da6aac3fc0d62ba7b65a"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "53fe45bc882dd01c57da2ed6b35f32b34bd15341a02e8d3d1a6da6a730427162"
+        "sha256": "44fe5d0b66cf7c67839e2c690a0feb7e7667f5109654da6aac3fc0d62ba7b65a"
       }
     },
     ".agents/skills/desktop-add-gpui-adapter/references/shell-surfaces.md": {
@@ -773,12 +795,12 @@
     ".agents/skills/desktop-add-gpui-autostart/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "863b71fec7554d30a61614fef0e469c662b39689535c3b0bb1b80af11f695efa"
+        "sha256": "162bbf43eb78673641e0f66b33724c43449a31b8c10983a309602dcc92ea58bb"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "863b71fec7554d30a61614fef0e469c662b39689535c3b0bb1b80af11f695efa"
+        "sha256": "162bbf43eb78673641e0f66b33724c43449a31b8c10983a309602dcc92ea58bb"
       }
     },
     ".agents/skills/desktop-add-gpui-autostart/agents/openai.yaml": {
@@ -795,12 +817,12 @@
     ".agents/skills/desktop-build-gpui-release/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "5f4e115332628b2b7c3bc50827c50e3ca660036489acdb70bdc762fafb1d219c"
+        "sha256": "0af988fd18618d604e9fbe46c8f14e50d0ef4479d34bb49f7b27dfae43b5025f"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "5f4e115332628b2b7c3bc50827c50e3ca660036489acdb70bdc762fafb1d219c"
+        "sha256": "0af988fd18618d604e9fbe46c8f14e50d0ef4479d34bb49f7b27dfae43b5025f"
       }
     },
     ".agents/skills/desktop-build-gpui-release/agents/openai.yaml": {
@@ -861,23 +883,34 @@
     ".agents/skills/desktop-build-gpui-release/references/configuration.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "875522e7fdcae3b3561fd48cebbb83c204b5afa4357e4edce4a0d074fc7487ae"
+        "sha256": "e95f20f0ce32ed849765f8bdde0621cb259ccaec39a161d264c0435fb26adf15"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "875522e7fdcae3b3561fd48cebbb83c204b5afa4357e4edce4a0d074fc7487ae"
+        "sha256": "e95f20f0ce32ed849765f8bdde0621cb259ccaec39a161d264c0435fb26adf15"
+      }
+    },
+    ".agents/skills/desktop-build-gpui-release/references/linux-desktop-integration.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "5063fe939d9767953f4492ec2834c34b2bdbec35566e4cc0e8d3b9266950dea9"
+      },
+      "mode": "conditional",
+      "target": {
+        "mode": 420,
+        "sha256": "5063fe939d9767953f4492ec2834c34b2bdbec35566e4cc0e8d3b9266950dea9"
       }
     },
     ".agents/skills/desktop-build-gpui-release/references/linux-packaging.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "ee6415051a85d86bef4536e54c123a47083e4765250db6d8fc2890aedae100a2"
+        "sha256": "64c0483d9c35c5ee1f53874d0026a8ed28298c789ce5f8fd8c585fd18d4bee71"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "ee6415051a85d86bef4536e54c123a47083e4765250db6d8fc2890aedae100a2"
+        "sha256": "64c0483d9c35c5ee1f53874d0026a8ed28298c789ce5f8fd8c585fd18d4bee71"
       }
     },
     ".agents/skills/desktop-build-gpui-release/references/macos-packaging.md": {
@@ -916,12 +949,12 @@
     ".agents/skills/desktop-build-gpui-release/scripts/gpui_build.test.mjs": {
       "candidate": {
         "mode": 420,
-        "sha256": "33d6ec7594177f5820650c346e10772e09862619ef7daf319b66288d0533b311"
+        "sha256": "f19373a45a6c0670199bb85acb5012dc4c32362ca9e929f230de6b964ea0fcb3"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "33d6ec7594177f5820650c346e10772e09862619ef7daf319b66288d0533b311"
+        "sha256": "f19373a45a6c0670199bb85acb5012dc4c32362ca9e929f230de6b964ea0fcb3"
       }
     },
     ".agents/skills/desktop-build-gpui-release/scripts/gpui_config.mjs": {
@@ -993,23 +1026,23 @@
     ".agents/skills/desktop-build-gpui-release/scripts/gpui_linux.test.mjs": {
       "candidate": {
         "mode": 420,
-        "sha256": "459cf01883cdff0dfd7e7d303191460cff9dc73316e907e0e426f2d357cc64db"
+        "sha256": "104d8e589282a44515991236f0dbb8fcbc3f5c36bd48da22fb99fde2ca314b9e"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "459cf01883cdff0dfd7e7d303191460cff9dc73316e907e0e426f2d357cc64db"
+        "sha256": "104d8e589282a44515991236f0dbb8fcbc3f5c36bd48da22fb99fde2ca314b9e"
       }
     },
     ".agents/skills/desktop-build-gpui-release/scripts/gpui_linux_build.mjs": {
       "candidate": {
         "mode": 420,
-        "sha256": "7baf5c563238b1ffc243f0480a22c87569d1364e4f588156d7c69099bf204850"
+        "sha256": "c9077b0d4160f29e4ca163fe303bee0ad91c1e719379be949f1c564afbd1b7e4"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "7baf5c563238b1ffc243f0480a22c87569d1364e4f588156d7c69099bf204850"
+        "sha256": "c9077b0d4160f29e4ca163fe303bee0ad91c1e719379be949f1c564afbd1b7e4"
       }
     },
     ".agents/skills/desktop-build-gpui-release/scripts/gpui_linux_package.mjs": {
@@ -1081,34 +1114,34 @@
     ".agents/skills/desktop-check-development-environment/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "e348451a8b0db816ad6aa789e1a6e4cff7aa3764408f83544a2d5be5e0cf6dd7"
+        "sha256": "0b87ebba66e353857d6e63a8cfdde2491fbefe59f838cda169d23a38717f0307"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "e348451a8b0db816ad6aa789e1a6e4cff7aa3764408f83544a2d5be5e0cf6dd7"
+        "sha256": "0b87ebba66e353857d6e63a8cfdde2491fbefe59f838cda169d23a38717f0307"
       }
     },
     ".agents/skills/desktop-check-development-environment/agents/openai.yaml": {
       "candidate": {
         "mode": 420,
-        "sha256": "e10fb4192968dcf7b14472d3178611321dfbd3ec1dc2fb862c5921e0212e6eef"
+        "sha256": "5626aafadafdab5768c12ace698d44668e4e09562fef1b5b68ea9dbc5ec19a95"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "e10fb4192968dcf7b14472d3178611321dfbd3ec1dc2fb862c5921e0212e6eef"
+        "sha256": "5626aafadafdab5768c12ace698d44668e4e09562fef1b5b68ea9dbc5ec19a95"
       }
     },
     ".agents/skills/desktop-check-development-environment/references/development-environment-gates.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "a129660ef1622522fcd4fa982bc37ced037e21253b0e89954a5af8b1ba43c6b8"
+        "sha256": "b7cbd968f2406926773cfe9580300c255f11b509ec91ec8ba36c2b83d7e973ce"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "a129660ef1622522fcd4fa982bc37ced037e21253b0e89954a5af8b1ba43c6b8"
+        "sha256": "b7cbd968f2406926773cfe9580300c255f11b509ec91ec8ba36c2b83d7e973ce"
       }
     },
     ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1": {
@@ -1235,12 +1268,12 @@
     ".agents/skills/desktop-collect-release-artifacts/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "f8e5becc1f891ec80c1302f4a712dda100662a3040c78b765aaad98514bbc3ae"
+        "sha256": "893e077280c0a098c26ae96c6622e8e578cbeddec8a1a079020fbf1bba736cba"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "f8e5becc1f891ec80c1302f4a712dda100662a3040c78b765aaad98514bbc3ae"
+        "sha256": "893e077280c0a098c26ae96c6622e8e578cbeddec8a1a079020fbf1bba736cba"
       }
     },
     ".agents/skills/desktop-collect-release-artifacts/agents/openai.yaml": {
@@ -1433,12 +1466,12 @@
     ".agents/skills/desktop-implement-change/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "74271f67626e7507e5dd6df43eee9524b618c811a6cb48ff5476534b1b7eff51"
+        "sha256": "6ef65775935bf96352af1de648e9e77e1629511a66663db716d2298843b0b093"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "74271f67626e7507e5dd6df43eee9524b618c811a6cb48ff5476534b1b7eff51"
+        "sha256": "6ef65775935bf96352af1de648e9e77e1629511a66663db716d2298843b0b093"
       }
     },
     ".agents/skills/desktop-implement-change/agents/openai.yaml": {
@@ -1763,23 +1796,23 @@
     ".agents/skills/desktop-manage-gpui-dependencies/references/compatibility.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "559ab6ff958a62409821eb2f13ecda7b385b79a0512251724468c04130af2fff"
+        "sha256": "fd006363cc9cdb475c5943729e439032e1a439f7d0140868bb912309c2877923"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "559ab6ff958a62409821eb2f13ecda7b385b79a0512251724468c04130af2fff"
+        "sha256": "fd006363cc9cdb475c5943729e439032e1a439f7d0140868bb912309c2877923"
       }
     },
     ".agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "ac47db68dbcbdce4f970753680053a7346f256f83e2e2f5ed43dbca02c7ec66d"
+        "sha256": "b9bcaf3c1f9e606d62a064bf72c599108e9869dcce12af9dc5aac59e2fffc538"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "ac47db68dbcbdce4f970753680053a7346f256f83e2e2f5ed43dbca02c7ec66d"
+        "sha256": "b9bcaf3c1f9e606d62a064bf72c599108e9869dcce12af9dc5aac59e2fffc538"
       }
     },
     ".agents/skills/desktop-manage-task-worktrees/SKILL.md": {
@@ -1906,23 +1939,23 @@
     ".agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "499e0c1f46958bd8d0e4683174481ed24ba35cf9179ba519bde07e3ee6e0fece"
+        "sha256": "ccef5b6ed9df2d794aeb1700148be932eb9349521e44a475c854604a792a6bae"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "499e0c1f46958bd8d0e4683174481ed24ba35cf9179ba519bde07e3ee6e0fece"
+        "sha256": "ccef5b6ed9df2d794aeb1700148be932eb9349521e44a475c854604a792a6bae"
       }
     },
     ".agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "33fc73813574850a632cffebb5090cae488573c8570464bb7fcb0753e392233b"
+        "sha256": "68be3944d1b45cd63d25333de5552d1734286661a450ea432b4d948bd37a0294"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "33fc73813574850a632cffebb5090cae488573c8570464bb7fcb0753e392233b"
+        "sha256": "68be3944d1b45cd63d25333de5552d1734286661a450ea432b4d948bd37a0294"
       }
     },
     ".agents/skills/desktop-plan-change/SKILL.md": {
@@ -2016,23 +2049,23 @@
     ".agents/skills/desktop-prepare-release/scripts/release_context.mjs": {
       "candidate": {
         "mode": 420,
-        "sha256": "1cc0c92e0fd2f6d3dd9c3375d261372672ec9d430309d22006a8575d30f57bee"
+        "sha256": "30d04f2ce82fc7f7e655fca29389674dcae60a6fb5cbc16b83458242bacb0ad0"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "1cc0c92e0fd2f6d3dd9c3375d261372672ec9d430309d22006a8575d30f57bee"
+        "sha256": "30d04f2ce82fc7f7e655fca29389674dcae60a6fb5cbc16b83458242bacb0ad0"
       }
     },
     ".agents/skills/desktop-prepare-release/scripts/release_context.test.mjs": {
       "candidate": {
         "mode": 420,
-        "sha256": "39ef4ceab7fd966dab95a4189a092e629cd8b11661335312c5cbfff1dcb9782f"
+        "sha256": "e297b6cb2d03d4474c3858bcafe1962183d9c9016a33c223495d68612a6e472e"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "39ef4ceab7fd966dab95a4189a092e629cd8b11661335312c5cbfff1dcb9782f"
+        "sha256": "e297b6cb2d03d4474c3858bcafe1962183d9c9016a33c223495d68612a6e472e"
       }
     },
     ".agents/skills/desktop-prepare-release/scripts/release_git.mjs": {
@@ -2379,12 +2412,12 @@
     ".agents/skills/desktop-upgrade-harness/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "6a7d2218eaabb78e915e08d6df7b4ad709b1adfad8f76838b84b19f502e078ee"
+        "sha256": "8f2c82a55110d62f3c71af46ca8d316d568d81f292272515e51dbbb924874289"
       },
       "mode": "managed-self",
       "target": {
         "mode": 420,
-        "sha256": "6a7d2218eaabb78e915e08d6df7b4ad709b1adfad8f76838b84b19f502e078ee"
+        "sha256": "8f2c82a55110d62f3c71af46ca8d316d568d81f292272515e51dbbb924874289"
       }
     },
     ".agents/skills/desktop-upgrade-harness/agents/openai.yaml": {
@@ -2409,6 +2442,17 @@
         "sha256": "9136e57fe847e0ad9326c9663ae5b60392ae130bf4422265c361e82e5240426a"
       }
     },
+    ".agents/skills/desktop-upgrade-harness/references/gpui-ownership.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "ce2c210d46ac391712e7d5b136d58c490174275471f33ebfbcf0f5a36635beaa"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "ce2c210d46ac391712e7d5b136d58c490174275471f33ebfbcf0f5a36635beaa"
+      }
+    },
     ".agents/skills/desktop-upgrade-harness/references/ownership-manifest.json": {
       "candidate": {
         "mode": 420,
@@ -2423,12 +2467,12 @@
     ".agents/skills/desktop-upgrade-harness/references/ownership-policy.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "5459c728acb8bccac3145206bc4000167f38eb0e88b697d352bcaa1afe76c417"
+        "sha256": "1ff864c7d2eb8eb52b32e43d5f5921e748babbffbea9b2598838b5bad54942a6"
       },
       "mode": "managed-self",
       "target": {
         "mode": 420,
-        "sha256": "5459c728acb8bccac3145206bc4000167f38eb0e88b697d352bcaa1afe76c417"
+        "sha256": "1ff864c7d2eb8eb52b32e43d5f5921e748babbffbea9b2598838b5bad54942a6"
       }
     },
     ".agents/skills/desktop-upgrade-harness/references/program-type-labels.md": {
@@ -2440,6 +2484,17 @@
       "target": {
         "mode": 420,
         "sha256": "1ddf7bba6a0f254a0660db2cc0d72259ac634d6f3097aeff4a91700019cb8a05"
+      }
+    },
+    ".agents/skills/desktop-upgrade-harness/references/tauri-ownership.md": {
+      "candidate": {
+        "mode": 420,
+        "sha256": "4265fef134b34c7552ba243fc5a7cf72a63608bbd89deecc7fd5741a55493ed8"
+      },
+      "mode": "managed-self",
+      "target": {
+        "mode": 420,
+        "sha256": "4265fef134b34c7552ba243fc5a7cf72a63608bbd89deecc7fd5741a55493ed8"
       }
     },
     ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs": {
@@ -2588,12 +2643,12 @@
     ".agents/skills/desktop-verify-delivery/SKILL.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "fd8f2b0b137ad4d3f29a1bcabd473677996b96fed520619bf3849e1be3f6c895"
+        "sha256": "747f77d051208435edfd26a69a60d09336489cf9008dd3ca9c7a3ad789ee6cd7"
       },
       "mode": "managed",
       "target": {
         "mode": 420,
-        "sha256": "fd8f2b0b137ad4d3f29a1bcabd473677996b96fed520619bf3849e1be3f6c895"
+        "sha256": "747f77d051208435edfd26a69a60d09336489cf9008dd3ca9c7a3ad789ee6cd7"
       }
     },
     ".agents/skills/desktop-verify-delivery/agents/openai.yaml": {
@@ -2643,12 +2698,12 @@
     "docs/GUI_ENGINEERING.md": {
       "candidate": {
         "mode": 420,
-        "sha256": "8cbb7233712596a1318817a6ec1b1a27f76444bb57e75d584133d6f24072d381"
+        "sha256": "5469b6ac6c070abcc298d95c9556308e8b3548037c32921d2b40b828ae2bb1ab"
       },
       "mode": "conditional",
       "target": {
         "mode": 420,
-        "sha256": "8cbb7233712596a1318817a6ec1b1a27f76444bb57e75d584133d6f24072d381"
+        "sha256": "5469b6ac6c070abcc298d95c9556308e8b3548037c32921d2b40b828ae2bb1ab"
       }
     },
     "docs/RELEASE.md": {
@@ -2741,9 +2796,9 @@
     }
   },
   "harness_source": {
-    "commit": "387c286790b173633aaf9702758032d0e539432c",
-    "version": "202610101414"
+    "commit": "00388772708fce891ecf08edcb8e50a0ff64cf6a",
+    "version": "202610201054"
   },
-  "recorded_at": "2026-10-19T09:45:08.731+00:00",
+  "recorded_at": "2026-10-25T09:13:50.638+00:00",
   "schema_version": 2
 }

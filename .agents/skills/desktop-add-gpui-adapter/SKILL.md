@@ -5,7 +5,7 @@ description: 为已明确选择 GPUI 的中性 Rust 下游建立原生桌面薄�
 
 # 增加 GPUI 原生适配器
 
-只在初始化已选择 `gui_framework = gpui`，或已初始化下游明确批准增加 GPUI 接口时使用。本仓库已实例化并明确选择 GPUI，不重新询问框架，也不继续派生项目；下文初始化流程仅说明保留 helper 的适用合同。通用初始化的 Tauri 默认值不覆盖本项目根 Cargo。GPUI 原生视图使用 Rust；根 pnpm 入口运行保留的 Node 工程检查与发布工具，默认无第三方 npm 依赖，无需前端。不得混装 React、WebView 或 Tauri plugin。只有真实 Harness 源根才仅维护模板和工程规则；当前终端下游允许在批准范围内维护产品。
+只在初始化已选择 `gui_framework = gpui`，、已初始化下游明确批准增加 GPUI 接口，或维护既有 GPUI 壳层/能力时使用。本仓库已实例化并明确选择 GPUI，不重新询问框架，也不继续派生项目；下文初始化流程仅说明保留 helper 的适用合同。通用初始化的 Tauri 默认值不覆盖本项目根 Cargo。GPUI 原生视图使用 Rust；根 pnpm 入口运行保留的 Node 工程检查与发布工具，默认无第三方 npm 依赖，无需前端。不得混装 React、WebView 或 Tauri plugin。只有真实 Harness 源根才仅维护模板和工程规则；当前终端下游允许在批准范围内维护产品。
 
 当前产品已有 `UsageService` 拥有的Tokio运行时、七个本地第三方兼容包、三平台原生通知桥和Linux宿主扩展；实际机制见[工程基线](../../../docs/RUST_CLI_TEMPLATE.md)及[GUI支持界面](../../../docs/GUI_SUPPORT_SURFACES.md)。下文“模板不需要Tokio”“通知复用Kit”和add-only的Linux限制只描述中性生成器，不表示产品尚未实现这些能力。
 
@@ -17,17 +17,19 @@ GPUI Kit 官方知识的创建期安装由上游初始化器负责；既有下�
 
 初始化及运行时/能力接线读 [runtime-and-native](references/runtime-and-native.md)；侧栏/关于/赞助页变更读 [shell-surfaces](references/shell-surfaces.md)；根 pnpm 脚本或开发循环变更读 [workspace-tooling](references/workspace-tooling.md)。只读取命中主题，保留九字段、禁用裁剪与已有产品接线。
 
+已有 GPUI GUI 新增、调整或禁用通知、托盘或全局快捷键时，再读 [既有 GUI 能力增量接线](references/existing-gui-capabilities.md)，按引用完成后返回同一实施流程，不执行下面新增接口的生成步骤；保留产品定制，不重跑拒绝已有 GUI 的 add-only helper。自启继续交 `$desktop-add-gpui-autostart`。
+
 Linux原生窗口、托盘恢复、Dock或通知改动再读[Linux宿主方案](references/linux-native.md)。产品已验证能力的版本/架构/会话范围取[能力证据索引](../../../docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)，不把历史候选通过扩张为当前版本或中性renderer通过。
 
 1. 按 `AGENTS.md` 读取当前任务命中的工程与 Rust 规范；GUI 设计只读 `docs/design_standards/README.md` 与 `docs/design_standards/gpui_gui.md`。初次中性初始化复用初始化器已经确认的身份、接口、目标平台和九项 GUI profile，不要求 Product Spec、ADR、Work Plan、版本分类或发布上下文。初始化后新增接口才按 `$desktop-manage-version` 处理已批准 feature。
 
-2. 框架由独立问题选择：`1. Tauri（默认；未回答时使用）`、`2. GPUI`。九项 profile 保持原顺序：`system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`。托盘、系统通知、自启、单实例与全局快捷键允许 enabled/disabled，只按选择生成依赖和实现。深链接仍 unavailable/disabled；本项目Linux扩展按[当前产品规格](../../../docs/product_spec/20261022_product_spec.md#目标与范围)和[Linux工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md)执行；不得把旧X11热键成功回执当作Wayland支持，未接线能力不能宣称可用。关于/赞助页分别允许 `enabled` 或 `disabled`；侧栏为 `compact` 或 `detailed`。全部选择结束后必须读取 [原生能力与配置询问](references/native-capabilities.md)，汇总已选能力并询问配置协助；具体产品配置留到终端下游唯一根目录，不在 Harness 源收集业务内容。
+2. 已有项目复用根 Cargo 与受保护 profile 的确认结果；中性初始化复用统一表单已确认的框架和能力，缺失答案不得自行应用默认。九项 profile 保持原顺序：`system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`。托盘、系统通知、自启、单实例与全局快捷键允许 enabled/disabled，只按选择生成依赖和实现。深链接仍 unavailable/disabled；本项目Linux扩展按[当前产品规格](../../../docs/product_spec/20261022_product_spec.md#目标与范围)和[Linux工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md)执行；不得把旧X11热键成功回执当作Wayland支持，未接线能力不能宣称可用。关于/赞助页分别允许 `enabled` 或 `disabled`；侧栏为 `compact` 或 `detailed`。全部选择结束后必须读取 [原生能力与配置询问](references/native-capabilities.md)，汇总已选能力并询问配置协助；具体产品配置留到终端下游唯一根目录，不在 Harness 源收集业务内容。
 
 3. 普通初始化继续复用三个原始 Logo 候选 → 用户选择 → 只验证并标准化所选项的流程；GPUI 只消费已选择的普通 PNG，不生成 Tauri 平台图标。工程验证可在用户明确授权时使用本 Skill 自绘的中性 SVG 或明确给定 PNG，并在 profile 中标记工程夹具，不能冒充正式品牌确认。双语展示名称必须来自同一确认结果；至少一种来自用户，另一种可按初始化流程翻译。不得把 machine ID 当英文展示名称。
 
 4. 本 Skill 只面向已有共享 core 的下游。使用 [scripts/add_gpui_adapter.mjs](scripts/add_gpui_adapter.mjs) 的 `addGpuiAdapter(options)`，必须验证已有根 Cargo、直接 core member、项目/目标平台身份，没有 GUI 且依赖无冲突，随后增加 GUI/profile、独立 `packaging/gpui.json` 与项目内中性背景/所选 PNG 衍生图标，并定点合并 root Cargo 与根 `package.json` 工程入口；不创建或覆盖 core、不创建 Git、不写 Agent Policy 或 Product Spec。已有打包配置也必须保留，冲突时零写入失败。复杂或多行 Cargo 数组目前失败关闭，按明确人工合并处理。[scripts/gpui_adapter_files.mjs](scripts/gpui_adapter_files.mjs) 的 `renderGpuiAdapterFiles(options)` 返回上述文件的纯 Map，没有创建 workspace/core 的写入能力；打包配置和图标使用保留的 `$desktop-build-gpui-release` 标准库 renderer。普通所选 PNG 应已标准化为 256..2048 方形、8-bit RGB/RGBA、非交错格式；中性 SVG 工程夹具可以初始化，但缺少实际 PNG 时打包明确阻断。全新中性工程的源专用流程由源专用初始化器负责，终端下游不得通过本入口继续派生项目。
 
-5. 原生能力变更运行 `node --test .agents/skills/desktop-add-gpui-adapter/scripts/gpui_native_capabilities.test.mjs`；profile 纯解析器拒绝缺字段/乱序/重复块/非法中性合同。运行本次 add-only 回归 `node --test .agents/skills/desktop-add-gpui-adapter/scripts/add_gpui_adapter.test.mjs`；变更 Node 工程入口时同时运行 [gpui_node_tooling.test.mjs](scripts/gpui_node_tooling.test.mjs)。生成的同名 `_test.rs` 使用 Kit 真实渲染树验证详细菜单左对齐、两档折叠按钮中心与侧栏边界/Logo中心对齐、跨边界部分点击、壳层无水平偏移，以及赞助模板在宽窄窗口/双语/明暗主题中的全页槽、等宽等高卡片与二维码尺寸；不以字符串扫描替代几何证据。源专用全新工作区 wrapper、对应测试和 core 模板仅由初始化器拥有，初始化完成与升级时裁掉，不得从终端下游恢复。真实初始化执行非空 `pnpm run test` 与 `cargo build --workspace`；首次当前宿主初始化再通过 Computer Use 观察窗口、Logo/标题/双语、主题、所选侧栏、设置/条件支持页、所选五项桌面能力、关闭隐藏或退出与重启偏好；只对明确安全绑定执行真实按键，自启必须恢复原登录项，需打包权限的通知横幅单列待验证。它们只是 debug 原生初始化验证；明确 GPUI 构建/打包转交独立 `$desktop-build-gpui-release`，不混入 Tauri 管线。未执行平台如实报告。
+5. 原生能力变更运行 `node --test .agents/skills/desktop-add-gpui-adapter/scripts/gpui_native_capabilities.test.mjs`；profile 纯解析器拒绝缺字段/乱序/重复块/非法中性合同。运行本次 add-only 回归 `node --test .agents/skills/desktop-add-gpui-adapter/scripts/add_gpui_adapter.test.mjs`；变更 Node 工程入口时同时运行 [gpui_node_tooling.test.mjs](scripts/gpui_node_tooling.test.mjs)。生成的同名 `_test.rs` 使用 Kit 真实渲染树验证详细菜单左对齐、两档折叠按钮中心与侧栏边界/Logo中心对齐、跨边界部分点击、壳层无水平偏移，以及赞助模板在宽窄窗口/双语/明暗主题中的全页槽、等宽等高卡片与二维码尺寸；不以字符串扫描替代几何证据。源专用全新工作区 wrapper、对应测试和 core 模板仅由初始化器拥有，初始化完成与升级时裁掉，不得从终端下游恢复。新下游初始化由源专用初始化器完成真实调试构建、Computer Use 与恢复；源专用入口基线后删除，保留的 adapter 不在已初始化下游恢复或依赖它。后续新增接口只运行本次实际需要的 Rust/宿主回归，不能冒充初始化或最终候选验收；明确 GPUI 构建/打包转交独立 `$desktop-build-gpui-release`，不混入 Tauri 管线。未执行平台如实报告。
 
 ## 已有工作区 CLI 契约
 

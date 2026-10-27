@@ -12,6 +12,14 @@
 | 最终候选验收 | 保留的 desktop-verify-delivery / desktop-test-final-artifact-e2e | 真实最终字节和目标宿主，构建通过不代替验收 |
 | Linux宿主问题与已有验证 | [Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)、[已验证能力索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)；adapter的[Linux原生方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | 按版本、架构及图形会话判断，历史通过不覆盖新包状态 |
 
+## 各平台打包与桌面集成
+
+| 平台 | 适用 GPUI 工程入口 | 验证边界 |
+| --- | --- | --- |
+| macOS | [app.zip/DMG](../.agents/skills/desktop-build-gpui-release/references/macos-packaging.md) | 签名、公证、最终包与真实安装交互分别取证 |
+| Windows | [原生 x64 NSIS](../.agents/skills/desktop-build-gpui-release/references/windows-packaging.md) | 解包与资源校验不代表 UAC、登录项或安装交互通过 |
+| Linux | [GNU 双架构打包](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)、[应用目录及桌面集成](../.agents/skills/desktop-build-gpui-release/references/linux-desktop-integration.md) | 包内身份、AppStream 解析、包管理事务和软件中心呈现分别取证；本项目 DEP-11 实现按产品合同核对 |
+
 ## 方案选择
 
 原生 GPUI/Kit 负责视图与图标，rust-i18n/sys-locale 负责语言，端侧日志使用有界后台 sink。宿主依赖按 target/profile 裁剪。业务确需才加 Tokio、图片解码、数据库或网络；Tokio 服务拥有 runtime，GPUI loop 仍在同步主线程。renderer 未接线的 Linux 能力保持限制，产品可以通过独立实现扩展，不能反向宣称模板已支持。

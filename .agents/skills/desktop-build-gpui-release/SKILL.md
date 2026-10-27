@@ -14,6 +14,8 @@ description: 通过项目根 pnpm 入口构建 GPUI 的 macOS app/DMG、Windows 
 
 读取项目构建相关 Policy、RELEASE、存在时的 VERIFICATION，再按需要读取 [configuration](references/configuration.md)。macOS 读 [macos-packaging](references/macos-packaging.md)，Windows 读 [windows-packaging](references/windows-packaging.md)，Linux 读 [linux-packaging](references/linux-packaging.md)。仅当前平台需要时加载对应引用。
 
+Linux 应用中心发现、安装图标、升级或卸载问题，再读 [应用目录与桌面安装集成](references/linux-desktop-integration.md)。本项目已通过 `gpui_linux_appstream.mjs` 生成 DEP-11 catalog；文档中的中性上游 helper 缺口不撤销本地实现。包内身份、原生解析、包管理事务和桌面效果分别取证。
+
 项目根入口为 pnpm run gpui:package；Node >=24.21.0、pnpm >=12.4.1，仅用 Node 标准库，不需要先安装 npm 依赖。Cargo metadata 决定 GUI package/binary、目标、版本、额外测试工作区和锁策略，配置不重复存产品版本。
 
 ## 执行合同

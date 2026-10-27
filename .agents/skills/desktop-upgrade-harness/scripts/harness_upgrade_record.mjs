@@ -77,7 +77,7 @@ export function recordLock(args) {
   const entries = {};
   for (const item of plan.actions) {
     if (["protected", "tombstone"].includes(item.mode) || (item.candidate === null && item.target === null)) continue;
-    if (AUTO_MODES.has(item.mode) && item.classification === "preserve_local" && Object.hasOwn(previousEntries, item.path)) entries[item.path] = previousEntries[item.path];
+    if (item.classification === "preserve_local" && Object.hasOwn(previousEntries, item.path)) entries[item.path] = previousEntries[item.path];
     else entries[item.path] = { mode: item.mode, candidate: item.candidate, target: item.target };
   }
   const lock = { schema_version: SCHEMA_VERSION, recorded_at: new Date().toISOString().replace("Z", "+00:00"), harness_source: { version: plan.source_version, commit: plan.source_commit }, entries };

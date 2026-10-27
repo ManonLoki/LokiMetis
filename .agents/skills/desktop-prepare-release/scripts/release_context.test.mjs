@@ -2,7 +2,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
@@ -16,6 +16,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { stampHarnessVersion } from "./harness_version_clock.mjs";
+import { scopeDiffDigest } from "./release_context.mjs";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(SCRIPT_DIRECTORY, "release_context.mjs");
@@ -559,3 +560,34 @@ withFixture("harness_release_date_can_follow_version_clock_date", (item) => {
   const checked = item.invoke("check", "--project-root", item.root);
   assert.equal(checked.status, 0, checked.stderr);
 }, { harness: true });
+
+/** 删除超过子进程默认缓冲上限的二进制资产时，范围摘要仍与完整 diff 原始字节一致。 */
+test("scope_digest_streams_diffs_larger_than_the_process_buffer", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "release-scope-large-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const git = (...args) => {
+    const result = spawnSync("git", ["-C", root, ...args], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git("init", "-b", "main");
+  git("config", "user.name", "Test");
+  git("config", "user.email", "test@example.invalid");
+  writeFileSync(join(root, "asset.bin"), randomBytes(20 * 1024 * 1024));
+  git("add", "asset.bin");
+  git("commit", "-m", "add large asset");
+  const base = git("rev-parse", "HEAD");
+  git("rm", "-q", "asset.bin");
+  git("commit", "-m", "remove large asset");
+  const head = git("rev-parse", "HEAD");
+  const expected = spawnSync("git", [
+    "-C", root, "-c", "core.quotePath=true",
+    "diff", "--binary", "--full-index", "--no-renames", "--no-ext-diff", "--no-textconv",
+    "--no-color", "--no-relative", "--src-prefix=a/", "--dst-prefix=b/",
+    "--diff-algorithm=myers", "--no-indent-heuristic", "--unified=3",
+    "--inter-hunk-context=0", "--submodule=short", "--ignore-submodules=none",
+    base, head, "--",
+  ], { maxBuffer: 256 * 1024 * 1024 });
+  assert.ok(expected.stdout.length > 16 * 1024 * 1024);
+  assert.equal(scopeDiffDigest(root, base, head), createHash("sha256").update(expected.stdout).digest("hex"));
+});

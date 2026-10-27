@@ -8,16 +8,20 @@ import {
   fsyncSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   openSync,
   readFileSync,
+  readSync,
   realpathSync,
   renameSync,
+  rmSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -67,6 +71,9 @@ export function runGit(root, args, { check = true, text = true } = {}) {
     maxBuffer: 64 * 1024 * 1024,
   });
   if (result.error) {
+    if (result.error.code === "ENOBUFS") {
+      throw new ReleaseContextError(`git ${args[0]} output exceeded the in-memory limit`);
+    }
     throw new ReleaseContextError("git executable is unavailable");
   }
   if (check && result.status !== 0) {
@@ -284,6 +291,40 @@ export function validateContext(value) {
   };
 }
 
+/**
+ * 计算固定参数 Git diff 原始字节的 SHA-256。
+ *
+ * 删除大体积二进制资产时 `--binary` 补丁可达数百 MiB，因此让 Git 直接写入私有临时文件并分块哈希，
+ * 摘要与内存中读取完整输出逐字节一致，但不受子进程输出缓冲上限约束。
+ */
+export function scopeDiffDigest(root, base, head) {
+  const directory = mkdtempSync(join(tmpdir(), "release-scope-"));
+  const output = join(directory, "scope.diff");
+  try {
+    runGit(root, [
+      "-c", "core.quotePath=true",
+      "diff", "--binary", "--full-index", "--no-renames", "--no-ext-diff", "--no-textconv",
+      "--no-color", "--no-relative", "--src-prefix=a/", "--dst-prefix=b/",
+      "--diff-algorithm=myers", "--no-indent-heuristic", "--unified=3",
+      "--inter-hunk-context=0", "--submodule=short", "--ignore-submodules=none",
+      `--output=${output}`, base, head, "--",
+    ]);
+    const hash = createHash("sha256");
+    const descriptor = openSync(output, "r");
+    try {
+      const chunk = Buffer.alloc(1024 * 1024);
+      for (let read = readSync(descriptor, chunk); read > 0; read = readSync(descriptor, chunk)) {
+        hash.update(chunk.subarray(0, read));
+      }
+    } finally {
+      closeSync(descriptor);
+    }
+    return hash.digest("hex");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 /** 复算已启用语义审查的源码范围，摘要取固定 Git diff 的原始字节。 */
 export function verifyReviewScope(root, context) {
   const review = context.releaseReview;
@@ -296,15 +337,7 @@ export function verifyReviewScope(root, context) {
   if (ancestry.returncode !== 0) {
     throw new ReleaseContextError("enabled releaseReview.scopeBase must be an ancestor of sourceHead");
   }
-  const diff = runGit(root, [
-    "-c", "core.quotePath=true",
-    "diff", "--binary", "--full-index", "--no-renames", "--no-ext-diff", "--no-textconv",
-    "--no-color", "--no-relative", "--src-prefix=a/", "--dst-prefix=b/",
-    "--diff-algorithm=myers", "--no-indent-heuristic", "--unified=3",
-    "--inter-hunk-context=0", "--submodule=short", "--ignore-submodules=none",
-    review.scopeBase, context.sourceHead, "--",
-  ], { text: false }).stdout;
-  const actual = createHash("sha256").update(diff).digest("hex");
+  const actual = scopeDiffDigest(root, review.scopeBase, context.sourceHead);
   if (actual !== review.scopeDiffSha256) {
     throw new ReleaseContextError("enabled releaseReview.scopeDiffSha256 does not match the Git diff");
   }

@@ -242,6 +242,22 @@ test('zero/failing tests, tampered package resources and absent release bytes bl
   }
 });
 
+test('Linux candidate checks published context and clean source before compiler probes or release cleanup', t => {
+  for(const dirty of [false,true]) {
+    const f=fixture(t), fake=fakeRun(f);
+    f.metadata.metadata['agent-first-harness']['target-platforms']=['linux'];
+    const release=path.join(f.root,'release'); fs.mkdirSync(release);
+    fs.writeFileSync(path.join(release,'previous'),'preserve previous candidate');
+    if(dirty) fs.appendFileSync(path.join(f.root,'Cargo.toml'),'# source drift\n');
+    const run=(program,args,settings)=>program==='rustc'?{stdout:'host: x86_64-unknown-linux-gnu\n'}:fake.run(program,args,settings);
+    const context=()=>{if(!dirty)throw new Error('published context rejected');return f.context;};
+    assert.throws(()=>executeBuild({...candidateOptions(f.root),target:'x86_64-unknown-linux-gnu',format:'deb'}, {...hooks(f,fake),run,platform:'linux',context}),dirty?/source must be clean/:/published context rejected/);
+    assert.ok(fake.calls.every(({program,args})=>program==='git'||program==='cargo'&&args[0]==='metadata'));
+    assert.equal(fs.existsSync(path.join(f.root,'target')),false);
+    assert.equal(fs.readFileSync(path.join(release,'previous'),'utf8'),'preserve previous candidate');
+  }
+});
+
 test('candidate manifest is pending and preserves release review plus explicit E2E risk', t => {
   const f = fixture(t), fake = fakeRun(f); const output = executeBuild(candidateOptions(f.root),hooks(f,fake));
   assert.equal(output.milestoneAcceptance,'pending'); assert.equal(output.e2eStatus,'Not run'); assert.equal(output.reviewStatus,'Not run'); assert.equal(output.reviewReason,f.context.releaseReview.reason);

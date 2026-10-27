@@ -22,4 +22,6 @@ Linux 原生方案分别核对：StatusNotifierItem/会话 D-Bus 托盘（如 `t
 
 本项目Linux实际继承`ashpd 0.13.13`（`async-io,global_shortcuts`）与`x11rb 0.13.2`（`xkb`及GUI的`shape,randr`）；ashpd的global_shortcuts仅准备热键协议，其复用的zbus已用于托盘探测与通知，x11rb已有窗口/工作区/输入区域消费者。当前KSNI、窗口及freedesktop通知的接线方案见[原生宿主引用](../../desktop-add-gpui-adapter/references/linux-native.md)，历史候选与当前双架构打包的[验证范围](../../../../docs/LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)不改变中性依赖矩阵或产品版本。
 
+中性依赖只按真实消费者选择并裁剪 features，兼容案例的完整组合不加入默认；具体版本和 target 条件仍取当前项目 Cargo。
+
 锁策略为 `ignored` 时，本机 Cargo.lock 只代表一次解析；`tracked` 时使用受跟踪锁与 `--locked`。path patch 即使包版本相同也会改变内容身份，报告来源摘要与补丁摘要，不能只报 SemVer。

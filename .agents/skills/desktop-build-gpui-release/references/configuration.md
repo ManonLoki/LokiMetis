@@ -44,6 +44,7 @@ pnpm run gpui:package --help
 - 可选 `linux` 只包含 `summary`、`summaryZh`、`description`、`descriptionZh` 四个非空字符串（各最多200字符），用于Debian AppStream目录的英文/中文摘要与描述。缺省使用中性原生桌面应用文案；包名、产品名、桌面入口和图标身份均从既有配置/Cargo事实生成，不重复配置版本，也不接受安装脚本或软件源配置。
 - `resources`缺省为空数组，每项包含`source`、`macos`、`windows`及可选`linux`目标；Linux构建要求每项显式声明linux路径，不从其它平台猜测。目录递归拒绝链接、特殊文件、空目录、大小写/前缀冲突及保留文件覆盖。完整Linux布局、双架构工具链和示例见[Linux打包合同](linux-packaging.md)；原macOS/Windows映射保持不变。
 - 可选 `releaseNotesUi` 必须为布尔值；`true` 表示设置页等关于页之外的入口也消费构建嵌入更新日志，候选仍必须检查二进制内的原始 JSON 字节。缺省保持原关于页判断；`false` 不能关闭已启用关于页的嵌入合同。普通本地试包不生成发布记录。
+- 上游中性 Harness 解析器尚不接受根 `linux` 字段，也未生成 catalog；本项目已接入上文双语对象及 DEP-11 生成。身份关联、文案编码与软件中心验证边界见 [Linux 桌面安装集成](linux-desktop-integration.md)；后续调整须同步本地解析器、生成及最终包回归。
 - 测试前捕获排序文件清单及SHA-256，测试后、打包前和manifest前复算，Git忽略文件也参与漂移检测。复制和最终app/zip/DMG/NSIS核对相同摘要；资源根本身或其祖先为链接时拒绝。manifest的 `bundledResources` 记录目标路径与摘要；该证据不替代实际运行验收。
 - `windows.extractor` 仅可填写已批准全局 PATH 上的 `7z`、`7zr`、`7z.exe` 或 `7zr.exe` 命令名；调用协议为 `x -y -o<本次隔离目录> <最终NSIS>`。Skill 不下载安装它。支持哪种 NSIS 压缩由实际提取结果决定，解包失败或缺资源阻断候选。
 - `windows.signing` 启用时形如 `{ "certificateThumbprint": "40位十六进制公开指纹", "timestampUrl": "https://批准的时间戳服务" }`。证书只通过宿主已授权 store 使用，不保存私钥、密码或秘密路径。macOS `signingIdentity` 只记录已批准公开身份，不会自动启用；显式签名还要求专用公证环境并通过完整 App/DMG 票据及最终资源校验。

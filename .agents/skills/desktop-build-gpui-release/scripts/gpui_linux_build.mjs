@@ -17,7 +17,7 @@ export function linuxEnvironment(target, host, environment=process.env) {
   if (TARGETS[target]?.platform !== 'linux' || TARGETS[host]?.platform !== 'linux') throw new Error('Linux GNU x64/ARM64 host and target required');
   const tuple=target.replace('-unknown',''), key=target.replaceAll('-','_');
   const env={...environment};
-  for (const name of Object.keys(env)) if (name.startsWith('PKG_CONFIG') || name==='HARNESS_GPUI_RELEASE_NOTES_RS' || name==='CARGO_BUILD_TARGET') delete env[name];
+  for (const name of Object.keys(env)) if (name.startsWith('PKG_CONFIG') || /^(?:CC|CXX|AR)(?:_|$)/u.test(name) || name==='HARNESS_GPUI_RELEASE_NOTES_RS' || name==='CARGO_BUILD_TARGET') delete env[name];
   return {...env, CARGO_BUILD_TARGET:target, CARGO_BUILD_JOBS:environment.CARGO_BUILD_JOBS ?? '1',
     [`CARGO_TARGET_${key.toUpperCase()}_LINKER`]:`${tuple}-gcc`, [`CC_${key}`]:`${tuple}-gcc`, [`CXX_${key}`]:`${tuple}-g++`,
     [`AR_${key}`]:`${tuple}-ar`, PKG_CONFIG_ALLOW_CROSS:'1', PKG_CONFIG_SYSROOT_DIR:'/', PKG_CONFIG_PATH:'',
@@ -75,6 +75,7 @@ export function linuxHostTestEnvironment(environment=process.env) {
 
 /** Linux沿用默认主分支/日志/测试/资源门禁，local不写release或发布元数据。 */
 export function executeLinuxBuild(options,hooks) {
+  const selections=options.command==='build' && options.mode==='candidate'?candidateSelection(options.e2e,options.e2eReason,options.e2eRisk):null;
   const root=safeRoot(options.root), run=hooks.run, environment=hooks.env ?? process.env;
   const identity=gitIdentity(root,run), config=readConfig(root), lockPolicy=readDependencyLockPolicy(root);
   const metadata=JSON.parse(run('cargo',cargoArguments(['metadata','--no-deps','--format-version','1'],lockPolicy)).stdout);
@@ -86,12 +87,11 @@ export function executeLinuxBuild(options,hooks) {
   const candidate=options.mode==='candidate', buildRun=randomUUID();
   const plan={buildRun,mode:options.mode,project:facts.project,version:facts.version,target,format,platform:'linux',arch:info.arch,interface:'gui',guiFramework:'gpui',lockPolicy,package:config.package,binary:config.binary,hostTarget:host,buildMode:target===host?'native':'cross-architecture',sourceCommit:identity.commit,dirty:identity.dirty};
   if (options.command==='preview') return {...plan,tools:['rustup',`${target.replace('-unknown','')}-gcc`,'pkg-config','readelf','tar','dpkg-deb','dbus-daemon'],toolchain:'unchecked'};
+  const context=candidate && options.command==='build'?(hooks.context ?? releasedContext)(root,facts):null;
+  if (candidate && options.command==='build' && identity.dirty) throw new Error('candidate source must be clean');
   const toolchain=checkLinuxToolchain(run,target,host,environment);
   toolchain.evidence.compilerProbe=probeLinuxLinker(root,run,target,toolchain.env);
   if (options.command==='setup') return {target,toolchain:toolchain.evidence,installation:'not-needed; uses system GNU/binutils/tar/dpkg tools'};
-  const selections=candidate?candidateSelection(options.e2e,options.e2eReason,options.e2eRisk):null;
-  const context=candidate?(hooks.context ?? releasedContext)(root,facts):null;
-  if (candidate && identity.dirty) throw new Error('candidate source must be clean');
   if (candidate) for (const [file,name] of [['LICENSE.zh-CN.md',config.productName],['LICENSE.en.md',config.productNameEn]]) {
     if (!fs.readFileSync(safePath(root,file,{type:'file'}),'utf8').includes(name)) throw new Error(`license product identity differs: ${file}`);
   }

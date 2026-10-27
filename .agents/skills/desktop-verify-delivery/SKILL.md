@@ -9,6 +9,8 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 
 GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前端测试、Tauri资源定位、DMG及其 helper 只适用于 Tauri。GPUI 候选先读取 `$desktop-build-gpui-release`，只接受其 `candidate` 模式形成的原生最终包及通用 manifest；`local` 试包与初始化开发程序没有候选验收资格。资源、许可证、更新日志、最终包摘要与适用签名证据使用该 Skill 的 GPUI 独立实现检查，不调用 Tauri helper。Linux GNU x64/ARM64 的 deb/tar.gz 按本项目 [Linux 工程知识库](../../../docs/LINUX_GPUI_TOOLCHAIN.md) 解包并核对真实资源；只有当前架构与实际图形会话能进入运行验收，交叉架构构建的目标运行保持 `Unverified`，不能据宿主测试或解包通过代替。
 
+Linux 同系统交叉架构候选须在匹配架构的真实宿主执行运行场景；尚未支持的跨系统构建路线不能进入验收。
+
 ## 准入
 
 1. 只接受发布/渠道要求、用户明确要求完整验收，或当前构建已明确选择 E2E `enabled` 的请求。读取 Product Spec、当前构建记录、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、相关 ADR、验证/发布规则和适用接口 Skill。
