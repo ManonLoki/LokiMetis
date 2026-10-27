@@ -19,7 +19,7 @@ pub(crate) struct TimeRange {
     pub end: String,
 }
 
-/// 本地优先读取额度；远程使用 curl，Cursor 另用 sqlite3，macOS 加密态只查询系统钥匙串。
+/// 本地优先读取额度；远程使用 curl，Cursor 缺少 sqlite3 时用内置只读驱动，macOS 加密态只查询系统钥匙串。
 pub(crate) async fn fetch_provider(
     provider: QuotaProvider,
     layout: &HomeLayout,
@@ -94,11 +94,14 @@ async fn fetch_cursor(layout: &HomeLayout, curl: Option<&Path>, sqlite: Option<&
 pub(crate) async fn read_cursor_token(layout: &HomeLayout, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Result<Secret, QuotaFailure> {
     let database = credentials::cursor_database(layout);
     credentials::ensure_regular_file(&database)?;
-    let program = sqlite.ok_or(QuotaFailure::Transport)?;
-    let args = transport::cursor_command_args(&database)?;
-    let sqlite_limits = CurlLimits { timeout: limits.timeout.min(std::time::Duration::from_secs(8)), max_body: 8 * 1024 };
-    let output = transport::run_command(program, &args, None, sqlite_limits, cancel).await?;
-    let text = String::from_utf8(output).map_err(|_| QuotaFailure::Malformed)?;
+    let text = if let Some(program) = sqlite {
+        let args = transport::cursor_command_args(&database)?;
+        let sqlite_limits = CurlLimits { timeout: limits.timeout.min(std::time::Duration::from_secs(8)), max_body: 8 * 1024 };
+        let output = transport::run_command(program, &args, None, sqlite_limits, cancel).await?;
+        String::from_utf8(output).map_err(|_| QuotaFailure::Malformed)?
+    } else {
+        super::cursor_state::read(&database, super::cursor_state::CursorStateQuery::AccessToken, limits, cancel).await?
+    };
     let token = credentials::cursor_token_from_output(&text)?;
     super::cursor_safe_storage::decode(token, limits, cancel).await
 }

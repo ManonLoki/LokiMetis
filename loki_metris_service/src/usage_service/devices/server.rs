@@ -159,6 +159,7 @@ impl Devices {
             let mut health = tokio::time::interval_at(tokio::time::Instant::now() + ADVERTISEMENT_CHECK_INTERVAL, ADVERTISEMENT_CHECK_INTERVAL);
             health.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             let mut clocks = (Instant::now(), std::time::SystemTime::now());
+            let mut suspended = loki_metris_host::power::suspended_time();
             { let mut state = self.state(); state.book.get_or_insert(book.clone()); state.view.listening_port = Some(port); state.view.link_error = None; }
             let pending = Arc::new(Semaphore::new(MAX_PENDING_CONNECTIONS));
             let publisher = self.clone(); let publisher_cancelled = cancelled.clone();
@@ -173,7 +174,9 @@ impl Devices {
                     },
                     _ = health.tick() => {
                         let now = (Instant::now(), std::time::SystemTime::now());
-                        let slept = system_slept(clocks, now); clocks = now;
+                        let next_suspended = loki_metris_host::power::suspended_time();
+                        let slept = system_slept(clocks, now) || super::discovery::suspend_advanced(suspended, next_suspended);
+                        clocks = now; suspended = next_suspended;
                         let idle = { let state = self.state(); state.server.sessions.is_empty() && state.book.as_ref().is_some_and(|book| !book.summaries().is_empty()) };
                         if slept || (idle && advertised_at.elapsed() >= IDLE_READVERTISE_INTERVAL) {
                             // 仅重建广播；监听端口与已认证连接保持不变，小组件缓存的端口继续有效。

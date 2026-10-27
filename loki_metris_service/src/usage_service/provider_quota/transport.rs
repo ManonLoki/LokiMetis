@@ -124,6 +124,9 @@ pub(crate) async fn run_command(program: &Path, args: &[String], stdin: Option<S
     command.args(args).kill_on_drop(true).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
     #[cfg(unix)]
     { command.process_group(0); }
+    // GUI 的定时额度查询不应为控制台子程序创建可见窗口；标准流仍由本次任务拥有。
+    #[cfg(windows)]
+    { command.creation_flags(0x0800_0000); }
     let mut child = command.spawn().map_err(|_| QuotaFailure::Transport)?;
     let child_stdin = child.stdin.take();
     let mut stdout = child.stdout.take().ok_or(QuotaFailure::Transport)?;
@@ -261,3 +264,7 @@ async fn stop_child(child: &mut tokio::process::Child) {
     let _ = child.start_kill();
     let _ = tokio::time::timeout(Duration::from_secs(2), child.wait()).await;
 }
+
+#[cfg(all(test, windows))]
+#[path = "transport_windows_tests.rs"]
+mod windows_tests;

@@ -10,6 +10,7 @@ rust-version.workspace = true
 jiff.workspace = true
 loki_metris_core.workspace = true
 same-file.workspace = true
+sea-orm.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
@@ -24,7 +25,6 @@ objc2-foundation.workspace = true
 
 [dev-dependencies]
 loki_metris_core = { workspace = true, features = ["test-support"] }
-sea-orm.workspace = true
 
 [features]
 # 仅性能测量使用：LOKI_METRIS_MEASURE_HOME 重定向 current_user_home()；由 GUI 经服务层同名特性转发，默认关闭。

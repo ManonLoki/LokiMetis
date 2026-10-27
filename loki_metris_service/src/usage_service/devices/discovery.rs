@@ -31,10 +31,15 @@ impl Devices {
     }
 }
 
-/// 单调时钟在macOS/Linux睡眠期间不走，墙钟照常前进；差值超过阈值即判定期间系统睡眠过。墙钟回拨不误判。
+/// macOS/Linux 用墙钟与单调时钟的差值检测睡眠；Windows 的单调时钟包含睡眠，另检查原生累计睡眠量。
 pub(super) fn system_slept(previous: (Instant, SystemTime), now: (Instant, SystemTime)) -> bool {
     let monotonic = now.0.saturating_duration_since(previous.0);
     now.1.duration_since(previous.1).is_ok_and(|wall| wall > monotonic + SLEEP_DETECTION_GAP)
+}
+
+/// 原生累计睡眠量增加超过阈值时重建广播；读取失败、计数回退或正常调度延迟不误判。
+pub(super) fn suspend_advanced(previous: Option<Duration>, now: Option<Duration>) -> bool {
+    previous.zip(now).is_some_and(|(previous, now)| now.saturating_sub(previous) > SLEEP_DETECTION_GAP)
 }
 
 /// 主机广播有界确认退出；失败保留精确句柄供下次或应用退出重试。

@@ -38,7 +38,7 @@
 | `base64` | `0.23.1` | 协议与资源编码，core / GUI 继承 |
 | `encoding_rs` | `0.8.42` | 本地输入文本编码 |
 | `jiff` | `0.2.38` | 日期、时间与时区 |
-| `sea-orm` | `2.0.4` | 关闭默认特征，`runtime-tokio-rustls,sqlx-sqlite` |
+| `sea-orm` | `2.0.4` | 关闭默认特征，`runtime-tokio-rustls,sqlx-sqlite`；host复用SQLite驱动只读Cursor固定状态键，系统无sqlite3时仍可读取 |
 | `sea-orm-migration` | `2.0.4` | 同上，SQLite 迁移 |
 | `serde` | `1` | `derive`，结构化类型序列化 |
 | `serde_json` | `1` | JSON / JSONL 协议与持久化 |

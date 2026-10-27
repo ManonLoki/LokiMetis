@@ -3,6 +3,7 @@
 pub(super) mod credentials;
 mod cursor_safe_storage;
 mod cursor_dashboard;
+mod cursor_state;
 pub(super) mod fetch;
 mod local;
 pub(super) mod transport;
@@ -10,6 +11,8 @@ pub(super) mod transport;
 mod tests;
 #[cfg(test)]
 mod cursor_session_tests;
+#[cfg(test)]
+mod cursor_state_tests;
 #[cfg(all(test, unix))]
 mod cursor_dashboard_tests;
 

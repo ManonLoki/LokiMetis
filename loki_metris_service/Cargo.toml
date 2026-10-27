@@ -35,6 +35,7 @@ libc.workspace = true
 
 [dev-dependencies]
 image.workspace = true
+sea-orm.workspace = true
 loki_metris_core = { workspace = true, features = ["test-support"] }
 
 [features]

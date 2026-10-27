@@ -5,6 +5,9 @@ mod generator;
 use generator::{Patch, Spec};
 use std::path::{Path, PathBuf};
 
+#[cfg(all(target_os = "windows", not(debug_assertions)))]
+mod fxc_path;
+
 /// 所有上游文件和补丁结果有固定 SHA，编译阶段仅生成独立 OUT_DIR 镜像。
 fn generated_sources() -> PathBuf {
     let spec = Spec {
@@ -184,27 +187,24 @@ mod shader_compilation {
 
     /// You can set the `GPUI_FXC_PATH` environment variable to specify the path to the fxc.exe compiler.
     /// 复用 PATH 或已安装 Windows SDK 的 fxc，缺失仍按上游报错。
-    fn find_fxc_compiler() -> String {
+    fn find_fxc_compiler() -> PathBuf {
         // Check environment variable
-        if let Ok(path) = std::env::var("GPUI_FXC_PATH")
-            && Path::new(&path).exists()
+        if let Some(path) = std::env::var_os("GPUI_FXC_PATH")
+            && Path::new(&path).is_file()
+        {
+            return path.into();
+        }
+
+        if let Some(search_path) = std::env::var_os("PATH")
+            && let Some(path) = super::fxc_path::find_fxc_in_path(&search_path)
         {
             return path;
         }
 
-        // Try to find in PATH
-        // NOTE: This has to be `where.exe` on Windows, not `where`, it must be ended with `.exe`
-        if let Ok(output) = std::process::Command::new("where.exe")
-            .arg("fxc.exe")
-            .output()
-            && output.status.success()
+        if let Ok(Some(path)) = find_latest_windows_sdk_binary("fxc.exe")
+            && path.is_file()
         {
-            let path = String::from_utf8_lossy(&output.stdout);
-            return path.trim().to_string();
-        }
-
-        if let Ok(Some(path)) = find_latest_windows_sdk_binary("fxc.exe") {
-            return path.to_string_lossy().into_owned();
+            return path;
         }
 
         panic!("Failed to find fxc.exe");
@@ -214,7 +214,7 @@ mod shader_compilation {
     fn compile_shader_for_module(
         module: &str,
         out_dir: &str,
-        fxc_path: &str,
+        fxc_path: &Path,
         shader_path: &str,
         rust_binding_path: &str,
     ) {
@@ -247,7 +247,7 @@ mod shader_compilation {
 
     /// 只有编译器成功输出才接受 HLSL 字节，保留明确的失败诊断。
     fn compile_shader_impl(
-        fxc_path: &str,
+        fxc_path: &Path,
         entry_point: &str,
         output_path: &str,
         var_name: &str,

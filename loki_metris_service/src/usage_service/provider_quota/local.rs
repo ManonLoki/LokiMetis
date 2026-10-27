@@ -158,10 +158,13 @@ fn window_in_document(provider: QuotaProvider, text: &str) -> Option<ProviderQuo
 async fn cursor_window(layout: &HomeLayout, sqlite: Option<&Path>, limits: CurlLimits, cancel: &mut watch::Receiver<bool>) -> Option<ProviderQuota> {
     let database = credentials::cursor_database(layout);
     credentials::ensure_regular_file(&database).ok()?;
-    let program = sqlite?;
-    let args = transport::cursor_query_args(&database, transport::CURSOR_USAGE_SQL).ok()?;
-    let sqlite_limits = CurlLimits { timeout: limits.timeout.min(Duration::from_secs(8)), max_body: 64 * 1024 };
-    let output = transport::run_command(program, &args, None, sqlite_limits, cancel).await.ok()?;
-    let text = String::from_utf8(output).ok()?;
+    let text = if let Some(program) = sqlite {
+        let args = transport::cursor_query_args(&database, transport::CURSOR_USAGE_SQL).ok()?;
+        let sqlite_limits = CurlLimits { timeout: limits.timeout.min(Duration::from_secs(8)), max_body: 64 * 1024 };
+        let output = transport::run_command(program, &args, None, sqlite_limits, cancel).await.ok()?;
+        String::from_utf8(output).ok()?
+    } else {
+        super::cursor_state::read(&database, super::cursor_state::CursorStateQuery::UsageSummary, limits, cancel).await.ok()?
+    };
     quota_in_text(QuotaProvider::Cursor, text.trim())
 }

@@ -145,6 +145,19 @@ fn sleep_detection_requires_wall_clock_gap() {
     assert!(!system_slept(start, after(30, -600)));
 }
 
+/// Windows 的 Instant 与墙钟同时前进仍能由原生睡眠累计量发现唤醒，无需已有配对设备。
+#[test]
+fn windows_sleep_is_detected_when_both_clocks_advance() {
+    use super::super::discovery::suspend_advanced;
+    let start = (Instant::now(), std::time::SystemTime::now());
+    assert!(!system_slept(start, (start.0 + Duration::from_secs(90), start.1 + Duration::from_secs(90))));
+    assert!(suspend_advanced(Some(Duration::from_secs(100)), Some(Duration::from_secs(160))));
+    assert!(!suspend_advanced(Some(Duration::from_secs(100)), Some(Duration::from_secs(110))));
+    assert!(!suspend_advanced(Some(Duration::from_secs(100)), Some(Duration::from_secs(90))));
+    assert!(!suspend_advanced(None, Some(Duration::from_secs(160))));
+    assert!(!suspend_advanced(Some(Duration::from_secs(100)), None));
+}
+
 /// 握手完成时撤销同ID的排队连接，避免成功后又弹出重复配对请求。
 #[tokio::test]
 async fn saved_device_commit_rejects_duplicate_queued_request() {

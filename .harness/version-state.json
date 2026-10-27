@@ -95,7 +95,11 @@
     "LMDESK-EXPLICIT-REBUILD-091-20261023",
     "LMDESK-SKIN-NARROW-LAYOUT-001",
     "LMDESK-EXPLICIT-REBUILD-093-20261025",
-    "LMDESK-MDNS-ADVERTISEMENT-RECOVERY-001"
+    "LMDESK-MDNS-ADVERTISEMENT-RECOVERY-001",
+    "LMWIN-QUOTA-HIDDEN-PROCESS-001",
+    "LMWIN-MDNS-SUSPEND-CLOCK-001",
+    "LMWIN-FXC-MULTIPLE-PATH-001",
+    "LMWIN-CURSOR-SQLITE-INPROCESS-001"
   ],
   "applied_reconciliations": [
     {
@@ -123,34 +127,34 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.9.3",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.10.1",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "28b73e602060d750197b2b7384bdb8f3e30f107f",
-    "version": "0.9.3"
+    "source_commit": "ae25384555fc0b8d7f26b39e03845cef28b2b9cf",
+    "version": "0.10.1"
   },
   "pending_changes": [
     {
-      "change_id": "FEAT-DISPLAY-TERMINAL-PLATFORMS",
-      "kind": "feature",
-      "required_version": "0.10.0"
-    },
-    {
-      "change_id": "LMDESK-CURSOR-GROK-SHARED-QUOTA-001",
-      "kind": "feature",
-      "required_version": "0.10.0"
-    },
-    {
-      "change_id": "LMDESK-PC-DEVICE-ARTWORK-001",
-      "kind": "feature",
-      "required_version": "0.10.0"
-    },
-    {
-      "change_id": "LMDESK-MDNS-ADVERTISEMENT-RECOVERY-001",
+      "change_id": "LMWIN-QUOTA-HIDDEN-PROCESS-001",
       "kind": "bug-fix",
-      "required_version": "0.10.1"
+      "required_version": "0.10.2"
+    },
+    {
+      "change_id": "LMWIN-MDNS-SUSPEND-CLOCK-001",
+      "kind": "bug-fix",
+      "required_version": "0.10.3"
+    },
+    {
+      "change_id": "LMWIN-FXC-MULTIPLE-PATH-001",
+      "kind": "bug-fix",
+      "required_version": "0.10.4"
+    },
+    {
+      "change_id": "LMWIN-CURSOR-SQLITE-INPROCESS-001",
+      "kind": "bug-fix",
+      "required_version": "0.10.5"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.10.1"
+  "target_version": "0.10.5"
 }

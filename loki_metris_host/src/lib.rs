@@ -12,3 +12,5 @@ pub mod scan_orchestration;
 pub mod source_catalog;
 
 pub mod notification_state;
+pub mod power;
+pub mod cursor_state;
