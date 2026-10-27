@@ -1,4 +1,4 @@
-//! 受限的 curl 与 sqlite3 调用。令牌只进入 curl 配置的标准输入，不进入参数向量。
+//! 受限的 curl、sqlite3 与 Cursor 钥匙串进程。令牌只进入 curl 标准输入，不进入参数向量。
 
 use std::{path::{Path, PathBuf}, time::Duration};
 
@@ -52,6 +52,7 @@ pub(crate) struct HttpResponse {
 const ALLOWED_HOSTS: &[&str] = &[
     "chatgpt.com",
     "cursor.com",
+    "api2.cursor.sh",
     "cli-chat-proxy.grok.com",
     "www.codebuddy.cn",
     "www.workbuddy.ai",

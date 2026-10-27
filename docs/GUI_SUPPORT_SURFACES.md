@@ -18,4 +18,14 @@ macOS 通知要求完整 bundle 的签名身份与 `Info.plist` 中本产品标�
 局域网联动（`LMDESK-TERMINAL-LINK-001`，required_version `0.6.0`）由应用级服务拥有：应用启动即加载私有配对账本并启动连接服务，不依赖进入设备页或已有配对设备。“终端设备”页仅展示已配对卡片；移动端发起的连接请求可在任意页面触发串行配对模态，切页或隐藏不撤销应用级请求，用户取消与票据过期仍撤销对应尝试。当前桌面已接入认证设备信息、IP、心跳、Token/额度/Hooks 快照、按需图片分块及 iPhone 附属 Watch 状态。共享桥与外部移动驱动的接入、缓存、恢复及实物验证范围见[终端联动协议](DEVICE_LINK_PROTOCOL.md)；源码接入不表示各端验收通过。配对码/密钥不进入日志或页面快照，真实私有保存后才授信。首次配对合同见[设备协议](DEVICE_PAIRING_PROTOCOL.md)。macOS预览与正式包共用两类Bonjour声明，不自动授予本地网络权限。
 
 
-Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR-TOKEN-USAGE-001`，required_version：`0.8.0`。只在启用Cursor且选择该入口时读取当前本机登录态，向固定`https://cursor.com/api/dashboard/get-filtered-usage-events`发出只读POST；请求仅含冻结时间和分页，不发送项目、会话正文或本机路径。令牌只进入curl标准输入，不读写浏览器或钥匙串，不改写Cursor数据库，不接受重定向。读取任务归应用后台owner，退出/取消发送信号后等待自有进程回收。结果仅在内存中按账户/时区/窗口节流，不写原始事件、用户标识、会话ID或Token历史；完整性与缺失规则见最新产品规格。
+Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR-TOKEN-USAGE-001`，required_version：`0.8.0`。只在启用Cursor且选择该入口时读取当前本机登录态，向固定`https://cursor.com/api/dashboard/get-filtered-usage-events`发出只读POST；请求仅含冻结时间和分页，不发送项目、会话正文或本机路径。令牌只进入curl标准输入，不读写浏览器；加密登录态按下节已批准范围读取钥匙串，不改写Cursor数据库，不接受重定向。读取任务归应用后台owner，退出/取消发送信号后等待自有进程回收。结果仅在内存中按账户/时区/窗口节流，不写原始事件、用户标识、会话ID或Token历史；完整性与缺失规则见最新产品规格。
+
+
+## Cursor联名套餐与加密登录态
+
+用户于2026-10-27明确批准兼容 Grok + Cursor，并允许读取对应 macOS 钥匙串项及验证官方额度。change_id：`LMDESK-CURSOR-GROK-SHARED-QUOTA-001`；分类：feature；required_version：`0.10.0`；决定见[ADR-20261027-001](adr/20261027_ADR.md#adr-20261027-001cursor-联名套餐采用官方周期与受限系统解密)。
+
+- 新额度入口固定为只读 POST `https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo` 和 `https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage`，正文固定 `{}`，认证只进入 curl 标准输入的 Bearer 头。单次仍为15秒/256KiB，不接受重定向。仅套餐入口返回404/405/501时回退固定 `https://cursor.com/api/usage-summary`。
+- Cursor safeStorage v1/v10 仅在 macOS 查询已有 `Cursor Safe Storage` / `Cursor Key` 项；二元组已在本机 Cursor 3.27.14 对照，不把上游 Electron 的默认账户名推断为 Cursor 定制发行事实。只调用固定 `/usr/bin/security find-generic-password -s "Cursor Safe Storage" -a "Cursor Key" -w`；参数不含秘密，标准输出上限1KiB，预算最多8秒，取消/超时回收owned进程，不通过Shell、不创建或修改系统秘密。
+- 密文格式、系统 AES 解密和严格 PKCS7/UTF-8/会话校验全部成功后才能请求上游。明文密钥和令牌只用于当前读取，不记录进程标准输出/错误、不写文件。系统拒绝、未知格式或未实现的平台后端保持不可用；不读其它钥匙串、不修改ACL、不刷新登录。
+- 窗口类型和比例继续由 core 解释。桌面与终端共用同一非敏感额度投影；Cursor 账户 Token 查询复用同一登录读取，但仍只访问自身固定分页入口。共享池的两个提供商卡不汇总成额外额度。

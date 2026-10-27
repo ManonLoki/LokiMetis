@@ -114,12 +114,49 @@ pub(super) fn claude_statusline_record(input: &[u8]) -> Option<Vec<u8>> {
 
 /// 按账单周期时长归类 Cursor 额度并保留真实重置时间。
 fn absorb_cursor(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>) {
+    if let Some(info) = object.get("planInfo").and_then(Value::as_object) {
+        absorb_cursor_dashboard(quota, object, info);
+        return;
+    }
     let start = object.get("billingCycleStart").and_then(Value::as_str).and_then(parse_unix);
     let end = object.get("billingCycleEnd").and_then(Value::as_str).and_then(parse_unix);
     let kind = start.zip(end).and_then(|(start, end)| classify_window_seconds(end.saturating_sub(start)));
     let Some(kind) = kind else { return };
     let Some(used) = cursor_used_tenths(object) else { return };
     assign(quota, QuotaWindow { kind, used_tenths: used, reset_at_unix: end });
+}
+
+/// Cursor 官方 DashboardService 的周期枚举优先于账单月，所有时间字段为 Unix 毫秒。
+fn absorb_cursor_dashboard(quota: &mut ProviderQuota, object: &serde_json::Map<String, Value>, info: &serde_json::Map<String, Value>) {
+    if object.get("enabled").and_then(Value::as_bool) != Some(true) {
+        return;
+    }
+    let Some(plan) = object.get("planUsage").and_then(Value::as_object) else { return };
+    let Some(period) = info.get("includedUsagePeriod") else { return };
+    let kind = match (period.as_i64(), period.as_str()) {
+        (Some(1), _) | (_, Some("INCLUDED_USAGE_PERIOD_MONTHLY")) => QuotaWindowKind::Monthly,
+        (Some(2), _) | (_, Some("INCLUDED_USAGE_PERIOD_WEEKLY")) => QuotaWindowKind::Weekly,
+        _ => return,
+    };
+    let reset = match kind {
+        QuotaWindowKind::Weekly => info.get("includedUsageResetsAt"),
+        _ => info.get("billingCycleEnd").or_else(|| object.get("billingCycleEnd")),
+    }.and_then(cursor_millis);
+    let Some(reset) = reset else { return };
+    let used = plan.get("totalPercentUsed").and_then(Value::as_f64)
+        .and_then(|percent| tenths_from_ratio(percent / 100.0))
+        .or_else(|| {
+            let used = plan.get("includedSpend")?.as_f64()?;
+            let limit = plan.get("limit")?.as_f64().filter(|limit| *limit > 0.0)?;
+            tenths_from_ratio(used / limit)
+        });
+    let Some(used) = used else { return };
+    assign(quota, QuotaWindow { kind, used_tenths: used, reset_at_unix: Some(reset) });
+}
+
+/// Protobuf 的 int64 JSON 以十进制字符串或整数传输；不把毫秒误作秒。
+fn cursor_millis(value: &Value) -> Option<i64> {
+    value.as_i64().or_else(|| value.as_str()?.parse().ok()).filter(|millis| *millis > 0).map(|millis| millis / 1000)
 }
 
 /// 优先读取明确百分数，缺失时才由已用量和上限计算比例。
@@ -298,7 +335,7 @@ fn plan_label(provider: QuotaProvider, object: &serde_json::Map<String, Value>) 
             .or_else(|| object.get("rate_limits").and_then(|limits| limits.get("plan_type").or_else(|| limits.get("planType"))))
             .or_else(|| nested_rate_limits(object).and_then(|limits| limits.get("plan_type").or_else(|| limits.get("planType")))),
         QuotaProvider::Claude => None,
-        QuotaProvider::Cursor => object.get("membershipType"),
+        QuotaProvider::Cursor => object.get("planInfo").and_then(|info| info.get("planName")).or_else(|| object.get("membershipType")),
         QuotaProvider::Grok => object.get("plan").or_else(|| object.get("plan_type")),
         QuotaProvider::WorkBuddy => object.get("plan"),
     }?;

@@ -14,12 +14,24 @@ with (root / "argv.txt").open("a", encoding="utf-8") as handle:
     handle.write("\n".join(argv))
     handle.write("\n")
 (root / "stdin.txt").write_text(stdin, encoding="utf-8")
+with (root / "requests.txt").open("a", encoding="utf-8") as handle:
+    handle.write(stdin + "\n")
+if mode == "keychain":
+    sys.stdout.write((root / "keychain-out.txt").read_text(encoding="utf-8"))
+    raise SystemExit(0)
+if mode == "keychain-denied":
+    raise SystemExit(1)
 if "-readonly" in argv:
     text = (root / "sqlite-out.txt").read_text(encoding="utf-8")
     # LIMIT 1 只回第一行，用来观察查询有没有把另一行丢掉。
     if any("LIMIT 1" in arg for arg in argv):
         text = text.split("\n", 1)[0]
     sys.stdout.write(text)
+    raise SystemExit(0)
+if "aiserver.v1.DashboardService/" in stdin:
+    name = "plan-info.txt" if "/GetPlanInfo" in stdin else "period-usage.txt"
+    response = root / name
+    sys.stdout.write(response.read_text(encoding="utf-8") if response.exists() else "{}\n__LM_HTTP_404")
     raise SystemExit(0)
 if mode == "sleep":
     time.sleep(30)
