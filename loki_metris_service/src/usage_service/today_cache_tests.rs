@@ -182,7 +182,7 @@ fn terminal_total_keeps_indexed_usage_when_claude_is_unscanned() {
         let wire = loki_metris_core::devices::link::data::TokenSnapshot::from_observation(&all, &agents).unwrap();
         assert_eq!(wire.all.total.as_deref(), Some("110"));
         assert_eq!(wire.all.availability, "available");
-        assert_eq!(wire.all.completeness, Completeness::Partial);
+        assert_eq!(wire.all.completeness, Completeness::Unknown, "未扫描联合来源原有 Unknown 不能升级为 Partial");
         let claude = wire.agents.iter().find(|agent| agent.agent == AiTool::ClaudeCode).unwrap();
         assert_eq!(claude.amount.total, None);
         assert_eq!(claude.amount.availability, "noRecords");
