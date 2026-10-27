@@ -94,7 +94,8 @@
     "LMDESK-CURSOR-DAILY-REFRESH-001",
     "LMDESK-EXPLICIT-REBUILD-091-20261023",
     "LMDESK-SKIN-NARROW-LAYOUT-001",
-    "LMDESK-EXPLICIT-REBUILD-093-20261025"
+    "LMDESK-EXPLICIT-REBUILD-093-20261025",
+    "LMDESK-MDNS-ADVERTISEMENT-RECOVERY-001"
   ],
   "applied_reconciliations": [
     {
@@ -143,8 +144,13 @@
       "change_id": "LMDESK-PC-DEVICE-ARTWORK-001",
       "kind": "feature",
       "required_version": "0.10.0"
+    },
+    {
+      "change_id": "LMDESK-MDNS-ADVERTISEMENT-RECOVERY-001",
+      "kind": "bug-fix",
+      "required_version": "0.10.1"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.10.0"
+  "target_version": "0.10.1"
 }
