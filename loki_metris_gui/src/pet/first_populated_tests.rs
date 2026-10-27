@@ -193,6 +193,18 @@ fn settle_catalog(cx: &mut TestAppContext, owner: &Entity<Controller>) {
     panic!("pet catalog receipt did not settle");
 }
 
+/// 首次原生几何独立保存画布位置；排空其防抖和回执，才能精确区分首图保存与位置保存次数。
+fn settle_first_position(cx: &mut TestAppContext, owner: &Entity<Controller>) {
+    cx.executor().advance_clock(Duration::from_millis(250));
+    for _ in 0..500 {
+        cx.run_until_parked();
+        if owner.read_with(cx, |owner, _| owner.position_task.is_none()) { return; }
+        cx.executor().advance_clock(Duration::from_millis(1));
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    panic!("initial geometry position receipt did not settle");
+}
+
 /// 首图失败期间清除旧行为素材，重试必须读取新图库后选择另一页的真实有图位置。
 #[gpui_kit::test]
 fn first_image_retry_waits_for_changed_service_catalog(cx: &mut TestAppContext) {
@@ -210,12 +222,18 @@ fn first_image_retry_waits_for_changed_service_catalog(cx: &mut TestAppContext) 
     cx.executor().advance_clock(Duration::from_secs(2));
     f.owner.update(cx, |owner, cx| owner.refresh(cx));
     settle_catalog(cx, &f.owner);
+    settle_first_position(cx, &f.owner);
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 9,
         "retry must not commit the removed cached image at slot 5");
     assert!(f.owner.read_with(cx, |owner, _| owner.page().page_has_image));
-    assert_eq!(f.service.pet_settings_revision(), 1);
+    assert_eq!(f.service.pet_settings_revision(), 2, "focus and initial position must each commit once");
     let saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
     assert_eq!(saved.pet_window.focused_slot, 9);
+    assert!(saved.pet_overlay_position.is_some(), "the second transaction must persist the native position");
+    f.owner.update(cx, |owner, cx| owner.refresh(cx));
+    settle_catalog(cx, &f.owner);
+    settle_first_position(cx, &f.owner);
+    assert_eq!(f.service.pet_settings_revision(), 2, "later polls must not repeat either commit");
 }
 
 /// 查询在途时服务再次提交档案，旧代数回执不能消费首图机会，即使数据恰好读到新内容。
@@ -236,18 +254,7 @@ fn first_image_query_receipt_rechecks_current_catalog_revision(cx: &mut TestAppC
     assert_eq!(f.owner.read_with(cx, |owner, _| owner.settings.pet_window.focused_slot), 0,
         "a completed query from an older catalog version must not commit focus");
     // 首次原生几何会独立保存画布位置，不能把其时序与首图分页提交混为一次计数。
-    cx.executor().advance_clock(Duration::from_millis(250));
-    let mut position_settled = false;
-    for _ in 0..500 {
-        cx.run_until_parked();
-        if f.owner.read_with(cx, |owner, _| owner.position_task.is_none()) {
-            position_settled = true;
-            break;
-        }
-        cx.executor().advance_clock(Duration::from_millis(1));
-        std::thread::sleep(Duration::from_millis(2));
-    }
-    assert!(position_settled, "initial geometry position receipt must settle");
+    settle_first_position(cx, &f.owner);
     let before_focus = f.service.pet_settings_revision();
     assert!(before_focus <= 1, "initial position must not create a save loop");
     let initial_saved = loki_metris_service::monitor::settings::load_monitor_settings(&f.root.path().join("monitor")).unwrap();
