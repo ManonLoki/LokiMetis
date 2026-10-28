@@ -61,8 +61,8 @@ impl Shell {
         let tokens = &value.tokens;
         let total = tokens.total_tokens;
         page = page.child(div().w_full().flex().gap_4()
-            .child(self.hero_metric("dashboard.calls", format::exact(value.call_count), None, cx))
-            .child(self.hero_metric("dashboard.tokens", format::compact(total), Some(total), cx)));
+            .child(self.hero_metric("dashboard.calls", crate::app::surface::CardPriority::Primary, format::exact(value.call_count), None, cx))
+            .child(self.hero_metric("dashboard.tokens", crate::app::surface::CardPriority::Primary, format::compact(total), Some(total), cx)));
         let fields = [
             ("input", Some(tokens.input_tokens)), ("cache_read", tokens.cached_input_tokens),
             ("cache_write", tokens.cache_write_input_tokens), ("uncached", tokens.uncached_input_tokens()),
@@ -96,11 +96,9 @@ impl Shell {
     }
 
     /// 大指标保持调用/Token 等宽和真实精确值复制，父卡片没有复制事件。
-    pub(super) fn hero_metric(&self, label: &str, value: String, precise: Option<u64>, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn hero_metric(&self, label: &str, priority: crate::app::surface::CardPriority, value: String, precise: Option<u64>, cx: &mut Context<Self>) -> AnyElement {
         self.spot_panel(gpui_kit::SharedString::from(format!("hero-{label}")), cx)
-            .priority(if matches!(label, "dashboard.calls" | "dashboard.tokens" | "workbuddy.requests") {
-                crate::app::surface::CardPriority::Primary
-            } else { crate::app::surface::CardPriority::Secondary })
+            .priority(priority)
             .overflow_hidden().flex_1().min_w_0().h(px(176.)).gap_0()
             .top_accent(px(3.), rgb(0xd7952c).into())
             .test_support()

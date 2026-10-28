@@ -67,7 +67,7 @@ impl Shell {
 
     /// 名称与版本直接来自当前包，更新日志沿用当前构建的真实记录。
     fn settings_application(&self, cx: &mut Context<Self>) -> AnyElement {
-        self.settings_surface("settings-application",32.,cx).gap_4()
+        self.settings_surface("settings-application", super::surface::CardPriority::Quiet, 32., cx).gap_4()
             .child(div().w_full().flex().flex_wrap().items_start().justify_between().gap_4()
                 .child(div().id("settings-application-copy").test_support().flex_1().min_w(px(280.)).max_w(px(620.)).flex().flex_col().gap_4()
                     .child(self.settings_title("settings.application",cx))
@@ -96,7 +96,7 @@ impl Shell {
 
     /// 语言仅提供中英两项；系统探测只作为初始偏好解析。
     fn settings_language(&self, cx: &mut Context<Self>) -> AnyElement {
-        self.settings_surface("settings-language",32., cx)
+        self.settings_surface("settings-language", super::surface::CardPriority::Quiet, 32., cx)
             .gap_4()
             .child(self.settings_title("settings.language", cx))
             .child(self.preference_segments(
@@ -128,7 +128,7 @@ impl Shell {
 
     /// 三态主题按已确认值显示选中，保存中与失败时均保留原主题。
     fn settings_theme(&self, cx: &mut Context<Self>) -> AnyElement {
-        self.settings_surface("settings-theme",32., cx)
+        self.settings_surface("settings-theme", super::surface::CardPriority::Quiet, 32., cx)
             .gap_4()
             .child(self.settings_title("settings.theme_title", cx))
             .child(self.preference_segments(
@@ -228,9 +228,9 @@ impl Shell {
     }
 
     /// 品牌卡片共享原生聚光与阴影材质，稳定ID隔离各卡片的指针和过渡状态。
-    fn settings_surface(&self, id: &'static str, padding: f32, cx: &Context<Self>) -> super::surface::SpotlightCard {
+    fn settings_surface(&self, id: &'static str, priority: super::surface::CardPriority, padding: f32, cx: &Context<Self>) -> super::surface::SpotlightCard {
         super::surface::SpotlightCard::new(id, cx.theme().mode.is_dark())
-            .priority(if id == "settings-agents" { super::surface::CardPriority::Secondary } else { super::surface::CardPriority::Quiet })
+            .priority(priority)
             .p(px(padding))
     }
 

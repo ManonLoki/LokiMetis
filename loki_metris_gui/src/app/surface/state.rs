@@ -230,7 +230,7 @@ impl MaterialState {
             self.decoration.pause();
             return;
         }
-        let moving = visible && window.is_visible() && window.is_window_active() && !cx.reduce_motion();
+        let moving = window.is_visible() && window.is_window_active() && !cx.reduce_motion();
         self.decoration.paint(bounds, radius, priority, dark, self.decoration_hovered, moving, window);
     }
 

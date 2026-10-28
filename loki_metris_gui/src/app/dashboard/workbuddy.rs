@@ -13,10 +13,10 @@ impl Shell {
         let columns = if self.viewport_width >= 1200. { 4 } else { 2 };
         let credits = value.credits.map(|credits| format!("{credits:.2}")).unwrap_or_else(|| self.t("dashboard.not_provided"));
         let cards = div().w_full().grid().grid_cols(columns).gap_4()
-            .child(self.hero_metric("workbuddy.sessions", format::compact(value.session_count), None, cx))
-            .child(self.hero_metric("workbuddy.requests", format::compact(value.request_count), None, cx))
-            .child(self.hero_metric("dashboard.tokens", format::compact(value.tokens), Some(value.tokens), cx))
-            .child(self.hero_metric("workbuddy.credits", credits, None, cx));
+            .child(self.hero_metric("workbuddy.sessions", crate::app::surface::CardPriority::Secondary, format::compact(value.session_count), None, cx))
+            .child(self.hero_metric("workbuddy.requests", crate::app::surface::CardPriority::Primary, format::compact(value.request_count), None, cx))
+            .child(self.hero_metric("dashboard.tokens", crate::app::surface::CardPriority::Primary, format::compact(value.tokens), Some(value.tokens), cx))
+            .child(self.hero_metric("workbuddy.credits", crate::app::surface::CardPriority::Secondary, credits, None, cx));
         let error_rate = if value.trace_total_count == 0 { self.t("workbuddy.not_applicable") }
             else { format!("{:.1}%", value.trace_error_count as f64 / value.trace_total_count as f64 * 100.) };
         let metrics = [

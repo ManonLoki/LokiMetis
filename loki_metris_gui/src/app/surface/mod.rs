@@ -251,8 +251,8 @@ impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
         if let Some(observer) = self.owner_observer.take() {
             observer(&state);
         }
-        if (SPOTLIGHT || self.priority == Some(CardPriority::Secondary))
-            && self.priority != Some(CardPriority::Quiet) {
+        let spotlight = SPOTLIGHT && self.priority != Some(CardPriority::Quiet);
+        if spotlight || self.priority == Some(CardPriority::Secondary) {
             let weak = state.downgrade();
             self.inner
                 .interactivity()
@@ -263,7 +263,7 @@ impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
                     let _ = weak.update(cx, |state, cx| state.hover(*hovered, window, cx));
                 });
         }
-        if SPOTLIGHT && self.priority != Some(CardPriority::Quiet) {
+        if spotlight {
             let weak = state.downgrade();
             self.inner
                 .interactivity()

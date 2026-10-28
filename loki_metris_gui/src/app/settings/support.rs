@@ -9,7 +9,7 @@ use gpui_kit::{
 impl Shell {
     /// 付款图保留原始比例与字节，双列断点和留白沿用参考设置页。
     pub(super) fn settings_sponsor(&self, cx: &Context<Self>) -> AnyElement {
-        self.settings_surface("settings-sponsor",32., cx)
+        self.settings_surface("settings-sponsor", crate::app::surface::CardPriority::Quiet, 32., cx)
             .test_support()
             .gap_5()
             .child(

@@ -177,7 +177,7 @@ impl Shell {
         } else {
             2
         };
-        self.settings_surface("settings-agents",20.,cx)
+        self.settings_surface("settings-agents", crate::app::surface::CardPriority::Secondary, 20., cx)
             .gap_3()
             .child(
                 div()

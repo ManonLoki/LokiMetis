@@ -69,16 +69,19 @@ impl CardDecoration {
                 CardPriority::Primary => {
                     let pulse = 0.84 + 0.16 * (self.phase * TAU).sin();
                     stroke(window, &rail, 0., rail.length, px(1.), color(0x8b8bda, if dark { 0.38 } else { 0.28 }));
+                    let tail = (rail.length * 0.16).min(180.);
+                    let strength = pulse * if dark { 0.94 } else { 0.78 };
                     for (index, hue) in SPECTRUM.into_iter().enumerate() {
                         let head = (self.phase + index as f32 / 3.) * rail.length;
-                        let tail = (rail.length * 0.16).min(180.);
                         for segment in 0..TRAIL_SEGMENTS {
                             let t = (segment + 1) as f32 / TRAIL_SEGMENTS as f32;
                             let start = head - tail + tail * segment as f32 / TRAIL_SEGMENTS as f32;
                             let end = head - tail + tail * t;
-                            let alpha = t * t * pulse * if dark { 0.94 } else { 0.78 };
-                            stroke(window, &rail, start, end, px(GLOW_WIDTH), color(hue, alpha * 0.12));
-                            stroke(window, &rail, start, end, px(1.5), color(hue, alpha));
+                            let alpha = t * t * strength;
+                            // 光晕与亮线共用同一组采样点，只有线宽与透明度不同。
+                            let points = sample(&rail, start, end);
+                            stroke_points(window, &points, px(GLOW_WIDTH), color(hue, alpha * 0.12));
+                            stroke_points(window, &points, px(1.5), color(hue, alpha));
                         }
                     }
                 }
@@ -171,12 +174,20 @@ impl RoundedRail {
 
 /// 以固定最大步长近似圆弧；单条路径有界，移动尾迹跨周长接缝时仍连续。
 fn stroke(window: &mut Window, rail: &RoundedRail, start: f32, end: f32, width: Pixels, color: Hsla) {
+    stroke_points(window, &sample(rail, start, end), width, color);
+}
+
+/// 沿中心线从start到end按最大4px步长取点。
+fn sample(rail: &RoundedRail, start: f32, end: f32) -> Vec<Point<Pixels>> {
     let steps = ((end - start).abs() / 4.).ceil().clamp(1., 512.) as usize;
+    (0..=steps).map(|step| rail.point(start + (end - start) * step as f32 / steps as f32)).collect()
+}
+
+fn stroke_points(window: &mut Window, points: &[Point<Pixels>], width: Pixels, color: Hsla) {
+    let Some((first, rest)) = points.split_first() else { return };
     let mut path = PathBuilder::stroke(width);
-    path.move_to(rail.point(start));
-    for step in 1..=steps {
-        path.line_to(rail.point(start + (end - start) * step as f32 / steps as f32));
-    }
+    path.move_to(*first);
+    for point in rest { path.line_to(*point); }
     if let Ok(path) = path.build() { window.paint_path(path, color); }
 }
 
