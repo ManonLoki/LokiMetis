@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "a5004aa890d5a602a337348dd56e75043a48ebe7",
+  "sourceHead": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
   "version": "0.11.0",
   "releaseDate": "2026-10-28",
   "expectedTag": "v0.11.0-20261028",
@@ -9,9 +9,9 @@
     "selection": "enabled",
     "status": "passed",
     "scopeBase": "e3c79a306d17b124e71cac016c994e600f1e908f",
-    "sourceHead": "a5004aa890d5a602a337348dd56e75043a48ebe7",
-    "scopeDiffSha256": "0a4b89c3c6c6ae81cc5c902cedaa73aa54785eebfcd893ce0658a37849727c5f",
-    "reviewedSourceCommit": "a5004aa890d5a602a337348dd56e75043a48ebe7",
+    "sourceHead": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
+    "scopeDiffSha256": "24c67ecf2f7d33220283107f6224d4229d72e0da37a57862ec92199700678815",
+    "reviewedSourceCommit": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计修订范围为Windows皮肤目录Shell STA驱动、原生COM回归、异步回执与动画帧身份测试修正、已批准的同版本归档例外与技术债事实。Windows全workspace/all-targets/all-features为1778项通过、1项受控子进程探针按设计忽略；GUI508项及Shell专项7项通过。五项审查无阻断，validate三项门禁通过；纯OS机制留在service驱动，core及公开接口/错误/数据/网络协议不变；单帧夹具保留同Arc与同tile强断言，其它动画覆盖保留；职责规模及新增临时标记复核通过。E2E未执行，安装与真实交互保持Unverified；先前磁盘不足和13项测试误报日志保留。",
+    "evidenceSummary": "补充修订将Unix回收等待结果原样提取，并以确定Elapsed及真实已退出子进程分别严格验证句柄/登记/槽位；保持生产期限语义。Windows同源码进程owner隔离探针10项及20次重复通过，原生Unix结果待当前新CI确认。累计修订范围为Windows皮肤目录Shell STA驱动、原生COM回归、异步回执与动画帧身份测试修正、已批准的同版本归档例外与技术债事实。Windows全workspace/all-targets/all-features为1778项通过、1项受控子进程探针按设计忽略；GUI508项及Shell专项7项通过。五项审查无阻断，validate三项门禁通过；纯OS机制留在service驱动，core及公开接口/错误/数据/网络协议不变；单帧夹具保留同Arc与同tile强断言，其它动画覆盖保留；职责规模及新增临时标记复核通过。E2E未执行，安装与真实交互保持Unverified；先前磁盘不足和13项测试误报日志保留。",
     "reason": null,
     "remainingRisk": null
   }
