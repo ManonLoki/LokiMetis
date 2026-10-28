@@ -138,7 +138,8 @@ impl Shell {
         let rows=groups.into_iter().zip(values).map(|(group,value)|plot::Bar {
             label:match group.disambiguation_index {Some(index)=>format!("{} ({index})",self.display_label(&group.label,group.label_code)),None=>self.display_label(&group.label,group.label_code)},
             value:value.map(Value::Count),
-            display:value.map(|v|if index==6 {format::exact(v)}else{format!("{} · {}",format::compact(v),format::exact(v))}).unwrap_or_else(||self.t("dashboard.not_provided")),
+            display:value.map(|v|if index==6 {format::exact(v)}else{format::compact(v)}).unwrap_or_else(||self.t("dashboard.not_provided")),
+            detail:if index==6 {None}else{value.map(format::exact)},
             share:format!("{} {}",self.t("charts.token_share"),self.basis_points(group.total_token_share_basis_points)),remainder:group.remainder,
         }).collect::<Vec<_>>();
         let mut panel=self.spot_panel("chart-distribution", cx).test_support().child(div().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("charts.distribution"))).child(select));

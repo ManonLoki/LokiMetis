@@ -71,7 +71,7 @@ impl Shell {
         }).collect()}else{[window.trace_total_count.saturating_sub(window.trace_error_count).saturating_sub(window.trace_cancelled_count),window.trace_error_count,window.trace_cancelled_count]
             .into_iter().zip(["charts.trace_ok","charts.trace_error","charts.trace_cancelled"]).map(|(v,key)|(self.t(key),Some(Value::Count(v)),format::exact(v))).collect()};
         let total=rows.iter().filter_map(|(_,value,_)|*value).map(Value::number).sum::<f64>();
-        let rows=rows.into_iter().map(|(label,value,display)|plot::Bar {label,value,display,share:value.map(|value|format!("{}：{}",self.t("charts.window_share"),self.basis_points(if total>0. {Some((value.number()*10000./total).round().clamp(0.,10000.) as u16)}else{Some(0)}))).unwrap_or_else(||self.t("dashboard.not_provided")),remainder:false}).collect::<Vec<_>>();
+        let rows=rows.into_iter().map(|(label,value,display)|plot::Bar {label,value,display,detail:None,share:value.map(|value|format!("{}：{}",self.t("charts.window_share"),self.basis_points(if total>0. {Some((value.number()*10000./total).round().clamp(0.,10000.) as u16)}else{Some(0)}))).unwrap_or_else(||self.t("dashboard.not_provided")),remainder:false}).collect::<Vec<_>>();
         let controls=div().flex().items_end().gap_4()
             .child(div().flex().flex_col().gap_2().text_sm().child(self.t("statistics.dimension")).child(group_select))
             .child(div().flex().flex_col().gap_2().text_sm().child(self.t("charts.metric")).child(metric_select));

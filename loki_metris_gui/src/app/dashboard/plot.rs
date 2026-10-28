@@ -81,10 +81,23 @@ pub(super) struct Bar {
     pub value:Option<Value>,
     /// 取值的显示文本。
     pub display:String,
+    /// Token 精确数量单独显示为第二行；其它计数或缺失值保持单行。
+    pub detail:Option<String>,
     /// 占总 Token 的百分比文本。
     pub share:String,
     /// 是“其余”汇总行。
     pub remainder:bool,
+}
+
+impl Bar {
+    /// 悬停提示和辅助标签保留约数、精确数及占比，不因视觉换行丢失信息。
+    fn description(&self) -> String {
+        let value = match &self.detail {
+            Some(detail) => format!("{} · {detail}", self.display),
+            None => self.display.clone(),
+        };
+        format!("{}: {value}; {}", self.label, self.share)
+    }
 }
 
 /// 原生条形图沿用参考的 220/150 边距、52 行高和五条竖网格。
@@ -92,7 +105,7 @@ pub(super) fn bars(id:&'static str,rows:Vec<Bar>,palette:Palette,scale_kind:Scal
     let height=64.+52.*rows.len() as f32;
     let Palette {muted,grid,track,bar,remainder,..}=palette;
     let overlays=div().absolute().inset_0().children(rows.iter().enumerate().map(|(index,row)| {
-        let title=format!("{}: {}; {}",row.label,row.display,row.share);
+        let title=row.description();
         let label=title.clone();
         div().id((id,index)).tab_index(0).absolute().left_0().right_0()
             .top(gpui_kit::relative((20.+52.*index as f32)/height)).h(gpui_kit::relative(52./height))
@@ -100,7 +113,7 @@ pub(super) fn bars(id:&'static str,rows:Vec<Bar>,palette:Palette,scale_kind:Scal
             .focus_visible(|style|style.border_1().border_color(bar))
             .tooltip(move|window,cx|gpui_kit::component::tooltip::Tooltip::new(title.clone()).build(window,cx))
     }));
-    let description=rows.iter().map(|row|format!("{}: {}; {}",row.label,row.display,row.share)).collect::<Vec<_>>().join(" · ");
+    let description=rows.iter().map(Bar::description).collect::<Vec<_>>().join(" · ");
     div().id(id).relative().w_full().min_w(px(832.)).role(gpui_kit::Role::Image).aria_label(description)
         .child(canvas(|_,_,_|(),move|bounds,_,window,cx|{
             let scale=f32::from(bounds.size.width)/920.;
@@ -121,7 +134,12 @@ pub(super) fn bars(id:&'static str,rows:Vec<Bar>,palette:Palette,scale_kind:Scal
                 if let Some(value)=row.value {
                     window.paint_quad(fill(Bounds::new(position(220.,top+8.),size(px((550.*value.number()/maximum) as f32*scale),px(22.*scale))),if row.remainder{remainder}else{bar}).corner_radii(px(11.*scale)));
                 }
-                text(window,cx,&row.display,position(904.,top+23.),TextStyle {size:12.*scale,weight:FontWeight::BOLD,color:muted},1.);
+                if let Some(detail)=&row.detail {
+                    text(window,cx,&row.display,position(904.,top+18.),TextStyle {size:12.*scale,weight:FontWeight::BOLD,color:muted},1.);
+                    text(window,cx,detail,position(904.,top+36.),TextStyle {size:11.*scale,weight:FontWeight::NORMAL,color:muted},1.);
+                } else {
+                    text(window,cx,&row.display,position(904.,top+23.),TextStyle {size:12.*scale,weight:FontWeight::BOLD,color:muted},1.);
+                }
             }
         }).w_full().aspect_ratio(920./height)).child(overlays).into_any_element()
 }
