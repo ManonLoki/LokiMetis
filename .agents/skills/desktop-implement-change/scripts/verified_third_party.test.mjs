@@ -84,7 +84,7 @@ test("GPUI registration verifies its nested source root and excludes no maintain
   const expected = installGpuiSource();
   mkdirSync(path.join(root, "vendor/gpui-pre/src"));
   writeFileSync(path.join(root, "vendor/gpui-pre/src/lib.rs"), "// maintained shim\n");
-  assert.equal(expected.length, 160);
+  assert.equal(expected.length, 163);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
 });
 

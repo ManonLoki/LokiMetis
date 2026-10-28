@@ -116,7 +116,7 @@ impl Render for ScopeRoot {
             .aria_label("exclusions-root")
             .relative()
             .size(px(100.))
-            .on_scroll_wheel(|_, _, _| {})
+            .on_scroll(|_, _, _| {})
             .child(
                 div()
                     .size(px(100.))

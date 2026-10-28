@@ -2,7 +2,7 @@
 // 与主文件共用作用域，因此无需额外导入。收纳内容：指针在桌宠内时切换键盘输入模式不能伪装为离开并清空分页栏。；设置滑块键盘步长为1；观察值更新会保存辅助增减而程序同步相同值不重复提交。
 
 /// 完整原生按键保留松开激活和逐帧焦点遍历，不使用只派发KeyDown的快捷模拟。
-fn settings_press(handle: gpui_kit::AnyWindowHandle, name: &str, cx: &mut TestAppContext) {
+fn settings_press(handle: gpui_kit::AnyWindowHandle, name: &'static str, cx: &mut TestAppContext) {
     use gpui_kit::{InputEvent as _, KeyDownEvent, KeyUpEvent, Keystroke};
     for down in [true, false] {
         let keystroke = Keystroke::parse(name).unwrap();

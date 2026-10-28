@@ -41,7 +41,7 @@ fn open_restart(cx: &mut TestAppContext, locale: &'static str) -> (
 }
 
 /// 原生按钮在松开时点击；发送完整事件，避免只有按下导致键盘测试假失败。
-fn press(handle: AnyWindowHandle, key: &str, cx: &mut TestAppContext) {
+fn press(handle: AnyWindowHandle, key: &'static str, cx: &mut TestAppContext) {
     let keystroke = Keystroke::parse(key).unwrap();
     cx.update_window(handle, |_, window, cx| {
         window.dispatch_event(KeyDownEvent {

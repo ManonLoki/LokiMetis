@@ -145,7 +145,7 @@ impl Shell {
                 if modal.submitted || this.devices.snapshot.pending { return; }
                 let key = &event.keystroke;
                 let mut code = modal.input.read(cx).value().to_string();
-                if key.modifiers.secondary() && key.key == "v" {
+                if key.modifiers.secondary(cx) && key.key == "v" {
                     window.prevent_default(); cx.stop_propagation();
                     let Some(pasted) = cx.read_from_clipboard().and_then(|item| item.text()) else { return; };
                     if !loki_metris_core::devices::valid_pairing_code(&pasted) { return; }

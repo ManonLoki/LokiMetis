@@ -1,16 +1,16 @@
 [package]
 name = "gpui-pre-macos"
-version = "0.3.9"
+version = "0.3.10"
 edition = { workspace = true }
 publish = true
 license = "Apache-2.0"
-description = "Zed's `gpui_macos` crate (gpui-pre snapshot of zed@93d7456)"
+description = "Zed's `gpui_macos` crate (gpui-pre snapshot of zed@08cbb88)"
 repository = "https://github.com/zed-industries/zed"
 
 [package.metadata.gpui-pre]
 zed-crate = "gpui_macos"
 zed-version = "0.1.0"
-zed-rev = "93d745668805029476e6d7fbb19652116fed51de"
+zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
 
 [lib]
 path = "src/gpui_macos.rs"
@@ -23,12 +23,7 @@ bench-support = ["gpui/bench-support", "gpui_apple/bench-support"]
 test-support = ["gpui/test-support", "gpui_apple/test-support"]
 runtime_shaders = ["gpui_apple/runtime_shaders"]
 font-kit = ["gpui_apple/font-kit"]
-screen-capture = [
-    "gpui/screen-capture",
-    "dep:objc2-core-graphics",
-    "dep:objc2-core-media",
-    "dep:objc2-screen-capture-kit",
-]
+screen-capture = ["gpui/screen-capture", "dep:objc2-core-media", "dep:objc2-screen-capture-kit"]
 
 [dependencies]
 gpui = { workspace = true }
@@ -38,7 +33,6 @@ accesskit = { workspace = true }
 accesskit_macos = { workspace = true }
 anyhow = { workspace = true }
 block2 = { workspace = true }
-cocoa = { workspace = true }
 collections = { workspace = true }
 core-foundation = { workspace = true }
 core-foundation-sys = { workspace = true }
@@ -52,10 +46,9 @@ gpui_util = { workspace = true }
 image = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
-objc = { workspace = true }
 objc2 = { workspace = true }
 objc2-app-kit = { workspace = true }
-objc2-core-graphics = { workspace = true, optional = true }
+objc2-core-graphics = { workspace = true, features = ["CGColor", "objc2"] }
 objc2-core-media = { workspace = true, optional = true }
 objc2-core-video = { workspace = true, features = ["CVHostTime"] }
 objc2-foundation = { workspace = true }

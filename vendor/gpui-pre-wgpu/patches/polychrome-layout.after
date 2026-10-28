@@ -2,11 +2,11 @@
 struct PolychromeSprite {
     order: u32,
     pad: u32,
+    tile: AtlasTile,
     grayscale: u32,
     opacity: f32,
     bounds: Bounds,
     content_mask: Bounds,
     corner_radii: Corners,
-    tile: AtlasTile,
     rounded_clip_bounds: Bounds,
 }

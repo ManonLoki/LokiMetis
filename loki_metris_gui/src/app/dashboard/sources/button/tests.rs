@@ -173,7 +173,7 @@ fn mouse(window: &mut Window, cx: &mut App, position: Point<Pixels>, down: bool)
 }
 
 /// 键盘同样保留完整按下/松开时序，不以直接调用回调替代原生激活。
-fn key(handle: AnyWindowHandle, key: &str, down: bool, cx: &mut TestAppContext) {
+fn key(handle: AnyWindowHandle, key: &'static str, down: bool, cx: &mut TestAppContext) {
     let keystroke = Keystroke::parse(key).unwrap();
     cx.update_window(handle, |_, window, cx| {
         if down {

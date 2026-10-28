@@ -3,7 +3,7 @@
 use crate::app::{Page, Shell, PageScroll, monitor::state::Route};
 use gpui_kit::{
     AnyWindowHandle, AppContext, Bounds, Entity, Focusable, InputEvent as _, IntoElement, Pixels, Render,
-    ScrollDelta, ScrollWheelEvent, TestAppContext, Window, WindowBounds, WindowOptions, div, point, px, size,
+    ScrollDelta, ScrollEvent, TestAppContext, Window, WindowBounds, WindowOptions, div, point, px, size,
     component::input::TextareaState, prelude::*, test::TestWindowExt,
 };
 use loki_metris_core::{AiProfileDraft, AiTool, HookBehavior, public_monitor_ai_tools};

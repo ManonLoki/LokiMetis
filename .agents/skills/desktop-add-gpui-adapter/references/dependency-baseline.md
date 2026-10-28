@@ -1,6 +1,6 @@
 # GPUI 依赖参考：当前项目与保留模板
 
-本项目当前声明以根Cargo为准，完整版本、features、平台条件和补丁见[技术选型清单](../../../../docs/TECHNOLOGY.md)。当前使用gpui-kit `0.7.3`、rust-i18n `4.2.4`、interprocess `2.4.5`；下文旧版本是保留的中性模板/示例快照，不能据此降低当前依赖或重新运行初始化。
+本项目当前声明以根Cargo为准，完整版本、features、平台条件和补丁见[技术选型清单](../../../../docs/TECHNOLOGY.md)。当前使用gpui-kit `0.8.1`、rust-i18n `4.2.4`、interprocess `2.4.5`；下文旧版本是保留的中性模板/示例快照，不能据此降低当前依赖或重新运行初始化。
 
 `add_gpui_adapter.mjs`仍生成gpui-kit `0.7.1`与rust-i18n `4.2.0`，`gpui_native_capabilities.mjs`仍生成interprocess `2.4.4`并拒绝Linux托盘/热键生成。本轮文档同步不改变这些脚本；当前产品Linux扩展取[Linux工程知识库](../../../../docs/LINUX_GPUI_TOOLCHAIN.md)。以下记录用于解释helper原有输出，不代表本项目的当前安装列表。
 

@@ -1,5 +1,4 @@
     Corners corner_radii;
-    AtlasTile tile;
 };
 
 struct PolychromeSpriteVertexOutput

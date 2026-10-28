@@ -1,6 +1,6 @@
 # 本地 GPUI 圆角视口兼容层
 
-本目录以 `provenance.json` 记录的官方 0.3.9 `.crate`（Zed revision 93d7456）为完整不可变来源。
+本目录以 `provenance.json` 记录的官方 0.3.10 `.crate`（Zed revision 08cbb88）为完整不可变来源。
 `upstream/` 保留原文件、许可证与目录关系；`source-content.sha256` 覆盖全部原文件，路径相对 upstream 根。
 
 人工维护入口为 Cargo.toml、src/lib.rs、build.rs、patches/ 和本说明。
@@ -25,7 +25,7 @@ Linux 创建窗口时，公共层只在 `WindowOptions.show=true` 才调用平�
 避免 X11 后端忽略隐藏参数后直接显示主窗。其它平台保留既有映射路径，不改变图元 ABI。
 test-support 记录平台实际收到的映射请求数，覆盖隐藏创建零请求及普通创建一次请求；
 后续显式显示仍由产品原生窗口桥负责，真实登录会话和窗口管理器行为需另行实测。
-本补丁仅匹配原样 GPUI 0.3.9，升级时若上游已正确处理隐藏创建则移除并重跑相关回归。
+本补丁仅匹配原样 GPUI 0.3.10（2026-10-28 复核：X11 `map_window` 仍不读取 `show`，公共层仍无条件映射，故保留），升级时若上游已正确处理隐藏创建则移除并重跑相关回归。
 
 `Label` 的 `aria_label` 在未指定 `aria_value`、且节点尚无 value 时同时填入 value，
 供 Windows AccessKit 的静态文本名称读取。显式值（包括空字符串）、已有节点文本、

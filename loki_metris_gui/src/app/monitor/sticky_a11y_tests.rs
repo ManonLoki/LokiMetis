@@ -57,12 +57,14 @@ impl ActualTree {
         found[0]
     }
 
-    /// Dialog role 来自产品现有真实 surface，不依赖焦点陷阱包装转发角色。
+    /// Dialog role 来自产品现有真实 surface；gpui-kit 0.8 的焦点陷阱外层另带无名称 Dialog，
+    /// 因此只统计带可访问名称的节点，外层包装不属于产品 surface。
     fn role_id(&self, role: &str) -> &str {
         let found: Vec<_> = self.0["nodes"].as_object().unwrap().iter()
-            .filter(|(_, node)| node["aria"]["role"].as_str() == Some(role))
+            .filter(|(_, node)| node["aria"]["role"].as_str() == Some(role)
+                && node["aria"]["label"].as_str().is_some_and(|label| !label.is_empty()))
             .map(|(id, _)| id.as_str()).collect();
-        assert_eq!(found.len(), 1, "真实辅助树须恰有一个 {role} 节点；实际role：{:?}", self.roles());
+        assert_eq!(found.len(), 1, "真实辅助树须恰有一个带名称的 {role} 节点；实际role：{:?}", self.roles());
         found[0]
     }
 

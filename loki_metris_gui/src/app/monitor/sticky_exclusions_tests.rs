@@ -113,7 +113,7 @@ impl Render for ScopeRoot {
             .aria_label("exclusions-root")
             .relative()
             .size(px(100.))
-            .on_scroll_wheel(|_, _, _| {})
+            .on_scroll(|_, _, _| {})
             .child(ExclusionScope::new(
                 ExclusionScope::new(child, self.nested.clone()),
                 self.excluded.borrow().clone(),

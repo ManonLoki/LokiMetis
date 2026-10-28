@@ -97,9 +97,14 @@ pub(super) fn save_file(path: &Path, book: &DeviceBook) -> Result<(), &'static s
     let parent = path.parent().ok_or("device_storage_failed")?;
     let root = parent.parent().ok_or("device_storage_failed")?;
     fs::create_dir_all(root).map_err(|_| "device_storage_failed")?;
-    let mut builder = fs::DirBuilder::new();
-    #[cfg(unix)]
-    { use std::os::unix::fs::DirBuilderExt; builder.mode(0o700); }
+    // 仅 Unix 需要设置目录权限；其它平台不可变，避免多余 mut 警告。
+    let builder = {
+        #[cfg_attr(not(unix), allow(unused_mut))]
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        { use std::os::unix::fs::DirBuilderExt; builder.mode(0o700); }
+        builder
+    };
     match builder.create(parent) {
         Ok(()) => {},
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {},

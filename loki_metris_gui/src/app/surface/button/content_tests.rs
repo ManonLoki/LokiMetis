@@ -96,7 +96,7 @@ fn near(actual: Pixels, expected: Pixels) {
     );
 }
 /// 真实键盘事件经过当前原生焦点，不直接调用on_click或action回调。
-fn key(handle: AnyWindowHandle, key: &str, down: bool, cx: &mut TestAppContext) {
+fn key(handle: AnyWindowHandle, key: &'static str, down: bool, cx: &mut TestAppContext) {
     cx.update_window(handle, |_, window, app| {
         let keystroke = Keystroke::parse(key).unwrap();
         let input = if down {

@@ -1,7 +1,0 @@
-    /// 读取真实glyph父链供原生CoreText/Metal回归，不伪造Noop字形。
-    #[cfg(all(feature = "parent-rounded-clip", any(test, feature = "test-support")))]
-    pub fn painted_monochrome_sprites(&self) -> Vec<MonochromeSprite> {
-        self.rendered_frame.scene.monochrome_sprites.clone()
-    }
-
-    /// Returns the underlines in the most recently rendered frame's scene.

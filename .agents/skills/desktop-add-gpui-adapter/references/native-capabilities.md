@@ -44,6 +44,6 @@ macOS 真实投递需要已打包的 `.app` 和系统许可，普通调试进程
 
 原生托盘、登录项、本地 IPC 和后台热键不能靠标准库与当前 Kit 完整替代；新增第三方 Rust 依赖需先说明理由并取得用户同意。Helper 始终只用 Node 标准库；依赖只按启用能力加入下游 Cargo 工作区，不做全局安装。平台能力缺失或尚未验证必须明确报告，不能以文件生成或单元测试冒充真实宿主结果。
 
-Linux托盘与热键扩展的批准范围见[当前产品规格](../../../../docs/product_spec/20261022_product_spec.md#目标与范围)，方案和真实完成边界见[Linux工程知识库](../../../../docs/LINUX_GPUI_TOOLCHAIN.md)。不能直接沿用global-hotkey 0.8的Linux成功回执：Wayland需要Portal，X11需要确定错误传播；未接线能力保持未验证，空action合同不注册键位。Windows热键库不暴露内部线程join，不能宣称回收第三方线程；前台策略可能拒绝抢焦点。Windows自启仅操作HKCU，macOS XML/Linux XDG路径不能安全编码时在写入前失败关闭。
+Linux托盘与热键扩展的批准范围见[当前产品规格](../../../../docs/product_spec/20261028_product_spec.md#目标与范围)，方案和真实完成边界见[Linux工程知识库](../../../../docs/LINUX_GPUI_TOOLCHAIN.md)。不能直接沿用global-hotkey 0.8的Linux成功回执：Wayland需要Portal，X11需要确定错误传播；未接线能力保持未验证，空action合同不注册键位。Windows热键库不暴露内部线程join，不能宣称回收第三方线程；前台策略可能拒绝抢焦点。Windows自启仅操作HKCU，macOS XML/Linux XDG路径不能安全编码时在写入前失败关闭。
 
 中性 renderer 的登录项完整命令与禁用状态读取、旧项显式迁移及隐藏启动边界见 [Linux 登录项章节](linux-native.md#登录项与隐藏启动)；产品接线仍按上文已批准范围。Windows 登录项只允许 HKCU，不能调用会删除 HKLM 的通用 disable。

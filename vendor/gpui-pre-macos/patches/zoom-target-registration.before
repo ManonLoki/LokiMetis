@@ -1,4 +1,4 @@
         decl.add_method(
             sel!(windowDidResize:),
-            window_did_resize as extern "C" fn(&Object, Sel, id),
+            window_did_resize as extern "C" fn(_, Sel, *mut AnyObject),
         );

@@ -1,10 +1,10 @@
 pub struct SubpixelSprite {
     pub order: DrawOrder,
     pub pad: u32, // align to 8 bytes
+    pub tile: AtlasTile,
     pub bounds: Bounds<ScaledPixels>,
     pub content_mask: ContentMask<ScaledPixels>,
     pub color: Hsla,
-    pub tile: AtlasTile,
     pub transformation: TransformationMatrix,
     /// 本帧父圆角链，与图元自身几何及原 ContentMask 独立。
     #[cfg(feature = "parent-rounded-clip")]

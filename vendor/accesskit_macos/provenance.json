@@ -12,8 +12,6 @@
   "manifest_definition": "Sorted UTF-8 lines: lowercase sha256(file bytes), two ASCII spaces, relative path, LF. crate-content paths are relative to upstream/ and cover all 15 archive files; source-content paths are relative to this package and additionally cover the three exact-commit license texts under licenses/. The official archive omitted those licenses.",
   "original_node_sha256": "7fcbb84ed76e25d1ba4f69ef646a5b0cd83f96aaccfa7a0b500518da1ef43e91",
   "original_node_bytes": 58078,
-  "original_node_fnv1a64": "b2e27c320f51a135",
-  "fnv_purpose": "Non-cryptographic maintenance drift detection in the standard-library-only build script. The separate SHA-256 manifests establish content provenance.",
   "supplemental_licenses": {
     "LICENSE-APACHE": {
       "source_url": "https://raw.githubusercontent.com/AccessKit/accesskit/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-APACHE",
@@ -32,5 +30,6 @@
     }
   },
   "source_manifest": "source-content.sha256",
-  "source_manifest_sha256": "f4bc40427a5db1b6acf7262cf8d4bcdfe25c19b6a16499302252a3942e86ffda"
+  "source_manifest_sha256": "f4bc40427a5db1b6acf7262cf8d4bcdfe25c19b6a16499302252a3942e86ffda",
+  "patched_node_sha256": "39381eadab4dff6ca63ffa551aa22cd23e29461f693e9db0493f2fe7f7257f3d"
 }

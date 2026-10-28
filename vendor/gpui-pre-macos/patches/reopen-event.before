@@ -1,5 +1,10 @@
-extern "C" fn should_handle_reopen(this: &mut Object, _: Sel, _: id, has_open_windows: bool) {
-    if !has_open_windows {
+extern "C-unwind" fn should_handle_reopen(
+    this: &AnyObject,
+    _: Sel,
+    _: *mut AnyObject,
+    has_open_windows: Bool,
+) -> Bool {
+    if !has_open_windows.as_bool() {
         let platform = unsafe { get_mac_platform(this) };
         let mut lock = platform.0.lock();
         if let Some(mut callback) = lock.reopen.take() {
@@ -8,4 +13,5 @@ extern "C" fn should_handle_reopen(this: &mut Object, _: Sel, _: id, has_open_wi
             platform.0.lock().reopen.get_or_insert(callback);
         }
     }
+    Bool::YES
 }

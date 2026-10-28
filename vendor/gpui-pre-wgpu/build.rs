@@ -71,7 +71,7 @@ fn main() {
     let spec = Spec {
         entry: "src/gpui_wgpu.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "64f38e80c93d932e660b2b437d6591d74996851cd37e7e0e216b0e0608ef340b",
+        source_manifest_sha256: "55ff8930ca0210d861b0a0002a2bb997be332bc1acfd0cda62f778ef8a7ca23b",
         patches: &[
             Patch {
                 name: "polychrome-layout",
@@ -129,11 +129,11 @@ fn main() {
             },
         ],
         generated_hashes: &[
-            ("src/cosmic_text_system.rs", "79305228ecd9588a20bae8c4b3680391ba870657da5ac8e6854ce58a8a458535"),
+            ("src/cosmic_text_system.rs", "ce317582ed657a9410ed29623c3e6b4d08754ef8b718fdac9e1665623acdc52e"),
             ("src/gpui_wgpu.rs", "b51033ac07d187c89c4079f208d3a557c6fff309b1cd403927ce8974e795afa0"),
-            ("src/shaders.wgsl", "03d4c3ee901b800fe0beb775abfc191820affdec17bc38759129f3254c7c2e48"),
-            ("src/shaders_webgl.wgsl", "d48a0ef2bd567c342f91f9b45ec4483de23e0f9ded11a4a232b3b46f9a43e6c9"),
-            ("src/wgpu_renderer.rs", "d37fa295545b2ed128030f94ce428be168a05781fea78ece8e51d7f274f916eb"),
+            ("src/shaders.wgsl", "b730dde101c7ce6727cdbcd7cb085107053ef0153a352d66fb1a4264ec463405"),
+            ("src/shaders_webgl.wgsl", "20417643a520a136db861da4188682db637824ebdeee0331635170be83815aff"),
+            ("src/wgpu_renderer.rs", "9e370b5e54656058d7a00caf67221823171fa1ef82d3506afbce2e9fbe1af162"),
         ],
     };
     generator::generate(manifest, &spec);

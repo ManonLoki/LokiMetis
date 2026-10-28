@@ -14,9 +14,10 @@ impl Drop for Finish {
     }
 }
 
-/// 等待真实文件线程回执，GPUI定时器仍使用测试时钟。
+/// 等待真实文件线程回执，GPUI定时器仍使用测试时钟；上限按真实时间计，负载下不随轮数缩短。
 fn settle(cx: &mut TestAppContext, shell: &Entity<Shell>, done: impl Fn(&Shell) -> bool) {
-    for _ in 0..500 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if shell.read_with(cx, |this, _| done(this)) {
             return;
@@ -24,7 +25,7 @@ fn settle(cx: &mut TestAppContext, shell: &Entity<Shell>, done: impl Fn(&Shell) 
         cx.executor().advance_clock(Duration::from_millis(30));
         std::thread::sleep(Duration::from_millis(2));
     }
-    panic!("hook UI receipt did not settle");
+    panic!("hook UI receipt did not settle within 30s of real time");
 }
 
 #[gpui_kit::test]

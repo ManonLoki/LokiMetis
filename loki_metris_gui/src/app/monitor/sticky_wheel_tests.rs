@@ -1,7 +1,7 @@
 //! 滚轮通过真实重叠命中路径，区分粘滞栏父滚动与可见原生编辑器自身滚动。
 
 use super::{Shell, sticky_tests::{input, near, setup}};
-use gpui_kit::{App, AppContext, Entity, InputEvent as _, Point, Pixels, ScrollDelta, ScrollWheelEvent, Window, point, px, test::TestWindowExt};
+use gpui_kit::{App, AppContext, Entity, InputEvent as _, Point, Pixels, ScrollDelta, ScrollEvent, Window, point, px, test::TestWindowExt};
 use gpui_kit::component::input::TextareaState;
 
 /// 多行文字只经真实原生输入事件写入隔离草稿，不直接设滚动偏移或读取剪贴板。
@@ -19,7 +19,7 @@ fn multiline(window: &mut Window, shell: &Entity<Shell>, cx: &mut App) -> Entity
 /// 在实际像素位置发送同一原生事件，不调用页面或输入滚动回调。
 fn wheel(window: &mut Window, position: Point<Pixels>, delta: f32, cx: &mut App) {
     window.simulate_mouse_move(position, cx);
-    window.dispatch_event(ScrollWheelEvent { position, delta: ScrollDelta::Pixels(point(px(0.), px(delta))), ..Default::default() }.to_platform_input(), cx);
+    window.dispatch_event(ScrollEvent { position, delta: ScrollDelta::Pixels(point(px(0.), px(delta))), ..Default::default() }.to_platform_input(), cx);
     window.render_frame(cx);
 }
 

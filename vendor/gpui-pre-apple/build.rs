@@ -40,13 +40,13 @@ fn generated_sources() -> PathBuf {
     let spec = Spec {
         entry: "src/gpui_apple.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "06d9ac026f90f50a7926e9e49f3b8b04ecd65fba05aee2494b6b7b83959f72e5",
+        source_manifest_sha256: "6192d5cc95ea36501eee39d04a373459711161ee75f3af65ffca1102e264793a",
         patches: &patches,
         generated_hashes: &[
             ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
-            ("src/metal_renderer.rs", "621c12b03a666e74fdd7c51439092b72a8de1c7789b614cccb1a2759c6f4497c"),
-            ("src/gpui_apple.rs", "581be8cd4369fb9506dbfc2efc0d99090ba927eabec6727d22af2d6090577ac8"),
-            ("vendor/gpui/src/scene.rs", "2c91fbb271d2e32bb9b4f341eeae6fb3edb6e302d525e58741505472e9b0c0e6"),
+            ("src/metal_renderer.rs", "4e98840c2207443d45c88f76402306598695ae37cd09c15dfc50ba4674d7e619"),
+            ("src/gpui_apple.rs", "02a5a7547b5c8d9d02e67243bc1cbb367c0e72a910711ede55ea80e4aba4d4ac"),
+            ("vendor/gpui/src/scene.rs", "aa89a20f138be9bd0c2f7a9e424d91e326dd43af5988b75919c87969403f113b"),
             ("src/shaders.metal", "0293a36fef5f5bbde11fcad44ac903c6d70bb6c83c9db86c26a831f6ae53da3c"),
             ("src/text_system.rs", "d92a152eb49dcfd644d7a594f12f394caa0c41a593a868d2df4e8ab98298d1ca"),
         ],

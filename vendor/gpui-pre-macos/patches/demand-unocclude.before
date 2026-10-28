@@ -1,2 +1,2 @@
-            lock.move_traffic_light();
-            lock.start_display_link();
+        lock.move_traffic_light();
+        lock.start_display_link();

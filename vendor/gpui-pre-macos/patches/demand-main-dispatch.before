@@ -1,5 +1,5 @@
 extern "C" fn step(view: *mut c_void) {
-    let view = view as id;
+    let view = view as *mut AnyObject;
     let window_state = unsafe { get_window_state(&*view) };
     let mut lock = window_state.lock();
 

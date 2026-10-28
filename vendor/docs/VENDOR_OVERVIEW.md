@@ -4,7 +4,7 @@
 
 ## 1. vendor 的定位
 
-LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依赖 Zed 发布到 crates.io 的 `gpui-pre 0.3.9` 系列包（`gpui-kit → gpui-pre-platform → gpui-pre-macos / gpui-pre-windows / … → gpui-pre-apple / gpui-pre / gpui-pre-wgpu`），macOS 辅助功能再经 `gpui-pre-macos` 依赖 `accesskit_macos 0.26.3`。
+LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.8.1` 间接依赖 Zed 发布到 crates.io 的 `gpui-pre 0.3.10` 系列包（`gpui-kit → gpui-pre-platform → gpui-pre-macos / gpui-pre-windows / … → gpui-pre-apple / gpui-pre / gpui-pre-wgpu`），macOS 辅助功能再经 `gpui-pre-macos` 依赖 `accesskit_macos 0.26.3`。
 
 产品复刻过程中有若干行为无法在应用层实现，必须改框架本身（图片独立圆角视口、父圆角裁剪、按需帧调度、可变字体 wght 实例、macOS 窗口 zoom／全屏／reopen 事件、AccessKit 标题层级等）。`vendor/` 的作用就是在**不 fork、不改版本号、不手改第三方源码**的前提下，对这几个固定版本的 crate 施加一组可审阅、可复现、失败关闭的补丁：
 
@@ -20,15 +20,15 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 | 目录 | 替换的 crate | 上游来源 | 作用 / 维护入口 |
 | --- | --- | --- | --- |
 | `gpui-patch-support/` | 无（共享维护代码） | — | 标准库生成器、scene补丁、`patch-inputs.mjs`与只读验证器 |
-| `gpui-pre/` | `gpui-pre 0.3.9`（lib名 `gpui`） | zed@93d7456，160文件 | 公共图元、圆角/父裁剪、按需帧、AX、hitbox与焦点；`build.rs`及`src/*_patches.rs` |
-| `gpui-pre-apple/` | `gpui-pre-apple 0.3.9`（`gpui_apple`） | zed@93d7456，19文件 | Metal/图集回收/父裁剪及迁入的CoreText字体；`build.rs`及Metal/font登记 |
-| `gpui-pre-macos/` | `gpui-pre-macos 0.3.9`（`gpui_macos`） | zed@93d7456，15文件 | AppKit菜单、reopen/zoom/全屏及需求位；`build.rs` |
-| `gpui-pre-windows/` | `gpui-pre-windows 0.3.9`（`gpui_windows`） | zed@93d7456，28文件 | DirectX/HLSL圆角ABI、实时命中与外部显示；`build.rs` |
-| `gpui-pre-wgpu/` | `gpui-pre-wgpu 0.3.9`（`gpui_wgpu`） | zed@93d7456，14文件 | Linux所用WGPU及WebGL的圆角ABI、测试夹具；`build.rs` |
+| `gpui-pre/` | `gpui-pre 0.3.10`（lib名 `gpui`） | zed@08cbb88，163文件 | 公共图元、圆角/父裁剪、按需帧、AX、hitbox与焦点；`build.rs`及`src/*_patches.rs` |
+| `gpui-pre-apple/` | `gpui-pre-apple 0.3.10`（`gpui_apple`） | zed@08cbb88，19文件 | Metal/图集回收/父裁剪及迁入的CoreText字体；`build.rs`及Metal/font登记 |
+| `gpui-pre-macos/` | `gpui-pre-macos 0.3.10`（`gpui_macos`） | zed@08cbb88，15文件 | AppKit菜单、reopen/zoom/全屏及需求位；`build.rs` |
+| `gpui-pre-windows/` | `gpui-pre-windows 0.3.10`（`gpui_windows`） | zed@08cbb88，28文件 | DirectX/HLSL圆角ABI、实时命中与外部显示；`build.rs` |
+| `gpui-pre-wgpu/` | `gpui-pre-wgpu 0.3.10`（`gpui_wgpu`） | zed@08cbb88，14文件 | Linux所用WGPU及WebGL的圆角ABI、测试夹具；`build.rs` |
 | `accesskit_macos/` | `accesskit_macos 0.26.3` | 官方归档15文件；来源登记18项含额外三份许可 | Heading/层级/整数值；独立`build.rs`与`verify-source.mjs` |
 | `tray-icon/` | `tray-icon 0.26.1` | 官方归档26文件 | Windows接受非负成功HRESULT；共享生成器，入口为`build.rs`，见[包说明](../tray-icon/README.md) |
 
-精确补丁与输出文件集合取各包登记模块和 `Spec.generated_hashes`，不在概览复制总量。所有 `gpui-pre*` 包的Zed源revision一致（`93d745668805029476e6d7fbb19652116fed51de`；0.3.8为`279fe070…`，2026-10-15升级），ABI变更必须跨后端同步。当前依赖及平台条件另见[技术选型清单](../../docs/TECHNOLOGY.md)。
+精确补丁与输出文件集合取各包登记模块和 `Spec.generated_hashes`，不在概览复制总量。所有 `gpui-pre*` 包的Zed源revision一致（`08cbb88a152c3751a43e853425a70e9f631a5918`；0.3.9为`93d745668805029476e6d7fbb19652116fed51de`，0.3.8为`279fe070…`，2026-10-28升级到0.3.10），ABI变更必须跨后端同步。当前依赖及平台条件另见[技术选型清单](../../docs/TECHNOLOGY.md)。
 
 ## 3. 统一的工作机制（GPUI 五包及 tray-icon）
 
@@ -96,7 +96,7 @@ LokiMetris 是 GPUI 原生桌面应用，GUI 通过 `gpui-kit 0.7.3` 间接依�
 |---|---|---|---|
 | scene（共享） | 24 | `src/scene.rs` | `PolychromeSprite` 末尾新增 16 字节圆角视口 bounds；`ParentClipId`／`ParentClipNode` 类型、各图元的父裁剪字段、已用圆角半径链 |
 | `image_frame_patches.rs` | 57 | `window.rs`、`platform/test/window.rs`、`app/test_context.rs`、`window/a11y.rs`、`window/a11y/debug.rs`、`view.rs` | `Window::frame_animation_time()`；`ImageRoundedClip` 与 `Window::paint_image_with_rounded_clip()`（原 `paint_image`／emoji 几何不变）；`Window::focus_generation()`；`Window::defer_draw_in_parent()`（保留 AX 父链与 prepaint mask 的 opt-in deferred）；`Window::with_hitbox_exclusions()`（prepaint 期间的互斥命中矩形）；test-support 下 `simulate_accessibility_activation/deactivation`、`hit_test_ids_for_testing` |
-| `parent_clip_patches.rs` | 39 | `window.rs`、`view.rs`、`style.rs`、`styled.rs`、`elements/div.rs`、`debug_overlay.rs`、`app/test_context.rs` | `Styled::clip_rounded_children()` opt-in：子元素按祖先圆角链在 GPU 侧裁剪；hitbox／deferred／视图缓存携带父裁剪链 |
+| `parent_clip_patches.rs` | 38 | `window.rs`、`view.rs`、`style.rs`、`styled.rs`、`elements/div.rs`、`debug_overlay.rs`、`app/test_context.rs` | `Styled::clip_rounded_children()` opt-in：子元素按祖先圆角链在 GPU 侧裁剪；hitbox／deferred／视图缓存携带父裁剪链 |
 | `demand_patches.rs` | 12 | `window.rs`、`svg_renderer.rs`、`randomized_element_tree.rs` | 帧重入唤醒器、deferred presentation 状态、sustain 调度；两处仅在 `frame-demand-regression` feature 下隔离上游无法在独立包中编译的测试 |
 | `element_transform_patches.rs` | 36 | `window.rs`（30）、`view.rs`（4）、`element.rs`、`window/a11y/debug.rs` | 新模块 `src/element_transform.rs`：`Window::with_element_transform()` 对元素绘制、命中与 AX 边界施加正比例缩放＋平移，不改布局与纹理缓存键 |
 
@@ -120,12 +120,12 @@ Feature `parent-rounded-clip` 透传到 `gpui/parent-rounded-clip`；根 `Cargo.
 
 ### 5.3 `gpui-pre-macos/`（AppKit 平台层）
 
-入口 `src/gpui_macos.rs`。24 个补丁直接写在 `build.rs`，按主题（可变字体 3 个已于 0.3.9 随上游 text_system 迁入 gpui-pre-apple）：
+入口 `src/gpui_macos.rs`。23 个补丁直接写在 `build.rs`（0.3.10 上游改用 `objc2` 并自带 reopen selector 注册，原 `reopen-registration` 已移除，其余按 `objc2` 写法重新登记），按主题（可变字体 3 个已于 0.3.9 随上游 text_system 迁入 gpui-pre-apple）：
 
 | 主题 | 补丁 | 改动文件 | 行为 |
 |---|---|---|---|
 | 菜单 | `menu-action-ownership`、`menu-command-unlock`、`menu-validation-unlock`、`menu-tests` | `platform.rs` | 主菜单与 Dock 菜单按完整动作值复用稳定索引；命令分派与 `validateMenuItem` 先 `drop` 平台锁再调用应用回调，附 `src/menu_tests.rs` |
-| 应用唤起 | `reopen-registration`、`reopen-event` | `platform.rs` | 注册 `applicationShouldHandleReopen:hasVisibleWindows:`；有 handler 时每次转发，返回 NO 阻止默认恢复 |
+| 应用唤起 | `reopen-event` | `platform.rs` | 上游已注册 `applicationShouldHandleReopen:hasVisibleWindows:`；补丁让有 handler 时每次转发，返回 NO 阻止默认恢复 |
 | 窗口缩放 | `zoom-target-registration`、`zoom-target-event` | `window.rs` | `windowShouldZoom:toFrame:` 发布私有 `LokiMetrisGPUIWindowWillZoomNotification`（userInfo 含 `targetFrame`） |
 | 全屏失败 | `fullscreen-failure-registration`、`fullscreen-failure-event` | `window.rs` | 进入／退出全屏失败时发布 `LokiMetrisGPUIWindowFullScreenTransitionFailedNotification` |
 | 按需帧（14） | `window.rs` 上 9 个：`demand-window-{state,init,source,waker}`、`demand-unocclude`、`demand-screen-change`、`demand-activation-consume`、`demand-layer-consume`、`demand-main-dispatch`；`display_link.rs` 上 5 个：`demand-subscriber`、`demand-vsync-gate`、`demand-subscribe-{argument,state}`、`demand-frame-source` | `window.rs`、`display_link.rs` | 新模块 `frame_demand.rs`：每窗口原子需求位，CVDisplayLink 线程只观察、有需求才投递主队列（见 `docs/performance/案例-2`） |
@@ -145,8 +145,7 @@ Feature `parent-rounded-clip` 透传到 `gpui/parent-rounded-clip`；根 `Cargo.
 此包早于共享生成器建立，机制略有不同：
 
 - `src/lib.rs` 直接以 `#[path = "../upstream/src/…"]` 引用未修改的 `context.rs`、`filters.rs`、`util.rs`、`adapter.rs`、`event.rs`、`patch.rs`、`subclass.rs`；只有 `node.rs` 经 `include!(OUT_DIR/node.rs)` 引入生成版本。
-- `build.rs` 对完整 `upstream/src/node.rs` 校验固定 FNV-1a 64 指纹，应用 `patches/01…07` 七处唯一替换，再校验补丁结果指纹；输出 `mod node { … }` 完整模块以保留上游 inner attribute。FNV 只做维护漂移检测，来源真实性由 `crate-content.sha256`／`source-content.sha256` 的 SHA-256 清单承担。
-- `patches/heading.patch` 是与七个模板等价的可审阅 unified diff。
+- `build.rs` 对完整 `upstream/src/node.rs` 校验固定 SHA-256（复用共享 `sha256.rs`），应用 `patches/01…07` 七处唯一替换，再校验补丁结果 SHA-256；输出 `mod node { … }` 完整模块以保留上游 inner attribute。来源真实性由 `crate-content.sha256`／`source-content.sha256` 清单承担。
 - 官方归档不含许可证，`licenses/LICENSE-{MIT,APACHE}`、`LICENSE.chromium` 从 `provenance.json` 指定的精确提交原样补入；因此 `source-content.sha256` 为 18 项（15 归档文件 + 3 许可），`crate-content.sha256` 为 15 项。
 - 补丁语义：Heading 映射 `AXHeading`；正层级声明并返回 `AXHeadingLevel`；无显式值时按 WebKit 约定返回整数 `AXValue`。Label setter、Braille 属性及其它角色不变。
 - 测试：`generation`（漂移与唯一替换失败关闭）、`heading`（`harness = false`，主线程直接调用真实 AX selector，不创建 NSApplication／窗口）、`readonly_probe`。
@@ -184,6 +183,8 @@ cargo test --manifest-path vendor/gpui-pre-apple/Cargo.toml --lib \
 ```
 
 2026-10-15 升级 0.3.9 后实际运行（同一组路径补丁）：`gpui-pre` lib（`test-support,parent-rounded-clip,frame-demand-regression`）372 通过／2 上游忽略；`gpui-pre --test rounded_clip_window` 2 通过；`gpui-pre-apple` lib 55 通过（含可变字体 19 项）；`gpui-pre-macos` lib 15 通过；`gpui-pre-wgpu` lib 40 通过、`--test rounded_clip` 1 通过；生成器自测 5 通过。0.3.9 发布清单不再携带 `util_macros`，`style-tests-perf-attribute` 把上游 style 测试的 `#[perf]` 指向内建 `#[test]`；上游与本地 CoreVideo 测试所需的 `CVBase`／`CVReturn` 由 gpui-pre／gpui-pre-apple 的 macOS dev-dependency 显式开启。
+
+2026-10-28 升级 0.3.10 后实际运行（macOS，同一组路径补丁）：`gpui-pre` lib（`test-support,parent-rounded-clip,frame-demand-regression`）391 通过／2 上游忽略；`gpui-pre --test rounded_clip_window` 2 通过；`gpui-pre-apple` lib 57 通过；`gpui-pre-macos` lib 15 通过（含真实 AppKit 菜单回归）；`gpui-pre-wgpu` lib 42 通过、`--test rounded_clip` 1 通过（字段顺序按上游 `tile` 前移更新，偏移与步幅比对不变）；生成器自测 5 通过；`verify-source.test.mjs` 13 通过。`gpui-pre`／`gpui-pre-wgpu` 另做了 `x86_64-unknown-linux-gnu` 编译检查，GUI 做了 `x86_64-pc-windows-gnu` 测试编译检查；Linux GUI 整包因本机缺 fontconfig／wayland 系统库未能检查，Windows `gpui-pre-windows` 的 HLSL 与 DirectX 真实渲染、Linux WGPU 真实渲染均未验证。
 
 `accesskit_macos` 的 `cargo check`／`cargo test --test generation|heading` 用独立 `--target-dir` 与 `--offline`，见其 README。
 

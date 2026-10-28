@@ -95,7 +95,7 @@ fn geometry_observer(
             window.simulate_next_frame(cx);
             let after_callback = scroll.offset();
             if manual {
-                window.dispatch_event(ScrollWheelEvent {
+                window.dispatch_event(ScrollEvent {
                     position: scroll.bounds().center(),
                     delta: ScrollDelta::Pixels(point(px(0.), px(-40.))),
                     ..Default::default()

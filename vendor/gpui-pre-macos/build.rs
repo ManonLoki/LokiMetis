@@ -16,7 +16,7 @@ fn main() {
     let spec = Spec {
         entry: "src/gpui_macos.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "ee5a78e4977c99ee8ad00079f2b569ffa65ab0322ccc823efe76d44e02606e38",
+        source_manifest_sha256: "185befb334e14f8d874b23a134e8bb6e35894a48cd86e205f3754a3d296f7c9f",
         patches: &[
             Patch {
                 name: "menu-action-ownership",
@@ -41,12 +41,6 @@ fn main() {
                 path: "src/platform.rs",
                 before: include_str!("patches/menu-tests.before"),
                 after: include_str!("patches/menu-tests.after"),
-            },
-            Patch {
-                name: "reopen-registration",
-                path: "src/platform.rs",
-                before: include_str!("patches/reopen-registration.before"),
-                after: include_str!("patches/reopen-registration.after"),
             },
             Patch {
                 name: "reopen-event",
@@ -151,10 +145,10 @@ fn main() {
 
         ],
         generated_hashes: &[
-            ("src/display_link.rs", "1bf93bf2b60dadf27d31d3227e2b29eac0813d5483e087bff696e9abd07410b2"),
-            ("src/platform.rs", "941d5c599203dfebd6e6c6fa5369087a1fa2b3998961361ac2f14b5292bc4fff"),
-            ("src/window.rs", "9038cbc14a0c0f981c292dd6f2d2651ea0fe31eeec49e66315e4c9d6c3a2241a"),
-            ("src/gpui_macos.rs", "ee82064f06834f2179231c4d71e038c850d0af03cc1fe5175f9b7162bc94cb56"),
+            ("src/display_link.rs", "789267fc938da08016b2e2cdf950393a319be584386cca3de997f82e5dba1114"),
+            ("src/platform.rs", "9923744b3481937fbf2e33d04f04eae5fd25ecdd75c43931bc59dd749ed4700a"),
+            ("src/window.rs", "06ccc6fbfc6bc22e6b3da94e61bbfa533f3ec37b7e2bd1db2a4bf6c9dc8cc1db"),
+            ("src/gpui_macos.rs", "328fb915fd82f9a90a95924d11380ff5494d7f0240ceb1798dd07235e7759fe9"),
         ],
     };
     generator::generate(root, &spec);

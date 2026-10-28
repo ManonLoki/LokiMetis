@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "package": "gpui-pre-windows",
-  "version": "0.3.9",
-  "source": "https://crates.io/api/v1/crates/gpui-pre-windows/0.3.9/download",
-  "archive_sha256": "513d4f0fc7d596d3bdef2a73a524ffb83dabc95bf484f2855a698e7f431290a9",
-  "source_manifest_sha256": "99a62eb69b27619c49ecd84970c1c6ddf799501a39f58c76308a5d04474166f2",
+  "version": "0.3.10",
+  "source": "https://crates.io/api/v1/crates/gpui-pre-windows/0.3.10/download",
+  "archive_sha256": "80670f987b920fba019917b2e222ecf2b377f2a6d77872010c7d284c235837b3",
+  "source_manifest_sha256": "67ceabff1707a47d93fb10d594fa27a8d6928f945cb839a9d958f971bdf7a9df",
   "upstream_file_count": 28,
-  "upstream_bytes": 642134,
+  "upstream_bytes": 643050,
   "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched",
   "official_repository": "https://github.com/zed-industries/zed",
-  "source_revision": "93d745668805029476e6d7fbb19652116fed51de",
+  "source_revision": "08cbb88a152c3751a43e853425a70e9f631a5918",
   "manifest_definition": "Sorted UTF-8 SHA-256 lines, two ASCII spaces, upstream-relative path, LF; every archive regular file is unchanged."
 }

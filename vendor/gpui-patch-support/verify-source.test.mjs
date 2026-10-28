@@ -189,6 +189,6 @@ test('verifies all real package manifests, patch groups and generated hashes', (
   const names = ['gpui-pre', 'gpui-pre-apple', 'gpui-pre-windows', 'gpui-pre-wgpu', 'gpui-pre-macos'];
   const output = execFileSync(process.execPath, [join(support, 'verify-source.mjs'), ...names.map(name => resolve(support, '..', name))], { encoding: 'utf8' });
   const reports = output.trim().split('\n').map(line => JSON.parse(line));
-  assert.deepEqual(reports.map(({ package: name, patches }) => [name, patches]), names.map((name, i) => [name, [171, 63, 9, 9, 24][i]]));
+  assert.deepEqual(reports.map(({ package: name, patches }) => [name, patches]), names.map((name, i) => [name, [174, 63, 9, 9, 23][i]]));
   assert.equal(reports.find(report => report.package === 'gpui-pre-wgpu').font_fixtures.files, 5);
 });

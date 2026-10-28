@@ -22,11 +22,8 @@ Cargo 清单、锁文件、VCS 元信息和所有源码；禁止手工编辑。
 ## 装配与维护
 
 `src/lib.rs` 按路径使用未修改的上游模块。`build.rs` 仅使用 Rust 标准库，
-先对完整原始 `node.rs` 字节检查固定 FNV-1a 指纹，再按 `patches/*.before` 和
-`*.after` 执行七处严格、唯一的原文替换。结果指纹也必须与已审阅补丁相符。
-FNV-1a 只检测维护漂移，不用于安全认证；SHA-256 来源清单另行核验。
-
-`patches/heading.patch` 是可审阅的显式差异，必须与替换模板保持一致。
+先对完整原始 `node.rs` 字节检查固定 SHA-256（复用 `gpui-patch-support/sha256.rs`），再按 `patches/*.before` 和
+`*.after` 执行七处严格、唯一的原文替换。补丁结果的 SHA-256 也必须与已审阅结果相符；来源清单另由 `verify-source.mjs` 核验。
 构建不调用系统 patch 命令、不访问网络，也不写入 `upstream/`。
 生成的 `OUT_DIR/node.rs` 包含完整 `mod node { ... }`，保留上游模块级
 inner attribute、版权注释和模块关系。此生成物禁止手工编辑。

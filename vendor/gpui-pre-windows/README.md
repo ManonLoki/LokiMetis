@@ -1,6 +1,6 @@
 # 本地 GPUI 圆角视口兼容层
 
-本目录以 `provenance.json` 记录的官方 0.3.9 `.crate`（Zed revision 93d7456）为完整不可变来源。
+本目录以 `provenance.json` 记录的官方 0.3.10 `.crate`（Zed revision 08cbb88）为完整不可变来源。
 `upstream/` 保留原文件、许可证与目录关系；`source-content.sha256` 覆盖全部原文件，路径相对 upstream 根。
 
 人工维护入口为 Cargo.toml、src/lib.rs、build.rs、fxc_path.rs、patches/ 和本说明。

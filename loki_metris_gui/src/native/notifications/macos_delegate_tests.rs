@@ -116,8 +116,8 @@ fn notification_delegate_recognizes_activity_and_billion_namespaces() {
 /// 固定依赖的真实自动类名合同不能退化成短名、前缀匹配或接受未经审阅的新版本。
 #[test]
 fn notification_delegate_identity_requires_exact_reviewed_gpui_version() {
-    assert!(supported_class_name(c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.9"));
-    for name in [c"NotificationResponseDelegate", c"foreign::NotificationResponseDelegate0.3.9", c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.8", c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.10"] {
+    assert!(supported_class_name(c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.10"));
+    for name in [c"NotificationResponseDelegate", c"foreign::NotificationResponseDelegate0.3.10", c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.9", c"gpui_macos::system_notifications::NotificationResponseDelegate0.3.11"] {
         assert!(!supported_class_name(name));
     }
 }

@@ -169,7 +169,7 @@ fn up(handle: AnyWindowHandle, position: Point<Pixels>, cx: &mut TestAppContext)
     );
 }
 /// 模拟一次完整的按键按下与松开。
-fn key(handle: AnyWindowHandle, key: &str, cx: &mut TestAppContext) {
+fn key(handle: AnyWindowHandle, key: &'static str, cx: &mut TestAppContext) {
     let keystroke = Keystroke::parse(key).unwrap();
     event(
         handle,

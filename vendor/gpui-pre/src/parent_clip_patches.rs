@@ -4,7 +4,6 @@ use crate::generator::Patch;
 
 /// 维护父裁剪链、视图缓存与 clip_rounded_children 入口。
 pub const PATCHES: &[Patch] = &[
-    patch!("../patches/", "parent-painted-monochrome-test-support", "src/window.rs"),
     patch!("../patches/", "parent-window-imports", "src/window.rs"),
     patch!("../patches/", "parent-hitbox-chain", "src/window.rs"),
     patch!("../patches/", "parent-deferred-chain", "src/window.rs"),

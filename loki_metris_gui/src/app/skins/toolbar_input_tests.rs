@@ -7,7 +7,7 @@ use gpui_kit::{
 };
 
 /// 保留完整的原生事件顺序，既能观察持键帧，也能验证keyup仅激活一次。
-fn key(window: &mut Window, cx: &mut App, key: &str, down: bool) {
+fn key(window: &mut Window, cx: &mut App, key: &'static str, down: bool) {
     let keystroke = Keystroke::parse(key).unwrap();
     if down {
         window.dispatch_event(

@@ -9,9 +9,9 @@
                         });
                     // 负 tag 记录此项显式禁用，防止 AppKit 自动校验将其重新启用。
                     let tag = if *disabled {
-                        item.setTarget_(delegate);
+                        item.setTarget(delegate.as_ref());
                         -(index as NSInteger) - 1
                     } else {
                         index as NSInteger
                     };
-                    let _: () = msg_send![item, setTag: tag];
+                    item.setTag(tag);

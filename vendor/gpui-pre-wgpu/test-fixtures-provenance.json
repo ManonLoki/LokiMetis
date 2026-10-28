@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "purpose": "Exact official out-of-package font fixtures for gpui-pre-wgpu 0.3.9 tests",
+  "purpose": "Exact official out-of-package font fixtures for gpui-pre-wgpu 0.3.10 tests",
   "repository": "https://github.com/zed-industries/zed",
-  "revision": "93d745668805029476e6d7fbb19652116fed51de",
-  "verified_at_utc": "2026-10-09T07:49:27.187130+00:00",
+  "revision": "08cbb88a152c3751a43e853425a70e9f631a5918",
+  "verified_at_utc": "2026-10-28T09:05:56.000000+00:00",
   "metadata_urls": [
-    "https://api.github.com/repos/zed-industries/zed/contents/assets/fonts/ibm-plex-sans?ref=93d745668805029476e6d7fbb19652116fed51de",
-    "https://api.github.com/repos/zed-industries/zed/contents/assets/fonts/lilex?ref=93d745668805029476e6d7fbb19652116fed51de"
+    "https://api.github.com/repos/zed-industries/zed/contents/assets/fonts/ibm-plex-sans?ref=08cbb88a152c3751a43e853425a70e9f631a5918",
+    "https://api.github.com/repos/zed-industries/zed/contents/assets/fonts/lilex?ref=08cbb88a152c3751a43e853425a70e9f631a5918"
   ],
   "verification": {
     "official_metadata_type": "file",
@@ -43,35 +43,35 @@
       "size_bytes": 200500,
       "git_blob_sha1": "bd6817d5202895da5ac4fad88de3da71e652881a",
       "sha256": "975dcda37d80f038dcd143c22e33ca2d97a0cc5a929aace1c749153b0fe1afa5",
-      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/93d745668805029476e6d7fbb19652116fed51de/assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf"
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/08cbb88a152c3751a43e853425a70e9f631a5918/assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf"
     },
     {
       "path": "assets/fonts/ibm-plex-sans/license.txt",
       "size_bytes": 4360,
       "git_blob_sha1": "f72f76504cd73cf2c00b140b2743c138320597b6",
       "sha256": "91c25c350d3cac39da2736d74f7ba37ef648f5237a4e330a240615bc8d8c4360",
-      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/93d745668805029476e6d7fbb19652116fed51de/assets/fonts/ibm-plex-sans/license.txt"
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/08cbb88a152c3751a43e853425a70e9f631a5918/assets/fonts/ibm-plex-sans/license.txt"
     },
     {
       "path": "assets/fonts/lilex/Lilex-Bold.ttf",
       "size_bytes": 192992,
       "git_blob_sha1": "45930ee30b81a78e964c3ff494e05ea45147ed9b",
       "sha256": "3369214e2ecddb45ae5024b11d45dd637e99e9d2127ab729817d41d72b8a9c68",
-      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/93d745668805029476e6d7fbb19652116fed51de/assets/fonts/lilex/Lilex-Bold.ttf"
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/08cbb88a152c3751a43e853425a70e9f631a5918/assets/fonts/lilex/Lilex-Bold.ttf"
     },
     {
       "path": "assets/fonts/lilex/Lilex-Regular.ttf",
       "size_bytes": 194308,
       "git_blob_sha1": "cb98a69b0ffb1976805bf5af3047307fe2422b1d",
       "sha256": "8a467ad5a1941dc7c9cebaee34e3ed9364a73b48393034e363e4b528bd711d04",
-      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/93d745668805029476e6d7fbb19652116fed51de/assets/fonts/lilex/Lilex-Regular.ttf"
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/08cbb88a152c3751a43e853425a70e9f631a5918/assets/fonts/lilex/Lilex-Regular.ttf"
     },
     {
       "path": "assets/fonts/lilex/OFL.txt",
       "size_bytes": 4382,
       "git_blob_sha1": "156240bc907aa14571afb18b4b1bde62d3ea33e0",
       "sha256": "a356708a399e3f54b937ec7d9b722c26dabba21365b60f95c56eb7ebca0dee40",
-      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/93d745668805029476e6d7fbb19652116fed51de/assets/fonts/lilex/OFL.txt"
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/08cbb88a152c3751a43e853425a70e9f631a5918/assets/fonts/lilex/OFL.txt"
     }
   ],
   "fixture_root": "test-fixtures",

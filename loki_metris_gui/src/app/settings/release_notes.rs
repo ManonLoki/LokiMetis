@@ -157,7 +157,7 @@ mod tests {
     /// 测试宿主的simulate_keystrokes仅发送按下，补齐松开以覆盖原生按钮点击。
     fn press_and_release(
         handle: gpui_kit::AnyWindowHandle,
-        key: &str,
+        key: &'static str,
         cx: &mut TestAppContext,
     ) {
         let keystroke = Keystroke::parse(key).unwrap();

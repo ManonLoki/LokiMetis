@@ -40,7 +40,7 @@ fn open_bare(cx: &mut TestAppContext) -> AnyWindowHandle {
 }
 
 /// 分别发送按下和松开，让焦点变化及原生按钮释放激活保留真实时序。
-fn key(handle: AnyWindowHandle, name: &str, down: bool, cx: &mut TestAppContext) {
+fn key(handle: AnyWindowHandle, name: &'static str, down: bool, cx: &mut TestAppContext) {
     let keystroke = Keystroke::parse(name).unwrap();
     cx.update_window(handle, |_, window, cx| {
         if down {
@@ -55,7 +55,7 @@ fn key(handle: AnyWindowHandle, name: &str, down: bool, cx: &mut TestAppContext)
 }
 
 /// 完整按键用于遍历；激活时需要逐帧断言的场景直接使用key。
-fn press(handle: AnyWindowHandle, name: &str, cx: &mut TestAppContext) {
+fn press(handle: AnyWindowHandle, name: &'static str, cx: &mut TestAppContext) {
     key(handle, name, true, cx);
     key(handle, name, false, cx);
 }

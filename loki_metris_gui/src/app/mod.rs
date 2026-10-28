@@ -369,7 +369,7 @@ impl Render for Shell {
         };
         self.finish_monitor_image_frame(window,cx);
         let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().track_scroll(&self.page_scroll.handle)
-            .on_scroll_wheel({let scroll=self.page_scroll.clone();move|_,_,_|scroll.cancel_pending_reveal()})
+            .on_scroll({let scroll=self.page_scroll.clone();move|_,_,_|scroll.cancel_pending_reveal()})
             .flex().flex_col()
             .p(px(if self.viewport_width < 992. { 20. } else { 32. }))
             .child(content);

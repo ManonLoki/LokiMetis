@@ -1,16 +1,24 @@
 /// 缩放开始只发布原生目标矩形；默认允许 zoom/unzoom，不伪造完成事件。
-extern "C" fn window_should_zoom(_: &Object, _: Sel, window: id, target_frame: NSRect) -> BOOL {
-    if window != nil {
+extern "C" fn window_should_zoom(
+    _: &AnyObject,
+    _: Sel,
+    window: *mut AnyObject,
+    target_frame: NSRect,
+) -> Bool {
+    if !window.is_null() {
         // 安全：AppKit delegate 参数为当前 NSWindow 与按值 NSRect；通知中心复制字典。
         unsafe {
-            let value: id = msg_send![class!(NSValue), valueWithRect: target_frame];
-            let info = NSDictionary::dictionaryWithObject_forKey_(nil, value, ns_string("targetFrame"));
-            let center: id = msg_send![class!(NSNotificationCenter), defaultCenter];
-            let name = ns_string("LokiMetrisGPUIWindowWillZoomNotification");
-            let _: () = msg_send![center, postNotificationName: name object: window userInfo: info];
+            let value: *mut AnyObject = msg_send![class!(NSValue), valueWithRect: target_frame];
+            let key = NSString::from_str("targetFrame");
+            let info: *mut AnyObject =
+                msg_send![class!(NSDictionary), dictionaryWithObject: value, forKey: &*key];
+            let center: *mut AnyObject = msg_send![class!(NSNotificationCenter), defaultCenter];
+            let name = NSString::from_str("LokiMetrisGPUIWindowWillZoomNotification");
+            let _: () =
+                msg_send![center, postNotificationName: &*name, object: window, userInfo: info];
         }
     }
-    YES
+    Bool::YES
 }
 
-extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
+extern "C" fn window_did_resize(this: &AnyObject, _: Sel, _: *mut AnyObject) {

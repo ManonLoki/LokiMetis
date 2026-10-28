@@ -7,6 +7,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// 上游 0.3.10 改用 objc2，测试仍按原生裸对象指针操作。
+type id = *mut AnyObject;
+
 const PROBE_ENV: &str = "LOKI_METRIS_MACOS_MENU_NATIVE_TEST";
 const REBUILD: &str = "platform::menu_tests::menu_rebuild_reuses_values_and_preserves_old_items";
 const CALLBACK: &str = "platform::menu_tests::menu_callbacks_allow_reentry_and_reject_invalid_tags";
@@ -96,10 +99,10 @@ impl Host {
             let platform = Rc::new(MacPlatform::new(true));
             let app: id = msg_send![APP_CLASS, sharedApplication];
             let delegate: id = msg_send![APP_DELEGATE_CLASS, new];
-            let pointer = Rc::as_ptr(&platform) as *const c_void;
-            (*app).set_ivar(MAC_PLATFORM_IVAR, pointer);
-            (*delegate).set_ivar(MAC_PLATFORM_IVAR, pointer);
-            app.setDelegate_(delegate);
+            let pointer = Rc::as_ptr(&platform) as *mut c_void;
+            mac_platform_ivar(&*app).load_ptr::<*mut c_void>(&*app).write(pointer);
+            mac_platform_ivar(&*delegate).load_ptr::<*mut c_void>(&*delegate).write(pointer);
+            let _: () = msg_send![app, setDelegate: delegate];
             Self {
                 platform,
                 app,
@@ -129,7 +132,15 @@ impl Host {
     /// 经原生 selector 验证动作，缺失或负 tag 必须返回 false。
     fn validate(&self, item: id) -> bool {
         // 安全性：与 dispatch 相同，返回类型匹配生产注册的布尔签名。
-        unsafe { msg_send![self.delegate, validateMenuItem: item] }
+        let result: Bool = unsafe { msg_send![self.delegate, validateMenuItem: item] };
+        result.as_bool()
+    }
+
+    /// 当前 Dock 菜单的原生指针；菜单由平台状态持有，测试只在持有期内借用。
+    fn dock_menu(&self) -> id {
+        let state = self.platform.0.lock();
+        let menu = state.dock_menu.as_ref().expect("Dock 菜单必须已安装");
+        Retained::as_ptr(menu) as id
     }
 }
 impl Drop for Host {
@@ -137,14 +148,14 @@ impl Drop for Host {
     fn drop(&mut self) {
         // 安全性：所有对象在主线程且仍有效；Dock 的 +1 引用只取走并释放一次。
         unsafe {
-            self.app.setMainMenu_(nil);
-            self.app.setDelegate_(nil);
-            (*self.app).set_ivar(MAC_PLATFORM_IVAR, null_mut::<c_void>());
-            (*self.delegate).set_ivar(MAC_PLATFORM_IVAR, null_mut::<c_void>());
-            let dock = self.platform.0.lock().dock_menu.take();
-            if let Some(menu) = dock {
-                CFRelease(menu as _);
-            }
+            let _: () = msg_send![self.app, setMainMenu: ptr::null_mut::<AnyObject>()];
+            let _: () = msg_send![self.app, setDelegate: ptr::null_mut::<AnyObject>()];
+            mac_platform_ivar(&*self.app).load_ptr::<*mut c_void>(&*self.app).write(ptr::null_mut());
+            mac_platform_ivar(&*self.delegate)
+                .load_ptr::<*mut c_void>(&*self.delegate)
+                .write(ptr::null_mut());
+            // Dock 菜单由 Retained 持有，取走后自然释放一次。
+            drop(self.platform.0.lock().dock_menu.take());
             let _: () = msg_send![self.delegate, release];
         }
     }
@@ -208,8 +219,7 @@ fn exercise_rebuild() {
             &keymap,
         );
         let old_main = Item::at(host.main_menu(), 0);
-        let dock = host.platform.0.lock().dock_menu.unwrap();
-        let old_dock = Item::at(dock, 1);
+        let old_dock = Item::at(host.dock_menu(), 1);
         (old_main, old_dock)
     });
     let tag_main = old_main.tag();
@@ -245,8 +255,7 @@ fn exercise_rebuild() {
     host.platform
         .set_dock_menu(vec![MenuItem::action("新参数", Probe(4))], &keymap);
     assert_eq!(host.platform.0.lock().menu_actions.len(), 4);
-    let new_dock = host.platform.0.lock().dock_menu.unwrap();
-    let new_item = Item::at(new_dock, 0);
+    let new_item = Item::at(host.dock_menu(), 0);
     host.dispatch(new_item.0);
     host.platform.set_menus(vec![], &keymap);
     host.dispatch(old_main.0);
@@ -261,10 +270,7 @@ fn exercise_rebuild() {
     assert_eq!(Item::at(host.main_menu(), 0).tag(), tag_main);
     host.platform
         .set_dock_menu(vec![MenuItem::action("三", Probe(3))], &keymap);
-    assert_eq!(
-        Item::at(host.platform.0.lock().dock_menu.unwrap(), 0).tag(),
-        tag_dock
-    );
+    assert_eq!(Item::at(host.dock_menu(), 0).tag(), tag_dock);
 }
 
 /// 业务回调允许重入重建和替换 callback；无效索引不会消费既有 callback。
@@ -344,15 +350,15 @@ fn assert_disabled(host: &Host, menu: id, validations: &Cell<usize>) {
     let enabled = Item::at(menu, 1);
     // 安全性：Host 与 Item 保持对象存活，update 不进入应用事件循环。
     unsafe {
-        let before: BOOL = msg_send![disabled.0, isEnabled];
-        assert_eq!(before, NO);
+        let before: Bool = msg_send![disabled.0, isEnabled];
+        assert_eq!(before, Bool::NO);
         let count = validations.get();
         let _: () = msg_send![menu, update];
         assert!(validations.get() > count, "必须实际触发 AppKit 动态校验");
-        let after: BOOL = msg_send![disabled.0, isEnabled];
-        assert_eq!(after, NO, "显式禁用不能被校验重新启用");
-        let after: BOOL = msg_send![enabled.0, isEnabled];
-        assert_eq!(after, YES);
+        let after: Bool = msg_send![disabled.0, isEnabled];
+        assert_eq!(after, Bool::NO, "显式禁用不能被校验重新启用");
+        let after: Bool = msg_send![enabled.0, isEnabled];
+        assert_eq!(after, Bool::YES);
     }
     assert!(!host.validate(disabled.0));
     assert!(host.validate(enabled.0));
@@ -392,8 +398,7 @@ fn exercise_disabled() {
     assert_disabled(&host, nested, &validations);
     host.platform
         .set_dock_menu(items().into_iter().collect(), &keymap);
-    let dock = host.platform.0.lock().dock_menu.unwrap();
-    assert_disabled(&host, dock, &validations);
+    assert_disabled(&host, host.dock_menu(), &validations);
     host.platform.set_menus(
         vec![Menu::new("系统动作").items([
             MenuItem::os_action("禁用剪切", Probe(2), gpui::OsAction::Cut).disabled(true),
@@ -408,8 +413,8 @@ fn exercise_disabled() {
         // 安全性：真实主菜单仍持有 enabled 项，校验改变的是动态可用性而非显式禁用。
         unsafe {
             let _: () = msg_send![host.main_menu(), update];
-            let actual: BOOL = msg_send![enabled.0, isEnabled];
-            assert_eq!(actual == YES, expected, "动态校验必须允许禁用后再启用");
+            let actual: Bool = msg_send![enabled.0, isEnabled];
+            assert_eq!(actual == Bool::YES, expected, "动态校验必须允许禁用后再启用");
         }
     }
 }

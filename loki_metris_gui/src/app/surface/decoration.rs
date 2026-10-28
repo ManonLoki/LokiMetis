@@ -183,6 +183,7 @@ fn sample(rail: &RoundedRail, start: f32, end: f32) -> Vec<Point<Pixels>> {
     (0..=steps).map(|step| rail.point(start + (end - start) * step as f32 / steps as f32)).collect()
 }
 
+/// 把已采样的折线按指定线宽与颜色画成一条描边路径；点数不足时不产生路径。
 fn stroke_points(window: &mut Window, points: &[Point<Pixels>], width: Pixels, color: Hsla) {
     let Some((first, rest)) = points.split_first() else { return };
     let mut path = PathBuilder::stroke(width);

@@ -128,8 +128,8 @@ impl Render for Overlay {
                     _ => {}
                 }
             }))
-            .on_scroll_wheel(
-                cx.listener(|this, event: &gpui_kit::ScrollWheelEvent, _, cx| {
+            .on_scroll(
+                cx.listener(|this, event: &gpui_kit::ScrollEvent, _, cx| {
                     if !this.accepts_mouse(cx) { return; }
                     let now = cx.background_executor().now();
                     if this.last_wheel.is_some_and(|last| {

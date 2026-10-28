@@ -14,12 +14,12 @@ fn rounded_clip_abi_matches_storage_and_webgl_shaders() {
     let expected = [
         ("order", std::mem::offset_of!(PolychromeSprite, order)),
         ("pad", std::mem::offset_of!(PolychromeSprite, pad)),
+        ("tile", std::mem::offset_of!(PolychromeSprite, tile)),
         ("grayscale", std::mem::offset_of!(PolychromeSprite, grayscale)),
         ("opacity", std::mem::offset_of!(PolychromeSprite, opacity)),
         ("bounds", std::mem::offset_of!(PolychromeSprite, bounds)),
         ("content_mask", std::mem::offset_of!(PolychromeSprite, content_mask)),
         ("corner_radii", std::mem::offset_of!(PolychromeSprite, corner_radii)),
-        ("tile", std::mem::offset_of!(PolychromeSprite, tile)),
         ("rounded_clip_bounds", std::mem::offset_of!(PolychromeSprite, rounded_clip_bounds)),
     ];
 

@@ -95,7 +95,7 @@ fn payment_image(
     source: impl Into<gpui_kit::ImageSource>,
     ratio: f32,
 ) -> AnyElement {
-    // GPUI 0.3.9 Img / Taffy 0.13 leaf布局在clamp后用天然比例抬高height；
+    // GPUI 0.3.10 Img / Taffy 0.13 leaf布局在clamp后用天然比例抬高height；
     // 来源：https://github.com/DioxusLabs/taffy/blob/v0.13.0/src/compute/leaf.rs#L143-L149
     // 此处直接使用已锁定原图的适配宽度，升级后须由已解码回归证明可移除。
     img(source)
