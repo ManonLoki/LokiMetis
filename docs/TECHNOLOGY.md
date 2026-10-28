@@ -58,8 +58,8 @@
 
 | 库 | 声明 | 当前用途 / 特征 |
 | --- | --- | --- |
-| `gpui-kit` | `0.7.3` | 原生组件与图标；`test-support` 仅 dev-dependencies |
-| `gpui_apple` | `=0.3.9` | 包名 `gpui-pre-apple`，关闭默认特征；仅 macOS 启用 `parent-rounded-clip`，统一已有传递依赖特征 |
+| `gpui-kit` | `0.8.1` | 原生组件与图标；`test-support` 仅 dev-dependencies |
+| `gpui_apple` | `=0.3.10` | 包名 `gpui-pre-apple`，关闭默认特征；仅 macOS 启用 `parent-rounded-clip`，统一已有传递依赖特征 |
 | `rust-i18n` | `4.2.4` | 编译期中英词典 |
 | `sys-locale` | `0.3.2` | 真实系统语言探测 |
 | `tracing-subscriber` | `0.3.23` | 关闭默认特征，`fmt,registry,std`；端侧唯一订阅器 |
@@ -107,14 +107,14 @@ X11/XWayland 的桌宠、托盘恢复探测和 Linux 通知已接线；纯 Wayla
 | 包 / 路径 | 包版本 | 维护职责 |
 | --- | --- | --- |
 | [accesskit_macos](../vendor/accesskit_macos/README.md) | `0.26.3` | 原生 Heading 角色与层级 |
-| [gpui-pre](../vendor/gpui-pre/README.md) | `0.3.9` | 圆角视口、AX/延迟绘制、焦点代数、hitbox 排除与 Linux 隐藏创建首次映射 |
-| [gpui-pre-apple](../vendor/gpui-pre-apple/README.md) | `0.3.9` | Apple/Metal 图元与可变字体；`parent-rounded-clip` 为 macOS 显式 opt-in |
-| [gpui-pre-macos](../vendor/gpui-pre-macos/README.md) | `0.3.9` | macOS 窗口恢复、缩放/全屏失败与 reopen 桥接 |
-| [gpui-pre-windows](../vendor/gpui-pre-windows/README.md) | `0.3.9` | Windows 渲染 ABI 与窗口兼容层 |
-| [gpui-pre-wgpu](../vendor/gpui-pre-wgpu/README.md) | `0.3.9` | WGPU 图元/着色器 ABI |
+| [gpui-pre](../vendor/gpui-pre/README.md) | `0.3.10` | 圆角视口、AX/延迟绘制、焦点代数、hitbox 排除与 Linux 隐藏创建首次映射 |
+| [gpui-pre-apple](../vendor/gpui-pre-apple/README.md) | `0.3.10` | Apple/Metal 图元与可变字体；`parent-rounded-clip` 为 macOS 显式 opt-in |
+| [gpui-pre-macos](../vendor/gpui-pre-macos/README.md) | `0.3.10` | macOS 窗口恢复、缩放/全屏失败与 reopen 桥接 |
+| [gpui-pre-windows](../vendor/gpui-pre-windows/README.md) | `0.3.10` | Windows 渲染 ABI 与窗口兼容层 |
+| [gpui-pre-wgpu](../vendor/gpui-pre-wgpu/README.md) | `0.3.10` | WGPU 图元/着色器 ABI |
 | [tray-icon](../vendor/tray-icon/README.md) | `0.26.1` | Windows 托盘查询接受全部非负成功 HRESULT |
 
-GPUI 五包同为 `0.3.9`，不要只升级其中一个包或把字体补丁仍定位到旧 `gpui-pre-macos`。来源文件数量/摘要的机械登记见 [ENGINEERING_RULES](ENGINEERING_RULES.md#23-分层代码行数门禁与通用文本上限)及相应 vendor 清单；补丁生成验证不代表 GPU 像素或候选 E2E 已通过。
+GPUI 五包同为 `0.3.10`，不要只升级其中一个包或把字体补丁仍定位到旧 `gpui-pre-macos`。来源文件数量/摘要的机械登记见 [ENGINEERING_RULES](ENGINEERING_RULES.md#23-分层代码行数门禁与通用文本上限)及相应 vendor 清单；补丁生成验证不代表 GPU 像素或候选 E2E 已通过。
 
 ## Harness 工程层
 

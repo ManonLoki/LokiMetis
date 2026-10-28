@@ -11,7 +11,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 - resolver 3、edition 2024、MSRV 1.98.1，根 workspace.package.version 是当前版本事实；pairing/core/gui/mobile_bridge 的 version/edition/rust-version 继承 workspace。
 - loki_metris_pairing 提供桌面与移动桥共用的SPAKE2 A/B、恢复通道、配对窗口与资源校验，不依赖GUI、数据库、网络或运行时；core依赖它进行配对验证并拥有设备保存规则。独立 loki_metris_mobile_bridge 提供安全 Rust 状态机和 C ABI，unsafe 限于缓冲映射入口；JNI/Swift 调用侧与手机原生驱动位于外部移动项目，平台互通结果按移动项目证据核对。
 - loki_metris_core 已按批准复刻规格迁入历史纯 Rust 领域模型、SQLite 索引、解析与聚合；声明的项目内依赖见根 Cargo.toml。产品定义已完成，具体复刻进度见自身 Work Plan。core 不依赖 GPUI、Tauri 或 WebView。
-- loki_metris_gui 使用 gpui-kit 0.7.3、rust-i18n 4.2.4 兼容范围、sys-locale 0.3.2、tracing 0.1.44、tracing-subscriber 0.3.23、tracing-appender 0.2.5；实际解析结果以 Cargo 为准。
+- loki_metris_gui 使用 gpui-kit 0.8.1、rust-i18n 4.2.4 兼容范围、sys-locale 0.3.2、tracing 0.1.44、tracing-subscriber 0.3.23、tracing-appender 0.2.5；实际解析结果以 Cargo 为准。
 - 已选原生机制使用精确约束 tray-icon =0.26.1 及本地 HRESULT 补丁、auto-launch 0.6.0、interprocess 2.4.5、global-hotkey 0.8.0；三平台按 target 条件继承 raw-window-handle，Kit test-support 仅 dev-dependencies。依赖统一 workspace，成员不另定版本。
 - Linux已接通同一tray-icon的`ksni`特性与恢复入口探测，通过会话D-Bus承载托盘，不启用GTK/AppIndicator后端；Linux GUI另显式继承ashpd 0.13.13（async-io/global_shortcuts）和x11rb 0.13.2（根xkb，成员另启用shape/randr）。Linux双架构构建与打包合同见[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md)。Portal/X11热键服务尚未接线，不把依赖编译当作完整Linux能力验收，也不改变空热键合同。
 - 优先标准库/现有依赖，不预建运行时/驱动接口；真正必要新依赖先说明确认，显式声明在项目内隔离，不安装全局包。

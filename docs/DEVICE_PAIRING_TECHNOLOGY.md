@@ -4,7 +4,7 @@
 
 采用**共享 Rust 配对核心＋移动端薄封装**。Windows、macOS、Linux 直接使用项目内 `loki_metris_pairing`；Android通过JNI、iOS通过C ABI调用。共享桥及手机原生驱动、私有存储和业务同步已接线；2026-10-21已选Apple Watch由iPhone协作，独立网络不在本轮范围。
 
-确认来源：用户在比较共享 Rust 与 BoringSSL 各端 SDK 路线后，明确要求“按照你的建议 先落盘技术选型文档”。当时先形成选型决定；后续实施范围和当前合同见[终端联动协议](DEVICE_LINK_PROTOCOL.md)。关联决定见 [ADR-20261020-003](adr/20261020_ADR.md#adr-20261020-003确认共享-rust-配对核心与移动端薄封装路线)。
+确认来源：用户在比较共享 Rust 与 BoringSSL 各端 SDK 路线后，明确要求“按照你的建议 先落盘技术选型文档”。当时先形成选型决定；后续实施范围和当前合同见[终端联动协议](DEVICE_LINK_PROTOCOL.md)。关联决定见 [ADR-20261020-003](adr/20261028_ADR.md#adr-20261020-003确认共享-rust-配对核心与移动端薄封装路线)。
 
 ## 选择理由与职责
 

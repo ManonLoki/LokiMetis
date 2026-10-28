@@ -8,7 +8,7 @@ GitHub 按钮固定打开 `https://github.com/ManonLoki/LokiMetis`，提示为�
 
 页内赞助区只显示历史项目原有微信与支付宝收款图，精确来源、字节摘要见 `loki_metris_gui/assets/SOURCE.md`。本次1:1目标选择这两张现有图，原样嵌入，不重绘、不解码重建、不自动支付，也不表示获得任何支付渠道认证。
 
-通知偏好默认关闭；启动只恢复本地设置并查询真实系统状态，不主动请求权限或发送测试通知。当前已接入当天首次严格超过1B Token、Hooks询问/结束/错误及Codex/WorkBuddy换肤终态通知；触发与去重规则以[最新产品规格](product_spec/20261022_product_spec.md#托盘自启与系统通知)为准，已确认开关与权限共同控制发送。原生通知点击可恢复主窗，API接受、横幅呈现与点击分别验证。
+通知偏好默认关闭；启动只恢复本地设置并查询真实系统状态，不主动请求权限或发送测试通知。当前已接入当天首次严格超过1B Token、Hooks询问/结束/错误及Codex/WorkBuddy换肤终态通知；触发与去重规则以[最新产品规格](product_spec/20261028_product_spec.md#托盘自启与系统通知)为准，已确认开关与权限共同控制发送。原生通知点击可恢复主窗，API接受、横幅呈现与点击分别验证。
 
 macOS使用本产品bundle的UserNotifications权限与协作delegate，显式开启时必要申请Alert/Sound，随后保存用户意图并披露权限与保存结果；关闭不撤销OS权限。Windows使用本产品AUMID、Toast设置查询及Activated/Failed回调，只有用户明确开启或重试才初始化授权身份，启动查询不偷偷写HKCU。Linux使用会话D-Bus `org.freedesktop.Notifications`，服务可用不表示每应用授权或横幅已显示；owner、点击及未知投递结果按[Linux工程知识库](LINUX_GPUI_TOOLCHAIN.md#系统通知宿主)处理。v0.3.11 ARM64 GNOME XWayland的Hook询问横幅、点击恢复和关闭门禁已有真实候选验证，见[能力证据索引](LINUX_GPUI_TOOLCHAIN.md#已验证能力与证据索引)；其余事件、版本及平台按实际候选另取证。
 
@@ -23,7 +23,7 @@ Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR
 
 ## Cursor联名套餐与加密登录态
 
-用户于2026-10-27明确批准兼容 Grok + Cursor，并允许读取对应 macOS 钥匙串项及验证官方额度。change_id：`LMDESK-CURSOR-GROK-SHARED-QUOTA-001`；分类：feature；required_version：`0.10.0`；决定见[ADR-20261027-001](adr/20261027_ADR.md#adr-20261027-001cursor-联名套餐采用官方周期与受限系统解密)。
+用户于2026-10-27明确批准兼容 Grok + Cursor，并允许读取对应 macOS 钥匙串项及验证官方额度。change_id：`LMDESK-CURSOR-GROK-SHARED-QUOTA-001`；分类：feature；required_version：`0.10.0`；决定见[ADR-20261027-001](adr/20261028_ADR.md#adr-20261027-001cursor-联名套餐采用官方周期与受限系统解密)。
 
 - 新额度入口固定为只读 POST `https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo` 和 `https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage`，正文固定 `{}`，认证只进入 curl 标准输入的 Bearer 头。单次仍为15秒/256KiB，不接受重定向。仅套餐入口返回404/405/501时回退固定 `https://cursor.com/api/usage-summary`。
 - Cursor safeStorage v1/v10 仅在 macOS 查询已有 `Cursor Safe Storage` / `Cursor Key` 项；二元组已在本机 Cursor 3.27.14 对照，不把上游 Electron 的默认账户名推断为 Cursor 定制发行事实。只调用固定 `/usr/bin/security find-generic-password -s "Cursor Safe Storage" -a "Cursor Key" -w`；参数不含秘密，标准输出上限1KiB，预算最多8秒，取消/超时回收owned进程，不通过Shell、不创建或修改系统秘密。

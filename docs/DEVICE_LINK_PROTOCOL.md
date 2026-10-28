@@ -88,7 +88,7 @@ Android已提交信任映射只在系统同步提交成功后更新，避免Shar
 
 ## 桌宠当前页同步约束
 
-change_id：`LMDESK-TERMINAL-PET-PANEL-RULE-001`；required_version：`0.7.1`。用户已确认的发送范围与一致性标准唯一维护于[产品规格：移动端四格与桌宠当前页一致](product_spec/20261021_product_spec.md#移动端四格与桌宠当前页一致)。本次仅固化规则，不改线格式或声明接线已完成。
+change_id：`LMDESK-TERMINAL-PET-PANEL-RULE-001`；required_version：`0.7.1`。用户已确认的发送范围与一致性标准唯一维护于[产品规格：移动端四格与桌宠当前页一致](product_spec/20261028_product_spec.md#移动端四格与桌宠当前页一致)。本次仅固化规则，不改线格式或声明接线已完成。
 
 当前`project_hooks`遍历十二槽位，发布器没有消费桌宠的布局与当前页；后续需让桌宠与发送端使用同一当前页投影，并将翻页纳入快照变化条件。槽位仍使用1..12的绝对编号，不能裁剪后重编号而改变归属。TCP完整快照、iPhone向Watch转发及HTTP摘要的Hooks选择应追溯同一投影；HTTP仍只保留既有摘要字段，不增加正文或图片权限。既有大小限制、显式截断、认证与当前连接失效规则继续生效。
 
