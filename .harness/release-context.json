@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "19fa16c8f3e2c81f6a7c301066784b85fc2f4da1",
-  "version": "0.10.7",
-  "releaseDate": "2026-10-27",
-  "expectedTag": "v0.10.7-20261027",
+  "sourceHead": "64f3eb3f0411f821353362b6ae269b432c40c882",
+  "version": "0.11.0",
+  "releaseDate": "2026-10-28",
+  "expectedTag": "v0.11.0-20261028",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "ae25384555fc0b8d7f26b39e03845cef28b2b9cf",
-    "sourceHead": "19fa16c8f3e2c81f6a7c301066784b85fc2f4da1",
-    "scopeDiffSha256": "577746fceaea8a378958bb31f37c40e13712356bda34c99a5fb9ea27f687a221",
-    "reviewedSourceCommit": "19fa16c8f3e2c81f6a7c301066784b85fc2f4da1",
+    "scopeBase": "d6f1a15badf6e2f8923750030db704b706bcaead",
+    "sourceHead": "64f3eb3f0411f821353362b6ae269b432c40c882",
+    "scopeDiffSha256": "3b2ae523ed2097fb3d84d7bac38d9545345068a30a953740eb0f03c1ba9d4810",
+    "reviewedSourceCommit": "64f3eb3f0411f821353362b6ae269b432c40c882",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "审查 ae25384 至 19fa16c 的31文件累计差异：今日部分总量规则在core，严格同轮校验并保留Unknown、最低置信度和通知门禁；Cursor固定键SQLite只读驱动、取消关闭与Windows电源接口在host；受管子进程不弹控制台；mDNS维持原监听、认证和owner；NSIS只清理本安装拥有的HKCU命令；FXC定位与首图回执测试无职责扩张。未发现秘密、占位、临时绕过或阻断缺陷。core-first依赖检查、1874份维护文件规模检查、9项NSIS回归及已绑定干净源码的全量测试通过（发现1768项，1777次通过包含子进程）。本地安装、卸载、重装与设备在线证据不作为正式候选E2E；本次按用户明确要求关闭E2E，跨平台构建及签名由发布CI分别验证。",
+    "evidenceSummary": "累计差异：卡片三级层级与原生边缘光轨、gpui-kit 0.8.1 与 GPUI 0.3.10 兼容层重对齐、文档与一次性脚本清理。行为：GUI 545、非 GUI 1289、vendor 各包与生成器回归通过，macOS 本机验证；core 与对外协议无改动，仅 service 一处多余 mut；职责规模与中文注释门禁通过；维护代码无临时标记。Windows 仅测试编译与 Linux 仅 gpui-pre 编译检查，真实渲染与 Linux GUI 整包未验证。",
     "reason": null,
     "remainingRisk": null
   }

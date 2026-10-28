@@ -2,6 +2,25 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-28",
+      "version": "v0.11.0",
+      "featureOptimizations": [
+        {
+          "zh-CN": "全部页面的卡片按主次建立视觉层级，主要卡片增加原生边缘光轨动画；系统开启“减少动态效果”或窗口不可见时自动静止。",
+          "en-US": "Cards on every page now have a clear visual hierarchy, and primary cards gain a native animated edge glow that stays still when Reduce Motion is on or the window is not visible."
+        },
+        {
+          "zh-CN": "分布图把 Token 约数与精确数量分两行显示，便于同时读取概览与准确值。",
+          "en-US": "Distribution charts show the approximate token count and the exact amount on separate lines for easier reading."
+        },
+        {
+          "zh-CN": "升级 GPUI 组件库到 0.8.1 及配套图形框架，保持各平台原生渲染兼容。",
+          "en-US": "Upgrade the GPUI component library to 0.8.1 and its graphics framework to keep native rendering compatible across platforms."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
       "releaseDate": "2026-10-27",
       "version": "v0.10.7",
       "featureOptimizations": [],
@@ -175,17 +194,6 @@
         {
           "zh-CN": "修正 Windows 皮肤监视任务回归测试的模块引用，使原生 CI 能编译并执行已有断言。",
           "en-US": "Correct module references in Windows skin watcher regression tests so native CI can compile and execute the existing assertions."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-22",
-      "version": "v0.7.10",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "为 Windows 与 Unix 分别声明静态 PowerShell、Bash 步骤，消除工作流 Shell 字段的动态表达式解析错误。",
-          "en-US": "Declare separate static PowerShell and Bash steps for Windows and Unix, eliminating dynamic shell expression parsing errors."
         }
       ]
     }
