@@ -110,7 +110,7 @@ mod tests {
         command
     }
 
-    /// 回收截止已经耗尽时必须保存原 Child，下一轮可继续等待到真实终态。
+    /// 确定超时回执必须保存原 Child，下一轮继续回收；不依赖操作系统处理kill的速度。
     #[tokio::test]
     async fn reap_timeout_retains_child_until_a_later_attempt() {
         let reaper = isolated_reaper();
@@ -119,12 +119,20 @@ mod tests {
         let expired = tokio::time::Instant::now()
             .checked_sub(Duration::from_millis(1))
             .expect("测试截止可构造");
+        owner.child_mut().start_kill().expect("真实测试子进程必须收到终止请求");
+        // 驱动等待始终Pending，真实Tokio截止产生Elapsed；被保留的仍是实际Child。
+        let waited = tokio::time::timeout_at(
+            expired,
+            std::future::pending::<std::io::Result<std::process::ExitStatus>>(),
+        ).await;
         assert_eq!(
-            owner.terminate_and_reap_until(expired).await,
+            owner.finish_reap_wait(waited),
             Err(OwnedProcessError::ReapTimedOut)
         );
+        assert!(owner.child.is_none() && owner.registration_id.is_none());
         {
             let state = lock_reaper(reaper);
+            assert!(state.active.is_empty());
             assert_eq!(state.retained.len(), 1);
             assert_eq!(state.owned_processes, 1);
         }
@@ -137,6 +145,46 @@ mod tests {
         .expect("下一次命令必须先回收已 kill 的子进程");
         let state = lock_reaper(reaper);
         assert!(state.retained.is_empty());
+        assert_eq!(state.owned_processes, 0);
+    }
+
+    /// 过期截止仍允许已经Ready的真实wait成功；两种合法结果都必须精确转移登记与槽位。
+    #[tokio::test]
+    async fn expired_deadline_preserves_actual_exit_readiness_and_ownership() {
+        let reaper = isolated_reaper();
+        let mut owner = OwnedProcessChild::spawn_in(&mut sleeping_command(), reaper).unwrap();
+        let expired = tokio::time::Instant::now().checked_sub(Duration::from_millis(1)).unwrap();
+        let retained = match owner.terminate_and_reap_until(expired).await {
+            Ok(()) => false,
+            Err(OwnedProcessError::ReapTimedOut) => true,
+            Err(error) => panic!("unexpected process wait error: {error:?}"),
+        };
+        assert!(owner.child.is_none() && owner.registration_id.is_none() && owner.shutdown.is_none());
+        {
+            let state = lock_reaper(reaper);
+            assert!(state.active.is_empty());
+            assert_eq!(state.retained.len(), usize::from(retained));
+            assert_eq!(state.owned_processes, usize::from(retained));
+        }
+        assert_eq!(reap_retained_processes_until_in(
+            reaper, tokio::time::Instant::now() + Duration::from_secs(2),
+        ).await.unwrap(), usize::from(retained));
+        assert_eq!(lock_reaper(reaper).owned_processes, 0);
+    }
+
+    /// 已确认退出的Child在过期截止下仍走即时成功路径，并清除原有active登记。
+    #[tokio::test]
+    async fn already_exited_child_releases_registration_with_expired_deadline() {
+        let reaper = isolated_reaper();
+        let mut owner = OwnedProcessChild::spawn_in(&mut sleeping_command(), reaper).unwrap();
+        owner.child_mut().start_kill().unwrap();
+        tokio::time::timeout(Duration::from_secs(2), owner.child_mut().wait())
+            .await.expect("已终止的测试子进程必须有界完成wait").unwrap();
+        let expired = tokio::time::Instant::now().checked_sub(Duration::from_millis(1)).unwrap();
+        assert_eq!(owner.terminate_and_reap_until(expired).await, Ok(()));
+        assert!(owner.child.is_none() && owner.registration_id.is_none());
+        let state = lock_reaper(reaper);
+        assert!(state.active.is_empty() && state.retained.is_empty());
         assert_eq!(state.owned_processes, 0);
     }
 

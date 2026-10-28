@@ -360,6 +360,14 @@ impl OwnedProcessChild {
         }
 
         let waited = tokio::time::timeout_at(deadline, self.child_mut().wait()).await;
+        self.finish_reap_wait(waited)
+    }
+
+    /// 按实际等待回执转移句柄归属；即时终态、I/O失败和确定超时沿用同一生产分支。
+    fn finish_reap_wait(
+        &mut self,
+        waited: Result<std::io::Result<std::process::ExitStatus>, tokio::time::error::Elapsed>,
+    ) -> Result<(), OwnedProcessError> {
         match waited {
             Ok(Ok(_)) => {
                 self.finish_reaped();
