@@ -43,17 +43,24 @@ fn refresh_retries_real_budget_error_and_notifies_other_visible_owner(cx: &mut T
     .unwrap();
 }
 
-/// 健康共享结果在一窗显式刷新期间保持同 Arc 和另一窗的真实 tile。
+/// 单帧健康共享结果跨异步刷新保持同 Arc 和真实 tile，不把动画合法换帧当作资源驱逐。
 #[gpui_kit::test]
 fn refresh_preserves_healthy_other_window_arc_and_tile(cx: &mut TestAppContext) {
-    let f = windows(cx);
+    let mut gif = Vec::new();
+    image::codecs::gif::GifEncoder::new(&mut gif)
+        .encode_frame(image::Frame::new(image::RgbaImage::from_pixel(3, 3, image::Rgba([0, 0, 0, 255]))))
+        .unwrap();
+    let f = windows_with_gif(cx, &gif);
     draw(cx, &[f.main, f.playback]);
     let decoded = ready(&f, cx);
+    assert_eq!(decoded.image.frame_count(), 1, "tile稳定性场景必须与动画帧身份独立");
     let tile = cx
         .update_window(f.playback, |_, window, _| {
             window.painted_polychrome_sprites()[0].tile
         })
         .unwrap();
+    // 超过原双帧夹具的200ms边界，仍严格核对同一静态帧的真实图集身份。
+    cx.executor().advance_clock(Duration::from_millis(400));
     cx.update_window(f.main, |_, window, app| {
         window.click("monitor-images-refresh", app)
     })

@@ -180,9 +180,10 @@ fn service_catalog_fixture(cx: &mut TestAppContext) -> (Fixture, AiProfileDraft)
     (f, codex)
 }
 
-/// 真正异步设置和图库快照都必须完成；不能把busy结束当作查询已经完成。
+/// 真正异步设置和图库快照都必须完成，按真实截止等待，不能把busy结束当作查询已经完成。
 fn settle_catalog(cx: &mut TestAppContext, owner: &Entity<Controller>) {
-    for _ in 0..500 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if owner.read_with(cx, |owner, _| !owner.loading && !owner.display_applying && !owner.busy && owner.pending.is_empty()) {
             return;
@@ -190,19 +191,20 @@ fn settle_catalog(cx: &mut TestAppContext, owner: &Entity<Controller>) {
         cx.executor().advance_clock(Duration::from_millis(30));
         std::thread::sleep(Duration::from_millis(2));
     }
-    panic!("pet catalog receipt did not settle");
+    panic!("pet catalog receipt did not settle within 30s of real time");
 }
 
 /// 首次原生几何独立保存画布位置；排空其防抖和回执，才能精确区分首图保存与位置保存次数。
 fn settle_first_position(cx: &mut TestAppContext, owner: &Entity<Controller>) {
     cx.executor().advance_clock(Duration::from_millis(250));
-    for _ in 0..500 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if owner.read_with(cx, |owner, _| owner.position_task.is_none()) { return; }
         cx.executor().advance_clock(Duration::from_millis(1));
         std::thread::sleep(Duration::from_millis(2));
     }
-    panic!("initial geometry position receipt did not settle");
+    panic!("initial geometry position receipt did not settle within 30s of real time");
 }
 
 /// 首图失败期间清除旧行为素材，重试必须读取新图库后选择另一页的真实有图位置。

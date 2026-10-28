@@ -155,6 +155,42 @@ fn trusted_linux_file_manager() -> Option<(&'static str, &'static [&'static str]
 }
 
 #[cfg(target_os = "windows")]
+/// 仅在当前同步调用栈建立 STA；成功和 S_FALSE 都配对释放，初始化失败不执行 Shell 操作。
+fn with_shell_sta(operation: impl FnOnce() -> Result<(), AppError>) -> Result<(), AppError> {
+    use windows::Win32::System::Com::{
+        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
+    };
+    // SAFETY: 初始化不接受外部指针，guard 及 operation 全部停留在当前线程且不跨 await。
+    unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) }
+        .ok()
+        .map_err(|_| AppError::new("skin.open_failed", "无法在文件管理器中打开皮肤目录。"))?;
+    /// 只由本线程成功初始化后构造，离开同步作用域时归还本次 COM 引用。
+    struct Apartment;
+    impl Drop for Apartment {
+        /// 成功、业务失败和展开 panic 都必须释放同一线程上的本次初始化。
+        fn drop(&mut self) {
+            // SAFETY: 本 guard 只在 CoInitializeEx 成功后构造，且不会移出当前函数栈。
+            unsafe { CoUninitialize(); }
+        }
+    }
+    let _apartment = Apartment;
+    operation()
+}
+
+#[cfg(target_os = "windows")]
+/// 在独占的新线程运行 Shell STA，避免复用后台 worker 的 MTA；作用域等待线程终态，不产生脱离 owner 的任务。
+fn run_shell_on_sta(operation: impl FnOnce() -> Result<(), AppError> + Send) -> Result<(), AppError> {
+    std::thread::scope(|scope| {
+        let thread = std::thread::Builder::new()
+            .name("skin-shell-open".to_owned())
+            .spawn_scoped(scope, || with_shell_sta(operation))
+            .map_err(|_| AppError::new("skin.open_failed", "无法在文件管理器中打开皮肤目录。"))?;
+        thread.join()
+            .map_err(|_| AppError::new("skin.open_failed", "无法在文件管理器中打开皮肤目录。"))?
+    })
+}
+
+#[cfg(target_os = "windows")]
 /// 通过 Windows Shell API 打开目录，不解析 PATH，也不创建需由应用回收的子进程。
 fn open_with_windows_shell(directory: &Path) -> Result<(), AppError> {
     use std::os::windows::ffi::OsStrExt;
@@ -168,25 +204,29 @@ fn open_with_windows_shell(directory: &Path) -> Result<(), AppError> {
         .encode_wide()
         .chain(Some(0))
         .collect::<Vec<_>>();
-    // SAFETY: UTF-16 缓冲区均以 NUL 结尾且在 ShellExecuteW 调用期间保持有效；其余参数为空。
-    let result = unsafe {
-        ShellExecuteW(
-            None,
-            PCWSTR(operation.as_ptr()),
-            PCWSTR(directory.as_ptr()),
-            PCWSTR::null(),
-            PCWSTR::null(),
-            SW_SHOWNORMAL,
-        )
-    };
-    if result.0 as isize <= 32 {
-        return Err(AppError::new(
-            "skin.open_failed",
-            "无法在文件管理器中打开皮肤目录。",
-        ));
-    }
-    Ok(())
+    // Shell 扩展可要求 STA，见 https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutew 。
+    run_shell_on_sta(|| {
+        // SAFETY: UTF-16 缓冲区在受管 STA 线程完成调用前保持有效；不传递可执行参数或工作目录。
+        let result = unsafe {
+            ShellExecuteW(
+                None,
+                PCWSTR(operation.as_ptr()),
+                PCWSTR(directory.as_ptr()),
+                PCWSTR::null(),
+                PCWSTR::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        if result.0 as isize <= 32 {
+            return Err(AppError::new("skin.open_failed", "无法在文件管理器中打开皮肤目录。"));
+        }
+        Ok(())
+    })
 }
+
+#[cfg(all(test, target_os = "windows"))]
+#[path = "file_manager_windows_tests.rs"]
+mod windows_tests;
 
 #[cfg(test)]
 mod file_manager_tests {

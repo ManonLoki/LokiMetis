@@ -66,11 +66,16 @@ impl Drop for Windows {
 
 /// 正式导入回执供给真实 Shell 图库和另一原生窗口；不修改缓存、解码或资源私有状态。
 fn windows(cx: &mut TestAppContext) -> Windows {
+    windows_with_gif(cx, include_bytes!("../../../tests/fixtures/monitor-loop.gif"))
+}
+
+/// 只替换导入夹具字节；静态驻留与动画回收仍经过相同正式导入、解码及窗口路径。
+fn windows_with_gif(cx: &mut TestAppContext, gif: &[u8]) -> Windows {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("shared.gif");
     std::fs::write(
         &path,
-        include_bytes!("../../../tests/fixtures/monitor-loop.gif"),
+        gif,
     )
     .unwrap();
     let service =
@@ -155,9 +160,10 @@ fn unmount_player(f: &Windows, cx: &mut TestAppContext) {
     .unwrap();
 }
 
-/// 服务回执只在正式 query 完成后判定成功，超时保留失败而非绕过异步路径。
+/// 服务回执只在正式 query 完成后判定成功，30秒真实截止与动画假时钟相互独立。
 fn settle_query(f: &Windows, cx: &mut TestAppContext) {
-    for _ in 0..500 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if f.shell
             .read_with(cx, |this, _| !this.monitor.catalog.images_loading)
@@ -167,7 +173,7 @@ fn settle_query(f: &Windows, cx: &mut TestAppContext) {
         cx.executor().advance_clock(Duration::from_millis(10));
         std::thread::sleep(Duration::from_millis(2));
     }
-    panic!("正式图库 query 回执必须有界完成");
+    panic!("正式图库 query 回执必须在30秒真实时间内完成");
 }
 
 /// 一个窗口隐藏不能清另一窗口的同 Arc；最后 owner 离开须清两窗所有帧并释放像素。

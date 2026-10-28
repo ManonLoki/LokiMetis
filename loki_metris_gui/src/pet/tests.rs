@@ -59,9 +59,10 @@ pub(super) fn fixture(cx: &mut TestAppContext) -> Fixture {
         overlay: handle.into(),
     }
 }
-/// 后台真实文件操作与GPUI假时钟之间有界等待，超时不能静默通过。
+/// 后台真实文件操作使用30秒真实截止，GPUI假时钟仍驱动回执；机器负载不缩短等待预算。
 pub(super) fn settle(cx: &mut TestAppContext, owner: &Entity<Controller>) {
-    for _ in 0..500 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if owner.read_with(cx, |owner, _| !owner.busy && owner.pending.is_empty()) {
             return;
@@ -69,7 +70,7 @@ pub(super) fn settle(cx: &mut TestAppContext, owner: &Entity<Controller>) {
         cx.executor().advance_clock(Duration::from_millis(30));
         std::thread::sleep(Duration::from_millis(2));
     }
-    panic!("pet preference receipt did not settle");
+    panic!("pet preference receipt did not settle within 30s of real time");
 }
 /// 使用公开窗口观察机制记录真实 bounds 通知，不替换宿主或读取生产交互标志。
 fn bounds_refreshes(handle: AnyWindowHandle, cx: &mut TestAppContext) -> (Entity<usize>, gpui_kit::Subscription) {
