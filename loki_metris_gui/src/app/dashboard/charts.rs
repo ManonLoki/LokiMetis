@@ -70,7 +70,7 @@ impl Shell {
             .dropdown_menu(move|mut menu,_,_|{for(index,label)in &labels {let index=*index;let entity=entity.clone();menu=menu.item(PopupMenuItem::new(label.clone()).checked(current==index).on_click(move|_,_,cx|{
                 let _=entity.update(cx,|this,cx|{if this.dashboard.client==client {this.dashboard.chart.dimensions[client]=index;this.reload_usage(false,cx);}});
             }));}menu});
-        StaticCard::new("charts-filter-bar", cx.theme().mode.is_dark(), StaticMaterial::FilterBar).test_support().px_3().py(px(10.)).flex_row().items_center().flex_wrap().gap_x_4().gap_y_3().child(ranges).child(select).into_any_element()
+        StaticCard::new("charts-filter-bar", cx.theme().mode.is_dark(), StaticMaterial::FilterBar).priority(crate::app::surface::CardPriority::Quiet).test_support().px_3().py(px(10.)).flex_row().items_center().flex_wrap().gap_x_4().gap_y_3().child(ranges).child(select).into_any_element()
     }
 
     /// 三张原生图分别投影 Token、调用与固定排序的维度分布。

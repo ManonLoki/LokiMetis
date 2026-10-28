@@ -70,6 +70,7 @@ impl Render for Probe {
             .p(px(24.))
             .child(div().children(self.shown.then(|| {
                 SpotlightCard::new("surface-card", self.dark)
+                    .priority(CardPriority::Primary)
                     .test_support()
                     .w(px(400.))
                     .h(px(200.))

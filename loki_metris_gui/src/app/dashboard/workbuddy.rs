@@ -38,7 +38,7 @@ impl Shell {
                 .child(div().text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight::SEMIBOLD)
                     .child(format!("{range} {}", self.t("workbuddy.breakdown"))))
                 .child(div().w_full().grid().grid_cols(3).gap_4().children(metrics.into_iter().map(|(key, value)| {
-                    div().px_4().py(px(14.4)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(cx.theme().muted)
+                    crate::app::surface::inset_card(format!("workbuddy-cell-{key}"), cx.theme().mode.is_dark()).px_4().py(px(14.4))
                         .child(div().text_xs().line_height(gpui_kit::relative(1.4)).text_color(cx.theme().muted_foreground).child(self.t(key)))
                         .child(div().id(gpui_kit::SharedString::from(key.to_owned())).role(gpui_kit::Role::Label)
                             .aria_label(self.t(key)).aria_value(value.clone()).text_size(px(16.)).font_weight(FontWeight::EXTRA_BOLD).child(value))

@@ -65,7 +65,8 @@ impl Shell {
         let counts = &data.counts;
         page = page.child(div().grid().grid_cols(if self.viewport_width >= 1200. {4} else {2}).gap_4()
             .children([("input", &counts.input), ("output", &counts.output), ("cache_read", &counts.cache_read), ("cache_write", &counts.cache_write)]
-                .into_iter().map(|(key, count)| self.panel(cx)
+                .into_iter().map(|(key, count)| self.panel(format!("cursor-summary-{key}"), cx)
+                    .priority(crate::app::surface::CardPriority::Secondary)
                     .child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t(&format!("cursor_account.{key}"))))
                     .child(div().text_size(px(24.)).font_weight(FontWeight::SEMIBOLD).child(self.cursor_tokens(count)))
                     .child(div().text_xs().child(self.cursor_coverage(count))))));
@@ -101,7 +102,7 @@ impl Shell {
             self.cursor_count_cells(row, &group.counts)
         }));
         let table = Table::new().w_full().child(head).child(body);
-        self.panel(cx).child(div().font_weight(FontWeight::SEMIBOLD).child(self.t(title)))
+        self.panel(format!("cursor-table-{title}"), cx).child(div().font_weight(FontWeight::SEMIBOLD).child(self.t(title)))
             .child(div().id(SharedString::from(title)).test_support().w_full().overflow_x_scroll().child(div().min_w(px(820.)).child(table)))
             .into_any_element()
     }

@@ -176,7 +176,7 @@ impl Shell {
             );
         }
         page = page.child(
-            crate::app::surface::SpotlightCard::new("monitor-slot-card", cx.theme().mode.is_dark())
+            crate::app::surface::SpotlightCard::new("monitor-slot-card", cx.theme().mode.is_dark()).priority(crate::app::surface::CardPriority::Secondary)
                 .text_color(rgb(if cx.theme().mode.is_dark() {
                     0xc9c9c9
                 } else {
@@ -279,8 +279,8 @@ impl Shell {
                 HookBehavior::Asking => 0xf59f00,
                 _ => 0xf03e3e,
             });
-            let mut card = div()
-                .id(format!("monitor-behavior-{key}"))
+            let mut card = crate::app::surface::SpotlightCard::new(format!("monitor-behavior-{key}"), cx.theme().mode.is_dark())
+                .priority(crate::app::surface::CardPriority::Secondary)
                 .text_color(rgb(if cx.theme().mode.is_dark() {
                     0xc9c9c9
                 } else {
@@ -294,10 +294,6 @@ impl Shell {
                 .flex_col()
                 .flex_shrink_0()
                 .overflow_hidden()
-                .rounded(px(20.))
-                .border_1()
-                .border_color(cx.theme().border)
-                .bg(cx.theme().secondary)
                 .child(
                     div()
                         .id(format!("monitor-behavior-header-{key}"))

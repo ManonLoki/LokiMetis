@@ -1,7 +1,7 @@
 //! 看板各页共用的指标展示：小摘要卡、基点比率与 core 标签码翻译。
 
 use super::{Shell, format};
-use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px, rgb,
+use gpui_kit::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px,
     component::{ActiveTheme, button::{Button, ButtonVariants}, Icon}};
 use loki_metris_core::DisplayLabelCode;
 
@@ -9,9 +9,7 @@ impl Shell {
     /// 小摘要沿用轻量材质；只有总 Token 提供复制精确值。
     pub(super) fn mini_metric(&self,key:&'static str,value:String,exact:Option<u64>,cx:&mut Context<Self>) -> AnyElement {
         let dark=cx.theme().mode.is_dark();
-        div().id(SharedString::from(format!("mini-card-{key}"))).p_5().rounded(px(12.)).border_1()
-            .border_color(if dark {rgb(0xffffff).alpha(0.08)}else{rgb(0x67513c).alpha(0.1)})
-            .bg(rgb(if dark {0x28292c}else{0xfcfaf7}))
+        crate::app::surface::inset_card(SharedString::from(format!("mini-card-{key}")), dark).p_5()
             .child(div().text_xs().text_color(cx.theme().muted_foreground).child(self.t(key)))
             .child(div().id(SharedString::from(format!("mini-{key}"))).role(gpui_kit::Role::Label).aria_label(self.t(key)).aria_value(value.clone())
                 .text_size(px(32.)).font_weight(FontWeight::EXTRA_BOLD).child(value))

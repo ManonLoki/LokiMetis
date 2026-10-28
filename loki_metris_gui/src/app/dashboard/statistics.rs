@@ -86,7 +86,7 @@ impl Shell {
                 }
                 menu
             });
-        let mut bar = StaticCard::new("statistics-filter-bar", cx.theme().mode.is_dark(), StaticMaterial::FilterBar).test_support().py(px(10.)).px_3().flex_row().flex_wrap().items_center().gap_x_4().gap_y_3()
+        let mut bar = StaticCard::new("statistics-filter-bar", cx.theme().mode.is_dark(), StaticMaterial::FilterBar).priority(crate::app::surface::CardPriority::Quiet).test_support().py(px(10.)).px_3().flex_row().flex_wrap().items_center().gap_x_4().gap_y_3()
             .child(ranges).child(select);
         if let Some(data) = &self.dashboard.detail.statistics {
             bar = bar.child(div().flex_1()).child(div().flex().items_center().gap_2()
@@ -158,7 +158,7 @@ impl Shell {
                 .child(TableCell::new().px(px(10.)).py_3().text_right().child(group.credits.map(format::credits).unwrap_or_else(||self.t("dashboard.not_provided"))))))
                 .when(models.groups.is_empty(),|body|body.child(BrandTableRow::new("workbuddy-model-empty-row",cx.theme().mode.is_dark()).bottom_corner_radius(px(19.)).child(TableCell::new().col_span(10).px_5().py_4().text_color(cx.theme().muted_foreground).child(self.t("statistics.no_models")))));
             let table=Table::new().w_full().text_size(px(16.)).font_weight(FontWeight::NORMAL).text_color(cx.theme().foreground).child(header).child(body);
-            page=page.child(StaticCard::new("workbuddy-model-table-panel", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().p_0().gap_0().mt_3()
+            page=page.child(StaticCard::new("workbuddy-model-table-panel", cx.theme().mode.is_dark(), StaticMaterial::Table).priority(crate::app::surface::CardPriority::Quiet).test_support().p_0().gap_0().mt_3()
                 .child(div().p_5().flex().items_center().justify_between().child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("statistics.actual_models")))
                     .child(self.quality_badge(self.t("statistics.model_basis"),cx.theme().primary)))
                 .child(div().id("workbuddy-model-table").overflow_x_scroll().w_full().child(div().min_w(px(1320.)).child(table))));
@@ -176,7 +176,7 @@ impl Shell {
 
     /// 固定宽表在小窗口仅横向滚动，保持参考列顺序和读数对齐。
     fn table_panel(&self,title:&str,table:AnyElement,width:f32,cx:&Context<Self>) -> AnyElement {
-        StaticCard::new(SharedString::from(format!("{title}-panel")), cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().p_0().gap_0().child(div().p_5().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t(title)))
+        StaticCard::new(SharedString::from(format!("{title}-panel")), cx.theme().mode.is_dark(), StaticMaterial::Table).priority(crate::app::surface::CardPriority::Quiet).test_support().p_0().gap_0().child(div().p_5().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t(title)))
             .child(div().id(SharedString::from(title.to_owned())).overflow_x_scroll().w_full().child(div().min_w(px(width)).child(table)))
             .into_any_element()
     }

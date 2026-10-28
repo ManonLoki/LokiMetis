@@ -25,7 +25,7 @@ impl Shell {
     pub(in crate::app::monitor) fn monitor_hooks(&self, cx: &mut Context<Self>) -> AnyElement {
         let state = &self.monitor.hooks;
         let mut card =
-            crate::app::surface::SpotlightCard::new("monitor-hooks", cx.theme().mode.is_dark())
+            crate::app::surface::SpotlightCard::new("monitor-hooks", cx.theme().mode.is_dark()).priority(crate::app::surface::CardPriority::Secondary)
                 .test_support()
                 .w_full()
                 .flex_shrink_0()

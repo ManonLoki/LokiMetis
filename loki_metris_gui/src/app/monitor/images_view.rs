@@ -100,17 +100,13 @@ impl Shell {
         if state.images.is_empty() {
             return page
                 .child(
-                    div()
-                        .w_full()
+                    crate::app::surface::StaticCard::new("monitor-images-empty", cx.theme().mode.is_dark(), crate::app::surface::StaticMaterial::Panel)
+                        .priority(crate::app::surface::CardPriority::Quiet)
                         .min_h(px(300.))
                         .flex()
                         .flex_col()
                         .items_center()
                         .justify_center()
-                        .rounded(px(20.))
-                        .border_1()
-                        .border_color(cx.theme().border)
-                        .bg(cx.theme().secondary)
                         .p_6()
                         .child(
                             div()
@@ -207,15 +203,11 @@ impl Shell {
                     )
                 });
             grid = grid.child(
-                div()
-                    .id(format!("monitor-image-card-{}", entry.id))
+                crate::app::surface::SpotlightCard::new(format!("monitor-image-card-{}", entry.id), cx.theme().mode.is_dark())
+                    .priority(crate::app::surface::CardPriority::Secondary)
                     .test_support()
                     .min_w_0()
-                    .rounded(px(20.))
                     .overflow_hidden()
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .bg(cx.theme().secondary)
                     .child(
                         div()
                             .relative()

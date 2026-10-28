@@ -20,7 +20,7 @@ pub(super) use statistics::Route;
 
 use super::Shell;
 use loki_metris_service::usage_service::{UsageData, UsageService, UsageQuery, UsageResponse};
-use gpui_kit::{AnyElement, Context, Div, FontWeight, IntoElement, Task,
+use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Task,
     base::TestSupportExt as _, component::{ActiveTheme, button::{Button, ButtonVariants}},
     div, prelude::*, px};
 use loki_metris_core::SourceClientKind;
@@ -290,7 +290,7 @@ impl Shell {
         div().id("dashboard").test_support().w_full().flex().flex_col().gap_5()
             .child(div().w_full().flex().flex_wrap().items_center().justify_between().gap_3().px_5().pt(px(10.4)).pb(px(8.8))
                 .border_b_1().border_color(cx.theme().border).bg(cx.theme().tab_bar).child(tabs).when(!empty,|bar|bar.child(agents)))
-            .when(empty,|column|column.child(self.panel(cx)
+            .when(empty,|column|column.child(self.panel("dashboard-no-agents", cx)
                 .child(div().text_size(px(20.)).font_weight(FontWeight::SEMIBOLD).child(self.t("shell.noEnabledAgents.title")))
                 .child(self.t("shell.noEnabledAgents.body"))))
             .when(self.dashboard.client != CURSOR_CLIENT && self.dashboard.route == Route::Overview && self.dashboard.loading && self.dashboard.data.is_none(), |column| column.child(div().text_sm().text_color(cx.theme().muted_foreground).child(self.t("dashboard.loading"))
@@ -330,14 +330,14 @@ impl Shell {
     }
 
     /// 参考页面的卡片尺寸与留白归属展示层，所有颜色沿用完整语义主题。
-    fn panel(&self, cx: &Context<Self>) -> Div {
-        div().w_full().flex().flex_col().gap_4().p_5().rounded(px(20.))
-            .border_1().border_color(cx.theme().border).bg(cx.theme().secondary)
+    fn panel(&self, id: impl Into<gpui_kit::ElementId>, cx: &Context<Self>) -> super::surface::StaticCard {
+        super::surface::StaticCard::new(id, cx.theme().mode.is_dark(), super::surface::StaticMaterial::Panel)
+            .priority(super::surface::CardPriority::Quiet).gap_4().p_5()
     }
 
     /// 仅历史spot-panel卡片使用聚光材质；筛选、表格和静态内容保留普通panel。
     fn spot_panel(&self, id: impl Into<gpui_kit::ElementId>, cx: &Context<Self>) -> super::surface::SpotlightCard {
-        super::surface::SpotlightCard::new(id, cx.theme().mode.is_dark())
+        super::surface::SpotlightCard::new(id, cx.theme().mode.is_dark()).priority(crate::app::surface::CardPriority::Secondary)
             .gap_4().p_5()
     }
 }

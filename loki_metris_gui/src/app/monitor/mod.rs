@@ -113,7 +113,7 @@ impl Shell {
         };
         let listening=if status.listening {self.t("monitor.workbench.listening").replace("%{address}",&status.bind_address)}else{self.t("monitor.workbench.offline")};
         let color=rgb(if status.listening {0x40c057}else{0xfa5252});
-        page=page.child(super::surface::SpotlightCard::new("monitor-workbench-card",cx.theme().mode.is_dark()).test_support().gap_4().p_4()
+        page=page.child(super::surface::SpotlightCard::new("monitor-workbench-card",cx.theme().mode.is_dark()).priority(crate::app::surface::CardPriority::Primary).test_support().gap_4().p_4()
             .child(div().w_full().flex().items_start().justify_between().gap_3()
                 .child(div().text_size(px(22.)).font_weight(FontWeight::BOLD).child(self.t("monitor.workbench.title")))
                 .child(div().id("monitor-listening").role(Role::Status).aria_label(listening.clone()).px(px(10.)).h(px(20.)).rounded_full().border_1().border_color(color.opacity(0.26)).bg(color.opacity(0.09)).text_color(if cx.theme().mode.is_dark(){rgb(0xd3f9d8)}else{color}).text_size(px(11.)).font_weight(FontWeight::BOLD).flex().items_center().child(listening)))
@@ -132,7 +132,7 @@ impl Shell {
 
     /// 指标块同时提供完整可访问标签与实际数值，周围表面没有操作。
     fn monitor_metric(&self,id:&'static str,key:&str,value:u64,cx:&Context<Self>)->AnyElement {
-        div().id(id).test_support().role(Role::Label).aria_label(format!("{} {value}",self.t(key))).w_full().min_w_0().p(px(14.)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark(){0x26231f}else{0xf0ebe3})).flex().flex_col().gap_1()
+        super::surface::inset_card(id, cx.theme().mode.is_dark()).test_support().role(Role::Label).aria_label(format!("{} {value}",self.t(key))).w_full().min_w_0().p(px(14.)).gap_1()
             .child(div().text_size(px(12.)).text_color(cx.theme().muted_foreground).child(self.t(key)))
             .child(div().text_size(px(20.)).font_weight(FontWeight::BOLD).child(value.to_string())).into_any_element()
     }

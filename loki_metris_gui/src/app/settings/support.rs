@@ -53,8 +53,7 @@ impl Shell {
                         ]
                         .into_iter()
                         .map(|(id, path, label, alt, ratio)| {
-                            self.settings_plain_surface(16., cx)
-                                .id(id)
+                            self.settings_plain_surface(id, 16., cx)
                                 .test_support()
                                 .w_full()
                                 .min_w_0()

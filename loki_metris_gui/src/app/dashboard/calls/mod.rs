@@ -85,7 +85,7 @@ impl Shell {
         let mut column=div().w_full().flex().flex_col().gap_8();
         if page.index_state!=LocalIndexState::Ready {column=column.child(self.local_index_notice(page.index_state,cx));}
         if matches!(page.index_state,LocalIndexState::NotScanned|LocalIndexState::NeedsRescan) {return column.into_any_element()}
-        let filters=StaticCard::new("calls-filters", cx.theme().mode.is_dark(), StaticMaterial::Panel).test_support().gap_4().p_5().child(div().flex().items_center().justify_between()
+        let filters=StaticCard::new("calls-filters", cx.theme().mode.is_dark(), StaticMaterial::Panel).priority(crate::app::surface::CardPriority::Quiet).test_support().gap_4().p_5().child(div().flex().items_center().justify_between()
             .child(div().text_size(px(16.)).font_weight(FontWeight::BOLD).child(self.t("calls.filters")))
             .child(Button::new("calls-clear").ghost().label(self.t("calls.clear")).on_click(cx.listener(|this,_,_,cx|{
                 this.dashboard.calls.queries[this.dashboard.client].filters=UsageCallFilters::default();this.load_calls(false,cx);
@@ -180,7 +180,7 @@ impl Shell {
                 row.child(Button::new("calls-load-more").outline().label(self.t("calls.load_more")).loading(self.dashboard.calls.loading_next).disabled(self.dashboard.calls.loading_next)
                     .on_click(cx.listener(|this,_,_,cx|this.load_calls(true,cx))))
             }else{row.child(self.t("calls.all_loaded"))}});
-        StaticCard::new("calls-results", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().p_0().gap_0().child(div().id("calls-table-scroll").tab_index(0).role(gpui_kit::Role::Group).aria_label(self.t("calls.table"))
+        StaticCard::new("calls-results", cx.theme().mode.is_dark(), StaticMaterial::Table).priority(crate::app::surface::CardPriority::Quiet).test_support().p_0().gap_0().child(div().id("calls-table-scroll").tab_index(0).role(gpui_kit::Role::Group).aria_label(self.t("calls.table"))
             .overflow_x_scroll().w_full().min_w_0().child(div().w(px(widths[if all {0}else{1}..].iter().sum())).flex_none().child(table)))
             .when(!refreshing&&!failed&&page.items.is_empty(),|panel|panel.child(div().p_5().text_color(cx.theme().muted_foreground)
                 .child(self.t(if page.index_state==LocalIndexState::ReadyNoCalls {"calls.empty_scanned"}else{"calls.empty_filtered"}))))

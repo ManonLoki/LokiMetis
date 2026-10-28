@@ -50,7 +50,7 @@ impl Shell {
         }
         if self.dashboard.client == 4 { return page.child(self.workbuddy_overview(data, selected, cx)).into_any_element(); }
         if matches!(data.records.index_state, LocalIndexState::NotScanned | LocalIndexState::NeedsRescan) {
-            return page.child(self.panel(cx).child(self.t("dashboard.not_scanned"))
+            return page.child(self.panel("overview-not-scanned", cx).child(self.t("dashboard.not_scanned"))
                 .child(Button::new("overview-scan").outline().label(self.t("dashboard.scan"))
                     .on_click(cx.listener(|this, _, _, cx| this.reload_usage(true, cx)))))
                 .into_any_element();
@@ -83,11 +83,11 @@ impl Shell {
             ("threads", format::exact(value.thread_count)), ("roots", format::exact(value.root_count)),
             ("files", format::exact(value.source_count)), ("duplicates", format::exact(value.cross_root_duplicate_source_count)),
         ];
-        page.child(self.spot_panel("overview-coverage", cx).test_support()
+        page.child(self.spot_panel("overview-coverage", cx).priority(crate::app::surface::CardPriority::Quiet).test_support()
             .child(div().flex().items_center().justify_between().child(div().text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight::SEMIBOLD).child(self.t("dashboard.coverage")))
                 .child(self.quality_badge(self.t("dashboard.enabled_summary"), cx.theme().warning)))
             .child(div().w_full().grid().grid_cols(columns).gap_4().children(coverage.into_iter().map(|(key, value)| {
-                div().flex_1().min_w_0().px_4().py(px(14.4)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(cx.theme().muted)
+                crate::app::surface::inset_card(format!("coverage-cell-{key}"), cx.theme().mode.is_dark()).flex_1().min_w_0().px_4().py(px(14.4))
                     .child(div().text_xs().line_height(gpui_kit::relative(1.4)).text_color(cx.theme().muted_foreground).child(self.t(&format!("dashboard.{key}"))))
                     .child(div().id(gpui_kit::SharedString::from(format!("coverage-{key}"))).role(gpui_kit::Role::Label)
                         .aria_label(self.t(&format!("dashboard.{key}"))).aria_value(value.clone()).text_size(px(16.)).font_weight(FontWeight::EXTRA_BOLD).child(value))
@@ -98,6 +98,9 @@ impl Shell {
     /// 大指标保持调用/Token 等宽和真实精确值复制，父卡片没有复制事件。
     pub(super) fn hero_metric(&self, label: &str, value: String, precise: Option<u64>, cx: &mut Context<Self>) -> AnyElement {
         self.spot_panel(gpui_kit::SharedString::from(format!("hero-{label}")), cx)
+            .priority(if matches!(label, "dashboard.calls" | "dashboard.tokens" | "workbuddy.requests") {
+                crate::app::surface::CardPriority::Primary
+            } else { crate::app::surface::CardPriority::Secondary })
             .overflow_hidden().flex_1().min_w_0().h(px(176.)).gap_0()
             .top_accent(px(3.), rgb(0xd7952c).into())
             .test_support()
@@ -129,7 +132,7 @@ impl Shell {
     /// 缺失指标保留“未提供”；精确值和紧凑值来自同一个整数。
     fn token_cell(&self, key: &'static str, value: Option<u64>, cx: &Context<Self>) -> AnyElement {
         let missing = self.t("dashboard.not_provided");
-        div().flex_1().min_w_0().px_4().py(px(14.4)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(cx.theme().muted)
+        crate::app::surface::inset_card(format!("token-cell-{key}"), cx.theme().mode.is_dark()).flex_1().min_w_0().px_4().py(px(14.4))
             .child(div().text_xs().line_height(gpui_kit::relative(1.4)).text_color(cx.theme().muted_foreground).child(self.t(&format!("dashboard.{key}"))))
             .child(div().id(gpui_kit::SharedString::from(format!("token-{key}"))).role(gpui_kit::Role::Label)
                 .aria_label(self.t(&format!("dashboard.{key}"))).aria_value(value.map(format::exact).unwrap_or_else(|| missing.clone()))

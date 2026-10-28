@@ -95,7 +95,7 @@ impl Shell {
                 .role(Role::Label).aria_label(self.t("devices.seen")).text_size(px(11.))
                 .text_color(cx.theme().muted_foreground).child(self.t("devices.seen")));
         }
-        let card = StaticCard::new(SharedString::from(format!("device-saved-{}", device.id)), dark, StaticMaterial::Panel)
+        let card = StaticCard::new(SharedString::from(format!("device-saved-{}", device.id)), dark, StaticMaterial::Panel).priority(crate::app::surface::CardPriority::Secondary)
             .test_support().p_4().h_full().flex_row().items_start().gap_4()
             .child(device_artwork(&device.id, artwork_path(info.map(|info| info.platform), presence.and_then(|presence| presence.form_factor)),
                 self.t("devices.illustration").replace("{{name}}", &name)))

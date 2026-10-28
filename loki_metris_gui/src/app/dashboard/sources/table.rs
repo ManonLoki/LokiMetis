@@ -24,7 +24,7 @@ impl Shell {
         let roots=self.dashboard.sources.roots.as_deref().unwrap_or_default();
         let body=if roots.is_empty() {TableBody::new().child(BrandTableRow::new("sources-empty-row",cx.theme().mode.is_dark()).bottom_corner_radius(px(19.)).child(TableCell::new().col_span(8).p_4().child(self.t("sources.table.empty"))))}
             else {TableBody::new().children(roots.iter().enumerate().map(|(index,root)|self.source_row(index,root,roots,cx)))};
-        StaticCard::new("sources-root-table", cx.theme().mode.is_dark(), StaticMaterial::Table).test_support().overflow_hidden()
+        StaticCard::new("sources-root-table", cx.theme().mode.is_dark(), StaticMaterial::Table).priority(crate::app::surface::CardPriority::Quiet).test_support().overflow_hidden()
             .child(div().id("sources-table-scroll").test_support().role(gpui_kit::Role::Group).aria_label(self.t("sources.page.title"))
                 .w_full().min_w_0().overflow_x_scroll().child(div().w(px(widths.iter().sum())).min_w(px(widths.iter().sum())).flex_none()
                     .child(Table::new().w_full().text_size(px(14.)).text_color(cx.theme().foreground)

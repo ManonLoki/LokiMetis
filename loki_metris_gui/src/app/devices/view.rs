@@ -46,7 +46,7 @@ impl Shell {
             let message = if !state.loaded {
                 if state.pending { "devices.loading" } else { "devices.notLoaded" }
             } else { "devices.noSaved" };
-            saved = saved.child(StaticCard::new("devices-saved-empty", dark, StaticMaterial::Panel)
+            saved = saved.child(StaticCard::new("devices-saved-empty", dark, StaticMaterial::Panel).priority(crate::app::surface::CardPriority::Quiet)
                 .p_6().flex().items_center().gap_3()
                 .child(Icon::new(IconName::MonitorSmartphone).size(px(32.)).text_color(cx.theme().muted_foreground))
                 .child(div().id("devices-empty-message").test_support().role(Role::Label).aria_label(self.t(message))

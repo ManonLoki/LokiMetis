@@ -161,7 +161,7 @@ impl Shell {
         crate::app::surface::SpotlightCard::new(
             format!("skin-card-{}-{:?}", skin.id, skin.source),
             cx.theme().mode.is_dark(),
-        )
+        ).priority(if current { crate::app::surface::CardPriority::Primary } else { crate::app::surface::CardPriority::Secondary })
         .text_color(rgb(if cx.theme().mode.is_dark() {
             0xc9c9c9
         } else {

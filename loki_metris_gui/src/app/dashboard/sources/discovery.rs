@@ -84,7 +84,7 @@ impl Shell {
         let running=status.lifecycle==State::Running;
         let disabled=self.source_writes_disabled();let start_disabled=disabled||running||self.dashboard.manual_pending;
         let state_label=self.t(&format!("sources.discovery.state.{state}"));
-        let mut card=StaticCard::new("sources-discovery-panel", cx.theme().mode.is_dark(), StaticMaterial::Panel).test_support().gap_4().p_5().child(div().w_full().flex().flex_wrap().items_center().justify_between().gap_4()
+        let mut card=StaticCard::new("sources-discovery-panel", cx.theme().mode.is_dark(), StaticMaterial::Panel).priority(crate::app::surface::CardPriority::Secondary).test_support().gap_4().p_5().child(div().w_full().flex().flex_wrap().items_center().justify_between().gap_4()
             .child(div().flex().flex_col().gap_1().child(div().flex().items_center().gap_3()
                 .child(div().text_size(px(19.2)).font_weight(FontWeight::SEMIBOLD).child(self.t("sources.discovery.title")))
                 .child(div().id("sources-discovery-state").test_support().role(gpui_kit::Role::Label).aria_label(state_label.clone())

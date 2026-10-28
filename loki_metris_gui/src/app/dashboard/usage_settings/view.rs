@@ -37,7 +37,7 @@ impl Shell {
                 state.focus(window,cx);
                 if let Some(next)=base::step_value(&state.value(),action,1.,Some(1.),Some(if index==0{1440.}else{3650.})) {state.replace_all(next,window,cx);}
             }));
-        let mut card=StaticCard::new(("usage-settings-card",index), cx.theme().mode.is_dark(), StaticMaterial::Panel).test_support().gap_4().p_5().child(div().flex().items_center().gap_2()
+        let mut card=StaticCard::new(("usage-settings-card",index), cx.theme().mode.is_dark(), StaticMaterial::Panel).priority(crate::app::surface::CardPriority::Secondary).test_support().gap_4().p_5().child(div().flex().items_center().gap_2()
             .child(div().id(("usage-settings-title",index)).test_support().role(gpui_kit::Role::Heading).aria_label(self.t(&format!("{prefix}.title"))).text_size(px(19.2)).line_height(gpui_kit::relative(1.3)).font_weight(FontWeight(650.)).child(self.t(&format!("{prefix}.title"))))
             .child(div().rounded_full().px(px(10.)).h(px(20.)).flex().items_center().border_1().border_color(blue.opacity(0.26)).bg(blue.opacity(0.09)).text_color(blue_text).text_size(px(11.)).font_weight(FontWeight::BOLD).child(self.t(&format!("{prefix}.badge")))))
             .child(div().flex().flex_col().gap(px(3.)).child(div().text_size(px(14.)).font_weight(FontWeight::MEDIUM).child(label)).child(number)

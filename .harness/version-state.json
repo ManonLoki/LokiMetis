@@ -129,44 +129,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.10.1",
-  "feature_bump_applied": false,
+  "cycle_base_version": "0.10.7",
+  "feature_bump_applied": true,
   "last_release": {
-    "source_commit": "ae25384555fc0b8d7f26b39e03845cef28b2b9cf",
-    "version": "0.10.1"
+    "source_commit": "d6f1a15badf6e2f8923750030db704b706bcaead",
+    "version": "0.10.7"
   },
   "pending_changes": [
     {
-      "change_id": "LMWIN-QUOTA-HIDDEN-PROCESS-001",
-      "kind": "bug-fix",
-      "required_version": "0.10.2"
-    },
-    {
-      "change_id": "LMWIN-MDNS-SUSPEND-CLOCK-001",
-      "kind": "bug-fix",
-      "required_version": "0.10.3"
-    },
-    {
-      "change_id": "LMWIN-FXC-MULTIPLE-PATH-001",
-      "kind": "bug-fix",
-      "required_version": "0.10.4"
-    },
-    {
-      "change_id": "LMWIN-CURSOR-SQLITE-INPROCESS-001",
-      "kind": "bug-fix",
-      "required_version": "0.10.5"
-    },
-    {
-      "change_id": "LMWIN-UNINSTALL-AUTOSTART-FLAG-001",
-      "kind": "bug-fix",
-      "required_version": "0.10.6"
-    },
-    {
-      "change_id": "LMDESK-TODAY-UNREADY-AGENT-TOTAL-001",
-      "kind": "bug-fix",
-      "required_version": "0.10.7"
+      "change_id": "LMDESK-CARD-TECH-MOTION-001",
+      "kind": "feature",
+      "required_version": "0.11.0"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.10.7"
+  "target_version": "0.11.0"
 }

@@ -9,6 +9,7 @@ mod shadow_owner_tests;
 mod rim_owner_tests;
 
 use super::{
+    decoration::{CardDecoration, CardPriority},
     Geometry, MaterialKind, StaticMaterial, palette::MaterialMotion, rim::Rim, shadow::Shadow,
     spotlight::Spotlight, textures::Retired,
 };
@@ -25,8 +26,12 @@ pub(in crate::app) struct MaterialState {
     pub visible: bool,
     /// 指针悬停。
     hovered: bool,
+    /// 装饰悬停独立于静态材质，静态卡不因此获得聚光或材质阴影动画。
+    decoration_hovered: bool,
     /// 材质颜色与阴影过渡。
     motion: MaterialMotion,
+    /// 装饰光轨仅记录可见活动时间，不分配纹理或后台任务。
+    decoration: CardDecoration,
     /// 阴影纹理。
     shadow: Shadow,
     /// 聚光纹理。
@@ -53,26 +58,33 @@ impl MaterialState {
                 cx.notify();
             }
         });
+        let activation = cx.observe_window_activation(window, |state, window, cx| {
+            if !window.is_window_active() { state.decoration.pause(); }
+            cx.notify();
+        });
         Self {
             pointer: window.mouse_position(),
             visible: false,
             hovered: false,
+            decoration_hovered: false,
             motion: MaterialMotion::new(cx.background_executor().now()),
+            decoration: CardDecoration::default(),
             shadow: Shadow::default(),
             spotlight: Spotlight::default(),
             rim: Rim::default(),
             retired: Retired::default(),
             cleanup_scheduled: false,
-            _subscriptions: vec![release, visibility],
+            _subscriptions: vec![release, visibility, activation],
         }
     }
 
     /// hover事件和光斑直接响应同一原生命中，不因键盘输入模式被隐藏。
     pub fn hover(&mut self, hovered: bool, window: &mut Window, cx: &mut Context<Self>) {
-        if self.hovered == hovered {
+        if self.hovered == hovered && self.decoration_hovered == hovered {
             return;
         }
         self.hovered = hovered;
+        self.decoration_hovered = hovered;
         self.pointer = window.mouse_position();
         cx.notify();
     }
@@ -202,8 +214,29 @@ impl MaterialState {
         });
     }
 
+    /// 边缘在子内容之后绘制，图片不会遮住彩边；不增加命中区或修改子控件语义。
+    pub fn decorate(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        radius: Pixels,
+        priority: CardPriority,
+        dark: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let visible = self.visible
+            && !bounds.intersect(&window.content_mask().bounds).is_empty();
+        if !visible {
+            self.decoration.pause();
+            return;
+        }
+        let moving = visible && window.is_visible() && window.is_window_active() && !cx.reduce_motion();
+        self.decoration.paint(bounds, radius, priority, dark, self.decoration_hovered, moving, window);
+    }
+
     /// 当前与退休两代同时清空；窗口不可见时不依赖后续帧完成释放。
     pub fn clear(&mut self, window: &mut Window) {
+        self.decoration.pause();
         self.shadow.clear(window);
         self.spotlight.clear(window);
         self.rim.clear(window);

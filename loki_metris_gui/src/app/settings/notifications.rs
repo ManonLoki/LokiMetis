@@ -90,7 +90,7 @@ impl Shell {
             || state.error.is_some()
             || permission_paused
             || (state.enabled && !state.host_available);
-        self.settings_plain_surface(20., cx)
+        self.settings_plain_surface("settings-notifications", 20., cx)
             .id("notification-card")
             .test_support()
             .gap_3()

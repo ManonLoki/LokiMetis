@@ -15,7 +15,7 @@ use super::Shell;
 use crate::preferences::{LanguageChoice, PreferencePatch, ThemeChoice};
 pub(in crate::app) use agents::AgentSettingsState;
 use gpui_kit::{
-    AnyElement, Context, Div, FontWeight, IntoElement, Role, SharedString, Text,
+    AnyElement, Context, FontWeight, IntoElement, Role, SharedString, Text,
     base::TestSupportExt as _,
     component::{
         ActiveTheme, Disableable,
@@ -164,7 +164,7 @@ impl Shell {
             crate::native::set_autostart(*enabled, cx);
             cx.notify();
         });
-        self.settings_plain_surface(20., cx)
+        self.settings_plain_surface("settings-autostart", 20., cx)
             .gap_3()
             .child(
                 div()
@@ -229,29 +229,16 @@ impl Shell {
 
     /// 品牌卡片共享原生聚光与阴影材质，稳定ID隔离各卡片的指针和过渡状态。
     fn settings_surface(&self, id: &'static str, padding: f32, cx: &Context<Self>) -> super::surface::SpotlightCard {
-        super::surface::SpotlightCard::new(id, cx.theme().mode.is_dark()).p(px(padding))
+        super::surface::SpotlightCard::new(id, cx.theme().mode.is_dark())
+            .priority(if id == "settings-agents" { super::surface::CardPriority::Secondary } else { super::surface::CardPriority::Quiet })
+            .p(px(padding))
     }
 
-    /// 原生能力及媒体figure使用参考的中性Paper，保持独立于品牌聚光容器。
-    fn settings_plain_surface(&self, padding: f32, cx: &Context<Self>) -> Div {
-        div()
-            .w_full()
-            .min_w_0()
-            .flex()
-            .flex_col()
+    /// 原生能力及媒体使用辅助层级，不注册指针聚光或循环光轨。
+    fn settings_plain_surface(&self, id: &'static str, padding: f32, cx: &Context<Self>) -> super::surface::StaticCard {
+        super::surface::StaticCard::new(id, cx.theme().mode.is_dark(), super::surface::StaticMaterial::Panel)
+            .priority(super::surface::CardPriority::Quiet)
             .p(px(padding))
-            .rounded(px(20.))
-            .border_1()
-            .border_color(gpui_kit::rgb(if cx.theme().mode.is_dark() {
-                0x424242
-            } else {
-                0xdee2e6
-            }))
-            .bg(gpui_kit::rgb(if cx.theme().mode.is_dark() {
-                0x242424
-            } else {
-                0xffffff
-            }))
     }
 
     /// 公共标题保留参考字形，并作为二级标题供辅助技术按章节浏览。

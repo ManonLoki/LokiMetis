@@ -9,3 +9,5 @@
 - [2026-10-26](20261026_changelog.md)：接纳macOS、Windows和Linux展示终端的真实认证平台。
 
 - [2026-10-27](20261027_changelog.md)：兼容 Grok 与 Cursor 联名周额度、macOS Cursor 加密登录，以及 PC 笔记本系统配图。
+
+- [2026-10-28](20261028_changelog.md)：全页面卡片主次层级与原生科技动效。

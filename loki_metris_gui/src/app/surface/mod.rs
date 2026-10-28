@@ -6,6 +6,7 @@ pub(in crate::app) mod motion;
 #[cfg(test)]
 pub(in crate::app) type OwnerObserver<T> = Box<dyn FnOnce(&gpui_kit::Entity<T>)>;
 mod palette;
+mod decoration;
 mod raster;
 mod rim;
 mod shadow;
@@ -27,6 +28,7 @@ use gpui_kit::{
     StyleRefinement, Styled, Window, accesskit, div, px,
 };
 use state::MaterialState;
+pub(in crate::app) use decoration::CardPriority;
 
 /// 当前产品圆角与顶边几何；颜色改变不改变布局，宽度始终进入真实border-box。
 #[derive(Clone, Copy)]
@@ -70,6 +72,8 @@ pub(in crate::app) struct MaterialCard<const SPOTLIGHT: bool> {
     geometry: Geometry,
     /// 材质模式。
     material: MaterialKind,
+    /// 产品信息层级；未指定时保留原材质供独立控件使用。
+    priority: Option<CardPriority>,
     /// 测试中观察材质状态。
     #[cfg(test)]
     owner_observer: Option<OwnerObserver<MaterialState>>,
@@ -80,6 +84,13 @@ pub(in crate::app) type SpotlightCard = MaterialCard<true>;
 
 /// 静态品牌卡片复用布局、语义和资源生命周期，但不接管指针与子控件动作。
 pub(in crate::app) type StaticCard = MaterialCard<false>;
+
+/// 明细指标共用内嵌表面；稳定ID保留辅助语义，辅助格不启动聚光或外投影。
+pub(in crate::app) fn inset_card(id: impl Into<ElementId>, dark: bool) -> StaticCard {
+    StaticCard::new(id, dark, StaticMaterial::FilterBar)
+        .priority(CardPriority::Quiet)
+        .radius(px(12.))
+}
 
 impl SpotlightCard {
     /// ID须在父元素内稳定且唯一；主题值由当前宿主传入，不绑定Shell类型。
@@ -124,6 +135,7 @@ impl<const SPOTLIGHT: bool> MaterialCard<SPOTLIGHT> {
                 .rounded(px(20.)),
             dark,
             material,
+            priority: None,
             geometry: Geometry {
                 radius: px(20.),
                 top_width: px(1.),
@@ -143,6 +155,12 @@ impl<const SPOTLIGHT: bool> MaterialCard<SPOTLIGHT> {
         );
         self.geometry.radius = radius;
         self.inner = self.inner.rounded(radius);
+        self
+    }
+
+    /// 装饰只表达信息层级，辅助卡取消聚光和外投影，不改变布局或输入归属。
+    pub fn priority(mut self, priority: CardPriority) -> Self {
+        self.priority = Some(priority);
         self
     }
 
@@ -233,7 +251,8 @@ impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
         if let Some(observer) = self.owner_observer.take() {
             observer(&state);
         }
-        if SPOTLIGHT {
+        if (SPOTLIGHT || self.priority == Some(CardPriority::Secondary))
+            && self.priority != Some(CardPriority::Quiet) {
             let weak = state.downgrade();
             self.inner
                 .interactivity()
@@ -243,6 +262,8 @@ impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
                 .on_hover(move |hovered, window, cx| {
                     let _ = weak.update(cx, |state, cx| state.hover(*hovered, window, cx));
                 });
+        }
+        if SPOTLIGHT && self.priority != Some(CardPriority::Quiet) {
             let weak = state.downgrade();
             self.inner
                 .interactivity()
@@ -300,10 +321,21 @@ impl<const SPOTLIGHT: bool> Element for MaterialCard<SPOTLIGHT> {
         cx: &mut App,
     ) {
         request.1.update(cx, |state, cx| {
-            state.paint(bounds, self.dark, self.geometry, self.material, window, cx)
+            let material = if self.priority == Some(CardPriority::Quiet) {
+                MaterialKind::Static(StaticMaterial::FilterBar)
+            } else { self.material };
+            state.paint(bounds, self.dark, self.geometry, material, window, cx);
+            if state.visible && let Some(priority) = self.priority {
+                decoration::paint_wash(bounds, self.geometry.radius, priority, self.dark, window);
+            }
         });
         self.inner
             .paint(id, inspector, bounds, &mut request.0, prepaint, window, cx);
+        if let Some(priority) = self.priority {
+            request.1.update(cx, |state, cx| {
+                state.decorate(bounds, self.geometry.radius, priority, self.dark, window, cx);
+            });
+        }
     }
 }
 
@@ -315,3 +347,5 @@ mod tests;
 mod variants_tests;
 #[cfg(test)]
 mod table_row_tests;
+#[cfg(test)]
+mod hierarchy_tests;

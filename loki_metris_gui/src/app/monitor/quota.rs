@@ -2,7 +2,7 @@
 
 use super::Shell;
 use loki_metris_service::usage_service::provider_quota::{QuotaCard, QuotaCardPhase};
-use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Role, base::TestSupportExt as _, component::{ActiveTheme, button::Button}, div, prelude::*, px, rgb};
+use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Role, base::TestSupportExt as _, component::{ActiveTheme, button::Button}, div, prelude::*, px};
 use loki_metris_core::{ProviderQuota, QuotaProvider, QuotaWindow, QuotaWindowKind};
 
 impl Shell {
@@ -36,7 +36,7 @@ impl Shell {
         for quota in quotas {
             grid = grid.child(self.quota_provider_cell(quota, now, cx));
         }
-        Some(super::super::surface::SpotlightCard::new("monitor-quota", cx.theme().mode.is_dark()).test_support().gap_4().p_4()
+        Some(super::super::surface::SpotlightCard::new("monitor-quota", cx.theme().mode.is_dark()).priority(crate::app::surface::CardPriority::Secondary).test_support().gap_4().p_4()
             .child(div().w_full().flex().items_center().justify_between().gap_3()
                 .child(div().text_size(px(22.)).font_weight(FontWeight::BOLD).child(self.t("monitor.quota.title")))
                 .child(Button::new("monitor-quota-retry").label(self.t("monitor.quota.retry")).on_click(cx.listener(|this, _, _, cx| this.retry_provider_quota(cx)))))
@@ -59,7 +59,7 @@ impl Shell {
                 .text_size(px(11.)).font_weight(FontWeight::SEMIBOLD).text_color(cx.theme().muted_foreground)
                 .child(div().min_w_0().truncate().child(plan)));
         }
-        let mut cell = div().id(id).test_support().role(Role::Label).aria_label(label).w_full().min_w_0().p(px(14.)).rounded(px(12.)).border_1().border_color(cx.theme().border).bg(rgb(if cx.theme().mode.is_dark() { 0x26231f } else { 0xf0ebe3 })).flex().flex_col().gap_3().child(heading);
+        let mut cell = crate::app::surface::inset_card(id, cx.theme().mode.is_dark()).test_support().role(Role::Label).aria_label(label).w_full().min_w_0().p(px(14.)).gap_3().child(heading);
         for window in quota.windows() {
             cell = cell.child(self.quota_window_bar(id, window, now_unix, cx));
         }
