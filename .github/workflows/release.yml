@@ -67,10 +67,10 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: node scripts/github_release.mjs prepare "$RELEASE_TAG"
-      - name: Install declared toolchain
+      - name: Install stable Rust toolchain
         run: |
-          rustup toolchain install 1.98.1 --profile minimal
-          rustup default 1.98.1
+          rustup toolchain install stable --profile minimal
+          rustup default stable
           rustup target add '${{ matrix.target }}'
           npm install --global pnpm@12.4.1
           command -v node pnpm cargo rustc
@@ -84,7 +84,7 @@ jobs:
             ~/.cargo/git
             ~/.cargo/bin/cargo-packager
             ~/.cargo/bin/cargo-packager.exe
-          key: release-${{ runner.os }}-${{ runner.arch }}-rust1.98.1-packager0.11.8-${{ hashFiles('Cargo.toml') }}
+          key: release-${{ runner.os }}-${{ runner.arch }}-rust-stable-packager0.11.8-${{ hashFiles('Cargo.toml') }}
       - name: Linux system dependencies
         if: runner.os == 'Linux'
         run: bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --install --target '${{ matrix.target }}'

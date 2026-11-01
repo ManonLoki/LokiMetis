@@ -9,6 +9,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 ## 工作区
 
 - resolver 3、edition 2024、MSRV 1.98.1，根 workspace.package.version 是当前版本事实；pairing/core/gui/mobile_bridge 的 version/edition/rust-version 继承 workspace。
+- Rust 检查复用已安装且满足根清单 `rust-version` 的 stable；Harness 不安装或切换 nightly、历史 Rust 工具链，也不运行最低直接版本解析或最低编译器测试。MSRV 保留为兼容下限，较新 stable 的测试通过不代表该下限已实际验证。
 - loki_metris_pairing 提供桌面与移动桥共用的SPAKE2 A/B、恢复通道、配对窗口与资源校验，不依赖GUI、数据库、网络或运行时；core依赖它进行配对验证并拥有设备保存规则。独立 loki_metris_mobile_bridge 提供安全 Rust 状态机和 C ABI，unsafe 限于缓冲映射入口；JNI/Swift 调用侧与手机原生驱动位于外部移动项目，平台互通结果按移动项目证据核对。
 - loki_metris_core 已按批准复刻规格迁入历史纯 Rust 领域模型、SQLite 索引、解析与聚合；声明的项目内依赖见根 Cargo.toml。产品定义已完成，具体复刻进度见自身 Work Plan。core 不依赖 GPUI、Tauri 或 WebView。
 - loki_metris_gui 使用 gpui-kit 0.8.1、rust-i18n 4.2.4 兼容范围、sys-locale 0.3.2、tracing 0.1.44、tracing-subscriber 0.3.23、tracing-appender 0.2.5；实际解析结果以 Cargo 为准。

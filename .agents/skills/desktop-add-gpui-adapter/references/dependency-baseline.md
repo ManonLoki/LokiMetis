@@ -48,6 +48,6 @@ Cargo 非 `=` 版本是声明兼容下界，不等同实际 resolved pin。当�
 | `tokio-tungstenite` | `0.30.0`；关闭默认 features，`handshake` | 明确 WebSocket 需求时采用；示例此配置不提供 TLS，`wss` 需另核对 TLS features |
 | `reqwest` | `0.13.5`；关闭默认 features，`json,rustls,system-proxy` | 明确 HTTP/JSON 需求时采用；不凭初始化产生网络请求 |
 
-新增或提高直接版本下界必须按工程规则在最低工具链完成最低直接版本解析与非空测试。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。若升级保留生成器，先核对官方文档与真实兼容结果，再同步本表对应快照及renderer；仅维护当前产品文档时引用当前清单，不假称生成器已升级。
+新增或提高直接版本下界时按工程规则核对编译器兼容要求，并复用已有且满足根清单要求的 stable 完成受影响非空测试；不安装 nightly 或历史 Rust 工具链，不运行最低直接版本解析或最低编译器测试，不把较新 stable 通过当作 MSRV 证明。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。若升级保留生成器，先核对官方文档与真实兼容结果，再同步本表对应快照及renderer；仅维护当前产品文档时引用当前清单，不假称生成器已升级。
 
 原生 API 来源：[GPUI Kit 通知](https://gpui-kit.com/docs/system-notification/)、[tray-icon](https://docs.rs/tray-icon/0.26.1/tray_icon/)、[auto-launch](https://docs.rs/auto-launch/0.6.0/auto_launch/)、[interprocess](https://docs.rs/interprocess/2.4.4/interprocess/)、[global-hotkey](https://docs.rs/global-hotkey/0.8.0/global_hotkey/)。
