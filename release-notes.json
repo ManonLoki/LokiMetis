@@ -2,6 +2,22 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-11-03",
+      "version": "v0.12.0",
+      "featureOptimizations": [
+        {
+          "zh-CN": "升级GPUI Kit到0.9.0及配套GPUI 0.3.11，保持原生字体、按需刷新和各平台渲染兼容。",
+          "en-US": "Upgrade GPUI Kit to 0.9.0 and GPUI to 0.3.11 while preserving native fonts, on-demand frame scheduling, and rendering compatibility across platforms."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复设备尚未上报手机或平板形态时卡片图片区域空白的问题，恢复内置通用设备图标。",
+          "en-US": "Restore the built-in generic device icon when a device has not reported its phone or tablet form factor, fixing blank artwork on device cards."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-28",
       "version": "v0.11.0",
       "featureOptimizations": [
@@ -184,21 +200,6 @@
         {
           "zh-CN": "候选目录接续登记测试明确区分后台失败与有界等待，保留未提前索引和真实数据库断言。",
           "en-US": "Distinguish background failure from bounded waiting in candidate-registration tests while retaining real database and no-early-indexing assertions."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-22",
-      "version": "v0.7.11",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "修正更新日志弹窗测试对空日志节点的依赖，兼容正式候选嵌入的真实日志。",
-          "en-US": "Make release-notes dialog tests work with both empty development logs and real notes embedded in release builds."
-        },
-        {
-          "zh-CN": "修正 Windows 皮肤监视任务回归测试的模块引用，使原生 CI 能编译并执行已有断言。",
-          "en-US": "Correct module references in Windows skin watcher regression tests so native CI can compile and execute the existing assertions."
         }
       ]
     }

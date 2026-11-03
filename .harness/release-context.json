@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
-  "version": "0.11.0",
-  "releaseDate": "2026-10-28",
-  "expectedTag": "v0.11.0-20261028",
+  "sourceHead": "7eb5d36cfe2bb051cc0b6b948af01a4ea3631758",
+  "version": "0.12.0",
+  "releaseDate": "2026-11-03",
+  "expectedTag": "v0.12.0-20261103",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "e3c79a306d17b124e71cac016c994e600f1e908f",
-    "sourceHead": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
-    "scopeDiffSha256": "24c67ecf2f7d33220283107f6224d4229d72e0da37a57862ec92199700678815",
-    "reviewedSourceCommit": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
+    "scopeBase": "d03675b96a3f2f4793c11103c6453299af25d3ed",
+    "sourceHead": "7eb5d36cfe2bb051cc0b6b948af01a4ea3631758",
+    "scopeDiffSha256": "1ae7a3c93df3970f3508081a302e2200a3062e881cdb7da760710fb04c2781c2",
+    "reviewedSourceCommit": "7eb5d36cfe2bb051cc0b6b948af01a4ea3631758",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "补充修订将Unix回收等待结果原样提取，并以确定Elapsed及真实已退出子进程分别严格验证句柄/登记/槽位；保持生产期限语义。Windows同源码进程owner隔离探针10项及20次重复通过，原生Unix结果待当前新CI确认。累计修订范围为Windows皮肤目录Shell STA驱动、原生COM回归、异步回执与动画帧身份测试修正、已批准的同版本归档例外与技术债事实。Windows全workspace/all-targets/all-features为1778项通过、1项受控子进程探针按设计忽略；GUI508项及Shell专项7项通过。五项审查无阻断，validate三项门禁通过；纯OS机制留在service驱动，core及公开接口/错误/数据/网络协议不变；单帧夹具保留同Arc与同tile强断言，其它动画覆盖保留；职责规模及新增临时标记复核通过。E2E未执行，安装与真实交互保持Unverified；先前磁盘不足和13项测试误报日志保留。",
+    "evidenceSummary": "以远端实际0.11.0发布提交d03675b为基线，对7eb5d36累计差异完成五项审查。行为：工作区全目标全特性1828项、独立GPUI540项（2项原上游计时基准忽略）、Node33项、生成器5项及工程校验通过；本机测试以SHA256等字节复制至规范临时路径执行，保留全部断言和超时。Core/adapter：业务与设备协议未改，原生渲染和资源适配归属清晰。对外契约：GPUI Kit0.9.0/GPUI0.3.11五包严格来源、生成摘要及跨后端图元ABI匹配，Metal完成期保活、按需帧和FontKey/CTRun身份边界保留。职责规模及临时标记检查通过；设备fallback已精确嵌入并有真实Metal图示回归。两份产品许可证及上游许可/OFL完整保留。Windows/Linux原生与最终产物运行不属于本机已验证范围。",
     "reason": null,
     "remainingRisk": null
   }
