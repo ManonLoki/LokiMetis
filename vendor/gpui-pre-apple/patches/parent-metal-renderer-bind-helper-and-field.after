@@ -1,17 +1,14 @@
-    device
-        .new_render_pipeline_state(&descriptor)
-        .expect("could not create render pipeline state")
-}
-
 /// 槽7在所有现有primitive接口中空闲；普通及路径中间encoder必须共用此绑定。
 #[cfg(feature = "parent-rounded-clip")]
-fn bind_parent_clips(encoder: &metal::RenderCommandEncoderRef, binding: &InstanceBinding) {
-    encoder.set_fragment_buffer(7, Some(&binding.buffer), binding.offset as u64);
+fn bind_parent_clips(encoder: &ProtocolObject<dyn MTLRenderCommandEncoder>, binding: &InstanceBinding) {
+    // SAFETY: The aligned buffer contains shader-compatible ParentClipNode values (or a sentinel).
+    // Metal retains the buffer; writer.finish publishes CPU writes before the command buffer commits.
+    unsafe { encoder.setFragmentBuffer_offset_atIndex(Some(&binding.buffer), binding.offset, 7); }
 }
 
 #[derive(Clone)]
 struct InstanceBinding {
-    buffer: metal::Buffer,
+    buffer: Retained<ProtocolObject<dyn MTLBuffer>>,
     offset: usize,
 }
 
@@ -48,5 +45,3 @@ fn write_instances(scene: &Scene, writer: &mut InstanceBufferWriter) -> Result<I
         }))?,
     })
 }
-
-struct InstanceBufferWriter {

@@ -84,7 +84,7 @@ test("GPUI registration verifies its nested source root and excludes no maintain
   const expected = installGpuiSource();
   mkdirSync(path.join(root, "vendor/gpui-pre/src"));
   writeFileSync(path.join(root, "vendor/gpui-pre/src/lib.rs"), "// maintained shim\n");
-  assert.equal(expected.length, 163);
+  assert.equal(expected.length, 164);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
 });
 
@@ -108,14 +108,14 @@ test("tray source drift rejects its whole registration while preserving other so
   assert.ok(result.errors.some((error) => /原样文件 SHA256 不符.*tray-icon.*lib\.rs/u.test(error)));
 });
 
-test("Apple font registration verifies all 19 originals and excludes no helper or fixture", () => {
+test("Apple font registration verifies all 20 originals and excludes no helper or fixture", () => {
   const expected = installGpuiSource("vendor/gpui-pre-apple");
   for (const relative of ["src/variable_font.rs", "test-fixtures/font.ttf"]) {
     const target = path.join(root, "vendor/gpui-pre-apple", relative);
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, "maintained content\n");
   }
-  assert.equal(expected.length, 19);
+  assert.equal(expected.length, 20);
   assert.deepEqual(verifyRegisteredThirdParty(root), { files: expected, errors: [] });
 });
 

@@ -1,6 +1,6 @@
 # 本地 GPUI 圆角视口兼容层
 
-本目录以 `provenance.json` 记录的官方 0.3.10 `.crate`（Zed revision 08cbb88）为完整不可变来源。
+本目录以 `provenance.json` 记录的官方 0.3.11 `.crate`（Zed revision f816e1f）为完整不可变来源。
 `upstream/` 保留原文件、许可证与目录关系；`source-content.sha256` 覆盖全部原文件，路径相对 upstream 根。
 
 人工维护入口为 Cargo.toml、src/lib.rs、build.rs、patches/ 和本说明。
@@ -26,15 +26,15 @@ rustc --edition=2024 --test vendor/gpui-patch-support/generator.rs -o /tmp/loki-
 
 上游 0.3.9 把 CoreText 文本系统移入本包并改名 `AppleTextSystem`；原 `font-native-identity-state`、`font-requested-weight-instance`、`font-native-registration-and-runs` 三份模板只改类型名后随之迁入，由 `src/font_patches.rs` 登记，`variable_font.rs`、`semantic_identity.rs`、`descriptor_identity.rs` 及回归、`test-fixtures/`、`fixture_verify.rs` 一并迁入。
 
-本地补丁为请求字重建立真实 CoreText wght 实例；选择与 CTRun 反查统一使用实际轴、feature、cascade 和矩阵身份。缓存键只含纯 Rust 值，未知属性通过临时完整 CFEqual 比较已有字体，不缓存 CFType、不新增 unsafe Send/Sync、不用 CFHash 代替身份。原生字体直接 clone，避免经 CGFont 往返丢失上下文；原 shaping/raster 算法保持原样。
+本地补丁为请求字重建立真实 CoreText wght 实例；选择与 CTRun 反查统一使用实际轴、feature、cascade 和矩阵身份。不同FontKey的请求ID独立，CTRun反查仍按物理字体完整身份去重，保持0.3.11跨run连字边界；缓存键只含纯 Rust 值，未知属性通过临时完整 CFEqual 比较已有字体，不缓存 CFType、不新增 unsafe Send/Sync、不用 CFHash 代替身份。原生字体直接 clone，避免经 CGFont 往返丢失上下文；原 shaping/raster 算法保持原样。
 
-test-fixtures 的七份字体及 OFL 受固定清单与构建期完整文件集校验。来源见 fixture-provenance.json。项目不安装系统字体。独立原生验证的同一 19 项断言为旧实现 12 通过/7 失败、补丁后 19 通过；实际输出源码、构建脚本和测试二进制身份已分别核对。项目集成与 CU 证据另记于忽略的 release/gpui-parity，不能以单元结果宣称体验已完全一致。
+test-fixtures 的九份字体及 OFL 受固定清单与构建期完整文件集校验。来源见 fixture-provenance.json。0.3.11上游连字回归引用仓库外的Lilex字体，现保留同revision的原样字体及OFL，仅修正生成树内测试的include路径；原有断言完整执行。项目不安装系统字体。独立原生验证的同一 19 项断言为旧实现 12 通过/7 失败、补丁后 19 通过；实际输出源码、构建脚本和测试二进制身份已分别核对。项目集成与 CU 证据另记于忽略的 release/gpui-parity，不能以单元结果宣称体验已完全一致。
 
 维护检查：
 
 ```sh
 cargo test --manifest-path vendor/gpui-pre-apple/Cargo.toml --lib \
-  --features font-kit,test-support,parent-rounded-clip \
+  --features font-kit,test-support,parent-rounded-clip,runtime_shaders \
   --config "patch.crates-io.accesskit_macos.path=\"$PWD/vendor/accesskit_macos\"" \
   --config "patch.crates-io.gpui-pre.path=\"$PWD/vendor/gpui-pre\"" \
   --config "patch.crates-io.gpui-pre-apple.path=\"$PWD/vendor/gpui-pre-apple\"" \

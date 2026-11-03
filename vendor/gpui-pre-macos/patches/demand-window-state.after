@@ -1,4 +1,4 @@
-    frame_source: Option<WindowFrameSource>,
-    // 独立于订阅存活，隐藏期间的Core需求保留到再次可见。
+    frame_source: FrameSource,
+    // 隐藏期间的需求独立于后端订阅存活，恢复可见后继续服务。
     frame_demand: Arc<crate::frame_demand::FrameDemand>,
     renderer: renderer::Renderer,

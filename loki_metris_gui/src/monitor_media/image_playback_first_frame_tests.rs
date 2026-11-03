@@ -45,6 +45,9 @@ fn pending_static_logo_paints_using_only_requested_frames(cx: &mut TestAppContex
     });
     let entity = handle.update(cx, |_, _, cx| cx.entity()).unwrap();
     let platform = cx.test_window(handle.into());
+    // 测试窗口默认非活动；明确交付前台激活，避免同步投帧被真实的后台限帧持续推迟。
+    handle.update(cx, |_, window, _| window.activate_window()).unwrap();
+    cx.run_until_parked();
     let mut delivered = 0;
     deliver_requested_frames(cx, &mut delivered, || platform.frame_wake_count(),
         || platform.simulate_frame_request(RequestFrameOptions::default()));
@@ -137,6 +140,9 @@ fn cancelled_first_frame(action: Cancel, cx: &mut TestAppContext) {
     });
     let entity = handle.update(cx, |root, _, _| root.image.clone()).unwrap();
     let platform = cx.test_window(handle.into());
+    // 取消场景同样使用活动窗口，仍只由平台正式请求投帧，不强制绘制或跳过限帧。
+    handle.update(cx, |_, window, _| window.activate_window()).unwrap();
+    cx.run_until_parked();
     let mut delivered = 0;
     deliver_requested_frames(cx, &mut delivered, || platform.frame_wake_count(),
         || platform.simulate_frame_request(RequestFrameOptions::default()));

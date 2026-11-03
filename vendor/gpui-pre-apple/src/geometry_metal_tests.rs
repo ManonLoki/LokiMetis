@@ -75,7 +75,7 @@ fn render(renderer: &mut MetalHeadlessRenderer, scene: &Scene, factor: f32) -> i
 
 /// outside/inside是逻辑像素左上角；按实际factor取对应设备像素中心，同时检查CPU判定。
 fn verify_pixels(clip: ParentRoundedClip, outside: (f32, f32), inside: (f32, f32)) {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     for factor in [1., 2.] {
         let clear = render(&mut renderer, &Scene::default(), factor);
         for path in [false, true] {

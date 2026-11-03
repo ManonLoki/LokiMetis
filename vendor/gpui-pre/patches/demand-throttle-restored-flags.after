@@ -1,2 +1,5 @@
-                let min_frame_interval = if require_presentation
-                    || (!force_render && next_frame_callbacks.borrow().is_empty())
+                    || require_presentation
+                    || needs_present.get()
+                    || high_rate_input;
+
+                let should_throttle = !require_presentation;

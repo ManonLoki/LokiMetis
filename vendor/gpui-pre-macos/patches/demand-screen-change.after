@@ -1,5 +1,5 @@
     let mut lock = window_state.as_ref().lock();
     lock.frame_demand.request();
-    lock.start_display_link();
+    lock.start_display_link(&window_state);
     drop(lock);
     update_window_scale_factor(&window_state);

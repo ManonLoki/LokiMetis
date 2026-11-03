@@ -50,7 +50,23 @@
       "bytes": 4383,
       "sha256": "c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90",
       "source_url": "https://raw.githubusercontent.com/vercel/geist-font/a73329da8fc62afc917f796555202e4997f79b7c/OFL.txt"
+    },
+    {
+      "path": "Lilex-Regular.ttf",
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/f816e1f9263e3a8ef63c4baaa02e1441ce1c6038/assets/fonts/lilex/Lilex-Regular.ttf",
+      "bytes": 194308,
+      "sha256": "8a467ad5a1941dc7c9cebaee34e3ed9364a73b48393034e363e4b528bd711d04",
+      "git_blob_sha1": "cb98a69b0ffb1976805bf5af3047307fe2422b1d",
+      "source_revision": "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
+    },
+    {
+      "path": "Lilex-OFL.txt",
+      "source_url": "https://raw.githubusercontent.com/zed-industries/zed/f816e1f9263e3a8ef63c4baaa02e1441ce1c6038/assets/fonts/lilex/OFL.txt",
+      "bytes": 4382,
+      "sha256": "a356708a399e3f54b937ec7d9b722c26dabba21365b60f95c56eb7ebca0dee40",
+      "git_blob_sha1": "156240bc907aa14571afb18b4b1bde62d3ea33e0",
+      "source_revision": "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
     }
   ],
-  "manifest_sha256": "beb3fbcd84f005d5e3ff86de06dc6c1e249fea1d1f67d0c50c78ad08d75974d7"
+  "manifest_sha256": "d29b184befa26d0c442aef465e84d8bfaad62f5c2863e2b78201a02990881fbe"
 }

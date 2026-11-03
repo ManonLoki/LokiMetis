@@ -4,7 +4,3 @@
                 color: path.color,
                 bounds: path.bounds.intersect(&path.content_mask.bounds),
             }));
-        }
-        let vertex_instance_bindings = writer.write(&vertices)?;
-
-        let render_pass_descriptor = metal::RenderPassDescriptor::new();

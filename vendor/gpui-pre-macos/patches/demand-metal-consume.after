@@ -1,0 +1,6 @@
+    let Some(mut callback) = lock.request_frame_callback.take() else {
+        return;
+    };
+    // Metal保留上游begin/end的drawable与wake节能合同，只消费本轮已服务的旧需求。
+    lock.frame_demand.take();
+    lock.renderer.set_frame_drawable(Some(update.drawable()));

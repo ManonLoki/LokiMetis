@@ -425,3 +425,28 @@ fn font_with_unknown_cascade_value(font: &CTFont, date: f64) -> CTFont {
 // 与本文件共用同一个作用域，改动时不需要额外导入或调整可见性。
 // - variable_font_tests_fallback.rs：未知值不进入哈希键，相等的实际属性尺寸复制稳定复用，不同未知值不能错误合并。；缺字由原 CoreText cascade 解析；实际 fallback FontId 反查和重复 shaping 必须稳定。；不同 feature FontKey 再次 load_family 不得因全局已有 PS 名而产生空候选集。
 include!("variable_font_tests_fallback.rs");
+
+/// 逻辑请求别名保留独立run身份，真实字体与反复shaping的canonical反查仍稳定且有界。
+#[test]
+fn request_aliases_keep_distinct_ids_without_growing_native_shaping_cache() {
+    let bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/test-fixtures/Lilex-Regular.ttf"));
+    let (system, family) = system(bytes);
+    let requests = [request(&family, 400.), gpui::font(".ZedMono")];
+    let ids = requests.each_ref().map(|font| system.font_id(font).unwrap());
+    assert_ne!(ids[0], ids[1]);
+    assert!(native_equivalent(&native(&system, ids[0]), &native(&system, ids[1])));
+    let copies = ids.map(|id| native(&system, id).clone_with_font_size(32.));
+    for id in ids {
+        system.layout_line("ffiMm", px(32.), &[FontRun { len: 5, font_id: id }]);
+    }
+    let settled = system.0.read().fonts.len();
+    for _ in 0..128 {
+        for ((font, id), copy) in requests.iter().zip(ids).zip(&copies) {
+            assert_eq!(system.font_id(font).unwrap(), id);
+            assert_eq!(system.0.write().id_for_native_font(copy.clone()), ids[0]);
+            let line = system.layout_line("ffiMm", px(32.), &[FontRun { len: 5, font_id: id }]);
+            assert!(!line.runs.is_empty());
+        }
+    }
+    assert_eq!(system.0.read().fonts.len(), settled);
+}

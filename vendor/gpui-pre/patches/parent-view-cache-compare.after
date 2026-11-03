@@ -5,4 +5,3 @@
                         #[cfg(not(feature = "parent-rounded-clip"))]
                         { true }
                     }
-                    && !window.dirty_views

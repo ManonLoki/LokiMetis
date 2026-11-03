@@ -1,2 +1,2 @@
     text_style: TextStyle,
-}
+    opacity: f32,

@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre-apple"
-version = "0.3.10"
+version = "0.3.11"
 build = "build.rs"
 publish = false
 autolib = false
@@ -20,7 +20,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's `gpui_apple` crate (gpui-pre snapshot of zed@08cbb88)"
+description = "Zed's `gpui_apple` crate (gpui-pre snapshot of zed@f816e1f)"
 readme = false
 license = "Apache-2.0"
 repository = "https://github.com/zed-industries/zed"
@@ -29,7 +29,7 @@ resolver = "2"
 [package.metadata.gpui-pre]
 zed-crate = "gpui_apple"
 zed-version = "0.1.0"
-zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
+zed-rev = "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
 
 [features]
 parent-rounded-clip = ["gpui/parent-rounded-clip"]
@@ -50,7 +50,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies.gpui]
-version = "=0.3.10"
+version = "=0.3.11"
 default-features = false
 package = "gpui-pre"
 
@@ -64,7 +64,7 @@ version = "4.7"
 version = "0.6"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.collections]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-collections"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.core-foundation]
@@ -80,17 +80,12 @@ version = "0.24"
 version = "21"
 optional = true
 
-[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.derive_more]
-version = "2.1"
-features = [
-    "deref",
-    "deref_mut",
-    "from_str",
-]
-
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.dispatch2]
 version = "0.3"
-features = ["std"]
+features = [
+    "std",
+    "block2",
+]
 default-features = false
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.etagere]
@@ -103,14 +98,11 @@ optional = true
 default-features = false
 package = "zed-font-kit"
 
-[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.foreign-types]
-version = "0.5"
-
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.futures]
 version = "0.3.34"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.gpui_util]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-util"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.image]
@@ -145,9 +137,6 @@ default-features = false
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.mach2]
 version = "0.6"
 
-[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.metal]
-version = "0.33"
-
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.objc2]
 version = "0.6"
 
@@ -160,6 +149,15 @@ features = [
     "CFString",
     "CFNumber",
     "CFBase",
+    "CFCGTypes",
+]
+default-features = false
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.objc2-core-graphics]
+version = "0.3.2"
+features = [
+    "CGDirectDisplay",
+    "CGColorSpace",
 ]
 default-features = false
 
@@ -221,11 +219,27 @@ features = [
 default-features = false
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.objc2-metal]
-version = "0.3"
+version = "0.3.2"
 features = [
+    "std",
+    "block2",
+    "dispatch2",
+    "MTLAllocation",
+    "MTLBlitCommandEncoder",
+    "MTLBuffer",
+    "MTLCommandBuffer",
+    "MTLCommandEncoder",
+    "MTLCommandQueue",
     "MTLDevice",
+    "MTLDrawable",
+    "MTLLibrary",
     "MTLPixelFormat",
+    "MTLRenderCommandEncoder",
+    "MTLRenderPass",
+    "MTLRenderPipeline",
+    "MTLResource",
     "MTLTexture",
+    "MTLTypes",
 ]
 default-features = false
 
@@ -234,7 +248,12 @@ version = "0.3.2"
 features = [
     "std",
     "CALayer",
+    "CAMetalDisplayLink",
     "CAMetalLayer",
+    "objc2-metal",
+    "objc2-core-foundation",
+    "objc2-core-graphics",
+    "objc2-metal",
 ]
 default-features = false
 
@@ -268,12 +287,16 @@ version = "2.0.12"
 version = "0.28.0"
 default-features = false
 
-
-# 上游 Surface 渲染测试与本地 Metal 实物夹具锁定 CVPixelBuffer 需要 CVBase；
-# Zed 工作区靠特性合并获得，独立包测试须显式开启，仅作用于测试构建。
+# 原生 Surface 回归用 CVPixelBuffer 构造真实像素缓冲，独立测试显式补齐上游工作区合并的特性。
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dev-dependencies.objc2-core-video]
 version = "0.3.2"
 features = ["CVBase", "CVReturn"]
+default-features = false
+
+# GPU 退役回归以共享事件阻塞真实命令队列，生产特性不增加事件 API。
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dev-dependencies.objc2-metal]
+version = "0.3.2"
+features = ["MTLEvent"]
 default-features = false
 
 [lints.clippy]

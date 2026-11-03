@@ -1,4 +1,4 @@
-// 自有构建期登记：七份原样测试字体/OFL，不能借目录名豁免其它内容。
+// 自有构建期登记：九份原样测试字体/OFL，不能借目录名豁免其它内容。
 use std::{
     collections::BTreeSet,
     fs,
@@ -8,7 +8,7 @@ use std::{
 mod sha256;
 
 /// 清单本身固定；重新下载或重编码字体必须重新审查，不能自动接纳。
-const MANIFEST_SHA256: &str = "beb3fbcd84f005d5e3ff86de06dc6c1e249fea1d1f67d0c50c78ad08d75974d7";
+const MANIFEST_SHA256: &str = "d29b184befa26d0c442aef465e84d8bfaad62f5c2863e2b78201a02990881fbe";
 
 /// 只接纳普通相对文件名，禁止清单路径越界和平台路径歧义。
 fn safe_name(name: &str) -> Result<(), String> {
@@ -52,7 +52,7 @@ fn collect(root: &Path, path: &Path, files: &mut BTreeSet<String>) -> Result<(),
     Ok(())
 }
 
-/// 完整清单 SHA、七个原样文件 SHA 和实际文件集全部匹配才允许构建。
+/// 完整清单 SHA、九个原样文件 SHA 和实际文件集全部匹配才允许构建。
 pub fn verify(package: &Path) -> Result<(), String> {
     let root = package.join("test-fixtures");
     let list_path = package.join("test-fixtures.sha256");
@@ -91,7 +91,7 @@ pub fn verify(package: &Path) -> Result<(), String> {
     }
     let mut actual = BTreeSet::new();
     collect(&root, &root, &mut actual)?;
-    if expected.len() != 7 || actual != expected {
+    if expected.len() != 9 || actual != expected {
         return Err("font fixture file set drift".into());
     }
     for line in list.lines() {

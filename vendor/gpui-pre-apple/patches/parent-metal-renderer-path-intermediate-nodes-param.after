@@ -1,5 +1,3 @@
-    }
-
     fn draw_paths_to_intermediate(
         &self,
         paths: &[Path<ScaledPixels>],
@@ -7,6 +5,5 @@
         parent_clip_nodes: &InstanceBinding,
         writer: &mut InstanceBufferWriter,
         viewport_size: Size<DevicePixels>,
-        command_buffer: &metal::CommandBufferRef,
+        command_buffer: &ProtocolObject<dyn MTLCommandBuffer>,
     ) -> Result<bool> {
-        if paths.is_empty() {

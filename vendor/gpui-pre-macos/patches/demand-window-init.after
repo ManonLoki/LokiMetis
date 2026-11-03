@@ -1,3 +1,18 @@
-                frame_source: None,
-                frame_demand: Arc::new(crate::frame_demand::FrameDemand::new()),
-                renderer: renderer::new_renderer(
+            let frame_demand = Arc::new(crate::frame_demand::FrameDemand::new());
+            let metal_frames = MetalFrameSource::is_available().then(Rc::<MetalFrames>::default);
+            let state = Rc::new(Mutex::new(MacWindowState {
+                handle,
+                foreground_executor,
+                background_executor,
+                native_window,
+                native_view: NonNull::new_unchecked(native_view),
+                blurred_view: None,
+                background_appearance: WindowBackgroundAppearance::Opaque,
+                cursor_style: CursorStyle::Arrow,
+                cursor_visible,
+                frame_source: match &metal_frames {
+                    Some(metal_frames) => FrameSource::Metal(metal_frames.clone()),
+                    None => FrameSource::DisplayLink(None),
+                },
+                frame_demand: frame_demand.clone(),
+                renderer,

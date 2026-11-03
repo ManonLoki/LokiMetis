@@ -3,6 +3,9 @@
 use gpui_kit::{AssetSource, Result, SharedString};
 use std::borrow::Cow;
 
+// 完整枚举不代表默认资源集已嵌入；只补产品实际使用的设备兜底图标。
+gpui_kit::assets::icon_assets!(DeviceIcons, [MonitorSmartphone]);
+
 /// 窗口内共享的已选择应用图标路径。
 pub const LOGO: &str = "app-identity/logo.png";
 /// 原样迁入的本地微信收款图，只用于显示。
@@ -45,7 +48,12 @@ impl AssetSource for Assets {
             DEVICE_LINUX_LAPTOP => Ok(Some(Cow::Borrowed(include_bytes!("../assets/devices/linux-laptop.png")))),
             SPONSOR_WECHAT=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/wechat-pay.png")))),
             SPONSOR_ALIPAY=>Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor/alipay.jpg")))),
-            _=>gpui_kit::assets::Assets.load(path),
+            _ => {
+                if let Some(bytes) = DeviceIcons.load(path)? {
+                    return Ok(Some(bytes));
+                }
+                gpui_kit::assets::Assets.load(path)
+            }
         }
     }
 
@@ -56,7 +64,25 @@ impl AssetSource for Assets {
             DEVICE_WINDOWS_LAPTOP, DEVICE_MAC_LAPTOP, DEVICE_LINUX_LAPTOP] {
             if path.starts_with(prefix) { paths.push(path.into()); }
         }
-
+        paths.extend(DeviceIcons.list(prefix)?);
+        paths.sort();
+        paths.dedup();
         Ok(paths)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 未上报形态时的设备兜底图标必须实际可加载，枚举存在不能代替资源嵌入。
+    #[test]
+    fn neutral_device_icon_is_embedded_and_listed_once() {
+        let path = gpui_kit::assets::IconName::MonitorSmartphone.path();
+        let bytes = Assets.load(path.as_ref()).expect("设备兜底图标必须可读取")
+            .expect("设备兜底图标必须已嵌入");
+        assert!(std::str::from_utf8(&bytes).expect("设备图标是UTF-8 SVG").contains("<svg"));
+        let listed = Assets.list("icons/").expect("必须能列举实际嵌入图标");
+        assert_eq!(listed.iter().filter(|item| item.as_ref() == path.as_ref()).count(), 1);
     }
 }

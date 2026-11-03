@@ -48,7 +48,7 @@ fn distance(point: Point<f32>, viewport: Bounds<ScaledPixels>, radius: f32) -> f
 /// 留白小于半径、等于半径、超过半径及横竖方向都沿完整 viewport 的圆曲线裁切。
 #[test]
 fn contain_rounding_uses_original_viewport_pixels() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     let data = fixture();
     let tile = tile(&renderer, &data, 0);
     for factor in [1., 1.5, 2.] {
@@ -79,7 +79,7 @@ fn contain_rounding_uses_original_viewport_pixels() {
 /// 同原图与帧反复绘制复用纹理，半透明帧保留合成结果，移除每帧后图集无条目。
 #[test]
 fn rounded_clip_keeps_frames_alpha_and_atlas_identity() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     let data = fixture();
     let viewport = Bounds::new(point(ScaledPixels(0.),ScaledPixels(0.)), size(ScaledPixels(80.),ScaledPixels(60.)));
     let image = Bounds::new(point(ScaledPixels(10.),ScaledPixels(0.)), size(ScaledPixels(60.),ScaledPixels(60.)));

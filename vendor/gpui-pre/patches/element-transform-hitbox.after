@@ -2,4 +2,4 @@
         let content_mask = ContentMask {
             bounds: self.element_transform_bounds(self.content_mask().bounds),
         };
-        let mut id = self.next_hitbox_id;
+        let id = self.next_hitbox_id;

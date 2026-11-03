@@ -37,7 +37,7 @@ macOS Intel、Windows ARM、移动端及额外格式不属于此固定桌面矩�
 - `APPLE_NOTARIZATION_KEY`：既有 App Store Connect P8。
 - `APPLE_NOTARIZATION_KEY_ID`、`APPLE_NOTARIZATION_ISSUER`：对应公证标识。
 
-公开签名身份取 `packaging/gpui.json`。runner 建立短期钥匙串和0600密钥文件，`always()` 步骤清理；签名/公证失败不得回退 unsigned。Windows 从预装全局7-Zip解包，不安装应用来代替校验。Rust 1.98.1、Node 24.21.0、pnpm 12.4.1 和 cargo-packager 0.11.8 在临时 runner 安装并复读实际版本/路径，不改变开发主机工具。
+公开签名身份取 `packaging/gpui.json`。runner 建立短期钥匙串和0600密钥文件，`always()` 步骤清理；签名/公证失败不得回退 unsigned。Windows 从预装全局7-Zip解包，不安装应用来代替校验。满足根 Cargo 最低要求的 Rust stable、Node 24.21.0、pnpm 12.4.1 和 cargo-packager 0.11.8 在临时 runner 安装并复读实际版本/路径，不改变开发主机工具。
 
 当前 Cargo.lock 为 ignored，不保证不同 runner 解析到完全相同依赖；源码身份、工具版本、各宿主测试和实际产物独立绑定。固定官方 Actions 的提交摘要；runner 镜像和原生库随 GitHub 镜像更新，版本兼容以本次真实输出为准。
 

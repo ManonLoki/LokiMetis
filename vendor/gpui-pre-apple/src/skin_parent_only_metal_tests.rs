@@ -98,7 +98,7 @@ fn render(renderer: &mut MetalHeadlessRenderer, scene: &Scene, factor: f32) -> i
 #[test]
 fn skin_parent_only_metal_r19_image_matches_single_coverage_and_rejects_duplicate_own_mask() {
     let mutant = std::env::var_os("LOKI_PARENT_CLIP_VERIFY_DUPLICATE_OWN").is_some();
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     for factor in [1., 2.] {
         let oracle = render(&mut renderer, &quad_scene(factor), factor);
         // 单独mutant执行把实际own半径改19，完整single-coverage oracle不变，必须真实RED。

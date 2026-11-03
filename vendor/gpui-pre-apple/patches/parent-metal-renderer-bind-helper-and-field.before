@@ -1,11 +1,6 @@
-    device
-        .new_render_pipeline_state(&descriptor)
-        .expect("could not create render pipeline state")
-}
-
 #[derive(Clone)]
 struct InstanceBinding {
-    buffer: metal::Buffer,
+    buffer: Retained<ProtocolObject<dyn MTLBuffer>>,
     offset: usize,
 }
 
@@ -31,5 +26,3 @@ fn write_instances(scene: &Scene, writer: &mut InstanceBufferWriter) -> Result<I
         }))?,
     })
 }
-
-struct InstanceBufferWriter {

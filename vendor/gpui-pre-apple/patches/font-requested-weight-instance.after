@@ -6,7 +6,7 @@
                 apply_features_and_fallbacks(
                     &mut instance, &font.features, font.fallbacks.as_ref(),
                 )?;
-                lock.register_native_font(instance)
+                lock.register_requested_font(instance)
             } else {
                 candidate_id
             };

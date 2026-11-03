@@ -1,2 +1,2 @@
-            polychrome_textures: Default::default(),
+            polychrome_textures: AtlasTextureList::default(),
             retirements: Default::default(),

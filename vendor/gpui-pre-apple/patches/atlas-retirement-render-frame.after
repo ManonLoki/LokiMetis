@@ -1,18 +1,21 @@
     fn render_frame(
         &mut self,
         scene: &Scene,
-        texture: &metal::TextureRef,
+        texture: &ProtocolObject<dyn MTLTexture>,
         viewport_size: Size<DevicePixels>,
     ) -> Result<EncodedFrame> {
+        if self.path_intermediate_texture.is_none() {
+            self.update_path_intermediate_textures(viewport_size)?;
+        }
         let atlas_frame = self.sprite_atlas.begin_frame();
         let mut writer = InstanceBufferWriter::new(
             &self.device,
             &self.instance_buffer_pool,
             self.is_unified_memory,
-        );
+        )?;
         let instance_bindings = write_instances(scene, &mut writer).with_context(|| {
             format!(
-                "scene too large: {} paths, {} shadows, {} quads, {} underlines, {} mono, {} poly, {} surfaces",
+                "writing instance data: {} paths, {} shadows, {} quads, {} underlines, {} mono, {} poly, {} surfaces",
                 scene.paths.len(),
                 scene.shadows.len(),
                 scene.quads.len(),
@@ -22,24 +25,29 @@
                 scene.surfaces.len(),
             )
         })?;
+        let mut surface_textures = Vec::new();
         let command_buffer = self.draw_primitives_to_texture(
             scene,
             &instance_bindings,
             &mut writer,
             texture,
             viewport_size,
+            &mut surface_textures,
         )?;
 
         let instance_buffer_pool = self.instance_buffer_pool.clone();
-        let instance_buffer = Cell::new(Some(writer.finish()));
-        let block = RcBlock::new(move |_: ptr::NonNull<AnyObject>| {
-            if let Some(instance_buffer) = instance_buffer.take() {
-                instance_buffer_pool.lock().release(instance_buffer);
-            }
-        });
-        // SAFETY: Both pointee types are opaque views of the same Objective-C block pointer ABI.
+        let frame_resources = Cell::new(Some((writer.finish(), surface_textures)));
+        let block = RcBlock::new(
+            move |_: ptr::NonNull<ProtocolObject<dyn MTLCommandBuffer>>| {
+                if let Some((instance_buffer, _surface_textures)) = frame_resources.take() {
+                    instance_buffer_pool.lock().release(instance_buffer);
+                }
+            },
+        );
+        // SAFETY: Metal copies the live block and invokes it once after this frame completes.
+        // Its captures own the frame resources and use the pool mutex when returning the buffer.
         unsafe {
-            command_buffer.add_completed_handler(&*RcBlock::as_ptr(&block).cast());
+            command_buffer.addCompletedHandler(RcBlock::as_ptr(&block));
         }
 
         Ok(EncodedFrame { command_buffer, atlas_frame: Cell::new(Some(atlas_frame)) })

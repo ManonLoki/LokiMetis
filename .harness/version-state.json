@@ -101,7 +101,8 @@
     "LMWIN-FXC-MULTIPLE-PATH-001",
     "LMWIN-CURSOR-SQLITE-INPROCESS-001",
     "LMWIN-UNINSTALL-AUTOSTART-FLAG-001",
-    "LMDESK-TODAY-UNREADY-AGENT-TOTAL-001"
+    "LMDESK-TODAY-UNREADY-AGENT-TOTAL-001",
+    "LMDESK-DEVICE-FALLBACK-ASSET-001"
   ],
   "applied_reconciliations": [
     {
@@ -130,12 +131,23 @@
     }
   ],
   "cycle_base_version": "0.11.0",
-  "feature_bump_applied": false,
+  "feature_bump_applied": true,
   "last_release": {
     "source_commit": "e3c79a306d17b124e71cac016c994e600f1e908f",
     "version": "0.11.0"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-DEVICE-FALLBACK-ASSET-001",
+      "kind": "bug-fix",
+      "required_version": "0.11.1"
+    },
+    {
+      "change_id": "LMDESK-GPUI-KIT-090-001",
+      "kind": "feature",
+      "required_version": "0.12.0"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.11.0"
+  "target_version": "0.12.0"
 }

@@ -303,7 +303,7 @@ fn parent_clip_metal_rust_and_cbindgen_layout_agree() {
 /// 每种实际Apple fragment都先确认未裁版本可见，再证明父角外与实际opaque黑底清屏一致、角内仍正常。
 #[test]
 fn parent_clip_metal_all_primitive_fragment_pixels() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     for f in [1., 2.] {
         let clear = render(&mut renderer, Scene::default(), f);
         for nested in [false, true] {
@@ -352,7 +352,7 @@ fn parent_clip_metal_all_primitive_fragment_pixels() {
 /// Path中间pass后主encoder被重建，随后的Quad须重新绑定节点buffer。
 #[test]
 fn parent_clip_metal_path_pass_rebinds_following_primitive() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     let mut scene = Scene::default();
     let id = scene.intern_parent_clip_chain(&chain(false), 1.);
     insert(&mut scene, &renderer, Kind::Path, 1.);
@@ -371,7 +371,7 @@ fn parent_clip_metal_path_pass_rebinds_following_primitive() {
 /// 空场景和非法零面积clip都绑定有效节点，非法clip绝不成为head0无裁切。
 #[test]
 fn parent_clip_metal_empty_scene_and_invalid_clip_fail_closed() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     let empty = render(&mut renderer, Scene::default(), 1.);
     assert!(empty.pixels().all(|p| p[0] == 0 && p[1] == 0 && p[2] == 0));
     let mut scene = Scene::default();
@@ -389,7 +389,7 @@ fn parent_clip_metal_empty_scene_and_invalid_clip_fail_closed() {
 /// 外祖先与head各有独立必要性，仅读最近节点或仅祖先都必须失败。
 #[test]
 fn parent_clip_metal_traverses_ancestors_and_intersects_head() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     for f in [1., 2.] {
         let clear = render(&mut renderer, Scene::default(), f);
         let original = chain(false);
@@ -432,7 +432,7 @@ fn parent_clip_metal_traverses_ancestors_and_intersects_head() {
 /// 重复同一clip不能让真实AA边缘alpha平方；fixture必须存在非二值边缘。
 #[test]
 fn parent_clip_metal_duplicate_ancestors_do_not_square_edge_coverage() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     let one = chain(false);
     let two = one.push(one.as_slice()[0]);
     let mut images = Vec::new();
@@ -453,7 +453,7 @@ fn parent_clip_metal_duplicate_ancestors_do_not_square_edge_coverage() {
 /// 背景保持原有无clip绘制；父角外必须透出真实红底，不能通过黑色遮罩伪造。
 #[test]
 fn parent_clip_metal_preserves_underlying_scene_color() {
-    let mut renderer = MetalHeadlessRenderer::new();
+    let mut renderer = MetalHeadlessRenderer::new().expect("headless Metal renderer");
     let make_background = || {
         let mut scene = Scene::default();
         scene.insert_primitive(Quad {

@@ -13,8 +13,8 @@
                 );
                 continue;
             }
-            // 候选始终加入本次 family 列表；全局去重仅复用 FontId，不过滤候选。
-            let font_id = self.register_native_font(font);
+            // 不同FontKey保留请求侧ID；原生反查只复用物理字体，不吞掉run边界。
+            let font_id = self.register_requested_font(font);
             font_ids.push(font_id);
         }
         Ok(font_ids)
@@ -30,7 +30,19 @@
         self.fonts[font_id.0].glyph_for_char(ch).map(GlyphId)
     }
 
-    /// 注册选择/CTRun 共用实际 native 身份，未知值临时扫描，不持久保存 CFType。
+    /// 请求ID遵循FontKey边界；原生反查保留首个等价ID，别名加载不能改写既有反查结果。
+    fn register_requested_font(&mut self, font: FontKitFont) -> FontId {
+        let native = font.native_font();
+        let font_id = FontId(self.fonts.len());
+        if let Some(key) = native_identity(&native) {
+            self.font_ids_by_native_identity.entry(key).or_insert(font_id);
+        }
+        self.postscript_names_by_font_id.insert(font_id, native.postscript_name());
+        self.fonts.push(font);
+        font_id
+    }
+
+    /// CTRun尺寸复制按完整实际native身份去重，未知值临时扫描，不持久保存CFType。
     fn register_native_font(&mut self, font: FontKitFont) -> FontId {
         let native = font.native_font();
         let identity = native_identity(&native);

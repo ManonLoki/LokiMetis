@@ -29,7 +29,7 @@ fn generated_sources() -> PathBuf {
     ] {
         println!("cargo:rerun-if-changed={name}");
     }
-    // 可变字体回归使用的七份原样字体/OFL 先逐字节核验，再生成补丁树。
+    // 可变字体回归使用的九份原样字体/OFL 先逐字节核验，再生成补丁树。
     fixture_verify::verify(root).unwrap_or_else(|error| panic!("{error}"));
     // scene.rs 补丁与 gpui-pre 共用；Metal 与可变字体为本包专属。
     let patches: Vec<Patch> = [
@@ -40,15 +40,15 @@ fn generated_sources() -> PathBuf {
     let spec = Spec {
         entry: "src/gpui_apple.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "6192d5cc95ea36501eee39d04a373459711161ee75f3af65ffca1102e264793a",
+        source_manifest_sha256: "0a61d4ba3284175c7298773cdb5c0cbade41b9ea4c047903aeb71a026c588800",
         patches: &patches,
         generated_hashes: &[
-            ("src/metal_atlas.rs", "6fa211297007a14a21b1b547dac528133c6b5dc7c1271923b63ea71fc978b084"),
-            ("src/metal_renderer.rs", "4e98840c2207443d45c88f76402306598695ae37cd09c15dfc50ba4674d7e619"),
-            ("src/gpui_apple.rs", "02a5a7547b5c8d9d02e67243bc1cbb367c0e72a910711ede55ea80e4aba4d4ac"),
-            ("vendor/gpui/src/scene.rs", "aa89a20f138be9bd0c2f7a9e424d91e326dd43af5988b75919c87969403f113b"),
+            ("src/metal_atlas.rs", "fe35252e935046f46b06666a58be7dc026c4c1fa90f9080dc958ff97d766026e"),
+            ("src/metal_renderer.rs", "052f4a7bf667740fa2f3eb05cec31ed49202b03848a0d59f754cddd3e104191c"),
+            ("src/gpui_apple.rs", "8ca1035aabe88d7acda54db0bf5edda25bd75439f888f5626fbd276c6c5887cf"),
+            ("vendor/gpui/src/scene.rs", "3c2e1598169001ed10a3b99df37718619558fe4c192f7a5423ced9ae1762ca9b"),
             ("src/shaders.metal", "0293a36fef5f5bbde11fcad44ac903c6d70bb6c83c9db86c26a831f6ae53da3c"),
-            ("src/text_system.rs", "d92a152eb49dcfd644d7a594f12f394caa0c41a593a868d2df4e8ab98298d1ca"),
+            ("src/text_system.rs", "8be80d1891386c7724f8cff160277468a2bd947cbd43f31dc1a4f5ee8fc4b8b3"),
         ],
     };
     generator::generate(root, &spec)
@@ -63,6 +63,8 @@ fn main() {
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod apple_build {
+    #[cfg(not(feature = "runtime_shaders"))]
+    use std::ffi::OsString;
     use std::{
         env,
         path::{Path, PathBuf},
@@ -189,6 +191,9 @@ mod apple_build {
     fn compile_metal_shaders(header_path: &Path, generated: &Path) {
         use std::process::{self, Command};
 
+        println!("cargo:rerun-if-env-changed=SDKROOT");
+        println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
+
         // Build scripts run on the host, so the target platform must come from
         // Cargo's environment rather than `cfg!`. The target environment, not the
         // target name, identifies simulators: `x86_64-apple-ios` has no `-sim` suffix.
@@ -197,7 +202,7 @@ mod apple_build {
         let target_env = env::var("CARGO_CFG_TARGET_ENV")
             .expect("Cargo sets CARGO_CFG_TARGET_ENV for build scripts");
         let (sdk, minimum_version_argument) = match (target_os.as_str(), target_env.as_str()) {
-            ("macos", _) => ("macosx", "-mmacosx-version-min=10.15.7"),
+            ("macos", _) => ("macosx", "-mmacosx-version-min=12.0"),
             ("ios", "sim") => ("iphonesimulator", "-mios-simulator-version-min=15.0"),
             ("ios", "") => ("iphoneos", "-mios-version-min=15.0"),
             _ => {
@@ -208,22 +213,33 @@ mod apple_build {
             }
         };
 
+        let sdk = if target_os == "macos" {
+            env::var_os("SDKROOT").unwrap_or_else(|| OsString::from(sdk))
+        } else {
+            OsString::from(sdk)
+        };
+
         let shader_path = generated.join("src/shaders.metal");
-        let air_output_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("shaders.air");
-        let metallib_output_path =
-            PathBuf::from(env::var("OUT_DIR").unwrap()).join("shaders.metallib");
+        let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+        let air_output_path = out_dir.join("shaders.air");
+        let metallib_output_path = out_dir.join("shaders.metallib");
+        println!("cargo:rerun-if-changed={}", shader_path.display());
 
         // The metal compiler records the resolved absolute path of its input
         // unconditionally. Compile a copy staged in OUT_DIR so the recorded
         // location is the build's canonical output directory, never the
         // checkout (corgi rejects artifacts that embed the build path).
-        let staged_shader_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("shaders.metal");
+        let staged_shader_path = out_dir.join("shaders.metal");
         std::fs::copy(shader_path, &staged_shader_path).unwrap();
 
+        // When targeting macOS 12+, both `metal` and `metallib` also record
+        // their working directory in the metallib. Run them from OUT_DIR so
+        // that path isn't the checkout either.
         let output = Command::new("xcrun")
+            .current_dir(&out_dir)
+            .arg("-sdk")
+            .arg(&sdk)
             .args([
-                "-sdk",
-                sdk,
                 "metal",
                 "-gline-tables-only",
                 minimum_version_argument,
@@ -245,7 +261,10 @@ mod apple_build {
         }
 
         let output = Command::new("xcrun")
-            .args(["-sdk", sdk, "metallib"])
+            .current_dir(&out_dir)
+            .arg("-sdk")
+            .arg(&sdk)
+            .arg("metallib")
             .arg(&air_output_path)
             .arg("-o")
             .arg(metallib_output_path)
@@ -260,10 +279,7 @@ mod apple_build {
             process::exit(1);
         }
 
-        // The .air intermediate records the compiler's working directory in
-        // its debug info; the metallib built from it does not. Nothing reads
-        // the .air after this point, so drop it rather than leave a
-        // checkout-path-bearing file in OUT_DIR.
+        // Nothing reads the .air intermediate after this point.
         std::fs::remove_file(&air_output_path).unwrap();
     }
 }

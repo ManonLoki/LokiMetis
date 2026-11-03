@@ -6,7 +6,3 @@
                 #[cfg(feature = "parent-rounded-clip")]
                 parent_clip: path.parent_clip,
             }));
-        }
-        let vertex_instance_bindings = writer.write(&vertices)?;
-
-        let render_pass_descriptor = metal::RenderPassDescriptor::new();

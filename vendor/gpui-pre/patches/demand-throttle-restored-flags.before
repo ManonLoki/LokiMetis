@@ -1,3 +1,5 @@
-                let min_frame_interval = if request_frame_options.require_presentation
-                    || (!request_frame_options.force_render
-                        && next_frame_callbacks.borrow().is_empty())
+                    || request_frame_options.require_presentation
+                    || needs_present.get()
+                    || high_rate_input;
+
+                let should_throttle = !request_frame_options.require_presentation;

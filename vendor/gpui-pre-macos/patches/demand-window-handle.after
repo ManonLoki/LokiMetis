@@ -1,0 +1,4 @@
+    Option<Rc<MetalFrames>>,
+    /// Core唤醒器直接持有需求位，绘制重入时不取得窗口锁。
+    Arc<crate::frame_demand::FrameDemand>,
+);

@@ -34,10 +34,10 @@ function safePath(path) {
 /** 仅登记这次 WGPU 官方测试字体，不能借目录名放行其它第三方或手写内容。 */
 function verifyWgpuFontFixtures(directory, sourceProvenance, build) {
   if (sourceProvenance.package !== 'gpui-pre-wgpu') return null;
-  const revision = '08cbb88a152c3751a43e853425a70e9f631a5918';
+  const revision = 'f816e1f9263e3a8ef63c4baaa02e1441ce1c6038';
   const manifestSha256 = '9fd0d42f6f6fcd62a12d6968f37d16d76b04aa048d1dbfe01814181526b8f81b';
   const declared = build.match(/const FONT_FIXTURE_MANIFEST_SHA256:\s*&str\s*=\s*"([a-f0-9]{64})"/)?.[1];
-  if (sourceProvenance.version !== '0.3.10' || sourceProvenance.source_revision !== revision
+  if (sourceProvenance.version !== '0.3.11' || sourceProvenance.source_revision !== revision
       || declared !== manifestSha256) throw new Error('font fixture registration drift');
   const manifestPath = join(directory, 'test-fixtures-content.sha256');
   const provenancePath = join(directory, 'test-fixtures-provenance.json');

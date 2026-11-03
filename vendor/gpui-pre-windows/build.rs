@@ -13,7 +13,7 @@ fn generated_sources() -> PathBuf {
     let spec = Spec {
         entry: "src/gpui_windows.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "67ceabff1707a47d93fb10d594fa27a8d6928f945cb839a9d958f971bdf7a9df",
+        source_manifest_sha256: "30d6e5f9aed4eee068c05e736c60d94fcc32423a4a2f6404987f893ee6365968",
         patches: &[
             Patch {
                 name: "hlsl-clip-layout", path: "src/shaders.hlsl",
@@ -62,11 +62,11 @@ fn generated_sources() -> PathBuf {
             },
         ],
         generated_hashes: &[
-            ("src/window.rs", "5c7ead7e6f6d64909889c81553b20b39dd47ad301e4401788b22cb2a69f759e1"),
-            ("src/events.rs", "df24c0504a0f16045fc9165bfc14d0894126399c3a15e124997dca6d80f77ebf"),
+            ("src/window.rs", "335dd64690347ca440e9d1255c0bc106eaf30e40e7a6b28dd770971422174e55"),
+            ("src/events.rs", "207832285037d3a48934987bbc03c296e96dbea8b54d741f22b53c57cde06bb9"),
             ("src/gpui_windows.rs", "a4dbf8bbefd89e8ac5996a143e82c8e2eef65e1675c25ab6d27607329c041a67"),
             ("src/shaders.hlsl", "2bfb2dc989eec4762ee43966c296604ab718a9569fdcf917e8e772106b6c6764"),
-            ("src/directx_renderer.rs", "79d4846367944a35a659a6e529245fb5a49fe860ec8fa51d7878b76a31ef89a9"),
+            ("src/directx_renderer.rs", "b91249dab8b7c7a4dc57ce5a1316fb81a650d1dcf59b22a29d4b6914276a931c"),
         ],
     };
     generator::generate(Path::new(env!("CARGO_MANIFEST_DIR")), &spec)

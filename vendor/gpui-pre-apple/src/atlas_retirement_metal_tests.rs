@@ -1,6 +1,7 @@
 // 用真正阻塞的 Metal 队列检查提交后删除；测试失败也必定解除 GPU 等待。
 
 use super::*;
+use objc2_metal::MTLSharedEvent;
 use gpui::{AtlasTile, Corners, PlatformAtlas, PolychromeSprite, RenderImage, RenderImageParams};
 use std::{
     borrow::Cow,
@@ -8,11 +9,11 @@ use std::{
 };
 
 /// CPU 事件控制独立于渲染完成回调，panic 也不会把宿主 GPU 队列永久阻塞。
-struct Gate(metal::SharedEvent);
+struct Gate(Retained<ProtocolObject<dyn MTLSharedEvent>>);
 impl Drop for Gate {
     /// 释放测试等待，command buffer 仍按正常 Metal 规则执行。
     fn drop(&mut self) {
-        self.0.set_signaled_value(1);
+        self.0.setSignaledValue(1);
     }
 }
 
@@ -66,29 +67,30 @@ fn image_scene(tile: AtlasTile) -> Scene {
 fn submitted_atlas_texture_survives_until_gpu_completion() {
     objc2::rc::autoreleasepool(|_| {
         let mut renderer =
-            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())));
+            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())))
+                .expect("headless Metal renderer");
         let data = RenderImage::new(vec![image::Frame::new(image::RgbaImage::from_pixel(
             1024,
             1024,
             image::Rgba([0, 0, 255, 255]),
         ))]);
         let tile = upload(&renderer, &data);
-        let gate = Gate(renderer.device.new_shared_event());
-        let blocker = renderer.command_queue.new_command_buffer();
-        blocker.encode_wait_for_event(&gate.0, 1);
+        let gate = Gate(renderer.device.newSharedEvent().expect("shared Metal event"));
+        let blocker = renderer.command_queue.commandBuffer().expect("Metal command buffer");
+        blocker.encodeWaitForEvent_value(ProtocolObject::from_ref(&*gate.0), 1);
         blocker.commit();
-        let descriptor = metal::TextureDescriptor::new();
-        descriptor.set_width(32);
-        descriptor.set_height(32);
-        descriptor.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        let descriptor = MTLTextureDescriptor::new();
+        // SAFETY: Positive dimensions describe a two-dimensional test render target.
+        unsafe { descriptor.setWidth(32); descriptor.setHeight(32); }
+        descriptor.setPixelFormat(MTLPixelFormat::BGRA8Unorm);
         descriptor
-            .set_usage(metal::MTLTextureUsage::RenderTarget | metal::MTLTextureUsage::ShaderRead);
-        descriptor.set_storage_mode(if renderer.is_apple_gpu {
-            metal::MTLStorageMode::Shared
+            .setUsage(MTLTextureUsage::RenderTarget | MTLTextureUsage::ShaderRead);
+        descriptor.setStorageMode(if renderer.is_apple_gpu {
+            MTLStorageMode::Shared
         } else {
-            metal::MTLStorageMode::Managed
+            MTLStorageMode::Managed
         });
-        let target = renderer.device.new_texture(&descriptor);
+        let target = renderer.device.newTextureWithDescriptor(&descriptor).expect("Metal render target");
         let command = renderer
             .render_frame(
                 &image_scene(tile),
@@ -97,9 +99,9 @@ fn submitted_atlas_texture_survives_until_gpu_completion() {
             )
             .unwrap();
         if !renderer.is_apple_gpu {
-            let blit = command.new_blit_command_encoder();
-            blit.synchronize_resource(&target);
-            blit.end_encoding();
+            let blit = command.blitCommandEncoder().expect("Metal blit encoder");
+            blit.synchronizeResource(ProtocolObject::from_ref(&*target));
+            blit.endEncoding();
         }
         command.commit();
         let key = RenderImageParams {
@@ -122,8 +124,8 @@ fn submitted_atlas_texture_survives_until_gpu_completion() {
                 .is_some(),
             "提交的GPU仍在等待，不能提前回收物理纹理槽"
         );
-        gate.0.set_signaled_value(1);
-        command.wait_until_completed();
+        gate.0.setSignaledValue(1);
+        command.waitUntilCompleted();
         let deadline = Instant::now() + Duration::from_secs(2);
         while renderer
             .sprite_atlas
@@ -152,7 +154,8 @@ fn submitted_atlas_texture_survives_until_gpu_completion() {
 fn prepared_atlas_region_is_not_reused_before_later_submission() {
     objc2::rc::autoreleasepool(|_| {
         let mut renderer =
-            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())));
+            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())))
+                .expect("headless Metal renderer");
         let keeper = solid_image(64, [0, 255, 0, 255]);
         let keeper_tile = upload(&renderer, &keeper);
         let original = solid_image(700, [0, 0, 255, 255]);
@@ -161,9 +164,9 @@ fn prepared_atlas_region_is_not_reused_before_later_submission() {
             keeper_tile.texture_id, original_tile.texture_id,
             "必须实际共享图集页"
         );
-        let gate = Gate(renderer.device.new_shared_event());
-        let blocker = renderer.command_queue.new_command_buffer();
-        blocker.encode_wait_for_event(&gate.0, 1);
+        let gate = Gate(renderer.device.newSharedEvent().expect("shared Metal event"));
+        let blocker = renderer.command_queue.commandBuffer().expect("Metal command buffer");
+        blocker.encodeWaitForEvent_value(ProtocolObject::from_ref(&*gate.0), 1);
         blocker.commit();
         let target = render_target(&renderer);
         let prepared = renderer
@@ -174,9 +177,9 @@ fn prepared_atlas_region_is_not_reused_before_later_submission() {
             )
             .unwrap();
         if !renderer.is_apple_gpu {
-            let blit = prepared.new_blit_command_encoder();
-            blit.synchronize_resource(&target);
-            blit.end_encoding();
+            let blit = prepared.blitCommandEncoder().expect("Metal blit encoder");
+            blit.synchronizeResource(ProtocolObject::from_ref(&*target));
+            blit.endEncoding();
         }
         let key = RenderImageParams {
             image_id: original.id,
@@ -201,8 +204,8 @@ fn prepared_atlas_region_is_not_reused_before_later_submission() {
                 || replacement_tile.bounds != original_tile.bounds
         );
         prepared.commit();
-        gate.0.set_signaled_value(1);
-        prepared.wait_until_completed();
+        gate.0.setSignaledValue(1);
+        prepared.waitUntilCompleted();
         assert_eq!(
             read_texture_to_image(&target).unwrap().get_pixel(16, 16).0,
             [255, 0, 0, 255]
@@ -230,7 +233,8 @@ fn prepared_atlas_region_is_not_reused_before_later_submission() {
 fn abandoned_encoded_frame_cancels_atlas_retirement() {
     objc2::rc::autoreleasepool(|_| {
         let mut renderer =
-            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())));
+            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())))
+                .expect("headless Metal renderer");
         let image = solid_image(1024, [0, 0, 255, 255]);
         let tile = upload(&renderer, &image);
         let target = render_target(&renderer);
@@ -269,13 +273,14 @@ fn abandoned_encoded_frame_cancels_atlas_retirement() {
 fn submitted_frame_keeps_atlas_alive_after_renderer_drop() {
     objc2::rc::autoreleasepool(|_| {
         let mut renderer =
-            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())));
+            MetalRenderer::new_headless(Arc::new(Mutex::new(InstanceBufferPool::default())))
+                .expect("headless Metal renderer");
         let image = solid_image(1024, [0, 0, 255, 255]);
         let tile = upload(&renderer, &image);
         let weak = Arc::downgrade(&renderer.sprite_atlas);
-        let gate = Gate(renderer.device.new_shared_event());
-        let blocker = renderer.command_queue.new_command_buffer();
-        blocker.encode_wait_for_event(&gate.0, 1);
+        let gate = Gate(renderer.device.newSharedEvent().expect("shared Metal event"));
+        let blocker = renderer.command_queue.commandBuffer().expect("Metal command buffer");
+        blocker.encodeWaitForEvent_value(ProtocolObject::from_ref(&*gate.0), 1);
         blocker.commit();
         let target = render_target(&renderer);
         let command = renderer
@@ -295,8 +300,8 @@ fn submitted_frame_keeps_atlas_alive_after_renderer_drop() {
         );
         drop(renderer);
         assert!(weak.upgrade().is_some());
-        gate.0.set_signaled_value(1);
-        command.wait_until_completed();
+        gate.0.setSignaledValue(1);
+        command.waitUntilCompleted();
         let deadline = Instant::now() + Duration::from_secs(2);
         while weak.upgrade().is_some() && Instant::now() < deadline {
             std::thread::yield_now();
@@ -318,16 +323,16 @@ fn solid_image(side: u32, bgra: [u8; 4]) -> RenderImage {
 }
 
 /// Intel 使用显式同步，Apple GPU 使用共享存储。
-fn render_target(renderer: &MetalRenderer) -> metal::Texture {
-    let descriptor = metal::TextureDescriptor::new();
-    descriptor.set_width(32);
-    descriptor.set_height(32);
-    descriptor.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
-    descriptor.set_usage(metal::MTLTextureUsage::RenderTarget | metal::MTLTextureUsage::ShaderRead);
-    descriptor.set_storage_mode(if renderer.is_apple_gpu {
-        metal::MTLStorageMode::Shared
+fn render_target(renderer: &MetalRenderer) -> Retained<ProtocolObject<dyn MTLTexture>> {
+    let descriptor = MTLTextureDescriptor::new();
+    // SAFETY: Positive dimensions describe a two-dimensional test render target.
+    unsafe { descriptor.setWidth(32); descriptor.setHeight(32); }
+    descriptor.setPixelFormat(MTLPixelFormat::BGRA8Unorm);
+    descriptor.setUsage(MTLTextureUsage::RenderTarget | MTLTextureUsage::ShaderRead);
+    descriptor.setStorageMode(if renderer.is_apple_gpu {
+        MTLStorageMode::Shared
     } else {
-        metal::MTLStorageMode::Managed
+        MTLStorageMode::Managed
     });
-    renderer.device.new_texture(&descriptor)
+    renderer.device.newTextureWithDescriptor(&descriptor).expect("Metal render target")
 }

@@ -71,7 +71,7 @@ fn main() {
     let spec = Spec {
         entry: "src/gpui_wgpu.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "55ff8930ca0210d861b0a0002a2bb997be332bc1acfd0cda62f778ef8a7ca23b",
+        source_manifest_sha256: "3bf6f84102682a33325fca5b74a4e3d6813c7f2b6110dea1ce48cb2b4a8a5a4d",
         patches: &[
             Patch {
                 name: "polychrome-layout",
@@ -133,7 +133,7 @@ fn main() {
             ("src/gpui_wgpu.rs", "b51033ac07d187c89c4079f208d3a557c6fff309b1cd403927ce8974e795afa0"),
             ("src/shaders.wgsl", "b730dde101c7ce6727cdbcd7cb085107053ef0153a352d66fb1a4264ec463405"),
             ("src/shaders_webgl.wgsl", "20417643a520a136db861da4188682db637824ebdeee0331635170be83815aff"),
-            ("src/wgpu_renderer.rs", "9e370b5e54656058d7a00caf67221823171fa1ef82d3506afbce2e9fbe1af162"),
+            ("src/wgpu_renderer.rs", "91b5136928f99168162cfddef311988c42322ed624e6f3967c32251e001d18a6"),
         ],
     };
     generator::generate(manifest, &spec);

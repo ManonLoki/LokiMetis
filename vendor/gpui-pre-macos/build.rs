@@ -16,8 +16,28 @@ fn main() {
     let spec = Spec {
         entry: "src/gpui_macos.rs",
         root_prefix: include_str!("patches/root-prefix.before"),
-        source_manifest_sha256: "185befb334e14f8d874b23a134e8bb6e35894a48cd86e205f3754a3d296f7c9f",
+        source_manifest_sha256: "cac5202f3d5b7b69c5c7fd4b5f67a9811a3c24a1846edd8221bb0a46e325dd13",
         patches: &[
+            Patch {
+                name: "demand-window-handle", path: "src/window.rs",
+                before: include_str!("patches/demand-window-handle.before"),
+                after: include_str!("patches/demand-window-handle.after"),
+            },
+            Patch {
+                name: "demand-window-handle-init", path: "src/window.rs",
+                before: include_str!("patches/demand-window-handle-init.before"),
+                after: include_str!("patches/demand-window-handle-init.after"),
+            },
+            Patch {
+                name: "demand-native-waker", path: "src/window.rs",
+                before: include_str!("patches/demand-native-waker.before"),
+                after: include_str!("patches/demand-native-waker.after"),
+            },
+            Patch {
+                name: "demand-metal-consume", path: "src/window.rs",
+                before: include_str!("patches/demand-metal-consume.before"),
+                after: include_str!("patches/demand-metal-consume.after"),
+            },
             Patch {
                 name: "menu-action-ownership",
                 path: "src/platform.rs",
@@ -145,9 +165,9 @@ fn main() {
 
         ],
         generated_hashes: &[
-            ("src/display_link.rs", "789267fc938da08016b2e2cdf950393a319be584386cca3de997f82e5dba1114"),
-            ("src/platform.rs", "9923744b3481937fbf2e33d04f04eae5fd25ecdd75c43931bc59dd749ed4700a"),
-            ("src/window.rs", "06ccc6fbfc6bc22e6b3da94e61bbfa533f3ec37b7e2bd1db2a4bf6c9dc8cc1db"),
+            ("src/display_link.rs", "6777d274de042a1de4292cd2c05a3490ba9902c00d2d71a3c2e17eac2a3d01c9"),
+            ("src/platform.rs", "2951979cf1034e2e4062d4dd0fbcdec1f6edc6d73cb96d1491ef719a93998f5e"),
+            ("src/window.rs", "37b0fd143e1e029452a9bd0b596608525839ec5c193505d4f46fe65647421b5b"),
             ("src/gpui_macos.rs", "328fb915fd82f9a90a95924d11380ff5494d7f0240ceb1798dd07235e7759fe9"),
         ],
     };

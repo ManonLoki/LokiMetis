@@ -1,19 +1,19 @@
 {
   "package": "gpui-pre-wgpu",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "official_repository": "https://github.com/zed-industries/zed",
-  "source_revision": "08cbb88a152c3751a43e853425a70e9f631a5918",
-  "crate_source_url": "https://static.crates.io/crates/gpui-pre-wgpu/gpui-pre-wgpu-0.3.10.crate",
-  "crate_archive_sha256": "5b1cdb26c1503bf9662ee8fbc5ab0b44b2deeee4b5c12dc67491ba6fb5fc544b",
+  "source_revision": "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038",
+  "crate_source_url": "https://static.crates.io/crates/gpui-pre-wgpu/gpui-pre-wgpu-0.3.11.crate",
+  "crate_archive_sha256": "211cf352de1a0b0c9bea3f105df5572ce1d2c899389b924a888e5af36b50f93d",
   "crate_archive_regular_file_count": 14,
   "source_manifest": "source-content.sha256",
-  "source_manifest_sha256": "55ff8930ca0210d861b0a0002a2bb997be332bc1acfd0cda62f778ef8a7ca23b",
+  "source_manifest_sha256": "3bf6f84102682a33325fca5b74a4e3d6813c7f2b6110dea1ce48cb2b4a8a5a4d",
   "manifest_definition": "Sorted UTF-8 lines: lowercase sha256(file bytes), two ASCII spaces, upstream-relative path, LF. Covers every original regular file from the official .crate archive without modification.",
   "source_crate_in_vcs": "gpui_wgpu",
   "schema_version": 1,
-  "archive_sha256": "ce693915768aae38bf788f245af75aae78e3e1179245860fc80ce831d0a8f74e",
+  "archive_sha256": "211cf352de1a0b0c9bea3f105df5572ce1d2c899389b924a888e5af36b50f93d",
   "upstream_file_count": 14,
-  "upstream_bytes": 443620,
+  "upstream_bytes": 445513,
   "patch_strategy": "immutable upstream; strict templates applied only to OUT_DIR/gpui-patched",
-  "source": "https://crates.io/api/v1/crates/gpui-pre-wgpu/0.3.10/download"
+  "source": "https://crates.io/api/v1/crates/gpui-pre-wgpu/0.3.11/download"
 }

@@ -1,0 +1,20 @@
+    /// 仅需present时Core也会调用；Metal必须恢复暂停的链，CV等待下一次真实vsync。
+    fn schedule_frame(&self) {
+        self.3.request();
+        if let Some(metal_frames) = &self.2 {
+            metal_frames.wake();
+        }
+    }
+
+    /// 两种后端共用无锁需求位；Metal仍通过上游weak唤醒器恢复原生高刷新链。
+    fn frame_waker(&self) -> Option<Rc<dyn Fn()>> {
+        let demand = self.3.clone();
+        let metal_frames = self.2.as_ref().map(Rc::downgrade);
+        Some(Rc::new(move || {
+            demand.request();
+            if let Some(metal_frames) = metal_frames.as_ref().and_then(Weak::upgrade) {
+                metal_frames.wake();
+            }
+        }))
+    }
+

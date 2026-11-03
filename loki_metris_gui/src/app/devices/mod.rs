@@ -4,6 +4,8 @@ mod dialog;
 mod view;
 mod paired_card;
 mod artwork;
+#[cfg(all(test, target_os = "macos"))]
+mod artwork_metal_tests;
 #[cfg(test)]
 mod tests;
 

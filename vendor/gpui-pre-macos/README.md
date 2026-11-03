@@ -1,6 +1,6 @@
 # macOS 平台兼容层
 
-官方 gpui-pre-macos 0.3.10 的全部 15 文件原样保留于 upstream，含原 Apache-2.0 许可和归档 Cargo.lock。来源、归档摘要和完整文件清单见 provenance.json 与 source-content.sha256；固定源清单 SHA256 为 185befb334e14f8d874b23a134e8bb6e35894a48cd86e205f3754a3d296f7c9f。
+官方 gpui-pre-macos 0.3.11 的全部 15 文件原样保留于 upstream，含原 Apache-2.0 许可和归档 Cargo.lock。来源、归档摘要和完整文件清单见 provenance.json 与 source-content.sha256。
 
 共享标准库生成器校验原文件集、逐文件 SHA、唯一替换片段与生成结果 SHA。build.rs 只生成 OUT_DIR/gpui-patched，不改写 upstream。Cargo 公开依赖与特征保持同版本原包解析值，只有 build/lib 入口改为本地包装。
 
@@ -13,6 +13,8 @@
 应用唤起适配按 AppKit 的 BOOL 参数及返回类型注册 `applicationShouldHandleReopen:hasVisibleWindows:`。有 handler 时每次真实 reopen 都转发，释放平台锁后调用；辅助 NSWindow 可见也不能吞掉主窗唤起。应用回调已接管显示时返回 NO，避免默认恢复与异步几何事务并发；无 handler 则返回 YES。此修复来自桌宠可见、主窗隐藏时访达打开无效的实机复现；[Apple reopen 合同](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationshouldhandlereopen(_:hasvisiblewindows:)) 于2026-10-10核对，补丁后的行为另行实测。
 
 0.3.10 起上游把 `gpui-pre-macos` 的 AppKit 层从 `objc` 迁到 `objc2`，菜单、reopen、zoom、全屏失败与按需帧补丁按 `objc2` 写法重新登记（`extern "C-unwind"`、`AnyObject`、`Bool`、`msg_send!` 逗号参数）。上游已按 `applicationShouldHandleReopen:hasVisibleWindows:` 的 BOOL 签名注册该 selector，原 `reopen-registration` 补丁因此移除；`reopen-event` 仍需保留，因为上游只在没有可见窗口时转发且始终返回 YES。`src/menu_tests.rs` 同步移植为 `objc2` 裸对象指针，Dock 菜单改由 `Retained<NSMenu>` 持有。
+
+0.3.11 的 Metal 原生帧源保持上游 drawable、刷新率和暂停恢复合同；CVDisplayLink 继续按原子需求位投递。两者的 Core 唤醒器均不取得窗口锁，避免绘制重入时死锁。
 
 维护检查：
 

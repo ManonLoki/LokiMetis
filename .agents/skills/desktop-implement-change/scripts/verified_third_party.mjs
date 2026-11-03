@@ -19,31 +19,31 @@ const REGISTERED_SOURCES = Object.freeze([
   Object.freeze({
     manifest: "vendor/gpui-pre/source-content.sha256",
     root: "vendor/gpui-pre/upstream",
-    sha256: "34525d22e585a0e44848e9440efc127874fe14703cca9b7cae49bab5cc7bb163",
-    entries: 163,
+    sha256: "4222c84aea30d33b71bd7c092a6c2312f32dcf41163d46251203e84a34c09805",
+    entries: 164,
   }),
   Object.freeze({
     manifest: "vendor/gpui-pre-apple/source-content.sha256",
     root: "vendor/gpui-pre-apple/upstream",
-    sha256: "6192d5cc95ea36501eee39d04a373459711161ee75f3af65ffca1102e264793a",
-    entries: 19,
+    sha256: "0a61d4ba3284175c7298773cdb5c0cbade41b9ea4c047903aeb71a026c588800",
+    entries: 20,
   }),
   Object.freeze({
     manifest: "vendor/gpui-pre-macos/source-content.sha256",
     root: "vendor/gpui-pre-macos/upstream",
-    sha256: "185befb334e14f8d874b23a134e8bb6e35894a48cd86e205f3754a3d296f7c9f",
+    sha256: "cac5202f3d5b7b69c5c7fd4b5f67a9811a3c24a1846edd8221bb0a46e325dd13",
     entries: 15,
   }),
   Object.freeze({
     manifest: "vendor/gpui-pre-windows/source-content.sha256",
     root: "vendor/gpui-pre-windows/upstream",
-    sha256: "67ceabff1707a47d93fb10d594fa27a8d6928f945cb839a9d958f971bdf7a9df",
+    sha256: "30d6e5f9aed4eee068c05e736c60d94fcc32423a4a2f6404987f893ee6365968",
     entries: 28,
   }),
   Object.freeze({
     manifest: "vendor/gpui-pre-wgpu/source-content.sha256",
     root: "vendor/gpui-pre-wgpu/upstream",
-    sha256: "55ff8930ca0210d861b0a0002a2bb997be332bc1acfd0cda62f778ef8a7ca23b",
+    sha256: "3bf6f84102682a33325fca5b74a4e3d6813c7f2b6110dea1ce48cb2b4a8a5a4d",
     entries: 14,
   }),
 ]);

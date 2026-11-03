@@ -1,2 +1,1 @@
             let mut deferred_force_render = false;
-            move |request_frame_options| {

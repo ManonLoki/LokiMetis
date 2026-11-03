@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// 每窗口共享的帧需求；CV线程只观察，主线程取得回调后才消费，回调内新请求留到下一帧。
+/// 每窗口共享的帧需求；CV线程只观察，两种后端均在主线程取得回调后消费，回调内新请求留到下一帧。
 pub(crate) struct FrameDemand {
     pending: AtomicBool,
 }
@@ -16,7 +16,7 @@ impl FrameDemand {
         self.pending.store(true, Ordering::Release);
     }
 
-    /// CV线程仅检查需求，不提前消费，主线程暂时取走回调时也不会丢帧。
+    /// CV线程仅检查需求，不提前消费；Metal沿原生drawable/wake节能合同调度，不借此位另设节流。
     pub(crate) fn is_pending(&self) -> bool {
         self.pending.load(Ordering::Acquire)
     }
