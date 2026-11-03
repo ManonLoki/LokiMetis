@@ -129,19 +129,13 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.10.7",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.11.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "d6f1a15badf6e2f8923750030db704b706bcaead",
-    "version": "0.10.7"
+    "source_commit": "e3c79a306d17b124e71cac016c994e600f1e908f",
+    "version": "0.11.0"
   },
-  "pending_changes": [
-    {
-      "change_id": "LMDESK-CARD-TECH-MOTION-001",
-      "kind": "feature",
-      "required_version": "0.11.0"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.11.0"
 }
