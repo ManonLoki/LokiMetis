@@ -17,7 +17,7 @@ AwaitingAck::verify → PairingMaterial
 本库没有GUI、SQLite、网络或异步运行时依赖。工作区内独立测试：
 
 ```sh
-cargo +1.98.1 test -p loki_metris_pairing --lib
+cargo +stable test -p loki_metris_pairing --lib
 ```
 
 Android JNI 封装与 Swift 调用侧通过独立[移动协议桥](../loki_metris_mobile_bridge/README.md)复用同一 Rust 状态机、配对窗口与资源校验；本仓库只提供共享库和 C ABI，移动原生驱动、系统安全存储及平台构建位于外部移动项目。Apple Watch 采用 iPhone 协作模式，接入路线见[技术选型](../docs/DEVICE_PAIRING_TECHNOLOGY.md)，各端实物互通与验收结果按实际证据核对。当前 crate 继承根 workspace 清单，接入其它项目时应保持整套依赖版本、suite 和协议合同一致。

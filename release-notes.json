@@ -18,7 +18,12 @@
           "en-US": "Upgrade the GPUI component library to 0.8.1 and its graphics framework to keep native rendering compatible across platforms."
         }
       ],
-      "bugFixes": []
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Windows 打开皮肤目录时部分系统文件管理器扩展因缺少 COM 单线程环境而失败的问题。",
+          "en-US": "Fix opening skin folders on Windows when system file-manager extensions require a COM single-threaded apartment."
+        }
+      ]
     },
     {
       "releaseDate": "2026-10-27",

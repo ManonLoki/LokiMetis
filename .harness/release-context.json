@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "64f3eb3f0411f821353362b6ae269b432c40c882",
+  "sourceHead": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
   "version": "0.11.0",
   "releaseDate": "2026-10-28",
   "expectedTag": "v0.11.0-20261028",
@@ -8,10 +8,10 @@
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "d6f1a15badf6e2f8923750030db704b706bcaead",
-    "sourceHead": "64f3eb3f0411f821353362b6ae269b432c40c882",
-    "scopeDiffSha256": "3b2ae523ed2097fb3d84d7bac38d9545345068a30a953740eb0f03c1ba9d4810",
-    "reviewedSourceCommit": "64f3eb3f0411f821353362b6ae269b432c40c882",
+    "scopeBase": "e3c79a306d17b124e71cac016c994e600f1e908f",
+    "sourceHead": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
+    "scopeDiffSha256": "24c67ecf2f7d33220283107f6224d4229d72e0da37a57862ec92199700678815",
+    "reviewedSourceCommit": "90e784f749061ed337a3bcf291872e1e7b5e03e1",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计差异：卡片三级层级与原生边缘光轨、gpui-kit 0.8.1 与 GPUI 0.3.10 兼容层重对齐、文档与一次性脚本清理。行为：GUI 545、非 GUI 1289、vendor 各包与生成器回归通过，macOS 本机验证；core 与对外协议无改动，仅 service 一处多余 mut；职责规模与中文注释门禁通过；维护代码无临时标记。Windows 仅测试编译与 Linux 仅 gpui-pre 编译检查，真实渲染与 Linux GUI 整包未验证。",
+    "evidenceSummary": "补充修订将Unix回收等待结果原样提取，并以确定Elapsed及真实已退出子进程分别严格验证句柄/登记/槽位；保持生产期限语义。Windows同源码进程owner隔离探针10项及20次重复通过，原生Unix结果待当前新CI确认。累计修订范围为Windows皮肤目录Shell STA驱动、原生COM回归、异步回执与动画帧身份测试修正、已批准的同版本归档例外与技术债事实。Windows全workspace/all-targets/all-features为1778项通过、1项受控子进程探针按设计忽略；GUI508项及Shell专项7项通过。五项审查无阻断，validate三项门禁通过；纯OS机制留在service驱动，core及公开接口/错误/数据/网络协议不变；单帧夹具保留同Arc与同tile强断言，其它动画覆盖保留；职责规模及新增临时标记复核通过。E2E未执行，安装与真实交互保持Unverified；先前磁盘不足和13项测试误报日志保留。",
     "reason": null,
     "remainingRisk": null
   }
