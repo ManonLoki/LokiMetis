@@ -133,7 +133,7 @@ pub use monitor::profile::{
 pub use pet::overlay::{
     PET_OVERLAY_SLOT_COUNT, PetLayout, PetOverlayPage, PetOverlaySlot, PetOverlayTile,
     PetOverlayToolState, PetOverlayView, apply_pet_overlay_transition, pet_overlay_page_count,
-    project_pet_overlay_from_drafts, project_pet_overlay_page,
+    pet_overlay_page_index, project_pet_overlay_from_drafts, project_pet_overlay_page,
     project_available_pet_overlay_page, first_populated_pet_slot, wrap_pet_overlay_page,
 };
 pub use pet::overlay_position::{

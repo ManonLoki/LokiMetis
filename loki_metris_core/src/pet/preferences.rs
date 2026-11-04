@@ -1,6 +1,6 @@
 //! 桌宠偏好与显示器无关的尺寸、分页规则。
 
-use crate::{HookError, PetLayout, wrap_pet_overlay_page};
+use crate::{HookError, PetLayout, pet_overlay_page_index, wrap_pet_overlay_page};
 use serde::{Deserialize, Serialize};
 
 /// 桌宠窗口的持久偏好；可见性只属于当前会话，不在这里落盘。
@@ -182,8 +182,8 @@ pub fn change_pet_preferences(
         PetPreferenceChange::Layout(layout) => {
             value.layout = layout;
             value.pet_size = range.constrain(value.pet_size);
-            value.focused_slot = (usize::from(value.focused_slot.min(11)) / layout.capacity()
-                * layout.capacity()) as u8;
+            value.focused_slot =
+                (pet_overlay_page_index(layout, value.focused_slot) * layout.capacity()) as u8;
         }
         PetPreferenceChange::Size(size) => {
             if size < range.min || size > range.max {
@@ -211,7 +211,7 @@ pub fn change_pet_preferences(
         PetPreferenceChange::Locked(locked) => value.locked = locked,
         PetPreferenceChange::MousePassthrough(enabled) => value.mouse_passthrough = enabled,
         PetPreferenceChange::TurnPage(delta) => {
-            let page = usize::from(value.focused_slot.min(11)) / value.layout.capacity();
+            let page = pet_overlay_page_index(value.layout, value.focused_slot);
             value.focused_slot =
                 (wrap_pet_overlay_page(value.layout, page, delta) * value.layout.capacity()) as u8;
         }

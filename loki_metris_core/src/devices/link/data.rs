@@ -170,6 +170,20 @@ pub fn project_hooks(drafts: &[crate::AiProfileDraft], states: &[crate::PetOverl
     }).collect()
 }
 
+/// 以桌宠当前页为移动端Hooks的唯一发送范围：先得到完整投影，再按布局与焦点位置
+/// 所在页裁剪。槽位保持1..12绝对编号，不裁剪重编号；空槽不产生条目，缺图保留None。
+/// 完整投影与页码推导共用桌宠同一套规则，两端不会各自选出不同的槽位集合。
+pub fn project_hooks_page(drafts: &[crate::AiProfileDraft], states: &[crate::PetOverlayToolState],
+    enabled: &[AiTool], hashes: &std::collections::BTreeMap<String, String>,
+    layout: crate::PetLayout, focused_slot: u8) -> Vec<HookDisplay> {
+    let page = crate::pet_overlay_page_index(layout, focused_slot);
+    let start = page * layout.capacity();
+    let end = (start + layout.capacity()).min(crate::PET_OVERLAY_SLOT_COUNT);
+    project_hooks(drafts, states, enabled, hashes).into_iter()
+        .filter(|hook| (start..end).contains(&usize::from(hook.slot - 1)))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +304,50 @@ mod tests {
         assert!(project_hooks(&[draft.clone()], &states, &[AiTool::Codex], &hashes).is_empty());
         states[0].behavior = Some(HookBehavior::Running);
         assert!(project_hooks(&[draft], &states, &[], &hashes).is_empty());
+    }
+
+    /// 移动端Hooks只发送桌宠当前页：不同页的Agent/状态互不串页，翻页撤下旧页，
+    /// 空页发送空集合不挪用其它页，槽位保持1..12绝对编号，缺图引用保留None。
+    #[test]
+    fn hook_page_projection_sends_only_current_page_with_absolute_slots() {
+        let mut codex = crate::AiProfileDraft::default_for(AiTool::Codex);
+        codex.hooks[1].content = "首页运行".into(); codex.hooks[1].image = "missing-image".into();
+        let mut grok = crate::AiProfileDraft::default_for(AiTool::Grok);
+        grok.hooks[1].content = "第二页运行".into();
+        let states = vec![
+            crate::PetOverlayToolState { tool:AiTool::Codex, slot_index:0, behavior:Some(HookBehavior::Running), revision:1 },
+            crate::PetOverlayToolState { tool:AiTool::Grok, slot_index:5, behavior:Some(HookBehavior::Running), revision:1 },
+        ];
+        let enabled = [AiTool::Codex, AiTool::Grok];
+        let hashes = std::collections::BTreeMap::new();
+        let drafts = [codex, grok];
+        // 默认2×2首页只含1号位Codex；文案、截断标志与缺图语义与完整投影一致。
+        let first = project_hooks_page(&drafts, &states, &enabled, &hashes, crate::PetLayout::Grid, 0);
+        assert_eq!(first.iter().map(|hook| hook.slot).collect::<Vec<_>>(), vec![1]);
+        assert_eq!(first[0].agent, AiTool::Codex);
+        assert_eq!(first[0].content, "首页运行");
+        assert!(!first[0].content_truncated);
+        assert_eq!(first[0].image, None);
+        // 翻到第二页：旧页撤下，只保留6号位Grok，槽位编号不裁剪重编。
+        let second = project_hooks_page(&drafts, &states, &enabled, &hashes, crate::PetLayout::Grid, 4);
+        assert_eq!(second.iter().map(|hook| hook.slot).collect::<Vec<_>>(), vec![6]);
+        assert_eq!(second[0].agent, AiTool::Grok);
+        assert_eq!(second[0].content, "第二页运行");
+        // 第三页全部空槽：发送空集合，不回退其它页内容。
+        assert!(project_hooks_page(&drafts, &states, &enabled, &hashes, crate::PetLayout::Grid, 8).is_empty());
+        // 焦点越界按十二槽位夹紧归末页，行为与状态语义保持完整投影。
+        let mut tail_state = vec![crate::PetOverlayToolState { tool:AiTool::Codex, slot_index:11, behavior:Some(HookBehavior::Asking), revision:2 }];
+        let mut tail_draft = crate::AiProfileDraft::default_for(AiTool::Codex);
+        tail_draft.hooks[2].content = "末页询问".into();
+        let tail = project_hooks_page(&[tail_draft.clone()], &tail_state, &enabled, &hashes, crate::PetLayout::Grid, u8::MAX);
+        assert_eq!(tail.iter().map(|hook| hook.slot).collect::<Vec<_>>(), vec![12]);
+        assert_eq!(tail[0].behavior, HookBehavior::Asking);
+        // 其它布局沿用同一原则：单格布局只发送焦点槽位自身，翻页更新覆盖全部布局。
+        let single = project_hooks_page(&drafts, &states, &enabled, &hashes, crate::PetLayout::Single, 5);
+        assert_eq!(single.iter().map(|hook| hook.slot).collect::<Vec<_>>(), vec![6]);
+        let row3 = project_hooks_page(&drafts, &states, &enabled, &hashes, crate::PetLayout::Row3, 0);
+        assert!(row3.iter().all(|hook| hook.slot <= 3), "三列首页只含1..3号位");
+        tail_state[0].behavior = None;
+        assert!(project_hooks_page(&[tail_draft], &tail_state, &enabled, &hashes, crate::PetLayout::Grid, u8::MAX).is_empty());
     }
 }

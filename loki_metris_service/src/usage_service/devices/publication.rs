@@ -2,7 +2,7 @@
 
 use super::Devices;
 use std::{collections::BTreeMap, sync::{Arc, atomic::Ordering}, time::Duration};
-use loki_metris_core::{ScanCancellation, devices::link::{data::{DisplaySnapshot, HostMessage, TokenSnapshot, project_hooks}, assets::AssetDescriptor}};
+use loki_metris_core::{PetLayout, ScanCancellation, devices::link::{data::{DisplaySnapshot, HostMessage, TokenSnapshot, project_hooks_page}, assets::AssetDescriptor}};
 use tokio::sync::watch;
 
 /// 最新投影与不可变正文共享；慢终端最多保留当前与正在读的一份Arc。
@@ -78,20 +78,23 @@ impl Devices {
         let Some(weak) = self.context.get().cloned() else { return; };
         let mut catalog_value = Catalog::default(); let mut catalog_revision = None;
         let mut hook_key = None; let mut token_due = 0; let mut source_epoch = None;
+        // 移动端Hooks跟随桌宠当前页；未读到设置时按默认2×2首页投影，加载后键变化触发重投影。
+        let mut pet_page_key: Option<(PetLayout, u8)> = None;
         let mut value = DisplaySnapshot { version: 1, ..Default::default() };
         loop {
             if *cancelled.borrow() { return; }
             if { let state = self.state(); state.server.sessions.is_empty() && state.server.widget_readers == 0 } {
                 catalog_value = Catalog::default(); value = DisplaySnapshot { version: 1, ..Default::default() };
                 self.publications.send_replace(Arc::new(Publication::default()));
-                catalog_revision = None; hook_key = None; token_due = 0;
+                catalog_revision = None; hook_key = None; token_due = 0; pet_page_key = None;
                 tokio::select! { biased; _ = cancelled.changed() => return, _ = self.publication_refresh.notified() => {} }
                 continue;
             }
             let Some(context) = weak.upgrade() else { return; };
             let now = super::super::current_epoch_ms();
             let epoch = context.notification_source_epoch.load(Ordering::Acquire);
-            let enabled = context.agents.snapshot().await.ok().map(|settings| settings.enabled_ai_tools);
+            let settings = context.agents.snapshot().await.ok();
+            let enabled = settings.as_ref().map(|settings| settings.enabled_ai_tools.clone());
             // 终端需求独立于桌面页面可见性，复用同一后台额度板及五分钟/进行中合并门禁。
             context.quota.kick(false, &context.background);
             let mut changed = value.update_agent_visibility(enabled, context.quota.snapshot().for_terminal());
@@ -123,10 +126,15 @@ impl Devices {
             let status = context.agents.listener.get().map(|l| l.snapshot());
             let key = status.as_ref().map(|s| (s.listening, s.revision));
             let current_key = (key, enabled.clone());
-            if hook_key.as_ref() != Some(&current_key) {
+            // 桌宠当前页（布局+焦点位置）是移动端Hooks唯一发送范围；翻页与布局切换都必须重投影。
+            let current_pet_page = settings.as_ref().map(|settings| {
+                (settings.pet_window.layout, settings.pet_window.focused_slot)
+            });
+            if hook_key.as_ref() != Some(&current_key) || pet_page_key != current_pet_page {
                 value.hooks_available = status.as_ref().is_some_and(|s| s.listening);
-                value.hooks = status.as_ref().filter(|s| s.listening).map(|s| project_hooks(&catalog_value.drafts, &s.pet_states, &enabled, &catalog_value.hashes)).unwrap_or_default();
-                hook_key = Some(current_key); changed = true;
+                let pet_window = settings.as_ref().map(|settings| settings.pet_window).unwrap_or_default();
+                value.hooks = status.as_ref().filter(|s| s.listening).map(|s| project_hooks_page(&catalog_value.drafts, &s.pet_states, &enabled, &catalog_value.hashes, pet_window.layout, pet_window.focused_slot)).unwrap_or_default();
+                hook_key = Some(current_key); pet_page_key = current_pet_page; changed = true;
             }
             drop(context);
             if changed {
@@ -180,6 +188,91 @@ mod tests {
                 let HostMessage::Snapshot { snapshot, .. } = publication.message(super::super::super::current_epoch_ms()) else { panic!("snapshot"); };
                 assert_eq!(snapshot.enabled_agents, Some(enabled));
             }
+            cancel.send(true).unwrap();
+            publisher.await.unwrap();
+        });
+        devices.state().server.widget_readers = 0;
+        service.finish();
+    }
+
+    /// 等待实际后台发布满足条件的快照，跳过无关刷新，不依赖固定睡眠或改写发布状态。
+    async fn next_publication(updates: &mut watch::Receiver<Arc<Publication>>,
+        predicate: impl Fn(&DisplaySnapshot) -> bool) -> Arc<Publication> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                updates.changed().await.unwrap();
+                let publication = updates.borrow_and_update().clone();
+                if predicate(&publication.snapshot) { return publication; }
+            }
+        }).await.expect("桌宠当前页变化应由现有500ms轮询发布")
+    }
+
+    /// 测试真实中继边界；事件只含固定fixture标识，不携带本机Agent内容。
+    fn post_running_event(endpoint_path: &std::path::Path) {
+        let endpoint: serde_json::Value = serde_json::from_slice(&std::fs::read(endpoint_path).unwrap()).unwrap();
+        let instance = endpoint["instanceId"].as_str().unwrap();
+        let port = endpoint["port"].as_u64().unwrap() as u16;
+        let body = "{\"hook_event_name\":\"UserPromptSubmit\",\"session_id\":\"fixture-session\",\"turn_id\":\"fixture-turn\"}";
+        let request = format!("POST /api/hooks/{instance}/codex HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n{}: {instance}\r\n{}: UserPromptSubmit\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            loki_metris_core::HOOK_RELAY_INSTANCE_HEADER, loki_metris_core::HOOK_EVENT_TYPE_HEADER, body.len());
+        let mut stream = std::net::TcpStream::connect_timeout(&([127,0,0,1],port).into(), Duration::from_secs(2)).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        std::io::Write::write_all(&mut stream, request.as_bytes()).unwrap();
+        let mut response = String::new();
+        std::io::Read::read_to_string(&mut stream, &mut response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 202"), "{response}");
+    }
+
+    /// 发布器只发送桌宠当前页：真实事件占据1号位后，翻页撤下旧页发送空页，
+    /// 翻回后恢复同页投影，槽位保持绝对编号；翻页无需额外配置即纳入快照变化。
+    #[test]
+    fn publisher_follows_pet_current_page_for_terminal_hooks() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = crate::usage_service::UsageService::in_test_directory(temp.path().join("data")).unwrap();
+        service.monitor_settings().unwrap().blocking_recv().unwrap().unwrap();
+        // 档案把Codex配在1号位（默认2×2首页），文案挂在Running行为上。
+        let mut draft = loki_metris_core::AiProfileDraft::default_for(AiTool::Codex);
+        draft.slot = 1; draft.hooks[1].content = "首页运行".into();
+        service.save_monitor_profile_draft(draft).unwrap().blocking_recv().unwrap().unwrap();
+        service.save_enabled_ai_tools(vec![AiTool::Codex]).unwrap().blocking_recv().unwrap().unwrap();
+        let endpoint = temp.path().join("cache/loki-metris-hook-relay.json");
+        service.start_test_monitoring_at(endpoint.clone()).unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        while !service.monitor_status().unwrap().listening {
+            assert!(std::time::Instant::now() < deadline, "relay not listening");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        post_running_event(&endpoint);
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        while !service.monitor_status().unwrap().pet_states.iter().any(|state| state.behavior == Some(loki_metris_core::HookBehavior::Running)) {
+            assert!(std::time::Instant::now() < deadline, "running state: {:?}", service.monitor_status().unwrap());
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let devices = service.context.devices.clone();
+        devices.state().server.widget_readers = 1;
+        let runtime = service.runtime.lock().unwrap().as_ref().unwrap().handle().clone();
+        runtime.block_on(async {
+            let (cancel, cancelled) = watch::channel(false);
+            let mut updates = devices.publications.subscribe();
+            let publisher = tokio::spawn(devices.clone().publish_loop(cancelled));
+            let hooks_on_page = |snapshot: &DisplaySnapshot| {
+                snapshot.hooks.len() == 1 && snapshot.hooks[0].slot == 1
+                    && snapshot.hooks[0].agent == AiTool::Codex
+                    && snapshot.hooks[0].content == "首页运行"
+            };
+            let shown = next_publication(&mut updates, hooks_on_page).await;
+            assert_eq!(shown.snapshot.hooks[0].behavior, loki_metris_core::HookBehavior::Running);
+            // 翻到第二页：新快照撤下旧页，1号位不再发送，第二页空槽发送空集合。
+            let range = loki_metris_core::PetSizeRange { min: 32, max: 2880 };
+            service.change_pet_preferences(loki_metris_core::PetPreferenceChange::TurnPage(1), range).unwrap()
+                .await.unwrap().unwrap();
+            let cleared = next_publication(&mut updates, |snapshot| snapshot.hooks.is_empty()).await;
+            assert!(cleared.snapshot.hooks_available, "翻页不改变监听可用性");
+            // 翻回首页：同一当前页投影恢复，槽位仍是绝对1号位。
+            service.change_pet_preferences(loki_metris_core::PetPreferenceChange::TurnPage(-1), range).unwrap()
+                .await.unwrap().unwrap();
+            let restored = next_publication(&mut updates, hooks_on_page).await;
+            assert_eq!(restored.snapshot.hooks[0].slot, 1);
             cancel.send(true).unwrap();
             publisher.await.unwrap();
         });

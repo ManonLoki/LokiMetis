@@ -102,7 +102,8 @@
     "LMWIN-CURSOR-SQLITE-INPROCESS-001",
     "LMWIN-UNINSTALL-AUTOSTART-FLAG-001",
     "LMDESK-TODAY-UNREADY-AGENT-TOTAL-001",
-    "LMDESK-DEVICE-FALLBACK-ASSET-001"
+    "LMDESK-DEVICE-FALLBACK-ASSET-001",
+    "LMDESK-TERMINAL-PET-PANEL-RULE-001"
   ],
   "applied_reconciliations": [
     {
@@ -130,24 +131,19 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.11.0",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.12.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "e3c79a306d17b124e71cac016c994e600f1e908f",
-    "version": "0.11.0"
+    "source_commit": "a0d767d6c8eca39f5076a91f8066eb1c70cce935",
+    "version": "0.12.0"
   },
   "pending_changes": [
     {
-      "change_id": "LMDESK-DEVICE-FALLBACK-ASSET-001",
+      "change_id": "LMDESK-TERMINAL-PET-PANEL-RULE-001",
       "kind": "bug-fix",
-      "required_version": "0.11.1"
-    },
-    {
-      "change_id": "LMDESK-GPUI-KIT-090-001",
-      "kind": "feature",
-      "required_version": "0.12.0"
+      "required_version": "0.12.1"
     }
   ],
   "schema_version": 1,
-  "target_version": "0.12.0"
+  "target_version": "0.12.1"
 }

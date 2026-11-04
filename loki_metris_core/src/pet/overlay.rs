@@ -261,6 +261,12 @@ pub const fn pet_overlay_page_count(layout: PetLayout) -> usize {
     PET_OVERLAY_SLOT_COUNT.div_ceil(layout.capacity())
 }
 
+/// 布局与焦点位置共同决定当前页；焦点越界按十二槽位夹紧后归页。
+/// 桌宠面板与终端发布器必须共用本函数，保证两端对"当前页"的理解一致。
+pub fn pet_overlay_page_index(layout: PetLayout, focused_slot: u8) -> usize {
+    usize::from(focused_slot.min(PET_OVERLAY_SLOT_COUNT as u8 - 1)) / layout.capacity()
+}
+
 /// 依据有符号步数循环桌宠页码。
 pub fn wrap_pet_overlay_page(layout: PetLayout, page_index: usize, delta: isize) -> usize {
     let page_count = pet_overlay_page_count(layout);

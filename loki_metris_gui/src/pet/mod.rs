@@ -42,7 +42,8 @@ use gpui_kit::{
 use loki_metris_core::{
     AiProfileDraft, HookError, PetLayout, PetOverlayPage, PetOverlayToolState,
     PetPreferenceChange, PetSizeRange, change_pet_preferences,
-    first_populated_pet_slot, project_available_pet_overlay_page, TodayUsageDisplay,
+    first_populated_pet_slot, pet_overlay_page_index, project_available_pet_overlay_page,
+    TodayUsageDisplay,
 };
 #[cfg(test)]
 use loki_metris_core::PetOverlayPosition;
@@ -324,7 +325,7 @@ impl Controller {
             &self.drafts,
             &self.states,
             prefs.layout,
-            usize::from(prefs.focused_slot) / prefs.layout.capacity(),
+            pet_overlay_page_index(prefs.layout, prefs.focused_slot),
             |id| self.images.contains_key(id),
         )
     }
