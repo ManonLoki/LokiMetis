@@ -7,6 +7,10 @@ rust-version.workspace = true
 # 应用服务层：扫描队列、查询邮箱、通知 worker、换肤、Hook 监控与设备联动的后台 owner。
 # 不依赖任何 UI 框架，只交付 Tokio 回执与 DTO；依赖方向固定为 gui → service → host → core。
 [dependencies]
+aes.workspace = true
+aes-gcm.workspace = true
+pbkdf2.workspace = true
+sha1.workspace = true
 anyhow.workspace = true
 base64.workspace = true
 chromiumoxide.workspace = true

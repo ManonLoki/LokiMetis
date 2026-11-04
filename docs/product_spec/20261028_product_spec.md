@@ -281,7 +281,7 @@ Linux扩展稳定change_id：`LINUX-NATIVE-TOOLCHAIN-001`；分类：feature；r
 - 有真实本机额度窗口时保留既有本地优先；需要远程时读取官方客户端 DashboardService 的套餐和当前周期用量。套餐接口不支持才回退旧 usage-summary；已经识别新套餐后，用量失败保持失败，避免展示旧套餐的百分数。百分数缺失不能冒充零，明确零余额仍展示。
 - 支持旧明文 JWT、已有会话和 macOS Cursor safeStorage v1/v10 加密包装。加密态只查询既有 Cursor Safe Storage / Cursor Key 项，由系统 CommonCrypto 解密，不创建或修改钥匙串、不绕过系统拒绝、不写回 Cursor 数据库。密钥、令牌、原始响应不落盘、不进入参数/日志/界面；密钥查询有超时、取消、输出上限和进程回收。
 - 该读取入口同时用于 Cursor 账户 Token 明细；该统计的分页、完整性、节流及独立聚合边界保持不变。新增出站地址和进程边界由[支持界面](../GUI_SUPPORT_SURFACES.md#cursor联名套餐与加密登录态)维护。Claude 等其它来源的钥匙串及远程边界保持既有约束。
-- 当前只接入 macOS 的加密后端。Windows 和 Linux 的未知或未接入系统加密包装返回锁定，不能把密文当令牌发送；原明文登录路径保持可用。系统拒绝、缺项、超时或未知加密格式不显示伪额度。跨平台后端缺口见[技术债](../TECH_DEBT.md)。
+- 加密后端覆盖 macOS（Keychain + CommonCrypto）、Windows（Local State + DPAPI + AES-256-GCM）与 Linux Secret Service（secret-tool + 共享 PBKDF2/AES-CBC；KWallet 原生路径仍锁定）。未接入的系统加密包装返回锁定，不能把密文当令牌发送；原明文登录路径保持可用。系统拒绝、缺项、超时或未知加密格式不显示伪额度。对应平台的真实读取验证见[技术债](../TECH_DEBT.md)。
 
 成功标准：新周套餐与旧月套餐、毫秒单位、零/缺失/超额、授权失败和旧接口回退的相关回归通过；在用户批准的 macOS 账户上通过实际生产读取链路核对成功。此开发闭环不包含安装包、渠道发布或各平台最终候选验收。
 

@@ -20,7 +20,7 @@
   - 项目 Rust 源未纳入 rustfmt：按默认配置格式化后总行数约增加 14%，看板已按职责拆出 `overview`、`metric_display` 与 `calls/column_widths`，格式化后均不超过 800 行；`app/mod_test.rs` 格式化后仍约 854 行。引入格式化门禁前须先拆分该测试文件，并核对按源码文本断言的测试。
 - 设备恢复导出/导入（`*_recovery`、`DeviceRecoveryPreview`、`random_bytes`）在生产构建中没有调用方，仍会产生未使用警告。[当前规格](product_spec/20261028_product_spec.md)明确保留core、应用服务与存储层恢复API且不提供GUI入口，因此不能仅为消除警告删除。后续产品若调整保留范围或新增调用入口，再同步清理或补齐实际调用与回归。
 
-- Cursor系统加密登录的跨平台后端：2026-10-27只接入并核对macOS Cursor safeStorage v1/v10（系统Keychain与CommonCrypto）。Windows的Local State/DPAPI/AES-GCM和Linux的Secret Service/KWallet尚未接入，加密包装返回CredentialLocked；旧明文登录继续使用。解除条件为核对对应发行的实际格式，在已批准的OS秘密范围内实现受限驱动，并分别完成目标平台的合成错误路径和真实账户读取验证，不能直接发送密文、猜测密钥或以macOS结果代替。
+- Cursor系统加密登录的跨平台后端：2026-11-05接入Windows（Local State/DPAPI/AES-256-GCM，windows 0.62 CryptUnprotectData）与Linux Secret Service（secret-tool 查询 + 共享 PBKDF2/AES-CBC 解密，KWallet原生路径仍返回CredentialLocked）。合成向量与进程夹具回归在macOS宿主通过；Windows的DPAPI/Local State真实读取与Linux真实密钥环、真实账户读取仍未在对应平台验证（x86_64-pc-windows-gnu与x86_64-unknown-linux-gnu交叉检查通过），解除条件为对应平台候选实测。
 
 - 卡片层级（`CardPriority`）的特例叠加：2026-10-28 `/simplify` 审查发现 Quiet 卡片在 `surface/mod.rs` 绘制时会把调用方传入的 `StaticMaterial`/Spotlight 一律替换为 `FilterBar`，约12处 `StaticCard::new(.., Table/Panel).priority(Quiet)` 的材质实参实际不起作用；悬停与聚光的注册条件也由 `SPOTLIGHT` 常量泛型与 `Option<CardPriority>` 共同决定。根因是层级、材质与交互级别三条轴未合并。解除条件为引入由层级统一决定材质、悬停及装饰的单一角色类型，并同步约40处 `.priority(..)` 调用与 `hierarchy_tests` 回归；该改动改变公开构造 API，需独立批准。`decoration_hovered` 因静态材质会重置 `hovered` 而暂不能并入，合并时一并处理。设置页与看板大指标的层级已改为调用方显式传参，不再按卡片ID或文案键匹配。
 - Primary 卡片装饰的逐帧成本未测量：每张 Primary 卡每帧约 60 条描边路径（3 条光谱 × 10 段 × 光晕与亮线），仅在窗口可见、活动且未开启减少动效时运行。光晕与亮线已共用采样点，但段数、限帧等取舍会改变视觉，需在大量 Primary 卡的真实看板上用隔离测量确认后再调整，不能以单元测试替代。

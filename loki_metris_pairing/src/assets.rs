@@ -48,7 +48,7 @@ impl AssetDescriptor {
     /// 请求只允许固定块边界，最后一块按实际长度收尾。
     pub fn chunk(&self, bytes: &[u8], offset: u64) -> Result<AssetChunk, AssetError> {
         self.validate()?;
-        if bytes.len() as u64 != self.length || offset >= self.length || offset % ASSET_CHUNK_BYTES as u64 != 0 { return Err(AssetError::Invalid); }
+        if bytes.len() as u64 != self.length || offset >= self.length || !offset.is_multiple_of(ASSET_CHUNK_BYTES as u64) { return Err(AssetError::Invalid); }
         let start = offset as usize; let end = (start + ASSET_CHUNK_BYTES).min(bytes.len());
         Ok(AssetChunk { hash: self.hash.clone(), offset, data: STANDARD.encode(&bytes[start..end]) })
     }

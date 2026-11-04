@@ -4,7 +4,7 @@ members = ["loki_metris_pairing","loki_metris_core","loki_metris_host","loki_met
 exclude = ["vendor/accesskit_macos", "vendor/gpui-pre", "vendor/gpui-pre-apple", "vendor/gpui-pre-macos", "vendor/gpui-pre-windows", "vendor/gpui-pre-wgpu", "vendor/tray-icon"]
 
 [workspace.package]
-version = "0.12.1"
+version = "0.13.0"
 edition = "2024"
 rust-version = "1.98.1"
 authors = ["ManonLoki"]
@@ -30,6 +30,10 @@ sha2 = { version = "0.11.1", default-features = false }
 spake2 = { version = "=0.4.0", default-features = false, features = ["getrandom"] }
 hkdf = { version = "0.13.0", default-features = false }
 chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["alloc"] }
+aes = { version = "0.8.4", default-features = false }
+aes-gcm = { version = "0.11.1", default-features = false, features = ["aes", "alloc"] }
+pbkdf2 = { version = "0.13.0", default-features = false, features = ["hmac"] }
+sha1 = { version = "0.11.0", default-features = false }
 loki_metris_pairing = { path = "loki_metris_pairing" }
 thiserror = "2.0.21"
 toml = "1.1.8"
