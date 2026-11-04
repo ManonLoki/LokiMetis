@@ -87,6 +87,7 @@ pub struct Shell {
     notification_details_expanded: bool,
     /// 打开参考仓库请求的状态。
     repository:settings::RepositoryState,
+    update_check:settings::UpdateCheckState,
     /// 看板页状态。
     dashboard: dashboard::Dashboard,
     /// 当前页面。
@@ -162,7 +163,7 @@ impl Shell {
             devices: Default::default(),
             #[cfg(any(target_os="macos", all(windows, not(test))))]
             window_state: window_state::MainWindowState::capture(window),
-            skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default(), regions: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
+            skins:Default::default(), native_window:window.window_handle(), monitor:Default::default(), agent_settings:Default::default(), preference_save:Default::default(), repository:Default::default(), update_check:Default::default(), page: Page::Dashboard, page_scroll: PageScroll { handle: Default::default(), owner: cx.weak_entity(), revision: Default::default(), manual_revision: Default::default(), regions: Default::default() }, viewport_width: 1440., dashboard: dashboard::Dashboard::default(), preferences, writer, locale, _appearance: appearance, _bounds: bounds_subscription,
             _activation:activation,_visibility:visibility,window_active:window.is_window_active(),window_visible:window.is_visible(),
             _keyboard_entry:keyboard_entry,
             last_requested_title_locale: None,

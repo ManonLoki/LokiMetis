@@ -34,6 +34,8 @@ pub use agents::shutdown_tests::{block_pet_mutations, pet_background_task_count}
 mod monitor_catalog;
 mod hooks;
 pub mod provider_quota;
+// 手动检查更新的出站读取
+pub mod update_check;
 #[cfg(test)]
 mod source_tests;
 

@@ -29,6 +29,9 @@ pub mod cursor_usage;
 mod display_label;
 mod display_name;
 pub mod devices;
+
+// 手动检查更新的纯逻辑
+pub mod update_check;
 mod local_index;
 mod monitor;
 mod pet;

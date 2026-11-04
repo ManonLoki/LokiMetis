@@ -7,6 +7,7 @@ mod notifications;
 mod preferences;
 mod release_notes;
 mod release_notes_content;
+mod update_check;
 mod repository;
 mod segments;
 mod support;
@@ -27,6 +28,7 @@ use gpui_kit::{
 };
 pub(in crate::app) use preferences::PreferenceSaveState;
 pub(in crate::app) use release_notes::ReleaseNotesModal;
+pub(in crate::app) use update_check::{UpdateCheckState, UpdateCheckOutcome};
 pub(in crate::app) use repository::RepositoryState;
 
 impl Shell {
@@ -84,12 +86,19 @@ impl Shell {
                             .child(gpui_kit::component::Icon::default().data(include_bytes!("../../../assets/icons/clock-counter-clockwise.svg")).size(px(18.)))
                             .child(self.t("settings.release_notes_action")))
                         .on_click(cx.listener(|this,_,window,cx|this.open_release_notes(window,cx))))
+                    .child(Button::new("settings-update-check").h(px(36.)).rounded(px(12.)).outline().bg(cx.theme().primary.opacity(0.09)).border_color(cx.theme().primary.opacity(0.26)).accessibility_label(self.t("settings.update_check_action"))
+                        .child(div().flex().items_center().gap_3().font_weight(FontWeight::SEMIBOLD)
+                            .child(gpui_kit::component::Icon::default().data(include_bytes!("../../../assets/icons/arrows-clockwise.svg")).size(px(18.)))
+                            .child(self.t("settings.update_check_action")))
+                        .tooltip(self.t("settings.update_check_description")).disabled(self.update_check.pending)
+                        .on_click(cx.listener(|this,_,_,cx|this.check_for_update(cx))))
                     .child(Button::new("settings-github").ghost().h(px(36.)).accessibility_label(self.t("settings.github_repository_action"))
                         .child(div().flex().items_center().gap_3().font_weight(FontWeight::SEMIBOLD)
                             .child(gpui_kit::component::Icon::default().data(include_bytes!("../../../assets/icons/github-logo.svg")).size(px(18.)))
                             .child(self.t("settings.github_repository_action")))
                         .tooltip(self.t("settings.github_repository_description")).disabled(self.repository.pending)
                         .on_click(cx.listener(|this,_,_,cx|this.open_repository(cx))))))
+            .when_some(self.update_check_text(),|card,(key,text)|card.child(div().text_sm().text_color(cx.theme().muted_foreground).child(Text::new(key.into(),text.into()))))
             .when(self.repository.failed,|card|card.child(self.preference_failure("settings.github_repository_error",cx)))
             .into_any_element()
     }
