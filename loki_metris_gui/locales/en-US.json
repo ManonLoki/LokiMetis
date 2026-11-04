@@ -48,7 +48,12 @@
     "capability_unknown_title": "Current state unknown",
     "capability_retry": "Reload actual state",
     "github_repository_description": "LokiMetis reference project source",
-    "system_notification_error": "The notification preference could not be saved. The previously saved local preference was kept. Try again."
+    "system_notification_error": "The notification preference could not be saved. The previously saved local preference was kept. Try again.",
+    "update_check_action": "Check for updates",
+    "update_check_description": "Query GitHub Releases for a newer version; one request per click.",
+    "update_check_up_to_date": "Up to date ({})",
+    "update_check_available": "New version {} available — download at {}.",
+    "update_check_failed": "Update check failed, try again later."
   },
   "about": {
     "version": "Version",

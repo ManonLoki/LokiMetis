@@ -48,7 +48,12 @@
     "capability_unknown_title": "当前状态未知",
     "capability_retry": "重新读取实际状态",
     "github_repository_description": "LokiMetis 历史项目源码",
-    "system_notification_error": "无法保存通知开关，已保留上次保存的本地偏好。请重试。"
+    "system_notification_error": "无法保存通知开关，已保留上次保存的本地偏好。请重试。",
+    "update_check_action": "检查更新",
+    "update_check_description": "从 GitHub Releases 查询是否有新版本；只在你点击时访问一次。",
+    "update_check_up_to_date": "已是最新版本 {}",
+    "update_check_available": "发现新版本 {}，前往 {} 下载。",
+    "update_check_failed": "检查更新失败，请稍后重试。"
   },
   "about": {
     "version": "版本",

@@ -29,3 +29,7 @@ Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR
 - Cursor safeStorage v1/v10 仅在 macOS 查询已有 `Cursor Safe Storage` / `Cursor Key` 项；二元组已在本机 Cursor 3.27.14 对照，不把上游 Electron 的默认账户名推断为 Cursor 定制发行事实。只调用固定 `/usr/bin/security find-generic-password -s "Cursor Safe Storage" -a "Cursor Key" -w`；参数不含秘密，标准输出上限1KiB，预算最多8秒，取消/超时回收owned进程，不通过Shell、不创建或修改系统秘密。
 - 密文格式、系统 AES 解密和严格 PKCS7/UTF-8/会话校验全部成功后才能请求上游。明文密钥和令牌只用于当前读取，不记录进程标准输出/错误、不写文件。系统拒绝、未知格式或未实现的平台后端保持不可用；不读其它钥匙串、不修改ACL、不刷新登录。
 - 窗口类型和比例继续由 core 解释。桌面与终端共用同一非敏感额度投影；Cursor 账户 Token 查询复用同一登录读取，但仍只访问自身固定分页入口。共享池的两个提供商卡不汇总成额外额度。
+
+## 手动检查更新
+
+用户于2026-11-05批准在公共设置加入"检查更新"按钮（change_id：`LMDESK-UPDATE-CHECK-001`；required_version：`0.13.0`）。仅在用户点击时向固定 `https://api.github.com/repos/ManonLoki/LokiMetis/releases/latest` 发出一次只读 GET：curl 8 秒预算、64KiB 响应上限、不接受重定向，请求只含 User-Agent 与 Accept 头，无凭据、无正文、无遥测。没有自动轮询、定时器或启动检查；应用其余路径保持零出站。响应只解析 `tag_name` 的三段产品标签并与当前构建比较：已是最新或发现新版本在按钮下方展示，发现新版本附 `https://github.com/ManonLoki/LokiMetis/releases/latest` 页面地址，由用户自行前往；比较失败、超时或畸形响应显示检查失败，不安装、不下载、不修改任何文件。
