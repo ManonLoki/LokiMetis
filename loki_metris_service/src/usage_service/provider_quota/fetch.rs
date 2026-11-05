@@ -103,7 +103,7 @@ pub(crate) async fn read_cursor_token(layout: &HomeLayout, sqlite: Option<&Path>
         super::cursor_state::read(&database, super::cursor_state::CursorStateQuery::AccessToken, limits, cancel).await?
     };
     let token = credentials::cursor_token_from_output(&text)?;
-    super::cursor_safe_storage::decode(token, limits, cancel).await
+    super::cursor_safe_storage::decode(token, layout, limits, cancel).await
 }
 
 /// 读取可用明文登录材料并发起对应站点的受限账单查询。

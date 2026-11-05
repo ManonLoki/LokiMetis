@@ -113,7 +113,7 @@ mod tests {
         let (_, shell, _finish) = crate::app::tests::open_shell(cx, 1440., 900.);
         // 发现新版本
         let (sender, receiver) = oneshot::channel();
-        sender.send(Ok("v0.14.0".into())).unwrap();
+        sender.send(Ok("v0.14.0-20261105".into())).unwrap();
         shell.update(cx, |this, cx| {
             let fetch = move || Some(receiver);
             this.check_for_update_using(Some(fetch), "0.13.0", cx);
@@ -123,13 +123,13 @@ mod tests {
         shell.update(cx, |this, _| {
             assert_eq!(
                 this.update_check.outcome,
-                Some(super::UpdateCheckOutcome::Available("v0.14.0".into()))
+                Some(super::UpdateCheckOutcome::Available("v0.14.0-20261105".into()))
             );
             assert!(this.update_check_text().is_some());
         });
         // 已是最新：相同标签
         let (sender, receiver) = oneshot::channel();
-        sender.send(Ok("v0.13.0".into())).unwrap();
+        sender.send(Ok("v0.13.0-20261105".into())).unwrap();
         shell.update(cx, |this, cx| {
             let fetch = move || Some(receiver);
             this.check_for_update_using(Some(fetch), "0.13.0", cx);

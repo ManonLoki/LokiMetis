@@ -3,9 +3,21 @@
 /// 仓库的公开 releases 页面；GUI 发现新版本时展示此地址。
 pub const RELEASES_PAGE: &str = "https://github.com/ManonLoki/LokiMetis/releases/latest";
 
-/// 解析三段版本标签，容忍可选的 v/V 前缀；其余格式一律拒绝。
+/// 解析三段版本及正式发布的八位日期后缀，容忍单个 v/V 前缀。
 pub fn normalize_tag(tag: &str) -> Option<(u64, u64, u64)> {
-    let digits = tag.trim().trim_start_matches(['v', 'V']);
+    let tag = tag.trim();
+    let tag = tag.strip_prefix(['v', 'V']).unwrap_or(tag);
+    let digits = if let Some((version, date)) = tag.split_once('-') {
+        if date.len() != 8 || !date.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        version
+    } else {
+        tag
+    };
+    if !digits.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.') {
+        return None;
+    }
     let mut parts = digits.split('.');
     let major = parts.next()?.parse().ok()?;
     let minor = parts.next()?.parse().ok()?;
@@ -38,12 +50,16 @@ pub fn compare(current: &str, latest_tag: &str) -> Option<UpdateFinding> {
 mod tests {
     use super::*;
 
-    /// 三段标签解析并容忍 v 前缀；多段、缺段与非数字拒绝。
+    /// 三段版本和项目正式日期标签可解析；预发布、多前缀和坏格式拒绝。
     #[test]
     fn normalize_tag_accepts_product_tags_only() {
         assert_eq!(normalize_tag("v0.13.0"), Some((0, 13, 0)));
         assert_eq!(normalize_tag("1.2.3"), Some((1, 2, 3)));
         assert_eq!(normalize_tag("  V10.0.99 "), Some((10, 0, 99)));
+        assert_eq!(normalize_tag("v0.12.0-20261103"), Some((0, 12, 0)));
+        assert_eq!(normalize_tag("v0.13.0-20261105"), Some((0, 13, 0)));
+        assert_eq!(normalize_tag("v0.13.0-preview"), None);
+        assert_eq!(normalize_tag("vv0.13.0"), None);
         assert_eq!(normalize_tag("1.2"), None);
         assert_eq!(normalize_tag("1.2.3.4"), None);
         assert_eq!(normalize_tag("x.y.z"), None);

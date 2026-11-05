@@ -11,6 +11,7 @@ const PREFIX: &str = "cursor-safe-storage:v1:";
 /// 旧明文登录态原样保留；系统加密态只有受支持平台成功解密后才能访问上游。
 pub(super) async fn decode(
     token: Secret,
+    _layout: &super::credentials::HomeLayout,
     limits: CurlLimits,
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<Secret, QuotaFailure> {
@@ -29,13 +30,13 @@ pub(super) async fn decode(
     }
     #[cfg(target_os = "windows")]
     {
-        decode_windows(token, limits, cancel).await
+        super::cursor_windows_storage::decode(token, _layout, limits, cancel).await
     }
     #[cfg(target_os = "linux")]
     {
         decode_linux(
             token,
-            std::path::Path::new("/usr/bin/secret-tool"),
+            super::transport::find_program("secret-tool").as_deref().ok_or(QuotaFailure::CredentialLocked)?,
             limits,
             cancel,
         )
@@ -48,8 +49,8 @@ pub(super) async fn decode(
     }
 }
 
-/// 拆开 v10 包装：base64 解码并剥离版本前缀，返回认证密文。
-fn unwrap_v10(token: &Secret) -> Result<Vec<u8>, QuotaFailure> {
+/// 只接受当前系统约定的包装版本，不把不同算法的密文交给错误后端。
+pub(super) fn unwrap_cipher(token: &Secret, version: &[u8; 3]) -> Result<Vec<u8>, QuotaFailure> {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     let encoded = token
         .expose()
@@ -59,7 +60,7 @@ fn unwrap_v10(token: &Secret) -> Result<Vec<u8>, QuotaFailure> {
         .decode(encoded)
         .map_err(|_| QuotaFailure::Malformed)?;
     cipher
-        .strip_prefix(b"v10")
+        .strip_prefix(version.as_slice())
         .map(|bytes| bytes.to_vec())
         .ok_or(QuotaFailure::CredentialLocked)
 }
@@ -73,8 +74,9 @@ async fn decode_with_keyring_lookup(
     limits: CurlLimits,
     cancel: &mut watch::Receiver<bool>,
     rounds: u32,
+    version: &[u8; 3],
 ) -> Result<Secret, QuotaFailure> {
-    let cipher = unwrap_v10(&token)?;
+    let cipher = unwrap_cipher(&token, version)?;
     if cipher.is_empty() || cipher.len() % 16 != 0 {
         return Err(QuotaFailure::Malformed);
     }
@@ -127,6 +129,7 @@ async fn decode_macos(
         limits,
         cancel,
         1003,
+        b"v10",
     )
     .await
 }
@@ -146,120 +149,9 @@ async fn decode_linux(
         limits,
         cancel,
         1,
+        b"v11",
     )
     .await
-}
-
-/// Local State 读取上限；超过视为异常文件，避免把无关大文件读进内存。
-#[cfg(target_os = "windows")]
-const MAX_LOCAL_STATE_BYTES: usize = 256 * 1024;
-
-/// Windows：从 Local State 读取 DPAPI 包装的 AES 密钥并解密 GCM 密文。
-#[cfg(target_os = "windows")]
-async fn decode_windows(
-    token: Secret,
-    limits: CurlLimits,
-    cancel: &mut watch::Receiver<bool>,
-) -> Result<Secret, QuotaFailure> {
-    use std::sync::Arc;
-    let cipher = unwrap_v10(&token)?;
-    if cipher.len() <= 12 + 16 || cipher.len() % 16 != 4 {
-        return Err(QuotaFailure::Malformed);
-    }
-    // 阻塞的文件读取与 DPAPI 调用放进有界阻塞岛；取消立即放弃结果。
-    let mut cancel = cancel.clone();
-    let task = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, QuotaFailure> {
-        let state = read_local_state()?;
-        let unwrapped = (|| {
-            use base64::{Engine as _, engine::general_purpose::STANDARD};
-            let os_crypt = state.get("osCrypt")?;
-            let encoded = os_crypt.get("encryptedKey")?.as_str()?;
-            let wrapped = STANDARD.decode(encoded).ok()?;
-            wrapped.strip_prefix(b"DPAPI").map(<[u8]>::to_vec)
-        })()
-        .ok_or(QuotaFailure::Malformed)?;
-        let mut key = dpapi_unprotect(&unwrapped)?;
-        let result = decrypt_windows(&cipher, &key);
-        key.fill(0);
-        result
-    });
-    // 等待与取消并行；取消时放弃任务结果，密钥在其内部自行清零。
-    let result = tokio::select! {
-        biased;
-        _ = async { let _ = cancel.changed().await; } => Err(QuotaFailure::CredentialLocked),
-        result = task => result.map_err(|_| QuotaFailure::Transport)?,
-    };
-    let mut plain = result?;
-    let token = std::str::from_utf8(&plain)
-        .ok()
-        .and_then(Secret::new)
-        .ok_or(QuotaFailure::Malformed);
-    plain.fill(0);
-    token
-}
-
-/// 读取并解析 Cursor 的 Local State；只接受常规文件且限定大小。
-#[cfg(target_os = "windows")]
-fn read_local_state() -> Result<serde_json::Value, QuotaFailure> {
-    let base = std::env::var_os("LOCALAPPDATA").ok_or(QuotaFailure::CredentialLocked)?;
-    let path = std::path::Path::new(&base)
-        .join("Cursor")
-        .join("User Data")
-        .join("Local State");
-    let metadata = std::fs::symlink_metadata(&path).map_err(|_| QuotaFailure::CredentialLocked)?;
-    if !metadata.is_file() || metadata.len() > MAX_LOCAL_STATE_BYTES as u64 {
-        return Err(QuotaFailure::CredentialLocked);
-    }
-    let bytes = std::fs::read(&path).map_err(|_| QuotaFailure::CredentialLocked)?;
-    serde_json::from_slice(&bytes).map_err(|_| QuotaFailure::Malformed)
-}
-
-/// DPAPI 解开系统包装的 AES 密钥；只解本用户数据，不触其它存储。
-#[cfg(target_os = "windows")]
-fn dpapi_unprotect(wrapped: &[u8]) -> Result<[u8; 32], QuotaFailure> {
-    use windows::Win32::Security::Cryptography::{CRYPT_INTEGER_BLOB, CryptUnprotectData};
-    if wrapped.is_empty() {
-        return Err(QuotaFailure::Malformed);
-    }
-    // SAFETY: 输入指针指向存活切片；输出 blob 由本函数持有并在复制后立即 LocalFree。
-    let (output, _dropped) = unsafe {
-        let input = CRYPT_INTEGER_BLOB {
-            cbData: wrapped.len() as u32,
-            pbData: wrapped.as_ptr().cast_mut(),
-        };
-        let mut output = CRYPT_INTEGER_BLOB::default();
-        CryptUnprotectData(&input, None, None, None, None, 0, &mut output)
-            .map_err(|_| QuotaFailure::CredentialLocked)?;
-        let slice = std::slice::from_raw_parts(output.pbData, output.cbData as usize);
-        let freed = windows::Win32::Foundation::LocalFree(Some(
-            windows::Win32::Foundation::HLOCAL(output.pbData.cast()),
-        ));
-        (slice.to_vec(), freed)
-    };
-    if output.len() != 32 {
-        return Err(QuotaFailure::Malformed);
-    }
-    let mut key = [0_u8; 32];
-    key.copy_from_slice(&output);
-    Ok(key)
-}
-
-/// Windows OSCrypt v10：AES-256-GCM，密文为 12 字节随机数加带 16 字节标签的正文。
-/// 来源：https://github.com/chromium/chromium/blob/148.0.7778.280/components/os_crypt/sync/os_crypt_win.cc
-fn decrypt_windows(cipher: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, QuotaFailure> {
-    use aes_gcm::{
-        Aes256Gcm, Nonce,
-        aead::{Aead, KeyInit},
-    };
-    // 随机数 12 字节加认证标签 16 字节是最小长度
-    if cipher.len() < 12 + 16 {
-        return Err(QuotaFailure::Malformed);
-    }
-    let (nonce, sealed) = cipher.split_at_checked(12).ok_or(QuotaFailure::Malformed)?;
-    let plain = Aes256Gcm::new(key.into())
-        .decrypt(Nonce::from_slice(nonce), sealed)
-        .map_err(|_| QuotaFailure::CredentialLocked)?;
-    Ok(plain)
 }
 
 /// Chromium OSCrypt 的 PBKDF2-SHA1 加 AES-128-CBC 分支：macOS 一千零三轮，Linux 一轮。
@@ -321,6 +213,19 @@ fn cipher_block_len(length: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::cursor_windows_storage::decrypt_windows;
+
+    /// 两个系统的密文前缀不可互换；Linux v10 不降级查询 Secret Service。
+    #[test]
+    fn encrypted_versions_are_bound_to_the_selected_system_backend() {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        for version in [b"v10", b"v11"] {
+            let token = Secret::new(format!("{PREFIX}{}", STANDARD.encode([version.as_slice(), &[7; 16]].concat()))).unwrap();
+            assert_eq!(unwrap_cipher(&token, version).unwrap(), vec![7; 16]);
+            let other = if version == b"v10" { b"v11" } else { b"v10" };
+            assert!(matches!(unwrap_cipher(&token, other), Err(QuotaFailure::CredentialLocked)));
+        }
+    }
 
     /// 旧版明文令牌和已有会话无需钥匙串，也不会变成密文网络请求。
     #[tokio::test]
@@ -329,6 +234,7 @@ mod tests {
         for raw in ["header.payload.signature", "user_fixture::token"] {
             let token = decode(
                 Secret::new(raw).unwrap(),
+                &super::super::tests::layout(std::path::PathBuf::new()),
                 CurlLimits::production(),
                 &mut cancel,
             )
@@ -521,7 +427,7 @@ mod tests {
     }
 
     /// Linux 密钥环查询与 macOS 共享同一包装拆解与失败映射；argv 固定为 secret-tool 形态。
-    #[cfg(any(target_os = "linux", test))]
+    #[cfg(unix)]
     #[tokio::test]
     async fn linux_secret_tool_query_uses_the_fixed_lookup_and_fails_closed() {
         use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -532,7 +438,7 @@ mod tests {
         let cipher = encrypt_posix_fixture(b"fixture-password", b"fixture-token", 1);
         let token = Secret::new(format!(
             "{PREFIX}{}",
-            STANDARD.encode([b"v10".as_slice(), &cipher].concat())
+            STANDARD.encode([b"v11".as_slice(), &cipher].concat())
         ))
         .unwrap();
         let (_sender, mut cancel) = watch::channel(false);
@@ -545,7 +451,7 @@ mod tests {
         // 拒绝、超时与缺失的查询进程保持锁定
         let wrapped = format!(
             "{PREFIX}{}",
-            STANDARD.encode([b"v10".as_slice(), &[0; 16]].concat())
+            STANDARD.encode([b"v11".as_slice(), &[0; 16]].concat())
         );
         for mode in ["keychain-denied", "sleep", "huge"] {
             super::super::tests::write(&root.path().join("mode.txt"), mode);
@@ -584,6 +490,7 @@ mod tests {
         let (_sender, mut cancel) = watch::channel(false);
         let result = decode(
             Secret::new(format!("{PREFIX}djEw")).unwrap(),
+            &super::super::tests::layout(std::path::PathBuf::new()),
             CurlLimits::production(),
             &mut cancel,
         )

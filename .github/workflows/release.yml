@@ -23,6 +23,8 @@ permissions:
 env:
   E2E_SELECTION: ${{ inputs.e2e }}
   CARGO_BUILD_JOBS: '2'
+  # 原生主线程子进程有固定预算，避免测试并发挤占其真实运行时间。
+  RUST_TEST_THREADS: '2'
   CARGO_INCREMENTAL: '0'
   CARGO_PROFILE_TEST_DEBUG: '0'
 

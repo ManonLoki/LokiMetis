@@ -27,9 +27,10 @@ Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR
 
 - 新额度入口固定为只读 POST `https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo` 和 `https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage`，正文固定 `{}`，认证只进入 curl 标准输入的 Bearer 头。单次仍为15秒/256KiB，不接受重定向。仅套餐入口返回404/405/501时回退固定 `https://cursor.com/api/usage-summary`。
 - Cursor safeStorage v1/v10 仅在 macOS 查询已有 `Cursor Safe Storage` / `Cursor Key` 项；二元组已在本机 Cursor 3.27.14 对照，不把上游 Electron 的默认账户名推断为 Cursor 定制发行事实。只调用固定 `/usr/bin/security find-generic-password -s "Cursor Safe Storage" -a "Cursor Key" -w`；参数不含秘密，标准输出上限1KiB，预算最多8秒，取消/超时回收owned进程，不通过Shell、不创建或修改系统秘密。
+- Windows 仅读取同一 `%APPDATA%/Cursor` 用户数据根下有界的 `Local State`，解析 `os_crypt.encrypted_key`，以禁止交互的本用户 DPAPI 解包 AES-256-GCM 密钥；复制完成后清零并释放系统缓冲，不创建 detached 阻塞任务。OS 内部调用不能强制中断，调用前后均检查取消和预算，取消或过期结果不会发往上游。Linux 仅对真实 v11 包装经 PATH 中的 `secret-tool lookup application cursor` 查询既有 Secret Service 条目，以一轮 PBKDF2-SHA1/AES-CBC 解密；v10 固定密码降级及 KWallet 原生后端仍保持锁定。两平台均不写入登录态或系统密钥环（change_id：`LMDESK-CURSOR-KEYRING-BACKENDS-001`；required_version：`0.13.0`）。
 - 密文格式、系统 AES 解密和严格 PKCS7/UTF-8/会话校验全部成功后才能请求上游。明文密钥和令牌只用于当前读取，不记录进程标准输出/错误、不写文件。系统拒绝、未知格式或未实现的平台后端保持不可用；不读其它钥匙串、不修改ACL、不刷新登录。
 - 窗口类型和比例继续由 core 解释。桌面与终端共用同一非敏感额度投影；Cursor 账户 Token 查询复用同一登录读取，但仍只访问自身固定分页入口。共享池的两个提供商卡不汇总成额外额度。
 
 ## 手动检查更新
 
-用户于2026-11-05批准在公共设置加入"检查更新"按钮（change_id：`LMDESK-UPDATE-CHECK-001`；required_version：`0.13.0`）。仅在用户点击时向固定 `https://api.github.com/repos/ManonLoki/LokiMetis/releases/latest` 发出一次只读 GET：curl 8 秒预算、64KiB 响应上限、不接受重定向，请求只含 User-Agent 与 Accept 头，无凭据、无正文、无遥测。没有自动轮询、定时器或启动检查；应用其余路径保持零出站。响应只解析 `tag_name` 的三段产品标签并与当前构建比较：已是最新或发现新版本在按钮下方展示，发现新版本附 `https://github.com/ManonLoki/LokiMetis/releases/latest` 页面地址，由用户自行前往；比较失败、超时或畸形响应显示检查失败，不安装、不下载、不修改任何文件。
+用户于2026-11-05批准在公共设置加入"检查更新"按钮（change_id：`LMDESK-UPDATE-CHECK-001`；required_version：`0.13.0`）。仅在用户点击时向固定 `https://api.github.com/repos/ManonLoki/LokiMetis/releases/latest` 发出一次只读 GET：从 PATH 发现平台对应 curl，禁用用户 curl 默认配置，8 秒预算、64KiB 响应上限、不接受重定向，请求只含 User-Agent 与 Accept 头，无凭据、无正文、无遥测。没有自动轮询、定时器或启动检查；应用其余路径保持零出站。仅接受 HTTP 200；响应只解析 `tag_name` 的三段产品标签（含正式 `v版本-YYYYMMDD` 日期后缀）并与当前构建比较：已是最新或发现新版本在按钮下方展示，发现新版本附 `https://github.com/ManonLoki/LokiMetis/releases/latest` 页面地址，由用户自行前往；比较失败、超时或畸形响应显示检查失败，不安装、不下载、不修改任何文件。

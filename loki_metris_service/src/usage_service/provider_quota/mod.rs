@@ -2,6 +2,8 @@
 
 pub(super) mod credentials;
 mod cursor_safe_storage;
+#[cfg(any(target_os = "windows", test))]
+mod cursor_windows_storage;
 mod cursor_dashboard;
 mod cursor_state;
 pub(super) mod fetch;

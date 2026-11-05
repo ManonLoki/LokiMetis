@@ -147,6 +147,11 @@
       "change_id": "LMDESK-CURSOR-KEYRING-BACKENDS-001",
       "kind": "feature",
       "required_version": "0.13.0"
+    },
+    {
+      "change_id": "LMDESK-UPDATE-CHECK-001",
+      "kind": "feature",
+      "required_version": "0.13.0"
     }
   ],
   "schema_version": 1,

@@ -35,7 +35,7 @@ fn for_terminal_keeps_weekly_only_and_clears_failed_cards() {
 }
 
 /// 为夹具构造隔离的凭据目录布局。
-fn layout(home: PathBuf) -> HomeLayout {
+pub(super) fn layout(home: PathBuf) -> HomeLayout {
     HomeLayout { home, codex_home: None, grok_home: None, app_data: None, claude_record: None }
 }
 
