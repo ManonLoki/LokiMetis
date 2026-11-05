@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "7eb5d36cfe2bb051cc0b6b948af01a4ea3631758",
-  "version": "0.12.0",
-  "releaseDate": "2026-11-03",
-  "expectedTag": "v0.12.0-20261103",
+  "sourceHead": "f5157d1902cfff060e2146b41cdd5d50ac7e3aff",
+  "version": "0.13.0",
+  "releaseDate": "2026-11-05",
+  "expectedTag": "v0.13.0-20261105",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "d03675b96a3f2f4793c11103c6453299af25d3ed",
-    "sourceHead": "7eb5d36cfe2bb051cc0b6b948af01a4ea3631758",
-    "scopeDiffSha256": "1ae7a3c93df3970f3508081a302e2200a3062e881cdb7da760710fb04c2781c2",
-    "reviewedSourceCommit": "7eb5d36cfe2bb051cc0b6b948af01a4ea3631758",
+    "scopeBase": "a0d767d6c8eca39f5076a91f8066eb1c70cce935",
+    "sourceHead": "f5157d1902cfff060e2146b41cdd5d50ac7e3aff",
+    "scopeDiffSha256": "6c0b15fa625e3b3e2217249ed461e181b1ea60aea4f7dd17e7052ee5763694cd",
+    "reviewedSourceCommit": "f5157d1902cfff060e2146b41cdd5d50ac7e3aff",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "以远端实际0.11.0发布提交d03675b为基线，对7eb5d36累计差异完成五项审查。行为：工作区全目标全特性1828项、独立GPUI540项（2项原上游计时基准忽略）、Node33项、生成器5项及工程校验通过；本机测试以SHA256等字节复制至规范临时路径执行，保留全部断言和超时。Core/adapter：业务与设备协议未改，原生渲染和资源适配归属清晰。对外契约：GPUI Kit0.9.0/GPUI0.3.11五包严格来源、生成摘要及跨后端图元ABI匹配，Metal完成期保活、按需帧和FontKey/CTRun身份边界保留。职责规模及临时标记检查通过；设备fallback已精确嵌入并有真实Metal图示回归。两份产品许可证及上游许可/OFL完整保留。Windows/Linux原生与最终产物运行不属于本机已验证范围。",
+    "evidenceSummary": "已审查0.12.0以来累计行为、core/adapter边界、外部契约、职责规模与临时标记；1841项全工作区测试及真实Metal回归、工程三项检查通过，Windows测试目标交叉编译通过。更新查询的取消/固定地址/重定向/日期标签及DPAPI内存所有权、Linux v11已修正并覆盖回归。Windows/Linux真实账户与移动真机联动未验证，E2E在候选阶段按本次选择关闭。",
     "reason": null,
     "remainingRisk": null
   }
