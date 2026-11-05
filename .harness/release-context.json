@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "f5157d1902cfff060e2146b41cdd5d50ac7e3aff",
-  "version": "0.13.0",
+  "sourceHead": "d3b8a96e047b992b0e2e6bec646f266d7417e287",
+  "version": "0.13.1",
   "releaseDate": "2026-11-05",
-  "expectedTag": "v0.13.0-20261105",
+  "expectedTag": "v0.13.1-20261105",
   "defaultBranch": "main",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "a0d767d6c8eca39f5076a91f8066eb1c70cce935",
-    "sourceHead": "f5157d1902cfff060e2146b41cdd5d50ac7e3aff",
-    "scopeDiffSha256": "6c0b15fa625e3b3e2217249ed461e181b1ea60aea4f7dd17e7052ee5763694cd",
-    "reviewedSourceCommit": "f5157d1902cfff060e2146b41cdd5d50ac7e3aff",
+    "scopeBase": "de44d7f016b0aa7d3646f5f51139a12bd0b67874",
+    "sourceHead": "d3b8a96e047b992b0e2e6bec646f266d7417e287",
+    "scopeDiffSha256": "87bc2d495bf178947269bc3270d38fe7329d25e35f8d557eae9e372dc16abb59",
+    "reviewedSourceCommit": "d3b8a96e047b992b0e2e6bec646f266d7417e287",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已审查0.12.0以来累计行为、core/adapter边界、外部契约、职责规模与临时标记；1841项全工作区测试及真实Metal回归、工程三项检查通过，Windows测试目标交叉编译通过。更新查询的取消/固定地址/重定向/日期标签及DPAPI内存所有权、Linux v11已修正并覆盖回归。Windows/Linux真实账户与移动真机联动未验证，E2E在候选阶段按本次选择关闭。",
+    "evidenceSummary": "已复审0.13.0以来行为、core/adapter边界、外部契约、职责规模与临时标记。生产解密与凭据规则不变；共享GCM/凭据长度回归两项通过，Windows测试目标交叉编译通过。用户明确批准仅本次维护以稳定事件映射Patch，ADR完整承接及链接校验通过，版本由helper管理，旧tag和失败证据保留。原生Windows重新执行及本版各平台候选仍由独立构建证明。",
     "reason": null,
     "remainingRisk": null
   }
