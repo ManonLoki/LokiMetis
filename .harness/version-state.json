@@ -131,29 +131,13 @@
       "required_version": "0.5.0"
     }
   ],
-  "cycle_base_version": "0.12.0",
-  "feature_bump_applied": true,
+  "cycle_base_version": "0.13.0",
+  "feature_bump_applied": false,
   "last_release": {
-    "source_commit": "a0d767d6c8eca39f5076a91f8066eb1c70cce935",
-    "version": "0.12.0"
+    "source_commit": "de44d7f016b0aa7d3646f5f51139a12bd0b67874",
+    "version": "0.13.0"
   },
-  "pending_changes": [
-    {
-      "change_id": "LMDESK-TERMINAL-PET-PANEL-RULE-001",
-      "kind": "bug-fix",
-      "required_version": "0.12.1"
-    },
-    {
-      "change_id": "LMDESK-CURSOR-KEYRING-BACKENDS-001",
-      "kind": "feature",
-      "required_version": "0.13.0"
-    },
-    {
-      "change_id": "LMDESK-UPDATE-CHECK-001",
-      "kind": "feature",
-      "required_version": "0.13.0"
-    }
-  ],
+  "pending_changes": [],
   "schema_version": 1,
   "target_version": "0.13.0"
 }

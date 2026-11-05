@@ -121,6 +121,31 @@ pub(super) fn decrypt_windows(cipher: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::credentials::Secret;
+
+    /// 同时覆盖可解密的短明文、凭据下界和不同的非块对齐长度。
+    const PLAINTEXT_LENGTHS: [usize; 8] = [1, 7, 8, 13, 16, 17, 32, 49];
+
+    /// 生成相同的真实GCM包装供纯逻辑与Windows DPAPI完整路径复用。
+    fn token_fixture(plain: &str, key: &[u8; 32]) -> Secret {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use aes_gcm::{Aes256Gcm, Nonce, aead::{Aead, KeyInit}};
+        let nonce = [9_u8; 12];
+        let sealed = Aes256Gcm::new(key.into()).encrypt(Nonce::from_slice(&nonce), plain.as_bytes()).expect("seal fixture");
+        Secret::new(format!("cursor-safe-storage:v1:{}", STANDARD.encode([b"v10".as_slice(), &nonce, &sealed].concat()))).expect("wrapped token")
+    }
+
+    /// GCM可解单字节不代表它是合法凭据；跨平台提前验证同一组Windows用例边界。
+    #[test]
+    fn windows_gcm_plaintext_and_credential_bounds_are_distinct() {
+        let key = [7_u8; 32];
+        for length in PLAINTEXT_LENGTHS {
+            let plain = "a".repeat(length);
+            let cipher = super::super::cursor_safe_storage::unwrap_cipher(&token_fixture(&plain, &key), b"v10").expect("cipher envelope");
+            assert_eq!(decrypt_windows(&cipher, &key).expect("GCM plaintext"), plain.as_bytes());
+            assert_eq!(Secret::new(&plain).is_some(), length >= 8, "credential length {length}");
+        }
+    }
 
     /// 本机目录锚点与官方 Local State 字段一致，旧错误字段及空包装均拒绝。
     #[test]
@@ -139,7 +164,6 @@ mod tests {
     #[tokio::test]
     async fn windows_dpapi_and_local_state_decode_complete_wrapped_tokens() {
         use base64::{Engine as _, engine::general_purpose::STANDARD};
-        use aes_gcm::{Aes256Gcm, Nonce, aead::{Aead, KeyInit}};
         use windows::Win32::Security::Cryptography::{CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData};
         let key = [7_u8; 32];
         let input = CRYPT_INTEGER_BLOB { cbData: 32, pbData: key.as_ptr().cast_mut() };
@@ -156,12 +180,14 @@ mod tests {
         let wrapped = STANDARD.encode([b"DPAPI".as_slice(), &protected].concat());
         std::fs::write(local_state_path(&layout), serde_json::json!({"os_crypt": {"encrypted_key": wrapped}}).to_string()).expect("Local State");
         let (_sender, mut cancel) = tokio::sync::watch::channel(false);
-        for length in [1, 13, 16, 17, 32, 49] {
+        for length in PLAINTEXT_LENGTHS {
             let plain = "a".repeat(length);
-            let nonce = [9_u8; 12];
-            let sealed = Aes256Gcm::new((&key).into()).encrypt(Nonce::from_slice(&nonce), plain.as_bytes()).expect("seal");
-            let token = Secret::new(format!("cursor-safe-storage:v1:{}", STANDARD.encode([b"v10".as_slice(), &nonce, &sealed].concat()))).expect("wrapped token");
-            assert_eq!(decode(token, &layout, CurlLimits::production(), &mut cancel).await.expect("decoded token").expose(), plain);
+            let result = decode(token_fixture(&plain, &key), &layout, CurlLimits::production(), &mut cancel).await;
+            if length < 8 {
+                assert!(matches!(result, Err(QuotaFailure::Malformed)), "short credentials stay rejected");
+            } else {
+                assert_eq!(result.expect("decoded token").expose(), plain);
+            }
         }
     }
 }
