@@ -103,7 +103,8 @@
     "LMWIN-UNINSTALL-AUTOSTART-FLAG-001",
     "LMDESK-TODAY-UNREADY-AGENT-TOTAL-001",
     "LMDESK-DEVICE-FALLBACK-ASSET-001",
-    "LMDESK-TERMINAL-PET-PANEL-RULE-001"
+    "LMDESK-TERMINAL-PET-PANEL-RULE-001",
+    "LMDESK-RELEASE-WINDOWS-TOKEN-TEST-EXCEPTION-20261105"
   ],
   "applied_reconciliations": [
     {
@@ -137,7 +138,13 @@
     "source_commit": "de44d7f016b0aa7d3646f5f51139a12bd0b67874",
     "version": "0.13.0"
   },
-  "pending_changes": [],
+  "pending_changes": [
+    {
+      "change_id": "LMDESK-RELEASE-WINDOWS-TOKEN-TEST-EXCEPTION-20261105",
+      "kind": "bug-fix",
+      "required_version": "0.13.1"
+    }
+  ],
   "schema_version": 1,
-  "target_version": "0.13.0"
+  "target_version": "0.13.1"
 }

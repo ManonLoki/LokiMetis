@@ -23,7 +23,7 @@ Cursor账户Token入口由用户于2026-10-22批准，change_id：`LMDESK-CURSOR
 
 ## Cursor联名套餐与加密登录态
 
-用户于2026-10-27明确批准兼容 Grok + Cursor，并允许读取对应 macOS 钥匙串项及验证官方额度。change_id：`LMDESK-CURSOR-GROK-SHARED-QUOTA-001`；分类：feature；required_version：`0.10.0`；决定见[ADR-20261027-001](adr/20261028_ADR.md#adr-20261027-001cursor-联名套餐采用官方周期与受限系统解密)。
+用户于2026-10-27明确批准兼容 Grok + Cursor，并允许读取对应 macOS 钥匙串项及验证官方额度。change_id：`LMDESK-CURSOR-GROK-SHARED-QUOTA-001`；分类：feature；required_version：`0.10.0`；决定见[ADR-20261027-001](adr/20261105_ADR.md#adr-20261027-001cursor-联名套餐采用官方周期与受限系统解密)。
 
 - 新额度入口固定为只读 POST `https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo` 和 `https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage`，正文固定 `{}`，认证只进入 curl 标准输入的 Bearer 头。单次仍为15秒/256KiB，不接受重定向。仅套餐入口返回404/405/501时回退固定 `https://cursor.com/api/usage-summary`。
 - Cursor safeStorage v1/v10 仅在 macOS 查询已有 `Cursor Safe Storage` / `Cursor Key` 项；二元组已在本机 Cursor 3.27.14 对照，不把上游 Electron 的默认账户名推断为 Cursor 定制发行事实。只调用固定 `/usr/bin/security find-generic-password -s "Cursor Safe Storage" -a "Cursor Key" -w`；参数不含秘密，标准输出上限1KiB，预算最多8秒，取消/超时回收owned进程，不通过Shell、不创建或修改系统秘密。
